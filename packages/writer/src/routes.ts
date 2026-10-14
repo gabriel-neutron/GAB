@@ -3,7 +3,7 @@ import { LARGEST_UPLOAD_BODY } from '@gab/proposal/upload-limit';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 
-import { admitOwnSiteJson } from './admission.ts';
+import { admitOperatorJson } from './admission.ts';
 import { decideAuthorName, readAuthorNames } from './author-names.ts';
 import { decide } from './decide.ts';
 import { documentJobs, queueExtraction } from './extraction.ts';
@@ -55,10 +55,15 @@ const capped = (maxSize: number) =>
  * that joined an author A or B, the pairs of vessels with one IMO number, and the merge
  * candidates across a Latin and a Cyrillic spelling. The public
  * read never shows any of them. */
-export const writeRoutes = (pool: Sessions, store: ObjectDoor, reader: ObjectReader): Hono => {
+export const writeRoutes = (
+  pool: Sessions,
+  store: ObjectDoor,
+  reader: ObjectReader,
+  operatorKey: string,
+): Hono => {
   const app = new Hono();
-  app.use('/write/*', admitOwnSiteJson());
-  app.use('/private/*', admitOwnSiteJson());
+  app.use('/write/*', admitOperatorJson(operatorKey));
+  app.use('/private/*', admitOperatorJson(operatorKey));
 
   // A unit of the queue holds its cited passages and the reason of each dispute, so the queue
   // reaches the review page through the writer, one page at a time.
@@ -182,8 +187,8 @@ export const writeRoutes = (pool: Sessions, store: ObjectDoor, reader: ObjectRea
     return context.json(act.reply, STATUS[act.outcome]);
   });
 
-  // Departure: a read on a POST. The status is private to the operator, and the admission of a
-  // JSON body from this site is the one guard the writer holds.
+  // Departure: a read on a POST. The status is private to the operator, and the site check and the
+  // key check of the operator are the guards the writer holds.
   app.post('/write/document-jobs', capped(LARGEST_BODY_BYTES), async (context) => {
     const act = await documentJobs(pool, await context.req.text());
     return context.json(act.reply, STATUS[act.outcome]);

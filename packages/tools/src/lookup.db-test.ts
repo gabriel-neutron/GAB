@@ -35,7 +35,7 @@ const row = z.object({ kind: z.string(), uri: z.string(), mime: z.string(), page
 
 test('the record of an LEI is stored once as an api document', async () => {
   const store = memoryStore();
-  const reach = { store, web, now: () => new Date('2026-10-05T10:00:00Z') };
+  const reach = { store, web, now: () => new Date() };
   await rolledBack('research', async (ask) => {
     const first = await callTool(gleifLookup, sessionOf(ask), { lei: LEI }, reach);
     expect(first).toMatchObject({ ok: true, output: { record: { status: 'stored' } } });

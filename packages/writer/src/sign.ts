@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { readBody } from './body.ts';
 import { DECIDED_BY } from './decision.ts';
 import type { Sessions } from './pool.ts';
-import { refused, runStatement, type DoorAct } from './statement.ts';
+import { refused, runStatement, unreadAnswer, type DoorAct } from './statement.ts';
 
 const objectBody = z.record(z.string(), z.unknown());
 
@@ -51,9 +51,10 @@ export const sign = async (
   ]);
   if (answer.outcome !== 'answered') return answer;
 
-  const row = signedRow.parse(answer.rows[0]);
+  const row = signedRow.safeParse(answer.rows[0]);
+  if (!row.success) return unreadAnswer;
   return {
     outcome: 'done',
-    reply: { proposalId: row.proposal_id, targetId: row.target_id, state: 'signed' },
+    reply: { proposalId: row.data.proposal_id, targetId: row.data.target_id, state: 'signed' },
   };
 };

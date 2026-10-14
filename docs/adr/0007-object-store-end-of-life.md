@@ -18,7 +18,7 @@ One file in `infra/` holds the accounts and their policies. It holds no key: eac
 environment.
 
 - **The application** can put an object and list the bucket. It cannot read back, delete or change
-  a policy. A raw file is evidence, so the application never removes or replaces one.
+  a policy. A raw file is evidence, so the application never removes or replaces one. A put of the same bytes on the key of their hash, with the type of the row, restores a lost copy and changes no evidence.
 - **The research role** can only put an object.
 - **The reader** can only read an object. Only the writer holds it, to show a stored image to the
   operator on the review page. The application account still cannot read back.

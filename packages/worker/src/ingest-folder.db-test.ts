@@ -145,7 +145,8 @@ test('the run stores three documents, reports one known, and names the scan and 
   const files = await expandPaths([folder], WALK);
   const outcomes = await ingestFiles(door, files, OPTIONS);
   expect(outcomes.map((o) => o.status)).toStrictEqual(['stored', 'stored', 'known', 'stored']);
-  expect(puts).toHaveLength(3);
+  // The known file writes its object again on the same key, so it adds a fourth put.
+  expect(puts).toHaveLength(4);
   // One text row for each page: 2 + 3 + 2.
   expect(await rowCounts()).toStrictEqual([3, 7, 3]);
 

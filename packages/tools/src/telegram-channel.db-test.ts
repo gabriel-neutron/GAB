@@ -8,7 +8,7 @@ import { z } from 'zod';
 
 import { rolledBack, type Ask } from '../../../tools/probe.ts';
 import { CATALOGUE } from './catalogue.ts';
-import { fixtureReach, memoryStore } from './fetch-fixture.ts';
+import { FETCH_DAY, fixtureReach, memoryStore } from './fetch-fixture.ts';
 import {
   LINK_POST,
   NO_CHANNEL_PAGE,
@@ -117,7 +117,7 @@ test('a read of the newest posts stores each post once, and a second read return
         kind: 'url',
         uri: `https://t.me/${HANDLE}/2042`,
         mime: 'application/json',
-        retrieved_at: '2026-10-05',
+        retrieved_at: FETCH_DAY.toISOString().slice(0, 10),
         text: photo?.text,
       },
     ]);

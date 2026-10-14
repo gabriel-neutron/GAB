@@ -95,7 +95,8 @@ export const memoryStore = (): { put(object: RawObject): Promise<string>; puts: 
   };
 };
 
-export const FETCH_DAY = new Date('2026-10-05T10:00:00Z');
+// The door of a fetched document accepts only today or yesterday, so the fixture reads on the real day.
+export const FETCH_DAY = new Date();
 
 /** The reach of a test that may open the fixture, and no other address of the machine. */
 export const fixtureReach = (store: NonNullable<Reach['store']>): Reach => ({

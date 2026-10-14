@@ -111,7 +111,8 @@ export const AFileOverTheCapIsRefused: Story = {
   },
 };
 
-// The same bytes are one document. The answer names the row that holds them, and writes nothing.
+// The same bytes are one document. The answer names the row that holds them, and the record did
+// not change.
 export const AKnownFileNamesItsDocument: Story = {
   play: async () => {
     doorAnswering({ state: 'known', documentId: KNOWN_ID, emptyPages: [] });
@@ -122,10 +123,29 @@ export const AKnownFileNamesItsDocument: Story = {
 
     await waitFor(async () => {
       await expect(uploadLine()).toHaveTextContent(
-        `The file is already in the record as document ${KNOWN_ID}.`,
+        `The file is already in the record as document ${KNOWN_ID}, with this address. The record did not change.`,
       );
     });
     await expect(onStored).not.toHaveBeenCalled();
+  },
+};
+
+// The row of the same bytes had no address. The upload gave it one, so the search page reads the
+// corpus again.
+export const AKnownFileTakesItsAddress: Story = {
+  play: async () => {
+    doorAnswering({ state: 'filled', documentId: KNOWN_ID, emptyPages: [] });
+    onStored.mockClear();
+    await openIt();
+    await fillAll(filing());
+    await userEvent.click(panel().getByRole('button', { name: 'Upload' }));
+
+    await waitFor(async () => {
+      await expect(uploadLine()).toHaveTextContent(
+        `The file is already in the record as document ${KNOWN_ID}. The record now holds the address where it comes from.`,
+      );
+    });
+    await expect(onStored).toHaveBeenCalledTimes(1);
   },
 };
 

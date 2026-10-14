@@ -7,6 +7,7 @@ import { Pool } from 'pg';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { OPERATOR, TEST_OPERATOR_KEY } from './operator-fixture.ts';
 import { openPool, roleAddress } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
@@ -14,7 +15,12 @@ const pool = openPool();
 const store = openStore();
 // No door under test reads an object back, so this one refuses every read.
 const NO_READ = { read: () => Promise.reject(new Error('no door under test reads the raw store')) };
-const app = writeRoutes(pool, { put: (object) => putObject(store, object) }, NO_READ);
+const app = writeRoutes(
+  pool,
+  { put: (object) => putObject(store, object) },
+  NO_READ,
+  TEST_OPERATOR_KEY,
+);
 
 // Departure: the suite reads the private tables as the owner of the database, because no api
 // view shows the text or the object key.
@@ -34,7 +40,7 @@ afterAll(async () => {
   store.client.destroy();
 });
 
-const OWN = { host: '127.0.0.1:5177', 'content-type': 'application/json' };
+const OWN = { ...OPERATOR, host: '127.0.0.1:5177', 'content-type': 'application/json' };
 
 const replyShape = z.object({
   state: z.string().optional(),
@@ -196,9 +202,82 @@ test('the same bytes again with an address fill the address of an older upload',
   const page = 'https://example.org/annual-return';
   expect(await send(requestOf(bytes, { ...free, uri: page }))).toStrictEqual([
     200,
-    { state: 'known', documentId: id, emptyPages: [] },
+    { state: 'filled', documentId: id, emptyPages: [] },
   ]);
   expect(await addressOf(id)).toStrictEqual({ uri: page, open: true });
+});
+
+// Only a file takes an address. The kind `report` is the smallest other kind of a row with bytes.
+test('the same bytes again with an address are refused when the document is not a file', async () => {
+  const bytes = freshText();
+  const id = `doc_${hashOf(bytes).slice(0, 12)}`;
+  written.push(id);
+  const free = { providerId: undefined, costEur: undefined };
+  expect((await send(requestOf(bytes, free)))[0]).toBe(200);
+  await owner.query("UPDATE public.documents SET kind = 'report', uri = NULL WHERE id = $1", [id]);
+
+  const [status, reply] = await send(requestOf(bytes, free));
+  expect(status).toBe(422);
+  expect(reply.refusal).toMatch(/not a file/u);
+  expect(await addressOf(id)).toStrictEqual({ uri: null, open: false });
+});
+
+// The recording door keeps each key that the writer puts, and it still writes the object.
+const recordingApp = () => {
+  const puts: string[] = [];
+  const recording = writeRoutes(
+    pool,
+    {
+      put: (object) => {
+        puts.push(object.key);
+        return putObject(store, object);
+      },
+    },
+    NO_READ,
+    TEST_OPERATOR_KEY,
+  );
+  const sendTo = async (body: string): Promise<number> =>
+    (
+      await recording.request('/write/upload-document', {
+        method: 'POST',
+        headers: OWN,
+        body,
+      })
+    ).status;
+  return { puts, sendTo };
+};
+
+test('a known file restores its stored copy', async () => {
+  const { puts, sendTo } = recordingApp();
+  const bytes = freshText();
+  const sha256 = hashOf(bytes);
+  written.push(`doc_${sha256.slice(0, 12)}`);
+
+  expect(await sendTo(requestOf(bytes))).toBe(200);
+  puts.length = 0;
+  // The writer package holds no admin client of the store, so the test proves the put and does
+  // not delete the object first.
+  expect(await sendTo(requestOf(bytes))).toBe(200);
+  expect(puts).toStrictEqual([`raw/${sha256}`]);
+});
+
+test('a refused known upload writes no object', async () => {
+  const { puts, sendTo } = recordingApp();
+  const free = { providerId: undefined, costEur: undefined };
+  const refused = [
+    ["UPDATE public.documents SET kind = 'report', uri = NULL WHERE id = $1", free],
+    [undefined, { ...free, uri: 'https://example.org/other' }],
+  ] as const;
+  for (const [change, fields] of refused) {
+    const bytes = freshText();
+    const id = `doc_${hashOf(bytes).slice(0, 12)}`;
+    written.push(id);
+    expect(await sendTo(requestOf(bytes, free))).toBe(200);
+    if (change !== undefined) await owner.query(change, [id]);
+    puts.length = 0;
+    expect(await sendTo(requestOf(bytes, fields))).toBe(422);
+    expect(puts).toStrictEqual([]);
+  }
 });
 
 test('the same bytes again with another address are refused, and the address stays', async () => {

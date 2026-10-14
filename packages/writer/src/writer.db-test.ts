@@ -4,6 +4,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { OPERATOR, TEST_OPERATOR_KEY } from './operator-fixture.ts';
 import { openPool, roleAddress } from './pool.ts';
 import { writeRoutes } from './routes.ts';
 
@@ -11,7 +12,7 @@ const pool = openPool();
 // An act door never reaches the raw store, so these two doors refuse every object.
 const NO_STORE = { put: () => Promise.reject(new Error('no act door reaches the raw store')) };
 const NO_READ = { read: () => Promise.reject(new Error('no act door reads the raw store')) };
-const app = writeRoutes(pool, NO_STORE, NO_READ);
+const app = writeRoutes(pool, NO_STORE, NO_READ, TEST_OPERATOR_KEY);
 
 interface Held {
   readonly entities: number;
@@ -53,7 +54,7 @@ type Reply = z.infer<typeof replyShape>;
 const post = async (door: string, body: unknown): Promise<[number, Reply]> => {
   const answer = await app.request(`/write/${door}`, {
     method: 'POST',
-    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
+    headers: { ...OPERATOR, host: '127.0.0.1:5177', 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
   return [answer.status, replyShape.parse(await answer.json())];
@@ -1049,6 +1050,7 @@ const askUnitsFrom = (body: unknown, origin?: string) =>
   app.request('/private/review-units', {
     method: 'POST',
     headers: {
+      ...OPERATOR,
       host: '127.0.0.1:5177',
       'content-type': 'application/json',
       ...(origin === undefined ? {} : { origin }),
@@ -1144,7 +1146,7 @@ test('the writer gives the page of the queue as the record gives it, with the co
 test('the read of the queue refuses a page larger than the writer reads', async () => {
   const answer = await app.request('/private/review-units', {
     method: 'POST',
-    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
+    headers: { ...OPERATOR, host: '127.0.0.1:5177', 'content-type': 'application/json' },
     body: JSON.stringify({ after: null, size: 201 }),
   });
   expect(answer.status).toBe(422);
@@ -1662,7 +1664,7 @@ const pairsShape = z.object({
 const imoPairs = async (imo: string) => {
   const answer = await app.request('/private/imo-pairs', {
     method: 'POST',
-    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
+    headers: { ...OPERATOR, host: '127.0.0.1:5177', 'content-type': 'application/json' },
     body: '{}',
   });
   expect(answer.status).toBe(200);
@@ -1725,7 +1727,7 @@ const candidatesShape = z.object({
 const askWriter = async (path: string, body: unknown): Promise<[number, unknown]> => {
   const answer = await app.request(path, {
     method: 'POST',
-    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
+    headers: { ...OPERATOR, host: '127.0.0.1:5177', 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
   return [answer.status, await answer.json()];

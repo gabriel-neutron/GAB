@@ -16,6 +16,8 @@ const URL = 'https://example.org/server-report';
 const TITLE = 'A report of the server test';
 
 const STORE = 'SELECT public.put_fetched_document($1, $2, $3, $4, $5, $6, $7::date, $8) AS id';
+// The door of a fetched document accepts only today or yesterday.
+const TODAY = new Date().toISOString().slice(0, 10);
 
 const WRITE_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3) AS pages';
 
@@ -72,7 +74,7 @@ const outputOf = (called: Called): unknown => {
 };
 
 const withDocument = async (ask: Ask): Promise<void> => {
-  await ask(STORE, ['url', TITLE, `raw/${SHA}`, URL, SHA, 'application/pdf', '2026-09-02', null]);
+  await ask(STORE, ['url', TITLE, `raw/${SHA}`, URL, SHA, 'application/pdf', TODAY, null]);
   await ask(WRITE_TEXT, [DOC, JSON.stringify([PAGE]), 'server-test-1']);
 };
 

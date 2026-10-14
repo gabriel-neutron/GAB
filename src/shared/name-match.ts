@@ -1,2 +1,4 @@
+import { folded } from './text-fold';
+
 export const nameHoldsQuery = (name: string, query: string): boolean =>
-  name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
+  folded(name).includes(folded(query));

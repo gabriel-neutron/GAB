@@ -87,7 +87,7 @@ const reachOf = (): Reach => ({
 });
 
 const STORE_KNOWN = `SELECT public.put_fetched_document('url', 'A known register', $1, $2, $3,
-  'text/html', '2026-10-01'::date)::text AS id`;
+  'text/html', (clock_timestamp() AT TIME ZONE 'UTC')::date)::text AS id`;
 
 const START = 'SELECT public.start_lead($1)::text AS id';
 const OLDEST = "UPDATE public.jobs SET created_at = '1970-01-01' WHERE id = $1";

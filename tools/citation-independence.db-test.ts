@@ -5,7 +5,7 @@
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { as, cited, join, label, rate, reference, type Source } from './author-fixture.ts';
+import { cited, join, label, rate, reference, type Source } from './author-fixture.ts';
 import { rolledBack, type Ask } from './probe.ts';
 
 const PASSAGE_ONE = 'The fifty seventh brigade now holds the eastern bank of the river.';
@@ -14,11 +14,7 @@ const PASSAGE_TWO = 'Satellite images show the unit near the town since early sp
 const independent = async (ask: Ask, a: string, b: string): Promise<boolean> => {
   const [one] = z
     .array(z.object({ yes: z.boolean() }))
-    .parse(
-      await as(ask, 'gabriel_app', () =>
-        ask('SELECT public.citations_independent($1::uuid, $2::uuid) AS yes', [a, b]),
-      ),
-    );
+    .parse(await ask('SELECT public.citations_independent($1::uuid, $2::uuid) AS yes', [a, b]));
   if (one === undefined) throw new Error('no answer');
   return one.yes;
 };
