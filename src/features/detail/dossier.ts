@@ -1,5 +1,6 @@
 /** A router loader returns these shapes, so they carry arrays and no `Map`. */
 
+import { shareWords } from '@gab/proposal/share';
 import { positionFromWords, relationLines } from '@/shared/canvas-label';
 import { proposerWords } from '@/shared/proposer-words';
 import type { DecidedAct } from '@/shared/read/decided-acts';
@@ -59,6 +60,9 @@ export interface RelationLine {
   readonly interval: string | null;
   /** The mark of an M4 relation comes from the relation, never from the list. */
   readonly undrawable: boolean;
+  /** The share of an ownership link in words, with the mark of a share that GEM estimated.
+   * `null` where the relation holds no share. */
+  readonly share: string | null;
   readonly sources: readonly SourceRef[];
 }
 
@@ -316,6 +320,7 @@ export function readDossier(
     // The mark comes from the relation and never from the list it is placed in: a relation can
     // be direct and invisible at once.
     undrawable: relation.srcKind === 'relation' || relation.dstKind === 'relation',
+    share: shareWords(relation.attrs),
     sources: refsOf(relation.sources),
   }));
 
@@ -363,9 +368,11 @@ export function readDossier(
       const head =
         proposal.payload.kind === 'close'
           ? `Closes the relation on ${proposal.payload.valid_to}`
-          : proposal.payload.kind === 'retype' && held !== undefined
-            ? `Changes the type of the relation from ${held.type} to ${proposal.payload.type}`
-            : OP_WORDS[proposal.op];
+          : proposal.payload.kind === 'start'
+            ? `Starts the relation on ${proposal.payload.valid_from}`
+            : proposal.payload.kind === 'retype' && held !== undefined
+              ? `Changes the type of the relation from ${held.type} to ${proposal.payload.type}`
+              : OP_WORDS[proposal.op];
       const keys = keysOf(proposal.payload);
       const body = keys.length === 0 ? head : `${head}: ${keys.join(', ')}`;
       return {
@@ -437,6 +444,8 @@ export interface RelationDossier {
   readonly sentence: string;
   /** M6, written at both ends. `null` where the relation carries no interval at all. */
   readonly interval: string | null;
+  /** The share of an ownership link in words, or `null` where the relation holds no share. */
+  readonly share: string | null;
   readonly sources: readonly SourceRef[];
   readonly cards: readonly SourceCardModel[];
 }
@@ -473,6 +482,7 @@ export function readRelation(read: Corpus, relationId: string): RelationDossier 
     ],
     sentence: `${from} ${type} ${to}`,
     interval: intervalWords(relation),
+    share: shareWords(relation.attrs),
     sources,
     cards,
   };

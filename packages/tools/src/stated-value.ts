@@ -55,31 +55,69 @@ const NUMERIC_DAY = /(?<![\d.,/-])(\d{1,4})([./-])(\d{1,2})\2(\d{1,4})(?![\d.,/-
 // Origin: decided. A day with dots, 05.03.2024, is day, month and year in each country that
 // writes it so (the EU, Russia). 03/04/2024 is the third of April in Europe and the fourth of
 // March in the United States, and the text does not say which: such a day states neither, so a
-// value with it is not stated. A part above 12 can only be the day.
-const numericDays = (first: string, mark: string, second: string, third: string): string[] => {
+// value with it is not stated. A part above 12 can only be the day. The FCDO UK Sanctions List
+// writes each date as day, month and year (ADR 0024), so a passage of it reads 03/04/2024 as
+// day/month.
+const numericDays = (
+  first: string,
+  mark: string,
+  second: string,
+  third: string,
+  dayFirst: boolean,
+): string[] => {
   if (first.length === 4) return [dayText(Number(first), Number(second), Number(third))];
   if (third.length !== 4) return [];
   const [one, two, year] = [Number(first), Number(second), Number(third)];
-  if (mark === '.') return [dayText(year, two, one)];
+  if (mark === '.' || (dayFirst && mark === '/')) return [dayText(year, two, one)];
   if (one > 12) return [dayText(year, two, one)];
   if (two > 12) return [dayText(year, one, two)];
   return one === two ? [dayText(year, one, one)] : [];
 };
 
+const isRealDay = (year: number, month: number, day: number): boolean => {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    year >= 1 &&
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+};
+
+// Origin: decided, not calibrated. A 29 February is at most eight years back, and a text speaks of
+// a day in the past few years.
+const MOST_YEARS_BACK = 8;
+
+// The year of a day that the text writes with no year: the latest year that puts the day on or
+// before the publication day. A text never speaks of a day to come. A day that some years lack
+// (29 February) takes the latest year that has it.
+const yearBefore = (day: number, month: number, published: string): number | null => {
+  const [year = 0] = published.split('-').map(Number);
+  for (let candidate = year; candidate > year - MOST_YEARS_BACK; candidate -= 1)
+    if (isRealDay(candidate, month, day) && dayText(candidate, month, day) <= published)
+      return candidate;
+  return null;
+};
+
 // The two days of a night that ends on the given day, or none when the year or the day is unknown.
 // The date is checked, so "31 червня" states nothing. A night that ends on 1 January starts on
-// 31 December of the previous year.
+// 31 December of the previous year. A year that the text writes always wins over the publication
+// day.
 const nightDays = (
   day: number,
   month: number | null,
   written: string | undefined,
   publishedOn: string | undefined,
 ): string[] => {
-  const year = written === undefined ? Number(publishedOn?.slice(0, 4)) : Number(written);
-  if (month === null || !Number.isInteger(year) || year < 1) return [];
+  if (month === null) return [];
+  const year =
+    written !== undefined
+      ? Number(written)
+      : publishedOn !== undefined && DAY.test(publishedOn)
+        ? yearBefore(day, month, publishedOn)
+        : null;
+  if (year === null || !isRealDay(year, month, day)) return [];
   const end = new Date(Date.UTC(year, month - 1, day));
-  if (end.getUTCFullYear() !== year || end.getUTCMonth() !== month - 1 || end.getUTCDate() !== day)
-    return [];
   const start = new Date(end.getTime() - 86_400_000);
   const text = (date: Date): string =>
     dayText(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
@@ -91,11 +129,13 @@ export interface StatedOptions {
   /** The day when the document was published, in the form of the record. A date with no year
    * takes its year from it. With no such day, a date with no year states nothing. */
   readonly publishedOn?: string | undefined;
+  /** Each passage comes from the FCDO UK Sanctions List, so a date with slashes is day/month. */
+  readonly dayFirst?: boolean | undefined;
 }
 
 /** Each day that a text states, in the form of the record. A day with two readings (03/04/2024)
  * states no day, because the text does not say which one it means. */
-const daysIn = (text: string, publishedOn: string | undefined): Set<string> => {
+const daysIn = (text: string, { publishedOn, dayFirst = false }: StatedOptions): Set<string> => {
   const found = new Set<string>();
   for (const [, day, word, written] of text.matchAll(NIGHT_DAY))
     for (const night of nightDays(Number(day), monthOf(word ?? ''), written, publishedOn))
@@ -109,7 +149,7 @@ const daysIn = (text: string, publishedOn: string | undefined): Set<string> => {
     if (month !== null) found.add(dayText(Number(year), month, Number(day)));
   }
   for (const [, first = '', mark = '', second = '', third = ''] of text.matchAll(NUMERIC_DAY))
-    for (const day of numericDays(first, mark, second, third)) found.add(day);
+    for (const day of numericDays(first, mark, second, third, dayFirst)) found.add(day);
   return found;
 };
 
@@ -218,7 +258,7 @@ const statesToken = (value: string, passage: string): boolean => {
   ).test(plainText(passage));
 };
 
-const stated = (value: Scalar, passage: string, publishedOn?: string): boolean => {
+const stated = (value: Scalar, passage: string, options: StatedOptions): boolean => {
   if (typeof value === 'boolean') {
     const words = wordsOf(passage);
     return YES_NO[value ? 'true' : 'false'].some((word) => words.includes(word));
@@ -227,7 +267,7 @@ const stated = (value: Scalar, passage: string, publishedOn?: string): boolean =
     return (value < 0 ? negativesIn(passage) : numbersIn(passage)).some((found) =>
       sameNumber(found, value),
     );
-  if (DAY.test(value) && daysIn(passage, publishedOn).has(value)) return true;
+  if (DAY.test(value) && daysIn(passage, options).has(value)) return true;
   if (statesWords(value, passage)) return true;
   if (statesToken(value, passage)) return true;
   const asNumber = readingsOf(value);
@@ -279,6 +319,82 @@ const valuesOf = (act: WriteRequest): ActValue[] => {
   }
 };
 
+const JURISDICTION_KEY = 'registration_jurisdiction';
+
+// The spellings of a registration jurisdiction in the sources, by ISO 3166-1 code. The record
+// holds the code. A source writes the name, so the code is stated by any of its spellings.
+export const JURISDICTION_SPELLINGS: Readonly<Record<string, readonly string[]>> = {
+  RU: ['RU', 'Russia', 'Russian Federation', 'Россия', 'Российская Федерация', 'РФ'],
+};
+
+const jurisdictionCode = (value: Scalar): string | null => {
+  if (typeof value !== 'string') return null;
+  const wanted = plainText(value).trim();
+  return (
+    Object.entries(JURISDICTION_SPELLINGS).find(([, names]) =>
+      names.some((name) => plainText(name) === wanted),
+    )?.[0] ?? null
+  );
+};
+
+/** The value of an identifier as the record holds it: a registration jurisdiction with a known
+ * spelling is its ISO 3166-1 code, and each other value stays as it is. */
+export const codedIdentifier = (key: string, value: string): string =>
+  key === JURISDICTION_KEY ? (jurisdictionCode(value) ?? value) : value;
+
+/** The act with each registration jurisdiction of an entity that has a known spelling written as
+ * its ISO 3166-1 code, so "Russia" and "Russian Federation" become "RU". The cited passage keeps
+ * the text of the source. A jurisdiction with no known spelling stays as it is, and a list keeps
+ * each code once, in its first place. */
+export const withCodedJurisdiction = <Act extends { readonly op: string }>(act: Act): Act => {
+  if (act.op !== 'create_entity' && act.op !== 'update_attrs') return act;
+  const { attrs, targetKind } = act as {
+    readonly attrs?: Readonly<Record<string, { readonly v: unknown }>>;
+    readonly targetKind?: string;
+  };
+  if (targetKind === 'relation') return act;
+  const held = attrs?.[JURISDICTION_KEY];
+  if (attrs === undefined || held === undefined) return act;
+  const coded = (one: unknown): unknown =>
+    typeof one === 'string' ? (jurisdictionCode(one) ?? one) : one;
+  const v = Array.isArray(held.v)
+    ? held.v.map(coded).filter((one, index, all) => all.indexOf(one) === index)
+    : coded(held.v);
+  return { ...act, attrs: { ...attrs, [JURISDICTION_KEY]: { ...held, v } } };
+};
+
+const statesJurisdiction = (code: string, passage: string): boolean =>
+  (JURISDICTION_SPELLINGS[code] ?? []).some((name) => statesToken(name, passage));
+
+/** The days of an act that a cited passage states only through the publication day: the passage
+ * writes no year, and the year comes from the day of publication. */
+export const daysFromPublication = (
+  act: WriteRequest,
+  passages: readonly string[],
+  publishedOn: string | undefined,
+  dayFirst = false,
+): string[] => {
+  if (publishedOn === undefined) return [];
+  const text = passages.join('\n');
+  const alone = daysIn(text, { dayFirst });
+  const deduced = daysIn(text, { publishedOn, dayFirst });
+  return [
+    ...new Set(
+      [
+        ...valuesOf(act),
+        ...(act.op === 'update_relation' && act.validFrom !== undefined
+          ? [{ name: 'validFrom', value: act.validFrom }]
+          : []),
+        ...(act.op === 'update_relation' && act.validTo !== undefined
+          ? [{ name: 'validTo', value: act.validTo }]
+          : []),
+      ].flatMap(({ value }) =>
+        typeof value === 'string' && deduced.has(value) && !alone.has(value) ? [value] : [],
+      ),
+    ),
+  ];
+};
+
 /** The values of an act that no cited passage states, in any form of that value. */
 export const unstatedValues = (
   act: WriteRequest,
@@ -286,7 +402,11 @@ export const unstatedValues = (
   options: StatedOptions = {},
 ): ActValue[] => {
   const text = passages.join('\n');
-  return valuesOf(act).filter((named) => !stated(named.value, text, options.publishedOn));
+  return valuesOf(act).filter((named) => {
+    const code = named.name === `attrs.${JURISDICTION_KEY}` ? jurisdictionCode(named.value) : null;
+    if (code !== null && statesJurisdiction(code, text)) return false;
+    return !stated(named.value, text, options);
+  });
 };
 
 /** The name of a bound of a relation. */
@@ -312,26 +432,19 @@ export const namesProvision = (passages: readonly string[]): boolean =>
 
 /** The two bounds of a relation. Each one is a day that a cited passage states, or it is not
  * proposed: a bound that no passage states is removed from the act, and `dropped` names it. The
- * other values of the act stay, and an unstated one marks the item as disputed. The end of an
- * act that closes a relation is the whole act, so it stays, and `dropped` names it. */
+ * other values of the act stay, and an unstated one marks the item as disputed. The start or the
+ * end that an act gives to a relation of the record is the whole act, so it stays, and `dropped`
+ * names it. */
 export const statedBounds = (
   act: WriteRequest,
   passages: readonly string[],
   options: StatedOptions = {},
 ): { readonly act: WriteRequest; readonly dropped: BoundName[] } => {
   const text = passages.join('\n');
-  if (act.op === 'update_relation')
-    return {
-      act,
-      dropped:
-        act.validTo === undefined || stated(act.validTo, text, options.publishedOn)
-          ? []
-          : ['validTo'],
-    };
-  if (act.op !== 'create_relation') return { act, dropped: [] };
+  if (act.op !== 'create_relation' && act.op !== 'update_relation') return { act, dropped: [] };
   const dropped = (['validFrom', 'validTo'] as const).filter((name) => {
     const day = act[name];
-    return day !== undefined && !stated(day, text, options.publishedOn);
+    return day !== undefined && !stated(day, text, options);
   });
-  return { act: withoutBounds(act, dropped), dropped };
+  return { act: act.op === 'update_relation' ? act : withoutBounds(act, dropped), dropped };
 };

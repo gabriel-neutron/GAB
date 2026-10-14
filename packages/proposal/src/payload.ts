@@ -84,7 +84,11 @@ export const proposalAct = (request: WriteRequest): ProposalAct => {
       return {
         op: request.op,
         payload:
-          request.type === undefined ? { valid_to: request.validTo } : { type: request.type },
+          request.type !== undefined
+            ? { type: request.type }
+            : request.validFrom !== undefined
+              ? { valid_from: request.validFrom }
+              : { valid_to: request.validTo },
         src: [MANUAL],
         names: [],
         targetKind: 'relation',
@@ -97,8 +101,11 @@ export const proposalAct = (request: WriteRequest): ProposalAct => {
         payload: {
           ...(request.label === undefined ? {} : { label: request.label }),
           ...(request.type === undefined ? {} : { type: request.type }),
+          ...(request.geom === undefined ? {} : { geom: request.geom }),
         },
-        src: [MANUAL],
+        // The row-level list backs the name, the type and the place together. The operator
+        // authority backs it. If the operator cites a stored image, the citations back it instead.
+        src: request.cites === undefined ? [MANUAL] : [...new Set(request.cites)],
         names: [],
         targetKind: 'entity',
         targetId: request.targetId,

@@ -1,4 +1,5 @@
 import { relationWords } from '@gab/proposal/relation-types';
+import { shareWords } from '@gab/proposal/share';
 
 import { csvFile } from './csv-file.ts';
 import { ENTITY_COLUMNS, entityColumns } from './entity-columns.ts';
@@ -24,6 +25,7 @@ const RELATION_HEADER = [
   'licence',
   'document_ids',
   'type_label',
+  'share',
 ];
 
 const CLAIM_HEADER = [
@@ -84,6 +86,15 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
     return ENTITY_COLUMNS.map((name) => columns[name]);
   });
 
+  // The public values of each relation, so a share that GEM estimated reads as an estimate.
+  const relationAttrs = new Map<string, Record<string, { v: unknown }>>();
+  for (const claim of record.claims) {
+    if (claim.subject_kind !== 'relation' || claim.attribute === null) continue;
+    const held = relationAttrs.get(claim.subject_id) ?? {};
+    held[claim.attribute] = { v: claim.value };
+    relationAttrs.set(claim.subject_id, held);
+  }
+
   const relationRows = record.relations.map((one) => [
     one.id,
     one.type,
@@ -97,6 +108,7 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
     licenceOf(one.sources),
     one.sources.join(' '),
     relationWords(one.type, false),
+    shareWords(relationAttrs.get(one.id) ?? {}) ?? '',
   ]);
 
   // A relation claim reads from its first end to its second end. A value reads as a key and a

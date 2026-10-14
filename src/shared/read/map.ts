@@ -92,8 +92,9 @@ function pointOnRoute(route: Route): Point | null {
 }
 
 // The act carries no kind of its own, so the operation states which payload it wrote.
-// `update_relation` writes an attribute object and never two ends, or an end date alone: the
-// key `valid_to` tells the two forms apart, in the promotion and in the check on a snapshot.
+// `update_relation` writes an attribute object and never two ends, or a start date, an end date
+// or a type alone: the key `valid_from`, `valid_to` or `type` tells the forms apart, in the
+// promotion and in the check on a snapshot.
 const KIND_OF_OP: Readonly<Record<ProposalOp, ProposalPayload['kind']>> = {
   create_entity: 'entity',
   update_attrs: 'attrs',
@@ -128,11 +129,14 @@ const entityPayload = z.looseObject({
 });
 const attrsPayload = z.looseObject({ attrs: z.unknown().optional() });
 const closePayload = z.looseObject({ valid_to: z.string() });
+const startPayload = z.looseObject({ valid_from: z.string() });
 
 const retypePayload = z.looseObject({ type: z.string() });
 
 const isClose = (op: ProposalOp, value: unknown): boolean =>
   op === 'update_relation' && closePayload.safeParse(value).success;
+const isStart = (op: ProposalOp, value: unknown): boolean =>
+  op === 'update_relation' && startPayload.safeParse(value).success;
 const isRetype = (op: ProposalOp, value: unknown): boolean =>
   op === 'update_relation' && retypePayload.safeParse(value).success;
 const columnsPayload = z.looseObject({
@@ -157,7 +161,13 @@ const deletePayload = z.looseObject({ reason: z.string().nullish() });
 const mappingPayload = z.looseObject({ table: z.string().nullish() });
 
 function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
-  const kind = isClose(op, value) ? 'close' : isRetype(op, value) ? 'retype' : KIND_OF_OP[op];
+  const kind = isClose(op, value)
+    ? 'close'
+    : isStart(op, value)
+      ? 'start'
+      : isRetype(op, value)
+        ? 'retype'
+        : KIND_OF_OP[op];
   switch (kind) {
     case 'entity': {
       const held = entityPayload.parse(value);
@@ -175,6 +185,8 @@ function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
     }
     case 'close':
       return { kind, valid_to: closePayload.parse(value).valid_to };
+    case 'start':
+      return { kind, valid_from: startPayload.parse(value).valid_from };
     case 'retype':
       return { kind, type: retypePayload.parse(value).type };
     case 'columns': {

@@ -4,7 +4,14 @@
 import { writeRequest } from '@gab/proposal/request';
 import { expect, test } from 'vitest';
 
-import { namesProvision, statedBounds, unstatedValues } from './stated-value.ts';
+import {
+  daysFromPublication,
+  namesProvision,
+  statedBounds,
+  unstatedValues,
+  codedIdentifier,
+  withCodedJurisdiction,
+} from './stated-value.ts';
 
 const relationFrom = (validFrom: string) =>
   writeRequest.parse({
@@ -240,6 +247,22 @@ test('the end of a close stays in the act, and it is named when no passage state
   });
 });
 
+const starting = writeRequest.parse({
+  op: 'update_relation',
+  targetId: '3f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+  validFrom: '2024-02-23',
+});
+
+test('the start that an act gives to a relation stays in the act, and it is named when no passage states it', () => {
+  expect(
+    statedBounds(starting, ['OFAC designated the vessel on February 23, 2024.']),
+  ).toStrictEqual({ act: starting, dropped: [] });
+  expect(statedBounds(starting, ['OFAC designated the vessel.'])).toStrictEqual({
+    act: starting,
+    dropped: ['validFrom'],
+  });
+});
+
 test('a passage names a provision by the number of a directive, an annex or an article', () => {
   expect(namesProvision(['Directive 4 under Executive Order 14024'])).toBe(true);
   expect(namesProvision(['listed in Annex XLVII to Regulation (EU) No 833/2014'])).toBe(true);
@@ -298,6 +321,72 @@ test('a night that ends on 1 January starts in the previous year', () => {
   expect(unstatedValues(relationFrom('2024-12-31'), [passage], options)).toStrictEqual([]);
   expect(unstatedValues(relationFrom('2025-12-31'), [passage], options)).toHaveLength(1);
   expect(unstatedValues(relationFrom('2024-01-01'), [passage], options)).toHaveLength(1);
+});
+
+test('a night with no year takes the latest year that is not after the publication day', () => {
+  const passage = 'Атака була у ніч на 20 грудня.';
+  const options = { publishedOn: '2025-01-05' };
+  expect(unstatedValues(relationFrom('2024-12-20'), [passage], options)).toStrictEqual([]);
+  expect(unstatedValues(relationFrom('2025-12-20'), [passage], options)).toHaveLength(1);
+  const later = 'Атака була у ніч на 16 травня.';
+  expect(
+    unstatedValues(relationFrom('2023-05-16'), [later], { publishedOn: '2024-05-15' }),
+  ).toStrictEqual([]);
+  expect(
+    unstatedValues(relationFrom('2024-05-16'), [later], { publishedOn: '2024-05-15' }),
+  ).toHaveLength(1);
+});
+
+test('a night that ends on 29 February takes the latest year that has the day', () => {
+  expect(
+    unstatedValues(relationFrom('2024-02-29'), ['у ніч на 29 лютого'], {
+      publishedOn: '2025-03-01',
+    }),
+  ).toStrictEqual([]);
+});
+
+test('a publication date that is no day states nothing', () => {
+  expect(
+    unstatedValues(relationFrom('2024-05-15'), [NIGHT], { publishedOn: 'yesterday' }),
+  ).toHaveLength(1);
+});
+
+test('the days that only the publication date states are named', () => {
+  const act = relationFrom('2024-05-15');
+  expect(daysFromPublication(act, [NIGHT], '2024-05-15')).toStrictEqual(['2024-05-15']);
+  expect(daysFromPublication(act, [NIGHT], undefined)).toStrictEqual([]);
+  expect(daysFromPublication(act, ['у ніч на 15 травня 2024'], '2024-05-15')).toStrictEqual([]);
+  expect(daysFromPublication(act, ['15 May 2024'], '2024-05-15')).toStrictEqual([]);
+});
+
+test('the end of a close that takes its year from the publication day is named', () => {
+  const passage = 'Вона залишила Роснефть у ніч на 30 листопада.';
+  expect(daysFromPublication(closing, [passage], '2023-11-30')).toStrictEqual(['2023-11-30']);
+  expect(daysFromPublication(closing, [passage], undefined)).toStrictEqual([]);
+});
+
+test('a night on 2 January published on 1 January goes to the previous year', () => {
+  const options = { publishedOn: '2025-01-01' };
+  expect(
+    unstatedValues(relationFrom('2024-01-02'), ['Атака у ніч на 2 січня.'], options),
+  ).toStrictEqual([]);
+  expect(
+    unstatedValues(relationFrom('2025-01-02'), ['Атака у ніч на 2 січня.'], options),
+  ).toHaveLength(1);
+});
+
+test('a night on 29 February published on 29 February is that day', () => {
+  expect(
+    unstatedValues(relationFrom('2024-02-29'), ['у ніч на 29 лютого'], {
+      publishedOn: '2024-02-29',
+    }),
+  ).toStrictEqual([]);
+});
+
+test('a night on the publication day itself stays in that year', () => {
+  expect(
+    unstatedValues(relationFrom('2024-05-15'), [NIGHT], { publishedOn: '2024-05-15' }),
+  ).toStrictEqual([]);
 });
 
 test('a night with no year and no publication date stays contested', () => {
@@ -368,4 +457,95 @@ test('another type keeps the check of the attributes that are words of the event
     'attrs.event_kind',
     'attrs.occurred_on_precision',
   ]);
+});
+
+test('a slash date of the FCDO UK Sanctions List is day/month, and elsewhere it has two readings', () => {
+  const act = relationBetween({ validFrom: '2025-05-09' });
+  const passage = ['Date Designated: 09/05/2025'];
+  expect(statedBounds(act, passage, { dayFirst: true })).toStrictEqual({ act, dropped: [] });
+  expect(unstatedValues(act, passage, { dayFirst: true })).toStrictEqual([]);
+  expect(
+    statedBounds(relationBetween({ validFrom: '2025-09-05' }), passage, { dayFirst: true }),
+  ).toStrictEqual({ act: relationBetween({}), dropped: ['validFrom'] });
+  expect(statedBounds(act, passage)).toStrictEqual({
+    act: relationBetween({}),
+    dropped: ['validFrom'],
+  });
+});
+
+const companyIn = (jurisdiction: string) =>
+  writeRequest.parse({
+    op: 'create_entity',
+    type: 'company',
+    label: 'Gazpromneft Aero',
+    attrs: { registration_jurisdiction: { v: jurisdiction } },
+  });
+
+test.each(['Russia', 'Russian Federation', 'RU'])(
+  'a source that writes %j states the jurisdiction RU',
+  (spelling) => {
+    expect(
+      unstatedValues(companyIn('RU'), [`Gazpromneft Aero, address: Moscow, ${spelling}`]),
+    ).toStrictEqual([]);
+  },
+);
+
+test('a source that names another country does not state the jurisdiction RU', () => {
+  expect(unstatedValues(companyIn('RU'), ['Gazpromneft Aero, Belarus'])).toHaveLength(1);
+});
+
+test.each(['Russia', 'Russian Federation', 'RU'])(
+  'the spelling %j is written as RU',
+  (spelling) => {
+    const coded = withCodedJurisdiction(companyIn(spelling));
+    expect(
+      coded.op === 'create_entity' && coded.attrs?.['registration_jurisdiction'],
+    ).toStrictEqual({
+      v: 'RU',
+    });
+  },
+);
+
+test('an unknown jurisdiction keeps its spelling', () => {
+  const coded = withCodedJurisdiction(companyIn('Narnia'));
+  expect(coded.op === 'create_entity' && coded.attrs?.['registration_jurisdiction']).toStrictEqual({
+    v: 'Narnia',
+  });
+});
+
+test('a list of jurisdictions is coded one by one, and a Russian source states RU', () => {
+  const coded = withCodedJurisdiction(
+    writeRequest.parse({
+      op: 'create_entity',
+      type: 'company',
+      label: 'Gazpromneft Aero',
+      attrs: { registration_jurisdiction: { v: ['Russia', 'Narnia'] } },
+    }),
+  );
+  expect(coded.op === 'create_entity' && coded.attrs?.['registration_jurisdiction']).toStrictEqual({
+    v: ['RU', 'Narnia'],
+  });
+  expect(
+    unstatedValues(companyIn('RU'), ['Gazpromneft Aero. Страна регистрации: Российская Федерация']),
+  ).toStrictEqual([]);
+});
+
+test('a list keeps each code once, in its first place', () => {
+  const coded = withCodedJurisdiction(
+    writeRequest.parse({
+      op: 'create_entity',
+      type: 'company',
+      label: 'Gazpromneft Aero',
+      attrs: { registration_jurisdiction: { v: ['Russia', 'Narnia', 'RU', 'Russian Federation'] } },
+    }),
+  );
+  expect(coded.op === 'create_entity' && coded.attrs?.['registration_jurisdiction']).toStrictEqual({
+    v: ['RU', 'Narnia'],
+  });
+});
+
+test('an identifier search reads a jurisdiction as its code, and each other key as it is', () => {
+  expect(codedIdentifier('registration_jurisdiction', 'Russian Federation')).toBe('RU');
+  expect(codedIdentifier('registration_jurisdiction', 'Narnia')).toBe('Narnia');
+  expect(codedIdentifier('tax_id', 'Russia')).toBe('Russia');
 });

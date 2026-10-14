@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { probe, rolledBack, type Ask } from '../../../tools/probe.ts';
 import { CATALOGUE } from './catalogue.ts';
 import { proposeOf } from './propose.ts';
+import { UK_LIST_CSV } from './uk-sanctions-list.ts';
 import { callTool, type Reach, type Session, type Tool } from './tool.ts';
 
 const SHA = 'f'.repeat(64);
@@ -37,12 +38,16 @@ const STORE = 'SELECT public.put_fetched_document($1, $2, $3, $4, $5, $6, $7::da
 const WRITE_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3) AS pages';
 
 // The research role stores the document and its text through its own doors.
-const withDocument = async (ask: Ask, pages: readonly string[]): Promise<void> => {
+const withDocument = async (
+  ask: Ask,
+  pages: readonly string[],
+  uri = 'https://example.org/report',
+): Promise<void> => {
   await ask(STORE, [
     'url',
     'A report of the tool test',
     `raw/${SHA}`,
-    'https://example.org/report',
+    uri,
     SHA,
     'application/pdf',
     '2026-09-02',
@@ -497,6 +502,57 @@ test('a value that its excerpt does not state marks the item as disputed', async
   });
 });
 
+const AERO_PAGE = 'GAZPROMNEFT AERO, Moscow, Russia; Tax ID No. 7714117720 (Russia).';
+
+test.each(['RU', 'Russia'])(
+  'a proposal of the jurisdiction %j on a page that writes Russia is accepted and stored as RU',
+  async (jurisdiction) => {
+    const found = await rolledBack('superuser', async (ask) => {
+      const batch = batchOf(
+        await proposeOnPage(
+          ask,
+          [
+            item(
+              'aero',
+              {
+                op: 'create_entity',
+                type: 'company',
+                label: 'Gazpromneft Aero',
+                attrs: { registration_jurisdiction: { v: jurisdiction } },
+              },
+              'GAZPROMNEFT AERO, Moscow, Russia',
+            ),
+          ],
+          AERO_PAGE,
+        ),
+      );
+      const id = batch.proposals[0]?.proposalId;
+      await ask("SELECT public.apply_proposal($1::uuid, 'a test', NULL)", [id]);
+      const stored = z.array(z.object({ act: z.unknown(), row: z.unknown() })).parse(
+        await ask(
+          `SELECT p.payload #> '{attrs,registration_jurisdiction,v}' AS act,
+                    e.attrs #> '{registration_jurisdiction,v}' AS row
+               FROM public.proposals p JOIN public.entities e ON e.promoted_from = p.id
+              WHERE p.id = $1::uuid`,
+          [id],
+        ),
+      );
+      const searched = hits.parse(
+        await asResearch(ask, () =>
+          output(ask, 'search_graph', {
+            identifier: { key: 'registration_jurisdiction', value: 'Russian Federation' },
+            query: 'Gazpromneft Aero',
+          }),
+        ),
+      );
+      return { batch, stored, id, searched };
+    });
+    expect(found.batch.proposals).toMatchObject([{ disputed: false, unstated: [] }]);
+    expect(found.stored).toStrictEqual([{ act: 'RU', row: 'RU' }]);
+    expect(found.searched.entities.map((entity) => entity.id)).toStrictEqual([found.id]);
+  },
+);
+
 // A unit tree drawn as an image: its OCR text mixes the columns, so it holds no parent.
 const IMAGE_SHA = 'e'.repeat(64);
 const IMAGE_DOC = `doc_${IMAGE_SHA.slice(0, 12)}`;
@@ -875,6 +931,62 @@ test('a relation keeps the start and the end that its excerpt states', async () 
   });
 });
 
+test('a slash date is day/month only when each excerpt comes from the FCDO UK Sanctions List', async () => {
+  const page = 'Date Designated: 09/05/2025';
+  const other = 'e'.repeat(64);
+  const proposed = async (setup: (ask: Ask) => Promise<unknown>, mixed = false) =>
+    rolledBack('superuser', async (ask) => {
+      const held = await connected(ask);
+      await setup(ask);
+      const given = item('owner', owns(held.id, { validFrom: '2025-05-09' }), page);
+      if (mixed) {
+        await asResearch(ask, async () => {
+          await ask(STORE, [
+            'url',
+            'Another list',
+            `raw/${other}`,
+            'https://example.org/list',
+            other,
+            'text/csv',
+            '2026-09-02',
+            null,
+          ]);
+          await ask(WRITE_TEXT, [
+            `doc_${other.slice(0, 12)}`,
+            JSON.stringify([page]),
+            'tool-test-1',
+          ]);
+        });
+        Object.assign(given, {
+          evidence: [
+            { document: DOC, page: 1, excerpt: page },
+            { document: `doc_${other.slice(0, 12)}`, page: 1, excerpt: page },
+          ],
+        });
+      }
+      const outcome = await proposeAgain(ask, [given]);
+      return { batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
+    });
+  const atAddress = (uri: string) => (ask: Ask) =>
+    asResearch(ask, () => withDocument(ask, [page], uri));
+  const uk = await proposed(atAddress(UK_LIST_CSV));
+  expect(uk.batch.proposals).toMatchObject([{ unstated: [], droppedBounds: [] }]);
+  expect(uk.rows[0]?.payload).toMatchObject({ valid_from: '2025-05-09' });
+  // The bytes were stored first at another address, and the UK tool gave them its provider.
+  const byProvider = await proposed(async (ask) => {
+    await atAddress('https://example.org/report')(ask);
+    await ask("UPDATE public.documents SET provider_id = 'uk_sanctions_list' WHERE id = $1", [DOC]);
+  });
+  expect(byProvider.batch.proposals).toMatchObject([{ droppedBounds: [] }]);
+  for (const found of [
+    await proposed(atAddress('https://example.org/report')),
+    await proposed(atAddress(UK_LIST_CSV), true),
+  ]) {
+    expect(found.batch.proposals).toMatchObject([{ droppedBounds: ['validFrom'] }]);
+    expect(found.rows[0]?.payload).not.toHaveProperty('valid_from');
+  }
+});
+
 // The claim that the checker reads, for each item of the last batch.
 const claimsRead: unknown[] = [];
 const reading: Reach = {
@@ -952,7 +1064,8 @@ test('an end that no excerpt states refuses the batch of the research AI, and na
 });
 
 // An open owns relation of the record, which the operator signs in the transaction of the test.
-const openOwns = async (ask: Ask, validFrom: string): Promise<string> => {
+// A null start gives a relation with no start.
+const openOwns = async (ask: Ask, validFrom: string | null): Promise<string> => {
   await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
   const signed = z.array(z.object({ target_id: z.uuid() }));
   const sign = async (op: string, payload: object, names: readonly string[] = []) => {
@@ -978,7 +1091,13 @@ const openOwns = async (ask: Ask, validFrom: string): Promise<string> => {
   });
   const owns = await sign(
     'create_relation',
-    { type: 'owns', src_id: owner, dst_id: vessel, valid_from: validFrom, sources: ['manual'] },
+    {
+      type: 'owns',
+      src_id: owner,
+      dst_id: vessel,
+      ...(validFrom === null ? {} : { valid_from: validFrom }),
+      sources: ['manual'],
+    },
     [owner, vessel],
   );
   await ask('RESET SESSION AUTHORIZATION');
@@ -1046,6 +1165,68 @@ test.for([
       ask,
       [closing(owns, validTo, excerpt)],
       `${DATED} It changed hands on 1 May 2019.`,
+    );
+    return { outcome, rows: await rowsOfDocument(ask) };
+  });
+  expect(found.outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(said) as string,
+  });
+  expect(found.rows).toStrictEqual([]);
+});
+
+const starting = (target: string, validFrom: string, excerpt: string) =>
+  item('start', { op: 'update_relation', targetId: target, validFrom }, excerpt);
+
+test('propose gives a relation with no start the start date that its excerpt states', async () => {
+  claimsRead.length = 0;
+  const found = await rolledBack('superuser', async (ask) => {
+    const owns = await openOwns(ask, null);
+    await asResearch(ask, () => withDocument(ask, [DATED]));
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+    const outcome = await callTool(
+      toolNamed('propose'),
+      sessionOf(ask),
+      { items: [starting(owns, '2019-05-02', 'Rosneft owned the tanker from 2 May 2019')] },
+      reading,
+    );
+    await ask('RESET SESSION AUTHORIZATION');
+    return { owns, batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
+  });
+  expect(found.batch.proposals).toMatchObject([
+    { ref: 'start', written: true, disputed: false, unstated: [], droppedBounds: [] },
+  ]);
+  expect(found.rows[0]?.payload).toStrictEqual({ valid_from: '2019-05-02' });
+  expect(claimsRead).toStrictEqual([
+    {
+      op: 'update_relation',
+      targetId: found.owns,
+      validFrom: '2019-05-02',
+      relation: 'Rosneft owns A tanker',
+    },
+  ]);
+});
+
+test.for([
+  [
+    'a start that no excerpt states',
+    null,
+    '2018-01-01',
+    'item start: no excerpt states the start date 2018-01-01 (validFrom)',
+  ],
+  [
+    'a second start',
+    '2019-05-02',
+    '2019-05-02',
+    'item start: act.validFrom: the relation started on 2019-05-02 already',
+  ],
+] as const)('propose refuses %s of a relation', async ([, held, validFrom, said]) => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const owns = await openOwns(ask, held);
+    const outcome = await proposeOnPage(
+      ask,
+      [starting(owns, validFrom, 'Rosneft owned the tanker from 2 May 2019')],
+      DATED,
     );
     return { outcome, rows: await rowsOfDocument(ask) };
   });

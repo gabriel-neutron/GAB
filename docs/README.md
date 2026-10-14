@@ -42,3 +42,5 @@ rules of the code review.
 | [0021](adr/0021-an-end-date-is-an-act-on-the-open-relation.md) | An end date is an act on the open relation | Accepted |
 | [0022](adr/0022-merge-candidates-across-two-scripts.md) | Merge candidates across two scripts come from one fixed table and a stored pair | Accepted |
 | [0023](adr/0023-a-type-change-is-an-act-on-the-promoted-relation.md) | A type change is an act on the promoted relation | Accepted |
+| [0024](adr/0024-a-slash-date-of-the-fcdo-list-is-day-month.md) | A slash date of the FCDO UK Sanctions List is day/month | Accepted |
+| [0025](adr/0025-a-start-date-is-an-act-on-the-undated-relation.md) | A start date is an act on the undated relation | Accepted |

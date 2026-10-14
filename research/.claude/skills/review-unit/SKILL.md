@@ -65,6 +65,9 @@ decide the unit.
      reject it. Leave it in the queue, and tell the operator that the relation goes back to be
      retyped as `restricted_by`.
      A person with only a `restricted_by` relation is not a fact for the record.
+   - A start or an end of a relation of the record (the card reads "Start of a relation" or "End
+     of a relation"): the passage must state that day for that relation. A date of publication,
+     a date of a later change, or a day of another entry does not support it.
 4. Decide:
    - The passages state each act, and no fault blocks the unit: call `promote_unit`.
    - The unit is wrong as a whole: call `reject_unit` with the reason and, if necessary, a note.

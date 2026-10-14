@@ -25,6 +25,22 @@ export const TheRetainedNodesComeFirst: Story = {
   },
 };
 
+export const ANodeWithOneSourcedTickIsNotRetained: Story = {
+  play: async ({ canvas }) => {
+    const tables = canvas.getAllByRole('table');
+    await expect(tables).toHaveLength(2);
+    const [retained, others] = tables;
+    if (retained === undefined || others === undefined) throw new Error('two tables are expected');
+    await expect(
+      within(retained).queryByRole('link', { name: 'Arctic Bridge Shipping' }),
+    ).not.toBeInTheDocument();
+    await expect(
+      within(others).getByRole('link', { name: 'Arctic Bridge Shipping' }),
+    ).toBeVisible();
+    await expect(within(others).getByText('2 (1 sourced)')).toBeVisible();
+  },
+};
+
 export const EachTickLinksItsClaims: Story = {
   play: async ({ canvas }) => {
     await expect(

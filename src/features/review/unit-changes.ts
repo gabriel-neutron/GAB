@@ -42,6 +42,15 @@ export interface CloseChange {
   readonly validTo: string;
 }
 
+/** One act that gives the start date of a relation that has none: the relation, the start, and
+ * its last day today. */
+export interface StartChange {
+  readonly id: string;
+  readonly relation: string;
+  readonly validFrom: string;
+  readonly validTo: string | null;
+}
+
 /** One act that changes the type of a relation: the relation, the old type and the new one. */
 export interface RetypeChange {
   readonly id: string;
@@ -65,6 +74,7 @@ export interface UnitChanges {
   readonly relations: readonly RelationLine[];
   readonly others: readonly OtherChange[];
   readonly closes: readonly CloseChange[];
+  readonly starts: readonly StartChange[];
   readonly retypes: readonly RetypeChange[];
 }
 
@@ -159,11 +169,24 @@ export function unitChanges(unit: Unit, words: UnitWords): UnitChanges {
       : [],
   );
 
+  const starts = unit.acts.flatMap((act): readonly StartChange[] =>
+    act.kind === 'start'
+      ? [
+          {
+            id: act.id,
+            relation: nameOf(act.target),
+            validFrom: act.validFrom,
+            validTo: act.validTo,
+          },
+        ]
+      : [],
+  );
+
   const retypes = unit.acts.flatMap((act): readonly RetypeChange[] =>
     act.kind === 'retype'
       ? [{ id: act.id, relation: nameOf(act.target), from: act.from, to: act.to }]
       : [],
   );
 
-  return { entity, relations, others, closes, retypes };
+  return { entity, relations, others, closes, starts, retypes };
 }

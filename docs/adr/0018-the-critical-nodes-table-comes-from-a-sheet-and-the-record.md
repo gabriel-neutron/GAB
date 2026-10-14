@@ -5,7 +5,7 @@
 ## Context
 
 The critical nodes table is the central deliverable of the FNF investigation. A node is retained
-when it meets two conditions of three: (a) documented sanctions exposure, (b) documented production
+when it meets two documented conditions of three: (a) documented sanctions exposure, (b) documented production
 or throughput in 2024-2026, (c) presence in a bypass routing across jurisdictions. The table is
 the home page of the public site, and readers cite it. So the meaning of a row, the source of each
 condition and the rule that retains a node are costly to change after the first publication.
@@ -45,8 +45,11 @@ the node and the bypass pattern, as short texts.
 
 - Each condition shows one of three fixed words: sourced (a tick with at least one public claim),
   not sourced (a tick with no claim), or no tick, with the claim identifiers.
-- A node is retained when it has two ticks or more, sourced or not. The row
-  also gives the count of the sourced ticks, so a reader sees a retained node that rests on a gap.
+- A node is retained when it has two sourced ticks or more. A tick that is not sourced stays in its
+  row, but it does not count: the conditions say "documented", and such a tick gives the reader
+  nothing to check. The row gives the count of all the ticks and the count of the sourced ticks.
+  The retained value, the order of the rows and the count of the retained nodes use this one rule.
+  No third status is added: "candidate" already names each row of the sheet.
 - The texts of the operator are public text of the release. The how-to guide tells the operator
   not to name a person that the release does not show; the release cannot check free text.
 - The parameter that shows the NATO pair (ADR 0016) adds, for each condition, the pair of each
@@ -64,5 +67,8 @@ the node and the bypass pattern, as short texts.
 
 - The operator types claim identifiers by hand. A typing fault stops the release, with the line.
 - A sheet row cannot say why a claim supports its condition. A reader opens the claim.
-- Retained counts a tick that is not sourced. If the operator decides that only a sourced tick
-  counts, the rule and the note of the file change, and a published table changes its meaning.
+- A node with two ticks and only one sourced tick is not retained. The node stays in the table of
+  the other candidate nodes, with the "not sourced" cell, until a public claim supports the tick.
+- The first rule counted a tick that is not sourced. No release with the table was public under
+  that rule, so no published table changes its meaning. From now on, a change of `retained` for a
+  node shows only in the table: the changelog does not give a line for it.

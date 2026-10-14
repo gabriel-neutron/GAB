@@ -104,7 +104,7 @@ const TEXT: Record<string, string> = {
   [GFW]: 'TEST TANKER sails under the flag of Panama.',
   [SHIPS]:
     'TEST TANKER makes 12 knots. TEST OWNER LTD owns TEST TANKER. It holds 51 percent. ' +
-    'It sold TEST TANKER on 30 November 2023.',
+    'It sold TEST TANKER on 30 November 2023. It bought TEST TANKER on 2 May 2019.',
   [PAGE]: 'TEST PERSON and TEST OTHER PERSON work for TEST OWNER LTD.',
   [BOUGHT]: 'TEST TANKER is insured by a secret club.',
   [ONLY_HIDDEN]: 'TEST PERSON OF A PERSON lives here.',
@@ -390,8 +390,10 @@ test('a release writes the public entities, relations and claims, each row with 
   expect(made.written.folder).toBe(folder);
   expect((await readdir(folder)).sort()).toStrictEqual([
     'alignment-matrix.csv',
+    'asset-links.csv',
     'changelog.csv',
     'claims.csv',
+    'credits.md',
     'critical-nodes.csv',
     'dataset.jsonld',
     'entities.csv',
@@ -458,6 +460,8 @@ test('a release writes the public entities, relations and claims, each row with 
     'merges.csv',
     'alignment-matrix.csv',
     'critical-nodes.csv',
+    'asset-links.csv',
+    'credits.md',
     'entities.geojson',
     'dataset.jsonld',
     'changelog.csv',
@@ -541,6 +545,7 @@ test('a release writes the public entities, relations and claims, each row with 
     origin_label: MANUAL,
     licence: DERIVED,
     document_ids: SHIPS,
+    share: '',
   });
 
   // One row for each claim and each cited passage of a public document.
@@ -736,6 +741,50 @@ const mergeDoor = async (db: Queryable, text: string, values: readonly unknown[]
   if (id === undefined) throw new Error('the door wrote no act');
   return id;
 };
+
+test('a start date that a later act gave is a claim of its own, with the label and the passages of that act', async () => {
+  const claims = await inTransaction(async (held) => {
+    const { owns } = await record(held);
+    const start = await decidedAct(
+      held,
+      'update_relation',
+      { valid_from: '2019-05-02' },
+      { kind: 'relation', id: owns.id },
+      'rule strong_sources v1 (fact digits: 1, letters: B)',
+      '2026-10-09',
+      [SHIPS],
+    );
+    await cite(held.ask, start, SHIPS, 'It bought TEST TANKER on 2 May 2019.');
+    await held.ask(`UPDATE public.relations SET valid_from = '2019-05-02' WHERE id = $1`, [
+      owns.id,
+    ]);
+    const { rows } = await held.as('gabriel_app').query(
+      `SELECT claim_id, attribute, value, origin_label, sources, act_id, passages
+           FROM public.release_claims() WHERE claim_id = $1`,
+      [`${owns.id}/valid_from`],
+    );
+    return { owns, start, rows };
+  });
+  expect(claims.rows).toStrictEqual([
+    {
+      claim_id: `${claims.owns.id}/valid_from`,
+      attribute: 'valid_from',
+      value: '2019-05-02',
+      origin_label: RULE,
+      sources: [SHIPS],
+      act_id: claims.start,
+      passages: [
+        {
+          document: SHIPS,
+          page: 1,
+          excerpt: 'It bought TEST TANKER on 2 May 2019.',
+          modality: 'asserts',
+          transcribed: false,
+        },
+      ],
+    },
+  ]);
+});
 
 test('an end date that a later act gave is a claim of its own, with the label and the passages of that act', async () => {
   const claims = await inTransaction(async (held) => {

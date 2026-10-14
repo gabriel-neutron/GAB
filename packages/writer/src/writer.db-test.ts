@@ -456,7 +456,7 @@ const COLUMNS_OF =
 const NO_ENTITY = '5b7e2c90-1d4a-4e36-9f08-2a6c3d8e1f47';
 
 const UNCHANGED =
-  'the act changes neither the name nor the type of the entity, and nothing was applied';
+  'the act changes neither the name, the type nor the geometry of the entity, and nothing was applied';
 
 const absent = (end: 'source' | 'target', id: string): string =>
   end === 'source'
@@ -527,6 +527,59 @@ test('a rename replaces the list of the row, and the prior value keeps the old l
       label: 'Writer test cited rename',
       sources: ['doc_8f2a41'],
     });
+  } finally {
+    await removed(target);
+  }
+});
+
+// A correction made in QGIS enters as an act of the operator (ADR 0005). It cites the operator
+// authority, or a stored image, and the old point stays in the history of the act.
+test('a correction of the geometry is an act of the operator, and the old point stays in the history', async () => {
+  const [, made] = await post('create-entity', {
+    type: 'facility',
+    label: 'Writer test corrected point',
+    geom: { type: 'Point', coordinates: [30, 60] },
+  });
+  const target = made.targetId ?? '';
+  try {
+    const point = `SELECT public.ST_X(geom) AS lon, public.ST_Y(geom) AS lat, sources::text[] AS sources
+      FROM public.entities WHERE id = $1::uuid`;
+    const [status, reply] = await post('update-entity', {
+      targetId: target,
+      geom: { type: 'Point', coordinates: [31.5, 61.5] },
+    });
+    expect([status, reply.state]).toStrictEqual([200, 'signed']);
+    expect(await one(point, [target])).toStrictEqual({ lon: 31.5, lat: 61.5, sources: ['manual'] });
+    expect((await decided(reply.proposalId))['prior_value']).toStrictEqual({
+      sources: ['manual'],
+      geom: { type: 'Point', coordinates: [30, 60] },
+    });
+
+    // A second correction cites a stored document, which replaces the source list of the row.
+    const [again, againReply] = await post('update-entity', {
+      targetId: target,
+      geom: { type: 'Point', coordinates: [32, 62] },
+      cites: ['doc_8f2a41'],
+    });
+    expect(again).toBe(200);
+    expect(await one(point, [target])).toStrictEqual({
+      lon: 32,
+      lat: 62,
+      sources: ['doc_8f2a41'],
+    });
+    expect((await decided(againReply.proposalId))['prior_value']).toStrictEqual({
+      sources: ['manual'],
+      geom: { type: 'Point', coordinates: [31.5, 61.5] },
+    });
+
+    // The same point changes nothing, so the act is refused and writes nothing.
+    const before = await proposalsFor(target);
+    const [same, sameReply] = await post('update-entity', {
+      targetId: target,
+      geom: { type: 'Point', coordinates: [32, 62] },
+    });
+    expect([same, sameReply.refusal]).toStrictEqual([422, UNCHANGED]);
+    expect(await proposalsFor(target)).toBe(before);
   } finally {
     await removed(target);
   }
@@ -971,7 +1024,7 @@ test('an act on the name and the type that names neither is refused in the words
     const [status, reply] = await post('update-entity', { targetId: target });
     expect([status, reply.refusal]).toStrictEqual([
       422,
-      'label: the act names a new name, a new type, or both, and neither one is blank',
+      'label: the act names a new name, a new type, a new geometry, or any of them, and neither the name nor the type is blank',
     ]);
   } finally {
     await removed(target);

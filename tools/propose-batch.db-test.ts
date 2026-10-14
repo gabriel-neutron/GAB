@@ -172,10 +172,27 @@ const REFUSALS: readonly (readonly [string, (call: string) => Item, RegExp])[] =
         `the operation ${op}`,
         (call: string) =>
           itemOf(call, { op, target_kind: op === 'delete_relation' ? 'relation' : 'entity' }),
-        /^item 1: a machine proposes a new entity, a new relation, new attributes or the end date/u,
+        /^item 1: a machine proposes a new entity, a new relation, new attributes or the start or end date/u,
       ] as const,
   ),
 ];
+
+test('a machine proposes the geometry of an entity, and no name or type beside it', async () => {
+  const point = { type: 'Point', coordinates: [30, 60] };
+  const asked = (payload: unknown, call: string): Item =>
+    itemOf(call, { op: 'update_entity', target_kind: 'entity', target_id: randomUUID(), payload });
+  const cause = await refusalOf('gabriel_agent', (call) => [
+    asked({ label: 'A new name', geom: point }, call),
+  ]);
+  expect(cause).toMatchObject({ code: '22023', hint: 'op' });
+  await rolledBack('superuser', async (ask) => {
+    const call = await seed(ask);
+    const [written] = z
+      .array(z.object({ written: z.boolean() }))
+      .parse(await batchAs(ask, 'gabriel_agent', [asked({ geom: point }, call)]));
+    expect(written?.written).toBe(true);
+  });
+});
 
 test.each(REFUSALS)(
   'the door refuses an act with %s, and names the item',

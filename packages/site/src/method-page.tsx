@@ -53,11 +53,12 @@ export function MethodPage({ release }: { readonly release: SiteRelease }) {
       <section className={SECTION}>
         <h2 className="font-medium">The critical nodes</h2>
         <p>
-          A node is retained when it meets two conditions of three. Condition (a) comes from the
-          public designations of the node itself. The operator ticks conditions (b) and (c) with the
-          claims that support each tick, and the release refuses a tick that cites a claim that is
-          not public. The release does not check that a claim supports its condition: that is the
-          judgement of the operator. A tick with no public claim shows "not sourced".
+          A node is retained when two conditions of three have a sourced tick. Condition (a) comes
+          from the public designations of the node itself. The operator ticks conditions (b) and (c)
+          with the claims that support each tick, and the release refuses a tick that cites a claim
+          that is not public. The release does not check that a claim supports its condition: that
+          is the judgement of the operator. A tick with no public claim shows "not sourced", and it
+          does not count, because it gives the reader nothing to check.
         </p>
       </section>
 

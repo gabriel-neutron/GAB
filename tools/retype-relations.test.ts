@@ -41,11 +41,11 @@ describe('classify', () => {
     expect(classify(none).reason).toMatch(/no usable citation/);
   });
 
-  it('doubts a relation whose citations do not agree', () => {
+  it('doubts a relation whose citations name two regimes', () => {
     const one = make('Annex XLV of 833/2014');
     const two = make('Directive 4 under Executive Order 14024');
     const split = { ...one, cites: [...one.cites, ...two.cites] };
-    expect(classify(split).reason).toMatch(/do not agree/);
+    expect(classify(split).reason).toMatch(/two regimes/);
     const same = { ...one, cites: [...one.cites, ...make('Annex XLIV of 833/2014').cites] };
     expect(kindOf(classify(same))).toBe('retype:eu');
     const lost = { ...one, cites: [...one.cites, ...make('Annex XLV', { pageText: null }).cites] };
@@ -78,6 +78,49 @@ describe('classify', () => {
 
   it('retypes Article 5af of 833/2014', () => {
     expect(kindOf(classify(make('Article 5af of Regulation 833/2014')))).toBe('retype:eu');
+  });
+
+  it('reads the excerpt of the name and the excerpt of the provision together', () => {
+    const name = make('BELVNESHECONOMBANK');
+    const annex = make('Annex XLIV to Regulation (EU) No 833/2014');
+    expect(kindOf(classify({ ...name, cites: [...name.cites, ...annex.cites] }))).toBe('retype:eu');
+  });
+
+  it.each(['5ac', '5(a)', '5ae', '5h'])('retypes Article %s of 833/2014', (article) => {
+    expect(kindOf(classify(make(`Article ${article} of Regulation 833/2014`)))).toBe('retype:eu');
+  });
+
+  it('doubts another article beside a sectoral article, and Article 5a', () => {
+    const one = make('Article 3k of Regulation 833/2014');
+    const two = make('Article 5ae of Regulation 833/2014');
+    expect(classify({ ...one, cites: [...one.cites, ...two.cites] }).reason).toMatch(/unknown/);
+    expect(classify(make('Article 5a(4) of Regulation 833/2014')).reason).toMatch(/unknown/);
+  });
+
+  it('doubts a listing that stays when another excerpt names a sectoral provision', () => {
+    const annex = make('Annex XLIV to Regulation (EU) No 833/2014');
+    const vessels = make('Annex XLII to Regulation 833/2014');
+    const freeze = make('SDN', { subjectType: 'vessel' });
+    expect(classify({ ...annex, cites: [...vessels.cites, ...annex.cites] }).kind).toBe('doubtful');
+    expect(classify({ ...freeze, cites: [...freeze.cites, ...annex.cites] }).kind).toBe('doubtful');
+  });
+
+  it('puts a port under Article 5ae in the batch of ports', () => {
+    const port = make('List of ports referred to in Article 5ae', { subjectType: 'port' });
+    const act = make('Council Regulation (EU) No 833/2014');
+    expect(kindOf(classify({ ...port, cites: [...port.cites, ...act.cites] }))).toBe(
+      'retype:ports',
+    );
+  });
+
+  it('puts a port of an amending act under Article 5ae in the batch of ports', () => {
+    const title = make('List of ports and lock and airports as referred to in Article 5ae', {
+      subjectType: 'port',
+    });
+    const line = make('5. Novorossiysk Article 5ae(1), point (c):');
+    const cites = [...title.cites, ...line.cites];
+    expect(kindOf(classify({ ...title, cites }))).toBe('retype:ports');
+    expect(classify({ ...title, subjectType: 'company', cites }).reason).toMatch(/833\/2014/);
   });
 
   it('puts a port of Annex XLVII in the batch of ports', () => {

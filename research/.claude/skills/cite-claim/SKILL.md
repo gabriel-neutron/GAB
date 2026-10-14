@@ -88,6 +88,13 @@ misread a number, so the text can miss a fact that the image shows clearly.
   put the words that state the end day in an excerpt. The relation keeps its documents and gets
   the documents of your act. The record refuses an end on a relation that ended already, on a
   type that takes no interval, and before the first day of the relation.
+- When a relation is in the record with no start, do not create it again either. Read it with
+  `read_entity`: it has `validFrom` null. Propose its start with
+  `{"op": "update_relation", "targetId": "<id of the relation>", "validFrom": "2024-02-23"}`, and
+  cite a dated page whose excerpt states the start day: for a designation, the notice of the
+  authority that gives the day of the action. A start that no excerpt states refuses the batch.
+  The record refuses a start on a relation that has one already, on a type that takes no
+  interval, and after the last day of the relation.
 
 ## A sanctions status
 

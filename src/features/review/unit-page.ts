@@ -36,6 +36,7 @@ export const FAULT_KINDS = [
   'end_rejected',
   'end_missing',
   'relation_closed',
+  'relation_started',
   'self',
   'no_source',
   'end_waits_in_group',
@@ -120,6 +121,14 @@ export type UnitAct =
       readonly validTo: string;
       /** The first day of the relation today, or null when it has none. */
       readonly validFrom: string | null;
+    })
+  | (ActBase & {
+      readonly kind: 'start';
+      /** The relation that the act dates. */
+      readonly target: UnitEnd;
+      readonly validFrom: string;
+      /** The last day of the relation today, or null when it has none. */
+      readonly validTo: string | null;
     })
   | (ActBase & {
       readonly kind: 'retype';
@@ -239,8 +248,9 @@ const act = z.object({
   op: z.string(),
   payload,
   targetId: z.string().nullable(),
-  // The first day of the relation that an act ends, as the record holds it today.
+  // The first and the last day of the relation that an act dates, as the record holds them today.
   targetFrom: z.string().nullish(),
+  targetTo: z.string().nullish(),
   // The type of the relation that an act retypes, as the record holds it today.
   targetType: z.string().nullish(),
   dissent: z.boolean(),
@@ -423,6 +433,18 @@ const actOf = (read: ReadAct): UnitAct => {
       target: endOf(read.targetId, read.target),
       validTo: read.payload.valid_to,
       validFrom: read.targetFrom ?? null,
+    };
+  if (
+    read.op === 'update_relation' &&
+    read.targetId !== null &&
+    typeof read.payload.valid_from === 'string'
+  )
+    return {
+      ...base,
+      kind: 'start',
+      target: endOf(read.targetId, read.target),
+      validFrom: read.payload.valid_from,
+      validTo: read.targetTo ?? null,
     };
   if (
     read.op === 'update_relation' &&

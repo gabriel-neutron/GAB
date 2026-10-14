@@ -107,26 +107,35 @@ export const writeRequest = z.discriminatedUnion('op', [
     attrs: attributeEdit,
   }),
 
-  // A change of a relation of the record has two forms, and each one holds a single value. The
-  // end date: the database refuses it on a type that takes no interval, on a relation that has an
-  // end, and before the start. The type: only designated_by to restricted_by, on a relation that
-  // has no open restricted_by twin.
+  // A change of a relation of the record has three forms, and each one holds a single value. The
+  // start date: the database refuses it on a type that takes no interval, on a relation that has
+  // a start, and after the end. The end date: the same, on a relation that has an end, and before
+  // the start. The type: only designated_by to restricted_by, on a relation that has no open
+  // restricted_by twin.
   z
     .strictObject({
       op: z.literal('update_relation'),
       targetId: z.uuid(),
+      validFrom: z.string().optional(),
       validTo: z.string().optional(),
       type: z.literal('restricted_by').optional(),
     })
-    .refine((act) => (act.validTo === undefined) !== (act.type === undefined), {
-      message: 'a change of a relation gives validTo or type, and not both',
-    }),
+    .refine(
+      (act) =>
+        [act.validFrom, act.validTo, act.type].filter((one) => one !== undefined).length === 1,
+      { message: 'a change of a relation gives validFrom, validTo or type, and only one of them' },
+    ),
 
   z.strictObject({
     op: z.literal('update_entity'),
     targetId: z.uuid(),
     label: z.string().trim().optional(),
     type: z.string().trim().optional(),
+    // The place of the entity. A correction made in QGIS enters here, as an act of the operator
+    // (ADR 0005). `cites` names the stored documents that back it, such as a Sentinel-2 image, and
+    // the operator authority alone backs it when the list is absent.
+    geom: geometry.optional(),
+    cites: z.array(z.string().trim()).min(1).optional(),
   }),
 
   z.strictObject({ op: z.literal('delete_entity'), targetId: z.uuid() }),

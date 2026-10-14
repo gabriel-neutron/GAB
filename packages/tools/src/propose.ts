@@ -11,12 +11,15 @@ import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
 import { findExcerpt, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import {
+  daysFromPublication,
   namesProvision,
   statedBounds,
   unstatedValues,
+  withCodedJurisdiction,
   withoutBounds,
   type BoundName,
 } from './stated-value.ts';
+import { UK_LIST_CSV } from './uk-sanctions-list.ts';
 import {
   CheckFailure,
   defineTool,
@@ -52,6 +55,27 @@ const ATTRIBUTES =
 const BOUND =
   'only for a type whose takesInterval is true in list_vocabulary, and only when an excerpt ' +
   'states the day; write it as 2026-01-31';
+
+const PUBLISHED_ON =
+  'the day when the document was published, written as 2026-05-15, and at most one day after ' +
+  'today in UTC, because an outlet at UTC+2 or UTC+3 publishes before UTC does. Give it when ' +
+  'an excerpt writes a date with no year, such as "у ніч на 15 травня": the year is then the ' +
+  'latest year that puts the day on or before this day. A year that the excerpt writes always ' +
+  'wins. With no published_on, a date with no year is not stated, and the item is disputed. An ' +
+  'item that takes a year from it is disputed too, and the review card says so: the operator ' +
+  'decides it. An item value beats the value of the call';
+
+const publishedOn = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/u, 'a day is written as 2026-05-15')
+  .refine((day) => new Date(`${day}T00:00:00Z`).toISOString().startsWith(day), {
+    message: 'published_on is no day of the calendar',
+  })
+  .describe(PUBLISHED_ON);
+
+// The latest publication day that a caller can give: tomorrow in UTC.
+const latestPublishedOn = (): string =>
+  new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
 
 const ENTITY_TYPE = 'the key of an entity type; list_vocabulary gives each one';
 
@@ -93,8 +117,16 @@ const batchAct = z.discriminatedUnion('op', [
       targetId: z
         .uuid()
         .describe(
-          'the id of the relation of the record: an open relation of a type whose takesInterval ' +
-            'is true (with validTo), or a designated_by relation (with type)',
+          'the id of the relation of the record: a relation of a type whose takesInterval is ' +
+            'true and that has no start (with validFrom) or no end (with validTo), or a ' +
+            'designated_by relation (with type)',
+        ),
+      validFrom: z
+        .string()
+        .optional()
+        .describe(
+          'the start date form: the first day of the relation, on or before its last day, ' +
+            'written as 2026-01-31; an excerpt must state it',
         ),
       validTo: z
         .string()
@@ -111,9 +143,11 @@ const batchAct = z.discriminatedUnion('op', [
             'measure. An excerpt must name the provision: the directive, the annex or the article',
         ),
     })
-    .refine((act) => (act.validTo === undefined) !== (act.type === undefined), {
-      message: 'give validTo or type, and not both',
-    }),
+    .refine(
+      (act) =>
+        [act.validFrom, act.validTo, act.type].filter((one) => one !== undefined).length === 1,
+      { message: 'give validFrom, validTo or type, and only one of them' },
+    ),
 ]);
 
 const evidence = z.strictObject({
@@ -139,6 +173,7 @@ const evidence = z.strictObject({
 export const proposeItem = z.strictObject({
   ref: localRef,
   act: batchAct,
+  published_on: publishedOn.optional(),
   originator: z
     .string()
     .trim()
@@ -170,11 +205,16 @@ const doorRow = z.strictObject({
 });
 
 // The newest set of text of the document, as the read tool chooses it.
-const PAGE = `SELECT t.extractor, t.text FROM public.document_text t
+// A copy of the FCDO list can hold another address, when its bytes were stored first by another
+// tool. The UK tool then still gives the document its provider.
+const PAGE = `SELECT t.extractor, t.text, EXISTS (SELECT 1 FROM public.documents d
+      WHERE d.id = t.document_id AND (d.uri = $3::text OR d.provider_id = 'uk_sanctions_list'))
+    AS fcdo_list
+  FROM public.document_text t
   WHERE t.document_id = $1::text AND t.page = $2::int
     AND t.extractor = public.newest_text_extractor($1::text)`;
 
-const pageRow = z.strictObject({ extractor: z.string(), text: z.string() });
+const pageRow = z.strictObject({ extractor: z.string(), text: z.string(), fcdo_list: z.boolean() });
 
 // The types of an image whose OCR text is the stored page; the door holds the same list.
 const IMAGE = `SELECT 1 AS one FROM public.documents d
@@ -199,6 +239,8 @@ const refusalOf = (cause: Error, refs: readonly string[]): string => {
 
 interface Cited {
   readonly document: string;
+  /** The document is the FCDO UK Sanctions List. */
+  readonly fcdoList: boolean;
   readonly textExtractor: string;
   readonly page: number;
   /** The place of the excerpt in the stored page, or null for words read from an image. */
@@ -217,7 +259,7 @@ const pageOf = async (
   document: string,
   page: number,
 ): Promise<z.output<typeof pageRow>> => {
-  const [found] = await rowsOf(session, pageRow, PAGE, [document, page]);
+  const [found] = await rowsOf(session, pageRow, PAGE, [document, page, UK_LIST_CSV]);
   return found ?? refuse(ref, `document ${document} has no page ${String(page)} of stored text`);
 };
 
@@ -239,6 +281,7 @@ const cite = async (
     // The words that the AI read stand alone: the OCR text around them does not hold them.
     return {
       document: given.document,
+      fcdoList: page.fcdo_list,
       textExtractor: page.extractor,
       page: given.page,
       span: null,
@@ -256,6 +299,7 @@ const cite = async (
   const points = Array.from(page.text);
   return {
     document: given.document,
+    fcdoList: page.fcdo_list,
     textExtractor: page.extractor,
     page: given.page,
     span,
@@ -401,10 +445,9 @@ const checkEventEnds = async (
 
 const claimActOf = async (
   session: Session,
-  given: ProposeItem,
+  act: ProposeItem['act'],
   dropped: readonly BoundName[],
 ): Promise<unknown> => {
-  const { act } = given;
   if (act.op === 'create_relation') return withoutBounds(act, dropped);
   if (act.op !== 'update_relation') return act;
   const [named] = await rowsOf(session, z.strictObject({ words: z.string() }), RELATION_WORDS, [
@@ -431,8 +474,9 @@ const namedRefs = (reason: string, names: ReadonlyMap<string, string>): string =
 const disputeReason = (
   transcribed: boolean,
   unstated: readonly UnstatedValue[],
-  lostEnd: string | null,
+  lostBound: LostBound | null,
   lostProvision: boolean,
+  deduced: string | null,
   verdict: CheckVerdict | 'unchecked' | undefined,
   names: ReadonlyMap<string, string>,
 ): string | null => {
@@ -445,8 +489,10 @@ const disputeReason = (
         .map((one) => `${one.name} ${JSON.stringify(one.value)}`)
         .join(', ')}`,
     );
-  if (lostEnd !== null) parts.push(`the end date ${lostEnd} is in no excerpt`);
+  if (lostBound !== null)
+    parts.push(`the ${lostBound.word} date ${lostBound.day} is in no excerpt`);
   if (lostProvision) parts.push('no excerpt names the provision that states the measure');
+  if (deduced !== null) parts.push(`year deduced from the publication of ${deduced}`);
   if (verdict === undefined) parts.push('the checker did not answer');
   else if (verdict !== 'unchecked' && verdict.verdict !== 'supported')
     parts.push(
@@ -461,6 +507,23 @@ const disputeReason = (
   return Array.from(plain).slice(0, MAX_REASON).join('');
 };
 
+// A bound that the act cannot lose: the end of a new relation, and the start or the end that an act
+// gives to a relation of the record.
+interface LostBound {
+  readonly name: BoundName;
+  readonly word: 'start' | 'end';
+  readonly day: string;
+}
+
+const lostBoundOf = (act: WriteRequest, dropped: readonly BoundName[]): LostBound | null => {
+  if (act.op !== 'create_relation' && act.op !== 'update_relation') return null;
+  if (act.validTo !== undefined && dropped.includes('validTo'))
+    return { name: 'validTo', word: 'end', day: act.validTo };
+  if (act.op === 'update_relation' && act.validFrom !== undefined && dropped.includes('validFrom'))
+    return { name: 'validFrom', word: 'start', day: act.validFrom };
+  return null;
+};
+
 // One item of the batch, ready for the check and the write.
 interface Prepared {
   readonly given: ProposeItem;
@@ -470,8 +533,10 @@ interface Prepared {
   readonly cited: readonly Cited[];
   readonly unstated: readonly UnstatedValue[];
   readonly dropped: BoundName[];
-  readonly lostEnd: string | null;
+  readonly lostBound: LostBound | null;
   readonly lostProvision: boolean;
+  /** The publication day, when the year of a day of the act comes from it. */
+  readonly deduced: string | null;
   readonly transcribed: boolean;
   readonly id: string | undefined;
 }
@@ -494,7 +559,8 @@ export const proposeOf = (modelCallId: string | null) =>
     description:
       'Proposes a batch of linked facts: new entities, new relations, attributes to add, and the ' +
       'end date of an open relation of the record (update_relation, when a page states that an ' +
-      'owner, a flag, an operator or an insurer changed). Each ' +
+      'owner, a flag, an operator or an insurer changed), or the start date of a relation of the ' +
+      'record that has none (update_relation with validFrom, when a dated page states it). Each ' +
       'item gives the act, the party that first stated it, how the page states it, and for its ' +
       'values the page and an excerpt copied word for word from the stored text. Code finds each ' +
       'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +
@@ -502,9 +568,10 @@ export const proposeOf = (modelCallId: string | null) =>
       'that you read from the image with fromImage: true; code then marks the item as disputed, ' +
       'so the operator compares the words with the image. A value that no excerpt states marks the item as disputed. A start ' +
       '(validFrom) of a relation that no excerpt states is not proposed, and droppedBounds names ' +
-      'it; an end (validTo) that no excerpt states refuses the batch. The record refuses an end ' +
-      'date on a relation that ended already, on a type that takes no interval, and before the ' +
-      'first day. A type change (type: restricted_by) turns a designated_by relation that states ' +
+      'it; an end (validTo) that no excerpt states refuses the batch, and so does the start of ' +
+      'update_relation. The record refuses an end date on a relation that ended already, on a ' +
+      'type that takes no interval, and before the first day. It refuses a start date on a ' +
+      'relation that has one, on a type that takes no interval, and after the last day. A type change (type: restricted_by) turns a designated_by relation that states ' +
       'a sectoral measure into a restricted_by relation: an excerpt must name the provision, and ' +
       'the record refuses it on another type and on a twin that is open. Before the write, a ' +
       'model of another family reads each item with its passages, and an item that its passages ' +
@@ -522,8 +589,8 @@ export const proposeOf = (modelCallId: string | null) =>
       'port or a vessel) and carried_out_by (to a military unit or a state body). A denial is ' +
       'the modality denies on the same name. First call search_graph with each identifier, and ' +
       'list_proposals for the document, so you propose no fact that the record or the queue ' +
-      'already holds.',
-    input: z.strictObject({ items: proposeItems }),
+      'already holds. Give published_on for an excerpt that writes a date with no year.',
+    input: z.strictObject({ items: proposeItems, published_on: publishedOn.optional() }),
     output: z.strictObject({
       proposals: z.array(outcome),
       // Why no model checked the batch. The items then wait, and the same batch can be sent again.
@@ -543,7 +610,7 @@ export const proposeOf = (modelCallId: string | null) =>
       );
       const prepared: Prepared[] = [];
       for (const [index, given] of input.items.entries()) {
-        const resolved = await resolvedAct(session, given, index, minted);
+        const resolved = withCodedJurisdiction(await resolvedAct(session, given, index, minted));
         const eventFault = eventActRefusal(resolved);
         if (eventFault !== null) refuse(given.ref, eventFault);
         await checkEventEnds(session, given, created);
@@ -552,20 +619,23 @@ export const proposeOf = (modelCallId: string | null) =>
           refuse(given.ref, 'an agent cites the stored text, and never words read from an image');
         const cited: Cited[] = [];
         for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
+        const published = given.published_on ?? input.published_on;
+        if (published !== undefined && published > latestPublishedOn())
+          refuse(given.ref, `published_on ${published} is in the future`);
         const documents = [...new Set(cited.map((one) => one.document))];
         const passages = cited.map((one) => one.passage);
         // A start or an end of a relation comes from a cited passage, or it is not proposed.
-        const { act: request, dropped } = statedBounds(resolved, passages);
-        // An end that is not proposed makes an ended relation look current, and an end that is
-        // the whole act has no value that a passage states. The research AI can cite the passage
-        // that states it, so its batch is refused. An agent cannot, so its item is disputed and
-        // the operator reads the page.
-        const lostEnd =
-          (resolved.op === 'create_relation' || resolved.op === 'update_relation') &&
-          resolved.validTo !== undefined &&
-          dropped.includes('validTo')
-            ? (resolved.validTo ?? null)
-            : null;
+        // The FCDO list writes each date as day/month/year (ADR 0024).
+        const dayFirst = cited.every((one) => one.fcdoList);
+        const { act: request, dropped } = statedBounds(resolved, passages, {
+          publishedOn: published,
+          dayFirst,
+        });
+        // An end that is not proposed makes an ended relation look current, and a start or an end
+        // that is the whole act has no value that a passage states. The research AI can cite the
+        // passage that states it, so its batch is refused. An agent cannot, so its item is
+        // disputed and the operator reads the page.
+        const lostBound = lostBoundOf(resolved, dropped);
         // A type change rests on the provision that states the measure. The research AI cites the
         // passage that names it, so its batch is refused. An agent cannot, so its item is
         // disputed and the operator reads the page.
@@ -579,26 +649,38 @@ export const proposeOf = (modelCallId: string | null) =>
             'no excerpt names the provision (the directive, the annex or the article) that ' +
               'states the measure: cite the passage that names it',
           );
-        if (lostEnd !== null && modelCallId === null)
+        if (lostBound !== null && modelCallId === null)
           refuse(
             given.ref,
-            `no excerpt states the end date ${lostEnd} (validTo): cite the passage that states ` +
-              'it, or give no validTo',
+            `no excerpt states the ${lostBound.word} date ${lostBound.day} (${lostBound.name}): ` +
+              `cite the passage that states it, or give no ${lostBound.name}`,
           );
         await checkTarget(session, given.ref, request);
         const act = machineAct(request, documents);
-        const unstated = unstatedValues(request, passages);
+        const unstated = unstatedValues(request, passages, { publishedOn: published, dayFirst });
+        const deduced =
+          published !== undefined &&
+          daysFromPublication(request, passages, published, dayFirst).length > 0
+            ? published
+            : null;
         const transcribed = cited.some((one) => one.span === null);
         prepared.push({
           given,
           act,
-          claimAct: await claimActOf(session, given, dropped),
+          claimAct: await claimActOf(
+            session,
+            // The checker reads the act that is written, so it reads the coded jurisdiction.
+            withCodedJurisdiction(given.act),
+            dropped,
+          ),
           cited,
           unstated,
-          // The end of a close stays in its act, so code removed no bound of it.
+          // The date of an act on a relation of the record stays in its act, so code removed no
+          // bound of it.
           dropped: resolved.op === 'update_relation' ? [] : dropped,
-          lostEnd,
+          lostBound,
           lostProvision,
+          deduced,
           transcribed,
           id: minted.get(given.ref)?.id,
         });
@@ -647,8 +729,9 @@ export const proposeOf = (modelCallId: string | null) =>
         disputeReason(
           one.transcribed,
           one.unstated,
-          one.lostEnd,
+          one.lostBound,
           one.lostProvision,
+          one.deduced,
           verdictOf(one.given.ref),
           names,
         );

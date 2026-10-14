@@ -15,7 +15,9 @@ SET ROLE gabriel_owner;
 -- THREE TRIGGERS ARE GONE, AND THEY ARE NOT COMING BACK BY ACCIDENT. entities_attrs_gate,
 -- relations_attrs_gate and proposals_vocabulary held the declared kind and the declared format
 -- of a value. M11 stands: no key allowlist and no rule on a value beyond its shape, which
--- `attrs_valid` carries on the column. The drop below runs on a database that still holds them.
+-- `attrs_valid` carries on the column. The one exception refuses nothing: the record writes a
+-- known registration jurisdiction as its code (migration 0079). The drop below runs on a
+-- database that still holds them.
 DROP TRIGGER IF EXISTS entities_attrs_gate   ON entities;
 DROP TRIGGER IF EXISTS relations_attrs_gate  ON relations;
 DROP TRIGGER IF EXISTS proposals_vocabulary  ON proposals;
@@ -114,6 +116,12 @@ CREATE OR REPLACE TRIGGER relation_type_interval
   BEFORE UPDATE OF takes_interval ON relation_type
   FOR EACH ROW EXECUTE FUNCTION check_relation_type_interval();
 
+-- One country, one value: each write of an entity stores the code of a known jurisdiction. The
+-- promotion, the merge and the undo of a merge all write through it.
+CREATE OR REPLACE TRIGGER entities_coded_jurisdiction
+  BEFORE INSERT OR UPDATE OF attrs ON entities
+  FOR EACH ROW EXECUTE FUNCTION code_entity_jurisdiction();
+
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_author;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_src_exists;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_unit;
@@ -121,6 +129,7 @@ ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_stamp_claim;
 ALTER TABLE proposals ENABLE ALWAYS TRIGGER proposals_append_only;
 ALTER TABLE model_call ENABLE ALWAYS TRIGGER model_call_append_only;
 ALTER TABLE citation ENABLE ALWAYS TRIGGER citation_append_only;
+ALTER TABLE entities ENABLE ALWAYS TRIGGER entities_coded_jurisdiction;
 ALTER TABLE author ENABLE ALWAYS TRIGGER author_append_only;
 ALTER TABLE author_name ENABLE ALWAYS TRIGGER author_name_append_only;
 ALTER TABLE author_name_decision ENABLE ALWAYS TRIGGER author_name_decision_append_only;

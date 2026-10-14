@@ -69,6 +69,14 @@ export function Relations({ relations, mark, deleting, onSelect }: RelationsProp
                 {relation.interval}
               </span>
             )}
+            {relation.share === null ? null : (
+              <span
+                className="max-w-48 shrink-0 truncate text-small/4 text-label"
+                title={relation.share}
+              >
+                {relation.share}
+              </span>
+            )}
             {mark(relation.sources)}
             {deleting.offered ? (
               <DeleteControl
