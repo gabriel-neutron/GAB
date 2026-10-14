@@ -115,16 +115,27 @@ export const reportOf = (totals: Totals, lines: readonly Line[]): string =>
     .map((line) => `${line}\r\n`)
     .join('');
 
-const ENTITY_HELD = 'SELECT label, attrs FROM api.entity WHERE id = $1::uuid';
+const ENTITY_HELD = 'SELECT label, attrs, geom FROM api.entity WHERE id = $1::uuid';
 
-const SAME_RELATION = `SELECT id::text AS id, attrs FROM api.relation
-  WHERE coalesce(proposed_type, type) = $1::text AND src_id = $2::uuid AND dst_id = $3::uuid
-    AND valid_from IS NOT DISTINCT FROM $4::date AND valid_to IS NOT DISTINCT FROM $5::date
-  ORDER BY id LIMIT 1`;
+// The relation of this type between these ends: the one with the same days, or else the open one.
+// A new edition that gives other days for a held link finds that link, and creates no second one.
+const SAME_RELATION = `SELECT id::text AS id, attrs, valid_from::text AS valid_from,
+         valid_to::text AS valid_to
+    FROM api.relation
+   WHERE coalesce(proposed_type, type) = $1::text AND src_id = $2::uuid AND dst_id = $3::uuid
+     AND (valid_to IS NULL
+          OR (valid_from IS NOT DISTINCT FROM $4::date AND valid_to IS NOT DISTINCT FROM $5::date))
+   ORDER BY (valid_from IS NOT DISTINCT FROM $4::date AND valid_to IS NOT DISTINCT FROM $5::date)
+            DESC, valid_from DESC NULLS LAST, id
+   LIMIT 1`;
 
-const ENTITY_GEOM = 'SELECT geom FROM api.entity WHERE id = $1::uuid';
+// The open relations of a type at one end or at the two ends. A row that the load does not write
+// still gives these links, so the report does not list them as dropped.
+const OPEN_LINKS = `SELECT id::text AS id FROM api.relation
+   WHERE coalesce(proposed_type, type) = $1::text AND valid_to IS NULL
+     AND ($2::uuid IS NULL OR src_id = $2::uuid) AND ($3::uuid IS NULL OR dst_id = $3::uuid)`;
 
-const geomRow = z.array(z.object({ geom: z.unknown() }));
+const idRow = z.array(z.object({ id: z.uuid() }));
 
 // Six decimals are about ten centimetres. The record writes a position with fewer digits than a
 // file gives, so two readings of one point compare after this rounding.
@@ -135,37 +146,34 @@ const rounded = (value: unknown): unknown =>
       ? value.map(rounded)
       : value;
 
-/** The place of an entity, and whether it is the place that a row gives. */
-const geomState = async (
-  db: Queryable,
-  entity: string,
+/** True when the place that the record holds is the place that a row gives. */
+const samePlace = (
+  had: unknown,
   geom: { readonly type?: unknown; readonly coordinates?: unknown },
-): Promise<'none' | 'same' | 'different'> => {
-  const [held] = geomRow.parse((await db.query(ENTITY_GEOM, [entity])).rows);
-  const had = held?.geom;
-  if (had === null || had === undefined) return 'none';
+): boolean => {
   const read = z.object({ type: z.unknown(), coordinates: z.unknown() }).safeParse(had);
-  return read.success &&
+  return (
+    read.success &&
     isDeepStrictEqual(read.data.type, geom.type) &&
     isDeepStrictEqual(rounded(read.data.coordinates), rounded(geom.coordinates))
-    ? 'same'
-    : 'different';
+  );
 };
 
 const entityRow = z.array(
   z.object({
     label: z.string(),
     attrs: z.record(z.string(), z.object({ v: z.unknown(), src: z.array(z.string()).optional() })),
+    geom: z.unknown(),
   }),
 );
 
-/** The name and the values of an entity of the record. */
+/** The name, the values and the place of an entity of the record. */
 const entityHeld = async (
   db: Queryable,
   entity: string,
-): Promise<{ readonly label: string; readonly attrs: HeldAttrs }> => {
+): Promise<{ readonly label: string; readonly attrs: HeldAttrs; readonly geom: unknown }> => {
   const [held] = entityRow.parse((await db.query(ENTITY_HELD, [entity])).rows);
-  return { label: held?.label ?? '', attrs: held?.attrs ?? {} };
+  return { label: held?.label ?? '', attrs: held?.attrs ?? {}, geom: held?.geom ?? null };
 };
 
 // The earlier editions of the table: the other documents of the same host that a load read under
@@ -181,7 +189,7 @@ const EDITION_LINKS = `SELECT r.id::text AS id, r.type, coalesce(s.label, r.src_
     FROM public.relations r
     LEFT JOIN public.entities s ON s.id = r.src_id
     LEFT JOIN public.entities d ON d.id = r.dst_id
-   WHERE r.type = ANY ($1::text[]) AND r.valid_to IS NULL
+   WHERE coalesce(r.proposed_type, r.type) = ANY ($1::text[]) AND r.valid_to IS NULL
      AND NOT r.sources::text[] @> ARRAY[$3::text]
      AND (r.sources::text[] && $2::text[]
           OR EXISTS (SELECT 1 FROM jsonb_each(r.attrs) AS a(key, held)
@@ -199,23 +207,41 @@ const linkRow = z.array(
     attrs: z
       .record(z.string(), z.object({ v: z.unknown(), src: z.array(z.string()).optional() }))
       .nullable(),
+    valid_from: z.string().nullable(),
+    valid_to: z.string().nullable(),
   }),
 );
 
-/** The relation of this type between these ends and these days that the record holds, with its
- * attributes, or null when the record holds no such relation. */
+const daysText = (from: string | null, to: string | null): string =>
+  `${from ?? 'no start'} to ${to ?? 'no end'}`;
+
+/** The relation of this type between these ends that the record holds, with its attributes, or
+ * null when the record holds no such relation. `days` words the other days that the record holds,
+ * or is null when the days are the same. A machine does not change the days of a held relation,
+ * so other days go to the report. */
 const linkedAttrs = async (
   db: Queryable,
   type: string,
   src: string,
   dst: string,
   days: Days,
-): Promise<{ readonly id: string; readonly attrs: HeldAttrs } | null> => {
-  const [held] = linkRow.parse(
-    (await db.query(SAME_RELATION, [type, src, dst, days.validFrom ?? null, days.validTo ?? null]))
-      .rows,
-  );
-  return held === undefined ? null : { id: held.id, attrs: held.attrs ?? {} };
+): Promise<{
+  readonly id: string;
+  readonly attrs: HeldAttrs;
+  readonly days: string | null;
+} | null> => {
+  const [from, to] = [days.validFrom ?? null, days.validTo ?? null];
+  const [held] = linkRow.parse((await db.query(SAME_RELATION, [type, src, dst, from, to])).rows);
+  if (held === undefined) return null;
+  const same = held.valid_from === from && held.valid_to === to;
+  return {
+    id: held.id,
+    attrs: held.attrs ?? {},
+    days: same
+      ? null
+      : `the row gives ${type} the days ${daysText(from, to)}, and the record holds ` +
+        `relation ${held.id} with ${daysText(held.valid_from, held.valid_to)}`,
+  };
 };
 
 /** The loader reads every row under the promoted mapping, and it calls no model. Each row is one
@@ -274,8 +300,26 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         ? { kind: 'none' }
         : { kind: 'one', id: first.id, key: 'gem_entity_id' };
     };
+    // A link that an earlier edition gave, and that this edition no longer gives, goes to the
+    // report. A table with no relation type gives no link, so it reads no earlier edition.
+    const types = isLinkTable(rows)
+      ? [rows.relation_type]
+      : mapping.relations.map((relation) => relation.type);
+    const editions =
+      types.length === 0
+        ? []
+        : (earlierRow.parse((await context.db.query(EARLIER, [job.id])).rows)[0]?.docs ?? []);
     // The relations of the record that a row of this edition gives.
     const given = new Set<string>();
+
+    // A row that the load does not write can still give a link: the report must not list that
+    // link as dropped. One end that the row does not find marks each open link of the type at the
+    // other end, so the report never lists a link that the edition can still give.
+    const markGiven = async (type: string, src: string | null, dst: string | null) => {
+      if (editions.length === 0 || (src === null && dst === null)) return;
+      for (const { id } of idRow.parse((await context.db.query(OPEN_LINKS, [type, src, dst])).rows))
+        given.add(id);
+    };
 
     // A refusal of the door names the item and the rule, and it ends the row. Any other fault
     // is not a fact about the row, so it stops the job.
@@ -355,28 +399,29 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
     // A row of a relation table is one relation between two entities that the record holds. It
     // creates no entity, so a row whose end the record does not hold goes to the report.
     const loadLink = async (links: LinkRows, at: RowAt): Promise<void> => {
-      const ends: string[] = [];
-      for (const [side, end] of [
-        ['src', links.src],
-        ['dst', links.dst],
-      ] as const) {
-        const one = await resolveEnd(findEnd, at.record, at.cell, side, end);
-        if (one.refused !== null) {
-          at.unfit(one.refused);
-          return;
-        }
-        ends.push(one.id);
+      const src = await resolveEnd(findEnd, at.record, at.cell, 'src', links.src);
+      const dst = await resolveEnd(findEnd, at.record, at.cell, 'dst', links.dst);
+      // The entity that an end finds, also by its name only: the row can still give its link.
+      const seen = (end: typeof src): string | null =>
+        end.found?.kind === 'one' ? end.found.id : null;
+      const refused = src.refused ?? dst.refused;
+      if (refused !== null) {
+        await markGiven(links.relation_type, seen(src), seen(dst));
+        at.unfit(refused);
+        return;
       }
-      const [srcId, dstId] = ends;
-      if (srcId === undefined || dstId === undefined) throw new Error('a relation has two ends');
+      const [srcId, dstId] = [src.id, dst.id];
+      if (srcId === null || dstId === null) throw new Error('a relation has two ends');
 
       const cast = castAll(links.attrs, at.cell, at.note);
       if ('refused' in cast) {
+        await markGiven(links.relation_type, srcId, dstId);
         at.unfit(cast.refused);
         return;
       }
       const dated = daysOf(at.cell, links.valid_from, links.valid_to);
       if ('refused' in dated) {
+        await markGiven(links.relation_type, srcId, dstId);
         at.unfit(`relation not loaded: ${dated.refused}`);
         return;
       }
@@ -389,6 +434,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       const linked = await linkedAttrs(context.db, links.relation_type, srcId, dstId, days);
       if (linked !== null) {
         given.add(linked.id);
+        if (linked.days !== null) at.note(linked.days);
         const changed = changedValues(linked.attrs, attrs);
         if (Object.keys(changed).length === 0) {
           loaded += 1;
@@ -427,6 +473,45 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       await proposeRow(at, [made.item]);
     };
 
+    // The links that a row of an entity table gives, also when the load does not write them. The
+    // far ends are found as the load finds them, and nothing is created. With no entity, the row
+    // lookup finds it.
+    const markRelations = async (
+      record: CsvRecord,
+      cell: (name: string) => string,
+      entity: string | null,
+      only?: MappingPayload['relations'][number],
+    ): Promise<void> => {
+      if (editions.length === 0 || isLinkTable(rows)) return;
+      let rowEntity = entity;
+      if (rowEntity === null) {
+        const found = await find(record, rows.lookup, rows.entity_type);
+        if (found.kind !== 'one') return;
+        rowEntity = found.id;
+      }
+      for (const relation of only === undefined ? mapping.relations : [only]) {
+        const text = cell(relation.other.column);
+        if (text === '') continue;
+        const farType = relation.other_type ?? rows.entity_type;
+        const far: (string | null)[] = [];
+        if (relation.split === undefined) {
+          const end = await find(record, [relation.other], farType);
+          far.push(end.kind === 'one' ? end.id : null);
+        } else {
+          const split = splitOwners(text, relation.split.separator);
+          if ('refused' in split) far.push(null);
+          else
+            for (const owner of split.owners) {
+              const owned = await ownerOf(farType, owner.gemId);
+              far.push(owned.kind === 'one' ? owned.id : null);
+            }
+        }
+        for (const id of far)
+          if (relation.row_is === 'src') await markGiven(relation.type, rowEntity, id);
+          else await markGiven(relation.type, id, rowEntity);
+      }
+    };
+
     const loadRow = async (record: CsvRecord, row: number): Promise<void> => {
       const where = { row, page: page.page, start: record.start, end: record.end };
       const at: RowAt = {
@@ -453,15 +538,21 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         return;
       }
 
+      // A row that the load does not write still gives its links.
+      const skipRow = async (reason: string): Promise<void> => {
+        unfit(reason);
+        await markRelations(record, cell, null);
+      };
+
       const label = cell(rows.label);
       if (label === '') {
-        unfit(`the required field "${rows.label}" is empty`);
+        await skipRow(`the required field "${rows.label}" is empty`);
         return;
       }
 
       const cast = castAll(rows.attrs, at.cell, at.note);
       if ('refused' in cast) {
-        unfit(cast.refused);
+        await skipRow(cast.refused);
         return;
       }
       const { attrs } = cast;
@@ -475,14 +566,14 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
             try {
               geom = JSON.parse(text);
             } catch {
-              unfit(`the column "${place.geojson}" holds no GeoJSON`);
+              await skipRow(`the column "${place.geojson}" holds no GeoJSON`);
               return;
             }
           }
         } else {
           const [lon, lat] = [cell(place.lon), cell(place.lat)];
           if ((lon === '') !== (lat === '')) {
-            unfit('the geometry has one ordinate and not the other');
+            await skipRow('the geometry has one ordinate and not the other');
             return;
           }
           if (lon !== '') geom = { type: 'Point', coordinates: [Number(lon), Number(lat)] };
@@ -502,6 +593,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       const hasAttrs = Object.keys(attrs).length > 0;
       if (found.kind === 'one' && !hasAttrs && geom === undefined) {
         unfit(`the row finds entity ${found.id} and adds no attribute`);
+        await markRelations(record, cell, found.id);
         return;
       }
 
@@ -513,7 +605,9 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       const requests: { request: unknown; id: string; foundBy: string | null }[] = [];
       // An update that changes no value is not proposed. A load that follows the promotion of an
       // earlier load then adds no act of no effect.
-      if (found.kind === 'none')
+      // The name, the values and the place of the entity that the row finds, read once.
+      const entity = found.kind === 'one' ? await entityHeld(context.db, found.id) : null;
+      if (entity === null)
         requests.push({
           request: {
             op: 'create_entity',
@@ -525,11 +619,10 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           id: rowId,
           foundBy: null,
         });
-      else {
+      else if (found.kind === 'one') {
         // The load compares values and not sources: a row of a new edition that gives the values
         // of the record writes nothing, and a changed value gives one proposal with the changed
         // values only.
-        const entity = await entityHeld(context.db, found.id);
         const changed = changedValues(entity.attrs, attrs);
         if (Object.keys(changed).length > 0)
           requests.push({
@@ -549,10 +642,10 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       }
       // The act that updates an entity sets a missing place. A place that differs from the place
       // of the record is proposed too, and the Doubt rule holds it for the operator (S3).
-      if (found.kind === 'one' && geom !== undefined) {
+      if (found.kind === 'one' && entity !== null && geom !== undefined) {
         // A value that is no object is no geometry, and the request refuses it with a sentence.
         const place = typeof geom === 'object' && geom !== null ? geom : {};
-        if ((await geomState(context.db, found.id, place)) !== 'same')
+        if (!samePlace(entity.geom, place))
           requests.push({
             request: { op: 'update_entity', targetId: found.id, geom },
             id: randomUUID(),
@@ -565,20 +658,25 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       for (const relation of mapping.relations) {
         const otherText = cell(relation.other.column);
         if (otherText === '') continue;
+        // A relation that the row does not write goes to the report, and the row still gives it.
+        const skip = async (reason: string): Promise<void> => {
+          note(reason);
+          if (found.kind === 'one') await markRelations(record, cell, found.id, relation);
+        };
         // A relation is a unit of its own, so the doubt of a name match never reaches it. The row
         // writes it only after the operator gives the entity an identifier.
         if (found.kind === 'one' && found.key === 'label') {
-          note('relation not loaded: the row finds its entity by its name only');
+          await skip('relation not loaded: the row finds its entity by its name only');
           continue;
         }
         const dated = daysOf(at.cell, relation.valid_from, relation.valid_to);
         if ('refused' in dated) {
-          note(`relation not loaded: ${dated.refused}`);
+          await skip(`relation not loaded: ${dated.refused}`);
           continue;
         }
         const linkCast = castAll(relation.attrs ?? {}, at.cell, at.note);
         if ('refused' in linkCast) {
-          note(`relation not loaded: ${linkCast.refused}`);
+          await skip(`relation not loaded: ${linkCast.refused}`);
           continue;
         }
         const { days } = dated;
@@ -589,11 +687,11 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         if (relation.split === undefined) {
           const end = await find(record, [relation.other], farType);
           if (end.kind === 'none') {
-            note(NOT_IN_GRAPH);
+            await skip(NOT_IN_GRAPH);
             continue;
           }
           if (end.kind === 'many') {
-            note(
+            await skip(
               `relation not loaded: the lookup by ${end.key} finds ${String(end.count)} entities`,
             );
             continue;
@@ -602,7 +700,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         } else {
           const split = splitOwners(otherText, relation.split.separator);
           if ('refused' in split) {
-            note(`relation not loaded: ${split.refused}`);
+            await skip(`relation not loaded: ${split.refused}`);
             continue;
           }
           // The owners are found first. One owner that finds many entities refuses the whole
@@ -624,7 +722,9 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
             else found.push({ id: randomUUID(), owner, created: true });
           }
           if (refusedOwner !== null) {
-            note(`relation not loaded: the identifier ${refusedOwner} finds more than one entity`);
+            await skip(
+              `relation not loaded: the identifier ${refusedOwner} finds more than one entity`,
+            );
             continue;
           }
           for (const one of found) {
@@ -656,6 +756,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
             // The record holds the relation, and it gets only the values that changed. The Doubt
             // rule holds a changed value for the operator.
             given.add(linked.id);
+            if (linked.days !== null) note(linked.days);
             const changed = changedValues(linked.attrs, linkAttrs);
             if (Object.keys(changed).length > 0)
               requests.push({
@@ -703,15 +804,9 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
     if (loaded + excluded !== table.rows.length)
       throw new JobStop('the rows loaded and excluded do not add up to the rows read');
 
-    // A link that an earlier edition gave, and that this edition no longer gives, goes to the
-    // report. The load closes nothing: an end date is an act of its own (ADR 0021).
-    const types = isLinkTable(rows)
-      ? [rows.relation_type]
-      : mapping.relations.map((relation) => relation.type);
-    const [earlier] = earlierRow.parse((await context.db.query(EARLIER, [job.id])).rows);
-    const editions = earlier?.docs ?? [];
+    // The load closes nothing: an end date is an act of its own (ADR 0021).
     let dropped = 0;
-    if (types.length > 0 && editions.length > 0)
+    if (editions.length > 0)
       for (const link of editionLinkRow.parse(
         (await context.db.query(EDITION_LINKS, [types, editions, document])).rows,
       )) {

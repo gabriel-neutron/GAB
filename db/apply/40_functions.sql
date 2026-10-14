@@ -3677,7 +3677,8 @@ BEGIN
        AND (a.found_by IS NOT NULL OR public.act_reference_dataset(a.id) IS NOT NULL)
     UNION ALL
     -- The same for a relation: a new edition that gives another share of an ownership link. The
-    -- load proposes the changed value, and the operator decides it.
+    -- load proposes the changed value, and the operator decides it. Each machine act that changes
+    -- a held value is held, as for a place: a model call alone proves no load.
     SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
            'The relation holds ' || k.key || ' ' || coalesce(r.attrs->k.key->>'v', 'with no value')
            || CASE WHEN public.act_reference_dataset(a.id) IS NOT NULL
@@ -3688,10 +3689,7 @@ BEGIN
       CROSS JOIN LATERAL jsonb_each(coalesce(a.payload->'attrs', '{}'::jsonb)) AS k(key, held)
      WHERE a.op = 'update_attrs' AND a.target_kind = 'relation' AND r.attrs ? k.key
        AND r.attrs->k.key->'v' IS DISTINCT FROM k.held->'v'
-       AND (public.act_reference_dataset(a.id) IS NOT NULL
-            OR EXISTS (SELECT 1 FROM public.proposals m
-                        WHERE m.op = 'map_document' AND m.status = 'accepted'
-                          AND m.model_call_id = a.model_call_id))
+       AND (public.act_reference_dataset(a.id) IS NOT NULL OR a.author_role <> 'gabriel_app')
     UNION ALL
     -- A loaded row that found its entity by the name alone. Two entities can share a name, so the
     -- operator checks that the row names this one (merge candidates do not change, ADR 0022).
@@ -4368,31 +4366,37 @@ $$;
 
 -- THE SHAPE OF A TEXT SET: its name with no version of the reader, so the sheet or the layer and
 -- the filter. "xlsx-1|sheet=Fields|where=Country=Russia" gives "|sheet=Fields|where=Country=Russia".
--- A better reader of the same sheet and filter gives the same shape. NULL (the newest set of a CSV
--- file) gives NULL.
+-- A better reader of the same sheet and filter gives the same shape. NULL (the newest set of the
+-- whole file) and a name with no "|" segment (one set of the whole file) give the same shape, the
+-- empty text.
 CREATE OR REPLACE FUNCTION text_set_shape(p_text_set text) RETURNS text
 LANGUAGE sql IMMUTABLE
 SET search_path = pg_catalog, pg_temp AS $$
-  SELECT regexp_replace(p_text_set, '^[^|]*', '')
+  SELECT regexp_replace(coalesce(p_text_set, ''), '^[^|]*', '')
 $$;
 
--- THE EARLIER EDITIONS OF A TABLE (ADR 0021). The documents, other than the document of this
--- load, that a load read to its end under a mapping with the same header, from the same host and
--- with the same shape of text set. The loader reports each open relation that such a document
--- backs and that the new edition no longer gives, and it closes none. The caller holds the running
--- load.
+-- THE EARLIER EDITIONS OF A TABLE (ADR 0021). The documents that a load read to its end under the
+-- same promoted mapping, from the same host and with the same shape of text set, and that entered
+-- the record before the document of this load. The same mapping keeps out another table with the
+-- same header that a different mapping reads. An older document only, so a reload of an old
+-- edition does not report the links of a newer edition as dropped. The loader reports each open
+-- relation that such a document backs and that the new edition no longer gives, and it closes
+-- none. The caller holds the running load.
 CREATE OR REPLACE FUNCTION earlier_editions(p_job uuid)
 RETURNS text[]
 LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_document text;
+  v_entered  timestamptz;
+  v_mapping  uuid;
   v_set      text;
   v_sig      text;
   v_host     text;
 BEGIN
-  SELECT j.document_id, j.text_set, m.payload->>'header_sig', public.uri_host(d.uri)
-    INTO v_document, v_set, v_sig, v_host
+  SELECT j.document_id, d.created_at, j.mapping, j.text_set, m.payload->>'header_sig',
+         public.uri_host(d.uri)
+    INTO v_document, v_entered, v_mapping, v_set, v_sig, v_host
     FROM public.jobs j
     JOIN public.proposals m ON m.id = j.mapping AND m.op = 'map_document'
     JOIN public.documents d ON d.id = j.document_id
@@ -4411,7 +4415,9 @@ BEGIN
       JOIN public.proposals m ON m.id = j.mapping AND m.op = 'map_document'
       JOIN public.documents d ON d.id = j.document_id
      WHERE j.kind = 'load_mapped' AND j.status = 'done'
+       AND j.mapping = v_mapping
        AND j.document_id::text <> v_document
+       AND (d.created_at, d.id::text) < (v_entered, v_document)
        AND m.payload->>'header_sig' = v_sig
        AND public.uri_host(d.uri) = v_host
        AND public.text_set_shape(j.text_set) IS NOT DISTINCT FROM public.text_set_shape(v_set)),
