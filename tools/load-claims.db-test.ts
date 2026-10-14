@@ -55,7 +55,7 @@ const storeIn =
     const [known] = held.parse(
       await asOperator(ask)('SELECT id FROM public.documents WHERE sha256 = $1', [sha256]),
     );
-    if (known !== undefined) return { status: 'known', id: known.id, sha256 };
+    if (known !== undefined) return { status: 'known', id: known.id, sha256, filled: false };
     const id = `doc_${sha256.slice(0, 12)}`;
     await asOperator(ask)(
       'SELECT public.put_document($1, $2, $3, $4, NULL, NULL, $5, $6, $7::date)',
