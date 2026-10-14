@@ -18,7 +18,8 @@ export type Verdict = 'promoted' | 'rejected';
 export const decidedAct = z.object({
   id: z.string(),
   op: z.string(),
-  // The end date that a change of a relation gives, which makes it the end of the relation.
+  // The start date, the end date or the type that a change of a relation gives alone. The key
+  // names the form of the act.
   payload: z
     .object({ valid_from: z.unknown(), valid_to: z.unknown(), type: z.unknown() })
     .partial()

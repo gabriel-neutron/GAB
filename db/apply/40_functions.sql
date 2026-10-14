@@ -812,8 +812,9 @@ BEGIN
     -- A change of a name or a type and a deletion rewrite what the operator already decided. An
     -- end date on an open relation adds to it, and changes nothing that stands, and so does a start
     -- date on a relation that has none. A type change of a designated_by relation to restricted_by
-    -- is a correction of the type, with the same rule. A place for an entity that has none adds to the record. A place that differs from the place
-    -- of the record waits as a doubt (S3), so the proposal of a place is no rewrite in silence.
+    -- is a correction of the type, with the same rule. A place for an entity that has none adds to
+    -- the record. A place that differs from the place of the record waits as a doubt (S3), so the
+    -- proposal of a place is no rewrite in silence.
     IF coalesce(v_item->>'op', '') NOT IN ('create_entity','create_relation','update_attrs',
                                             'update_relation','update_entity')
        OR (v_item->>'op' = 'update_entity'
@@ -1490,8 +1491,8 @@ BEGIN
    WHERE r.id = o.id
      AND o.id IN (SELECT x::uuid FROM jsonb_array_elements_text(v_copy->'moved') AS x);
 
-  -- A later act that gave the twin a date or a type added its own documents, and they stay: the
-  -- undo takes away only the documents that the merge added, and none that such an act cites. A
+  -- A later act that gave the twin its end date added its own documents, and they stay: the undo
+  -- takes away only the documents that the merge added, and none that a later end date cites. A
   -- twin whose later end date is before its own first day keeps the first day of the merge, and
   -- with it the documents that hold that day up, so the undo leaves it as it is.
   UPDATE public.relations r
@@ -1508,7 +1509,7 @@ BEGIN
        FROM public.proposals a, unnest(a.src::text[]) AS d(doc)
       WHERE a.op = 'update_relation' AND a.status = 'accepted'
         AND a.target_id = k.key::uuid
-        AND (a.payload ? 'valid_to' OR a.payload ? 'valid_from' OR a.payload ? 'type')) AS c
+        AND (a.payload ? 'valid_to' OR a.payload ? 'type')) AS c
    WHERE r.id = k.key::uuid
      AND to_jsonb(r.sources) @> (k.value->'after'->'sources')
      AND NOT EXISTS (SELECT 1 FROM unnest(r.sources::text[]) AS y(d)
@@ -3678,7 +3679,7 @@ BEGIN
                              AND o.target_id = a.target_id AND o.payload ? 'valid_to'
      WHERE a.op = 'update_relation' AND a.payload ? 'valid_to'
      GROUP BY a.unit_id, a.id, a.target_id
-    HAVING count(*) > 1
+    HAVING count(DISTINCT o.payload->>'valid_to') > 1
     UNION ALL
     SELECT a.unit_id, 'not_clean', 'contradiction', a.id,
            'Two acts give the relation '
@@ -3689,7 +3690,35 @@ BEGIN
                              AND o.target_id = a.target_id AND o.payload ? 'valid_from'
      WHERE a.op = 'update_relation' AND a.payload ? 'valid_from'
      GROUP BY a.unit_id, a.id, a.target_id
-    HAVING count(*) > 1
+    HAVING count(DISTINCT o.payload->>'valid_from') > 1
+    UNION ALL
+    -- A start after the end can never apply: the end is in the record, or it waits in another act.
+    SELECT a.unit_id, 'not_clean', 'contradiction', a.id,
+           'The relation ' || coalesce(public.element_name(a.target_id), a.target_id::text)
+           || ' would start on ' || (a.payload->>'valid_from') || ' and end before that day, on '
+           || string_agg(DISTINCT e.day::text, ' and ')
+      FROM acts a
+      CROSS JOIN LATERAL (
+        SELECT r.valid_to AS day FROM public.relations r
+         WHERE r.id = a.target_id AND r.valid_to IS NOT NULL
+        UNION
+        SELECT (o.payload->>'valid_to')::date FROM public.proposals o
+         WHERE o.status = 'pending' AND o.op = 'update_relation'
+           AND o.target_id = a.target_id AND o.payload ? 'valid_to') AS e
+     WHERE a.op = 'update_relation' AND a.payload ? 'valid_from'
+       AND e.day < (a.payload->>'valid_from')::date
+     GROUP BY a.unit_id, a.id, a.target_id, a.payload
+    UNION ALL
+    SELECT a.unit_id, 'not_clean', 'contradiction', a.id,
+           'The relation ' || coalesce(public.element_name(a.target_id), a.target_id::text)
+           || ' would end on ' || (a.payload->>'valid_to') || ' and start after that day, on '
+           || string_agg(DISTINCT (o.payload->>'valid_from'), ' and ')
+      FROM acts a
+      JOIN public.proposals o ON o.status = 'pending' AND o.op = 'update_relation'
+                             AND o.target_id = a.target_id AND o.payload ? 'valid_from'
+     WHERE a.op = 'update_relation' AND a.payload ? 'valid_to'
+       AND (o.payload->>'valid_from')::date > (a.payload->>'valid_to')::date
+     GROUP BY a.unit_id, a.id, a.target_id, a.payload
     UNION ALL
     SELECT DISTINCT ON (a.id) a.unit_id, 'not_clean', 'reported_claim', a.id,
            'The source reports a claim (' || c.modality || ') and does not state a fact'
@@ -6193,12 +6222,14 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
                          AND c.op = 'update_relation' AND c.payload ? 'valid_to'
      WHERE r.id IN (SELECT x.id FROM rel x)
     UNION ALL
-    -- A start date that a later act gave is a value of the relation in the same way.
-    SELECT r.id::text || '/valid_from', 'relation', r.id, 'valid_from', to_jsonb(r.valid_from::text),
-           c.origin_label, to_jsonb(c.src), c.id
+    -- A start date that a later act gave is a value of the relation in the same way, while the
+    -- relation still starts on the day that the act gave.
+    SELECT r.id::text || '/valid_from', 'relation', r.id, 'valid_from',
+           to_jsonb(r.valid_from::text), c.origin_label, to_jsonb(c.src), c.id
       FROM api.relation r
       JOIN api.proposal c ON c.target_id = r.id AND c.status = 'accepted'
                          AND c.op = 'update_relation' AND c.payload ? 'valid_from'
+                         AND (c.payload->>'valid_from')::date = r.valid_from
      WHERE r.id IN (SELECT x.id FROM rel x)
     UNION ALL
     -- A type change is a value of the relation in the same way (ADR 0023): the value is the
