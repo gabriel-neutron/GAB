@@ -73,7 +73,7 @@ const CALL_FAULT = 'the server failed the call, and the operator reads the fault
 
 const faultSentence = (cause: unknown): string => {
   const code = codeOf(cause);
-  if (code === null) return 'the database refused the call';
+  if (code === null) return CALL_FAULT;
   if (DATA_CLASSES.includes(code.slice(0, 2)) && cause instanceof Error) {
     const field = hintOf(cause);
     return field === null
@@ -115,7 +115,7 @@ const run = async (context: Context, name: string, raw: unknown): Promise<CallTo
     return { content: [{ type: 'text', text: JSON.stringify(outcome.output) }] };
   } catch (cause) {
     console.error(cause);
-    return toolError(codeOf(cause) === null ? CALL_FAULT : faultSentence(cause));
+    return toolError(faultSentence(cause));
   } finally {
     session.release();
   }

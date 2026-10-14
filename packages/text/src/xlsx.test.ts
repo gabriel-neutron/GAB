@@ -125,6 +125,14 @@ test('a cell after the last column of a sheet refuses the file, and allocates no
   }
 });
 
+test('cells with no reference past the last column refuse the file', async () => {
+  const row = (cells: string): string => `<row r="1">${cells}</row>`;
+  const tooMany = workbookOf({ Wide: row('<c><v>1</v></c>'.repeat(16_385)) });
+  await expect(sheetCsv(tooMany, 'Wide')).rejects.toThrow(/after the last column/u);
+  const afterLast = workbookOf({ Wide: row('<c r="XFD1"><v>1</v></c><c><v>2</v></c>') });
+  await expect(sheetCsv(afterLast, 'Wide')).rejects.toThrow(/after the last column/u);
+});
+
 test('the last column XFD is a column', async () => {
   const book = workbookOf({
     Wide: '<row r="1"><c r="A1" t="inlineStr"><is><t>First</t></is></c><c r="XFD1" t="inlineStr"><is><t>Last</t></is></c></row>',

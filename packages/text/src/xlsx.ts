@@ -154,11 +154,12 @@ async function* sheetRows(
         const reference = attribute(tag, 'r');
         const letters = /^[A-Z]+/u.exec(reference ?? '')?.[0];
         // The length test stops a reference of many letters before the loop makes a float.
-        if (letters !== undefined && (letters.length > 3 || columnOf(letters) > LAST_COLUMN))
+        const column =
+          letters === undefined ? next : letters.length > 3 ? Infinity : columnOf(letters);
+        if (column > LAST_COLUMN)
           throw new WorkbookFault(
-            `the cell ${reference ?? ''} stands after the last column XFD of a sheet`,
+            `the cell ${reference ?? 'with no reference'} stands after the last column XFD of a sheet`,
           );
-        const column = letters === undefined ? next : columnOf(letters);
         cells[column] = cellText(tag, cell[2] ?? '', strings);
         next = column + 1;
       }

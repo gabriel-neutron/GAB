@@ -196,7 +196,7 @@ test('a connection that does not open names no host', async () => {
   const client = await connected(pool);
   const result = await client.callTool(SEARCH);
   expect(isErrorOf(result)).toBe(true);
-  expect(textOf(result)).toBe('the database refused the call');
+  expect(textOf(result)).toContain('the server failed the call');
 });
 
 test('a fault that is not of the database is not called a refusal of the database', async () => {
