@@ -296,3 +296,56 @@ test('a port call with no day keeps its old key, and the day enters no other typ
   expect(read.owns[1]?.key).toBe(read.owns[0]?.key);
   expect(read.flagged[1]?.key).toBe(read.flagged[0]?.key);
 });
+
+const outcomeOf = async (ask: Ask, items: readonly unknown[]) => {
+  const outcome = await proposed(ask, items);
+  if (!outcome.ok) throw new Error(`propose refused: ${outcome.refusal}`);
+  const [one] = z
+    .object({
+      proposals: z.array(
+        z.object({
+          proposalId: z.uuid(),
+          disputed: z.boolean(),
+          droppedBounds: z.array(z.string()),
+        }),
+      ),
+    })
+    .parse(outcome.output).proposals;
+  if (one === undefined) throw new Error('no proposal came back');
+  const [stored] = z
+    .array(z.object({ day: z.unknown() }))
+    .parse(
+      await ask(
+        "SELECT payload #> '{attrs,observed_on,v}' AS day FROM public.proposals WHERE id = $1",
+        [one.proposalId],
+      ),
+    );
+  return { ...one, day: stored?.day ?? null };
+};
+
+test('the day of a port call stays when an excerpt states it', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const ends = await endsOf(ask);
+    const doc = await post(ask, 28, TEXT);
+    return outcomeOf(ask, [item('call', callAct(ends, '2026-05-19'), doc, FIRST, name())]);
+  });
+  expect(read).toMatchObject({ day: '2026-05-19', droppedBounds: [], disputed: false });
+});
+
+test.each([
+  [
+    'no excerpt states a day',
+    '2026-05-19',
+    'The tanker Nayara loaded at Sikka.',
+    'loaded at Sikka',
+  ],
+  ['the value is a month', '2026-05', TEXT, FIRST],
+  ['the excerpt states another day', '2026-05-20', TEXT, FIRST],
+])('the day of a port call is not proposed when %s', async (_case, day, text, excerpt) => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const ends = await endsOf(ask);
+    const doc = await post(ask, 29, text);
+    return outcomeOf(ask, [item('call', callAct(ends, day), doc, excerpt, name())]);
+  });
+  expect(read).toMatchObject({ day: null, droppedBounds: ['observed_on'], disputed: false });
+});
