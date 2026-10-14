@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { readBody } from './body.ts';
 import type { Sessions } from './pool.ts';
-import { runStatement, type DoorAct } from './statement.ts';
+import { runStatement, unreadAnswer, type DoorAct } from './statement.ts';
 
 // Departure: two exports, one job. The operator starts a lead and reads what the leads stored.
 
@@ -42,7 +42,9 @@ export const startLead = async (
   if (given.outcome !== 'read') return given;
   const answer = await runStatement(pool, START, [given.body.lead]);
   if (answer.outcome !== 'answered') return answer;
-  return { outcome: 'done', reply: { jobId: startedRow.parse(answer.rows[0]).id } };
+  const started = startedRow.safeParse(answer.rows[0]);
+  if (!started.success) return unreadAnswer;
+  return { outcome: 'done', reply: { jobId: started.data.id } };
 };
 
 /** The leads, the newest first, each with the documents that it stored. */

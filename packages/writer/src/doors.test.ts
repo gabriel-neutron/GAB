@@ -199,3 +199,25 @@ test.each([
     { refusal: UNREACHABLE },
   ]);
 });
+
+// The database ran the act and committed. An answer that this writer cannot read is a doubt, and
+// never a refusal or a plain 500, because the act stands.
+test.each([
+  ['create-entity', ENTITY],
+  ['promote-group', { groupId: PROPOSAL, unitIds: [PROPOSAL] }],
+  ['start-lead', { lead: 'a company and its vessels' }],
+  ['queue-extraction', DOCUMENT],
+])('a write door whose answer this writer cannot read says doubt: %s', async (door, body) => {
+  const pool = {
+    connect: () =>
+      Promise.resolve({
+        query: () => Promise.resolve({ rows: [{ unexpected: true }] }),
+        release: () => undefined,
+      }),
+  };
+
+  const [status, reply] = await post(pool, door, body);
+  expect(status).toBe(502);
+  expect(reply).toHaveProperty('doubt');
+  expect(reply).not.toHaveProperty('refusal');
+});
