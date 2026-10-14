@@ -28,6 +28,32 @@ const COMPLETE = `SELECT public.complete_job($1::uuid, $2::int, $3::int, $4::tex
 
 const MS = 1000;
 
+// External constraint: a pool reports a lost connection with a code of Node, a state of the server
+// (class 08, or a shutdown), or the sentence of pg. The sleep of the computer, a restart of the
+// database and a drop of the network all give one of them. The job is not at fault then.
+const NODE_FAULTS = new Set([
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'EPIPE',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+]);
+const SHUTDOWN_STATES = new Set(['57P01', '57P02', '57P03']);
+
+const isConnectionFault = (error: unknown): boolean => {
+  if (!(error instanceof Error)) return false;
+  const code = 'code' in error ? error.code : undefined;
+  if (
+    typeof code === 'string' &&
+    (NODE_FAULTS.has(code) || SHUTDOWN_STATES.has(code) || code.startsWith('08'))
+  )
+    return true;
+  return error.message.startsWith('Connection terminated');
+};
+
 const settingsRow = z.object({ empty_wait_seconds: z.number().positive() });
 
 const recorded = z.object({ id: z.uuid() });
@@ -150,6 +176,9 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
     try {
       result = await agent.run(contextOf(agent, job));
     } catch (cause) {
+      // The job is not at fault, and the connection that would fail it is gone. The runner waits and
+      // puts the job back in the queue.
+      if (isConnectionFault(cause)) throw cause;
       if (cause instanceof JobStop) return fail(job, cause.reason);
       if (cause instanceof ModelFailure) return fail(job, cause.failure.reason);
       console.error('the agent stopped with an error', { agent: agent.name, cause });
@@ -201,7 +230,22 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
   return {
     step,
     run: async (signal) => {
-      while (!signal.aborted) await step();
+      let lost = false;
+      while (!signal.aborted) {
+        try {
+          // One worker runs, so each running row of its role is ours: the job in hand goes back.
+          if (lost) {
+            await deps.db.query(REQUEUE);
+            lost = false;
+          }
+          await step();
+        } catch (error) {
+          if (!isConnectionFault(error)) throw error;
+          lost = true;
+          console.error('the database connection failed, and the runner waits', String(error));
+          await deps.sleep(settings.empty_wait_seconds * MS);
+        }
+      }
     },
   };
 };
