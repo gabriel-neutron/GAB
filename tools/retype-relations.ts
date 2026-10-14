@@ -57,6 +57,13 @@ const ASSET_FREEZE = /\bSDN\b|blocked property|asset freeze|269\/2014/i;
 
 const US_DIRECTIVE = /\bdirective\s+\d+/i;
 
+// The articles of 833/2014 that state a sectoral measure: 5af, and the articles of Annexes XLIV
+// (5ac), III (5a), XLVII (5ae) and XIV (5h).
+const SECTORAL_ARTICLE = /\barticle\s+5(?:af|ac|ae|h|a|\(a\))(?!\w)/i;
+
+// The title of Annex XLVII, "List of ports ... referred to in Article 5ae", does not say "Annex".
+const PORT_ARTICLE = /\barticle\s+5ae\b/i;
+
 /** The act at the far end names an OFAC directive under EO 13662 or EO 14024. */
 const US_DIRECTIVE_ACT = /\bdirective\s+\d+\b.*\b(13662|14024)\b/i;
 
@@ -71,12 +78,13 @@ export const directivePassage = (pageText: string | null, act: string): string |
   return found?.[0].trimEnd() ?? null;
 };
 
-/** The decision on one citation. Pure: the excerpt is checked against the stored text given. */
-const classifyCite = (cite: Cite, subjectType: string, destination: string): Decision => {
-  if (cite.pageText === null || findExcerpt(cite.pageText, cite.excerpt) === null)
-    return doubt('the stored text no longer holds the excerpt');
-
-  const text = cite.excerpt;
+/** The decision on the joined excerpts of one relation and the joined text of their pages. */
+const classifyText = (
+  text: string,
+  pageText: string,
+  subjectType: string,
+  destination: string,
+): Decision => {
   const annexes = [...text.matchAll(/\bannex\s+([ivxlc]+)\b/gi)].map((m) =>
     (m[1] ?? '').toUpperCase(),
   );
@@ -91,9 +99,9 @@ const classifyCite = (cite: Cite, subjectType: string, destination: string): Dec
     bare &&
     subjectType !== 'person' &&
     US_DIRECTIVE_ACT.test(destination) &&
-    directivePassage(cite.pageText, destination) !== null;
+    directivePassage(pageText, destination) !== null;
   const us = (US_DIRECTIVE.test(text) && /\b(13662|14024)\b/.test(text)) || byAct;
-  const article = /\barticle\s+5af\b/i.test(text);
+  const article = SECTORAL_ARTICLE.test(text);
   const eu = article || annexes.some((a) => RETYPE_ANNEXES.has(a));
 
   // A vessel is on the vessel list of a regime (SDN, Annex XLII, UK specified ship), and that
@@ -120,25 +128,28 @@ const classifyCite = (cite: Cite, subjectType: string, destination: string): Dec
     return doubt('an EU provision without 833/2014 in the excerpt');
   if (us && eu) return doubt('the excerpt names the provisions of two regimes');
   if (us) return { kind: 'retype', batch: 'us', reason: 'an OFAC directive' };
-  if (annexes.includes('XLVII') && subjectType === 'port')
+  if ((annexes.includes('XLVII') || PORT_ARTICLE.test(text)) && subjectType === 'port')
     return { kind: 'retype', batch: 'ports', reason: 'a port of Annex XLVII' };
   return { kind: 'retype', batch: 'eu', reason: 'a sectoral provision of 833/2014' };
 };
 
-/** The decision on one relation: the decision of each citation, and all must agree. */
+/**
+ * The decision on one relation. A unit usually cites the name of the party and the provision in
+ * two excerpts, so the excerpts of the relation are read together and not one by one.
+ */
 export const classify = (one: Candidate): Decision => {
   if (one.waiting === 'rejected') return doubt('a retype act of the relation was rejected');
   if (one.waiting !== 'none') return doubt('the relation has a waiting act');
   if (one.collides) return doubt('another open relation links the same ends');
-  const [first, ...rest] = one.cites.map((cite) =>
-    classifyCite(cite, one.subjectType, one.destination),
+  if (one.cites.length === 0) return doubt('no usable citation');
+  if (one.cites.some((c) => c.pageText === null || findExcerpt(c.pageText, c.excerpt) === null))
+    return doubt('the stored text no longer holds the excerpt');
+  return classifyText(
+    one.cites.map((c) => c.excerpt).join('\n'),
+    one.cites.map((c) => c.pageText).join('\n'),
+    one.subjectType,
+    one.destination,
   );
-  if (first === undefined) return doubt('no usable citation');
-  const bad = [first, ...rest].find((one) => one.kind === 'doubtful');
-  if (bad !== undefined) return bad;
-  if (rest.some((next) => next.kind !== first.kind || next.batch !== first.batch))
-    return doubt('the citations do not agree on a decision');
-  return first;
 };
 
 interface Item {
