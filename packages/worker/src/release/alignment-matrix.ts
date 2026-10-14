@@ -14,11 +14,34 @@ type DateRule = ReleaseManifest['dateRules'][Regime];
 // Only the official tools give these providers to the files that they store, so the provider of a
 // cited document tells the regime of a designation. A label of an authority is free text. The EU
 // financial sanctions file has no tool yet, so it gives no regime.
-export const REGIME_OF_PROVIDER: ReadonlyMap<string, Regime> = new Map([
+const REGIME_OF_PROVIDER: ReadonlyMap<string, Regime> = new Map([
   ['eu_eurlex', 'eu'],
   ['ofac_sdn', 'ofac'],
   ['uk_sanctions_list', 'uk'],
 ]);
+
+/** The distinct regimes of the official files among the cited documents (ADR 0017). */
+export const regimesOfSources = (
+  sources: readonly string[],
+  documentOf: (id: string) => { readonly provider: string | null },
+): Regime[] => [
+  ...new Set(
+    sources.flatMap((id) => {
+      const regime = REGIME_OF_PROVIDER.get(documentOf(id).provider ?? '');
+      return regime === undefined ? [] : [regime];
+    }),
+  ),
+];
+
+/** The regime of a designation: the one regime of the cited official files. Null when the
+ * sources cite no official file, or the files of more than one regime. */
+export const regimeOfSources = (
+  sources: readonly string[],
+  documentOf: (id: string) => { readonly provider: string | null },
+): Regime | null => {
+  const [only, ...others] = regimesOfSources(sources, documentOf);
+  return only !== undefined && others.length === 0 ? only : null;
+};
 
 const RULE_WORDS: Readonly<Record<DateRule, string>> = {
   entry_into_force: 'the date of entry into force',
@@ -27,7 +50,7 @@ const RULE_WORDS: Readonly<Record<DateRule, string>> = {
 };
 
 /** The date of a listing and the claim that gives it, or no date. */
-type Dated =
+export type Dated =
   | {
       readonly dateFrom: 'designation_start' | 'act_entry_into_force';
       readonly listedOn: string;
@@ -121,6 +144,20 @@ const matrixNote = (rules: ReleaseManifest['dateRules'], counts: Counts): string
     `Designations that cite the official files of more than one regime, and count in no regime: ${String(counts.twoRegimes)}.`,
   ].join('\n');
 
+/** The entry into force of the act of a designation counts only when its value cites a document
+ * of the designation. An act that a later act amends states its own entry into force, and not the
+ * day when the later act added the vessel. */
+export const entryIntoForceOf = (
+  claims: ReadonlyMap<string, ReleaseClaim>,
+  relation: ReleaseRelation,
+  documentIds: readonly string[],
+): Dated => {
+  const claim = claims.get(`${relation.dst_id}/entry_into_force`);
+  if (claim === undefined || !isDay(claim.value)) return NO_DATE;
+  if (!claim.sources.some((one) => documentIds.includes(one))) return NO_DATE;
+  return { dateFrom: 'act_entry_into_force', listedOn: claim.value, dateClaimId: claim.claim_id };
+};
+
 /** The alignment matrix of a release: one row for each IMO number that the EU, OFAC or the UK
  * lists, with the listing date, the act and the claim of each regime, the gaps in days and a mark
  * for each direction. Each identifier of a claim in a row is a claim of the release. */
@@ -143,15 +180,8 @@ export const alignmentMatrix = (
     vesselsOf.set(imo, [...(vesselsOf.get(imo) ?? []), claim]);
   }
 
-  // The entry into force of the act counts only when its value cites a document of the
-  // designation. An act that a later act amends states its own entry into force, and not the day
-  // when the later act added the vessel.
-  const entryIntoForce = (relation: ReleaseRelation, documentIds: readonly string[]): Dated => {
-    const claim = claims.get(`${relation.dst_id}/entry_into_force`);
-    if (claim === undefined || !isDay(claim.value)) return NO_DATE;
-    if (!claim.sources.some((one) => documentIds.includes(one))) return NO_DATE;
-    return { dateFrom: 'act_entry_into_force', listedOn: claim.value, dateClaimId: claim.claim_id };
-  };
+  const entryIntoForce = (relation: ReleaseRelation, documentIds: readonly string[]): Dated =>
+    entryIntoForceOf(claims, relation, documentIds);
 
   // The rule of the manifest selects where the date comes from. The record holds one start date
   // for a designation, and the writer reads it from the source by the rule.
@@ -185,13 +215,7 @@ export const alignmentMatrix = (
     if (relation.type !== 'designated_by') continue;
     const imo = imoOfVessel.get(relation.src_id);
     if (imo === undefined) continue;
-    const regimes = new Set(
-      claim.sources.flatMap((id) => {
-        const regime = REGIME_OF_PROVIDER.get(documentOf(id).provider ?? '');
-        return regime === undefined ? [] : [regime];
-      }),
-    );
-    const [regime, ...others] = [...regimes];
+    const [regime, ...others] = regimesOfSources(claim.sources, documentOf);
     if (regime === undefined) {
       noOfficialFile += 1;
       continue;
