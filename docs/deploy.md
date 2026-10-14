@@ -26,7 +26,8 @@ names that joined an author A or B, `pnpm worker requeue-ratings` tries the rati
 by a fault again, `pnpm worker reread-html` reads the stored HTML pages again, and
 `pnpm worker release` writes a release, `pnpm worker nato-coverage` reports the share of
 claims with a NATO pair (see below), and `pnpm worker name-candidates` finds the merge candidates
-across a Latin and a Cyrillic spelling. They run as they do against the local stack.
+across a Latin and a Cyrillic spelling. `pnpm worker asset-coverage` reports the coverage of each
+kind of asset (see below). They run as they do against the local stack.
 Only the values change. Run one `pnpm worker run` at a time: at its start, it puts back each job
 that is still running. `pnpm worker ingest` stores a file only with
 `--uri`, the address where the file comes from (`decisions.md` PU1), so give one file for each run.
@@ -229,6 +230,9 @@ changed columns, and each entity merged into a survivor or unmerged. Without `--
 says "First release" and has no row. The command refuses a previous folder whose files do not
 agree with its `manifest.json`, or that is not earlier, and writes nothing. `manifest.json` gives
 the size and the SHA-256 checksum of each file, and a summary of the changelog.
+`asset-links.csv` gives, for each asset with an OpenStreetMap identifier, the OpenStreetMap link,
+the version and the own sourced point of the asset. It holds no OpenStreetMap geometry.
+`credits.md` gives the credit of each source, with the words that its licence asks for.
 
 The command also writes the static site of the release in the folder `gab-site-<date>`, beside
 the release folder. It writes the site before the release folder takes its name, so when the site
@@ -297,7 +301,33 @@ does not read them again. Use `--latitude` and `--longitude` when the flare tabl
 in another way. Leave out `--flares` to read the assets only. No stored answer, address or log
 holds the key.
 
+To see the sanctions status of each asset, run:
+
+```powershell
+pnpm worker asset-sanctions --as-of 2026-10-13
+```
+
+An asset is `listed` when it or its operator has a designation in force on that day. It is
+`derived` when owners that are listed, or derived themselves, hold 50% or more of it. Each status
+gives the regime (EU, OFAC or UK, from the provider of the cited file), the act and the date. A
+derived status gives the share of each owner and says when GEM estimated a share. The general
+licences of the listed entities show next to the status. Use `--all` to also print the assets with
+no status, and `--json` for the full data. The command writes nothing.
+
 ## Public writes
 
 No public write path exists. A public write needs real authentication first, and that is separate
 work.
+
+To see how complete each layer of assets is, run on the record:
+
+```powershell
+pnpm worker asset-coverage totals.json
+```
+
+It prints one line for each kind of asset: the assets, and those with a geometry, an operator, an
+owner and a sanctions relation. The file `totals.json` is optional. For each kind, it gives the
+total capacity (`total`), its `unit`, the `attribute` that holds the capacity of one asset, and the
+`source` of the total. With the file, each number is followed by the share of the total capacity
+that those assets hold, and the line ends with the total and its source. A total with no source is
+refused. The command writes nothing.

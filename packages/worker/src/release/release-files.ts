@@ -1,13 +1,16 @@
 import { createHash } from 'node:crypto';
 
 import { alignmentMatrix } from './alignment-matrix.ts';
+import { assetLinks } from './asset-links.ts';
 import { releaseChangelog } from './changelog.ts';
+import { releaseCredits } from './credits.ts';
 import { criticalNodes } from './critical-nodes.ts';
 import type { SheetRow } from './critical-nodes-sheet.ts';
 import { csvExport, type ReleaseFile } from './csv-export.ts';
 import { releaseDisclaimer } from './disclaimer.ts';
 import { geojsonExport } from './geojson-export.ts';
 import { jsonldExport } from './jsonld-export.ts';
+import { assertNoOsmGeometry } from './osm-geometry.ts';
 import type { PreviousRelease } from './previous-release.ts';
 import { releaseHeading } from './release-heading.ts';
 import type { ReleaseManifest } from './release-manifest.ts';
@@ -27,6 +30,7 @@ export const releaseFiles = (
   sheet: readonly SheetRow[] | null,
   previous: PreviousRelease | null,
 ): readonly ReleaseFile[] => {
+  assertNoOsmGeometry(record);
   const disclaimer = releaseDisclaimer(record.disclaimer, manifest.contacts);
   const heading = releaseHeading(manifest, disclaimer);
   const preamble = `${heading.title}\n\n${disclaimer}`;
@@ -34,6 +38,8 @@ export const releaseFiles = (
     ...csvExport(record, preamble),
     alignmentMatrix(record, manifest.dateRules, preamble),
     criticalNodes(record, sheet, preamble),
+    assetLinks(record, preamble),
+    releaseCredits(heading),
     geojsonExport(record, heading),
     jsonldExport(record, heading, manifest.iriBase),
   ];

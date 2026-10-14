@@ -32,7 +32,7 @@ test('no word gives the usage, and the usage names each sub-command', () => {
 test('an unknown word gives the usage, and the usage names the word', () => {
   expect(readCommand(['runner'])).toStrictEqual({
     kind: 'usage',
-    text: '"runner" is not a sub-command. Usage: pnpm worker <author-names|dry-join|firms-sweep|ingest|layout|name-candidates|nato-coverage|reconcile|reference-dataset|reference-set|release|requeue-ratings|reread-html|run|text-set> [arguments]',
+    text: '"runner" is not a sub-command. Usage: pnpm worker <asset-coverage|asset-sanctions|author-names|dry-join|firms-sweep|ingest|layout|name-candidates|nato-coverage|reconcile|reference-dataset|reference-set|release|requeue-ratings|reread-html|run|text-set> [arguments]',
   });
 });
 
@@ -41,6 +41,8 @@ test('the name of a property of every object is not a sub-command', () => {
 });
 
 test.each([
+  'asset-coverage',
+  'asset-sanctions',
   'author-names',
   'dry-join',
   'firms-sweep',

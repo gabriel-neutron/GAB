@@ -1,3 +1,4 @@
+import { shareWords } from '@gab/proposal/share';
 import {
   AttributionControl,
   GeoJSONSource,
@@ -937,10 +938,10 @@ export function mountMap({
         return;
       }
       if (hit.kind === 'link') {
-        nameHover(
-          relationLines(hit.link.from.label, hit.link.typeWords, hit.link.to.label),
-          event.point,
-        );
+        const lines = relationLines(hit.link.from.label, hit.link.typeWords, hit.link.to.label);
+        // The share of an ownership link, and the mark of a share that GEM estimated.
+        const share = shareWords(hit.link.attrs);
+        nameHover(share === null ? lines : [...lines, share], event.point);
         return;
       }
       nameHover(null, null);

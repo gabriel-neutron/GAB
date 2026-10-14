@@ -55,8 +55,8 @@
     },
     {
       "path": "relations.csv",
-      "bytes": 3670,
-      "sha256": "a43e0f179a951487b8eea7ecc4bd26c5ebcbd53714389a510444c0a79be43497"
+      "bytes": 3685,
+      "sha256": "0fd3f635289e70782b4ade76fbec15125da9f8f4f4c3b5205c7a6e3481500b69"
     },
     {
       "path": "claims.csv",
@@ -77,6 +77,16 @@
       "path": "critical-nodes.csv",
       "bytes": 2711,
       "sha256": "0e04ac51c28d58e23e28d79710c9d8e5cde6186b155e1d8f45b3f3a8d9cb30f7"
+    },
+    {
+      "path": "asset-links.csv",
+      "bytes": 1121,
+      "sha256": "e4e59ce82e667c1a2081897903a78c82e9255e414fbcbb7ac8e03b2b4cccc3b8"
+    },
+    {
+      "path": "credits.md",
+      "bytes": 1313,
+      "sha256": "6ab9f2bbb3c2b56b440b1ba68f480c114fe7e2ac81b31c419c2c85ca32b381ec"
     },
     {
       "path": "entities.geojson",
