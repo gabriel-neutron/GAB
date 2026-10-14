@@ -66,7 +66,7 @@ jobs:
             echo "tier=none" >> "$GITHUB_OUTPUT"
           fi
 
-      # The repository is public, and the e-mail of a commit stays in the history for ever. Each
+      # The repository is public, and the e-mail of a commit stays in the history forever. Each
       # commit of a pull request must carry a GitHub noreply address as author and as committer.
       # The step names only the hash, because the log of a job is public too. The GitHub setting
       # that blocks a push checks only the newest commit of the push, so this step checks them all.
@@ -76,6 +76,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          set -o pipefail
           noreply='(@users\.noreply\.github\.com|^noreply@github\.com)$'
           bad=$(git log --format='%h %ae %ce' "$BASE_SHA..$HEAD_SHA" \
             | while read -r hash author committer; do
@@ -87,7 +88,7 @@ jobs:
           if [ -n "$bad" ]; then
             echo "These commits carry an e-mail that is not a GitHub noreply address:"
             echo "$bad"
-            echo "Set the noreply address in the git config of the checkout, then rewrite them."
+            echo "Set the noreply address with git config (infra/vps/README.md, step 4), then rewrite them."
             exit 1
           fi
 
