@@ -1,5 +1,5 @@
 -- =============================================================================================
--- 0078 — the registration jurisdiction as its ISO 3166-1 code                           ORDERED
+-- 0079 — the registration jurisdiction as its ISO 3166-1 code                           ORDERED
 --
 -- ONE COUNTRY, ONE VALUE. The sources write the registration jurisdiction of a company in more
 -- than one way ("Russia", "Russian Federation", "RU"), and the record held each spelling, so a
