@@ -55,10 +55,15 @@ const capped = (maxSize: number) =>
  * that joined an author A or B, the pairs of vessels with one IMO number, and the merge
  * candidates across a Latin and a Cyrillic spelling. The public
  * read never shows any of them. */
-export const writeRoutes = (pool: Sessions, store: ObjectDoor, reader: ObjectReader): Hono => {
+export const writeRoutes = (
+  pool: Sessions,
+  store: ObjectDoor,
+  reader: ObjectReader,
+  operatorKey: string,
+): Hono => {
   const app = new Hono();
-  app.use('/write/*', admitOwnSiteJson());
-  app.use('/private/*', admitOwnSiteJson());
+  app.use('/write/*', admitOwnSiteJson(operatorKey));
+  app.use('/private/*', admitOwnSiteJson(operatorKey));
 
   // A unit of the queue holds its cited passages and the reason of each dispute, so the queue
   // reaches the review page through the writer, one page at a time.

@@ -5,6 +5,7 @@
 import { type Decision, type DecisionOp, type WRITE_OPS } from '@gab/proposal/request';
 import { z } from 'zod';
 
+import { operatorHeader } from './operator-key';
 import type { WriteResult } from './write-state';
 
 /** The six acts the writer signs. The door of each one is derived here and named by no caller. */
@@ -87,7 +88,7 @@ const knock = async (
   try {
     const answer = await fetch(address, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...operatorHeader() },
       body: JSON.stringify(body),
     });
     return { status: answer.status, body: await readBody(answer) };
@@ -117,7 +118,7 @@ export async function readDocumentBytes(document: string): Promise<Blob | null> 
   try {
     const answer = await fetch('/private/document-image', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...operatorHeader() },
       body: JSON.stringify({ document }),
     });
     return answer.ok ? await answer.blob() : null;

@@ -18,6 +18,11 @@ writes nothing, and it is not public.
 ## The writer and the worker
 
 Run `pnpm writer` and the worker on the operator's machine, with the same `infra/.env` as above.
+`pnpm writer` needs `GABRIEL_OPERATOR_KEY` in that file, and it does not start without it. The
+value is at least 32 characters of A-Z, a-z, 0-9, `-` and `_`. Make it with
+`node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`. The first
+`pnpm dev` opens the screen with the key, and the browser keeps it. If a write answers that the
+request does not carry the key of the operator, start `pnpm dev` again.
 The worker is one command with sub-commands: `pnpm worker run` takes the queued AI jobs,
 `pnpm worker ingest` stores files, `pnpm worker layout` computes the graph layout,
 `pnpm worker reconcile` compares the raw store with the document index, `pnpm worker
