@@ -36,9 +36,10 @@ const BEFORE_0080 = `
   RESET ROLE`;
 
 // Departure: the files of this project run at the same time, and the migration changes a table
-// that they write. The test takes its lock first, with a short wait, and a wait that ends runs
-// the case again.
+// that they write. The test takes its lock first, with a short wait, and a wait that ends, or a
+// deadlock with a file that takes its locks in another order, runs the case again.
 const LOCK_TIMEOUT = '55P03';
+const DEADLOCK = '40P01';
 
 const alone = async <T>(work: (ask: Ask) => Promise<T>): Promise<T> => {
   for (let attempt = 1; ; attempt += 1) {
@@ -50,7 +51,10 @@ const alone = async <T>(work: (ask: Ask) => Promise<T>): Promise<T> => {
         return work(ask);
       });
     } catch (cause) {
-      const waited = cause instanceof Error && 'code' in cause && cause.code === LOCK_TIMEOUT;
+      const waited =
+        cause instanceof Error &&
+        'code' in cause &&
+        (cause.code === LOCK_TIMEOUT || cause.code === DEADLOCK);
       if (!waited || attempt === 50) throw cause;
     }
   }
