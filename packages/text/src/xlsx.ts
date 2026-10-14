@@ -106,11 +106,13 @@ const sheetPart = async (archive: Archive, sheet: string): Promise<string> => {
   return path.startsWith('/') ? path.slice(1) : `xl/${path}`;
 };
 
-// "AB12" is the column 27 (counted from 0).
-const columnOf = (reference: string): number => {
+// External constraint: a sheet of the XLSX format holds at most 16,384 columns, A to XFD.
+const LAST_COLUMN = 16_383;
+
+// "AB" is the column 27 (counted from 0).
+const columnOf = (letters: string): number => {
   let column = 0;
-  for (const letter of /^[A-Z]+/u.exec(reference)?.[0] ?? 'A')
-    column = column * 26 + letter.charCodeAt(0) - 64;
+  for (const letter of letters) column = column * 26 + letter.charCodeAt(0) - 64;
   return column - 1;
 };
 
@@ -145,9 +147,20 @@ async function* sheetRows(
     for (let row = ROW.exec(held); row !== null; row = ROW.exec(held)) {
       used = ROW.lastIndex;
       const cells: (string | undefined)[] = [];
+      // A cell with no reference takes the column after the previous cell.
+      let next = 0;
       for (const cell of (row[1] ?? '').matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/gu)) {
         const tag = cell[1] ?? '';
-        cells[columnOf(attribute(tag, 'r') ?? '')] = cellText(tag, cell[2] ?? '', strings);
+        const reference = attribute(tag, 'r');
+        const letters = /^[A-Z]+/u.exec(reference ?? '')?.[0];
+        // The length test stops a reference of many letters before the loop makes a float.
+        if (letters !== undefined && (letters.length > 3 || columnOf(letters) > LAST_COLUMN))
+          throw new WorkbookFault(
+            `the cell ${reference ?? ''} stands after the last column XFD of a sheet`,
+          );
+        const column = letters === undefined ? next : columnOf(letters);
+        cells[column] = cellText(tag, cell[2] ?? '', strings);
+        next = column + 1;
       }
       const filled = Array.from(cells, (text) => text ?? '');
       if (filled.some((text) => text.trim() !== '')) yield filled;

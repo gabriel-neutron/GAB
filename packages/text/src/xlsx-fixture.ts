@@ -86,9 +86,10 @@ export const zipOf = (
 };
 
 /** A workbook with one sheet for each key, in the order of the keys. A text goes through the
- * shared strings, and a number is a numeric cell. An empty text leaves its cell out. */
+ * shared strings, and a number is a numeric cell. An empty text leaves its cell out. A sheet that
+ * is a string holds the raw XML inside its sheetData, so a test can write a cell as it likes. */
 export const workbookOf = (
-  sheets: Readonly<Record<string, readonly (readonly FixtureCell[])[]>>,
+  sheets: Readonly<Record<string, readonly (readonly FixtureCell[])[] | string>>,
   zip64 = false,
 ) => {
   const strings: string[] = [];
@@ -100,7 +101,9 @@ export const workbookOf = (
   };
   const names = Object.keys(sheets);
   const sheetXml = names.map((name) => {
-    const rows = (sheets[name] ?? []).map((row, r) => {
+    const sheet = sheets[name] ?? [];
+    if (typeof sheet === 'string') return `<worksheet><sheetData>${sheet}</sheetData></worksheet>`;
+    const rows = sheet.map((row, r) => {
       const cells = row
         .map((cell, c) => {
           const at = `${letters(c)}${String(r + 1)}`;
