@@ -1,5 +1,7 @@
-// External constraint: each file is its own psql run, over stdin, and no file is wrapped in a
-// transaction. An apply file uses SET ROLE, which a transaction undoes.
+// External constraint: each file is its own psql run, over stdin, in one transaction. A failure
+// changes nothing of that file, and the roles keep their grants. An apply file uses SET ROLE, and
+// a transaction does not undo it: in a committed transaction, SET ROLE holds for the session. So
+// each file resets its role at its end.
 
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -11,6 +13,17 @@ import { chosenDatabase, type DatabaseName } from './test-database.ts';
 
 const APPLY = join(import.meta.dirname, '..', 'db', 'apply');
 
+/** Runs one re-runnable file in one transaction. With ON_ERROR_STOP, psql stops at the first error,
+ * and the server rolls the open transaction back. */
+export const applyFile = (script: string, database: DatabaseName): Promise<void> =>
+  runScriptAsSuperuser(
+    `BEGIN;
+${script}
+COMMIT;
+`,
+    database,
+  );
+
 /** Feeds every re-runnable file to the database, in order, and wakes the schema cache. */
 export const applyRerunnableFiles = async (
   database: DatabaseName = chosenDatabase(process.env),
@@ -18,7 +31,7 @@ export const applyRerunnableFiles = async (
   const files = (await readdir(APPLY)).filter((name) => name.endsWith('.sql')).sort();
   for (const name of files) {
     console.log(`apply  ${name}`);
-    await runScriptAsSuperuser(await readFile(join(APPLY, name), 'utf8'), database);
+    await applyFile(await readFile(join(APPLY, name), 'utf8'), database);
   }
 
   // External constraint: a separate process holds the schema cache, and a new view does not reach
