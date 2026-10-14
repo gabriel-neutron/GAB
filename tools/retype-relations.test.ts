@@ -113,6 +113,16 @@ describe('classify', () => {
     );
   });
 
+  it('puts a port of an amending act under Article 5ae in the batch of ports', () => {
+    const title = make('List of ports and lock and airports as referred to in Article 5ae', {
+      subjectType: 'port',
+    });
+    const line = make('5. Novorossiysk Article 5ae(1), point (c):');
+    const cites = [...title.cites, ...line.cites];
+    expect(kindOf(classify({ ...title, cites }))).toBe('retype:ports');
+    expect(classify({ ...title, subjectType: 'company', cites }).reason).toMatch(/833\/2014/);
+  });
+
   it('puts a port of Annex XLVII in the batch of ports', () => {
     const port = make('Annex XLVII of Regulation 833/2014', { subjectType: 'port' });
     expect(kindOf(classify(port))).toBe('retype:ports');
