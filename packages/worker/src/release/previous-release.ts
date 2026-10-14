@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { day } from '@gab/proposal/day';
 import { z } from 'zod';
 
 import {
@@ -26,7 +27,7 @@ const FILE_MANIFEST = 'manifest.json';
 
 const fileManifest = z.object({
   version: z.string(),
-  date: z.iso.date(),
+  date: day,
   files: z.array(
     z.object({
       path: z.string(),

@@ -1,3 +1,4 @@
+import { isDay } from '@gab/proposal/day';
 import type { proposeItem } from '@gab/tools/propose';
 import type { z } from 'zod';
 
@@ -60,11 +61,6 @@ const wordsOf = (label: string): string[] =>
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .split(/\s+/u)
     .filter((word) => word !== '' && word !== 'the');
-
-// A day of the calendar, written as 2026-01-31.
-const isDay = (text: string): boolean =>
-  /^\d{4}-\d{2}-\d{2}$/u.test(text) &&
-  new Date(`${text}T00:00:00Z`).toISOString().slice(0, 10) === text;
 
 const keyOf = (type: string, label: string): string => `${type}:${wordsOf(label).join(' ')}`;
 
