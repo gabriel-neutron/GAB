@@ -284,6 +284,16 @@ BEGIN
 END $$;
 
 
+-- The record holds the code of a known registration jurisdiction (migration 0078). The act keeps
+-- the value that its writer gave, and the cited passage keeps the text of the source.
+CREATE OR REPLACE FUNCTION code_entity_jurisdiction() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  NEW.attrs := public.coded_jurisdiction(NEW.attrs);
+  RETURN NEW;
+END $$;
+
+
 -- M6. An interval belongs to a type that takes one, and the type row says so. FOR SHARE is the
 -- point: the foreign key takes FOR KEY SHARE alone, which does not block an update of
 -- takes_interval, so without it a dated insert and a flip of the flag to false both commit.
@@ -1624,7 +1634,7 @@ BEGIN
     -- S2: the src of an attribute backs that one value alone. A changed value cites the sources
     -- of the act alone, and prior_value keeps the old claim. A kept value keeps each document it
     -- already cites, and then adds the new ones, so no act loses a corroboration. jsonb equality
-    -- reads 41200.0 as 41200.
+    -- reads 41200.0 as 41200, and the record compares the code of a jurisdiction (migration 0078).
     SELECT jsonb_object_agg(n.k,
              CASE WHEN v_old ? n.k AND v_old->n.k->'v' = n.val->'v'
                   THEN jsonb_build_object('v', n.val->'v', 'src',
@@ -1635,7 +1645,9 @@ BEGIN
                            '[]'::jsonb))
                   ELSE n.val END)
       INTO v_attrs
-      FROM jsonb_each(coalesce(p.payload->'attrs','{}'::jsonb)) AS n(k, val);
+      FROM jsonb_each(CASE WHEN p.target_kind = 'entity'
+                           THEN public.coded_jurisdiction(coalesce(p.payload->'attrs','{}'::jsonb))
+                           ELSE coalesce(p.payload->'attrs','{}'::jsonb) END) AS n(k, val);
 
     -- ONLY THE KEYS THE ACT NAMED. A whole-row copy would freeze and republish every other
     -- key, and api.proposal publishes the copy.

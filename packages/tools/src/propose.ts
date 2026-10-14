@@ -15,6 +15,7 @@ import {
   namesProvision,
   statedBounds,
   unstatedValues,
+  withCodedJurisdiction,
   withoutBounds,
   type BoundName,
 } from './stated-value.ts';
@@ -434,10 +435,9 @@ const checkEventEnds = async (
 
 const claimActOf = async (
   session: Session,
-  given: ProposeItem,
+  act: ProposeItem['act'],
   dropped: readonly BoundName[],
 ): Promise<unknown> => {
-  const { act } = given;
   if (act.op === 'create_relation') return withoutBounds(act, dropped);
   if (act.op !== 'update_relation') return act;
   const [named] = await rowsOf(session, z.strictObject({ words: z.string() }), RELATION_WORDS, [
@@ -580,7 +580,7 @@ export const proposeOf = (modelCallId: string | null) =>
       );
       const prepared: Prepared[] = [];
       for (const [index, given] of input.items.entries()) {
-        const resolved = await resolvedAct(session, given, index, minted);
+        const resolved = withCodedJurisdiction(await resolvedAct(session, given, index, minted));
         const eventFault = eventActRefusal(resolved);
         if (eventFault !== null) refuse(given.ref, eventFault);
         await checkEventEnds(session, given, created);
@@ -642,7 +642,12 @@ export const proposeOf = (modelCallId: string | null) =>
         prepared.push({
           given,
           act,
-          claimAct: await claimActOf(session, given, dropped),
+          claimAct: await claimActOf(
+            session,
+            // The checker reads the act that is written, so it reads the coded jurisdiction.
+            withCodedJurisdiction(given.act),
+            dropped,
+          ),
           cited,
           unstated,
           // The end of a close stays in its act, so code removed no bound of it.

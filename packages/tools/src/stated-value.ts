@@ -319,6 +319,53 @@ const valuesOf = (act: WriteRequest): ActValue[] => {
   }
 };
 
+const JURISDICTION_KEY = 'registration_jurisdiction';
+
+// The spellings of a registration jurisdiction in the sources, by ISO 3166-1 code. The record
+// holds the code. A source writes the name, so the code is stated by any of its spellings.
+export const JURISDICTION_SPELLINGS: Readonly<Record<string, readonly string[]>> = {
+  RU: ['RU', 'Russia', 'Russian Federation', 'Россия', 'Российская Федерация', 'РФ'],
+};
+
+const jurisdictionCode = (value: Scalar): string | null => {
+  if (typeof value !== 'string') return null;
+  const wanted = plainText(value).trim();
+  return (
+    Object.entries(JURISDICTION_SPELLINGS).find(([, names]) =>
+      names.some((name) => plainText(name) === wanted),
+    )?.[0] ?? null
+  );
+};
+
+/** The value of an identifier as the record holds it: a registration jurisdiction with a known
+ * spelling is its ISO 3166-1 code, and each other value stays as it is. */
+export const codedIdentifier = (key: string, value: string): string =>
+  key === JURISDICTION_KEY ? (jurisdictionCode(value) ?? value) : value;
+
+/** The act with each registration jurisdiction of an entity that has a known spelling written as
+ * its ISO 3166-1 code, so "Russia" and "Russian Federation" become "RU". The cited passage keeps
+ * the text of the source. A jurisdiction with no known spelling stays as it is, and a list keeps
+ * each code once, in its first place. */
+export const withCodedJurisdiction = <Act extends { readonly op: string }>(act: Act): Act => {
+  if (act.op !== 'create_entity' && act.op !== 'update_attrs') return act;
+  const { attrs, targetKind } = act as {
+    readonly attrs?: Readonly<Record<string, { readonly v: unknown }>>;
+    readonly targetKind?: string;
+  };
+  if (targetKind === 'relation') return act;
+  const held = attrs?.[JURISDICTION_KEY];
+  if (attrs === undefined || held === undefined) return act;
+  const coded = (one: unknown): unknown =>
+    typeof one === 'string' ? (jurisdictionCode(one) ?? one) : one;
+  const v = Array.isArray(held.v)
+    ? held.v.map(coded).filter((one, index, all) => all.indexOf(one) === index)
+    : coded(held.v);
+  return { ...act, attrs: { ...attrs, [JURISDICTION_KEY]: { ...held, v } } };
+};
+
+const statesJurisdiction = (code: string, passage: string): boolean =>
+  (JURISDICTION_SPELLINGS[code] ?? []).some((name) => statesToken(name, passage));
+
 /** The days of an act that a cited passage states only through the publication day: the passage
  * writes no year, and the year comes from the day of publication. */
 export const daysFromPublication = (
@@ -352,7 +399,11 @@ export const unstatedValues = (
   options: StatedOptions = {},
 ): ActValue[] => {
   const text = passages.join('\n');
-  return valuesOf(act).filter((named) => !stated(named.value, text, options));
+  return valuesOf(act).filter((named) => {
+    const code = named.name === `attrs.${JURISDICTION_KEY}` ? jurisdictionCode(named.value) : null;
+    if (code !== null && statesJurisdiction(code, text)) return false;
+    return !stated(named.value, text, options);
+  });
 };
 
 /** The name of a bound of a relation. */

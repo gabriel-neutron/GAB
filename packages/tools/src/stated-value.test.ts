@@ -9,6 +9,8 @@ import {
   namesProvision,
   statedBounds,
   unstatedValues,
+  codedIdentifier,
+  withCodedJurisdiction,
 } from './stated-value.ts';
 
 const relationFrom = (validFrom: string) =>
@@ -453,4 +455,81 @@ test('a slash date of the FCDO UK Sanctions List is day/month, and elsewhere it 
     act: relationBetween({}),
     dropped: ['validFrom'],
   });
+});
+
+const companyIn = (jurisdiction: string) =>
+  writeRequest.parse({
+    op: 'create_entity',
+    type: 'company',
+    label: 'Gazpromneft Aero',
+    attrs: { registration_jurisdiction: { v: jurisdiction } },
+  });
+
+test.each(['Russia', 'Russian Federation', 'RU'])(
+  'a source that writes %j states the jurisdiction RU',
+  (spelling) => {
+    expect(
+      unstatedValues(companyIn('RU'), [`Gazpromneft Aero, address: Moscow, ${spelling}`]),
+    ).toStrictEqual([]);
+  },
+);
+
+test('a source that names another country does not state the jurisdiction RU', () => {
+  expect(unstatedValues(companyIn('RU'), ['Gazpromneft Aero, Belarus'])).toHaveLength(1);
+});
+
+test.each(['Russia', 'Russian Federation', 'RU'])(
+  'the spelling %j is written as RU',
+  (spelling) => {
+    const coded = withCodedJurisdiction(companyIn(spelling));
+    expect(
+      coded.op === 'create_entity' && coded.attrs?.['registration_jurisdiction'],
+    ).toStrictEqual({
+      v: 'RU',
+    });
+  },
+);
+
+test('an unknown jurisdiction keeps its spelling', () => {
+  const coded = withCodedJurisdiction(companyIn('Narnia'));
+  expect(coded.op === 'create_entity' && coded.attrs?.['registration_jurisdiction']).toStrictEqual({
+    v: 'Narnia',
+  });
+});
+
+test('a list of jurisdictions is coded one by one, and a Russian source states RU', () => {
+  const coded = withCodedJurisdiction(
+    writeRequest.parse({
+      op: 'create_entity',
+      type: 'company',
+      label: 'Gazpromneft Aero',
+      attrs: { registration_jurisdiction: { v: ['Russia', 'Narnia'] } },
+    }),
+  );
+  expect(coded.op === 'create_entity' && coded.attrs?.['registration_jurisdiction']).toStrictEqual({
+    v: ['RU', 'Narnia'],
+  });
+  expect(
+    unstatedValues(companyIn('RU'), ['Gazpromneft Aero. Страна регистрации: Российская Федерация']),
+  ).toStrictEqual([]);
+});
+
+test('a list keeps each code once, in its first place', () => {
+  const coded = withCodedJurisdiction(
+    writeRequest.parse({
+      op: 'create_entity',
+      type: 'company',
+      label: 'Gazpromneft Aero',
+      attrs: { registration_jurisdiction: { v: ['Russia', 'Narnia', 'RU', 'Russian Federation'] } },
+    }),
+  );
+  expect(coded.op === 'create_entity' && coded.attrs?.['registration_jurisdiction']).toStrictEqual({
+    v: ['RU', 'Narnia'],
+  });
+});
+
+test('an identifier search reads a jurisdiction as its code, and each other key as it is', () => {
+  expect(codedIdentifier('registration_jurisdiction', 'Russian Federation')).toBe('RU');
+  expect(codedIdentifier('registration_jurisdiction', 'Narnia')).toBe('Narnia');
+  expect(codedIdentifier('tax_id', 'Russia')).toBe('Russia');
 });
