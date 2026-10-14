@@ -397,6 +397,21 @@ for (const [name, set, reused] of SET_REUSE)
     expect(found).toStrictEqual([reused]);
   });
 
+test('enqueue_mapped_load reuses a mapping of a named set of the whole file for the newest set', async () => {
+  // "xlsx-1" names one set of the whole file, as the newest set (no name) does: same shape.
+  const found = await rolledBack('superuser', async (ask) => {
+    await seedDocuments(ask);
+    const map = await runningSetJob(ask, LIST, 'xlsx-1');
+    const mapping = await propose(ask, PAYLOAD, LIST, map);
+    await fromAnEarlierTransaction(ask, mapping);
+    await promote(ask, mapping);
+    await runningMapJob(ask, SECOND);
+    const rows = await asRole(ask, 'gabriel_agent', () => ask(ENQUEUE, [SECOND, SIG]));
+    return rows.map((row) => z.object({ id: z.uuid().nullable() }).parse(row).id !== null);
+  });
+  expect(found).toStrictEqual([true]);
+});
+
 const REFUSED_REUSE: readonly (readonly [string, string, RegExp])[] = [
   ['a header signature that is not a digest', 'abc', /64 hexadecimal characters/u],
   ['a header signature that is absent', '', /64 hexadecimal characters/u],

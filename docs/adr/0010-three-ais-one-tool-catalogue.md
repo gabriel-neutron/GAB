@@ -125,9 +125,10 @@ the same sheet or layer and the same filter takes the accepted mapping, and no m
 A new edition of a table loads again with no model. The load compares values and not sources, so
 a row that gives the values of the record writes nothing. A changed value of an entity or of a
 relation is one proposal with the changed values only, and the Doubt rule holds it for the
-operator. A machine never changes a name, so a new name goes to the report. The report lists each
-open relation that an earlier edition gave and the new edition no longer gives. The load closes
-nothing: the operator gives the end date (ADR 0021).
+operator. A machine never changes a name or the days of a held relation, so a new name and other
+days go to the report, and the load creates no second relation. The report lists each open
+relation that an earlier, older edition under the same mapping gave and the new edition no longer
+gives. The load closes nothing: the operator gives the end date (ADR 0021).
 
 **Cost:** only a CSV table is mapped. A link to an entity that the record does not hold is not
 loaded, and the report says so. A mapping that reads a column wrongly shows only in the
