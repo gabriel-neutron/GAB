@@ -204,9 +204,10 @@ Give one row for each node and condition. Give the texts of a node on one of its
 texts on each row. The two texts are public: do not name a person that the release does not show.
 Save the sheet as CSV UTF-8, with commas. A line that starts with `#` is a note. You do not tick
 condition (a): the release ticks it from the public designations of the node itself, ended or not. A
-node with two ticks or more is retained. The release refuses the sheet, and writes nothing, when a
-row names a node or a claim that is not public in the release. The message gives the line. With no
-`criticalNodes`, the table has no row.
+node with two sourced ticks or more is retained. A tick with no claim shows "not sourced" and does
+not count. The release refuses the sheet, and writes nothing, when a row names a node or a claim
+that is not public in the release. The message gives the line. With no `criticalNodes`, the table
+has no row.
 
 Then run, on the record:
 

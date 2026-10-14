@@ -134,6 +134,14 @@ describe.each([
     expect(text).toContain('Ship-to-ship transfer off Gabon');
   });
 
+  test('a node with two ticks and one sourced tick is not retained', () => {
+    const text = site().read('index.html');
+    expect(text).toContain('2 candidate nodes, 1 retained.');
+    expect(
+      text.indexOf('Arctic Bridge Shipping</a>', text.indexOf('Other candidate nodes')),
+    ).toBeGreaterThan(-1);
+  });
+
   test('the downloads page gives each file with its checksum and the changelog summary', () => {
     const text = site().read('downloads/index.html');
     const { files } = z

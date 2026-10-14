@@ -121,28 +121,13 @@ const tableOf = (text: string): Record<string, string>[] => {
   );
 };
 
-test('the table gives the three conditions of each node, and retains a node with two ticks', () => {
+test('the table gives the three conditions of each node, and retains a node with two sourced ticks', () => {
   const file = criticalNodes(record(), SHEET, 'The preamble.');
   expect(file.path).toBe('critical-nodes.csv');
   expect(file.text).toContain('# The preamble.');
-  expect(file.text).toContain('# Candidate nodes: 4. Retained: 2.');
+  expect(file.text).toContain('# Candidate nodes: 4. Retained: 1.');
+  expect(file.text).toContain('retained is true only when sourced_ticks is two or more.');
   expect(tableOf(file.text)).toStrictEqual([
-    {
-      node_id: TANKER,
-      node_label: 'Test tanker',
-      node_type: 'vessel',
-      controller: 'Test trader',
-      bypass_pattern: '',
-      a_sanctions_exposure: 'no tick',
-      a_claim_ids: '',
-      b_production_or_throughput: 'not sourced',
-      b_claim_ids: '',
-      c_bypass_routing: 'sourced',
-      c_claim_ids: `${TANKER}/flag ${TANKER}/imo`,
-      ticks: '2',
-      sourced_ticks: '1',
-      retained: 'true',
-    },
     {
       node_id: TERMINAL,
       node_label: 'Test terminal',
@@ -173,6 +158,23 @@ test('the table gives the three conditions of each node, and retains a node with
       c_claim_ids: '',
       ticks: '0',
       sourced_ticks: '0',
+      retained: 'false',
+    },
+    {
+      node_id: TANKER,
+      node_label: 'Test tanker',
+      node_type: 'vessel',
+      controller: 'Test trader',
+      bypass_pattern: '',
+      a_sanctions_exposure: 'no tick',
+      a_claim_ids: '',
+      b_production_or_throughput: 'not sourced',
+      b_claim_ids: '',
+      c_bypass_routing: 'sourced',
+      c_claim_ids: `${TANKER}/flag ${TANKER}/imo`,
+      // A tick with no public claim does not count: two ticks, one sourced, not retained.
+      ticks: '2',
+      sourced_ticks: '1',
       retained: 'false',
     },
     {
@@ -232,9 +234,9 @@ test('with the pair on, each tick gives the pair of each of its claims', () => {
   expect(
     rows.map((one) => [one['a_nato_pairs'], one['b_nato_pairs'], one['c_nato_pairs']]),
   ).toStrictEqual([
-    ['', '', 'none A1'],
     ['B2', 'none', ''],
     ['', '', ''],
+    ['', '', 'none A1'],
     ['none', '', ''],
   ]);
 });
