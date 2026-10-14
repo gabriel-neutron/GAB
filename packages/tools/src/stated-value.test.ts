@@ -440,3 +440,17 @@ test('another type keeps the check of the attributes that are words of the event
     'attrs.occurred_on_precision',
   ]);
 });
+
+test('a slash date of the FCDO UK Sanctions List is day/month, and elsewhere it has two readings', () => {
+  const act = relationBetween({ validFrom: '2025-05-09' });
+  const passage = ['Date Designated: 09/05/2025'];
+  expect(statedBounds(act, passage, { dayFirst: true })).toStrictEqual({ act, dropped: [] });
+  expect(unstatedValues(act, passage, { dayFirst: true })).toStrictEqual([]);
+  expect(
+    statedBounds(relationBetween({ validFrom: '2025-09-05' }), passage, { dayFirst: true }),
+  ).toStrictEqual({ act: relationBetween({}), dropped: ['validFrom'] });
+  expect(statedBounds(act, passage)).toStrictEqual({
+    act: relationBetween({}),
+    dropped: ['validFrom'],
+  });
+});

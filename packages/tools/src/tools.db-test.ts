@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { probe, rolledBack, type Ask } from '../../../tools/probe.ts';
 import { CATALOGUE } from './catalogue.ts';
 import { proposeOf } from './propose.ts';
+import { UK_LIST_CSV } from './uk-sanctions-list.ts';
 import { callTool, type Reach, type Session, type Tool } from './tool.ts';
 
 const SHA = 'f'.repeat(64);
@@ -37,12 +38,16 @@ const STORE = 'SELECT public.put_fetched_document($1, $2, $3, $4, $5, $6, $7::da
 const WRITE_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3) AS pages';
 
 // The research role stores the document and its text through its own doors.
-const withDocument = async (ask: Ask, pages: readonly string[]): Promise<void> => {
+const withDocument = async (
+  ask: Ask,
+  pages: readonly string[],
+  uri = 'https://example.org/report',
+): Promise<void> => {
   await ask(STORE, [
     'url',
     'A report of the tool test',
     `raw/${SHA}`,
-    'https://example.org/report',
+    uri,
     SHA,
     'application/pdf',
     '2026-09-02',
@@ -873,6 +878,25 @@ test('a relation keeps the start and the end that its excerpt states', async () 
     valid_from: '2019-05-02',
     valid_to: '2023-11-30',
   });
+});
+
+test('a slash date is day/month only in an excerpt of the FCDO UK Sanctions List', async () => {
+  const page = 'Date Designated: 09/05/2025';
+  const proposed = async (uri: string) =>
+    rolledBack('superuser', async (ask) => {
+      const held = await connected(ask);
+      await asResearch(ask, () => withDocument(ask, [page], uri));
+      const outcome = await proposeAgain(ask, [
+        item('owner', owns(held.id, { validFrom: '2025-05-09' }), page),
+      ]);
+      return { batch: batchOf(outcome), rows: await rowsOfDocument(ask) };
+    });
+  const uk = await proposed(UK_LIST_CSV);
+  expect(uk.batch.proposals).toMatchObject([{ unstated: [], droppedBounds: [] }]);
+  expect(uk.rows[0]?.payload).toMatchObject({ valid_from: '2025-05-09' });
+  const other = await proposed('https://example.org/report');
+  expect(other.batch.proposals).toMatchObject([{ droppedBounds: ['validFrom'] }]);
+  expect(other.rows[0]?.payload).not.toHaveProperty('valid_from');
 });
 
 // The claim that the checker reads, for each item of the last batch.

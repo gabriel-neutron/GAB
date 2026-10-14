@@ -18,6 +18,7 @@ import {
   withoutBounds,
   type BoundName,
 } from './stated-value.ts';
+import { UK_LIST_CSV } from './uk-sanctions-list.ts';
 import {
   CheckFailure,
   defineTool,
@@ -193,11 +194,17 @@ const doorRow = z.strictObject({
 });
 
 // The newest set of text of the document, as the read tool chooses it.
-const PAGE = `SELECT t.extractor, t.text FROM public.document_text t
+const PAGE = `SELECT t.extractor, t.text,
+    (SELECT d.uri FROM public.documents d WHERE d.id = t.document_id) AS uri
+  FROM public.document_text t
   WHERE t.document_id = $1::text AND t.page = $2::int
     AND t.extractor = public.newest_text_extractor($1::text)`;
 
-const pageRow = z.strictObject({ extractor: z.string(), text: z.string() });
+const pageRow = z.strictObject({
+  extractor: z.string(),
+  text: z.string(),
+  uri: z.string().nullable(),
+});
 
 // The types of an image whose OCR text is the stored page; the door holds the same list.
 const IMAGE = `SELECT 1 AS one FROM public.documents d
@@ -222,6 +229,8 @@ const refusalOf = (cause: Error, refs: readonly string[]): string => {
 
 interface Cited {
   readonly document: string;
+  /** The address of the document, or null. */
+  readonly uri: string | null;
   readonly textExtractor: string;
   readonly page: number;
   /** The place of the excerpt in the stored page, or null for words read from an image. */
@@ -262,6 +271,7 @@ const cite = async (
     // The words that the AI read stand alone: the OCR text around them does not hold them.
     return {
       document: given.document,
+      uri: page.uri,
       textExtractor: page.extractor,
       page: given.page,
       span: null,
@@ -279,6 +289,7 @@ const cite = async (
   const points = Array.from(page.text);
   return {
     document: given.document,
+    uri: page.uri,
     textExtractor: page.extractor,
     page: given.page,
     span,
@@ -585,8 +596,11 @@ export const proposeOf = (modelCallId: string | null) =>
         const documents = [...new Set(cited.map((one) => one.document))];
         const passages = cited.map((one) => one.passage);
         // A start or an end of a relation comes from a cited passage, or it is not proposed.
+        // The FCDO list writes each date as day/month/year (ADR 0024).
+        const dayFirst = cited.every((one) => one.uri === UK_LIST_CSV);
         const { act: request, dropped } = statedBounds(resolved, passages, {
           publishedOn: published,
+          dayFirst,
         });
         // An end that is not proposed makes an ended relation look current, and an end that is
         // the whole act has no value that a passage states. The research AI can cite the passage
@@ -619,9 +633,10 @@ export const proposeOf = (modelCallId: string | null) =>
           );
         await checkTarget(session, given.ref, request);
         const act = machineAct(request, documents);
-        const unstated = unstatedValues(request, passages, { publishedOn: published });
+        const unstated = unstatedValues(request, passages, { publishedOn: published, dayFirst });
         const deduced =
-          published !== undefined && daysFromPublication(request, passages, published).length > 0
+          published !== undefined &&
+          daysFromPublication(request, passages, published, dayFirst).length > 0
             ? published
             : null;
         const transcribed = cited.some((one) => one.span === null);
