@@ -135,7 +135,10 @@ const classifyText = (
         ? 'a person with no provision in the excerpt'
         : 'no provision in the excerpt',
     );
-  if (eu && !text.includes('833/2014'))
+  // Only 833/2014 has an Article 5ae. An amending act (2025/395) cites it for a port without the
+  // number of the regulation.
+  const portArticle = subjectType === 'port' && PORT_ARTICLE.test(text);
+  if (eu && !portArticle && !text.includes('833/2014'))
     return doubt('an EU provision without 833/2014 in the excerpt');
   if (us && eu) return doubt('the excerpt names the provisions of two regimes');
   if (us) return { kind: 'retype', batch: 'us', reason: 'an OFAC directive' };
