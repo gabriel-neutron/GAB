@@ -62,7 +62,10 @@ The writer accepts a write or a private read only with the key of the operator
 the operator gets the key from `pnpm dev`, and a tool of the operator sends it in the header
 `x-gab-operator-key`. A machine role thus cannot act as the operator through the writer. The limit:
 a session that drives or reads the browser of the operator, or that runs code which reads
-`infra/.env`, is not stopped by this rule.
+`infra/.env`, is not stopped by this rule. `pnpm dev` also starts the browser with the key in the
+address, so a process of the same machine that reads the process list at that moment, or the
+history of the browser, can read the key. Rotate the key in `infra/.env` if that can have
+happened.
 
 ## Rules that hold on every path
 

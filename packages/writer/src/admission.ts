@@ -70,7 +70,7 @@ export const operatorKeyOf = (env: Record<string, string | undefined>): string =
   );
 };
 
-export const admitOwnSiteJson =
+export const admitOperatorJson =
   (operatorKey: string): MiddlewareHandler =>
   async (context, next) => {
     const held = turnedAway(context.req.raw.headers, operatorKey);

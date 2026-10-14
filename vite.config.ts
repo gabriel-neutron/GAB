@@ -1,32 +1,20 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { parseEnv } from 'node:util';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
+import { openWithKey } from './tools/dev-open.ts';
+
 // External constraint: the key of the operator lives in infra/.env, and only the operator side
 // reads that file. No file, as in CI, gives no key and so opens no browser.
-const operatorKey = (): string | undefined => {
+const envText = (): string | undefined => {
   try {
-    const text = readFileSync(path.resolve(import.meta.dirname, 'infra/.env'), 'utf8');
-    // Notepad can save the file with a byte order mark.
-    const key = parseEnv(text.startsWith('﻿') ? text.slice(1) : text)['GABRIEL_OPERATOR_KEY'];
-    return key === undefined || key.trim() === '' ? undefined : key.trim();
+    return readFileSync(path.resolve(import.meta.dirname, 'infra/.env'), 'utf8');
   } catch {
     return undefined;
   }
-};
-
-// Departure: only `pnpm dev` opens the page with the key, so Storybook, preview and Vitest open
-// no browser. The key goes in the fragment, which no server receives. Never use `define` or
-// index.html for the key, because the development server gives both to any caller.
-const openWithKey = (): string | false => {
-  const key = operatorKey();
-  return key !== undefined && process.env['npm_lifecycle_event'] === 'dev'
-    ? `/#operator-key=${key}`
-    : false;
 };
 
 export default defineConfig({
@@ -47,7 +35,7 @@ export default defineConfig({
   // writer admits the new origin. The proxy adds no key: any local process can reach it, so the
   // browser of the operator holds the key and the writer checks it.
   server: {
-    open: openWithKey(),
+    open: openWithKey(envText(), process.env['npm_lifecycle_event']),
     proxy: { '/write': 'http://127.0.0.1:5177', '/private': 'http://127.0.0.1:5177' },
   },
 

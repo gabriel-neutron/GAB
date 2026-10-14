@@ -3,7 +3,7 @@ import { LARGEST_UPLOAD_BODY } from '@gab/proposal/upload-limit';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 
-import { admitOwnSiteJson } from './admission.ts';
+import { admitOperatorJson } from './admission.ts';
 import { decideAuthorName, readAuthorNames } from './author-names.ts';
 import { decide } from './decide.ts';
 import { documentJobs, queueExtraction } from './extraction.ts';
@@ -62,8 +62,8 @@ export const writeRoutes = (
   operatorKey: string,
 ): Hono => {
   const app = new Hono();
-  app.use('/write/*', admitOwnSiteJson(operatorKey));
-  app.use('/private/*', admitOwnSiteJson(operatorKey));
+  app.use('/write/*', admitOperatorJson(operatorKey));
+  app.use('/private/*', admitOperatorJson(operatorKey));
 
   // A unit of the queue holds its cited passages and the reason of each dispute, so the queue
   // reaches the review page through the writer, one page at a time.
@@ -187,8 +187,8 @@ export const writeRoutes = (
     return context.json(act.reply, STATUS[act.outcome]);
   });
 
-  // Departure: a read on a POST. The status is private to the operator, and the admission of a
-  // JSON body from this site is the one guard the writer holds.
+  // Departure: a read on a POST. The status is private to the operator, and the site check and the
+  // key check of the operator are the guards the writer holds.
   app.post('/write/document-jobs', capped(LARGEST_BODY_BYTES), async (context) => {
     const act = await documentJobs(pool, await context.req.text());
     return context.json(act.reply, STATUS[act.outcome]);
