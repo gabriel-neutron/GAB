@@ -63,6 +63,46 @@ for (const identity of ['research', 'agent'] as const)
     ]);
   });
 
+// The day comes from the database clock, so the test does not depend on the clock of Node.
+const dayFrom = async (ask: Ask, offset: number): Promise<string> => {
+  const [row] = z
+    .array(z.object({ day: z.string() }))
+    .parse(
+      await ask("SELECT ((clock_timestamp() AT TIME ZONE 'UTC')::date + $1::int)::text AS day", [
+        offset,
+      ]),
+    );
+  if (row === undefined) throw new Error('no day came back');
+  return row.day;
+};
+
+for (const [name, offset] of [
+  ['today', 0],
+  ['yesterday', -1],
+] as const)
+  test(`the door accepts ${name} and stores that day`, async () => {
+    const found = await rolledBack('research', async (ask) => {
+      const day = await dayFrom(ask, offset);
+      const id = await fetchedBy(ask, { at: day });
+      const row = await ask('SELECT retrieved_at::text AS at FROM public.documents WHERE id = $1', [
+        id,
+      ]);
+      return { day, row };
+    });
+    expect(found.row).toStrictEqual([{ at: found.day }]);
+  });
+
+for (const [name, offset] of [
+  ['two days ago', -2],
+  ['tomorrow', 1],
+] as const)
+  test(`the door refuses ${name}`, async () => {
+    const day = await rolledBack('research', (ask) => dayFrom(ask, offset));
+    await expect(
+      rolledBack('research', (ask) => fetchedBy(ask, { at: day })),
+    ).rejects.toMatchObject({ code: '22023', message: expect.stringContaining(day) as string });
+  });
+
 test('an api document is accepted', async () => {
   const id = await rolledBack('research', (ask) => fetchedBy(ask, { kind: 'api' }));
   expect(id).toBe(ID);
