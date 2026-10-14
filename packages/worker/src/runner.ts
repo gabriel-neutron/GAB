@@ -30,7 +30,8 @@ const MS = 1000;
 
 // External constraint: a pool reports a lost connection with a code of Node, a state of the server
 // (class 08, or a shutdown), or the sentence of pg. The sleep of the computer, a restart of the
-// database and a drop of the network all give one of them. The job is not at fault then.
+// database and a drop of the network all give one of them. The job is not at fault then. A protocol
+// violation (08P01) is a bug of the code, and no wait cures it.
 const NODE_FAULTS = new Set([
   'ECONNREFUSED',
   'ECONNRESET',
@@ -48,7 +49,9 @@ const isConnectionFault = (error: unknown): boolean => {
   const code = 'code' in error ? error.code : undefined;
   if (
     typeof code === 'string' &&
-    (NODE_FAULTS.has(code) || SHUTDOWN_STATES.has(code) || code.startsWith('08'))
+    (NODE_FAULTS.has(code) ||
+      SHUTDOWN_STATES.has(code) ||
+      (code.startsWith('08') && code !== '08P01'))
   )
     return true;
   return error.message.startsWith('Connection terminated');
@@ -122,8 +125,23 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
   if (deps.agents.length === 0)
     throw new Error('The runner has no agent to run, so it claims nothing.');
 
-  const settings = settingsRow.parse((await deps.db.query(SETTINGS)).rows[0]);
-  await deps.db.query(REQUEUE);
+  // The runner marks each error that a query of the database throws. A code of Node alone does not
+  // show the origin: the store of the files refuses a connection with the same code. Only a marked
+  // error shows that the database is gone.
+  const fromDatabase = new WeakSet<Error>();
+  const db: Queryable = {
+    query: async (text, values) => {
+      try {
+        return await deps.db.query(text, values);
+      } catch (cause) {
+        if (cause instanceof Error) fromDatabase.add(cause);
+        throw cause;
+      }
+    },
+  };
+
+  const settings = settingsRow.parse((await db.query(SETTINGS)).rows[0]);
+  await db.query(REQUEUE);
 
   // Each model is made at the start, so a key that is not set stops the start and claims
   // nothing.
@@ -134,7 +152,7 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
   const byKind = new Map(deps.agents.map((agent) => [agent.kind, agent] as const));
 
   const record = (agent: RunnerAgent, job: ClaimedJob, call: CallRecord): Promise<string> =>
-    recordModelCall(deps.db, agent, job.id, call);
+    recordModelCall(db, agent, job.id, call);
 
   const contextOf = (agent: RunnerAgent, job: ClaimedJob): AgentContext => {
     // A deepening search carries the budget that the operator set, and it replaces the cap.
@@ -163,11 +181,11 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
       return { kind: 'value', value: answer.value, ...common };
     };
 
-    return { job, db: deps.db, ask };
+    return { job, db, ask };
   };
 
   const fail = async (job: ClaimedJob, reason: string): Promise<Step> => {
-    await deps.db.query(FAIL, [job.id, reason]);
+    await db.query(FAIL, [job.id, reason]);
     return { did: 'failed', job: job.id };
   };
 
@@ -178,7 +196,8 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
     } catch (cause) {
       // The job is not at fault, and the connection that would fail it is gone. The runner waits and
       // puts the job back in the queue.
-      if (isConnectionFault(cause)) throw cause;
+      if (isConnectionFault(cause) && cause instanceof Error && fromDatabase.has(cause))
+        throw cause;
       if (cause instanceof JobStop) return fail(job, cause.reason);
       if (cause instanceof ModelFailure) return fail(job, cause.failure.reason);
       console.error('the agent stopped with an error', { agent: agent.name, cause });
@@ -200,7 +219,7 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
     const parts = result.parts ?? { parts: 0, refused: 0, firstRefusal: null };
     const { status } = ended.parse(
       (
-        await deps.db.query(COMPLETE, [
+        await db.query(COMPLETE, [
           job.id,
           parts.parts,
           parts.refused,
@@ -213,7 +232,7 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
   };
 
   const once = async (): Promise<Step> => {
-    const job = await claimJob(deps.db);
+    const job = await claimJob(db);
     if (job === null) return { did: 'idle' };
 
     const agent = byKind.get(job.kind);
@@ -235,7 +254,7 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
         try {
           // One worker runs, so each running row of its role is ours: the job in hand goes back.
           if (lost) {
-            await deps.db.query(REQUEUE);
+            await db.query(REQUEUE);
             lost = false;
           }
           await step();

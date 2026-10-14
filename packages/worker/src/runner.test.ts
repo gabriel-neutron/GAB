@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AgentResult, RunnerAgent } from './agents.ts';
+import type { AgentContext, AgentResult, RunnerAgent } from './agents.ts';
 import type { Queryable } from './queryable.ts';
 import { openRunner } from './runner.ts';
 
@@ -32,10 +32,12 @@ const job = () => ({
 type Claim = () => { rows: unknown[] };
 
 /** A fake connection. Each claim takes the next step of the script, and the last step aborts the
- * runner. Another statement answers by its text, and `completing` may throw. */
+ * runner. Another statement answers by its text, and `completing` and `asking` may throw. The
+ * statement of the agent holds the word `agent_query`. */
 const scripted = (
   steps: readonly Claim[],
   completing: () => unknown = () => ({ status: 'done' }),
+  asking: () => { rows: unknown[] } = () => EMPTY,
 ) => {
   const stop = new AbortController();
   const seen: string[] = [];
@@ -54,6 +56,7 @@ const scripted = (
         return Promise.resolve(next());
       }
       if (text.includes('complete_job')) return Promise.resolve({ rows: [completing()] });
+      if (text.includes('agent_query')) return Promise.resolve(asking());
       return Promise.resolve(EMPTY);
     },
   };
@@ -61,7 +64,7 @@ const scripted = (
   return { db, stop, count };
 };
 
-const agentOf = (run: () => Promise<AgentResult>): RunnerAgent => ({
+const agentOf = (run: (context: AgentContext) => Promise<AgentResult>): RunnerAgent => ({
   name: 'a-test-agent',
   version: '1',
   kind: 'extract_text',
@@ -72,10 +75,11 @@ const agentOf = (run: () => Promise<AgentResult>): RunnerAgent => ({
 
 const drive = async (
   steps: readonly Claim[],
-  run: () => Promise<AgentResult> = () => Promise.resolve({ refusals: [] }),
+  run: (context: AgentContext) => Promise<AgentResult> = () => Promise.resolve({ refusals: [] }),
   completing?: () => unknown,
+  asking?: () => { rows: unknown[] },
 ) => {
-  const fake = scripted(steps, completing);
+  const fake = scripted(steps, completing, asking);
   const sleeps: number[] = [];
   const runner = await openRunner({
     db: fake.db,
@@ -111,18 +115,42 @@ describe('the runner and a fault of the database connection', () => {
     expect(sleeps[0]).toBe(1000);
   });
 
+  const askAndStop: (context: AgentContext) => Promise<AgentResult> = async (context) => {
+    await context.db.query('agent_query');
+    return { refusals: [] };
+  };
+
   it.each([
     ['ECONNRESET', fault('ECONNRESET')],
     ['a terminated connection', new Error('Connection terminated unexpectedly')],
     ['a class 08 state', Object.assign(new Error('the connection failed'), { code: '08006' })],
     ['a shutdown of the server', Object.assign(new Error('terminating'), { code: '57P01' })],
-  ])('does not fail the job when the agent meets %s', async (_name, cause) => {
-    const { fake, sleeps, ended } = await drive([job, () => EMPTY], () => Promise.reject(cause));
+  ])('does not fail the job when a query of the agent meets %s', async (_name, cause) => {
+    const { fake, sleeps, ended } = await drive([job, () => EMPTY], askAndStop, undefined, () => {
+      throw cause;
+    });
     await expect(ended).resolves.toBeUndefined();
     expect(fake.count('fail_job')).toBe(0);
     expect(fake.count('complete_job')).toBe(0);
     expect(fake.count('requeue_running_jobs')).toBe(2);
     expect(sleeps[0]).toBe(1000);
+  });
+
+  it('fails the job when another service of the agent refuses the connection', async () => {
+    const { fake, ended } = await drive([job, () => EMPTY], () =>
+      Promise.reject(fault('ECONNREFUSED')),
+    );
+    await expect(ended).resolves.toBeUndefined();
+    expect(fake.count('fail_job')).toBe(1);
+    expect(fake.count('requeue_running_jobs')).toBe(1);
+  });
+
+  it('fails the job on a protocol violation of the database, which no wait cures', async () => {
+    const { fake, ended } = await drive([job, () => EMPTY], askAndStop, undefined, () => {
+      throw Object.assign(new Error('a bad message'), { code: '08P01' });
+    });
+    await expect(ended).resolves.toBeUndefined();
+    expect(fake.count('fail_job')).toBe(1);
   });
 
   it('survives a fault in the end of the job, and does not fail it', async () => {

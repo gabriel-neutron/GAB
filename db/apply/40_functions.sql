@@ -734,11 +734,36 @@ DECLARE
   v_held     uuid;
   v_written  uuid[] := '{}';
   v_passages jsonb;
+  v_lock     bigint;
 BEGIN
   IF coalesce(jsonb_typeof(p_items), 'absent') <> 'array' OR jsonb_array_length(p_items) = 0 THEN
     RAISE EXCEPTION 'a batch holds at least one item'
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
+
+  -- THE LOCK THAT A MERGE WAITS FOR. A merge takes the same advisory keys, in the same order,
+  -- before it reads the acts that wait. The merge then waits for this batch, sees its acts and
+  -- refuses. When the merge commits first, this batch waits here, and the alias check below sees
+  -- the alias. All keys are taken now, in the order of the key, so a batch that names both
+  -- entities of a merge in two items cannot lock out the merge. An advisory key holds no row, so
+  -- it never conflicts with the row locks of a promotion. A key for a row that does not exist is
+  -- harmless, and no table is read.
+  -- shortcut: a relation that a promotion adds to the absorbed entity after the merge read its
+  -- relations has no key. Upgrade when that window shows in a test.
+  FOR v_lock IN
+    SELECT DISTINCT hashtextextended('record_row:' || lower(r.ref), 0) AS k
+      FROM (SELECT x.value->>'target_id' AS ref FROM jsonb_array_elements(p_items) AS x
+            UNION ALL SELECT x.value->'payload'->>'src_id' FROM jsonb_array_elements(p_items) AS x
+            UNION ALL SELECT x.value->'payload'->>'dst_id' FROM jsonb_array_elements(p_items) AS x
+            UNION ALL SELECT n FROM jsonb_array_elements(p_items) AS x,
+                      LATERAL jsonb_array_elements_text(
+                        CASE WHEN jsonb_typeof(x.value->'names') = 'array' THEN x.value->'names'
+                             ELSE '[]'::jsonb END) AS n) AS r
+     WHERE r.ref IS NOT NULL
+     ORDER BY k
+  LOOP
+    PERFORM pg_advisory_xact_lock_shared(v_lock);
+  END LOOP;
 
   -- THE GROUPS OF LINKED ITEMS. Each item starts as a group of its own. Each item then joins its
   -- group to the groups of the items that it names, in any order of the items. Each group takes
@@ -788,19 +813,6 @@ BEGIN
       v_names   := array_replace(v_names, v_from::uuid, v_to::uuid);
       IF v_target = v_from::uuid THEN v_target := v_to::uuid; END IF;
     END LOOP;
-
-    -- A merge locks both entities and their relations before it reads the acts that wait. This
-    -- lock makes the merge wait for this batch, and then it sees the acts and refuses. The lock
-    -- stands before the alias check: when the merge commits first, this batch waits, and the alias
-    -- check then sees the alias.
-    PERFORM 1 FROM public.entities e
-      WHERE e.id = v_target OR e.id = ANY (v_names)
-         OR e.id::text IN (v_payload::jsonb->>'src_id', v_payload::jsonb->>'dst_id')
-      ORDER BY e.id FOR KEY SHARE;
-    PERFORM 1 FROM public.relations r
-      WHERE r.id = v_target OR r.id = ANY (v_names)
-         OR r.id::text IN (v_payload::jsonb->>'src_id', v_payload::jsonb->>'dst_id')
-      ORDER BY r.id FOR KEY SHARE;
 
     -- An entity that a merge absorbed is no longer in the graph: the act names its survivor.
     SELECT a.absorbed_id, a.survivor_id INTO v_absorbed, v_survivor
@@ -2697,7 +2709,22 @@ CREATE OR REPLACE FUNCTION merge_entities(p_decided_by text, p_survivor uuid, p_
 RETURNS TABLE (proposal_id uuid, target_id uuid)
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_lock bigint;
 BEGIN
+  -- The advisory keys of a batch (see propose_batch): the two entities and the relations of the
+  -- absorbed entity, in the order of the key. The merge waits here for each open batch that names
+  -- one of them, and then it sees the acts of that batch.
+  FOR v_lock IN
+    SELECT DISTINCT hashtextextended('record_row:' || x.id::text, 0) AS k
+      FROM (SELECT p_survivor AS id UNION SELECT p_absorbed
+            UNION SELECT r.id FROM public.relations r
+             WHERE (r.src_kind = 'entity' AND r.src_id = p_absorbed)
+                OR (r.dst_kind = 'entity' AND r.dst_id = p_absorbed)) AS x
+     ORDER BY k
+  LOOP
+    PERFORM pg_advisory_xact_lock(v_lock);
+  END LOOP;
   proposal_id := public.propose_change('merge_entities',
                    CASE WHEN p_keep_name THEN '{"keep_name": true}'::jsonb ELSE '{}'::jsonb END,
                    ARRAY['manual'], 'entity', p_survivor, ARRAY[p_absorbed]);

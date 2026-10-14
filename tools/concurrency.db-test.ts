@@ -149,6 +149,43 @@ const unitOf = async (act: string): Promise<string> => {
   return row.unit_id;
 };
 
+/** A machine act that sets the strength of an entity to 12, with its stored page. */
+const strengthItem = async (entity: string) => {
+  const doc = `doc_${randomUUID().slice(0, 8)}`;
+  const text = 'The unit of the concurrency test holds twelve men.';
+  await probe.ask(
+    `SELECT public.put_document($1, 'file', $2, $3, NULL, NULL, NULL, 'text/plain',
+       '2026-10-07'::date)`,
+    [doc, `Source ${doc}`, `raw/${doc}.txt`],
+  );
+  await probe.ask('SELECT public.put_document_text($1, $2::jsonb, $3)', [
+    doc,
+    JSON.stringify([text]),
+    'concurrency-test@1',
+  ]);
+  return {
+    id: randomUUID(),
+    op: 'update_attrs',
+    target_kind: 'entity',
+    target_id: entity,
+    payload: { attrs: { strength: { v: '12', src: [doc] } } },
+    src: [doc],
+    names: [],
+    model_call_id: null,
+    originator: `Author ${randomUUID()}`,
+    modality: 'asserts',
+    citations: [
+      { document: doc, text_extractor: 'concurrency-test@1', page: 1, start: 0, end: text.length },
+    ],
+  };
+};
+
+const idOf = (rows: readonly unknown[]): string =>
+  z.array(z.object({ proposal_id: z.uuid() })).parse(rows)[0]?.proposal_id ?? '';
+
+const proposeAsResearch = (ask: Ask, items: readonly object[]) =>
+  ask('SELECT proposal_id FROM public.propose_batch($1::jsonb)', [JSON.stringify(items)]);
+
 test('two promotions of one unit: the second waits, and the unit is decided once', async () => {
   const label = newLabel();
   const [made1] = z
@@ -214,33 +251,7 @@ test('a decision of the operator while a machine writes: the write stays, the de
 test('a merge while a batch names the absorbed entity: the merge waits, and then it refuses', async () => {
   const kept = await entityOf('military_unit', newLabel());
   const absorbed = await entityOf('military_unit', newLabel());
-  const doc = `doc_${randomUUID().slice(0, 8)}`;
-  const text = 'The unit of the concurrency test holds twelve men.';
-  await probe.ask(
-    `SELECT public.put_document($1, 'file', $2, $3, NULL, NULL, NULL, 'text/plain',
-       '2026-10-07'::date)`,
-    [doc, `Source ${doc}`, `raw/${doc}.txt`],
-  );
-  await probe.ask('SELECT public.put_document_text($1, $2::jsonb, $3)', [
-    doc,
-    JSON.stringify([text]),
-    'concurrency-test@1',
-  ]);
-  const item = {
-    id: randomUUID(),
-    op: 'update_attrs',
-    target_kind: 'entity',
-    target_id: absorbed,
-    payload: { attrs: { strength: { v: '12', src: [doc] } } },
-    src: [doc],
-    names: [],
-    model_call_id: null,
-    originator: `Author ${randomUUID()}`,
-    modality: 'asserts',
-    citations: [
-      { document: doc, text_extractor: 'concurrency-test@1', page: 1, start: 0, end: text.length },
-    ],
-  };
+  const item = await strengthItem(absorbed);
   let act: string | null = null;
   const batch = await open('research');
   const merging = await open('app');
@@ -271,6 +282,41 @@ test('a merge while a batch names the absorbed entity: the merge waits, and then
   } finally {
     await batch.ask('ROLLBACK');
     await tidy(act === null ? [] : [act], []);
+  }
+});
+
+test('a promotion of a unit while a batch adds a source to its fact: neither side locks out the other', async () => {
+  const entity = await entityOf('military_unit', newLabel());
+  const writer = await open('research');
+  const promoting = await open('superuser');
+  const batch = await open('research');
+  let first: string | null = null;
+  let second: string | null = null;
+  try {
+    await writer.ask('BEGIN');
+    first = idOf(await proposeAsResearch(writer.ask, [await strengthItem(entity)]));
+    await writer.ask('COMMIT');
+    // The promotion locks the acts of the unit, and then it locks the entity (write_unit_as).
+    await promoting.ask('BEGIN');
+    await promoting.ask('SELECT public.pending_unit($1)', [await unitOf(first)]);
+    await batch.ask('BEGIN');
+    const running = proposeAsResearch(batch.ask, [await strengthItem(entity)]);
+    running.catch(() => undefined);
+    await blockedBy(probe, batch, promoting);
+    // The batch waits for the acts of the unit. It must hold no lock on the entity that the
+    // promotion needs next: when it does, the two wait for each other, and the server ends one.
+    await promoting.ask('SELECT 1 FROM public.entities WHERE id = $1 FOR UPDATE', [entity]);
+    await promoting.ask('COMMIT');
+    second = idOf(await running);
+    await batch.ask('COMMIT');
+    expect(await statusOf(second)).toMatchObject({ status: 'pending' });
+  } finally {
+    await promoting.ask('ROLLBACK');
+    await batch.ask('ROLLBACK');
+    await tidy(
+      [first, second].filter((one) => one !== null),
+      [],
+    );
   }
 });
 
