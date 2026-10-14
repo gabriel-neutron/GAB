@@ -43,7 +43,7 @@ const entity = (
   id: string,
   type: string,
   geom: ReleaseEntity['geom'] = POINT,
-  sources: readonly string[] = ['gem'],
+  sources: string[] = ['gem'],
 ): ReleaseEntity => ({
   id,
   type,
