@@ -29,7 +29,7 @@ const IN_REVIEW = '#8a8f94';
 const DIMMED = 0.15;
 
 // The basemap is a file of the site: the outlines of the countries, from Natural Earth (public
-// domain). The site sends no request to a tile server (ADR 0020).
+// domain). The site sends no request to a tile server.
 // External constraint: Vite builds a literal `new URL` into the script, and the file must stay a
 // file of its own beside it. A name in a constant stays a request at run time.
 const COUNTRIES_FILE = './countries.json';
@@ -330,9 +330,17 @@ if (container !== null) {
     if (cardBox === null || card === undefined) return;
     cardBox.replaceChildren(...[...card.childNodes].map((one) => one.cloneNode(true)));
   };
+  const reviewMark = (words: string): HTMLElement => {
+    const mark = element('p', words);
+    mark.className = 'text-candidate';
+    return mark;
+  };
   const showExit = (properties: Record<string, unknown>): void => {
     cardBox?.replaceChildren(
       heading(text(properties['label'])),
+      ...(properties['inReview'] === true
+        ? [reviewMark('In review: this exit point rests on a proposal, not a fact.')]
+        : []),
       element(
         'p',
         'Exit from Russian control. The release computes this point from its relations: it is not an entity of the record.',
@@ -355,12 +363,17 @@ if (container !== null) {
   };
   const showArc = (properties: Record<string, unknown>): void => {
     const product = PRODUCTS.find((one) => one.key === properties['product'])?.label ?? '';
-    const volumes = links.arcs.find((one) => one.id === text(properties['id']))?.volumes ?? [];
+    const arc = links.arcs.find((one) => one.id === text(properties['id']));
+    const volumes = arc?.volumes ?? [];
     cardBox?.replaceChildren(
       heading(text(properties['label'])),
       element('p', `Physical link, ${product.toLowerCase()}.`),
-      ...(properties['style'] === 'in review'
-        ? [element('p', 'In review: the link is a proposal, not a fact.')]
+      ...(arc?.inReview === true || properties['style'] === 'in review'
+        ? [
+            reviewMark(
+              'In review: the link is a proposal, not a fact, and so is each volume below.',
+            ),
+          ]
         : []),
       ...(volumes.length === 0
         ? [element('p', 'The volume table of this release has no row for this link.')]
@@ -375,6 +388,29 @@ if (container !== null) {
   // reads the vocabulary of the record, which the script does not need.
   let stage: string | null = null;
   let selected: string | null = null;
+
+  // The address keeps the product chain and the stage, so a reload keeps them. The script reads
+  // the address once, at the start, and checks each value against the buttons of the page.
+  const stageKeys = [...document.querySelectorAll<HTMLButtonElement>('[data-stage]')].map(
+    (button) => button.dataset['stage'],
+  );
+  {
+    const asked = new URLSearchParams(window.location.hash.slice(1));
+    product = productOf(asked.get('product')) ?? 'all';
+    const askedStage = asked.get('stage');
+    stage = stageKeys.find((one) => one !== undefined && one === askedStage) ?? null;
+  }
+  const keepInAddress = (): void => {
+    const kept = new URLSearchParams();
+    if (product !== 'all') kept.set('product', product);
+    if (stage !== null) kept.set('stage', stage);
+    const hash = kept.toString();
+    window.history.replaceState(
+      null,
+      '',
+      hash === '' ? `${window.location.pathname}${window.location.search}` : `#${hash}`,
+    );
+  };
 
   const stageHighlight = (key: string): Highlight => {
     const assets = new Set(
@@ -447,6 +483,7 @@ if (container !== null) {
     button.addEventListener('click', () => {
       product = productOf(button.dataset['product']) ?? 'all';
       selected = null;
+      keepInAddress();
       draw();
     });
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-stage]'))
@@ -454,35 +491,81 @@ if (container !== null) {
       const key = button.dataset['stage'] ?? null;
       stage = stage === key ? null : key;
       selected = null;
+      keepInAddress();
       draw();
     });
 
   map.on('load', draw);
+  const openEntity = (id: string): void => {
+    selected = id;
+    stage = null;
+    keepInAddress();
+    showCard(id);
+    draw();
+  };
+
+  interface Hit {
+    readonly layer: string;
+    readonly properties: Record<string, unknown>;
+  }
+  const open = (hit: Hit): void => {
+    if (hit.layer === 'exits') showExit(hit.properties);
+    else if (hit.layer.startsWith('arcs')) showArc(hit.properties);
+    else openEntity(text(hit.properties['id']));
+  };
+
+  // When the click hits more than one point, the card lists each of them, and the reader chooses.
+  const choose = (hits: readonly Hit[]): void => {
+    const list = element('ul', '');
+    list.className = 'flex flex-col';
+    for (const hit of hits) {
+      const button = element(
+        'button',
+        `${text(hit.properties['label'])}${hit.layer === 'exits' ? ' (exit point)' : ''}`,
+      );
+      button.setAttribute('type', 'button');
+      button.className =
+        'w-full px-1 py-0.5 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring';
+      button.addEventListener('click', () => {
+        open(hit);
+      });
+      const item = element('li', '');
+      item.append(button);
+      list.append(item);
+    }
+    cardBox?.replaceChildren(
+      heading(`${String(hits.length)} points under the click`),
+      element('p', 'Select one for its card.'),
+      list,
+    );
+  };
+
+  // A point wins over an exit ring, a ring over a line or an area, and each of them over an arc. An
+  // exit ring lies around its asset: a click on the point opens the asset, and a click on the ring
+  // opens the exit point.
+  const GROUPS: readonly (readonly string[])[] = [
+    ['points'],
+    ['exits'],
+    ['lines', 'areas'],
+    ARC_LAYERS.map((one) => one.id),
+  ];
   map.on('click', (event) => {
-    const hits = map.queryRenderedFeatures(event.point, {
-      layers: ['exits', 'points', 'lines', 'areas', ...ARC_LAYERS.map((one) => one.id)],
-    });
-    // An exit ring lies around its asset: a click on the point opens the asset, and a click on
-    // the ring opens the exit point.
-    const order = ['points', 'exits', 'lines', 'areas'];
-    const rank = (id: string): number => {
-      const at = order.indexOf(id);
-      return at === -1 ? order.length : at;
-    };
-    const [hit] = hits.toSorted((a, b) => rank(a.layer.id) - rank(b.layer.id));
-    if (hit === undefined) {
-      selected = null;
-      draw();
+    const hits = map.queryRenderedFeatures(event.point, { layers: GROUPS.flat() });
+    for (const group of GROUPS) {
+      const found = new Map<string, Hit>();
+      for (const one of hits)
+        if (group.includes(one.layer.id)) {
+          const properties: Record<string, unknown> = one.properties;
+          const id = text(properties['id']);
+          if (!found.has(id)) found.set(id, { layer: one.layer.id, properties });
+        }
+      const [only, ...others] = [...found.values()];
+      if (only === undefined) continue;
+      if (others.length === 0 || group === GROUPS.at(-1)) open(only);
+      else choose([only, ...others]);
       return;
     }
-    const properties: Record<string, unknown> = hit.properties;
-    if (hit.layer.id === 'exits') showExit(properties);
-    else if (hit.layer.source === 'arcs') showArc(properties);
-    else {
-      selected = text(properties['id']);
-      stage = null;
-      showCard(selected);
-      draw();
-    }
+    selected = null;
+    draw();
   });
 }
