@@ -10,7 +10,14 @@ import { open, realpath } from 'node:fs/promises';
 import { join, sep } from 'node:path';
 
 import { UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
-import { extractText, mimeOfFileName, RefusedImageError, UnsupportedTypeError } from '@gab/text';
+import {
+  extractText,
+  mimeOfFileName,
+  RefusedImageError,
+  RefusedTextError,
+  UnsupportedTypeError,
+} from '@gab/text';
+import { ZIP_MIME } from '@gab/text/geojson';
 import { z } from 'zod';
 
 import { addressTitle, htmlTitle } from './fetch-document.ts';
@@ -18,15 +25,32 @@ import { storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 import { isHtml, unreadablePage } from './unreadable-page.ts';
 
-// A browser saves a page as a PDF or as HTML, and an image as a PNG or a JPEG file. A text file in
-// the inbox is no copy of a page.
-const SAVED_TYPES = new Set([
+// A browser saves a page as a PDF or as HTML, and an image as a PNG or a JPEG file. A data file of
+// an API that refuses the server is saved as text: the reader refuses bytes that are no strict
+// UTF-8 text.
+const TEXT_TYPES = [
+  'application/json',
+  'text/tab-separated-values',
+  'text/plain',
+  'application/xml',
+  'text/csv',
+  'text/markdown',
+] as const;
+const CONTENT_TYPES = [
   'application/pdf',
   'text/html',
-  'application/xhtml+xml',
   'image/png',
   'image/jpeg',
+  ...TEXT_TYPES,
+] as const;
+// A GeoJSON archive is read layer by layer. Other archives give no text.
+const SAVED_TYPES: ReadonlySet<string> = new Set([
+  ...CONTENT_TYPES,
+  'application/xhtml+xml',
+  ZIP_MIME,
 ]);
+const SAVED_EXTENSIONS =
+  '.pdf, .html, .xhtml, .png, .jpg, .jpeg, .json, .tsv, .txt, .xml, .csv, .md or a GeoJSON .zip';
 
 const MAX_TITLE = 500;
 // The base64 text of the largest file that a store accepts.
@@ -164,8 +188,10 @@ const titleOf = (
 export const storeSavedFile = defineTool({
   name: 'store_saved_file',
   description:
-    'Stores a PDF, an HTML page or a PNG or JPEG image that the browser of the session holds, ' +
-    'as the document of the page that it came from. Use it only when fetch_document cannot ' +
+    'Stores a PDF, an HTML page, a PNG or JPEG image, or a data file (JSON, TSV, CSV, XML, ' +
+    'plain text or Markdown) that the browser of the session holds, as the document of the ' +
+    'page that it came from. A data file must be strict UTF-8 text; any other binary file, and ' +
+    'a ZIP archive that holds no GeoJSON, is refused. Use it only when fetch_document cannot ' +
     'read a page (a bot filter, an empty page, a site that refuses the server). Give the bytes ' +
     'that the browser holds as `content` in base64, with their `type` and the `sha256` of the ' +
     'whole file; give a large file in ' +
@@ -186,10 +212,7 @@ export const storeSavedFile = defineTool({
         .max(MAX_CONTENT)
         .optional()
         .describe('the bytes that the browser holds, or one part of them, in base64'),
-      type: z
-        .enum(['application/pdf', 'text/html', 'image/png', 'image/jpeg'])
-        .optional()
-        .describe('the type of the bytes in content'),
+      type: z.enum(CONTENT_TYPES).optional().describe('the type of the bytes in content'),
       sha256: z
         .string()
         .regex(/^[0-9a-f]{64}$/u)
@@ -259,7 +282,8 @@ export const storeSavedFile = defineTool({
       const named = mimeOfFileName(file);
       if (named === undefined || !SAVED_TYPES.has(named))
         throw new ToolRefusal(
-          `${file} is not a saved page: give a .pdf, .html, .xhtml, .png, .jpg or .jpeg file`,
+          `${file} is not a saved page or a text file, and no reader takes its type: give a ` +
+            `${SAVED_EXTENSIONS} file`,
         );
       mime = named;
       decodeAs = named;
@@ -271,10 +295,20 @@ export const storeSavedFile = defineTool({
     try {
       ({ pages } = await extractText(bytes, decodeAs));
     } catch (fault) {
-      if (fault instanceof UnsupportedTypeError || fault instanceof RefusedImageError)
-        throw new ToolRefusal(fault.message);
+      if (
+        fault instanceof UnsupportedTypeError ||
+        fault instanceof RefusedImageError ||
+        fault instanceof RefusedTextError
+      )
+        throw new ToolRefusal(`${label}: ${fault.message}`);
       throw new ToolRefusal(`no text is read from ${label}`);
     }
+    if (mime === ZIP_MIME && pages.length === 0)
+      throw new ToolRefusal(
+        `${label} is a ZIP archive with no GeoJSON layer, and an archive is not stored as one ` +
+          'opaque file. To unpack a ZIP archive into one document for each file is a separate ' +
+          'feature: unpack it by hand and store each file',
+      );
     if (pages.join('').trim() === '') throw new ToolRefusal(`${label} holds no text`);
     const unreadable = unreadablePage(mime, pages);
     if (unreadable !== null) throw new ToolRefusal(unreadable);

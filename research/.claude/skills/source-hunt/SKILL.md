@@ -70,7 +70,9 @@ and it returns the URL in its result for the lead session.
   `(async () => { const r = await fetch('<address of the PDF>'); if (!r.ok) throw new Error(String(r.status)); const u = new Uint8Array(await r.arrayBuffer()); const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', u))].map((b) => b.toString(16).padStart(2, '0')).join(''); let s = ''; for (const b of u) s += String.fromCharCode(b); window.gab = btoa(s); return { length: window.gab.length, sha256: h }; })()`
 - Then read the text in parts of 20,000 characters: `window.gab.slice(0, 20000)`, then
   `window.gab.slice(20000, 40000)`, and so on. Call `store_saved_file` with each part, in order:
-  `content` (the part), `type` (`text/html` or `application/pdf`), `sha256` (the hash that the
+  `content` (the part), `type` (`text/html`, `application/pdf`, or the type of a data file:
+  `application/json`, `text/csv`, `text/tab-separated-values`, `application/xml`,
+  `text/plain`), `sha256` (the hash that the
   browser gave), `part` (1, 2, ...), `parts` (the count of the parts) and `url` (the address of
   the page, or of the PDF). A text of 20,000 characters or less is one call with no `part` and no
   `parts`. Each part but the last answers `waiting`. The last part gives the document to cite.
@@ -84,7 +86,7 @@ Each line of `research/out/needs.md` gives what the operator needs to store the 
 
 | Source | Address | Error | What to get | File name | Where it is used |
 |---|---|---|---|---|---|
-| The title and the issuer | The address that failed | 403, 404, timeout, empty | The PDF, or the page saved from a browser | The unique name to give the file | The node and the fact that wait for it |
+| The title and the issuer | The address that failed | 403, 404, timeout, empty | The PDF, the page saved from a browser, or the data file (`.json`, `.tsv`, `.csv`, `.xml`, `.txt`) | The unique name to give the file | The node and the fact that wait for it |
 
 The operator saves the file by hand into the inbox (`GAB_INBOX` in `research/.env`, or
 `research/inbox`). In the next session, store it with `store_saved_file` and `file` (the file

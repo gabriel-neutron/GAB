@@ -78,6 +78,15 @@ const WIDGET =
   `<p>Run ${RUN}. ${'Only a member of the forum reads the threads of this section. '.repeat(5)}</p>` +
   '<div class="cf-turnstile" data-sitekey="x"></div></article></body></html>';
 
+// An ENTSOG answer of one line, and the address of its query.
+const ENTSOG = `{"operationaldatas":[{"indicator":"Physical Flow","pointLabel":"Budince","value":0,"run":"${RUN}"}]}`;
+const ENTSOG_QUERY = `/api/v1/operationaldatas?indicator=Physical%20Flow&from=2026-07-01&run=${RUN}`;
+
+// A Comext table in SDMX-CSV above the page limit of 16 MiB and under the fetch cap.
+const CSV_HEADER = 'DATAFLOW,freq,reporter,partner,product,indicators,TIME_PERIOD,OBS_VALUE';
+const CSV_ROW = 'ESTAT:DS-045409(1.0),M,HU,RU,27090090,QUANTITY_IN_100KG,2026-07,3272070.00\n';
+const BIG_CSV = `${CSV_HEADER}\n${CSV_ROW.repeat(230_000)}${RUN}\n`;
+
 const PDF = pdfOf(`Asset freeze notice ${RUN}`, 'HM Treasury');
 
 // Each image holds large English and Cyrillic words, so a check of whole words stays true when OCR
@@ -103,6 +112,14 @@ beforeAll(async () => {
     '/entry.html': { headers: { 'content-type': 'text/html; charset=utf-8' }, body: HTML },
     '/moved': { status: 301, headers: { location: '/entry.html' } },
     '/app': { headers: { 'content-type': 'text/html' }, body: SHORT },
+    [ENTSOG_QUERY]: {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      body: ENTSOG,
+    },
+    '/comext.csv': {
+      headers: { 'content-type': 'application/vnd.sdmx.data+csv; version=1.0.0' },
+      body: BIG_CSV,
+    },
     '/notice.pdf': { headers: { 'content-type': 'application/pdf' }, body: PDF },
     '/viewtopic.php': { headers: { 'content-type': 'text/html' }, body: cp1251 },
     '/wiki': { headers: { 'content-type': 'text/html; charset=UTF-8' }, body: WIKI },
@@ -234,6 +251,42 @@ test('a PDF is stored with the text of its page, and its author and creation dat
     expect(store.puts.map((put) => put.key)).toStrictEqual([`raw/${sha}`]);
     const [row] = z.array(documentRow).parse(await ask(ROW, [sha]));
     expect(row?.pages).toBe(1);
+  });
+});
+
+test('a JSON answer is stored as it came, under its whole address, and its text is indented', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const got = await fetched(ask, `${base}${ENTSOG_QUERY}`, fixtureReach(store));
+    expect(got.status).toBe('stored');
+    expect(got.mime).toBe('application/json');
+    expect(got.url).toBe(`${base}${ENTSOG_QUERY}`);
+    expect(got.pages[0]?.text).toContain('\n      "pointLabel": "Budince",\n');
+    expect(Buffer.from(store.puts[0]?.bytes ?? []).toString('utf8')).toBe(ENTSOG);
+    const [row] = z.array(documentRow).parse(await ask(ROW, [shaOf(ENTSOG)]));
+    expect(row?.uri).toBe(`${base}${ENTSOG_QUERY}`);
+  });
+});
+
+test('a table above the page limit is cut into pages, and each page starts with its header', async () => {
+  expect(Buffer.byteLength(BIG_CSV)).toBeGreaterThan(16 * 1024 * 1024);
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const got = await fetched(ask, `${base}/comext.csv`, fixtureReach(store));
+    expect(got.status).toBe('stored');
+    const pages = z
+      .array(z.object({ page: z.number(), head: z.string(), bytes: z.number() }))
+      .parse(
+        await ask(
+          `SELECT t.page, left(t.text, ${CSV_HEADER.length}) AS head, octet_length(t.text) AS bytes
+             FROM public.document_text t WHERE t.document_id = $1 ORDER BY t.page`,
+          [got.document],
+        ),
+      );
+    expect(pages.map((page) => page.page)).toStrictEqual([1, 2]);
+    expect(pages.every((page) => page.head === CSV_HEADER)).toBe(true);
+    expect(pages.every((page) => page.bytes <= 16 * 1024 * 1024)).toBe(true);
+    expect(Buffer.from(store.puts[0]?.bytes ?? []).toString('utf8')).toBe(BIG_CSV);
   });
 });
 

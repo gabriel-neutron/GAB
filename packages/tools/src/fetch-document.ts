@@ -2,7 +2,13 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { decodeHtml, extractText, RefusedImageError, UnsupportedTypeError } from '@gab/text';
+import {
+  decodeHtml,
+  extractText,
+  RefusedImageError,
+  RefusedTextError,
+  UnsupportedTypeError,
+} from '@gab/text';
 import { ExifTool } from 'exiftool-vendored';
 import { z } from 'zod';
 
@@ -236,6 +242,30 @@ const unreadableRefusal = (sentence: string): string =>
 
 const blank = (pages: readonly string[]): boolean => pages.join('').trim() === '';
 
+const ERROR_KEYS: ReadonlySet<string> = new Set(['error', 'message', 'status']);
+
+/**
+ * The message of a JSON error that a server sends with a success status, or null. The shape comes
+ * from a real ENTSOG answer: an object with only the keys error, message and status. An object
+ * with other keys is data, also when it holds the key error.
+ */
+export const jsonErrorOf = (bytes: Uint8Array): string | null => {
+  let value: unknown;
+  try {
+    value = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+  } catch {
+    return null;
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const fields = value as Record<string, unknown>;
+  const keys = Object.keys(fields);
+  if (!keys.includes('error') || keys.some((key) => !ERROR_KEYS.has(key))) return null;
+  const said = fields['message'] ?? fields['error'];
+  return (typeof said === 'string' ? said : JSON.stringify(said)).slice(0, 300);
+};
+
+const isJson = (mime: string): boolean => mime === 'application/json' || mime.endsWith('+json');
+
 // The text of a shell is its title at most. A page with other text holds text of its own.
 const shellOnly = (bytes: Uint8Array, type: string, pages: readonly string[]): boolean => {
   const text = pages.join(' ').replace(/\s+/gu, ' ').trim();
@@ -291,11 +321,22 @@ const checkedPages = async (
 ): Promise<readonly string[]> => {
   // An answer with no bytes but blanks holds no text, whatever its type says. The caller refuses it.
   if (blankBytes(bytes)) return [''];
+  // An error is no record of the source, also when the server gives it as a success.
+  const error = isJson(mime) ? jsonErrorOf(bytes) : null;
+  if (error !== null)
+    throw new ToolRefusal(
+      `the server sent a JSON error with a success status: "${error}". It holds no data, and ` +
+        'nothing is stored',
+    );
   let pages: readonly string[];
   try {
     ({ pages } = await extractText(bytes, type));
   } catch (fault) {
-    if (fault instanceof UnsupportedTypeError || fault instanceof RefusedImageError)
+    if (
+      fault instanceof UnsupportedTypeError ||
+      fault instanceof RefusedImageError ||
+      fault instanceof RefusedTextError
+    )
       throw new ToolRefusal(fault.message);
     throw new ToolRefusal(`no text is read from the answer of type ${mime}`);
   }
@@ -359,7 +400,14 @@ export const fetchDocument = defineTool({
     'store it with store_saved_file, or list it in research/out/needs.md. A compressed answer ' +
     '(gzip, deflate or brotli, also with no Content-Encoding header, as a raw capture of the ' +
     'Wayback Machine) is decoded, and the decoded bytes are stored. An answer of a text type ' +
-    'whose bytes are not text is refused. A PNG or a JPEG image is stored as ' +
+    'whose bytes are not text is refused. A data file (JSON, CSV, TSV, XML, plain text, any ' +
+    'type that ends with +json or +xml, and every SDMX type) must be strict UTF-8 with no ' +
+    'control character but tab, line feed and carriage return, or it is refused. Its bytes are ' +
+    'stored as they came. The text of a JSON file is an indented view of it; when the view ' +
+    'would change a number or an escape, the text is the raw file. A JSON error that the ' +
+    'server sends with a success status (an object with only the keys error, message and ' +
+    'status) is refused. A text above 16 MiB is cut into pages at the end of a line, and a ' +
+    'table repeats its header line on each page. A PNG or a JPEG image is stored as ' +
     'its bytes, and its pages are the text that OCR read in it (English, Ukrainian and ' +
     'Russian). OCR can misread a sign: cite an excerpt as the stored text gives it, and ' +
     'compare it with the image. An image in which OCR reads no text is refused.',
