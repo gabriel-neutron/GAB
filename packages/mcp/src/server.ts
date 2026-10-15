@@ -9,6 +9,7 @@ import { CATALOGUE } from '@gab/tools/catalogue';
 import { callTool, inputSchemaOf, type Reach, type Session, type Tool } from '@gab/tools/tool';
 
 import { proposeChecked } from './checked-propose.ts';
+import { codeVersion } from './code-version.ts';
 import { readerFamilyOf, type SecondCheck } from './second-check.ts';
 import { RESEARCH_TOOLS } from './surface.ts';
 
@@ -22,7 +23,10 @@ export interface SessionPool {
   connect(): Promise<PooledSession>;
 }
 
-const SERVER = { name: 'gab', version: '0.0.0' } as const;
+// The version is read once, at start, so each session sees the commit that runs.
+const VERSION = codeVersion();
+const SERVER = { name: 'gab', version: VERSION } as const;
+const INSTRUCTIONS = `This gab server runs the code of commit ${VERSION}.`;
 
 const toolNamed = (name: string): Tool => {
   const found = CATALOGUE.find((tool) => tool.name === name);
@@ -127,7 +131,10 @@ const run = async (context: Context, name: string, raw: unknown): Promise<CallTo
  * web refuses its call. With a check, a model of another family than the research AI reads each
  * proposed item with its passages; with none, code alone checks a proposal. */
 export const createServer = (pool: SessionPool, reach?: Reach, check?: SecondCheck): McpServer => {
-  const mcp = new McpServer(SERVER, { capabilities: { tools: {} } });
+  const mcp = new McpServer(SERVER, {
+    capabilities: { tools: {} },
+    instructions: INSTRUCTIONS,
+  });
   const context: Context = {
     pool,
     reach,
