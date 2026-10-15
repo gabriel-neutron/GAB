@@ -111,6 +111,17 @@ const batchAct = z.discriminatedUnion('op', [
     targetId: z.uuid(),
     attrs: attributeEdit.describe(ATTRIBUTES),
   }),
+  z.strictObject({
+    op: z.literal('update_entity'),
+    targetId: z.uuid().describe('the id of the entity of the record, such as a port or a facility'),
+    geom: z
+      .unknown()
+      .describe(
+        'the place of the entity, a GeoJSON geometry, for example {"type": "Point", ' +
+          '"coordinates": [lon, lat]}; an excerpt must state it, such as the coordinates of a ' +
+          'UN/LOCODE line or the Latitude and Longitude of a GEM row',
+      ),
+  }),
   z
     .strictObject({
       op: z.literal('update_relation'),
@@ -321,6 +332,7 @@ const KIND_OF_OP: Readonly<Record<string, Kind | null>> = {
   create_relation: 'relation',
   update_attrs: null,
   update_relation: null,
+  update_entity: null,
 };
 
 const present = async (session: Session, kind: Kind, id: string): Promise<boolean> =>
@@ -390,8 +402,10 @@ const resolvedAct = async (
 };
 
 const checkTarget = async (session: Session, ref: string, act: WriteRequest): Promise<void> => {
-  if (act.op !== 'update_attrs' && act.op !== 'update_relation') return;
-  const kind = act.op === 'update_attrs' ? act.targetKind : 'relation';
+  if (act.op !== 'update_attrs' && act.op !== 'update_relation' && act.op !== 'update_entity')
+    return;
+  const kind =
+    act.op === 'update_attrs' ? act.targetKind : act.op === 'update_entity' ? 'entity' : 'relation';
   if (!(await present(session, kind, act.targetId)))
     refuse(ref, `the target ${act.targetId} does not exist`);
 };
@@ -449,6 +463,15 @@ const claimActOf = async (
   dropped: readonly BoundName[],
 ): Promise<unknown> => {
   if (act.op === 'create_relation') return withoutBounds(act, dropped);
+  if (act.op === 'update_entity') {
+    const [named] = await rowsOf(
+      session,
+      z.strictObject({ label: z.string() }),
+      'SELECT label FROM api.entity WHERE id = $1',
+      [act.targetId],
+    );
+    return { ...act, entity: named?.label ?? null };
+  }
   if (act.op !== 'update_relation') return act;
   const [named] = await rowsOf(session, z.strictObject({ words: z.string() }), RELATION_WORDS, [
     act.targetId,
@@ -560,7 +583,10 @@ export const proposeOf = (modelCallId: string | null) =>
       'Proposes a batch of linked facts: new entities, new relations, attributes to add, and the ' +
       'end date of an open relation of the record (update_relation, when a page states that an ' +
       'owner, a flag, an operator or an insurer changed), or the start date of a relation of the ' +
-      'record that has none (update_relation with validFrom, when a dated page states it). Each ' +
+      'record that has none (update_relation with validFrom, when a dated page states it), and the ' +
+      'place of an entity of the record (update_entity with geom, when a page states its ' +
+      'coordinates; a place that differs from the place that the record holds waits as a ' +
+      'doubt for the operator). Each ' +
       'item gives the act, the party that first stated it, how the page states it, and for its ' +
       'values the page and an excerpt copied word for word from the stored text. Code finds each ' +
       'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +
