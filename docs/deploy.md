@@ -18,6 +18,11 @@ writes nothing, and it is not public.
 ## The writer and the worker
 
 Run `pnpm writer` and the worker on the operator's machine, with the same `infra/.env` as above.
+`pnpm writer` needs `GABRIEL_OPERATOR_KEY` in that file, and it does not start without it. The
+value is at least 32 characters of A-Z, a-z, 0-9, `-` and `_`. Make it with
+`node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`. The first
+`pnpm dev` opens the screen with the key, and the browser keeps it. If a write answers that the
+request does not carry the key of the operator, start `pnpm dev` again.
 The worker is one command with sub-commands: `pnpm worker run` takes the queued AI jobs,
 `pnpm worker ingest` stores files, `pnpm worker layout` computes the graph layout,
 `pnpm worker reconcile` compares the raw store with the document index, `pnpm worker
@@ -29,7 +34,9 @@ claims with a NATO pair (see below), and `pnpm worker name-candidates` finds the
 across a Latin and a Cyrillic spelling. `pnpm worker asset-coverage` reports the coverage of each
 kind of asset (see below). They run as they do against the local stack.
 Only the values change. Run one `pnpm worker run` at a time: at its start, it puts back each job
-that is still running. `pnpm worker ingest` stores a file only with
+that is still running. Two workers at the same time stay unsupported. When the database connection
+fails, for example after the computer sleeps, `pnpm worker run` waits, tries again and puts the job
+in hand back in the queue. It does not stop. `pnpm worker ingest` stores a file only with
 `--uri`, the address where the file comes from (`decisions.md` PU1), so give one file for each run.
 For a bought file, also give `--cost-eur`, or `--provider` with a provider that sells its filings,
 so that the file stays not public.

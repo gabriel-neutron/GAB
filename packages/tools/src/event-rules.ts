@@ -1,5 +1,6 @@
 /** The rules of the event entity type: its name, its attributes and the types its relations reach. */
 
+import { isDay } from '@gab/proposal/day';
 import type { WriteRequest } from '@gab/proposal/request';
 
 /** The closed list of kinds of the first batch. An explosion keeps its word in the excerpt. */
@@ -26,7 +27,6 @@ const RELATION_ENDS: ReadonlyMap<
 // The name is "kind — site — day". The site may hold a dash, so the kind is the text before the
 // first separator and the day is the text after the last one.
 const NAME = /^(.+?) — (.+) — (\d{4}-\d{2}(?:-\d{2})?)$/u;
-const DAY = /^\d{4}-\d{2}-\d{2}$/u;
 const MONTH = /^\d{4}-\d{2}$/u;
 
 const asTexts = (value: unknown): string[] | null => {
@@ -36,9 +36,6 @@ const asTexts = (value: unknown): string[] | null => {
 
 const dayAfter = (day: string): string =>
   new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
-
-const isDay = (text: string): boolean =>
-  DAY.test(text) && new Date(`${text}T00:00:00Z`).toISOString().startsWith(text);
 
 type Attributes = Readonly<Record<string, { readonly v: unknown }>>;
 

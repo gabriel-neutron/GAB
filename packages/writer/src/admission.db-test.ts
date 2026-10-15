@@ -2,6 +2,7 @@ import { DECISION_OPS, WRITE_OPS } from '@gab/proposal/request';
 import { afterAll, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 
+import { OPERATOR, TEST_OPERATOR_KEY } from './operator-fixture.ts';
 import { openPool } from './pool.ts';
 import { LARGEST_BODY_BYTES, writeRoutes } from './routes.ts';
 
@@ -9,7 +10,7 @@ const pool = openPool();
 // An act door never reaches the raw store, so these two doors refuse every object.
 const NO_STORE = { put: () => Promise.reject(new Error('no act door reaches the raw store')) };
 const NO_READ = { read: () => Promise.reject(new Error('no act door reads the raw store')) };
-const app = writeRoutes(pool, NO_STORE, NO_READ);
+const app = writeRoutes(pool, NO_STORE, NO_READ, TEST_OPERATOR_KEY);
 
 afterAll(async () => {
   await pool.end();
@@ -47,7 +48,7 @@ const OWN_HOST = '127.0.0.1:5177';
 const PAGE_ORIGIN = 'http://localhost:5173';
 const REBOUND_HOST = 'attacker.example:5177';
 
-const JSON_HEADER = { host: OWN_HOST, 'content-type': 'application/json' };
+const JSON_HEADER = { ...OPERATOR, host: OWN_HOST, 'content-type': 'application/json' };
 
 const OTHER_SITES = ['same-site', 'none', 'cross-site'] as const;
 
@@ -73,7 +74,7 @@ test('a browser on this site reaches every door', async () => {
   }
 });
 
-test('a caller that is not a browser sends no site header, and it reaches every door', async () => {
+test('a caller that is not a browser sends no site header but the key, and it reaches every door', async () => {
   for (const door of doors) {
     const [status, refusal] = await knock(door, JSON_HEADER);
     expect(admitted(door, status, refusal)).toEqual(readsTheBody(door));
@@ -124,11 +125,12 @@ test('a page whose name was pointed at the loopback address reaches no door', as
   const cells = {
     'a foreign host': { ...rebound },
     'a foreign origin': { ...rebound, host: OWN_HOST },
-    'no host': { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
+    'no host': { ...OPERATOR, 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
   };
   for (const door of doors)
     for (const [cell, headers] of Object.entries(cells)) {
       const [status, refusal] = await knock(door, {
+        ...OPERATOR,
         'content-type': 'application/json',
         ...headers,
       });
@@ -145,7 +147,11 @@ test('a page whose name was pointed at the loopback address reaches no door', as
 test('a body that is not declared as JSON reaches no door', async () => {
   for (const door of doors) {
     const typed = await knock(door, { ...JSON_HEADER, 'content-type': 'text/plain' });
-    const bare = await knock(door, { host: OWN_HOST }, new TextEncoder().encode(EMPTY_BODY));
+    const bare = await knock(
+      door,
+      { ...OPERATOR, host: OWN_HOST },
+      new TextEncoder().encode(EMPTY_BODY),
+    );
     for (const [cell, [status, refusal]] of Object.entries({ typed, bare }))
       expect({ door, cell, status, refusal }).toEqual({
         door,

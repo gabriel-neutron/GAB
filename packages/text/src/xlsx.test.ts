@@ -3,6 +3,7 @@ import { expect, test } from 'vitest';
 import { extractText, mimeOfFileName } from './extract.ts';
 import {
   MAX_PART_BYTES,
+  MAX_TABLE_CHARS,
   sheetCsv,
   sheetNames,
   textSetName,
@@ -115,3 +116,47 @@ test('a part that inflates past the cap is refused', async () => {
 
   await expect(sheetCsv(bomb, 'Big')).rejects.toThrow(/inflates to more than/u);
 });
+
+test('a cell after the last column of a sheet refuses the file, and allocates no row of that width', async () => {
+  const head = '<row r="1"><c r="A1" t="inlineStr"><is><t>Name</t></is></c></row>';
+  for (const reference of ['XFE2', 'ZZZZZZZZZZ2']) {
+    const book = workbookOf({ Wide: `${head}<row r="2"><c r="${reference}"><v>1</v></c></row>` });
+    await expect(sheetCsv(book, 'Wide')).rejects.toThrow(/after the last column/u);
+  }
+});
+
+test('cells with no reference past the last column refuse the file', async () => {
+  const row = (cells: string): string => `<row r="1">${cells}</row>`;
+  const tooMany = workbookOf({ Wide: row('<c><v>1</v></c>'.repeat(16_385)) });
+  await expect(sheetCsv(tooMany, 'Wide')).rejects.toThrow(/after the last column/u);
+  const afterLast = workbookOf({ Wide: row('<c r="XFD1"><v>1</v></c><c><v>2</v></c>') });
+  await expect(sheetCsv(afterLast, 'Wide')).rejects.toThrow(/after the last column/u);
+});
+
+test('the last column XFD is a column', async () => {
+  const book = workbookOf({
+    Wide: '<row r="1"><c r="A1" t="inlineStr"><is><t>First</t></is></c><c r="XFD1" t="inlineStr"><is><t>Last</t></is></c></row>',
+  });
+  const first = (await sheetCsv(book, 'Wide')).split('\r\n')[0] ?? '';
+  expect(first.split(',')).toHaveLength(16384);
+});
+
+test('a cell with no reference takes the column after the previous cell', async () => {
+  const book = workbookOf({
+    Gap: '<row r="1"><c r="A1"><v>1</v></c><c r="B1"><v>2</v></c><c r="C1"><v>3</v></c><c r="D1"><v>4</v></c><c r="E1"><v>5</v></c></row><row r="2"><c t="inlineStr"><is><t>a</t></is></c><c><v>2</v></c><c r="D2"><v>4</v></c><c><v>5</v></c></row>',
+  });
+  expect(await sheetCsv(book, 'Gap')).toBe('1,2,3,4,5\r\na,2,,4,5\r\n');
+});
+
+test(
+  'the character cap applies to the whole workbook and not to each sheet',
+  { timeout: 60_000 },
+  async () => {
+    const big = 'x'.repeat(1024 * 1024);
+    const rows = Math.ceil(MAX_TABLE_CHARS / 2 / big.length) + 1;
+    const sheet = [['Name'], ...Array.from({ length: rows }, () => [big])];
+    const book = workbookOf({ A: sheet, B: sheet });
+    await expect(sheetCsv(book, 'A')).resolves.toContain('Name');
+    await expect(workbookCsvs(book)).rejects.toThrow(/keeps more than/u);
+  },
+);

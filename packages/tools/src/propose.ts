@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { day } from '@gab/proposal/day';
 import { attributeEdit } from '@gab/proposal/attribute-value';
 import { machineAct } from '@gab/proposal/machine';
 import type { ProposalAct } from '@gab/proposal/payload';
@@ -8,16 +9,19 @@ import { z } from 'zod';
 
 import { plainText } from './check-answer.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
-import { findExcerpt, type Span } from './excerpt.ts';
+import { findExcerpt, MAX_TOLERANT_UNITS, pointSlice, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import {
   daysFromPublication,
   namesProvision,
   statedBounds,
+  unstatedCallDay,
   unstatedValues,
   withCodedJurisdiction,
   withoutBounds,
+  withoutCallDay,
   type BoundName,
+  type DroppedName,
 } from './stated-value.ts';
 import { UK_LIST_CSV } from './uk-sanctions-list.ts';
 import {
@@ -65,13 +69,7 @@ const PUBLISHED_ON =
   'item that takes a year from it is disputed too, and the review card says so: the operator ' +
   'decides it. An item value beats the value of the call';
 
-const publishedOn = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/u, 'a day is written as 2026-05-15')
-  .refine((day) => new Date(`${day}T00:00:00Z`).toISOString().startsWith(day), {
-    message: 'published_on is no day of the calendar',
-  })
-  .describe(PUBLISHED_ON);
+const publishedOn = day.describe(PUBLISHED_ON);
 
 // The latest publication day that a caller can give: tomorrow in UTC.
 const latestPublishedOn = (): string =>
@@ -110,6 +108,17 @@ const batchAct = z.discriminatedUnion('op', [
     targetKind: z.enum(['entity', 'relation']),
     targetId: z.uuid(),
     attrs: attributeEdit.describe(ATTRIBUTES),
+  }),
+  z.strictObject({
+    op: z.literal('update_entity'),
+    targetId: z.uuid().describe('the id of the entity of the record, such as a port or a facility'),
+    geom: z
+      .unknown()
+      .describe(
+        'the place of the entity, a GeoJSON geometry, for example {"type": "Point", ' +
+          '"coordinates": [lon, lat]}; an excerpt must state it, such as the coordinates of a ' +
+          'UN/LOCODE line or the Latitude and Longitude of a GEM row',
+      ),
   }),
   z
     .strictObject({
@@ -293,20 +302,26 @@ const cite = async (
     findExcerpt(page.text, given.excerpt) ??
     refuse(
       ref,
-      `page ${String(given.page)} of ${given.document} does not hold the excerpt ` +
-        `${JSON.stringify(given.excerpt)}. Copy the words as the page states them.`,
+      page.text.length > MAX_TOLERANT_UNITS
+        ? `page ${String(given.page)} of ${given.document} holds more than ` +
+            `${String(MAX_TOLERANT_UNITS)} characters, so only an exact copy of its words is ` +
+            'found. Copy the excerpt character for character, with the quotes, the dashes and ' +
+            'the spaces of the page.'
+        : `page ${String(given.page)} of ${given.document} does not hold the excerpt ` +
+            `${JSON.stringify(given.excerpt)}. Copy the words as the page states them.`,
     );
-  const points = Array.from(page.text);
   return {
     document: given.document,
     fcdoList: page.fcdo_list,
     textExtractor: page.extractor,
     page: given.page,
     span,
-    passage: points.slice(span.start, span.end).join(''),
-    context: points
-      .slice(Math.max(0, span.start - CONTEXT_POINTS), span.end + CONTEXT_POINTS)
-      .join(''),
+    passage: pointSlice(page.text, span.start, span.end),
+    context: pointSlice(
+      page.text,
+      Math.max(0, span.start - CONTEXT_POINTS),
+      span.end + CONTEXT_POINTS,
+    ),
   };
 };
 
@@ -321,6 +336,7 @@ const KIND_OF_OP: Readonly<Record<string, Kind | null>> = {
   create_relation: 'relation',
   update_attrs: null,
   update_relation: null,
+  update_entity: null,
 };
 
 const present = async (session: Session, kind: Kind, id: string): Promise<boolean> =>
@@ -389,11 +405,25 @@ const resolvedAct = async (
   return parsed.data;
 };
 
+const SAME_PLACE = `SELECT public.ST_Equals(public.ST_GeomFromGeoJSON(e.geom::text),
+    public.ST_GeomFromGeoJSON($2::text)) AS same
+  FROM api.entity e WHERE e.id = $1 AND e.geom IS NOT NULL`;
+
 const checkTarget = async (session: Session, ref: string, act: WriteRequest): Promise<void> => {
-  if (act.op !== 'update_attrs' && act.op !== 'update_relation') return;
-  const kind = act.op === 'update_attrs' ? act.targetKind : 'relation';
+  if (act.op !== 'update_attrs' && act.op !== 'update_relation' && act.op !== 'update_entity')
+    return;
+  const kind =
+    act.op === 'update_attrs' ? act.targetKind : act.op === 'update_entity' ? 'entity' : 'relation';
   if (!(await present(session, kind, act.targetId)))
     refuse(ref, `the target ${act.targetId} does not exist`);
+  // The promotion refuses an act that changes nothing, so the same place would wait for ever.
+  if (act.op === 'update_entity' && act.geom !== undefined) {
+    const [same] = await rowsOf(session, z.strictObject({ same: z.boolean() }), SAME_PLACE, [
+      act.targetId,
+      JSON.stringify(act.geom),
+    ]);
+    if (same?.same === true) refuse(ref, `the entity ${act.targetId} has this place already`);
+  }
 };
 
 // The checker reads no record, so an act that ends a relation names that relation in the words
@@ -446,9 +476,19 @@ const checkEventEnds = async (
 const claimActOf = async (
   session: Session,
   act: ProposeItem['act'],
-  dropped: readonly BoundName[],
+  dropped: readonly DroppedName[],
 ): Promise<unknown> => {
-  if (act.op === 'create_relation') return withoutBounds(act, dropped);
+  if (act.op === 'create_relation')
+    return withoutBounds(dropped.includes('observed_on') ? withoutCallDay(act) : act, dropped);
+  if (act.op === 'update_entity') {
+    const [named] = await rowsOf(
+      session,
+      z.strictObject({ label: z.string() }),
+      'SELECT label FROM api.entity WHERE id = $1',
+      [act.targetId],
+    );
+    return { ...act, entity: named?.label ?? null };
+  }
   if (act.op !== 'update_relation') return act;
   const [named] = await rowsOf(session, z.strictObject({ words: z.string() }), RELATION_WORDS, [
     act.targetId,
@@ -532,7 +572,7 @@ interface Prepared {
   readonly claimAct: unknown;
   readonly cited: readonly Cited[];
   readonly unstated: readonly UnstatedValue[];
-  readonly dropped: BoundName[];
+  readonly dropped: DroppedName[];
   readonly lostBound: LostBound | null;
   readonly lostProvision: boolean;
   /** The publication day, when the year of a day of the act comes from it. */
@@ -548,7 +588,7 @@ const outcome = z.strictObject({
   disputed: z.boolean(),
   unstated: z.array(z.string()),
   // The bounds of a relation that no cited passage states. Code did not propose them.
-  droppedBounds: z.array(z.enum(['validFrom', 'validTo'])),
+  droppedBounds: z.array(z.enum(['validFrom', 'validTo', 'observed_on'])),
 });
 
 /** The propose tool. A back-end agent gives the model call of each batch, which is known to its
@@ -560,7 +600,10 @@ export const proposeOf = (modelCallId: string | null) =>
       'Proposes a batch of linked facts: new entities, new relations, attributes to add, and the ' +
       'end date of an open relation of the record (update_relation, when a page states that an ' +
       'owner, a flag, an operator or an insurer changed), or the start date of a relation of the ' +
-      'record that has none (update_relation with validFrom, when a dated page states it). Each ' +
+      'record that has none (update_relation with validFrom, when a dated page states it), and the ' +
+      'place of an entity of the record (update_entity with geom, when a page states its ' +
+      'coordinates; the tool refuses the place that the entity has already, and a place that ' +
+      'differs from the place that the record holds waits as a doubt for the operator). Each ' +
       'item gives the act, the party that first stated it, how the page states it, and for its ' +
       'values the page and an excerpt copied word for word from the stored text. Code finds each ' +
       'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +
@@ -589,7 +632,11 @@ export const proposeOf = (modelCallId: string | null) =>
       'port or a vessel) and carried_out_by (to a military unit or a state body). A denial is ' +
       'the modality denies on the same name. First call search_graph with each identifier, and ' +
       'list_proposals for the document, so you propose no fact that the record or the queue ' +
-      'already holds. Give published_on for an excerpt that writes a date with no year.',
+      'already holds. Give published_on for an excerpt that writes a date with no year. A port ' +
+      'call (berthed_at, loads_at, discharges_at) takes the day of the call as the attribute ' +
+      'observed_on, written as 2026-01-31, only when an excerpt states that exact day; two calls ' +
+      'on two days are two facts. A day that no excerpt states, or a value that is not one day, ' +
+      'is not proposed, and droppedBounds names it.',
     input: z.strictObject({ items: proposeItems, published_on: publishedOn.optional() }),
     output: z.strictObject({
       proposals: z.array(outcome),
@@ -627,15 +674,21 @@ export const proposeOf = (modelCallId: string | null) =>
         // A start or an end of a relation comes from a cited passage, or it is not proposed.
         // The FCDO list writes each date as day/month/year (ADR 0024).
         const dayFirst = cited.every((one) => one.fcdoList);
-        const { act: request, dropped } = statedBounds(resolved, passages, {
-          publishedOn: published,
-          dayFirst,
-        });
+        const stating = { publishedOn: published, dayFirst };
+        const { act: bounded, dropped: droppedBounds } = statedBounds(resolved, passages, stating);
+        // The day of a port call enters its claim key, so it is one real day that a passage
+        // states, or it is not proposed. The call then has the key of a call with no day.
+        const lostDay = unstatedCallDay(bounded, passages, stating);
+        const request = lostDay ? withoutCallDay(bounded) : bounded;
+        const dropped: DroppedName[] = [
+          ...droppedBounds,
+          ...(lostDay ? (['observed_on'] as const) : []),
+        ];
         // An end that is not proposed makes an ended relation look current, and a start or an end
         // that is the whole act has no value that a passage states. The research AI can cite the
         // passage that states it, so its batch is refused. An agent cannot, so its item is
         // disputed and the operator reads the page.
-        const lostBound = lostBoundOf(resolved, dropped);
+        const lostBound = lostBoundOf(resolved, droppedBounds);
         // A type change rests on the provision that states the measure. The research AI cites the
         // passage that names it, so its batch is refused. An agent cannot, so its item is
         // disputed and the operator reads the page.
@@ -657,7 +710,7 @@ export const proposeOf = (modelCallId: string | null) =>
           );
         await checkTarget(session, given.ref, request);
         const act = machineAct(request, documents);
-        const unstated = unstatedValues(request, passages, { publishedOn: published, dayFirst });
+        const unstated = unstatedValues(request, passages, stating);
         const deduced =
           published !== undefined &&
           daysFromPublication(request, passages, published, dayFirst).length > 0

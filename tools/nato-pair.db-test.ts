@@ -77,11 +77,7 @@ test('a fact with no author letter has no pair, even with a digit', async () => 
     await check(ask, one);
     const digit = z
       .array(z.object({ digit: z.number().nullable() }))
-      .parse(
-        await as(ask, 'gabriel_app', () =>
-          ask('SELECT public.fact_digit($1)::int AS digit', [one.claimKey]),
-        ),
-      )[0]?.digit;
+      .parse(await ask('SELECT public.fact_digit($1)::int AS digit', [one.claimKey]))[0]?.digit;
     return { digit, pair: await pairOf(ask, one.act) };
   });
   expect(read).toStrictEqual({ digit: 6, pair: null });

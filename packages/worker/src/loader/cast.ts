@@ -1,4 +1,5 @@
 import type { Cast } from '@gab/proposal/mapping';
+import { isDay } from '@gab/proposal/day';
 import { isValidImo, isValidLei } from '@gab/proposal/identifiers';
 
 /** One cell as an attribute value, or the sentence that says why the cell is not one. A refused
@@ -44,11 +45,6 @@ const registerCell = (key: string, text: string): Cell => {
   return { ok: 'skip', reason: `"${text}" is not a number of the Russian register for ${key}` };
 };
 
-const LAST_DAY = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-
-const leapYear = (year: number): boolean =>
-  (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-
 const PATTERN: Readonly<
   Record<string, { shape: RegExp; order: readonly [number, number, number] }>
 > = {
@@ -68,10 +64,8 @@ export const dayOf = (text: string, pattern: string): string | null => {
   const [yearAt, monthAt, dayAt] = rule.order;
   const [year, month, date] = [found[yearAt], found[monthAt], found[dayAt]];
   if (year === undefined || month === undefined || date === undefined) return null;
-  const [y, m, d] = [Number(year), Number(month), Number(date)];
-  const last = m === 2 && leapYear(y) ? 29 : LAST_DAY[m - 1];
-  if (y < 1 || last === undefined || d < 1 || d > last) return null;
-  return `${year}-${month}-${date}`;
+  const built = `${year}-${month}-${date}`;
+  return Number(year) >= 1 && isDay(built) ? built : null;
 };
 
 /** Casts the trimmed text of one cell under the cast of its column. An empty cell is never

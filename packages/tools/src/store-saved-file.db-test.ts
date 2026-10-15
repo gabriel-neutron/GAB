@@ -69,7 +69,7 @@ afterAll(async () => {
 const reachOf = (store = memoryStore(), folder = inbox) => ({
   store,
   inbox: folder,
-  now: () => new Date('2026-10-07T10:00:00Z'),
+  now: () => new Date(),
 });
 
 const row = z.object({
@@ -100,7 +100,7 @@ test('a saved page is stored once, under the address of its source, as saved by 
       kind: 'url',
       uri: URL_OF_PAGE,
       mime: 'text/html',
-      day: '2026-10-07',
+      day: new Date().toISOString().slice(0, 10),
       title: `Timeline ${RUN} (saved by the browser)`,
     });
   });
@@ -225,7 +225,7 @@ test('the bytes that the browser holds are stored with their own hash, with no f
       storeSavedFile,
       sessionOf(ask),
       { content: bytes.toString('base64'), type: 'text/html', sha256: shaOf(bytes), url },
-      { store, now: () => new Date('2026-10-07T10:00:00Z') },
+      { store, now: () => new Date() },
     );
     expect(got).toMatchObject({ ok: true, output: { status: 'stored', pages: 1 } });
     expect(await heldOf(ask, url)).toStrictEqual([

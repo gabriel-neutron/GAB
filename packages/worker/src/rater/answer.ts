@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { nameKey } from '../name-key.ts';
+
 /** An author that the worker may compare with: a known author, or one of the approved reference
  * set. The record gives it through `rating_context`. */
 const knownAuthor = z.object({
@@ -55,9 +57,6 @@ export type Decision =
       readonly outsideSet?: true;
     };
 
-// The same form as name_key() in the record: one space, lower case, no edge space.
-const keyOf = (name: string): string => name.replace(/\s+/gu, ' ').trim().toLowerCase();
-
 const refuse = (reason: string): Decision => ({ kind: 'refused', reason });
 
 /** The names of the reference set, as the record gives them. The model may compare with these
@@ -74,7 +73,7 @@ export const decide = (
 ): Decision => {
   if (given.kind === 'same') {
     const known = authors.find((one) =>
-      [one.name, ...one.names].some((word) => keyOf(word) === keyOf(given.as)),
+      [one.name, ...one.names].some((word) => nameKey(word) === nameKey(given.as)),
     );
     if (known === undefined)
       return refuse(
@@ -92,7 +91,9 @@ export const decide = (
 
   const reference = authors.filter((one) => one.reference);
   const compared = given.references.map((word) =>
-    reference.find((one) => [one.name, ...one.names].some((known) => keyOf(known) === keyOf(word))),
+    reference.find((one) =>
+      [one.name, ...one.names].some((known) => nameKey(known) === nameKey(word)),
+    ),
   );
   if (compared.length === 0)
     return refuse('the answer names no reference author that it compared with');

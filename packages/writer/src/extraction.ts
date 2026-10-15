@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { readBody } from './body.ts';
 import type { Sessions } from './pool.ts';
-import { runStatement, type DoorAct } from './statement.ts';
+import { runStatement, unreadAnswer, type DoorAct } from './statement.ts';
 
 // Departure: two exports, one job. The operator asks for the extraction of one document and reads
 // where that work stands, and both answers read one body.
@@ -45,7 +45,9 @@ export const queueExtraction = async (
   if (given.outcome !== 'read') return given;
   const answer = await runStatement(pool, QUEUE, [given.body.documentId]);
   if (answer.outcome !== 'answered') return answer;
-  return { outcome: 'done', reply: { jobId: queuedRow.parse(answer.rows[0]).id } };
+  const queued = queuedRow.safeParse(answer.rows[0]);
+  if (!queued.success) return unreadAnswer;
+  return { outcome: 'done', reply: { jobId: queued.data.id } };
 };
 
 /** The jobs of one document, the newest first. */

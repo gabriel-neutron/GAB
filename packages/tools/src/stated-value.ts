@@ -395,6 +395,44 @@ export const daysFromPublication = (
   ];
 };
 
+// Origin: decided. A source rounds a decimal degree, and UN/LOCODE writes whole minutes, so a
+// coordinate is stated when the text holds it to within one minute of arc.
+const COORDINATE_TOLERANCE = 1 / 60;
+
+// Each coordinate that a text writes, as a degree with no sign: a decimal degree (59.6667), the
+// degrees and minutes of UN/LOCODE (5940N, 02819E), and degrees and minutes with signs (59°40′).
+// shortcut: the hemisphere is not read, so 59.6 S states 59.6 N; read the letter when a source
+// south of the equator or west of Greenwich is cited.
+const coordinatesIn = (text: string): number[] => [
+  ...Array.from(text.matchAll(/(?<![\d.,])(\d{1,3})[.,](\d+)/gu), (one) =>
+    Number(`${one[1] ?? ''}.${one[2] ?? ''}`),
+  ),
+  ...Array.from(
+    text.matchAll(/(?<!\d)(\d{2,3})(\d{2})\s?[NSEW]\b/gu),
+    (one) => Number(one[1]) + Number(one[2]) / 60,
+  ),
+  ...Array.from(
+    text.matchAll(/(?<!\d)(\d{1,3})\s*°\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*['′])?/gu),
+    (one) => Number(one[1]) + Number((one[2] ?? '0').replace(',', '.')) / 60,
+  ),
+];
+
+// The place that an act gives: the two coordinates of a point. Code reads no other shape in a
+// text, so another shape is unstated, and the operator compares it with the page.
+const placeValues = (act: WriteRequest): ActValue[] => {
+  if (act.op !== 'update_entity' || act.geom === undefined) return [];
+  if (act.geom.type !== 'Point') return [{ name: 'geom', value: act.geom.type }];
+  const [lon = Number.NaN, lat = Number.NaN] = act.geom.coordinates;
+  return [
+    { name: 'geom.longitude', value: lon },
+    { name: 'geom.latitude', value: lat },
+  ];
+};
+
+const statesCoordinate = (value: Scalar, coordinates: readonly number[]): boolean =>
+  typeof value === 'number' &&
+  coordinates.some((one) => Math.abs(one - Math.abs(value)) <= COORDINATE_TOLERANCE);
+
 /** The values of an act that no cited passage states, in any form of that value. */
 export const unstatedValues = (
   act: WriteRequest,
@@ -402,11 +440,16 @@ export const unstatedValues = (
   options: StatedOptions = {},
 ): ActValue[] => {
   const text = passages.join('\n');
-  return valuesOf(act).filter((named) => {
-    const code = named.name === `attrs.${JURISDICTION_KEY}` ? jurisdictionCode(named.value) : null;
-    if (code !== null && statesJurisdiction(code, text)) return false;
-    return !stated(named.value, text, options);
-  });
+  const coordinates = coordinatesIn(text);
+  return [
+    ...valuesOf(act).filter((named) => {
+      const code =
+        named.name === `attrs.${JURISDICTION_KEY}` ? jurisdictionCode(named.value) : null;
+      if (code !== null && statesJurisdiction(code, text)) return false;
+      return !stated(named.value, text, options);
+    }),
+    ...placeValues(act).filter((named) => !statesCoordinate(named.value, coordinates)),
+  ];
 };
 
 /** The name of a bound of a relation. */
@@ -417,11 +460,55 @@ export const withoutBounds = <
   Act extends { validFrom?: string | undefined; validTo?: string | undefined },
 >(
   act: Act,
-  dropped: readonly BoundName[],
+  dropped: readonly DroppedName[],
 ): Act => {
   const kept = { ...act };
   if (dropped.includes('validFrom')) delete kept.validFrom;
   if (dropped.includes('validTo')) delete kept.validTo;
+  return kept;
+};
+
+/** The name of a value of an act that code removes when no passage states it. */
+export type DroppedName = BoundName | 'observed_on';
+
+/** The relation types of a port call. The claim key of a relation holds the same list. */
+export const PORT_CALL_TYPES = ['berthed_at', 'loads_at', 'discharges_at'] as const;
+
+// The day of a port call, when the act is a port call that gives one.
+const callDayOf = (act: WriteRequest): { readonly v: unknown } | undefined =>
+  act.op === 'create_relation' && PORT_CALL_TYPES.some((type) => type === act.type)
+    ? act.attrs?.['observed_on']
+    : undefined;
+
+/** Is the day of a port call no single real day that a cited passage states? The day enters the
+ * claim key of the call, so a guessed day, a month or a list would make a false second fact. */
+export const unstatedCallDay = (
+  act: WriteRequest,
+  passages: readonly string[],
+  options: StatedOptions = {},
+): boolean => {
+  const held = callDayOf(act);
+  if (held === undefined) return false;
+  const day = held.v;
+  const parts = typeof day === 'string' ? DAY.exec(day) : null;
+  if (typeof day !== 'string' || parts === null) return true;
+  const [, year = '', month = '', date = ''] = parts;
+  return !(
+    isRealDay(Number(year), Number(month), Number(date)) &&
+    daysIn(passages.join('\n'), options).has(day)
+  );
+};
+
+/** The act with no day of a call, and no attributes when the day was the only one. */
+export const withoutCallDay = <
+  Act extends { readonly op: string; attrs?: Readonly<Record<string, unknown>> | undefined },
+>(
+  act: Act,
+): Act => {
+  const others = Object.entries(act.attrs ?? {}).filter(([key]) => key !== 'observed_on');
+  const kept = { ...act };
+  if (others.length === 0) delete kept.attrs;
+  else Object.assign(kept, { attrs: Object.fromEntries(others) });
   return kept;
 };
 

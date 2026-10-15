@@ -1,5 +1,6 @@
 import { parseArgs } from 'node:util';
 
+import { isDay } from '@gab/proposal/day';
 import { openStore, putObject } from '@gab/store';
 import { webOf } from '@gab/tools/web';
 import { Client } from 'pg';
@@ -31,7 +32,7 @@ export const firmsSweepCommand: SubCommand = async (args) => {
       },
     });
     const { since, flares } = parsed.values;
-    if (Number.isNaN(Date.parse(`${since}T00:00:00Z`))) throw new Error('--since is a day.');
+    if (!isDay(since)) throw new Error('--since is a day.');
     if (parsed.positionals.length !== (flares === true ? 2 : 0))
       throw new Error('--flares takes a document and a text set, and nothing else does.');
   } catch (error) {

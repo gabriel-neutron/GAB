@@ -1,8 +1,8 @@
 -- =============================================================================================
 -- 00 — the api schema                                                              RE-RUNNABLE
 --
--- SET ROLE and not SET LOCAL ROLE: an apply file is fed statement by statement, and SET LOCAL
--- outside a transaction block does nothing at all.
+-- SET ROLE and not SET LOCAL ROLE: the file runs in one transaction, and a SET ROLE holds to the
+-- RESET ROLE at the end of the file, also after the commit.
 --
 -- MEASURED TRAP, 20 August 2026, on gab-postgres:17-3.5-pgvector. `CREATE SCHEMA IF NOT EXISTS
 -- api` run AFTER `SET ROLE gabriel_owner` fails with `permission denied for database gabriel`,

@@ -169,9 +169,19 @@ interface Call {
 
 // Departure: the fake door records each statement and each object, and it fails a statement that
 // contains `failOn`.
-const doorOf = (options: { known?: boolean; failOn?: string } = {}) => {
+const doorOf = (
+  options: {
+    known?: boolean;
+    key?: string;
+    mime?: string;
+    failOn?: string;
+    putFails?: boolean;
+    fill?: string;
+  } = {},
+) => {
   const calls: Call[] = [];
   const puts: string[] = [];
+  const mimes: string[] = [];
   let released = 0;
   const door: IngestDoor = {
     connect: () =>
@@ -180,9 +190,14 @@ const doorOf = (options: { known?: boolean; failOn?: string } = {}) => {
           calls.push({ text, values });
           if (options.failOn !== undefined && text.includes(options.failOn))
             return Promise.reject(new Error('refused'));
+          if (text.includes('fill_document_uri'))
+            return Promise.resolve({ rows: [{ found: options.fill ?? 'filled' }] });
           if (text.includes('FROM public.documents'))
             return Promise.resolve({
-              rows: options.known === true ? [{ id: 'doc_000000000000' }] : [],
+              rows:
+                options.known === true
+                  ? [{ id: 'doc_000000000000', s3_key: options.key, mime: options.mime }]
+                  : [],
             });
           return Promise.resolve({ rows: [] });
         },
@@ -191,11 +206,13 @@ const doorOf = (options: { known?: boolean; failOn?: string } = {}) => {
         },
       }),
     put: (object) => {
+      if (options.putFails === true) return Promise.reject(new Error('the store is down'));
       puts.push(object.key);
+      mimes.push(object.mime);
       return Promise.resolve(object.key);
     },
   };
-  return { door, calls, puts, released: () => released };
+  return { door, calls, puts, mimes, released: () => released };
 };
 
 const OPTIONS = {
@@ -231,6 +248,56 @@ test('a known file writes nothing', async () => {
   expect((await only(door, join(folder, 'one.txt'))).status).toBe('known');
   expect(puts).toStrictEqual([]);
   expect(calls.every((c) => c.text.startsWith('SELECT'))).toBe(true);
+});
+
+test('a known file with a stored key writes the object again and no row', async () => {
+  const key = `raw/${'ab'.repeat(32)}`;
+  const { door, calls, puts } = doorOf({ known: true, key });
+  expect((await only(door, join(folder, 'one.txt'))).status).toBe('known');
+  expect(puts).toStrictEqual([key]);
+  expect(calls.some((c) => c.text.includes('put_document'))).toBe(false);
+});
+
+test('a known file is written again with the type of its row, not the type of its name', async () => {
+  const key = `raw/${'ab'.repeat(32)}`;
+  const { door, mimes } = doorOf({ known: true, key, mime: 'text/csv' });
+  await only(door, join(folder, 'one.txt'));
+  expect(mimes).toStrictEqual(['text/csv']);
+});
+
+test('a known file whose object cannot be written does not get the address', async () => {
+  const key = `raw/${'ab'.repeat(32)}`;
+  const { door, calls } = doorOf({ known: true, key, putFails: true });
+  const [outcome] = await ingestFiles(door, [join(folder, 'one.txt')], {
+    ...OPTIONS,
+    uri: 'https://example.org/page',
+  });
+  expect(outcome?.status).toBe('refused');
+  const texts = calls.map((c) => c.text);
+  expect(texts).toContain('ROLLBACK');
+  expect(texts).not.toContain('COMMIT');
+});
+
+test.each(['not_a_file', 'other', 'before_rule'])(
+  'a known file with the answer %s is refused, and no object is written',
+  async (fill) => {
+    const key = `raw/${'ab'.repeat(32)}`;
+    const { door, calls, puts } = doorOf({ known: true, key, fill });
+    const [outcome] = await ingestFiles(door, [join(folder, 'one.txt')], {
+      ...OPTIONS,
+      uri: 'https://example.org/page',
+    });
+    expect(outcome?.status).toBe('refused');
+    expect(puts).toStrictEqual([]);
+    expect(calls.map((c) => c.text)).toContain('ROLLBACK');
+  },
+);
+
+test('a known file with an empty key writes no object and still gets the address', async () => {
+  const { door, calls, puts } = doorOf({ known: true, key: '' });
+  await ingestFiles(door, [join(folder, 'one.txt')], { ...OPTIONS, uri: 'https://example.org/p' });
+  expect(puts).toStrictEqual([]);
+  expect(calls.some((c) => c.text.includes('fill_document_uri'))).toBe(true);
 });
 
 test('a file of a type nobody reads is refused before any write', async () => {

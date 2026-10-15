@@ -137,7 +137,7 @@ export const parseUpload = (raw: string): ParsedUpload => {
 
 type UploadReply =
   | {
-      readonly state: 'stored' | 'known';
+      readonly state: 'stored' | 'known' | 'filled';
       readonly documentId: string;
       readonly emptyPages: readonly number[];
     }
@@ -172,7 +172,8 @@ const failed = (cause: unknown): UploadAct => {
 };
 
 /** Store one uploaded file through the door that the ingest command uses. A known file answers
- * the id of the row that already holds its bytes. */
+ * the id of the row that already holds its bytes, and `filled` when the upload gave that row its
+ * address. */
 export const uploadDocument = async (
   pool: Sessions,
   store: ObjectDoor,
@@ -193,7 +194,7 @@ export const uploadDocument = async (
     return {
       status: DONE,
       reply: {
-        state: result.status,
+        state: result.status === 'known' && result.filled ? 'filled' : result.status,
         documentId: result.id,
         emptyPages: result.status === 'stored' ? result.emptyPages : [],
       },

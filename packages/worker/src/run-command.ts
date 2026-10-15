@@ -58,6 +58,10 @@ export const runCommand: SubCommand = async () => {
   ];
 
   const pool = new Pool({ connectionString: agentAddress() });
+  // Without a listener, the error of an idle connection ends the process.
+  pool.on('error', (error) => {
+    console.error('an idle database connection failed', error.message);
+  });
   try {
     const runner = await openRunner({
       db: pool,

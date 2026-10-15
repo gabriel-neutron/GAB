@@ -8,6 +8,12 @@ describe('a name against the filter of the screen', () => {
     expect(nameHoldsQuery('Port of Tartus', 'latakia')).toBe(false);
   });
 
+  it('ignores accents and extra spaces like the search page', () => {
+    expect(nameHoldsQuery('Société Générale', 'societe')).toBe(true);
+    expect(nameHoldsQuery('Port  of   Tartus', 'port of tartus')).toBe(true);
+    expect(nameHoldsQuery('Port of Tartus', ' TARTUS ')).toBe(true);
+  });
+
   it('holds every name when the filter is empty or blank', () => {
     expect(nameHoldsQuery('Port of Tartus', '')).toBe(true);
     expect(nameHoldsQuery('Port of Tartus', '  ')).toBe(true);

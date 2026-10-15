@@ -1,6 +1,7 @@
 import { createRouter, useRouter } from '@tanstack/react-router';
 import { Button } from '@/shared/ui/button';
 import { refreshCorpus } from '@/shared/read/corpus';
+import { keepOperatorKey } from '@/shared/write/operator-key';
 import { routeTree } from './routeTree.gen';
 
 // The router default answers an unknown path. An unknown entity identifier is a different
@@ -59,6 +60,9 @@ function RoutePending() {
     </div>
   );
 }
+
+// The router reads the address when it is created, so the key leaves the address first.
+keepOperatorKey();
 
 export const router = createRouter({
   routeTree,

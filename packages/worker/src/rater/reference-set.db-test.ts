@@ -103,8 +103,8 @@ test('the build stores about thirty authors with a reason each, and none is usab
     expect(stored.every((one) => !one.approved && one.reason.startsWith('the reason'))).toBe(true);
     expect(stored.map((one) => one.letter)).toContain('A');
     // An unapproved author reads as F, and the worker context holds no reference author.
-    const letter = await held.app.query(`SELECT public.letter_of('author 0')::text AS letter`);
-    expect(letter.rows).toStrictEqual([{ letter: 'F' }]);
+    const letter = await held.ask(`SELECT public.letter_of('author 0')::text AS letter`);
+    expect(letter).toStrictEqual([{ letter: 'F' }]);
     const context = await held.agent.query(`SELECT public.rating_context('someone') AS context`);
     expect(context.rows).toStrictEqual([{ context: { resolved: false, authors: [] } }]);
   });
@@ -116,8 +116,8 @@ test('the approval makes the set usable, for the rating and for the letter', asy
     expect(await approveReferenceSet(held.app)).toBe(30);
 
     expect((await readReferenceSet(held.app)).every((one) => one.approved)).toBe(true);
-    const letter = await held.app.query(`SELECT public.letter_of('author 0')::text AS letter`);
-    expect(letter.rows).toStrictEqual([{ letter: 'A' }]);
+    const letter = await held.ask(`SELECT public.letter_of('author 0')::text AS letter`);
+    expect(letter).toStrictEqual([{ letter: 'A' }]);
     const context = await held.agent.query(`SELECT public.rating_context('someone') AS context`);
     expect(JSON.stringify(context.rows)).toContain('"author 0"');
   });

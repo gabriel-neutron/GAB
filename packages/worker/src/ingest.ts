@@ -3,6 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { parseArgs } from 'node:util';
 
+import { isDay } from '@gab/proposal/day';
 import type { RawObject } from '@gab/store';
 import { extractText, mimeOfFileName } from '@gab/text';
 
@@ -29,18 +30,14 @@ export interface IngestOptions {
   readonly dryRun: boolean;
 }
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
-
 // Departure: the date of the file system is never read. The day that a file was written is not
 // the day that it was retrieved, so the operator states it. The field names the box or the flag
 // that the operator corrects.
 export const checkedDay = (stated: string | undefined, field = '--retrieved-at'): string => {
   if (stated === undefined || stated === '')
     throw new Error(`${field} is required: the day the files were retrieved, as YYYY-MM-DD.`);
-  const real =
-    DAY.test(stated) && new Date(`${stated}T00:00:00Z`).toISOString().slice(0, 10) === stated;
-  if (!real) throw new Error(`${field} "${stated}" is not a real day, as YYYY-MM-DD.`);
-  return stated;
+  if (isDay(stated)) return stated;
+  throw new Error(`${field} "${String(stated)}" is not a real day, as YYYY-MM-DD.`);
 };
 
 const WEB_SCHEMES: ReadonlySet<string> = new Set(['http:', 'https:']);
@@ -177,7 +174,7 @@ export interface IngestDoor {
   put(object: RawObject): Promise<string>;
 }
 
-const LOOKUP = 'SELECT id FROM public.documents WHERE sha256 = $1';
+const LOOKUP = 'SELECT id, s3_key, mime FROM public.documents WHERE sha256 = $1';
 const PUT_DOCUMENT = `SELECT public.put_document($1, $2, $3, $4, $5, NULL, $6, $7, $8::date, $9,
   $10::numeric)`;
 const PUT_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3)';
@@ -210,7 +207,8 @@ export interface StoredFile {
   readonly costEur: string | null;
 }
 
-/** What the door did with the bytes. A known file names the row that holds the bytes already. */
+/** What the door did with the bytes. A known file names the row that holds the bytes already.
+ * `filled` is true when the upload gave its address to that row. */
 export type StoreResult =
   | {
       readonly status: 'stored';
@@ -219,12 +217,29 @@ export type StoreResult =
       readonly pageCount: number;
       readonly emptyPages: readonly number[];
     }
-  | { readonly status: 'known'; readonly id: string; readonly sha256: string };
+  | {
+      readonly status: 'known';
+      readonly id: string;
+      readonly sha256: string;
+      readonly filled: boolean;
+    };
 
 const idOfRow = (rows: readonly unknown[]): string | undefined => {
   const [row] = rows;
   if (typeof row !== 'object' || row === null || !('id' in row)) return undefined;
   return typeof row.id === 'string' ? row.id : undefined;
+};
+
+const keyOfRow = (rows: readonly unknown[]): string | undefined => {
+  const [row] = rows;
+  if (typeof row !== 'object' || row === null || !('s3_key' in row)) return undefined;
+  return typeof row.s3_key === 'string' ? row.s3_key : undefined;
+};
+
+const mimeOfRow = (rows: readonly unknown[]): string | undefined => {
+  const [row] = rows;
+  if (typeof row !== 'object' || row === null || !('mime' in row)) return undefined;
+  return typeof row.mime === 'string' && row.mime !== '' ? row.mime : undefined;
 };
 
 const isSameBytes = (error: unknown): boolean =>
@@ -296,37 +311,49 @@ const foundOf = (rows: readonly unknown[]): unknown => {
   return typeof row === 'object' && row !== null && 'found' in row ? row.found : undefined;
 };
 
+const REFUSALS: Readonly<Record<string, string>> = {
+  not_a_file: 'as a document that is not a file, and only a file takes an address',
+  other: 'with another address, and it does not change an address',
+  before_rule:
+    'with an address from before the address rule. That address can be the page where the file ' +
+    'was bought, so the file is not public, and the record does not change it',
+};
+
 // PU1, the ruling of 9 October 2026 after #403: the address makes an upload a public document.
 // The same bytes are stored once, so a second upload reaches the row of the first one. That row
 // gets the address when it has none. The door never changes an address, and it refuses an
 // address that it cannot record, so the operator is not told that a file is public when it is
-// not.
+// not. The address and the object share one transaction: a refusal rolls back before `rewrite`
+// writes the object, and an object that cannot be written leaves the address unfilled.
 const known = async (
   session: IngestSession,
   id: string,
   sha256: string,
   uri: string | null,
+  rewrite: () => Promise<unknown>,
 ): Promise<StoreResult> => {
-  if (uri !== null) {
-    const found = foundOf((await session.query(FILL_URI, [id, uri])).rows);
-    if (found === 'other')
-      throw new RefusedFile(
-        `the record holds this file already as ${id}, with another address, and it does not ` +
-          'change an address',
-      );
-    if (found === 'before_rule')
-      throw new RefusedFile(
-        `the record holds this file already as ${id}, with an address from before the address ` +
-          'rule. That address can be the page where the file was bought, so the file is not ' +
-          'public, and the record does not change it',
-      );
+  if (uri === null) {
+    await rewrite();
+    return { status: 'known', id, sha256, filled: false };
   }
-  return { status: 'known', id, sha256 };
+  await session.query('BEGIN');
+  try {
+    const found = foundOf((await session.query(FILL_URI, [id, uri])).rows);
+    const refusal = typeof found === 'string' ? REFUSALS[found] : undefined;
+    if (refusal !== undefined)
+      throw new RefusedFile(`the record holds this file already as ${id}, ${refusal}`);
+    await rewrite();
+    await session.query('COMMIT');
+    return { status: 'known', id, sha256, filled: found === 'filled' };
+  } catch (error) {
+    await session.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  }
 };
 
 /** Store the bytes once: the hash, the known check, the text, the object, then the row and its
  * text. It raises RefusedFile before any write for a file it does not take. A known file gets
- * the address when its row has none. */
+ * the address when its row has none, after its object is written again. */
 export const storeBytes = async (
   door: Pick<IngestDoor, 'put'>,
   session: IngestSession,
@@ -336,8 +363,20 @@ export const storeBytes = async (
   if (mime === undefined) throw new RefusedFile('no type is read from the name of the file');
 
   const sha256 = hashOf(file.bytes);
-  const held = idOfRow((await session.query(LOOKUP, [sha256])).rows);
-  if (held !== undefined) return known(session, held, sha256, file.uri);
+  const lookup = (await session.query(LOOKUP, [sha256])).rows;
+  const held = idOfRow(lookup);
+  if (held !== undefined) {
+    // A known file is written again on the key of its row, with the type of its row: the key is
+    // the hash of the same bytes, so a copy that the store lost comes back, and the object keeps
+    // the type of its row. The address is checked first, so a refusal writes no object, and a
+    // store that is down leaves the row as it was.
+    // shortcut: a known file is written again whole, check the store first when a re-run over a large folder gets slow.
+    const key = keyOfRow(lookup);
+    return known(session, held, sha256, file.uri, async () => {
+      if (key !== undefined && key !== '')
+        await door.put({ key, bytes: file.bytes, mime: mimeOfRow(lookup) ?? mime });
+    });
+  }
 
   const pages = await pagesOf(file.bytes, mime);
   const emptyPages = pages.flatMap((page, at) => (page.trim() === '' ? [at + 1] : []));
@@ -351,7 +390,7 @@ export const storeBytes = async (
     if (!isSameBytes(error)) throw error;
     const holder = idOfRow((await session.query(LOOKUP, [sha256])).rows);
     if (holder === undefined) throw error;
-    return known(session, holder, sha256, file.uri);
+    return known(session, holder, sha256, file.uri, () => Promise.resolve());
   }
   return { status: 'stored', id, sha256, pageCount: pages.length, emptyPages };
 };

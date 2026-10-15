@@ -17,6 +17,7 @@ import { ToolRefusal, type Session } from '@gab/tools/tool';
 import { z } from 'zod';
 
 import { JobStop, type AgentContext, type AgentResult, type RunnerAgent } from '../agents.ts';
+import { nameKey } from '../name-key.ts';
 import type { Queryable } from '../queryable.ts';
 import { findByIdentifier, makeFinder, type Found } from './join.ts';
 import {
@@ -637,7 +638,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           });
         // A machine never changes a name, so a new name goes to the operator through the report.
         // The identifier key finds the same entity, and the load creates no second one.
-        if (found.key !== 'label' && entity.label.toLowerCase() !== label.toLowerCase())
+        if (found.key !== 'label' && nameKey(entity.label) !== nameKey(label))
           note(`the row gives the name "${label}", and the record holds "${entity.label}"`);
       }
       // The act that updates an entity sets a missing place. A place that differs from the place

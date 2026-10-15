@@ -203,6 +203,21 @@ test('a refresh reads the five views again, and gives the later record', async (
   ]);
 });
 
+test('a forgotten corpus is read again by the next caller, with the later record', async () => {
+  const { loadCorpus, forgetCorpus } = await import('./corpus');
+
+  await loadCorpus();
+  entityRows = [NORTHERN, SOUTHERN];
+  forgetCorpus();
+  const after = await loadCorpus();
+
+  expect(viewsRead()).toStrictEqual([...READ_ONCE, ...READ_ONCE, VOCABULARY].sort());
+  expect(after.entities.map((entity) => entity.label)).toStrictEqual([
+    'MV Northern Ledger',
+    'MV Southern Ledger',
+  ]);
+});
+
 test('a refresh holds its later answer, and a caller after it reads no view again', async () => {
   const { loadCorpus, refreshCorpus } = await import('./corpus');
 

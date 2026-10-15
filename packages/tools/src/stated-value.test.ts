@@ -8,9 +8,11 @@ import {
   daysFromPublication,
   namesProvision,
   statedBounds,
+  unstatedCallDay,
   unstatedValues,
   codedIdentifier,
   withCodedJurisdiction,
+  withoutCallDay,
 } from './stated-value.ts';
 
 const relationFrom = (validFrom: string) =>
@@ -548,4 +550,84 @@ test('an identifier search reads a jurisdiction as its code, and each other key 
   expect(codedIdentifier('registration_jurisdiction', 'Russian Federation')).toBe('RU');
   expect(codedIdentifier('registration_jurisdiction', 'Narnia')).toBe('Narnia');
   expect(codedIdentifier('tax_id', 'Russia')).toBe('Russia');
+});
+
+const placeAt = (lon: number, lat: number) =>
+  writeRequest.parse({
+    op: 'update_entity',
+    targetId: '3f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+    geom: { type: 'Point', coordinates: [lon, lat] },
+  });
+
+test.each([
+  ["RU  ULU  Ust'-Luga  5940N 02819E", 28.3167, 59.6667],
+  ['Latitude 59.6681, Longitude 28.3122', 28.3167, 59.6667],
+  ['the port lies at 59°40′ N, 28°19′ E', 28.3167, 59.6667],
+])('the passage %j states the point', (passage, lon, lat) => {
+  expect(unstatedValues(placeAt(lon, lat), [passage])).toStrictEqual([]);
+});
+
+test('a point that the passage does not state is unstated, coordinate by coordinate', () => {
+  expect(
+    unstatedValues(placeAt(28.3167, 45.1), ["RU  ULU  Ust'-Luga  5940N 02819E"]).map(
+      (one) => one.name,
+    ),
+  ).toStrictEqual(['geom.latitude']);
+  expect(
+    unstatedValues(placeAt(28.3167, 59.6667), ['left Sikka on 12 March 2024']).map(
+      (one) => one.name,
+    ),
+  ).toStrictEqual(['geom.longitude', 'geom.latitude']);
+});
+
+const callOf = (type: string, observedOn?: string | string[]) =>
+  writeRequest.parse({
+    op: 'create_relation',
+    type,
+    srcId: '3f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+    dstId: '4f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+    ...(observedOn === undefined ? {} : { attrs: { observed_on: { v: observedOn } } }),
+  });
+
+test.each([
+  ['a day with a month word', 'The tanker loaded at Sikka on 19 May 2026.', '2026-05-19', false],
+  ['a day with dots', 'The tanker loaded at Sikka on 19.05.2026.', '2026-05-19', false],
+  ['a month only', 'The tanker loaded at Sikka in May 2026.', '2026-05-19', true],
+  ['a text with no date', 'The tanker loaded at Sikka.', '2026-05-19', true],
+  ['another day than the text', 'The tanker loaded at Sikka on 20 May 2026.', '2026-05-19', true],
+  ['a month as the value', 'The tanker loaded at Sikka in May 2026.', '2026-05', true],
+  ['a day that is not in the calendar', 'It loaded on 30 February 2026.', '2026-02-30', true],
+])('the day of a port call: %s', (_case, passage, day, unstated) => {
+  expect(unstatedCallDay(callOf('loads_at', day), [passage])).toBe(unstated);
+});
+
+test('a list of days is not the day of a port call', () => {
+  const act = callOf('discharges_at', ['2026-05-19', '2026-05-20']);
+  expect(unstatedCallDay(act, ['On 19 May 2026 and on 20 May 2026.'])).toBe(true);
+});
+
+test('the day of a port call takes its year from the publication day, as the other days do', () => {
+  const act = callOf('berthed_at', '2026-05-15');
+  const night = ['у ніч на 15 травня судно стало до причалу'];
+  expect(unstatedCallDay(act, night)).toBe(true);
+  expect(unstatedCallDay(act, night, { publishedOn: '2026-05-15' })).toBe(false);
+});
+
+test('the check of the day is for a port call with a day only', () => {
+  expect(unstatedCallDay(callOf('loads_at'), ['No date.'])).toBe(false);
+  expect(unstatedCallDay(callOf('flagged_falsely', '2026-05-19'), ['No date.'])).toBe(false);
+  expect(unstatedCallDay(entityWith('NAYARA', 5), ['No date.'])).toBe(false);
+});
+
+test('a port call with no day keeps its other attributes', () => {
+  const act = writeRequest.parse({
+    op: 'create_relation',
+    type: 'loads_at',
+    srcId: '3f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+    dstId: '4f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+    attrs: { observed_on: { v: '2026-05-19' }, cargo: { v: 'crude' } },
+  });
+  expect(withoutCallDay(act)).toMatchObject({ attrs: { cargo: { v: 'crude' } } });
+  expect(withoutCallDay(act)).not.toHaveProperty('attrs.observed_on');
+  expect(withoutCallDay(callOf('loads_at', '2026-05-19'))).not.toHaveProperty('attrs');
 });
