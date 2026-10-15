@@ -433,9 +433,10 @@ const manifestOf = (natoPair: boolean, date: string, version: string) =>
   );
 
 const previousRelease = () => {
-  const files = releaseFiles(
+  const { files } = releaseFiles(
     recordOf(false, false),
     manifestOf(false, '2026-10-01', '0.9'),
+    null,
     null,
     null,
   );
@@ -452,7 +453,8 @@ const fixtureOf = (natoPair: boolean): readonly ReleaseFile[] =>
     manifestOf(natoPair, '2026-11-08', '1.0'),
     readCriticalNodesSheet(SHEET),
     previousRelease(),
-  );
+    null,
+  ).files;
 
 test.each([
   ['release', false],

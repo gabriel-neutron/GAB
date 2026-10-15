@@ -12,6 +12,7 @@ import { PreviousReleaseFault } from './previous-release.ts';
 import { ReleaseFolderExists, writeRelease } from './release.ts';
 import { readReleaseManifest, ReleaseManifestFault } from './release-manifest.ts';
 import { inOneSnapshot } from './snapshot.ts';
+import { VolumeTableFault } from './volume-table.ts';
 
 const USAGE =
   'Usage: pnpm worker release --manifest <file> --out <folder> [--previous <release folder>] ' +
@@ -44,9 +45,10 @@ const flagsOf = (
  * gives, and the changelog since the previous release folder when the operator gives one. Then it
  * writes the static site of the release beside it, with the build of version 1 under `v1/` when
  * the operator gives its folder. A usage fault, a refused manifest, a refused sheet of the
- * candidate nodes, a refused previous release, a release of the same date or a site that cannot be
- * written gives 2, and no release folder is written. The path
- * of the sheet is relative to the folder of the manifest. */
+ * candidate nodes, a volume table that cannot be read, a refused previous release, a release of the same date or a site that cannot be
+ * written gives 2, and no release folder is written. A row of the volume table that the release
+ * rejects is left out, and the command gives its line and the reason. The paths of the sheet and
+ * of the volume table are relative to the folder of the manifest. */
 export const releaseCommand: SubCommand = async (args) => {
   const flags = flagsOf(args);
   if (flags === null) {
@@ -56,11 +58,9 @@ export const releaseCommand: SubCommand = async (args) => {
   let manifest;
   try {
     const read = readReleaseManifest(await readFile(flags.manifest, 'utf8'), new Date());
-    const sheet = read.criticalNodes;
-    manifest = {
-      ...read,
-      criticalNodes: sheet === null ? null : resolve(dirname(flags.manifest), sheet),
-    };
+    const near = (path: string | null): string | null =>
+      path === null ? null : resolve(dirname(flags.manifest), path);
+    manifest = { ...read, criticalNodes: near(read.criticalNodes), volumes: near(read.volumes) };
   } catch (fault) {
     if (fault instanceof ReleaseManifestFault) console.error(fault.message);
     else console.error(`Cannot read the release manifest ${flags.manifest}.`);
@@ -82,11 +82,14 @@ export const releaseCommand: SubCommand = async (args) => {
         `entities, ${String(written.relations)} relations, ${String(written.claims)} claims. ` +
         `Its static site is in ${site}.`,
     );
+    for (const one of written.volumeRejections)
+      console.error(`The volume table, line ${String(one.line)}: ${one.why}. The row is left out.`);
     return 0;
   } catch (fault) {
     if (!(
       fault instanceof ReleaseFolderExists ||
       fault instanceof CriticalNodesSheetFault ||
+      fault instanceof VolumeTableFault ||
       fault instanceof PreviousReleaseFault ||
       fault instanceof SiteFolderExists ||
       fault instanceof SiteReleaseFault

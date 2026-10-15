@@ -184,11 +184,12 @@ const MANIFEST: ReleaseManifest = {
   dateRules: { eu: 'entry_into_force', ofac: 'recent_actions_notice', uk: 'date_designated' },
   contacts: { reportError: 'mailto:error@example.org', rightOfReply: 'mailto:reply@example.org' },
   criticalNodes: null,
+  volumes: null,
   iriBase: 'https://example.org/id/',
 };
 
 test('no release file holds an OpenStreetMap geometry, and each asset of the release has a sourced point', () => {
-  const files = releaseFiles(RECORD, MANIFEST, null, null);
+  const { files } = releaseFiles(RECORD, MANIFEST, null, null, null);
   expect(files.map((one) => one.path)).toContain('asset-links.csv');
   expect(files.map((one) => one.path)).toContain('credits.md');
   const geojson = files.find((one) => one.path === 'entities.geojson');
@@ -212,5 +213,7 @@ test('no release file holds an OpenStreetMap geometry, and each asset of the rel
     entities: [entity(FIELD_A, 'facility', POINT, ['osm_doc'])],
     documents: new Map([['osm_doc', osm]]),
   };
-  expect(() => releaseFiles(bad, MANIFEST, null, null)).toThrow(/holds no OpenStreetMap geometry/);
+  expect(() => releaseFiles(bad, MANIFEST, null, null, null)).toThrow(
+    /holds no OpenStreetMap geometry/,
+  );
 });

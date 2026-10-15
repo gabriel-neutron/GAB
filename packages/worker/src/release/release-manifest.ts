@@ -42,6 +42,7 @@ const shape = z.strictObject({
     .prefault({}),
   contacts: z.strictObject({ reportError: contact, rightOfReply: contact }),
   criticalNodes: z.string().trim().min(1).nullable().default(null),
+  volumes: z.string().trim().min(1).nullable().default(null),
   iriBase,
 });
 
@@ -64,6 +65,9 @@ export interface ReleaseManifest {
   /** The path of the sheet of the candidate nodes, or null. The command reads a relative path
    * from the folder of the manifest. */
   readonly criticalNodes: string | null;
+  /** The path of the volume table of the research, or null for a release with no volume. The
+   * command reads a relative path from the folder of the manifest. */
+  readonly volumes: string | null;
   /** The base of the identifiers and of the vocabulary of the linked data. */
   readonly iriBase: string;
 }

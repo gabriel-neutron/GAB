@@ -76,6 +76,7 @@ const MANIFEST: ReleaseManifest = {
     rightOfReply: 'mailto:reply@example.org',
   },
   criticalNodes: null,
+  volumes: null,
   iriBase: 'https://data.example.org/gab/',
 };
 
@@ -401,6 +402,7 @@ test('a release writes the public entities, relations and claims, each row with 
     'manifest.json',
     'merges.csv',
     'relations.csv',
+    'volumes.csv',
   ]);
 
   const text = async (name: string) => readFile(join(folder, name), 'utf8');
@@ -461,6 +463,7 @@ test('a release writes the public entities, relations and claims, each row with 
     'alignment-matrix.csv',
     'critical-nodes.csv',
     'asset-links.csv',
+    'volumes.csv',
     'credits.md',
     'entities.geojson',
     'dataset.jsonld',
@@ -1414,6 +1417,48 @@ test.each([
   expect((await readdir(root)).sort()).toStrictEqual(
     sheet === null ? ['release.json'] : ['nodes.csv', 'release.json'],
   );
+});
+
+// A small volume table made for the test. The figures are not data of the research.
+test('a release joins the volume table to the physical links and rejects a row with no public document', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const table = join(root, 'volumes.csv');
+  await writeFile(
+    table,
+    [
+      'actif_amont,actif_aval,produit,periode,valeur,minimum,maximum,unite,classe,document,page,note',
+      `${OWNER},${VESSEL},brut,2026-07,120,,,kb/j,observé,${SHIPS},1,`,
+      `${OWNER},${VESSEL},brut,2026-07,90,,,kb/j,observé,${BOUGHT},1,`,
+      `Test segment A,Test segment B,brut,2026-07,600,,,kb/j,capacité,${SHIPS},,`,
+      `${OWNER},${VESSEL},brut,2026-07,120,,,kb/j,,${SHIPS},1,`,
+    ].join('\n'),
+  );
+  const made = await inTransaction(async (held) => {
+    await record(held);
+    const link = await relation(held, 'crude_flows_to', OWNER, VESSEL, [SHIPS]);
+    const written = await writeRelease(
+      held.as('gabriel_app'),
+      { ...MANIFEST, volumes: table },
+      join(root, 'out'),
+    );
+    return { link: link.id, written };
+  });
+  const text = await readFile(join(made.written.folder, 'volumes.csv'), 'utf8');
+  expect(text).toContain('# Rows: 2. On a physical link: 1.');
+  expect(
+    tableOf(text).map((row) => [
+      row['relation_id'],
+      row['value'],
+      row['class'],
+      row['document_id'],
+    ]),
+  ).toStrictEqual([
+    [made.link, '120', 'observed', SHIPS],
+    ['', '600', 'capacity', SHIPS],
+  ]);
+  expect(text).not.toContain(BOUGHT);
+  expect(made.written.volumeRejections.map((one) => one.line)).toStrictEqual([3, 5]);
+  expect(made.written.volumeRejections[0]?.why).toContain(BOUGHT);
 });
 
 // The three official lists, each stored by its tool with its provider.

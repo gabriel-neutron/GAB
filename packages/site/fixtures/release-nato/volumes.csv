@@ -1,0 +1,21 @@
+﻿# GAB dataset, version 1.0 of 08/11/2026.
+#
+# **About this data.** A machine reads public documents and proposes each claim. Each claim cites the documents that state it, and each claim carries a label that tells who decided it.
+#
+# - **Proposed — not checked:** a candidate. No rule and no person checked it. It is not evidence.
+# - **Accepted by rule … — no person read it:** the claim passed a named rule on its cited sources. No person read it. Nobody has measured the accuracy of the rules yet.
+# - **Accepted by an AI reviewer — no person read it:** an AI checked the claim. No person read it.
+# - **Validated manually by the operator:** the operator read the sources and accepted the claim.
+#
+# A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.
+#
+# Report an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.
+#
+# Volumes table.
+# One row for each row of the volume table of the research that the release keeps. A volume is an aggregate of the research for a period, not a fact of the record, and it has no label of the record.
+# class is observed (a published figure), estimated (a computed figure with its range in minimum and maximum) or capacity (the nominal capacity of a pipeline, not a flow). A capacity is never added to a flow.
+# unit is the unit of the source. Do not compare or add two rows with different units.
+# upstream and downstream give the entity identifier of each asset, or the name that the research gives to an asset that the record does not hold. relation_id is the physical link of the two assets and the product, or empty when the record has no such link.
+# Each row cites one public document of the release, with its page.
+# This release had no volume table, so the table has no row.
+relation_id,upstream,downstream,product,period,value,minimum,maximum,unit,class,document_id,document_title,document_address,page,note,licence

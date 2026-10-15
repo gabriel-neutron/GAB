@@ -216,6 +216,25 @@ not count. The release refuses the sheet, and writes nothing, when a row names a
 that is not public in the release. The message gives the line. With no `criticalNodes`, the table
 has no row.
 
+`volumes` is the path of the volume table of the research (for example
+`research/out/hydrocarbures/volumes-2026-07.csv`), relative to the folder of the manifest. With no
+`volumes`, the release has no volume, and each link of the map has one width. The table is a CSV
+file in UTF-8 with these twelve columns, in any order: `actif_amont`, `actif_aval`, `produit`
+(`brut`, `produits` or `gaz`), `periode`, `valeur`, `minimum`, `maximum`, `unite`, `classe`
+(`observé`, `estimé` or `capacité`), `document`, `page`, `note`. A line that starts with `#` is a
+note.
+
+- Name each asset in `actif_amont` and `actif_aval` by its entity identifier in the record (the
+  `id` of `entities.csv`, as `search_graph` gives it). A row joins the physical link
+  (`crude_flows_to` or `products_flow_to`) of its two assets and its product. For an asset that the
+  record does not hold yet, write its name: the row stays in `volumes.csv`, on no link.
+- `document` is the identifier of a stored document. The release rejects a row with no document,
+  with a document that is not public, with no class, with no value or no unit, and an estimate
+  with no range. The command gives the line and the reason of each rejected row, and writes the
+  release with the other rows.
+- The release never adds two rows. A capacity stays a capacity, and two rows with different units
+  are never compared.
+
 Then run, on the record:
 
 ```powershell
