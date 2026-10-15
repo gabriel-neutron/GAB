@@ -187,8 +187,8 @@ END $$;
 
 -- THE UNIT OF DECISION (P11). The operator decides one entity with the relations that depend on
 -- it. A relation from an entity of the record to a pending entity outside its group, or the
--- reverse, joins the unit of that pending entity: a later session can link an entity that waits
--- (#602). Any other relation whose end is a pending act outside its group, or a relation, is a
+-- reverse, joins the unit of that pending entity: a later session can link an entity that waits.
+-- Any other relation whose end is a pending act outside its group, or a relation, is a
 -- unit of its own, so that no entity waits for another group or for a relation. If not, a
 -- relation belongs to its source end when that end is a pending entity of the same group, then to
 -- its target end. Every other act is its own unit. An entity act has the identifier of the entity
@@ -2383,15 +2383,17 @@ BEGIN
     RAISE EXCEPTION 'the reason "end rejected" is only for a relation whose other end was rejected'
       USING CONSTRAINT = 'rejection_end';
   END IF;
-  -- A relation of another group joined the unit through its pending entity (#602). Its own fact
+  -- A relation of another group joined the unit through its pending entity. Its own fact
   -- was not judged, so it takes the reason "end rejected".
   UPDATE public.proposals x
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
          decided_as = 'unit',
          reject_reason = CASE WHEN x.id <> p_unit AND x.op = 'create_relation'
+                                   AND h.id = ANY (v_left)
                                    AND NOT coalesce(x.batch_id = h.batch_id, false)
                               THEN 'end_rejected' ELSE p_reason END,
          reject_note = CASE WHEN x.id <> p_unit AND x.op = 'create_relation'
+                                 AND h.id = ANY (v_left)
                                  AND NOT coalesce(x.batch_id = h.batch_id, false)
                             THEN NULL ELSE v_note END,
          decision_origin = p_origin, decision_reason = p_why
@@ -2633,8 +2635,10 @@ BEGIN
     SELECT u.id, f.state,
            (SELECT string_agg(x->>'said', '; ') FROM jsonb_array_elements(f.faults) AS x
              WHERE x->>'level' IN ('blocks', 'not_clean')) AS stops,
+           -- The group of a unit is the group of its head act: a relation of another group can
+           -- join the unit of a pending entity.
            EXISTS (SELECT 1 FROM public.proposals p
-                    WHERE p.unit_id = u.id AND p.status = 'pending'
+                    WHERE p.id = u.id AND p.unit_id = u.id AND p.status = 'pending'
                       AND p.batch_id = p_group) AS in_group,
            EXISTS (SELECT 1 FROM public.proposals p WHERE p.unit_id = u.id) AS known
       FROM unnest(v_units) WITH ORDINALITY AS u(id, at)
@@ -2737,11 +2741,12 @@ DECLARE
   v_rail jsonb;
 BEGIN
   WITH RECURSIVE waiting AS (
-    SELECT p.unit_id, p.batch_id, p.proposer, p.src
+    SELECT p.id, p.unit_id, p.batch_id, p.proposer, p.src
       FROM public.proposals p
      WHERE p.status = 'pending' AND p.batch_id IS NOT NULL
   ), units AS (
-    SELECT DISTINCT w.unit_id, w.batch_id FROM waiting w
+    -- The group of a unit is the group of its head act.
+    SELECT DISTINCT w.unit_id, w.batch_id FROM waiting w WHERE w.id = w.unit_id
   ), checked AS (
     SELECT u.batch_id, u.unit_id, f.state, f.faults
       FROM units u
@@ -2806,8 +2811,10 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET jit = off
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
+  -- The group of a unit is the group of its head act.
   v_units uuid[] := ARRAY(SELECT DISTINCT p.unit_id FROM public.proposals p
-                           WHERE p.batch_id = p_group AND p.status = 'pending');
+                           WHERE p.batch_id = p_group AND p.status = 'pending'
+                             AND p.id = p.unit_id);
   v_read  jsonb;
 BEGIN
   IF cardinality(v_units) = 0 THEN
@@ -4208,7 +4215,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   ), pending AS (
     SELECT p.batch_id, count(DISTINCT p.unit_id)::int AS units
       FROM public.proposals p
-     WHERE p.status = 'pending' AND p.batch_id IS NOT NULL
+     WHERE p.status = 'pending' AND p.batch_id IS NOT NULL AND p.id = p.unit_id
      GROUP BY p.batch_id
   )
   SELECT n.batch_id, n.subject,

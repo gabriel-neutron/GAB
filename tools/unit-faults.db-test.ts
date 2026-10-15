@@ -661,7 +661,7 @@ test('a relation rejected while its end waited is rejected before after that end
     await ask("UPDATE public.proposals SET xact = '1'::xid8 WHERE id = $1", [army]);
     await ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only');
     await ask("SELECT public.promote_unit($1::uuid, 'a test')", [army]);
-    // The new relation joins the unit of the brigade that waits (#602).
+    // The new relation joins the unit of the brigade that waits.
     await batch(ask, [relation(again, 'subordinate_to', brigade, army)]);
     return faultsOf(ask, [brigade]);
   });
@@ -993,4 +993,71 @@ test('each vessel of one group names only the vessel with its own IMO number', a
       `Same IMO number ${two} as another vessel: MV Twin Two (${d}) waits in the queue (no group)`,
     ],
   ]);
+});
+
+test('a relation of another group in the unit of an entity does not put that unit in its group', async () => {
+  const [army, brigade, link, fresh, joined] = [
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+  ];
+  const read = await rolledBack('superuser', async (ask) => {
+    await seed(ask);
+    const [row] = z
+      .array(z.object({ id: z.uuid() }))
+      .parse(await ask('SELECT id FROM public.entities ORDER BY id LIMIT 1'));
+    if (row === undefined) throw new Error('the fixture holds no entity');
+    await batch(ask, [
+      entity(army, 'Army of group A'),
+      entity(brigade, 'Brigade of group A'),
+      relation(link, 'subordinate_to', brigade, army),
+    ]);
+    // The relation names the new entity of its batch, so it gets the group of that batch, and it
+    // joins the unit of the army that waits in group A.
+    await batch(ask, [
+      entity(fresh, 'Entity of group B'),
+      relation(joined, 'subordinate_to', row.id, army, { names: [row.id, army, fresh] }),
+    ]);
+    const stamps = z
+      .array(z.object({ id: z.uuid(), unit_id: z.uuid(), batch_id: z.uuid().nullable() }))
+      .parse(
+        await ask(
+          'SELECT id, unit_id, batch_id FROM public.proposals WHERE id IN ($1::uuid, $2::uuid)',
+          [joined, fresh],
+        ),
+      );
+    const group = stamps.find((one) => one.id === fresh)?.batch_id ?? null;
+    const [shown] = z
+      .array(z.object({ read: z.unknown() }))
+      .parse(await ask('SELECT public.review_group($1::uuid) AS read', [group]));
+    // An act is never decided by the transaction that proposed it, so the test dates it back.
+    await ask('ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only');
+    await ask("UPDATE public.proposals SET xact = '1'::xid8 WHERE status = 'pending'");
+    await ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only');
+    const [acted] = z
+      .array(z.object({ out: z.array(z.object({ unit: z.uuid(), outcome: z.string() })) }))
+      .parse(
+        await ask("SELECT public.promote_group($1::uuid, $2::uuid[], 'a test') AS out", [
+          group,
+          [army],
+        ]),
+      );
+    const [status] = z
+      .array(z.object({ status: z.string() }))
+      .parse(await ask('SELECT status FROM public.proposals WHERE id = $1', [army]));
+    return {
+      joinedUnit: stamps.find((one) => one.id === joined)?.unit_id,
+      group,
+      shown: JSON.stringify(shown?.read ?? null),
+      acted: acted?.out ?? [],
+      status: status?.status,
+    };
+  });
+  expect(read.joinedUnit).toBe(army);
+  expect(read.group).not.toBeNull();
+  expect(read.shown).not.toContain(army);
+  expect(read.acted).toStrictEqual([expect.objectContaining({ unit: army, outcome: 'refused' })]);
+  expect(read.status).toBe('pending');
 });

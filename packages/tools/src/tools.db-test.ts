@@ -837,7 +837,7 @@ test('a relation that names a later item or an absent entity refuses the batch',
   });
 });
 
-// A relation of a later call names a new entity that waits in the queue (#602).
+// A relation of a later call names a new entity that waits in the queue.
 const ownerOfPending = async (ask: Ask) => {
   const held = await connected(ask);
   const [vessel] = batchOf(await proposeOnPage(ask, [NAYARA])).proposals;
@@ -925,6 +925,38 @@ test('an acceptance of the entity that waits writes the relation to it through i
   expect(found.rows.get(found.vessel)?.status).toBe('accepted');
   expect(found.rows.get(found.link)?.status).toBe('accepted');
   expect(found.relations).toStrictEqual([{ src_id: found.held.id, dst_id: found.vessel }]);
+});
+
+test('a relation to a new entity that waits needs an entity of the record at its other end', async () => {
+  const SEATRADE = item(
+    'seatrade',
+    { op: 'create_entity', type: 'company', label: 'Seatrade Ltd' },
+    'Rosneft owns the vessel through Seatrade Ltd.',
+  );
+  const ownerOf = (srcId: string, dstId: string) =>
+    item('owner', { op: 'create_relation', type: 'owns', srcId, dstId }, 'Rosneft owns the vessel');
+  const outcomes = await rolledBack('superuser', async (ask) => {
+    const [vessel] = batchOf(await proposeOnPage(ask, [NAYARA])).proposals;
+    const [company] = batchOf(await proposeAgain(ask, [SEATRADE])).proposals;
+    if (vessel === undefined || company === undefined) throw new Error('propose wrote no entity');
+    const twoWaiting = await proposeAgain(ask, [ownerOf(company.proposalId, vessel.proposalId)]);
+    const withRef = await proposeAgain(ask, [
+      { ...SEATRADE, ref: 'buyer' },
+      ownerOf('buyer', vessel.proposalId),
+    ]);
+    return { company: company.proposalId, vessel: vessel.proposalId, twoWaiting, withRef };
+  });
+  const refusal = (id: string) =>
+    `item owner: the new entity ${id} waits in the review queue, so the other end of the ` +
+    'relation must be an entity of the record';
+  expect(outcomes.twoWaiting).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(refusal(outcomes.company)) as string,
+  });
+  expect(outcomes.withRef).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(refusal(outcomes.vessel)) as string,
+  });
 });
 
 test('a retry of the same batch writes no second proposal and no second citation', async () => {
