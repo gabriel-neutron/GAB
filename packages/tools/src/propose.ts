@@ -401,6 +401,10 @@ const resolvedAct = async (
   return parsed.data;
 };
 
+const SAME_PLACE = `SELECT public.ST_Equals(public.ST_GeomFromGeoJSON(e.geom::text),
+    public.ST_GeomFromGeoJSON($2::text)) AS same
+  FROM api.entity e WHERE e.id = $1 AND e.geom IS NOT NULL`;
+
 const checkTarget = async (session: Session, ref: string, act: WriteRequest): Promise<void> => {
   if (act.op !== 'update_attrs' && act.op !== 'update_relation' && act.op !== 'update_entity')
     return;
@@ -408,6 +412,14 @@ const checkTarget = async (session: Session, ref: string, act: WriteRequest): Pr
     act.op === 'update_attrs' ? act.targetKind : act.op === 'update_entity' ? 'entity' : 'relation';
   if (!(await present(session, kind, act.targetId)))
     refuse(ref, `the target ${act.targetId} does not exist`);
+  // The promotion refuses an act that changes nothing, so the same place would wait for ever.
+  if (act.op === 'update_entity' && act.geom !== undefined) {
+    const [same] = await rowsOf(session, z.strictObject({ same: z.boolean() }), SAME_PLACE, [
+      act.targetId,
+      JSON.stringify(act.geom),
+    ]);
+    if (same?.same === true) refuse(ref, `the entity ${act.targetId} has this place already`);
+  }
 };
 
 // The checker reads no record, so an act that ends a relation names that relation in the words
@@ -585,8 +597,8 @@ export const proposeOf = (modelCallId: string | null) =>
       'owner, a flag, an operator or an insurer changed), or the start date of a relation of the ' +
       'record that has none (update_relation with validFrom, when a dated page states it), and the ' +
       'place of an entity of the record (update_entity with geom, when a page states its ' +
-      'coordinates; a place that differs from the place that the record holds waits as a ' +
-      'doubt for the operator). Each ' +
+      'coordinates; the tool refuses the place that the entity has already, and a place that ' +
+      'differs from the place that the record holds waits as a doubt for the operator). Each ' +
       'item gives the act, the party that first stated it, how the page states it, and for its ' +
       'values the page and an excerpt copied word for word from the stored text. Code finds each ' +
       'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +

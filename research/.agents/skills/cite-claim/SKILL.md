@@ -99,8 +99,10 @@ misread a number, so the text can miss a fact that the image shows clearly.
   again. Propose its place with
   `{"op": "update_entity", "targetId": "<id of the entity>", "geom": {"type": "Point", "coordinates": [28.3167, 59.6667]}}`
   (longitude first), and put the words that state the coordinates in an excerpt: a UN/LOCODE line
-  such as `5940N 02819E`, or the Latitude and Longitude of a GEM row. A place that differs from
-  the place that the record holds waits as a doubt for the operator.
+  such as `5940N 02819E`, or the Latitude and Longitude of a GEM row. A coordinate that no excerpt
+  states (to within one minute) marks the item as disputed. The record refuses the place that the
+  entity has already. A place that differs from the place that the record holds waits as a doubt
+  for the operator.
 
 ## A sanctions status
 
