@@ -8,44 +8,59 @@ import type { ReleaseRecord } from './release-record.ts';
 
 const SITE_KEY: Record<Regime, 'eu' | 'us' | 'uk'> = { eu: 'eu', ofac: 'us', uk: 'uk' };
 
+const MEASURES = ['designated_by', 'restricted_by'] as const;
+
 interface Listing {
+  readonly measure: (typeof MEASURES)[number];
   readonly from: string | null;
   readonly to: string | null;
+  /** The far end of the relation: the act or the authority that gives the measure. */
+  readonly act_id: string;
+  readonly act_label: string;
+  /** The title of the official file of the regime that the measure cites. */
+  readonly act_document: string | null;
+  readonly origin_label: string;
 }
 
-/** The dated listings of each asset (an entity of the facility type), for each regime, by entity
- * identifier. A listing is a `designated_by` relation of the asset, with the dates of the relation.
- * shortcut: a derived status (50% rule), a listing of the operator, a sectoral measure
- * (`restricted_by`) and a listing with no single regime are not exported, add them when the view
- * needs them. */
+/** The dated measures of each asset (an entity of the facility type), for each regime, by entity
+ * identifier. A measure is a `designated_by` (listing) or a `restricted_by` (sectoral measure)
+ * relation of the asset, with the dates of the relation, its act and its label.
+ * shortcut: a derived status (50% rule), a listing of the operator and a measure with no single
+ * regime are not exported, add them when the view needs them. */
 const listingsOf = (
   record: ReleaseRecord,
-  documentOf: ReleaseLookup['documentOf'],
+  { documentOf, labelOf }: Pick<ReleaseLookup, 'documentOf' | 'labelOf'>,
 ): ReadonlyMap<string, Record<'eu' | 'us' | 'uk', Listing[]>> => {
-  const claimSources = new Map(
+  const relationClaims = new Map(
     record.claims
       .filter((one) => one.subject_kind === 'relation' && one.attribute === null)
-      .map((one) => [one.subject_id, one.sources]),
+      .map((one) => [one.subject_id, one]),
   );
   const claimsById = new Map(record.claims.map((one) => [one.claim_id, one]));
   const found = new Map<string, Record<'eu' | 'us' | 'uk', Listing[]>>();
   for (const one of record.relations) {
-    if (one.type !== 'designated_by') continue;
-    const sources = claimSources.get(one.id) ?? one.sources;
+    const measure = MEASURES.find((each) => each === one.type);
+    if (measure === undefined) continue;
+    const claim = relationClaims.get(one.id);
+    const sources = claim?.sources ?? one.sources;
     const regime = regimeOfSources(sources, documentOf);
     if (regime === null) continue;
+    const regimeSources = sources.filter((id) => regimeOfSources([id], documentOf) === regime);
     // The EU start falls back to the entry into force of the act, as the alignment matrix does.
     const from =
       one.valid_from ??
-      (regime === 'eu'
-        ? entryIntoForceOf(
-            claimsById,
-            one,
-            sources.filter((id) => regimeOfSources([id], documentOf) === 'eu'),
-          ).listedOn
-        : null);
+      (regime === 'eu' ? entryIntoForceOf(claimsById, one, regimeSources).listedOn : null);
+    const [document] = regimeSources;
     const held = found.get(one.src_id) ?? { eu: [], us: [], uk: [] };
-    held[SITE_KEY[regime]].push({ from, to: one.valid_to });
+    held[SITE_KEY[regime]].push({
+      measure,
+      from,
+      to: one.valid_to,
+      act_id: one.dst_id,
+      act_label: labelOf(one.dst_id),
+      act_document: document === undefined ? null : documentOf(document).title,
+      origin_label: claim?.origin_label ?? one.origin_label,
+    });
     found.set(one.src_id, held);
   }
   return found;
@@ -58,7 +73,7 @@ const listingsOf = (
 export const geojsonExport = (record: ReleaseRecord, heading: ReleaseHeading): ReleaseFile => {
   const lookup = releaseLookup(record);
   const kinds = assetKinds(record);
-  const listings = listingsOf(record, lookup.documentOf);
+  const listings = listingsOf(record, lookup);
   const features = record.entities.flatMap((one) =>
     one.geom === null
       ? []
