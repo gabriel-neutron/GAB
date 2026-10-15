@@ -69,7 +69,7 @@ export const chainMapData = (flows: ChainFlows) => {
         fromId,
         toId,
         inReview,
-        volumes: volumeCard(volumes),
+        volumes: volumeCard(volumes, inReview),
       })),
       exits: flows.exits.map(({ id, assets }) => ({ id, assets })),
     },

@@ -16,5 +16,6 @@ export const drawnVolume = (volumes: readonly SiteVolume[]): SiteVolume | null =
     if (best === null) return one;
     const byClass = RANK[one.volumeClass] - RANK[best.volumeClass];
     if (byClass !== 0) return byClass < 0 ? one : best;
+    // The release reads each period as YYYY-MM, so the larger text is the later period.
     return one.period > best.period ? one : best;
   }, null);

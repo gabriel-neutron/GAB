@@ -15,11 +15,30 @@ const CLASS_WORDS: Readonly<Record<SiteVolume['volumeClass'], string>> = {
   capacity: 'Capacity',
 };
 
+// The research writes its units in French. The page is in English, so a known unit takes its
+// English words. An unknown unit stays as the source gives it.
+const ENGLISH_UNITS: ReadonlyMap<string, string> = new Map([
+  ['kb/j', 'kb/d'],
+  ['kt/mois', 'kt/month'],
+  ['mt/an', 'Mt/year'],
+  ['gwh/mois', 'GWh/month'],
+  ['gm³/an', 'bcm/year'],
+  ['gm3/an', 'bcm/year'],
+  ['mds m³/an', 'bcm/year'],
+]);
+
+const unitWords = (unit: string): string => ENGLISH_UNITS.get(unit.toLowerCase()) ?? unit;
+
 /** The lines of the card of a link: one for each volume, with its value, its range, its period,
- * its class and its source document. */
-export const volumeCard = (volumes: readonly SiteVolume[]): readonly VolumeLine[] =>
+ * its class and its source document. Each volume of a link in review is marked in review, so the
+ * card never gives it as a fact. */
+export const volumeCard = (
+  volumes: readonly SiteVolume[],
+  inReview: boolean,
+): readonly VolumeLine[] =>
   volumes.map((one) => {
-    const amount = (value: number): string => `${String(value)} ${one.unit}`;
+    const unit = unitWords(one.unit);
+    const amount = (value: number): string => `${String(value)} ${unit}`;
     const range =
       one.minimum === null || one.maximum === null
         ? ''
@@ -27,8 +46,9 @@ export const volumeCard = (volumes: readonly SiteVolume[]): readonly VolumeLine[
     const capacity = one.volumeClass === 'capacity' ? ' A nominal capacity, not a flow.' : '';
     const note = one.note === '' ? '' : ` Note: ${one.note}.`;
     const page = one.page === '' ? '' : `, page ${one.page}`;
+    const review = inReview ? 'In review, not a fact: ' : '';
     return {
-      text: `${CLASS_WORDS[one.volumeClass]}: ${amount(one.value)}${range}, period ${one.period}.${capacity}${note}`,
+      text: `${review}${CLASS_WORDS[one.volumeClass]}: ${amount(one.value)}${range}, period ${one.period}.${capacity}${note}`,
       source: `Source: ${one.documentTitle}${page}.`,
       href: one.documentAddress === null ? null : safeHref(one.documentAddress),
     };

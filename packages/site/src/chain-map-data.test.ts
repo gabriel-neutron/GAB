@@ -5,6 +5,8 @@ import { CHAIN } from './chain-fixture.ts';
 import { chainFlows } from './chain-flows.ts';
 import { chainMapData } from './chain-map-data.ts';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
+import type { SiteVolume } from './site-release.ts';
+import { volumeCard } from './volume-card.ts';
 
 const {
   FIELD_TO_PIPELINE,
@@ -21,6 +23,19 @@ const flows = chainFlows(FIXTURE_RELEASE.chain, chainView(FIXTURE_RELEASE.chain)
 const data = chainMapData(flows);
 const lineOf = (id: string) =>
   data.arcs.features.find((one) => one.properties.id === id)?.properties;
+// A volume made for the test.
+const VOLUME: SiteVolume = {
+  period: '2026-07',
+  value: 7,
+  minimum: null,
+  maximum: null,
+  unit: 'kb/j',
+  volumeClass: 'observed',
+  documentTitle: 'A test document',
+  documentAddress: null,
+  page: '',
+  note: '',
+};
 const cardOf = (id: string) => data.links.arcs.find((one) => one.id === id)?.volumes ?? [];
 
 test('a link with a flow and a capacity draws the flow, and never adds the capacity to it', () => {
@@ -51,12 +66,27 @@ test('a link with no volume has one width, and a link in review keeps its style'
 
 test('the card of a link gives the value, the range, the period, the class and the source', () => {
   const [estimate] = cardOf(PIPELINE_TO_REFINERY);
-  expect(estimate?.text).toBe('Estimated: 150 kb/j, from 100 to 180 kb/j, period 2026-07.');
+  expect(estimate?.text).toBe('Estimated: 150 kb/d, from 100 to 180 kb/d, period 2026-07.');
   expect(estimate?.source).toBe('Source: A test document, page 2.');
   expect(estimate?.href).toBe('https://chain.example.org/page');
   expect(cardOf(FIELD_TO_PIPELINE).map((one) => one.text)).toEqual([
-    'Observed: 400 kb/j, period 2026-07. Note: a test note.',
-    'Capacity: 600 kb/j, period 2026-07. A nominal capacity, not a flow.',
+    'Observed: 400 kb/d, period 2026-07. Note: a test note.',
+    'Capacity: 600 kb/d, period 2026-07. A nominal capacity, not a flow.',
   ]);
   expect(cardOf(PIPELINE_TO_ABROAD)).toEqual([]);
+});
+
+test('the card gives the unit in English, and keeps a unit that it does not know', () => {
+  expect(cardOf(REFINERY_TO_PORT).map((one) => one.text)).toEqual([
+    'Capacity: 5 Mt/year, period 2026-07. A nominal capacity, not a flow.',
+  ]);
+  expect(volumeCard([{ ...VOLUME, unit: 'barils/semaine' }], false)[0]?.text).toBe(
+    'Observed: 7 barils/semaine, period 2026-07.',
+  );
+});
+
+test('each volume of a link in review is marked in review, so the card never gives it as a fact', () => {
+  expect(cardOf(REFINERY_TO_TERMINAL).map((one) => one.text)).toEqual([
+    'In review, not a fact: Observed: 50 kt/month, period 2026-07.',
+  ]);
 });
