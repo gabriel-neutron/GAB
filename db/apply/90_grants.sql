@@ -101,6 +101,7 @@ REVOKE ALL ON FUNCTION promote_unit(uuid,text)     FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_unit_as(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION decision_said(uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_unit(uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION merge_waiting_act(uuid,uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_unit_as(uuid,text,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_relation(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_relation_as(uuid,text,text,text,text,text) FROM PUBLIC;
@@ -241,6 +242,7 @@ GRANT EXECUTE ON FUNCTION propose_batch(jsonb) TO gabriel_agent, gabriel_researc
 GRANT EXECUTE ON FUNCTION promote_unit(uuid,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION decision_said(uuid,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_unit(uuid,text,text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION merge_waiting_act(uuid,uuid,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_relation(uuid,text,text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION promote_group(uuid,uuid[],text) TO gabriel_app;
 -- THE DECISIONS OF AN AI REVIEWER. The research role holds four doors of its own, and no door of

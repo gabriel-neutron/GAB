@@ -74,6 +74,54 @@ LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
   END
 $$;
 
+-- THE FACT OF A PAYLOAD, WITHOUT ITS DOCUMENTS. A machine act writes its documents into
+-- payload.sources and into the src of each attribute (packages/proposal/src/machine.ts). Two
+-- payloads that differ only there state one fact.
+CREATE OR REPLACE FUNCTION payload_without_documents(p_payload jsonb)
+RETURNS jsonb
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
+  SELECT CASE
+    WHEN jsonb_typeof(p_payload) <> 'object' THEN p_payload
+    WHEN jsonb_typeof(p_payload->'attrs') = 'object' THEN
+      (p_payload - 'sources') || jsonb_build_object('attrs',
+        (SELECT coalesce(jsonb_object_agg(a.key, CASE WHEN jsonb_typeof(a.value) = 'object'
+                                                      THEN a.value - 'src' ELSE a.value END),
+                         '{}'::jsonb)
+           FROM jsonb_each(p_payload->'attrs') AS a))
+    ELSE p_payload - 'sources'
+  END
+$$;
+
+-- MORE DOCUMENTS FOR A ROW OF THE RECORD. The row-level list takes them when p_row is true, and
+-- the src of each named attribute takes them. A document that a list holds already is not added
+-- again. No role holds this step: the promotion runs it.
+CREATE OR REPLACE FUNCTION cite_on_row(p_kind text, p_id uuid, p_row boolean, p_keys text[],
+                                       p_docs text[])
+RETURNS void
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF coalesce(cardinality(p_docs), 0) = 0 THEN
+    RETURN;
+  END IF;
+  EXECUTE format(
+    'UPDATE public.%I r
+        SET sources = CASE WHEN $3 THEN r.sources || ARRAY(
+                             SELECT DISTINCT d FROM unnest($2) AS d
+                              WHERE NOT d = ANY (r.sources::text[]))::doc_id[]
+                           ELSE r.sources END,
+            attrs = r.attrs || coalesce((
+              SELECT jsonb_object_agg(k, r.attrs->k || jsonb_build_object(''src'',
+                       coalesce(r.attrs->k->''src'', ''[]''::jsonb) || coalesce((
+                         SELECT jsonb_agg(DISTINCT d) FROM unnest($2) AS d
+                          WHERE NOT coalesce(r.attrs->k->''src'', ''[]''::jsonb)
+                                    @> jsonb_build_array(d)), ''[]''::jsonb)))
+                FROM unnest($4) AS k
+               WHERE jsonb_typeof(r.attrs->k) = ''object''), ''{}''::jsonb)
+      WHERE r.id = $1',
+    CASE p_kind WHEN 'entity' THEN 'entities' WHEN 'relation' THEN 'relations' END)
+  USING p_id, p_docs, p_row, coalesce(p_keys, '{}');
+END $$;
+
 CREATE OR REPLACE FUNCTION stamp_author_role() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
@@ -735,6 +783,7 @@ DECLARE
   v_written  uuid[] := '{}';
   v_passages jsonb;
   v_lock     bigint;
+  v_join     uuid[];
 BEGIN
   IF coalesce(jsonb_typeof(p_items), 'absent') <> 'array' OR jsonb_array_length(p_items) = 0 THEN
     RAISE EXCEPTION 'a batch holds at least one item'
@@ -1040,8 +1089,58 @@ BEGIN
     -- The stamp trigger reads the passages of a new entity into its digest.
     v_passages := public.act_passages_of(v_item->>'op', v_item->'citations');
     PERFORM set_config('gabriel.act_passages', coalesce(v_passages::text, ''), true);
+
+    -- THE SAME FACT FROM THE SAME AUTHOR IN A NEW DOCUMENT JOINS THE ACT THAT WAITS (ADR 0012, the
+    -- trust boundary): the item adds its citations to that act, and no second act waits. The
+    -- author of a citation is the author of its act, and the check of a second model belongs to
+    -- the act. So only an item of the same author, with the same modality and no words read from
+    -- an image, joins: such a citation adds no independent author and no support, so the citation
+    -- that no model checked cannot make the fact stronger. An item of another author is a second
+    -- act, with its own letter and its own check, and the promotion closes the act that repeats it.
+    -- A new entity joins only when it cites no document of the act that waits, and only when one
+    -- act waits: two units with one label on one page are two acts. An older act keeps the first
+    -- match.
+    -- shortcut: two batches that write the same new fact at the same time can both write an act,
+    -- as before this join; the promotion closes the second one. Lock the claim key if this shows.
+    v_join := NULL;
+    IF NOT EXISTS (SELECT 1 FROM jsonb_array_elements(
+                     CASE WHEN jsonb_typeof(v_item->'citations') = 'array'
+                          THEN v_item->'citations' ELSE '[]'::jsonb END) AS c
+                    WHERE c->>'transcription' IS NOT NULL) THEN
+      SELECT array_agg(j.id ORDER BY j.created_at, j.id) INTO v_join
+        FROM (SELECT p.id, p.created_at FROM public.proposals p
+               WHERE p.status = 'pending' AND p.author_role = session_user
+                 AND p.claim_key = public.claim_key_of(v_item->>'op', v_item->>'target_kind',
+                                                       v_target, v_payload::jsonb)
+                 AND p.op = v_item->>'op'
+                 AND p.target_kind IS NOT DISTINCT FROM v_item->>'target_kind'
+                 AND p.target_id IS NOT DISTINCT FROM v_target
+                 AND public.payload_without_documents(p.payload)
+                     = public.payload_without_documents(v_payload::jsonb)
+                 AND p.names @> v_names AND p.names <@ v_names
+                 AND p.dissent = coalesce((v_item->>'dissent')::boolean, false)
+                 AND (public.name_key(p.originator) = public.name_key(v_item->>'originator')
+                      OR public.author_of(p.originator) = public.author_of(v_item->>'originator'))
+                 AND NOT EXISTS (SELECT 1 FROM public.citation c
+                                  WHERE c.claim_id = p.id
+                                    AND (c.modality IS DISTINCT FROM v_item->>'modality'
+                                         OR c.transcription IS NOT NULL))
+                 AND (p.op <> 'create_entity'
+                      OR NOT EXISTS (SELECT 1 FROM public.citation c
+                                      WHERE c.claim_id = p.id
+                                        AND c.doc_id IN (SELECT x->>'document'
+                                                           FROM jsonb_array_elements(
+                                                                  v_item->'citations') AS x)))
+               ORDER BY p.created_at, p.id
+               LIMIT 2
+               FOR SHARE OF p) AS j;
+      IF v_item->>'op' = 'create_entity' AND cardinality(v_join) > 1 THEN
+        v_join := NULL;
+      END IF;
+    END IF;
+
     -- A rule of the table refuses the act, and the caller must know which item it refused.
-    BEGIN
+    IF v_join IS NULL THEN BEGIN
       INSERT INTO public.proposals
         (id, op, target_kind, target_id, payload, src, names, dissent, dissent_reason,
          author_role, model_call_id, originator, batch_id, found_by)
@@ -1058,10 +1157,13 @@ BEGIN
       GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_code = RETURNED_SQLSTATE,
                               v_said = MESSAGE_TEXT;
       PERFORM public.raise_item_rule(v_no, v_rule, v_code, v_said);
-    END;
+    END; END IF;
 
     written := v_id IS NOT NULL;
-    IF v_id IS NULL THEN
+    IF v_join IS NOT NULL THEN
+      SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p WHERE p.id = v_join[1];
+      v_moved := v_moved || jsonb_build_object(v_minted::text, v_id::text);
+    ELSIF v_id IS NULL THEN
       -- The conflict is the only way to get no row, so the act waits under its digest.
       -- The share lock waits for a decision on that act that runs now. So a retry never joins a
       -- unit that the operator decides at the same time.
@@ -1600,6 +1702,10 @@ DECLARE
   v_attrs jsonb;
   v_type  text;
   v_uses  bigint;
+  v_kind  text;
+  v_keys  text[];
+  v_row   boolean;
+  v_twin  public.proposals%ROWTYPE;
 BEGIN
   IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
     RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
@@ -1898,6 +2004,61 @@ BEGIN
 
   ELSE
     RAISE EXCEPTION 'the act % has no write path', p.op USING CONSTRAINT = 'op_has_path';
+  END IF;
+
+  -- THE DOCUMENTS OF AN ACT THAT A LATER ITEM JOINED (propose_batch). The act is frozen, so its
+  -- src does not name them, and its citations do. The row takes them as it takes the src.
+  IF p.op IN ('create_entity', 'create_relation', 'update_entity', 'update_attrs',
+              'update_relation') THEN
+    v_kind := CASE p.op WHEN 'create_entity' THEN 'entity' WHEN 'create_relation' THEN 'relation'
+                        ELSE p.target_kind END;
+    v_row  := p.op NOT IN ('update_attrs', 'update_relation')
+              OR p.payload ?| ARRAY['type', 'valid_from', 'valid_to'];
+    v_keys := CASE WHEN jsonb_typeof(p.payload->'attrs') = 'object'
+                   THEN ARRAY(SELECT jsonb_object_keys(p.payload->'attrs')) END;
+    PERFORM public.cite_on_row(v_kind, v_id, v_row, v_keys,
+      ARRAY(SELECT DISTINCT c.doc_id::text FROM public.citation c
+             WHERE c.claim_id = p.id AND NOT c.doc_id = ANY (p.src)));
+  END IF;
+
+  -- THE ACTS THAT REPEAT THIS FACT. Each one waits in a unit of its own: an act of another author
+  -- keeps its own author and its own check, and the rules count it as a source of the fact.
+  -- Once the fact is in the record, a second promotion would write a second entity, or change
+  -- nothing. So the row takes the documents of each such act, and the act is closed as a
+  -- duplicate. An act that shares its unit, or that another act names, stays: its rejection
+  -- would take an end from that act. An act of the same batch stays: a decision of the group can
+  -- hold it.
+  -- shortcut: such an act waits as a second fact; the operator rejects it. Add a fault "promoted
+  -- already" if that shows in the queue.
+  IF p.op IN ('create_entity', 'update_entity', 'update_attrs') AND p.author_role <> 'gabriel_app'
+  THEN
+    FOR v_twin IN
+      SELECT q.* FROM public.proposals q
+       WHERE q.status = 'pending' AND q.claim_key = p.claim_key AND q.op = p.op
+         AND q.target_kind IS NOT DISTINCT FROM p.target_kind
+         AND q.target_id IS NOT DISTINCT FROM p.target_id
+         AND q.unit_id <> p.unit_id AND q.author_role <> 'gabriel_app'
+         AND (p.batch_id IS NULL OR q.batch_id IS DISTINCT FROM p.batch_id)
+         AND public.payload_without_documents(q.payload)
+             = public.payload_without_documents(p.payload)
+         AND NOT EXISTS (SELECT 1 FROM public.proposals n
+                          WHERE n.status = 'pending' AND n.id <> q.id
+                            AND (n.unit_id = q.unit_id OR q.id = ANY (n.names)
+                                 OR q.id = n.target_id
+                                 OR q.id::text IN (n.payload->>'src_id', n.payload->>'dst_id')))
+       ORDER BY q.id
+         FOR UPDATE
+    LOOP
+      PERFORM public.cite_on_row(v_kind, v_id, v_row, v_keys,
+        ARRAY(SELECT d::text FROM unnest(v_twin.src) AS d
+              UNION SELECT c.doc_id::text FROM public.citation c WHERE c.claim_id = v_twin.id));
+      UPDATE public.proposals
+         SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
+             decided_as = 'rule', reject_reason = 'duplicate',
+             reject_note = 'the same fact as the act ' || p.id || ', which is promoted',
+             decision_origin = 'closed when the act ' || p.id || ' was promoted'
+       WHERE id = v_twin.id;
+    END LOOP;
   END IF;
 
   UPDATE public.proposals
@@ -2223,6 +2384,71 @@ LANGUAGE sql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT public.reject_unit_as(p_unit, p_reason, p_note, p_decided_by, NULL, NULL)
 $$;
+
+-- ONE ACT THAT REPEATS ANOTHER ACT THAT WAITS, BY THE OPERATOR. The two acts state the same fact
+-- of the same author, from two documents: they were written before a repeat joined the act that
+-- waits (propose_batch). The survivor takes each citation of the duplicate, and the duplicate is
+-- rejected as a duplicate, with a note that names the survivor. The duplicate must be alone in
+-- its unit. The rules then judge the unit of the survivor again. Only the operator role holds it.
+CREATE OR REPLACE FUNCTION merge_waiting_act(p_duplicate uuid, p_survivor uuid,
+                                             p_decided_by text)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  d public.proposals%ROWTYPE;
+  s public.proposals%ROWTYPE;
+  v_note text := 'merged into the act ' || p_survivor;
+BEGIN
+  PERFORM public.rejection_note('duplicate', v_note, p_decided_by);
+  PERFORM 1 FROM public.proposals WHERE id IN (p_duplicate, p_survivor) ORDER BY id FOR UPDATE;
+  SELECT * INTO d FROM public.proposals WHERE id = p_duplicate;
+  SELECT * INTO s FROM public.proposals WHERE id = p_survivor;
+  IF d.id IS NULL OR s.id IS NULL OR d.id = s.id
+     OR d.status <> 'pending' OR s.status <> 'pending' THEN
+    RAISE EXCEPTION 'the duplicate and the survivor are two acts that wait'
+      USING CONSTRAINT = 'proposal_pending';
+  END IF;
+  IF (d.claim_key, d.op, d.target_kind, d.target_id, d.author_role, d.dissent)
+       IS DISTINCT FROM (s.claim_key, s.op, s.target_kind, s.target_id, s.author_role, s.dissent)
+     OR public.payload_without_documents(d.payload) <> public.payload_without_documents(s.payload)
+     OR NOT coalesce(public.name_key(d.originator) = public.name_key(s.originator)
+                     OR public.author_of(d.originator) = public.author_of(s.originator), false)
+     OR (SELECT array_agg(DISTINCT c.modality ORDER BY c.modality) FROM public.citation c
+          WHERE c.claim_id = d.id)
+        IS DISTINCT FROM (SELECT array_agg(DISTINCT c.modality ORDER BY c.modality)
+                            FROM public.citation c WHERE c.claim_id = s.id)
+     OR EXISTS (SELECT 1 FROM public.citation c
+                 WHERE c.claim_id IN (d.id, s.id) AND c.transcription IS NOT NULL) THEN
+    RAISE EXCEPTION 'the two acts do not state the same fact of the same author with the same '
+                    'modality, or one cites words read from an image'
+      USING CONSTRAINT = 'merge_same_fact';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.proposals n
+              WHERE n.status = 'pending' AND n.id <> d.id
+                AND (n.unit_id = d.unit_id OR d.id = ANY (n.names) OR d.id = n.target_id
+                     OR d.id::text IN (n.payload->>'src_id', n.payload->>'dst_id'))) THEN
+    RAISE EXCEPTION 'another act waits with the duplicate or names it, so it is not merged'
+      USING CONSTRAINT = 'merge_alone';
+  END IF;
+  INSERT INTO public.citation
+    (claim_id, doc_id, text_extractor, page, start, "end", transcription, modality)
+  SELECT s.id, c.doc_id, c.text_extractor, c.page, c.start, c."end", c.transcription, c.modality
+    FROM public.citation c
+   WHERE c.claim_id = d.id
+     AND NOT EXISTS (SELECT 1 FROM public.citation h
+                      WHERE h.claim_id = s.id AND h.doc_id = c.doc_id
+                        AND h.text_extractor = c.text_extractor AND h.page = c.page
+                        AND h.start IS NOT DISTINCT FROM c.start
+                        AND h."end" IS NOT DISTINCT FROM c."end"
+                        AND h.modality = c.modality);
+  UPDATE public.proposals
+     SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
+         decided_as = 'unit', reject_reason = 'duplicate', reject_note = v_note
+   WHERE id = d.id;
+  PERFORM public.run_rules(ARRAY[s.unit_id]);
+  RETURN s.id;
+END $$;
 
 -- THE REJECTION OF ONE RELATION OF A UNIT, WITH ITS ORIGIN. No role holds this step. One bad link
 -- does not block a correct entity: the rest of the unit waits, and it stays one unit.
@@ -3639,6 +3865,7 @@ BEGIN
       FROM acts a
       JOIN public.proposals r ON r.claim_key = a.claim_key AND r.status = 'rejected'
                              AND r.id <> a.id AND r.decided_as IS DISTINCT FROM 'rule'
+                             AND r.reject_reason IS DISTINCT FROM 'duplicate'
       LEFT JOIN named n ON n.id = a.id
      WHERE a.op <> 'create_entity'
         OR n.parent_key IS NOT DISTINCT FROM (SELECT l.claim_key
