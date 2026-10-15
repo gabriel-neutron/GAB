@@ -9,8 +9,8 @@ description: The method of a research layer in Gabriel. What a fact is, what to 
 
 Gabriel is a record of facts that each cite a stored source. The rules of the database decide
 each proposal from its sources. A proposal with a doubt goes to a reviewer: the operator, or an AI
-reviewer in another session (the skill `review-unit`). This session never decides what it
-proposed. Thus a good session proposes few facts, each one
+reviewer with a new context (the skill `review-unit`). The agent that proposed a fact never
+decides it: it starts a new reviewer subagent. Thus a good session proposes few facts, each one
 on the subject of its layer, each one with the best source that exists, and each one ready to
 promote. A proposal that the operator must reject costs more than a fact that you leave out.
 

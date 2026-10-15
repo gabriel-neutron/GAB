@@ -51,7 +51,7 @@ flowchart LR
 | Actor | Can | Cannot |
 |---|---|---|
 | Operator | Upload, edit, promote, reject, start a lead. Merge two entities, and undo a merge. | — |
-| Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job, start a lead. Read the review queue and the leads. Accept or reject a unit or a relation, as an AI reviewer. | Decide a unit that its own session proposed (a rule of the skills). Merge. Write a table directly. |
+| Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job, start a lead. Read the review queue and the leads. Accept or reject a unit or a relation, as an AI reviewer. | Decide a unit that the same agent proposed (a rule of the skills: a new reviewer agent decides it). Merge. Write a table directly. |
 | Worker agents | Read a document, propose a change with the passage that states it. Rate a new author against the reference set. For a lead: search, fetch and store pages, and queue their extraction. | Promote. Merge. Start a lead. Read a lead that they do not run. |
 | Public | Read the public views. | Write. |
 

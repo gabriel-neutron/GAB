@@ -75,15 +75,18 @@ session: each proposal waits in the review queue, and the operator decides it th
   key, and `vessel_events` needs a free token. When one is not set, the tool says so, and the
   other tools work. OpenSanctions is a repeater: fetch the official entry that the tool names with
   `fetch_document`, and cite that. Events that are matched by an MMSI alone are a lead.
-- **An AI reviewer decides a doubt only in another session.** The rules of the database decide
-  each unit from its sources, and a unit with a doubt goes to a reviewer. When the operator asks
-  for a review session, follow the skill `review-unit`: read the cited passage first, and never
-  decide a unit that your own session proposed. Each decision records "decided by an AI
-  reviewer" and your reason.
+- **An AI reviewer with a new context decides a doubt.** The rules of the database decide each
+  unit from its sources, and a unit with a doubt goes to a reviewer. The agent that proposed a
+  unit never decides it. It starts a new reviewer subagent, which follows the skill
+  `review-unit` and gets only the ids, not the history. Each decision records "decided by an AI
+  reviewer" and the reason of the reviewer.
 - **You can propose linked facts in one batch.** For example: a company, its vessels and the
   relations between them. A relation names an entity of an earlier item by its `ref`.
 
 ## The rules of a research ticket
+
+Run each research ticket with the skill `ticket`. It holds the loop of a ticket: the research
+subagents, the reviewer subagent, the code sessions and the close of the step.
 
 1. **The deliverable is data in Gabriel** (#159). A research ticket is done when its facts are in
    Gabriel as stored documents and proposals. A report, a note or a chat answer is not the
