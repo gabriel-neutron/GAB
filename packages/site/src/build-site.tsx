@@ -1,16 +1,20 @@
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import countries from './countries.json?raw';
 import { chainView } from './chain-card.ts';
+import { chainFlows } from './chain-flows.ts';
+import { chainMapData } from './chain-map-data.ts';
 import { stagedGeojson } from './staged-geojson.ts';
 import { ClaimPage } from './claim-page.tsx';
 import { claimText } from './claim-text.ts';
 import { DownloadsPage } from './downloads-page.tsx';
 import { EntityPage } from './entity-page.tsx';
 import { HomePage } from './home-page.tsx';
-import { CARDS_ELEMENT, FEATURES_ELEMENT } from './map-elements.ts';
+import { CARDS_ELEMENT, FEATURES_ELEMENT, FLOWS_ELEMENT } from './map-elements.ts';
 import { MapPage } from './map-page.tsx';
 import { MethodPage } from './method-page.tsx';
+import { outsideRussia } from './outside-russia.ts';
 import { RedirectPage } from './redirect-page.tsx';
 import { SiteDocument } from './site-document.tsx';
 import { VesselPage } from './vessel-page.tsx';
@@ -71,17 +75,25 @@ export const buildSite = (
 ): readonly SiteFile[] => {
   const release = readSiteRelease(files);
   const view = chainView(release);
+  const flows = chainFlows(release, view.stages, outsideRussia(countries));
   const pages: SiteFile[] = [
     html(HOME, 'Critical nodes', <HomePage release={release} />),
     html(
       MAP,
       'Map',
       <>
-        <MapPage release={release} view={view} />
+        <MapPage release={release} view={view} flows={flows} />
         <script
           type="application/json"
           id={FEATURES_ELEMENT}
-          dangerouslySetInnerHTML={{ __html: scriptSafe(stagedGeojson(release.geojson, view)) }}
+          dangerouslySetInnerHTML={{
+            __html: scriptSafe(stagedGeojson(release.geojson, flows.stages)),
+          }}
+        />
+        <script
+          type="application/json"
+          id={FLOWS_ELEMENT}
+          dangerouslySetInnerHTML={{ __html: scriptSafe(JSON.stringify(chainMapData(flows))) }}
         />
         <script
           type="application/json"

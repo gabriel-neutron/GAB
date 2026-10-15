@@ -1,4 +1,6 @@
 import type { ChainView } from './chain-card.ts';
+import type { ChainFlows } from './chain-flows.ts';
+import { PRODUCTS } from './chain-product.ts';
 import { STAGES } from './chain-stage.ts';
 import { CARD_ELEMENT, MAP_ELEMENT } from './map-elements.ts';
 import { mapFeatures } from './map-features.ts';
@@ -7,34 +9,56 @@ import { entityPage, hrefFrom, MAP } from './site-paths.ts';
 import type { SiteRelease } from './site-release.ts';
 import { CELL, HEAD, LINK, TABLE, TABLE_HEAD } from './site-style.ts';
 
-/** The map page: the entities of the release that have a position, drawn by the map script over
- * a basemap with a colour for each stage of the chain, with a card for the selected entity, and
+// The map script reads `aria-pressed` and sets it, so the page needs no script to render.
+const CONTROL =
+  'h-6 border border-input bg-background px-1.5 text-small/4 aria-pressed:bg-foreground aria-pressed:text-background focus-visible:outline-2 focus-visible:outline-ring';
+const STAGE_CONTROL =
+  'flex w-full items-center gap-1.5 border border-input bg-background px-1.5 py-1 text-left text-small/4 aria-pressed:bg-foreground aria-pressed:text-background focus-visible:outline-2 focus-visible:outline-ring';
+
+/** The map page: the entities of the release that have a position over a basemap, with a colour
+ * for each stage of the chain, the physical links as arcs, the exit points, a filter of the
+ * product chain, a strip of the six stages, and a card for the selected entity. The entities are
  * listed below the map with a link to each page. */
 export function MapPage({
   release,
   view,
+  flows,
 }: {
   readonly release: SiteRelease;
   readonly view: ChainView;
+  readonly flows: ChainFlows;
 }) {
   const features = mapFeatures(release.geojson);
+  const exitsInReview = flows.exits.filter((one) => one.inReview).length;
+  const exitsNotPlaced = flows.exits.filter((one) => one.position === null).length;
+  const arcsInReview = flows.arcs.filter((one) => one.inReview).length;
   return (
     <SiteFrame release={release} page={{ path: MAP, title: 'Map' }}>
       <p className="max-w-prose">
         {features.length} entities of this release have their own position. The colour of a point is
         the stage of the chain of the asset. A grey point is an entity with no stage. Select a point
-        for its card. A card shows accepted facts only, and counts the facts that are still in
-        review.
+        for its card and its chain. A card shows accepted facts only, and counts the facts that are
+        still in review.
       </p>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Stages of the chain">
-        {STAGES.map((one) => (
+      <p className="max-w-prose">
+        {flows.arcs.length} physical links join two assets with a position. {arcsInReview} of them
+        are in review: a grey dotted line labelled &quot;in review&quot;, not a fact. A dashed line
+        is a link after the export stage. An exit point is computed from the relations of the
+        release, and is not an entity of the record. {exitsInReview} exit points are in review.
+        {exitsNotPlaced > 0
+          ? ` ${String(exitsNotPlaced)} exit points have no position and are not on the map.`
+          : ''}{' '}
+        A position in the outline of another country is outside Russia.
+      </p>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Product chains">
+        {PRODUCTS.map((one) => (
           <li key={one.key} className="flex items-center gap-1.5">
             <span
               aria-hidden="true"
-              className="inline-block size-2.5 rounded-full"
+              className="inline-block h-0.5 w-4"
               style={{ backgroundColor: one.colour }}
             />
-            {one.label}: {view.counts.get(one.key) ?? 0}
+            {one.label}: {flows.arcs.filter((arc) => arc.product === one.key).length} links
           </li>
         ))}
       </ul>
@@ -42,12 +66,60 @@ export function MapPage({
         Basemap: outlines of the countries, Natural Earth (public domain).
       </p>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div
-          id={MAP_ELEMENT}
-          role="region"
-          aria-label="Map of the entities with a position"
-          className="h-120 w-full border border-border bg-muted"
-        />
+        <div className="flex h-120 w-full flex-col border border-border bg-muted">
+          <div className="relative min-h-0 flex-1">
+            <div
+              id={MAP_ELEMENT}
+              role="region"
+              aria-label="Map of the entities with a position"
+              className="size-full"
+            />
+            <div
+              role="group"
+              aria-label="Product chain"
+              className="absolute top-2 left-2 flex flex-wrap gap-1"
+            >
+              <button type="button" className={CONTROL} data-product="all" aria-pressed="true">
+                All
+              </button>
+              {PRODUCTS.map((one) => (
+                <button
+                  key={one.key}
+                  type="button"
+                  className={CONTROL}
+                  data-product={one.key}
+                  aria-pressed="false"
+                >
+                  {one.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <ol
+            aria-label="Stages of the chain"
+            className="grid grid-cols-3 gap-1 border-t border-border p-1 lg:grid-cols-6"
+          >
+            {STAGES.map((one) => (
+              <li key={one.key}>
+                <button
+                  type="button"
+                  className={STAGE_CONTROL}
+                  data-stage={one.key}
+                  aria-pressed="false"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="inline-block size-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: one.colour }}
+                  />
+                  <span className="min-w-0">
+                    {one.label}: {flows.counts.get(one.key) ?? 0}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </div>
         <div
           id={CARD_ELEMENT}
           role="region"
@@ -76,7 +148,10 @@ export function MapPage({
                   </a>
                 </td>
                 <td className={CELL}>{one.type}</td>
-                <td className={CELL}>{view.cards[one.id]?.stage}</td>
+                <td className={CELL}>
+                  {STAGES.find((stage) => stage.key === flows.stages.get(one.id))?.label ??
+                    view.cards[one.id]?.stage}
+                </td>
                 <td className={CELL}>{one.geometry}</td>
               </tr>
             ))}

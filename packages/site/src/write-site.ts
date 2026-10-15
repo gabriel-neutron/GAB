@@ -26,7 +26,7 @@ const REPOSITORY = resolve(import.meta.dirname, '../../..');
 const BUILDER = resolve(import.meta.dirname, 'build-site.tsx');
 const MAP_ENTRY = resolve(import.meta.dirname, 'map-script.ts');
 // The outlines of the countries, from Natural Earth (public domain), simplified at 110 m.
-const COUNTRIES = resolve(import.meta.dirname, '../assets/countries.json');
+const COUNTRIES = resolve(import.meta.dirname, 'countries.json');
 
 // The site takes the one stylesheet of the application, so it paints with the same tokens and
 // no second palette exists. Tailwind builds the classes that the repository uses.
