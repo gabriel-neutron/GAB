@@ -1097,16 +1097,22 @@ BEGIN
     -- an image, joins: such a citation adds no independent author and no support, so the citation
     -- that no model checked cannot make the fact stronger. An item of another author is a second
     -- act, with its own letter and its own check, and the promotion closes the act that repeats it.
-    -- A new entity joins only when it cites no document of the act that waits, and only when one
-    -- act waits: two units with one label on one page are two acts. An older act keeps the first
-    -- match.
-    -- shortcut: two batches that write the same new fact at the same time can both write an act,
-    -- as before this join; the promotion closes the second one. Lock the claim key if this shows.
+    -- A new entity never joins: a label does not identify a unit, so two documents can name two
+    -- units with one label. An exact retry keeps the act of its digest. An older act keeps the
+    -- first match.
+    -- shortcut: two batches that write the same fact at the same time can both write an act, as
+    -- before this join; the promotion closes the second one. Lock the claim key if this shows.
     v_join := NULL;
-    IF NOT EXISTS (SELECT 1 FROM jsonb_array_elements(
-                     CASE WHEN jsonb_typeof(v_item->'citations') = 'array'
-                          THEN v_item->'citations' ELSE '[]'::jsonb END) AS c
-                    WHERE c->>'transcription' IS NOT NULL) THEN
+    IF v_item->>'op' IN ('update_entity', 'update_attrs', 'update_relation')
+       AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(
+                         CASE WHEN jsonb_typeof(v_item->'citations') = 'array'
+                              THEN v_item->'citations' ELSE '[]'::jsonb END) AS c
+                        WHERE c->>'transcription' IS NOT NULL)
+       AND NOT EXISTS (SELECT 1 FROM public.proposals x
+                        WHERE x.status = 'pending'
+                          AND x.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind',
+                                                           v_target, v_payload::jsonb, v_src,
+                                                           session_user::text, v_passages)) THEN
       SELECT array_agg(j.id ORDER BY j.created_at, j.id) INTO v_join
         FROM (SELECT p.id, p.created_at FROM public.proposals p
                WHERE p.status = 'pending' AND p.author_role = session_user
@@ -1125,18 +1131,9 @@ BEGIN
                                   WHERE c.claim_id = p.id
                                     AND (c.modality IS DISTINCT FROM v_item->>'modality'
                                          OR c.transcription IS NOT NULL))
-                 AND (p.op <> 'create_entity'
-                      OR NOT EXISTS (SELECT 1 FROM public.citation c
-                                      WHERE c.claim_id = p.id
-                                        AND c.doc_id IN (SELECT x->>'document'
-                                                           FROM jsonb_array_elements(
-                                                                  v_item->'citations') AS x)))
                ORDER BY p.created_at, p.id
-               LIMIT 2
+               LIMIT 1
                FOR SHARE OF p) AS j;
-      IF v_item->>'op' = 'create_entity' AND cardinality(v_join) > 1 THEN
-        v_join := NULL;
-      END IF;
     END IF;
 
     -- A rule of the table refuses the act, and the caller must know which item it refused.
@@ -1161,7 +1158,9 @@ BEGIN
 
     written := v_id IS NOT NULL;
     IF v_join IS NOT NULL THEN
-      SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p WHERE p.id = v_join[1];
+      -- The joined act keeps its batch, and the group of the item keeps its own.
+      v_id := v_join[1];
+      v_held := NULL;
       v_moved := v_moved || jsonb_build_object(v_minted::text, v_id::text);
     ELSIF v_id IS NULL THEN
       -- The conflict is the only way to get no row, so the act waits under its digest.
@@ -2411,6 +2410,8 @@ BEGIN
   END IF;
   IF (d.claim_key, d.op, d.target_kind, d.target_id, d.author_role, d.dissent)
        IS DISTINCT FROM (s.claim_key, s.op, s.target_kind, s.target_id, s.author_role, s.dissent)
+     OR d.author_role = 'gabriel_app'
+     OR NOT (d.names @> s.names AND d.names <@ s.names)
      OR public.payload_without_documents(d.payload) <> public.payload_without_documents(s.payload)
      OR NOT coalesce(public.name_key(d.originator) = public.name_key(s.originator)
                      OR public.author_of(d.originator) = public.author_of(s.originator), false)

@@ -422,7 +422,6 @@ const geomOf = (call: string): Item =>
 test.each([
   ['new attributes', (ask: Ask, call: string) => attrsOf(ask, call)],
   ['a geometry', (_: Ask, call: string) => Promise.resolve(geomOf(call))],
-  ['a new entity', (_: Ask, call: string) => Promise.resolve(itemOf(call))],
 ])('%s of the same author in a new document joins the act that waits', async (_, made) => {
   const found = await rolledBack('superuser', async (ask) => {
     const call = await seedOther(ask);
@@ -450,31 +449,27 @@ test('the same fact of another author in a new document is a second act', async 
   expect(found.cited).toBe(1);
 });
 
-test('a new entity joins no act when two acts wait with its label', async () => {
+// A label does not identify a unit: two documents can name two units with one label.
+test('a new entity of the same author in a new document is a second act', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const call = await seedOther(ask);
-    const other = { document: DOC, text_extractor: EXTRACTOR, page: 1, start: 0, end: 17 };
     const [first] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [itemOf(call)]));
-    const [second] = outcomes.parse(
-      await batchAs(ask, 'gabriel_agent', [itemOf(call, { citations: [other] })]),
-    );
-    const [third] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [onOther(itemOf(call))]));
-    return { ids: [first, second].map((x) => x?.proposal_id), third };
+    const [second] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [onOther(itemOf(call))]));
+    return { first, second };
   });
-  expect(found.third?.written).toBe(true);
-  expect(found.ids).not.toContain(found.third?.proposal_id);
+  expect(found.second?.written).toBe(true);
+  expect(found.second?.proposal_id).not.toBe(found.first?.proposal_id);
 });
 
 const SOURCES = 'SELECT sources::text[] AS sources FROM public.entities WHERE id = $1::uuid';
 const DECIDED = 'SELECT status, reject_reason FROM public.proposals WHERE id = $1::uuid';
 
-// The promotion writes the documents of a joined item, and closes the act of another author
-// that repeats the fact: a second promotion would write a second entity.
-test('the promotion takes the joined documents and closes the act that repeats the fact', async () => {
+// The promotion closes the act of another author that repeats the fact, and the row takes its
+// documents: a second promotion would write a second entity.
+test('the promotion closes the act that repeats the fact, and takes its documents', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const call = await seedOther(ask);
     const [first] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [itemOf(call)]));
-    await batchAs(ask, 'gabriel_agent', [onOther(itemOf(call))]);
     const [twin] = outcomes.parse(
       await batchAs(ask, 'gabriel_agent', [{ ...onOther(itemOf(call)), originator: 'Reuters' }]),
     );
@@ -486,6 +481,23 @@ test('the promotion takes the joined documents and closes the act that repeats t
   });
   expect(found.sources).toStrictEqual([{ sources: [DOC, OTHER] }]);
   expect(found.twin).toStrictEqual([{ status: 'rejected', reject_reason: 'duplicate' }]);
+});
+
+const ATTR_SRC = `SELECT e.attrs -> k.key -> 'src' AS src
+  FROM public.entities e CROSS JOIN LATERAL jsonb_object_keys($2::jsonb) AS k(key)
+  WHERE e.id = $1::uuid`;
+
+test('the promotion of new attributes takes the documents of a joined item', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const call = await seedOther(ask);
+    const item = await attrsOf(ask, call);
+    const [first] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [item]));
+    await batchAs(ask, 'gabriel_agent', [onOther(item)]);
+    await ask(`SELECT public.apply_proposal($1::uuid, 'operator', 'unit')`, [first?.proposal_id]);
+    const payload = item['payload'] as { attrs: unknown };
+    return ask(ATTR_SRC, [item['target_id'], JSON.stringify(payload.attrs)]);
+  });
+  expect(found).toStrictEqual([{ src: expect.arrayContaining([DOC, OTHER]) as unknown }]);
 });
 
 const KEY_OF = 'SELECT claim_key AS k FROM public.proposals WHERE id = $1::uuid';

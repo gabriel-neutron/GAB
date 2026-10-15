@@ -867,15 +867,13 @@ test('an unknown type goes to the operator, even from a source A with a check', 
   expect(read.rule).toBe('doubt');
 });
 
-// The same new entity from two authors is two acts. The same author in a second document joins
-// the act that waits, and makes no duplicate.
 test('a duplicate goes to the operator, even from a source A with a check', async () => {
   const read = await rolledBack('superuser', async (ask) => {
     const author = name();
     await rate(ask, author, 'A');
     const fact = label();
     const one = await cited(ask, { author, label: fact, ...ONE });
-    const two = await cited(ask, { author: name(), label: fact, ...TWO });
+    const two = await cited(ask, { author, label: fact, ...TWO });
     await check(ask, one);
     await check(ask, two);
     return { state: await stateOf(ask, one.act), rule: await ruleOf(ask, one.act) };

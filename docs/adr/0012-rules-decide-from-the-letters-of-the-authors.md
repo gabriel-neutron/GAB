@@ -144,11 +144,12 @@ ADR 0016 gives the NATO pair of a claim, which reads the digit and the support o
   or a server that is hostile or broken.
 - A check belongs to the act, and the act can gain a citation later: a batch that repeats a
   waiting act adds its citations to that act. So a check can stand on an act with a citation that
-  the checker did not read. The author of a citation is the author of its act, so only an item of
-  the same author, with the same modality and no words read from an image, joins. Such a citation
-  adds no independent author and no support. An item of another author is a second act, with its
-  own letter and its own check. When one of the two is promoted, the other is closed as a
-  duplicate, and the row takes its documents.
+  the checker did not read. The author of a citation is the author of its act, so only a change
+  of the same author, with the same modality and no words read from an image, joins. Such a
+  citation adds no independent author and no support. A new entity never joins, because a label
+  does not identify a unit. An item of another author is a second act, with its own letter and
+  its own check. When one of the two is promoted, the other is closed as a duplicate if it is
+  alone in its unit, and the row takes its documents.
 
 ## Consequences
 
