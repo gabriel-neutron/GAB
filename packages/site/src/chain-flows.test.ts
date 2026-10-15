@@ -1,7 +1,12 @@
 import { expect, test } from 'vitest';
 
 import { chainView } from './chain-card.ts';
-import {
+import { CHAIN } from './chain-fixture.ts';
+import { chainFlows } from './chain-flows.ts';
+import { chainOf, productChain } from './chain-highlight.ts';
+import { FIXTURE_RELEASE } from './fixture-release.ts';
+
+const {
   CRUDE_TERMINAL,
   FIELD,
   FIELD_TO_PIPELINE,
@@ -18,10 +23,7 @@ import {
   REFINERY_TO_TERMINAL,
   TANKER,
   TERMINAL_ABROAD,
-} from './chain-fixture.ts';
-import { chainFlows } from './chain-flows.ts';
-import { chainOf, productChain } from './chain-highlight.ts';
-import { FIXTURE_RELEASE } from './fixture-release.ts';
+} = CHAIN;
 
 // In this test, a position is outside Russia when it is south-west of the point 34 E, 54 N. The
 // two assets abroad of the fixture are there, and no other asset is.
@@ -100,4 +102,10 @@ test('the chain of an asset goes upstream and downstream along the accepted link
   expect([...chain.exits]).toEqual([`exit-border-${PORT_TO_ABROAD}`]);
   expect(chain.arcs.has(REFINERY_TO_TERMINAL)).toBe(false);
   expect(chainOf(flows, TANKER).assets.has(OTHER_TANKER)).toBe(false);
+});
+
+test('an asset with no position gives no exit point: the map cannot tell that it is in Russia', () => {
+  const ids = flows.exits.map((one) => one.id);
+  expect(ids).not.toContain(`exit-sale-${CHAIN.UNPLACED_PORT}`);
+  expect(ids).not.toContain(`exit-border-${CHAIN.UNPLACED_TO_ABROAD}`);
 });

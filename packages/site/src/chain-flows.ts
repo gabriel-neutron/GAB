@@ -93,9 +93,14 @@ export const chainFlows = (
     const all = placed.get(id);
     return all?.[Math.floor(all.length / 2)];
   };
+  // An asset with no position is neither in Russia nor outside: the map cannot tell.
   const isOutside = (id: string): boolean => {
     const at = anchor(id);
     return at !== undefined && outside(at);
+  };
+  const isInside = (id: string): boolean => {
+    const at = anchor(id);
+    return at !== undefined && !outside(at);
   };
   const entityAccepted = (id: string): boolean => {
     const entity = release.entityById.get(id);
@@ -113,7 +118,7 @@ export const chainFlows = (
 
   const stages = new Map(kindStages);
   for (const { relation } of links)
-    if (!inReview(relation) && isOutside(relation.toId) && !isOutside(relation.fromId))
+    if (!inReview(relation) && isOutside(relation.toId) && isInside(relation.fromId))
       stages.set(relation.toId, 'destination');
 
   const arcs = links.flatMap(({ relation, product }): ChainArc[] => {
@@ -145,7 +150,7 @@ export const chainFlows = (
 
   const exits: ExitPoint[] = [];
   const loadings = Map.groupBy(
-    release.relations.filter((one) => one.type === 'loads_at' && !isOutside(one.toId)),
+    release.relations.filter((one) => one.type === 'loads_at' && isInside(one.toId)),
     (one) => one.toId,
   );
   for (const [place, relations] of loadings) {
@@ -177,7 +182,7 @@ export const chainFlows = (
     });
   }
   for (const { relation, product } of links) {
-    if (!isOutside(relation.toId) || isOutside(relation.fromId)) continue;
+    if (!isOutside(relation.toId) || !isInside(relation.fromId)) continue;
     const review = inReview(relation);
     exits.push({
       id: `exit-border-${relation.id}`,

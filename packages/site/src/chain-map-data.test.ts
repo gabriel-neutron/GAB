@@ -1,17 +1,19 @@
 import { expect, test } from 'vitest';
 
 import { chainView } from './chain-card.ts';
-import {
+import { CHAIN } from './chain-fixture.ts';
+import { chainFlows } from './chain-flows.ts';
+import { chainMapData } from './chain-map-data.ts';
+import { FIXTURE_RELEASE } from './fixture-release.ts';
+
+const {
   FIELD_TO_PIPELINE,
   PIPELINE_TO_ABROAD,
   PIPELINE_TO_REFINERY,
   PIPELINE_TO_TERMINAL,
   REFINERY_TO_PORT,
   REFINERY_TO_TERMINAL,
-} from './chain-fixture.ts';
-import { chainFlows } from './chain-flows.ts';
-import { chainMapData } from './chain-map-data.ts';
-import { FIXTURE_RELEASE } from './fixture-release.ts';
+} = CHAIN;
 
 const outside = ([lon, lat]: readonly [number, number]): boolean => lon < 34 && lat < 54;
 

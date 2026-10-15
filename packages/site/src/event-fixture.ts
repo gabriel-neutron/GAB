@@ -11,7 +11,7 @@ export const FIRE = '0a1f0000-0000-4000-8000-000000000031';
 export const ACCEPTED_STRIKE = '0a1f0000-0000-4000-8000-000000000032';
 const ACTOR = '0a1f0000-0000-4000-8000-000000000040';
 
-const SITE_NAME = 'Primorsk oil terminal';
+const SITE_NAME = 'Test oil terminal';
 const STRIKE_NAME = `claimed attack — ${SITE_NAME} — 2026-05-15`;
 const FIRE_NAME = `fire — ${SITE_NAME} — 2026-06`;
 const ACCEPTED_STRIKE_NAME = `claimed attack — ${SITE_NAME} — 2026-03-02`;
@@ -46,7 +46,7 @@ const claim = (
 
 const ENTITIES = [
   entity(SITE, 'facility', SITE_NAME, RULE),
-  entity(QUIET_SITE, 'facility', 'Ust-Luga terminal'),
+  entity(QUIET_SITE, 'facility', 'Test quiet terminal'),
   entity(STRIKE, 'event', STRIKE_NAME),
   entity(FIRE, 'event', FIRE_NAME),
   entity(ACCEPTED_STRIKE, 'event', ACCEPTED_STRIKE_NAME, RULE),
@@ -191,7 +191,7 @@ const measure = (
 const SITE_FEATURE = {
   type: 'Feature',
   id: SITE,
-  geometry: { type: 'Point', coordinates: [28.7, 60.3] },
+  geometry: { type: 'Point', coordinates: [33.5, 61.5] },
   properties: {
     id: SITE,
     type: 'facility',

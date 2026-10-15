@@ -1,27 +1,58 @@
 // A small chain of assets for the tests and the stories of the map: fields, a pipeline, a refinery,
-// two export places, two assets outside Russia, three vessels, the physical links between them, and
+// two export places, two assets outside Russia, two vessels, two assets with no position, the physical links between them, and
 // a volume for some links. The names and the positions are made for the test. They are not data
 // of the record. The rows go on top of the fixed release, which holds no physical link.
 
-export const FIELD = '0a1f0000-0000-4000-8000-000000000101';
-export const PIPELINE = '0a1f0000-0000-4000-8000-000000000102';
-export const REFINERY = '0a1f0000-0000-4000-8000-000000000103';
-export const CRUDE_TERMINAL = '0a1f0000-0000-4000-8000-000000000104';
-export const PRODUCTS_PORT = '0a1f0000-0000-4000-8000-000000000105';
-export const REFINERY_ABROAD = '0a1f0000-0000-4000-8000-000000000106';
-export const TERMINAL_ABROAD = '0a1f0000-0000-4000-8000-000000000107';
-export const TANKER = '0a1f0000-0000-4000-8000-000000000108';
-export const OTHER_TANKER = '0a1f0000-0000-4000-8000-000000000109';
+/** The identifiers of the chain: its assets, then its links. */
+export const CHAIN = {
+  FIELD: '0a1f0000-0000-4000-8000-000000000101',
+  PIPELINE: '0a1f0000-0000-4000-8000-000000000102',
+  REFINERY: '0a1f0000-0000-4000-8000-000000000103',
+  CRUDE_TERMINAL: '0a1f0000-0000-4000-8000-000000000104',
+  PRODUCTS_PORT: '0a1f0000-0000-4000-8000-000000000105',
+  REFINERY_ABROAD: '0a1f0000-0000-4000-8000-000000000106',
+  TERMINAL_ABROAD: '0a1f0000-0000-4000-8000-000000000107',
+  TANKER: '0a1f0000-0000-4000-8000-000000000108',
+  OTHER_TANKER: '0a1f0000-0000-4000-8000-000000000109',
+  UNPLACED_PORT: '0a1f0000-0000-4000-8000-00000000010a',
+  UNPLACED_FIELD: '0a1f0000-0000-4000-8000-00000000010b',
+  FIELD_TO_PIPELINE: '0a1f0000-0000-4000-8000-000000000111',
+  PIPELINE_TO_TERMINAL: '0a1f0000-0000-4000-8000-000000000112',
+  PIPELINE_TO_REFINERY: '0a1f0000-0000-4000-8000-000000000113',
+  PIPELINE_TO_ABROAD: '0a1f0000-0000-4000-8000-000000000114',
+  REFINERY_TO_PORT: '0a1f0000-0000-4000-8000-000000000115',
+  PORT_TO_ABROAD: '0a1f0000-0000-4000-8000-000000000116',
+  REFINERY_TO_TERMINAL: '0a1f0000-0000-4000-8000-000000000117',
+  TANKER_LOADS: '0a1f0000-0000-4000-8000-000000000118',
+  TANKER_STS: '0a1f0000-0000-4000-8000-000000000119',
+  UNPLACED_LOADS: '0a1f0000-0000-4000-8000-00000000011a',
+  UNPLACED_TO_ABROAD: '0a1f0000-0000-4000-8000-00000000011b',
+} as const;
 
-export const FIELD_TO_PIPELINE = '0a1f0000-0000-4000-8000-000000000111';
-export const PIPELINE_TO_TERMINAL = '0a1f0000-0000-4000-8000-000000000112';
-export const PIPELINE_TO_REFINERY = '0a1f0000-0000-4000-8000-000000000113';
-export const PIPELINE_TO_ABROAD = '0a1f0000-0000-4000-8000-000000000114';
-export const REFINERY_TO_PORT = '0a1f0000-0000-4000-8000-000000000115';
-export const PORT_TO_ABROAD = '0a1f0000-0000-4000-8000-000000000116';
-export const REFINERY_TO_TERMINAL = '0a1f0000-0000-4000-8000-000000000117';
-export const TANKER_LOADS = '0a1f0000-0000-4000-8000-000000000118';
-export const TANKER_STS = '0a1f0000-0000-4000-8000-000000000119';
+const {
+  FIELD,
+  PIPELINE,
+  REFINERY,
+  CRUDE_TERMINAL,
+  PRODUCTS_PORT,
+  REFINERY_ABROAD,
+  TERMINAL_ABROAD,
+  TANKER,
+  OTHER_TANKER,
+  FIELD_TO_PIPELINE,
+  PIPELINE_TO_TERMINAL,
+  PIPELINE_TO_REFINERY,
+  PIPELINE_TO_ABROAD,
+  REFINERY_TO_PORT,
+  PORT_TO_ABROAD,
+  REFINERY_TO_TERMINAL,
+  TANKER_LOADS,
+  TANKER_STS,
+  UNPLACED_PORT,
+  UNPLACED_FIELD,
+  UNPLACED_LOADS,
+  UNPLACED_TO_ABROAD,
+} = CHAIN;
 
 const ACCEPTED = 'Validated manually by the operator, on 2026-10-04';
 const PROPOSED = 'Proposed — not checked';
@@ -36,7 +67,8 @@ interface Asset {
   readonly kind: string | null;
   readonly geometry:
     | { readonly type: 'Point'; readonly coordinates: Position }
-    | { readonly type: 'LineString'; readonly coordinates: readonly Position[] };
+    | { readonly type: 'LineString'; readonly coordinates: readonly Position[] }
+    | null;
 }
 
 const point = (coordinates: Position) => ({ type: 'Point', coordinates }) as const;
@@ -71,14 +103,14 @@ const ASSETS: readonly Asset[] = [
     type: 'facility',
     label: 'Test crude terminal',
     kind: 'export_terminal',
-    geometry: point([28.7, 60.3]),
+    geometry: point([42, 64]),
   },
   {
     id: PRODUCTS_PORT,
     type: 'port',
     label: 'Test products port',
     kind: null,
-    geometry: point([37.8, 44.7]),
+    geometry: point([44, 53]),
   },
   {
     id: REFINERY_ABROAD,
@@ -101,6 +133,21 @@ const ASSETS: readonly Asset[] = [
     label: 'Other test tanker',
     kind: null,
     geometry: point([20.2, 56.1]),
+  },
+  // Two assets with no position: the map cannot tell if they are in Russia.
+  {
+    id: UNPLACED_PORT,
+    type: 'port',
+    label: 'Test port with no position',
+    kind: null,
+    geometry: null,
+  },
+  {
+    id: UNPLACED_FIELD,
+    type: 'facility',
+    label: 'Test field with no position',
+    kind: 'field',
+    geometry: null,
   },
 ];
 
@@ -158,6 +205,14 @@ const LINKS: readonly Link[] = [
   },
   { id: TANKER_LOADS, type: 'loads_at', from: TANKER, to: CRUDE_TERMINAL, label: ACCEPTED },
   { id: TANKER_STS, type: 'sts_with', from: TANKER, to: OTHER_TANKER, label: ACCEPTED },
+  { id: UNPLACED_LOADS, type: 'loads_at', from: TANKER, to: UNPLACED_PORT, label: ACCEPTED },
+  {
+    id: UNPLACED_TO_ABROAD,
+    type: 'crude_flows_to',
+    from: UNPLACED_FIELD,
+    to: REFINERY_ABROAD,
+    label: ACCEPTED,
+  },
 ];
 
 const labelOf = (id: string): string => ASSETS.find((one) => one.id === id)?.label ?? id;
@@ -213,12 +268,18 @@ const VOLUMES = [
   `,Test segment A,Test segment B,crude,2026-07,900,,,kb/j,capacity,${VOLUME_SOURCE},,,${LICENCE}`,
 ];
 
-const FEATURES = ASSETS.map((one) => ({
-  type: 'Feature',
-  id: one.id,
-  geometry: one.geometry,
-  properties: { id: one.id, type: one.type, label: one.label, asset_kind: one.kind },
-}));
+const FEATURES = ASSETS.flatMap((one) =>
+  one.geometry === null
+    ? []
+    : [
+        {
+          type: 'Feature',
+          id: one.id,
+          geometry: one.geometry,
+          properties: { id: one.id, type: one.type, label: one.label, asset_kind: one.kind },
+        },
+      ],
+);
 
 const appended = (text: string, rows: readonly string[]): string =>
   rows.length === 0 ? text : `${text}${rows.join('\r\n')}\r\n`;
