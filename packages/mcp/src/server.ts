@@ -26,7 +26,7 @@ export interface SessionPool {
 // The version is read once, at start, so each session sees the commit that runs.
 const VERSION = codeVersion();
 const SERVER = { name: 'gab', version: VERSION } as const;
-const INSTRUCTIONS = `This gab server runs the code of commit ${VERSION}.`;
+const INSTRUCTIONS = `This gab server runs the code version ${VERSION} (a git commit, or the package version when no git checkout is there).`;
 
 const toolNamed = (name: string): Tool => {
   const found = CATALOGUE.find((tool) => tool.name === name);

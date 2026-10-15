@@ -12,6 +12,9 @@ const gitOf = (args: readonly string[]): string | null => {
       cwd: import.meta.dirname,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 5000,
+      // A status of the server takes no lock that a git command of a session would meet.
+      env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
     }).trim();
   } catch {
     return null;
@@ -28,6 +31,6 @@ const packageVersion = (): string =>
 export const codeVersion = (git = gitOf, fallback = packageVersion): string => {
   const hash = git(['rev-parse', '--short', 'HEAD']);
   if (hash === null || hash === '') return fallback();
-  const changes = git(['status', '--porcelain']);
+  const changes = git(['status', '--porcelain', '--untracked-files=no']);
   return changes === null || changes === '' ? hash : `${hash}-dirty`;
 };

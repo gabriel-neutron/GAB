@@ -58,7 +58,9 @@ test('the server names the version of its code, and its instructions name it too
   const client = await connected(fakePool(() => []).pool);
   const version = client.getServerVersion()?.version ?? '';
   expect(version).not.toBe('');
-  expect(client.getInstructions()).toBe(`This gab server runs the code of commit ${version}.`);
+  expect(client.getInstructions()).toBe(
+    `This gab server runs the code version ${version} (a git commit, or the package version when no git checkout is there).`,
+  );
 });
 
 test('each tool of the catalogue is listed once, flat, with a read or write hint', async () => {
