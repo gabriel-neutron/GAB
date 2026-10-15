@@ -28,7 +28,7 @@ and the read are costly to change after the first publication, because readers c
   the two contact addresses, the base of the identifiers, and the path, the size and the SHA-256
   checksum of each file. ADR 0015 gives the GeoJSON and the JSON-LD files, ADR 0017 the alignment
   matrix of the sanctions lists, ADR 0018 the critical nodes table, ADR 0019 the changelog, and
-  ADR 0020 the static site that the command writes beside the folder.
+  ADR 0020 the static site that the command writes beside the folder. The volumes table is below.
 
 ### The CSV files
 
@@ -47,6 +47,20 @@ and the read are costly to change after the first publication, because readers c
 - A citation belongs to an act and not to one value of the act. A value keeps the passages of its
   act in a document that hold the value, compared on the letters and digits alone. When no passage
   holds it, the value keeps each passage of its act in that document.
+
+### The volumes table
+
+- The volumes table comes from a volume table of the research, which the operator names in the
+  manifest. A volume is an aggregate of the research for a period, not a fact of the record, so it
+  has no label of the record. With no volume table, the file has no row.
+- One row for each row of the research table that the release keeps: the two assets (an entity
+  identifier, or the name of an asset that the record does not hold), the product, the period as a
+  year and a month, the central value with its range, the unit of the source, the class (observed,
+  estimated, or the nominal capacity of a pipeline), the physical link of the record that the row
+  joins (or none), and the one public document that the row cites, with its page.
+- The release never adds two rows. A capacity is never added to a flow, and two rows with
+  different units are never compared.
+- A row that cites no public document is rejected, and the command gives its line and the reason.
 
 ### The licence of a row
 

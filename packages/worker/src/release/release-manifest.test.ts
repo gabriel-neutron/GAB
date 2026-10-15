@@ -19,6 +19,7 @@ test('a manifest with the contact addresses alone takes a default for each other
     dateRules: { eu: 'entry_into_force', ofac: 'recent_actions_notice', uk: 'date_designated' },
     contacts: CONTACTS,
     criticalNodes: null,
+    volumes: null,
     iriBase: 'https://github.com/gabriel-neutron/GAB/id/',
   });
 });
@@ -31,12 +32,14 @@ test('a manifest keeps the values that it gives', () => {
       showNatoPair: false,
       contacts: CONTACTS,
       criticalNodes: 'nodes.csv',
+      volumes: 'volumes-2026-07.csv',
       iriBase: 'https://data.example.org/gab/',
     }),
   ).toMatchObject({
     version: '1.0',
     date: '2026-11-01',
     criticalNodes: 'nodes.csv',
+    volumes: 'volumes-2026-07.csv',
     iriBase: 'https://data.example.org/gab/',
   });
 });

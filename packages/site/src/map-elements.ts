@@ -4,6 +4,9 @@
 export const MAP_ELEMENT = 'gab-map';
 export const FEATURES_ELEMENT = 'gab-features';
 
-// The element that holds the cards of the entities, and the element that shows one card.
+// The hidden element that holds the card of each entity, and the element that shows one card.
 export const CARDS_ELEMENT = 'gab-cards';
 export const CARD_ELEMENT = 'gab-card';
+
+// The element that holds the arcs, the exit points and the links of the chain.
+export const FLOWS_ELEMENT = 'gab-flows';

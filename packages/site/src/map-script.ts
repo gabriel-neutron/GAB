@@ -1,34 +1,184 @@
-import { Map as MapLibre, type StyleSpecification } from 'maplibre-gl';
+import {
+  Map as MapLibre,
+  Marker,
+  type ExpressionSpecification,
+  type FilterSpecification,
+  type LineLayerSpecification,
+  type StyleSpecification,
+} from 'maplibre-gl';
 
-import { CARD_ELEMENT, CARDS_ELEMENT, FEATURES_ELEMENT, MAP_ELEMENT } from './map-elements.ts';
+import { chainOf, productChain, type Highlight } from './chain-highlight.ts';
+import { PRODUCTS, type ProductKey } from './chain-product.ts';
+import { positions } from './geometry-positions.ts';
+import { LINK } from './site-style.ts';
+import {
+  CARD_ELEMENT,
+  CARDS_ELEMENT,
+  FEATURES_ELEMENT,
+  FLOWS_ELEMENT,
+  MAP_ELEMENT,
+} from './map-elements.ts';
 
 // External constraint: MapLibre parses no oklch colour, so the map takes the hex of the muted
 // ground of the light theme.
 const GROUND = '#eceef0';
 const MARK = '#0b6aa2';
+const IN_REVIEW = '#8a8f94';
+// Origin of the number: at this opacity a dimmed point stays visible on the white land, and a
+// point put forward reads at once.
+const DIMMED = 0.15;
 
 // The basemap is a file of the site: the outlines of the countries, from Natural Earth (public
-// domain). The site sends no request to a tile server (ADR 0020).
-const COUNTRIES = new URL('./countries.json', import.meta.url).href;
+// domain). The site sends no request to a tile server.
+// External constraint: Vite builds a literal `new URL` into the script, and the file must stay a
+// file of its own beside it. A name in a constant stays a request at run time.
+const COUNTRIES_FILE = './countries.json';
+const COUNTRIES = new URL(COUNTRIES_FILE, import.meta.url).href;
 const LAND = '#ffffff';
 const COAST = '#9aa0a6';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
-/** Each position of a GeoJSON geometry, at any depth. */
-const positions = (value: unknown): [number, number][] => {
-  if (!Array.isArray(value)) return [];
-  const first: unknown = value[0];
-  const second: unknown = value[1];
-  if (typeof first === 'number' && typeof second === 'number') return [[first, second]];
-  return value.flatMap(positions);
-};
+const text = (value: unknown): string => (typeof value === 'string' ? value : '');
+
+const read = (id: string): unknown =>
+  JSON.parse(document.getElementById(id)?.textContent ?? 'null');
+
+const featuresOf = (value: unknown): unknown[] =>
+  isRecord(value) && Array.isArray(value['features']) ? value['features'] : [];
 
 const container = document.getElementById(MAP_ELEMENT);
-const holder = document.getElementById(FEATURES_ELEMENT);
-const data: unknown = JSON.parse(holder?.textContent ?? 'null');
-const features = isRecord(data) && Array.isArray(data['features']) ? data['features'] : [];
+const features = featuresOf(read(FEATURES_ELEMENT));
+const flows = read(FLOWS_ELEMENT);
+const arcs = featuresOf(isRecord(flows) ? flows['arcs'] : null);
+const exits = featuresOf(isRecord(flows) ? flows['exits'] : null);
+
+const productOf = (value: unknown): ProductKey | undefined =>
+  PRODUCTS.find((one) => one.key === value)?.key;
+
+/** The links of the chain, read back from the page and checked one by one. */
+const links = (() => {
+  const held = isRecord(flows) && isRecord(flows['links']) ? flows['links'] : {};
+  const arcList = Array.isArray(held['arcs']) ? held['arcs'] : [];
+  const exitList = Array.isArray(held['exits']) ? held['exits'] : [];
+  return {
+    arcs: arcList.flatMap((one: unknown) => {
+      if (!isRecord(one)) return [];
+      const product = productOf(one['product']);
+      if (product === undefined) return [];
+      return [
+        {
+          id: text(one['id']),
+          product,
+          fromId: text(one['fromId']),
+          toId: text(one['toId']),
+          inReview: one['inReview'] === true,
+          volumes: (Array.isArray(one['volumes']) ? one['volumes'] : []).flatMap((line: unknown) =>
+            isRecord(line)
+              ? [
+                  {
+                    text: text(line['text']),
+                    source: text(line['source']),
+                    href: typeof line['href'] === 'string' ? line['href'] : null,
+                  },
+                ]
+              : [],
+          ),
+        },
+      ];
+    }),
+    exits: exitList.flatMap((one: unknown) =>
+      isRecord(one) && Array.isArray(one['assets'])
+        ? [{ id: text(one['id']), assets: one['assets'].map(text) }]
+        : [],
+    ),
+  };
+})();
+
+const propertiesOf = (one: unknown): Record<string, unknown> =>
+  isRecord(one) && isRecord(one['properties']) ? one['properties'] : {};
+
+const geometryOf = (one: unknown): unknown =>
+  isRecord(one) && isRecord(one['geometry']) ? one['geometry']['coordinates'] : null;
+
+interface ArcLayer {
+  readonly id: string;
+  readonly style: string;
+  /** The property that gives the width, or a fixed width. */
+  readonly width: 'width' | 'halo' | number;
+  readonly dash: number[] | null;
+  readonly colour: 'product' | 'review' | 'land';
+  readonly opacity: number;
+}
+
+// The layers of the arcs, from the bottom. An estimate is hatched over a pale halo of its range,
+// and a capacity is a hollow line: a line of the land inside a line of the product.
+const ARC_LAYERS: readonly ArcLayer[] = [
+  {
+    id: 'arcs-halo',
+    style: 'estimated',
+    width: 'halo',
+    dash: null,
+    colour: 'product',
+    opacity: 0.25,
+  },
+  { id: 'arcs-solid', style: 'solid', width: 'width', dash: null, colour: 'product', opacity: 1 },
+  {
+    id: 'arcs-dashed',
+    style: 'dashed',
+    width: 'width',
+    dash: [3, 2],
+    colour: 'product',
+    opacity: 1,
+  },
+  {
+    id: 'arcs-review',
+    style: 'in review',
+    width: 'width',
+    dash: [0.5, 1.5],
+    colour: 'review',
+    opacity: 1,
+  },
+  {
+    id: 'arcs-observed',
+    style: 'observed',
+    width: 'width',
+    dash: null,
+    colour: 'product',
+    opacity: 1,
+  },
+  {
+    id: 'arcs-estimated',
+    style: 'estimated',
+    width: 'width',
+    dash: [1, 1],
+    colour: 'product',
+    opacity: 1,
+  },
+  {
+    id: 'arcs-capacity',
+    style: 'capacity',
+    width: 'width',
+    dash: null,
+    colour: 'product',
+    opacity: 1,
+  },
+  {
+    id: 'arcs-capacity-inside',
+    style: 'capacity',
+    width: 1.5,
+    dash: null,
+    colour: 'land',
+    opacity: 1,
+  },
+];
+
+const ARC_COLOURS: Readonly<Record<ArcLayer['colour'], string | ExpressionSpecification>> = {
+  product: ['coalesce', ['get', 'colour'], MARK],
+  review: IN_REVIEW,
+  land: LAND,
+};
 
 if (container !== null) {
   const style: StyleSpecification = {
@@ -36,6 +186,8 @@ if (container !== null) {
     sources: {
       countries: { type: 'geojson', data: COUNTRIES },
       entities: { type: 'geojson', data: { type: 'FeatureCollection', features } },
+      arcs: { type: 'geojson', data: { type: 'FeatureCollection', features: arcs } },
+      exits: { type: 'geojson', data: { type: 'FeatureCollection', features: exits } },
     },
     layers: [
       { id: 'ground', type: 'background', paint: { 'background-color': GROUND } },
@@ -64,6 +216,19 @@ if (container !== null) {
         filter: ['==', ['geometry-type'], 'LineString'],
         paint: { 'line-color': ['coalesce', ['get', 'colour'], MARK], 'line-width': 2 },
       },
+      ...ARC_LAYERS.map((one): LineLayerSpecification => ({
+        id: one.id,
+        type: 'line',
+        source: 'arcs',
+        filter: ['==', ['get', 'style'], one.style],
+        layout: { 'line-cap': one.dash === null ? 'round' : 'butt' },
+        paint: {
+          'line-color': ARC_COLOURS[one.colour],
+          'line-width': typeof one.width === 'number' ? one.width : ['get', one.width],
+          'line-opacity': one.opacity,
+          ...(one.dash === null ? {} : { 'line-dasharray': one.dash }),
+        },
+      })),
       {
         id: 'points',
         type: 'circle',
@@ -76,6 +241,18 @@ if (container !== null) {
           'circle-stroke-width': 1.5,
         },
       },
+      {
+        id: 'exits',
+        type: 'circle',
+        source: 'exits',
+        paint: {
+          // A ring with no fill, so the asset under an exit point stays in view.
+          'circle-opacity': 0,
+          'circle-radius': 10,
+          'circle-stroke-color': ['case', ['get', 'inReview'], IN_REVIEW, ['get', 'colour']],
+          'circle-stroke-width': 2.5,
+        },
+      },
     ],
   };
   const map = new MapLibre({ container, style, center: [0, 30], zoom: 1 });
@@ -85,9 +262,7 @@ if (container !== null) {
     map.resize();
   }).observe(container);
 
-  const all = features.flatMap((one: unknown) =>
-    isRecord(one) && isRecord(one['geometry']) ? positions(one['geometry']['coordinates']) : [],
-  );
+  const all = features.flatMap((one: unknown) => positions(geometryOf(one)));
   const [start] = all;
   if (start !== undefined) {
     const west = Math.min(...all.map(([lon]) => lon));
@@ -105,77 +280,292 @@ if (container !== null) {
     );
   }
 
-  // The card is built from text nodes, because a label comes from an untrusted page.
+  // A label on the map is a marker built from text nodes, because the basemap has no font file
+  // and a label comes from an untrusted page.
+  const label = (words: string, at: unknown): Marker | null => {
+    const [where] = positions(at);
+    if (where === undefined) return null;
+    const element = document.createElement('span');
+    element.textContent = words;
+    element.className = 'border border-border bg-background px-1 text-small/4';
+    return new Marker({ element, anchor: 'top', offset: [0, 8] }).setLngLat([...where]);
+  };
+
+  // Each link in review carries the words "in review" at the middle of its line, so the map never
+  // shows it as a fact.
+  const reviewLabels = arcs.flatMap((one: unknown) => {
+    const properties = propertiesOf(one);
+    if (properties['style'] !== 'in review') return [];
+    const path = positions(geometryOf(one));
+    const marker = label('in review', path[Math.floor(path.length / 2)]);
+    return marker === null ? [] : [{ product: productOf(properties['product']), marker }];
+  });
+
+  const exportLabels = features.flatMap((one: unknown) => {
+    const properties = propertiesOf(one);
+    if (properties['stageKey'] !== 'export') return [];
+    const marker = label(text(properties['label']), geometryOf(one));
+    return marker === null ? [] : [marker];
+  });
+
+  // The page renders each card in a hidden holder, so the script only copies the selected one.
   const holderOfCards = document.getElementById(CARDS_ELEMENT);
-  const cards: unknown = JSON.parse(holderOfCards?.textContent ?? 'null');
   const cardBox = document.getElementById(CARD_ELEMENT);
-  const text = (value: unknown): string => (typeof value === 'string' ? value : '');
+  // The card of an exit point and of an arc is built from text nodes, because a label comes from
+  // an untrusted page.
   const element = (tag: string, content: string): HTMLElement => {
     const one = document.createElement(tag);
     one.textContent = content;
     return one;
   };
-  const link = (href: string, label: string): HTMLAnchorElement => {
-    const one = document.createElement('a');
-    one.href = href;
-    one.textContent = label;
-    one.className = 'underline';
-    return one;
+  const heading = (words: string): HTMLElement => {
+    const title = element('h2', words);
+    title.className = 'font-medium';
+    return title;
   };
   const showCard = (id: string): void => {
-    const card = isRecord(cards) ? cards[id] : undefined;
-    if (cardBox === null || !isRecord(card)) return;
-    const body: HTMLElement[] = [];
-    const title = element('h2', '');
-    title.className = 'font-medium';
-    title.append(link(text(card['href']), text(card['label'])));
-    body.push(title);
-    body.push(element('p', [text(card['type']), text(card['stage'])].filter(Boolean).join(', ')));
-    const values = Array.isArray(card['values']) ? card['values'] : [];
-    const relations = Array.isArray(card['relations']) ? card['relations'] : [];
-    const list = (heading: string, items: HTMLElement[]): void => {
-      if (items.length === 0) return;
-      const section = element('h3', heading);
-      section.className = 'mt-2 text-label';
-      const ul = document.createElement('ul');
-      ul.append(...items);
-      body.push(section, ul);
-    };
-    list(
-      'Values',
-      values.flatMap((one: unknown) => {
-        if (!isRecord(one)) return [];
-        const item = element('li', `${text(one['key'])}: ${text(one['value'])}`);
-        item.title = text(one['label']);
-        return [item];
-      }),
+    const card = [...(holderOfCards?.children ?? [])].find(
+      (one) => one instanceof HTMLElement && one.dataset['card'] === id,
     );
-    list(
-      'Relations',
-      relations.flatMap((one: unknown) => {
-        if (!isRecord(one)) return [];
-        const item = document.createElement('li');
-        const dates = [text(one['from']), text(one['to'])];
-        const interval = dates.some(Boolean) ? ` (${dates[0]} to ${dates[1]})` : '';
-        item.append(
-          `${text(one['words'])} `,
-          link(text(one['otherHref']), text(one['otherLabel'])),
-          interval,
-        );
-        item.title = text(one['label']);
-        return [item];
-      }),
-    );
-    const review = typeof card['inReview'] === 'number' ? card['inReview'] : 0;
-    if (review > 0) body.push(element('p', `${String(review)} in review, not shown.`));
-    body.push(element('p', 'Sources and events: see the page of the entity.'));
-    cardBox.replaceChildren(...body);
+    if (cardBox === null || card === undefined) return;
+    cardBox.replaceChildren(...[...card.childNodes].map((one) => one.cloneNode(true)));
   };
-  for (const layer of ['points', 'lines', 'areas'])
-    map.on('click', layer, (event) => {
-      const [hit] = event.features ?? [];
-      if (hit === undefined) return;
-      const properties: Record<string, unknown> = hit.properties;
-      showCard(text(properties['id']));
+  const reviewMark = (words: string): HTMLElement => {
+    const mark = element('p', words);
+    mark.className = 'text-candidate';
+    return mark;
+  };
+  const showExit = (properties: Record<string, unknown>): void => {
+    cardBox?.replaceChildren(
+      heading(text(properties['label'])),
+      ...(properties['inReview'] === true
+        ? [reviewMark('In review: this exit point rests on a proposal, not a fact.')]
+        : []),
+      element(
+        'p',
+        'Exit from Russian control. The release computes this point from its relations: it is not an entity of the record.',
+      ),
+      element('p', text(properties['why'])),
+    );
+  };
+  const sourceOf = (line: { source: string; href: string | null }): HTMLElement => {
+    const paragraph = element('p', '');
+    paragraph.className = 'text-muted-foreground';
+    if (line.href === null) paragraph.textContent = line.source;
+    else {
+      const link = element('a', line.source);
+      link.setAttribute('href', line.href);
+      link.setAttribute('rel', 'noreferrer');
+      link.className = LINK;
+      paragraph.append(link);
+    }
+    return paragraph;
+  };
+  const showArc = (properties: Record<string, unknown>): void => {
+    const product = PRODUCTS.find((one) => one.key === properties['product'])?.label ?? '';
+    const arc = links.arcs.find((one) => one.id === text(properties['id']));
+    const volumes = arc?.volumes ?? [];
+    cardBox?.replaceChildren(
+      heading(text(properties['label'])),
+      element('p', `Physical link, ${product.toLowerCase()}.`),
+      ...(arc?.inReview === true || properties['style'] === 'in review'
+        ? [
+            reviewMark(
+              'In review: the link is a proposal, not a fact, and so is each volume below.',
+            ),
+          ]
+        : []),
+      ...(volumes.length === 0
+        ? [element('p', 'The volume table of this release has no row for this link.')]
+        : volumes.flatMap((line) => [element('p', line.text), sourceOf(line)])),
+    );
+  };
+
+  // What the reader asked: one product chain, one stage, one asset. An asset puts its chain
+  // forward, else a stage puts its assets forward, else the product chain does.
+  let product: ProductKey | 'all' = 'all';
+  // The script takes the stage from a button of the page, and imports no list of stages: that list
+  // reads the vocabulary of the record, which the script does not need.
+  let stage: string | null = null;
+  let selected: string | null = null;
+
+  // The address keeps the product chain and the stage, so a reload keeps them. The script reads
+  // the address once, at the start, and checks each value against the buttons of the page.
+  const stageKeys = [...document.querySelectorAll<HTMLButtonElement>('[data-stage]')].map(
+    (button) => button.dataset['stage'],
+  );
+  {
+    const asked = new URLSearchParams(window.location.hash.slice(1));
+    product = productOf(asked.get('product')) ?? 'all';
+    const askedStage = asked.get('stage');
+    stage = stageKeys.find((one) => one !== undefined && one === askedStage) ?? null;
+  }
+  const keepInAddress = (): void => {
+    const kept = new URLSearchParams();
+    if (product !== 'all') kept.set('product', product);
+    if (stage !== null) kept.set('stage', stage);
+    const hash = kept.toString();
+    window.history.replaceState(
+      null,
+      '',
+      hash === '' ? `${window.location.pathname}${window.location.search}` : `#${hash}`,
+    );
+  };
+
+  const stageHighlight = (key: string): Highlight => {
+    const assets = new Set(
+      features.flatMap((one: unknown) => {
+        const properties = propertiesOf(one);
+        return properties['stageKey'] === key ? [text(properties['id'])] : [];
+      }),
+    );
+    const exitIds = key === 'exit' ? links.exits.map((one) => one.id) : [];
+    return { assets, arcs: new Set(), exits: new Set(exitIds) };
+  };
+
+  const forward = (ids: ReadonlySet<string> | null): ExpressionSpecification | number =>
+    ids === null ? 1 : ['case', ['in', ['get', 'id'], ['literal', [...ids]]], 1, DIMMED];
+
+  const draw = (): void => {
+    const highlight: Highlight | null =
+      selected !== null
+        ? chainOf(links, selected)
+        : stage !== null
+          ? stageHighlight(stage)
+          : product !== 'all'
+            ? productChain(links, product)
+            : null;
+    for (const layer of ['points', 'lines'] as const)
+      map.setPaintProperty(
+        layer,
+        layer === 'points' ? 'circle-opacity' : 'line-opacity',
+        forward(highlight?.assets ?? null),
+      );
+    map.setPaintProperty('points', 'circle-stroke-opacity', forward(highlight?.assets ?? null));
+    map.setPaintProperty('areas', 'fill-opacity', [
+      '*',
+      0.3,
+      forward(highlight?.assets ?? null),
+    ] satisfies ExpressionSpecification);
+    const exitOpacity = forward(highlight?.exits ?? null);
+    map.setPaintProperty('exits', 'circle-stroke-opacity', exitOpacity);
+    const arcFilter: FilterSpecification =
+      product === 'all' ? ['boolean', true] : ['==', ['get', 'product'], product];
+    const arcOpacity =
+      highlight === null || stage !== null
+        ? stage === null
+          ? 1
+          : DIMMED
+        : forward(highlight.arcs);
+    for (const one of ARC_LAYERS) {
+      map.setFilter(one.id, ['all', ['==', ['get', 'style'], one.style], arcFilter]);
+      map.setPaintProperty(
+        one.id,
+        'line-opacity',
+        typeof arcOpacity === 'number'
+          ? one.opacity * arcOpacity
+          : (['*', one.opacity, arcOpacity] satisfies ExpressionSpecification),
+      );
+    }
+    for (const one of reviewLabels)
+      if (product === 'all' || one.product === product) one.marker.addTo(map);
+      else one.marker.remove();
+    for (const marker of exportLabels)
+      if (stage === 'export' && selected === null) marker.addTo(map);
+      else marker.remove();
+    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-product]'))
+      button.setAttribute('aria-pressed', String(button.dataset['product'] === product));
+    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-stage]'))
+      button.setAttribute('aria-pressed', String(button.dataset['stage'] === stage));
+  };
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-product]'))
+    button.addEventListener('click', () => {
+      product = productOf(button.dataset['product']) ?? 'all';
+      selected = null;
+      keepInAddress();
+      draw();
     });
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-stage]'))
+    button.addEventListener('click', () => {
+      const key = button.dataset['stage'] ?? null;
+      stage = stage === key ? null : key;
+      selected = null;
+      keepInAddress();
+      draw();
+    });
+
+  map.on('load', draw);
+  const openEntity = (id: string): void => {
+    selected = id;
+    stage = null;
+    keepInAddress();
+    showCard(id);
+    draw();
+  };
+
+  interface Hit {
+    readonly layer: string;
+    readonly properties: Record<string, unknown>;
+  }
+  const open = (hit: Hit): void => {
+    if (hit.layer === 'exits') showExit(hit.properties);
+    else if (hit.layer.startsWith('arcs')) showArc(hit.properties);
+    else openEntity(text(hit.properties['id']));
+  };
+
+  // When the click hits more than one point, the card lists each of them, and the reader chooses.
+  const choose = (hits: readonly Hit[]): void => {
+    const list = element('ul', '');
+    list.className = 'flex flex-col';
+    for (const hit of hits) {
+      const button = element(
+        'button',
+        `${text(hit.properties['label'])}${hit.layer === 'exits' ? ' (exit point)' : ''}`,
+      );
+      button.setAttribute('type', 'button');
+      button.className =
+        'w-full px-1 py-0.5 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring';
+      button.addEventListener('click', () => {
+        open(hit);
+      });
+      const item = element('li', '');
+      item.append(button);
+      list.append(item);
+    }
+    cardBox?.replaceChildren(
+      heading(`${String(hits.length)} points under the click`),
+      element('p', 'Select one for its card.'),
+      list,
+    );
+  };
+
+  // A point wins over an exit ring, a ring over a line or an area, and each of them over an arc. An
+  // exit ring lies around its asset: a click on the point opens the asset, and a click on the ring
+  // opens the exit point.
+  const GROUPS: readonly (readonly string[])[] = [
+    ['points'],
+    ['exits'],
+    ['lines', 'areas'],
+    ARC_LAYERS.map((one) => one.id),
+  ];
+  map.on('click', (event) => {
+    const hits = map.queryRenderedFeatures(event.point, { layers: GROUPS.flat() });
+    for (const group of GROUPS) {
+      const found = new Map<string, Hit>();
+      for (const one of hits)
+        if (group.includes(one.layer.id)) {
+          const properties: Record<string, unknown> = one.properties;
+          const id = text(properties['id']);
+          if (!found.has(id)) found.set(id, { layer: one.layer.id, properties });
+        }
+      const [only, ...others] = [...found.values()];
+      if (only === undefined) continue;
+      if (others.length === 0 || group === GROUPS.at(-1)) open(only);
+      else choose([only, ...others]);
+      return;
+    }
+    selected = null;
+    draw();
+  });
 }

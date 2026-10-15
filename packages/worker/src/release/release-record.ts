@@ -4,7 +4,8 @@ import type { Queryable } from '../queryable.ts';
 import { readNatoPairs, type NatoPair } from './nato-pair.ts';
 
 // PU1: an origin that the label does not know reads as not checked, never as a person.
-const CAUTIOUS = 'Proposed — not checked';
+/** The label of a fact that no rule and no person checked: a proposal, in review. */
+export const CAUTIOUS = 'Proposed — not checked';
 
 const label = z
   .string()
@@ -114,10 +115,14 @@ const rowsOf = async <T extends z.ZodType>(db: Queryable, shape: T, text: string
 
 /** Reads the public part of the record. The release functions apply the public rules, so this
  * read cannot show what the public read hides. The NATO pair of each claim is read only when
- * `natoPair` is true. The caller gives one snapshot for the reads. */
+ * `natoPair` is true. `cited` names the documents that a file of the release cites outside the
+ * record, such as the volume table. The caller gives one snapshot for the reads. */
 export const readReleaseRecord = async (
   db: Queryable,
-  { natoPair }: { readonly natoPair: boolean },
+  {
+    natoPair,
+    cited: alsoCited = new Set(),
+  }: { readonly natoPair: boolean; readonly cited?: ReadonlySet<string> },
 ): Promise<ReleaseRecord> => {
   const entities = await rowsOf(
     db,
@@ -168,6 +173,7 @@ export const readReleaseRecord = async (
   const cited = new Set([
     ...[...entities, ...relations, ...claims].flatMap((one) => one.sources),
     ...claims.flatMap((one) => one.passages.map((passage) => passage.document)),
+    ...alsoCited,
   ]);
   return {
     entities,

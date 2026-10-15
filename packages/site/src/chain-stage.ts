@@ -1,11 +1,16 @@
 import { ASSET_KINDS } from '@gab/proposal/mapping';
 
-/** The stage of the hydrocarbon chain that an entity with a position belongs to. */
+// External constraint: MapLibre parses no oklch colour and no CSS custom property, so each hue of
+// a stage, and the grey of no stage, is in hex. The strip of the page takes the same hex, so it matches the points.
+/** The six stages of the hydrocarbon chain. An asset kind gives one of the first four. The exit
+ * points and the declared destinations come from the physical links and the vessel relations. */
 export const STAGES = [
   { key: 'field', label: 'Fields', colour: '#2f7d4f' },
   { key: 'transport', label: 'Upstream transport', colour: '#b8860b' },
   { key: 'processing', label: 'Refining and liquefaction', colour: '#c2571a' },
   { key: 'export', label: 'Export', colour: '#0b6aa2' },
+  { key: 'exit', label: 'Exit from Russian control', colour: '#b0213a' },
+  { key: 'destination', label: 'Declared destination', colour: '#5b3f99' },
 ] as const;
 
 export type StageKey = (typeof STAGES)[number]['key'];
@@ -13,7 +18,9 @@ export type StageKey = (typeof STAGES)[number]['key'];
 /** The colour of an entity that has no stage. */
 export const NO_STAGE_COLOUR = '#6b7075';
 
-const STAGE_OF_KIND: Readonly<Record<(typeof ASSET_KINDS)[number], StageKey>> = {
+const STAGE_OF_KIND: Readonly<
+  Record<(typeof ASSET_KINDS)[number], 'field' | 'transport' | 'processing' | 'export'>
+> = {
   field: 'field',
   pipeline_segment: 'transport',
   refinery: 'processing',

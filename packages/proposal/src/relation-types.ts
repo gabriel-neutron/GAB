@@ -66,6 +66,17 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
   relationType('unknown', 'is linked to', 'is linked to', false),
 ];
 
+/** The relation type of a physical link for each product. A relation has no attributes, so its
+ * type gives the product. Gas and LNG have no relation type yet: the record gets one when a
+ * document supports a gas link. The release and the map both read this map. */
+export const PRODUCT_LINK_TYPES = {
+  crude: 'crude_flows_to',
+  products: 'products_flow_to',
+  gas: null,
+} as const;
+
+export type ProductKey = keyof typeof PRODUCT_LINK_TYPES;
+
 const WORDS = new Map(SEEDED_RELATION_TYPES.map((one) => [one.key, one]));
 
 /** The words of a relation type, read from its first end or from its second end. A type that the

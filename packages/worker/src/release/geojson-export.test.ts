@@ -21,14 +21,23 @@ const document = (id: string, licence: string | null, provider: string | null = 
   provider,
 });
 
-const listing = (id: string, source: string, from: string | null, to: string | null) => ({
+const PROPOSED = 'Proposed — not checked';
+
+const listing = (
+  id: string,
+  source: string,
+  from: string | null,
+  to: string | null,
+  type = 'designated_by',
+  label = LABEL,
+) => ({
   id,
-  type: 'designated_by',
+  type,
   src_id: DEPOT,
   dst_id: OWNER,
   valid_from: from,
   valid_to: to,
-  origin_label: LABEL,
+  origin_label: label,
   sources: [source],
 });
 
@@ -80,6 +89,14 @@ const RECORD: ReleaseRecord = {
   relations: [
     listing('00000000-0000-4000-8000-0000000000a1', 'doc_eu', null, null),
     listing('00000000-0000-4000-8000-0000000000a2', 'doc_ofac', '2023-02-24', '2024-01-31'),
+    listing(
+      '00000000-0000-4000-8000-0000000000a3',
+      'doc_uk',
+      '2025-05-09',
+      null,
+      'restricted_by',
+      PROPOSED,
+    ),
   ],
   claims: [
     // The EU listing has no start: the entry into force of the act gives it.
@@ -112,6 +129,7 @@ const RECORD: ReleaseRecord = {
     ['doc_b', document('doc_b', null)],
     ['doc_eu', document('doc_eu', null, 'eu_eurlex')],
     ['doc_ofac', document('doc_ofac', null, 'ofac_sdn')],
+    ['doc_uk', document('doc_uk', null, 'uk_sanctions_list')],
   ]),
   nameCandidates: { proposed: 0, confirmed: 0, refused: 0 },
   disclaimer: '',
@@ -125,8 +143,8 @@ const HEADING = {
   disclaimer: 'About this data.',
 };
 
-const collection = () => {
-  const file = geojsonExport(RECORD, HEADING);
+const collection = (record = RECORD) => {
+  const file = geojsonExport(record, HEADING);
   expect(file.path).toBe('entities.geojson');
   return z
     .looseObject({
@@ -175,14 +193,33 @@ test('the properties of a feature are the columns of the entity CSV, with the sa
   });
 });
 
-test('a facility carries its asset kind and its dated listings for each regime', () => {
+test('a facility carries its asset kind and its dated measures for each regime, with the act and the label', () => {
   const depot = collection().features.find((one) => one['id'] === DEPOT);
+  const act = { act_id: OWNER, act_label: 'An owner' };
   expect(depot?.properties).toMatchObject({
     asset_kind: 'oil_terminal',
     sanctions: {
-      eu: [{ from: '2022-06-03', to: null }],
-      us: [{ from: '2023-02-24', to: '2024-01-31' }],
-      uk: [],
+      eu: [
+        {
+          measure: 'designated_by',
+          from: '2022-06-03',
+          to: null,
+          ...act,
+          act_document: 'The document doc_eu',
+          origin_label: LABEL,
+        },
+      ],
+      us: [{ measure: 'designated_by', from: '2023-02-24', to: '2024-01-31', ...act }],
+      uk: [
+        {
+          measure: 'restricted_by',
+          from: '2025-05-09',
+          to: null,
+          ...act,
+          act_document: 'The document doc_uk',
+          origin_label: PROPOSED,
+        },
+      ],
     },
   });
   // Another entity has no sanctions member, and no asset kind.
@@ -194,5 +231,47 @@ test('the collection carries the version and the disclaimer of the release', () 
   expect(collection()).toMatchObject({
     name: 'GAB dataset, version 1.0 of 08/11/2026.',
     disclaimer: 'About this data.',
+  });
+});
+
+test('a US or a UK measure with no start takes the entry into force of its act, when that value cites a file of the regime', () => {
+  const later = '00000000-0000-4000-8000-000000000006';
+  const record: ReleaseRecord = {
+    ...RECORD,
+    entities: [
+      ...RECORD.entities,
+      {
+        id: later,
+        type: 'legal_act',
+        label: 'A later act',
+        origin_label: LABEL,
+        sources: [],
+        geom: null,
+      },
+    ],
+    relations: [
+      { ...listing('00000000-0000-4000-8000-0000000000a4', 'doc_ofac', null, null), dst_id: later },
+      listing('00000000-0000-4000-8000-0000000000a5', 'doc_uk', null, null),
+    ],
+    claims: [
+      ...RECORD.claims,
+      {
+        claim_id: `${later}/entry_into_force`,
+        subject_kind: 'entity',
+        subject_id: later,
+        attribute: 'entry_into_force',
+        value: '2024-02-23',
+        origin_label: LABEL,
+        sources: ['doc_ofac'],
+        act_id: ACT,
+        passages: [],
+      },
+    ],
+  };
+  const depot = collection(record).features.find((one) => one['id'] === DEPOT);
+  expect(depot?.properties['sanctions']).toMatchObject({
+    us: [{ from: '2024-02-23' }],
+    // The entry into force of the act of the UK measure cites an EU file only, so it has no date.
+    uk: [{ from: null }],
   });
 });

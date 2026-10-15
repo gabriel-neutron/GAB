@@ -1,3 +1,4 @@
+import { withChain } from './chain-fixture.ts';
 import { withEvents } from './event-fixture.ts';
 import { readSiteRelease, type SiteRelease } from './site-release.ts';
 
@@ -19,9 +20,11 @@ const filesOf = (files: Readonly<Record<string, string>>): Map<string, string> =
 const releaseOf = (files: Readonly<Record<string, string>>): SiteRelease =>
   readSiteRelease(filesOf(files));
 
-/** The fixed release of the stories, without and with the NATO pair, and the release with events. */
+/** The fixed release of the stories, without and with the NATO pair, the release with events,
+ * and the release with a chain of physical links. */
 export const FIXTURE_RELEASE = {
   off: releaseOf(OFF),
   on: releaseOf(ON),
   events: readSiteRelease(withEvents(filesOf(OFF))),
+  chain: readSiteRelease(withChain(filesOf(OFF))),
 } as const;
