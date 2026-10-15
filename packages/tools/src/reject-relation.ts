@@ -10,8 +10,8 @@ export const rejectRelation = defineTool({
   description:
     'Rejects one new relation of a unit, as the button "Reject the relation" of the review page. ' +
     'The rest of the unit stays in the queue. The record keeps the origin "decided by an AI ' +
-    'reviewer" and your reason. Read the cited passage first, and never decide a unit that your ' +
-    'own session proposed.',
+    'reviewer" and your reason. Read the cited passage first, and never decide a unit that you ' +
+    'proposed: a new reviewer agent decides it.',
   input: z.strictObject({
     relationId: z.uuid().describe('the id of the act of the relation, from the acts of a unit'),
     ...rejection,

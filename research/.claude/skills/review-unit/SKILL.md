@@ -1,6 +1,6 @@
 ---
 name: review-unit
-description: Review the doubts of the review queue as an AI reviewer. Read the cited passage of each unit first, then promote the unit, reject it, or reject one relation, with a reason. Use it only when the operator asks for a review session, and never in the session that proposed the units.
+description: Review the doubts of the review queue as an AI reviewer. Read the cited passage of each unit first, then promote the unit, reject it, or reject one relation, with a reason. Use it in a new reviewer subagent or session, never in the agent that proposed the units.
 ---
 
 # Review a unit as an AI reviewer
@@ -17,10 +17,13 @@ decide the unit.
 - **Who decides first.** The rules of the database decide each unit from its sources. A unit
   with strong sources is accepted, an impossible unit is rejected, and a unit with weak sources
   waits for a better source. Only a unit with a doubt comes to a reviewer.
-- **Who decides a doubt.** The operator, in the review page, or you, as an AI reviewer in a
-  separate session. **The session that proposed a unit never decides it.** Start the review in a
-  new session, and do not decide a unit that this session proposed. The tools do not enforce this
-  rule, because all the sessions share one role.
+- **Who decides a doubt.** The operator, in the review page, or you, as an AI reviewer with a
+  new context. **The agent that proposed a unit never decides it.** The agent that proposed
+  starts a new reviewer subagent (or a new session). It gives the subagent only the proposal ids
+  or the unit ids, and the ticket number. It does not give its notes, its reasons or its history.
+  The reviewer reads the units from the record, as a stranger to them. The database refuses a
+  decision in the transaction that proposed the act. The tools do not enforce the rest of this
+  rule, because all the agents share one role.
 - **When you are not sure, send the unit to the skill `expert-panel`**, and decide it with its
   verdict. Leave a unit in the queue only when the panel names a source that is missing: write
   that source on the list of needs (skill `source-hunt`). The operator can always decide in
@@ -84,7 +87,7 @@ decide the unit.
 
 ## Never
 
-- Never decide a unit that your own session proposed.
+- Never decide a unit that you proposed, or that an agent proposed when you share its context.
 - Never decide a unit that a spec or a ticket holds in the queue: the spec or the ticket names the
   unit, its group or its kind of act, and says that it waits. Leave it for the session that the
   spec or the ticket names.
