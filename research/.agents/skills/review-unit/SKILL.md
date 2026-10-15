@@ -21,14 +21,14 @@ decide the unit.
   new context. **The agent that proposed a unit never decides it.** The agent that proposed
   starts a new reviewer subagent (or a new session). It gives the subagent only the proposal ids
   or the unit ids, and the ticket number. It does not give its notes, its reasons or its history.
-  The reviewer reads the units from the record, as a stranger to them. The database refuses a
-  decision in the transaction that proposed the act. The tools do not enforce the rest of this
+  The reviewer reads the units from the record, as a stranger to them. The database refuses to
+  accept an act in the transaction that proposed it. The tools do not enforce the rest of this
   rule, because all the agents share one role.
 - **When you are not sure, send the unit to the skill `expert-panel`**, and decide it with its
   verdict. Leave a unit in the queue only when the panel names a source that is missing: write
   that source on the list of needs (skill `source-hunt`). The operator can always decide in
   place of you.
-- **One review of the queue at a time.** To empty the queue, the operator starts the workflow
+- **One review of the queue at a time.** To empty the queue, start the workflow
   `review-queue` (`research/.claude/workflows/review-queue.js`). It reads the queue again at
   each round, so two reviewers do not decide the same unit. When `read_unit` says that a unit is
   decided or absent, go to the next unit.

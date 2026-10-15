@@ -10,8 +10,8 @@ operator a prompt to paste, and you do not stop for a step that an agent can do.
 
 ## The loop
 
-1. **Read.** Run `gh issue view <n> --comments`. Read the skill `research-method`. Read the line
-   of the server instructions that gives the commit of the `gab` server.
+1. **Read.** Run `gh issue view <n> --comments`. Read the skill `research-method`. When the server
+   instructions give the commit of the `gab` server, note it.
 2. **Plan the lots.** Cut the step of the ticket into lots that do not depend on each other: one
    source, one list, one group of nodes. Use the skill `investigate-node` to find what the record
    holds and what is missing.
@@ -36,11 +36,14 @@ A tool that refuses a valid fact, or a type that the vocabulary does not hold, i
 software. A research session never edits code, so:
 
 1. Send the gap to the skill `expert-panel` when it is a question of the data model.
-2. Start a new code session yourself, at the root of the repository, with a short brief: the
-   gap, the refusal text, the ticket number and what done looks like. Continue the other lots.
-3. When the code session says that its pull request is merged into `staging`, update the server:
-   run `git -C .. pull --ff-only`, then `pnpm -C .. db:migrate` and `pnpm -C .. db:apply`. Ask
-   the operator to reconnect `gab` with `/mcp` only when the commit of the server is still old.
+2. Start a new code session yourself, where the build rules of the root `CLAUDE.md` put the
+   code work, with a short brief: the gap, the refusal text, the ticket number and what done
+   looks like. Continue the other lots.
+3. When the code session says that its pull request is merged into `staging`, update the
+   checkout: run `git -C .. pull --ff-only origin staging`, then `pnpm -C .. db:migrate` and
+   `pnpm -C .. db:apply`. The `gab` server keeps its old code until it starts again, so when the
+   pull changed `packages/`, ask the operator to reconnect `gab` with `/mcp`. Then check the
+   commit that the server gives.
 4. Send the blocked items again.
 
 ## Never
