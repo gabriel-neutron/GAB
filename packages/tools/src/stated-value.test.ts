@@ -638,3 +638,48 @@ test('a port call with no day keeps its other attributes', () => {
   expect(withoutCallDay(act)).not.toHaveProperty('attrs.observed_on');
   expect(withoutCallDay(callOf('loads_at', '2026-05-19'))).not.toHaveProperty('attrs');
 });
+
+// Real excerpts of stored Reuters documents: doc_36e638d26604, doc_ed1cabe98546, doc_d94ce1cf864b.
+const RYAZAN = [
+  "MOSCOW, Feb 24 (Reuters) - Russia's Ryazan oil refinery has suspended operations after an attack by Ukrainian drones on Monday, three industry sources told Reuters.",
+  "Ukraine's military said on Monday some of its drones had hit the Ryazan oil refinery overnight",
+];
+const NIGHT_OF = (first: string, second: string) =>
+  writeRequest.parse({
+    op: 'create_entity',
+    type: 'event',
+    label: `claimed attack — Ryazan Refinery — ${second}`,
+    attrs: {
+      event_kind: { v: 'claimed attack' },
+      occurred_on: { v: [first, second] },
+      occurred_on_precision: { v: 'night' },
+    },
+  });
+
+test('a dateline and "overnight" state the night that ends on the dateline day', () => {
+  const options = { publishedOn: '2025-02-24' };
+  expect(unstatedValues(NIGHT_OF('2025-02-23', '2025-02-24'), RYAZAN, options)).toStrictEqual([]);
+  expect(unstatedValues(NIGHT_OF('2025-02-24', '2025-02-25'), RYAZAN, options)).toHaveLength(1);
+});
+
+test('a dateline with no year states nothing without a publication date', () => {
+  expect(unstatedValues(NIGHT_OF('2025-02-23', '2025-02-24'), RYAZAN)).toHaveLength(2);
+});
+
+test('a dateline with no night word states no day', () => {
+  const passage =
+    "KYIV, Sept 5 (Reuters) - Ukraine attacked Russia's Ryazan oil refinery, the commander of its drone forces, Robert Brovdi, said on messaging app Telegram on Friday, as well as an oil depot in the occupied Luhansk region.";
+  const options = { publishedOn: '2025-09-05' };
+  expect(unstatedValues(NIGHT_OF('2025-09-04', '2025-09-05'), [passage], options)).toHaveLength(2);
+  expect(unstatedValues(relationFrom('2025-09-05'), [passage], options)).toHaveLength(1);
+});
+
+test('"early-morning" is no night word', () => {
+  const passages = [
+    'MOSCOW, Sept 20 (Reuters) - The largest Ukrainian drone attack reported so far on the Moscow region killed three people and damaged part of an oil refinery in the capital, authorities said on Sunday',
+    'Two people were killed in the early-morning attacks and a third died of his injuries later in hospital',
+  ];
+  expect(
+    unstatedValues(NIGHT_OF('2026-09-19', '2026-09-20'), passages, { publishedOn: '2026-09-20' }),
+  ).toHaveLength(2);
+});

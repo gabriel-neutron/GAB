@@ -50,6 +50,13 @@ const WORD_MONTH_FIRST = /([\p{L}.]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})(?!
 // names, so it states two days. The year is the one that the text gives, or else the year of the
 // publication date of the document.
 const NIGHT_DAY = /(?<!\p{L})у\s+ніч\s+на\s+(\d{1,2})\s+([\p{L}]+)(?:\s+(\d{4})(?!\d))?/giu;
+// A news dateline with no year, "MOSCOW, Feb 24 (Reuters) -", at the start of a line. With a night
+// word in the cited text, it states the night that ends on that day (decided by the expert panel).
+// The dateline alone states no day: it is the day of the report, and not of the event.
+// shortcut: no "on Monday" and no "night of Feb 23 to 24"; add them when a stored excerpt needs them.
+const DATELINE =
+  /^\s*[A-Z][A-Z .'/-]+,\s+(\p{Lu}\p{Ll}{2,8})\.?\s+(\d{1,2})\s+\((?:Reuters|AP|AFP)\)/gmu;
+const NIGHT_WORD = /\b(?:overnight|night|nighttime)\b/iu;
 const NUMERIC_DAY = /(?<![\d.,/-])(\d{1,4})([./-])(\d{1,2})\2(\d{1,4})(?![\d.,/-]?\d)/gu;
 
 // Origin: decided. A day with dots, 05.03.2024, is day, month and year in each country that
@@ -140,6 +147,10 @@ const daysIn = (text: string, { publishedOn, dayFirst = false }: StatedOptions):
   for (const [, day, word, written] of text.matchAll(NIGHT_DAY))
     for (const night of nightDays(Number(day), monthOf(word ?? ''), written, publishedOn))
       found.add(night);
+  if (NIGHT_WORD.test(text))
+    for (const [, word, day] of text.matchAll(DATELINE))
+      for (const night of nightDays(Number(day), monthOf(word ?? ''), undefined, publishedOn))
+        found.add(night);
   for (const [, day, word, year] of text.matchAll(WORD_DAY)) {
     const month = monthOf(word ?? '');
     if (month !== null) found.add(dayText(Number(year), month, Number(day)));
