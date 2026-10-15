@@ -143,8 +143,8 @@ const HEADING = {
   disclaimer: 'About this data.',
 };
 
-const collection = () => {
-  const file = geojsonExport(RECORD, HEADING);
+const collection = (record = RECORD) => {
+  const file = geojsonExport(record, HEADING);
   expect(file.path).toBe('entities.geojson');
   return z
     .looseObject({
@@ -231,5 +231,47 @@ test('the collection carries the version and the disclaimer of the release', () 
   expect(collection()).toMatchObject({
     name: 'GAB dataset, version 1.0 of 08/11/2026.',
     disclaimer: 'About this data.',
+  });
+});
+
+test('a US or a UK measure with no start takes the entry into force of its act, when that value cites a file of the regime', () => {
+  const later = '00000000-0000-4000-8000-000000000006';
+  const record: ReleaseRecord = {
+    ...RECORD,
+    entities: [
+      ...RECORD.entities,
+      {
+        id: later,
+        type: 'legal_act',
+        label: 'A later act',
+        origin_label: LABEL,
+        sources: [],
+        geom: null,
+      },
+    ],
+    relations: [
+      { ...listing('00000000-0000-4000-8000-0000000000a4', 'doc_ofac', null, null), dst_id: later },
+      listing('00000000-0000-4000-8000-0000000000a5', 'doc_uk', null, null),
+    ],
+    claims: [
+      ...RECORD.claims,
+      {
+        claim_id: `${later}/entry_into_force`,
+        subject_kind: 'entity',
+        subject_id: later,
+        attribute: 'entry_into_force',
+        value: '2024-02-23',
+        origin_label: LABEL,
+        sources: ['doc_ofac'],
+        act_id: ACT,
+        passages: [],
+      },
+    ],
+  };
+  const depot = collection(record).features.find((one) => one['id'] === DEPOT);
+  expect(depot?.properties['sanctions']).toMatchObject({
+    us: [{ from: '2024-02-23' }],
+    // The entry into force of the act of the UK measure cites an EU file only, so it has no date.
+    uk: [{ from: null }],
   });
 });

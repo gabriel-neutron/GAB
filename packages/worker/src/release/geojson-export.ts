@@ -46,10 +46,10 @@ const listingsOf = (
     const regime = regimeOfSources(sources, documentOf);
     if (regime === null) continue;
     const regimeSources = sources.filter((id) => regimeOfSources([id], documentOf) === regime);
-    // The EU start falls back to the entry into force of the act, as the alignment matrix does.
-    const from =
-      one.valid_from ??
-      (regime === 'eu' ? entryIntoForceOf(claimsById, one, regimeSources).listedOn : null);
+    // A measure with no start falls back to the entry into force of its act, when that value
+    // cites a file of the same regime. The record holds no other date of a document. With no such
+    // value the measure has no date, and the card says so.
+    const from = one.valid_from ?? entryIntoForceOf(claimsById, one, regimeSources).listedOn;
     const [document] = regimeSources;
     const held = found.get(one.src_id) ?? { eu: [], us: [], uk: [] };
     held[SITE_KEY[regime]].push({
