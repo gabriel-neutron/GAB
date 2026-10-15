@@ -115,7 +115,9 @@ const TEXT_PAGE_BYTES = 16 * 1024 * 1024;
 export const textPages = (text: string, table: boolean, limit = TEXT_PAGE_BYTES): string[] => {
   if (Buffer.byteLength(text) <= limit) return [text];
   const lines = text.split('\n');
-  const head = table ? `${lines.shift() ?? ''}\n` : '';
+  // A first line that takes half a page or more is no header to repeat: it is cut as text.
+  const repeats = table && lines.length > 1 && Buffer.byteLength(lines[0] ?? '') < limit / 2;
+  const head = repeats ? `${lines.shift() ?? ''}\n` : '';
   const pages: string[] = [];
   let page = head;
   let size = Buffer.byteLength(head);
@@ -134,10 +136,15 @@ export const textPages = (text: string, table: boolean, limit = TEXT_PAGE_BYTES)
     }
     // shortcut: a line longer than a page is cut by characters (a character is at most 4 bytes),
     // not at a token; upgrade when a real file gives such a line.
-    const room = Math.max(1, Math.floor((limit - size) / 4));
-    for (let at = 0; at < line.length; at += room) {
-      page += line.slice(at, at + room);
+    const room = Math.max(2, Math.floor((limit - size) / 4));
+    for (let at = 0; at < line.length;) {
+      let end = Math.min(at + room, line.length);
+      // A cut between the two halves of a surrogate pair would break the character.
+      const unit = line.charCodeAt(end - 1);
+      if (end < line.length && unit >= 0xd800 && unit <= 0xdbff) end -= 1;
+      page += line.slice(at, end);
       close();
+      at = end;
     }
   }
   close();

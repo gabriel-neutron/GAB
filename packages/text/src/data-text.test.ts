@@ -127,13 +127,26 @@ describe('a text above the page limit is cut at the end of a line', () => {
   test('a table repeats its header line on each page', () => {
     const header = 'reporter,value';
     const rows = ['HU,1', 'SK,2', 'CZ,3', 'AT,4'];
-    const pages = textPages([header, ...rows].join('\n'), true, 25);
-    expect(pages).toStrictEqual(['reporter,value\nHU,1\nSK,2', 'reporter,value\nCZ,3\nAT,4']);
+    const pages = textPages([header, ...rows].join('\n'), true, 30);
+    expect(pages).toStrictEqual(['reporter,value\nHU,1\nSK,2\nCZ,3', 'reporter,value\nAT,4']);
   });
 
   test('a text that is not a table is cut with no header, and a text under the limit is one page', () => {
     expect(textPages('one\ntwo\nthree', false, 8)).toStrictEqual(['one\ntwo', 'three']);
     expect(textPages('one\ntwo', false, 7)).toStrictEqual(['one\ntwo']);
+  });
+
+  test('a table of one long line is cut as text, and no character is lost', () => {
+    const pages = textPages('a,b,c'.repeat(10), true, 8);
+    expect(pages.join('')).toBe('a,b,c'.repeat(10));
+    expect(textPages(`${'h'.repeat(20)}\nrow`, true, 12).join('')).toBe(`${'h'.repeat(20)}row`);
+  });
+
+  test('a cut never splits a character outside the basic plane', () => {
+    const line = '🚢'.repeat(9);
+    const pages = textPages(line, false, 12);
+    expect(pages.join('')).toBe(line);
+    expect(pages.every((page) => page.isWellFormed())).toBe(true);
   });
 
   test('a line longer than a page is cut into pages, and no character is lost', () => {
