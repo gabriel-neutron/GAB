@@ -16,6 +16,10 @@ const CONTROL =
 const STAGE_CONTROL =
   'flex w-full items-center gap-1.5 border border-input bg-background px-1.5 py-1 text-left text-small/4 aria-pressed:bg-foreground aria-pressed:text-background focus-visible:outline-2 focus-visible:outline-ring';
 
+// A count and its noun, in the singular for one.
+const count = (n: number, one: string, many: string): string =>
+  `${String(n)} ${n === 1 ? one : many}`;
+
 /** The map page: the entities of the release that have a position over a basemap, with a colour
  * for each stage of the chain, the physical links as arcs, the exit points, a filter of the
  * product chain, a strip of the six stages, and a card for the selected entity. The entities are
@@ -37,29 +41,32 @@ export function MapPage({
   return (
     <SiteFrame release={release} page={{ path: MAP, title: 'Map' }}>
       <p className="max-w-prose">
-        {features.length} entities of this release have their own position. The colour of a point is
-        the stage of the chain of the asset. A grey point is an entity with no stage. Select a point
-        for its card and its chain. A card gives the accepted facts first. A fact that is still in
-        review carries the words “In review”: it is a proposal, not a fact.
+        {count(features.length, 'entity of this release has', 'entities of this release have')}{' '}
+        their own position. The colour of a point is the stage of the chain of the asset. A grey
+        point is an entity with no stage. Select a point for its card and its chain. A card gives
+        the accepted facts first. A fact that is still in review carries the words “In review”: it
+        is a proposal, not a fact.
       </p>
       <p className="max-w-prose">
-        {flows.arcs.length} physical links join two assets with a position. {arcsInReview} of them
-        are in review: a grey dotted line labelled &quot;in review&quot;, not a fact. With no
-        volume, a dashed line is a link after the export stage. An exit point is computed from the
-        relations of the release, and is not an entity of the record. {exitsInReview} exit points
-        are in review.
+        {count(flows.arcs.length, 'physical link joins', 'physical links join')} two assets with a
+        position. {count(arcsInReview, 'of them is', 'of them are')} in review: a grey dotted line
+        labelled &quot;in review&quot;, not a fact. With no volume, a dashed line is a link after
+        the export stage. An exit point is computed from the relations of the release, and is not an
+        entity of the record. {count(exitsInReview, 'exit point is', 'exit points are')} in review.
         {exitsNotPlaced > 0
-          ? ` ${String(exitsNotPlaced)} exit points have no position and are not on the map.`
+          ? ` ${count(exitsNotPlaced, 'exit point has', 'exit points have')} no position and ${exitsNotPlaced === 1 ? 'is' : 'are'} not on the map.`
           : ''}{' '}
-        A position in the outline of another country is outside Russia.
+        A position in the outline of another country is outside Russia. An asset with no position
+        gives no exit point.
       </p>
       <p className="max-w-prose">
-        {arcsWithVolume} physical links have a volume from the volume table of the research. A
-        volume is an aggregate of the research for a period, not a fact of the record. A full line
-        is an observed flow, and its width grows with its value, against the flows of the same unit
-        only. A hatched line on a pale halo is an estimate, and the halo is its range. A thin hollow
-        line is the nominal capacity of a pipeline, not a flow. A link with no volume has one width.
-        Select a link for its value, its range, its period, its class and its source.
+        {count(arcsWithVolume, 'physical link has', 'physical links have')} a volume from the volume
+        table of the research. A volume is an aggregate of the research for a period, not a fact of
+        the record. A full line is an observed flow, and its width grows with its value, against the
+        flows of the same unit only. A hatched line on a pale halo is an estimate, and the halo is
+        its range. A thin hollow line is the nominal capacity of a pipeline, not a flow. A link with
+        no volume has one width. Select a link for its value, its range, its period, its class and
+        its source.
       </p>
       <ul className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Product chains">
         {PRODUCTS.map((one) => (
@@ -69,7 +76,8 @@ export function MapPage({
               className="inline-block h-0.5 w-4"
               style={{ backgroundColor: one.colour }}
             />
-            {one.label}: {flows.arcs.filter((arc) => arc.product === one.key).length} links
+            {one.label}:{' '}
+            {count(flows.arcs.filter((arc) => arc.product === one.key).length, 'link', 'links')}
           </li>
         ))}
       </ul>
@@ -145,7 +153,7 @@ export function MapPage({
           const card = view.cards[one.id];
           return card === undefined ? null : (
             <div key={one.id} data-card={one.id}>
-              <AssetCard card={card} />
+              <AssetCard card={card} stage={flows.stages.get(one.id) ?? null} />
             </div>
           );
         })}
@@ -170,8 +178,7 @@ export function MapPage({
                 </td>
                 <td className={CELL}>{one.type}</td>
                 <td className={CELL}>
-                  {STAGES.find((stage) => stage.key === flows.stages.get(one.id))?.label ??
-                    view.cards[one.id]?.stage}
+                  {STAGES.find((stage) => stage.key === flows.stages.get(one.id))?.label}
                 </td>
                 <td className={CELL}>{one.geometry}</td>
               </tr>

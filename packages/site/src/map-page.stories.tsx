@@ -3,9 +3,11 @@ import { expect } from 'storybook/test';
 
 import countries from './countries.json?raw';
 import { chainView } from './chain-card.ts';
+import { CHAIN } from './chain-fixture.ts';
 import { chainFlows } from './chain-flows.ts';
 import { SITE } from './event-fixture.ts';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
+import { CARDS_ELEMENT } from './map-elements.ts';
 import { MapPage } from './map-page.tsx';
 import { outsideRussia } from './outside-russia.ts';
 import type { SiteRelease } from './site-release.ts';
@@ -70,7 +72,10 @@ export const TheFilterOffersEachProductChain: Story = {
 export const ALinkInReviewIsCountedAndNamedSo: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText(/7 physical links join two assets/u)).toHaveTextContent(
-      '1 of them are in review',
+      '1 of them is in review',
+    );
+    await expect(canvas.getByText(/exit point is in review/u)).toHaveTextContent(
+      '1 exit point is in review.',
     );
     await expect(canvas.getByRole('list', { name: 'Product chains' })).toHaveTextContent(
       'Gas and LNG: 0 links',
@@ -81,11 +86,20 @@ export const ALinkInReviewIsCountedAndNamedSo: Story = {
 export const ThePageHoldsTheCardOfEachEntityForTheMapScript: Story = {
   args: argsOf(FIXTURE_RELEASE.events),
   play: async ({ canvasElement }) => {
-    const holder = canvasElement.querySelector('#gab-cards');
+    const holder = canvasElement.querySelector(`#${CARDS_ELEMENT}`);
     await expect(holder).not.toBeVisible();
     await expect(holder?.querySelectorAll('[data-card]')).toHaveLength(3);
     await expect(holder?.querySelector(`[data-card="${SITE}"]`)).toHaveTextContent(
       /Strikes.*reported by A report of news/u,
     );
+  },
+};
+
+export const ACardGivesTheStageThatTheStripAndTheTableGive: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    const card = canvasElement.querySelector(`[data-card="${CHAIN.REFINERY_ABROAD}"]`);
+    await expect(card).toHaveTextContent('facility, Declared destination');
+    const row = canvas.getByRole('link', { name: 'Test refinery abroad' }).closest('tr');
+    await expect(row).toHaveTextContent('Declared destination');
   },
 };

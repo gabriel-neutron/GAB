@@ -4,7 +4,7 @@ import { CLAIMED_ATTACK } from '@gab/tools/event-rules';
 import { assetSanctions, type AssetMeasure } from './asset-sanctions.ts';
 import { attributeName } from './attribute-name.ts';
 import { isAccepted, PROPOSED_LABEL } from './accepted.ts';
-import { stageOf, STAGES, type StageKey } from './chain-stage.ts';
+import { stageOf, type StageKey } from './chain-stage.ts';
 import { eventsAt } from './event-lane.ts';
 import { mapFeatures } from './map-features.ts';
 import type { SiteRelease } from './site-release.ts';
@@ -55,7 +55,6 @@ export interface CardStrike extends CardFact {
 export interface Card {
   readonly label: string;
   readonly type: string;
-  readonly stage: string;
   readonly href: string;
   /** True when the entity itself is a proposal: then each of its facts is in review. */
   readonly inReview: boolean;
@@ -66,12 +65,12 @@ export interface Card {
   readonly strikes: readonly CardStrike[];
 }
 
-/** The data of the chain view: the stage of each entity with a position, and its card. A card
- * gives the accepted facts first, and then the facts in review, each marked. */
+/** The data of the chain view: the stage of the asset kind of each entity with a position, and
+ * its card. A card gives the accepted facts first, and then the facts in review, each marked. The
+ * flows of the chain give the last stage of an entity, so a card takes its stage from them. */
 export interface ChainView {
   readonly stages: ReadonlyMap<string, StageKey | null>;
   readonly cards: Readonly<Record<string, Card>>;
-  readonly counts: ReadonlyMap<StageKey, number>;
 }
 
 const MEASURE_WORDS: Readonly<Record<AssetMeasure['measure'], string>> = {
@@ -93,7 +92,6 @@ const acceptedFirst = <T extends CardFact>(facts: readonly T[]): readonly T[] =>
 export const chainView = (release: SiteRelease): ChainView => {
   const stages = new Map<string, StageKey | null>();
   const cards: Record<string, Card> = {};
-  const counts = new Map<StageKey, number>();
   const sanctions = assetSanctions(release.geojson);
   for (const feature of mapFeatures(release.geojson)) {
     const entity = release.entityById.get(feature.id);
@@ -111,12 +109,10 @@ export const chainView = (release: SiteRelease): ChainView => {
     )?.value;
     const stage = entityInReview ? null : stageOf(feature.type, kind);
     stages.set(feature.id, stage);
-    if (stage !== null) counts.set(stage, (counts.get(stage) ?? 0) + 1);
     const status = sanctions.get(feature.id);
     cards[feature.id] = {
       label: feature.label,
       type: feature.type,
-      stage: STAGES.find((one) => one.key === stage)?.label ?? '',
       href: hrefFrom(MAP, entityPage(feature.id)),
       inReview: entityInReview,
       values: acceptedFirst(
@@ -188,5 +184,5 @@ export const chainView = (release: SiteRelease): ChainView => {
       ),
     };
   }
-  return { stages, cards, counts };
+  return { stages, cards };
 };

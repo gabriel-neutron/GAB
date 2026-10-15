@@ -17,7 +17,7 @@ const cardOf = (release: typeof FIXTURE_RELEASE.off, id: string) => {
 
 const meta = {
   component: AssetCard,
-  args: { card: cardOf(FIXTURE_RELEASE.events, SITE) },
+  args: { card: cardOf(FIXTURE_RELEASE.events, SITE), stage: 'export' },
   parameters: { layout: 'padded' },
 } satisfies Meta<typeof AssetCard>;
 
@@ -61,7 +61,7 @@ export const AFactInReviewCarriesTheWordsAndNeverTheFormOfAFact: Story = {
 };
 
 export const AnAcceptedEntityGivesItsAcceptedRelationsFirst: Story = {
-  args: { card: cardOf(FIXTURE_RELEASE.off, VESSEL) },
+  args: { card: cardOf(FIXTURE_RELEASE.off, VESSEL), stage: null },
   play: async ({ canvas }) => {
     const items = within(
       canvas.getByRole('heading', { name: 'Relations' }).parentElement ?? document.body,
@@ -73,10 +73,26 @@ export const AnAcceptedEntityGivesItsAcceptedRelationsFirst: Story = {
 };
 
 export const AProposedEntityMarksEachOfItsFactsInReview: Story = {
-  args: { card: cardOf(FIXTURE_RELEASE.off, PORT) },
+  args: { card: cardOf(FIXTURE_RELEASE.off, PORT), stage: null },
   play: async ({ canvas }) => {
     await expect(canvas.getByText(/each fact below is in review/u)).toBeVisible();
     for (const item of canvas.getAllByRole('listitem'))
       await expect(item).toHaveTextContent(/^In review/u);
+  },
+};
+
+const SITE_CARD = cardOf(FIXTURE_RELEASE.events, SITE);
+
+export const AStrikeWithNoDayLeavesTheDayBlank: Story = {
+  args: {
+    card: { ...SITE_CARD, strikes: SITE_CARD.strikes.map((one) => ({ ...one, days: '' })) },
+    stage: 'export',
+  },
+  play: async ({ canvas }) => {
+    const items = within(
+      canvas.getByRole('heading', { name: 'Strikes' }).parentElement ?? document.body,
+    ).getAllByRole('listitem');
+    await expect(items[0]).toHaveTextContent(/^Reported by A report of news\.$/u);
+    await expect(canvas.queryByText(/No day stored/u)).toBeNull();
   },
 };
