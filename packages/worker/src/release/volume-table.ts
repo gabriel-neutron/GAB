@@ -1,11 +1,10 @@
+import type { ProductKey } from '@gab/proposal/relation-types';
 import { CsvFault, readCsv } from '@gab/tools/csv';
 
 /** The volume table cannot be read at all. The message names the fault to correct. */
 export class VolumeTableFault extends Error {}
 
 export type VolumeClass = 'observed' | 'estimated' | 'capacity';
-
-export type VolumeProduct = 'crude' | 'products' | 'gas';
 
 /** One row of the volume table that the release keeps. A volume is an aggregate of the research,
  * not a fact of the record. */
@@ -15,7 +14,7 @@ export interface VolumeRow {
    * research for an asset that the record does not hold. */
   readonly upstream: string;
   readonly downstream: string;
-  readonly product: VolumeProduct;
+  readonly product: ProductKey;
   readonly period: string;
   /** The central value. */
   readonly value: number;
@@ -42,7 +41,7 @@ export interface VolumeTable {
 }
 
 // The research writes the table in French, so the columns and the words of a class are French.
-export const VOLUME_COLUMNS = [
+const VOLUME_COLUMNS = [
   'actif_amont',
   'actif_aval',
   'produit',
@@ -65,7 +64,7 @@ const CLASSES: ReadonlyMap<string, VolumeClass> = new Map([
   ['capacité', 'capacity'],
 ]);
 
-const PRODUCTS: ReadonlyMap<string, VolumeProduct> = new Map([
+const PRODUCTS: ReadonlyMap<string, ProductKey> = new Map([
   ['brut', 'crude'],
   ['pétrole brut', 'crude'],
   ['crude', 'crude'],

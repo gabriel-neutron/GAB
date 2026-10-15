@@ -1,5 +1,7 @@
 import { ASSET_KINDS } from '@gab/proposal/mapping';
 
+// External constraint: MapLibre parses no oklch colour and no CSS custom property, so each hue of
+// a stage, and the grey of no stage, is in hex. The strip of the page takes the same hex, so it matches the points.
 /** The six stages of the hydrocarbon chain. An asset kind gives one of the first four. The exit
  * points and the declared destinations come from the physical links and the vessel relations. */
 export const STAGES = [

@@ -1,15 +1,10 @@
+import { PRODUCT_LINK_TYPES } from '@gab/proposal/relation-types';
+
 import type { ReleaseFile } from './csv-export.ts';
 import { csvFile } from './csv-file.ts';
 import { rowLicence } from './licence.ts';
 import type { ReleaseRecord } from './release-record.ts';
-import type { VolumeProduct, VolumeRejection, VolumeTable } from './volume-table.ts';
-
-// Gas has no relation type of a physical link yet, so a gas row joins no link.
-const LINK_TYPES: Readonly<Record<VolumeProduct, string | null>> = {
-  crude: 'crude_flows_to',
-  products: 'products_flow_to',
-  gas: null,
-};
+import type { VolumeRejection, VolumeTable } from './volume-table.ts';
 
 const HEADER = [
   'relation_id',
@@ -78,7 +73,8 @@ export const chainVolumes = (
     }
     const upstream = resolved(row.upstream);
     const downstream = resolved(row.downstream);
-    const type = LINK_TYPES[row.product];
+    // Gas has no relation type of a physical link yet, so a gas row joins no link.
+    const type = PRODUCT_LINK_TYPES[row.product];
     const link = type === null ? undefined : links.get(`${type} ${upstream} ${downstream}`);
     if (link !== undefined) joined += 1;
     rows.push([
