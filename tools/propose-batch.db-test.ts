@@ -380,6 +380,181 @@ test('a new entity with the same label that cites another passage is a second ac
   expect(found.cited).toBe(1);
 });
 
+// A SECOND DOCUMENT OF THE SAME AUTHOR (ADR 0012, the trust boundary). The item joins the act
+// that waits and adds its citation. The author of a citation is the author of its act, so an item
+// of another author is a second act, with its own letter and its own check.
+const onOther = (item: Item): Item => {
+  const payload = item['payload'] as Record<string, unknown>;
+  const attrs = payload['attrs'] as Record<string, Record<string, unknown>> | undefined;
+  return {
+    ...item,
+    id: randomUUID(),
+    src: [OTHER],
+    payload: {
+      ...payload,
+      ...('sources' in payload ? { sources: [OTHER] } : {}),
+      ...(attrs === undefined
+        ? {}
+        : {
+            attrs: Object.fromEntries(
+              Object.entries(attrs).map(([key, value]) => [key, { ...value, src: [OTHER] }]),
+            ),
+          }),
+    },
+    citations: [{ document: OTHER, text_extractor: EXTRACTOR, page: 1, start: 11, end: 17 }],
+  };
+};
+
+const seedOther = async (ask: Ask): Promise<string> => {
+  const call = await seed(ask);
+  await ask(TEXT, [OTHER, JSON.stringify([PAGE]), EXTRACTOR]);
+  return call;
+};
+
+const geomOf = (call: string): Item =>
+  itemOf(call, {
+    op: 'update_entity',
+    target_kind: 'entity',
+    target_id: randomUUID(),
+    payload: { geom: { type: 'Point', coordinates: [28.4, 59.7] } },
+  });
+
+test.each([
+  ['new attributes', (ask: Ask, call: string) => attrsOf(ask, call)],
+  ['a geometry', (_: Ask, call: string) => Promise.resolve(geomOf(call))],
+])('%s of the same author in a new document joins the act that waits', async (_, made) => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const call = await seedOther(ask);
+    const item = await made(ask, call);
+    const [first] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [item]));
+    const [again] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [onOther(item)]));
+    return { first, again, cited: await citedCount(ask, first?.proposal_id) };
+  });
+  expect(found.again).toMatchObject({ proposal_id: found.first?.proposal_id, written: false });
+  expect(found.cited).toBe(2);
+});
+
+test('the same fact of another author in a new document is a second act', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const call = await seedOther(ask);
+    const item = await attrsOf(ask, call);
+    const [first] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [item]));
+    const [second] = outcomes.parse(
+      await batchAs(ask, 'gabriel_agent', [{ ...onOther(item), originator: 'Reuters' }]),
+    );
+    return { first, second, cited: await citedCount(ask, first?.proposal_id) };
+  });
+  expect(found.second?.written).toBe(true);
+  expect(found.second?.proposal_id).not.toBe(found.first?.proposal_id);
+  expect(found.cited).toBe(1);
+});
+
+// A label does not identify a unit: two documents can name two units with one label.
+test('a new entity of the same author in a new document is a second act', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const call = await seedOther(ask);
+    const [first] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [itemOf(call)]));
+    const [second] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [onOther(itemOf(call))]));
+    return { first, second };
+  });
+  expect(found.second?.written).toBe(true);
+  expect(found.second?.proposal_id).not.toBe(found.first?.proposal_id);
+});
+
+const SOURCES = 'SELECT sources::text[] AS sources FROM public.entities WHERE id = $1::uuid';
+const DECIDED = 'SELECT status, reject_reason FROM public.proposals WHERE id = $1::uuid';
+
+// The promotion closes the act of another author that repeats the fact, and the row takes its
+// documents: a second promotion would write a second entity.
+test('the promotion closes the act that repeats the fact, and takes its documents', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const call = await seedOther(ask);
+    const [first] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [itemOf(call)]));
+    const [twin] = outcomes.parse(
+      await batchAs(ask, 'gabriel_agent', [{ ...onOther(itemOf(call)), originator: 'Reuters' }]),
+    );
+    await ask(`SELECT public.apply_proposal($1::uuid, 'operator', 'unit')`, [first?.proposal_id]);
+    return {
+      sources: await ask(SOURCES, [first?.proposal_id]),
+      twin: await ask(DECIDED, [twin?.proposal_id]),
+    };
+  });
+  expect(found.sources).toStrictEqual([{ sources: [DOC, OTHER] }]);
+  expect(found.twin).toStrictEqual([{ status: 'rejected', reject_reason: 'duplicate' }]);
+});
+
+const ATTR_SRC = `SELECT e.attrs -> k.key -> 'src' AS src
+  FROM public.entities e CROSS JOIN LATERAL jsonb_object_keys($2::jsonb) AS k(key)
+  WHERE e.id = $1::uuid`;
+
+test('the promotion of new attributes takes the documents of a joined item', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const call = await seedOther(ask);
+    const item = await attrsOf(ask, call);
+    const [first] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [item]));
+    await batchAs(ask, 'gabriel_agent', [onOther(item)]);
+    await ask(`SELECT public.apply_proposal($1::uuid, 'operator', 'unit')`, [first?.proposal_id]);
+    const payload = item['payload'] as { attrs: unknown };
+    return ask(ATTR_SRC, [item['target_id'], JSON.stringify(payload.attrs)]);
+  });
+  expect(found).toStrictEqual([{ src: expect.arrayContaining([DOC, OTHER]) as unknown }]);
+});
+
+const KEY_OF = 'SELECT claim_key AS k FROM public.proposals WHERE id = $1::uuid';
+const MERGE = `SELECT public.merge_waiting_act($1::uuid, $2::uuid, 'operator') AS id`;
+
+// Two acts of one fact and one author that waited before the join. The test writes the second
+// act as the door did then: the first act holds another key while the second is written.
+test('the operator merges an act that repeats a waiting act into it', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const call = await seedOther(ask);
+    const item = await attrsOf(ask, call);
+    const [first] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [item]));
+    const [key] = z
+      .array(z.object({ k: z.string() }))
+      .parse(await ask(KEY_OF, [first?.proposal_id]));
+    await ask('ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only');
+    await ask(`UPDATE public.proposals SET claim_key = 'before' WHERE id = $1::uuid`, [
+      first?.proposal_id,
+    ]);
+    const [second] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [onOther(item)]));
+    await ask('UPDATE public.proposals SET claim_key = $2 WHERE id = $1::uuid', [
+      first?.proposal_id,
+      key?.k,
+    ]);
+    await ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only');
+    const merged = await as(ask, 'gabriel_app', () =>
+      ask(MERGE, [second?.proposal_id, first?.proposal_id]),
+    );
+    return {
+      written: second?.written,
+      merged,
+      second: await ask(DECIDED, [second?.proposal_id]),
+      cited: await citedCount(ask, first?.proposal_id),
+    };
+  });
+  expect(found.written).toBe(true);
+  expect(found.merged).toHaveLength(1);
+  expect(found.second).toStrictEqual([{ status: 'rejected', reject_reason: 'duplicate' }]);
+  expect(found.cited).toBe(2);
+});
+
+test('the operator merges no act of another author', async () => {
+  const cause = await rolledBack('superuser', async (ask) => {
+    const call = await seedOther(ask);
+    const item = await attrsOf(ask, call);
+    const [first] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [item]));
+    const [second] = outcomes.parse(
+      await batchAs(ask, 'gabriel_agent', [{ ...onOther(item), originator: 'Reuters' }]),
+    );
+    return as(ask, 'gabriel_app', () => ask(MERGE, [second?.proposal_id, first?.proposal_id]));
+  }).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  expect(cause).toMatchObject({ constraint: 'merge_same_fact' });
+});
+
 test('the door refuses an identifier that a row of the record already holds', async () => {
   const cause = await rolledBack('superuser', async (ask) => {
     const call = await seed(ask);
