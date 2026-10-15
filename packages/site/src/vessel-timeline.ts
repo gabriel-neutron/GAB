@@ -1,3 +1,4 @@
+import { isDay } from '@gab/proposal/day';
 import { relationWords } from '@gab/proposal/relation-types';
 import type { SiteClaim, SiteRelation, SiteRelease } from './site-release.ts';
 
@@ -78,8 +79,6 @@ const LANE_OF_VALUE: ReadonlyMap<string, LaneKey> = new Map([
   ['flag_history', 'flags'],
 ]);
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/u;
-
 const END_KEY = 'valid_to';
 
 // The day of an event is its `observed_on` value. With none, any value of the event that is a day
@@ -106,7 +105,7 @@ const dayOf = (
   values: readonly SiteClaim[],
 ): { claim: SiteClaim; key: string; day: string } | null => {
   const days = values.flatMap((one) =>
-    one.kind === 'attribute' && DAY.test(one.value)
+    one.kind === 'attribute' && isDay(one.value)
       ? [{ claim: one, key: one.attribute, day: one.value }]
       : [],
   );

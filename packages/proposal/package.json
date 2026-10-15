@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./attribute-value": "./src/attribute-value.ts",
+    "./day": "./src/day.ts",
     "./identifiers": "./src/identifiers.ts",
     "./machine": "./src/machine.ts",
     "./mapping": "./src/mapping.ts",

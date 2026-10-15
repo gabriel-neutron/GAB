@@ -45,7 +45,6 @@ test('the role matrix of the doors', async () => {
       "public.approve_reference_set": "app",
       "public.author_names_dry_run": "app",
       "public.author_names_waiting": "app",
-      "public.citations_independent": "app",
       "public.claim_job": "agent",
       "public.complete_job": "agent",
       "public.confirm_name_candidate": "app",
@@ -56,14 +55,12 @@ test('the role matrix of the doors', async () => {
       "public.earlier_editions": "agent",
       "public.enqueue_job": "agent app research",
       "public.enqueue_mapped_load": "agent",
-      "public.fact_digit": "app",
       "public.fail_job": "agent",
       "public.fill_document_provider": "agent research",
       "public.fill_document_uri": "app",
       "public.imo_duplicate_pairs": "app",
       "public.join_author_name": "agent",
       "public.lead_jobs": "app research",
-      "public.letter_of": "app",
       "public.mapping_text_set": "agent",
       "public.merge_entities": "app",
       "public.name_candidate_counts": "app",
@@ -108,7 +105,6 @@ test('the role matrix of the doors', async () => {
       "public.store_reference_author": "app",
       "public.store_reference_sites": "app",
       "public.undo_merge": "app",
-      "public.unit_rule": "app",
     }
   `);
 });
@@ -172,7 +168,8 @@ test('a machine role holds no door that promotes or rejects, except the doors of
 
 // The functions that the rules run on stand in the database for the doors to call. The matrix above
 // lists a function that is SECURITY DEFINER only, so this list names each step, definer or not.
-// The read of the operator is the one exception: unit_rule, which the snapshot shows.
+// The letter, the digit, the independence of two citations and the rule of a unit are steps too: the
+// operator role held them once, and no service called them.
 const RULE_STEPS = [
   'apply_rules',
   'run_rules',
@@ -185,6 +182,10 @@ const RULE_STEPS = [
   'unit_doubt_cause',
   'rule_of_faults',
   'unit_said',
+  'letter_of',
+  'citations_independent',
+  'fact_digit',
+  'unit_rule',
 ] as const;
 
 const RULE_STEPS_HELD = `

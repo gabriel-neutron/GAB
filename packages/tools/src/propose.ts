@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { day } from '@gab/proposal/day';
 import { attributeEdit } from '@gab/proposal/attribute-value';
 import { machineAct } from '@gab/proposal/machine';
 import type { ProposalAct } from '@gab/proposal/payload';
@@ -8,16 +9,19 @@ import { z } from 'zod';
 
 import { plainText } from './check-answer.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
-import { findExcerpt, type Span } from './excerpt.ts';
+import { findExcerpt, MAX_TOLERANT_UNITS, pointSlice, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import {
   daysFromPublication,
   namesProvision,
   statedBounds,
+  unstatedCallDay,
   unstatedValues,
   withCodedJurisdiction,
   withoutBounds,
+  withoutCallDay,
   type BoundName,
+  type DroppedName,
 } from './stated-value.ts';
 import { UK_LIST_CSV } from './uk-sanctions-list.ts';
 import {
@@ -65,13 +69,7 @@ const PUBLISHED_ON =
   'item that takes a year from it is disputed too, and the review card says so: the operator ' +
   'decides it. An item value beats the value of the call';
 
-const publishedOn = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/u, 'a day is written as 2026-05-15')
-  .refine((day) => new Date(`${day}T00:00:00Z`).toISOString().startsWith(day), {
-    message: 'published_on is no day of the calendar',
-  })
-  .describe(PUBLISHED_ON);
+const publishedOn = day.describe(PUBLISHED_ON);
 
 // The latest publication day that a caller can give: tomorrow in UTC.
 const latestPublishedOn = (): string =>
@@ -304,20 +302,26 @@ const cite = async (
     findExcerpt(page.text, given.excerpt) ??
     refuse(
       ref,
-      `page ${String(given.page)} of ${given.document} does not hold the excerpt ` +
-        `${JSON.stringify(given.excerpt)}. Copy the words as the page states them.`,
+      page.text.length > MAX_TOLERANT_UNITS
+        ? `page ${String(given.page)} of ${given.document} holds more than ` +
+            `${String(MAX_TOLERANT_UNITS)} characters, so only an exact copy of its words is ` +
+            'found. Copy the excerpt character for character, with the quotes, the dashes and ' +
+            'the spaces of the page.'
+        : `page ${String(given.page)} of ${given.document} does not hold the excerpt ` +
+            `${JSON.stringify(given.excerpt)}. Copy the words as the page states them.`,
     );
-  const points = Array.from(page.text);
   return {
     document: given.document,
     fcdoList: page.fcdo_list,
     textExtractor: page.extractor,
     page: given.page,
     span,
-    passage: points.slice(span.start, span.end).join(''),
-    context: points
-      .slice(Math.max(0, span.start - CONTEXT_POINTS), span.end + CONTEXT_POINTS)
-      .join(''),
+    passage: pointSlice(page.text, span.start, span.end),
+    context: pointSlice(
+      page.text,
+      Math.max(0, span.start - CONTEXT_POINTS),
+      span.end + CONTEXT_POINTS,
+    ),
   };
 };
 
@@ -472,9 +476,10 @@ const checkEventEnds = async (
 const claimActOf = async (
   session: Session,
   act: ProposeItem['act'],
-  dropped: readonly BoundName[],
+  dropped: readonly DroppedName[],
 ): Promise<unknown> => {
-  if (act.op === 'create_relation') return withoutBounds(act, dropped);
+  if (act.op === 'create_relation')
+    return withoutBounds(dropped.includes('observed_on') ? withoutCallDay(act) : act, dropped);
   if (act.op === 'update_entity') {
     const [named] = await rowsOf(
       session,
@@ -567,7 +572,7 @@ interface Prepared {
   readonly claimAct: unknown;
   readonly cited: readonly Cited[];
   readonly unstated: readonly UnstatedValue[];
-  readonly dropped: BoundName[];
+  readonly dropped: DroppedName[];
   readonly lostBound: LostBound | null;
   readonly lostProvision: boolean;
   /** The publication day, when the year of a day of the act comes from it. */
@@ -583,7 +588,7 @@ const outcome = z.strictObject({
   disputed: z.boolean(),
   unstated: z.array(z.string()),
   // The bounds of a relation that no cited passage states. Code did not propose them.
-  droppedBounds: z.array(z.enum(['validFrom', 'validTo'])),
+  droppedBounds: z.array(z.enum(['validFrom', 'validTo', 'observed_on'])),
 });
 
 /** The propose tool. A back-end agent gives the model call of each batch, which is known to its
@@ -627,7 +632,11 @@ export const proposeOf = (modelCallId: string | null) =>
       'port or a vessel) and carried_out_by (to a military unit or a state body). A denial is ' +
       'the modality denies on the same name. First call search_graph with each identifier, and ' +
       'list_proposals for the document, so you propose no fact that the record or the queue ' +
-      'already holds. Give published_on for an excerpt that writes a date with no year.',
+      'already holds. Give published_on for an excerpt that writes a date with no year. A port ' +
+      'call (berthed_at, loads_at, discharges_at) takes the day of the call as the attribute ' +
+      'observed_on, written as 2026-01-31, only when an excerpt states that exact day; two calls ' +
+      'on two days are two facts. A day that no excerpt states, or a value that is not one day, ' +
+      'is not proposed, and droppedBounds names it.',
     input: z.strictObject({ items: proposeItems, published_on: publishedOn.optional() }),
     output: z.strictObject({
       proposals: z.array(outcome),
@@ -665,15 +674,21 @@ export const proposeOf = (modelCallId: string | null) =>
         // A start or an end of a relation comes from a cited passage, or it is not proposed.
         // The FCDO list writes each date as day/month/year (ADR 0024).
         const dayFirst = cited.every((one) => one.fcdoList);
-        const { act: request, dropped } = statedBounds(resolved, passages, {
-          publishedOn: published,
-          dayFirst,
-        });
+        const stating = { publishedOn: published, dayFirst };
+        const { act: bounded, dropped: droppedBounds } = statedBounds(resolved, passages, stating);
+        // The day of a port call enters its claim key, so it is one real day that a passage
+        // states, or it is not proposed. The call then has the key of a call with no day.
+        const lostDay = unstatedCallDay(bounded, passages, stating);
+        const request = lostDay ? withoutCallDay(bounded) : bounded;
+        const dropped: DroppedName[] = [
+          ...droppedBounds,
+          ...(lostDay ? (['observed_on'] as const) : []),
+        ];
         // An end that is not proposed makes an ended relation look current, and a start or an end
         // that is the whole act has no value that a passage states. The research AI can cite the
         // passage that states it, so its batch is refused. An agent cannot, so its item is
         // disputed and the operator reads the page.
-        const lostBound = lostBoundOf(resolved, dropped);
+        const lostBound = lostBoundOf(resolved, droppedBounds);
         // A type change rests on the provision that states the measure. The research AI cites the
         // passage that names it, so its batch is refused. An agent cannot, so its item is
         // disputed and the operator reads the page.
@@ -695,7 +710,7 @@ export const proposeOf = (modelCallId: string | null) =>
           );
         await checkTarget(session, given.ref, request);
         const act = machineAct(request, documents);
-        const unstated = unstatedValues(request, passages, { publishedOn: published, dayFirst });
+        const unstated = unstatedValues(request, passages, stating);
         const deduced =
           published !== undefined &&
           daysFromPublication(request, passages, published, dayFirst).length > 0

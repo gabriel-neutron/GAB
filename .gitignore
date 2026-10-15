@@ -1,5 +1,5 @@
-# Local Claude Code settings — contains GH_TOKEN, never commit
-.claude/settings.local.json
+# Local Claude Code settings, in each folder (the research workspace too): they hold GH_TOKEN
+**/.claude/settings.local.json
 
 # Environment
 .env

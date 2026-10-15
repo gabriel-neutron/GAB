@@ -42,16 +42,16 @@ const check = (ask: Ask, one: Cited): Promise<unknown> =>
 const letter = async (ask: Ask, one: string): Promise<string> =>
   z
     .array(z.object({ letter: z.string() }))
-    .parse(await as(ask, 'gabriel_app', () => ask('SELECT public.letter_of($1) AS letter', [one])))
+    .parse(await ask('SELECT public.letter_of($1) AS letter', [one]))
     .at(0)?.letter ?? '';
 
 const ruleOf = async (ask: Ask, act: string): Promise<string | null> =>
   z
     .array(z.object({ rule: z.string().nullable() }))
     .parse(
-      await as(ask, 'gabriel_app', () =>
-        ask('SELECT public.unit_rule(unit_id) AS rule FROM public.proposals WHERE id = $1', [act]),
-      ),
+      await ask('SELECT public.unit_rule(unit_id) AS rule FROM public.proposals WHERE id = $1', [
+        act,
+      ]),
     )
     .at(0)?.rule ?? null;
 
@@ -244,12 +244,10 @@ test.each(['gabriel_agent', 'gabriel_research', 'gabriel_checker'])(
 
 test('the dry-run counts equal the changes that each real decision makes', async () => {
   const states = (ask: Ask, act: string) =>
-    as(ask, 'gabriel_app', () =>
-      ask(
-        `SELECT coalesce(public.unit_rule(unit_id), 'decided') AS state
-           FROM public.proposals WHERE id = $1`,
-        [act],
-      ),
+    ask(
+      `SELECT coalesce(public.unit_rule(unit_id), 'decided') AS state
+         FROM public.proposals WHERE id = $1`,
+      [act],
     );
   for (const confirm of [true, false]) {
     const read = await rolledBack('superuser', async (ask) => {

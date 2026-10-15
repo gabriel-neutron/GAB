@@ -1,6 +1,6 @@
 import type { Entity } from '@/shared/read/model';
 
-import { folded } from './text-fold';
+import { folded } from '@/shared/text-fold';
 
 export interface NameHit {
   readonly entityId: string;

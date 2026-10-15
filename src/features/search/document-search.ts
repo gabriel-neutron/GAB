@@ -1,6 +1,6 @@
 import type { DocId, DocumentKind, DocumentRow } from '@/shared/read/model';
 
-import { folded } from './text-fold';
+import { folded } from '@/shared/text-fold';
 
 export interface DocumentHit {
   readonly documentId: DocId;

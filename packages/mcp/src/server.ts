@@ -67,9 +67,13 @@ const hintOf = (cause: Error): string | null =>
 // operator reads it in the log, and the client gets the code alone.
 const DATA_CLASSES: readonly string[] = ['22', '23', 'P0'];
 
+// A fault with no SQLSTATE comes from the code of the tool, and not from the database. Its message
+// can name a path or a host, so the client gets no part of it, and the operator reads it in the log.
+const CALL_FAULT = 'the server failed the call, and the operator reads the fault in its log';
+
 const faultSentence = (cause: unknown): string => {
   const code = codeOf(cause);
-  if (code === null) return 'the database refused the call';
+  if (code === null) return CALL_FAULT;
   if (DATA_CLASSES.includes(code.slice(0, 2)) && cause instanceof Error) {
     const field = hintOf(cause);
     return field === null

@@ -136,9 +136,9 @@ const ruleOf = async (ask: Ask, act: string): Promise<string | null> => {
   const [row] = z
     .array(z.object({ rule: z.string().nullable() }))
     .parse(
-      await as(ask, 'gabriel_app', () =>
-        ask('SELECT public.unit_rule(unit_id) AS rule FROM public.proposals WHERE id = $1', [act]),
-      ),
+      await ask('SELECT public.unit_rule(unit_id) AS rule FROM public.proposals WHERE id = $1', [
+        act,
+      ]),
     );
   return row?.rule ?? null;
 };
@@ -271,9 +271,7 @@ const contested = async (ask: Ask, authors: readonly [string, string]): Promise<
 const unitRule = async (ask: Ask, unit: string): Promise<string | null> => {
   const [row] = z
     .array(z.object({ rule: z.string().nullable() }))
-    .parse(
-      await as(ask, 'gabriel_app', () => ask('SELECT public.unit_rule($1::uuid) AS rule', [unit])),
-    );
+    .parse(await ask('SELECT public.unit_rule($1::uuid) AS rule', [unit]));
   return row?.rule ?? null;
 };
 

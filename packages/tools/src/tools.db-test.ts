@@ -9,6 +9,7 @@ import { z } from 'zod';
 
 import { probe, rolledBack, type Ask } from '../../../tools/probe.ts';
 import { CATALOGUE } from './catalogue.ts';
+import { MAX_TOLERANT_UNITS } from './excerpt.ts';
 import { proposeOf } from './propose.ts';
 import { UK_LIST_CSV } from './uk-sanctions-list.ts';
 import { callTool, type Reach, type Session, type Tool } from './tool.ts';
@@ -37,6 +38,8 @@ const output = async (ask: Ask, name: string, raw: unknown): Promise<unknown> =>
 };
 
 const STORE = 'SELECT public.put_fetched_document($1, $2, $3, $4, $5, $6, $7::date, $8) AS id';
+// The door of a fetched document accepts only today or yesterday.
+const TODAY = new Date().toISOString().slice(0, 10);
 const WRITE_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3) AS pages';
 
 // The research role stores the document and its text through its own doors.
@@ -52,7 +55,7 @@ const withDocument = async (
     uri,
     SHA,
     'application/pdf',
-    '2026-09-02',
+    TODAY,
     null,
   ]);
   await ask(WRITE_TEXT, [DOC, JSON.stringify(pages), 'tool-test-1']);
@@ -484,6 +487,31 @@ test('an excerpt that the page does not hold refuses the whole batch and names t
   expect(found.rows).toStrictEqual([]);
 });
 
+test('an excerpt that is not exact on a page above the tolerant size is refused with a sentence that asks for an exact copy', async () => {
+  const page = `${'a '.repeat(MAX_TOLERANT_UNITS)}he said “no” today`;
+  const found = await rolledBack('superuser', async (ask) => {
+    const outcome = await proposeOnPage(
+      ask,
+      [
+        item(
+          'quotes',
+          { op: 'create_entity', type: 'vessel', label: 'Quoted' },
+          'he said "no" today',
+        ),
+      ],
+      page,
+    );
+    return { outcome, rows: await rowsOfDocument(ask) };
+  });
+  expect(found.outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringMatching(
+      /^item quotes: .*holds more than .* characters.*exact/u,
+    ) as string,
+  });
+  expect(found.rows).toStrictEqual([]);
+});
+
 test('a value that its excerpt does not state marks the item as disputed', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const outcome = await proposeOnPage(ask, [
@@ -569,7 +597,7 @@ const proposeOnImage = async (ask: Ask, items: readonly unknown[]) => {
       'https://example.org/unit-tree.png',
       IMAGE_SHA,
       'image/png',
-      '2026-10-09',
+      TODAY,
       null,
     ]);
     await ask(WRITE_TEXT, [
@@ -950,7 +978,7 @@ test('a slash date is day/month only when each excerpt comes from the FCDO UK Sa
             'https://example.org/list',
             other,
             'text/csv',
-            '2026-09-02',
+            TODAY,
             null,
           ]);
           await ask(WRITE_TEXT, [

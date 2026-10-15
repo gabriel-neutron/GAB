@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 
+import { OPERATOR, TEST_OPERATOR_KEY } from './operator-fixture.ts';
 import { faultyPool, unreachablePool } from './faulty-pool.ts';
 import type { Sessions } from './pool.ts';
 import { writeRoutes } from './routes.ts';
@@ -28,11 +29,14 @@ const postText = async (
   door: string,
   text: string,
 ): Promise<[number, z.infer<typeof replyShape>]> => {
-  const answer = await writeRoutes(pool, NO_STORE, NO_READ).request(`/write/${door}`, {
-    method: 'POST',
-    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
-    body: text,
-  });
+  const answer = await writeRoutes(pool, NO_STORE, NO_READ, TEST_OPERATOR_KEY).request(
+    `/write/${door}`,
+    {
+      method: 'POST',
+      headers: { ...OPERATOR, host: '127.0.0.1:5177', 'content-type': 'application/json' },
+      body: text,
+    },
+  );
   return [answer.status, replyShape.parse(await answer.json())];
 };
 
@@ -47,9 +51,9 @@ const privateRead = async (
   door: string,
   body: unknown,
 ): Promise<[number, unknown]> => {
-  const answer = await writeRoutes(pool, NO_STORE, NO_READ).request(door, {
+  const answer = await writeRoutes(pool, NO_STORE, NO_READ, TEST_OPERATOR_KEY).request(door, {
     method: 'POST',
-    headers: { host: '127.0.0.1:5177', 'content-type': 'application/json' },
+    headers: { ...OPERATOR, host: '127.0.0.1:5177', 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
   return [answer.status, await answer.json()];
@@ -194,4 +198,26 @@ test.each([
     503,
     { refusal: UNREACHABLE },
   ]);
+});
+
+// The database ran the act and committed. An answer that this writer cannot read is a doubt, and
+// never a refusal or a plain 500, because the act stands.
+test.each([
+  ['create-entity', ENTITY],
+  ['promote-group', { groupId: PROPOSAL, unitIds: [PROPOSAL] }],
+  ['start-lead', { lead: 'a company and its vessels' }],
+  ['queue-extraction', DOCUMENT],
+])('a write door whose answer this writer cannot read says doubt: %s', async (door, body) => {
+  const pool = {
+    connect: () =>
+      Promise.resolve({
+        query: () => Promise.resolve({ rows: [{ unexpected: true }] }),
+        release: () => undefined,
+      }),
+  };
+
+  const [status, reply] = await post(pool, door, body);
+  expect(status).toBe(502);
+  expect(reply).toHaveProperty('doubt');
+  expect(reply).not.toHaveProperty('refusal');
 });

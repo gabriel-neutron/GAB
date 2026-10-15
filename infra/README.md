@@ -98,6 +98,9 @@ stack, and the main checkout keeps the shared `gab` stack.
   worktree has none. Then it writes one marked block at the end of `.env`: the compose project,
   the ports of a free slot, and the addresses that the tools and the tests read. Each run replaces
   the block.
+- `stack:up` also writes a new `GABRIEL_OPERATOR_KEY` in the block on each run, so a session stack
+  never holds the key of the operator. To let a browser of the session write (Playwright, visual
+  QA), open `http://localhost:5173/#operator-key=<the value of the block>` once.
 - A second `stack:up` in the same worktree keeps the slot and the containers, and it builds
   `gabriel_test` again from zero.
 - The stack holds the database, the read service of the test database and the raw store only.

@@ -12,6 +12,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -184,7 +185,11 @@ const up = async (): Promise<void> => {
   }
   const text = readFileSync(ENV_FILE, 'utf8');
   const slot = (own?.running === true ? slotOf(text) : null) ?? (await freeSlot());
-  const values = stackValues(PROJECT, slot);
+  // A session stack never holds the key of the operator: it gets a new key on each run.
+  const values: Readonly<Record<string, string>> = {
+    ...stackValues(PROJECT, slot),
+    GABRIEL_OPERATOR_KEY: randomBytes(32).toString('base64url'),
+  };
   writeFileSync(ENV_FILE, withStackBlock(text, values));
 
   const env = fileOnlyEnvironment();

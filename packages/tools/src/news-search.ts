@@ -1,3 +1,4 @@
+import { day } from '@gab/proposal/day';
 import { z } from 'zod';
 
 import { clipped, isWebAddress, UpstreamFault, answerOf, webFromReach } from './web-access.ts';
@@ -8,8 +9,6 @@ import { defineTool, ToolRefusal } from './tool.ts';
 const GDELT = 'https://api.gdeltproject.org/api/v2/doc/doc';
 const MAX_ARTICLES = 25;
 const MAX_TITLE = 300;
-
-const day = z.iso.date();
 
 const article = z.object({
   url: z.string(),

@@ -1,3 +1,4 @@
+import { day } from '@gab/proposal/day';
 import { z } from 'zod';
 
 const counts = z.object({
@@ -14,14 +15,14 @@ const contact = z.string().regex(/^(https:\/\/\S+|mailto:\S+@\S+)$/u);
 /** The shape of the file manifest of a release, as the site reads it. */
 export const siteManifestShape = z.object({
   version: z.string(),
-  date: z.iso.date(),
+  date: day,
   showNatoPair: z.boolean(),
   disclaimer: z.string(),
   contacts: z.object({ reportError: contact, rightOfReply: contact }),
   iriBase: z.string(),
   changelog: z.object({
     path: z.string(),
-    previous: z.object({ version: z.string(), date: z.iso.date() }).nullable(),
+    previous: z.object({ version: z.string(), date: day }).nullable(),
     entities: counts,
     relations: counts,
     claims: counts,

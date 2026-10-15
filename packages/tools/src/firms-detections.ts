@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { storeRegister } from './register-answer.ts';
 import { defineTool, ToolRefusal, type Reach } from './tool.ts';
-import { day } from './vessel-events.ts';
+import { day } from '@gab/proposal/day';
 import { anyAnswerOf, UpstreamFault, webFromReach } from './web-access.ts';
 
 const BASE = 'https://firms.modaps.eosdis.nasa.gov';

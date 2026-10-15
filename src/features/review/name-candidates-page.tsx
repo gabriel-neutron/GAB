@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { cn } from '@/shared/lib/utils';
+import { forgetCorpus } from '@/shared/read/corpus';
 import { SaidLine } from '@/shared/said-line';
 import { writeSaid, type WriteState, type WriteWords } from '@/shared/write/write-state';
 
@@ -77,6 +78,7 @@ export function NameCandidatesPage({ read }: NameCandidatesPageProps) {
   const decide = (about: About, write: () => ReturnType<typeof refuseNameCandidate>): void => {
     setDecision({ step: 'working', ...about });
     void write().then(async (result) => {
+      forgetCorpus();
       const again = await readNameCandidates();
       setHeld({ from: read, now: again });
       setDecision({ ...result, ...about });

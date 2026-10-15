@@ -57,6 +57,16 @@ flowchart LR
 
 Each actor has its own database role. The database holds these limits, not the application.
 
+The writer accepts a write or a private read only with the key of the operator
+(`GABRIEL_OPERATOR_KEY` in `infra/.env`, which the research workspace cannot read). The screen of
+the operator gets the key from `pnpm dev`, and a tool of the operator sends it in the header
+`x-gab-operator-key`. A machine role thus cannot act as the operator through the writer. The limit:
+a session that drives or reads the browser of the operator, or that runs code which reads
+`infra/.env`, is not stopped by this rule. `pnpm dev` also starts the browser with the key in the
+address, so a process of the same machine that reads the process list at that moment, or the
+history of the browser, can read the key. Rotate the key in `infra/.env` if that can have
+happened.
+
 ## Rules that hold on every path
 
 The database enforces each rule with a constraint, a trigger, or a permission that the writing
@@ -86,6 +96,15 @@ because its address can be the page where the file was bought. A new upload of t
 does not make it public, and the upload refuses it.
 A bought file is not public. A file is bought when it has a price or when its provider sells its
 filings, because an unknown price is not a free file.
+A new upload of the same bytes is refused when the document is not a file, because only a file
+takes an address. It also writes the stored copy again, so a lost copy comes back. The screen says
+when the upload gave its address to the document.
+
+The interface holds the record that it read until the operator writes. Each write of the operator,
+a decision, a group action and a merge too, makes each screen read the record again with no reload.
+The graph reads the stored layout again when it lacks an entity of the record, because the layout
+job runs outside the interface. Each name search and each name filter of the map and the graph
+ignores case, accents and extra spaces.
 An act about a person also shows only when each person that it names is public. An entity that a
 later act retyped stays a person for the older acts about it. The rule covers an entity of the
 type person only, and not an entity with no known type. The views of the read API apply this
@@ -180,7 +199,12 @@ promotion       →  entities and relations (the evidentiary layer)
 A promotion is one transaction: it writes the target and marks the proposal accepted. A rejection
 writes no target and keeps the proposal as a record. An edit of the operator is a proposal and its
 promotion in one transaction, so it is written whole or not at all. A machine role of the back end proposes and never decides. Only the operator, the decision rules in the database and the AI reviewer of the MCP server promote or reject. When an act keeps a
-value, the value keeps each document that it already cites.
+value, the value keeps each document that it already cites. A write door that cannot read the
+answer of the database says that the act may stand, and never that nothing was written.
+
+A machine door stamps the day of the read, and the row keeps the UTC day of the database clock. The
+door accepts a given day that is that day or the day before, and refuses another day. Only the door
+of the operator takes an earlier day, for a file that was saved or downloaded before.
 
 A machine proposes through one door, which takes a batch. Each act cites a page and a span of
 stored text; code finds the span from a quoted excerpt. The door writes the acts and their
@@ -284,12 +308,15 @@ not its codes.
 
 A machine can propose again a claim that the operator rejected, from a new run with new
 identities. So each act keeps a frozen key of its claim, with no identity that a run makes: the
-type and the name of a new entity; the type and the two ends of a new relation; the target and the
-values of any other act. An element that an act proposed gives the key of that act, also after its
+type and the name of a new entity; the type and the two ends of a new relation, and the day
+(`observed_on`) of a port call when the act gives it; the target and the values of any other act. An element that an act proposed gives the key of that act, also after its
 promotion. A unit with the key of a rejected act is not clean, and the screen gives the day and
 the reason of the newest rejection. An entity matches a rejected entity only under the same
 parent, or when both have no parent, so a rejected "1st battalion" marks only a "1st battalion"
 under the same parent. The reason stays private to the operator and the AI reviewer of the MCP server.
+
+Two calls of one vessel at one port on two days are two facts. The propose tool keeps the day of a
+port call only when it is one real day that a cited passage states (ADR 0026).
 
 
 ## The decision path
@@ -334,7 +361,9 @@ A rule of S3 can give a deepening search for a unit with weak sources, inside th
 operator sets. The lead agent proposes nothing, starts no lead, and does not fetch an address that
 is already stored. It has no page limit; its token budget stops it. A lead of the operator then
 fails with that reason. A deepening search that stops at its budget has ended, and it keeps that
-reason for the operator. The rules judge its unit again when the extraction of its pages ends. No schedule starts a lead. The text of a
+reason for the operator. The rules judge its unit again when the extraction of its pages ends. A unit whose sources are only
+pages of a deepening search starts no search of its own, so a search never starts a chain. No schedule
+starts a lead. The text of a
 lead is private: only the operator and the research AI read the leads, and the worker reads the
 text of the one lead that it runs.
 

@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 import { readCommand } from './command.ts';
 
@@ -8,6 +8,12 @@ test('the first word picks the sub-command, and the other words go to it', () =>
     name: 'ingest',
     args: ['a.pdf', '--retrieved-at', '2026-10-06'],
   });
+});
+
+test('asset-sanctions refuses an --as-of day that the calendar lacks, before it connects', async () => {
+  const { assetSanctionsCommand } = await import('./release/asset-sanctions-command.ts');
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  expect(await assetSanctionsCommand(['--as-of', '2026-13-45'])).toBe(2);
 });
 
 test('no word gives the usage, and the usage names each sub-command', () => {

@@ -117,8 +117,8 @@ only one row says is a free attribute.
 relation between the parties, or an attribute of one of them. An event that a party reports
 (a claimed strike, a fire, a stoppage) is a dated node of the type `event`, linked to its site.
 **Why.** The graph is the present state (M5), so no node can stand for a moment of an exchange.
-A relation cannot hold a reported event: the key of a relation ignores its attributes, so all
-events of one actor on one site would be one fact, and a denial would touch all of them.
+A relation cannot hold a reported event: the key of a relation ignores its attributes (only the day
+of a port call enters it), so all events of one actor on one site would be one fact, and a denial would touch all of them.
 **Cost.** An exchange with three or more parties becomes several relations with no tie between
 them. An event is a claim of a party, not an observed fact.
 **Amended.** 13 October 2026, by the operator (spec #548).

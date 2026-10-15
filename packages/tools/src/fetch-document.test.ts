@@ -9,7 +9,7 @@ import { endOcr } from '@gab/text';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
 import { CATALOGUE } from './catalogue.ts';
-import { endMetadata, MAX_BYTES } from './fetch-document.ts';
+import { addressTitle, endMetadata, MAX_BYTES } from './fetch-document.ts';
 import {
   FETCH_DAY,
   FIXTURE_HOST,
@@ -540,4 +540,9 @@ describe('a compressed answer is decoded before its text is read', () => {
   test('an encoding that the tool does not know is refused', async () => {
     expect(await refusalOf(`${base}/compress`, fixtureReach(memoryStore()))).toMatch(/"compress"/);
   });
+});
+
+test('a path with a percent sequence that is not UTF-8 stays encoded in the title', () => {
+  expect(addressTitle('http://example.org/r%E9port')).toBe('example.org/r%E9port');
+  expect(addressTitle('http://example.org/caf%C3%A9')).toBe('example.org/café');
 });

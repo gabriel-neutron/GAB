@@ -1,3 +1,4 @@
+import { day } from '@gab/proposal/day';
 import { z } from 'zod';
 
 /** The manifest is refused. The message names the value to correct. */
@@ -16,8 +17,6 @@ const contact = z
     message: 'give an https:// or a mailto: address',
   })
   .refine(plain, { message: PLAIN });
-
-const day = z.iso.date();
 
 // The identifiers of the linked data are paths under this base, and a reuser links to them, so
 // the base is a full https address that ends with a slash, with no query and no fragment.

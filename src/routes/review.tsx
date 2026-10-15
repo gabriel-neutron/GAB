@@ -34,6 +34,7 @@ import { unitWords } from '@/features/review/unit-words';
 import { sendGroupAction } from '@/features/review/send-group-action';
 import { readUnit, readUnits } from '@/features/review/units';
 import { UnitsPage, type QueueView, type ReviewAct } from '@/features/review/units-page';
+import { forgetCorpus } from '@/shared/read/corpus';
 import { loadEntityTypes, loadRelationTypes } from '@/shared/read/vocabulary';
 import { sendDecision } from '@/shared/write/door';
 
@@ -276,6 +277,8 @@ function ReviewRoute() {
         setHeld(now);
         setDecision({ step: 'working', unitId });
         void sendDecision(asked).then(async (result) => {
+          // A done or doubtful act changed the record, so each other surface reads it again.
+          forgetCorpus();
           if (result.step !== 'done') {
             setDecision({ ...result, unitId });
             return;
@@ -335,6 +338,7 @@ function ReviewRoute() {
     const name = rail.find((line) => line.id === groupId)?.subject ?? 'with no subject';
     setGroupAction({ step: 'working', groupId });
     void sendGroupAction(groupId, unitIds).then(async (result) => {
+      forgetCorpus();
       if (result.step !== 'done') {
         setGroupAction({ ...result, groupId });
         return;

@@ -34,8 +34,10 @@ const BY_IDENTIFIER = `SELECT id::text AS id FROM api.entity
   WHERE attrs @> ANY($1::jsonb[]) AND ($2::text IS NULL OR type = $2::text)
   ORDER BY id LIMIT 20`;
 
+// The same name rule as the record, so the index on name_key serves the lookup.
 const BY_LABEL = `SELECT id::text AS id FROM api.entity
-  WHERE type = $1::text AND lower(label) = lower($2::text) ORDER BY id LIMIT 20`;
+  WHERE type = $1::text AND public.name_key(label) = public.name_key($2::text)
+  ORDER BY id LIMIT 20`;
 
 const idRows = z.array(z.object({ id: z.uuid() }));
 

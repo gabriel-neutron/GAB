@@ -36,10 +36,12 @@ export function uploadSaid(state: UploadState, draft: UploadDraft): Said {
   return writeSaid<Uploaded, object>(state, {
     idle: idleWords(draft),
     working: () => 'The file is going to the record.',
-    done: (done) =>
-      done.document === 'stored'
-        ? storedWords(done.documentId, done.emptyPages)
-        : `The file is already in the record as document ${done.documentId}. Nothing was written.`,
+    done: (done) => {
+      if (done.document === 'stored') return storedWords(done.documentId, done.emptyPages);
+      if (done.document === 'filled')
+        return `The file is already in the record as document ${done.documentId}. The record now holds the address where it comes from.`;
+      return `The file is already in the record as document ${done.documentId}, with this address. The record did not change.`;
+    },
     unknown: () => UNSURE,
   });
 }

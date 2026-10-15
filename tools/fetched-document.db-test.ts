@@ -8,6 +8,8 @@ import { z } from 'zod';
 
 import { rolledBack, type Ask } from './probe.ts';
 
+// The door accepts only today or yesterday.
+const TODAY = new Date().toISOString().slice(0, 10);
 const SHA = 'd'.repeat(64);
 const OTHER_SHA = 'e'.repeat(64);
 const ID = `doc_${SHA.slice(0, 12)}`;
@@ -32,7 +34,7 @@ const WHOLE: Fetched = {
   uri: 'https://example.org/statement',
   sha: SHA,
   mime: 'application/pdf',
-  at: '2026-09-02',
+  at: TODAY,
   archive: null,
 };
 
@@ -58,9 +60,70 @@ for (const identity of ['research', 'agent'] as const)
       return { id, row };
     });
     expect(found.id).toBe(ID);
-    expect(found.row).toStrictEqual([
-      { kind: 'url', uri: WHOLE.uri, sha256: SHA, at: '2026-09-02' },
-    ]);
+    expect(found.row).toStrictEqual([{ kind: 'url', uri: WHOLE.uri, sha256: SHA, at: WHOLE.at }]);
+  });
+
+// The day comes from the database clock, so the test does not depend on the clock of Node.
+const dayFrom = async (ask: Ask, offset: number): Promise<string> => {
+  const [row] = z
+    .array(z.object({ day: z.string() }))
+    .parse(
+      await ask("SELECT ((clock_timestamp() AT TIME ZONE 'UTC')::date + $1::int)::text AS day", [
+        offset,
+      ]),
+    );
+  if (row === undefined) throw new Error('no day came back');
+  return row.day;
+};
+
+// The row keeps the day of the database, so a caller cannot write a past day on purpose.
+for (const [name, offset] of [
+  ['today', 0],
+  ['yesterday', -1],
+] as const)
+  test(`the door accepts ${name} and stores the day of the database`, async () => {
+    const found = await rolledBack('research', async (ask) => {
+      const day = await dayFrom(ask, offset);
+      const today = await dayFrom(ask, 0);
+      const id = await fetchedBy(ask, { at: day });
+      const row = await ask('SELECT retrieved_at::text AS at FROM public.documents WHERE id = $1', [
+        id,
+      ]);
+      return { today, row };
+    });
+    expect(found.row).toStrictEqual([{ at: found.today }]);
+  });
+
+// current_date follows the session time zone, so the door must read the UTC day on its own.
+// Kiritimati is ahead of UTC and Pago Pago is behind it, so at each hour one of them has another day.
+for (const [zone, wrong] of [
+  ['Pacific/Kiritimati', 1],
+  ['Pacific/Pago_Pago', -2],
+] as const)
+  test(`the door reads the UTC day in the time zone ${zone}`, async () => {
+    const found = await rolledBack('research', async (ask) => {
+      await ask(`SET LOCAL TIME ZONE '${zone}'`);
+      const refusedDay = await dayFrom(ask, wrong);
+      const accepted = await fetchedBy(ask, { at: await dayFrom(ask, 0) });
+      const refused = await fetchedBy(ask, { at: refusedDay, sha: OTHER_SHA }).then(
+        () => null,
+        (error: unknown) => error,
+      );
+      return { accepted, refused };
+    });
+    expect(found.accepted).toBe(ID);
+    expect(found.refused).toMatchObject({ code: '22023' });
+  });
+
+for (const [name, offset] of [
+  ['two days ago', -2],
+  ['tomorrow', 1],
+] as const)
+  test(`the door refuses ${name}`, async () => {
+    const day = await rolledBack('research', (ask) => dayFrom(ask, offset));
+    await expect(
+      rolledBack('research', (ask) => fetchedBy(ask, { at: day })),
+    ).rejects.toMatchObject({ code: '22023', message: expect.stringContaining(day) as string });
   });
 
 test('an api document is accepted', async () => {

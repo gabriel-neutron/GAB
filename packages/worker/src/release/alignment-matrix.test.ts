@@ -1,7 +1,7 @@
 import { readCsv } from '@gab/tools/csv';
 import { expect, test } from 'vitest';
 
-import { alignmentMatrix } from './alignment-matrix.ts';
+import { alignmentMatrix, entryIntoForceOf } from './alignment-matrix.ts';
 import type {
   ReleaseClaim,
   ReleaseDocument,
@@ -378,6 +378,21 @@ test('an EU designation with no start date takes the entry into force of its act
     days_eu_after_ofac: '',
   });
   expect(file.text).toContain('the entry into force of the act that designates');
+});
+
+test('an entry into force on a day that the calendar lacks gives no date', () => {
+  const eu = designation(20, SHIP, EU_AMENDMENT, ['doc_eu_amendment'], null);
+  const claims = new Map(
+    [value(EU_AMENDMENT, 'entry_into_force', '2026-02-30', ['doc_eu_amendment'])].map((one) => [
+      one.claim_id,
+      one,
+    ]),
+  );
+  expect(entryIntoForceOf(claims, eu.relation, ['doc_eu_amendment'])).toStrictEqual({
+    dateFrom: 'none',
+    listedOn: null,
+    dateClaimId: null,
+  });
 });
 
 test('an EU designation that points to the base act, from the document of a later amendment, gets no date from the base act', () => {

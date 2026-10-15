@@ -166,6 +166,11 @@ test('a port call gives the day of its value claim, and a former name has no dat
   expect(itemOf(text, `${VESSEL}/former_names`)).toContain('no date');
 });
 
+test('a value that the calendar lacks is no day of the timeline', () => {
+  const text = read(pagesOf(changed('2025-08-14', '2025-02-30')), PAGE);
+  expect(text).not.toContain('30/02/2025');
+});
+
 test('a false flag is a day of the flags lane, and observed_on comes before another day', () => {
   const text = read(off, PAGE);
   expect(itemOf(text, `${FALSE_FLAG}/observed_on`)).toContain('observed_on: 03/02/2025');

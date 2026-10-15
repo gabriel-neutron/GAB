@@ -214,10 +214,11 @@ test('the rule of a whole list of units is the rule of each unit read alone', as
     await check(ask, checkedOne.act);
     await check(ask, acts[3]?.act ?? '');
     const units = await Promise.all([...acts, checkedOne].map((one) => unitOf(ask, one.act)));
-    const alone = await as(ask, 'gabriel_app', () =>
-      ask('SELECT u AS unit, public.unit_rule(u) AS rule FROM unnest($1::uuid[]) AS u', [units]),
+    // No role holds the steps, so the owner calls them.
+    const alone = await ask(
+      'SELECT u AS unit, public.unit_rule(u) AS rule FROM unnest($1::uuid[]) AS u',
+      [units],
     );
-    // No role holds the step, so the owner calls it.
     const together = await ask(
       `SELECT u AS unit, public.rule_of_faults(u, f.faults) AS rule
          FROM unnest($1::uuid[]) AS u
