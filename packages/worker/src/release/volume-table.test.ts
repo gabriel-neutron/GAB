@@ -16,7 +16,7 @@ test('reads a row of each class with its figures, and the identifier of an asset
     table(
       `${UP},${DOWN},brut,2026-07,120,,,kb/j,observé,doc_test1,3,a test note`,
       `${UP},${DOWN},brut,2026-07,"90,5",80,100,kb/j,estimé,doc_test2,,`,
-      `Test pipe A,Test pipe B,gaz,2026,15,,,Gm³/an,capacité,doc_test3,1,`,
+      `Test pipe A,Test pipe B,gaz,2026-01,15,,,Gm³/an,capacité,doc_test3,1,`,
     ),
   );
   expect(read.rejected).toEqual([]);
@@ -56,7 +56,7 @@ test('reads a row of each class with its figures, and the identifier of an asset
       upstream: 'Test pipe A',
       downstream: 'Test pipe B',
       product: 'gas',
-      period: '2026',
+      period: '2026-01',
       value: 15,
       minimum: null,
       maximum: null,
@@ -105,4 +105,17 @@ test('skips the lines that start with # as notes', () => {
     `# A test note\r\n${table(`${UP},${DOWN},produits,2026-07,1,,,kt/mois,observé,doc_test1,,`)}`,
   );
   expect(read.rows.map((one) => one.line)).toEqual([3]);
+});
+
+test('rejects a period that is not a year and a month in the form YYYY-MM', () => {
+  const read = readVolumeTable(
+    table(
+      ...['2026', '2026-7', 'juillet 2026', '2026-13', '2026-00', '2026-07'].map(
+        (period) => `${UP},${DOWN},brut,${period},120,,,kb/j,observé,doc_test1,,`,
+      ),
+    ),
+  );
+  expect(read.rows.map((one) => one.period)).toEqual(['2026-07']);
+  expect(read.rejected.map((one) => one.line)).toEqual([2, 3, 4, 5, 6]);
+  expect(read.rejected[2]?.why).toMatch(/YYYY-MM.*juillet 2026/u);
 });

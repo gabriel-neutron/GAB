@@ -15,6 +15,7 @@ export interface VolumeRow {
   readonly upstream: string;
   readonly downstream: string;
   readonly product: ProductKey;
+  /** The year and the month of the figure, YYYY-MM. */
   readonly period: string;
   /** The central value. */
   readonly value: number;
@@ -78,6 +79,9 @@ const PRODUCTS: ReadonlyMap<string, ProductKey> = new Map([
   ['lng', 'gas'],
 ]);
 
+// One form of period, so the latest period of a link is the largest text.
+const PERIOD = /^\d{4}-(0[1-9]|1[0-2])$/u;
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
 // The research writes French numbers: a comma for the decimals and a space between the groups. The
@@ -103,7 +107,7 @@ const textOf = (table: Uint8Array | string): string => {
 
 /** Reads the volume table: a CSV file in UTF-8 with a header of the twelve columns, in any order.
  * A line that starts with `#` is a note. A row with no source document, no class, no central
- * value, no unit, no period or an unknown product is rejected with its reason, and the other rows
+ * value, no unit, a period that is not YYYY-MM or an unknown product is rejected with its reason, and the other rows
  * stay. An estimate needs its range, and a range holds its central value. */
 export const readVolumeTable = (table: Uint8Array | string): VolumeTable => {
   const text = textOf(table);
@@ -150,7 +154,8 @@ export const readVolumeTable = (table: Uint8Array | string): VolumeTable => {
       reject('give the upstream asset and the downstream asset');
     else if (product === undefined)
       reject(`give the product brut, produits or gaz, not "${field('produit')}"`);
-    else if (field('periode') === '') reject('give the period');
+    else if (!PERIOD.test(field('periode')))
+      reject(`give the period as a year and a month, YYYY-MM, not "${field('periode')}"`);
     else if (value === null) reject(`give the central value in valeur as a number`);
     else if (unit === '') reject('give the unit of the source');
     else if (
