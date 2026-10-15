@@ -21,14 +21,23 @@ const document = (id: string, licence: string | null, provider: string | null = 
   provider,
 });
 
-const listing = (id: string, source: string, from: string | null, to: string | null) => ({
+const PROPOSED = 'Proposed — not checked';
+
+const listing = (
+  id: string,
+  source: string,
+  from: string | null,
+  to: string | null,
+  type = 'designated_by',
+  label = LABEL,
+) => ({
   id,
-  type: 'designated_by',
+  type,
   src_id: DEPOT,
   dst_id: OWNER,
   valid_from: from,
   valid_to: to,
-  origin_label: LABEL,
+  origin_label: label,
   sources: [source],
 });
 
@@ -80,6 +89,14 @@ const RECORD: ReleaseRecord = {
   relations: [
     listing('00000000-0000-4000-8000-0000000000a1', 'doc_eu', null, null),
     listing('00000000-0000-4000-8000-0000000000a2', 'doc_ofac', '2023-02-24', '2024-01-31'),
+    listing(
+      '00000000-0000-4000-8000-0000000000a3',
+      'doc_uk',
+      '2025-05-09',
+      null,
+      'restricted_by',
+      PROPOSED,
+    ),
   ],
   claims: [
     // The EU listing has no start: the entry into force of the act gives it.
@@ -112,6 +129,7 @@ const RECORD: ReleaseRecord = {
     ['doc_b', document('doc_b', null)],
     ['doc_eu', document('doc_eu', null, 'eu_eurlex')],
     ['doc_ofac', document('doc_ofac', null, 'ofac_sdn')],
+    ['doc_uk', document('doc_uk', null, 'uk_sanctions_list')],
   ]),
   nameCandidates: { proposed: 0, confirmed: 0, refused: 0 },
   disclaimer: '',
@@ -175,14 +193,33 @@ test('the properties of a feature are the columns of the entity CSV, with the sa
   });
 });
 
-test('a facility carries its asset kind and its dated listings for each regime', () => {
+test('a facility carries its asset kind and its dated measures for each regime, with the act and the label', () => {
   const depot = collection().features.find((one) => one['id'] === DEPOT);
+  const act = { act_id: OWNER, act_label: 'An owner' };
   expect(depot?.properties).toMatchObject({
     asset_kind: 'oil_terminal',
     sanctions: {
-      eu: [{ from: '2022-06-03', to: null }],
-      us: [{ from: '2023-02-24', to: '2024-01-31' }],
-      uk: [],
+      eu: [
+        {
+          measure: 'designated_by',
+          from: '2022-06-03',
+          to: null,
+          ...act,
+          act_document: 'The document doc_eu',
+          origin_label: LABEL,
+        },
+      ],
+      us: [{ measure: 'designated_by', from: '2023-02-24', to: '2024-01-31', ...act }],
+      uk: [
+        {
+          measure: 'restricted_by',
+          from: '2025-05-09',
+          to: null,
+          ...act,
+          act_document: 'The document doc_uk',
+          origin_label: PROPOSED,
+        },
+      ],
     },
   });
   // Another entity has no sanctions member, and no asset kind.

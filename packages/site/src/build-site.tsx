@@ -11,7 +11,7 @@ import { claimText } from './claim-text.ts';
 import { DownloadsPage } from './downloads-page.tsx';
 import { EntityPage } from './entity-page.tsx';
 import { HomePage } from './home-page.tsx';
-import { CARDS_ELEMENT, FEATURES_ELEMENT, FLOWS_ELEMENT } from './map-elements.ts';
+import { FEATURES_ELEMENT, FLOWS_ELEMENT } from './map-elements.ts';
 import { MapPage } from './map-page.tsx';
 import { MethodPage } from './method-page.tsx';
 import { outsideRussia } from './outside-russia.ts';
@@ -94,11 +94,6 @@ export const buildSite = (
           type="application/json"
           id={FLOWS_ELEMENT}
           dangerouslySetInnerHTML={{ __html: scriptSafe(JSON.stringify(chainMapData(flows))) }}
-        />
-        <script
-          type="application/json"
-          id={CARDS_ELEMENT}
-          dangerouslySetInnerHTML={{ __html: scriptSafe(JSON.stringify(view.cards)) }}
         />
         <script type="module" src={hrefFrom(MAP, MAP_SCRIPT)} />
       </>,

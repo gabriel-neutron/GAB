@@ -45,7 +45,7 @@ test('an event with no actor in the release says so', () => {
 
 test('the counter reads "at least N claimed and stored strikes" and gives the limit of the survey', () => {
   const text = page(SITE);
-  expect(text).toContain('At least 1 claimed and stored strike.');
+  expect(text).toContain('At least 2 claimed and stored strikes.');
   expect(text).toContain('not a count of all strikes');
   expect(text).not.toMatch(/\btotal\b/iu);
 });

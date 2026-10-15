@@ -1,43 +1,55 @@
 import { relationWords } from '@gab/proposal/relation-types';
+import { CLAIMED_ATTACK } from '@gab/tools/event-rules';
 
+import { assetSanctions, type AssetMeasure } from './asset-sanctions.ts';
 import { attributeName } from './attribute-name.ts';
-import { isAccepted } from './accepted.ts';
+import { isAccepted, PROPOSED_LABEL } from './accepted.ts';
 import { stageOf, STAGES, type StageKey } from './chain-stage.ts';
+import { eventsAt } from './event-lane.ts';
 import { mapFeatures } from './map-features.ts';
 import type { SiteRelease } from './site-release.ts';
 import { entityPage, hrefFrom, MAP } from './site-paths.ts';
 
-/** One fact of a card, with the label that tells who decided it. */
-export interface CardValue {
+/** What each fact of a card carries: the label that tells who decided it, and whether it is still
+ * in review. A fact in review is a proposal, and the card never shows it as a fact. */
+interface CardFact {
+  readonly id: string;
+  readonly label: string;
+  readonly inReview: boolean;
+}
+
+export interface CardValue extends CardFact {
   readonly key: string;
   readonly value: string;
-  readonly label: string;
 }
 
 /** One relation of a card. The dates are the interval of the relation, as the release gives it. */
-export interface CardRelation {
+export interface CardRelation extends CardFact {
   readonly words: string;
   readonly otherLabel: string;
   readonly otherHref: string;
   readonly from: string;
   readonly to: string;
-  readonly label: string;
 }
 
-export interface CardValue {
-  readonly key: string;
-  readonly value: string;
-  readonly label: string;
-}
-
-/** One relation of a card. The dates are the interval of the relation, as the release gives it. */
-export interface CardRelation {
-  readonly words: string;
-  readonly otherLabel: string;
-  readonly otherHref: string;
+/** One sanction measure against an asset: the kind of measure, the act, and the dates. */
+export interface CardMeasure extends CardFact {
+  readonly measure: string;
+  readonly act: string;
   readonly from: string;
   readonly to: string;
-  readonly label: string;
+}
+
+/** The measures of one regime. No measure means no listing in the release. */
+export interface CardRegime {
+  readonly regime: 'EU' | 'US' | 'UK';
+  readonly measures: readonly CardMeasure[];
+}
+
+/** One strike that a party claimed at the site, with the documents that report it. */
+export interface CardStrike extends CardFact {
+  readonly days: string;
+  readonly reportedBy: readonly string[];
 }
 
 export interface Card {
@@ -45,62 +57,135 @@ export interface Card {
   readonly type: string;
   readonly stage: string;
   readonly href: string;
+  /** True when the entity itself is a proposal: then each of its facts is in review. */
+  readonly inReview: boolean;
   readonly values: readonly CardValue[];
   readonly relations: readonly CardRelation[];
-  /** The count of facts that the card does not show, because they are still in review. */
-  readonly inReview: number;
+  /** Null for an entity that has no sanctions status: only a facility has one. */
+  readonly sanctions: readonly CardRegime[] | null;
+  readonly strikes: readonly CardStrike[];
 }
 
 /** The data of the chain view: the stage of each entity with a position, and its card. A card
- * shows accepted facts only. The release also holds proposals, and a card counts them. */
+ * gives the accepted facts first, and then the facts in review, each marked. */
 export interface ChainView {
   readonly stages: ReadonlyMap<string, StageKey | null>;
   readonly cards: Readonly<Record<string, Card>>;
   readonly counts: ReadonlyMap<StageKey, number>;
 }
 
+const MEASURE_WORDS: Readonly<Record<AssetMeasure['measure'], string>> = {
+  designated_by: 'Listing (asset freeze)',
+  restricted_by: 'Sectoral measure',
+};
+
+const REGIMES = [
+  ['EU', 'eu'],
+  ['US', 'us'],
+  ['UK', 'uk'],
+] as const;
+
+const acceptedFirst = <T extends CardFact>(facts: readonly T[]): readonly T[] => [
+  ...facts.filter((one) => !one.inReview),
+  ...facts.filter((one) => one.inReview),
+];
+
 export const chainView = (release: SiteRelease): ChainView => {
   const stages = new Map<string, StageKey | null>();
   const cards: Record<string, Card> = {};
   const counts = new Map<StageKey, number>();
+  const sanctions = assetSanctions(release.geojson);
   for (const feature of mapFeatures(release.geojson)) {
     const entity = release.entityById.get(feature.id);
     const entityInReview = entity === undefined || !isAccepted(entity.originLabel);
-    const known = release.claimsAbout.get(feature.id) ?? [];
-    // A proposed entity shows no fact: its facts hang on an entity that no one has checked.
-    const claims = entityInReview ? [] : known.filter((one) => isAccepted(one.originLabel));
+    // A fact of a proposed entity hangs on an entity that no one has checked, so it is in review.
+    const fact = (id: string, label: string): CardFact => ({
+      id,
+      label,
+      inReview: entityInReview || !isAccepted(label),
+    });
+    const claims = release.claimsAbout.get(feature.id) ?? [];
     const values = claims.filter((one) => one.kind === 'attribute');
-    const kind = values.find((one) => one.attribute === 'asset_kind')?.value;
+    const kind = values.find(
+      (one) => one.attribute === 'asset_kind' && isAccepted(one.originLabel),
+    )?.value;
     const stage = entityInReview ? null : stageOf(feature.type, kind);
     stages.set(feature.id, stage);
     if (stage !== null) counts.set(stage, (counts.get(stage) ?? 0) + 1);
+    const status = sanctions.get(feature.id);
     cards[feature.id] = {
       label: feature.label,
       type: feature.type,
       stage: STAGES.find((one) => one.key === stage)?.label ?? '',
       href: hrefFrom(MAP, entityPage(feature.id)),
-      inReview: known.length - claims.length + (entityInReview ? 1 : 0),
-      values: values.map((one) => ({
-        key: attributeName(one.attribute),
-        value: one.value,
-        label: one.originLabel,
-      })),
-      relations: claims.flatMap((one) => {
-        if (one.kind !== 'relation') return [];
-        const { relation } = one;
-        const fromHere = relation.fromId === feature.id;
-        const otherId = fromHere ? relation.toId : relation.fromId;
-        return [
-          {
-            words: relationWords(relation.type, !fromHere),
-            otherLabel: fromHere ? relation.toLabel : relation.fromLabel,
-            otherHref: hrefFrom(MAP, entityPage(otherId)),
-            from: relation.validFrom ?? '',
-            to: relation.validTo ?? '',
-            label: one.originLabel,
-          },
-        ];
-      }),
+      inReview: entityInReview,
+      values: acceptedFirst(
+        values.map((one) => ({
+          key: attributeName(one.attribute),
+          value: one.value,
+          ...fact(one.id, one.originLabel),
+        })),
+      ),
+      relations: acceptedFirst(
+        claims.flatMap((one) => {
+          if (one.kind !== 'relation') return [];
+          const { relation } = one;
+          const fromHere = relation.fromId === feature.id;
+          const otherId = fromHere ? relation.toId : relation.fromId;
+          return [
+            {
+              words: relationWords(relation.type, !fromHere),
+              otherLabel: fromHere ? relation.toLabel : relation.fromLabel,
+              otherHref: hrefFrom(MAP, entityPage(otherId)),
+              from: relation.validFrom ?? '',
+              to: relation.validTo ?? '',
+              ...fact(one.id, one.originLabel),
+            },
+          ];
+        }),
+      ),
+      sanctions:
+        status === undefined
+          ? null
+          : REGIMES.map(([regime, key]) => ({
+              regime,
+              measures: acceptedFirst(
+                status[key].map((one) => ({
+                  measure: MEASURE_WORDS[one.measure],
+                  act: [one.act_label, one.act_document ?? ''].filter(Boolean).join(', '),
+                  from: one.from ?? '',
+                  to: one.to ?? '',
+                  ...fact(
+                    `${key} ${one.measure} ${one.act_id} ${one.from ?? ''}`,
+                    one.origin_label,
+                  ),
+                })),
+              ),
+            })),
+      strikes: acceptedFirst(
+        eventsAt(release, feature.id).flatMap((event) => {
+          if (event.kind !== CLAIMED_ATTACK) return [];
+          // A strike is in review when the event or its link to the site is a proposal.
+          const link = claims.find(
+            (one) =>
+              one.kind === 'relation' &&
+              one.relation.type === 'occurred_at' &&
+              one.relation.fromId === event.id,
+          );
+          const labels = [
+            release.entityById.get(event.id)?.originLabel ?? PROPOSED_LABEL,
+            link?.originLabel ?? PROPOSED_LABEL,
+          ];
+          const label = labels.find((one) => !isAccepted(one)) ?? labels[0] ?? PROPOSED_LABEL;
+          return [
+            {
+              days: event.days.join(' to '),
+              reportedBy: event.documents.map((one) => one.title),
+              ...fact(event.id, label),
+            },
+          ];
+        }),
+      ),
     };
   }
   return { stages, cards, counts };
