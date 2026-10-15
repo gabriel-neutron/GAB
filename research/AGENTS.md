@@ -26,6 +26,11 @@ session: each proposal waits in the review queue, and the operator decides it th
   as a document.
 - Read the official text of an EU act from its CELEX number: `eu_act`. It stores the file of the
   Publications Office as a public document. `fetch_document` also reads an XML file.
+- Cite a data file of an API or of a statistics office (JSON, CSV, TSV, XML, SDMX, plain text):
+  `fetch_document` stores it with its full address and its bytes as they came. The file must be
+  UTF-8 text. The text of a JSON file is an indented view; cite a value as the source writes it.
+  A JSON error that the server sends as a success is refused. `store_saved_file` takes the same
+  files from the inbox (`.json`, `.tsv`, `.csv`, `.xml`, `.txt`, `.md`).
 - Cite an entry of the OFAC SDN list: `ofac_sdn` stores the whole official file once, as a public
   document with its hash and its date of publication, and gives the line of one entry by its
   ent_num. Cite that line on page 1 of the stored file. Never store one entry alone.

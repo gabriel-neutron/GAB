@@ -33,8 +33,116 @@ export class UnsupportedTypeError extends Error {
 // character is removed before a page can reach the door.
 const withoutNul = (text: string): string => text.replaceAll('\u0000', '');
 
-const PLAIN = new Set(['text/plain', 'text/markdown', 'text/csv']);
 const XML = new Set(['application/xml', 'text/xml']);
+
+/** Bytes of a text type that are no strict UTF-8 text: bad UTF-8, or a control character. */
+export class RefusedTextError extends Error {
+  constructor(reason: string) {
+    super(reason);
+    this.name = 'RefusedTextError';
+  }
+}
+
+// A data file of an API or of a statistics office: plain text, JSON, XML or a table, and every
+// SDMX format. HTML keeps its charset rules, so it is not in this set.
+const dataText = (type: string): boolean =>
+  (type.startsWith('text/') && type !== 'text/html') ||
+  type === 'application/json' ||
+  type.endsWith('+json') ||
+  type.endsWith('+xml') ||
+  type.startsWith('application/vnd.sdmx.');
+
+const isXml = (type: string): boolean => XML.has(type) || type.endsWith('+xml');
+const isJson = (type: string): boolean => type === 'application/json' || type.endsWith('+json');
+const isTable = (type: string): boolean =>
+  type === 'text/csv' || type === 'text/tab-separated-values' || type.endsWith('+csv');
+
+// A control character other than tab, line feed and carriage return is the mark of a binary file.
+// U+0000 is removed first, as in every other text.
+const CONTROL = /[^\P{Cc}\t\n\r]/u;
+
+/** The text of bytes that must be strict UTF-8. The decoder removes a byte order mark. */
+const strictText = (bytes: Uint8Array): string => {
+  let text: string;
+  try {
+    text = withoutNul(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+  } catch {
+    throw new RefusedTextError('the bytes are not valid UTF-8 text, so no text is read from them');
+  }
+  // External constraint: a DOS file ends with U+001A as its end-of-file mark, and the OFAC SDN list
+  // still does. The mark is no text, so it is removed.
+  if (text.endsWith('\u001a')) text = text.slice(0, -1);
+  const control = CONTROL.exec(text)?.[0];
+  if (control !== undefined) {
+    const code = (control.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, '0');
+    throw new RefusedTextError(
+      `the text holds the control character U+${code}, so it is a binary file and no text file`,
+    );
+  }
+  return text;
+};
+
+// JSON whitespace outside a string. A string token stays as it is.
+const JSON_TOKENS = /"(?:[^"\\]|\\.)*"|[ \t\n\r]+/gu;
+const compact = (text: string): string =>
+  text.replaceAll(JSON_TOKENS, (token) => (token.startsWith('"') ? token : ''));
+
+/**
+ * The readable text layer of a JSON file: the value written again with an indent of two spaces, in
+ * the order of the keys of the source. This layer is a view derived from the bytes, never the
+ * source: the stored bytes and their hash are the evidence. When the view would change one token
+ * (a number such as 1.10, a number beyond double precision, an escape, a duplicate key), or when
+ * the text is no valid JSON, the layer is the raw text.
+ */
+export const jsonView = (text: string): string => {
+  let view: string;
+  try {
+    view = JSON.stringify(JSON.parse(text), null, 2);
+  } catch {
+    return text;
+  }
+  // Departure: the spec compares each value with its source text. The same tokens with no
+  // whitespace is the same check, and it also covers the keys.
+  return compact(view) === compact(text) ? view : text;
+};
+
+// Origin of the number: the same limit as a table page. A text above it is cut into pages at the
+// end of a line: a cut keeps each line citable, and a refusal loses a file that the fetch cap
+// admits. A table repeats its header line on each page, so each page reads alone.
+const TEXT_PAGE_BYTES = 16 * 1024 * 1024;
+
+/** The pages of a text: one page, or pages of at most `limit` bytes in UTF-8. */
+export const textPages = (text: string, table: boolean, limit = TEXT_PAGE_BYTES): string[] => {
+  if (Buffer.byteLength(text) <= limit) return [text];
+  const lines = text.split('\n');
+  const head = table ? `${lines.shift() ?? ''}\n` : '';
+  const pages: string[] = [];
+  let page = head;
+  let size = Buffer.byteLength(head);
+  const close = (): void => {
+    if (page !== head) pages.push(page.endsWith('\n') ? page.slice(0, -1) : page);
+    page = head;
+    size = Buffer.byteLength(head);
+  };
+  for (const line of lines) {
+    const bytes = Buffer.byteLength(line) + 1;
+    if (size + bytes > limit) close();
+    if (size + bytes <= limit) {
+      page += `${line}\n`;
+      size += bytes;
+      continue;
+    }
+    // shortcut: a line longer than a page is cut by characters (a character is at most 4 bytes),
+    // not at a token; upgrade when a real file gives such a line.
+    const room = Math.max(1, Math.floor((limit - size) / 4));
+    for (let at = 0; at < line.length; at += room) {
+      page += line.slice(at, at + room);
+      close();
+    }
+  }
+  close();
+  return pages;
+};
 
 const pdfPages = async (bytes: Uint8Array): Promise<string[]> => {
   // External constraint: unpdf hands the buffer to a worker that may detach it, so it gets a copy.
@@ -157,19 +265,28 @@ const decoderOf = (label: string | undefined, fromMeta: boolean) => {
   }
 };
 
+const decoderOfPage = (bytes: Uint8Array, mime: string): InstanceType<typeof TextDecoder> => {
+  const bom = BOMS.find(([marks]) => marks.every((mark, i) => bytes[i] === mark));
+  if (bom !== undefined) return new TextDecoder(bom[1]);
+  return (
+    decoderOf(CHARSET.exec(mime)?.[1], false) ??
+    decoderOf(charsetOfBytes(bytes), true) ??
+    new TextDecoder('utf-8')
+  );
+};
+
 /**
  * The text of the bytes of an HTML page, in the charset that its byte order mark, the charset of
  * its type (for example "text/html; charset=windows-1251") or its meta element names. UTF-8 is the
  * default.
  */
-export const decodeHtml = (bytes: Uint8Array, mime = ''): string => {
-  const bom = BOMS.find(([marks]) => marks.every((mark, i) => bytes[i] === mark));
-  if (bom !== undefined) return new TextDecoder(bom[1]).decode(bytes);
-  const decoder =
-    decoderOf(CHARSET.exec(mime)?.[1], false) ??
-    decoderOf(charsetOfBytes(bytes), true) ??
-    new TextDecoder('utf-8');
-  return decoder.decode(bytes);
+export const decodeHtml = (bytes: Uint8Array, mime = ''): string =>
+  decoderOfPage(bytes, mime).decode(bytes);
+
+// An XML file can name its charset, as a page does. A file in UTF-8 must be strict UTF-8 text.
+const xmlSource = (bytes: Uint8Array, mime: string): string => {
+  const decoder = decoderOfPage(bytes, mime);
+  return decoder.encoding === 'utf-8' ? strictText(bytes) : decoder.decode(bytes);
 };
 
 // External constraint: Node.js has no DOM, so the number of a text node is written here.
@@ -272,6 +389,8 @@ const MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
   '.txt': 'text/plain',
   '.md': 'text/markdown',
   '.csv': 'text/csv',
+  '.tsv': 'text/tab-separated-values',
+  '.json': 'application/json',
   '.xlsx': XLSX,
   '.zip': ZIP_MIME,
   '.png': 'image/png',
@@ -466,7 +585,6 @@ export const extractText = async (bytes: Uint8Array, mime: string): Promise<Extr
   // XHTML is HTML written as XML. The Publications Office of the EU gives the official text of an
   // act in it.
   if (type === 'application/xhtml+xml') return { pages: [htmlPage(bytes, mime, true)] };
-  if (PLAIN.has(type)) return { pages: [withoutNul(new TextDecoder('utf-8').decode(bytes))] };
   // A sheet is one page, so a table page is one sheet. A named text set keeps the rows of one sheet
   // (xlsx.ts), and the page here is the whole sheet for a reader.
   if (type === XLSX) {
@@ -482,7 +600,12 @@ export const extractText = async (bytes: Uint8Array, mime: string): Promise<Extr
       pages.push(withoutNul(await layerCsv(bytes, layer, undefined, PREVIEW_ROWS)));
     return { pages };
   }
-  if (XML.has(type)) return { pages: [withoutNul(xmlText(decodeHtml(bytes, mime)))] };
+  // SDMX-ML is XML, and the XML reader reads it.
+  if (isXml(type)) return { pages: textPages(withoutNul(xmlText(xmlSource(bytes, mime))), false) };
+  if (dataText(type)) {
+    const text = strictText(bytes);
+    return { pages: textPages(isJson(type) ? jsonView(text) : text, isTable(type)) };
+  }
   if (IMAGE.has(type)) return { pages: [await imagePage(bytes)] };
   throw new UnsupportedTypeError(mime);
 };

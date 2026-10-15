@@ -7,6 +7,7 @@ import {
   linkSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -17,6 +18,7 @@ import { join } from 'node:path';
 
 import { UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
 import { endOcr } from '@gab/text';
+import { zipOf } from '@gab/text/xlsx-fixture';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
@@ -47,7 +49,21 @@ const TEXT = `<p>${'On 3 June 2022 the Council adopted the sixth package of sanc
 writeFileSync(join(inbox, 'timeline.html'), page(TEXT));
 writeFileSync(join(inbox, 'challenge.html'), '<html><body>Just a moment...</body></html>');
 writeFileSync(join(inbox, 'empty.html'), '<html><body></body></html>');
-writeFileSync(join(inbox, 'notes.txt'), 'A note that the AI wrote.');
+writeFileSync(join(inbox, 'notes.txt'), `A note that the AI wrote. Run ${RUN}.`);
+// An ENTSOG answer that the operator saved from the browser, and a Comext table in TSV.
+writeFileSync(
+  join(inbox, 'entsog.json'),
+  `{"operationaldatas":[{"pointLabel":"Budince","directionKey":"exit","value":0,"run":"${RUN}"}]}`,
+);
+writeFileSync(
+  join(inbox, 'comext.tsv'),
+  'freq,reporter,partner,product,flow,indicators\\TIME_PERIOD\t2026-07 \n' +
+    `M,HU,RU,27090090,1,QUANTITY_IN_100KG\t3272070.00 ${RUN}\n`,
+);
+writeFileSync(join(inbox, 'data.bin'), Buffer.from([0x00, 0x01, 0x02, 0xff]));
+writeFileSync(join(inbox, 'binary.txt'), Buffer.from([0x41, 0x01, 0x02, 0x03, 0x42]));
+writeFileSync(join(inbox, 'latin1.csv'), Buffer.from([0x6e, 0x0a, 0x8a, 0x61, 0xbe, 0x61]));
+writeFileSync(join(inbox, 'archive.zip'), zipOf([['README.txt', 'No layer here.']]));
 writeFileSync(join(inbox, 'big.html'), Buffer.alloc(UPLOAD_FILE_BYTES + 1, 0x20));
 const IMAGES = join(import.meta.dirname, '../../text/fixtures');
 copyFileSync(join(IMAGES, 'unit-tree.png'), join(inbox, 'unit-tree.png'));
@@ -107,6 +123,35 @@ test('a saved page is stored once, under the address of its source, as saved by 
   expect(store.puts).toHaveLength(1);
 });
 
+test.each([
+  ['notes.txt', 'text/plain', 'A note that the AI wrote.'],
+  ['entsog.json', 'application/json', '"pointLabel": "Budince"'],
+  ['comext.tsv', 'text/tab-separated-values', 'QUANTITY_IN_100KG\t3272070.00'],
+])('the text file %s is stored once, with its bytes as they came', async (file, mime, text) => {
+  const store = memoryStore();
+  const url = `https://example.org/${file}?run=${RUN}&from=2026-07-01`;
+  await rolledBack('research', async (ask) => {
+    const first = await callTool(storeSavedFile, sessionOf(ask), { file, url }, reachOf(store));
+    expect(first).toMatchObject({ ok: true, output: { status: 'stored', pages: 1 } });
+    const second = await callTool(storeSavedFile, sessionOf(ask), { file, url }, reachOf(store));
+    expect(second).toMatchObject({ ok: true, output: { status: 'known' } });
+    const [held] = z.array(z.object({ uri: z.string(), mime: z.string(), text: z.string() })).parse(
+      await ask(
+        `SELECT d.uri, d.mime, t.text FROM public.documents d
+             JOIN public.document_text t ON t.document_id = d.id WHERE d.uri = $1`,
+        [url],
+      ),
+    );
+    expect(held?.uri).toBe(url);
+    expect(held?.mime).toBe(mime);
+    expect(held?.text).toContain(text);
+  });
+  expect(store.puts).toHaveLength(1);
+  expect(Buffer.from(store.puts[0]?.bytes ?? []).equals(readFileSync(join(inbox, file)))).toBe(
+    true,
+  );
+});
+
 test('a saved PNG image is stored as an image, with its OCR text as the page', async () => {
   const store = memoryStore();
   await rolledBack('research', async (ask) => {
@@ -146,7 +191,10 @@ test.each([
   ['a page with no text', 'empty.html', 'holds no text'],
   ['an image with no text', 'blank.png', 'holds no text'],
   ['an image above the pixel cap', 'huge.png', 'pixels'],
-  ['a text file, which is no saved page', 'notes.txt', 'is not a saved page'],
+  ['a binary file of a type that no reader takes', 'data.bin', '.json, .tsv, .txt'],
+  ['a binary file with a text extension', 'binary.txt', 'control character'],
+  ['a text file that is no UTF-8', 'latin1.csv', 'not valid UTF-8'],
+  ['a ZIP archive with no GeoJSON layer', 'archive.zip', 'separate feature'],
   ['a file larger than the upload limit', 'big.html', 'larger than'],
   ['a file that is not in the inbox', 'absent.pdf', 'no file named'],
 ])('%s is refused, and nothing is stored', async (_name, file, reason) => {
