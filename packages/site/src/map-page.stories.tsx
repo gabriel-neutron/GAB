@@ -35,7 +35,7 @@ export const EachEntityWithAPositionIsListed: Story = {
       canvas.getByRole('region', { name: 'Map of the entities with a position' }),
     ).toBeVisible();
     await expect(
-      canvas.getByText(/11 entities of this release have their own position/u),
+      canvas.getByText(/12 entities of this release have their own position/u),
     ).toBeVisible();
     await expect(canvas.getByRole('link', { name: 'Primorsk' })).toHaveAttribute(
       'href',
@@ -71,8 +71,8 @@ export const TheFilterOffersEachProductChain: Story = {
 
 export const ALinkInReviewIsCountedAndNamedSo: Story = {
   play: async ({ canvas }) => {
-    await expect(canvas.getByText(/7 physical links join two assets/u)).toHaveTextContent(
-      '1 of them is in review',
+    await expect(canvas.getByText(/8 physical links join two assets/u)).toHaveTextContent(
+      '2 of them are in review',
     );
     await expect(canvas.getByText(/exit point is in review/u)).toHaveTextContent(
       '1 exit point is in review.',
@@ -88,7 +88,7 @@ export const ThePageHoldsTheCardOfEachEntityForTheMapScript: Story = {
   play: async ({ canvasElement }) => {
     const holder = canvasElement.querySelector(`#${CARDS_ELEMENT}`);
     await expect(holder).not.toBeVisible();
-    await expect(holder?.querySelectorAll('[data-card]')).toHaveLength(3);
+    await expect(holder?.querySelectorAll('[data-card]')).toHaveLength(4);
     await expect(holder?.querySelector(`[data-card="${SITE}"]`)).toHaveTextContent(
       /Strikes.*reported by A report of news/u,
     );

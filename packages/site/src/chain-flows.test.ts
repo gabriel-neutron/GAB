@@ -25,6 +25,11 @@ const {
   TERMINAL_ABROAD,
 } = CHAIN;
 
+// The fixed release under the chain holds one more crude link, from a pipeline to Primorsk, so
+// that its volume table has a link to join. Primorsk is a proposed entity, so the link is in
+// review: the filter keeps its arc, but the link puts no asset forward.
+const FIXED_LINK = '0a1f0000-0000-4000-8000-000000000032';
+
 // In this test, a position is outside Russia when it is south-west of the point 34 E, 54 N. The
 // two assets abroad of the fixture are there, and no other asset is.
 const outside = ([lon, lat]: readonly [number, number]): boolean => lon < 34 && lat < 54;
@@ -55,7 +60,7 @@ test('each physical link between two placed assets is an arc of its product', ()
   expect(arcs.get(PORT_TO_ABROAD)?.afterExport).toBe(true);
   expect(arcs.get(REFINERY_TO_TERMINAL)?.inReview).toBe(true);
   expect(arcs.get(FIELD_TO_PIPELINE)?.path.length).toBeGreaterThan(2);
-  expect(arcs.size).toBe(7);
+  expect(arcs.size).toBe(8);
 });
 
 test('each exit point says why it is an exit point', () => {
@@ -82,7 +87,13 @@ test('each exit point says why it is an exit point', () => {
 test('the product filter keeps the arcs of the product and the assets on them', () => {
   const crude = productChain(flows, 'crude');
   expect([...crude.arcs].toSorted()).toEqual(
-    [FIELD_TO_PIPELINE, PIPELINE_TO_ABROAD, PIPELINE_TO_REFINERY, PIPELINE_TO_TERMINAL].toSorted(),
+    [
+      FIELD_TO_PIPELINE,
+      PIPELINE_TO_ABROAD,
+      PIPELINE_TO_REFINERY,
+      PIPELINE_TO_TERMINAL,
+      FIXED_LINK,
+    ].toSorted(),
   );
   expect([...crude.assets].toSorted()).toEqual(
     [FIELD, PIPELINE, REFINERY, CRUDE_TERMINAL, REFINERY_ABROAD].toSorted(),

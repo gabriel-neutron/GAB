@@ -222,7 +222,8 @@ manifest and the sheet. With no `volumes`, the release has no volume, and each l
 one width. The table is a CSV file in UTF-8 with these twelve columns, in any order:
 `actif_amont`, `actif_aval`, `produit` (`brut`, `produits` or `gaz`), `periode`, `valeur`,
 `minimum`, `maximum`, `unite`, `classe` (`observé`, `estimé` or `capacité`), `document`, `page`,
-`note`. A line that starts with `#` is a note.
+`note`. A line that starts with `#` is a note. The file `packages/worker/fixtures/volumes.csv` is an example
+table with invented data: the fixed release of the static site reads it.
 
 - Name each asset in `actif_amont` and `actif_aval` by its entity identifier in the record (the
   `id` of `entities.csv`, as `search_graph` gives it), or by the exact label of one entity of the
