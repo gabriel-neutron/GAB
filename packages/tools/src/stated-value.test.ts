@@ -765,3 +765,11 @@ test('a night of two days that are not side by side states nothing', () => {
     }),
   ).toHaveLength(2);
 });
+
+test('a dateline with no city states no day without a night word, or for a relation', () => {
+  const options = { publishedOn: '2026-09-17' };
+  expect(
+    unstatedValues(NIGHT_OF('2026-09-16', '2026-09-17'), [YANOS[0] ?? ''], options),
+  ).toHaveLength(2);
+  expect(unstatedValues(relationFrom('2026-09-16'), YANOS, options)).toHaveLength(1);
+});

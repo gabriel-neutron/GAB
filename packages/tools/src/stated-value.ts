@@ -55,7 +55,7 @@ const NIGHT_DAY = /(?<!\p{L})у\s+ніч\s+на\s+(\d{1,2})\s+([\p{L}]+)(?:\s+(\
 // shortcut: no "night of 5 to 6 September" and no night over the end of a month; add them when a
 // stored excerpt needs them.
 const NIGHT_OF =
-  /(?<!\p{L})(?:night\s+of|overnight\s+on)\s+([\p{L}.]+)\s+(\d{1,2})(?:st|nd|rd|th)?\s*(?:to|-|–)\s*(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4})(?!\d))?/giu;
+  /(?<!\p{L})(?:night\s+of|overnight\s+on)\s+([\p{L}.]+)\s+(\d{1,2})(?:st|nd|rd|th)?\s*(?:to|-|–)\s*(\d{1,2})(?!\d)(?:st|nd|rd|th)?(?:,?\s+(\d{4})(?!\d))?/giu;
 // A news dateline with no year, "MOSCOW, Feb 24 (Reuters) -" or "Sept 17 (Reuters) -", at the start
 // of a line. With a night word in the cited text, it states the night that ends on that day
 // (decided by the expert panel), and only for the days of an event with the precision night. The
