@@ -683,3 +683,37 @@ test('"early-morning" is no night word', () => {
     unstatedValues(NIGHT_OF('2026-09-19', '2026-09-20'), passages, { publishedOn: '2026-09-20' }),
   ).toHaveLength(2);
 });
+
+test('a dateline and "overnight" state no day of a relation or a port call', () => {
+  const options = { publishedOn: '2025-02-24' };
+  expect(unstatedValues(relationFrom('2025-02-23'), RYAZAN, options)).toHaveLength(1);
+  expect(statedBounds(relationFrom('2025-02-23'), RYAZAN, options).dropped).toStrictEqual([
+    'validFrom',
+  ]);
+  const call = writeRequest.parse({
+    op: 'create_relation',
+    type: 'loads_at',
+    srcId: '3f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+    dstId: '4f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+    attrs: { observed_on: { v: '2025-02-23' } },
+  });
+  expect(unstatedCallDay(call, RYAZAN, options)).toBe(true);
+});
+
+test('"Saturday night" and "last night" name another night', () => {
+  const options = { publishedOn: '2025-02-24' };
+  for (const words of ['on Saturday night', 'last night'])
+    expect(
+      unstatedValues(
+        NIGHT_OF('2025-02-23', '2025-02-24'),
+        [`MOSCOW, Feb 24 (Reuters) - Drones hit the Ryazan oil refinery ${words}.`],
+        options,
+      ),
+    ).toHaveLength(2);
+});
+
+test('the night of a dateline is named as a day from the publication date', () => {
+  expect(
+    daysFromPublication(NIGHT_OF('2025-02-23', '2025-02-24'), RYAZAN, '2025-02-24'),
+  ).toStrictEqual(['2025-02-23', '2025-02-24']);
+});

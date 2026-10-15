@@ -51,12 +51,14 @@ const WORD_MONTH_FIRST = /([\p{L}.]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})(?!
 // publication date of the document.
 const NIGHT_DAY = /(?<!\p{L})у\s+ніч\s+на\s+(\d{1,2})\s+([\p{L}]+)(?:\s+(\d{4})(?!\d))?/giu;
 // A news dateline with no year, "MOSCOW, Feb 24 (Reuters) -", at the start of a line. With a night
-// word in the cited text, it states the night that ends on that day (decided by the expert panel).
-// The dateline alone states no day: it is the day of the report, and not of the event.
+// word in the cited text, it states the night that ends on that day (decided by the expert panel),
+// and only for the days of an event with the precision night. The dateline alone states no day: it
+// is the day of the report, and not of the event. "Saturday night" or "last night" names another
+// night, so it is no night word.
 // shortcut: no "on Monday" and no "night of Feb 23 to 24"; add them when a stored excerpt needs them.
 const DATELINE =
   /^\s*[A-Z][A-Z .'/-]+,\s+(\p{Lu}\p{Ll}{2,8})\.?\s+(\d{1,2})\s+\((?:Reuters|AP|AFP)\)/gmu;
-const NIGHT_WORD = /\b(?:overnight|night|nighttime)\b/iu;
+const NIGHT_WORD = /\b(?:overnight|(?<!(?:day|last|tomorrow)\s+)night(?:time)?)\b/iu;
 const NUMERIC_DAY = /(?<![\d.,/-])(\d{1,4})([./-])(\d{1,2})\2(\d{1,4})(?![\d.,/-]?\d)/gu;
 
 // Origin: decided. A day with dots, 05.03.2024, is day, month and year in each country that
@@ -140,14 +142,23 @@ export interface StatedOptions {
   readonly dayFirst?: boolean | undefined;
 }
 
+// Code reads a night from a news dateline only for an event with the precision night.
+type DayOptions = StatedOptions & { readonly nightEvent?: boolean };
+
+const isNightEvent = (act: WriteRequest): boolean =>
+  act.op === 'create_entity' && act.type === 'event' && act.attrs?.[EVENT_PRECISION]?.v === 'night';
+
 /** Each day that a text states, in the form of the record. A day with two readings (03/04/2024)
  * states no day, because the text does not say which one it means. */
-const daysIn = (text: string, { publishedOn, dayFirst = false }: StatedOptions): Set<string> => {
+const daysIn = (
+  text: string,
+  { publishedOn, dayFirst = false, nightEvent = false }: DayOptions,
+): Set<string> => {
   const found = new Set<string>();
   for (const [, day, word, written] of text.matchAll(NIGHT_DAY))
     for (const night of nightDays(Number(day), monthOf(word ?? ''), written, publishedOn))
       found.add(night);
-  if (NIGHT_WORD.test(text))
+  if (nightEvent && NIGHT_WORD.test(text))
     for (const [, word, day] of text.matchAll(DATELINE))
       for (const night of nightDays(Number(day), monthOf(word ?? ''), undefined, publishedOn))
         found.add(night);
@@ -269,7 +280,7 @@ const statesToken = (value: string, passage: string): boolean => {
   ).test(plainText(passage));
 };
 
-const stated = (value: Scalar, passage: string, options: StatedOptions): boolean => {
+const stated = (value: Scalar, passage: string, options: DayOptions): boolean => {
   if (typeof value === 'boolean') {
     const words = wordsOf(passage);
     return YES_NO[value ? 'true' : 'false'].some((word) => words.includes(word));
@@ -387,8 +398,9 @@ export const daysFromPublication = (
 ): string[] => {
   if (publishedOn === undefined) return [];
   const text = passages.join('\n');
-  const alone = daysIn(text, { dayFirst });
-  const deduced = daysIn(text, { publishedOn, dayFirst });
+  const nightEvent = isNightEvent(act);
+  const alone = daysIn(text, { dayFirst, nightEvent });
+  const deduced = daysIn(text, { publishedOn, dayFirst, nightEvent });
   return [
     ...new Set(
       [
@@ -463,7 +475,7 @@ export const unstatedValues = (
       const code =
         named.name === `attrs.${JURISDICTION_KEY}` ? jurisdictionCode(named.value) : null;
       if (code !== null && statesJurisdiction(code, text)) return false;
-      return !stated(named.value, text, options);
+      return !stated(named.value, text, { ...options, nightEvent: isNightEvent(act) });
     }),
     ...placeValues(act).filter((named) => !statesCoordinate(named.value, coordinates)),
   ];
