@@ -661,10 +661,11 @@ test('a relation rejected while its end waited is rejected before after that end
     await ask("UPDATE public.proposals SET xact = '1'::xid8 WHERE id = $1", [army]);
     await ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only');
     await ask("SELECT public.promote_unit($1::uuid, 'a test')", [army]);
+    // The new relation joins the unit of the brigade that waits (#602).
     await batch(ask, [relation(again, 'subordinate_to', brigade, army)]);
-    return faultsOf(ask, [again]);
+    return faultsOf(ask, [brigade]);
   });
-  expect(said(read.get(again))).toContainEqual([
+  expect(said(read.get(brigade))).toContainEqual([
     'not_clean',
     'rejected_before',
     `Rejected before on ${TODAY}`,

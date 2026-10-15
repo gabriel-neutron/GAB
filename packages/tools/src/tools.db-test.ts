@@ -837,6 +837,96 @@ test('a relation that names a later item or an absent entity refuses the batch',
   });
 });
 
+// A relation of a later call names a new entity that waits in the queue (#602).
+const ownerOfPending = async (ask: Ask) => {
+  const held = await connected(ask);
+  const [vessel] = batchOf(await proposeOnPage(ask, [NAYARA])).proposals;
+  if (vessel === undefined) throw new Error('propose wrote no entity');
+  const outcome = await proposeAgain(ask, [
+    item(
+      'owner',
+      { op: 'create_relation', type: 'owns', srcId: held.id, dstId: vessel.proposalId },
+      'Rosneft owns the vessel',
+    ),
+  ]);
+  const [link] = batchOf(outcome).proposals;
+  if (link === undefined) throw new Error('propose wrote no relation');
+  return { held, vessel: vessel.proposalId, link: link.proposalId };
+};
+
+const decision = z.array(
+  z.object({ id: z.uuid(), status: z.string(), reject_reason: z.string().nullable() }),
+);
+const DECISIONS = `SELECT id::text AS id, status, reject_reason FROM public.proposals
+  WHERE id = ANY ($1::uuid[]) ORDER BY id`;
+const decisionsOf = async (ask: Ask, ids: readonly string[]) =>
+  new Map(decision.parse(await ask(DECISIONS, [ids])).map((row) => [row.id, row] as const));
+
+test('a relation to a new entity that waits in the queue joins the unit of that entity', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const { vessel, link } = await ownerOfPending(ask);
+    const [page] = z
+      .array(
+        z.object({
+          page: z.object({
+            units: z.array(z.object({ unit: z.uuid(), acts: z.array(z.object({ id: z.uuid() })) })),
+          }),
+        }),
+      )
+      .parse(
+        await ask('SELECT public.review_units(NULL, 200, p_unit => $1::uuid) AS page', [vessel]),
+      );
+    return { vessel, link, units: page?.page.units ?? [] };
+  });
+  expect(found.units).toHaveLength(1);
+  expect(found.units[0]?.unit).toBe(found.vessel);
+  expect(found.units[0]?.acts.map((act) => act.id).sort()).toStrictEqual(
+    [found.vessel, found.link].sort(),
+  );
+});
+
+test('a rejection of the entity that waits rejects the relation to it as "end rejected"', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const { vessel, link } = await ownerOfPending(ask);
+    await ask("SELECT public.reject_unit($1::uuid, 'wrong_value', NULL, 'a test')", [vessel]);
+    return { vessel, link, rows: await decisionsOf(ask, [vessel, link]) };
+  });
+  expect(found.rows.get(found.vessel)).toMatchObject({
+    status: 'rejected',
+    reject_reason: 'wrong_value',
+  });
+  expect(found.rows.get(found.link)).toMatchObject({
+    status: 'rejected',
+    reject_reason: 'end_rejected',
+  });
+});
+
+test('an acceptance of the entity that waits writes the relation to it through its unit', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const { held, vessel, link } = await ownerOfPending(ask);
+    // An act is never decided by the transaction that proposed it, so the test dates it back.
+    await ask('ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only');
+    await ask("UPDATE public.proposals SET xact = '1'::xid8 WHERE id IN ($1::uuid, $2::uuid)", [
+      vessel,
+      link,
+    ]);
+    await ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only');
+    await ask("SELECT public.promote_unit($1::uuid, 'a test')", [vessel]);
+    const relations = z
+      .array(z.object({ src_id: z.uuid(), dst_id: z.uuid() }))
+      .parse(
+        await ask(
+          'SELECT src_id::text AS src_id, dst_id::text AS dst_id FROM public.relations WHERE id = $1',
+          [link],
+        ),
+      );
+    return { held, vessel, link, relations, rows: await decisionsOf(ask, [vessel, link]) };
+  });
+  expect(found.rows.get(found.vessel)?.status).toBe('accepted');
+  expect(found.rows.get(found.link)?.status).toBe('accepted');
+  expect(found.relations).toStrictEqual([{ src_id: found.held.id, dst_id: found.vessel }]);
+});
+
 test('a retry of the same batch writes no second proposal and no second citation', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const held = await connected(ask);
