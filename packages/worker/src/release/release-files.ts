@@ -26,7 +26,8 @@ const FILE_MANIFEST = 'manifest.json';
  * of each other file. The static site reads the contact addresses and the base of the
  * identifiers from the file manifest. The file manifest also gives the number of merge candidates
  * across a Latin and a Cyrillic spelling that wait, that the operator confirmed and refused. The
- * rows of the volume table that the volumes table rejects come back beside the files. */
+ * rows of the volume table that the volumes table rejects, and the rows whose asset label names
+ * more than one entity, come back beside the files. */
 export const releaseFiles = (
   record: ReleaseRecord,
   manifest: ReleaseManifest,
@@ -36,6 +37,7 @@ export const releaseFiles = (
 ): {
   readonly files: readonly ReleaseFile[];
   readonly volumeRejections: readonly VolumeRejection[];
+  readonly volumesUnjoined: readonly VolumeRejection[];
 } => {
   assertNoOsmGeometry(record);
   const disclaimer = releaseDisclaimer(record.disclaimer, manifest.contacts);
@@ -79,5 +81,6 @@ export const releaseFiles = (
   return {
     files: [...files, { path: FILE_MANIFEST, text: `${JSON.stringify(fileManifest, null, 2)}\n` }],
     volumeRejections: volumeTable.rejected,
+    volumesUnjoined: volumeTable.unjoined,
   };
 };

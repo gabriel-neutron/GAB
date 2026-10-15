@@ -4,7 +4,8 @@ import type { Queryable } from '../queryable.ts';
 import { readNatoPairs, type NatoPair } from './nato-pair.ts';
 
 // PU1: an origin that the label does not know reads as not checked, never as a person.
-const CAUTIOUS = 'Proposed — not checked';
+/** The label of a fact that no rule and no person checked: a proposal, in review. */
+export const CAUTIOUS = 'Proposed — not checked';
 
 const label = z
   .string()

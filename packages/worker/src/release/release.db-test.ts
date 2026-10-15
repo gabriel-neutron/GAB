@@ -1420,7 +1420,7 @@ test.each([
 });
 
 // A small volume table made for the test. The figures are not data of the research.
-test('a release joins the volume table to the physical links and rejects a row with no public document', async () => {
+test('a release joins the volume table to the physical links, by identifier or by label, and rejects a row with no public document', async () => {
   const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
   const table = join(root, 'volumes.csv');
   await writeFile(
@@ -1431,6 +1431,7 @@ test('a release joins the volume table to the physical links and rejects a row w
       `${OWNER},${VESSEL},brut,2026-07,90,,,kb/j,observé,${BOUGHT},1,`,
       `Test segment A,Test segment B,brut,2026-07,600,,,kb/j,capacité,${SHIPS},,`,
       `${OWNER},${VESSEL},brut,2026-07,120,,,kb/j,,${SHIPS},1,`,
+      `Test owner ltd,test  tanker,brut,2026-06,110,,,kb/j,observé,${SHIPS},2,`,
     ].join('\n'),
   );
   const made = await inTransaction(async (held) => {
@@ -1444,7 +1445,7 @@ test('a release joins the volume table to the physical links and rejects a row w
     return { link: link.id, written };
   });
   const text = await readFile(join(made.written.folder, 'volumes.csv'), 'utf8');
-  expect(text).toContain('# Rows: 2. On a physical link: 1.');
+  expect(text).toContain('# Rows: 3. On a physical link: 2.');
   expect(
     tableOf(text).map((row) => [
       row['relation_id'],
@@ -1455,6 +1456,7 @@ test('a release joins the volume table to the physical links and rejects a row w
   ).toStrictEqual([
     [made.link, '120', 'observed', SHIPS],
     ['', '600', 'capacity', SHIPS],
+    [made.link, '110', 'observed', SHIPS],
   ]);
   expect(text).not.toContain(BOUGHT);
   expect(made.written.volumeRejections.map((one) => one.line)).toStrictEqual([3, 5]);

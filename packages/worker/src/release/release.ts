@@ -25,6 +25,9 @@ export interface WrittenRelease {
   readonly claims: number;
   /** The rows of the volume table that the release left out, with the reason. */
   readonly volumeRejections: readonly VolumeRejection[];
+  /** The rows of the volume table that join no link because a label names more than one entity,
+   * with the reason. */
+  readonly volumesUnjoined: readonly VolumeRejection[];
 }
 
 const exists = async (path: string): Promise<boolean> =>
@@ -90,7 +93,13 @@ export const writeRelease = async (
     natoPair: manifest.showNatoPair,
     cited: new Set(volumes?.rows.map((one) => one.document)),
   });
-  const { files, volumeRejections } = releaseFiles(record, manifest, sheet, previous, volumes);
+  const { files, volumeRejections, volumesUnjoined } = releaseFiles(
+    record,
+    manifest,
+    sheet,
+    previous,
+    volumes,
+  );
 
   // The files go to a hidden folder first, so a run that stops leaves no half release under the
   // name of the date.
@@ -110,5 +119,6 @@ export const writeRelease = async (
     relations: record.relations.length,
     claims: record.claims.length,
     volumeRejections,
+    volumesUnjoined,
   };
 };

@@ -1,7 +1,12 @@
 import { expect, test } from 'vitest';
 
 import { chainVolumes } from './chain-volumes.ts';
-import type { ReleaseDocument, ReleaseRecord, ReleaseRelation } from './release-record.ts';
+import type {
+  ReleaseDocument,
+  ReleaseEntity,
+  ReleaseRecord,
+  ReleaseRelation,
+} from './release-record.ts';
 import { readReleaseTable } from './release-table.ts';
 import { readVolumeTable } from './volume-table.ts';
 
@@ -14,18 +19,37 @@ const FIELD = id(1);
 const PIPE = id(2);
 const PORT = id(3);
 const ABSORBED = id(4);
+const TWIN = id(5);
+const OTHER_TWIN = id(6);
 const CRUDE_LINK = id(11);
 const PRODUCTS_LINK = id(12);
 
-const relation = (key: string, type: string, from: string, to: string): ReleaseRelation => ({
+const PROPOSED = 'Proposed — not checked';
+
+const relation = (
+  key: string,
+  type: string,
+  from: string,
+  to: string,
+  label = LABEL,
+): ReleaseRelation => ({
   id: key,
   type,
   src_id: from,
   dst_id: to,
   valid_from: null,
   valid_to: null,
-  origin_label: LABEL,
+  origin_label: label,
   sources: ['doc_link'],
+});
+
+const entity = (key: string, label: string): ReleaseEntity => ({
+  id: key,
+  type: 'facility',
+  label,
+  origin_label: LABEL,
+  sources: [],
+  geom: null,
 });
 
 const document = (key: string, title: string): ReleaseDocument => ({
@@ -38,7 +62,13 @@ const document = (key: string, title: string): ReleaseDocument => ({
 });
 
 const RECORD: ReleaseRecord = {
-  entities: [],
+  entities: [
+    entity(FIELD, 'Test field'),
+    entity(PIPE, 'Test pipe'),
+    entity(PORT, 'Test port'),
+    entity(TWIN, 'Test twin'),
+    entity(OTHER_TWIN, 'Test  Twin'),
+  ],
   relations: [
     relation(CRUDE_LINK, 'crude_flows_to', FIELD, PIPE),
     relation(PRODUCTS_LINK, 'products_flow_to', PIPE, PORT),
@@ -129,4 +159,43 @@ test('writes a file with no row when the release has no volume table', () => {
   expect(rowsOf(file.text)).toEqual([]);
   expect(rejected).toEqual([]);
   expect(file.text).toMatch(/no volume table/u);
+});
+
+test('joins a row to the accepted link when a proposed link has the same two assets and product', () => {
+  const record: ReleaseRecord = {
+    ...RECORD,
+    // The proposed link comes first in the order of the identifiers.
+    relations: [relation(id(10), 'crude_flows_to', FIELD, PIPE, PROPOSED), ...RECORD.relations],
+  };
+  const rows = rowsOf(chainVolumes(record, TABLE, '').file.text);
+  expect(rows[0]?.['relation_id']).toBe(CRUDE_LINK);
+});
+
+test('joins a row to the proposed link when no accepted link has its two assets and product', () => {
+  const record: ReleaseRecord = {
+    ...RECORD,
+    relations: [relation(id(10), 'crude_flows_to', FIELD, PIPE, PROPOSED)],
+  };
+  const rows = rowsOf(chainVolumes(record, TABLE, '').file.text);
+  expect(rows[0]?.['relation_id']).toBe(id(10));
+});
+
+test('names an asset by the exact label of one entity of the record, in any case and spacing', () => {
+  const table = readVolumeTable(
+    [
+      'actif_amont,actif_aval,produit,periode,valeur,minimum,maximum,unite,classe,document,page,note',
+      'TEST  Field,test pipe,brut,2026-07,120,,,kb/j,observé,doc_flow,2,',
+      'Test field,Test twin,brut,2026-07,80,,,kb/j,observé,doc_flow,3,',
+    ].join('\r\n'),
+  );
+  const { file, unjoined } = chainVolumes(RECORD, table, '');
+  const rows = rowsOf(file.text);
+  expect(rows.map((one) => [one['relation_id'], one['upstream'], one['downstream']])).toEqual([
+    [CRUDE_LINK, FIELD, PIPE],
+    // Two entities have the label "test twin": the row keeps the name and joins no link.
+    ['', FIELD, 'Test twin'],
+  ]);
+  expect(unjoined).toEqual([
+    { line: 3, why: expect.stringMatching(/2 entities of the record have the label "Test twin"/u) },
+  ]);
 });
