@@ -65,8 +65,29 @@ and their form are costly to change after the first publication.
   at 110 m. A tile server needs a host or a key, and the tile policy of OpenStreetMap does not
   permit a public application, so the site uses no tile server. The GeoJSON is in the page, so the
   map sends no request for data.
-- The colour of a point is the stage of the chain of the asset, from its asset kind. A card shows
-  accepted facts only, and counts the facts that are still in review.
+- The colour of a point is one of the six stages of the chain: field, upstream transport,
+  refining and liquefaction, and export come from the asset kind of the asset; the exit from
+  Russian control and the declared destination come from the relations. An asset outside Russia at
+  the far end of an accepted physical link from an asset in Russia is a declared destination. The
+  card, the strip of the stages and the table give the same stage.
+- A physical link is an arc with the colour of its product: the relation type of the link gives
+  the product, and one map of the code holds the type of each product for the release and the
+  map. A filter shows one product chain.
+- An exit point is computed from the relations, and is not an entity of the record: a loading at a
+  port with a position in Russia (a sale at a Russian port), a ship-to-ship transfer, or a
+  physical link from an asset with a position in Russia to an asset with a position outside Russia
+  (a handover at the border). An asset with no position gives no exit point, because the map
+  cannot tell that it is in Russia.
+- The line of an arc shows its volume from the volumes table (ADR 0013). An observed flow is a full
+  line, and its width grows with its value against the flows of the same unit only. An estimate is
+  hatched on a pale halo of its range. A capacity is a thin hollow line. A link with no volume has
+  one width, and is dashed after the export stage.
+- A fact in review is shown, and never as a fact. The card of an asset gives the accepted facts
+  first, then each fact in review, marked "In review" in words. A link in review is a grey dotted
+  line labelled "in review", and each of its volumes is marked in review. An exit point in review
+  is a grey ring, and its card says "In review". A count of the page counts the accepted facts.
+- A click that hits more than one point lists each point, and the reader chooses one. The address
+  keeps the product chain and the stage, so a reload keeps them.
 - The map script and MapLibre are files of the site. MapLibre loads its worker as a module beside
   it, so the map needs a host: from the files on a disk, the map page shows the list of the
   entities with a position, and no map.
@@ -96,6 +117,8 @@ With none, the address `v1/` gives a page that says that this copy holds no buil
 - The site builds a page for each entity and each claim, in memory. A record many times larger
   needs a writer that streams.
 - The basemap shows the coast and the borders only. It shows no road, no town and no relief.
+- MapLibre parses no oklch colour and no CSS custom property, so the hues of the stages and of the
+  products are hex values in the code of the map, outside the stylesheet.
 - A document, the release and the vocabulary have no page, so their identifiers open no page.
 - A vessel with no IMO number has no timeline page. Its entity page gives its relations.
 - The timeline draws only the dates that the sources give (`decisions.md` M5). A port call and a
