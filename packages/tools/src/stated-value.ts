@@ -50,14 +50,20 @@ const WORD_MONTH_FIRST = /([\p{L}.]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})(?!
 // names, so it states two days. The year is the one that the text gives, or else the year of the
 // publication date of the document.
 const NIGHT_DAY = /(?<!\p{L})у\s+ніч\s+на\s+(\d{1,2})\s+([\p{L}]+)(?:\s+(\d{4})(?!\d))?/giu;
-// A news dateline with no year, "MOSCOW, Feb 24 (Reuters) -", at the start of a line. With a night
-// word in the cited text, it states the night that ends on that day (decided by the expert panel),
-// and only for the days of an event with the precision night. The dateline alone states no day: it
-// is the day of the report, and not of the event. "Saturday night" or "last night" names another
-// night, so it is no night word.
-// shortcut: no "on Monday" and no "night of Feb 23 to 24"; add them when a stored excerpt needs them.
+// An English night with two days: "on the night of September 5 to 6", "overnight on September 5
+// to 6", with a year or not. The second day must be the day after the first.
+// shortcut: no "night of 5 to 6 September" and no night over the end of a month; add them when a
+// stored excerpt needs them.
+const NIGHT_OF =
+  /(?<!\p{L})(?:night\s+of|overnight\s+on)\s+([\p{L}.]+)\s+(\d{1,2})(?:st|nd|rd|th)?\s*(?:to|-|–)\s*(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4})(?!\d))?/giu;
+// A news dateline with no year, "MOSCOW, Feb 24 (Reuters) -" or "Sept 17 (Reuters) -", at the start
+// of a line. With a night word in the cited text, it states the night that ends on that day
+// (decided by the expert panel), and only for the days of an event with the precision night. The
+// dateline alone states no day: it is the day of the report, and not of the event. "Saturday
+// night" or "last night" names another night, so it is no night word.
+// shortcut: no "on Monday"; add it when a stored excerpt needs it.
 const DATELINE =
-  /^\s*[A-Z][A-Z .'/-]+,\s+(\p{Lu}\p{Ll}{2,8})\.?\s+(\d{1,2})\s+\((?:Reuters|AP|AFP)\)/gmu;
+  /^\s*(?:[A-Z][A-Z .'/-]+,\s+)?(\p{Lu}\p{Ll}{2,8})\.?\s+(\d{1,2})\s+\((?:Reuters|AP|AFP)\)/gmu;
 const NIGHT_WORD = /\b(?:overnight|(?<!(?:day|last|tomorrow)\s+)night(?:time)?)\b/iu;
 const NUMERIC_DAY = /(?<![\d.,/-])(\d{1,4})([./-])(\d{1,2})\2(\d{1,4})(?![\d.,/-]?\d)/gu;
 
@@ -158,6 +164,10 @@ const daysIn = (
   for (const [, day, word, written] of text.matchAll(NIGHT_DAY))
     for (const night of nightDays(Number(day), monthOf(word ?? ''), written, publishedOn))
       found.add(night);
+  for (const [, word, first, last, written] of text.matchAll(NIGHT_OF))
+    if (Number(first) + 1 === Number(last))
+      for (const night of nightDays(Number(last), monthOf(word ?? ''), written, publishedOn))
+        found.add(night);
   if (nightEvent && NIGHT_WORD.test(text))
     for (const [, word, day] of text.matchAll(DATELINE))
       for (const night of nightDays(Number(day), monthOf(word ?? ''), undefined, publishedOn))

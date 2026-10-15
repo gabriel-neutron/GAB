@@ -717,3 +717,51 @@ test('the night of a dateline is named as a day from the publication date', () =
     daysFromPublication(NIGHT_OF('2025-02-23', '2025-02-24'), RYAZAN, '2025-02-24'),
   ).toStrictEqual(['2025-02-23', '2025-02-24']);
 });
+
+// Real excerpts of stored documents: doc_0b306287fb32 (Reuters) and doc_82746201e328 (ISW).
+const YANOS = [
+  "Sept 17 (Reuters) - Russia's Slavneft Yaroslavnefteorgsintez (YANOS) oil refinery halted crude processing on Thursday following a Ukrainian drone attack that damaged equipment at the facility",
+  "Ukraine hit Russia's Yaroslavl oil refinery overnight, ​Ukrainian President Volodymyr Zelenskiy said on Thursday.",
+];
+const RYAZAN_ISW = [
+  'Ukrainian forces continued their long-range strike campaign against Russian oil infrastructure on the night of September 5 to 6.',
+];
+
+test('a dateline with no city and "overnight" state the night that ends on the dateline day', () => {
+  const options = { publishedOn: '2026-09-17' };
+  expect(unstatedValues(NIGHT_OF('2026-09-16', '2026-09-17'), YANOS, options)).toStrictEqual([]);
+  expect(unstatedValues(NIGHT_OF('2026-09-17', '2026-09-18'), YANOS, options)).toHaveLength(1);
+});
+
+test('"the night of September 5 to 6" states the two days of the night', () => {
+  const options = { publishedOn: '2026-09-06' };
+  expect(unstatedValues(NIGHT_OF('2026-09-05', '2026-09-06'), RYAZAN_ISW, options)).toStrictEqual(
+    [],
+  );
+  expect(unstatedValues(NIGHT_OF('2026-09-05', '2026-09-06'), RYAZAN_ISW)).toHaveLength(2);
+  expect(
+    daysFromPublication(NIGHT_OF('2026-09-05', '2026-09-06'), RYAZAN_ISW, '2026-09-06'),
+  ).toStrictEqual(['2026-09-05', '2026-09-06']);
+});
+
+test('a night of two days with a year and the "overnight on" form state the night', () => {
+  for (const words of ['on the night of September 5 to 6, 2026', 'overnight on September 5 to 6'])
+    expect(
+      unstatedValues(NIGHT_OF('2026-09-05', '2026-09-06'), [`Drones struck ${words}.`], {
+        publishedOn: '2026-09-06',
+      }),
+    ).toStrictEqual([]);
+  expect(
+    unstatedValues(NIGHT_OF('2026-09-05', '2026-09-06'), [
+      'Drones struck on the night of September 5 to 6, 2026.',
+    ]),
+  ).toStrictEqual([]);
+});
+
+test('a night of two days that are not side by side states nothing', () => {
+  expect(
+    unstatedValues(NIGHT_OF('2026-09-05', '2026-09-06'), ['on the night of September 4 to 6'], {
+      publishedOn: '2026-09-06',
+    }),
+  ).toHaveLength(2);
+});
