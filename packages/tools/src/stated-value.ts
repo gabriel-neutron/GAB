@@ -404,7 +404,13 @@ const COORDINATE_TOLERANCE = 1 / 60;
 // shortcut: the hemisphere is not read, so 59.6 S states 59.6 N; read the letter when a source
 // south of the equator or west of Greenwich is cited.
 const coordinatesIn = (text: string): number[] => [
-  ...Array.from(text.matchAll(/(?<![\d.,])(\d{1,3})[.,](\d+)/gu), (one) =>
+  // A decimal point can follow a CSV comma (Oblast,60.5233,28.1301), but a decimal comma cannot.
+  // shortcut: a thousands comma (1,059.40) also gives 59.4; refuse it when a cited price or
+  // tonnage states a false coordinate.
+  ...Array.from(text.matchAll(/(?<![\d.])(\d{1,3})\.(\d+)/gu), (one) =>
+    Number(`${one[1] ?? ''}.${one[2] ?? ''}`),
+  ),
+  ...Array.from(text.matchAll(/(?<![\d.,])(\d{1,3}),(\d+)/gu), (one) =>
     Number(`${one[1] ?? ''}.${one[2] ?? ''}`),
   ),
   ...Array.from(

@@ -563,6 +563,8 @@ test.each([
   ["RU  ULU  Ust'-Luga  5940N 02819E", 28.3167, 59.6667],
   ['Latitude 59.6681, Longitude 28.3122', 28.3167, 59.6667],
   ['the port lies at 59°40′ N, 28°19′ E', 28.3167, 59.6667],
+  ['the port lies at 59,6681 N, 28,3122 E', 28.3167, 59.6667],
+  ['Leningrad Oblast,60.523347000000001,28.130122,exact', 28.130122, 60.523347],
 ])('the passage %j states the point', (passage, lon, lat) => {
   expect(unstatedValues(placeAt(lon, lat), [passage])).toStrictEqual([]);
 });
@@ -575,6 +577,11 @@ test('a point that the passage does not state is unstated, coordinate by coordin
   ).toStrictEqual(['geom.latitude']);
   expect(
     unstatedValues(placeAt(28.3167, 59.6667), ['left Sikka on 12 March 2024']).map(
+      (one) => one.name,
+    ),
+  ).toStrictEqual(['geom.longitude', 'geom.latitude']);
+  expect(
+    unstatedValues(placeAt(23.13, 23.34), ['Leningrad Oblast,60.523347000000001,28.130122']).map(
       (one) => one.name,
     ),
   ).toStrictEqual(['geom.longitude', 'geom.latitude']);
