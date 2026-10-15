@@ -264,6 +264,16 @@ BEGIN
   IF OLD.status <> 'pending' THEN
     RAISE EXCEPTION 'proposal % is already %, and a decided act is frozen', OLD.id, OLD.status;
   END IF;
+  -- A PENDING ACT SENT AGAIN IS CHECKED AGAIN (propose_batch): only its dispute and the reason of
+  -- the dispute change, and it stays pending. The dispute is the verdict of code and of a checker
+  -- on the act, and not what the author said, so a fix of a rule reaches the acts that wait.
+  -- The generated proposer is not computed yet in a BEFORE trigger, so the test leaves it out.
+  IF NEW.status = 'pending'
+     AND (NEW.dissent, NEW.dissent_reason) IS DISTINCT FROM (OLD.dissent, OLD.dissent_reason)
+     AND to_jsonb(NEW) - '{dissent,dissent_reason,proposer}'::text[]
+         = to_jsonb(OLD) - '{dissent,dissent_reason,proposer}'::text[] THEN
+    RETURN NEW;
+  END IF;
   IF NEW.status = 'pending' THEN
     RAISE EXCEPTION 'a proposal leaves pending and never returns to it';
   END IF;
@@ -747,7 +757,8 @@ END $$;
 -- the batch creates. The promotion gives the new row that identifier.
 --
 -- A PENDING ACT THAT IS ALREADY WRITTEN IS RETURNED, NOT WRITTEN AGAIN. The unique index on the
--- digest of a pending act makes a retry return the act that waits. That act keeps its own
+-- digest of a pending act makes a retry return the act that waits, and the retry checks its
+-- dispute again. That act keeps its own
 -- identifier and its own originator, so each later item that named the minted one names the act
 -- that waits instead. The door adds to that act each citation of the item that it does not hold
 -- yet, so a second passage of the same witness is kept, and a retry writes no citation twice.
@@ -1197,6 +1208,25 @@ BEGIN
     END IF;
     IF v_batch IS NOT NULL AND NOT v_batches ? v_key THEN
       v_batches := v_batches || jsonb_build_object(v_key, coalesce(v_held, v_batch));
+    END IF;
+
+    -- A PENDING ACT SENT AGAIN IS CHECKED AGAIN. The tool computes the dispute again with the code
+    -- and the checker of today, and gives recheck when a check ran. Only the research AI sends it,
+    -- because its door alone replaces the check of an act that waits. The act that waits then takes
+    -- the new dispute and its reason, so a fix of a rule needs no rejection and no new proposal.
+    -- A decided act is never here: the digest returns a pending act only. An act that cites words
+    -- read from an image stays disputed, so the operator still compares them with the image.
+    IF NOT written AND v_join IS NULL AND session_user = 'gabriel_research'
+       AND coalesce((v_item->>'recheck')::boolean, false)
+       AND (coalesce((v_item->>'dissent')::boolean, false)
+            OR NOT EXISTS (SELECT 1 FROM public.citation c
+                            WHERE c.claim_id = v_id AND c.transcription IS NOT NULL)) THEN
+      UPDATE public.proposals p
+         SET dissent = coalesce((v_item->>'dissent')::boolean, false),
+             dissent_reason = v_item->>'dissent_reason'
+       WHERE p.id = v_id AND p.status = 'pending'
+         AND (p.dissent, p.dissent_reason) IS DISTINCT FROM
+             (coalesce((v_item->>'dissent')::boolean, false), v_item->>'dissent_reason');
     END IF;
 
     -- An act that waits already and is not disputed takes no words read from an image.
@@ -5364,6 +5394,15 @@ BEGIN
      AND to_jsonb(NEW) - 'sites' = to_jsonb(OLD) - 'sites' THEN
     RETURN NEW;
   END IF;
+  -- The newest check of a research act that waits replaces its old check (store_act_check). The
+  -- check of a decided act is frozen.
+  IF TG_OP = 'UPDATE' AND TG_TABLE_NAME = 'act_check'
+     AND to_jsonb(NEW) -> 'proposal_id' = to_jsonb(OLD) -> 'proposal_id'
+     AND EXISTS (SELECT 1 FROM public.proposals p
+                  WHERE p.id = (to_jsonb(OLD) ->> 'proposal_id')::uuid
+                    AND p.status = 'pending' AND p.author_role = 'gabriel_research') THEN
+    RETURN NEW;
+  END IF;
   RAISE EXCEPTION 'a row of % is never %', TG_TABLE_NAME,
     CASE TG_OP WHEN 'DELETE' THEN 'deleted' ELSE 'updated' END;
 END $$;
@@ -5998,9 +6037,10 @@ $$;
 -- ================================================================== THE CHECK AND THE DIGIT ==
 -- THE DOORS FOR THE CHECK BY A SECOND MODEL FAMILY. The check proves that the passage says the
 -- fact, and never that the fact is true. The row names the family of the reader and the family of
--- the checker: a check by the same family does not pass. A check is written once for an act: a
--- second check of the same act changes nothing, and the first one stays. So a process that writes
--- the check again after a stop or a retry is safe. The row keeps the reason of a verdict that is
+-- the checker: a check by the same family does not pass. The worker writes a check once for an
+-- act: a second check of the same act changes nothing, and the first one stays. So a process that
+-- writes the check again after a stop or a retry is safe. The research AI sends a pending act
+-- again to check it again, so its newest check replaces the check of an act that waits. The row keeps the reason of a verdict that is
 -- not `supported`, cut to the length that the table keeps.
 --
 -- EACH DOOR CHECKS THE ACTS OF ONE AUTHOR ROLE. The worker checks the acts of gabriel_agent, and
@@ -6015,6 +6055,8 @@ CREATE OR REPLACE FUNCTION store_act_check(p_act uuid, p_author_role text, p_che
 RETURNS void
 LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_replace boolean;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.proposals p
                   WHERE p.id = p_act AND p.originator IS NOT NULL
@@ -6022,12 +6064,22 @@ BEGIN
     RAISE EXCEPTION 'a check of this door belongs to an act of a machine that % wrote', p_author_role
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
+  -- A RESEARCH ACT THAT WAITS IS CHECKED AGAIN when the research AI sends it again, so the newest
+  -- check replaces the old one. The share lock makes a decision of the act wait for this write.
+  -- The check of a decided act, and each check of the worker, stays as it was written first.
+  PERFORM 1 FROM public.proposals p
+    WHERE p.id = p_act AND p.status = 'pending' AND p_author_role = 'gabriel_research' FOR SHARE;
+  v_replace := FOUND;
   INSERT INTO public.act_check (proposal_id, checker_model, checker_family, reader_family, verdict,
                                 reason)
   VALUES (p_act, p_checker_model, p_checker_family, p_reader_family, p_verdict,
           CASE WHEN p_verdict = 'supported' OR btrim(coalesce(p_reason, '')) = '' THEN NULL
                ELSE left(p_reason, 1000) END)
-  ON CONFLICT (proposal_id) DO NOTHING;
+  ON CONFLICT (proposal_id) DO UPDATE
+    SET checker_model = EXCLUDED.checker_model, checker_family = EXCLUDED.checker_family,
+        reader_family = EXCLUDED.reader_family, verdict = EXCLUDED.verdict,
+        reason = EXCLUDED.reason, checked_at = now()
+    WHERE v_replace;
   -- The end of the check makes the units that share the fact go through the rules again.
   PERFORM public.run_rules(ARRAY(
     SELECT DISTINCT q.unit_id FROM public.proposals q

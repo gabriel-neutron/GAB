@@ -662,7 +662,9 @@ export const proposeOf = (modelCallId: string | null) =>
       'entity that waits in the review queue by its proposal id when its other end is an ' +
       'entity of the record: it joins the unit of that entity, and a rejection of the entity ' +
       'rejects it. A retry of the same batch writes ' +
-      'nothing twice. The ' +
+      'nothing twice. Send a pending item again to check it again: the code and the checker of ' +
+      'today give it a new dispute, or clear its dispute, and the act keeps its id; a decided ' +
+      'act never changes. The ' +
       'proposals wait for the operator. A claimed strike, a fire or a stoppage is an entity of ' +
       'type event. Its name is "kind — site — day", for example "claimed attack — Afipsky ' +
       'refinery — 2026-05-15", where the kind is claimed attack, fire or stoppage and the site is ' +
@@ -780,7 +782,8 @@ export const proposeOf = (modelCallId: string | null) =>
         });
       }
 
-      // The check runs before the insert, because the door freezes the dispute flag at insert.
+      // The check runs before the insert, because the door writes the dispute with the act. An
+      // item that repeats a pending act gives the act its new dispute, when a check ran.
       const toCheck: ItemToCheck[] = prepared.map(({ given, cited, claimAct }) => ({
         ref: given.ref,
         claim: {
@@ -843,6 +846,8 @@ export const proposeOf = (modelCallId: string | null) =>
           names: act.names,
           dissent: reason !== null,
           dissent_reason: reason,
+          // A checker that failed gives no verdict, so the act that waits keeps its dispute.
+          recheck: failure === null,
           model_call_id: modelCallId,
           originator: given.originator,
           modality: given.modality,

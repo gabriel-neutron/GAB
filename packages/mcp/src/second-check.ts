@@ -239,7 +239,7 @@ const proposed = z.object({
 
 /** Keeps the verdict of the checker, with its reason, as the check of each act of the batch, so
  * the rules can decide. `writer` is a session of the checker role. An item with no verdict keeps
- * no check. The record keeps the first check of an act. */
+ * no check. The newest check of an act that waits replaces its old check. */
 export const recordChecks = async (
   writer: Session,
   checker: ModelConfig,

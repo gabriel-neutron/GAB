@@ -392,27 +392,54 @@ test('a server with no checker asks no model, and says why in the answer', async
   expect(run.acts[0]).toMatchObject(NO_CHECK);
 });
 
-test('a later check that does not support the act keeps its reason with the check', async () => {
+const REFUTED = {
+  dissent: true,
+  dissent_reason: 'the checker says not_supported: No date is given.',
+  verdict: 'not_supported',
+  passed: false,
+  reason: 'No date is given.',
+};
+
+test('a later check that does not support the act disputes the act that waits', async () => {
   const later = refuting();
   const run = await proposeThrough([checkOf(failing()), checkOf(later)], [NAYARA]);
 
   expect(later.checks()).toBe(1);
-  expect(run.acts[0]).toMatchObject({
-    dissent: false,
-    verdict: 'not_supported',
-    passed: false,
-    reason: 'No date is given.',
-  });
+  expect(run.output.proposals.map((one) => one.disputed)).toStrictEqual([true]);
+  expect(run.acts[0]).toMatchObject(REFUTED);
 });
 
-test('a batch sent again pays one call again, and the first check of each act stays', async () => {
+test('a batch sent again pays one call again, and the newest check of each act replaces the old', async () => {
   const first = routerOf(NO_READER);
   const second = refuting();
   const run = await proposeThrough([checkOf(first), checkOf(second)], [NAYARA]);
 
   expect([first.checks(), second.checks()]).toStrictEqual([1, 1]);
   expect(run.calls).toBe(2);
-  expect(run.acts[0]).toMatchObject({ dissent: false, verdict: 'supported', passed: true });
+  expect(run.acts).toHaveLength(1);
+  expect(run.acts[0]).toMatchObject(REFUTED);
+});
+
+test('a disputed act that waits loses its dispute when a later check supports it', async () => {
+  const run = await proposeThrough([checkOf(refuting()), checkOf(routerOf(NO_READER))], [NAYARA]);
+
+  expect(run.acts).toStrictEqual([
+    {
+      label: 'Nayara',
+      dissent: false,
+      dissent_reason: null,
+      ...passedCheck,
+      verdict: 'supported',
+      passed: true,
+    },
+  ]);
+  expect(run.output.proposals.map((one) => one.disputed)).toStrictEqual([false]);
+});
+
+test('a disputed act that waits keeps its dispute when the later checker fails', async () => {
+  const run = await proposeThrough([checkOf(refuting()), checkOf(failing())], [NAYARA]);
+
+  expect(run.acts[0]).toMatchObject(REFUTED);
 });
 
 test('a checker role with a wrong password asks no model, and the batch waits', async () => {
