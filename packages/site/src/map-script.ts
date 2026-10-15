@@ -7,10 +7,11 @@ import { CARD_ELEMENT, CARDS_ELEMENT, FEATURES_ELEMENT, MAP_ELEMENT } from './ma
 const GROUND = '#eceef0';
 const MARK = '#0b6aa2';
 
-// The basemap is the standard tile layer of OpenStreetMap, under the tile policy of the
-// OpenStreetMap Foundation. The attribution is an obligation of its licence: do not shorten it.
-const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const ATTRIBUTION = '© OpenStreetMap contributors';
+// The basemap is a file of the site: the outlines of the countries, from Natural Earth (public
+// domain). The site sends no request to a tile server (ADR 0020).
+const COUNTRIES = new URL('./countries.json', import.meta.url).href;
+const LAND = '#ffffff';
+const COAST = '#9aa0a6';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -33,31 +34,35 @@ if (container !== null) {
   const style: StyleSpecification = {
     version: 8,
     sources: {
-      basemap: {
-        type: 'raster',
-        tiles: [TILES],
-        tileSize: 256,
-        maxzoom: 19,
-        attribution: ATTRIBUTION,
-      },
+      countries: { type: 'geojson', data: COUNTRIES },
       entities: { type: 'geojson', data: { type: 'FeatureCollection', features } },
     },
     layers: [
       { id: 'ground', type: 'background', paint: { 'background-color': GROUND } },
-      { id: 'basemap', type: 'raster', source: 'basemap' },
+      { id: 'land', type: 'fill', source: 'countries', paint: { 'fill-color': LAND } },
+      {
+        id: 'coast',
+        type: 'line',
+        source: 'countries',
+        paint: { 'line-color': COAST, 'line-width': 0.6 },
+      },
       {
         id: 'areas',
         type: 'fill',
         source: 'entities',
         filter: ['==', ['geometry-type'], 'Polygon'],
-        paint: { 'fill-color': MARK, 'fill-opacity': 0.3, 'fill-outline-color': MARK },
+        paint: {
+          'fill-color': ['coalesce', ['get', 'colour'], MARK],
+          'fill-opacity': 0.3,
+          'fill-outline-color': ['coalesce', ['get', 'colour'], MARK],
+        },
       },
       {
         id: 'lines',
         type: 'line',
         source: 'entities',
         filter: ['==', ['geometry-type'], 'LineString'],
-        paint: { 'line-color': MARK, 'line-width': 2 },
+        paint: { 'line-color': ['coalesce', ['get', 'colour'], MARK], 'line-width': 2 },
       },
       {
         id: 'points',

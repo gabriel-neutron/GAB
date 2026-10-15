@@ -23,7 +23,8 @@ export function MapPage({
       <p className="max-w-prose">
         {features.length} entities of this release have their own position. The colour of a point is
         the stage of the chain of the asset. A grey point is an entity with no stage. Select a point
-        for its card. The release holds accepted facts only.
+        for its card. A card shows accepted facts only, and counts the facts that are still in
+        review.
       </p>
       <ul className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Stages of the chain">
         {STAGES.map((one) => (
@@ -37,6 +38,9 @@ export function MapPage({
           </li>
         ))}
       </ul>
+      <p className="max-w-prose">
+        Basemap: outlines of the countries, Natural Earth (public domain).
+      </p>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div
           id={MAP_ELEMENT}

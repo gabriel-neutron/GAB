@@ -1,7 +1,8 @@
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { chainView, stagedGeojson } from './chain-card.ts';
+import { chainView } from './chain-card.ts';
+import { stagedGeojson } from './staged-geojson.ts';
 import { ClaimPage } from './claim-page.tsx';
 import { claimText } from './claim-text.ts';
 import { DownloadsPage } from './downloads-page.tsx';
@@ -80,7 +81,7 @@ export const buildSite = (
         <script
           type="application/json"
           id={FEATURES_ELEMENT}
-          dangerouslySetInnerHTML={{ __html: scriptSafe(stagedGeojson(release, view)) }}
+          dangerouslySetInnerHTML={{ __html: scriptSafe(stagedGeojson(release.geojson, view)) }}
         />
         <script
           type="application/json"
