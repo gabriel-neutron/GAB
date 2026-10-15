@@ -1193,12 +1193,23 @@ BEGIN
       -- The conflict is the only way to get no row, so the act waits under its digest.
       -- The share lock waits for a decision on that act that runs now. So a retry never joins a
       -- unit that the operator decides at the same time.
-      SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p
-       WHERE p.status = 'pending'
-         AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
-                                          v_payload::jsonb, v_src, session_user::text,
-                                          v_passages)
-         FOR SHARE;
+      -- A re-check writes the act, so it takes the write lock now: two retries that both held a
+      -- share lock and then wrote would wait for each other.
+      IF session_user = 'gabriel_research' AND coalesce((v_item->>'recheck')::boolean, false) THEN
+        SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p
+         WHERE p.status = 'pending'
+           AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
+                                            v_payload::jsonb, v_src, session_user::text,
+                                            v_passages)
+           FOR NO KEY UPDATE;
+      ELSE
+        SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p
+         WHERE p.status = 'pending'
+           AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
+                                            v_payload::jsonb, v_src, session_user::text,
+                                            v_passages)
+           FOR SHARE;
+      END IF;
       IF NOT FOUND THEN
         RAISE EXCEPTION 'item %: the operator decided the act that this item repeats while the '
                         'batch was written, so send the batch again', v_no
@@ -1225,6 +1236,11 @@ BEGIN
          SET dissent = coalesce((v_item->>'dissent')::boolean, false),
              dissent_reason = v_item->>'dissent_reason'
        WHERE p.id = v_id AND p.status = 'pending'
+         -- The checker read the claim of the item, so the act must state the same claim: the
+         -- digest leaves out the originator and the modality.
+         AND public.name_key(p.originator) = public.name_key(v_item->>'originator')
+         AND NOT EXISTS (SELECT 1 FROM public.citation c
+                          WHERE c.claim_id = p.id AND c.modality IS DISTINCT FROM v_item->>'modality')
          AND (p.dissent, p.dissent_reason) IS DISTINCT FROM
              (coalesce((v_item->>'dissent')::boolean, false), v_item->>'dissent_reason');
     END IF;

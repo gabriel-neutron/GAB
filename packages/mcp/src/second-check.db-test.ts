@@ -442,6 +442,13 @@ test('a disputed act that waits keeps its dispute when the later checker fails',
   expect(run.acts[0]).toMatchObject(REFUTED);
 });
 
+test('a disputed act that waits keeps its dispute when the later answer leaves it out', async () => {
+  const silent = routerOf(NO_READER, () => verdictsOf([['someone_else', 'supported']]));
+  const run = await proposeThrough([checkOf(refuting()), checkOf(silent)], [NAYARA]);
+
+  expect(run.acts[0]).toMatchObject(REFUTED);
+});
+
 test('a checker role with a wrong password asks no model, and the batch waits', async () => {
   const router = routerOf(NO_READER);
   // An empty variable reaches the local stack, as in the tools of the schema.

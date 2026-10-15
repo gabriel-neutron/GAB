@@ -382,15 +382,34 @@ test('a pending act sent again with a check takes its new dispute, and with no c
       { ...first, id: randomUUID(), dissent: false, dissent_reason: null },
     ]);
     const unchecked = await disputeOf(ask, written?.proposal_id);
+    // The checker read the claim of another party, so the act keeps its dispute.
+    await batchAs(ask, 'gabriel_research', [
+      {
+        ...first,
+        id: randomUUID(),
+        originator: 'Another party',
+        dissent: false,
+        dissent_reason: null,
+        recheck: true,
+      },
+    ]);
+    const otherParty = await disputeOf(ask, written?.proposal_id);
     const [again] = outcomes.parse(
       await batchAs(ask, 'gabriel_research', [
         { ...first, id: randomUUID(), dissent: false, dissent_reason: null, recheck: true },
       ]),
     );
-    return { written, again, unchecked, checked: await disputeOf(ask, written?.proposal_id) };
+    return {
+      written,
+      again,
+      unchecked,
+      otherParty,
+      checked: await disputeOf(ask, written?.proposal_id),
+    };
   });
   expect(found.again).toMatchObject({ proposal_id: found.written?.proposal_id, written: false });
   expect(found.unchecked).toStrictEqual({ status: 'pending', ...DISPUTED });
+  expect(found.otherParty).toStrictEqual({ status: 'pending', ...DISPUTED });
   expect(found.checked).toStrictEqual({ status: 'pending', dissent: false, dissent_reason: null });
 });
 

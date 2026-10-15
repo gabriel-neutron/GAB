@@ -846,8 +846,9 @@ export const proposeOf = (modelCallId: string | null) =>
           names: act.names,
           dissent: reason !== null,
           dissent_reason: reason,
-          // A checker that failed gives no verdict, so the act that waits keeps its dispute.
-          recheck: failure === null,
+          // An item with no verdict (a checker that failed or left it out) gives no new
+          // dispute, so the act that waits keeps its dispute and its check.
+          recheck: verdicts?.has(given.ref) === true,
           model_call_id: modelCallId,
           originator: given.originator,
           modality: given.modality,
