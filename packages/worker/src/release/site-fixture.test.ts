@@ -525,7 +525,7 @@ test('the example volume table joins three rows, keeps two rows on no link and r
     null,
     VOLUMES,
   );
-  expect(written.volumeRejections.map((one) => one.why)).toHaveLength(2);
+  expect(written.volumeRejections.map((one) => one.line)).toEqual([8, 9]);
   const table = readReleaseTable(
     written.files.find((file) => file.path === 'volumes.csv')?.text ?? '',
   );
