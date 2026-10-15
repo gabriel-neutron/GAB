@@ -186,19 +186,22 @@ BEGIN
 END $$;
 
 -- THE UNIT OF DECISION (P11). The operator decides one entity with the relations that depend on
--- it. A relation whose end is a pending act outside its group, or a relation, is a unit of its
--- own, so that no entity waits for another group or for a relation. If not, a relation belongs to its source end when that end is a
--- pending entity of the same group, then to its target end. Every other act is its own unit. An
--- entity act has the identifier of the entity it creates, so the unit of an entity is that
--- identifier. The unit is frozen with the act.
+-- it. A relation from an entity of the record to a pending entity outside its group, or the
+-- reverse, joins the unit of that pending entity: a later session can link an entity that waits.
+-- Any other relation whose end is a pending act outside its group, or a relation, is a
+-- unit of its own, so that no entity waits for another group or for a relation. If not, a
+-- relation belongs to its source end when that end is a pending entity of the same group, then to
+-- its target end. Every other act is its own unit. An entity act has the identifier of the entity
+-- it creates, so the unit of an entity is that identifier. The unit is frozen with the act.
 CREATE OR REPLACE FUNCTION stamp_unit() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
-  v_src uuid;
-  v_dst uuid;
+  v_src  uuid;
+  v_dst  uuid;
+  v_wait uuid;
 BEGIN
   NEW.unit_id := NEW.id;
-  IF NEW.op <> 'create_relation' OR NEW.batch_id IS NULL THEN
+  IF NEW.op <> 'create_relation' THEN
     RETURN NEW;
   END IF;
   -- The door checks the shape of the payload after this stamp, so an end that is no identifier
@@ -207,6 +210,19 @@ BEGIN
                 THEN (NEW.payload->>'src_id')::uuid END;
   v_dst := CASE WHEN pg_input_is_valid(NEW.payload->>'dst_id', 'uuid')
                 THEN (NEW.payload->>'dst_id')::uuid END;
+  -- One end is a pending entity of another group, and the other end is an entity of the record.
+  SELECT o.id INTO v_wait FROM public.proposals o
+   WHERE o.id IN (v_src, v_dst) AND o.status = 'pending' AND o.op = 'create_entity'
+     AND NOT coalesce(o.batch_id = NEW.batch_id, false)
+     AND EXISTS (SELECT 1 FROM public.entities e
+                  WHERE e.id = CASE WHEN o.id = v_src THEN v_dst ELSE v_src END);
+  IF FOUND THEN
+    NEW.unit_id := v_wait;
+    RETURN NEW;
+  END IF;
+  IF NEW.batch_id IS NULL THEN
+    RETURN NEW;
+  END IF;
   IF EXISTS (SELECT 1 FROM public.proposals o
               WHERE o.id IN (v_src, v_dst) AND o.status = 'pending'
                 AND NOT (o.op = 'create_entity'
@@ -2367,11 +2383,22 @@ BEGIN
     RAISE EXCEPTION 'the reason "end rejected" is only for a relation whose other end was rejected'
       USING CONSTRAINT = 'rejection_end';
   END IF;
-  UPDATE public.proposals
+  -- A relation of another group joined the unit through its pending entity. Its own fact
+  -- was not judged, so it takes the reason "end rejected".
+  UPDATE public.proposals x
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
-         decided_as = 'unit', reject_reason = p_reason, reject_note = v_note,
+         decided_as = 'unit',
+         reject_reason = CASE WHEN x.id <> p_unit AND x.op = 'create_relation'
+                                   AND h.id = ANY (v_left)
+                                   AND NOT coalesce(x.batch_id = h.batch_id, false)
+                              THEN 'end_rejected' ELSE p_reason END,
+         reject_note = CASE WHEN x.id <> p_unit AND x.op = 'create_relation'
+                                 AND h.id = ANY (v_left)
+                                 AND NOT coalesce(x.batch_id = h.batch_id, false)
+                            THEN NULL ELSE v_note END,
          decision_origin = p_origin, decision_reason = p_why
-   WHERE id = ANY (v_left);
+    FROM public.proposals h
+   WHERE x.id = ANY (v_left) AND h.id = p_unit;
   RETURN cardinality(v_left);
 END $$;
 
@@ -2608,8 +2635,10 @@ BEGIN
     SELECT u.id, f.state,
            (SELECT string_agg(x->>'said', '; ') FROM jsonb_array_elements(f.faults) AS x
              WHERE x->>'level' IN ('blocks', 'not_clean')) AS stops,
+           -- The group of a unit is the group of its head act: a relation of another group can
+           -- join the unit of a pending entity.
            EXISTS (SELECT 1 FROM public.proposals p
-                    WHERE p.unit_id = u.id AND p.status = 'pending'
+                    WHERE p.id = u.id AND p.unit_id = u.id AND p.status = 'pending'
                       AND p.batch_id = p_group) AS in_group,
            EXISTS (SELECT 1 FROM public.proposals p WHERE p.unit_id = u.id) AS known
       FROM unnest(v_units) WITH ORDINALITY AS u(id, at)
@@ -2712,11 +2741,12 @@ DECLARE
   v_rail jsonb;
 BEGIN
   WITH RECURSIVE waiting AS (
-    SELECT p.unit_id, p.batch_id, p.proposer, p.src
+    SELECT p.id, p.unit_id, p.batch_id, p.proposer, p.src
       FROM public.proposals p
      WHERE p.status = 'pending' AND p.batch_id IS NOT NULL
   ), units AS (
-    SELECT DISTINCT w.unit_id, w.batch_id FROM waiting w
+    -- The group of a unit is the group of its head act.
+    SELECT DISTINCT w.unit_id, w.batch_id FROM waiting w WHERE w.id = w.unit_id
   ), checked AS (
     SELECT u.batch_id, u.unit_id, f.state, f.faults
       FROM units u
@@ -2781,8 +2811,10 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET jit = off
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
+  -- The group of a unit is the group of its head act.
   v_units uuid[] := ARRAY(SELECT DISTINCT p.unit_id FROM public.proposals p
-                           WHERE p.batch_id = p_group AND p.status = 'pending');
+                           WHERE p.batch_id = p_group AND p.status = 'pending'
+                             AND p.id = p.unit_id);
   v_read  jsonb;
 BEGIN
   IF cardinality(v_units) = 0 THEN
@@ -3747,7 +3779,8 @@ BEGIN
     SELECT a.* FROM public.proposals a
      WHERE a.unit_id = ANY (p_units) AND a.status = 'pending'
   ), units AS (
-    SELECT a.unit_id, (array_agg(a.batch_id))[1] AS batch_id,
+    -- The group of a unit is the group of its head act: a relation of another group can join it.
+    SELECT a.unit_id, (array_agg(a.batch_id ORDER BY a.id <> a.unit_id, a.id))[1] AS batch_id,
            bool_or(a.op = 'create_entity' AND a.id = a.unit_id) AS entity_unit
       FROM acts a GROUP BY a.unit_id
   ), ends AS (
@@ -4182,7 +4215,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   ), pending AS (
     SELECT p.batch_id, count(DISTINCT p.unit_id)::int AS units
       FROM public.proposals p
-     WHERE p.status = 'pending' AND p.batch_id IS NOT NULL
+     WHERE p.status = 'pending' AND p.batch_id IS NOT NULL AND p.id = p.unit_id
      GROUP BY p.batch_id
   )
   SELECT n.batch_id, n.subject,

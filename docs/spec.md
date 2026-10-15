@@ -253,8 +253,11 @@ fails, with the same words as its reason. While a job waits or runs, the interfa
 again by itself.
 
 Each act gets a unit of decision when the door writes it, and the unit never changes (P11). An
-entity is a unit with the relations that depend on it. A relation that names an act that waits in
-another group, or names a relation, is a unit of its own, so no entity waits for another group.
+entity is a unit with the relations that depend on it. A relation between an entity of the record
+and a new entity that waits in another group joins the unit of that new entity. A rejection of that
+unit rejects such a relation with the reason "end rejected". Any other relation that names an act
+that waits in another group, or names a relation, is a unit of its own, so no entity waits for
+another group.
 The review queue shows one line for each unit. It reads one page of units at a time through the
 writer, because the cited passages are private. The AI reviewer of the MCP server reads the same
 page through its own role. Each line names who proposed the unit.

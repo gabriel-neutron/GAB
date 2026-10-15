@@ -49,7 +49,10 @@ const localRef = z
   .string()
   .regex(/^[a-z][a-z0-9_]{0,39}$/u, 'a ref is a short lower-case word, such as e1 or vessel_1');
 
-const END = 'the id of an element of the record, or the ref of an earlier item of this batch';
+const END =
+  'the id of an element of the record, the id of a new entity that waits in the review queue ' +
+  '(only when the other end is an entity of the record), or the ref of an earlier item of this ' +
+  'batch';
 
 const ATTRIBUTES =
   'write each attribute as {"key": {"v": value}}, for example {"imo": {"v": "9074729"}}; a ' +
@@ -349,8 +352,25 @@ const present = async (session: Session, kind: Kind, id: string): Promise<boolea
     )
   ).length === 1;
 
-// An end is an element of the record or a creation of an earlier item. The promotion fails on an
-// end that does not exist, after the proposal is stored, so the check runs here.
+// A new entity that waits in the review queue. A relation to it joins its unit.
+const PENDING_ENTITY = `SELECT payload->>'type' AS type FROM api.proposal
+  WHERE id = $1 AND status = 'pending' AND op = 'create_entity'`;
+
+const pendingEntityType = async (session: Session, id: string): Promise<string | null> => {
+  const [found] = await rowsOf(session, z.strictObject({ type: z.string() }), PENDING_ENTITY, [id]);
+  return found?.type ?? null;
+};
+
+// Where an end stands: in the record, in this batch, or in the review queue.
+interface End {
+  readonly id: string;
+  readonly stands: 'record' | 'batch' | 'queue';
+  readonly kind: Kind;
+}
+
+// An end is an element of the record, a new entity that waits in the queue, or a creation of an
+// earlier item. The promotion fails on an end that does not exist, after the proposal is stored,
+// so the check runs here.
 const resolvedEnd = async (
   session: Session,
   ref: string,
@@ -358,16 +378,34 @@ const resolvedEnd = async (
   given: string,
   kind: Kind,
   minted: ReadonlyMap<string, Minted>,
-): Promise<string> => {
+): Promise<End> => {
   const named = minted.get(given);
   if (named !== undefined) {
     if (named.index >= index) refuse(ref, `it names ${given}, which stands after it in the batch`);
     if (named.kind !== kind) refuse(ref, `it names ${given} as ${kind}, and ${given} creates none`);
-    return named.id;
+    return { id: named.id, stands: 'batch', kind };
   }
   if (!z.uuid().safeParse(given).success) refuse(ref, `${given} is no ref of this batch and no id`);
-  if (!(await present(session, kind, given))) refuse(ref, `the ${kind} ${given} does not exist`);
-  return given;
+  if (await present(session, kind, given)) return { id: given, stands: 'record', kind };
+  if (kind === 'entity' && (await pendingEntityType(session, given)) !== null)
+    return { id: given, stands: 'queue', kind };
+  refuse(ref, `the ${kind} ${given} does not exist`);
+};
+
+// A relation to a new entity that waits joins the unit of that entity only when its other end is
+// an entity of the record. Any other relation to it would wait in a unit of its own.
+const checkQueuedEnds = (ref: string, src: End, dst: End): void => {
+  for (const [end, other] of [
+    [src, dst],
+    [dst, src],
+  ] as const) {
+    if (end.stands === 'queue' && !(other.stands === 'record' && other.kind === 'entity'))
+      refuse(
+        ref,
+        `the new entity ${end.id} waits in the review queue, so the other end of the relation ` +
+          'must be an entity of the record',
+      );
+  }
 };
 
 const resolvedAct = async (
@@ -377,28 +415,27 @@ const resolvedAct = async (
   minted: ReadonlyMap<string, Minted>,
 ): Promise<WriteRequest> => {
   const { act } = given;
-  const raw =
-    act.op === 'create_relation'
-      ? {
-          ...act,
-          srcId: await resolvedEnd(
-            session,
-            given.ref,
-            index,
-            act.srcId,
-            act.srcKind ?? 'entity',
-            minted,
-          ),
-          dstId: await resolvedEnd(
-            session,
-            given.ref,
-            index,
-            act.dstId,
-            act.dstKind ?? 'entity',
-            minted,
-          ),
-        }
-      : act;
+  let raw: unknown = act;
+  if (act.op === 'create_relation') {
+    const src = await resolvedEnd(
+      session,
+      given.ref,
+      index,
+      act.srcId,
+      act.srcKind ?? 'entity',
+      minted,
+    );
+    const dst = await resolvedEnd(
+      session,
+      given.ref,
+      index,
+      act.dstId,
+      act.dstKind ?? 'entity',
+      minted,
+    );
+    checkQueuedEnds(given.ref, src, dst);
+    raw = { ...act, srcId: src.id, dstId: dst.id };
+  }
   const parsed = writeRequest.safeParse(raw);
   if (!parsed.success)
     refuse(given.ref, parsed.error.issues.map((issue) => issue.message).join('; '));
@@ -437,7 +474,8 @@ const RELATION_WORDS = `SELECT concat_ws(' ', coalesce(s.label, 'an element'),
   WHERE r.id = $1`;
 
 // The type of the entity that an end of a relation names: the type of an earlier item of the batch,
-// or the type that the record holds. An end that is no entity has none.
+// the type that the record holds, or the type of a new entity that waits in the queue. An end that
+// is no entity has none.
 const endType = async (
   session: Session,
   given: string,
@@ -453,7 +491,7 @@ const endType = async (
     'SELECT type FROM api.entity WHERE id = $1',
     [given],
   );
-  return found?.type ?? null;
+  return found?.type ?? (await pendingEntityType(session, given));
 };
 
 // A relation of an event reaches the types that its rule names. The end of a relation can be an
@@ -620,7 +658,10 @@ export const proposeOf = (modelCallId: string | null) =>
       'model of another family reads each item with its passages, and an item that its passages ' +
       'do not support is marked as disputed. When no model could check the batch, checkFailure ' +
       'says why: the items wait with no check, and the same batch sent again is checked again. A ' +
-      'relation names an entity of an earlier item by its ref. A retry of the same batch writes ' +
+      'relation names an entity of an earlier item by its ref. A relation can name a new ' +
+      'entity that waits in the review queue by its proposal id when its other end is an ' +
+      'entity of the record: it joins the unit of that entity, and a rejection of the entity ' +
+      'rejects it. A retry of the same batch writes ' +
       'nothing twice. The ' +
       'proposals wait for the operator. A claimed strike, a fire or a stoppage is an entity of ' +
       'type event. Its name is "kind — site — day", for example "claimed attack — Afipsky ' +
