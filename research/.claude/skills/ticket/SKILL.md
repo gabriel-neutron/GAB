@@ -46,6 +46,18 @@ software. A research session never edits code, so:
    commit that the server gives.
 4. Send the blocked items again.
 
+## A different day for a date that the record holds
+
+The record refuses a change of a start or an end date that a relation already has. Do not work
+around it, and do not reject the relation. Write the conflict on the ticket, in this form, so that
+the operator can count the cases:
+
+- Relation: the relation id, its two entities and its type.
+- Old day: the day, the document id and the passage.
+- New day: the day, the document id and the passage.
+- Two events: yes or no. Yes when the two days can both be true, such as the day of adoption and
+  the day of entry into force, or the day of listing and the day of an amendment.
+
 ## Never
 
 - Never give the operator a prompt to paste in a new session. Start the session yourself.
