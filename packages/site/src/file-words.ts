@@ -10,7 +10,8 @@ export const FILE_WORDS: Readonly<Record<string, string>> = {
   'asset-links.csv':
     'The OpenStreetMap link and the own point of each asset that has an OpenStreetMap identifier.',
   'credits.md': 'The credit of each source, as its licence asks.',
-  'entities.geojson': 'The entities with a position, with the columns of entities.csv.',
+  'entities.geojson':
+    'The entities with a position, with the columns of entities.csv, the asset kind and the dated sanctions of each facility.',
   'dataset.jsonld': 'The entities, relations, claims and documents as linked data.',
   'changelog.csv': 'The changes since the previous release.',
   'manifest.json': 'The size and the SHA-256 checksum of each other file.',

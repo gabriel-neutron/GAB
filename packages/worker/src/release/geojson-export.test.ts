@@ -21,7 +21,7 @@ const document = (id: string, licence: string | null, provider: string | null = 
   provider,
 });
 
-const listing = (id: string, source: string, from: string, to: string | null) => ({
+const listing = (id: string, source: string, from: string | null, to: string | null) => ({
   id,
   type: 'designated_by',
   src_id: DEPOT,
@@ -78,10 +78,22 @@ const RECORD: ReleaseRecord = {
     },
   ],
   relations: [
-    listing('00000000-0000-4000-8000-0000000000a1', 'doc_eu', '2022-06-03', null),
+    listing('00000000-0000-4000-8000-0000000000a1', 'doc_eu', null, null),
     listing('00000000-0000-4000-8000-0000000000a2', 'doc_ofac', '2023-02-24', '2024-01-31'),
   ],
   claims: [
+    // The EU listing has no start: the entry into force of the act gives it.
+    {
+      claim_id: `${OWNER}/entry_into_force`,
+      subject_kind: 'entity',
+      subject_id: OWNER,
+      attribute: 'entry_into_force',
+      value: '2022-06-03',
+      origin_label: LABEL,
+      sources: ['doc_eu'],
+      act_id: ACT,
+      passages: [],
+    },
     {
       claim_id: 'kind',
       subject_kind: 'entity',

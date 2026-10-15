@@ -666,7 +666,7 @@ test('a release writes the public entities, relations and claims, each row with 
           type: z.literal('Feature'),
           id: z.string(),
           geometry: z.unknown(),
-          properties: z.record(z.string(), z.string()),
+          properties: z.record(z.string(), z.unknown()),
         }),
       ),
     })
@@ -677,7 +677,7 @@ test('a release writes the public entities, relations and claims, each row with 
     type: 'Feature',
     id: VESSEL,
     geometry: { type: 'Point', coordinates: [32.5, 46.6] },
-    properties: entities.find((row) => row['id'] === VESSEL),
+    properties: { ...entities.find((row) => row['id'] === VESSEL), asset_kind: null },
   });
   // RFC 7946: the outer ring of a polygon turns counter-clockwise.
   const ring =
