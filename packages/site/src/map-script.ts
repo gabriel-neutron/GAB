@@ -105,71 +105,16 @@ if (container !== null) {
     );
   }
 
-  // The card is built from text nodes, because a label comes from an untrusted page.
+  // The page renders each card in a hidden holder, so the script only copies the selected one.
   const holderOfCards = document.getElementById(CARDS_ELEMENT);
-  const cards: unknown = JSON.parse(holderOfCards?.textContent ?? 'null');
   const cardBox = document.getElementById(CARD_ELEMENT);
   const text = (value: unknown): string => (typeof value === 'string' ? value : '');
-  const element = (tag: string, content: string): HTMLElement => {
-    const one = document.createElement(tag);
-    one.textContent = content;
-    return one;
-  };
-  const link = (href: string, label: string): HTMLAnchorElement => {
-    const one = document.createElement('a');
-    one.href = href;
-    one.textContent = label;
-    one.className = 'underline';
-    return one;
-  };
   const showCard = (id: string): void => {
-    const card = isRecord(cards) ? cards[id] : undefined;
-    if (cardBox === null || !isRecord(card)) return;
-    const body: HTMLElement[] = [];
-    const title = element('h2', '');
-    title.className = 'font-medium';
-    title.append(link(text(card['href']), text(card['label'])));
-    body.push(title);
-    body.push(element('p', [text(card['type']), text(card['stage'])].filter(Boolean).join(', ')));
-    const values = Array.isArray(card['values']) ? card['values'] : [];
-    const relations = Array.isArray(card['relations']) ? card['relations'] : [];
-    const list = (heading: string, items: HTMLElement[]): void => {
-      if (items.length === 0) return;
-      const section = element('h3', heading);
-      section.className = 'mt-2 text-label';
-      const ul = document.createElement('ul');
-      ul.append(...items);
-      body.push(section, ul);
-    };
-    list(
-      'Values',
-      values.flatMap((one: unknown) => {
-        if (!isRecord(one)) return [];
-        const item = element('li', `${text(one['key'])}: ${text(one['value'])}`);
-        item.title = text(one['label']);
-        return [item];
-      }),
+    const card = [...(holderOfCards?.children ?? [])].find(
+      (one) => one instanceof HTMLElement && one.dataset['card'] === id,
     );
-    list(
-      'Relations',
-      relations.flatMap((one: unknown) => {
-        if (!isRecord(one)) return [];
-        const item = document.createElement('li');
-        const dates = [text(one['from']), text(one['to'])];
-        const interval = dates.some(Boolean) ? ` (${dates[0]} to ${dates[1]})` : '';
-        item.append(
-          `${text(one['words'])} `,
-          link(text(one['otherHref']), text(one['otherLabel'])),
-          interval,
-        );
-        item.title = text(one['label']);
-        return [item];
-      }),
-    );
-    const review = typeof card['inReview'] === 'number' ? card['inReview'] : 0;
-    if (review > 0) body.push(element('p', `${String(review)} in review, not shown.`));
-    body.push(element('p', 'Sources and events: see the page of the entity.'));
-    cardBox.replaceChildren(...body);
+    if (cardBox === null || card === undefined) return;
+    cardBox.replaceChildren(...[...card.childNodes].map((one) => one.cloneNode(true)));
   };
   for (const layer of ['points', 'lines', 'areas'])
     map.on('click', layer, (event) => {

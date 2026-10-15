@@ -1,6 +1,7 @@
+import { AssetCard } from './asset-card.tsx';
 import type { ChainView } from './chain-card.ts';
 import { STAGES } from './chain-stage.ts';
-import { CARD_ELEMENT, MAP_ELEMENT } from './map-elements.ts';
+import { CARD_ELEMENT, CARDS_ELEMENT, MAP_ELEMENT } from './map-elements.ts';
 import { mapFeatures } from './map-features.ts';
 import { SiteFrame } from './site-frame.tsx';
 import { entityPage, hrefFrom, MAP } from './site-paths.ts';
@@ -23,8 +24,8 @@ export function MapPage({
       <p className="max-w-prose">
         {features.length} entities of this release have their own position. The colour of a point is
         the stage of the chain of the asset. A grey point is an entity with no stage. Select a point
-        for its card. A card shows accepted facts only, and counts the facts that are still in
-        review.
+        for its card. A card gives the accepted facts first. A fact that is still in review carries
+        the words “In review”: it is a proposal, not a fact.
       </p>
       <ul className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Stages of the chain">
         {STAGES.map((one) => (
@@ -56,6 +57,16 @@ export function MapPage({
         >
           <p>Select a point on the map.</p>
         </div>
+      </div>
+      <div id={CARDS_ELEMENT} hidden>
+        {features.map((one) => {
+          const card = view.cards[one.id];
+          return card === undefined ? null : (
+            <div key={one.id} data-card={one.id}>
+              <AssetCard card={card} />
+            </div>
+          );
+        })}
       </div>
       <div className="max-w-full overflow-x-auto">
         <table className={TABLE}>
