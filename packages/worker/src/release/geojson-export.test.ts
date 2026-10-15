@@ -8,15 +8,28 @@ import type { ReleaseRecord } from './release-record.ts';
 const SHIP = '00000000-0000-4000-8000-000000000001';
 const OWNER = '00000000-0000-4000-8000-000000000002';
 const PORT = '00000000-0000-4000-8000-000000000003';
+const DEPOT = '00000000-0000-4000-8000-000000000004';
+const ACT = '00000000-0000-4000-8000-000000000005';
 const LABEL = 'Validated manually by the operator, on 2026-10-08';
 
-const document = (id: string, licence: string | null) => ({
+const document = (id: string, licence: string | null, provider: string | null = null) => ({
   id,
   title: `The document ${id}`,
   uri: `https://example.org/${id}`,
   retrieved_at: '2026-10-01',
   licence,
-  provider: null,
+  provider,
+});
+
+const listing = (id: string, source: string, from: string, to: string | null) => ({
+  id,
+  type: 'designated_by',
+  src_id: DEPOT,
+  dst_id: OWNER,
+  valid_from: from,
+  valid_to: to,
+  origin_label: LABEL,
+  sources: [source],
 });
 
 const RECORD: ReleaseRecord = {
@@ -55,13 +68,38 @@ const RECORD: ReleaseRecord = {
         ],
       },
     },
+    {
+      id: DEPOT,
+      type: 'facility',
+      label: 'A depot',
+      origin_label: LABEL,
+      sources: ['doc_b'],
+      geom: { type: 'Point', coordinates: [30.7, 46.4] },
+    },
   ],
-  relations: [],
-  claims: [],
+  relations: [
+    listing('00000000-0000-4000-8000-0000000000a1', 'doc_eu', '2022-06-03', null),
+    listing('00000000-0000-4000-8000-0000000000a2', 'doc_ofac', '2023-02-24', '2024-01-31'),
+  ],
+  claims: [
+    {
+      claim_id: 'kind',
+      subject_kind: 'entity',
+      subject_id: DEPOT,
+      attribute: 'asset_kind',
+      value: 'oil_terminal',
+      origin_label: LABEL,
+      sources: ['doc_b'],
+      act_id: ACT,
+      passages: [],
+    },
+  ],
   merges: [],
   documents: new Map([
     ['doc_a', document('doc_a', 'public-domain')],
     ['doc_b', document('doc_b', null)],
+    ['doc_eu', document('doc_eu', null, 'eu_eurlex')],
+    ['doc_ofac', document('doc_ofac', null, 'ofac_sdn')],
   ]),
   nameCandidates: { proposed: 0, confirmed: 0, refused: 0 },
   disclaimer: '',
@@ -80,7 +118,7 @@ const collection = () => {
   expect(file.path).toBe('entities.geojson');
   return z
     .looseObject({
-      features: z.array(z.object({ properties: z.record(z.string(), z.string()) }).loose()),
+      features: z.array(z.object({ properties: z.record(z.string(), z.unknown()) }).loose()),
     })
     .parse(JSON.parse(file.text));
 };
@@ -88,7 +126,7 @@ const collection = () => {
 test('the GeoJSON holds one feature for each entity with a position, in longitude and latitude order', () => {
   const read = collection();
   expect(read['type']).toBe('FeatureCollection');
-  expect(read.features).toHaveLength(2);
+  expect(read.features).toHaveLength(3);
   expect(read.features[0]).toMatchObject({
     type: 'Feature',
     id: SHIP,
@@ -113,13 +151,31 @@ test('the properties of a feature are the columns of the entity CSV, with the sa
     },
   });
   const [first] = collection().features;
-  expect(Object.keys(first?.properties ?? {})).toStrictEqual(header?.split(','));
+  expect(Object.keys(first?.properties ?? {})).toStrictEqual([
+    ...(header?.split(',') ?? []),
+    'asset_kind',
+  ]);
   expect(collection().features[1]).toMatchObject({
     properties: {
       label: 'A port, "the old one"',
       licence: 'derived fact; source under the provider licence, not redistributed',
     },
   });
+});
+
+test('a facility carries its asset kind and its dated listings for each regime', () => {
+  const depot = collection().features.find((one) => one['id'] === DEPOT);
+  expect(depot?.properties).toMatchObject({
+    asset_kind: 'oil_terminal',
+    sanctions: {
+      eu: [{ from: '2022-06-03', to: null }],
+      us: [{ from: '2023-02-24', to: '2024-01-31' }],
+      uk: [],
+    },
+  });
+  // Another entity has no sanctions member, and no asset kind.
+  expect(collection().features[0]?.properties).toMatchObject({ asset_kind: null });
+  expect(collection().features[0]?.properties).not.toHaveProperty('sanctions');
 });
 
 test('the collection carries the version and the disclaimer of the release', () => {
