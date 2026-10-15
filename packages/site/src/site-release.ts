@@ -94,6 +94,21 @@ export interface CriticalNode {
   readonly retained: boolean;
 }
 
+/** One row of the volumes table that the release joined to a physical link. A volume is an
+ * aggregate of the research, not a fact of the record. */
+export interface SiteVolume {
+  readonly volumeClass: 'observed' | 'estimated' | 'capacity';
+  readonly period: string;
+  readonly value: number;
+  readonly minimum: number | null;
+  readonly maximum: number | null;
+  readonly unit: string;
+  readonly documentTitle: string;
+  readonly documentAddress: string | null;
+  readonly page: string;
+  readonly note: string;
+}
+
 /** What the static site shows of one release, read from its files. */
 export interface SiteRelease {
   readonly manifest: SiteManifest;
@@ -114,6 +129,8 @@ export interface SiteRelease {
   /** The survivor of each absorbed identifier while its merge stands. */
   readonly aliases: ReadonlyMap<string, string>;
   readonly criticalNodes: readonly CriticalNode[];
+  /** The volumes of each physical link, in the order of the volumes table. */
+  readonly volumesOfRelation: ReadonlyMap<string, readonly SiteVolume[]>;
   /** The GeoJSON file of the release, as the release wrote it. */
   readonly geojson: string;
 }
@@ -144,6 +161,15 @@ const CONDITION_COLUMNS = [
   ['b', 'b_production_or_throughput'],
   ['c', 'c_bypass_routing'],
 ] as const;
+
+const CLASSES: readonly SiteVolume['volumeClass'][] = ['observed', 'estimated', 'capacity'];
+
+const amountOf = (path: string, text: string): number => {
+  const amount = Number(text);
+  if (text === '' || !Number.isFinite(amount))
+    throw new SiteReleaseFault(`${path}: "${text}" is not a number`);
+  return amount;
+};
 
 const ids = (text: string): readonly string[] => text.split(' ').filter((one) => one !== '');
 
@@ -322,6 +348,42 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
     retained: cell(row, 'retained') === 'true',
   }));
 
+  const VOLUMES = 'volumes.csv';
+  const volumesOfRelation = new Map<string, SiteVolume[]>();
+  for (const row of rows(VOLUMES, [
+    'relation_id',
+    'period',
+    'value',
+    'minimum',
+    'maximum',
+    'unit',
+    'class',
+    'document_title',
+    'document_address',
+    'page',
+    'note',
+  ])) {
+    const relationId = cell(row, 'relation_id');
+    if (relationId === '') continue;
+    const volumeClass = CLASSES.find((one) => one === cell(row, 'class'));
+    if (volumeClass === undefined)
+      throw new SiteReleaseFault(`${VOLUMES}: "${cell(row, 'class')}" is not a volume class`);
+    const bound = (column: string): number | null =>
+      cell(row, column) === '' ? null : amountOf(VOLUMES, cell(row, column));
+    addTo(volumesOfRelation, relationId, {
+      volumeClass,
+      period: cell(row, 'period'),
+      value: amountOf(VOLUMES, cell(row, 'value')),
+      minimum: bound('minimum'),
+      maximum: bound('maximum'),
+      unit: cell(row, 'unit'),
+      documentTitle: cell(row, 'document_title'),
+      documentAddress: orNull(row['document_address']),
+      page: cell(row, 'page'),
+      note: cell(row, 'note'),
+    });
+  }
+
   const claimsAbout = new Map<string, SiteClaim[]>();
   const valuesOfRelation = new Map<string, SiteClaim[]>();
   const about = (id: string, claim: SiteClaim) => {
@@ -380,6 +442,7 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
     imoOfVessel,
     aliases,
     criticalNodes,
+    volumesOfRelation,
     geojson: fileOf('entities.geojson'),
   };
 };

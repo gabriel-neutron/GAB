@@ -2,11 +2,11 @@ import { z } from 'zod';
 
 import { isAccepted } from './accepted.ts';
 import { arcCurve } from './arc-curve.ts';
-import type { ArcVolume } from './arc-line.ts';
+import { drawnVolume } from './arc-volume.ts';
 import { PRODUCTS, type ProductKey } from './chain-product.ts';
 import { STAGES, type StageKey } from './chain-stage.ts';
 import { positions, type Position } from './geometry-positions.ts';
-import type { SiteRelation, SiteRelease } from './site-release.ts';
+import type { SiteRelation, SiteRelease, SiteVolume } from './site-release.ts';
 
 /** One physical link between two assets with a position, drawn as a curved line. */
 export interface ChainArc {
@@ -21,8 +21,10 @@ export interface ChainArc {
   readonly afterExport: boolean;
   /** The link, or one of its two assets, is still a proposal. */
   readonly inReview: boolean;
-  /** Null until the volume table gives the volume of the link. */
-  readonly volume: ArcVolume | null;
+  /** The volume that the map draws, or null when the volume table has no row for the link. */
+  readonly volume: SiteVolume | null;
+  /** Each row of the volume table for the link, for the card. */
+  readonly volumes: readonly SiteVolume[];
 }
 
 /** A point where the product leaves Russian control. The release computes it from the
@@ -123,6 +125,7 @@ export const chainFlows = (
     if (fromAnchor === undefined || toAnchor === undefined) return [];
     const start = nearest(fromAll, toAnchor) ?? fromAnchor;
     const end = nearest(toAll, fromAnchor) ?? toAnchor;
+    const volumes = release.volumesOfRelation.get(relation.id) ?? [];
     return [
       {
         id: relation.id,
@@ -134,7 +137,8 @@ export const chainFlows = (
         path: arcCurve(start, end),
         afterExport: rank(stages.get(relation.fromId)) >= EXPORT_RANK || isOutside(relation.toId),
         inReview: inReview(relation),
-        volume: null,
+        volume: drawnVolume(volumes),
+        volumes,
       },
     ];
   });

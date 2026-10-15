@@ -1,7 +1,7 @@
 // A small chain of assets for the tests and the stories of the map: fields, a pipeline, a refinery,
-// two export places, two assets outside Russia, three vessels, and the physical links between
-// them. The names and the positions are made for the test. They are not data of the record. The
-// rows go on top of the fixed release, which holds no physical link.
+// two export places, two assets outside Russia, three vessels, the physical links between them, and
+// a volume for some links. The names and the positions are made for the test. They are not data
+// of the record. The rows go on top of the fixed release, which holds no physical link.
 
 export const FIELD = '0a1f0000-0000-4000-8000-000000000101';
 export const PIPELINE = '0a1f0000-0000-4000-8000-000000000102';
@@ -187,6 +187,32 @@ const CLAIMS = [
   ),
 ];
 
+// The volume rows are made for the test too: the figures and the document are not data of the
+// research. The link from the field has a flow and a capacity, and one row joins no link.
+const VOLUME_SOURCE = 'chain,A test document,https://chain.example.org/page';
+
+const volume = (
+  link: string,
+  values: string,
+  unit: string,
+  volumeClass: string,
+  note = '',
+): string => {
+  const one = LINKS.find((each) => each.id === link);
+  const product = one?.type === 'products_flow_to' ? 'products' : 'crude';
+  return `${link},${one?.from ?? ''},${one?.to ?? ''},${product},2026-07,${values},${unit},${volumeClass},${VOLUME_SOURCE},2,${note},${LICENCE}`;
+};
+
+const VOLUMES = [
+  volume(FIELD_TO_PIPELINE, '400,,', 'kb/j', 'observed', 'a test note'),
+  volume(FIELD_TO_PIPELINE, '600,,', 'kb/j', 'capacity'),
+  volume(PIPELINE_TO_TERMINAL, '200,,', 'kb/j', 'observed'),
+  volume(PIPELINE_TO_REFINERY, '150,100,180', 'kb/j', 'estimated'),
+  volume(REFINERY_TO_PORT, '5,,', 'Mt/an', 'capacity'),
+  volume(REFINERY_TO_TERMINAL, '50,,', 'kt/mois', 'observed'),
+  `,Test segment A,Test segment B,crude,2026-07,900,,,kb/j,capacity,${VOLUME_SOURCE},,,${LICENCE}`,
+];
+
 const FEATURES = ASSETS.map((one) => ({
   type: 'Feature',
   id: one.id,
@@ -201,6 +227,7 @@ const ROWS: ReadonlyMap<string, readonly string[]> = new Map([
   ['entities.csv', ENTITIES],
   ['relations.csv', RELATIONS],
   ['claims.csv', CLAIMS],
+  ['volumes.csv', VOLUMES],
 ]);
 
 const withFeatures = (geojson: string): string => {
@@ -216,8 +243,8 @@ const withFeatures = (geojson: string): string => {
   });
 };
 
-/** The files of a release, with the chain of the fixture added to its entities, relations, claims
- * and positions. */
+/** The files of a release, with the chain of the fixture added to its entities, relations, claims,
+ * volumes and positions. */
 export const withChain = (files: ReadonlyMap<string, string>): Map<string, string> =>
   new Map(
     [...files].map(([path, text]) => [

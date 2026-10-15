@@ -10,6 +10,7 @@ import {
 import { chainOf, productChain, type Highlight } from './chain-highlight.ts';
 import { PRODUCTS, type ProductKey } from './chain-product.ts';
 import { positions } from './geometry-positions.ts';
+import { LINK } from './site-style.ts';
 import {
   CARD_ELEMENT,
   CARDS_ELEMENT,
@@ -73,6 +74,17 @@ const links = (() => {
           fromId: text(one['fromId']),
           toId: text(one['toId']),
           inReview: one['inReview'] === true,
+          volumes: (Array.isArray(one['volumes']) ? one['volumes'] : []).flatMap((line: unknown) =>
+            isRecord(line)
+              ? [
+                  {
+                    text: text(line['text']),
+                    source: text(line['source']),
+                    href: typeof line['href'] === 'string' ? line['href'] : null,
+                  },
+                ]
+              : [],
+          ),
         },
       ];
     }),
@@ -90,11 +102,83 @@ const propertiesOf = (one: unknown): Record<string, unknown> =>
 const geometryOf = (one: unknown): unknown =>
   isRecord(one) && isRecord(one['geometry']) ? one['geometry']['coordinates'] : null;
 
-const ARC_STYLES: readonly { id: string; style: string; dash: number[] | null }[] = [
-  { id: 'arcs-solid', style: 'solid', dash: null },
-  { id: 'arcs-dashed', style: 'dashed', dash: [3, 2] },
-  { id: 'arcs-review', style: 'in review', dash: [0.5, 1.5] },
+interface ArcLayer {
+  readonly id: string;
+  readonly style: string;
+  /** The property that gives the width, or a fixed width. */
+  readonly width: 'width' | 'halo' | number;
+  readonly dash: number[] | null;
+  readonly colour: 'product' | 'review' | 'land';
+  readonly opacity: number;
+}
+
+// The layers of the arcs, from the bottom. An estimate is hatched over a pale halo of its range,
+// and a capacity is a hollow line: a line of the land inside a line of the product.
+const ARC_LAYERS: readonly ArcLayer[] = [
+  {
+    id: 'arcs-halo',
+    style: 'estimated',
+    width: 'halo',
+    dash: null,
+    colour: 'product',
+    opacity: 0.25,
+  },
+  { id: 'arcs-solid', style: 'solid', width: 'width', dash: null, colour: 'product', opacity: 1 },
+  {
+    id: 'arcs-dashed',
+    style: 'dashed',
+    width: 'width',
+    dash: [3, 2],
+    colour: 'product',
+    opacity: 1,
+  },
+  {
+    id: 'arcs-review',
+    style: 'in review',
+    width: 'width',
+    dash: [0.5, 1.5],
+    colour: 'review',
+    opacity: 1,
+  },
+  {
+    id: 'arcs-observed',
+    style: 'observed',
+    width: 'width',
+    dash: null,
+    colour: 'product',
+    opacity: 1,
+  },
+  {
+    id: 'arcs-estimated',
+    style: 'estimated',
+    width: 'width',
+    dash: [1, 1],
+    colour: 'product',
+    opacity: 1,
+  },
+  {
+    id: 'arcs-capacity',
+    style: 'capacity',
+    width: 'width',
+    dash: null,
+    colour: 'product',
+    opacity: 1,
+  },
+  {
+    id: 'arcs-capacity-inside',
+    style: 'capacity',
+    width: 1.5,
+    dash: null,
+    colour: 'land',
+    opacity: 1,
+  },
 ];
+
+const ARC_COLOURS: Readonly<Record<ArcLayer['colour'], string | ExpressionSpecification>> = {
+  product: ['coalesce', ['get', 'colour'], MARK],
+  review: IN_REVIEW,
+  land: LAND,
+};
 
 if (container !== null) {
   const style: StyleSpecification = {
@@ -132,16 +216,16 @@ if (container !== null) {
         filter: ['==', ['geometry-type'], 'LineString'],
         paint: { 'line-color': ['coalesce', ['get', 'colour'], MARK], 'line-width': 2 },
       },
-      ...ARC_STYLES.map((one): LineLayerSpecification => ({
+      ...ARC_LAYERS.map((one): LineLayerSpecification => ({
         id: one.id,
         type: 'line',
         source: 'arcs',
         filter: ['==', ['get', 'style'], one.style],
-        layout: { 'line-cap': 'round' },
+        layout: { 'line-cap': one.dash === null ? 'round' : 'butt' },
         paint: {
-          'line-color':
-            one.style === 'in review' ? IN_REVIEW : ['coalesce', ['get', 'colour'], MARK],
-          'line-width': ['get', 'width'],
+          'line-color': ARC_COLOURS[one.colour],
+          'line-width': typeof one.width === 'number' ? one.width : ['get', one.width],
+          'line-opacity': one.opacity,
           ...(one.dash === null ? {} : { 'line-dasharray': one.dash }),
         },
       })),
@@ -256,14 +340,31 @@ if (container !== null) {
       element('p', text(properties['why'])),
     );
   };
+  const sourceOf = (line: { source: string; href: string | null }): HTMLElement => {
+    const paragraph = element('p', '');
+    paragraph.className = 'text-muted-foreground';
+    if (line.href === null) paragraph.textContent = line.source;
+    else {
+      const link = element('a', line.source);
+      link.setAttribute('href', line.href);
+      link.setAttribute('rel', 'noreferrer');
+      link.className = LINK;
+      paragraph.append(link);
+    }
+    return paragraph;
+  };
   const showArc = (properties: Record<string, unknown>): void => {
     const product = PRODUCTS.find((one) => one.key === properties['product'])?.label ?? '';
+    const volumes = links.arcs.find((one) => one.id === text(properties['id']))?.volumes ?? [];
     cardBox?.replaceChildren(
       heading(text(properties['label'])),
       element('p', `Physical link, ${product.toLowerCase()}.`),
       ...(properties['style'] === 'in review'
         ? [element('p', 'In review: the link is a proposal, not a fact.')]
         : []),
+      ...(volumes.length === 0
+        ? [element('p', 'The volume table of this release has no row for this link.')]
+        : volumes.flatMap((line) => [element('p', line.text), sourceOf(line)])),
     );
   };
 
@@ -314,16 +415,20 @@ if (container !== null) {
     map.setPaintProperty('exits', 'circle-stroke-opacity', exitOpacity);
     const arcFilter: FilterSpecification =
       product === 'all' ? ['boolean', true] : ['==', ['get', 'product'], product];
-    for (const one of ARC_STYLES) {
+    const arcOpacity =
+      highlight === null || stage !== null
+        ? stage === null
+          ? 1
+          : DIMMED
+        : forward(highlight.arcs);
+    for (const one of ARC_LAYERS) {
       map.setFilter(one.id, ['all', ['==', ['get', 'style'], one.style], arcFilter]);
       map.setPaintProperty(
         one.id,
         'line-opacity',
-        highlight === null || stage !== null
-          ? stage === null
-            ? 1
-            : DIMMED
-          : forward(highlight.arcs),
+        typeof arcOpacity === 'number'
+          ? one.opacity * arcOpacity
+          : (['*', one.opacity, arcOpacity] satisfies ExpressionSpecification),
       );
     }
     for (const one of reviewLabels)
@@ -355,7 +460,7 @@ if (container !== null) {
   map.on('load', draw);
   map.on('click', (event) => {
     const hits = map.queryRenderedFeatures(event.point, {
-      layers: ['exits', 'points', 'lines', 'areas', ...ARC_STYLES.map((one) => one.id)],
+      layers: ['exits', 'points', 'lines', 'areas', ...ARC_LAYERS.map((one) => one.id)],
     });
     // An exit ring lies around its asset: a click on the point opens the asset, and a click on
     // the ring opens the exit point.

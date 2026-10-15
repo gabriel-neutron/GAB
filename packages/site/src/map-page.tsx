@@ -33,6 +33,7 @@ export function MapPage({
   const exitsInReview = flows.exits.filter((one) => one.inReview).length;
   const exitsNotPlaced = flows.exits.filter((one) => one.position === null).length;
   const arcsInReview = flows.arcs.filter((one) => one.inReview).length;
+  const arcsWithVolume = flows.arcs.filter((one) => one.volume !== null).length;
   return (
     <SiteFrame release={release} page={{ path: MAP, title: 'Map' }}>
       <p className="max-w-prose">
@@ -43,13 +44,22 @@ export function MapPage({
       </p>
       <p className="max-w-prose">
         {flows.arcs.length} physical links join two assets with a position. {arcsInReview} of them
-        are in review: a grey dotted line labelled &quot;in review&quot;, not a fact. A dashed line
-        is a link after the export stage. An exit point is computed from the relations of the
-        release, and is not an entity of the record. {exitsInReview} exit points are in review.
+        are in review: a grey dotted line labelled &quot;in review&quot;, not a fact. With no
+        volume, a dashed line is a link after the export stage. An exit point is computed from the
+        relations of the release, and is not an entity of the record. {exitsInReview} exit points
+        are in review.
         {exitsNotPlaced > 0
           ? ` ${String(exitsNotPlaced)} exit points have no position and are not on the map.`
           : ''}{' '}
         A position in the outline of another country is outside Russia.
+      </p>
+      <p className="max-w-prose">
+        {arcsWithVolume} physical links have a volume from the volume table of the research. A
+        volume is an aggregate of the research for a period, not a fact of the record. A full line
+        is an observed flow, and its width grows with its value, against the flows of the same unit
+        only. A hatched line on a pale halo is an estimate, and the halo is its range. A thin hollow
+        line is the nominal capacity of a pipeline, not a flow. A link with no volume has one width.
+        Select a link for its value, its range, its period, its class and its source.
       </p>
       <ul className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Product chains">
         {PRODUCTS.map((one) => (
