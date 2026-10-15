@@ -395,6 +395,44 @@ export const daysFromPublication = (
   ];
 };
 
+// Origin: decided. A source rounds a decimal degree, and UN/LOCODE writes whole minutes, so a
+// coordinate is stated when the text holds it to within one minute of arc.
+const COORDINATE_TOLERANCE = 1 / 60;
+
+// Each coordinate that a text writes, as a degree with no sign: a decimal degree (59.6667), the
+// degrees and minutes of UN/LOCODE (5940N, 02819E), and degrees and minutes with signs (59°40′).
+// shortcut: the hemisphere is not read, so 59.6 S states 59.6 N; read the letter when a source
+// south of the equator or west of Greenwich is cited.
+const coordinatesIn = (text: string): number[] => [
+  ...Array.from(text.matchAll(/(?<![\d.,])(\d{1,3})[.,](\d+)/gu), (one) =>
+    Number(`${one[1] ?? ''}.${one[2] ?? ''}`),
+  ),
+  ...Array.from(
+    text.matchAll(/(?<!\d)(\d{2,3})(\d{2})\s?[NSEW]\b/gu),
+    (one) => Number(one[1]) + Number(one[2]) / 60,
+  ),
+  ...Array.from(
+    text.matchAll(/(?<!\d)(\d{1,3})\s*°\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*['′])?/gu),
+    (one) => Number(one[1]) + Number((one[2] ?? '0').replace(',', '.')) / 60,
+  ),
+];
+
+// The place that an act gives: the two coordinates of a point. Code reads no other shape in a
+// text, so another shape is unstated, and the operator compares it with the page.
+const placeValues = (act: WriteRequest): ActValue[] => {
+  if (act.op !== 'update_entity' || act.geom === undefined) return [];
+  if (act.geom.type !== 'Point') return [{ name: 'geom', value: act.geom.type }];
+  const [lon = Number.NaN, lat = Number.NaN] = act.geom.coordinates;
+  return [
+    { name: 'geom.longitude', value: lon },
+    { name: 'geom.latitude', value: lat },
+  ];
+};
+
+const statesCoordinate = (value: Scalar, coordinates: readonly number[]): boolean =>
+  typeof value === 'number' &&
+  coordinates.some((one) => Math.abs(one - Math.abs(value)) <= COORDINATE_TOLERANCE);
+
 /** The values of an act that no cited passage states, in any form of that value. */
 export const unstatedValues = (
   act: WriteRequest,
@@ -402,11 +440,16 @@ export const unstatedValues = (
   options: StatedOptions = {},
 ): ActValue[] => {
   const text = passages.join('\n');
-  return valuesOf(act).filter((named) => {
-    const code = named.name === `attrs.${JURISDICTION_KEY}` ? jurisdictionCode(named.value) : null;
-    if (code !== null && statesJurisdiction(code, text)) return false;
-    return !stated(named.value, text, options);
-  });
+  const coordinates = coordinatesIn(text);
+  return [
+    ...valuesOf(act).filter((named) => {
+      const code =
+        named.name === `attrs.${JURISDICTION_KEY}` ? jurisdictionCode(named.value) : null;
+      if (code !== null && statesJurisdiction(code, text)) return false;
+      return !stated(named.value, text, options);
+    }),
+    ...placeValues(act).filter((named) => !statesCoordinate(named.value, coordinates)),
+  ];
 };
 
 /** The name of a bound of a relation. */

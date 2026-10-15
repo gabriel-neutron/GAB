@@ -552,6 +552,34 @@ test('an identifier search reads a jurisdiction as its code, and each other key 
   expect(codedIdentifier('tax_id', 'Russia')).toBe('Russia');
 });
 
+const placeAt = (lon: number, lat: number) =>
+  writeRequest.parse({
+    op: 'update_entity',
+    targetId: '3f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+    geom: { type: 'Point', coordinates: [lon, lat] },
+  });
+
+test.each([
+  ["RU  ULU  Ust'-Luga  5940N 02819E", 28.3167, 59.6667],
+  ['Latitude 59.6681, Longitude 28.3122', 28.3167, 59.6667],
+  ['the port lies at 59°40′ N, 28°19′ E', 28.3167, 59.6667],
+])('the passage %j states the point', (passage, lon, lat) => {
+  expect(unstatedValues(placeAt(lon, lat), [passage])).toStrictEqual([]);
+});
+
+test('a point that the passage does not state is unstated, coordinate by coordinate', () => {
+  expect(
+    unstatedValues(placeAt(28.3167, 45.1), ["RU  ULU  Ust'-Luga  5940N 02819E"]).map(
+      (one) => one.name,
+    ),
+  ).toStrictEqual(['geom.latitude']);
+  expect(
+    unstatedValues(placeAt(28.3167, 59.6667), ['left Sikka on 12 March 2024']).map(
+      (one) => one.name,
+    ),
+  ).toStrictEqual(['geom.longitude', 'geom.latitude']);
+});
+
 const callOf = (type: string, observedOn?: string | string[]) =>
   writeRequest.parse({
     op: 'create_relation',

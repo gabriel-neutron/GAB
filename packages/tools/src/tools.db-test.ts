@@ -1,6 +1,8 @@
 // Each tool runs against the disposable database as gabriel_research, the role with the narrowest
 // grants. Each gesture runs inside a transaction that rolls back, so the corpus stays as it was.
 
+import { isDeepStrictEqual } from 'node:util';
+
 import { expect, test } from 'vitest';
 import { IDENTIFIER_KEYS } from '@gab/proposal/identifiers';
 import { z } from 'zod';
@@ -1440,6 +1442,109 @@ test('propose refuses an update of a target that does not exist', async () => {
   expect(outcome).toMatchObject({
     ok: false,
     refusal: expect.stringContaining(`item update: the target ${ABSENT} does not exist`) as string,
+  });
+});
+
+const LOCODE = "RU  ULU  Ust'-Luga  5940N 02819E";
+const ULU = { type: 'Point', coordinates: [28.3167, 59.6667] };
+
+// Two entities of the fixture: the first one with no place, the second one at 10 N, 20 E.
+const placedPair = async (ask: Ask): Promise<readonly [string, string]> => {
+  const [bare, moved] = z
+    .array(z.object({ id: z.uuid() }))
+    .parse(await ask('SELECT id::text AS id FROM public.entities ORDER BY id LIMIT 2'))
+    .map((one) => one.id);
+  if (bare === undefined || moved === undefined) throw new Error('the fixture holds no entity');
+  await ask(
+    `UPDATE public.entities SET geom = CASE WHEN id = $2::uuid
+       THEN public.ST_SetSRID(public.ST_MakePoint(20, 10), 4326) END
+     WHERE id IN ($1::uuid, $2::uuid)`,
+    [bare, moved],
+  );
+  return [bare, moved];
+};
+
+test('propose gives a place to an entity of the record, and a different place is a doubt', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const [bare, moved] = await placedPair(ask);
+    const place = (ref: string, targetId: string, geom: unknown) =>
+      item(ref, { op: 'update_entity', targetId, geom }, '5940N 02819E');
+    const outcome = await proposeOnPage(
+      ask,
+      [
+        place('bare', bare, ULU),
+        place('moved', moved, ULU),
+        place('far', bare, { type: 'Point', coordinates: [30.5, 50.4] }),
+      ],
+      LOCODE,
+    );
+    const faults = z
+      .array(
+        z.object({
+          id: z.uuid(),
+          payload: z.unknown(),
+          src: z.array(z.string()),
+          kinds: z.array(z.string()),
+        }),
+      )
+      .parse(
+        await ask(
+          `SELECT p.target_id::text AS id, p.payload, p.src::text[] AS src,
+                  ARRAY(SELECT k->>'kind' FROM public.unit_faults(ARRAY[p.unit_id]) f,
+                        jsonb_array_elements(f.faults) k) AS kinds
+             FROM public.proposals p
+            WHERE p.op = 'update_entity' AND p.src::text[] @> ARRAY[$1::text]
+            ORDER BY p.created_at, p.id`,
+          [DOC],
+        ),
+      );
+    return { batch: batchOf(outcome), faults, bare, moved };
+  });
+  expect(found.batch.proposals).toMatchObject([
+    { ref: 'bare', written: true, disputed: false, unstated: [] },
+    { ref: 'moved', written: true, disputed: false, unstated: [] },
+    { ref: 'far', written: true, disputed: true, unstated: ['geom.longitude', 'geom.latitude'] },
+  ]);
+  const of = (id: string, geom: unknown) =>
+    found.faults.find((one) => one.id === id && isDeepStrictEqual(one.payload, { geom }));
+  expect(of(found.bare, ULU)).toMatchObject({ src: [DOC] });
+  expect(of(found.bare, ULU)?.kinds).not.toContain('record_disagrees');
+  expect(of(found.moved, ULU)?.kinds).toContain('record_disagrees');
+});
+
+test('propose refuses the place that an entity of the record has already', async () => {
+  const outcome = await rolledBack('superuser', async (ask) => {
+    const [, moved] = await placedPair(ask);
+    return proposeOnPage(ask, [
+      item(
+        'same',
+        { op: 'update_entity', targetId: moved, geom: { type: 'Point', coordinates: [20, 10] } },
+        'left Sikka',
+      ),
+    ]);
+  });
+  expect(outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('item same: the entity') as string,
+  });
+  expect(outcome).toMatchObject({
+    refusal: expect.stringContaining('has this place already') as string,
+  });
+});
+
+test('propose refuses a place on an entity that does not exist', async () => {
+  const outcome = await rolledBack('superuser', async (ask) =>
+    proposeOnPage(ask, [
+      item(
+        'place',
+        { op: 'update_entity', targetId: ABSENT, geom: { type: 'Point', coordinates: [28, 59] } },
+        'left Sikka',
+      ),
+    ]),
+  );
+  expect(outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(`item place: the target ${ABSENT} does not exist`) as string,
   });
 });
 
