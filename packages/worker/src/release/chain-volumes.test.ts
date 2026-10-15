@@ -195,7 +195,6 @@ test('names an asset by the exact label of one entity of the record, in any case
     // Two entities have the label "test twin": the row keeps the name and joins no link.
     ['', FIELD, 'Test twin'],
   ]);
-  expect(unjoined).toEqual([
-    { line: 3, why: expect.stringMatching(/2 entities of the record have the label "Test twin"/u) },
-  ]);
+  expect(unjoined.map((one) => one.line)).toEqual([3]);
+  expect(unjoined[0]?.why).toMatch(/2 entities of the record have the label "Test twin"/u);
 });
