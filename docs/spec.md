@@ -222,14 +222,17 @@ checker failure does not dispute the act. Of the verdicts of the checker, only "
 disputes it. An act that no model checked has no check. It waits, and the same batch sent again
 checks it.
 
-The flag keeps a short reason, which is frozen with the act. The reason is the value that no
+The flag keeps a short reason. The reason is the value that no
 passage states, the verdict and reason of the checker, or that the checker did not answer. The
 reason is private: the review card shows it, and the public read does not. After the write, the
 record also keeps each verdict with its act. It keeps the checker model, both families and the
 reason of the checker, so the rules can decide the unit. The review card says which check ran on
 each act: a second model, with its verdict, or code only. An act that the checker did not answer
 keeps no check until a later check. A later extraction of the document, or the same batch of the
-research AI, gives that check. The first check of an act stays.
+research AI, gives that check. The extractor keeps the first check of an act. When the research
+AI sends a pending act again, code and the checker check it again: the act takes the new dispute,
+its reason and its check, so a fix of a rule reaches the acts that wait. A decided act never
+changes, and an act that cites words read from an image stays disputed.
 Every model call goes to OpenRouter and is recorded.
 
 Before the extractor proposes the batch of a part, code drops each item that a rule can refuse, so
