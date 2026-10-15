@@ -1,38 +1,17 @@
-import { Map as MapLibre, Popup, type StyleSpecification } from 'maplibre-gl';
+import { Map as MapLibre, type StyleSpecification } from 'maplibre-gl';
 
-import { FEATURES_ELEMENT, MAP_ELEMENT } from './map-elements.ts';
+import { CARD_ELEMENT, CARDS_ELEMENT, FEATURES_ELEMENT, MAP_ELEMENT } from './map-elements.ts';
 
-// External constraint: MapLibre parses no oklch colour, so the map takes the hex of three tokens
-// of the light theme: the muted ground, the edge of a control and the primary.
+// External constraint: MapLibre parses no oklch colour, so the map takes the hex of the muted
+// ground of the light theme.
 const GROUND = '#eceef0';
-const LINE = '#8b9196';
 const MARK = '#0b6aa2';
 
-// A plain ground with lines every 10 degrees. A tile server would need a host or a key, and the
-// site sends no request to a service.
-const STEP = 10;
-
-const graticule = () => {
-  const lines: [number, number][][] = [];
-  for (let lon = -180; lon <= 180; lon += STEP)
-    lines.push([
-      [lon, -85],
-      [lon, 85],
-    ]);
-  for (let lat = -80; lat <= 80; lat += STEP)
-    lines.push([
-      [-180, lat],
-      [180, lat],
-    ]);
-  return {
-    type: 'FeatureCollection' as const,
-    features: lines.map((coordinates) => ({
-      type: 'Feature' as const,
-      properties: {},
-      geometry: { type: 'LineString' as const, coordinates },
-    })),
-  };
-};
+// The basemap is a file of the site: the outlines of the countries, from Natural Earth (public
+// domain). The site sends no request to a tile server (ADR 0020).
+const COUNTRIES = new URL('./countries.json', import.meta.url).href;
+const LAND = '#ffffff';
+const COAST = '#9aa0a6';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -55,25 +34,35 @@ if (container !== null) {
   const style: StyleSpecification = {
     version: 8,
     sources: {
-      graticule: { type: 'geojson', data: graticule() },
+      countries: { type: 'geojson', data: COUNTRIES },
       entities: { type: 'geojson', data: { type: 'FeatureCollection', features } },
     },
     layers: [
       { id: 'ground', type: 'background', paint: { 'background-color': GROUND } },
-      { id: 'graticule', type: 'line', source: 'graticule', paint: { 'line-color': LINE } },
+      { id: 'land', type: 'fill', source: 'countries', paint: { 'fill-color': LAND } },
+      {
+        id: 'coast',
+        type: 'line',
+        source: 'countries',
+        paint: { 'line-color': COAST, 'line-width': 0.6 },
+      },
       {
         id: 'areas',
         type: 'fill',
         source: 'entities',
         filter: ['==', ['geometry-type'], 'Polygon'],
-        paint: { 'fill-color': MARK, 'fill-opacity': 0.3, 'fill-outline-color': MARK },
+        paint: {
+          'fill-color': ['coalesce', ['get', 'colour'], MARK],
+          'fill-opacity': 0.3,
+          'fill-outline-color': ['coalesce', ['get', 'colour'], MARK],
+        },
       },
       {
         id: 'lines',
         type: 'line',
         source: 'entities',
         filter: ['==', ['geometry-type'], 'LineString'],
-        paint: { 'line-color': MARK, 'line-width': 2 },
+        paint: { 'line-color': ['coalesce', ['get', 'colour'], MARK], 'line-width': 2 },
       },
       {
         id: 'points',
@@ -81,10 +70,10 @@ if (container !== null) {
         source: 'entities',
         filter: ['==', ['geometry-type'], 'Point'],
         paint: {
-          'circle-color': MARK,
-          'circle-radius': 5,
-          'circle-stroke-color': GROUND,
-          'circle-stroke-width': 1,
+          'circle-color': ['coalesce', ['get', 'colour'], MARK],
+          'circle-radius': 6,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 1.5,
         },
       },
     ],
@@ -110,27 +99,83 @@ if (container !== null) {
         [west, south],
         [east, north],
       ],
-      // Origin of the number: at zoom 4 the map shows about 20 degrees, so two lines of the
-      // grid are in view also around one point.
+      // Origin of the number: at zoom 4 the map shows about 20 degrees, so the coast is in view
+      // also around one point.
       { padding: 60, maxZoom: 4, duration: 0 },
     );
   }
 
-  // The popup is built from text nodes, because a label comes from an untrusted page.
+  // The card is built from text nodes, because a label comes from an untrusted page.
+  const holderOfCards = document.getElementById(CARDS_ELEMENT);
+  const cards: unknown = JSON.parse(holderOfCards?.textContent ?? 'null');
+  const cardBox = document.getElementById(CARD_ELEMENT);
+  const text = (value: unknown): string => (typeof value === 'string' ? value : '');
+  const element = (tag: string, content: string): HTMLElement => {
+    const one = document.createElement(tag);
+    one.textContent = content;
+    return one;
+  };
+  const link = (href: string, label: string): HTMLAnchorElement => {
+    const one = document.createElement('a');
+    one.href = href;
+    one.textContent = label;
+    one.className = 'underline';
+    return one;
+  };
+  const showCard = (id: string): void => {
+    const card = isRecord(cards) ? cards[id] : undefined;
+    if (cardBox === null || !isRecord(card)) return;
+    const body: HTMLElement[] = [];
+    const title = element('h2', '');
+    title.className = 'font-medium';
+    title.append(link(text(card['href']), text(card['label'])));
+    body.push(title);
+    body.push(element('p', [text(card['type']), text(card['stage'])].filter(Boolean).join(', ')));
+    const values = Array.isArray(card['values']) ? card['values'] : [];
+    const relations = Array.isArray(card['relations']) ? card['relations'] : [];
+    const list = (heading: string, items: HTMLElement[]): void => {
+      if (items.length === 0) return;
+      const section = element('h3', heading);
+      section.className = 'mt-2 text-label';
+      const ul = document.createElement('ul');
+      ul.append(...items);
+      body.push(section, ul);
+    };
+    list(
+      'Values',
+      values.flatMap((one: unknown) => {
+        if (!isRecord(one)) return [];
+        const item = element('li', `${text(one['key'])}: ${text(one['value'])}`);
+        item.title = text(one['label']);
+        return [item];
+      }),
+    );
+    list(
+      'Relations',
+      relations.flatMap((one: unknown) => {
+        if (!isRecord(one)) return [];
+        const item = document.createElement('li');
+        const dates = [text(one['from']), text(one['to'])];
+        const interval = dates.some(Boolean) ? ` (${dates[0]} to ${dates[1]})` : '';
+        item.append(
+          `${text(one['words'])} `,
+          link(text(one['otherHref']), text(one['otherLabel'])),
+          interval,
+        );
+        item.title = text(one['label']);
+        return [item];
+      }),
+    );
+    const review = typeof card['inReview'] === 'number' ? card['inReview'] : 0;
+    if (review > 0) body.push(element('p', `${String(review)} in review, not shown.`));
+    body.push(element('p', 'Sources and events: see the page of the entity.'));
+    cardBox.replaceChildren(...body);
+  };
   for (const layer of ['points', 'lines', 'areas'])
     map.on('click', layer, (event) => {
       const [hit] = event.features ?? [];
       if (hit === undefined) return;
       const properties: Record<string, unknown> = hit.properties;
-      const id = typeof properties['id'] === 'string' ? properties['id'] : '';
-      const label = typeof properties['label'] === 'string' ? properties['label'] : id;
-      const body = document.createElement('div');
-      const link = document.createElement('a');
-      link.href = `../entity/${encodeURIComponent(id)}/index.html`;
-      link.textContent = label;
-      const type = document.createElement('p');
-      type.textContent = typeof properties['type'] === 'string' ? properties['type'] : '';
-      body.append(link, type);
-      new Popup().setLngLat(event.lngLat).setDOMContent(body).addTo(map);
+      showCard(text(properties['id']));
     });
 }

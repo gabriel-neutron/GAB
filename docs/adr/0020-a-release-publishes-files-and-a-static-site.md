@@ -60,10 +60,13 @@ and their form are costly to change after the first publication.
 
 ### The map
 
-- MapLibre (ADR 0005) draws the entities of the GeoJSON file of the release over a plain ground
-  with lines of latitude and longitude, and with no basemap. A tile server needs a host or a key,
-  and the tile policy of OpenStreetMap does not permit a public application. The GeoJSON is in the
-  page, so the map sends no request for data.
+- MapLibre (ADR 0005) draws the entities of the GeoJSON file of the release over a basemap that is
+  a file of the site: the outlines of the countries, from Natural Earth (public domain), simplified
+  at 110 m. A tile server needs a host or a key, and the tile policy of OpenStreetMap does not
+  permit a public application, so the site uses no tile server. The GeoJSON is in the page, so the
+  map sends no request for data.
+- The colour of a point is the stage of the chain of the asset, from its asset kind. A card shows
+  accepted facts only, and counts the facts that are still in review.
 - The map script and MapLibre are files of the site. MapLibre loads its worker as a module beside
   it, so the map needs a host: from the files on a disk, the map page shows the list of the
   entities with a position, and no map.
@@ -92,7 +95,7 @@ With none, the address `v1/` gives a page that says that this copy holds no buil
   leaves no release folder.
 - The site builds a page for each entity and each claim, in memory. A record many times larger
   needs a writer that streams.
-- With no basemap, a reader sees the points and the grid only.
+- The basemap shows the coast and the borders only. It shows no road, no town and no relief.
 - A document, the release and the vocabulary have no page, so their identifiers open no page.
 - A vessel with no IMO number has no timeline page. Its entity page gives its relations.
 - The timeline draws only the dates that the sources give (`decisions.md` M5). A port call and a

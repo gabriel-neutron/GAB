@@ -1,12 +1,14 @@
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import { chainView } from './chain-card.ts';
+import { stagedGeojson } from './staged-geojson.ts';
 import { ClaimPage } from './claim-page.tsx';
 import { claimText } from './claim-text.ts';
 import { DownloadsPage } from './downloads-page.tsx';
 import { EntityPage } from './entity-page.tsx';
 import { HomePage } from './home-page.tsx';
-import { FEATURES_ELEMENT } from './map-elements.ts';
+import { CARDS_ELEMENT, FEATURES_ELEMENT } from './map-elements.ts';
 import { MapPage } from './map-page.tsx';
 import { MethodPage } from './method-page.tsx';
 import { RedirectPage } from './redirect-page.tsx';
@@ -68,17 +70,23 @@ export const buildSite = (
   withV1: boolean,
 ): readonly SiteFile[] => {
   const release = readSiteRelease(files);
+  const view = chainView(release);
   const pages: SiteFile[] = [
     html(HOME, 'Critical nodes', <HomePage release={release} />),
     html(
       MAP,
       'Map',
       <>
-        <MapPage release={release} />
+        <MapPage release={release} view={view} />
         <script
           type="application/json"
           id={FEATURES_ELEMENT}
-          dangerouslySetInnerHTML={{ __html: scriptSafe(release.geojson.trim()) }}
+          dangerouslySetInnerHTML={{ __html: scriptSafe(stagedGeojson(release.geojson, view)) }}
+        />
+        <script
+          type="application/json"
+          id={CARDS_ELEMENT}
+          dangerouslySetInnerHTML={{ __html: scriptSafe(JSON.stringify(view.cards)) }}
         />
         <script type="module" src={hrefFrom(MAP, MAP_SCRIPT)} />
       </>,

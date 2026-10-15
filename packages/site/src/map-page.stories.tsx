@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect } from 'storybook/test';
 
+import { chainView } from './chain-card.ts';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
 import { MapPage } from './map-page.tsx';
 
@@ -8,7 +9,7 @@ import { MapPage } from './map-page.tsx';
 // runs the script.
 const meta = {
   component: MapPage,
-  args: { release: FIXTURE_RELEASE.off },
+  args: { release: FIXTURE_RELEASE.off, view: chainView(FIXTURE_RELEASE.off) },
   parameters: { layout: 'fullscreen' },
 } satisfies Meta<typeof MapPage>;
 
