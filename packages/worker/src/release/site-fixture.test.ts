@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { expect, test } from 'vitest';
 
 import type { ReleaseFile } from './csv-export.ts';
@@ -5,7 +7,8 @@ import { readCriticalNodesSheet } from './critical-nodes-sheet.ts';
 import { releaseFiles } from './release-files.ts';
 import { readReleaseManifest } from './release-manifest.ts';
 import type { ReleaseClaim, ReleaseRecord } from './release-record.ts';
-import { readReleaseTables } from './release-table.ts';
+import { readReleaseTable, readReleaseTables } from './release-table.ts';
+import { readVolumeTable } from './volume-table.ts';
 
 // The fixed release that the offline tests and the stories of the static site read. The release
 // code writes it, so the site reads the files as a release gives them. Run this test with `-u`
@@ -33,6 +36,8 @@ const DISCHARGES = '0a1f0000-0000-4000-8000-000000000018';
 const FALSE_FLAG = '0a1f0000-0000-4000-8000-000000000019';
 const ACT = '0a1f0000-0000-4000-8000-000000000021';
 const MERGE = '0a1f0000-0000-4000-8000-000000000022';
+const PIPELINE = '0a1f0000-0000-4000-8000-000000000031';
+const CRUDE_LINK = '0a1f0000-0000-4000-8000-000000000032';
 
 const RULE = 'Accepted by rule strong_sources v2 — no person read it, on 2026-10-02';
 const OPERATOR = 'Validated manually by the operator, on 2026-10-04';
@@ -224,6 +229,18 @@ const NEW_CLAIMS: readonly ReleaseClaim[] = [
   ),
 ];
 
+// A physical link from a pipeline to the port, so that the volume table has a link to join.
+const LINK_CLAIMS: readonly ReleaseClaim[] = [
+  claim({
+    claim_id: CRUDE_LINK,
+    subject_kind: 'relation',
+    subject_id: CRUDE_LINK,
+    origin_label: OPERATOR,
+    sources: ['volume_report'],
+    passages: [passage('volume_report', 2, 'the test export pipeline feeds the port')],
+  }),
+];
+
 const company = (id: string, label: string) => ({
   id,
   type: 'company',
@@ -286,6 +303,14 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
             origin_label: CANDIDATE,
             sources: ['news'],
             geom: { type: 'Point', coordinates: [28.61, 60.35] },
+          },
+          {
+            id: PIPELINE,
+            type: 'facility',
+            label: 'Test export pipeline',
+            origin_label: OPERATOR,
+            sources: ['volume_report'],
+            geom: { type: 'Point', coordinates: [30.2, 59.6] },
           },
           company(OLD_OWNER, 'Baltic Tanker Holding'),
           company(MANAGER, 'Gulf Ship Management'),
@@ -350,6 +375,16 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
             origin_label: CANDIDATE,
             sources: ['news'],
           },
+          {
+            id: CRUDE_LINK,
+            type: 'crude_flows_to',
+            src_id: PIPELINE,
+            dst_id: PORT,
+            valid_from: null,
+            valid_to: null,
+            origin_label: OPERATOR,
+            sources: ['volume_report'],
+          },
           control(OLD_OWNS, 'owns', OLD_OWNER, '2019-06-01', '2024-03-01', OPERATOR),
           control(OPERATES, 'operates', MANAGER, null, null),
           control(INSURES, 'insures', INSURER, '2023-01-01', '2025-06-30'),
@@ -359,7 +394,9 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
         ]
       : []),
   ],
-  claims: withPort ? [...CLAIMS, ...NEW_CLAIMS] : CLAIMS.filter((one) => one.claim_id !== LOADS),
+  claims: withPort
+    ? [...CLAIMS, ...NEW_CLAIMS, ...LINK_CLAIMS]
+    : CLAIMS.filter((one) => one.claim_id !== LOADS),
   merges: withPort
     ? [
         {
@@ -396,6 +433,17 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
         provider: null,
       },
     ],
+    [
+      'volume_report',
+      {
+        id: 'volume_report',
+        title: 'A test report of export volumes',
+        uri: 'https://news.example.org/volumes',
+        retrieved_at: '2026-09-29',
+        licence: null,
+        provider: null,
+      },
+    ],
   ]),
   nameCandidates: { proposed: 3, confirmed: 2, refused: 1 },
   disclaimer: DISCLAIMER,
@@ -416,6 +464,11 @@ const SHEET = [
   `${OWNER},b,,Unknown beneficial owner,Shell company in a second jurisdiction`,
   `${OWNER},c,${OWNER}/registration_country,,`,
 ].join('\n');
+
+// The volume table of the research has no file yet, so the fixture gives an invented one.
+const VOLUMES = readVolumeTable(
+  readFileSync(new URL('../../fixtures/volumes.csv', import.meta.url), 'utf8'),
+);
 
 const manifestOf = (natoPair: boolean, date: string, version: string) =>
   readReleaseManifest(
@@ -453,7 +506,7 @@ const fixtureOf = (natoPair: boolean): readonly ReleaseFile[] =>
     manifestOf(natoPair, '2026-11-08', '1.0'),
     readCriticalNodesSheet(SHEET),
     previousRelease(),
-    null,
+    VOLUMES,
   ).files;
 
 test.each([
@@ -462,4 +515,21 @@ test.each([
 ])('the fixture %s of the static site is the release that the code writes', async (name, on) => {
   for (const file of fixtureOf(on))
     await expect(file.text).toMatchFileSnapshot(`../../../site/fixtures/${name}/${file.path}`);
+});
+
+test('the example volume table joins three rows, keeps two rows on no link and rejects two rows', () => {
+  const written = releaseFiles(
+    recordOf(false, true),
+    manifestOf(false, '2026-11-08', '1.0'),
+    null,
+    null,
+    VOLUMES,
+  );
+  expect(written.volumeRejections.map((one) => one.line)).toEqual([8, 9]);
+  const table = readReleaseTable(
+    written.files.find((file) => file.path === 'volumes.csv')?.text ?? '',
+  );
+  const links = table.rows.map((row) => row[table.header.indexOf('relation_id')]);
+  expect(links.filter((one) => one === CRUDE_LINK)).toHaveLength(3);
+  expect(links.filter((one) => one === '')).toHaveLength(2);
 });
