@@ -8,4 +8,4 @@ Do each step of the request that git can undo, and do not ask first: fix, test, 
 End each message with one line: **Done.**, **Next:** a step that only the operator or a new session can do, **New session:** the prompt, or **Your decision:** one critical question with the panel verdict and a recommendation. Offer no optional extra work.
 Agent skills: issue tracker docs/agents/issue-tracker.md, triage labels docs/agents/triage-labels.md, domain docs (single-context) docs/agents/domain.md.
 
-When reporting information to me, be extremely consice and sacrifice grammar for the sake of concision
+When reporting information to me, be extremely concise and sacrifice grammar for the sake of concision
