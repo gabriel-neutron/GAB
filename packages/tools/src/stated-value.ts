@@ -453,9 +453,8 @@ const coordinatesIn = (text: string): number[] => [
   ...Array.from(text.matchAll(/(?<![\d.,])(\d{1,3}),(\d+)/gu), (one) =>
     Number(`${one[1] ?? ''}.${one[2] ?? ''}`),
   ),
-  ...Array.from(
-    text.matchAll(/(?<!\d)(\d{2,3})(\d{2})(\d{2})?\s?[NSEW]\b/gu),
-    (one) => degreesOf(one[1], one[2], one[3]),
+  ...Array.from(text.matchAll(/(?<!\d)(\d{2,3})(\d{2})(\d{2})?\s?[NSEW]\b/gu), (one) =>
+    degreesOf(one[1], one[2], one[3]),
   ),
   // A Russian page can write a Cyrillic or a Latin letter o in place of the degree sign (60о20′).
   // The letter is a degree sign only when no letter follows it, so "60 of" states no degree.
