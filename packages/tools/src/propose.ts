@@ -451,8 +451,17 @@ const checkTarget = async (session: Session, ref: string, act: WriteRequest): Pr
     return;
   const kind =
     act.op === 'update_attrs' ? act.targetKind : act.op === 'update_entity' ? 'entity' : 'relation';
-  if (!(await present(session, kind, act.targetId)))
+  if (!(await present(session, kind, act.targetId))) {
+    // An act on a new entity that waits would stay outside its unit, so the agent waits.
+    if (kind === 'entity' && (await pendingEntityType(session, act.targetId)) !== null)
+      refuse(
+        ref,
+        `the new entity ${act.targetId} waits in the review queue: propose this change after the ` +
+          'operator accepts it, and give the place or the attributes of a new entity in its ' +
+          'create_entity',
+      );
     refuse(ref, `the target ${act.targetId} does not exist`);
+  }
   // The promotion refuses an act that changes nothing, so the same place would wait for ever.
   if (act.op === 'update_entity' && act.geom !== undefined) {
     const [same] = await rowsOf(session, z.strictObject({ same: z.boolean() }), SAME_PLACE, [
@@ -641,7 +650,9 @@ export const proposeOf = (modelCallId: string | null) =>
       'record that has none (update_relation with validFrom, when a dated page states it), and the ' +
       'place of an entity of the record (update_entity with geom, when a page states its ' +
       'coordinates; the tool refuses the place that the entity has already, and a place that ' +
-      'differs from the place that the record holds waits as a doubt for the operator). Each ' +
+      'differs from the place that the record holds waits as a doubt for the operator; give the ' +
+      'place of a new entity as geom in its create_entity, and the tool refuses a change of a ' +
+      'new entity that waits in the queue). Each ' +
       'item gives the act, the party that first stated it, how the page states it, and for its ' +
       'values the page and an excerpt copied word for word from the stored text. Code finds each ' +
       'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +

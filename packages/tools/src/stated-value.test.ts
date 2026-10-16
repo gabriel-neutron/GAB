@@ -565,8 +565,42 @@ test.each([
   ['the port lies at 59°40′ N, 28°19′ E', 28.3167, 59.6667],
   ['the port lies at 59,6681 N, 28,3122 E', 28.3167, 59.6667],
   ['Leningrad Oblast,60.523347000000001,28.130122,exact', 28.130122, 60.523347],
+  // Degrees and decimal minutes with a comma or a dot, as a port authority writes a berth.
+  ['причал № 1: 60°20,02′ с.ш. 28°42,58′ в.д.', 28.70967, 60.33367],
+  ["berth 1: 60° 20.02' N, 28° 42.58' E", 28.70967, 60.33367],
+  // A Cyrillic or a Latin letter o in place of the degree sign.
+  ['60о20,02′ с.ш., 28о42,58′ в.д.', 28.70967, 60.33367],
+  ["60o20,02' N, 28o42,58' E", 28.70967, 60.33367],
+  // Degrees, minutes and seconds, with a decimal comma or dot in the seconds.
+  ['69°03′11″ N, 58°09′07,5″ E', 58.15208, 69.05306],
+  ['69о03\'11" с.ш., 58о09\'07.5" в.д.', 58.15208, 69.05306],
+  // The compact degrees, minutes and seconds of a port register.
+  ['RUVAR-0001 690311N 0580907E', 58.15194, 69.05306],
 ])('the passage %j states the point', (passage, lon, lat) => {
   expect(unstatedValues(placeAt(lon, lat), [passage])).toStrictEqual([]);
+});
+
+test.each(['60 of 20 berths, 28 of 42 tanks', 'el 60º aniversario, 28o año', '5o, 60o, 28о.'])(
+  'a letter o or an ordinal sign with no minutes after it is no degree sign: %j',
+  (passage) => {
+    expect(unstatedValues(placeAt(28, 60), [passage]).map((one) => one.name)).toStrictEqual([
+      'geom.longitude',
+      'geom.latitude',
+    ]);
+  },
+);
+
+test('the place of a new entity is checked against the passage', () => {
+  const created = writeRequest.parse({
+    op: 'create_entity',
+    type: 'facility',
+    label: 'Orsk refinery',
+    geom: { type: 'Point', coordinates: [58.511982, 51.254268] },
+  });
+  expect(unstatedValues(created, ['Orsk refinery, 51.254268, 58.511982'])).toStrictEqual([]);
+  expect(
+    unstatedValues(created, ['Orsk refinery, 51.9, 58.511982']).map((one) => one.name),
+  ).toStrictEqual(['geom.latitude']);
 });
 
 test('a point that the passage does not state is unstated, coordinate by coordinate', () => {
