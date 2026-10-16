@@ -432,8 +432,15 @@ export const daysFromPublication = (
 // coordinate is stated when the text holds it to within one minute of arc.
 const COORDINATE_TOLERANCE = 1 / 60;
 
+// A degree from its degrees, minutes and seconds. A minute or a second can have a decimal comma.
+const degreesOf = (degrees = '0', minutes = '0', seconds = '0'): number =>
+  Number(degrees) +
+  Number(minutes.replace(',', '.')) / 60 +
+  Number(seconds.replace(',', '.')) / 3600;
+
 // Each coordinate that a text writes, as a degree with no sign: a decimal degree (59.6667), the
-// degrees and minutes of UN/LOCODE (5940N, 02819E), and degrees and minutes with signs (59°40′).
+// degrees, minutes and seconds of UN/LOCODE and of a port register (5940N, 0580907E), and degrees,
+// minutes and seconds with signs (59°40′, 60°20,02′, 69°03′11″).
 // shortcut: the hemisphere is not read, so 59.6 S states 59.6 N; read the letter when a source
 // south of the equator or west of Greenwich is cited.
 const coordinatesIn = (text: string): number[] => [
@@ -447,19 +454,25 @@ const coordinatesIn = (text: string): number[] => [
     Number(`${one[1] ?? ''}.${one[2] ?? ''}`),
   ),
   ...Array.from(
-    text.matchAll(/(?<!\d)(\d{2,3})(\d{2})\s?[NSEW]\b/gu),
-    (one) => Number(one[1]) + Number(one[2]) / 60,
+    text.matchAll(/(?<!\d)(\d{2,3})(\d{2})(\d{2})?\s?[NSEW]\b/gu),
+    (one) => degreesOf(one[1], one[2], one[3]),
   ),
+  // A Russian page can write a Cyrillic or a Latin letter o in place of the degree sign (60о20′).
+  // The letter is a degree sign only when no letter follows it, so "60 of" states no degree.
   ...Array.from(
-    text.matchAll(/(?<!\d)(\d{1,3})\s*°\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*['′])?/gu),
-    (one) => Number(one[1]) + Number((one[2] ?? '0').replace(',', '.')) / 60,
+    text.matchAll(
+      /(?<!\d)(\d{1,3})(?:\s*[°º˚]|[оo](?!\p{L}))\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*['′’´](?:\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:["″”]|''|′′))?)?/gu,
+    ),
+    (one) => degreesOf(one[1], one[2], one[3]),
   ),
 ];
 
-// The place that an act gives: the two coordinates of a point. Code reads no other shape in a
-// text, so another shape is unstated, and the operator compares it with the page.
+// The place that an act gives to a new entity or to an entity of the record: the two coordinates
+// of a point. Code reads no other shape in a text, so another shape is unstated, and the operator
+// compares it with the page.
 const placeValues = (act: WriteRequest): ActValue[] => {
-  if (act.op !== 'update_entity' || act.geom === undefined) return [];
+  if ((act.op !== 'update_entity' && act.op !== 'create_entity') || act.geom === undefined)
+    return [];
   if (act.geom.type !== 'Point') return [{ name: 'geom', value: act.geom.type }];
   const [lon = Number.NaN, lat = Number.NaN] = act.geom.coordinates;
   return [
