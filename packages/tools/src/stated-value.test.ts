@@ -580,13 +580,15 @@ test.each([
   expect(unstatedValues(placeAt(lon, lat), [passage])).toStrictEqual([]);
 });
 
-test('a letter o that starts a word is no degree sign', () => {
-  expect(
-    unstatedValues(placeAt(28.70967, 60.33367), ['60 of 20 berths, 28 of 42 tanks']).map(
-      (one) => one.name,
-    ),
-  ).toStrictEqual(['geom.longitude', 'geom.latitude']);
-});
+test.each(['60 of 20 berths, 28 of 42 tanks', 'el 60º aniversario, 28o año', '5o, 60o, 28о.'])(
+  'a letter o or an ordinal sign with no minutes after it is no degree sign: %j',
+  (passage) => {
+    expect(unstatedValues(placeAt(28, 60), [passage]).map((one) => one.name)).toStrictEqual([
+      'geom.longitude',
+      'geom.latitude',
+    ]);
+  },
+);
 
 test('the place of a new entity is checked against the passage', () => {
   const created = writeRequest.parse({

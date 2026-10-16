@@ -457,10 +457,11 @@ const coordinatesIn = (text: string): number[] => [
     degreesOf(one[1], one[2], one[3]),
   ),
   // A Russian page can write a Cyrillic or a Latin letter o in place of the degree sign (60о20′).
-  // The letter is a degree sign only when no letter follows it, so "60 of" states no degree.
+  // A letter o, and an ordinal sign º, are a degree sign only when minutes with a sign follow
+  // them, so "60 of" and "28º aniversario" state no degree.
   ...Array.from(
     text.matchAll(
-      /(?<!\d)(\d{1,3})(?:\s*[°º˚]|[оo](?!\p{L}))\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*['′’´](?:\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:["″”]|''|′′))?)?/gu,
+      /(?<!\d)(\d{1,3})(?:\s*°|(?:\s*[º˚]|[оo])(?=\s*\d{1,2}(?:[.,]\d+)?\s*['′’´]))\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*['′’´](?:\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:["″”]|''|′′))?)?/gu,
     ),
     (one) => degreesOf(one[1], one[2], one[3]),
   ),

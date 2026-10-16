@@ -651,8 +651,8 @@ export const proposeOf = (modelCallId: string | null) =>
       'place of an entity of the record (update_entity with geom, when a page states its ' +
       'coordinates; the tool refuses the place that the entity has already, and a place that ' +
       'differs from the place that the record holds waits as a doubt for the operator; give the ' +
-      'place of a new entity as geom in its create_entity, and the tool refuses update_entity on ' +
-      'a new entity that waits in the queue). Each ' +
+      'place of a new entity as geom in its create_entity, and the tool refuses a change of a ' +
+      'new entity that waits in the queue). Each ' +
       'item gives the act, the party that first stated it, how the page states it, and for its ' +
       'values the page and an excerpt copied word for word from the stored text. Code finds each ' +
       'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +
