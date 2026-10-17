@@ -214,3 +214,22 @@ test('a comma joins an author A or B as a doubt, and joins no other author', asy
   expect(read.low).toContain('holds two authors');
   expect(read.semicolon).toContain('holds two authors');
 });
+
+test('an alias of a rated author moves into a target named by its alias, and the other names stay', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const [target, targetAlias, rated, ratedAlias] = [name(), name(), name(), name()];
+    await reference(ask, target, 'A', OWN_SITE);
+    await join(ask, targetAlias, target);
+    await as(ask, 'gabriel_app', () =>
+      ask('SELECT public.decide_author_name($1, true)', [targetAlias]),
+    );
+    await rate(ask, rated, 'C', { references: [target] });
+    await join(ask, ratedAlias, rated);
+    await move(ask, ratedAlias, targetAlias);
+    return {
+      alias: await letter(ask, ratedAlias),
+      rated: await letter(ask, rated),
+    };
+  });
+  expect(read).toStrictEqual({ alias: 'A', rated: 'C' });
+});

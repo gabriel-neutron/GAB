@@ -123,8 +123,9 @@ the value. A rating waits in the queue until the operator approves the reference
 To add authors to a stored set, add them to the file and run
 `pnpm worker reference-set add packages/worker/src/rater/reference-set.json`. It stores only the
 authors that the set does not hold, prints `stored` or `kept` for each author of the file, and
-names each field of a kept author that the record holds with another value. Then run `show` and
-`approve`. A name that the worker rated is refused: give the new author another name, and move
+names each field of a kept author that the record holds with another value. Run it first with
+`--dry-run` at the end: it prints the same lines and writes nothing. Then run it with no flag,
+`show` and `approve`. A name that the worker rated is refused: give the new author another name, and move
 the rated names to it after the approval.
 
 A rating that failed leaves its name F. `pnpm worker requeue-ratings` puts each rating job that

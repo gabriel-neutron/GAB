@@ -5952,6 +5952,8 @@ BEGIN
   v_units := public.units_of_name(v_key);
   INSERT INTO public.author_name_decision (name_key, author_id, confirmed)
   VALUES (v_key, v_from.id, false);
+  -- The new row is a doubt that the operator decides at once, as a join into an author A or B.
+  -- A reference author of a lower letter gets the same row: the confirmation makes it live.
   INSERT INTO public.author_name (name_key, author_id, doubt) VALUES (v_key, v_to, true);
   INSERT INTO public.author_name_decision (name_key, author_id, confirmed)
   VALUES (v_key, v_to, true);

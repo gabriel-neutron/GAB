@@ -75,7 +75,8 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
   operator gives the new author another name, approves it, and moves the rated names to it. So
   an author that the worker rated too low (GLEIF was C) becomes A with a new reference author and
   a move, and no row changes. `pnpm worker reference-set sites` gives the sites of the file to
-  each author of a stored set that has none. The sites of an author are written once, like its letter. Until the approval, a reference author is no author for any reader, and a rating job
+  each author of a stored set that has none. The sites of an author are written once, like its
+  letter. Until the approval, a reference author is no author for any reader, and a rating job
   waits in the queue. The approval is written once for each author.
 - Each act that names a new originator queues one rating job for that name, with no click of the
   operator. A refused answer ends the job as failed with its reason, and the name is not asked
