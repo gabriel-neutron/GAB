@@ -20,6 +20,9 @@ const entityRow = z.object({
   sources: z.array(z.string()),
   // GeoJSON, as the read API gives it.
   geom: z.record(z.string(), z.unknown()).nullable(),
+  /** The documents of the act that set the geometry, empty when the entity has no geometry. The
+   * database always gives it. A row without it is a test row, and its row-level sources count. */
+  geom_sources: z.array(z.string()).optional(),
 });
 
 const relationRow = z.object({
@@ -127,7 +130,7 @@ export const readReleaseRecord = async (
   const entities = await rowsOf(
     db,
     entityRow,
-    'SELECT id, type, label, origin_label, sources, geom FROM public.release_entities() ORDER BY id',
+    'SELECT id, type, label, origin_label, sources, geom, geom_sources FROM public.release_entities() ORDER BY id',
   );
   const relations = await rowsOf(
     db,
@@ -172,6 +175,7 @@ export const readReleaseRecord = async (
   // only a hidden row cites does not show what that row was about.
   const cited = new Set([
     ...[...entities, ...relations, ...claims].flatMap((one) => one.sources),
+    ...entities.flatMap((one) => one.geom_sources ?? []),
     ...claims.flatMap((one) => one.passages.map((passage) => passage.document)),
     ...alsoCited,
   ]);

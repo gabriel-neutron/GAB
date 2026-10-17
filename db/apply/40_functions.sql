@@ -6614,22 +6614,49 @@ DROP FUNCTION IF EXISTS nato_pair(uuid[]);
 
 -- The position is GeoJSON as RFC 7946 asks: an outer ring turns counter-clockwise and a hole
 -- clockwise, and 6 decimals (about 10 cm) is the precision that RFC 7946 recommends.
+--
+-- `geom_sources` gives the public documents of each accepted act that gave the geometry that the
+-- entity holds now: an update of the entity or the act that made it. Each act with an equal
+-- geometry counts, so two acts of one promotion, which share one time, cannot hide each other. A
+-- later act that changes only the name replaces the row-level sources, so these can differ from
+-- `sources`. A geometry that no act gave keeps the row-level sources.
 CREATE FUNCTION release_entities()
-RETURNS TABLE (id uuid, type text, label text, origin_label text, sources text[], geom jsonb)
+RETURNS TABLE (id uuid, type text, label text, origin_label text, sources text[], geom jsonb,
+               geom_sources text[])
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   WITH shown AS (
     SELECT e.id, e.type, e.label, e.origin_label, e.geom,
            ARRAY(SELECT s.id::text FROM unnest(e.sources) AS s(id)
                   WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = s.id)
-                  ORDER BY 1) AS sources
+                  ORDER BY 1) AS sources,
+           CASE WHEN e.geom IS NULL THEN '{}'::text[] ELSE ARRAY(
+             SELECT DISTINCT s.id FROM unnest(coalesce(
+               (SELECT array_agg(a.src) FROM public.entities x
+                  CROSS JOIN LATERAL (
+                    SELECT CASE WHEN u.op = 'create_entity' AND u.payload ? 'sources'
+                                THEN ARRAY(SELECT jsonb_array_elements_text(u.payload->'sources'))
+                                ELSE u.src::text[] END AS docs
+                      FROM public.proposals u
+                     WHERE u.status = 'accepted' AND u.payload ? 'geom'
+                       AND ((u.op = 'update_entity' AND u.target_kind = 'entity'
+                             AND u.target_id = x.id)
+                            OR (u.op = 'create_entity' AND u.id = x.promoted_from))
+                       AND public.ST_Equals(x.geom, public.ST_SetSRID(
+                             public.ST_GeomFromGeoJSON(u.payload->'geom'), 4326))) AS g
+                  CROSS JOIN LATERAL unnest(g.docs) AS a(src)
+                 WHERE x.id = e.id),
+               e.sources::text[])) AS s(id)
+              WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id::text = s.id)
+              ORDER BY 1) END AS geom_sources
       FROM api.entity e
   ), sourced AS (
     SELECT * FROM shown WHERE cardinality(sources) > 0
   )
   SELECT h.id, h.type, h.label, h.origin_label, h.sources,
          public.ST_AsGeoJSON(public.ST_ForcePolygonCCW(public.ST_SetSRID(
-           public.ST_GeomFromGeoJSON(h.geom), 4326)), 6)::jsonb
+           public.ST_GeomFromGeoJSON(h.geom), 4326)), 6)::jsonb,
+         h.geom_sources
     FROM sourced h
    WHERE h.type <> 'person'
       OR EXISTS (SELECT 1 FROM api.relation r JOIN sourced t ON t.id = r.dst_id
