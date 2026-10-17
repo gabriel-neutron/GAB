@@ -64,6 +64,7 @@ test('the role matrix of the doors', async () => {
       "public.mapping_text_set": "agent",
       "public.merge_entities": "app",
       "public.merge_waiting_act": "app",
+      "public.move_author_name": "app",
       "public.name_candidate_counts": "app",
       "public.name_candidates": "app",
       "public.nato_pair": "app",

@@ -1,6 +1,7 @@
 # ADR 0012 — Named rules in the database decide from the letters of the authors
 
-**Status** Accepted · 8 October 2026, corrected the same day (#378) · Replaces ADR 0011.
+**Status** Accepted · 8 October 2026, corrected the same day (#378) and on 17 October 2026 (the
+move of a name, the addition to the reference set) · Replaces ADR 0011.
 
 ## Context
 
@@ -24,7 +25,11 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
   the author F.
 - A name that holds two authors ("OFAC; Reuters") or a generic name ("uk", "the secretary of
   state") joins no author. The door refuses the join, and the worker asks the model once more to
-  rate the name as a new author.
+  rate the name as a new author. A comma does not always make two authors: the official name of
+  one body can hold one ("Foreign, Commonwealth & Development Office"), and so can a parent body
+  after the name ("OFSI, HM Treasury"). So a comma does not stop a join into an author A or B,
+  because that join is a doubt that the operator decides. A comma still stops a join into another
+  author, and a semicolon stops each join.
 - A name that joins an author A or B is a doubt, because it would raise the letter of every act
   of that name. Until the operator decides it, the name reads as F, and each unit with a fact of
   that name is a doubt. The operator confirms or refuses the name on the review page or with a
@@ -34,13 +39,25 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
   name. A dry-run gives, for each name, the number of units whose state each decision would
   change: a rule decides the unit, or another rule matches it. No machine role can decide a
   name: the decision raises a letter. A decision waits while the rating job of the name runs.
+- The worker can make a wrong author for a name of a reference author. On 17 October 2026 it read
+  the comma in the main names of the FCDO, OFSI and OFAC as two authors, and about 2,300 acts got
+  an author F. So the operator can **move** a name from an author that the worker rated (C to F)
+  to an approved reference author, with `pnpm worker author-names move <name> <author>`. The rows
+  stay: the move writes the name again for the reference author, with a refusal that retires the
+  old row and a confirmation of the new row, and both decisions record the operator. Then the
+  rules run again on the units of the name. A move into an author out of the reference set is
+  refused, because only the operator gives A or B, and so is a move of a name of a reference
+  author. A move between two rated authors is not in this build. The old author keeps its row,
+  and the rater no longer sees it once its own name has moved.
 - A is only for the issuer of an official record, on its own record. A and B come only from the
   reference set, which the operator approves. Each reference author keeps its **sites**: the host
   names where it publishes its own records. One source A counts alone only when the cited
   document is on a site of its author. A faithful copy of the record on another site needs a
   second independent source, like any other source (operator ruling, 2026-10-11).
   An author with no site never counts alone, so an author A of a set stored before the sites
-  counts alone only after the operator gives it its sites. The worker gives C to F. A party to the conflict is
+  counts alone only after the operator gives it its sites. An author A of a written set can have
+  no site, when it publishes only on a host that many authors share: OFSI publishes on the site
+  of all UK departments. It never counts alone. The worker gives C to F. A party to the conflict is
   B at most, and C at most on a fact about the other side (`decisions.md` S1). The graph holds no
   side for an entity yet, so in the first build a party counts as C on every fact. This is the
   safe direction.
@@ -51,8 +68,14 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
 - The operator loads a written set from a file with `pnpm worker reference-set load`, or builds
   one with `pnpm worker reference-set build`. Then the operator reads the set with `show` and
   approves it with `approve`. A record that holds a set refuses a second load and a second
-  build. `pnpm worker reference-set sites` gives the sites of the file to each author of a
-  stored set that has none. The sites of an author are written once, like its letter. Until the approval, a reference author is no author for any reader, and a rating job
+  build. `pnpm worker reference-set add` stores the authors of a file that the set does not hold
+  yet, and the operator approves them as before. It keeps an author that the set holds, and it
+  names each field whose value in the record is not the value of the file, because a letter is
+  written once. It refuses a name that the worker rated, because the rated author stands: the
+  operator gives the new author another name, approves it, and moves the rated names to it. So
+  an author that the worker rated too low (GLEIF was C) becomes A with a new reference author and
+  a move, and no row changes. `pnpm worker reference-set sites` gives the sites of the file to
+  each author of a stored set that has none. The sites of an author are written once, like its letter. Until the approval, a reference author is no author for any reader, and a rating job
   waits in the queue. The approval is written once for each author.
 - Each act that names a new originator queues one rating job for that name, with no click of the
   operator. A refused answer ends the job as failed with its reason, and the name is not asked

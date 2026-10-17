@@ -8,6 +8,7 @@ import type { Queryable } from '../queryable.ts';
 import type { RaterConfig } from '../reader-config.ts';
 import { completionOf, READER, routerOf } from '../runner-fixture.ts';
 import {
+  addReferenceAuthors,
   approveReferenceSet,
   buildReferenceSet,
   fillReferenceSites,
@@ -152,6 +153,10 @@ test.each([
     'a party with no controller',
     { authors: authors().map((one, index) => (index === 1 ? { ...one, party: true } : one)) },
   ],
+  [
+    'an author A with no site',
+    { authors: authors().map((one, index) => (index === 0 ? { ...one, sites: [] } : one)) },
+  ],
 ])('an answer with %s stores nothing', async (_name, answer) => {
   await inTransaction(async (held) => {
     await expect(build(held, answer)).rejects.toThrow();
@@ -220,7 +225,6 @@ test('the set keeps the sites of each author, and the operator reads them', asyn
 });
 
 test.each([
-  ['an author A with no site', { letter: 'A', sites: [] }, 'an author A has at least one site'],
   ['a site with a scheme', { sites: ['https://register.example'] }, 'a site is a host name'],
   ['a site with a path', { sites: ['register.example/list'] }, 'a site is a host name'],
   ['a site in capitals', { sites: ['Register.Example'] }, 'a site is a host name'],
@@ -263,5 +267,90 @@ test('the sites of the file go once to each author of a stored set that has none
       'register6.example',
     ]);
     expect(first.set.every((one) => one.approved)).toBe(true);
+  });
+});
+
+test('a written author A with no site loads, and it never counts alone', async () => {
+  await inTransaction(async (held) => {
+    const set = authors().map((one, index) => (index === 0 ? { ...one, sites: [] } : one));
+    const stored = await loadReferenceSet(held.app, JSON.stringify({ authors: set }));
+
+    expect(stored.find((one) => one.name_key === 'author 0')).toMatchObject({
+      letter: 'A',
+      sites: [],
+    });
+  });
+});
+
+test('an add stores only the new authors of the file, and a second add stores nothing', async () => {
+  await inTransaction(async (held) => {
+    await loadReferenceSet(held.app, JSON.stringify({ authors: authors() }));
+    await approveReferenceSet(held.app);
+    const file = JSON.stringify({
+      authors: [
+        ...authors(),
+        { ...authors()[0], name: 'A new register', sites: ['new-register.example'] },
+      ],
+    });
+
+    const first = await addReferenceAuthors(held.app, file, '2026-10-17');
+    const again = await addReferenceAuthors(held.app, file, '2026-10-18');
+
+    expect(first.added.filter((one) => one.said === 'stored')).toStrictEqual([
+      { name: 'A new register', said: 'stored', differs: [] },
+    ]);
+    expect(first.added.filter((one) => one.said === 'kept')).toHaveLength(30);
+    expect(again.added.every((one) => one.said === 'kept' && one.differs.length === 0)).toBe(true);
+    expect(again.set).toHaveLength(31);
+    // The new author waits for the approval, and the others stay approved.
+    expect(again.set.find((one) => one.name_key === 'a new register')?.approved).toBe(false);
+    expect(again.set.filter((one) => one.approved)).toHaveLength(30);
+    const model = await held.ask(
+      `SELECT model FROM public.author WHERE name_key = 'a new register'`,
+    );
+    expect(model).toStrictEqual([{ model: 'expert-written set (addition 2026-10-17)' }]);
+    expect(await approveReferenceSet(held.app)).toBe(1);
+  });
+});
+
+test('an add keeps the author that the set holds, and names each field that differs', async () => {
+  await inTransaction(async (held) => {
+    await loadReferenceSet(held.app, JSON.stringify({ authors: authors() }));
+    const file = JSON.stringify({
+      authors: [{ ...authors()[0], name: 'AUTHOR  0', reason: 'another reason', sites: [] }],
+    });
+
+    const done = await addReferenceAuthors(held.app, file, '2026-10-17');
+
+    expect(done.added).toHaveLength(1);
+    expect(done.added[0]?.said).toBe('kept');
+    expect(done.added[0]?.differs.map((one) => one.split(':')[0])).toStrictEqual([
+      'reason',
+      'sites',
+    ]);
+    expect(done.set.find((one) => one.name_key === 'author 0')?.reason).toBe(
+      'the reason of author 0',
+    );
+  });
+});
+
+test('an add of a name that the worker rated is refused, and stores nothing', async () => {
+  await inTransaction(async (held) => {
+    await loadReferenceSet(held.app, JSON.stringify({ authors: authors() }));
+    await approveReferenceSet(held.app);
+    await held.agent.query(
+      `SELECT public.store_author_letter('Rated Body', 'C', 'a-model', 'a reason',
+         ARRAY['Author 1'])`,
+    );
+    const file = JSON.stringify({
+      authors: [
+        { ...authors()[0], name: 'Another register', sites: ['another.example'] },
+        { ...authors()[0], name: 'Rated Body', sites: ['rated.example'] },
+      ],
+    });
+
+    await expect(addReferenceAuthors(held.app, file, '2026-10-17')).rejects.toThrow(
+      'a name of an author that the worker rated',
+    );
   });
 });

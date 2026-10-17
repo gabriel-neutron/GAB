@@ -5619,12 +5619,19 @@ END $$;
 -- WHY A NAME CAN JOIN NO AUTHOR, or NULL when it can. A name that holds two authors ("OFAC;
 -- Reuters", "Reuters, Tass") is no name of one author. A generic name (a country, or a role with
 -- no body, such as "the secretary of state") names no author that a reader can find. Such a name
--- goes to the rater as a new author. Inside the doors only.
-CREATE OR REPLACE FUNCTION name_joins_no_author(p_key text) RETURNS text
+-- goes to the rater as a new author. A comma is not always two authors: the official name of one
+-- body can hold one ("Foreign, Commonwealth & Development Office"), and so can a parent body after
+-- the name ("OFSI, HM Treasury"). So a join that is a doubt (`p_doubt`, into an author A or B)
+-- passes a comma, and the operator decides it. A semicolon always holds two authors. Inside the
+-- doors only.
+DROP FUNCTION IF EXISTS name_joins_no_author(text);
+CREATE OR REPLACE FUNCTION name_joins_no_author(p_key text, p_doubt boolean DEFAULT false)
+RETURNS text
 LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT CASE
     WHEN p_key ~ '[^[:space:];,][[:space:]]*;[[:space:]]*[^[:space:];,]'
-      OR (p_key ~ '[^[:space:];,][[:space:]]*,[[:space:]]*[^[:space:];,]'
+      OR (NOT coalesce(p_doubt, false)
+          AND p_key ~ '[^[:space:];,][[:space:]]*,[[:space:]]*[^[:space:];,]'
           -- A legal form after a comma is a part of the name of one company.
           AND regexp_replace(p_key, ',[[:space:]]*(inc|ltd|llc|plc|pjsc|pao|jsc|oao|ooo|zao|co|'
                                     'corp|ag|gmbh|sa|s\.a|nv|bv|limited)\.?(?=$|[[:space:],])',
@@ -5651,7 +5658,9 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_key text := public.name_key(coalesce(p_name, ''));
   v_author uuid := public.author_of(p_known_name);
-  v_no_join text := public.name_joins_no_author(v_key);
+  v_doubt boolean := coalesce(
+    (SELECT a.letter IN ('A','B') FROM public.author a WHERE a.id = v_author), false);
+  v_no_join text := public.name_joins_no_author(v_key, v_doubt);
 BEGIN
   IF v_key = '' THEN
     RAISE EXCEPTION 'a join names the new name' USING ERRCODE = 'invalid_parameter_value';
@@ -5675,9 +5684,7 @@ BEGIN
       v_key
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
-  INSERT INTO public.author_name (name_key, author_id, doubt)
-  VALUES (v_key, v_author,
-          (SELECT a.letter IN ('A','B') FROM public.author a WHERE a.id = v_author));
+  INSERT INTO public.author_name (name_key, author_id, doubt) VALUES (v_key, v_author, v_doubt);
   PERFORM public.run_rules(public.units_of_author(v_author));
 END $$;
 
@@ -5793,9 +5800,12 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                                            AND NOT d.confirmed)))
                        ORDER BY a.reference_set DESC, a.letter, a.name_key)
                   FROM public.author a
-                 WHERE NOT a.reference_set
-                    OR EXISTS (SELECT 1 FROM public.reference_approval r
-                                WHERE r.author_id = a.id)), '[]'::jsonb))
+                 -- An author whose own name the operator moved to another author is no
+                 -- author that a new name can join.
+                 WHERE (SELECT n.author_id FROM public.name_row(a.name_key) n) = a.id
+                   AND (NOT a.reference_set
+                        OR EXISTS (SELECT 1 FROM public.reference_approval r
+                                    WHERE r.author_id = a.id))), '[]'::jsonb))
          END
 $$;
 
@@ -5881,6 +5891,70 @@ BEGIN
        AND (j.status = 'done' OR (j.status = 'failed' AND j.refusal IS NOT NULL));
     INSERT INTO public.jobs (kind, author) VALUES ('rate_author', v_key) ON CONFLICT DO NOTHING;
   END IF;
+  PERFORM public.run_rules(v_units);
+  RETURN cardinality(v_units);
+END $$;
+
+-- THE MOVE OF A NAME BY THE OPERATOR, from an author that the worker rated (C to F) to an approved
+-- author of the reference set. The worker can make a wrong author, for example when it reads a
+-- comma as two authors, and no other door takes a name from it. Each row stays: the door writes
+-- the name again for the new author, a refusal that retires the old row and a confirmation of the
+-- new row. Both decisions record the operator. The door refuses a move into an author out of the
+-- reference set, because only the operator gives a letter A or B. It refuses a name of a reference
+-- author, because the operator approved that name with the set or decided it. It refuses while
+-- the rating job of the name runs. The rules run again on the units of the name, and the door
+-- gives their number.
+CREATE OR REPLACE FUNCTION move_author_name(p_name text, p_author text) RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_key text := public.name_key(coalesce(p_name, ''));
+  v_target_key text := public.name_key(coalesce(p_author, ''));
+  v_from record;
+  v_to uuid;
+  v_units uuid[];
+BEGIN
+  IF v_key = '' OR v_target_key = '' THEN
+    RAISE EXCEPTION 'a move names the name and the author that gets it'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  PERFORM public.lock_name(v_key);
+  SELECT a.id, a.name_key, a.reference_set INTO v_from
+    FROM public.name_row(v_key) n JOIN public.author a ON a.id = n.author_id;
+  IF v_from.id IS NULL THEN
+    RAISE EXCEPTION 'the name "%" has no author: the rater rates it first', v_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF v_from.reference_set THEN
+    RAISE EXCEPTION 'the name "%" is a name of the reference author "%", and no move takes it',
+      v_key, v_from.name_key USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  SELECT a.id INTO v_to
+    FROM public.name_row(v_target_key) n JOIN public.author a ON a.id = n.author_id
+   WHERE a.reference_set AND NOT n.waits
+     AND EXISTS (SELECT 1 FROM public.reference_approval r WHERE r.author_id = a.id);
+  IF v_to IS NULL THEN
+    RAISE EXCEPTION 'the author "%" is no approved author of the reference set, and a name moves '
+                    'only into one', v_target_key USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.author_name n WHERE n.name_key = v_key AND n.author_id = v_to)
+  THEN
+    RAISE EXCEPTION 'the operator refused the name "%" for the author "%" before, and a decision '
+                    'is written once', v_key, v_target_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  -- A rating job that runs now would end on the old answer.
+  IF EXISTS (SELECT 1 FROM public.jobs j
+              WHERE j.kind = 'rate_author' AND j.author = v_key AND j.status = 'running') THEN
+    RAISE EXCEPTION 'the rating of the name "%" runs now: move it when the job has ended', v_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  v_units := public.units_of_name(v_key);
+  INSERT INTO public.author_name_decision (name_key, author_id, confirmed)
+  VALUES (v_key, v_from.id, false);
+  INSERT INTO public.author_name (name_key, author_id, doubt) VALUES (v_key, v_to, true);
+  INSERT INTO public.author_name_decision (name_key, author_id, confirmed)
+  VALUES (v_key, v_to, true);
   PERFORM public.run_rules(v_units);
   RETURN cardinality(v_units);
 END $$;

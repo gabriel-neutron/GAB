@@ -33,6 +33,70 @@
       "sites": ["echr.coe.int"]
     },
     {
+      "name": "FCDO (UK Foreign, Commonwealth & Development Office)",
+      "letter": "A",
+      "reason": "It issues its own UK sanctions list.",
+      "controller": "UK government",
+      "party": false,
+      "sites": ["sanctionslist.fcdo.gov.uk", "search-uk-sanctions-list.service.gov.uk"]
+    },
+    {
+      "name": "OFSI (HM Treasury)",
+      "letter": "A",
+      "reason": "It issues its own financial sanctions notices and licences.",
+      "controller": "UK government",
+      "party": false,
+      "sites": []
+    },
+    {
+      "name": "US Department of State",
+      "letter": "A",
+      "reason": "It issues its own sanctions designations.",
+      "controller": "US government",
+      "party": false,
+      "sites": ["state.gov", "govinfo.gov", "federalregister.gov"]
+    },
+    {
+      "name": "BIS (US Department of Commerce)",
+      "letter": "A",
+      "reason": "It issues its own export control rules and its Entity List.",
+      "controller": "US government",
+      "party": false,
+      "sites": ["bis.gov", "bis.doc.gov", "govinfo.gov", "federalregister.gov"]
+    },
+    {
+      "name": "US President (Executive Office of the President)",
+      "letter": "A",
+      "reason": "It issues its own executive orders.",
+      "controller": "US government",
+      "party": false,
+      "sites": ["whitehouse.gov", "govinfo.gov", "federalregister.gov"]
+    },
+    {
+      "name": "European Commission (EU executive)",
+      "letter": "A",
+      "reason": "It issues its own decisions and sanctions guidance.",
+      "controller": "EU institutions",
+      "party": false,
+      "sites": ["ec.europa.eu", "finance.ec.europa.eu", "webgate.ec.europa.eu"]
+    },
+    {
+      "name": "General Court of the European Union (CJEU)",
+      "letter": "A",
+      "reason": "It issues its own judgments.",
+      "controller": "EU institutions",
+      "party": false,
+      "sites": ["curia.europa.eu"]
+    },
+    {
+      "name": "GLEIF (Global Legal Entity Identifier Foundation)",
+      "letter": "A",
+      "reason": "It issues its own register of legal entity identifiers, which proves the record and not the ownership.",
+      "controller": "LEI Regulatory Oversight Committee",
+      "party": false,
+      "sites": ["gleif.org", "api.gleif.org"]
+    },
+    {
       "name": "Reuters",
       "letter": "B",
       "reason": "It does its own reporting and has a record of corrections.",

@@ -120,6 +120,13 @@ the value. A rating waits in the queue until the operator approves the reference
 3. `pnpm worker reference-set approve` makes the set usable. From then on each new author name
    gets a rating job by itself.
 
+To add authors to a stored set, add them to the file and run
+`pnpm worker reference-set add packages/worker/src/rater/reference-set.json`. It stores only the
+authors that the set does not hold, prints `stored` or `kept` for each author of the file, and
+names each field of a kept author that the record holds with another value. Then run `show` and
+`approve`. A name that the worker rated is refused: give the new author another name, and move
+the rated names to it after the approval.
+
 A rating that failed leaves its name F. `pnpm worker requeue-ratings` puts each rating job that
 failed by a fault back in the queue with no attempt, and prints each name with the reason of the
 earlier attempt: the job keeps no record of it. The next `pnpm worker run` rates them, and each
@@ -138,6 +145,10 @@ each act of that name, so the name reads as F and its units are a doubt until yo
 3. `pnpm worker author-names confirm <name>` gives the name the letter of its author.
    `pnpm worker author-names refuse <name>` makes the name F, and the rater rates it again as a
    new author. The rules then read the units of the name again. A decision is final.
+4. `pnpm worker author-names move "<name>" "<author>"` gives a name that the worker rated as a
+   wrong author (C to F) to an approved reference author. Put each of the two in quotes. The
+   command refuses a name of a reference author and an author out of the approved set. A move is
+   final.
 
 The review page shows the same list on its Names page, with the same two actions.
 
