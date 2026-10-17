@@ -745,18 +745,24 @@ const mergeDoor = async (db: Queryable, text: string, values: readonly unknown[]
   return id;
 };
 
-test('the documents of a geometry are the documents of the act that set it, or else the row-level sources', async () => {
+test('the documents of a geometry are the public documents of each act that gave it, or else the row-level sources', async () => {
   const rows = await inTransaction(async (held) => {
     await record(held);
-    await decidedAct(
-      held,
-      'update_entity',
-      { geom: { type: 'Point', coordinates: [32.5, 46.6] } },
-      { kind: 'entity', id: VESSEL },
-      'validated manually by the operator',
-      '2026-10-09',
-      [GFW],
-    );
+    const place = async (coordinates: number[], day: string, src: string[]) =>
+      decidedAct(
+        held,
+        'update_entity',
+        { geom: { type: 'Point', coordinates } },
+        { kind: 'entity', id: VESSEL },
+        'validated manually by the operator',
+        day,
+        src,
+      );
+    // The vessel holds the point 32.5, 46.6. A later act gave another point, which is not there
+    // now, and a last act repeated the point that the vessel holds.
+    await place([32.5, 46.6], '2026-10-09', [GFW, BOUGHT]);
+    await place([10, 10], '2026-10-10', [SHIPS]);
+    await place([32.5, 46.6], '2026-10-11', [TWO]);
     // A later act that changes only the name replaced the row-level sources.
     await held.ask('UPDATE public.entities SET sources = $2 WHERE id = $1', [VESSEL, [SHIPS]]);
     const { rows } = await held
@@ -768,7 +774,7 @@ test('the documents of a geometry are the documents of the act that set it, or e
     return rows;
   });
   expect(rows).toStrictEqual([
-    { id: VESSEL, sources: [SHIPS], geom_sources: [GFW] },
+    { id: VESSEL, sources: [SHIPS], geom_sources: [GFW, TWO] },
     { id: OWNER, sources: [SHIPS], geom_sources: [SHIPS] },
   ]);
 });
