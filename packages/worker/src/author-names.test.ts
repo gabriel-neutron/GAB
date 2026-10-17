@@ -29,14 +29,20 @@ test('a name whose rating runs gives no count', () => {
   );
 });
 
-test.each([[[]], [['confirm']], [['refuse', ' ']], [['list', 'x']], [['undo', 'x']]])(
-  'the words %j give the usage and open no connection',
-  async (words) => {
-    const said: string[] = [];
-    vi.spyOn(console, 'error').mockImplementation((line: unknown) => {
-      said.push(String(line));
-    });
-    expect(await authorNamesCommand(words)).toBe(2);
-    expect(said.join('\n')).toContain('Usage: pnpm worker author-names');
-  },
-);
+test.each([
+  [[]],
+  [['confirm']],
+  [['refuse', ' ']],
+  [['list', 'x']],
+  [['undo', 'x']],
+  [['move', 'one name']],
+  [['move', 'one name', ' ']],
+  [['move', 'one', 'name', 'author']],
+])('the words %j give the usage and open no connection', async (words) => {
+  const said: string[] = [];
+  vi.spyOn(console, 'error').mockImplementation((line: unknown) => {
+    said.push(String(line));
+  });
+  expect(await authorNamesCommand(words)).toBe(2);
+  expect(said.join('\n')).toContain('Usage: pnpm worker author-names');
+});

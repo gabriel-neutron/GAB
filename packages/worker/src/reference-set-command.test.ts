@@ -37,3 +37,15 @@ test('a load of a file with bad JSON prints a short message and fails', async ()
   expect(text).toContain('not valid JSON');
   expect(text).not.toContain(' at ');
 });
+
+test.each([[['add', 'set.json', '--force']], [['load', 'set.json', '--dry-run']]])(
+  'the words %j give the usage',
+  async (words) => {
+    const said: string[] = [];
+    vi.spyOn(console, 'error').mockImplementation((line: unknown) => {
+      said.push(String(line));
+    });
+    expect(await referenceSetCommand(words)).toBe(2);
+    expect(said.join('\n')).toContain('Usage: pnpm worker reference-set');
+  },
+);

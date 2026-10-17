@@ -1,6 +1,7 @@
 import { openBudget, openModel, type CallRecord, type Message, type Model } from '@gab/model';
 import { z } from 'zod';
 
+import { nameKey } from '../name-key.ts';
 import type { Queryable } from '../queryable.ts';
 import type { RaterConfig } from '../reader-config.ts';
 import { recordModelCall } from '../runner.ts';
@@ -37,10 +38,10 @@ const author = z.strictObject({
   sites: z.array(site),
 });
 
-/** The answer of the model: the reference set, each author with a letter and a reason. */
-export const referenceAnswer = z
-  .strictObject({ authors: z.array(author).min(LEAST).max(MOST) })
-  .check((context) => {
+/** The rules that every author of a set passes: one name for each author, a controller for a
+ * party, and B at most for a party. The answer of the model also gives a site to each author A. */
+const setOf = (authors: z.ZodArray<typeof author>, siteOfA: boolean) =>
+  z.strictObject({ authors }).check((context) => {
     const names = context.value.authors.map((one) => one.name.replace(/\s+/gu, ' ').toLowerCase());
     if (new Set(names).size !== names.length)
       context.issues.push({ code: 'custom', message: 'two authors share one name', input: names });
@@ -61,7 +62,7 @@ export const referenceAnswer = z
         });
       // A source A counts alone only on a site of its author, so an author A with no site
       // could never count alone.
-      if (one.letter === 'A' && one.sites.length === 0)
+      if (siteOfA && one.letter === 'A' && one.sites.length === 0)
         context.issues.push({
           code: 'custom',
           message: `${one.name}: an author A has at least one site`,
@@ -70,6 +71,14 @@ export const referenceAnswer = z
         });
     });
   });
+
+/** The answer of the model: the reference set, each author with a letter and a reason. */
+export const referenceAnswer = setOf(z.array(author).min(LEAST).max(MOST), true);
+
+/** A set that experts wrote in a file. It grows when the operator adds authors, so it has no
+ * range. An author A of it can have no site, when it publishes only on a site that many authors
+ * share: it never counts alone. */
+export const writtenSet = setOf(z.array(author).min(1), false);
 
 const row = z.object({
   name_key: z.string(),
@@ -86,7 +95,7 @@ export type ReferenceRow = z.infer<typeof row>;
 const READ = `SELECT name_key, letter::text, reason, controller, party, sites, approved
   FROM public.reference_set()`;
 const STORE = `SELECT public.store_reference_author($1::text, $2::text, $3::text, $4::text,
-  '{}'::text[], $5::text, $6::boolean, $7::text[])`;
+  '{}'::text[], $5::text, $6::boolean, $7::text[]) AS id`;
 const SITES = 'SELECT public.store_reference_sites($1::text, $2::text[]) AS said';
 const APPROVE = 'SELECT public.approve_reference_set() AS n';
 
@@ -105,21 +114,36 @@ const refuseSecondSet = async (app: Queryable, ending: string): Promise<void> =>
     throw new Error(`The record holds a reference set already. ${ending}`);
 };
 
+type Author = Authors[number];
+
+/** Stores one author of the set. It gives false when the name is a name of an author that the
+ * worker rated: the rated author stands, and the set does not hold the name. */
+const storeAuthor = async (app: Queryable, one: Author, model: string): Promise<boolean> => {
+  const [stored] = z
+    .array(z.object({ id: z.string().nullable() }))
+    .length(1)
+    .parse(
+      (
+        await app.query(STORE, [
+          one.name,
+          one.letter,
+          model,
+          one.reason,
+          one.controller,
+          one.party,
+          one.sites,
+        ])
+      ).rows,
+    );
+  return stored?.id !== null;
+};
+
 const storeAuthors = async (
   app: Queryable,
   authors: Authors,
   model: string,
 ): Promise<readonly ReferenceRow[]> => {
-  for (const one of authors)
-    await app.query(STORE, [
-      one.name,
-      one.letter,
-      model,
-      one.reason,
-      one.controller,
-      one.party,
-      one.sites,
-    ]);
+  for (const one of authors) await storeAuthor(app, one, model);
   return readReferenceSet(app);
 };
 
@@ -134,8 +158,8 @@ export const loadReferenceSet = async (
   app: Queryable,
   text: string,
 ): Promise<readonly ReferenceRow[]> => {
-  const set = referenceAnswer.parse(JSON.parse(text));
-  await refuseSecondSet(app, 'It is loaded once.');
+  const set = writtenSet.parse(JSON.parse(text));
+  await refuseSecondSet(app, 'It is loaded once. Add new authors with add.');
   return storeAuthors(app, set.authors, WRITTEN_SET_MODEL);
 };
 
@@ -156,7 +180,7 @@ export const fillReferenceSites = async (
   app: Queryable,
   text: string,
 ): Promise<{ readonly sites: readonly SitesOfAuthor[]; readonly set: readonly ReferenceRow[] }> => {
-  const set = referenceAnswer.parse(JSON.parse(text));
+  const set = writtenSet.parse(JSON.parse(text));
   const sites: SitesOfAuthor[] = [];
   for (const one of set.authors)
     if (one.sites.length > 0) {
@@ -164,6 +188,68 @@ export const fillReferenceSites = async (
       sites.push({ name: one.name, said: row.said });
     }
   return { sites, set: await readReferenceSet(app) };
+};
+
+/** What the record did with one author of the file: `stored` it as a new author, or `kept` the
+ * author that the set holds already. `differs` names each field of a kept author whose value in
+ * the record is not the value of the file. The record keeps its value, because a letter is
+ * written once. */
+export interface AddedAuthor {
+  readonly name: string;
+  readonly said: 'stored' | 'kept';
+  readonly differs: readonly string[];
+}
+
+/** A refusal of the add, for the operator to read. */
+export class ReferenceSetRefusal extends Error {}
+
+const differences = (one: Author, held: ReferenceRow): string[] => {
+  const differs: string[] = [];
+  const field = (named: string, file: unknown, record: unknown): void => {
+    if (JSON.stringify(file) !== JSON.stringify(record))
+      differs.push(
+        `${named}: the file says ${JSON.stringify(file)}, the record ${JSON.stringify(record)}`,
+      );
+  };
+  field('letter', one.letter, held.letter);
+  field('reason', one.reason, held.reason);
+  field('controller', one.controller, held.controller);
+  field('party', one.party, held.party);
+  field('sites', [...one.sites].sort(), [...held.sites].sort());
+  return differs;
+};
+
+/** Stores each author of the file that the reference set does not hold, from the text of a JSON
+ * file in the shape of a written set. An author whose name the set holds is kept as it is. The
+ * new authors are not used until the operator approves them. The model column says that experts
+ * wrote them, and the date of the addition. A name that the worker rated is refused, because the
+ * rated author stands: the operator gives the author another name in the file and moves the rated
+ * names to it after the approval. The caller wraps the call in one transaction, so the file is
+ * added whole or not at all. */
+export const addReferenceAuthors = async (
+  app: Queryable,
+  text: string,
+  today: string,
+): Promise<{ readonly added: readonly AddedAuthor[]; readonly set: readonly ReferenceRow[] }> => {
+  const set = writtenSet.parse(JSON.parse(text));
+  const held = new Map((await readReferenceSet(app)).map((one) => [one.name_key, one]));
+  const model = `${WRITTEN_SET_MODEL} (addition ${today})`;
+  const added: AddedAuthor[] = [];
+  for (const one of set.authors) {
+    const kept = held.get(nameKey(one.name));
+    if (kept !== undefined) {
+      added.push({ name: one.name, said: 'kept', differs: differences(one, kept) });
+      continue;
+    }
+    if (!(await storeAuthor(app, one, model)))
+      throw new ReferenceSetRefusal(
+        `The name "${one.name}" is a name of an author that the worker rated, so the set cannot ` +
+          'hold it. Give the author another name in the file, add the file again, approve the ' +
+          'set, and move the rated names with: pnpm worker author-names move <name> <author>',
+      );
+    added.push({ name: one.name, said: 'stored', differs: [] });
+  }
+  return { added, set: await readReferenceSet(app) };
 };
 
 export interface BuildDeps {
