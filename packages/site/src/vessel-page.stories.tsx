@@ -91,3 +91,16 @@ export const WithThePairOnEachMarkShowsItsPair: Story = {
     await expect(itemOf(canvasElement, OWNS)).toHaveTextContent('NATO C3');
   },
 };
+
+export const TheVesselFinderLinkIsExternalAndSaysItIsNotASource: Story = {
+  play: async ({ canvas }) => {
+    const link = canvas.getByRole('link', { name: /VesselFinder/u });
+    await expect(link).toHaveAttribute(
+      'href',
+      'https://www.vesselfinder.com/vessels/details/9000001',
+    );
+    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    await expect(canvas.getByText(/pas une source GAB/u)).toBeVisible();
+  },
+};
