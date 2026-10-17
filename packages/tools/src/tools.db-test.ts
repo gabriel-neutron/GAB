@@ -1670,6 +1670,30 @@ test('propose refuses a place on an entity that does not exist', async () => {
   });
 });
 
+test('propose refuses a place on a new entity that waits, and tells the agent to wait', async () => {
+  const outcome = await rolledBack('superuser', async (ask) => {
+    const [vessel] = batchOf(await proposeOnPage(ask, [NAYARA])).proposals;
+    if (vessel === undefined) throw new Error('propose wrote no entity');
+    const place = { type: 'Point', coordinates: [28, 59] };
+    return {
+      vessel: vessel.proposalId,
+      got: await proposeAgain(ask, [
+        item(
+          'place',
+          { op: 'update_entity', targetId: vessel.proposalId, geom: place },
+          'left Sikka',
+        ),
+      ]),
+    };
+  });
+  expect(outcome.got).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(
+      `item place: the new entity ${outcome.vessel} waits in the review queue`,
+    ) as string,
+  });
+});
+
 test('propose refuses a page of a document that holds no stored text', async () => {
   const outcome = await rolledBack('research', (ask) => call(ask, 'propose', { items: [NAYARA] }));
   expect(outcome).toMatchObject({

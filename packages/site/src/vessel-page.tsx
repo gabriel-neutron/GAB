@@ -8,6 +8,7 @@ import { claimPage, entityPage, hrefFrom, vesselPage, type SitePath } from './si
 import type { SiteEntity, SiteRelease } from './site-release.ts';
 import { LINK } from './site-style.ts';
 import { TimelineFigure } from './timeline-figure.tsx';
+import { vesselFinderUrl } from './vessel-finder.ts';
 import { vesselLanes, type MarkTime, type TimelineMark } from './vessel-timeline.ts';
 
 export interface VesselPageProps {
@@ -181,6 +182,15 @@ export function VesselPage({ release, imo }: VesselPageProps) {
       {vessels.map((vessel) => (
         <VesselTimeline key={vessel.id} release={release} vessel={vessel} here={here} />
       ))}
+      <p lang="fr" className="flex flex-col gap-0.5 border-t border-border pt-2">
+        <a className={LINK} href={vesselFinderUrl(imo)} target="_blank" rel="noopener noreferrer">
+          Position AIS déclarée (VesselFinder)
+        </a>
+        <span className="text-muted-foreground">
+          Visualiseur externe, pas une source GAB. Position déclarée par le navire, peut être coupée
+          ou falsifiée.
+        </span>
+      </p>
     </SiteFrame>
   );
 }

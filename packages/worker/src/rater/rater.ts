@@ -7,7 +7,7 @@ import { promptOf, withinBudget } from '../tool-turn.ts';
 import { decide, ratingAnswer, ratingContext, referenceNames, type Decision } from './answer.ts';
 
 const RATER_NAME = 'rater';
-const VERSION = 'v3';
+const VERSION = 'v4';
 
 const CONTEXT = 'SELECT public.rating_context($1::text) AS context';
 const STORE = `SELECT public.store_author_letter($1::text, $2::text, $3::text, $4::text,

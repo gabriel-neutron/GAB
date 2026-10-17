@@ -144,7 +144,7 @@ REVOKE ALL ON FUNCTION store_reference_author(text,text,text,text,text[],text,bo
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION store_reference_sites(text,text[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION join_author_name(text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION name_joins_no_author(text)  FROM PUBLIC;
+REVOKE ALL ON FUNCTION name_joins_no_author(text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION name_row(text)              FROM PUBLIC;
 REVOKE ALL ON FUNCTION lock_name(text)             FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_state(uuid)            FROM PUBLIC;
@@ -160,6 +160,7 @@ REVOKE ALL ON FUNCTION confirm_name_candidate(text,uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION refuse_name_candidate(text,uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION name_candidate_counts()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION decide_author_name(text,boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION move_author_name(text,text)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_names_dry_run()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION letter_of(text)             FROM PUBLIC, gabriel_app;
 REVOKE ALL ON FUNCTION approve_reference_set()     FROM PUBLIC;
@@ -354,6 +355,8 @@ GRANT EXECUTE ON FUNCTION requeue_failed_ratings()  TO gabriel_app;
 -- raises a letter, so the worker, the research AI, the checker and the AI reviewer hold no grant.
 GRANT EXECUTE ON FUNCTION author_names_waiting()   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION decide_author_name(text,boolean) TO gabriel_app;
+-- The operator moves a name from an author that the worker rated to a reference author.
+GRANT EXECUTE ON FUNCTION move_author_name(text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION author_names_dry_run()   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION rating_context(text)     TO gabriel_agent;
 

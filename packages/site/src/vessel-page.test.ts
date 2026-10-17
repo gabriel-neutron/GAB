@@ -4,6 +4,7 @@ import { join, posix, resolve } from 'node:path';
 import { expect, test } from 'vitest';
 
 import { buildSite } from './build-site.tsx';
+import { vesselFinderUrl } from './vessel-finder.ts';
 
 const FIXTURES = resolve(import.meta.dirname, '../fixtures');
 const VESSEL = '0a1f0000-0000-4000-8000-000000000001';
@@ -202,4 +203,13 @@ test('a merged vessel has one page, and the page names the absorbed identifier',
 test('the vessel page shows the NATO pair only when the release shows it', () => {
   expect(read(off, PAGE)).not.toMatch(/NATO|data-nato-pair/u);
   expect(read(on, PAGE)).toContain('data-nato-pair');
+});
+
+test('the vessel finder link is built from the IMO number and opens in a new tab', () => {
+  expect(vesselFinderUrl('9000001')).toBe('https://www.vesselfinder.com/vessels/details/9000001');
+  const text = read(off, PAGE);
+  expect(text).toContain('href="https://www.vesselfinder.com/vessels/details/9000001"');
+  expect(text).toContain('target="_blank"');
+  expect(text).toContain('rel="noopener noreferrer"');
+  expect(text).toContain('Visualiseur externe, pas une source GAB.');
 });
