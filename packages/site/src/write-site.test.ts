@@ -94,7 +94,7 @@ describe.each([
     for (const page of pages)
       for (const [, address = ''] of read(page).matchAll(/(?:href|src)="(https:[^"]*)"/gu))
         expect(address).toMatch(
-          /^https:\/\/(example\.org|news\.example\.org|eur-lex\.europa\.eu)\//u,
+          /^https:\/\/(example\.org|news\.example\.org|eur-lex\.europa\.eu)\/|^https:\/\/www\.vesselfinder\.com\/vessels\/details\/\d{7}$/u,
         );
   });
 
