@@ -207,6 +207,33 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
     }),
   );
 
+  const claimFileRows = rows('claims.csv', [
+    'claim_id',
+    'claim_kind',
+    'subject_kind',
+    'subject_id',
+    'subject_label',
+    'attribute',
+    'value',
+    'origin_label',
+    'licence',
+    'document_id',
+    'document_title',
+    'document_address',
+    'document_read_on',
+    'page',
+    'excerpt',
+    'modality',
+    'transcribed',
+  ]);
+  // A day that a later act gave is not on the relation row: the release gives it as a claim of
+  // its own, with the documents of that act. The relation here still reads the day.
+  const dayClaims = new Map<string, string>();
+  for (const row of claimFileRows)
+    if (row['subject_kind'] === 'relation' && row['claim_id']?.endsWith(`/${row['attribute']}`))
+      if (row['attribute'] === 'valid_from' || row['attribute'] === 'valid_to')
+        dayClaims.set(cell(row, 'claim_id'), cell(row, 'value'));
+
   const relations = rows('relations.csv', [
     'id',
     'type',
@@ -225,8 +252,8 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
     fromLabel: cell(row, 'from_label'),
     toId: cell(row, 'to_id'),
     toLabel: cell(row, 'to_label'),
-    validFrom: orNull(row['valid_from']),
-    validTo: orNull(row['valid_to']),
+    validFrom: orNull(row['valid_from']) ?? orNull(dayClaims.get(`${cell(row, 'id')}/valid_from`)),
+    validTo: orNull(row['valid_to']) ?? orNull(dayClaims.get(`${cell(row, 'id')}/valid_to`)),
     originLabel: cell(row, 'origin_label'),
     licence: cell(row, 'licence'),
   }));
@@ -235,25 +262,7 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
   // The claims file has one row for each claim and each cited passage, so the rows of one claim
   // are joined back, in the order of the file.
   const claimRows = new Map<string, Readonly<Record<string, string>>[]>();
-  for (const row of rows('claims.csv', [
-    'claim_id',
-    'claim_kind',
-    'subject_kind',
-    'subject_id',
-    'subject_label',
-    'attribute',
-    'value',
-    'origin_label',
-    'licence',
-    'document_id',
-    'document_title',
-    'document_address',
-    'document_read_on',
-    'page',
-    'excerpt',
-    'modality',
-    'transcribed',
-  ])) {
+  for (const row of claimFileRows) {
     addTo(claimRows, cell(row, 'claim_id'), row);
   }
   const claims = [...claimRows].map(([id, group]): SiteClaim => {

@@ -239,6 +239,40 @@ test('a day that a later act gave is on its claim only, and a day from creation 
   expect(end[0]).not.toContain('doc_a');
 });
 
+test('a start from a later act leaves the end from creation on the row, and a date act with no public document leaves no claim', () => {
+  const record = recordOf([
+    claim({
+      claim_id: `${OWNS}/valid_from`,
+      subject_kind: 'relation',
+      subject_id: OWNS,
+      attribute: 'valid_from',
+      value: '2019-05-02',
+      passages: [],
+    }),
+  ]);
+  const dated: ReleaseRecord = {
+    ...record,
+    relations: record.relations.map((one) => ({
+      ...one,
+      valid_from: '2019-05-02',
+      valid_to: '2023-11-30',
+    })),
+  };
+  const text = csvExport(dated, '').find((file) => file.path === 'relations.csv')?.text ?? '';
+  const [header, row] = text
+    .slice(1)
+    .split('\r\n')
+    .map((line) => line.split(','));
+  const at = (name: string): string | undefined => row?.[header?.indexOf(name) ?? -1];
+  expect(at('valid_from')).toBe('');
+  expect(at('valid_to')).toBe('2023-11-30');
+  // The release drops a date claim with no public document, so the row keeps its day.
+  const hidden = csvExport({ ...dated, claims: [] }, '').find(
+    (file) => file.path === 'relations.csv',
+  );
+  expect(hidden?.text).toContain('2019-05-02');
+});
+
 test('a sectoral measure is a relation row of the type restricted_by, with its label', () => {
   const record = recordOf([]);
   const restricted: ReleaseRecord = {
