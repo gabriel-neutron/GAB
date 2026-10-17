@@ -189,6 +189,56 @@ test('a relation row gives its start and its end under valid_from and valid_to',
   expect(at('valid_to')).toBe('2023-11-30');
 });
 
+test('a day that a later act gave is on its claim only, and a day from creation stays on the row', () => {
+  const record = recordOf([
+    claim({
+      claim_id: `${OWNS}/valid_to`,
+      subject_kind: 'relation',
+      subject_id: OWNS,
+      attribute: 'valid_to',
+      value: '2023-11-30',
+      sources: ['doc_b'],
+      passages: [],
+    }),
+  ]);
+  const dated: ReleaseRecord = {
+    ...record,
+    documents: new Map([
+      ...record.documents,
+      [
+        'doc_b',
+        {
+          id: 'doc_b',
+          title: 'A date act',
+          uri: null,
+          retrieved_at: null,
+          licence: null,
+          provider: null,
+        },
+      ],
+    ]),
+    relations: record.relations.map((one) => ({
+      ...one,
+      valid_from: '2019-05-02',
+      valid_to: '2023-11-30',
+    })),
+  };
+  const text = csvExport(dated, '').find((file) => file.path === 'relations.csv')?.text ?? '';
+  const [header, row] = text
+    .slice(1)
+    .split('\r\n')
+    .map((line) => line.split(','));
+  const at = (name: string): string | undefined => row?.[header?.indexOf(name) ?? -1];
+  expect(at('valid_from')).toBe('2019-05-02');
+  expect(at('valid_to')).toBe('');
+  // The end is a claim of its own, and it cites only the document of its act.
+  const claims = csvExport(dated, '').find((file) => file.path === 'claims.csv')?.text ?? '';
+  const end = claims.split('\r\n').filter((line) => line.startsWith(`${OWNS}/valid_to`));
+  expect(end).toHaveLength(1);
+  expect(end[0]).toContain('doc_b');
+  expect(end[0]).not.toContain('doc_a');
+});
+
 test('a sectoral measure is a relation row of the type restricted_by, with its label', () => {
   const record = recordOf([]);
   const restricted: ReleaseRecord = {

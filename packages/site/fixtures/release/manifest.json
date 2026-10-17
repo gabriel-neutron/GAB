@@ -55,13 +55,13 @@
     },
     {
       "path": "relations.csv",
-      "bytes": 3995,
-      "sha256": "eb555e68487da89dfc39ace3fa3a8629c0ac82d381a48279243b28a5ed139493"
+      "bytes": 3985,
+      "sha256": "dc53b6dd4e6b488b2a3ddf4da597d5798a42fa6fef1f8180168960caea738962"
     },
     {
       "path": "claims.csv",
-      "bytes": 9414,
-      "sha256": "2dcb53d5a1b306bc091ee8099dff94ce3ac1b77d8b352f0978b9086b4a217dfe"
+      "bytes": 9404,
+      "sha256": "767d4d40624209dc6d1354a90a1156c1ee06f8041c0cb9212f71f9e69144a794"
     },
     {
       "path": "merges.csv",
@@ -100,8 +100,8 @@
     },
     {
       "path": "dataset.jsonld",
-      "bytes": 25224,
-      "sha256": "9d6c80ec4948d14fe7d7728489bc5805cab25996dbcffce3d5fe0a2012125695"
+      "bytes": 25196,
+      "sha256": "273771a0404f3d2edcee4f34c526d29292414163954f066357ca79d3d36496d3"
     },
     {
       "path": "changelog.csv",
