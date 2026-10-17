@@ -203,7 +203,7 @@ export const jsonldExport = (
   heading: ReleaseHeading,
   base: string,
 ): ReleaseFile => {
-  const { documentOf, entityOf, licenceOf, relationOf } = releaseLookup(record);
+  const { documentOf, entityOf, licenceOf, relationOf, daysOf } = releaseLookup(record);
   const { natoPairs } = record;
   const nato = (one: ReleaseClaim) => {
     const pair = natoPairs?.get(one.claim_id);
@@ -245,7 +245,7 @@ export const jsonldExport = (
     relationLabel: relationWords(one.type, false),
     from: entityId(one.src_id),
     to: entityId(one.dst_id),
-    ...present({ validFrom: one.valid_from, validThrough: one.valid_to }),
+    ...present({ validFrom: daysOf(one).from, validThrough: daysOf(one).to }),
     ...trust(one),
   }));
   const claim = (one: ReleaseClaim) => ({
