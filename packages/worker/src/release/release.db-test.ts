@@ -745,6 +745,34 @@ const mergeDoor = async (db: Queryable, text: string, values: readonly unknown[]
   return id;
 };
 
+test('the documents of a geometry are the documents of the act that set it, or else the row-level sources', async () => {
+  const rows = await inTransaction(async (held) => {
+    await record(held);
+    await decidedAct(
+      held,
+      'update_entity',
+      { geom: { type: 'Point', coordinates: [32.5, 46.6] } },
+      { kind: 'entity', id: VESSEL },
+      'validated manually by the operator',
+      '2026-10-09',
+      [GFW],
+    );
+    // A later act that changes only the name replaced the row-level sources.
+    await held.ask('UPDATE public.entities SET sources = $2 WHERE id = $1', [VESSEL, [SHIPS]]);
+    const { rows } = await held
+      .as('gabriel_app')
+      .query(
+        'SELECT id, sources, geom_sources FROM public.release_entities() WHERE id = ANY ($1) ORDER BY id',
+        [[VESSEL, OWNER]],
+      );
+    return rows;
+  });
+  expect(rows).toStrictEqual([
+    { id: VESSEL, sources: [SHIPS], geom_sources: [GFW] },
+    { id: OWNER, sources: [SHIPS], geom_sources: [SHIPS] },
+  ]);
+});
+
 test('a start date that a later act gave is a claim of its own, with the label and the passages of that act', async () => {
   const claims = await inTransaction(async (held) => {
     const { owns } = await record(held);

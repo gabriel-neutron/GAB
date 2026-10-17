@@ -6614,22 +6614,43 @@ DROP FUNCTION IF EXISTS nato_pair(uuid[]);
 
 -- The position is GeoJSON as RFC 7946 asks: an outer ring turns counter-clockwise and a hole
 -- clockwise, and 6 decimals (about 10 cm) is the precision that RFC 7946 recommends.
+--
+-- `geom_sources` gives the public documents of the last accepted act that set the geometry: an
+-- update of the entity, or else the act that made the entity. A later act that changes only the
+-- name replaces the row-level sources, so these can differ from `sources`. A geometry that no act
+-- set keeps the row-level sources.
 CREATE FUNCTION release_entities()
-RETURNS TABLE (id uuid, type text, label text, origin_label text, sources text[], geom jsonb)
+RETURNS TABLE (id uuid, type text, label text, origin_label text, sources text[], geom jsonb,
+               geom_sources text[])
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   WITH shown AS (
     SELECT e.id, e.type, e.label, e.origin_label, e.geom,
            ARRAY(SELECT s.id::text FROM unnest(e.sources) AS s(id)
                   WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = s.id)
-                  ORDER BY 1) AS sources
+                  ORDER BY 1) AS sources,
+           CASE WHEN e.geom IS NULL THEN '{}'::text[] ELSE ARRAY(
+             SELECT s.id FROM unnest(coalesce(
+               (SELECT u.src::text[] FROM public.proposals u
+                 WHERE u.status = 'accepted' AND u.op = 'update_entity'
+                   AND u.target_kind = 'entity' AND u.target_id = e.id AND u.payload ? 'geom'
+                 ORDER BY u.decided_at DESC, u.id DESC LIMIT 1),
+               (SELECT CASE WHEN c.payload ? 'sources'
+                            THEN ARRAY(SELECT jsonb_array_elements_text(c.payload->'sources'))
+                            ELSE c.src::text[] END
+                  FROM public.entities x JOIN public.proposals c ON c.id = x.promoted_from
+                 WHERE x.id = e.id AND c.op = 'create_entity' AND c.payload ? 'geom'),
+               e.sources::text[])) AS s(id)
+              WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id::text = s.id)
+              ORDER BY 1) END AS geom_sources
       FROM api.entity e
   ), sourced AS (
     SELECT * FROM shown WHERE cardinality(sources) > 0
   )
   SELECT h.id, h.type, h.label, h.origin_label, h.sources,
          public.ST_AsGeoJSON(public.ST_ForcePolygonCCW(public.ST_SetSRID(
-           public.ST_GeomFromGeoJSON(h.geom), 4326)), 6)::jsonb
+           public.ST_GeomFromGeoJSON(h.geom), 4326)), 6)::jsonb,
+         h.geom_sources
     FROM sourced h
    WHERE h.type <> 'person'
       OR EXISTS (SELECT 1 FROM api.relation r JOIN sourced t ON t.id = r.dst_id
