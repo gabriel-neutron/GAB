@@ -89,13 +89,16 @@ describe.each([
       }
   });
 
-  test('no page reads an API: each address out of the site is a source or a contact', () => {
+  test('no page reads an API: each address out of the site is a source, a contact or the external viewer', () => {
     const { pages, read } = site();
+    const SOURCE = /^https:\/\/(example\.org|news\.example\.org|eur-lex\.europa\.eu)\//u;
+    const VIEWER = /^https:\/\/www\.vesselfinder\.com\/vessels\/details\/\d{7}$/u;
     for (const page of pages)
       for (const [, address = ''] of read(page).matchAll(/(?:href|src)="(https:[^"]*)"/gu))
-        expect(address).toMatch(
-          /^https:\/\/(example\.org|news\.example\.org|eur-lex\.europa\.eu)\/|^https:\/\/www\.vesselfinder\.com\/vessels\/details\/\d{7}$/u,
-        );
+        expect([address, SOURCE.test(address) || VIEWER.test(address)]).toStrictEqual([
+          address,
+          true,
+        ]);
   });
 
   test('each page gives the day of the version and the two contact links, and never "live"', () => {

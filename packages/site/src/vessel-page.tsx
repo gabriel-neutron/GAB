@@ -182,7 +182,7 @@ export function VesselPage({ release, imo }: VesselPageProps) {
       {vessels.map((vessel) => (
         <VesselTimeline key={vessel.id} release={release} vessel={vessel} here={here} />
       ))}
-      <p className="flex flex-col gap-0.5 border-t border-border pt-2">
+      <p lang="fr" className="flex flex-col gap-0.5 border-t border-border pt-2">
         <a className={LINK} href={vesselFinderUrl(imo)} target="_blank" rel="noopener noreferrer">
           Position AIS déclarée (VesselFinder)
         </a>
