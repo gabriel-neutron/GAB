@@ -218,3 +218,56 @@ it('reads an act that gives a new type as a type change with the old and the new
     { id: 'retype-1', relation: 'OFAC owns Nayara', from: 'designated_by', to: 'restricted_by' },
   ]);
 });
+
+it('reads a place of the new entity of the unit as a place that comes with it', () => {
+  const army = UNIT_ANSWER.units.find((held) => held.unit === SAMPLE_UNITS.army);
+  if (army === undefined) throw new Error('the sample holds no army');
+  const place = (id: string, targetId: string, state: string) => ({
+    id,
+    op: 'update_entity',
+    payload: { geom: { type: 'Point', coordinates: [131.9, 43.1] } },
+    targetId,
+    dissent: false,
+    endRejected: false,
+    check: null,
+    target: { name: 'Port of Primorsk', state, group: null },
+    src: null,
+    dst: null,
+  });
+  const read = unitPageOf(
+    {
+      ...UNIT_ANSWER,
+      units: [
+        {
+          ...army,
+          acts: [
+            ...army.acts,
+            place('place-1', SAMPLE_UNITS.army, 'pending'),
+            place('place-2', 'e2', 'record'),
+          ],
+        },
+      ],
+    },
+    null,
+  );
+  const held = read?.units[0];
+  if (held === undefined) throw new Error('the read holds no unit');
+  const changes = unitChanges(held, WORDS);
+  expect(changes.places).toStrictEqual([
+    {
+      id: 'place-1',
+      entity: 'Port of Primorsk',
+      joined: true,
+      attributes: [{ key: 'position', values: ['43.1, 131.9'] }],
+      disputed: false,
+    },
+    {
+      id: 'place-2',
+      entity: 'Port of Primorsk',
+      joined: false,
+      attributes: [{ key: 'position', values: ['43.1, 131.9'] }],
+      disputed: false,
+    },
+  ]);
+  expect(changes.others).toStrictEqual([]);
+});

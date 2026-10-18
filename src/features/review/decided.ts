@@ -18,10 +18,15 @@ export type Verdict = 'promoted' | 'rejected';
 export const decidedAct = z.object({
   id: z.string(),
   op: z.string(),
-  // The start date, the end date or the type that a change of a relation gives alone. The key
-  // names the form of the act.
+  // The start date, the end date or the type that a change of a relation gives alone, and the
+  // place that a change of an entity gives. The key names the form of the act.
   payload: z
-    .object({ valid_from: z.unknown(), valid_to: z.unknown(), type: z.unknown() })
+    .object({
+      valid_from: z.unknown(),
+      valid_to: z.unknown(),
+      type: z.unknown(),
+      geom: z.unknown(),
+    })
     .partial()
     .nullish(),
   /** The type a relation had before a type change. */
@@ -122,7 +127,9 @@ export function decidedRows(acts: readonly DecidedAct[]): readonly DecidedRow[] 
             ? 'Start of a relation'
             : act.op === 'update_relation' && typeof act.payload?.type === 'string'
               ? `Type change of a relation, from ${act.priorType ?? 'its old type'} to ${act.payload.type}`
-              : (ACT_WORDS[act.op] ?? act.op.replaceAll('_', ' ')),
+              : act.op === 'update_entity' && act.payload?.geom !== undefined
+                ? 'Change of the place'
+                : (ACT_WORDS[act.op] ?? act.op.replaceAll('_', ' ')),
       subject: act.name ?? 'An element that the act does not name',
       reason: reasonOf(act),
       decidedAt: act.decidedAt,

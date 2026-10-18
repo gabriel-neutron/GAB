@@ -1670,18 +1670,184 @@ test('propose refuses a place on an entity that does not exist', async () => {
   });
 });
 
-test('propose refuses a place on a new entity that waits, and tells the agent to wait', async () => {
+// A new entity waits in the queue, and a later call gives its place from a UN/LOCODE line.
+const placeOfPending = async (ask: Ask, geom: unknown = ULU, created?: unknown) => {
+  const vesselItem =
+    created === undefined
+      ? NAYARA
+      : item(
+          'nayara',
+          { op: 'create_entity', type: 'vessel', label: 'Nayara', geom: created },
+          '5940N 02819E',
+        );
+  const [vessel] = batchOf(
+    await proposeOnPage(ask, [vesselItem], `${PAGE_ONE}\n${LOCODE}`),
+  ).proposals;
+  if (vessel === undefined) throw new Error('propose wrote no entity');
+  const outcome = await proposeAgain(ask, [
+    item('place', { op: 'update_entity', targetId: vessel.proposalId, geom }, '5940N 02819E'),
+  ]);
+  return { vessel: vessel.proposalId, outcome };
+};
+
+const placeUnit = z.array(z.object({ id: z.uuid(), unit_id: z.uuid(), status: z.string() }));
+const PLACE_ACT = `SELECT id::text AS id, unit_id::text AS unit_id, status FROM public.proposals
+  WHERE op = 'update_entity' AND target_id = $1`;
+
+test('a place of a new entity that waits joins its unit, and is written after the entity', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const { vessel, outcome } = await placeOfPending(ask);
+    const [placed] = batchOf(outcome).proposals;
+    const [page] = z
+      .array(
+        z.object({
+          page: z.object({
+            units: z.array(
+              z.object({
+                unit: z.uuid(),
+                acts: z.array(z.object({ id: z.uuid(), op: z.string() })),
+              }),
+            ),
+          }),
+        }),
+      )
+      .parse(
+        await ask('SELECT public.review_units(NULL, 200, p_unit => $1::uuid) AS page', [vessel]),
+      );
+    const before = placeUnit.parse(await ask(PLACE_ACT, [vessel]));
+    // An act is never decided by the transaction that proposed it, so the test dates it back.
+    await ask('ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only');
+    await ask("UPDATE public.proposals SET xact = '1'::xid8 WHERE unit_id = $1", [vessel]);
+    await ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only');
+    await ask("SELECT public.promote_unit($1::uuid, 'a test')", [vessel]);
+    const [entity] = z.array(z.object({ same: z.boolean() })).parse(
+      await ask(
+        `SELECT public.ST_Equals(geom, public.ST_SetSRID(public.ST_MakePoint(28.3167, 59.6667),
+             4326)) AS same FROM public.entities WHERE id = $1`,
+        [vessel],
+      ),
+    );
+    return {
+      vessel,
+      placed: placed?.proposalId,
+      units: page?.page.units ?? [],
+      before,
+      after: placeUnit.parse(await ask(PLACE_ACT, [vessel])),
+      entity,
+    };
+  });
+  expect(found.before).toStrictEqual([
+    { id: found.placed, unit_id: found.vessel, status: 'pending' },
+  ]);
+  expect(found.units).toHaveLength(1);
+  expect(found.units[0]?.acts.map((act) => act.op)).toStrictEqual([
+    'create_entity',
+    'update_entity',
+  ]);
+  expect(found.after).toStrictEqual([
+    { id: found.placed, unit_id: found.vessel, status: 'accepted' },
+  ]);
+  expect(found.entity).toStrictEqual({ same: true });
+});
+
+test('a rejection of the new entity rejects its place as "end rejected"', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const { vessel, outcome } = await placeOfPending(ask);
+    const [placed] = batchOf(outcome).proposals;
+    if (placed === undefined) throw new Error('propose wrote no place');
+    await ask("SELECT public.reject_unit($1::uuid, 'wrong_value', NULL, 'a test')", [vessel]);
+    return {
+      vessel,
+      placed: placed.proposalId,
+      rows: await decisionsOf(ask, [vessel, placed.proposalId]),
+    };
+  });
+  expect(found.rows.get(found.vessel)).toMatchObject({
+    status: 'rejected',
+    reject_reason: 'wrong_value',
+  });
+  expect(found.rows.get(found.placed)).toMatchObject({
+    status: 'rejected',
+    reject_reason: 'end_rejected',
+  });
+});
+
+test('propose refuses the place that a new entity that waits gives already', async () => {
+  const outcome = await rolledBack('superuser', async (ask) => placeOfPending(ask, ULU, ULU));
+  expect(outcome.outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(
+      `item place: the new entity ${outcome.vessel} has this place already`,
+    ) as string,
+  });
+});
+
+test('a place that differs from the place of the new entity is a doubt', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const { vessel, outcome } = await placeOfPending(ask, ULU, {
+      type: 'Point',
+      coordinates: [28, 59],
+    });
+    batchOf(outcome);
+    const [row] = z.array(z.object({ kinds: z.array(z.string()) })).parse(
+      await ask(
+        `SELECT ARRAY(SELECT k->>'kind' FROM public.unit_faults(ARRAY[$1::uuid]) f,
+                  jsonb_array_elements(f.faults) k) AS kinds`,
+        [vessel],
+      ),
+    );
+    return row?.kinds ?? [];
+  });
+  expect(found).toContain('record_disagrees');
+});
+
+test('two different places of one new entity that waits are a doubt', async () => {
+  const said = await rolledBack('superuser', async (ask) => {
+    const { vessel, outcome } = await placeOfPending(ask);
+    batchOf(outcome);
+    batchOf(
+      await proposeAgain(ask, [
+        item(
+          'other',
+          {
+            op: 'update_entity',
+            targetId: vessel,
+            geom: { type: 'Point', coordinates: [30.5, 50.4] },
+          },
+          '5940N 02819E',
+        ),
+      ]),
+    );
+    return z
+      .array(z.object({ said: z.string() }))
+      .parse(
+        await ask(
+          `SELECT k->>'said' AS said FROM public.unit_faults(ARRAY[$1::uuid]) f,
+                  jsonb_array_elements(f.faults) k WHERE k->>'kind' = 'record_disagrees'`,
+          [vessel],
+        ),
+      )
+      .map((one) => one.said);
+  });
+  expect(said).toContain('Another change of place of the unit gives another geometry');
+});
+
+test('propose refuses new attributes of a new entity that waits, and tells the agent to wait', async () => {
   const outcome = await rolledBack('superuser', async (ask) => {
     const [vessel] = batchOf(await proposeOnPage(ask, [NAYARA])).proposals;
     if (vessel === undefined) throw new Error('propose wrote no entity');
-    const place = { type: 'Point', coordinates: [28, 59] };
     return {
       vessel: vessel.proposalId,
       got: await proposeAgain(ask, [
         item(
-          'place',
-          { op: 'update_entity', targetId: vessel.proposalId, geom: place },
-          'left Sikka',
+          'attrs',
+          {
+            op: 'update_attrs',
+            targetKind: 'entity',
+            targetId: vessel.proposalId,
+            attrs: { capacity_dwt: { v: 41200 } },
+          },
+          'of 41 200 dwt',
         ),
       ]),
     };
@@ -1689,7 +1855,7 @@ test('propose refuses a place on a new entity that waits, and tells the agent to
   expect(outcome.got).toMatchObject({
     ok: false,
     refusal: expect.stringContaining(
-      `item place: the new entity ${outcome.vessel} waits in the review queue`,
+      `item attrs: the new entity ${outcome.vessel} waits in the review queue`,
     ) as string,
   });
 });

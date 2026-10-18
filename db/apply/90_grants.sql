@@ -92,7 +92,8 @@ REVOKE ALL ON FUNCTION unit_faults(uuid[])        FROM PUBLIC;
 REVOKE ALL ON FUNCTION parent_link(uuid,boolean)   FROM PUBLIC;
 REVOKE ALL ON FUNCTION parent_of(uuid)             FROM PUBLIC;
 REVOKE ALL ON FUNCTION dispute_said(text)          FROM PUBLIC;
-REVOKE ALL ON FUNCTION end_was_rejected(text,jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION end_was_rejected(text,jsonb,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION joined_unit(public.proposals,public.proposals,uuid[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION group_subject(uuid)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION queue_groups()              FROM PUBLIC;
 REVOKE ALL ON FUNCTION rejection_note(text,text,text) FROM PUBLIC;
@@ -161,6 +162,7 @@ REVOKE ALL ON FUNCTION refuse_name_candidate(text,uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION name_candidate_counts()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION decide_author_name(text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION move_author_name(text,text)  FROM PUBLIC;
+REVOKE ALL ON FUNCTION rerate_author_name(text)    FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_names_dry_run()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION letter_of(text)             FROM PUBLIC, gabriel_app;
 REVOKE ALL ON FUNCTION approve_reference_set()     FROM PUBLIC;
@@ -357,6 +359,7 @@ GRANT EXECUTE ON FUNCTION author_names_waiting()   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION decide_author_name(text,boolean) TO gabriel_app;
 -- The operator moves a name from an author that the worker rated to a reference author.
 GRANT EXECUTE ON FUNCTION move_author_name(text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION rerate_author_name(text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION author_names_dry_run()   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION rating_context(text)     TO gabriel_agent;
 

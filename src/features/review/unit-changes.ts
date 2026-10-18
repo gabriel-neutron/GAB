@@ -59,6 +59,16 @@ export interface RetypeChange {
   readonly to: string;
 }
 
+/** One act that gives a place to an entity. `joined` says that the entity is the new entity of
+ * the unit: the place is written after it, and a rejection of the entity rejects the place. */
+export interface PlaceChange {
+  readonly id: string;
+  readonly entity: string;
+  readonly joined: boolean;
+  readonly attributes: readonly Attribute[];
+  readonly disputed: boolean;
+}
+
 /** What one unit proposes: the entity first, then its relations, then any other act. */
 export interface UnitChanges {
   readonly entity: {
@@ -72,6 +82,7 @@ export interface UnitChanges {
     readonly typeUnknown: boolean;
   } | null;
   readonly relations: readonly RelationLine[];
+  readonly places: readonly PlaceChange[];
   readonly others: readonly OtherChange[];
   readonly closes: readonly CloseChange[];
   readonly starts: readonly StartChange[];
@@ -143,6 +154,20 @@ export function unitChanges(unit: Unit, words: UnitWords): UnitChanges {
     ];
   });
 
+  const places = unit.acts.flatMap((act): readonly PlaceChange[] =>
+    act.kind === 'place'
+      ? [
+          {
+            id: act.id,
+            entity: nameOf(act.target),
+            joined: entity !== null && act.target.id === entity.id,
+            attributes: act.attributes,
+            disputed: act.disputed,
+          },
+        ]
+      : [],
+  );
+
   const others = unit.acts.flatMap((act): readonly OtherChange[] =>
     act.kind === 'change'
       ? [
@@ -188,5 +213,5 @@ export function unitChanges(unit: Unit, words: UnitWords): UnitChanges {
       : [],
   );
 
-  return { entity, relations, others, closes, starts, retypes };
+  return { entity, relations, places, others, closes, starts, retypes };
 }

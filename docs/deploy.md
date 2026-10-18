@@ -147,9 +147,13 @@ each act of that name, so the name reads as F and its units are a doubt until yo
 3. `pnpm worker author-names confirm <name>` gives the name the letter of its author.
    `pnpm worker author-names refuse <name>` makes the name F, and the rater rates it again as a
    new author. The rules then read the units of the name again. A decision is final.
-4. `pnpm worker author-names move "<name>" "<author>"` gives a name that the worker rated as a
-   wrong author (C to F) to an approved reference author. Put each of the two in quotes. The
-   command refuses a name of a reference author and an author out of the approved set. A move is
+4. `pnpm worker author-names move "<name>" "<author>"` gives a name of a wrong author that the
+   worker rated (C to F) to an approved reference author, or to another author that the worker
+   rated. Put each of the two in quotes. The command refuses a name of a reference author, and an
+   author of the reference set that you did not approve. A move is final.
+5. `pnpm worker author-names rerate "<name>"` takes a name away from a wrong author that the
+   worker rated. The name reads as F, and the rater rates it again: it cannot join the name to
+   that author again. The command refuses the own name of an author: move that name. It is
    final.
 
 The review page shows the same list on its Names page, with the same two actions.
