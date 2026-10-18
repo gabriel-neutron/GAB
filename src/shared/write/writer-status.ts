@@ -7,8 +7,8 @@ import { z } from 'zod';
 
 export type WriterStatus = 'unknown' | 'online' | 'offline';
 
-// The development server proxies this address to the writer. A public site that has no writer
-// answers 404 or a page of the site, and neither one says the writer is online.
+// The `/write` prefix of the development proxy covers this address. A public site that has no
+// writer answers 404 or a page of the site, and neither one says the writer is online.
 const ADDRESS = '/writer-status';
 
 const answer = z.object({ online: z.literal(true) });

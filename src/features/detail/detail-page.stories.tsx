@@ -16,6 +16,7 @@ import { entityTypes } from '@/shared/committed-fixture/entity-types';
 import { DetailPage } from './detail-page';
 import { readDossier, type Dossier, type RelationLine, type SourceCardModel } from './dossier';
 import type { DecidedAct } from '@/shared/read/decided-acts';
+import { holdWriter } from '@/shared/write/hold-writer';
 
 // A lint gate refuses a page story that mounts a live canvas. This page mounts none.
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';
@@ -174,17 +175,31 @@ const meta = {
   },
   parameters: { layout: 'fullscreen' },
   // A story that takes the door gives it back, so a play that fails leaves no stub behind.
-  beforeEach: () => () => {
-    knock.mockClear();
-    onDeleted.mockClear();
-    onSaved.mockClear();
-    restoreAllMocks();
+  beforeEach: async () => {
+    await holdWriter(true);
+    return () => {
+      knock.mockClear();
+      onDeleted.mockClear();
+      onSaved.mockClear();
+      restoreAllMocks();
+    };
   },
 } satisfies Meta<typeof DetailPage>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
+
+// With the write service off, the page draws the record and offers no edit entry.
+export const AnOfflineWriterLeavesTheRecordReadOnly: Story = {
+  beforeEach: async () => {
+    await holdWriter(false);
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.queryByRole('button', { name: 'Edit' })).toBeNull();
+    await expect(recordPaneOf(canvasElement).querySelector('[data-claim]')).not.toBeNull();
+  },
+};
 
 export const TheRecordAndTheSourcesStandInSeparatePanes: Story = {
   play: async ({ canvasElement }) => {

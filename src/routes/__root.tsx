@@ -13,6 +13,7 @@ import { refreshCorpus } from '@/shared/read/corpus';
 import { ModeToggle } from '@/shared/mode-toggle';
 import { ScreenQueryField, ScreenQueryProvider } from '@/shared/screen-query';
 import { ThemeProvider, useTheme } from '@/shared/theme-provider';
+import { WhenWriterOnline } from '@/shared/write/when-writer-online';
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -39,7 +40,9 @@ function RootLayout() {
             <SurfaceNav />
             <div className="flex items-center gap-2">
               {FILTERED_SCREENS.has(path) ? <ScreenQueryField /> : null}
-              <NewEntityControl />
+              <WhenWriterOnline>
+                <NewEntityControl />
+              </WhenWriterOnline>
               <ThemeControl />
             </div>
           </header>
@@ -98,14 +101,16 @@ function SurfaceNav() {
       >
         Graph
       </Link>
-      <Link
-        to="/review"
-        search={{ unit: '', view: 'queue', group: '' }}
-        activeOptions={{ includeSearch: false }}
-        className={SURFACE_LINK}
-      >
-        Review
-      </Link>
+      <WhenWriterOnline>
+        <Link
+          to="/review"
+          search={{ unit: '', view: 'queue', group: '' }}
+          activeOptions={{ includeSearch: false }}
+          className={SURFACE_LINK}
+        >
+          Review
+        </Link>
+      </WhenWriterOnline>
       <Link to="/search" className={SURFACE_LINK}>
         Search
       </Link>

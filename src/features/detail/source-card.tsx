@@ -4,6 +4,7 @@ import { useId, useState } from 'react';
 import { ExtractionControl } from '@/shared/extraction-control';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
+import { WhenWriterOnline } from '@/shared/write/when-writer-online';
 
 import type { SourceCardModel } from './dossier';
 
@@ -100,7 +101,11 @@ export function SourceCard({ source }: SourceCardProps) {
               </ul>
             )}
           </div>
-          {source.extractable ? <ExtractionControl documentId={source.id} /> : null}
+          {source.extractable ? (
+            <WhenWriterOnline>
+              <ExtractionControl documentId={source.id} />
+            </WhenWriterOnline>
+          ) : null}
         </div>
       ) : null}
     </article>
