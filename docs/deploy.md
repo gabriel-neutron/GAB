@@ -87,7 +87,8 @@ On a hosted database, run the same statement with `psql` and the connection of s
 
 A change from zero sends each waiting unit through the rules again. Set `0` to stop new searches.
 
-The mapper of `pnpm worker run` maps the columns of a stored CSV table. Set the `MAPPER_*` values
+The mapper of `pnpm worker run` maps the columns of a stored CSV, TSV or SDMX-CSV
+table. Set the `MAPPER_*` values
 that `infra/.env.example` lists. When one of them is absent, the worker starts and runs the
 extractions, and each mapping fails at once with a reason that names the value. The load of a
 promoted mapping runs with no model and needs the raw store values.

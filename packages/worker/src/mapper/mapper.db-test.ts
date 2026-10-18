@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import type { RawObject } from '@gab/store';
 import { CATALOGUE } from '@gab/tools/catalogue';
+import { readCsv } from '@gab/tools/csv';
 import { callTool } from '@gab/tools/tool';
 import { Pool, type PoolClient } from 'pg';
 import { afterAll, expect, test } from 'vitest';
@@ -98,7 +99,7 @@ const noModel = (): StubRouter =>
     throw new Error('the model was asked, and this test asks none');
   });
 
-const PUT = `SELECT public.put_document($1, 'url', 'A list of hulls', $2, $3, NULL, $4, 'text/csv',
+const PUT = `SELECT public.put_document($1, 'url', 'A list of hulls', $2, $3, NULL, $4, $5,
   '2026-10-01'::date)`;
 
 const OLDEST = "UPDATE public.jobs SET created_at = '1970-01-01' WHERE id = $1";
@@ -183,8 +184,14 @@ const storeOf = (held: Held) => ({
   },
 });
 
-const storeDocument = async (held: Held, id: string, uri: string, text: string): Promise<void> => {
-  await held.ask(PUT, [id, `raw/${id}.csv`, uri, sha256(text)]);
+const storeDocument = async (
+  held: Held,
+  id: string,
+  uri: string,
+  text: string,
+  mime = 'text/csv',
+): Promise<void> => {
+  await held.ask(PUT, [id, `raw/${id}.csv`, uri, sha256(text), mime]);
   await held.ask('SELECT public.put_document_text($1, $2::jsonb, $3)', [
     id,
     JSON.stringify([text]),
@@ -192,8 +199,14 @@ const storeDocument = async (held: Held, id: string, uri: string, text: string):
   ]);
 };
 
-const seedDocument = async (held: Held, id: string, uri: string, text: string): Promise<string> => {
-  await storeDocument(held, id, uri, text);
+const seedDocument = async (
+  held: Held,
+  id: string,
+  uri: string,
+  text: string,
+  mime = 'text/csv',
+): Promise<string> => {
+  await storeDocument(held, id, uri, text, mime);
   const job = await held.idOf("SELECT public.enqueue_job($1, 'map_structured') AS id", [id]);
   await held.ask(OLDEST, [job]);
   return job;
@@ -394,8 +407,60 @@ test('a file that is not a csv fails with a sentence and asks no model', async (
     const router = noModel();
 
     expect(await held.step(makeMapper(CONFIG), router)).toStrictEqual({ did: 'failed', job });
-    expect((await held.job(job)).failure_reason).toMatch(/reads a CSV table only/u);
+    expect((await held.job(job)).failure_reason).toBe(
+      `the mapper reads a CSV, TSV or SDMX-CSV table only, and document ${LIST} is ` +
+        'application/vnd.ms-excel',
+    );
     expect(router.chats()).toBe(0);
+  });
+});
+
+// The list with the same fields, cut by tabs. A TSV has no quote, so the quoted field of the CSV
+// is a plain field.
+const LIST_TSV =
+  readCsv(LIST_TEXT)
+    .map((record) => record.fields.join('\t'))
+    .join('\r\n') + '\r\n';
+
+test.each([
+  ['a TSV table', 'text/tab-separated-values', LIST_TSV],
+  ['an SDMX-CSV table', 'application/vnd.sdmx.data+csv; version=1.0.0', LIST_TEXT],
+])('%s is mapped and loads the same rows as the CSV', async (_name, mime, text) => {
+  await inTransaction(async (held) => {
+    const known = await recorded(held, 'vessel', 'Known Hull', { imo: KNOWN_IMO });
+    await recorded(held, 'company', 'Owner Company', { imo_company_number: OWNER });
+    const job = await seedDocument(held, LIST, 'https://www.lists.test/a.tsv', text, mime);
+
+    expect(await held.step(makeMapper(CONFIG), mapperAnswers())).toStrictEqual({
+      did: 'done',
+      job,
+    });
+    const [mapping] = await mappingsOf(held, LIST);
+    // The header has the same columns, so the mapping has the signature of the CSV.
+    expect(mapping?.payload.header_sig).toBe(HEADER_SIG);
+    const load = await promote(held, mapping?.id ?? '');
+    await held.ask(OLDEST, [load]);
+
+    expect(await held.step(makeLoader({ store: storeOf(held) }), noModel())).toStrictEqual({
+      did: 'done',
+      job: load,
+    });
+    const loaded = await loadedOf(held, LIST);
+    expect(loaded.map((row) => [row.op, row.label, row.target_id])).toStrictEqual([
+      ['create_relation', null, null],
+      ['create_entity', 'Nayara Star', null],
+      ['update_attrs', null, known],
+      ['create_relation', null, null],
+    ]);
+    // Each act cites the whole line of its row in the stored page.
+    const lines = text.split('\r\n');
+    expect(loaded.map((row) => row.passage)).toStrictEqual([
+      lines[1],
+      lines[1],
+      lines[4],
+      lines[4],
+    ]);
+    expect((await reportsOf(held, LIST))[0]?.title).toMatch(/4 rows read, 2 loaded, 2 excluded/u);
   });
 });
 
