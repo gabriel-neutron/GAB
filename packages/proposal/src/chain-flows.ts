@@ -117,13 +117,24 @@ export const chainFlows = (
   });
 
   // A declared destination: the far end of an accepted physical link from Russia, or a place
-  // outside Russia where a vessel discharges (an LNG carrier from Arctic LNG 2 to Beihai).
+  // outside Russia where a vessel that loads in Russia discharges (an LNG carrier from Arctic
+  // LNG 2 to Beihai). Both relations of the vessel are accepted.
   const stages = new Map(kindStages);
   for (const { relation } of links)
     if (!inReview(relation) && isOutside(relation.toId) && isInside(relation.fromId))
       stages.set(relation.toId, 'destination');
+  const loadsInRussia = new Set(
+    input.relations
+      .filter((one) => one.type === 'loads_at' && !inReview(one) && isInside(one.toId))
+      .map((one) => one.fromId),
+  );
   for (const relation of input.relations)
-    if (relation.type === 'discharges_at' && !inReview(relation) && isOutside(relation.toId))
+    if (
+      relation.type === 'discharges_at' &&
+      !inReview(relation) &&
+      isOutside(relation.toId) &&
+      loadsInRussia.has(relation.fromId)
+    )
       stages.set(relation.toId, 'destination');
 
   const arcs = links.flatMap(({ relation, product }): ChainArc[] => {

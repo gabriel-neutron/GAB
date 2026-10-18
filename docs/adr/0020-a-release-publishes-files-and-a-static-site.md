@@ -72,7 +72,9 @@ and their form are costly to change after the first publication.
 - The colour of a point is one of the six stages of the chain: field, upstream transport,
   refining and liquefaction, and export come from the asset kind of the asset; the exit from
   Russian control and the declared destination come from the relations. An asset outside Russia at
-  the far end of an accepted physical link from an asset in Russia is a declared destination. The
+  the far end of an accepted physical link from an asset in Russia is a declared destination. So is
+  a place outside Russia where a vessel discharges (an accepted `discharges_at`), when the vessel
+  has an accepted `loads_at` at a place in Russia. The
   card and the table give the same stage.
 - A strip of six steps tells the chain from the well to the exit: extraction, pipeline, refinery,
   terminal, export (the links after the export stage and the declared destinations) and exit. A
