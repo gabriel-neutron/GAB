@@ -263,8 +263,8 @@ export const READ = `SELECT r.id::text AS relation_id, e.type AS subject_type,
                AND x.src_kind = r.src_kind AND x.src_id = r.src_id
                AND x.dst_kind = r.dst_kind AND x.dst_id = r.dst_id) AS collides,
     coalesce(cs.cites, '[]'::json) AS cites
-  FROM (SELECT * FROM public.relations WHERE type = 'designated_by' AND id::text > $1
-         ORDER BY id::text LIMIT ${String(CHUNK)}) r
+  FROM (SELECT * FROM public.relations WHERE type = 'designated_by' AND src_kind = 'entity' AND id > $1::uuid
+         ORDER BY id LIMIT ${String(CHUNK)}) r
   JOIN public.entities e ON e.id = r.src_id AND r.src_kind = 'entity'
   LEFT JOIN public.entities d ON d.id = r.dst_id AND r.dst_kind = 'entity'
   LEFT JOIN public.proposals o ON o.id = r.promoted_from
@@ -287,7 +287,7 @@ export const READ = `SELECT r.id::text AS relation_id, e.type AS subject_type,
       FROM public.proposals p
      WHERE p.status IN ('pending', 'rejected') AND p.target_kind = 'relation'
      GROUP BY p.target_id) w ON w.target_id = r.id
-  ORDER BY r.id::text`;
+  ORDER BY r.id`;
 
 type StoredCite = Omit<Cite, 'pageText'> & { readonly stored: boolean };
 
@@ -314,7 +314,7 @@ const main = async (): Promise<number> => {
       doubtful: [],
       skipped: [],
     };
-    for (let after = ''; ;) {
+    for (let after = '00000000-0000-0000-0000-000000000000'; ;) {
       const { rows } = await reader.query<Record<string, unknown>>(READ, [after]);
       if (rows.length === 0) break;
       after = String(rows[rows.length - 1]?.['relation_id']);
