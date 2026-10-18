@@ -329,6 +329,15 @@ test.each([
   expect(got.puts).toBe(0);
 });
 
+test.each([
+  ['a Nominatim answer', 'https://nominatim.openstreetmap.org/search?q=Kirishi', 'Nominatim'],
+  ['a search result page', 'https://www.google.com/search?q=Kirishi', 'Google search'],
+])('%s saved by the browser is refused, and nothing is stored', async (_name, url, reason) => {
+  const got = await refusalOf('notes.txt', url);
+  expect(got.refusal).toContain(reason);
+  expect(got.puts).toBe(0);
+});
+
 test('an inbox that does not exist is named in the refusal', async () => {
   const got = await refusalOf('timeline.html', URL_OF_PAGE, join(root, 'no-inbox'));
   expect(got.refusal).toContain('does not exist');

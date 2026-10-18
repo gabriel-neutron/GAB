@@ -30,6 +30,7 @@ import { rejectRelation } from './reject-relation.ts';
 import { rejectUnit } from './reject-unit.ts';
 import { sanctionsMatch } from './sanctions-match.ts';
 import { searchGraph } from './search-graph.ts';
+import { siteImage } from './site-image.ts';
 import { startLead } from './start-lead.ts';
 import { storeSavedFile } from './store-saved-file.ts';
 import { telegramChannel } from './telegram-channel.ts';
@@ -62,6 +63,7 @@ export const CATALOGUE = [
   fetchDocument,
   euAct,
   storeSavedFile,
+  siteImage,
   telegramChannel,
   gleifLookup,
   companiesHouse,

@@ -345,6 +345,27 @@ test('a workbook served as bytes with no type is read as a workbook, and not unp
   expect(store.puts).toHaveLength(1);
 });
 
+test('an Overpass answer and a search result page are refused before the fetch', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const direct = await callTool(
+      fetchDocument,
+      sessionOf(ask),
+      { url: 'https://overpass-api.de/api/interpreter?data=way(1);out;' },
+      fixtureReach(store),
+    );
+    expect(direct.ok ? '' : direct.refusal).toContain('Overpass');
+    const search = await callTool(
+      fetchDocument,
+      sessionOf(ask),
+      { url: 'https://www.bing.com/search?q=Kirishi' },
+      fixtureReach(store),
+    );
+    expect(search.ok ? '' : search.refusal).toContain('search result page');
+  });
+  expect(store.puts).toStrictEqual([]);
+});
+
 test('a ZIP archive with a path that leaves it is refused, and nothing is stored', async () => {
   const store = memoryStore();
   await rolledBack('research', async (ask) => {

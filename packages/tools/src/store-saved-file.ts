@@ -22,6 +22,7 @@ import { z } from 'zod';
 
 import { addressTitle, htmlTitle } from './fetch-document.ts';
 import { holdsLayers, skippedFileShape, storeArchive, storedFileShape } from './store-archive.ts';
+import { refusedSource } from './refused-source.ts';
 import { storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 import { isHtml, unreadablePage } from './unreadable-page.ts';
@@ -202,7 +203,8 @@ export const storeSavedFile = defineTool({
     'multiple of 4). Or give `file`, the name of a file that the operator saved into the inbox ' +
     'folder. The bytes are what the browser held after the scripts of the page ran, not the ' +
     'answer of the server, and the title of the document says "saved by the browser". The text ' +
-    'is checked as a fetch checks it. The text of an image is what OCR read in it. The same ' +
+    'is checked as a fetch checks it. A Nominatim, Overpass or geocoder answer and a search ' +
+    'result page are refused. The text of an image is what OCR read in it. The same ' +
     'file twice is one document. The tool returns the document id to cite, or, for a part that ' +
     'is not the last, the status waiting.',
   input: z
@@ -262,6 +264,8 @@ export const storeSavedFile = defineTool({
   async run(session, input, reach) {
     if (reach?.store === undefined)
       throw new ToolRefusal('this surface gives no object store, so it stores no file');
+    const refused = refusedSource(input.url);
+    if (refused !== null) throw new ToolRefusal(refused);
     let mime: string;
     let bytes: Uint8Array;
     let label: string;
