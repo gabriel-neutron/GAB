@@ -70,3 +70,26 @@ export const readCsv = (page: string): CsvRecord[] => {
   }
   return records;
 };
+
+const TAB = '\t';
+
+/** Reads a page as tab-separated records (IANA text/tab-separated-values). A TSV has no quote: a
+ * field holds no tab and no line break, and a quote in it is a character of the field. The
+ * offsets count code points, as in readCsv, and a line that holds nothing is no record. */
+export const readTsv = (page: string): CsvRecord[] => {
+  const points = Array.from(page);
+  const records: CsvRecord[] = [];
+  let at = points[0] === BOM ? 1 : 0;
+
+  while (at < points.length) {
+    const start = at;
+    while (at < points.length && points[at] !== CR && points[at] !== LF) at += 1;
+    const end = at;
+    if (points[at] === CR && points[at + 1] === LF) at += 2;
+    else if (at < points.length) at += 1;
+
+    if (end > start)
+      records.push({ fields: points.slice(start, end).join('').split(TAB), start, end });
+  }
+  return records;
+};

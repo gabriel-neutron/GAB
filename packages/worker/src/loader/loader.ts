@@ -266,7 +266,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
     try {
       const [named] = textSetRow.parse((await context.db.query(TEXT_SET, [job.id])).rows);
       page = await readTablePage(session, document, named?.text_set ?? null);
-      table = tableOf(page.text);
+      table = tableOf(page.text, page.format);
     } catch (cause) {
       if (cause instanceof ToolRefusal) throw new JobStop(cause.message);
       throw cause;
