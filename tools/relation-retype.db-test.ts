@@ -330,17 +330,21 @@ test('the review reads give the old type of a waiting type change and of a decid
 test('the read of the retype script shows a relation with no citation, with no cite', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const relation = await designated(ask);
-    const rows = z
-      .array(
-        z.object({
-          relation_id: z.string(),
-          waiting: z.string(),
-          collides: z.boolean(),
-          cites: z.array(z.unknown()),
-        }),
-      )
-      .parse(await ask(READ));
-    return rows.find((row) => row.relation_id === relation);
+    const chunk = z.array(
+      z.object({
+        relation_id: z.string(),
+        waiting: z.string(),
+        collides: z.boolean(),
+        cites: z.array(z.unknown()),
+      }),
+    );
+    // The READ gives one chunk after a uuid cursor, as the script reads it.
+    for (let after = '00000000-0000-0000-0000-000000000000'; ;) {
+      const rows = chunk.parse(await ask(READ, [after]));
+      const row = rows.find((r) => r.relation_id === relation);
+      if (row !== undefined || rows.length === 0) return row;
+      after = rows[rows.length - 1]?.relation_id ?? after;
+    }
   });
   expect(found).toMatchObject({ waiting: 'none', collides: false, cites: [] });
 });
