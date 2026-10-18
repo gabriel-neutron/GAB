@@ -16,7 +16,7 @@ import { entityTypes } from '@/shared/committed-fixture/entity-types';
 import { DetailPage } from './detail-page';
 import { readDossier, type Dossier, type RelationLine, type SourceCardModel } from './dossier';
 import type { DecidedAct } from '@/shared/read/decided-acts';
-import { holdWriter } from '@/shared/write/hold-writer';
+import { holdWriter } from '@/shared/write/hold-writer.story-support';
 
 // A lint gate refuses a page story that mounts a live canvas. This page mounts none.
 const VESSEL = '7c2d9a41-5e18-4f60-a3b2-6d4e8f10c9a7';

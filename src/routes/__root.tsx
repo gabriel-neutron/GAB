@@ -15,6 +15,7 @@ import { ModeToggle } from '@/shared/mode-toggle';
 import { ScreenQueryField, ScreenQueryProvider } from '@/shared/screen-query';
 import { ThemeProvider, useTheme } from '@/shared/theme-provider';
 import { WhenWriterOnline } from '@/shared/write/when-writer-online';
+import { recheckWriter } from '@/shared/write/writer-status';
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -150,6 +151,7 @@ function RootError({ error }: { error: Error }) {
     <ErrorNotice
       detail={error.message}
       onRetry={() => {
+        void recheckWriter();
         void refreshCorpus(() => router.invalidate());
       }}
     />

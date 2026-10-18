@@ -334,6 +334,10 @@ function ReviewRoute() {
   // read again, so each count is the count of the record. The group of the action is not read
   // again: its clean units are written, and the rest waits for a decision of its own.
   const onGroupAct = (act: GroupsAct): void => {
+    if (act.kind === 'reload') {
+      void router.invalidate();
+      return;
+    }
     if (act.kind === 'select') {
       setGroupAction({ step: 'idle' });
       openGroup(act.groupId);
