@@ -84,3 +84,31 @@ test('a link to an entity that is still a proposal is in review', () => {
   );
   expect(review.arcs.find((one) => one.id === 'terminal-to-abroad')?.inReview).toBe(true);
 });
+
+test('a place abroad where a vessel discharges is a declared destination, and a proposal is not', () => {
+  const discharge = (id: string, accepted: boolean): ChainRelation => ({
+    ...link(id, 'carrier', 'abroad', accepted),
+    type: 'discharges_at',
+  });
+  const stagesOf = (one: ChainRelation) =>
+    chainFlows({ placed, entityAccepted: () => true, relations: [one] }, kindStages, outside)
+      .stages;
+  expect(stagesOf(discharge('discharge', true)).get('abroad')).toBe('destination');
+  expect(stagesOf(discharge('proposed', false)).get('abroad')).toBeNull();
+  expect(
+    stagesOf({ ...link('home', 'carrier', 'terminal'), type: 'discharges_at' }).get('terminal'),
+  ).toBe('export');
+});
+
+test('a gas link from a field to an LNG plant is an arc of the gas chain', () => {
+  const gas = chainFlows(
+    {
+      placed,
+      entityAccepted: () => true,
+      relations: [{ ...link('field-to-plant', 'field', 'terminal'), type: 'gas_flows_to' }],
+    },
+    kindStages,
+    outside,
+  );
+  expect(gas.arcs).toMatchObject([{ id: 'field-to-plant', product: 'gas' }]);
+});

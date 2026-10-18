@@ -45,8 +45,8 @@ export interface ChainFlows {
   readonly counts: ReadonlyMap<StageKey, number>;
 }
 
-/** One relation that the chain reads: a physical link, a loading at a port or a ship-to-ship
- * transfer. Each other relation is ignored. */
+/** One relation that the chain reads: a physical link, a loading or a discharge at a port, or a
+ * ship-to-ship transfer. Each other relation is ignored. */
 export interface ChainRelation {
   readonly id: string;
   readonly type: string;
@@ -116,9 +116,14 @@ export const chainFlows = (
     return product === undefined ? [] : [{ relation, product }];
   });
 
+  // A declared destination: the far end of an accepted physical link from Russia, or a place
+  // outside Russia where a vessel discharges (an LNG carrier from Arctic LNG 2 to Beihai).
   const stages = new Map(kindStages);
   for (const { relation } of links)
     if (!inReview(relation) && isOutside(relation.toId) && isInside(relation.fromId))
+      stages.set(relation.toId, 'destination');
+  for (const relation of input.relations)
+    if (relation.type === 'discharges_at' && !inReview(relation) && isOutside(relation.toId))
       stages.set(relation.toId, 'destination');
 
   const arcs = links.flatMap(({ relation, product }): ChainArc[] => {
