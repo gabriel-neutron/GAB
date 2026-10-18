@@ -8,6 +8,7 @@ import { readRows } from './http';
 import { toDomain } from './map';
 import type { Proposal } from './model';
 import { readOnce } from './once';
+import { readFrom } from './read-mode';
 
 /** One act the record promoted. A decided act always carries its hour and the name that signed
  * it, so an act without them cannot be built here. The record keeps no reason for a verdict. */
@@ -71,7 +72,8 @@ async function read(): Promise<readonly DecidedLine[]> {
   return accepted.map((row) => lineOf(row));
 }
 
-const memory = readOnce(read);
+// A release holds no history of acts, so the page shows the record without a decision line.
+const memory = readOnce(() => readFrom(read, () => Promise.resolve([])));
 
 export const loadDecidedActs = memory.load;
 

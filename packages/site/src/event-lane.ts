@@ -1,6 +1,6 @@
 import { CLAIMED_ATTACK, EVENT_DAYS, EVENT_KIND, EVENT_PRECISION } from '@gab/tools/event-rules';
 
-import type { SiteClaim, SitePassage, SiteRelease, SiteSource } from './site-release.ts';
+import type { SiteClaim, SitePassage, SiteRelease, SiteSource } from '@gab/release/site-release';
 import { elementsOf } from './vessel-timeline.ts';
 
 /** A passage of a document that denies the event, with the document that holds it. */

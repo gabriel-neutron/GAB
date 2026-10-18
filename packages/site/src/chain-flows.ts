@@ -9,7 +9,7 @@ import { z } from 'zod';
 
 import { isAccepted } from './accepted.ts';
 import { drawnVolume } from './arc-volume.ts';
-import type { SiteRelease, SiteVolume } from './site-release.ts';
+import type { SiteRelease, SiteVolume } from '@gab/release/site-release';
 
 export type { ExitPoint } from '@gab/proposal/chain-flows';
 

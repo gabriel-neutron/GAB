@@ -1,8 +1,8 @@
 import { DisclaimerText } from './disclaimer-text.tsx';
 import { SanctionsRules } from './sanctions-rules.tsx';
 import { SiteFrame } from './site-frame.tsx';
-import { METHOD } from './site-paths.ts';
-import type { SiteRelease } from './site-release.ts';
+import { METHOD } from '@gab/release/site-paths';
+import type { SiteRelease } from '@gab/release/site-release';
 
 const SECTION = 'flex max-w-prose flex-col gap-2';
 

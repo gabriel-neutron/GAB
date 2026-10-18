@@ -3,7 +3,7 @@
 
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-import { readRows } from './http';
+import { ReadServiceDown, readRows } from './http';
 
 const asked: string[] = [];
 
@@ -96,4 +96,40 @@ test('a body that is not a list is refused, and the answer names the view', asyn
 test('a list of rows arrives whole, and in the order the service gave', async () => {
   answers(() => listed([{ id: 'a' }, { id: 'b' }]));
   expect(await readRows('entity')).toStrictEqual([{ id: 'a' }, { id: 'b' }]);
+});
+
+const faultOf = async (run: () => Promise<unknown>): Promise<unknown> => {
+  try {
+    await run();
+  } catch (cause) {
+    return cause;
+  }
+  throw new Error('the read client accepted an answer that it must refuse');
+};
+
+test('a connection that fails is a service that does not answer', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => Promise.reject(new TypeError('network'))),
+  );
+  expect(await faultOf(() => readRows('entity'))).toBeInstanceOf(ReadServiceDown);
+});
+
+test('a server fault and an absent route are a service that does not answer', async () => {
+  answers(() => listed({}, 502));
+  expect(await faultOf(() => readRows('entity'))).toBeInstanceOf(ReadServiceDown);
+  answers(() => listed({}, 404));
+  expect(await faultOf(() => readRows('entity'))).toBeInstanceOf(ReadServiceDown);
+});
+
+test('a page that is not JSON is a service that does not answer', async () => {
+  answers(() => new Response('<html></html>', { status: 200 }));
+  expect(await faultOf(() => readRows('entity'))).toBeInstanceOf(ReadServiceDown);
+});
+
+test('a refusal of the request is a fault, and not a service that is down', async () => {
+  answers(() => listed({}, 403));
+  const fault = await faultOf(() => readRows('entity'));
+  expect(fault).toBeInstanceOf(Error);
+  expect(fault).not.toBeInstanceOf(ReadServiceDown);
 });

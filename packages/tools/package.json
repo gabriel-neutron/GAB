@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@gab/proposal": "workspace:*",
+    "@gab/release": "workspace:*",
     "@gab/store": "workspace:*",
     "@gab/text": "workspace:*",
     "exiftool-vendored": "^38.3.0",

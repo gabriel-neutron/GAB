@@ -1,4 +1,4 @@
-import type { SiteVolume } from './site-release.ts';
+import type { SiteVolume } from '@gab/release/site-release';
 
 /** How the map draws one arc: a line width in pixels, the width of the halo of a range (0 for no
  * halo), and a line style. */

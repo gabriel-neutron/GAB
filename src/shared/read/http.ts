@@ -23,6 +23,14 @@ function address(): string {
   return chosen.endsWith('/') ? chosen : `${chosen}/`;
 }
 
+/** The read service does not answer: nothing listens, the answer is a server fault or an absent
+ * route, or the body is not JSON. The application then reads the files of its release. A refusal
+ * of the request itself (a status 4xx other than 404) is a fault, and it is not this. */
+export class ReadServiceDown extends Error {}
+
+// A host that holds the connection open must not hold the page: the release files take over.
+const ANSWER_WITHIN_MS = 5000;
+
 export async function readRows(
   view: string,
   equals: Readonly<Record<string, string>> = {},
@@ -32,12 +40,30 @@ export async function readRows(
     asked.searchParams.set(column, `eq.${value}`);
   }
 
-  const answer = await fetch(asked, { headers: { Accept: 'application/json' } });
+  let answer: Response;
+  try {
+    answer = await fetch(asked, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(ANSWER_WITHIN_MS),
+    });
+  } catch {
+    throw new ReadServiceDown(`The read API does not answer the ${view} list.`);
+  }
   if (!answer.ok) {
-    throw new Error(`The read API refused the ${view} list, and answered ${answer.status}.`);
+    const refusal = `The read API refused the ${view} list, and answered ${answer.status}.`;
+    // 404 is a host with no such route, and 5xx is a service that fails. Both are no service.
+    if (answer.status === 404 || answer.status >= 500) throw new ReadServiceDown(refusal);
+    throw new Error(refusal);
   }
 
-  const body: unknown = await answer.json();
+  let body: unknown;
+  try {
+    body = await answer.json();
+  } catch {
+    throw new ReadServiceDown(
+      `The read API answered the ${view} list with something that is not JSON.`,
+    );
+  }
   const rows = rowList.safeParse(body);
   if (!rows.success) {
     throw new Error(`The read API answered the ${view} list with something that is not a list.`);

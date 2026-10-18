@@ -11,6 +11,9 @@ importers:
       '@gab/proposal':
         specifier: workspace:*
         version: link:packages/proposal
+      '@gab/release':
+        specifier: workspace:*
+        version: link:packages/release
       '@tanstack/react-router':
         specifier: ^1.170.25
         version: 1.170.25(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -232,11 +235,27 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@24.13.3)(@vitest/browser-playwright@4.1.10)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/release:
+    dependencies:
+      '@gab/proposal':
+        specifier: workspace:*
+        version: link:../proposal
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@24.13.3)(@vitest/browser-playwright@4.1.10)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/site:
     dependencies:
       '@gab/proposal':
         specifier: workspace:*
         version: link:../proposal
+      '@gab/release':
+        specifier: workspace:*
+        version: link:../release
       '@gab/tools':
         specifier: workspace:*
         version: link:../tools
@@ -339,6 +358,9 @@ importers:
       '@gab/proposal':
         specifier: workspace:*
         version: link:../proposal
+      '@gab/release':
+        specifier: workspace:*
+        version: link:../release
       '@gab/store':
         specifier: workspace:*
         version: link:../store
@@ -376,6 +398,9 @@ importers:
       '@gab/proposal':
         specifier: workspace:*
         version: link:../proposal
+      '@gab/release':
+        specifier: workspace:*
+        version: link:../release
       '@gab/site':
         specifier: workspace:*
         version: link:../site

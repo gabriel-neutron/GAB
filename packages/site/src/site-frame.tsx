@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 
-import { releaseDay } from './release-day.ts';
+import { releaseDay } from '@gab/release/release-day';
 import { LINK } from './site-style.ts';
-import { DOWNLOADS, HOME, hrefFrom, MAP, METHOD, V1, type SitePath } from './site-paths.ts';
-import type { SiteRelease } from './site-release.ts';
+import { DOWNLOADS, HOME, hrefFrom, MAP, METHOD, V1, type SitePath } from '@gab/release/site-paths';
+import type { SiteRelease } from '@gab/release/site-release';
 
 export interface SiteFrameProps {
   readonly release: SiteRelease;

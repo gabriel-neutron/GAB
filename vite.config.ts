@@ -6,6 +6,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 import { openWithKey } from './tools/dev-open.ts';
+import { releaseFolder } from './tools/release-folder.ts';
 
 // External constraint: the key of the operator lives in infra/.env, and only the operator side
 // reads that file. No file, as in CI, gives no key and so opens no browser.
@@ -24,6 +25,9 @@ export default defineConfig({
     tanstackRouter({ target: 'react', autoCodeSplitting: true }),
     react(),
     tailwindcss(),
+    // Departure: the release is the one input that the build takes from the environment, because
+    // a release is a folder of the operator and not a file of the repository.
+    releaseFolder(process.env['RELEASE_DIR']),
   ],
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },

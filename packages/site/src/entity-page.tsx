@@ -5,8 +5,14 @@ import { EventLane } from './events-section.tsx';
 import { NatoPairMark } from './nato-pair-mark.tsx';
 import { relationWords } from '@gab/proposal/relation-types';
 import { SiteFrame } from './site-frame.tsx';
-import { claimPage, entityPage, hrefFrom, permanentAddress, vesselPage } from './site-paths.ts';
-import type { SiteClaim, SiteRelease, SiteSource } from './site-release.ts';
+import {
+  claimPage,
+  entityPage,
+  hrefFrom,
+  permanentAddress,
+  vesselPage,
+} from '@gab/release/site-paths';
+import type { SiteClaim, SiteRelease, SiteSource } from '@gab/release/site-release';
 import { CELL, HEAD, LINK, TABLE, TABLE_HEAD } from './site-style.ts';
 import { SourceList } from './source-list.tsx';
 

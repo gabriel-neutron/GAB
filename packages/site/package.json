@@ -5,12 +5,11 @@
   "type": "module",
   "exports": {
     "./event-lane": "./src/event-lane.ts",
-    "./site-release": "./src/site-release.ts",
-    "./write-site": "./src/write-site.ts",
-    "./site-release-fault": "./src/site-release-fault.ts"
+    "./write-site": "./src/write-site.ts"
   },
   "dependencies": {
     "@gab/proposal": "workspace:*",
+    "@gab/release": "workspace:*",
     "@gab/tools": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
     "maplibre-gl": "^6.2.0",

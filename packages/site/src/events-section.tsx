@@ -1,8 +1,8 @@
 import { claimText } from './claim-text.ts';
 import { eventsAt, strikeCount, type SiteEvent } from './event-lane.ts';
 import { safeHref } from './safe-href.ts';
-import { claimPage, entityPage, hrefFrom, type SitePath } from './site-paths.ts';
-import type { SiteRelease, SiteSource } from './site-release.ts';
+import { claimPage, entityPage, hrefFrom, type SitePath } from '@gab/release/site-paths';
+import type { SiteRelease, SiteSource } from '@gab/release/site-release';
 import { LINK } from './site-style.ts';
 
 export interface EventLaneProps {

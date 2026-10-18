@@ -1,4 +1,4 @@
-import type { NatoPair } from './site-release.ts';
+import type { NatoPair } from '@gab/release/site-release';
 
 /** The NATO pair of a claim, in words and in its two marks. Nothing when the claim has none, so
  * a release that does not show the pair shows no mark. */

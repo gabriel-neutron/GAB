@@ -1,6 +1,6 @@
 import { withChain } from './chain-fixture.ts';
 import { withEvents } from './event-fixture.ts';
-import { readSiteRelease, type SiteRelease } from './site-release.ts';
+import { readSiteRelease, type SiteRelease } from '@gab/release/site-release';
 
 // The stories read the fixed release that the release code wrote, as the site reads it.
 const OFF = import.meta.glob<string>('../fixtures/release/*', {

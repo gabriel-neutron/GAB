@@ -64,5 +64,8 @@ that need a backend show only when the backend answers.
   it reads from the read service. A test checks that the two reads give the same pages.
 - A page at a permanent address needs a render at the release. A page of the application that has
   no permanent address (the graph, the search) needs a script.
+- The files of a release hold the own point of an entity, and no precision word and no row-level
+  source list. A page that reads the files shows the same claims, relations and sources, but the
+  map draws own points only and cannot borrow the point of a parent.
 - Until the move is done, the release still writes the static site of ADR 0020. The deployment
   guide and the spec describe the build as it is, and change with the code.

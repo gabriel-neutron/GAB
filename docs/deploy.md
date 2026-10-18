@@ -144,6 +144,14 @@ pnpm worker release --manifest <manifest> --out <folder> --previous <previous re
    `/project.gpkg` at the root of the host: the release copies the file there, or make the host
    send it to `/v1/project.gpkg`.
 
+## The application with no backend
+
+The application reads the files of a release when the read service does not answer (ADR 0028).
+Set `RELEASE_DIR` to a release folder when you run `pnpm dev` or `pnpm build`. The build copies the
+files to `release/` beside the application. With no read service, each page then says "Version of
+DD/MM/YYYY", and the footer gives the two contact links of the release. The release command does
+not build the application yet, and the site above is still the public site.
+
 ## Public writes
 
 No public write path exists. It needs real authentication first, and that is separate work.

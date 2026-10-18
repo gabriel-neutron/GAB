@@ -16,8 +16,8 @@ import tailwindcss from '@tailwindcss/vite';
 import { build, createServer } from 'vite';
 import { z } from 'zod';
 
-import { MAP_COUNTRIES, MAP_SCRIPT, V1 } from './site-paths.ts';
-import { SiteReleaseFault } from './site-release-fault.ts';
+import { MAP_COUNTRIES, MAP_SCRIPT, V1 } from '@gab/release/site-paths';
+import { SiteReleaseFault } from '@gab/release/site-release-fault';
 
 /** A site of the same release is in the folder already. */
 export class SiteFolderExists extends Error {}

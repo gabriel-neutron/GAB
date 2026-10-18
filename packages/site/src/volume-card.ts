@@ -1,5 +1,5 @@
 import { safeHref } from './safe-href.ts';
-import type { SiteVolume } from './site-release.ts';
+import type { SiteVolume } from '@gab/release/site-release';
 
 /** The words of one volume in the card of a link, and its source with a link when its address is
  * safe. */

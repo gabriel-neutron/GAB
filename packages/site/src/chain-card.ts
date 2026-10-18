@@ -7,8 +7,8 @@ import { isAccepted, PROPOSED_LABEL } from './accepted.ts';
 import { stageOf, type StageKey } from '@gab/proposal/chain-stage';
 import { eventsAt } from './event-lane.ts';
 import { mapFeatures } from './map-features.ts';
-import type { SiteRelease } from './site-release.ts';
-import { entityPage, hrefFrom, MAP } from './site-paths.ts';
+import type { SiteRelease } from '@gab/release/site-release';
+import { entityPage, hrefFrom, MAP } from '@gab/release/site-paths';
 
 /** What each fact of a card carries: the label that tells who decided it, and whether it is still
  * in review. A fact in review is a proposal, and the card never shows it as a fact. */

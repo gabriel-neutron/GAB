@@ -6,11 +6,14 @@ import { readRows } from './http';
 import { toDomain } from './map';
 import { readOnce } from './once';
 import type { Corpus } from './model';
-import { loadRelationTypes } from './vocabulary';
+import { forgetReadMode, readFrom, readMode } from './read-mode';
+import { corpusFromRelease } from './release-corpus';
+import { forgetRelease, loadRelease } from './release-record';
+import { forgetVocabulary, loadRelationTypes } from './vocabulary';
 
 // Only the pending acts are read. Every surface of the corpus filters on that status, and the
 // history of the review reads the decided acts on its own.
-async function read(): Promise<Corpus> {
+async function readFromService(): Promise<Corpus> {
   const [documents, entities, relations, proposals, positions, relationTypes] = await Promise.all([
     readRows('document'),
     readRows('entity'),
@@ -34,7 +37,14 @@ async function read(): Promise<Corpus> {
   };
 }
 
-const memory = readOnce(read);
+// The service does not answer: the files of the release give the same shapes. The release has no
+// pending act, because the review is a part that writes, and it is hidden.
+async function readFromRelease(): Promise<Corpus> {
+  const [release, relationTypes] = await Promise.all([loadRelease(), loadRelationTypes()]);
+  return corpusFromRelease(release, relationTypes);
+}
+
+const memory = readOnce(() => readFrom(readFromService, readFromRelease));
 
 export const loadCorpus = memory.load;
 
@@ -43,6 +53,10 @@ export const loadCorpus = memory.load;
 export function forgetCorpus(): void {
   memory.forget();
   forgetDecidedActs();
+  // A retry asks the service again. The words of the vocabulary stay when the service gave them.
+  if (readMode() === 'release') forgetVocabulary();
+  forgetReadMode();
+  forgetRelease();
 }
 
 /** Forget each held answer, then run the loaders again through `reload`. The order is the whole
