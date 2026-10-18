@@ -53,7 +53,7 @@ const outputShape = z.strictObject({
   entry: z
     .strictObject({
       uniqueId: z.string(),
-      page: z.literal(1),
+      page: z.number().int().min(1),
       identity: z.string(),
       identifiers: z.string(),
     })
@@ -79,7 +79,7 @@ export const reportDay = (page: string): string | null => {
 };
 
 /** The place of each column, read from the header that follows the first line. */
-const headerOf = (rows: Iterator<CsvRow>): Map<string, number> | null => {
+export const headerOf = (rows: Iterator<CsvRow>): Map<string, number> | null => {
   rows.next();
   const header = rows.next();
   if (header.done === true) return null;
@@ -94,13 +94,16 @@ export const missingColumn = (page: string): Column | null => {
 
 /** The two parts of the line of one entry: the line of its primary name, or its first line when
  * no line is the primary name. Each part is a quote of the page, clipped to the cap of an
- * excerpt. */
+ * excerpt. A later page of the file repeats the first line of page 1 and holds no header, so the
+ * caller gives the columns of page 1. */
 export const ukEntry = (
   page: string,
   uniqueId: string,
+  columns?: ReadonlyMap<string, number>,
 ): { readonly identity: string; readonly identifiers: string } | null => {
   const rows = csvRows(page);
-  const names = headerOf(rows);
+  if (columns !== undefined) rows.next();
+  const names = columns ?? headerOf(rows);
   if (names === null) return null;
   const at = (column: Column): number => names.get(column) ?? -1;
   const value = (row: CsvRow, column: Column): string => row.fields[at(column)]?.value ?? '';
@@ -122,10 +125,17 @@ export const ukEntry = (
   };
 };
 
-const entryOf = (page: string, uniqueId: string | undefined, document: string) => {
+// shortcut: the entry is read on the first page that holds a line of it. The other lines of the
+// entry on a later page are not read; upgrade if a primary name falls on another page.
+const entryOf = (pages: readonly string[], uniqueId: string | undefined, document: string) => {
   if (uniqueId === undefined) return null;
   try {
-    return ukEntry(page, uniqueId);
+    const columns = headerOf(csvRows(pages[0] ?? '')) ?? undefined;
+    for (const [index, page] of pages.entries()) {
+      const found = ukEntry(page, uniqueId, index === 0 ? undefined : columns);
+      if (found !== null) return { ...found, page: index + 1 };
+    }
+    return null;
   } catch (fault) {
     if (fault instanceof CsvFault)
       throw new ToolRefusal(
@@ -146,7 +156,7 @@ export const ukSanctionsListAt = (address: string) =>
       'back as "known". With uniqueId, it also gives two excerpts of the line of that entry (its ' +
       'primary name, or its first line): identity, up to the source of the designation, and ' +
       'identifiers, from the date of designation to the end of the line, with the IMO number of ' +
-      'a ship. Cite them on page 1 of the document. It refuses an identifier that the file does ' +
+      'a ship. Cite them on the page that the entry gives (page 1 for a short file, a later page for a long one). It refuses an identifier that the file does ' +
       'not hold. Cite the entry in this file by its Unique ID. The tool never ' +
       'stores one entry alone. Use sanctions_match to find a lead by name.',
     input: z.strictObject({
@@ -207,7 +217,7 @@ export const ukSanctionsListAt = (address: string) =>
         day,
         provider: 'uk_sanctions_list',
       });
-      const entry = entryOf(page, input.uniqueId, stored.id);
+      const entry = entryOf(pages, input.uniqueId, stored.id);
       if (input.uniqueId !== undefined && entry === null)
         throw new ToolRefusal(
           `the UK Sanctions List of ${publishedAt ?? 'an unknown date'} (document ${stored.id}) ` +
@@ -224,7 +234,7 @@ export const ukSanctionsListAt = (address: string) =>
         entry:
           input.uniqueId === undefined || entry === null
             ? null
-            : { uniqueId: input.uniqueId, page: 1 as const, ...entry },
+            : { uniqueId: input.uniqueId, ...entry },
       };
     },
   });

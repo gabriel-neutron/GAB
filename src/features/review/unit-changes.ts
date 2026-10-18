@@ -51,6 +51,12 @@ export interface StartChange {
   readonly validTo: string | null;
 }
 
+/** One act that adds the documents it cites to the sources of a relation. */
+export interface SourceChange {
+  readonly id: string;
+  readonly relation: string;
+}
+
 /** One act that changes the type of a relation: the relation, the old type and the new one. */
 export interface RetypeChange {
   readonly id: string;
@@ -86,6 +92,7 @@ export interface UnitChanges {
   readonly others: readonly OtherChange[];
   readonly closes: readonly CloseChange[];
   readonly starts: readonly StartChange[];
+  readonly sources: readonly SourceChange[];
   readonly retypes: readonly RetypeChange[];
 }
 
@@ -207,11 +214,15 @@ export function unitChanges(unit: Unit, words: UnitWords): UnitChanges {
       : [],
   );
 
+  const sources = unit.acts.flatMap((act): readonly SourceChange[] =>
+    act.kind === 'source' ? [{ id: act.id, relation: nameOf(act.target) }] : [],
+  );
+
   const retypes = unit.acts.flatMap((act): readonly RetypeChange[] =>
     act.kind === 'retype'
       ? [{ id: act.id, relation: nameOf(act.target), from: act.from, to: act.to }]
       : [],
   );
 
-  return { entity, relations, places, others, closes, starts, retypes };
+  return { entity, relations, places, others, closes, starts, sources, retypes };
 }

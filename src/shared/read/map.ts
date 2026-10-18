@@ -132,11 +132,14 @@ const closePayload = z.looseObject({ valid_to: z.string() });
 const startPayload = z.looseObject({ valid_from: z.string() });
 
 const retypePayload = z.looseObject({ type: z.string() });
+const sourcePayload = z.looseObject({ add_source: z.literal(true) });
 
 const isClose = (op: ProposalOp, value: unknown): boolean =>
   op === 'update_relation' && closePayload.safeParse(value).success;
 const isStart = (op: ProposalOp, value: unknown): boolean =>
   op === 'update_relation' && startPayload.safeParse(value).success;
+const isSource = (op: ProposalOp, value: unknown): boolean =>
+  op === 'update_relation' && sourcePayload.safeParse(value).success;
 const isRetype = (op: ProposalOp, value: unknown): boolean =>
   op === 'update_relation' && retypePayload.safeParse(value).success;
 const columnsPayload = z.looseObject({
@@ -165,9 +168,11 @@ function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
     ? 'close'
     : isStart(op, value)
       ? 'start'
-      : isRetype(op, value)
-        ? 'retype'
-        : KIND_OF_OP[op];
+      : isSource(op, value)
+        ? 'source'
+        : isRetype(op, value)
+          ? 'retype'
+          : KIND_OF_OP[op];
   switch (kind) {
     case 'entity': {
       const held = entityPayload.parse(value);
@@ -187,6 +192,8 @@ function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
       return { kind, valid_to: closePayload.parse(value).valid_to };
     case 'start':
       return { kind, valid_from: startPayload.parse(value).valid_from };
+    case 'source':
+      return { kind };
     case 'retype':
       return { kind, type: retypePayload.parse(value).type };
     case 'columns': {

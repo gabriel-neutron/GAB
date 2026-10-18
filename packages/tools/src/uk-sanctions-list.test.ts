@@ -1,7 +1,8 @@
 import { expect, test } from 'vitest';
 
 import { KOROLEV_PROSPECT, UK_HEADER, ukRow } from './uk-list-fixture.ts';
-import { missingColumn, reportDay, ukEntry } from './uk-sanctions-list.ts';
+import { headerOf, missingColumn, reportDay, ukEntry } from './uk-sanctions-list.ts';
+import { csvRows } from './csv-rows.ts';
 
 const lines = (...rows: readonly string[]): string =>
   `Report Date: 08-Oct-2026\n${UK_HEADER}\n${rows.join('\n')}\n`;
@@ -83,4 +84,12 @@ test.each([
   ['Last Updated,Unique ID\n', null],
 ])('the report date of %j is %s', (page, day) => {
   expect(reportDay(page)).toBe(day);
+});
+
+test('a later page repeats the first line and holds no header, so the columns of page 1 read its entry', () => {
+  const columns = headerOf(csvRows(PAGE)) ?? undefined;
+  const later = `Report Date: 08-Oct-2026\n${KOROLEV_PROSPECT}\n`;
+  expect(ukEntry(later, 'RUS2176', columns)?.identity).toContain('KOROLEV PROSPECT');
+  expect(ukEntry(later, 'RUS2176', columns)?.identifiers).toContain('IMO9826902');
+  expect(ukEntry(later, 'AFG0001', columns)).toBeNull();
 });

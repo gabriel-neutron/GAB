@@ -30,7 +30,7 @@ const outputShape = z.strictObject({
   publishedAt: z.string().nullable(),
   retrievedAt: z.string(),
   entry: z
-    .strictObject({ entNum: z.number().int(), page: z.literal(1), excerpt: z.string() })
+    .strictObject({ entNum: z.number().int(), page: z.number().int().min(1), excerpt: z.string() })
     .nullable(),
   notice: z.string().nullable(),
 });
@@ -52,7 +52,7 @@ export const ofacSdnAt = (address: string) =>
       'Stores the official SDN list of the US Treasury (OFAC) as one document: the whole CSV ' +
       'file, with its SHA-256 hash and its date of publication. A file that is already stored ' +
       'comes back as "known". With entNum, it also gives the line of that entry in the stored ' +
-      'file, as an excerpt to cite on page 1 of the document. Cite the entry in this file by ' +
+      'file, as an excerpt to cite on the page that the entry gives (page 1 for a short file). Cite the entry in this file by ' +
       'its ent_num. The tool never stores one entry alone. Use sanctions_match to find a lead ' +
       'by name.',
     input: z.strictObject({
@@ -104,7 +104,13 @@ export const ofacSdnAt = (address: string) =>
         day,
         provider: 'ofac_sdn',
       });
-      const excerpt = input.entNum === undefined ? null : entryLine(page, input.entNum);
+      // A later page of a long file repeats the header line, and the entry is on one page.
+      const at =
+        input.entNum === undefined
+          ? -1
+          : pages.findIndex((one) => entryLine(one, input.entNum ?? 0) !== null);
+      const excerpt =
+        input.entNum === undefined || at === -1 ? null : entryLine(pages[at] ?? '', input.entNum);
       return {
         document: stored.id,
         status: stored.status,
@@ -116,7 +122,7 @@ export const ofacSdnAt = (address: string) =>
         entry:
           input.entNum === undefined || excerpt === null
             ? null
-            : { entNum: input.entNum, page: 1 as const, excerpt },
+            : { entNum: input.entNum, page: at + 1, excerpt },
         notice:
           input.entNum !== undefined && excerpt === null
             ? `the stored file holds no entry ${String(input.entNum)}`

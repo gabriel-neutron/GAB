@@ -143,6 +143,16 @@ const batchAct = z.discriminatedUnion('op', [
           'UN/LOCODE line or the Latitude and Longitude of a GEM row',
       ),
   }),
+  z.strictObject({
+    op: z.literal('add_source'),
+    targetId: z
+      .uuid()
+      .describe(
+        'the id of the relation of the record that gets the cited documents as sources, such as ' +
+          'a designated_by relation that cites the Federal Register. Its dates and its type ' +
+          'stay as they are',
+      ),
+  }),
   z
     .strictObject({
       op: z.literal('update_relation'),
@@ -359,6 +369,7 @@ const KIND_OF_OP: Readonly<Record<string, Kind | null>> = {
   create_relation: 'relation',
   update_attrs: null,
   update_relation: null,
+  add_source: null,
   update_entity: null,
 };
 
@@ -436,6 +447,8 @@ const resolvedAct = async (
 ): Promise<WriteRequest> => {
   const { act } = given;
   let raw: unknown = act;
+  if (act.op === 'add_source')
+    raw = { op: 'update_relation', targetId: act.targetId, addSource: true };
   if (act.op === 'create_relation') {
     const src = await resolvedEnd(
       session,
@@ -562,11 +575,55 @@ const claimActOf = async (
     );
     return { ...act, entity: named?.label ?? null };
   }
-  if (act.op !== 'update_relation') return act;
+  if (act.op !== 'update_relation' && act.op !== 'add_source') return act;
   const [named] = await rowsOf(session, z.strictObject({ words: z.string() }), RELATION_WORDS, [
     act.targetId,
   ]);
   return { ...act, relation: named?.words ?? null };
+};
+
+// The vessel of a designation and the act that designates it, as the record names them.
+const SOURCE_NAMES = `SELECT e.attrs->'imo'->>'v' AS imo, a.label AS act
+  FROM api.relation r
+  LEFT JOIN api.entity e ON r.src_kind = 'entity' AND e.id = r.src_id
+  LEFT JOIN api.entity a ON r.dst_kind = 'entity' AND a.id = r.dst_id
+  WHERE r.id = $1`;
+
+const squeezed = (text: string): string => text.replace(/\s+/gu, ' ').trim().toLowerCase();
+
+// A source added to a relation must be about that relation: an excerpt that names neither the
+// IMO number of the vessel nor the act would add a document that says nothing of the designation.
+const checkSourceNames = async (
+  session: Session,
+  ref: string,
+  targetId: string,
+  cited: readonly Cited[],
+): Promise<void> => {
+  const [names] = await rowsOf(
+    session,
+    z.strictObject({ imo: z.string().nullable(), act: z.string().nullable() }),
+    SOURCE_NAMES,
+    [targetId],
+  );
+  const imo = /(?<!\d)\d{7}(?!\d)/u.exec(names?.imo ?? '')?.[0];
+  const act = squeezed(names?.act ?? '');
+  // Each cited document must name the vessel or the act: one good line must not carry another.
+  const namesIt = (document: string): boolean => {
+    const text = squeezed(
+      cited
+        .filter((one) => one.document === document)
+        .map((one) => one.passage)
+        .join(' '),
+    );
+    return (imo !== undefined && text.includes(imo)) || (act !== '' && text.includes(act));
+  };
+  if ([...new Set(cited.map((one) => one.document))].every(namesIt)) return;
+  refuse(
+    ref,
+    'no excerpt of a cited document names the vessel by its IMO number' +
+      `${imo === undefined ? ' (the vessel has none in the record)' : ` ${imo}`} or the act ` +
+      `${JSON.stringify(names?.act ?? '')}: cite the passage that names one of them`,
+  );
 };
 
 type UnstatedValue = ReturnType<typeof unstatedValues>[number];
@@ -673,7 +730,11 @@ export const proposeOf = (modelCallId: string | null) =>
       'Proposes a batch of linked facts: new entities, new relations, attributes to add, and the ' +
       'end date of an open relation of the record (update_relation, when a page states that an ' +
       'owner, a flag, an operator or an insurer changed), or the start date of a relation of the ' +
-      'record that has none (update_relation with validFrom, when a dated page states it), and the ' +
+      'record that has none (update_relation with validFrom, when a dated page states it), and one ' +
+      'more cited source for a relation of the record (add_source: the cited documents join the ' +
+      'sources of the relation, and its dates and its type stay; an excerpt must name the vessel ' +
+      'by its IMO number or the act, and a relation that cites these documents already is ' +
+      'refused), and the ' +
       'place of an entity of the record (update_entity with geom, when a page states its ' +
       'coordinates; the tool refuses the place that the entity has already, and a place that ' +
       'differs from the place that the record holds waits as a doubt for the operator; give the ' +
@@ -795,6 +856,8 @@ export const proposeOf = (modelCallId: string | null) =>
               `cite the passage that states it, or give no ${lostBound.name}`,
           );
         await checkTarget(session, given.ref, request);
+        if (given.act.op === 'add_source')
+          await checkSourceNames(session, given.ref, given.act.targetId, cited);
         const act = machineAct(request, documents);
         const unstated = unstatedValues(request, passages, stating);
         const deduced =

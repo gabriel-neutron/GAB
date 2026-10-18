@@ -419,3 +419,18 @@ test('a designation with a date comes before an older designation with no date',
   const { rows } = shipWith('9123456', [designation(20, SHIP, EU_ACT, ['doc_eu'], null), dated]);
   expect(rows[0]).toMatchObject({ eu_listed_on: '2025-01-10', eu_claim_id: dated.claim.claim_id });
 });
+
+test('a designation that cites a notice counts in the regime of the official file that an added source cites, with its own start date', () => {
+  const notice = designation(30, SHIP, OFAC_LIST, ['doc_news'], '2024-02-23');
+  const added = designation(31, NO_IMO, OFAC_LIST, ['doc_news', 'doc_sdn'], '2024-02-23');
+  const { rows } = matrixOf(
+    recordOf(
+      [entity(SHIP, 'vessel', 'TEST TANKER'), entity(NO_IMO, 'vessel', 'OTHER TANKER'), ...ACTS],
+      [value(SHIP, 'imo', VALID_IMO), value(NO_IMO, 'imo', '9074729')],
+      [notice, added],
+    ),
+  );
+  expect(
+    rows.map((row) => [row['imo'], row['ofac_listed_on'], row['ofac_document_ids']]),
+  ).toStrictEqual([['9074729', '2024-02-23', 'doc_sdn']]);
+});

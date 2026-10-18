@@ -95,6 +95,12 @@ misread a number, so the text can miss a fact that the image shows clearly.
   authority that gives the day of the action. A start that no excerpt states refuses the batch.
   The record refuses a start on a relation that has one already, on a type that takes no
   interval, and after the last day of the relation.
+- When a relation is in the record and cites no official file of its regime, do not create it
+  again (a twin doubles the vessel). Propose `{"op": "add_source", "targetId": "<id of the
+  relation>"}`, and cite the line of the entry from `ofac_sdn` or `uk_sanctions_list`, on the page
+  that the answer gives. The excerpt must name the vessel by its IMO number or the act, or the
+  batch is refused. The relation keeps its dates and its type, and gets the document of your act.
+  The record refuses a source that the relation cites already.
 - When an entity of the record (a port, a facility, a terminal) has no place, do not create it
   again. Propose its place with
   `{"op": "update_entity", "targetId": "<id of the entity>", "geom": {"type": "Point", "coordinates": [28.3167, 59.6667]}}`
