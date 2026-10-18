@@ -59,3 +59,28 @@ test('no step puts the link in review forward', () => {
   const arcs = chainSteps(flows).flatMap((one) => one.arcs);
   expect(arcs.toSorted()).toEqual(['field-to-terminal', 'terminal-to-abroad']);
 });
+
+test('a ship-to-ship transfer is an exit point, and an asset with no position gives none', () => {
+  const more = chainFlows(
+    {
+      placed: new Map([...placed, ['vessel-a', [[25, 58]]], ['unplaced', []]]),
+      entityAccepted: () => true,
+      relations: [
+        { ...link('transfer', 'vessel-a', 'vessel-b'), type: 'sts_with' },
+        { ...link('loading-unplaced', 'vessel', 'unplaced'), type: 'loads_at' },
+      ],
+    },
+    kindStages,
+    outside,
+  );
+  expect(more.exits.map((one) => [one.kind, one.position])).toEqual([['sts', [25, 58]]]);
+});
+
+test('a link to an entity that is still a proposal is in review', () => {
+  const review = chainFlows(
+    { placed, entityAccepted: (id) => id !== 'abroad', relations },
+    kindStages,
+    outside,
+  );
+  expect(review.arcs.find((one) => one.id === 'terminal-to-abroad')?.inReview).toBe(true);
+});
