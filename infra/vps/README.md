@@ -217,27 +217,6 @@ Tailscale. Every model call goes to OpenRouter (ADR 0010), and no VPS service ta
 **Check (PC):** `Invoke-RestMethod "http://<VPS_TS_IP>:8888/search?q=test&format=json"` returns
 results. Do not paste the key into a chat or a ticket.
 
-## 8. Rollback, and stop everything
+## 8. Rollback
 
-| To stop | Command (VPS, in `~/projects/GAB`) |
-|---|---|
-| SearXNG | `docker compose --env-file ~/gab-services/.env -f infra/vps/services.compose.yml down` |
-| The test stack, keep data | `docker compose -f infra/docker-compose.yml down` |
-| The test stack, delete data | `docker compose -f infra/docker-compose.yml down -v` (test data only) |
-| GitHub access of the VPS | Revoke the VPS PAT on GitHub. The PC PAT stays valid. |
-| Tailscale access | `tailscale down`, or remove the VPS in the Tailscale admin console |
-
-An agent lands its work only as pull requests and branches into `staging`. To undo one, close the
-PR, or `git revert` its merge on `staging`. Never force-push `staging`. Keep `down -v` of
-`services.compose.yml` for a full reset.
-
-**Check:** `docker ps` shows no container you stopped.
-
-## 9. Daily check list
-
-- [ ] `gh pr list --base staging` (PC) shows the open PRs. No PR targets `main`.
-- [ ] `docker ps --format '{{.Names}} {{.Status}}'` shows each container `healthy` or `Up`.
-- [ ] The OpenRouter dashboard shows credit left on the key.
-- [ ] `df -h /` shows more than 10 GB free.
-- [ ] The VPS PAT is valid. A `401 Bad credentials` means that it expired: make a new PAT and
-      replace it in `.claude/settings.local.json` (step 4).
+To stop a service, run `docker compose down` on its file (SearXNG needs `--env-file ~/gab-services/.env`; `down -v` deletes test data only). To cut GitHub access, revoke the VPS PAT: the PC PAT stays valid. A `401 Bad credentials` means that the VPS PAT expired: replace it in `.claude/settings.local.json` (step 4). An agent lands its work as pull requests into `staging`: undo one with `git revert` on `staging`. Never force-push `staging`.
