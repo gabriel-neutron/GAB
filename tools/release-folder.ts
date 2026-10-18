@@ -25,6 +25,15 @@ const filesOf = (folder: string): readonly string[] =>
     .filter((one) => one.isFile() && !one.name.startsWith('.'))
     .map((one) => one.name);
 
+/** The files that the build copies beside the application, each one a copy byte for byte. */
+export const releaseAssets = (
+  folder: string,
+): readonly { readonly fileName: string; readonly source: Buffer }[] =>
+  filesOf(folder).map((name) => ({
+    fileName: `release/${name}`,
+    source: readFileSync(join(folder, name)),
+  }));
+
 export function releaseFolder(folder: string | undefined): Plugin {
   const root = folder === undefined || folder === '' ? null : resolve(folder);
   const serve = ({ middlewares }: ViteDevServer | PreviewServer): void => {
@@ -51,12 +60,8 @@ export function releaseFolder(folder: string | undefined): Plugin {
     },
     generateBundle() {
       if (root === null) return;
-      for (const name of filesOf(root))
-        this.emitFile({
-          type: 'asset',
-          fileName: `release/${name}`,
-          source: readFileSync(join(root, name)),
-        });
+      for (const { fileName, source } of releaseAssets(root))
+        this.emitFile({ type: 'asset', fileName, source });
     },
   };
 }

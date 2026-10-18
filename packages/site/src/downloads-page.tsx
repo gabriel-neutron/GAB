@@ -1,4 +1,4 @@
-import { FILE_WORDS } from './file-words.ts';
+import { FILE_WORDS } from '@gab/release/file-words';
 import { releaseDay } from '@gab/release/release-day';
 import { SiteFrame } from './site-frame.tsx';
 import type { ChangeCounts } from '@gab/release/site-manifest';
