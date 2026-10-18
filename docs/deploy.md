@@ -1,194 +1,96 @@
 # Deploy
 
-The public surface is the static site of a release: plain files, with no API and no server
-(ADR 0020). The database, the read API, the writer and the worker jobs stay on the operator's
-machine. To publish, write a release (below), then put its site on any static host.
+The public surface is the static site of a release: plain files, no API, no server (ADR 0020). The
+database, the read API, the writer and the worker stay on the operator's machine. To publish,
+write a release (below) and put its site on any static host.
+
+Every worker command is a sub-command of `pnpm worker`. Run it with no argument for the list and
+the usage. Run a command with `--dry-run` first when it has that flag. Every value below is
+listed, with its comment, in `infra/.env.example`.
 
 ## The database and the raw store
 
-1. In `infra/.env`, set `GABRIEL_DB_HOST`, `GABRIEL_DB_PORT` and `GABRIEL_DB_SSL=true` to the
-   connection of the database.
+1. In `infra/.env`, set `GABRIEL_DB_HOST`, `GABRIEL_DB_PORT` and `GABRIEL_DB_SSL=true`.
 2. Run `pnpm db:migrate`, then `pnpm db:apply`.
-3. Any S3 provider can hold the raw store. Set `RAW_STORE_ENDPOINT` to its S3 endpoint and
-   `RAW_STORE_REGION` to its region.
-
-The read API serves the `api` schema as `gabriel_read` to the application of the operator. It
-writes nothing, and it is not public.
+3. Any S3 provider holds the raw store: set `RAW_STORE_ENDPOINT` and `RAW_STORE_REGION`.
 
 ## The writer and the worker
 
-Run `pnpm writer` and the worker on the operator's machine, with the same `infra/.env` as above.
-`pnpm writer` needs `GABRIEL_OPERATOR_KEY` in that file, and it does not start without it. The
-value is at least 32 characters of A-Z, a-z, 0-9, `-` and `_`. Make it with
-`node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`. The first
-`pnpm dev` opens the screen with the key, and the browser keeps it. If a write answers that the
-request does not carry the key of the operator, start `pnpm dev` again.
-The worker is one command with sub-commands: `pnpm worker run` takes the queued AI jobs,
-`pnpm worker ingest` stores files, `pnpm worker layout` computes the graph layout,
-`pnpm worker reconcile` compares the raw store with the document index, `pnpm worker
-reference-set` manages the reference set of the authors, `pnpm worker author-names` decides the
-names that joined an author A or B, `pnpm worker requeue-ratings` tries the ratings that failed
-by a fault again, `pnpm worker reread-html` reads the stored HTML pages again, and
-`pnpm worker release` writes a release, `pnpm worker nato-coverage` reports the share of
-claims with a NATO pair (see below), and `pnpm worker name-candidates` finds the merge candidates
-across a Latin and a Cyrillic spelling. `pnpm worker asset-coverage` reports the coverage of each
-kind of asset (see below). They run as they do against the local stack.
-Only the values change. Run one `pnpm worker run` at a time: at its start, it puts back each job
-that is still running. Two workers at the same time stay unsupported. When the database connection
-fails, for example after the computer sleeps, `pnpm worker run` waits, tries again and puts the job
-in hand back in the queue. It does not stop. `pnpm worker ingest` stores a file only with
-`--uri`, the address where the file comes from (`decisions.md` PU1), so give one file for each run.
-For a bought file, also give `--cost-eur`, or `--provider` with a provider that sells its filings,
-so that the file stays not public.
+Run `pnpm writer` and the worker on the operator's machine with the same `infra/.env`.
 
-`pnpm worker run` needs OpenRouter and two models. Set `OPENROUTER_API_KEY`, the `EXTRACTOR_`
-values and the `CHECKER_` values, as `infra/.env.example` lists them. `EXTRACTOR_FAMILY` and
-`CHECKER_FAMILY` must name two different model families. When an `EXTRACTOR_` or a `CHECKER_`
-value is absent or wrong, or the two families are the same, the worker starts and writes one line
-that says "the extractor is not set up" with the name of the value. Each extraction job then fails
-with that reason, and the other agents run. The mapper, the rater and the lead agent do the same
-with their values.
+- **Operator key:** `pnpm writer` does not start without `GABRIEL_OPERATOR_KEY` (at least 32
+  characters of A-Z, a-z, 0-9, `-`, `_`). Make one with
+  `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`. If a write
+  answers that the request has no key, start `pnpm dev` again.
+- **One runner:** run one `pnpm worker run` at a time. At its start it puts back each running job.
+  After a lost database connection it waits, retries and requeues the job in hand.
+- **Ingest:** `pnpm worker ingest` needs `--uri`, the address where the file comes from (PU1), one
+  file for each run. For a bought file, also give `--cost-eur`, or `--provider` of a provider that
+  sells its filings, so the file stays not public.
 
-The MCP server of the research session asks the same checker for each batch that the research AI
-proposes. The server reads these values from `infra/.env`, from any start folder:
-`OPENROUTER_API_KEY`, the `CHECKER_` values, `RESEARCH_CHECK_TOKEN_CAP` and
-`GABRIEL_CHECKER_PASSWORD`. `RESEARCH_CHECK_TOKEN_CAP` is a hard cap on the tokens of one check.
-The checker gets one call, with no retry. On the Windows PC, add `GABRIEL_CHECKER_PASSWORD` and
-`RESEARCH_CHECK_TOKEN_CAP` to `infra/.env`. Then run `pnpm db:migrate`. It creates the checker
-role and sets its password. Never put that password in `research/.env`: the research AI reads that
-file. The server knows the family of the research AI from the name of its MCP client:
-`claude-code` is `anthropic`, and a name with `codex` is `openai`. A client that runs a model of
-another provider under one of these names gives a wrong family. Set a `CHECKER_FAMILY` that is
-neither. When a value is absent, the server starts. Each proposal then waits with no check, and
-the answer of the tool names the value. Propose the same batch again when the checker is up: the
-server checks it then.
+### Models
 
-Cost control has two limits. Each job has a token cap. The key has a credit limit that you set in
-the OpenRouter dashboard. OpenRouter routes each call with `data_collection` set to `deny`, so a
-provider must not keep the prompts or train on them. When the credit is spent, each job fails with
-a clear reason. Add credit, and queue the jobs again.
+`pnpm worker run` calls OpenRouter. Each agent (extractor, checker, mapper, rater, lead) reads its
+own group of values. When a value is absent or wrong, the worker still starts, and each job of that
+agent fails with a reason that names the value.
 
-The lead agent of `pnpm worker run` asks the extractor model. Set `LEAD_TOKEN_CAP`, the token
-budget of one lead, and `SEARXNG_URL`, the address of the search service. The worker stores each
-page that a lead fetches, so it also needs the raw store values. When one of these values is
-absent, the worker starts and runs the extractions, and each lead fails at once with a reason that
-names the value.
+- `EXTRACTOR_FAMILY` and `CHECKER_FAMILY` must name two different model families.
+- The MCP server asks the same checker for each batch of the research AI. It reads the checker
+  values, `RESEARCH_CHECK_TOKEN_CAP` and `GABRIEL_CHECKER_PASSWORD` from `infra/.env`. After you
+  set the password, run `pnpm db:migrate`: it creates the checker role. Never put that password in
+  `research/.env`, which the research AI reads. With a value absent, a proposal waits with no check;
+  propose the batch again when the checker is up.
+- The server guesses the family of the research AI from the name of its MCP client. A client that
+  runs a model of another provider gives a wrong family: set a `CHECKER_FAMILY` that is neither.
+- **Cost:** each job has a token cap, and the key has a credit limit that you set in the OpenRouter
+  dashboard. Calls go with `data_collection` set to `deny`. When the credit is spent, each job fails
+  with a clear reason: add credit and queue the jobs again.
+- **Leads:** set `LEAD_TOKEN_CAP` and `SEARXNG_URL`. `BRAVE_SEARCH_API_KEY` is optional and can cost
+  money: it is asked only when SearXNG fails.
+- **Deepening search:** the budget is a setting of the database, not of `infra/.env`, and it starts
+  at zero. Set it in `rule_config` for the rule `weak_sources` (key `deepening_tokens`), as the
+  superuser, and raise `version` by one. A change from zero sends each waiting unit through the
+  rules again. Zero stops new searches.
 
-A rule starts a deepening search for a unit with weak sources only when the deepening budget is
-above zero. The budget is a setting of the database, not of `infra/.env`, and it starts at zero.
-To set the tokens of one search, run this statement as the superuser `gabriel` on the record.
-On the local stack, type this in PowerShell at the root of the GAB checkout, on one line:
+### Mappings
 
-```powershell
-docker compose -f infra/docker-compose.yml exec db psql -U gabriel -d gabriel -c "UPDATE rule_config SET version = version + 1, settings = jsonb_build_object('deepening_tokens', 40000) WHERE rule = 'weak_sources';"
-```
+Before you promote a mapping, run `pnpm worker dry-join <mapping> > join.csv`. It writes, for each
+row, the key that finds its entity or creates one, calls no model and writes nothing. A row that
+finds its entity by name only becomes a doubt: add an identifier to the record first.
 
-On a hosted database, run the same statement with `psql` and the connection of step 1 above.
+### The reference set of the authors
 
-A change from zero sends each waiting unit through the rules again. Set `0` to stop new searches.
+The rater waits until the operator approves a reference set.
 
-The mapper of `pnpm worker run` maps the columns of a stored CSV, TSV or SDMX-CSV
-table. Set the `MAPPER_*` values
-that `infra/.env.example` lists. When one of them is absent, the worker starts and runs the
-extractions, and each mapping fails at once with a reason that names the value. The load of a
-promoted mapping runs with no model and needs the raw store values.
+1. Store the set: `reference-set load <file>` (a JSON file from experts; the repository holds the
+   first set, approved by the operator) or `reference-set build` (the model gives about thirty
+   authors).
+2. `reference-set show`: read each letter, reason and site. A source A counts alone only on a site
+   of its author. A set stored before the sites needs `reference-set sites <file>` once.
+3. `reference-set approve`: from then on each new author name gets a rating job.
 
-Before you promote a mapping, run `pnpm worker dry-join <mapping> > join.csv`. For each row of the
-table, it writes the key that finds the entity of the row in the record, or that the row creates
-an entity. It calls no model and writes nothing in the record. A row that finds its entity by its
-name only becomes a doubt in the load, so add an identifier to the record first where you can.
+To add authors, edit the file, run `reference-set add <file> --dry-run`, then without the flag,
+`show` and `approve`. A name the worker already rated is refused: give the new author another name.
+`requeue-ratings` retries the ratings that failed by a fault; a refused rating is not retried.
 
-The rater of `pnpm worker run` rates each new author name. Set the `RATER_*` values that
-`infra/.env.example` lists, with the strongest model that OpenRouter gives. When one of them is
-absent, the worker starts and runs the extractions, and each rating fails with a reason that names
-the value. A rating waits in the queue until the operator approves the reference set:
+When the rater joins a new name to an author A or B, the name reads as F and its units are a doubt
+until you decide it with `author-names` (`list`, `dry-run`, `confirm`, `refuse`, `move`, `rerate`;
+each decision is final). The Names page of the review page does the same.
 
-1. Store the set. It is not used yet. Use one of two ways:
-   - `pnpm worker reference-set load <file>` stores a set that experts wrote. The file is JSON
-     with an `authors` list. It needs no model and no OpenRouter key. The repository holds the
-     first set in `packages/worker/src/rater/reference-set.json`. Experts wrote it, and the
-     operator approved it.
-   - `pnpm worker reference-set build` asks the model once for about thirty authors, each with a
-     letter and a reason, and stores them.
-2. `pnpm worker reference-set show` prints the set. Read each letter, each reason and the sites
-   of each author. A source A counts alone only on a site of its author.
+### Other commands
 
-   A set that the record stored before the sites has no site, so its authors A count alone on no
-   page. Run `pnpm worker reference-set sites packages/worker/src/rater/reference-set.json` once.
-   It gives the sites of the file to each author of the set that has none, and never changes the
-   sites that an author holds. It prints `filled`, `same`, `other` or `not_in_set` for each
-   author of the file. Then the rules run again on the units of each author that got sites.
-3. `pnpm worker reference-set approve` makes the set usable. From then on each new author name
-   gets a rating job by itself.
+- `reread-html`: rereads stored HTML pages. Run it with `--dry-run` first. It keeps the old text set
+  so each citation stays valid.
+- `name-candidates`: finds merge candidates across a Latin and a Cyrillic spelling. Run it before a
+  release, then decide each pair in the "Two scripts" tab.
+- `nato-coverage`, `asset-coverage`, `asset-sanctions`: reports. They write nothing.
+- `firms-sweep`: reads NASA FIRMS heat. Set `FIRMS_MAP_KEY` first. Run it again after a stop or
+  each day: it reads only days that no stored answer covers.
 
-To add authors to a stored set, add them to the file and run
-`pnpm worker reference-set add packages/worker/src/rater/reference-set.json`. It stores only the
-authors that the set does not hold, prints `stored` or `kept` for each author of the file, and
-names each field of a kept author that the record holds with another value. Run it first with
-`--dry-run` at the end: it prints the same lines and writes nothing. Then run it with no flag,
-`show` and `approve`. A name that the worker rated is refused: give the new author another name, and move
-the rated names to it after the approval.
+## Write a release
 
-A rating that failed leaves its name F. `pnpm worker requeue-ratings` puts each rating job that
-failed by a fault back in the queue with no attempt, and prints each name with the reason of the
-earlier attempt: the job keeps no record of it. The next `pnpm worker run` rates them, and each
-job costs one call to the model. A rating that the model refused stays failed: the command does
-not put it back. A refusal is asked again only after you refuse a joined name.
-
-### Decide the names that joined an author A or B
-
-The rater can join a new name to a known author. A join into an author A or B raises the letter of
-each act of that name, so the name reads as F and its units are a doubt until you decide it:
-
-1. `pnpm worker author-names list` prints each name that waits, with its author, the letter and
-   the number of its units.
-2. `pnpm worker author-names dry-run` prints, for each name, how many units would change state if
-   you confirm it and if you refuse it. It writes nothing.
-3. `pnpm worker author-names confirm <name>` gives the name the letter of its author.
-   `pnpm worker author-names refuse <name>` makes the name F, and the rater rates it again as a
-   new author. The rules then read the units of the name again. A decision is final.
-4. `pnpm worker author-names move "<name>" "<author>"` gives a name of a wrong author that the
-   worker rated (C to F) to an approved reference author, or to another author that the worker
-   rated. Put each of the two in quotes. The command refuses a name of a reference author, and an
-   author of the reference set that you did not approve. A move is final.
-5. `pnpm worker author-names rerate "<name>"` takes a name away from a wrong author that the
-   worker rated. The name reads as F, and the rater rates it again: it cannot join the name to
-   that author again. The command refuses the own name of an author: move that name. It is
-   final.
-
-The review page shows the same list on its Names page, with the same two actions.
-
-`BRAVE_SEARCH_API_KEY` is optional, and SearXNG alone is enough. Brave Search is a service
-that can cost money. The search asks Brave only when you set a key, and only when SearXNG fails or
-gives no result. A lead runs only when the operator or the research AI starts it: no schedule
-starts one.
-
-### Read the stored HTML pages again
-
-Before PR #416, the fetch tool read each HTML page as UTF-8. A page in windows-1251 or koi8-r got a
-garbled text and a garbled title. Its bytes in the raw store are correct. Run this once on the
-local record, before the vector index is built:
-
-1. `pnpm worker reread-html --dry-run` prints each document whose text or title would change, and
-   writes nothing.
-2. `pnpm worker reread-html` writes the changes.
-
-The command reads each stored HTML or XHTML document (also a saved HTML file) from the raw store,
-with the read key `RAW_STORE_READ_ACCESS_KEY`. It reads a render of the browser, and each page whose
-bytes are valid UTF-8, as UTF-8. When the text changes, it writes the text as a new text set, and
-each reader then reads that set. The old set stays, so each citation stays valid. When the corrected
-text does not hold the excerpt of a citation of a document, the command keeps the text and the title
-of that document as they are. The report and the dry run list each such document with these
-citations: read them. A render of a kept page keeps its title too. The title changes only when the
-document still holds the title that the old reading gave. The command does not change the bytes, the
-id, the address or the date of a document. A second run changes nothing. It gives exit code 1 when a
-document could not be read, with the reason. A page whose charset was only in the header of the
-answer, and not in the page, stays as it is, because the record keeps the type without its charset.
-
-### Write a release
-
-A release is one folder of files that you can publish. Write the release manifest first, outside
-the GAB checkout, because it holds your contact addresses. It is a JSON file:
+Write the manifest first, outside the checkout, because it holds your contact addresses. The
+command refuses an unknown key and names the fault.
 
 ```json
 {
@@ -201,185 +103,46 @@ the GAB checkout, because it holds your contact addresses. It is a JSON file:
 }
 ```
 
-Only `contacts` is necessary. Each address starts with `https://` or `mailto:`. With no `date`,
-the release takes the date of the day (UTC). With no `version`, the version is the date.
-`showNatoPair` is `false` by default, and the public does not see the pair (`decisions.md` S1).
-Set it to `true` only after a change of S1: then each claim row of `claims.csv` and
-`dataset.jsonld` gives its NATO letter and digit, and `manifest.json` says that the pair is shown.
-`iriBase` is the base of the identifiers of the JSON-LD file: an `https://` address that ends with
-a slash. Set it once, to the address of the public site, before the first public release, and
-never change it after, because reusers link to these identifiers.
-The command also refuses a key that it does not know, and a quote, a comma or a control
-character in the version or an address.
-
-`criticalNodes` is the path of your sheet of candidate nodes, relative to the folder of the
-manifest. Keep the sheet outside the GAB checkout too. It is a CSV file with these five columns,
-in any order:
-
-- `node_id`: the entity identifier of the node.
-- `condition`: `b` (documented production or throughput in 2024-2026), `c` (presence in a bypass
-  routing across jurisdictions), or nothing for a row that only names the node and its texts.
-- `claim_ids`: the claim identifiers that support the tick, as `claims.csv` gives them, separated
-  by spaces. Nothing gives a tick that shows "not sourced".
-- `controller`: a short text, who controls the node.
-- `bypass_pattern`: a short text, the bypass pattern.
-
-Give one row for each node and condition. Give the texts of a node on one of its rows, or the same
-texts on each row. The two texts are public: do not name a person that the release does not show.
-Save the sheet as CSV UTF-8, with commas. A line that starts with `#` is a note. You do not tick
-condition (a): the release ticks it from the public designations of the node itself, ended or not. A
-node with two sourced ticks or more is retained. A tick with no claim shows "not sourced" and does
-not count. The release refuses the sheet, and writes nothing, when a row names a node or a claim
-that is not public in the release. The message gives the line. With no `criticalNodes`, the table
-has no row.
-
-`volumes` is the path of the volume table of the research (for example `volumes-2026-07.csv`),
-relative to the folder of the manifest. Keep the table outside the GAB checkout too, as the
-manifest and the sheet. With no `volumes`, the release has no volume, and each link of the map has
-one width. The table is a CSV file in UTF-8 with these twelve columns, in any order:
-`actif_amont`, `actif_aval`, `produit` (`brut`, `produits` or `gaz`), `periode`, `valeur`,
-`minimum`, `maximum`, `unite`, `classe` (`observé`, `estimé` or `capacité`), `document`, `page`,
-`note`. A line that starts with `#` is a note. The file `packages/worker/fixtures/volumes.csv`
-is an example table with invented data. The test of the fixed release of the static site reads it.
-
-- Name each asset in `actif_amont` and `actif_aval` by its entity identifier in the record (the
-  `id` of `entities.csv`, as `search_graph` gives it), or by the exact label of one entity of the
-  record. The case and the spaces of a label do not count. A row joins the physical link
-  (`crude_flows_to`, `products_flow_to` or `gas_flows_to`) of its two assets and its product. When an accepted
-  link and a link in review have the same two assets and product, the row joins the accepted
-  link.
-- A label that more than one entity has joins no link: the command gives the line, and you give
-  the entity identifier there. For an asset that the record does not hold yet, write its name: the
-  row stays in `volumes.csv`, on no link.
-- Give `periode` as a year and a month, `YYYY-MM` (for example `2026-07`). For a figure of a whole
-  year, give the first month of the year (`2026-01`) and say it in `note`.
-- `document` is the identifier of a stored document. The release rejects a row with no document,
-  with a document that is not public, with no class, with no value or no unit, with a period that
-  is not `YYYY-MM`, and an estimate with no range. The command gives the line and the reason of
-  each rejected row, and writes the release with the other rows.
-- The release never adds two rows. A capacity stays a capacity, and two rows with different units
-  are never compared.
+- Only `contacts` is necessary. Each address starts with `https://` or `mailto:`. The date defaults
+  to today (UTC), the version to the date.
+- `showNatoPair` is `false`. Set it to `true` only after a change of S1.
+- `iriBase` (an `https://` address that ends with a slash) is the base of the JSON-LD identifiers.
+  Set it once, to the public site, before the first public release. Never change it after.
+- `criticalNodes` is the path of your CSV sheet of candidate nodes, relative to the manifest. Keep
+  it outside the checkout. Condition `b` is documented production in 2024-2026; `c` is presence in
+  a bypass routing; `a` is ticked by the release itself. A tick with no `claim_ids` shows "not
+  sourced" and does not count. The release refuses the sheet when a row names a node or a claim that
+  is not public.
+- `volumes` is the path of the volume table of the research, relative to the manifest. The release
+  rejects a row with no public document, class, value or unit, a period that is not `YYYY-MM`, or an
+  estimate with no range, and writes the other rows. It never adds two rows. A fixture holds an
+  example table.
 
 Then run, on the record:
 
 ```powershell
-pnpm worker release --manifest <the manifest file> --out <a folder> --previous <the previous release folder>
+pnpm worker release --manifest <manifest> --out <folder> --previous <previous release folder>
 ```
 
-Give `--previous` the folder of the last release that you published, as you published it. For
-the first release, do not give it. Add `--v1 <folder>` to copy the build of the version 1 site
-under `v1/` (see "Publish the site" below).
+- `--previous` is the last release as you published it. Leave it out for the first release.
+- `--v1 <folder>` copies the build of the version 1 site under `v1/`.
+- The command writes `gab-release-<date>` and the site `gab-site-<date>`. It writes the site first,
+  so a failed run leaves no release folder. It refuses a folder of the same date, and a previous
+  folder that disagrees with its checksums.
+- Each CSV file starts with `#` lines (version, date, disclaimer). A program that reads it must
+  skip them.
 
-The command writes the folder `gab-release-<date>` in the `--out` folder. It refuses to write
-over a folder of the same date. Each CSV file starts with lines that start with `#`: the version,
-the date and the disclaimer. A spreadsheet shows them as rows. A program that reads the file must
-skip them. `entities.geojson` opens in QGIS as a layer of the entities with a position.
-`dataset.jsonld` holds the entities, the relations and the claims as linked data, with the
-definition of each term. `critical-nodes.csv` is the critical nodes table, with the three conditions,
-the claims of each tick and the retained nodes first. `changelog.csv` is the changelog since the
-previous release: one row for each entity, relation and claim added, changed or removed, with the
-changed columns, and each entity merged into a survivor or unmerged. Without `--previous`, it
-says "First release" and has no row. The command refuses a previous folder whose files do not
-agree with its `manifest.json`, or that is not earlier, and writes nothing. `manifest.json` gives
-the size and the SHA-256 checksum of each file, and a summary of the changelog.
-`asset-links.csv` gives, for each asset with an OpenStreetMap identifier, the OpenStreetMap link,
-the version and the own sourced point of the asset. It holds no OpenStreetMap geometry.
-`credits.md` gives the credit of each source, with the words that its licence asks for.
+## Publish the site
 
-The command also writes the static site of the release in the folder `gab-site-<date>`, beside
-the release folder. It writes the site before the release folder takes its name, so when the site
-fails, no release folder is left and you can run the command again. It needs the development dependencies of the GAB checkout (`pnpm install`).
-
-### Publish the site
-
-1. Put the content of `gab-site-<date>` at the root of a static host. Any host that serves files
-   works, also from a sub-path. The host must send the address of a folder with no final slash
-   (`/map`) to the same address with the slash (`/map/`), because each page is a folder and its
-   links are relative. Most static hosts do this by default. Set `iriBase` of the manifest to that address before the first
-   public release, so each identifier of `dataset.jsonld` opens its page.
-2. The pages also open from the disk, except the map: MapLibre needs an `http` or `https` address.
-   To look at a site on your machine, run `python -m http.server 8000` in the site folder and open
-   `http://localhost:8000/`.
-3. To keep the old ORBAT site under `/v1`, build it once from the GABRIEL repository with its
-   base path, and give the folder to `--v1`:
-
-   ```powershell
-   npm ci
-   npx vite build --base=/v1/
-   ```
-
-   Give the `dist` folder. The version 1 site reads its demonstration project at `/project.gpkg`,
-   at the root of the host, so the release also copies that file to the root of the site. Put the
-   site at the root of the host, or make the host send `/project.gpkg` to `/v1/project.gpkg`.
-
-The site holds a copy of each file of the release, the critical nodes table as its home page, a
-page for each entity and each claim, a map, a downloads page and a method page. Each page gives
-"Report an error" and "Right of reply" with the addresses of the manifest.
-
-To see the share of the public claims that have a full NATO pair (a letter and a digit) before
-you decide S1, run on the record:
-
-```powershell
-pnpm worker nato-coverage
-```
-
-It prints one line for all the claims of a release, then one line for each entity type and each
-relation type: the claims with a full pair, all the claims, and the share. It writes nothing.
-
-Before a release, find the merge candidates across a Latin and a Cyrillic spelling, then confirm
-or refuse each one in the "Two scripts" tab of the review page:
-
-```powershell
-pnpm worker name-candidates
-```
-
-It prints the number of names that it read and of pairs that it found, new and known. A pair that
-you refused or confirmed stays decided. The release gives the three counts in its manifest.
-
-To read the NASA FIRMS heat of each asset that has a point, and of each tile of a stored flare
-table, run:
-
-```powershell
-pnpm worker firms-sweep --since 2024-01-01 --flares <document> <text set>
-```
-
-Set `FIRMS_MAP_KEY` in the environment file first. The command stores one answer for each site and
-quarter, then the days since the last answer. It waits when the map key is near its rate limit.
-After a stop, run it again: it reads only the periods that no stored answer covers. Run it each
-day to add the new days. The command reads only the days that no stored answer covers, and it
-ends each read at the last day that FIRMS has published. The near real time days of the newest
-answers are provisional: FIRMS replaces them with archive days some months later, and the command
-does not read them again. Use `--latitude` and `--longitude` when the flare table names its columns
-in another way. Leave out `--flares` to read the assets only. No stored answer, address or log
-holds the key.
-
-To see the sanctions status of each asset, run:
-
-```powershell
-pnpm worker asset-sanctions --as-of 2026-10-13
-```
-
-An asset is `listed` when it or its operator has a designation in force on that day. It is
-`derived` when owners that are listed, or derived themselves, hold 50% or more of it. Each status
-gives the regime (EU, OFAC or UK, from the provider of the cited file), the act and the date. A
-derived status gives the share of each owner and says when GEM estimated a share. The general
-licences of the listed entities show next to the status. Use `--all` to also print the assets with
-no status, and `--json` for the full data. The command writes nothing.
+1. Put the content of `gab-site-<date>` at the root of a static host. The host must send `/map`
+   to `/map/`, because each page is a folder with relative links.
+2. The map needs an `http` or `https` address (MapLibre). To look at the site locally, run
+   `python -m http.server 8000` in the site folder.
+3. To keep the old ORBAT site under `/v1`, build it once in the GABRIEL repository with
+   `npx vite build --base=/v1/`, and give its `dist` folder to `--v1`. That site reads
+   `/project.gpkg` at the root of the host: the release copies the file there, or make the host
+   send it to `/v1/project.gpkg`.
 
 ## Public writes
 
-No public write path exists. A public write needs real authentication first, and that is separate
-work.
-
-To see how complete each layer of assets is, run on the record:
-
-```powershell
-pnpm worker asset-coverage totals.json
-```
-
-It prints one line for each kind of asset: the assets, and those with a geometry, an operator, an
-owner and a sanctions relation. The file `totals.json` is optional. For each kind, it gives the
-total capacity (`total`), its `unit`, the `attribute` that holds the capacity of one asset, and the
-`source` of the total. With the file, each number is followed by the share of the total capacity
-that those assets hold, and the line ends with the total and its source. A total with no source is
-refused. The command writes nothing.
+No public write path exists. It needs real authentication first, and that is separate work.
