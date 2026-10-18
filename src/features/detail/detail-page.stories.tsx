@@ -302,6 +302,7 @@ export const AVesselOfTheReleaseLinksItsTimelineAndNamesTheMergedIdentifiers: St
       facts: {
         imo: '9000001',
         merged: [ABSORBED],
+        claimIds: [],
         label: { origin: 'Proposed — not checked', licence: 'CC-BY 4.0' },
         events: null,
       },
@@ -314,6 +315,33 @@ export const AVesselOfTheReleaseLinksItsTimelineAndNamesTheMergedIdentifiers: St
     );
     await expect(canvas.getByText(ABSORBED)).toBeVisible();
     await expect(canvas.getByText('CC-BY 4.0')).toBeVisible();
+  },
+};
+
+/** A row links its claim page only where the release holds that claim. */
+export const ARowLinksItsClaimOnlyWhereTheReleaseHoldsIt: Story = {
+  args: {
+    dossier: {
+      ...DOSSIER,
+      facts: {
+        imo: null,
+        label: null,
+        merged: [],
+        claimIds: [`${VESSEL}/${DOSSIER.rows[0]?.claim.key ?? ''}`, DOSSIER.relations[0]?.id ?? ''],
+        events: null,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    const links = canvas.getAllByRole('link', { name: /^Claim: / });
+    await expect(links).toHaveLength(2);
+    await expect(links[0]).toHaveAttribute('href', expect.stringMatching(/^\/claim\//u));
+  },
+};
+
+export const AnEntityWithNoClaimOfTheReleaseDrawsNoClaimLink: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByRole('link', { name: /^Claim: / })).toBeNull();
   },
 };
 
@@ -332,6 +360,7 @@ export const ASiteOfTheReleaseDrawsItsEvents: Story = {
         imo: null,
         label: null,
         merged: [],
+        claimIds: [],
         events: releaseFactsOf(EVENTS_RELEASE, SITE, 'facility', true).events,
       },
     },

@@ -16,6 +16,10 @@ export interface ReleaseFacts {
   /** Who decided the entity and the licence of its row, as the release words them. Null where
    * the page reads the live record, because the live page words its own decision. */
   readonly label: { readonly origin: string; readonly licence: string } | null;
+  /** The identifiers of the claims that the release holds about the entity: its values, and each
+   * relation that starts or ends at it. A row links its claim page only when the release holds
+   * the claim. */
+  readonly claimIds: readonly string[];
   /** The events of a site, or null where the page draws no events part. */
   readonly events: readonly EventLine[] | null;
 }
@@ -38,6 +42,7 @@ export function releaseFactsOf(
   return {
     imo: release.imoOfVessel.get(entityId) ?? null,
     label: row === undefined ? null : { origin: row.originLabel, licence: row.licence },
+    claimIds: (release.claimsAbout.get(entityId) ?? []).map((claim) => claim.id),
     merged: [...release.aliases].filter(([, survivor]) => survivor === entityId).map(([id]) => id),
     events: drawsEvents
       ? events.map((event) => ({

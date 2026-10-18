@@ -1,9 +1,11 @@
 import { isValidImo } from '@gab/proposal/identifiers';
 import { releaseDay } from '@gab/release/release-day';
-import type { NatoPair, SiteEntity, SiteRelease } from '@gab/release/site-release';
+import { claimText } from '@gab/release/claim-text';
+import type { SiteEntity, SiteRelease } from '@gab/release/site-release';
 import { vesselFinderUrl } from '@gab/release/vessel-finder';
 import { vesselLanes, type TimelineLane, type TimelineMark } from '@gab/release/vessel-timeline';
 
+import { ClaimLink } from '@/shared/page/claim-link';
 import { DataTable, type DataColumn } from '@/shared/page/data-table';
 import { EmptyState } from '@/shared/page/empty-state';
 import { KeyValue } from '@/shared/page/key-value';
@@ -22,20 +24,14 @@ export interface VesselPageProps {
   readonly imo: string;
   /** The address of the page of one entity. */
   readonly entityHref: (id: string) => string;
-}
-
-function NatoPairMark({ pair }: { readonly pair: NatoPair | null }) {
-  if (pair === null) return null;
-  return (
-    <span className="font-mono text-muted-foreground" data-nato-pair="">
-      {`NATO ${pair.letter}${pair.digit}`}
-    </span>
-  );
+  /** The address of the page of one claim. */
+  readonly claimHref: (id: string) => string;
 }
 
 const columnsOf = (
   release: SiteRelease,
   entityHref: VesselPageProps['entityHref'],
+  claimHref: VesselPageProps['claimHref'],
 ): readonly DataColumn<TimelineMark>[] => [
   {
     key: 'mark',
@@ -49,11 +45,32 @@ const columnsOf = (
         ) : (
           mark.words
         )}
-        <NatoPairMark pair={mark.claim.pair} />
       </span>
     ),
   },
   { key: 'time', header: 'When', cell: (mark) => markTimeWords(mark.time) },
+  {
+    key: 'claim',
+    header: 'Claim',
+    cell: (mark) => (
+      <span className="inline-flex flex-wrap items-baseline gap-x-3">
+        <ClaimLink
+          text="Claim"
+          label={`Claim: ${claimText(mark.claim)}`}
+          href={claimHref(mark.claim.id)}
+          pair={mark.claim.pair}
+        />
+        {mark.time.kind === 'interval' && mark.time.endClaim !== null ? (
+          <ClaimLink
+            text="End date"
+            label={`End date: ${claimText(mark.time.endClaim)}`}
+            href={claimHref(mark.time.endClaim.id)}
+            pair={mark.time.endClaim.pair}
+          />
+        ) : null}
+      </span>
+    ),
+  },
   { key: 'label', header: 'Label', cell: (mark) => mark.claim.originLabel },
 ];
 
@@ -81,10 +98,12 @@ function VesselTimeline({
   release,
   vessel,
   entityHref,
+  claimHref,
 }: {
   readonly release: SiteRelease;
   readonly vessel: SiteEntity;
   readonly entityHref: VesselPageProps['entityHref'];
+  readonly claimHref: VesselPageProps['claimHref'];
 }) {
   const lanes = vesselLanes(release, vessel.id);
   const merged = [...release.aliases].filter(([, survivor]) => survivor === vessel.id);
@@ -143,7 +162,7 @@ function VesselTimeline({
             </p>
           )}
           {lanes.map((lane) => (
-            <Lane key={lane.key} lane={lane} columns={columnsOf(release, entityHref)} />
+            <Lane key={lane.key} lane={lane} columns={columnsOf(release, entityHref, claimHref)} />
           ))}
         </>
       )}
@@ -154,7 +173,7 @@ function VesselTimeline({
 /** The page of the public vessels with one IMO number, on the reading scale: for each vessel, a
  * timeline of its former names, flags, owners, managers, insurers, designations and port calls.
  * A drawing shows the dated marks, and a list gives each mark in words. */
-export function VesselPage({ release, imo, entityHref }: VesselPageProps) {
+export function VesselPage({ release, imo, entityHref, claimHref }: VesselPageProps) {
   const title = `IMO ${imo}`;
   if (release === null)
     return (
@@ -173,7 +192,8 @@ export function VesselPage({ release, imo, entityHref }: VesselPageProps) {
       ) : (
         <>
           <p className="max-w-prose">
-            The life of the vessel as the claims of this release give it.
+            The life of the vessel as the claims of this release give it. Each mark links to its
+            claim.
             <span className="hidden md:inline">
               {' '}
               A bar with an arrow is open: the release gives no end date, and the bar goes to the
@@ -195,6 +215,7 @@ export function VesselPage({ release, imo, entityHref }: VesselPageProps) {
               release={release}
               vessel={vessel}
               entityHref={entityHref}
+              claimHref={claimHref}
             />
           ))}
           <p lang="fr" className="flex flex-col gap-0.5 border-t border-border pt-3">
