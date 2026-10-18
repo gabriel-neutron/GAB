@@ -1,5 +1,6 @@
 import { cn } from '@/shared/lib/utils';
 
+import { ErrorNotice } from '@/shared/error-notice';
 import type { DecidedRow } from './decided';
 import { VerdictMark } from './verdict-mark';
 
@@ -33,7 +34,7 @@ const CONTROL = cn(
 /** Each act that the operator decided, promoted or rejected, the latest decision first. A
  * rejection shows its reason and its note, which only the operator reads. */
 export function DecidedPage({ view, onMore }: DecidedPageProps) {
-  if (view.state === 'private') return <p className="p-3 text-xs text-label">{view.why}</p>;
+  if (view.state === 'private') return <ErrorNotice detail={view.why} />;
   const { rows, unread, why, more } = view;
   return (
     <section aria-label="What was decided" className="flex h-full min-h-0 flex-col gap-2 p-2">

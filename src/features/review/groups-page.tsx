@@ -1,5 +1,6 @@
 import { cn } from '@/shared/lib/utils';
 
+import { ErrorNotice } from '@/shared/error-notice';
 import { documentName } from './document-name';
 import { GroupPanel, type GroupView } from './group-panel';
 import { GroupRail } from './group-rail';
@@ -52,7 +53,7 @@ export function GroupsPage({ rail, group, words, onAct }: GroupsPageProps) {
       >
         <div className="flex max-h-[60dvh] flex-col border-b border-border @3xl:max-h-none @3xl:min-h-0 @3xl:border-r @3xl:border-b-0">
           {rail.state === 'private' ? (
-            <p className="p-3 text-xs text-label">{rail.why}</p>
+            <ErrorNotice detail={rail.why} />
           ) : (
             <GroupRail
               groups={rail.read}

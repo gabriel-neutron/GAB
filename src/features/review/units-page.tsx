@@ -1,4 +1,5 @@
 import type { Decision } from '@gab/proposal/request';
+import { ErrorNotice } from '@/shared/error-notice';
 import { useState } from 'react';
 
 import { cn } from '@/shared/lib/utils';
@@ -70,7 +71,7 @@ const IDLE: DecisionState = { step: 'idle' };
 export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
   // The aim dies with the view: a reload aims at the whole unit again.
   const [aim, setAim] = useState<Aim | null>(null);
-  if (view.state === 'private') return <p className="p-3 text-xs text-label">{view.why}</p>;
+  if (view.state === 'private') return <ErrorNotice detail={view.why} />;
   const { units } = view.queue;
   const { linked } = view;
   const listed = units.find((held) => held.id === selectedId) ?? null;

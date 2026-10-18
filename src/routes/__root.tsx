@@ -7,6 +7,7 @@ import {
   useRouter,
 } from '@tanstack/react-router';
 import { CreateEntityDialog } from '@/features/edit/create-entity-dialog';
+import { ErrorNotice } from '@/shared/error-notice';
 import { carriedSelection } from '@/shared/carried-selection';
 import { cn } from '@/shared/lib/utils';
 import { refreshCorpus } from '@/shared/read/corpus';
@@ -139,10 +140,13 @@ function ThemeControl() {
 }
 
 function RootError({ error }: { error: Error }) {
+  const router = useRouter();
   return (
-    <div className="p-4">
-      <p>The application failed.</p>
-      <pre>{error.message}</pre>
-    </div>
+    <ErrorNotice
+      detail={error.message}
+      onRetry={() => {
+        void refreshCorpus(() => router.invalidate());
+      }}
+    />
   );
 }
