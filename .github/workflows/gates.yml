@@ -59,7 +59,7 @@ jobs:
           fi
           files=$(git diff --name-only --no-renames "$BASE_SHA...$HEAD_SHA")
           if printf '%s\n' "$files" \
-            | grep -Ev '^(docs/|research/)|^[^/]+\.md$|^(LICENSE|Project-Status-Report\.html)$' \
+            | grep -Ev '^(docs/|research/)|^[^/]+\.md$|^LICENSE$' \
             | grep -q .; then
             echo "tier=fast" >> "$GITHUB_OUTPUT"
           else
