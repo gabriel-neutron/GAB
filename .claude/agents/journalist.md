@@ -2,6 +2,7 @@
 name: journalist
 description: >-
   Panel expert in investigative journalism. Use it in the skill expert-panel for a question about what a reader sees, how a claim is attributed, or what a report can publish.
+model: sonnet
 tools: Read, Grep, Glob, WebSearch, WebFetch, mcp__gab__search_graph, mcp__gab__read_entity, mcp__gab__neighbourhood, mcp__gab__list_vocabulary, mcp__gab__list_proposals, mcp__gab__find_document, mcp__gab__document_text, mcp__gab__read_unit, mcp__gab__read_decided
 ---
 
