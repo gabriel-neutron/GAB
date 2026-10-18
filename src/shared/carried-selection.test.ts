@@ -17,10 +17,17 @@ describe('the selection that a link between the map and the graph carries', () =
     });
   });
 
-  it('keeps both keys on a link to the same surface', () => {
-    expect(carriedSelection('/map', '?entity=e1&relation=r1', '/map')).toEqual({
+  it('keeps both keys on a link from the graph to the graph', () => {
+    expect(carriedSelection('/graph', '?entity=e1&relation=r1', '/graph')).toEqual({
       entity: 'e1',
       relation: 'r1',
+    });
+  });
+
+  it('drops the relation on a link to the globe, which selects an entity only', () => {
+    expect(carriedSelection('/graph', '?entity=e1&relation=r1', '/map')).toEqual({
+      entity: 'e1',
+      relation: '',
     });
   });
 

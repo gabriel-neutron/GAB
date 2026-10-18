@@ -428,7 +428,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
   // The globe turns slowly until the reader acts. Each turn starts when the one before it ends.
   let spinning = store.get().moving;
   const spin = (): void => {
-    if (!spinning || destroyed) return;
+    if (!spinning || destroyed || !store.get().moving) return;
     const centre = map.getCenter();
     map.easeTo({
       center: [centre.lng - SPIN_STEP, centre.lat],
@@ -455,7 +455,9 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
   // The system can ask for no motion while the page is open.
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   const onReduced = (): void => {
-    if (reduced.matches) store.stopMotion();
+    if (!reduced.matches) return;
+    stopSpin();
+    store.stopMotion();
   };
   reduced.addEventListener('change', onReduced);
 
@@ -489,6 +491,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
     const before = seen;
     seen = state;
     if (
+      !state.moving ||
       state.panel !== before.panel ||
       state.step !== before.step ||
       state.product !== before.product

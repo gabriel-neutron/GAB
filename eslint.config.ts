@@ -162,7 +162,12 @@ export default defineConfig(
             { name: 'maplibre-gl', message: CANVAS },
             { name: 'sigma', message: CANVAS },
           ],
-          patterns: [{ group: ['**/map-page', '**/graph-page'], message: CANVAS }],
+          patterns: [
+            {
+              group: ['**/globe', '**/globe-canvas', '**/graph-page'],
+              message: CANVAS,
+            },
+          ],
         },
       ],
     },

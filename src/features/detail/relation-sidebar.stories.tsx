@@ -170,14 +170,6 @@ export const ARelationWithNoShareDrawsNoShareRow: Story = {
   },
 };
 
-export const ThePanelOfTheGraphShowsTheRelationOnTheMap: Story = {
-  args: { showOn: 'map' },
-  play: async ({ canvas }) => {
-    const link = canvas.getByRole('link', { name: 'Show on map' });
-    await expect(link).toHaveAttribute('href', `/map?relation=${BERTHED_ID}`);
-  },
-};
-
 export const ThePanelOfTheMapShowsTheRelationInTheGraph: Story = {
   args: { showOn: 'graph' },
   play: async ({ canvas }) => {

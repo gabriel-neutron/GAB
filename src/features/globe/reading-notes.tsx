@@ -22,9 +22,10 @@ export function ReadingNotes({ data }: { readonly data: GlobeData }) {
         <p>
           {count(counts.arcsInReview, 'physical link is', 'physical links are')} in review: a grey
           dotted line labelled “in review”, not a fact. A light pulse runs along each other link
-          that carries a flow. With no volume, a dashed line is a link after the export stage. An
-          exit point is computed from the relations of the release, and is not an entity of the
-          record. {count(counts.exitsInReview, 'exit point is', 'exit points are')} in review.
+          that carries a flow. The pulse is a drawing aid, and it does not show a movement at this
+          time. With no volume, a dashed line is a link after the export stage. An exit point is
+          computed from the relations of the release, and is not an entity of the record.{' '}
+          {count(counts.exitsInReview, 'exit point is', 'exit points are')} in review.
           {counts.exitsNotPlaced > 0
             ? ` ${count(counts.exitsNotPlaced, 'exit point has', 'exit points have')} no position and ${counts.exitsNotPlaced === 1 ? 'is' : 'are'} not on the map.`
             : ''}{' '}
