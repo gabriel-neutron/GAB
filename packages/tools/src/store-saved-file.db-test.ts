@@ -63,7 +63,15 @@ writeFileSync(
 writeFileSync(join(inbox, 'data.bin'), Buffer.from([0x00, 0x01, 0x02, 0xff]));
 writeFileSync(join(inbox, 'binary.txt'), Buffer.from([0x41, 0x01, 0x02, 0x03, 0x42]));
 writeFileSync(join(inbox, 'latin1.csv'), Buffer.from([0x6e, 0x0a, 0x8a, 0x61, 0xbe, 0x61]));
-writeFileSync(join(inbox, 'archive.zip'), zipOf([['README.txt', 'No layer here.']]));
+writeFileSync(join(inbox, 'archive.zip'), zipOf([['logo.bin', 'No reader takes this.']]));
+// A bulk file of two tables and a file that no reader takes, and a hostile archive.
+const BULK = [
+  ['entities.csv', `id,name\nNK-1,Nayara ${RUN}\n`],
+  ['data/notes.txt', `The notes of run ${RUN}.`],
+  ['logo.bin', 'No reader takes this.'],
+] as const;
+writeFileSync(join(inbox, 'bulk.zip'), zipOf(BULK));
+writeFileSync(join(inbox, 'hostile.zip'), zipOf([['../outside.txt', `Run ${RUN}.`]]));
 writeFileSync(join(inbox, 'big.html'), Buffer.alloc(UPLOAD_FILE_BYTES + 1, 0x20));
 const IMAGES = join(import.meta.dirname, '../../text/fixtures');
 copyFileSync(join(IMAGES, 'unit-tree.png'), join(inbox, 'unit-tree.png'));
@@ -166,6 +174,99 @@ test('a saved PNG image is stored as an image, with its OCR text as the page', a
   expect(store.puts.map((put) => put.mime)).toStrictEqual(['image/png']);
 });
 
+const childRow = z.object({
+  id: z.string(),
+  uri: z.string(),
+  mime: z.string(),
+  archive_path: z.string(),
+  archive_sha256: z.string(),
+  text: z.string(),
+});
+
+test('a ZIP archive is one document, and each file that a reader takes is a child linked to it', async () => {
+  const store = memoryStore();
+  const url = `https://data.opensanctions.org/bulk-${RUN}.zip`;
+  await rolledBack('research', async (ask) => {
+    const got = await callTool(
+      storeSavedFile,
+      sessionOf(ask),
+      { file: 'bulk.zip', url },
+      reachOf(store),
+    );
+    if (!got.ok) throw new Error(got.refusal);
+    const output = z
+      .object({
+        document: z.string(),
+        files: z.array(z.object({ path: z.string(), document: z.string(), status: z.string() })),
+        skipped: z.array(z.object({ path: z.string(), reason: z.string() })),
+      })
+      .parse(got.output);
+    expect(output.files.map((file) => [file.path, file.status])).toStrictEqual([
+      ['entities.csv', 'stored'],
+      ['data/notes.txt', 'stored'],
+    ]);
+    expect(output.skipped).toStrictEqual([
+      { path: 'logo.bin', reason: 'no reader takes the type of its name' },
+    ]);
+
+    const archive = readFileSync(join(inbox, 'bulk.zip'));
+    const children = z.array(childRow).parse(
+      await ask(
+        `SELECT c.id::text AS id, c.uri, c.mime, c.archive_path, a.sha256 AS archive_sha256,
+                t.text
+           FROM public.documents c
+           JOIN public.documents a ON a.id = c.archive_id
+           JOIN public.document_text t ON t.document_id = c.id
+          WHERE c.archive_id = $1 ORDER BY c.archive_path`,
+        [output.document],
+      ),
+    );
+    expect(children.map((child) => [child.archive_path, child.uri, child.mime])).toStrictEqual([
+      ['data/notes.txt', `${url}#data/notes.txt`, 'text/plain'],
+      ['entities.csv', `${url}#entities.csv`, 'text/csv'],
+    ]);
+    // Each child is linked to the hash of the archive, and keeps its own text and hash.
+    for (const child of children) {
+      expect(child.archive_sha256).toBe(createHash('sha256').update(archive).digest('hex'));
+      expect(child.id).toBe(
+        output.files.find((file) => file.path === child.archive_path)?.document,
+      );
+    }
+    expect(children.map((child) => child.text)).toStrictEqual([BULK[1][1], BULK[0][1]]);
+
+    // The text of the archive lists each file with its hash, and the file that was not stored.
+    const [listing] = z
+      .array(z.object({ text: z.string() }))
+      .parse(
+        await ask('SELECT text FROM public.document_text WHERE document_id = $1', [
+          output.document,
+        ]),
+      );
+    expect(listing?.text).toContain(
+      `entities.csv\t${String(BULK[0][1].length)} bytes\tsha256 ` +
+        createHash('sha256').update(BULK[0][1]).digest('hex'),
+    );
+    expect(listing?.text).toContain('logo.bin\tnot stored: no reader takes the type of its name');
+
+    // The same archive again is known, and so is each file.
+    const again = await callTool(
+      storeSavedFile,
+      sessionOf(ask),
+      { file: 'bulk.zip', url },
+      reachOf(store),
+    );
+    expect(again).toMatchObject({
+      ok: true,
+      output: { status: 'known', files: [{ status: 'known' }, { status: 'known' }] },
+    });
+  });
+  expect(store.puts.map((put) => put.mime)).toStrictEqual([
+    'application/zip',
+    'text/csv',
+    'text/plain',
+  ]);
+});
+
 // The refusal of one call, and the number of objects that the call put in the store.
 const refusalOf = async (
   file: string,
@@ -194,7 +295,8 @@ test.each([
   ['a binary file of a type that no reader takes', 'data.bin', '.json, .tsv, .txt'],
   ['a binary file with a text extension', 'binary.txt', 'control character'],
   ['a text file that is no UTF-8', 'latin1.csv', 'not valid UTF-8'],
-  ['a ZIP archive with no GeoJSON layer', 'archive.zip', 'separate feature'],
+  ['a ZIP archive with no file that a reader takes', 'archive.zip', 'no file that a reader'],
+  ['a ZIP archive with a path that leaves it', 'hostile.zip', 'leaves the archive'],
   ['a file larger than the upload limit', 'big.html', 'larger than'],
   ['a file that is not in the inbox', 'absent.pdf', 'no file named'],
 ])('%s is refused, and nothing is stored', async (_name, file, reason) => {

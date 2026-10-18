@@ -1,0 +1,163 @@
+// A zip archive that holds no GeoJSON layer is unpacked into one child document for each file
+// (#595). The archive is a document too: its bytes are kept, and its text lists its files with the
+// hash of each one. Each child follows the rules of any document: its text is read and checked
+// before any write, the hash decides its identity, and a fetched file is cited as itself. The
+// door fill_document_archive links each child to the archive and to its path in it. A hostile
+// archive is refused, and nothing is stored.
+
+import { createHash } from 'node:crypto';
+
+import {
+  extractText,
+  mimeOfFileName,
+  RefusedImageError,
+  RefusedTextError,
+  UnsupportedTypeError,
+} from '@gab/text';
+import { ArchiveRefusal, archiveFiles } from '@gab/text/archive';
+import { ZIP_MIME } from '@gab/text/geojson';
+import { z } from 'zod';
+
+import { rowsOf } from './fields.ts';
+import { storeAnswer } from './store-answer.ts';
+import { ToolRefusal, type Reach, type Session } from './tool.ts';
+import { unreadablePage } from './unreadable-page.ts';
+
+const MAX_TITLE = 500;
+
+const LINK = 'SELECT public.fill_document_archive($1, $2, $3) AS outcome';
+
+const linkedRow = z.object({ outcome: z.enum(['filled', 'same', 'other', 'not_fetched']) });
+
+/** The archive as a tool read it. */
+export interface ArchiveAnswer {
+  readonly kind: 'url' | 'api';
+  readonly bytes: Uint8Array;
+  /** The address of the archive. Each file takes it with its path as the fragment. */
+  readonly uri: string;
+  readonly title: string;
+  readonly day: string;
+}
+
+export const storedFileShape = z.strictObject({
+  path: z.string(),
+  document: z.string(),
+  status: z.enum(['stored', 'known']),
+  title: z.string(),
+  pages: z.number().int(),
+});
+
+export const skippedFileShape = z.strictObject({ path: z.string(), reason: z.string() });
+
+interface ReadFile {
+  readonly path: string;
+  readonly bytes: Uint8Array;
+  readonly mime: string;
+  readonly pages: readonly string[];
+}
+
+const hashOf = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
+
+// The text of one file, or the reason that no reader takes it.
+const readFile = async (path: string, bytes: Uint8Array): Promise<ReadFile | string> => {
+  const mime = mimeOfFileName(path);
+  if (mime === undefined || mime === ZIP_MIME) return 'no reader takes the type of its name';
+  let pages: readonly string[];
+  try {
+    ({ pages } = await extractText(bytes, mime));
+  } catch (fault) {
+    if (
+      fault instanceof UnsupportedTypeError ||
+      fault instanceof RefusedImageError ||
+      fault instanceof RefusedTextError
+    )
+      return fault.message;
+    return 'no text is read from it';
+  }
+  if (pages.join('').trim() === '') return 'it holds no text';
+  return unreadablePage(mime, pages) ?? { path, bytes, mime, pages };
+};
+
+// The text of the archive: each file with its size and its hash, and each file that was not
+// stored with the reason.
+const listingOf = (
+  files: readonly ReadFile[],
+  skipped: readonly z.infer<typeof skippedFileShape>[],
+): string =>
+  [
+    `The zip archive holds ${String(files.length + skipped.length)} files.`,
+    '',
+    ...files.map(
+      (file) =>
+        `${file.path}\t${String(file.bytes.length)} bytes\tsha256 ${hashOf(file.bytes)}\t${file.mime}`,
+    ),
+    ...skipped.map((file) => `${file.path}\tnot stored: ${file.reason}`),
+  ].join('\n');
+
+/** True when a page of the archive is a GeoJSON layer with a feature. The layer reader takes each
+ * JSON file as a layer, and a JSON file that is no GeoJSON gives a header and no row. */
+export const holdsLayers = (pages: readonly string[]): boolean =>
+  pages.some((page) => page.split(/\r?\n/u).filter((line) => line !== '').length > 1);
+
+/** Stores the archive and one child document for each file that a reader takes. It refuses a
+ * hostile archive, and an archive with no file that a reader takes, before any write. */
+export const storeArchive = async (
+  session: Session,
+  store: NonNullable<Reach['store']>,
+  archive: ArchiveAnswer,
+) => {
+  let unpacked;
+  try {
+    unpacked = await archiveFiles(archive.bytes);
+  } catch (fault) {
+    if (fault instanceof ArchiveRefusal)
+      throw new ToolRefusal(`the zip archive is not unpacked: ${fault.message}. Nothing is stored`);
+    throw fault;
+  }
+  const files: ReadFile[] = [];
+  const skipped: z.infer<typeof skippedFileShape>[] = [];
+  for (const { path, bytes } of unpacked) {
+    const read = await readFile(path, bytes);
+    if (typeof read === 'string') skipped.push({ path, reason: read });
+    else files.push(read);
+  }
+  if (files.length === 0)
+    throw new ToolRefusal(
+      'the zip archive holds no file that a reader takes' +
+        (skipped.length === 0
+          ? ''
+          : ` (${skipped.map((file) => `${file.path}: ${file.reason}`).join('; ')})`) +
+        '. Nothing is stored',
+    );
+
+  const parent = await storeAnswer(session, store, {
+    kind: archive.kind,
+    bytes: archive.bytes,
+    mime: ZIP_MIME,
+    uri: archive.uri,
+    title: archive.title,
+    pages: [listingOf(files, skipped)],
+    day: archive.day,
+  });
+  const stored: z.infer<typeof storedFileShape>[] = [];
+  for (const file of files) {
+    const child = await storeAnswer(session, store, {
+      kind: archive.kind,
+      bytes: file.bytes,
+      mime: file.mime,
+      uri: `${archive.uri.split('#')[0] ?? archive.uri}#${file.path}`,
+      title: `${file.path} (in ${parent.title})`.slice(0, MAX_TITLE),
+      pages: file.pages,
+      day: archive.day,
+    });
+    await rowsOf(session, linkedRow, LINK, [child.id, parent.id, file.path]);
+    stored.push({
+      path: file.path,
+      document: child.id,
+      status: child.status,
+      title: child.title,
+      pages: file.pages.length,
+    });
+  }
+  return { archive: parent, files: stored, skipped };
+};

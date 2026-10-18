@@ -56,6 +56,7 @@ test('the role matrix of the doors', async () => {
       "public.enqueue_job": "agent app research",
       "public.enqueue_mapped_load": "agent",
       "public.fail_job": "agent",
+      "public.fill_document_archive": "agent research",
       "public.fill_document_provider": "agent research",
       "public.fill_document_uri": "app",
       "public.imo_duplicate_pairs": "app",

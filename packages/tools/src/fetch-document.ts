@@ -9,6 +9,7 @@ import {
   RefusedTextError,
   UnsupportedTypeError,
 } from '@gab/text';
+import { ZIP_MIME } from '@gab/text/geojson';
 import { ExifTool } from 'exiftool-vendored';
 import { z } from 'zod';
 
@@ -22,6 +23,7 @@ import {
   type Got,
 } from './fetch-guard.ts';
 import { renderPage } from './render-page.ts';
+import { holdsLayers, skippedFileShape, storeArchive, storedFileShape } from './store-archive.ts';
 import { knownAnswer, storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 import { CHALLENGE_PAGE, isHtml, SHORT_PAGE, unreadablePage } from './unreadable-page.ts';
@@ -105,6 +107,7 @@ const metadataOf = async (bytes: Uint8Array, mime: string): Promise<Metadata> =>
 // External constraint: the signatures that open a PNG and a JPEG file.
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const JPEG_SIGNATURE = Buffer.from([0xff, 0xd8, 0xff]);
+const ZIP_SIGNATURE = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
 
 const OCR_TYPES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg']);
 
@@ -115,6 +118,7 @@ const sniffedMime = (bytes: Uint8Array): string | undefined => {
   if (Buffer.from(bytes.subarray(0, 5)).toString('latin1') === '%PDF-') return 'application/pdf';
   if (opensWith(bytes, PNG_SIGNATURE)) return 'image/png';
   if (opensWith(bytes, JPEG_SIGNATURE)) return 'image/jpeg';
+  if (opensWith(bytes, ZIP_SIGNATURE)) return ZIP_MIME;
   return undefined;
 };
 
@@ -364,6 +368,8 @@ const outputShape = z.strictObject({
   truncated: z.boolean(),
   next: nextShape,
   notice: z.string().nullable(),
+  files: z.array(storedFileShape).nullable(),
+  skipped: z.array(skippedFileShape).nullable(),
   rendered: z
     .strictObject({
       document: z.string(),
@@ -410,7 +416,11 @@ export const fetchDocument = defineTool({
     'table repeats its header line on each page. A PNG or a JPEG image is stored as ' +
     'its bytes, and its pages are the text that OCR read in it (English, Ukrainian and ' +
     'Russian). OCR can misread a sign: cite an excerpt as the stored text gives it, and ' +
-    'compare it with the image. An image in which OCR reads no text is refused.',
+    'compare it with the image. An image in which OCR reads no text is refused. A ZIP archive ' +
+    'that holds no GeoJSON is unpacked: "document" is the archive, whose text lists its files, ' +
+    'and "files" names one more document for each file that a reader takes, each linked to the ' +
+    'archive; cite the document of the file. "skipped" names each other file and the reason. A ' +
+    'hostile archive (too large, too deep, a path that leaves it, a zip bomb) is refused.',
   input: z.strictObject({
     url: z.string().trim().min(1).max(2048),
     fromPage: z.number().int().min(1).default(1),
@@ -480,6 +490,41 @@ export const fetchDocument = defineTool({
     // OCR of an image takes seconds, and bytes that are already stored have their text already.
     const known = OCR_TYPES.has(mime) ? await knownAnswer(session, got.bytes) : undefined;
     const pages = known === undefined ? await checkedPages(got.bytes, mime, type) : [];
+
+    // An archive with no GeoJSON layer gives no text of its own: each of its files is a document.
+    if (known === undefined && mime === ZIP_MIME && !holdsLayers(pages)) {
+      const metadata = await metadataOf(got.bytes, mime);
+      const unpacked = await storeArchive(session, reach.store, {
+        kind: 'url',
+        bytes: got.bytes,
+        uri: got.url,
+        title: titleOf(mime, type, got.bytes, metadata, got.url),
+        day,
+      });
+      const text = await documentText.run(session, {
+        document: unpacked.archive.id,
+        fromPage: input.fromPage,
+        fromCharacter: 0,
+        toPage,
+      });
+      return {
+        document: unpacked.archive.id,
+        status: unpacked.archive.status,
+        title: unpacked.archive.title,
+        mime: unpacked.archive.mime ?? mime,
+        url: got.url,
+        retrievedAt: unpacked.archive.retrieved_at ?? day,
+        metadata: { author: metadata.author, created: metadata.created },
+        pages: text.pages,
+        lastPage: text.lastPage,
+        truncated: text.truncated,
+        next: text.next,
+        notice: notices.length === 0 ? null : notices.join('; '),
+        files: unpacked.files,
+        skipped: unpacked.skipped,
+        rendered: null,
+      };
+    }
 
     let page: Awaited<ReturnType<typeof renderedOf>> = null;
     const allText = pages.join('').trim().length;
@@ -575,6 +620,8 @@ export const fetchDocument = defineTool({
       truncated: text.truncated,
       next: text.next,
       notice: notices.length === 0 ? null : notices.join('; '),
+      files: null,
+      skipped: null,
       rendered:
         rendered === null
           ? null
