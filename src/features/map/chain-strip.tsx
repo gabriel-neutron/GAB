@@ -34,12 +34,14 @@ export function ChainStrip({ steps, state, onAct }: ChainStripProps) {
   const shown = steps.find((one) => one.key === state.step);
   return (
     <div className="pointer-events-none absolute bottom-8 left-2 z-10 flex max-w-[calc(100%-1rem)] flex-col items-start gap-1">
-      {state.chain && shown !== undefined ? (
+      {/* The region stands while the Chain mode is on, so a screen reader announces each new
+        sentence. Empty, it takes no room on the screen. */}
+      {state.chain ? (
         <p
           role="status"
-          className="pointer-events-auto max-w-prose border border-border bg-popover px-1.5 py-1 text-small/4 text-popover-foreground"
+          className="pointer-events-auto max-w-prose border border-border bg-popover px-1.5 py-1 text-small/4 text-popover-foreground empty:sr-only"
         >
-          {shown.sentence}
+          {shown?.sentence}
         </p>
       ) : null}
       <div className="flex flex-wrap gap-1">

@@ -1,4 +1,5 @@
 import { PRODUCTS } from '@gab/proposal/chain-product';
+import { STAGES } from '@gab/proposal/chain-stage';
 import { shareWords } from '@gab/proposal/share';
 import {
   AttributionControl,
@@ -178,6 +179,9 @@ const pulseOfProduct = (product: string): string => `chain-pulse-${product}`;
 const CHAIN_CASING = '#000000';
 const CHAIN_IN_REVIEW = '#9aa3ad';
 const CHAIN_PULSE = '#ffffff';
+const CHAIN_EXIT = STAGES.find((one) => one.key === 'exit')?.colour ?? CHAIN_IN_REVIEW;
+// The casing is a shade under the arc, and never a line of its own.
+const CHAIN_CASING_OPACITY = 0.5;
 // Origin of the number: at this opacity an asset or an arc out of the step stays visible on each
 // ground, and an asset of the step reads at once.
 const CHAIN_DIMMED = 0.3;
@@ -632,7 +636,11 @@ export function mountMap({
       type: 'line',
       source: CHAIN_ARC_SOURCE,
       layout: { visibility: chainVisibility(), 'line-cap': 'round' },
-      paint: { 'line-color': CHAIN_CASING, 'line-width': 4, 'line-opacity': 0.5 },
+      paint: {
+        'line-color': CHAIN_CASING,
+        'line-width': 4,
+        'line-opacity': CHAIN_CASING_OPACITY,
+      },
     },
     ...CHAIN_ARC_LAYERS.map((one): LayerSpec => ({
       id: one.id,
@@ -684,7 +692,7 @@ export function mountMap({
         // A ring with no fill, so the asset under an exit point stays in view.
         'circle-opacity': 0,
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 8, 14, 16],
-        'circle-stroke-color': ['case', ['get', 'inReview'], CHAIN_IN_REVIEW, '#ff4d6d'],
+        'circle-stroke-color': ['case', ['get', 'inReview'], CHAIN_IN_REVIEW, CHAIN_EXIT],
         'circle-stroke-width': 2,
       },
     },
@@ -1057,21 +1065,23 @@ export function mountMap({
 
   // The pulse runs along each link in 2.6 seconds, then waits for a short time. It runs only in
   // the Chain mode, and never under reduced motion.
+  // The wait leaves the style clean for a short time, so an `idle` listener can still fire.
   let pulseFrame = 0;
   const pulse = (now: number): void => {
-    if (destroyed) return;
-    if (styleReady && chainOn) {
-      const progress = ((now / 2600) % 1) * 1.15;
-      for (const one of PRODUCTS)
-        map.setPaintProperty(
-          pulseOfProduct(one.key),
-          'line-gradient',
-          pulseAt(Math.min(progress, 1)),
-        );
+    if (destroyed || !chainOn) {
+      pulseFrame = 0;
+      return;
     }
+    const progress = ((now / 2600) % 1) * 1.15;
+    if (styleReady && progress <= 1)
+      for (const one of PRODUCTS)
+        map.setPaintProperty(pulseOfProduct(one.key), 'line-gradient', pulseAt(progress));
     pulseFrame = requestAnimationFrame(pulse);
   };
-  if (!still) pulseFrame = requestAnimationFrame(pulse);
+  const startPulse = (): void => {
+    if (!still && chainOn && pulseFrame === 0) pulseFrame = requestAnimationFrame(pulse);
+  };
+  startPulse();
 
   const placesOfStep = new Map<string, readonly (readonly [number, number])[]>([
     ...projection.entities.map(
@@ -1086,8 +1096,11 @@ export function mountMap({
   const forward = (
     ids: ReadonlySet<string> | null,
     property: string,
+    base = 1,
   ): number | ['case', ['in', ['get', string], ['literal', string[]]], number, number] =>
-    ids === null ? 1 : ['case', ['in', ['get', property], ['literal', [...ids]]], 1, CHAIN_DIMMED];
+    ids === null
+      ? base
+      : ['case', ['in', ['get', property], ['literal', [...ids]]], base, base * CHAIN_DIMMED];
 
   const paintStep = (key: string | null): void => {
     const step = key === null ? undefined : chain.steps.find((one) => one.key === key);
@@ -1097,8 +1110,12 @@ export function mountMap({
       const exits = step === undefined ? null : new Set(step.exits);
       map.setPaintProperty(CHAIN_POINT_LAYER, 'circle-opacity', forward(assets, 'entityId'));
       map.setPaintProperty(CHAIN_POINT_LAYER, 'circle-stroke-opacity', forward(assets, 'entityId'));
-      for (const id of [
+      map.setPaintProperty(
         CHAIN_CASING_LAYER,
+        'line-opacity',
+        forward(arcs, 'id', CHAIN_CASING_OPACITY),
+      );
+      for (const id of [
         ...CHAIN_ARC_LAYERS.map((one) => one.id),
         ...PRODUCTS.map((one) => pulseOfProduct(one.key)),
       ])
@@ -1141,6 +1158,42 @@ export function mountMap({
       }
     });
   };
+  // The arcs, the pulse, the asset discs and the exit rings of the chain follow the mode, the type
+  // filter and the switch of the relation lines. An arc to a point that no layer draws states a
+  // place the map shows nowhere.
+  const paintChainLayers = (): void => {
+    whenStyleReady(() => {
+      const off: ['literal', string[]] = ['literal', [...hidden]];
+      type Off = ['!', ['in', ['get', string], ['literal', string[]]]];
+      const ends: ['all', Off, Off] = [
+        'all',
+        ['!', ['in', ['get', 'fromType'], off]],
+        ['!', ['in', ['get', 'toType'], off]],
+      ];
+      const arcsShown = chainOn && !linksHidden;
+      map.setLayoutProperty(CHAIN_CASING_LAYER, 'visibility', arcsShown ? 'visible' : 'none');
+      map.setFilter(CHAIN_CASING_LAYER, ends);
+      for (const one of CHAIN_ARC_LAYERS) {
+        map.setLayoutProperty(one.id, 'visibility', arcsShown ? 'visible' : 'none');
+        map.setFilter(one.id, ['all', ['==', ['get', 'style'], one.style], ends]);
+      }
+      for (const one of PRODUCTS) {
+        const id = pulseOfProduct(one.key);
+        map.setLayoutProperty(id, 'visibility', arcsShown && !still ? 'visible' : 'none');
+        map.setFilter(id, [
+          'all',
+          ['==', ['get', 'product'], one.key],
+          ['!=', ['get', 'style'], 'in review'],
+          ends,
+        ]);
+      }
+      map.setLayoutProperty(CHAIN_POINT_LAYER, 'visibility', chainVisibility());
+      map.setFilter(CHAIN_POINT_LAYER, chainPointFilter());
+      map.setLayoutProperty(CHAIN_EXIT_LAYER, 'visibility', chainVisibility());
+      map.setFilter(CHAIN_EXIT_LAYER, ['!', ['in', ['get', 'assetType'], off]]);
+    });
+  };
+  paintChainLayers();
   paintChainMode();
 
   // True when the camera is the choice of the analyst, so the adapter must not frame the corpus
@@ -1455,8 +1508,8 @@ export function mountMap({
         ]) {
           map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
         }
-        map.setFilter(CHAIN_POINT_LAYER, chainPointFilter());
       });
+      paintChainLayers();
       dropUndrawn();
     },
     // A destroyed handle draws no type.
@@ -1484,6 +1537,8 @@ export function mountMap({
           map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
         }
       });
+      // The arcs of the chain are relations too, so the same switch hides them.
+      paintChainLayers();
       // A switch that hides each line ends the choice. The rail must name no relation that the
       // map draws nowhere.
       if (!visible) setChosenLink(null);
@@ -1544,22 +1599,9 @@ export function mountMap({
       if (destroyed) return;
       chainOn = on;
       patchMapWorkspace({ chain: on });
-      whenStyleReady(() => {
-        for (const id of [
-          CHAIN_CASING_LAYER,
-          ...CHAIN_ARC_LAYERS.map((one) => one.id),
-          CHAIN_POINT_LAYER,
-          CHAIN_EXIT_LAYER,
-        ])
-          map.setLayoutProperty(id, 'visibility', chainVisibility());
-        for (const one of PRODUCTS)
-          map.setLayoutProperty(
-            pulseOfProduct(one.key),
-            'visibility',
-            on && !still ? 'visible' : 'none',
-          );
-      });
+      paintChainLayers();
       paintChainMode();
+      startPulse();
       if (!on) paintStep(null);
     },
     get chain() {

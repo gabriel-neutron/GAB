@@ -68,7 +68,8 @@ const DECLARED_KEYS: Readonly<Record<keyof MapWorkspace, true>> = {
   globe: true,
 };
 
-// The cost of the strict guard here is one camera position, one time.
+// The cost of the strict guard here is one camera position, one time. A record written before the
+// Chain mode has no `chain` and no `globe`, and it stays valid: the read gives the defaults.
 const isWorkspace = (value: unknown): value is MapWorkspace => {
   if (!holdsOnlyDeclaredKeys(value, DECLARED_KEYS)) return false;
   const w = value;
@@ -83,13 +84,13 @@ const isWorkspace = (value: unknown): value is MapWorkspace => {
     Number.isFinite(w['railWidth']) &&
     (w['ground'] === 'plan' || w['ground'] === 'imagery') &&
     isImagery(w['imagery']) &&
-    typeof w['chain'] === 'boolean' &&
-    typeof w['globe'] === 'boolean'
+    (w['chain'] === undefined || typeof w['chain'] === 'boolean') &&
+    (w['globe'] === undefined || typeof w['globe'] === 'boolean')
   );
 };
 
 export function readMapWorkspace(): MapWorkspace {
-  return readWorkspace(FEATURE, isWorkspace, DEFAULT_WORKSPACE);
+  return { ...DEFAULT_WORKSPACE, ...readWorkspace(FEATURE, isWorkspace, DEFAULT_WORKSPACE) };
 }
 
 // Every writer patches, and never replaces: two writers with partial records erase each other.

@@ -16,6 +16,9 @@ interface LineFeature {
     readonly id: string;
     readonly product: string;
     readonly colour: string;
+    /** The types of the two ends, so a type that is switched off takes its arcs with it. */
+    readonly fromType: string;
+    readonly toType: string;
     /** A link in review is never drawn as a fact. A link after the export stage is dashed. */
     readonly style: 'solid' | 'dashed' | 'in review';
   };
@@ -24,7 +27,12 @@ interface LineFeature {
 interface PointFeature {
   readonly type: 'Feature';
   readonly geometry: { readonly type: 'Point'; readonly coordinates: Position };
-  readonly properties: { readonly id: string; readonly inReview: boolean };
+  readonly properties: {
+    readonly id: string;
+    readonly inReview: boolean;
+    /** The type of the first asset of the exit point, so the type filter reaches the ring. */
+    readonly assetType: string;
+  };
 }
 
 type Position = readonly [number, number];
@@ -112,6 +120,8 @@ export const chainView = (corpus: Corpus, projection: Projection): ChainView => 
           id: arc.id,
           product: arc.product,
           colour: PRODUCTS.find((one) => one.key === arc.product)?.colour ?? '',
+          fromType: projection.byId.get(arc.fromId)?.type ?? '',
+          toType: projection.byId.get(arc.toId)?.type ?? '',
           style: arc.inReview ? 'in review' : arc.afterExport ? 'dashed' : 'solid',
         },
       })),
@@ -125,7 +135,11 @@ export const chainView = (corpus: Corpus, projection: Projection): ChainView => 
               {
                 type: 'Feature',
                 geometry: { type: 'Point', coordinates: exit.position },
-                properties: { id: exit.id, inReview: exit.inReview },
+                properties: {
+                  id: exit.id,
+                  inReview: exit.inReview,
+                  assetType: projection.byId.get(exit.assets[0] ?? '')?.type ?? '',
+                },
               },
             ],
       ),

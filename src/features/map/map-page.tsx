@@ -61,7 +61,8 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation }: MapPagePr
   // position in its array. So one corpus gives one projection, and a second projection over the
   // same corpus would carry identifiers the live map does not hold.
   const projection = useMemo(() => project(corpus, types), [corpus, types]);
-  // The chain of the same corpus, from the same projection, so its arcs join the drawn points.
+  // The chain of the same corpus, from the same projection. An arc ends at the stored position of
+  // an asset, so it misses a point that the spread draws beside that position.
   const chain = useMemo(() => chainView(corpus, projection), [corpus, projection]);
 
   // React 19 StrictMode runs setup, cleanup, setup: `mountMap` destroys an instance it finds on
