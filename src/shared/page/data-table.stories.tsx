@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect } from 'storybook/test';
+import { expect, within } from 'storybook/test';
 
 import { DataTable, type DataColumn } from './data-table';
 
@@ -48,7 +48,7 @@ export const EachRowShowsEachColumn: Story = {
 export const AnAbsentValueIsABlankCell: Story = {
   play: async ({ canvas }) => {
     const row = canvas.getByRole('row', { name: /Primorsk port/ });
-    await expect(row.querySelectorAll('td')[1]?.textContent).toBe('');
+    await expect(within(row).getAllByRole('cell')[0]).toHaveTextContent('');
   },
 };
 

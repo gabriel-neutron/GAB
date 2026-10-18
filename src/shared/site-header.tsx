@@ -19,7 +19,7 @@ export interface SiteHeaderProps {
 const PAGE_LINK = cn(
   'inline-flex h-full shrink-0 items-center border-b-2 border-transparent px-2 text-body/5',
   'text-muted-foreground transition-colors duration-100 outline-none hover:text-foreground',
-  'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
+  'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset',
   'data-[status=active]:border-primary data-[status=active]:text-foreground',
 );
 
@@ -40,55 +40,54 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
   const address = useLocation({ select: (location) => location.searchStr });
   return (
     <header className="flex shrink-0 flex-wrap items-stretch gap-x-3 border-b border-border px-2 sm:flex-nowrap">
-      <div className="flex h-10 min-w-0 flex-1 items-stretch gap-2">
-        {/* A narrow screen keeps the short name, so the navigation keeps its room. */}
+      {/* A narrow screen gives the navigation a row of its own, under the name and the controls. */}
+      <div className="flex h-10 flex-1 items-stretch sm:flex-none">
         <Link
           to="/"
-          aria-label="GAB dataset"
-          className="inline-flex shrink-0 items-center pr-2 text-body/5 font-semibold tracking-tight outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="inline-flex items-center px-1 text-body/5 font-semibold tracking-tight outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
         >
-          GAB<span className="hidden sm:inline">&nbsp;dataset</span>
+          GAB dataset
         </Link>
-        {/* A narrow screen scrolls the navigation, and never the page. */}
-        <nav
-          aria-label="Pages of the site"
-          className="flex min-w-0 items-stretch overflow-x-auto [scrollbar-width:none]"
-        >
-          <Link
-            key={`map${address}`}
-            to="/map"
-            search={TO_MAP}
-            activeOptions={{ includeSearch: false }}
-            className={PAGE_LINK}
-          >
-            Map
-          </Link>
-          <Link
-            key={`graph${address}`}
-            to="/graph"
-            search={TO_GRAPH}
-            activeOptions={{ includeSearch: false }}
-            className={PAGE_LINK}
-          >
-            Graph
-          </Link>
-          <Link to="/search" className={PAGE_LINK}>
-            Search
-          </Link>
-          {writerOnline ? (
-            <Link
-              to="/review"
-              search={{ unit: '', view: 'queue', group: '' }}
-              activeOptions={{ includeSearch: false }}
-              className={PAGE_LINK}
-            >
-              Review
-            </Link>
-          ) : null}
-        </nav>
       </div>
+      {/* A navigation wider than the screen scrolls in its own row, and never the page. */}
+      <nav
+        aria-label="Pages of the site"
+        className="order-1 -mx-2 flex h-9 basis-full items-stretch overflow-x-auto border-t border-border px-1 sm:order-none sm:mx-0 sm:mr-auto sm:h-10 sm:basis-auto sm:border-t-0 sm:px-0"
+      >
+        <Link
+          key={`map${address}`}
+          to="/map"
+          search={TO_MAP}
+          activeOptions={{ includeSearch: false }}
+          className={PAGE_LINK}
+        >
+          Map
+        </Link>
+        <Link
+          key={`graph${address}`}
+          to="/graph"
+          search={TO_GRAPH}
+          activeOptions={{ includeSearch: false }}
+          className={PAGE_LINK}
+        >
+          Graph
+        </Link>
+        <Link to="/search" className={PAGE_LINK}>
+          Search
+        </Link>
+        {writerOnline ? (
+          <Link
+            to="/review"
+            search={{ unit: '', view: 'queue', group: '' }}
+            activeOptions={{ includeSearch: false }}
+            className={PAGE_LINK}
+          >
+            Review
+          </Link>
+        ) : null}
+      </nav>
       {filter === null ? null : (
-        <div className="order-last flex basis-full items-center pb-2 sm:order-none sm:basis-auto sm:pb-0">
+        <div className="order-2 flex basis-full items-center pb-2 sm:order-none sm:basis-auto sm:pb-0">
           {filter}
         </div>
       )}

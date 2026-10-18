@@ -20,14 +20,13 @@ type Story = StoryObj<typeof meta>;
 
 export const AnAbsentValueKeepsItsKeyAndABlankCell: Story = {
   play: async ({ canvas }) => {
-    const key = canvas.getByText('Valid to');
-    await expect(key.tagName).toBe('DT');
-    await expect(key.nextElementSibling?.textContent).toBe('');
+    await expect(canvas.getAllByRole('term')[1]).toHaveTextContent('Valid to');
+    await expect(canvas.getAllByRole('definition')[1]).toHaveTextContent('');
   },
 };
 
 export const EachValueFollowsItsKey: Story = {
   play: async ({ canvas }) => {
-    await expect(canvas.getByText('Valid from').nextElementSibling?.textContent).toBe('2024-02-01');
+    await expect(canvas.getAllByRole('definition')[0]).toHaveTextContent('2024-02-01');
   },
 };

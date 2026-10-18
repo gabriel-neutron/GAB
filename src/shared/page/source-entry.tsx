@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 import { EmptyState } from './empty-state';
 import { KeyValue } from './key-value';
 import { READING_LINK } from './reading-link';
@@ -40,12 +42,15 @@ function SourceAddress({ address }: { readonly address: string | null }) {
 /** One public document that a page cites: its title, its address, the day it was read and, for
  * one claim, the passages that hold the claim. It carries no grade and no letter (S1). */
 export function SourceEntry({ source }: SourceEntryProps) {
+  const titleId = useId();
   return (
     <article
-      aria-label={source.title}
-      className="flex min-w-0 flex-col gap-1 border-l border-input pl-3"
+      aria-labelledby={titleId}
+      className="flex min-w-0 flex-col gap-1 border-l border-border pl-3"
     >
-      <h3 className="font-medium break-words">{source.title}</h3>
+      <h3 id={titleId} className="font-medium break-words">
+        {source.title}
+      </h3>
       <div className="text-xs/5">
         <KeyValue
           entries={[
@@ -58,9 +63,9 @@ export function SourceEntry({ source }: SourceEntryProps) {
       {source.passages === null ? null : source.passages.length === 0 ? (
         <EmptyState sentence="The release holds no passage of this document for this claim." />
       ) : (
-        source.passages.map((passage, index) => (
-          // A passage has no identifier of its own. Its page and its place in the list name it.
-          <figure key={`${passage.page} ${String(index)}`} className="flex flex-col gap-1">
+        source.passages.map((passage) => (
+          // A passage has no identifier of its own. Its page and its words name it.
+          <figure key={`${passage.page} ${passage.excerpt}`} className="flex flex-col gap-1">
             <blockquote className="max-w-prose bg-muted px-3 py-2">{passage.excerpt}</blockquote>
             <figcaption className="text-xs/5 text-muted-foreground">
               Page {passage.page}, {passage.modality}

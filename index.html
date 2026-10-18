@@ -19,7 +19,7 @@
       try {
         var raw = localStorage.getItem('gab.shell.v1');
         var theme = raw === null ? 'light' : JSON.parse(raw).theme;
-        if (theme !== 'dark' && theme !== 'light') theme = 'system';
+        if (theme !== 'dark' && theme !== 'light' && theme !== 'system') theme = 'light';
         var dark =
           theme === 'dark' ||
           (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);

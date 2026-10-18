@@ -49,18 +49,24 @@ export function DataTable<Row>({ name, columns, rows, empty }: DataTableProps<Ro
         <tbody>
           {rows.map(({ id, row }) => (
             <tr key={id} className="border-b border-border">
-              {columns.map((column) => (
-                <td
-                  key={column.key}
-                  className={cn(
-                    CELL,
-                    column.figure !== undefined && 'font-mono tabular-nums',
-                    column.figure === 'count' && 'text-right',
-                  )}
-                >
-                  {column.cell(row)}
-                </td>
-              ))}
+              {columns.map((column, place) => {
+                const className = cn(
+                  CELL,
+                  'font-normal text-left',
+                  column.figure !== undefined && 'font-mono tabular-nums',
+                  column.figure === 'count' && 'text-right',
+                );
+                // The first column names the row for a screen reader.
+                return place === 0 ? (
+                  <th key={column.key} scope="row" className={className}>
+                    {column.cell(row)}
+                  </th>
+                ) : (
+                  <td key={column.key} className={className}>
+                    {column.cell(row)}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
