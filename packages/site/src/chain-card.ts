@@ -156,12 +156,17 @@ export const chainView = (release: SiteRelease): ChainView => {
                   act: [one.act_label, one.act_document ?? ''].filter(Boolean).join(', '),
                   from: one.from ?? '',
                   to: one.to ?? '',
-                  // A measure through an operator or an owner is in review when its link is.
+                  // A measure through an operator or an owner is in review when its link or that entity is.
                   ...fact(
                     `${key} ${one.measure} ${one.act_id} ${one.from ?? ''} ${one.via?.entity_id ?? ''}`.trim(),
-                    [one.origin_label, one.via?.link_origin_label ?? one.origin_label].find(
-                      (label) => !isAccepted(label),
-                    ) ?? one.origin_label,
+                    [
+                      one.origin_label,
+                      one.via?.link_origin_label ?? one.origin_label,
+                      one.via === null
+                        ? one.origin_label
+                        : (release.entityById.get(one.via.entity_id)?.originLabel ??
+                          PROPOSED_LABEL),
+                    ].find((label) => !isAccepted(label)) ?? one.origin_label,
                   ),
                 })),
               ),

@@ -217,8 +217,8 @@ const SITE_FEATURE = {
           from: null,
           via: {
             role: 'operator',
-            entity_id: '0a1f0000-0000-4000-8000-000000000061',
-            entity_label: 'Site Operator JSC',
+            entity_id: '0a1f0000-0000-4000-8000-000000000002',
+            entity_label: 'Arctic Bridge Shipping',
             link_origin_label: RULE,
           },
         },

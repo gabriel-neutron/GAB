@@ -88,11 +88,20 @@ const listingsOf = (
       uk: [...(own?.uk ?? [])],
     });
   }
-  for (const link of record.relations) {
-    if (link.type !== 'operates' && link.type !== 'owns') continue;
+  // An operator comes before an owner, so an entity that does both gives its measures once, as the
+  // operator. A link with an end is not current, and its measures do not pass to the asset.
+  const links = [
+    ...record.relations.filter((one) => one.type === 'operates'),
+    ...record.relations.filter((one) => one.type === 'owns'),
+  ].filter((one) => one.valid_to === null);
+  const seen = new Set<string>();
+  for (const link of links) {
     const held = byAsset.get(link.dst_id);
     const theirs = found.get(link.src_id);
-    if (held === undefined || theirs === undefined) continue;
+    const pair = `${link.dst_id} ${link.src_id}`;
+    if (held === undefined || theirs === undefined || seen.has(pair)) continue;
+    seen.add(pair);
+    if (link.type !== 'operates' && link.type !== 'owns') continue;
     const via = {
       role: ROLE_OF_LINK[link.type],
       entity_id: link.src_id,

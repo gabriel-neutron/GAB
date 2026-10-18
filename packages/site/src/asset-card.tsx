@@ -10,7 +10,7 @@ const IN_REVIEW = 'In review';
 // edge and the muted text.
 const ACCEPTED_ITEM = 'border-l border-border pl-1.5';
 // A measure that names the operator or the owner, not the asset, has a dotted edge.
-const VIA_ITEM = 'border-l-2 border-dotted border-border pl-1.5';
+const VIA_ITEM = 'border-l-2 border-dotted border-foreground/60 pl-1.5';
 const REVIEW_ITEM = 'border-l-2 border-dashed border-candidate pl-1.5 text-muted-foreground';
 
 function Fact({

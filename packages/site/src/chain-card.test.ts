@@ -41,8 +41,13 @@ test('an entity that is only proposed has no stage, and each of its facts is in 
   expect(port?.relations.every((one) => one.inReview)).toBe(true);
 });
 
-test('only a facility has a sanctions status', () => {
+test('a vessel has no sanctions status', () => {
   expect(chainView(FIXTURE_RELEASE.off).cards[VESSEL]?.sanctions).toBeNull();
+});
+
+test('a port with no measure has a status with no measure in each regime', () => {
+  const sanctions = chainView(FIXTURE_RELEASE.off).cards[PORT]?.sanctions;
+  expect(sanctions?.map((one) => one.measures.length)).toStrictEqual([0, 0, 0]);
 });
 
 test('a facility gives the status of each regime: the measure, the act and its date, or no measure', () => {
@@ -61,7 +66,7 @@ test('a facility gives the status of each regime: the measure, the act and its d
     },
   ]);
   expect(sanctions?.[1]?.measures).toMatchObject([
-    { measure: 'Listed', via: 'operator Site Operator JSC', from: '', inReview: false },
+    { measure: 'Listed', via: 'operator Arctic Bridge Shipping', from: '', inReview: false },
   ]);
   expect(sanctions?.[2]?.measures).toMatchObject([
     { measure: 'Sectoral measure', act: 'HM Treasury, UK sanctions list', inReview: true },

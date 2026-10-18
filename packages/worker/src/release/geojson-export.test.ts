@@ -312,3 +312,32 @@ test('a port that the act does not name takes the measures of its direct operato
     uk: [{ measure: 'restricted_by', via: { role: 'operator' } }],
   });
 });
+
+test('an owner gives its measures once, as the operator when it is both, and an ended link gives none', () => {
+  const link = (id: string, type: string, src: string, to: string | null) => ({
+    id,
+    type,
+    src_id: src,
+    dst_id: PORT,
+    valid_from: null,
+    valid_to: to,
+    origin_label: LABEL,
+    sources: ['doc_b'],
+  });
+  const port = (relations: ReleaseRecord['relations']) =>
+    collection({ ...RECORD, relations: [...RECORD.relations, ...relations] }).features.find(
+      (one) => one['id'] === PORT,
+    )?.properties['sanctions'];
+  expect(port([link('00000000-0000-4000-8000-0000000000b2', 'owns', DEPOT, null)])).toMatchObject({
+    eu: [{ via: { role: 'owner', entity_id: DEPOT } }],
+  });
+  expect(
+    port([
+      link('00000000-0000-4000-8000-0000000000b3', 'owns', DEPOT, null),
+      link('00000000-0000-4000-8000-0000000000b4', 'operates', DEPOT, null),
+    ]),
+  ).toMatchObject({ eu: [{ via: { role: 'operator' } }], us: [{}], uk: [{}] });
+  expect(
+    port([link('00000000-0000-4000-8000-0000000000b5', 'operates', DEPOT, '2019-12-31')]),
+  ).toStrictEqual({ eu: [], us: [], uk: [] });
+});

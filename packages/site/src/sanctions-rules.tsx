@@ -14,16 +14,19 @@ export function SanctionsRules({ manifest }: { readonly manifest: SiteManifest }
     <>
       <p>
         A facility or a port has a status for each regime (EU, US, UK). “Listed in” is a listing in
-        an act; “Sectoral measure” is a restriction of a sector, not a listing. A measure that names
-        the asset has a full edge. A measure that names its direct operator or owner, and not the
-        asset, has a dotted edge and the name of that operator or owner. The map does not apply the
+        an act. “Sectoral measure” is a sectoral restriction, not an asset freeze. A measure that
+        names the asset has a full edge. A measure that names its direct operator or owner, and not
+        the asset, has a dotted edge and the name of that operator or owner. Only a current
+        operating or ownership link counts, and the map gives no share. The map does not apply the
         50% rule. “No measure found in this release” tells only what this release holds.
       </p>
       <p data-date-rules="">
         {rules === null
           ? 'This release does not give its date rules.'
-          : `Date rules of this release. EU: ${RULE_WORDS[rules.eu] ?? rules.eu}. US: ${RULE_WORDS[rules.ofac] ?? rules.ofac}. UK: ${RULE_WORDS[rules.uk] ?? rules.uk}.`}{' '}
-        A measure with no date in the release shows “date not in release”.
+          : `Date rules of this release, for the alignment matrix. EU: ${RULE_WORDS[rules.eu] ?? rules.eu}. US: ${RULE_WORDS[rules.ofac] ?? rules.ofac}. UK: ${RULE_WORDS[rules.uk] ?? rules.uk}.`}{' '}
+        On the map, a measure gives its start date in the record. With no start, it gives the entry
+        into force of its act, when that value cites a file of the same regime. Else it shows “date
+        not in release”.
       </p>
     </>
   );
