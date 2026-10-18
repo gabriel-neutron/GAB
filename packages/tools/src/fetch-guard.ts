@@ -82,9 +82,19 @@ export interface GetOptions {
   readonly lookup?: (host: string) => Promise<readonly Resolved[]>;
   /** The range check. The default is refusedAddress. */
   readonly refuses?: (address: string) => boolean;
-  /** The format and the language that the caller asks for. The user agent and the encoding stay
-   * those of the project. */
+  /** The format and the language that the caller asks for. The other headers (the user agent,
+   * the client hints, the fetch metadata and the encoding) stay those of the project. */
   readonly ask?: { readonly accept?: string; readonly 'accept-language'?: string };
+  /** The fetch metadata of a part of a page (a script, a style, an image, a call of a script),
+   * which Chrome sends in place of the metadata of a page that a person opens. */
+  readonly subresource?: FetchMetadata;
+}
+
+/** The sec-fetch-* values of one request, as Chrome sends them. */
+export interface FetchMetadata {
+  readonly dest: string;
+  readonly mode: string;
+  readonly site: 'same-origin' | 'same-site' | 'cross-site';
 }
 
 export interface Got {
@@ -123,6 +133,25 @@ export const HEADERS = {
   'sec-fetch-user': '?1',
   'upgrade-insecure-requests': '1',
 } as const;
+
+// A part of a page has no user activation and asks for no upgrade of the page.
+const PART_HEADERS: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(HEADERS).filter(
+    ([name]) => name !== 'sec-fetch-user' && name !== 'upgrade-insecure-requests',
+  ),
+);
+
+/** The headers of one request: a page that a person opens, or a part of a page. */
+export const requestHeaders = (options: Pick<GetOptions, 'ask' | 'subresource'>) =>
+  options.subresource === undefined
+    ? { ...HEADERS, ...options.ask }
+    : {
+        ...PART_HEADERS,
+        'sec-fetch-dest': options.subresource.dest,
+        'sec-fetch-mode': options.subresource.mode,
+        'sec-fetch-site': options.subresource.site,
+        ...options.ask,
+      };
 
 const systemLookup = async (host: string): Promise<readonly Resolved[]> =>
   resolveName(host, { all: true, verbatim: true });
@@ -279,7 +308,7 @@ export const guardedGet = async (raw: string, options: GetOptions): Promise<Got>
     try {
       const response = await opened(url, {
         method: 'GET',
-        headers: { ...HEADERS, ...options.ask },
+        headers: requestHeaders(options),
         lookup,
         signal,
       });

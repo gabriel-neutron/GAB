@@ -3,7 +3,15 @@ import type { AddressInfo } from 'node:net';
 
 import { describe, expect, test } from 'vitest';
 
-import { FetchRefusal, guardedGet, HEADERS, pageAddress, refusedAddress } from './fetch-guard.ts';
+import {
+  FetchRefusal,
+  guardedGet,
+  HEADERS,
+  pageAddress,
+  refusedAddress,
+  requestHeaders,
+} from './fetch-guard.ts';
+import { partMetadata } from './render-page.ts';
 
 describe('refusedAddress', () => {
   test.each([
@@ -94,7 +102,7 @@ describe('the headers of the outgoing request', () => {
         ask: { accept: 'application/xhtml+xml', 'accept-language': 'eng' },
       });
     } finally {
-      server.close();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
     }
 
     const [plain, asking] = asked;
@@ -114,6 +122,60 @@ describe('the headers of the outgoing request', () => {
       ...HEADERS,
       accept: 'application/xhtml+xml',
       'accept-language': 'eng',
+    });
+  });
+});
+
+describe('the headers of a part of a page', () => {
+  test('a script of another site has the fetch metadata of a script, and no user activation', () => {
+    const headers = requestHeaders({
+      subresource: partMetadata(
+        'https://www.example.org/a',
+        'https://cdn.other.net/x.js',
+        'script',
+      ),
+    });
+    expect(headers).toMatchObject({
+      'user-agent': HEADERS['user-agent'],
+      'sec-ch-ua': HEADERS['sec-ch-ua'],
+      'sec-fetch-dest': 'script',
+      'sec-fetch-mode': 'no-cors',
+      'sec-fetch-site': 'cross-site',
+    });
+    expect(headers).not.toHaveProperty('sec-fetch-user');
+    expect(headers).not.toHaveProperty('upgrade-insecure-requests');
+  });
+
+  test.each([
+    [
+      'a call of a script on the same origin',
+      'https://www.example.org/api',
+      'xhr',
+      'empty',
+      'cors',
+      'same-origin',
+    ],
+    [
+      'an image of the same site',
+      'https://img.example.org/a.png',
+      'image',
+      'image',
+      'no-cors',
+      'same-site',
+    ],
+    [
+      'a frame of another site',
+      'https://other.net/f',
+      'document',
+      'iframe',
+      'navigate',
+      'cross-site',
+    ],
+  ])('%s', (_name, part, kind, dest, mode, site) => {
+    expect(partMetadata('https://www.example.org/a', part, kind)).toStrictEqual({
+      dest,
+      mode,
+      site,
     });
   });
 });
