@@ -1,5 +1,6 @@
 import { createRouter, useRouter } from '@tanstack/react-router';
 import { Button } from '@/shared/ui/button';
+import { ErrorNotice } from '@/shared/error-notice';
 import { refreshCorpus } from '@/shared/read/corpus';
 import { keepOperatorKey } from '@/shared/write/operator-key';
 import { routeTree } from './routeTree.gen';
@@ -32,22 +33,13 @@ function PathNotFound() {
 // so the retry always asks the read API a second time, after a failure and after a success.
 function RouteError({ error }: { error: Error }) {
   const router = useRouter();
-
   return (
-    <div className="flex h-full flex-col items-start gap-2 overflow-y-auto p-4">
-      <p>
-        This page did not get the record. The read service may be down. Start it, then press Retry.
-      </p>
-      <pre className="text-xs text-label">{error.message}</pre>
-      <Button
-        variant="outline"
-        onClick={() => {
-          void refreshCorpus(() => router.invalidate());
-        }}
-      >
-        Retry
-      </Button>
-    </div>
+    <ErrorNotice
+      detail={error.message}
+      onRetry={() => {
+        void refreshCorpus(() => router.invalidate());
+      }}
+    />
   );
 }
 

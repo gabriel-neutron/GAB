@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { ErrorNotice } from '@/shared/error-notice';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import type { WriteState } from '@/shared/write/write-state';
@@ -129,7 +130,7 @@ export function GroupPanel({ view, document, words, onPromote }: GroupPanelProps
         {view.action.step === 'done' ? (
           <Results name={view.action.name} results={view.action.results} />
         ) : null}
-        <p className="text-label">{view.why}</p>
+        <ErrorNotice detail={view.why} />
       </section>
     );
 
