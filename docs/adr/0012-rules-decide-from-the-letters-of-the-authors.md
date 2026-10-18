@@ -46,9 +46,10 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
   to an approved reference author, with `pnpm worker author-names move <name> <author>`. The rows
   stay: the move writes the name again for the reference author, with a refusal that retires the
   old row and a confirmation of the new row, and both decisions record the operator. Then the
-  rules run again on the units of the name. A move into an author out of the reference set is
-  refused, because only the operator gives A or B, and so is a move of a name of a reference
-  author. The old author keeps its row, and the rater no longer sees it once its own name has
+  rules run again on the units of the name. A move into a reference author that the operator
+  did not approve is refused, because only the operator gives A or B, and so is a move of a name
+  of a reference author. A move is final: a name that a move gave to its author takes no second
+  move and no return to the rater. The old author keeps its row, and the rater no longer sees it once its own name has
   moved.
 - The rater can also join a name to a wrong author that it rated. On 17 October 2026 the name of
   the government of the Russian Federation was a name of the ministry of defence (D). So a move

@@ -5986,8 +5986,9 @@ END $$;
 -- new row. Both decisions record the operator. The door refuses a move into an author of the
 -- reference set that the operator did not approve, because only the operator gives a letter A or
 -- B, and a move into an author whose own name moved to another author. It refuses a name of a
--- reference author, because the operator approved that name with the set or decided it. It
--- refuses while the rating job of the name runs. The rules run again on the units of the name,
+-- reference author, because the operator approved that name with the set or decided it, and a
+-- name that an earlier move gave to its author, because a decision is written once. It refuses
+-- while the rating job of the name runs. The rules run again on the units of the name,
 -- and the door gives their number.
 CREATE OR REPLACE FUNCTION move_author_name(p_name text, p_author text) RETURNS int
 LANGUAGE plpgsql SECURITY DEFINER
@@ -6014,6 +6015,13 @@ BEGIN
     RAISE EXCEPTION 'the name "%" is a name of the reference author "%", and no move takes it',
       v_key, v_from.name_key USING ERRCODE = 'invalid_parameter_value';
   END IF;
+  -- A name that a move gave to an author holds the decision of the operator already.
+  IF EXISTS (SELECT 1 FROM public.author_name_decision d
+              WHERE d.name_key = v_key AND d.author_id = v_from.id) THEN
+    RAISE EXCEPTION 'the operator decided the name "%" for the author "%" already, and a decision '
+                    'is written once', v_key, v_from.name_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
   -- The author of the target name, when it is an author that a new name can join: an approved
   -- reference author, or an author that the worker rated and whose own name is still its name.
   SELECT a.id, a.name_key, a.letter IN ('A','B') AS high INTO v_to
@@ -6031,8 +6039,8 @@ BEGIN
     RAISE EXCEPTION 'the name "%" is a name of the author "%" already', v_key, v_to.name_key
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
-  IF EXISTS (SELECT 1 FROM public.author_name n WHERE n.name_key = v_key AND n.author_id = v_to.id)
-  THEN
+  IF EXISTS (SELECT 1 FROM public.author_name n
+              WHERE n.name_key = v_key AND n.author_id = v_to.id) THEN
     RAISE EXCEPTION 'the operator refused the name "%" for the author "%" before, and a decision '
                     'is written once', v_key, v_to.name_key
       USING ERRCODE = 'invalid_parameter_value';
@@ -6087,6 +6095,13 @@ BEGIN
   IF v_from.reference_set THEN
     RAISE EXCEPTION 'the name "%" is a name of the reference author "%", and the rater does not '
                     'rate it again', v_key, v_from.name_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  -- A name that a move gave to an author holds the decision of the operator already.
+  IF EXISTS (SELECT 1 FROM public.author_name_decision d
+              WHERE d.name_key = v_key AND d.author_id = v_from.id) THEN
+    RAISE EXCEPTION 'the operator decided the name "%" for the author "%" already, and a decision '
+                    'is written once', v_key, v_from.name_key
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
   -- An author keeps its own name, also after a move, so the rater could not write it again.

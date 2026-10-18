@@ -1,6 +1,6 @@
 // The operator moves a name from an author that the worker rated to an approved reference author
-// or to another rated author, or gives the name back to the rater (ADR 0012). Each case runs inside a transaction that rolls back, and it reads only the rows that
-// it wrote.
+// or to another rated author, or gives the name back to the rater (ADR 0012). Each case runs inside
+// a transaction that rolls back, and it reads only the rows that it wrote.
 
 import { randomUUID } from 'node:crypto';
 
@@ -355,4 +355,21 @@ test('a return to the rater waits while the rating job of the name runs, and no 
   });
   expect(read.roles.every((said) => said?.includes('permission denied') === true)).toBe(true);
   expect(read.running).toContain('runs now');
+});
+
+test('a move is final: a moved name takes no second move and no return to the rater', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const { right, alias } = await wronglyJoined(ask);
+    const other = name();
+    await rate(ask, other, 'E');
+    await move(ask, alias, right);
+    return {
+      moved: await refusal(ask, () => move(ask, alias, other)),
+      rerated: await refusal(ask, () => rerate(ask, alias)),
+      letter: await letter(ask, alias),
+    };
+  });
+  expect(read.moved).toContain('a decision is written once');
+  expect(read.rerated).toContain('a decision is written once');
+  expect(read.letter).toBe('C');
 });
