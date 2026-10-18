@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { alignmentMatrix } from './alignment-matrix.ts';
 import { assetLinks } from './asset-links.ts';
+import { chainVolumes } from './chain-volumes.ts';
 import { releaseChangelog } from './changelog.ts';
 import { releaseCredits } from './credits.ts';
 import { criticalNodes } from './critical-nodes.ts';
@@ -15,6 +16,7 @@ import type { PreviousRelease } from './previous-release.ts';
 import { releaseHeading } from './release-heading.ts';
 import type { ReleaseManifest } from './release-manifest.ts';
 import type { ReleaseRecord } from './release-record.ts';
+import type { VolumeRejection, VolumeTable } from './volume-table.ts';
 
 /** The file that lists each file of a release with its checksum. */
 const FILE_MANIFEST = 'manifest.json';
@@ -23,22 +25,31 @@ const FILE_MANIFEST = 'manifest.json';
  * `previous` (or a first release with none), and the file manifest with the size and the checksum
  * of each other file. The static site reads the contact addresses and the base of the
  * identifiers from the file manifest. The file manifest also gives the number of merge candidates
- * across a Latin and a Cyrillic spelling that wait, that the operator confirmed and refused. */
+ * across a Latin and a Cyrillic spelling that wait, that the operator confirmed and refused. The
+ * rows of the volume table that the volumes table rejects, and the rows whose asset label names
+ * more than one entity, come back beside the files. */
 export const releaseFiles = (
   record: ReleaseRecord,
   manifest: ReleaseManifest,
   sheet: readonly SheetRow[] | null,
   previous: PreviousRelease | null,
-): readonly ReleaseFile[] => {
+  volumes: VolumeTable | null,
+): {
+  readonly files: readonly ReleaseFile[];
+  readonly volumeRejections: readonly VolumeRejection[];
+  readonly volumesUnjoined: readonly VolumeRejection[];
+} => {
   assertNoOsmGeometry(record);
   const disclaimer = releaseDisclaimer(record.disclaimer, manifest.contacts);
   const heading = releaseHeading(manifest, disclaimer);
   const preamble = `${heading.title}\n\n${disclaimer}`;
+  const volumeTable = chainVolumes(record, volumes, preamble);
   const exports: readonly ReleaseFile[] = [
     ...csvExport(record, preamble),
     alignmentMatrix(record, manifest.dateRules, preamble),
     criticalNodes(record, sheet, preamble),
     assetLinks(record, preamble),
+    volumeTable.file,
     releaseCredits(heading),
     geojsonExport(record, heading),
     jsonldExport(record, heading, manifest.iriBase),
@@ -67,5 +78,9 @@ export const releaseFiles = (
     nameCandidates: record.nameCandidates,
     files: listed,
   };
-  return [...files, { path: FILE_MANIFEST, text: `${JSON.stringify(fileManifest, null, 2)}\n` }];
+  return {
+    files: [...files, { path: FILE_MANIFEST, text: `${JSON.stringify(fileManifest, null, 2)}\n` }],
+    volumeRejections: volumeTable.rejected,
+    volumesUnjoined: volumeTable.unjoined,
+  };
 };

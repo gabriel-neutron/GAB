@@ -13,7 +13,7 @@ export const promoteUnit = defineTool({
     'an AI reviewer" and your reason, so the operator sees that a human did not decide. The ' +
     'database runs the same check of the faults as the page, and refuses a unit with an ' +
     'impossible link or a unit that waits for another unit. Read the cited passage first, and ' +
-    'never decide a unit that your own session proposed.',
+    'never decide a unit that you proposed: a new reviewer agent decides it.',
   input: z.strictObject({ unitId: z.uuid().describe('the id of the unit, from a list'), why }),
   output: decisionOutput,
   run: (session, input) => decide(session, PROMOTE, [input.unitId, input.why]),

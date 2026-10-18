@@ -7,6 +7,7 @@ import {
   linkSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -17,6 +18,7 @@ import { join } from 'node:path';
 
 import { UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
 import { endOcr } from '@gab/text';
+import { zipOf } from '@gab/text/xlsx-fixture';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
@@ -47,7 +49,29 @@ const TEXT = `<p>${'On 3 June 2022 the Council adopted the sixth package of sanc
 writeFileSync(join(inbox, 'timeline.html'), page(TEXT));
 writeFileSync(join(inbox, 'challenge.html'), '<html><body>Just a moment...</body></html>');
 writeFileSync(join(inbox, 'empty.html'), '<html><body></body></html>');
-writeFileSync(join(inbox, 'notes.txt'), 'A note that the AI wrote.');
+writeFileSync(join(inbox, 'notes.txt'), `A note that the AI wrote. Run ${RUN}.`);
+// An ENTSOG answer that the operator saved from the browser, and a Comext table in TSV.
+writeFileSync(
+  join(inbox, 'entsog.json'),
+  `{"operationaldatas":[{"pointLabel":"Budince","directionKey":"exit","value":0,"run":"${RUN}"}]}`,
+);
+writeFileSync(
+  join(inbox, 'comext.tsv'),
+  'freq,reporter,partner,product,flow,indicators\\TIME_PERIOD\t2026-07 \n' +
+    `M,HU,RU,27090090,1,QUANTITY_IN_100KG\t3272070.00 ${RUN}\n`,
+);
+writeFileSync(join(inbox, 'data.bin'), Buffer.from([0x00, 0x01, 0x02, 0xff]));
+writeFileSync(join(inbox, 'binary.txt'), Buffer.from([0x41, 0x01, 0x02, 0x03, 0x42]));
+writeFileSync(join(inbox, 'latin1.csv'), Buffer.from([0x6e, 0x0a, 0x8a, 0x61, 0xbe, 0x61]));
+writeFileSync(join(inbox, 'archive.zip'), zipOf([['logo.bin', 'No reader takes this.']]));
+// A bulk file of two tables and a file that no reader takes, and a hostile archive.
+const BULK = [
+  ['entities.csv', `id,name\nNK-1,Nayara ${RUN}\n`],
+  ['data/notes.txt', `The notes of run ${RUN}.`],
+  ['logo.bin', 'No reader takes this.'],
+] as const;
+writeFileSync(join(inbox, 'bulk.zip'), zipOf(BULK));
+writeFileSync(join(inbox, 'hostile.zip'), zipOf([['../outside.txt', `Run ${RUN}.`]]));
 writeFileSync(join(inbox, 'big.html'), Buffer.alloc(UPLOAD_FILE_BYTES + 1, 0x20));
 const IMAGES = join(import.meta.dirname, '../../text/fixtures');
 copyFileSync(join(IMAGES, 'unit-tree.png'), join(inbox, 'unit-tree.png'));
@@ -107,6 +131,35 @@ test('a saved page is stored once, under the address of its source, as saved by 
   expect(store.puts).toHaveLength(1);
 });
 
+test.each([
+  ['notes.txt', 'text/plain', 'A note that the AI wrote.'],
+  ['entsog.json', 'application/json', '"pointLabel": "Budince"'],
+  ['comext.tsv', 'text/tab-separated-values', 'QUANTITY_IN_100KG\t3272070.00'],
+])('the text file %s is stored once, with its bytes as they came', async (file, mime, text) => {
+  const store = memoryStore();
+  const url = `https://example.org/${file}?run=${RUN}&from=2026-07-01`;
+  await rolledBack('research', async (ask) => {
+    const first = await callTool(storeSavedFile, sessionOf(ask), { file, url }, reachOf(store));
+    expect(first).toMatchObject({ ok: true, output: { status: 'stored', pages: 1 } });
+    const second = await callTool(storeSavedFile, sessionOf(ask), { file, url }, reachOf(store));
+    expect(second).toMatchObject({ ok: true, output: { status: 'known' } });
+    const [held] = z.array(z.object({ uri: z.string(), mime: z.string(), text: z.string() })).parse(
+      await ask(
+        `SELECT d.uri, d.mime, t.text FROM public.documents d
+             JOIN public.document_text t ON t.document_id = d.id WHERE d.uri = $1`,
+        [url],
+      ),
+    );
+    expect(held?.uri).toBe(url);
+    expect(held?.mime).toBe(mime);
+    expect(held?.text).toContain(text);
+  });
+  expect(store.puts).toHaveLength(1);
+  expect(Buffer.from(store.puts[0]?.bytes ?? []).equals(readFileSync(join(inbox, file)))).toBe(
+    true,
+  );
+});
+
 test('a saved PNG image is stored as an image, with its OCR text as the page', async () => {
   const store = memoryStore();
   await rolledBack('research', async (ask) => {
@@ -119,6 +172,123 @@ test('a saved PNG image is stored as an image, with its OCR text as the page', a
     expect(got).toMatchObject({ ok: true, output: { status: 'stored', pages: 1 } });
   });
   expect(store.puts.map((put) => put.mime)).toStrictEqual(['image/png']);
+});
+
+const childRow = z.object({
+  id: z.string(),
+  uri: z.string(),
+  mime: z.string(),
+  archive_path: z.string(),
+  archive_sha256: z.string(),
+  text: z.string(),
+});
+
+test('a ZIP archive is one document, and each file that a reader takes is a child linked to it', async () => {
+  const store = memoryStore();
+  const url = `https://data.opensanctions.org/bulk-${RUN}.zip`;
+  await rolledBack('research', async (ask) => {
+    const got = await callTool(
+      storeSavedFile,
+      sessionOf(ask),
+      { file: 'bulk.zip', url },
+      reachOf(store),
+    );
+    if (!got.ok) throw new Error(got.refusal);
+    const output = z
+      .object({
+        document: z.string(),
+        files: z.array(
+          z.object({
+            path: z.string(),
+            document: z.string(),
+            status: z.string(),
+            linked: z.string(),
+          }),
+        ),
+        skipped: z.array(z.object({ path: z.string(), reason: z.string() })),
+      })
+      .parse(got.output);
+    expect(output.files.map((file) => [file.path, file.status, file.linked])).toStrictEqual([
+      ['entities.csv', 'stored', 'filled'],
+      ['data/notes.txt', 'stored', 'filled'],
+    ]);
+    expect(output.skipped).toStrictEqual([
+      { path: 'logo.bin', reason: 'no reader takes the type of its name' },
+    ]);
+
+    const archive = readFileSync(join(inbox, 'bulk.zip'));
+    const children = z.array(childRow).parse(
+      await ask(
+        `SELECT c.id::text AS id, c.uri, c.mime, c.archive_path, a.sha256 AS archive_sha256,
+                t.text
+           FROM public.documents c
+           JOIN public.documents a ON a.id = c.archive_id
+           JOIN public.document_text t ON t.document_id = c.id
+          WHERE c.archive_id = $1 ORDER BY c.archive_path`,
+        [output.document],
+      ),
+    );
+    expect(children.map((child) => [child.archive_path, child.uri, child.mime])).toStrictEqual([
+      ['data/notes.txt', `${url}#data/notes.txt`, 'text/plain'],
+      ['entities.csv', `${url}#entities.csv`, 'text/csv'],
+    ]);
+    // Each child is linked to the hash of the archive, and keeps its own text and hash.
+    for (const child of children) {
+      expect(child.archive_sha256).toBe(createHash('sha256').update(archive).digest('hex'));
+      expect(child.id).toBe(
+        output.files.find((file) => file.path === child.archive_path)?.document,
+      );
+    }
+    expect(children.map((child) => child.text)).toStrictEqual([BULK[1][1], BULK[0][1]]);
+
+    // The text of the archive lists each file with its hash, and the file that was not stored.
+    const [listing] = z
+      .array(z.object({ text: z.string() }))
+      .parse(
+        await ask('SELECT text FROM public.document_text WHERE document_id = $1', [
+          output.document,
+        ]),
+      );
+    expect(listing?.text).toContain(
+      `entities.csv\t${String(BULK[0][1].length)} bytes\tsha256 ` +
+        createHash('sha256').update(BULK[0][1]).digest('hex'),
+    );
+    expect(listing?.text).toContain('logo.bin\tnot stored: no reader takes the type of its name');
+
+    // The door links no file that the text of the archive does not name with its hash.
+    await ask('SAVEPOINT wrong_link');
+    await expect(
+      ask('SELECT public.fill_document_archive($1, $2, $3)', [
+        children[0]?.id,
+        output.document,
+        'entities.csv',
+      ]),
+    ).rejects.toThrow(/names no file entities.csv with the hash/u);
+    await ask('ROLLBACK TO SAVEPOINT wrong_link');
+
+    // The same archive again is known, and so is each file.
+    const again = await callTool(
+      storeSavedFile,
+      sessionOf(ask),
+      { file: 'bulk.zip', url },
+      reachOf(store),
+    );
+    expect(again).toMatchObject({
+      ok: true,
+      output: {
+        status: 'known',
+        files: [
+          { status: 'known', linked: 'same' },
+          { status: 'known', linked: 'same' },
+        ],
+      },
+    });
+  });
+  expect(store.puts.map((put) => put.mime)).toStrictEqual([
+    'application/zip',
+    'text/csv',
+    'text/plain',
+  ]);
 });
 
 // The refusal of one call, and the number of objects that the call put in the store.
@@ -146,11 +316,24 @@ test.each([
   ['a page with no text', 'empty.html', 'holds no text'],
   ['an image with no text', 'blank.png', 'holds no text'],
   ['an image above the pixel cap', 'huge.png', 'pixels'],
-  ['a text file, which is no saved page', 'notes.txt', 'is not a saved page'],
+  ['a binary file of a type that no reader takes', 'data.bin', '.json, .tsv, .txt'],
+  ['a binary file with a text extension', 'binary.txt', 'control character'],
+  ['a text file that is no UTF-8', 'latin1.csv', 'not valid UTF-8'],
+  ['a ZIP archive with no file that a reader takes', 'archive.zip', 'no file that a reader'],
+  ['a ZIP archive with a path that leaves it', 'hostile.zip', 'leaves the archive'],
   ['a file larger than the upload limit', 'big.html', 'larger than'],
   ['a file that is not in the inbox', 'absent.pdf', 'no file named'],
 ])('%s is refused, and nothing is stored', async (_name, file, reason) => {
   const got = await refusalOf(file);
+  expect(got.refusal).toContain(reason);
+  expect(got.puts).toBe(0);
+});
+
+test.each([
+  ['a Nominatim answer', 'https://nominatim.openstreetmap.org/search?q=Kirishi', 'Nominatim'],
+  ['a search result page', 'https://www.google.com/search?q=Kirishi', 'Google search'],
+])('%s saved by the browser is refused, and nothing is stored', async (_name, url, reason) => {
+  const got = await refusalOf('notes.txt', url);
   expect(got.refusal).toContain(reason);
   expect(got.puts).toBe(0);
 });

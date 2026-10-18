@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { CsvFault, readCsv } from './csv.ts';
+import { CsvFault, readCsv, readTsv } from './csv.ts';
 import { headerSignature } from './header-signature.ts';
 
 const slice = (page: string, start: number, end: number): string =>
@@ -61,4 +61,29 @@ test('the signature changes with the order of the columns', () => {
   expect(headerSignature(['a', 'b'])).toMatch(/^[0-9a-f]{64}$/u);
   expect(headerSignature(['a', 'b'])).not.toBe(headerSignature(['b', 'a']));
   expect(headerSignature(['a,b'])).not.toBe(headerSignature(['a', 'b']));
+});
+
+test('a TSV record splits at each tab, and a quote or a comma is a character of its field', () => {
+  const page = '﻿name\tnote\r\n"Nayara, Star"\t5" pipe\n\nlast\t\n';
+  const records = readTsv(page);
+  expect(records.map((record) => record.fields)).toStrictEqual([
+    ['name', 'note'],
+    ['"Nayara, Star"', '5" pipe'],
+    ['last', ''],
+  ]);
+  expect(records.map((record) => slice(page, record.start, record.end))).toStrictEqual([
+    'name\tnote',
+    '"Nayara, Star"\t5" pipe',
+    'last\t',
+  ]);
+});
+
+test('the TSV of Eurostat keeps its dimensions in one column and a column for each period', () => {
+  const page =
+    'freq,reporter,partner,product,flow,indicators\\TIME_PERIOD\t2026-07 \n' +
+    'M,HU,RU,27090090,1,QUANTITY_IN_100KG\t3272070.00\n';
+  expect(readTsv(page).map((record) => record.fields)).toStrictEqual([
+    ['freq,reporter,partner,product,flow,indicators\\TIME_PERIOD', '2026-07 '],
+    ['M,HU,RU,27090090,1,QUANTITY_IN_100KG', '3272070.00'],
+  ]);
 });

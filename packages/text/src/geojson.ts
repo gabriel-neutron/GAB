@@ -28,7 +28,7 @@ export const GEOMETRY_COLUMN = 'geometry';
 
 // A zip archive made on a Mac holds a folder of resource forks, and any system adds hidden files.
 // They are no layer, and one bad entry never stops the read.
-const isSystemEntry = (name: string): boolean => {
+export const isSystemEntry = (name: string): boolean => {
   const base = name.slice(name.lastIndexOf('/') + 1);
   return (
     name.endsWith('/') ||

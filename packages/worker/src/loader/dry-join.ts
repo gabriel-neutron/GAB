@@ -93,7 +93,7 @@ export const dryJoin = async (db: Queryable, mappingId: string): Promise<string>
 
   const session: Session = { query: (text, values) => db.query(text, values) };
   const page = await readTablePage(session, held.document, held.text_set);
-  const table = tableOf(page.text);
+  const table = tableOf(page.text, page.format);
   if (headerSignature(table.header) !== mapping.header_sig)
     throw new Error(
       `the header of document ${held.document} is not the header of mapping ${mappingId}`,

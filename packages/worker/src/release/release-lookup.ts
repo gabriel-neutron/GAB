@@ -15,6 +15,13 @@ export interface ReleaseLookup {
   /** The label of an entity. */
   readonly labelOf: (id: string) => string;
   readonly relationOf: (id: string) => ReleaseRelation;
+  /** The start and the end of a relation as its relation row gives them. A day that a later act
+   * gave is null here: the release gives it only as a claim of its own, with the documents and
+   * the passages of that act. A day from the creation of the relation stays on the row. */
+  readonly daysOf: (relation: ReleaseRelation) => {
+    readonly from: string | null;
+    readonly to: string | null;
+  };
 }
 
 // A row that names what the release does not hold is a fault of the read, and a file with an
@@ -32,11 +39,18 @@ export const releaseLookup = (record: ReleaseRecord): ReleaseLookup => {
   const entities = new Map(record.entities.map((one) => [one.id, one]));
   const entityOf = (id: string): ReleaseEntity => held(entities.get(id), `element ${id}`);
   const relations = new Map(record.relations.map((one) => [one.id, one]));
+  const claimed = new Set(
+    record.claims.filter((one) => one.subject_kind === 'relation').map((one) => one.claim_id),
+  );
   return {
     documentOf,
     licenceOf: (sources) => rowLicence(sources.map((id) => documentOf(id).licence)),
     entityOf,
     labelOf: (id) => entityOf(id).label,
     relationOf: (id) => held(relations.get(id), `relation ${id}`),
+    daysOf: (relation) => ({
+      from: claimed.has(`${relation.id}/valid_from`) ? null : relation.valid_from,
+      to: claimed.has(`${relation.id}/valid_to`) ? null : relation.valid_to,
+    }),
   };
 };

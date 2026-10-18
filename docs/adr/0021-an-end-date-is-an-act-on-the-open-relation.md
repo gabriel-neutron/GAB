@@ -32,6 +32,9 @@ this act is costly to change.
   public documents.
 - The end date carries the label of the act that gave it (PU1). A release writes it as a claim of
   its own, a value of the relation, with the label, the documents and the passages of that act.
+  The row of the relation in the release files then gives no end, so the end does not seem to
+  cite the documents of the whole relation. A relation with an end from its creation keeps the
+  end on its row.
   The row of the relation keeps the label of the act that made it, also for the first day. The
   read API gives the act of the end date in the ledger.
 - The review check blocks an end date on a relation that ended already or that the record no

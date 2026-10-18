@@ -332,6 +332,20 @@ test('the same read in another order of types has one address and one document',
   expect(store.puts).toHaveLength(1);
 });
 
+test('vessel_events reads the port visits of a vessel from the port visit dataset', async () => {
+  const web = gfwWeb();
+  const { session, reach } = setup(web);
+  const tool = toolNamed('vessel_events');
+  await callTool(tool, session, { vesselId: VESSEL, ...RANGE, types: ['port_visit'] }, reach);
+  expect(web.asked[0]?.url.searchParams.get('datasets[0]')).toBe(
+    'public-global-port-visits-events:latest',
+  );
+  await callTool(tool, session, { vesselId: VESSEL, ...RANGE }, reach);
+  expect(web.asked[1]?.url.searchParams.get('datasets[3]')).toBe(
+    'public-global-port-visits-events:latest',
+  );
+});
+
 test('an MMSI search that answers 404 is a vessel that is not known', async () => {
   const web = stubWeb(() => text('absent', 404), { gfwToken: GFW_TOKEN });
   const { session, reach } = setup(web);

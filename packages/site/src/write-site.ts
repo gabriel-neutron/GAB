@@ -16,7 +16,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { build, createServer } from 'vite';
 import { z } from 'zod';
 
-import { MAP_SCRIPT, V1 } from './site-paths.ts';
+import { MAP_COUNTRIES, MAP_SCRIPT, V1 } from './site-paths.ts';
 import { SiteReleaseFault } from './site-release-fault.ts';
 
 /** A site of the same release is in the folder already. */
@@ -25,6 +25,8 @@ export class SiteFolderExists extends Error {}
 const REPOSITORY = resolve(import.meta.dirname, '../../..');
 const BUILDER = resolve(import.meta.dirname, 'build-site.tsx');
 const MAP_ENTRY = resolve(import.meta.dirname, 'map-script.ts');
+// The outlines of the countries, from Natural Earth (public domain), simplified at 110 m.
+const COUNTRIES = resolve(import.meta.dirname, 'countries.json');
 
 // The site takes the one stylesheet of the application, so it paints with the same tokens and
 // no second palette exists. Tailwind builds the classes that the repository uses.
@@ -158,6 +160,7 @@ export const writeSite = async (
     }
     for (const path of files.keys()) await copyFile(join(releaseFolder, path), join(partial, path));
     await writeFile(join(partial, MAP_SCRIPT), script);
+    await copyFile(COUNTRIES, join(partial, MAP_COUNTRIES));
     for (const name of MAPLIBRE_FILES)
       await copyFile(join(maplibre, name), join(partial, dirname(MAP_SCRIPT), name));
     if (v1Folder !== null) {

@@ -50,6 +50,21 @@ const WORD_MONTH_FIRST = /([\p{L}.]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})(?!
 // names, so it states two days. The year is the one that the text gives, or else the year of the
 // publication date of the document.
 const NIGHT_DAY = /(?<!\p{L})у\s+ніч\s+на\s+(\d{1,2})\s+([\p{L}]+)(?:\s+(\d{4})(?!\d))?/giu;
+// An English night with two days: "on the night of September 5 to 6", "overnight on September 5
+// to 6", with a year or not. The second day must be the day after the first.
+// shortcut: no "night of 5 to 6 September" and no night over the end of a month; add them when a
+// stored excerpt needs them.
+const NIGHT_OF =
+  /(?<!\p{L})(?:night\s+of|overnight\s+on)\s+([\p{L}.]+)\s+(\d{1,2})(?:st|nd|rd|th)?\s*(?:to|-|–)\s*(\d{1,2})(?!\d)(?:st|nd|rd|th)?(?:,?\s+(\d{4})(?!\d))?/giu;
+// A news dateline with no year, "MOSCOW, Feb 24 (Reuters) -" or "Sept 17 (Reuters) -", at the start
+// of a line. With a night word in the cited text, it states the night that ends on that day
+// (decided by the expert panel), and only for the days of an event with the precision night. The
+// dateline alone states no day: it is the day of the report, and not of the event. "Saturday
+// night" or "last night" names another night, so it is no night word.
+// shortcut: no "on Monday"; add it when a stored excerpt needs it.
+const DATELINE =
+  /^\s*(?:[A-Z][A-Z .'/-]+,\s+)?(\p{Lu}\p{Ll}{2,8})\.?\s+(\d{1,2})\s+\((?:Reuters|AP|AFP)\)/gmu;
+const NIGHT_WORD = /\b(?:overnight|(?<!(?:day|last|tomorrow)\s+)night(?:time)?)\b/iu;
 const NUMERIC_DAY = /(?<![\d.,/-])(\d{1,4})([./-])(\d{1,2})\2(\d{1,4})(?![\d.,/-]?\d)/gu;
 
 // Origin: decided. A day with dots, 05.03.2024, is day, month and year in each country that
@@ -133,13 +148,30 @@ export interface StatedOptions {
   readonly dayFirst?: boolean | undefined;
 }
 
+// Code reads a night from a news dateline only for an event with the precision night.
+type DayOptions = StatedOptions & { readonly nightEvent?: boolean };
+
+const isNightEvent = (act: WriteRequest): boolean =>
+  act.op === 'create_entity' && act.type === 'event' && act.attrs?.[EVENT_PRECISION]?.v === 'night';
+
 /** Each day that a text states, in the form of the record. A day with two readings (03/04/2024)
  * states no day, because the text does not say which one it means. */
-const daysIn = (text: string, { publishedOn, dayFirst = false }: StatedOptions): Set<string> => {
+const daysIn = (
+  text: string,
+  { publishedOn, dayFirst = false, nightEvent = false }: DayOptions,
+): Set<string> => {
   const found = new Set<string>();
   for (const [, day, word, written] of text.matchAll(NIGHT_DAY))
     for (const night of nightDays(Number(day), monthOf(word ?? ''), written, publishedOn))
       found.add(night);
+  for (const [, word, first, last, written] of text.matchAll(NIGHT_OF))
+    if (Number(first) + 1 === Number(last))
+      for (const night of nightDays(Number(last), monthOf(word ?? ''), written, publishedOn))
+        found.add(night);
+  if (nightEvent && NIGHT_WORD.test(text))
+    for (const [, word, day] of text.matchAll(DATELINE))
+      for (const night of nightDays(Number(day), monthOf(word ?? ''), undefined, publishedOn))
+        found.add(night);
   for (const [, day, word, year] of text.matchAll(WORD_DAY)) {
     const month = monthOf(word ?? '');
     if (month !== null) found.add(dayText(Number(year), month, Number(day)));
@@ -258,7 +290,7 @@ const statesToken = (value: string, passage: string): boolean => {
   ).test(plainText(passage));
 };
 
-const stated = (value: Scalar, passage: string, options: StatedOptions): boolean => {
+const stated = (value: Scalar, passage: string, options: DayOptions): boolean => {
   if (typeof value === 'boolean') {
     const words = wordsOf(passage);
     return YES_NO[value ? 'true' : 'false'].some((word) => words.includes(word));
@@ -376,8 +408,9 @@ export const daysFromPublication = (
 ): string[] => {
   if (publishedOn === undefined) return [];
   const text = passages.join('\n');
-  const alone = daysIn(text, { dayFirst });
-  const deduced = daysIn(text, { publishedOn, dayFirst });
+  const nightEvent = isNightEvent(act);
+  const alone = daysIn(text, { dayFirst, nightEvent });
+  const deduced = daysIn(text, { publishedOn, dayFirst, nightEvent });
   return [
     ...new Set(
       [
@@ -399,28 +432,47 @@ export const daysFromPublication = (
 // coordinate is stated when the text holds it to within one minute of arc.
 const COORDINATE_TOLERANCE = 1 / 60;
 
+// A degree from its degrees, minutes and seconds. A minute or a second can have a decimal comma.
+const degreesOf = (degrees = '0', minutes = '0', seconds = '0'): number =>
+  Number(degrees) +
+  Number(minutes.replace(',', '.')) / 60 +
+  Number(seconds.replace(',', '.')) / 3600;
+
 // Each coordinate that a text writes, as a degree with no sign: a decimal degree (59.6667), the
-// degrees and minutes of UN/LOCODE (5940N, 02819E), and degrees and minutes with signs (59°40′).
+// degrees, minutes and seconds of UN/LOCODE and of a port register (5940N, 0580907E), and degrees,
+// minutes and seconds with signs (59°40′, 60°20,02′, 69°03′11″).
 // shortcut: the hemisphere is not read, so 59.6 S states 59.6 N; read the letter when a source
 // south of the equator or west of Greenwich is cited.
 const coordinatesIn = (text: string): number[] => [
-  ...Array.from(text.matchAll(/(?<![\d.,])(\d{1,3})[.,](\d+)/gu), (one) =>
+  // A decimal point can follow a CSV comma (Oblast,60.5233,28.1301), but a decimal comma cannot.
+  // shortcut: a thousands comma (1,059.40) also gives 59.4; refuse it when a cited price or
+  // tonnage states a false coordinate.
+  ...Array.from(text.matchAll(/(?<![\d.])(\d{1,3})\.(\d+)/gu), (one) =>
     Number(`${one[1] ?? ''}.${one[2] ?? ''}`),
   ),
-  ...Array.from(
-    text.matchAll(/(?<!\d)(\d{2,3})(\d{2})\s?[NSEW]\b/gu),
-    (one) => Number(one[1]) + Number(one[2]) / 60,
+  ...Array.from(text.matchAll(/(?<![\d.,])(\d{1,3}),(\d+)/gu), (one) =>
+    Number(`${one[1] ?? ''}.${one[2] ?? ''}`),
   ),
+  ...Array.from(text.matchAll(/(?<!\d)(\d{2,3})(\d{2})(\d{2})?\s?[NSEW]\b/gu), (one) =>
+    degreesOf(one[1], one[2], one[3]),
+  ),
+  // A Russian page can write a Cyrillic or a Latin letter o in place of the degree sign (60о20′).
+  // A letter o, and an ordinal sign º, are a degree sign only when minutes with a sign follow
+  // them, so "60 of" and "28º aniversario" state no degree.
   ...Array.from(
-    text.matchAll(/(?<!\d)(\d{1,3})\s*°\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*['′])?/gu),
-    (one) => Number(one[1]) + Number((one[2] ?? '0').replace(',', '.')) / 60,
+    text.matchAll(
+      /(?<!\d)(\d{1,3})(?:\s*°|(?:\s*[º˚]|[оo])(?=\s*\d{1,2}(?:[.,]\d+)?\s*['′’´]))\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*['′’´](?:\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:["″”]|''|′′))?)?/gu,
+    ),
+    (one) => degreesOf(one[1], one[2], one[3]),
   ),
 ];
 
-// The place that an act gives: the two coordinates of a point. Code reads no other shape in a
-// text, so another shape is unstated, and the operator compares it with the page.
+// The place that an act gives to a new entity or to an entity of the record: the two coordinates
+// of a point. Code reads no other shape in a text, so another shape is unstated, and the operator
+// compares it with the page.
 const placeValues = (act: WriteRequest): ActValue[] => {
-  if (act.op !== 'update_entity' || act.geom === undefined) return [];
+  if ((act.op !== 'update_entity' && act.op !== 'create_entity') || act.geom === undefined)
+    return [];
   if (act.geom.type !== 'Point') return [{ name: 'geom', value: act.geom.type }];
   const [lon = Number.NaN, lat = Number.NaN] = act.geom.coordinates;
   return [
@@ -446,7 +498,7 @@ export const unstatedValues = (
       const code =
         named.name === `attrs.${JURISDICTION_KEY}` ? jurisdictionCode(named.value) : null;
       if (code !== null && statesJurisdiction(code, text)) return false;
-      return !stated(named.value, text, options);
+      return !stated(named.value, text, { ...options, nightEvent: isNightEvent(act) });
     }),
     ...placeValues(act).filter((named) => !statesCoordinate(named.value, coordinates)),
   ];

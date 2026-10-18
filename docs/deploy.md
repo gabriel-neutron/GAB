@@ -87,7 +87,8 @@ On a hosted database, run the same statement with `psql` and the connection of s
 
 A change from zero sends each waiting unit through the rules again. Set `0` to stop new searches.
 
-The mapper of `pnpm worker run` maps the columns of a stored CSV table. Set the `MAPPER_*` values
+The mapper of `pnpm worker run` maps the columns of a stored CSV, TSV or SDMX-CSV
+table. Set the `MAPPER_*` values
 that `infra/.env.example` lists. When one of them is absent, the worker starts and runs the
 extractions, and each mapping fails at once with a reason that names the value. The load of a
 promoted mapping runs with no model and needs the raw store values.
@@ -120,6 +121,14 @@ the value. A rating waits in the queue until the operator approves the reference
 3. `pnpm worker reference-set approve` makes the set usable. From then on each new author name
    gets a rating job by itself.
 
+To add authors to a stored set, add them to the file and run
+`pnpm worker reference-set add packages/worker/src/rater/reference-set.json`. It stores only the
+authors that the set does not hold, prints `stored` or `kept` for each author of the file, and
+names each field of a kept author that the record holds with another value. Run it first with
+`--dry-run` at the end: it prints the same lines and writes nothing. Then run it with no flag,
+`show` and `approve`. A name that the worker rated is refused: give the new author another name, and move
+the rated names to it after the approval.
+
 A rating that failed leaves its name F. `pnpm worker requeue-ratings` puts each rating job that
 failed by a fault back in the queue with no attempt, and prints each name with the reason of the
 earlier attempt: the job keeps no record of it. The next `pnpm worker run` rates them, and each
@@ -138,6 +147,14 @@ each act of that name, so the name reads as F and its units are a doubt until yo
 3. `pnpm worker author-names confirm <name>` gives the name the letter of its author.
    `pnpm worker author-names refuse <name>` makes the name F, and the rater rates it again as a
    new author. The rules then read the units of the name again. A decision is final.
+4. `pnpm worker author-names move "<name>" "<author>"` gives a name of a wrong author that the
+   worker rated (C to F) to an approved reference author, or to another author that the worker
+   rated. Put each of the two in quotes. The command refuses a name of a reference author, and an
+   author of the reference set that you did not approve. A move is final.
+5. `pnpm worker author-names rerate "<name>"` takes a name away from a wrong author that the
+   worker rated. The name reads as F, and the rater rates it again: it cannot join the name to
+   that author again. The command refuses the own name of an author: move that name. It is
+   final.
 
 The review page shows the same list on its Names page, with the same two actions.
 
@@ -215,6 +232,33 @@ node with two sourced ticks or more is retained. A tick with no claim shows "not
 not count. The release refuses the sheet, and writes nothing, when a row names a node or a claim
 that is not public in the release. The message gives the line. With no `criticalNodes`, the table
 has no row.
+
+`volumes` is the path of the volume table of the research (for example `volumes-2026-07.csv`),
+relative to the folder of the manifest. Keep the table outside the GAB checkout too, as the
+manifest and the sheet. With no `volumes`, the release has no volume, and each link of the map has
+one width. The table is a CSV file in UTF-8 with these twelve columns, in any order:
+`actif_amont`, `actif_aval`, `produit` (`brut`, `produits` or `gaz`), `periode`, `valeur`,
+`minimum`, `maximum`, `unite`, `classe` (`observé`, `estimé` or `capacité`), `document`, `page`,
+`note`. A line that starts with `#` is a note. The file `packages/worker/fixtures/volumes.csv`
+is an example table with invented data. The test of the fixed release of the static site reads it.
+
+- Name each asset in `actif_amont` and `actif_aval` by its entity identifier in the record (the
+  `id` of `entities.csv`, as `search_graph` gives it), or by the exact label of one entity of the
+  record. The case and the spaces of a label do not count. A row joins the physical link
+  (`crude_flows_to` or `products_flow_to`) of its two assets and its product. When an accepted
+  link and a link in review have the same two assets and product, the row joins the accepted
+  link.
+- A label that more than one entity has joins no link: the command gives the line, and you give
+  the entity identifier there. For an asset that the record does not hold yet, write its name: the
+  row stays in `volumes.csv`, on no link.
+- Give `periode` as a year and a month, `YYYY-MM` (for example `2026-07`). For a figure of a whole
+  year, give the first month of the year (`2026-01`) and say it in `note`.
+- `document` is the identifier of a stored document. The release rejects a row with no document,
+  with a document that is not public, with no class, with no value or no unit, with a period that
+  is not `YYYY-MM`, and an estimate with no range. The command gives the line and the reason of
+  each rejected row, and writes the release with the other rows.
+- The release never adds two rows. A capacity stays a capacity, and two rows with different units
+  are never compared.
 
 Then run, on the record:
 

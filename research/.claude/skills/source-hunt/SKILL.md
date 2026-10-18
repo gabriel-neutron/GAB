@@ -29,11 +29,14 @@ possible. You then propose the facts with the skill `cite-claim`.
    | 403, 429 or 503, a 202 or a 200 with no text, a challenge page | A bot filter (Cloudflare, AWS WAF) | Another copy, then the browser |
    | No whole answer within the time, no connection | A state site that refuses foreign addresses | The browser, then the list of needs |
    | 404 or 410, or the page says that it is missing | The address is wrong or old | Another copy, then the archive; never the browser |
+   | A 200 with no text from Interfax e-disclosure (`e-disclosure.ru`) | A filter that runs a script in the page | The browser, one page at a time and slowly |
 
    1. **Another official copy** of the same text from the same issuer: the PDF of the publisher,
       the Publications Office of the EU for an EU act (`eu_act` with the CELEX number), a
       repository of the paper (EconStor, RePEc, SSRN), the page of the institution itself. Find
-      it with `web_search`.
+      it with `web_search`. For a Russian or a Belarusian company, the copy of a register
+      aggregator is no official copy: use it only as the skill `research-method` says (a
+      register aggregator).
    2. **The browser** of the session (see "The browser step").
    3. **The web archive.** `archive_snapshot` lists the captures. Then `fetch_document` on the
       address of the newest capture. The archive often refuses the address of the PC (429): one
@@ -70,7 +73,9 @@ and it returns the URL in its result for the lead session.
   `(async () => { const r = await fetch('<address of the PDF>'); if (!r.ok) throw new Error(String(r.status)); const u = new Uint8Array(await r.arrayBuffer()); const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', u))].map((b) => b.toString(16).padStart(2, '0')).join(''); let s = ''; for (const b of u) s += String.fromCharCode(b); window.gab = btoa(s); return { length: window.gab.length, sha256: h }; })()`
 - Then read the text in parts of 20,000 characters: `window.gab.slice(0, 20000)`, then
   `window.gab.slice(20000, 40000)`, and so on. Call `store_saved_file` with each part, in order:
-  `content` (the part), `type` (`text/html` or `application/pdf`), `sha256` (the hash that the
+  `content` (the part), `type` (`text/html`, `application/pdf`, or the type of a data file:
+  `application/json`, `text/csv`, `text/tab-separated-values`, `application/xml`,
+  `text/plain`), `sha256` (the hash that the
   browser gave), `part` (1, 2, ...), `parts` (the count of the parts) and `url` (the address of
   the page, or of the PDF). A text of 20,000 characters or less is one call with no `part` and no
   `parts`. Each part but the last answers `waiting`. The last part gives the document to cite.
@@ -84,7 +89,7 @@ Each line of `research/out/needs.md` gives what the operator needs to store the 
 
 | Source | Address | Error | What to get | File name | Where it is used |
 |---|---|---|---|---|---|
-| The title and the issuer | The address that failed | 403, 404, timeout, empty | The PDF, or the page saved from a browser | The unique name to give the file | The node and the fact that wait for it |
+| The title and the issuer | The address that failed | 403, 404, timeout, empty | The PDF, the page saved from a browser, or the data file (`.json`, `.tsv`, `.csv`, `.xml`, `.txt`) | The unique name to give the file | The node and the fact that wait for it |
 
 The operator saves the file by hand into the inbox (`GAB_INBOX` in `research/.env`, or
 `research/inbox`). In the next session, store it with `store_saved_file` and `file` (the file

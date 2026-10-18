@@ -51,4 +51,5 @@ export const hrefFrom = (here: SitePath, target: SitePath): string =>
 
 /** The map script and the stylesheet of MapLibre, beside the stylesheet of the site. */
 export const MAP_SCRIPT: SitePath = 'assets/map.js';
+export const MAP_COUNTRIES: SitePath = 'assets/countries.json';
 export const MAP_STYLE: SitePath = 'assets/maplibre-gl.css';

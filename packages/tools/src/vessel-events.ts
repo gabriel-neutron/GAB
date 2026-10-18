@@ -19,9 +19,10 @@ const DATASETS = {
   encounter: 'public-global-encounters-events:latest',
   loitering: 'public-global-loitering-events:latest',
   gap: 'public-global-gaps-events:latest',
+  port_visit: 'public-global-port-visits-events:latest',
 } as const;
 const IDENTITY_DATASET = 'public-global-vessel-identity:latest';
-const TYPES = ['encounter', 'loitering', 'gap'] as const;
+const TYPES = ['encounter', 'loitering', 'gap', 'port_visit'] as const;
 
 // The largest page that one stored answer holds. A longer history is read with the offset.
 const PAGE = 200;
@@ -142,7 +143,8 @@ const eventsOf = async (
 export const vesselEvents = defineTool({
   name: 'vessel_events',
   description:
-    'Reads the encounter, loitering and AIS gap events of one vessel in Global Fishing Watch, ' +
+    'Reads the encounter, loitering, AIS gap and port visit events of one vessel in Global ' +
+    'Fishing Watch, ' +
     'by its GFW vessel id or by its MMSI, between two dates. The API is free but needs a ' +
     'token: with no token set, the tool refuses and names the setting. The answer is stored ' +
     'once as an api document; read the next page with nextOffset. A match by the MMSI alone is ' +

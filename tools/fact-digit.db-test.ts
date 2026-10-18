@@ -84,7 +84,7 @@ test('a fact with no passed check of a second model family has no digit', async 
   expect(read).toStrictEqual({ without: null, sameFamily: null, unclear: null });
 });
 
-test('the check is written once for an act, the first one stays, and only an act of a machine has one', async () => {
+test('the newest check of a research act that waits replaces the old one, and only an act of a machine has one', async () => {
   const said = await rolledBack('superuser', async (ask) => {
     await twoAuthors(ask);
     const first = await cited(ask, { author: 'Author One', label: label(), ...ONE });
@@ -117,7 +117,7 @@ test('the check is written once for an act, the first one stays, and only an act
   });
   expect(said.twice).toBeNull();
   expect(said.kept).toHaveLength(1);
-  expect(said.kept[0]).toMatchObject({ verdict: 'supported' });
+  expect(said.kept[0]).toMatchObject({ checker_model: 'another', verdict: 'not_supported' });
   expect(said.unknown).toMatch(/act of a machine/u);
   expect(said.read).toMatch(/permission denied/u);
 });

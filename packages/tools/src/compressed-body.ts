@@ -55,13 +55,14 @@ export const binaryBytes = (bytes: Uint8Array, contentType: string | null = null
   return control / sample.length > BINARY_SHARE;
 };
 
-/** True for a type that names text: a page of HTML, a text file, XML or JSON. */
+/** True for a type that names text: a page of HTML, a text file, XML, JSON or an SDMX file. */
 export const textType = (mime: string): boolean =>
   mime.startsWith('text/') ||
   mime === 'application/xml' ||
   mime === 'application/json' ||
   mime.endsWith('+xml') ||
-  mime.endsWith('+json');
+  mime.endsWith('+json') ||
+  mime.startsWith('application/vnd.sdmx.');
 
 /** The type that says nothing of the file: only "bytes". */
 export const GENERIC = 'application/octet-stream';

@@ -640,7 +640,7 @@ test('a row sets a missing geometry, a different point is a doubt that writes no
     ).toStrictEqual([
       {
         kind: 'record_disagrees',
-        said: 'The record holds another geometry than the reference dataset gives',
+        said: 'The record holds another geometry than the reference dataset gives, 155620 m apart',
       },
     ]);
     // The same point writes no act.

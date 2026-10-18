@@ -7,6 +7,7 @@
     ".": "./src/extract.ts",
     "./xlsx": "./src/xlsx.ts",
     "./zip": "./src/zip.ts",
+    "./archive": "./src/archive.ts",
     "./geojson": "./src/geojson.ts",
     "./xlsx-fixture": "./src/xlsx-fixture.ts",
     "./archive-fixture": "./src/archive-fixture.ts"

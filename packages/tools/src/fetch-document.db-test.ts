@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { endOcr } from '@gab/text';
+import { workbookOf, zipOf } from '@gab/text/xlsx-fixture';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
@@ -78,6 +79,30 @@ const WIDGET =
   `<p>Run ${RUN}. ${'Only a member of the forum reads the threads of this section. '.repeat(5)}</p>` +
   '<div class="cf-turnstile" data-sitekey="x"></div></article></body></html>';
 
+// An ENTSOG answer of one line, and the address of its query.
+const ENTSOG = `{"operationaldatas":[{"indicator":"Physical Flow","pointLabel":"Budince","value":0,"run":"${RUN}"}]}`;
+const ENTSOG_QUERY = `/api/v1/operationaldatas?indicator=Physical%20Flow&from=2026-07-01&run=${RUN}`;
+
+// A Comext table in SDMX-CSV above the page limit of 16 MiB and under the fetch cap.
+const CSV_HEADER = 'DATAFLOW,freq,reporter,partner,product,indicators,TIME_PERIOD,OBS_VALUE';
+const CSV_ROW = 'ESTAT:DS-045409(1.0),M,HU,RU,27090090,QUANTITY_IN_100KG,2026-07,3272070.00\n';
+const BIG_CSV = `${CSV_HEADER}\n${CSV_ROW.repeat(230_000)}${RUN}\n`;
+
+// A bulk file of two tables, served as bytes with no type, and an archive with a path that leaves
+// it.
+const BULK = zipOf([
+  ['entities.csv', `id,name\nNK-1,Nayara ${RUN}\n`],
+  ['sanctions/targets.json', `{"run":"${RUN}"}`],
+]);
+const HOSTILE = zipOf([['../outside.txt', `Run ${RUN}.`]]);
+// A workbook served as bytes with no type is a zip container, and it is read as a workbook.
+const WORKBOOK = workbookOf({
+  Data: [
+    ['Name', 'Run'],
+    ['Nayara', RUN],
+  ],
+});
+
 const PDF = pdfOf(`Asset freeze notice ${RUN}`, 'HM Treasury');
 
 // Each image holds large English and Cyrillic words, so a check of whole words stays true when OCR
@@ -103,6 +128,17 @@ beforeAll(async () => {
     '/entry.html': { headers: { 'content-type': 'text/html; charset=utf-8' }, body: HTML },
     '/moved': { status: 301, headers: { location: '/entry.html' } },
     '/app': { headers: { 'content-type': 'text/html' }, body: SHORT },
+    [ENTSOG_QUERY]: {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      body: ENTSOG,
+    },
+    '/comext.csv': {
+      headers: { 'content-type': 'application/vnd.sdmx.data+csv; version=1.0.0' },
+      body: BIG_CSV,
+    },
+    '/bulk.zip': { headers: { 'content-type': 'application/octet-stream' }, body: BULK },
+    '/table.bin': { headers: { 'content-type': 'application/octet-stream' }, body: WORKBOOK },
+    '/hostile.zip': { headers: { 'content-type': 'application/zip' }, body: HOSTILE },
     '/notice.pdf': { headers: { 'content-type': 'application/pdf' }, body: PDF },
     '/viewtopic.php': { headers: { 'content-type': 'text/html' }, body: cp1251 },
     '/wiki': { headers: { 'content-type': 'text/html; charset=UTF-8' }, body: WIKI },
@@ -234,6 +270,135 @@ test('a PDF is stored with the text of its page, and its author and creation dat
     expect(store.puts.map((put) => put.key)).toStrictEqual([`raw/${sha}`]);
     const [row] = z.array(documentRow).parse(await ask(ROW, [sha]));
     expect(row?.pages).toBe(1);
+  });
+});
+
+test('a JSON answer is stored as it came, under its whole address, and its text is indented', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const got = await fetched(ask, `${base}${ENTSOG_QUERY}`, fixtureReach(store));
+    expect(got.status).toBe('stored');
+    expect(got.mime).toBe('application/json');
+    expect(got.url).toBe(`${base}${ENTSOG_QUERY}`);
+    expect(got.pages[0]?.text).toContain('\n      "pointLabel": "Budince",\n');
+    expect(Buffer.from(store.puts[0]?.bytes ?? []).toString('utf8')).toBe(ENTSOG);
+    const [row] = z.array(documentRow).parse(await ask(ROW, [shaOf(ENTSOG)]));
+    expect(row?.uri).toBe(`${base}${ENTSOG_QUERY}`);
+  });
+});
+
+test('a ZIP archive is stored with its list of files, and each file is a child document linked to it', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const outcome = await callTool(
+      fetchDocument,
+      sessionOf(ask),
+      { url: `${base}/bulk.zip` },
+      fixtureReach(store),
+    );
+    if (!outcome.ok) throw new Error(outcome.refusal);
+    const got = answer
+      .extend({
+        files: z.array(z.object({ path: z.string(), document: z.string(), status: z.string() })),
+        skipped: z.array(z.unknown()),
+      })
+      .parse(outcome.output);
+    expect(got.mime).toBe('application/zip');
+    expect(got.pages[0]?.text).toContain('entities.csv\t');
+    expect(got.files.map((file) => [file.path, file.status])).toStrictEqual([
+      ['entities.csv', 'stored'],
+      ['sanctions/targets.json', 'stored'],
+    ]);
+    expect(got.skipped).toStrictEqual([]);
+    const links = z
+      .array(z.object({ id: z.string(), archive_path: z.string(), archive_sha256: z.string() }))
+      .parse(
+        await ask(
+          `SELECT c.id::text AS id, c.archive_path, a.sha256 AS archive_sha256
+             FROM public.documents c JOIN public.documents a ON a.id = c.archive_id
+            WHERE a.id = $1 ORDER BY c.archive_path`,
+          [got.document],
+        ),
+      );
+    expect(links).toStrictEqual(
+      got.files.map((file) => ({
+        id: file.document,
+        archive_path: file.path,
+        archive_sha256: shaOf(BULK),
+      })),
+    );
+  });
+  expect(store.puts.map((put) => put.mime)).toStrictEqual([
+    'application/zip',
+    'text/csv',
+    'application/json',
+  ]);
+});
+
+test('a workbook served as bytes with no type is read as a workbook, and not unpacked', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const got = await fetched(ask, `${base}/table.bin`, fixtureReach(store));
+    expect(got.mime).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    expect(got.pages[0]?.text).toContain(`Nayara,${RUN}`);
+  });
+  expect(store.puts).toHaveLength(1);
+});
+
+test('an Overpass answer and a search result page are refused before the fetch', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const direct = await callTool(
+      fetchDocument,
+      sessionOf(ask),
+      { url: 'https://overpass-api.de/api/interpreter?data=way(1);out;' },
+      fixtureReach(store),
+    );
+    expect(direct.ok ? '' : direct.refusal).toContain('Overpass');
+    const search = await callTool(
+      fetchDocument,
+      sessionOf(ask),
+      { url: 'https://www.bing.com/search?q=Kirishi' },
+      fixtureReach(store),
+    );
+    expect(search.ok ? '' : search.refusal).toContain('search result page');
+  });
+  expect(store.puts).toStrictEqual([]);
+});
+
+test('a ZIP archive with a path that leaves it is refused, and nothing is stored', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const outcome = await callTool(
+      fetchDocument,
+      sessionOf(ask),
+      { url: `${base}/hostile.zip` },
+      fixtureReach(store),
+    );
+    expect(outcome.ok ? '' : outcome.refusal).toContain('leaves the archive');
+  });
+  expect(store.puts).toStrictEqual([]);
+});
+
+test('a table above the page limit is cut into pages, and each page starts with its header', async () => {
+  expect(Buffer.byteLength(BIG_CSV)).toBeGreaterThan(16 * 1024 * 1024);
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const got = await fetched(ask, `${base}/comext.csv`, fixtureReach(store));
+    expect(got.status).toBe('stored');
+    const pages = z
+      .array(z.object({ page: z.number(), head: z.string(), bytes: z.number() }))
+      .parse(
+        await ask(
+          `SELECT t.page, left(t.text, ${CSV_HEADER.length}) AS head, octet_length(t.text) AS bytes
+             FROM public.document_text t WHERE t.document_id = $1 ORDER BY t.page`,
+          [got.document],
+        ),
+      );
+    expect(pages.map((page) => page.page)).toStrictEqual([1, 2]);
+    expect(pages.every((page) => page.head === CSV_HEADER)).toBe(true);
+    expect(pages.every((page) => page.bytes <= 16 * 1024 * 1024)).toBe(true);
+    expect(Buffer.from(store.puts[0]?.bytes ?? []).toString('utf8')).toBe(BIG_CSV);
   });
 });
 

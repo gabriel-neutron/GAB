@@ -26,8 +26,8 @@ export const promoteCleanProposals = defineTool({
     'write. The database runs the same check of the faults as the page: each unit that is still ' +
     'clean, pending and in the group is written as its own decision, and each other unit is ' +
     'refused with its reason. Each written unit keeps the origin "decided by an AI reviewer" and ' +
-    'your reason. Read the cited passages of each unit first, and never decide a unit that your ' +
-    'own session proposed.',
+    'your reason. Read the cited passages of each unit first, and never decide a unit that you ' +
+    'proposed: a new reviewer agent decides it.',
   input: z.strictObject({
     groupId: z.uuid().describe('the id of the group, from read_groups'),
     unitIds: z

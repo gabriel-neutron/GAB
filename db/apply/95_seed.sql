@@ -80,6 +80,8 @@ INSERT INTO document_provider (id, name, licence) VALUES
   ('hk_icris',            'HK ICRIS',                   'paid-filing'),
   ('egrul',               'EGRUL',                      'restricted'),
   ('copernicus_sentinel', 'Sentinel-1/2 (Copernicus)',  'copernicus'),
+  -- Only the 2016 layer of EOX: the service states CC BY 4.0 for it, and CC BY-NC-SA from 2018.
+  ('eox_s2cloudless_2016', 'EOX Sentinel-2 cloudless 2016', 'cc-by-4.0'),
   ('osm',                 'OSM',                        'odbl'),
   ('own',                 'own',                        'own')
 ON CONFLICT (id) DO UPDATE SET
@@ -145,6 +147,8 @@ INSERT INTO relation_type (key, label, inverse_label, takes_interval) VALUES
   ('settles_through',   'settles through',   'is the settlement channel of', false),
   ('supplies_crude_to', 'supplies crude to', 'receives crude from',          false),
   ('sells_products_to', 'sells products to', 'buys products from',           false),
+  ('crude_flows_to',    'crude flows to',    'is fed crude by',              true),
+  ('products_flow_to',  'products flow to',  'receives products from',       true),
   ('berthed_at',        'berthed at',        'is the berth of',              false),
   ('loads_at',          'loads at',          'is the loading place of',      false),
   ('discharges_at',     'discharges at',     'is the discharge place of',    false),

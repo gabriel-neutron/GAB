@@ -9,7 +9,7 @@ import { endOcr } from '@gab/text';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
 import { CATALOGUE } from './catalogue.ts';
-import { addressTitle, endMetadata, MAX_BYTES } from './fetch-document.ts';
+import { addressTitle, endMetadata, jsonErrorOf, MAX_BYTES } from './fetch-document.ts';
 import {
   FETCH_DAY,
   FIXTURE_HOST,
@@ -142,6 +142,15 @@ beforeAll(async () => {
     '/compress': {
       headers: { 'content-type': 'text/html', 'content-encoding': 'compress' },
       body: HTML,
+    },
+    // The shape of a real ENTSOG answer: an error that the server sends with the status 200.
+    '/entsog-error': {
+      headers: { 'content-type': 'application/json' },
+      body: '{"error":"Bad Request","message":"The parameter pointDirection is not valid","status":400}',
+    },
+    '/bad-utf8.json': {
+      headers: { 'content-type': 'application/json' },
+      body: Buffer.from([0x7b, 0x22, 0x61, 0x22, 0x3a, 0x22, 0x8a, 0xbe, 0x22, 0x7d]),
     },
     '/soft-404': {
       headers: { 'content-type': 'text/html' },
@@ -496,6 +505,32 @@ test('an image whose bytes are already stored is known, and OCR never reads it',
   );
   expect(outcome).toMatchObject({ ok: true, output: { document: stored.id, status: 'known' } });
   expect(store.puts).toStrictEqual([]);
+});
+
+describe('a JSON answer that holds no data is refused, and nothing is stored', () => {
+  test('a JSON error served as a success names the message of the server', async () => {
+    const store = memoryStore();
+    const refusal = await refusalOf(`${base}/entsog-error`, fixtureReach(store));
+    expect(refusal).toMatch(/JSON error with a success status/);
+    expect(refusal).toContain('The parameter pointDirection is not valid');
+    expect(store.puts).toStrictEqual([]);
+  });
+
+  test('a JSON file with bad UTF-8 is refused with its reason', async () => {
+    const store = memoryStore();
+    expect(await refusalOf(`${base}/bad-utf8.json`, fixtureReach(store))).toMatch(
+      /not valid UTF-8/,
+    );
+    expect(store.puts).toStrictEqual([]);
+  });
+
+  test('an object with the key error and other keys is data', () => {
+    expect(jsonErrorOf(new TextEncoder().encode('{"error":null,"data":[1]}'))).toBeNull();
+    expect(jsonErrorOf(new TextEncoder().encode('[{"error":"x"}]'))).toBeNull();
+    expect(jsonErrorOf(new TextEncoder().encode('{"error":"Not Found","status":404}'))).toBe(
+      'Not Found',
+    );
+  });
 });
 
 describe('a compressed answer is decoded before its text is read', () => {

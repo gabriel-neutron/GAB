@@ -54,6 +54,15 @@ const isErrorOf = (result: unknown): boolean =>
 
 const SEARCH = { name: 'search_graph', arguments: { query: 'Regulation' } };
 
+test('the server names the version of its code, and its instructions name it too', async () => {
+  const client = await connected(fakePool(() => []).pool);
+  const version = client.getServerVersion()?.version ?? '';
+  expect(version).not.toBe('');
+  expect(client.getInstructions()).toBe(
+    `This gab server runs the code version ${version} (a git commit, or the package version when no git checkout is there).`,
+  );
+});
+
 test('each tool of the catalogue is listed once, flat, with a read or write hint', async () => {
   const client = await connected(fakePool(() => []).pool);
   const { tools } = await client.listTools();
@@ -104,6 +113,7 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "telegram_channel: write",
       "ofac_sdn: write",
       "uk_sanctions_list: write",
+      "site_image: write",
       "eu_act: write",
       "gleif_lookup: write",
       "companies_house: write",

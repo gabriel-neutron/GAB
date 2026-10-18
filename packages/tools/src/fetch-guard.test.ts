@@ -1,6 +1,17 @@
+import { createServer, type IncomingHttpHeaders } from 'node:http';
+import type { AddressInfo } from 'node:net';
+
 import { describe, expect, test } from 'vitest';
 
-import { FetchRefusal, pageAddress, refusedAddress } from './fetch-guard.ts';
+import {
+  FetchRefusal,
+  guardedGet,
+  HEADERS,
+  pageAddress,
+  refusedAddress,
+  requestHeaders,
+} from './fetch-guard.ts';
+import { partMetadata } from './render-page.ts';
 
 describe('refusedAddress', () => {
   test.each([
@@ -71,5 +82,100 @@ describe('pageAddress', () => {
   test('refuses an address that is never fetched', () => {
     expect(() => pageAddress('file:///etc/passwd')).toThrow(FetchRefusal);
     expect(() => pageAddress('not an address')).toThrow(FetchRefusal);
+  });
+});
+
+describe('the headers of the outgoing request', () => {
+  test('a request has the headers of a page that a person opens in Chrome, and a caller sets accept', async () => {
+    const asked: IncomingHttpHeaders[] = [];
+    const server = createServer((request, response) => {
+      asked.push(request.headers);
+      response.writeHead(200, { 'content-type': 'text/plain' }).end('ok');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    const options = { maxBytes: 1024, timeoutMs: 5000, maxRedirects: 0, refuses: () => false };
+    try {
+      await guardedGet(`http://127.0.0.1:${String(port)}/`, options);
+      await guardedGet(`http://127.0.0.1:${String(port)}/`, {
+        ...options,
+        ask: { accept: 'application/xhtml+xml', 'accept-language': 'eng' },
+      });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+
+    const [plain, asking] = asked;
+    expect(plain).toMatchObject(HEADERS);
+    expect(plain?.['user-agent']).toMatch(/Chrome\/141\./u);
+    expect(plain?.['sec-ch-ua']).toContain('v="141"');
+    expect(plain).toMatchObject({
+      'sec-fetch-mode': 'navigate',
+      'sec-fetch-dest': 'document',
+      'sec-fetch-site': 'none',
+      'sec-fetch-user': '?1',
+      'upgrade-insecure-requests': '1',
+      'accept-encoding': 'identity',
+    });
+    // The caller sets the format and the language, and the other headers stay.
+    expect(asking).toMatchObject({
+      ...HEADERS,
+      accept: 'application/xhtml+xml',
+      'accept-language': 'eng',
+    });
+  });
+});
+
+describe('the headers of a part of a page', () => {
+  test('a script of another site has the fetch metadata of a script, and no user activation', () => {
+    const headers = requestHeaders({
+      subresource: partMetadata(
+        'https://www.example.org/a',
+        'https://cdn.other.net/x.js',
+        'script',
+      ),
+    });
+    expect(headers).toMatchObject({
+      'user-agent': HEADERS['user-agent'],
+      'sec-ch-ua': HEADERS['sec-ch-ua'],
+      'sec-fetch-dest': 'script',
+      'sec-fetch-mode': 'no-cors',
+      'sec-fetch-site': 'cross-site',
+    });
+    expect(headers).not.toHaveProperty('sec-fetch-user');
+    expect(headers).not.toHaveProperty('upgrade-insecure-requests');
+  });
+
+  test.each([
+    [
+      'a call of a script on the same origin',
+      'https://www.example.org/api',
+      'xhr',
+      'empty',
+      'cors',
+      'same-origin',
+    ],
+    [
+      'an image of the same site',
+      'https://img.example.org/a.png',
+      'image',
+      'image',
+      'no-cors',
+      'same-site',
+    ],
+    [
+      'a frame of another site',
+      'https://other.net/f',
+      'document',
+      'iframe',
+      'navigate',
+      'cross-site',
+    ],
+  ])('%s', (_name, part, kind, dest, mode, site) => {
+    expect(partMetadata('https://www.example.org/a', part, kind)).toStrictEqual({
+      dest,
+      mode,
+      site,
+    });
   });
 });

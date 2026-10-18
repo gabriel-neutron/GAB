@@ -76,6 +76,7 @@ const MANIFEST: ReleaseManifest = {
     rightOfReply: 'mailto:reply@example.org',
   },
   criticalNodes: null,
+  volumes: null,
   iriBase: 'https://data.example.org/gab/',
 };
 
@@ -401,6 +402,7 @@ test('a release writes the public entities, relations and claims, each row with 
     'manifest.json',
     'merges.csv',
     'relations.csv',
+    'volumes.csv',
   ]);
 
   const text = async (name: string) => readFile(join(folder, name), 'utf8');
@@ -461,6 +463,7 @@ test('a release writes the public entities, relations and claims, each row with 
     'alignment-matrix.csv',
     'critical-nodes.csv',
     'asset-links.csv',
+    'volumes.csv',
     'credits.md',
     'entities.geojson',
     'dataset.jsonld',
@@ -666,7 +669,7 @@ test('a release writes the public entities, relations and claims, each row with 
           type: z.literal('Feature'),
           id: z.string(),
           geometry: z.unknown(),
-          properties: z.record(z.string(), z.string()),
+          properties: z.record(z.string(), z.unknown()),
         }),
       ),
     })
@@ -677,7 +680,7 @@ test('a release writes the public entities, relations and claims, each row with 
     type: 'Feature',
     id: VESSEL,
     geometry: { type: 'Point', coordinates: [32.5, 46.6] },
-    properties: entities.find((row) => row['id'] === VESSEL),
+    properties: { ...entities.find((row) => row['id'] === VESSEL), asset_kind: null },
   });
   // RFC 7946: the outer ring of a polygon turns counter-clockwise.
   const ring =
@@ -741,6 +744,40 @@ const mergeDoor = async (db: Queryable, text: string, values: readonly unknown[]
   if (id === undefined) throw new Error('the door wrote no act');
   return id;
 };
+
+test('the documents of a geometry are the public documents of each act that gave it, or else the row-level sources', async () => {
+  const rows = await inTransaction(async (held) => {
+    await record(held);
+    const place = async (coordinates: number[], day: string, src: string[]) =>
+      decidedAct(
+        held,
+        'update_entity',
+        { geom: { type: 'Point', coordinates } },
+        { kind: 'entity', id: VESSEL },
+        'validated manually by the operator',
+        day,
+        src,
+      );
+    // The vessel holds the point 32.5, 46.6. A later act gave another point, which is not there
+    // now, and a last act repeated the point that the vessel holds.
+    await place([32.5, 46.6], '2026-10-09', [GFW, BOUGHT]);
+    await place([10, 10], '2026-10-10', [SHIPS]);
+    await place([32.5, 46.6], '2026-10-11', [TWO]);
+    // A later act that changes only the name replaced the row-level sources.
+    await held.ask('UPDATE public.entities SET sources = $2 WHERE id = $1', [VESSEL, [SHIPS]]);
+    const { rows } = await held
+      .as('gabriel_app')
+      .query(
+        'SELECT id, sources, geom_sources FROM public.release_entities() WHERE id = ANY ($1) ORDER BY id',
+        [[VESSEL, OWNER]],
+      );
+    return rows;
+  });
+  expect(rows).toStrictEqual([
+    { id: VESSEL, sources: [SHIPS], geom_sources: [GFW, TWO] },
+    { id: OWNER, sources: [SHIPS], geom_sources: [SHIPS] },
+  ]);
+});
 
 test('a start date that a later act gave is a claim of its own, with the label and the passages of that act', async () => {
   const claims = await inTransaction(async (held) => {
@@ -1414,6 +1451,50 @@ test.each([
   expect((await readdir(root)).sort()).toStrictEqual(
     sheet === null ? ['release.json'] : ['nodes.csv', 'release.json'],
   );
+});
+
+// A small volume table made for the test. The figures are not data of the research.
+test('a release joins the volume table to the physical links, by identifier or by label, and rejects a row with no public document', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const table = join(root, 'volumes.csv');
+  await writeFile(
+    table,
+    [
+      'actif_amont,actif_aval,produit,periode,valeur,minimum,maximum,unite,classe,document,page,note',
+      `${OWNER},${VESSEL},brut,2026-07,120,,,kb/j,observé,${SHIPS},1,`,
+      `${OWNER},${VESSEL},brut,2026-07,90,,,kb/j,observé,${BOUGHT},1,`,
+      `Test segment A,Test segment B,brut,2026-07,600,,,kb/j,capacité,${SHIPS},,`,
+      `${OWNER},${VESSEL},brut,2026-07,120,,,kb/j,,${SHIPS},1,`,
+      `Test owner ltd,test  tanker,brut,2026-06,110,,,kb/j,observé,${SHIPS},2,`,
+    ].join('\n'),
+  );
+  const made = await inTransaction(async (held) => {
+    await record(held);
+    const link = await relation(held, 'crude_flows_to', OWNER, VESSEL, [SHIPS]);
+    const written = await writeRelease(
+      held.as('gabriel_app'),
+      { ...MANIFEST, volumes: table },
+      join(root, 'out'),
+    );
+    return { link: link.id, written };
+  });
+  const text = await readFile(join(made.written.folder, 'volumes.csv'), 'utf8');
+  expect(text).toContain('# Rows: 3. On a physical link: 2.');
+  expect(
+    tableOf(text).map((row) => [
+      row['relation_id'],
+      row['value'],
+      row['class'],
+      row['document_id'],
+    ]),
+  ).toStrictEqual([
+    [made.link, '120', 'observed', SHIPS],
+    ['', '600', 'capacity', SHIPS],
+    [made.link, '110', 'observed', SHIPS],
+  ]);
+  expect(text).not.toContain(BOUGHT);
+  expect(made.written.volumeRejections.map((one) => one.line)).toStrictEqual([3, 5]);
+  expect(made.written.volumeRejections[0]?.why).toContain(BOUGHT);
 });
 
 // The three official lists, each stored by its tool with its provider.

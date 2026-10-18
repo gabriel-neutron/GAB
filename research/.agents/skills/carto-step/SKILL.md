@@ -25,8 +25,8 @@ the comment reports the data, and not a narrative.
    - **Loaded**: the documents, with their document ids.
    - **Proposed**: the proposal ids, one line for each, with the fact.
    - **Open**: the gaps and the next sources.
-5. Give the comment text to the operator. Post it on the ticket only when the operator asks you
-   to.
+5. Post the comment text on the ticket when the skill `ticket` runs or when the operator asks for
+   it. Otherwise give it to the operator.
 
 ## Never
 

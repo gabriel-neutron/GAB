@@ -12,6 +12,7 @@ const COMMANDS = {
   'firms-sweep': async () => (await import('./firms-sweep-command.ts')).firmsSweepCommand,
   ingest: async () => (await import('./ingest-command.ts')).ingestCommand,
   layout: async () => (await import('./layout-command.ts')).layoutCommand,
+  'merge-act': async () => (await import('./merge-act-command.ts')).mergeActCommand,
   'name-candidates': async () =>
     (await import('./name-candidates-command.ts')).nameCandidatesCommand,
   'nato-coverage': async () =>

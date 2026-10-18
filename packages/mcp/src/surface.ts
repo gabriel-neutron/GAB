@@ -76,6 +76,13 @@ export const RESEARCH_TOOLS = {
     idempotentHint: true,
     openWorldHint: true,
   },
+  // The same box gives the same image, which is stored once.
+  site_image: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
   // The same act is stored once, so a second read writes nothing.
   eu_act: {
     readOnlyHint: false,
