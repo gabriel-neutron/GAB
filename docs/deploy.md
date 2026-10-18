@@ -245,7 +245,7 @@ is an example table with invented data. The test of the fixed release of the sta
 - Name each asset in `actif_amont` and `actif_aval` by its entity identifier in the record (the
   `id` of `entities.csv`, as `search_graph` gives it), or by the exact label of one entity of the
   record. The case and the spaces of a label do not count. A row joins the physical link
-  (`crude_flows_to` or `products_flow_to`) of its two assets and its product. When an accepted
+  (`crude_flows_to`, `products_flow_to` or `gas_flows_to`) of its two assets and its product. When an accepted
   link and a link in review have the same two assets and product, the row joins the accepted
   link.
 - A label that more than one entity has joins no link: the command gives the line, and you give

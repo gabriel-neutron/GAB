@@ -1,4 +1,5 @@
 import { DisclaimerText } from './disclaimer-text.tsx';
+import { SanctionsRules } from './sanctions-rules.tsx';
 import { SiteFrame } from './site-frame.tsx';
 import { METHOD } from './site-paths.ts';
 import type { SiteRelease } from './site-release.ts';
@@ -48,6 +49,11 @@ export function MethodPage({ release }: { readonly release: SiteRelease }) {
           not redistributed". A row with the last text gives a fact that GAB read in a source, and
           the release does not give the source data again.
         </p>
+      </section>
+
+      <section className={SECTION}>
+        <h2 className="font-medium">Sanctions on the map</h2>
+        <SanctionsRules manifest={manifest} />
       </section>
 
       <section className={SECTION}>

@@ -4,7 +4,7 @@ import { CLAIMED_ATTACK } from '@gab/tools/event-rules';
 import { assetSanctions, type AssetMeasure } from './asset-sanctions.ts';
 import { attributeName } from './attribute-name.ts';
 import { isAccepted, PROPOSED_LABEL } from './accepted.ts';
-import { stageOf, type StageKey } from './chain-stage.ts';
+import { stageOf, type StageKey } from '@gab/proposal/chain-stage';
 import { eventsAt } from './event-lane.ts';
 import { mapFeatures } from './map-features.ts';
 import type { SiteRelease } from './site-release.ts';
@@ -35,12 +35,16 @@ export interface CardRelation extends CardFact {
 /** One sanction measure against an asset: the kind of measure, the act, and the dates. */
 export interface CardMeasure extends CardFact {
   readonly measure: string;
+  /** Empty when the act names the asset. Else the direct operator or owner that the act names,
+   * for example "operator KINEF". */
+  readonly via: string;
   readonly act: string;
   readonly from: string;
   readonly to: string;
 }
 
-/** The measures of one regime. No measure means no listing in the release. */
+/** The measures of one regime. No measure means that the release holds no measure, not that the
+ * regime has none. */
 export interface CardRegime {
   readonly regime: 'EU' | 'US' | 'UK';
   readonly measures: readonly CardMeasure[];
@@ -60,7 +64,7 @@ export interface Card {
   readonly inReview: boolean;
   readonly values: readonly CardValue[];
   readonly relations: readonly CardRelation[];
-  /** Null for an entity that has no sanctions status: only a facility has one. */
+  /** Null for an entity that has no sanctions status: only a facility or a port has one. */
   readonly sanctions: readonly CardRegime[] | null;
   readonly strikes: readonly CardStrike[];
 }
@@ -76,7 +80,7 @@ export interface ChainView {
 // A card measure belongs to a facility, never to a vessel (the vessel list has its own words on the
 // vessel page), so the asset freeze wording holds.
 const MEASURE_WORDS: Readonly<Record<AssetMeasure['measure'], string>> = {
-  designated_by: 'Listing (asset freeze)',
+  designated_by: 'Listed',
   restricted_by: 'Sectoral measure',
 };
 
@@ -150,12 +154,21 @@ export const chainView = (release: SiteRelease): ChainView => {
               measures: acceptedFirst(
                 status[key].map((one) => ({
                   measure: MEASURE_WORDS[one.measure],
+                  via: one.via === null ? '' : `${one.via.role} ${one.via.entity_label}`,
                   act: [one.act_label, one.act_document ?? ''].filter(Boolean).join(', '),
                   from: one.from ?? '',
                   to: one.to ?? '',
+                  // A measure through an operator or an owner is in review when its link or that entity is.
                   ...fact(
-                    `${key} ${one.measure} ${one.act_id} ${one.from ?? ''}`,
-                    one.origin_label,
+                    `${key} ${one.measure} ${one.act_id} ${one.from ?? ''} ${one.via?.entity_id ?? ''}`.trim(),
+                    [
+                      one.origin_label,
+                      one.via?.link_origin_label ?? one.origin_label,
+                      one.via === null
+                        ? one.origin_label
+                        : (release.entityById.get(one.via.entity_id)?.originLabel ??
+                          PROPOSED_LABEL),
+                    ].find((label) => !isAccepted(label)) ?? one.origin_label,
                   ),
                 })),
               ),

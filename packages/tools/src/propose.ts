@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { day } from '@gab/proposal/day';
 import { attributeEdit } from '@gab/proposal/attribute-value';
 import { machineAct } from '@gab/proposal/machine';
+import { ASSET_KINDS } from '@gab/proposal/mapping';
 import type { ProposalAct } from '@gab/proposal/payload';
 import { writeRequest, type WriteRequest } from '@gab/proposal/request';
 import { z } from 'zod';
@@ -71,6 +72,20 @@ const PUBLISHED_ON =
   'wins. With no published_on, a date with no year is not stated, and the item is disputed. An ' +
   'item that takes a year from it is disputed too, and the review card says so: the operator ' +
   'decides it. An item value beats the value of the call';
+
+/** Why the asset kind of an act is not a word of the closed list, or null. The check of a stated
+ * value never reads the kind in the text, so the list is its only check. */
+export const assetKindRefusal = (act: WriteRequest): string | null => {
+  const attrs = 'attrs' in act ? act.attrs : undefined;
+  const kind = attrs?.['asset_kind']?.v;
+  if (kind === undefined) return null;
+  // shortcut: an update_attrs does not read the type of its target, add it when one is wrong.
+  if (act.op === 'create_entity' && act.type !== 'facility' && act.type !== 'port')
+    return 'only a facility or a port has an asset_kind';
+  return ASSET_KINDS.some((one) => one === kind)
+    ? null
+    : `asset_kind is one of: ${ASSET_KINDS.join(', ')}`;
+};
 
 const publishedOn = day.describe(PUBLISHED_ON);
 
@@ -697,7 +712,9 @@ export const proposeOf = (modelCallId: string | null) =>
       'days: one day, or the two days of a night) and occurred_on_precision (day, night or ' +
       'month); the day of the name is the last day. Link it with occurred_at (to a facility, a ' +
       'port or a vessel) and carried_out_by (to a military unit or a state body). A denial is ' +
-      'the modality denies on the same name. First call search_graph with each identifier, and ' +
+      'the modality denies on the same name. The attribute asset_kind of a facility or a port is ' +
+      `one of ${ASSET_KINDS.join(', ')}; no passage needs to write the word. ` +
+      'First call search_graph with each identifier, and ' +
       'list_proposals for the document, so you propose no fact that the record or the queue ' +
       'already holds. Give published_on for an excerpt that writes a date with no year. A port ' +
       'call (berthed_at, loads_at, discharges_at) takes the day of the call as the attribute ' +
@@ -727,6 +744,8 @@ export const proposeOf = (modelCallId: string | null) =>
         const resolved = withCodedJurisdiction(await resolvedAct(session, given, index, minted));
         const eventFault = eventActRefusal(resolved);
         if (eventFault !== null) refuse(given.ref, eventFault);
+        const kindFault = assetKindRefusal(resolved);
+        if (kindFault !== null) refuse(given.ref, kindFault);
         await checkEventEnds(session, given, created);
         // A back-end agent reads the stored text only, so it never gives words read from an image.
         if (modelCallId !== null && given.evidence.some((one) => one.fromImage === true))

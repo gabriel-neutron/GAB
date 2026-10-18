@@ -16,3 +16,7 @@ test('the surface address encodes the identity for the map and for the graph', (
   expect(surfaceHref('map', AWKWARD_ID)).toBe('/map?entity=a%26b%23c%20d');
   expect(surfaceHref('graph', AWKWARD_ID)).toBe('/graph?entity=a%26b%23c%20d');
 });
+
+test('the surface address of a relation names the relation key', () => {
+  expect(surfaceHref('graph', AWKWARD_ID, 'relation')).toBe('/graph?relation=a%26b%23c%20d');
+});

@@ -137,6 +137,17 @@ function testMap(
     get imagery() {
       return currentImagery;
     },
+    setChain: () => {
+      // The rail story draws no chain.
+    },
+    chain: false,
+    setGlobe: () => {
+      // The rail story draws no globe.
+    },
+    globe: false,
+    showStep: () => {
+      // The rail story draws no step.
+    },
     destroy: () => {
       // The double owns nothing, so it releases nothing.
     },

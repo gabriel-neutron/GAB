@@ -17,6 +17,15 @@ export const siteManifestShape = z.object({
   version: z.string(),
   date: day,
   showNatoPair: z.boolean(),
+  // A release before the date rules on the site has no member.
+  dateRules: z
+    .object({
+      eu: z.literal('entry_into_force'),
+      ofac: z.literal('recent_actions_notice'),
+      uk: z.literal('date_designated'),
+    })
+    .nullable()
+    .default(null),
   disclaimer: z.string(),
   contacts: z.object({ reportError: contact, rightOfReply: contact }),
   iriBase: z.string(),

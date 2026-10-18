@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect } from 'storybook/test';
 
-import countries from './countries.json?raw';
+import countries from '@gab/proposal/countries.json?raw';
 import { chainView } from './chain-card.ts';
 import { CHAIN } from './chain-fixture.ts';
 import { chainFlows } from './chain-flows.ts';
@@ -9,7 +9,7 @@ import { SITE } from './event-fixture.ts';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
 import { CARDS_ELEMENT } from './map-elements.ts';
 import { MapPage } from './map-page.tsx';
-import { outsideRussia } from './outside-russia.ts';
+import { outsideRussia } from '@gab/proposal/outside-russia';
 import type { SiteRelease } from './site-release.ts';
 
 const argsOf = (release: SiteRelease) => {

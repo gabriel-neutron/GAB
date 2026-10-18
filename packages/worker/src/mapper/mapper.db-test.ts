@@ -83,9 +83,10 @@ const DRAFT = {
   },
   relations: [
     {
-      type: 'owned_by',
-      row_is: 'src',
+      type: 'owns',
+      row_is: 'dst',
       other: { key: 'imo_company_number', column: 'Owner Number' },
+      other_type: 'company',
     },
   ],
 };

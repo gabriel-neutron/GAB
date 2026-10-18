@@ -1,6 +1,6 @@
-import { PRODUCT_LINK_TYPES } from '@gab/proposal/relation-types';
+import { PRODUCT_LINK_TYPES } from './relation-types.ts';
 
-export type { ProductKey } from '@gab/proposal/relation-types';
+export type { ProductKey } from './relation-types.ts';
 
 // External constraint: MapLibre parses no oklch colour and no CSS custom property, so each hue of
 // a product is in hex, a light one for the dark ground of the map. The filter of the page takes the

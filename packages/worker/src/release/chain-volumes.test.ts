@@ -198,3 +198,15 @@ test('names an asset by the exact label of one entity of the record, in any case
   expect(unjoined.map((one) => one.line)).toEqual([3]);
   expect(unjoined[0]?.why).toMatch(/2 entities of the record have the label "Test twin"/u);
 });
+
+test('joins a gas row to the gas link of its two assets', () => {
+  const gas = { ...RECORD, relations: [relation(id(14), 'gas_flows_to', FIELD, PIPE)] };
+  const table = readVolumeTable(
+    [
+      'actif_amont,actif_aval,produit,periode,valeur,minimum,maximum,unite,classe,document,page,note',
+      `${FIELD},${PIPE},gaz,2026-07,900,,,GWh/mois,observé,doc_flow,8,`,
+    ].join('\r\n'),
+  );
+  const [row] = rowsOf(chainVolumes(gas, table, 'A test preamble.').file.text);
+  expect(row).toMatchObject({ relation_id: id(14), product: 'gas' });
+});

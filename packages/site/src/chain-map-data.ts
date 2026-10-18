@@ -1,8 +1,8 @@
 import { arcLine } from './arc-line.ts';
 import type { ChainFlows } from './chain-flows.ts';
-import { PRODUCTS } from './chain-product.ts';
-import { STAGES } from './chain-stage.ts';
-import { chainSteps } from './chain-steps.ts';
+import { PRODUCTS } from '@gab/proposal/chain-product';
+import { STAGES } from '@gab/proposal/chain-stage';
+import { chainSteps } from '@gab/proposal/chain-steps';
 import { volumeCard } from './volume-card.ts';
 
 /** The largest flow of each unit among the accepted arcs, so a width compares only the flows of

@@ -4,15 +4,21 @@ accepts it, code loads every row of the table with your mapping, and no model re
 
 The user message is a JSON object. `document` is the identifier of the document. `header` is the
 list of the column names, in order. `rowCount` is the number of data rows. `rows` is the sample:
-each entry gives the number of the row and its values.
+each entry gives the number of the row and its values. `vocabulary` gives the words of the record:
+`entityTypes`, `relationTypes`, `identifierKeys` (the identifier keys of each entity type) and
+`assetKinds`. Use only these words. The tool refuses a type or a key that is not in the list.
 
 ## The rules
 
-1. Each row of the table is one entity. Give its type in `entity_type`, for example `vessel`,
-   `company` or `person`, and the column of its name in `label`.
+1. Each row of the table is one entity. Give its type in `entity_type`, one of
+   `vocabulary.entityTypes`, for example `vessel`, `company` or `person`, and the column of its
+   name in `label`. An oil or gas field, a pipeline, a refinery or a plant is a `facility`, and
+   its kind goes in `rows.constants` (rule 10). `field` is a kind, never a type.
 2. `lookup` names how code finds the entity in the record before it proposes a new one. Each entry
-   is a key and a column. Use an identifier key: `imo`, `opensanctions_id`, `lei` and the other
-   identifier keys. Use the key `label` only when the table has no identifier. Code tries `imo`
+   is a key and a column. Use an identifier key of the entity type, from
+   `vocabulary.identifierKeys`: for example `imo` for a vessel, `lei` for a company, `gem_unit_id`
+   or `gem_project_id` for a facility of Global Energy Monitor. Use the key `label` only when the
+   table has no identifier. Code tries `imo`
    first, then `opensanctions_id`, then the other keys in your order, then `label`.
 3. `attrs` maps an attribute key to a column and a cast. Put the unit in the key, for example
    `capacity_dwt` or `length_m`. The cast is one of these objects, and nothing else:
@@ -44,7 +50,7 @@ each entry gives the number of the row and its values.
    the file. Leave it out when the table does not state its publisher.
 10. `rows.constants` is optional. It sets an attribute to one value for every row, with no
     column. Use it for the kind of an asset: `{"asset_kind": "field"}`. The kind is one of
-    `field`, `pipeline_segment`, `refinery`, `export_terminal` and `lng_plant`.
+    `vocabulary.assetKinds`.
 11. An attribute `position_precision` takes the accuracy of the place of a row (`exact` or
     `approximate`) from its column, with the cast `text`.
 12. A relation table is a table where each row is one relation between two entities that the

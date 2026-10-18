@@ -81,7 +81,7 @@ export const chainSteps = (flows: ChainFlows): readonly ChainStep[] => {
       label: 'Export',
       stage: 'destination',
       count: after.length,
-      sentence: `${count(after.length, 'physical link goes', 'physical links go')} on after the export stage, to a declared destination.`,
+      sentence: `${count(after.length, 'physical link goes', 'physical links go')} on after the export stage. ${count(assetsOf('destination').length, 'declared destination has', 'declared destinations have')} a position: the far end of a link from Russia, or a place abroad where a vessel that loads in Russia discharges.`,
       assets: assetsOf('destination'),
       arcs: after,
       exits: [],

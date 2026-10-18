@@ -41,17 +41,23 @@ test('an entity that is only proposed has no stage, and each of its facts is in 
   expect(port?.relations.every((one) => one.inReview)).toBe(true);
 });
 
-test('only a facility has a sanctions status', () => {
+test('a vessel has no sanctions status', () => {
   expect(chainView(FIXTURE_RELEASE.off).cards[VESSEL]?.sanctions).toBeNull();
 });
 
-test('a facility gives the status of each regime: the measure, the act and its date, or no listing', () => {
+test('a port with no measure has a status with no measure in each regime', () => {
+  const sanctions = chainView(FIXTURE_RELEASE.off).cards[PORT]?.sanctions;
+  expect(sanctions?.map((one) => one.measures.length)).toStrictEqual([0, 0, 0]);
+});
+
+test('a facility gives the status of each regime: the measure, the act and its date, or no measure', () => {
   const sanctions = chainView(FIXTURE_RELEASE.events).cards[SITE]?.sanctions;
   expect(sanctions?.map((one) => one.regime)).toStrictEqual(['EU', 'US', 'UK']);
   expect(sanctions?.[0]?.measures).toStrictEqual([
     {
       id: 'eu designated_by 0a1f0000-0000-4000-8000-000000000060 2025-05-20',
-      measure: 'Listing (asset freeze)',
+      measure: 'Listed',
+      via: '',
       act: 'Council of the European Union, Council Implementing Regulation (EU) 2025/0000',
       from: '2025-05-20',
       to: '',
@@ -59,7 +65,9 @@ test('a facility gives the status of each regime: the measure, the act and its d
       inReview: false,
     },
   ]);
-  expect(sanctions?.[1]?.measures).toStrictEqual([]);
+  expect(sanctions?.[1]?.measures).toMatchObject([
+    { measure: 'Listed', via: 'operator Arctic Bridge Shipping', from: '', inReview: false },
+  ]);
   expect(sanctions?.[2]?.measures).toMatchObject([
     { measure: 'Sectoral measure', act: 'HM Treasury, UK sanctions list', inReview: true },
   ]);

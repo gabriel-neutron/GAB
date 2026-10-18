@@ -1,4 +1,4 @@
-import { ASSET_KINDS } from '@gab/proposal/mapping';
+import { ASSET_KINDS } from './mapping.ts';
 
 // External constraint: MapLibre parses no oklch colour and no CSS custom property, so each hue of
 // a stage, and the grey of no stage, is in hex. The map draws on a dark ground, so each hue is a

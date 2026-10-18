@@ -38,6 +38,31 @@ const monthOf = (word: string): number | null => {
   return index === -1 ? null : index + 1;
 };
 
+// The English short forms of a month. With no year, a month is a full name, or one of these with
+// a capital ("Jan. 7"), so "Article 5 may apply" or "Лист 2" states no day.
+const SHORT_MONTHS = [
+  'jan',
+  'feb',
+  'mar',
+  'apr',
+  'jun',
+  'jul',
+  'aug',
+  'sep',
+  'sept',
+  'oct',
+  'nov',
+  'dec',
+];
+
+const strictMonthOf = (word: string): number | null => {
+  const lower = word.toLowerCase().replace(/\.$/u, '');
+  if (word === 'may') return null;
+  const full = MONTHS.findIndex((names) => names.includes(lower));
+  if (full !== -1) return full + 1;
+  return /^\p{Lu}/u.test(word) && SHORT_MONTHS.includes(lower) ? monthOf(lower) : null;
+};
+
 const dayText = (year: number, month: number, day: number): string =>
   `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
@@ -46,6 +71,20 @@ const dayText = (year: number, month: number, day: number): string =>
 const WORD_DAY =
   /(?<!\d)(\d{1,2})(?:st|nd|rd|th|er)?(?:\s+of\s+|\s*,\s*|\s+|-)([\p{L}.]+)(?:\s*,\s*|\s+|-)(\d{4})(?!\d)/gu;
 const WORD_MONTH_FIRST = /([\p{L}.]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})(?!\d)/gu;
+// A day with no year: "Jan. 7", "June 28th", "7 January", "28 июня". It takes the year of the
+// publication day, as a night does, and the check then marks the item disputed. A year after it
+// makes the forms above match, never these.
+// A news dateline is the day of the report, not of the event, so a day before an agency mark
+// ("Feb 24 (Reuters)", "February 24. /TASS/", "24 февраля. /ТАСС/") states no day.
+const NO_YEAR = String.raw`(?!\p{L})(?!(?:\s*,\s*|\s+|-)\d{4}(?!\d))(?!\.?\s*[(/])`;
+const MONTH_DAY_NO_YEAR = new RegExp(
+  String.raw`(?<!\p{L})(\p{L}+\.?)\s+(\d{1,2})(?:st|nd|rd|th)?(?!\d)${NO_YEAR}`,
+  'gu',
+);
+const DAY_MONTH_NO_YEAR = new RegExp(
+  String.raw`(?<![\d.,/-])(\d{1,2})(?:st|nd|rd|th|er)?(?:\s+of\s+|\s+)(\p{L}+)\.?${NO_YEAR}`,
+  'gu',
+);
 // A Ukrainian night: "у ніч на 15 травня". The night starts on the day before the day that it
 // names, so it states two days. The year is the one that the text gives, or else the year of the
 // publication date of the document.
@@ -180,6 +219,15 @@ const daysIn = (
     const month = monthOf(word ?? '');
     if (month !== null) found.add(dayText(Number(year), month, Number(day)));
   }
+  if (publishedOn !== undefined && DAY.test(publishedOn)) {
+    const add = (day: number, word: string): void => {
+      const month = strictMonthOf(word);
+      const year = month === null ? null : yearBefore(day, month, publishedOn);
+      if (month !== null && year !== null) found.add(dayText(year, month, day));
+    };
+    for (const [, word = '', day] of text.matchAll(MONTH_DAY_NO_YEAR)) add(Number(day), word);
+    for (const [, day, word = ''] of text.matchAll(DAY_MONTH_NO_YEAR)) add(Number(day), word);
+  }
   for (const [, first = '', mark = '', second = '', third = ''] of text.matchAll(NUMERIC_DAY))
     for (const day of numericDays(first, mark, second, third, dayFirst)) found.add(day);
   return found;
@@ -313,12 +361,16 @@ const stated = (value: Scalar, passage: string, options: DayOptions): boolean =>
 // in that form.
 const WORDS_OF_A_LIST: readonly string[] = [EVENT_KIND, EVENT_PRECISION];
 
+// The kind of an asset is a word of the closed list ASSET_KINDS too ("refinery", "lng_plant"),
+// and propose refuses another word. A page writes "oil refinery" or "НПЗ", never the word.
+const ASSET_KIND = 'asset_kind';
+
 const attributeValues = (
   attrs: Readonly<Record<string, { readonly v: unknown }>> | undefined,
   skipped: readonly string[] = [],
 ): ActValue[] =>
   Object.entries(attrs ?? {})
-    .filter(([key]) => !skipped.includes(key))
+    .filter(([key]) => key !== ASSET_KIND && !skipped.includes(key))
     .flatMap(([key, held]) =>
       (Array.isArray(held.v) ? held.v : [held.v])
         .filter(

@@ -4,6 +4,6 @@ actif_amont,actif_aval,produit,periode,valeur,minimum,maximum,unite,classe,docum
 Test export pipeline,Primorsk,brut,2026-07,"1 200",,,kb/j,capacité,volume_report,5,Joined by the labels of the two assets
 Test export pipeline,Primorsk,brut,2026-06,"9,5",8,11,Mt/an,estimé,volume_report,6,A second unit: never compared with kb/j
 Test refinery,Primorsk,produits,2026-07,100,80,130,kt/mois,estimé,volume_report,7,The record has no such asset: joins no link
-Test gas pipeline,Test border point,gaz,2026-07,900,,,GWh/mois,observé,volume_report,8,No relation type for gas: joins no link
+Test gas pipeline,Test border point,gaz,2026-07,900,,,GWh/mois,observé,volume_report,8,No gas link in the record: joins no link
 Test export pipeline,Primorsk,brut,2026-07,350,,,kb/j,observé,,9,Rejected: no document
 Test export pipeline,Primorsk,brut,2026-07,350,,,kb/j,,volume_report,9,Rejected: no class
