@@ -1984,7 +1984,9 @@ test('propose refuses a source whose excerpt names neither the vessel nor the ac
   });
   expect(found.outcome).toMatchObject({
     ok: false,
-    refusal: expect.stringContaining('item source: no excerpt of a cited document names the vessel') as string,
+    refusal: expect.stringContaining(
+      'item source: no excerpt of a cited document names the vessel',
+    ) as string,
   });
   expect(found.rows).toStrictEqual([]);
 });
