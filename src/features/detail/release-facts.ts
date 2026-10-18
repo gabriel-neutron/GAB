@@ -13,6 +13,9 @@ export interface ReleaseFacts {
   readonly imo: string | null;
   /** The identifiers that a merge absorbed into this entity. */
   readonly merged: readonly string[];
+  /** Who decided the entity and the licence of its row, as the release words them. Null where
+   * the page reads the live record, because the live page words its own decision. */
+  readonly label: { readonly origin: string; readonly licence: string } | null;
   /** The events of a site, or null where the page draws no events part. */
   readonly events: readonly EventLine[] | null;
 }
@@ -30,9 +33,11 @@ export function releaseFactsOf(
   withEvents: boolean,
 ): ReleaseFacts {
   const events = withEvents ? eventsAt(release, entityId) : [];
+  const row = withEvents ? release.entityById.get(entityId) : undefined;
   const drawsEvents = withEvents && (SITE_TYPES.has(entityType) || events.length > 0);
   return {
     imo: release.imoOfVessel.get(entityId) ?? null,
+    label: row === undefined ? null : { origin: row.originLabel, licence: row.licence },
     merged: [...release.aliases].filter(([, survivor]) => survivor === entityId).map(([id]) => id),
     events: drawsEvents
       ? events.map((event) => ({

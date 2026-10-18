@@ -220,7 +220,8 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
         }
       />
 
-      {facts === null || (facts.imo === null && facts.merged.length === 0) ? null : (
+      {facts === null ||
+      (facts.imo === null && facts.merged.length === 0 && facts.label === null) ? null : (
         <KeyValue
           entries={[
             ...(facts.imo === null
@@ -234,6 +235,12 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
                       </a>
                     ),
                   },
+                ]),
+            ...(facts.label === null
+              ? []
+              : [
+                  { key: 'Origin', value: facts.label.origin },
+                  { key: 'Licence', value: facts.label.licence },
                 ]),
             ...(facts.merged.length === 0
               ? []

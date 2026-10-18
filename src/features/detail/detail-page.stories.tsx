@@ -296,13 +296,24 @@ const ABSORBED = '0a1f0000-0000-4000-8000-000000000005';
 
 /** A release that knows the vessel gives the link to its timeline and the identifiers it absorbed. */
 export const AVesselOfTheReleaseLinksItsTimelineAndNamesTheMergedIdentifiers: Story = {
-  args: { dossier: { ...DOSSIER, facts: { imo: '9000001', merged: [ABSORBED], events: null } } },
+  args: {
+    dossier: {
+      ...DOSSIER,
+      facts: {
+        imo: '9000001',
+        merged: [ABSORBED],
+        label: { origin: 'Proposed — not checked', licence: 'CC-BY 4.0' },
+        events: null,
+      },
+    },
+  },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole('link', { name: 'IMO 9000001' })).toHaveAttribute(
       'href',
       '/vessel/9000001',
     );
     await expect(canvas.getByText(ABSORBED)).toBeVisible();
+    await expect(canvas.getByText('CC-BY 4.0')).toBeVisible();
   },
 };
 
@@ -319,6 +330,7 @@ export const ASiteOfTheReleaseDrawsItsEvents: Story = {
       ...DOSSIER,
       facts: {
         imo: null,
+        label: null,
         merged: [],
         events: releaseFactsOf(EVENTS_RELEASE, SITE, 'facility', true).events,
       },

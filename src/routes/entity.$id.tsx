@@ -32,11 +32,11 @@ function entityNotFound(): never {
 
 // The same wrapper as above, for the same reason: `redirect({ throw: true })` does not return
 // `never` in its type.
-function goToSurvivor(id: string): never {
+function goToSurvivor(id: string, src: string | null): never {
   redirect({
     to: '/entity/$id',
     params: { id },
-    search: { src: null },
+    search: { src },
     replace: true,
     throw: true,
   });
@@ -56,7 +56,9 @@ export const Route = createFileRoute('/entity/$id')({
   // characters `null`, which is a document identifier that no corpus holds.
   search: { middlewares: [stripSearchParams({ src: null })] },
 
-  loader: async ({ params }): Promise<Dossier> => {
+  loaderDeps: ({ search }) => ({ src: search.src }),
+
+  loader: async ({ params, deps }): Promise<Dossier> => {
     if (params.id.trim() === '') entityNotFound();
     // `$id` is an opaque string: no schema is settled, so this file states no form for it. The one
     // exception above is a blank segment, which names no entity under any schema. The read API
@@ -67,12 +69,14 @@ export const Route = createFileRoute('/entity/$id')({
       loadDecidedActs(),
     ]);
     const dossier = readDossier(corpus, params.id, types, decided);
-    const release = await loadReleaseOrNull();
+    // The release only adds to a live page, so a release that cannot be read costs the page its
+    // extra lines and nothing more. In release mode the corpus read has failed already.
+    const release = await loadReleaseOrNull().catch(() => null);
     if (dossier === null) {
       // An identifier that a merge absorbed opens the page of the entity that survived it.
       const survivor = release?.aliases.get(params.id);
-      if (survivor === undefined) return entityNotFound();
-      return goToSurvivor(survivor);
+      if (survivor === undefined || survivor === params.id) return entityNotFound();
+      return goToSurvivor(survivor, deps.src);
     }
     return {
       ...dossier,
