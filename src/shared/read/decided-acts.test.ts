@@ -54,16 +54,45 @@ test('the history reads the promoted acts, and no pending act and no rejected ac
   const read = await loadDecidedActs();
 
   expect(asked()).toStrictEqual(['/proposal?status=eq.accepted']);
-  expect(read.map((held) => [held.act.id, held.verdict, held.decidedBy])).toStrictEqual([
-    ['07e80431-1df2-4b32-ab9c-16f3cab6d2c7', 'accepted', 'the writer door'],
-  ]);
+  expect(
+    read.map((held) =>
+      'unreadable' in held ? [held.id] : [held.act.id, held.verdict, held.decidedBy],
+    ),
+  ).toStrictEqual([['07e80431-1df2-4b32-ab9c-16f3cab6d2c7', 'accepted', 'the writer door']]);
 });
 
-test('a decided act that arrives without its hour is refused, and never drawn as a blank', async () => {
-  acceptedRows = [{ ...DECIDED_ROW, decided_at: null }];
+test('an act that gives only the start date of a relation is read, as an end-date act is', async () => {
+  const START_ROW = {
+    ...DECIDED_ROW,
+    id: '17e80431-1df2-4b32-ab9c-16f3cab6d2c7',
+    op: 'update_relation',
+    target_kind: 'relation',
+    payload: { valid_from: '2019-05-02' },
+    prior_value: { valid_from: null, sources: ['manual'] },
+  };
+  acceptedRows = [START_ROW];
   const { loadDecidedActs } = await import('./decided-acts');
 
-  await expect(loadDecidedActs()).rejects.toThrow('without its verdict, its hour or its name');
+  const read = await loadDecidedActs();
+
+  expect(read).toHaveLength(1);
+  expect(read[0]).toMatchObject({
+    act: { payload: { kind: 'start', valid_from: '2019-05-02' } },
+    verdict: 'accepted',
+  });
+});
+
+test('a decided act that arrives without its hour gives one marked line and no failed page', async () => {
+  acceptedRows = [DECIDED_ROW, { ...DECIDED_ROW, id: 'bad', decided_at: null }];
+  const { loadDecidedActs } = await import('./decided-acts');
+
+  const read = await loadDecidedActs();
+
+  expect(read.map((held) => ('unreadable' in held ? 'unread' : 'read'))).toStrictEqual([
+    'read',
+    'unread',
+  ]);
+  expect(read[1]).toStrictEqual({ unreadable: true, id: 'bad' });
 });
 
 test('a refresh of the corpus forgets the history, so a later decision reaches it', async () => {

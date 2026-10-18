@@ -238,7 +238,12 @@ const priorRow = z.record(z.string(), z.unknown());
 // permits it there alone.
 function priorValueOf(op: ProposalOp, payload: unknown, value: unknown): PriorValue | null {
   if (value === undefined || value === null) return null;
-  if (isClose(op, payload) || isRetype(op, payload))
+  if (
+    isClose(op, payload) ||
+    isStart(op, payload) ||
+    isRetype(op, payload) ||
+    isSource(op, payload)
+  )
     return { kind: 'row', row: priorRow.parse(value) };
   switch (op) {
     case 'update_attrs':
