@@ -8,6 +8,8 @@ import type { RailRows } from '@/shared/rail';
 import type { Corpus, TypeVocabulary } from '@/shared/read/model';
 
 import { mountMap, type MapHandle } from './adapter';
+import { ChainControl } from './chain-control';
+import { chainView } from './chain-view';
 import { project } from './projection';
 import { GroundControl } from './ground-control';
 import { Rail } from './rail';
@@ -59,6 +61,8 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation }: MapPagePr
   // position in its array. So one corpus gives one projection, and a second projection over the
   // same corpus would carry identifiers the live map does not hold.
   const projection = useMemo(() => project(corpus, types), [corpus, types]);
+  // The chain of the same corpus, from the same projection, so its arcs join the drawn points.
+  const chain = useMemo(() => chainView(corpus, projection), [corpus, projection]);
 
   // React 19 StrictMode runs setup, cleanup, setup: `mountMap` destroys an instance it finds on
   // the element, and this cleanup drops each listener, so two runs leave one map. The list mounts
@@ -69,7 +73,7 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation }: MapPagePr
     // before this effect runs. This test states that, and it invents no second mounting path.
     if (container === null) return;
 
-    const map = mountMap({ container, projection });
+    const map = mountMap({ container, projection, chain });
     handle.current = map;
     setMapReady(true);
     const unsubscribe = map.onSelect(onSelect);
@@ -88,7 +92,7 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation }: MapPagePr
       handle.current = null;
       setMapReady(false);
     };
-  }, [projection, onSelect, onChooseRelation]);
+  }, [projection, chain, onSelect, onChooseRelation]);
 
   // No React render is permitted inside the tree that wraps the live element: a render that
   // builds a new element removes the old node, and the WebGL context goes with it. The empty
@@ -111,6 +115,7 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation }: MapPagePr
       <div className="relative flex min-w-0 flex-1">
         {canvas}
         {mapReady ? <GroundControl map={handle} /> : null}
+        {mapReady ? <ChainControl map={handle} steps={chain.steps} /> : null}
       </div>
     </div>
   );

@@ -23,6 +23,10 @@ interface MapWorkspace {
   readonly railWidth: number;
   readonly ground: Ground;
   readonly imagery: Imagery;
+  /** The Chain mode of the map. */
+  readonly chain: boolean;
+  /** The globe projection, or the flat one. */
+  readonly globe: boolean;
 }
 
 const DEFAULT_WORKSPACE: MapWorkspace = {
@@ -33,6 +37,8 @@ const DEFAULT_WORKSPACE: MapWorkspace = {
   railWidth: 240,
   ground: 'plan',
   imagery: DEFAULT_IMAGERY,
+  chain: false,
+  globe: false,
 };
 
 const isCamera = (value: unknown): value is Camera =>
@@ -58,6 +64,8 @@ const DECLARED_KEYS: Readonly<Record<keyof MapWorkspace, true>> = {
   railWidth: true,
   ground: true,
   imagery: true,
+  chain: true,
+  globe: true,
 };
 
 // The cost of the strict guard here is one camera position, one time.
@@ -74,7 +82,9 @@ const isWorkspace = (value: unknown): value is MapWorkspace => {
     typeof w['railWidth'] === 'number' &&
     Number.isFinite(w['railWidth']) &&
     (w['ground'] === 'plan' || w['ground'] === 'imagery') &&
-    isImagery(w['imagery'])
+    isImagery(w['imagery']) &&
+    typeof w['chain'] === 'boolean' &&
+    typeof w['globe'] === 'boolean'
   );
 };
 

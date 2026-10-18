@@ -1,3 +1,4 @@
+import { PRODUCTS } from '@gab/proposal/chain-product';
 import { shareWords } from '@gab/proposal/share';
 import {
   AttributionControl,
@@ -20,6 +21,7 @@ import {
 import { foldEveryUnit } from '@/shared/unit-folds';
 
 import { EVERY_GROUND, groundPaint, groundSource, type GroundSource } from './basemap';
+import type { ChainView } from './chain-view';
 import type { Imagery } from './imagery';
 import type { NatoSymbol } from './nato-symbol';
 import type { GeoEntity, GeoLink, Projection } from './projection';
@@ -40,6 +42,8 @@ interface MountMapOptions {
   // `map.resize()`, and a container that sizes to its canvas makes a loop with the observer.
   readonly container: HTMLElement;
   readonly projection: Projection;
+  /** The chain of the same corpus. The Chain mode draws it. */
+  readonly chain: ChainView;
   readonly creditCorner?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 }
 
@@ -67,6 +71,15 @@ export interface MapHandle {
   /** Changes the source or the date of the imagery ground. The plan ground is untouched. */
   readonly setImagery: (imagery: Imagery) => void;
   readonly imagery: Imagery;
+  /** The Chain mode: each asset in the colour of its stage, and the physical links as arcs. */
+  readonly setChain: (on: boolean) => void;
+  readonly chain: boolean;
+  /** The globe projection, or the flat one. */
+  readonly setGlobe: (on: boolean) => void;
+  readonly globe: boolean;
+  /** Puts the assets or the links of one step of the chain forward, and moves the camera to
+   * them. `null` puts the whole chain forward again. */
+  readonly showStep: (key: string | null) => void;
   readonly destroy: () => void;
 }
 
@@ -150,6 +163,71 @@ const REACH_ZOOM = 15;
 // observer below takes it, and the first delivery therefore always resizes the canvas.
 const NO_SIZE = -1;
 
+/** The arcs of the physical links of the chain, and the exit points. The pulse reads the progress
+ * along each line, so the source of the arcs keeps its line metrics. */
+const CHAIN_ARC_SOURCE = 'chain-arcs';
+const CHAIN_EXIT_SOURCE = 'chain-exits';
+const CHAIN_CASING_LAYER = 'chain-arcs-casing';
+const CHAIN_POINT_LAYER = 'chain-points';
+const CHAIN_EXIT_LAYER = 'chain-exits-ring';
+const pulseOfProduct = (product: string): string => `chain-pulse-${product}`;
+
+// MapLibre parses no CSS custom property, so the hues of the chain are hex. The hues of the stages
+// and the products are light ones, and a dark casing under each arc keeps an arc readable on the
+// light plan ground too.
+const CHAIN_CASING = '#000000';
+const CHAIN_IN_REVIEW = '#9aa3ad';
+const CHAIN_PULSE = '#ffffff';
+// Origin of the number: at this opacity an asset or an arc out of the step stays visible on each
+// ground, and an asset of the step reads at once.
+const CHAIN_DIMMED = 0.3;
+
+/** The arcs of the chain, one layer for each style. A link in review is never drawn as a fact. */
+const CHAIN_ARC_LAYERS = [
+  { id: 'chain-arcs-solid', style: 'solid', dash: null },
+  { id: 'chain-arcs-dashed', style: 'dashed', dash: [3, 2] },
+  { id: 'chain-arcs-review', style: 'in review', dash: [0.5, 1.5] },
+] as const;
+
+/** A gradient along a line, with a bright head at `progress` (0 to 1) and a short tail. */
+type Pulse = [
+  'interpolate',
+  ['linear'],
+  ['line-progress'],
+  number,
+  string,
+  number,
+  string,
+  number,
+  string,
+  number,
+  string,
+  number,
+  string,
+];
+
+const pulseAt = (progress: number): Pulse => {
+  // Origin of the numbers: an interpolation needs its inputs in strictly ascending order, so the
+  // head stays between 0.13 and 0.97, with a tail of 0.12 and a front of 0.02.
+  const head = 0.13 + 0.84 * Math.min(Math.max(progress, 0), 1);
+  const clear = 'rgba(0,0,0,0)';
+  return [
+    'interpolate',
+    ['linear'],
+    ['line-progress'],
+    0,
+    clear,
+    head - 0.12,
+    clear,
+    head,
+    CHAIN_PULSE,
+    head + 0.02,
+    clear,
+    1,
+    clear,
+  ];
+};
+
 /** The unsubscribe that a destroyed handle gives. */
 const NO_OP = (): void => {
   // A destroyed handle registers no listener, so it has nothing to remove.
@@ -163,7 +241,11 @@ interface PointFeature {
   readonly geometry: { readonly type: 'Point'; readonly coordinates: readonly number[] };
   readonly properties: {
     readonly entityType: string;
+    /** The identity of the row, which a step of the chain puts forward. */
+    readonly entityId: string;
     readonly colour: string;
+    /** The hue of the stage of the asset, which the Chain mode draws. Absent with no stage. */
+    readonly stageColour?: string;
     // The halo layer filters on this. One source and one property, and not a second source: a
     // panel of thirty types must not make sixty queries, and two sources of one point would
     // drift the day one of the two was written and the other was not.
@@ -302,6 +384,7 @@ const mounted = new WeakMap<HTMLElement, MapHandle>();
 export function mountMap({
   container,
   projection,
+  chain,
   creditCorner = 'bottom-right',
 }: MountMapOptions): MapHandle {
   mounted.get(container)?.destroy();
@@ -349,6 +432,7 @@ export function mountMap({
       const colour = colourOfType.get(entity.type);
       if (colour === undefined) continue;
       const point = at(entity);
+      const stageColour = chain.stageColour.get(entity.id);
       features.push({
         type: 'Feature',
         id: entity.fid,
@@ -357,8 +441,10 @@ export function mountMap({
         // must not remove the halo from a position that was still borrowed.
         properties: {
           entityType: entity.type,
+          entityId: entity.id,
           colour,
           inherited: entity.parentId !== null,
+          ...(stageColour === undefined ? {} : { stageColour }),
           ...(entity.symbol === null
             ? {}
             : { symbolImage: unitSymbolImageId(entity.type, entity.symbol) }),
@@ -522,6 +608,88 @@ export function mountMap({
     paint: { 'icon-opacity': LINK_OPACITY },
   };
 
+  // The reader asks for reduced motion: no pulse and no camera flight.
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let chainOn = stored.chain;
+  let globeOn = stored.globe;
+  const chainVisibility = (): 'visible' | 'none' => (chainOn ? 'visible' : 'none');
+
+  // An asset of the chain keeps its type filter: a point of a type that is switched off is drawn
+  // nowhere, in the Chain mode too.
+  const chainPointFilter = (): [
+    'all',
+    ['has', string],
+    ['!', ['in', ['get', string], ['literal', string[]]]],
+  ] => [
+    'all',
+    ['has', 'stageColour'],
+    ['!', ['in', ['get', 'entityType'], ['literal', [...hidden]]]],
+  ];
+
+  const chainArcLayers: LayerSpec[] = [
+    {
+      id: CHAIN_CASING_LAYER,
+      type: 'line',
+      source: CHAIN_ARC_SOURCE,
+      layout: { visibility: chainVisibility(), 'line-cap': 'round' },
+      paint: { 'line-color': CHAIN_CASING, 'line-width': 4, 'line-opacity': 0.5 },
+    },
+    ...CHAIN_ARC_LAYERS.map((one): LayerSpec => ({
+      id: one.id,
+      type: 'line',
+      source: CHAIN_ARC_SOURCE,
+      filter: ['==', ['get', 'style'], one.style],
+      layout: {
+        visibility: chainVisibility(),
+        'line-cap': one.dash === null ? 'round' : 'butt',
+      },
+      paint: {
+        'line-color': one.style === 'in review' ? CHAIN_IN_REVIEW : ['get', 'colour'],
+        'line-width': 2,
+        ...(one.dash === null ? {} : { 'line-dasharray': [...one.dash] }),
+      },
+    })),
+    // A pulse runs along each link that is a fact. A gradient reads no property of the feature,
+    // so each product has its own layer.
+    ...PRODUCTS.map((one): LayerSpec => ({
+      id: pulseOfProduct(one.key),
+      type: 'line',
+      source: CHAIN_ARC_SOURCE,
+      filter: ['all', ['==', ['get', 'product'], one.key], ['!=', ['get', 'style'], 'in review']],
+      layout: { visibility: chainOn && !still ? 'visible' : 'none', 'line-cap': 'round' },
+      paint: { 'line-width': 3, 'line-blur': 1, 'line-gradient': pulseAt(0.5) },
+    })),
+  ];
+
+  const chainMarkLayers: LayerSpec[] = [
+    {
+      id: CHAIN_POINT_LAYER,
+      type: 'circle',
+      source: ENTITY_SOURCE,
+      filter: chainPointFilter(),
+      layout: { visibility: chainVisibility() },
+      paint: {
+        'circle-color': ['get', 'stageColour'],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3.5, 14, 7.5],
+        'circle-stroke-color': POINT_OUTLINE,
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 3, 1, 14, 1.6],
+      },
+    },
+    {
+      id: CHAIN_EXIT_LAYER,
+      type: 'circle',
+      source: CHAIN_EXIT_SOURCE,
+      layout: { visibility: chainVisibility() },
+      paint: {
+        // A ring with no fill, so the asset under an exit point stays in view.
+        'circle-opacity': 0,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 8, 14, 16],
+        'circle-stroke-color': ['case', ['get', 'inReview'], CHAIN_IN_REVIEW, '#ff4d6d'],
+        'circle-stroke-width': 2,
+      },
+    },
+  ];
+
   const isDark = (): boolean => document.documentElement.classList.contains('dark');
 
   /** The layer that draws one ground. One ground, one layer, and one name for both. */
@@ -558,6 +726,7 @@ export function mountMap({
 
   const style: StyleSpec = {
     version: 8,
+    projection: { type: globeOn ? 'globe' : 'mercator' },
     sources: {
       ...groundSources,
       [ENTITY_SOURCE]: { type: 'geojson', data: collect(featuresOf(projection.entities)) },
@@ -568,6 +737,8 @@ export function mountMap({
       [LINK_SOURCE]: { type: 'geojson', data: collectLines([]) },
       [ACTIVE_LINK_SOURCE]: { type: 'geojson', data: collectLines([]) },
       [ARROW_SOURCE]: { type: 'geojson', data: collectArrows([]) },
+      [CHAIN_ARC_SOURCE]: { type: 'geojson', data: chain.arcs, lineMetrics: true },
+      [CHAIN_EXIT_SOURCE]: { type: 'geojson', data: chain.exits },
     },
     // The first layer of this list is at the bottom of the map, and the last layer is at the top.
     layers: [
@@ -578,10 +749,14 @@ export function mountMap({
       // **The lines come before every point.** A relation must never cover what it relates.
       ...linkLayers,
       arrowLayer,
+      // The arcs of the chain are lines too, so they stand under every point.
+      ...chainArcLayers,
       // **The haloes are under every point.** A halo over a point would dim the mark it belongs
       // to, and it would cover a neighbouring point that stands inside its radius.
       ...haloLayers,
       ...pointLayers,
+      // In the Chain mode, the disc of the stage covers the disc of the type of the same asset.
+      ...chainMarkLayers,
       // The marks stand above every disc. They are the mark of the unit itself, and a disc of a
       // neighbouring type that covered one would hide what that unit is.
       ...symbolLayers,
@@ -800,7 +975,11 @@ export function mountMap({
   // The identifiers of the layers that draw an entity, taken from the layers themselves. One list,
   // one truth. The symbol layers are in it because a unit is clicked on its marks: it draws no
   // disc, so a hit test over the discs alone would make every unit unclickable.
-  const pointLayerIds = [...pointLayers, ...symbolLayers].map((layer) => layer.id);
+  const pointLayerIds = [
+    ...pointLayers.map((layer) => layer.id),
+    CHAIN_POINT_LAYER,
+    ...symbolLayers.map((layer) => layer.id),
+  ];
 
   /** The same rule for the lines. Both line layers are clickable, and the brighter one too. */
   const linkLayerIds = linkLayers.map((layer) => layer.id);
@@ -875,6 +1054,94 @@ export function mountMap({
       drain();
     }),
   );
+
+  // The pulse runs along each link in 2.6 seconds, then waits for a short time. It runs only in
+  // the Chain mode, and never under reduced motion.
+  let pulseFrame = 0;
+  const pulse = (now: number): void => {
+    if (destroyed) return;
+    if (styleReady && chainOn) {
+      const progress = ((now / 2600) % 1) * 1.15;
+      for (const one of PRODUCTS)
+        map.setPaintProperty(
+          pulseOfProduct(one.key),
+          'line-gradient',
+          pulseAt(Math.min(progress, 1)),
+        );
+    }
+    pulseFrame = requestAnimationFrame(pulse);
+  };
+  if (!still) pulseFrame = requestAnimationFrame(pulse);
+
+  const placesOfStep = new Map<string, readonly (readonly [number, number])[]>([
+    ...projection.entities.map(
+      (entity) => [entity.id, [[entity.lon, entity.lat] as const]] as const,
+    ),
+    ...chain.flows.arcs.map((arc) => [arc.id, arc.path] as const),
+    ...chain.flows.exits.flatMap((exit) =>
+      exit.position === null ? [] : [[exit.id, [exit.position]] as const],
+    ),
+  ]);
+
+  const forward = (
+    ids: ReadonlySet<string> | null,
+    property: string,
+  ): number | ['case', ['in', ['get', string], ['literal', string[]]], number, number] =>
+    ids === null ? 1 : ['case', ['in', ['get', property], ['literal', [...ids]]], 1, CHAIN_DIMMED];
+
+  const paintStep = (key: string | null): void => {
+    const step = key === null ? undefined : chain.steps.find((one) => one.key === key);
+    whenStyleReady(() => {
+      const assets = step === undefined ? null : new Set(step.assets);
+      const arcs = step === undefined ? null : new Set(step.arcs);
+      const exits = step === undefined ? null : new Set(step.exits);
+      map.setPaintProperty(CHAIN_POINT_LAYER, 'circle-opacity', forward(assets, 'entityId'));
+      map.setPaintProperty(CHAIN_POINT_LAYER, 'circle-stroke-opacity', forward(assets, 'entityId'));
+      for (const id of [
+        CHAIN_CASING_LAYER,
+        ...CHAIN_ARC_LAYERS.map((one) => one.id),
+        ...PRODUCTS.map((one) => pulseOfProduct(one.key)),
+      ])
+        map.setPaintProperty(id, 'line-opacity', forward(arcs, 'id'));
+      map.setPaintProperty(CHAIN_EXIT_LAYER, 'circle-stroke-opacity', forward(exits, 'id'));
+    });
+    if (step === undefined) return;
+    const all = [...step.assets, ...step.arcs, ...step.exits].flatMap(
+      (id) => placesOfStep.get(id) ?? [],
+    );
+    if (all.length === 0) return;
+    cameraIsAnalystChoice = true;
+    map.fitBounds(
+      [
+        [Math.min(...all.map(([lon]) => lon)), Math.min(...all.map(([, lat]) => lat))],
+        [Math.max(...all.map(([lon]) => lon)), Math.max(...all.map(([, lat]) => lat))],
+      ],
+      { padding: FIT_PADDING * 2, maxZoom: 6, duration: still ? 0 : 2000 },
+    );
+    storeCameraAfterMove();
+  };
+
+  // In the Chain mode, an asset with a stage draws one disc, in the colour of its stage, and each
+  // other entity steps back. Out of the mode, the type layers draw as before.
+  const paintChainMode = (): void => {
+    whenStyleReady(() => {
+      for (const facet of projection.types) {
+        const base: ['==', ['get', string], string] = ['==', ['get', 'entityType'], facet.type];
+        map.setFilter(
+          layerOfType(facet.type),
+          chainOn
+            ? ['all', base, ['!', ['has', 'symbolImage']], ['!', ['has', 'stageColour']]]
+            : ['all', base, ['!', ['has', 'symbolImage']]],
+        );
+        const back = chainOn ? CHAIN_DIMMED : 1;
+        map.setPaintProperty(layerOfType(facet.type), 'circle-opacity', back);
+        map.setPaintProperty(layerOfType(facet.type), 'circle-stroke-opacity', back);
+        map.setPaintProperty(symbolOfType(facet.type), 'icon-opacity', back);
+        map.setPaintProperty(haloOfType(facet.type), 'circle-opacity', HALO_OPACITY * back);
+      }
+    });
+  };
+  paintChainMode();
 
   // True when the camera is the choice of the analyst, so the adapter must not frame the corpus
   // over it. `workspace.ts` keeps `camera` at `null` until a camera is stored, so a camera stored
@@ -1188,6 +1455,7 @@ export function mountMap({
         ]) {
           map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
         }
+        map.setFilter(CHAIN_POINT_LAYER, chainPointFilter());
       });
       dropUndrawn();
     },
@@ -1272,9 +1540,50 @@ export function mountMap({
     get imagery() {
       return imagery;
     },
+    setChain: (on) => {
+      if (destroyed) return;
+      chainOn = on;
+      patchMapWorkspace({ chain: on });
+      whenStyleReady(() => {
+        for (const id of [
+          CHAIN_CASING_LAYER,
+          ...CHAIN_ARC_LAYERS.map((one) => one.id),
+          CHAIN_POINT_LAYER,
+          CHAIN_EXIT_LAYER,
+        ])
+          map.setLayoutProperty(id, 'visibility', chainVisibility());
+        for (const one of PRODUCTS)
+          map.setLayoutProperty(
+            pulseOfProduct(one.key),
+            'visibility',
+            on && !still ? 'visible' : 'none',
+          );
+      });
+      paintChainMode();
+      if (!on) paintStep(null);
+    },
+    get chain() {
+      return !destroyed && chainOn;
+    },
+    setGlobe: (on) => {
+      if (destroyed) return;
+      globeOn = on;
+      patchMapWorkspace({ globe: on });
+      whenStyleReady(() => {
+        map.setProjection({ type: on ? 'globe' : 'mercator' });
+      });
+    },
+    get globe() {
+      return !destroyed && globeOn;
+    },
+    showStep: (key) => {
+      if (destroyed) return;
+      paintStep(key);
+    },
     destroy: () => {
       if (destroyed) return;
       destroyed = true;
+      cancelAnimationFrame(pulseFrame);
       themeObserver.disconnect();
       observer.disconnect();
       for (const subscription of subscriptions) subscription.unsubscribe();
