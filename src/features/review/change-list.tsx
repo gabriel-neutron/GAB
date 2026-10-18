@@ -125,7 +125,7 @@ export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) 
         Choose a unit in the list.
       </section>
     );
-  const { entity, relations, others, closes, starts, retypes } = unitChanges(unit, words);
+  const { entity, relations, places, others, closes, starts, retypes } = unitChanges(unit, words);
   return (
     <section
       aria-label="The changes of the unit"
@@ -180,6 +180,20 @@ export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) 
           </ul>
         </>
       )}
+      {places.map((place) => (
+        <div key={place.id} data-change={place.id}>
+          <h3 className={HEADING}>
+            {place.joined ? 'Place that comes with it' : `Place of ${place.entity}`}
+          </h3>
+          <Attributes attributes={place.attributes} />
+          {place.joined ? (
+            <p className="text-label">
+              It is written after the new entity. A rejection of the entity rejects it.
+            </p>
+          ) : null}
+          {place.disputed ? <p className="text-dissent">Disputed.</p> : null}
+        </div>
+      ))}
       {others.map((other) => (
         <div key={other.id} data-change={other.id}>
           <h3 className={HEADING}>

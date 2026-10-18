@@ -192,7 +192,9 @@ END $$;
 -- unit of its own, so that no entity waits for another group or for a relation. If not, a
 -- relation belongs to its source end when that end is a pending entity of the same group, then to
 -- its target end. Every other act is its own unit. An entity act has the identifier of the entity
--- it creates, so the unit of an entity is that identifier. The unit is frozen with the act.
+-- it creates, so the unit of an entity is that identifier. A change of the place of a pending
+-- entity joins the unit of that entity in the same way, from any group: the promotion writes it
+-- after the entity. The unit is frozen with the act.
 CREATE OR REPLACE FUNCTION stamp_unit() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
@@ -201,6 +203,13 @@ DECLARE
   v_wait uuid;
 BEGIN
   NEW.unit_id := NEW.id;
+  IF NEW.op = 'update_entity' AND NEW.payload ? 'geom'
+     AND EXISTS (SELECT 1 FROM public.proposals o
+                  WHERE o.id = NEW.target_id AND o.status = 'pending'
+                    AND o.op = 'create_entity') THEN
+    NEW.unit_id := NEW.target_id;
+    RETURN NEW;
+  END IF;
   IF NEW.op <> 'create_relation' THEN
     RETURN NEW;
   END IF;
@@ -1161,6 +1170,34 @@ BEGIN
                ORDER BY p.created_at, p.id
                LIMIT 1
                FOR SHARE OF p) AS j;
+    END IF;
+
+    -- THE SAME PLACE ON A NEW ENTITY THAT WAITS. The change joins the unit of that entity, and the
+    -- promotion refuses an act that changes nothing, so the whole unit could never be written. An
+    -- exact retry keeps its act.
+    IF v_join IS NULL AND v_item->>'op' = 'update_entity' AND v_payload::jsonb ? 'geom' THEN
+      SELECT CASE WHEN w.op = 'create_entity'
+                  THEN format('item %s: the new entity %s has this place already', v_no, v_target)
+                  ELSE format('item %s: the act %s gives this place to the new entity %s already',
+                              v_no, w.id, v_target) END
+        INTO v_said
+        FROM public.proposals w
+       WHERE w.status = 'pending' AND w.payload ? 'geom'
+         AND ((w.op = 'create_entity' AND w.id = v_target)
+              OR (w.op = 'update_entity' AND w.target_id = v_target AND w.unit_id = v_target
+                  AND w.act_digest IS DISTINCT FROM
+                      act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
+                                    v_payload::jsonb, v_src, session_user::text, v_passages)))
+         AND EXISTS (SELECT 1 FROM public.proposals o
+                      WHERE o.id = v_target AND o.status = 'pending' AND o.op = 'create_entity')
+         AND public.ST_Equals(public.ST_GeomFromGeoJSON(w.payload->'geom'),
+                              public.ST_GeomFromGeoJSON(v_payload::jsonb->'geom'))
+       ORDER BY w.op <> 'create_entity', w.id
+       LIMIT 1;
+      IF FOUND THEN
+        RAISE EXCEPTION '%', v_said
+          USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'act_changes_something';
+      END IF;
     END IF;
 
     -- A rule of the table refuses the act, and the caller must know which item it refused.
@@ -2396,18 +2433,38 @@ BEGIN
   RETURN v_note;
 END $$;
 
--- AN END OF A NEW RELATION THAT THE OPERATOR REJECTED. Only such a relation takes the reason "end
--- rejected", so the reason never hides another one. It takes the operation and the payload of the
--- act, so a query can give the columns of any row. No role holds this step.
+-- AN END OF A NEW RELATION, OR A NEW ENTITY THAT A PLACE NAMES, THAT THE OPERATOR REJECTED. Only
+-- such an act takes the reason "end rejected", so the reason never hides another one. It takes the
+-- operation, the payload and the target of the act, so a query can give the columns of any row.
+-- No role holds this step.
 DROP FUNCTION IF EXISTS end_was_rejected(public.proposals);
-CREATE OR REPLACE FUNCTION end_was_rejected(p_op text, p_payload jsonb)
+DROP FUNCTION IF EXISTS end_was_rejected(text, jsonb);
+CREATE OR REPLACE FUNCTION end_was_rejected(p_op text, p_payload jsonb, p_target uuid)
 RETURNS boolean
 LANGUAGE sql STABLE
 SET search_path = pg_catalog, public, pg_temp AS $$
-  SELECT p_op = 'create_relation'
-     AND EXISTS (SELECT 1 FROM public.proposals w
-                  WHERE w.id IN ((p_payload->>'src_id')::uuid, (p_payload->>'dst_id')::uuid)
-                    AND w.status = 'rejected')
+  SELECT (p_op = 'create_relation'
+          AND EXISTS (SELECT 1 FROM public.proposals w
+                       WHERE w.id IN ((p_payload->>'src_id')::uuid, (p_payload->>'dst_id')::uuid)
+                         AND w.status = 'rejected'))
+      OR (p_op = 'update_entity'
+          AND EXISTS (SELECT 1 FROM public.proposals w
+                       WHERE w.id = p_target AND w.op = 'create_entity'
+                         AND w.status = 'rejected'))
+$$;
+
+-- AN ACT THAT JOINED THE UNIT OF A PENDING ENTITY FROM OUTSIDE: a relation of another group, or
+-- a change of the place of that entity. Its own fact is not judged with the entity, so a rejection
+-- of the unit gives it the reason "end rejected". No role holds this step.
+CREATE OR REPLACE FUNCTION joined_unit(p_act public.proposals, p_head public.proposals,
+                                       p_left uuid[])
+RETURNS boolean
+LANGUAGE sql IMMUTABLE
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT p_act.id <> p_head.id AND p_head.id = ANY (p_left)
+     AND ((p_act.op = 'create_relation'
+           AND NOT coalesce(p_act.batch_id = p_head.batch_id, false))
+          OR (p_act.op = 'update_entity' AND p_act.target_id = p_head.id))
 $$;
 
 -- THE REJECTION OF ONE UNIT, WITH ITS ORIGIN. No role holds this step: the door of the operator
@@ -2425,23 +2482,20 @@ DECLARE
 BEGIN
   IF p_reason = 'end_rejected'
      AND EXISTS (SELECT 1 FROM public.proposals x
-                  WHERE x.id = ANY (v_left) AND NOT public.end_was_rejected(x.op, x.payload)) THEN
+                  WHERE x.id = ANY (v_left)
+                    AND NOT public.end_was_rejected(x.op, x.payload, x.target_id)) THEN
     RAISE EXCEPTION 'the reason "end rejected" is only for a relation whose other end was rejected'
       USING CONSTRAINT = 'rejection_end';
   END IF;
-  -- A relation of another group joined the unit through its pending entity. Its own fact
-  -- was not judged, so it takes the reason "end rejected".
+  -- A relation of another group joined the unit through its pending entity, and a change of
+  -- place joined it through the entity that it names. The fact of such an act was not judged, so
+  -- it takes the reason "end rejected".
   UPDATE public.proposals x
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
          decided_as = 'unit',
-         reject_reason = CASE WHEN x.id <> p_unit AND x.op = 'create_relation'
-                                   AND h.id = ANY (v_left)
-                                   AND NOT coalesce(x.batch_id = h.batch_id, false)
+         reject_reason = CASE WHEN public.joined_unit(x, h, v_left)
                               THEN 'end_rejected' ELSE p_reason END,
-         reject_note = CASE WHEN x.id <> p_unit AND x.op = 'create_relation'
-                                 AND h.id = ANY (v_left)
-                                 AND NOT coalesce(x.batch_id = h.batch_id, false)
-                            THEN NULL ELSE v_note END,
+         reject_note = CASE WHEN public.joined_unit(x, h, v_left) THEN NULL ELSE v_note END,
          decision_origin = p_origin, decision_reason = p_why
     FROM public.proposals h
    WHERE x.id = ANY (v_left) AND h.id = p_unit;
@@ -2547,7 +2601,7 @@ BEGIN
     RAISE EXCEPTION 'the act % is no new relation: reject its unit', p_id
       USING CONSTRAINT = 'relation_only';
   END IF;
-  IF p_reason = 'end_rejected' AND NOT public.end_was_rejected(p.op, p.payload) THEN
+  IF p_reason = 'end_rejected' AND NOT public.end_was_rejected(p.op, p.payload, p.target_id) THEN
     RAISE EXCEPTION 'the reason "end rejected" is only for a relation whose other end was rejected'
       USING CONSTRAINT = 'rejection_end';
   END IF;
@@ -4183,6 +4237,16 @@ BEGIN
             OR a.author_role <> 'gabriel_app')
        AND NOT public.ST_Equals(e.geom,
              public.ST_SetSRID(public.ST_GeomFromGeoJSON(a.payload->'geom'), 4326))
+    UNION ALL
+    -- A change of place that joined a new entity which gives a place of its own. The change is
+    -- written after the entity and replaces that place, so the operator compares the two (S3).
+    SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
+           'The new entity gives another geometry than this change of place'
+      FROM acts a
+      JOIN acts n ON n.id = a.target_id AND n.op = 'create_entity' AND n.payload ? 'geom'
+     WHERE a.op = 'update_entity' AND a.payload ? 'geom'
+       AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(n.payload->'geom'),
+                                public.ST_GeomFromGeoJSON(a.payload->'geom'))
     -- --------------------------------------------------------------------------- information --
     UNION ALL
     SELECT DISTINCT i.unit_id, 'information', 'sources_from_parent', NULL::uuid,
@@ -4724,14 +4788,14 @@ SET search_path = pg_catalog, public, pg_temp AS $$
              'targetType', (SELECT r.type FROM public.relations r
                              WHERE a.op = 'update_relation' AND r.id = a.target_id),
              'createdAt', a.created_at, 'dissent', a.dissent,
-             'endRejected', public.end_was_rejected(a.op, a.payload),
+             'endRejected', public.end_was_rejected(a.op, a.payload, a.target_id),
              'dissentReason', public.dispute_said(a.dissent_reason),
              'check', (SELECT jsonb_build_object('model', k.checker_model, 'verdict', k.verdict,
                                                  'passed', k.passed, 'reason', k.reason)
                          FROM public.act_check k WHERE k.proposal_id = a.id),
              'target', et.said, 'src', es.said, 'dst', ed.said)
              ORDER BY (a.op <> 'create_entity'), a.created_at, a.id) AS acts,
-           bool_and(public.end_was_rejected(a.op, a.payload)) AS end_rejected
+           bool_and(public.end_was_rejected(a.op, a.payload, a.target_id)) AS end_rejected
       FROM acts a
       LEFT JOIN ends et ON et.id = a.target_id
       LEFT JOIN ends es ON es.id = (a.payload->>'src_id')::uuid
@@ -6510,12 +6574,13 @@ BEGIN
     UPDATE public.proposals p
        SET status = 'rejected', decided_at = now(), decided_by = v_by, decided_as = 'rule',
            decision_origin = v_origin,
-           reject_reason = CASE WHEN v_rule = 'impossible' AND public.end_was_rejected(p.op, p.payload)
+           reject_reason = CASE WHEN v_rule = 'impossible'
+                                     AND public.end_was_rejected(p.op, p.payload, p.target_id)
                                 THEN 'end_rejected' ELSE 'other' END,
            reject_note = CASE WHEN v_rule = 'weak_sources'
                               THEN 'weak sources: after a deepening search, every source of the '
                                    'facts is rated D or E'
-                              WHEN public.end_was_rejected(p.op, p.payload) THEN NULL
+                              WHEN public.end_was_rejected(p.op, p.payload, p.target_id) THEN NULL
                               ELSE 'impossible: the unit links an element to itself, or to an '
                                    'element that was rejected' END
      WHERE p.unit_id = p_unit AND p.status = 'pending';

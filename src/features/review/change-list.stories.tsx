@@ -130,6 +130,74 @@ const retyping =
     null,
   )?.units[0] ?? null;
 
+const PLACING = '91a2b3c4-d5e6-4f70-8b82-9d0e1f2a3b4c';
+
+// A later session gives the place of the army that waits. The place joins the unit of the army.
+const placing =
+  unitPageOf(
+    {
+      ...UNIT_ANSWER,
+      units: UNIT_ANSWER.units
+        .filter((unit) => unit.unit === SAMPLE_UNITS.army)
+        .map((unit) => ({
+          ...unit,
+          acts: [
+            ...unit.acts,
+            {
+              id: PLACING,
+              op: 'update_entity',
+              payload: { geom: { type: 'Point', coordinates: [131.9, 43.1] } },
+              targetId: SAMPLE_UNITS.army,
+              dissent: false,
+              endRejected: false,
+              dissentReason: null,
+              check: null,
+              target: { name: '5th Combined Arms Army', state: 'pending', group: null },
+              src: null,
+              dst: null,
+            },
+          ],
+        })),
+    },
+    null,
+  )?.units[0] ?? null;
+
+// The place of an entity of the record, as a unit of its own.
+const placingRecord =
+  unitPageOf(
+    {
+      ...UNIT_ANSWER,
+      units: UNIT_ANSWER.units.slice(0, 1).map((unit) => ({
+        ...unit,
+        unit: PLACING,
+        kind: 'change',
+        name: 'Port of Primorsk',
+        type: null,
+        proposer: 'research_ai',
+        group: null,
+        faults: [],
+        endRejected: null,
+        acts: [
+          {
+            id: PLACING,
+            op: 'update_entity',
+            payload: { geom: { type: 'Point', coordinates: [28.67, 60.35] } },
+            targetId: OWNS,
+            dissent: false,
+            endRejected: false,
+            dissentReason: null,
+            check: null,
+            target: { name: 'Port of Primorsk', state: 'record', group: null },
+            src: null,
+            dst: null,
+          },
+        ],
+        passages: [],
+      })),
+    },
+    null,
+  )?.units[0] ?? null;
+
 const WORDS = unitWords(
   [
     {
@@ -280,5 +348,27 @@ export const ATypeChangeNamesBothTypes: Story = {
     await expect(change).toHaveTextContent(
       'Changes the type from designated_by to restricted_by: OFAC directive 4 names Nayara.',
     );
+  },
+};
+
+/** A place that a later session gives to the new entity comes with its unit, after the entity,
+ * and says that a rejection of the entity rejects it. */
+export const APlaceOfTheNewEntityComesWithIt: Story = {
+  args: { unit: placing },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.getByRole('heading', { name: 'Place that comes with it' })).toBeVisible();
+    const change = canvasElement.querySelector(`[data-change="${PLACING}"]`);
+    await expect(change).toHaveTextContent('position:43.1, 131.9');
+    await expect(change).toHaveTextContent('A rejection of the entity rejects it.');
+  },
+};
+
+/** The place of an entity of the record names that entity. */
+export const APlaceOfAnEntityOfTheRecordNamesIt: Story = {
+  args: { unit: placingRecord },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvas.getByRole('heading', { name: 'Place of Port of Primorsk' })).toBeVisible();
+    const change = canvasElement.querySelector(`[data-change="${PLACING}"]`);
+    await expect(change).not.toHaveTextContent('A rejection of the entity rejects it.');
   },
 };

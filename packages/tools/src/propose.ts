@@ -114,7 +114,12 @@ const batchAct = z.discriminatedUnion('op', [
   }),
   z.strictObject({
     op: z.literal('update_entity'),
-    targetId: z.uuid().describe('the id of the entity of the record, such as a port or a facility'),
+    targetId: z
+      .uuid()
+      .describe(
+        'the id of the entity of the record, such as a port or a facility, or the proposal id ' +
+          'of a new entity that waits in the review queue',
+      ),
     geom: z
       .unknown()
       .describe(
@@ -452,14 +457,16 @@ const checkTarget = async (session: Session, ref: string, act: WriteRequest): Pr
   const kind =
     act.op === 'update_attrs' ? act.targetKind : act.op === 'update_entity' ? 'entity' : 'relation';
   if (!(await present(session, kind, act.targetId))) {
-    // An act on a new entity that waits would stay outside its unit, so the agent waits.
-    if (kind === 'entity' && (await pendingEntityType(session, act.targetId)) !== null)
+    if (kind === 'entity' && (await pendingEntityType(session, act.targetId)) !== null) {
+      // A place joins the unit of the new entity, and the database refuses the place that the
+      // unit gives already. Any other act would stay outside that unit, so the agent waits.
+      if (act.op === 'update_entity' && act.geom !== undefined) return;
       refuse(
         ref,
-        `the new entity ${act.targetId} waits in the review queue: propose this change after the ` +
-          'operator accepts it, and give the place or the attributes of a new entity in its ' +
-          'create_entity',
+        `the new entity ${act.targetId} waits in the review queue: propose its attributes after ` +
+          'the operator accepts it, or give them in its create_entity',
       );
+    }
     refuse(ref, `the target ${act.targetId} does not exist`);
   }
   // The promotion refuses an act that changes nothing, so the same place would wait for ever.
@@ -528,10 +535,14 @@ const claimActOf = async (
   if (act.op === 'create_relation')
     return withoutBounds(dropped.includes('observed_on') ? withoutCallDay(act) : act, dropped);
   if (act.op === 'update_entity') {
+    // A new entity that waits in the queue has its name in its proposal.
     const [named] = await rowsOf(
       session,
       z.strictObject({ label: z.string() }),
-      'SELECT label FROM api.entity WHERE id = $1',
+      `SELECT label FROM api.entity WHERE id = $1
+       UNION ALL
+       SELECT payload->>'label' FROM api.proposal
+        WHERE id = $1 AND status = 'pending' AND op = 'create_entity'`,
       [act.targetId],
     );
     return { ...act, entity: named?.label ?? null };
@@ -651,8 +662,10 @@ export const proposeOf = (modelCallId: string | null) =>
       'place of an entity of the record (update_entity with geom, when a page states its ' +
       'coordinates; the tool refuses the place that the entity has already, and a place that ' +
       'differs from the place that the record holds waits as a doubt for the operator; give the ' +
-      'place of a new entity as geom in its create_entity, and the tool refuses a change of a ' +
-      'new entity that waits in the queue). Each ' +
+      'place of a new entity as geom in its create_entity. The place of a new entity that waits ' +
+      'in the review queue names its proposal id as targetId: it joins the unit of that entity, ' +
+      'and a rejection of the entity rejects it. The tool refuses new attributes for such an ' +
+      'entity). Each ' +
       'item gives the act, the party that first stated it, how the page states it, and for its ' +
       'values the page and an excerpt copied word for word from the stored text. Code finds each ' +
       'excerpt in the page and refuses the whole batch when one is not there; the refusal names ' +
