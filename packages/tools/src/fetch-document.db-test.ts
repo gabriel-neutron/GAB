@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { endOcr } from '@gab/text';
+import { workbookOf, zipOf } from '@gab/text/xlsx-fixture';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
@@ -87,6 +88,21 @@ const CSV_HEADER = 'DATAFLOW,freq,reporter,partner,product,indicators,TIME_PERIO
 const CSV_ROW = 'ESTAT:DS-045409(1.0),M,HU,RU,27090090,QUANTITY_IN_100KG,2026-07,3272070.00\n';
 const BIG_CSV = `${CSV_HEADER}\n${CSV_ROW.repeat(230_000)}${RUN}\n`;
 
+// A bulk file of two tables, served as bytes with no type, and an archive with a path that leaves
+// it.
+const BULK = zipOf([
+  ['entities.csv', `id,name\nNK-1,Nayara ${RUN}\n`],
+  ['sanctions/targets.json', `{"run":"${RUN}"}`],
+]);
+const HOSTILE = zipOf([['../outside.txt', `Run ${RUN}.`]]);
+// A workbook served as bytes with no type is a zip container, and it is read as a workbook.
+const WORKBOOK = workbookOf({
+  Data: [
+    ['Name', 'Run'],
+    ['Nayara', RUN],
+  ],
+});
+
 const PDF = pdfOf(`Asset freeze notice ${RUN}`, 'HM Treasury');
 
 // Each image holds large English and Cyrillic words, so a check of whole words stays true when OCR
@@ -120,6 +136,9 @@ beforeAll(async () => {
       headers: { 'content-type': 'application/vnd.sdmx.data+csv; version=1.0.0' },
       body: BIG_CSV,
     },
+    '/bulk.zip': { headers: { 'content-type': 'application/octet-stream' }, body: BULK },
+    '/table.bin': { headers: { 'content-type': 'application/octet-stream' }, body: WORKBOOK },
+    '/hostile.zip': { headers: { 'content-type': 'application/zip' }, body: HOSTILE },
     '/notice.pdf': { headers: { 'content-type': 'application/pdf' }, body: PDF },
     '/viewtopic.php': { headers: { 'content-type': 'text/html' }, body: cp1251 },
     '/wiki': { headers: { 'content-type': 'text/html; charset=UTF-8' }, body: WIKI },
@@ -266,6 +285,78 @@ test('a JSON answer is stored as it came, under its whole address, and its text 
     const [row] = z.array(documentRow).parse(await ask(ROW, [shaOf(ENTSOG)]));
     expect(row?.uri).toBe(`${base}${ENTSOG_QUERY}`);
   });
+});
+
+test('a ZIP archive is stored with its list of files, and each file is a child document linked to it', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const outcome = await callTool(
+      fetchDocument,
+      sessionOf(ask),
+      { url: `${base}/bulk.zip` },
+      fixtureReach(store),
+    );
+    if (!outcome.ok) throw new Error(outcome.refusal);
+    const got = answer
+      .extend({
+        files: z.array(z.object({ path: z.string(), document: z.string(), status: z.string() })),
+        skipped: z.array(z.unknown()),
+      })
+      .parse(outcome.output);
+    expect(got.mime).toBe('application/zip');
+    expect(got.pages[0]?.text).toContain('entities.csv\t');
+    expect(got.files.map((file) => [file.path, file.status])).toStrictEqual([
+      ['entities.csv', 'stored'],
+      ['sanctions/targets.json', 'stored'],
+    ]);
+    expect(got.skipped).toStrictEqual([]);
+    const links = z
+      .array(z.object({ id: z.string(), archive_path: z.string(), archive_sha256: z.string() }))
+      .parse(
+        await ask(
+          `SELECT c.id::text AS id, c.archive_path, a.sha256 AS archive_sha256
+             FROM public.documents c JOIN public.documents a ON a.id = c.archive_id
+            WHERE a.id = $1 ORDER BY c.archive_path`,
+          [got.document],
+        ),
+      );
+    expect(links).toStrictEqual(
+      got.files.map((file) => ({
+        id: file.document,
+        archive_path: file.path,
+        archive_sha256: shaOf(BULK),
+      })),
+    );
+  });
+  expect(store.puts.map((put) => put.mime)).toStrictEqual([
+    'application/zip',
+    'text/csv',
+    'application/json',
+  ]);
+});
+
+test('a workbook served as bytes with no type is read as a workbook, and not unpacked', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const got = await fetched(ask, `${base}/table.bin`, fixtureReach(store));
+    expect(got.mime).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    expect(got.pages[0]?.text).toContain(`Nayara,${RUN}`);
+  });
+  expect(store.puts).toHaveLength(1);
+});
+
+test('a ZIP archive with a path that leaves it is refused, and nothing is stored', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const outcome = await callTool(
+      fetchDocument,
+      sessionOf(ask),
+      { url: `${base}/hostile.zip` },
+      fixtureReach(store),
+    );
+    expect(outcome.ok ? '' : outcome.refusal).toContain('leaves the archive');
+  });
+  expect(store.puts).toStrictEqual([]);
 });
 
 test('a table above the page limit is cut into pages, and each page starts with its header', async () => {

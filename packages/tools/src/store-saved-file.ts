@@ -21,6 +21,7 @@ import { ZIP_MIME } from '@gab/text/geojson';
 import { z } from 'zod';
 
 import { addressTitle, htmlTitle } from './fetch-document.ts';
+import { holdsLayers, skippedFileShape, storeArchive, storedFileShape } from './store-archive.ts';
 import { storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 import { isHtml, unreadablePage } from './unreadable-page.ts';
@@ -41,16 +42,14 @@ const CONTENT_TYPES = [
   'text/html',
   'image/png',
   'image/jpeg',
+  ZIP_MIME,
   ...TEXT_TYPES,
 ] as const;
-// A GeoJSON archive is read layer by layer. Other archives give no text.
-const SAVED_TYPES: ReadonlySet<string> = new Set([
-  ...CONTENT_TYPES,
-  'application/xhtml+xml',
-  ZIP_MIME,
-]);
+// A GeoJSON archive is read layer by layer. Another archive is unpacked into one document for
+// each file.
+const SAVED_TYPES: ReadonlySet<string> = new Set([...CONTENT_TYPES, 'application/xhtml+xml']);
 const SAVED_EXTENSIONS =
-  '.pdf, .html, .xhtml, .png, .jpg, .jpeg, .json, .tsv, .txt, .xml, .csv, .md or a GeoJSON .zip';
+  '.pdf, .html, .xhtml, .png, .jpg, .jpeg, .json, .tsv, .txt, .xml, .csv, .md or .zip';
 
 const MAX_TITLE = 500;
 // The base64 text of the largest file that a store accepts.
@@ -190,8 +189,12 @@ export const storeSavedFile = defineTool({
   description:
     'Stores a PDF, an HTML page, a PNG or JPEG image, or a data file (JSON, TSV, CSV, XML, ' +
     'plain text or Markdown) that the browser of the session holds, as the document of the ' +
-    'page that it came from. A data file must be strict UTF-8 text; any other binary file, and ' +
-    'a ZIP archive that holds no GeoJSON, is refused. Use it only when fetch_document cannot ' +
+    'page that it came from. A data file must be strict UTF-8 text; any other binary file is ' +
+    'refused. A ZIP archive that holds no GeoJSON is unpacked: the archive is one document ' +
+    'whose text lists its files, and each file that a reader takes is one more document, named ' +
+    'in "files" and linked to the archive; "skipped" names each other file and the reason. A ' +
+    'hostile archive (too large, too deep, a path that leaves it, a zip bomb) is refused. Use ' +
+    'it only when fetch_document cannot ' +
     'read a page (a bot filter, an empty page, a site that refuses the server). Give the bytes ' +
     'that the browser holds as `content` in base64, with their `type` and the `sha256` of the ' +
     'whole file; give a large file in ' +
@@ -247,6 +250,8 @@ export const storeSavedFile = defineTool({
       status: z.enum(['stored', 'known']),
       title: z.string(),
       pages: z.number().int(),
+      files: z.array(storedFileShape).optional(),
+      skipped: z.array(skippedFileShape).optional(),
     }),
     z.strictObject({
       status: z.literal('waiting'),
@@ -303,12 +308,23 @@ export const storeSavedFile = defineTool({
         throw new ToolRefusal(`${label}: ${fault.message}`);
       throw new ToolRefusal(`no text is read from ${label}`);
     }
-    if (mime === ZIP_MIME && pages.length === 0)
-      throw new ToolRefusal(
-        `${label} is a ZIP archive with no GeoJSON layer, and an archive is not stored as one ` +
-          'opaque file. To unpack a ZIP archive into one document for each file is a separate ' +
-          'feature: unpack it by hand and store each file',
-      );
+    if (mime === ZIP_MIME && !holdsLayers(pages)) {
+      const unpacked = await storeArchive(session, reach.store, {
+        kind: 'url',
+        bytes,
+        uri: input.url,
+        title: titleOf(input.title, mime, bytes, input.url, decodeAs),
+        day: reach.now().toISOString().slice(0, 10),
+      });
+      return {
+        document: unpacked.archive.id,
+        status: unpacked.archive.status,
+        title: unpacked.archive.title,
+        pages: 1,
+        files: unpacked.files,
+        skipped: unpacked.skipped,
+      };
+    }
     if (pages.join('').trim() === '') throw new ToolRefusal(`${label} holds no text`);
     const unreadable = unreadablePage(mime, pages);
     if (unreadable !== null) throw new ToolRefusal(unreadable);
