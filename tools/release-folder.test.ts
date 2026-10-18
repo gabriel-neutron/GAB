@@ -9,7 +9,10 @@ import { releaseAssets } from './release-folder.ts';
 const FOLDER = join(import.meta.dirname, '../packages/site/fixtures/release');
 
 const listed = z
-  .object({ files: z.array(z.object({ path: z.string(), sha256: z.string() })) })
+  .object({
+    files: z.array(z.object({ path: z.string(), sha256: z.string() })),
+    changelog: z.object({ path: z.string() }),
+  })
   .parse(JSON.parse(readFileSync(join(FOLDER, 'manifest.json'), 'utf8')));
 
 test('the build copies every file of the release, byte for byte', () => {
@@ -20,4 +23,6 @@ test('the build copies every file of the release, byte for byte', () => {
     expect(copy?.equals(readFileSync(join(FOLDER, file.path)))).toBe(true);
   }
   expect(copies.has('release/manifest.json')).toBe(true);
+  // The downloads page links the changelog by the path that the manifest names.
+  expect(copies.has(`release/${listed.changelog.path}`)).toBe(true);
 });
