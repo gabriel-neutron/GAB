@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { expect, test } from 'vitest';
 
 import { buildSite } from './build-site.tsx';
-import { FIRE, QUIET_SITE, SITE, STRIKE, withEvents } from './event-fixture.ts';
+import { FIRE, QUIET_SITE, SITE, STRIKE, withEvents } from '@gab/release/event-fixture';
 
 const FOLDER = join(resolve(import.meta.dirname, '../fixtures'), 'release');
 const base = new Map(

@@ -1,5 +1,5 @@
 import { withChain } from '@gab/release/chain-fixture';
-import { withEvents } from './event-fixture.ts';
+import { withEvents } from '@gab/release/event-fixture';
 import { readSiteRelease, type SiteRelease } from '@gab/release/site-release';
 
 // The stories read the fixed release that the release code wrote, as the site reads it.

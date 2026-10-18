@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { entityHref, surfaceHref } from './address';
+import { entityHref, surfaceHref, vesselHref } from './address';
 
 const AWKWARD_ID = 'a&b#c d';
 
@@ -19,4 +19,9 @@ test('the surface address encodes the identity for the map and for the graph', (
 
 test('the surface address of a relation names the relation key', () => {
   expect(surfaceHref('graph', AWKWARD_ID, 'relation')).toBe('/graph?relation=a%26b%23c%20d');
+});
+
+test('the vessel address is the IMO number under the vessel path', () => {
+  expect(vesselHref('9000001')).toBe('/vessel/9000001');
+  expect(vesselHref('a b')).toBe('/vessel/a%20b');
 });

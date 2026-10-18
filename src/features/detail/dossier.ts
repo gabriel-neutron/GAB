@@ -17,6 +17,7 @@ import type {
 import { relationWording, type RelationWords } from '@/shared/relation-words';
 
 import { readClaims, type ClaimRow } from './claims';
+import type { ReleaseFacts } from './release-facts';
 
 /** One cited document, at the position it was first met. The badge is a number. */
 export interface SourceRef {
@@ -121,6 +122,9 @@ export interface Dossier {
   /** A retired type the entity holds stays offered, or the chooser would draw a type the entity
    * does not hold. */
   readonly typeChoices: readonly TypeChoice[];
+  /** What the release adds. The record has none of it, so `readDossier` leaves it null and the
+   * route fills it when a release is at hand. */
+  readonly facts: ReleaseFacts | null;
 }
 
 /** A long address does not fit a two-line card, so the card carries a short form too. */
@@ -430,6 +434,7 @@ export function readDossier(
     pending,
     linkChoices,
     typeChoices: typeChoicesOf(types, entity.type),
+    facts: null,
   };
 }
 

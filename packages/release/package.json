@@ -15,6 +15,7 @@
     "./chain-map-data": "./src/chain-map-data.ts",
     "./claim-text": "./src/claim-text.ts",
     "./csv": "./src/csv.ts",
+    "./event-fixture": "./src/event-fixture.ts",
     "./event-lane": "./src/event-lane.ts",
     "./map-features": "./src/map-features.ts",
     "./release-day": "./src/release-day.ts",
@@ -24,8 +25,11 @@
     "./site-release": "./src/site-release.ts",
     "./site-release-fault": "./src/site-release-fault.ts",
     "./staged-geojson": "./src/staged-geojson.ts",
+    "./timeline-axis": "./src/timeline-axis.ts",
     "./value-elements": "./src/value-elements.ts",
+    "./vessel-finder": "./src/vessel-finder.ts",
     "./vessel-imo": "./src/vessel-imo.ts",
+    "./vessel-timeline": "./src/vessel-timeline.ts",
     "./volume-card": "./src/volume-card.ts"
   },
   "dependencies": {

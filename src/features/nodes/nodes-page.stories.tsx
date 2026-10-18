@@ -35,8 +35,10 @@ const meta = {
         'claim-1': 'Primorsk oil terminal: Designated by Council',
         'claim-2': 'Primorsk oil terminal: Loads at Primorsk',
       },
+      imoOf: { n1: '9000001' },
     },
     entityHref: (id: string) => `/entity/${id}`,
+    vesselHref: (imo: string) => `/vessel/${imo}`,
   },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
@@ -60,6 +62,16 @@ export const GroupsTheRetainedNodesFirstAndNamesTheRelease: Story = {
       'href',
       '/entity/n1',
     );
+  },
+};
+
+export const LinksTheTimelineOfAVesselNodeByItsIMONumber: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('link', { name: 'Timeline of IMO 9000001' })).toHaveAttribute(
+      'href',
+      '/vessel/9000001',
+    );
+    await expect(canvas.getAllByRole('link', { name: /^Timeline of IMO/u })).toHaveLength(1);
   },
 };
 

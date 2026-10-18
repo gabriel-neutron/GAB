@@ -5,7 +5,7 @@ import countries from '@gab/proposal/countries.json?raw';
 import { chainView } from '@gab/release/chain-card';
 import { CHAIN } from '@gab/release/chain-fixture';
 import { chainFlows } from '@gab/release/chain-flows';
-import { SITE } from './event-fixture.ts';
+import { SITE } from '@gab/release/event-fixture';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
 import { CARDS_ELEMENT } from './map-elements.ts';
 import { MapPage } from './map-page.tsx';

@@ -4,7 +4,7 @@ import { join, posix, resolve } from 'node:path';
 import { expect, test } from 'vitest';
 
 import { buildSite } from './build-site.tsx';
-import { vesselFinderUrl } from './vessel-finder.ts';
+import { vesselFinderUrl } from '@gab/release/vessel-finder';
 
 const FIXTURES = resolve(import.meta.dirname, '../fixtures');
 const VESSEL = '0a1f0000-0000-4000-8000-000000000001';

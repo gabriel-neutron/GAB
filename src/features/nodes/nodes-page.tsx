@@ -17,9 +17,13 @@ export interface NodesPageProps {
     readonly nodes: readonly CriticalNode[];
     /** What each claim of a tick says, by claim identifier. */
     readonly claimTexts: Readonly<Record<string, string>>;
+    /** The IMO number of each node that is a vessel with one, by node identifier. */
+    readonly imoOf: Readonly<Record<string, string>>;
   } | null;
   /** The address of the page of one entity. */
   readonly entityHref: (id: string) => string;
+  /** The address of the timeline of the vessels with one IMO number. */
+  readonly vesselHref: (imo: string) => string;
 }
 
 const CONDITIONS = [
@@ -49,21 +53,37 @@ function ConditionCell({
   );
 }
 
+interface Links {
+  readonly entityHref: NodesPageProps['entityHref'];
+  readonly vesselHref: NodesPageProps['vesselHref'];
+  readonly imoOf: Readonly<Record<string, string>>;
+}
+
 const columnsOf = (
-  entityHref: NodesPageProps['entityHref'],
+  { entityHref, vesselHref, imoOf }: Links,
   claimTexts: Readonly<Record<string, string>>,
 ): readonly DataColumn<CriticalNode>[] => [
   {
     key: 'node',
     header: 'Node',
-    cell: (node) => (
-      <>
-        <a className={READING_LINK} href={entityHref(node.id)}>
-          {node.label}
-        </a>
-        <p className="font-normal text-muted-foreground">{node.type}</p>
-      </>
-    ),
+    cell: (node) => {
+      const imo = imoOf[node.id];
+      return (
+        <>
+          <a className={READING_LINK} href={entityHref(node.id)}>
+            {node.label}
+          </a>
+          <p className="font-normal text-muted-foreground">{node.type}</p>
+          {imo === undefined ? null : (
+            <p className="font-normal">
+              <a className={READING_LINK} href={vesselHref(imo)}>
+                {`Timeline of IMO ${imo}`}
+              </a>
+            </p>
+          )}
+        </>
+      );
+    },
   },
   ...CONDITIONS.map(({ key, words }) => ({
     key,
@@ -87,7 +107,7 @@ const columnsOf = (
 
 /** The critical nodes table of a release, on the reading scale: the retained nodes first, then
  * the other candidates. Each condition gives its word and the claims of its tick. */
-export function NodesPage({ release, entityHref }: NodesPageProps) {
+export function NodesPage({ release, entityHref, vesselHref }: NodesPageProps) {
   if (release === null)
     return (
       <ReadingPage>
@@ -98,7 +118,7 @@ export function NodesPage({ release, entityHref }: NodesPageProps) {
       </ReadingPage>
     );
   const { retained, others, summary } = groupNodes(release.nodes);
-  const columns = columnsOf(entityHref, release.claimTexts);
+  const columns = columnsOf({ entityHref, vesselHref, imoOf: release.imoOf }, release.claimTexts);
   return (
     <ReadingPage>
       <PageHeader

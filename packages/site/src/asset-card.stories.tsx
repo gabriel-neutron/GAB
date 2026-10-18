@@ -3,7 +3,7 @@ import { expect, within } from 'storybook/test';
 
 import { AssetCard } from './asset-card.tsx';
 import { chainView } from '@gab/release/chain-card';
-import { SITE } from './event-fixture.ts';
+import { SITE } from '@gab/release/event-fixture';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
 
 const VESSEL = '0a1f0000-0000-4000-8000-000000000001';
