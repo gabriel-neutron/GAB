@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DownloadsRouteImport } from './routes/downloads'
 import { Route as GraphRouteImport } from './routes/graph'
 import { Route as MapRouteImport } from './routes/map'
+import { Route as MethodRouteImport } from './routes/method'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as ClaimSplatRouteImport } from './routes/claim.$'
@@ -38,6 +39,11 @@ const GraphRoute = GraphRouteImport.update({
 const MapRoute = MapRouteImport.update({
   id: '/map',
   path: '/map',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MethodRoute = MethodRouteImport.update({
+  id: '/method',
+  path: '/method',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReviewRoute = ReviewRouteImport.update({
@@ -76,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/downloads': typeof DownloadsRoute
   '/graph': typeof GraphRoute
   '/map': typeof MapRoute
+  '/method': typeof MethodRoute
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
   '/claim/$': typeof ClaimSplatRoute
@@ -88,6 +95,7 @@ export interface FileRoutesByTo {
   '/downloads': typeof DownloadsRoute
   '/graph': typeof GraphRoute
   '/map': typeof MapRoute
+  '/method': typeof MethodRoute
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
   '/claim/$': typeof ClaimSplatRoute
@@ -101,6 +109,7 @@ export interface FileRoutesById {
   '/downloads': typeof DownloadsRoute
   '/graph': typeof GraphRoute
   '/map': typeof MapRoute
+  '/method': typeof MethodRoute
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
   '/claim/$': typeof ClaimSplatRoute
@@ -115,6 +124,7 @@ export interface FileRouteTypes {
     | '/downloads'
     | '/graph'
     | '/map'
+    | '/method'
     | '/review'
     | '/search'
     | '/claim/$'
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/downloads'
     | '/graph'
     | '/map'
+    | '/method'
     | '/review'
     | '/search'
     | '/claim/$'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/downloads'
     | '/graph'
     | '/map'
+    | '/method'
     | '/review'
     | '/search'
     | '/claim/$'
@@ -152,6 +164,7 @@ export interface RootRouteChildren {
   DownloadsRoute: typeof DownloadsRoute
   GraphRoute: typeof GraphRoute
   MapRoute: typeof MapRoute
+  MethodRoute: typeof MethodRoute
   ReviewRoute: typeof ReviewRoute
   SearchRoute: typeof SearchRoute
   ClaimSplatRoute: typeof ClaimSplatRoute
@@ -188,6 +201,13 @@ declare module '@tanstack/react-router' {
       path: '/map'
       fullPath: '/map'
       preLoaderRoute: typeof MapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/method': {
+      id: '/method'
+      path: '/method'
+      fullPath: '/method'
+      preLoaderRoute: typeof MethodRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/review': {
@@ -240,6 +260,7 @@ const rootRouteChildren: RootRouteChildren = {
   DownloadsRoute: DownloadsRoute,
   GraphRoute: GraphRoute,
   MapRoute: MapRoute,
+  MethodRoute: MethodRoute,
   ReviewRoute: ReviewRoute,
   SearchRoute: SearchRoute,
   ClaimSplatRoute: ClaimSplatRoute,
