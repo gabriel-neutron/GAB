@@ -5347,6 +5347,68 @@ BEGIN
   RETURN CASE WHEN v_provider = p_provider THEN 'same' ELSE 'other' END;
 END $$;
 
+-- THE ARCHIVE THAT HELD A FILE. A store tool unpacks a zip archive into one document for each
+-- file, and this door links the file to the archive and to its path in it (#595). The same bytes
+-- are stored once, so a file that is already a document takes the link here too. A row keeps its
+-- first link, and the door never changes it. The archive is a fetched zip archive, and its text
+-- (the list that the store tool writes) names the path and the hash of the file, so a caller
+-- cannot link a document to an archive that does not hold it. It answers what it found:
+--   filled       the row had no archive, and it holds this one now;
+--   same         the row holds this archive and this path already;
+--   other        the row holds another link, and keeps it;
+--   not_fetched  the row is no fetched document (an upload of the operator), so it takes no link.
+-- The row lock makes two stores of the same file fill the link once.
+CREATE OR REPLACE FUNCTION fill_document_archive(p_document text, p_archive text, p_path text)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_kind    text;
+  v_archive text;
+  v_path    text;
+  v_sha256  text;
+BEGIN
+  IF p_path IS NULL OR btrim(p_path, E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'a file of an archive has its path in the archive'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_document = p_archive THEN
+    RAISE EXCEPTION 'document % cannot hold itself', p_document
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.documents d
+                  WHERE d.id = p_archive::doc_id AND d.kind IN ('url', 'api')
+                    AND lower(split_part(d.mime, ';', 1)) = 'application/zip') THEN
+    RAISE EXCEPTION 'document % is no fetched zip archive', coalesce(p_archive, 'nothing')
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  SELECT d.kind, d.archive_id, d.archive_path, d.sha256 INTO v_kind, v_archive, v_path, v_sha256
+    FROM public.documents d WHERE d.id = p_document::doc_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  IF NOT EXISTS (SELECT 1
+                   FROM public.document_text t,
+                        regexp_split_to_table(t.text, E'\n') AS l(line)
+                  WHERE t.document_id = p_archive::doc_id
+                    AND split_part(l.line, E'\t', 1) = p_path
+                    AND split_part(l.line, E'\t', 3) = 'sha256 ' || v_sha256) THEN
+    RAISE EXCEPTION 'the text of archive % names no file % with the hash of document %',
+      p_archive, p_path, p_document
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF v_kind NOT IN ('url', 'api') THEN
+    RETURN 'not_fetched';
+  END IF;
+  IF v_archive IS NULL THEN
+    UPDATE public.documents SET archive_id = p_archive, archive_path = p_path
+     WHERE id = p_document::doc_id;
+    RETURN 'filled';
+  END IF;
+  RETURN CASE WHEN v_archive = p_archive AND v_path = p_path THEN 'same' ELSE 'other' END;
+END $$;
+
 -- THE END OF A JOB THAT RAN TO ITS END. Only a running row ends, so a row that nobody claimed
 -- cannot be marked done by hand.
 --

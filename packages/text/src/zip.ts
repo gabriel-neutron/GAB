@@ -15,6 +15,9 @@ export class WorkbookFault extends Error {
   }
 }
 
+/** Bytes that hold no end of a zip directory, so they are no zip archive. */
+export class NotZipFault extends WorkbookFault {}
+
 /** The bytes of a file, read at an offset. A source of bytes in memory and a source of a file on
  * disk have the same shape. */
 export interface ZipSource {
@@ -77,6 +80,8 @@ export interface ZipEntry {
   readonly compressed: number;
   readonly size: number;
   readonly local: number;
+  /** Bit 0 of the general purpose flags: the part is encrypted. */
+  readonly encrypted: boolean;
 }
 
 const viewOf = (bytes: Uint8Array): DataView =>
@@ -126,7 +131,7 @@ const readEntries = async (source: ZipSource): Promise<Map<string, ZipEntry>> =>
   const view = viewOf(tail);
   let end = tail.length - 22;
   while (end >= 0 && view.getUint32(end, true) !== END_OF_DIRECTORY) end -= 1;
-  if (end < 0) throw new WorkbookFault('the file is no zip archive, so it is no XLSX workbook');
+  if (end < 0) throw new NotZipFault('the file is no zip archive, so it is no XLSX workbook');
 
   let count = view.getUint16(end + 10, true);
   let size = view.getUint32(end + 12, true);
@@ -155,6 +160,7 @@ const readEntries = async (source: ZipSource): Promise<Map<string, ZipEntry>> =>
     if (at + 46 > directory.length || dir.getUint32(at, true) !== DIRECTORY_ENTRY)
       throw new WorkbookFault('the directory of the zip archive is broken');
     const method = dir.getUint16(at + 10, true);
+    const encrypted = (dir.getUint16(at + 8, true) & 1) === 1;
     let compressed = dir.getUint32(at + 20, true);
     let uncompressed = dir.getUint32(at + 24, true);
     let local = dir.getUint32(at + 42, true);
@@ -183,7 +189,7 @@ const readEntries = async (source: ZipSource): Promise<Map<string, ZipEntry>> =>
     // Two parts with one name hide one of them from a reader that takes the other.
     if (found.has(name))
       throw new WorkbookFault(`the zip archive holds the name ${name} more than once`);
-    found.set(name, { name, method, compressed, size: uncompressed, local });
+    found.set(name, { name, method, compressed, size: uncompressed, local, encrypted });
   }
   return found;
 };
