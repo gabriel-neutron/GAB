@@ -9,24 +9,28 @@ import {
 
 import { chainOf, productChain, type Highlight } from './chain-highlight.ts';
 import { PRODUCTS, type ProductKey } from './chain-product.ts';
-import { positions } from './geometry-positions.ts';
+import { positions, type Position } from './geometry-positions.ts';
 import { LINK } from './site-style.ts';
 import {
+  CAPTION_ELEMENT,
   CARD_ELEMENT,
   CARDS_ELEMENT,
   FEATURES_ELEMENT,
   FLOWS_ELEMENT,
   MAP_ELEMENT,
+  NO_MAP_ELEMENT,
 } from './map-elements.ts';
 
-// External constraint: MapLibre parses no oklch colour, so the map takes the hex of the muted
-// ground of the light theme.
-const GROUND = '#eceef0';
-const MARK = '#0b6aa2';
-const IN_REVIEW = '#8a8f94';
-// Origin of the number: at this opacity a dimmed point stays visible on the white land, and a
+// External constraint: MapLibre parses no oklch colour, so the map takes its dark ground, its
+// land and its marks in hex. The hues of the stages and the products are light ones for this ground.
+const GROUND = '#0b1220';
+const MARK = '#4aa8ff';
+const IN_REVIEW = '#9aa3ad';
+// The head of the pulse that runs along a link.
+const PULSE = '#ffffff';
+// Origin of the number: at this opacity a dimmed point stays visible on the dark land, and a
 // point put forward reads at once.
-const DIMMED = 0.15;
+const DIMMED = 0.35;
 
 // The basemap is a file of the site: the outlines of the countries, from Natural Earth (public
 // domain). The site sends no request to a tile server.
@@ -34,8 +38,8 @@ const DIMMED = 0.15;
 // file of its own beside it. A name in a constant stays a request at run time.
 const COUNTRIES_FILE = './countries.json';
 const COUNTRIES = new URL(COUNTRIES_FILE, import.meta.url).href;
-const LAND = '#ffffff';
-const COAST = '#9aa0a6';
+const LAND = '#1c2a3d';
+const COAST = '#3b4f6b';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -95,6 +99,25 @@ const links = (() => {
     ),
   };
 })();
+
+const idsOf = (value: unknown): string[] => (Array.isArray(value) ? value.map(text) : []);
+
+/** The six steps of the chain, read back from the page: the sentence and what each step puts
+ * forward. */
+const steps = (isRecord(flows) && Array.isArray(flows['steps']) ? flows['steps'] : []).flatMap(
+  (one: unknown) =>
+    isRecord(one)
+      ? [
+          {
+            key: text(one['key']),
+            sentence: text(one['sentence']),
+            assets: new Set(idsOf(one['assets'])),
+            arcs: new Set(idsOf(one['arcs'])),
+            exits: new Set(idsOf(one['exits'])),
+          },
+        ]
+      : [],
+);
 
 const propertiesOf = (one: unknown): Record<string, unknown> =>
   isRecord(one) && isRecord(one['properties']) ? one['properties'] : {};
@@ -180,13 +203,76 @@ const ARC_COLOURS: Readonly<Record<ArcLayer['colour'], string | ExpressionSpecif
   land: LAND,
 };
 
-if (container !== null) {
+// External constraint: MapLibre draws with WebGL 2 only. With no WebGL 2, the page says so, the
+// controls and the card of the map go, and the list of the entities below the map stays.
+const hasWebGL = (): boolean => document.createElement('canvas').getContext('webgl2') !== null;
+
+const noMap = (): void => {
+  document.getElementById(NO_MAP_ELEMENT)?.removeAttribute('hidden');
+  document.getElementById(CARD_ELEMENT)?.setAttribute('hidden', '');
+  for (const control of document.querySelectorAll(
+    '[data-product], [data-play], [data-motion], [data-step]',
+  ))
+    control.closest('[role="group"], div')?.setAttribute('hidden', '');
+};
+
+// The reader asks for reduced motion: no pulse, no spin, no camera flight, and no control to stop
+// a motion that does not start.
+const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** A gradient along a line, with a bright head at `progress` (0 to 1) and a short tail behind it. */
+const pulseAt = (progress: number): ExpressionSpecification => {
+  // Origin of the numbers: an interpolation needs its inputs in strictly ascending order, so the
+  // head stays between 0.13 and 0.97, with a tail of 0.12 and a front of 0.02.
+  const head = 0.13 + 0.84 * Math.min(Math.max(progress, 0), 1);
+  const clear = 'rgba(0,0,0,0)';
+  return [
+    'interpolate',
+    ['linear'],
+    ['line-progress'],
+    0,
+    clear,
+    head - 0.12,
+    clear,
+    head,
+    PULSE,
+    head + 0.02,
+    clear,
+    1,
+    clear,
+  ];
+};
+
+// A map that cannot start gives the same page as a browser with no WebGL.
+const startMap = (options: ConstructorParameters<typeof MapLibre>[0]): MapLibre | null => {
+  try {
+    return new MapLibre(options);
+  } catch {
+    noMap();
+    return null;
+  }
+};
+
+if (container !== null && !hasWebGL()) noMap();
+else if (container !== null) {
   const style: StyleSpecification = {
     version: 8,
+    projection: { type: 'globe' },
+    sky: {
+      'sky-color': '#0b1a33',
+      'horizon-color': '#1d3b66',
+      'fog-color': GROUND,
+      'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 7, 0],
+    },
     sources: {
       countries: { type: 'geojson', data: COUNTRIES },
       entities: { type: 'geojson', data: { type: 'FeatureCollection', features } },
-      arcs: { type: 'geojson', data: { type: 'FeatureCollection', features: arcs } },
+      // The pulse reads the progress along each line.
+      arcs: {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: arcs },
+        lineMetrics: true,
+      },
       exits: { type: 'geojson', data: { type: 'FeatureCollection', features: exits } },
     },
     layers: [
@@ -229,6 +315,16 @@ if (container !== null) {
           ...(one.dash === null ? {} : { 'line-dasharray': one.dash }),
         },
       })),
+      // A pulse runs along each link that is a fact. A gradient reads no property of the feature, so
+      // each product has its own layer.
+      ...PRODUCTS.map((one): LineLayerSpecification => ({
+        id: `pulse-${one.key}`,
+        type: 'line',
+        source: 'arcs',
+        filter: ['all', ['==', ['get', 'product'], one.key], ['!=', ['get', 'style'], 'in review']],
+        layout: { 'line-cap': 'round', visibility: 'none' },
+        paint: { 'line-width': 3, 'line-blur': 1, 'line-gradient': pulseAt(0.5) },
+      })),
       {
         id: 'points',
         type: 'circle',
@@ -237,7 +333,7 @@ if (container !== null) {
         paint: {
           'circle-color': ['coalesce', ['get', 'colour'], MARK],
           'circle-radius': 6,
-          'circle-stroke-color': '#ffffff',
+          'circle-stroke-color': GROUND,
           'circle-stroke-width': 1.5,
         },
       },
@@ -255,7 +351,10 @@ if (container !== null) {
       },
     ],
   };
-  const map = new MapLibre({ container, style, center: [0, 30], zoom: 1 });
+  const started = startMap({ container, style, center: [0, 30], zoom: 1 });
+  // The page already shows the line for no map, and the rest of the script needs the map.
+  if (started === null) throw new Error('The map did not start.');
+  const map = started;
   // The page can change width after the map starts, for example when a scroll bar comes, and
   // MapLibre follows only the window.
   new ResizeObserver(() => {
@@ -381,29 +480,23 @@ if (container !== null) {
     );
   };
 
-  // What the reader asked: one product chain, one stage, one asset. An asset puts its chain
-  // forward, else a stage puts its assets forward, else the product chain does.
+  // What the reader asked: one product chain, one step, one asset. An asset puts its chain
+  // forward, else a step puts its assets and its links forward, else the product chain does.
   let product: ProductKey | 'all' = 'all';
-  // The script takes the stage from a button of the page, and imports no list of stages: that list
-  // reads the vocabulary of the record, which the script does not need.
-  let stage: string | null = null;
+  let step: (typeof steps)[number] | null = null;
   let selected: string | null = null;
 
-  // The address keeps the product chain and the stage, so a reload keeps them. The script reads
-  // the address once, at the start, and checks each value against the buttons of the page.
-  const stageKeys = [...document.querySelectorAll<HTMLButtonElement>('[data-stage]')].map(
-    (button) => button.dataset['stage'],
-  );
+  // The address keeps the product chain and the step, so a reload keeps them. The script reads the
+  // address once, at the start, and checks each value against the steps of the page.
   {
     const asked = new URLSearchParams(window.location.hash.slice(1));
     product = productOf(asked.get('product')) ?? 'all';
-    const askedStage = asked.get('stage');
-    stage = stageKeys.find((one) => one !== undefined && one === askedStage) ?? null;
+    step = steps.find((one) => one.key === asked.get('step')) ?? null;
   }
   const keepInAddress = (): void => {
     const kept = new URLSearchParams();
     if (product !== 'all') kept.set('product', product);
-    if (stage !== null) kept.set('stage', stage);
+    if (step !== null) kept.set('step', step.key);
     const hash = kept.toString();
     window.history.replaceState(
       null,
@@ -412,29 +505,15 @@ if (container !== null) {
     );
   };
 
-  const stageHighlight = (key: string): Highlight => {
-    const assets = new Set(
-      features.flatMap((one: unknown) => {
-        const properties = propertiesOf(one);
-        return properties['stageKey'] === key ? [text(properties['id'])] : [];
-      }),
-    );
-    const exitIds = key === 'exit' ? links.exits.map((one) => one.id) : [];
-    return { assets, arcs: new Set(), exits: new Set(exitIds) };
-  };
-
   const forward = (ids: ReadonlySet<string> | null): ExpressionSpecification | number =>
     ids === null ? 1 : ['case', ['in', ['get', 'id'], ['literal', [...ids]]], 1, DIMMED];
 
+  const caption = document.getElementById(CAPTION_ELEMENT);
   const draw = (): void => {
     const highlight: Highlight | null =
       selected !== null
         ? chainOf(links, selected)
-        : stage !== null
-          ? stageHighlight(stage)
-          : product !== 'all'
-            ? productChain(links, product)
-            : null;
+        : (step ?? (product !== 'all' ? productChain(links, product) : null));
     for (const layer of ['points', 'lines'] as const)
       map.setPaintProperty(
         layer,
@@ -451,12 +530,7 @@ if (container !== null) {
     map.setPaintProperty('exits', 'circle-stroke-opacity', exitOpacity);
     const arcFilter: FilterSpecification =
       product === 'all' ? ['boolean', true] : ['==', ['get', 'product'], product];
-    const arcOpacity =
-      highlight === null || stage !== null
-        ? stage === null
-          ? 1
-          : DIMMED
-        : forward(highlight.arcs);
+    const arcOpacity = forward(highlight?.arcs ?? null);
     for (const one of ARC_LAYERS) {
       map.setFilter(one.id, ['all', ['==', ['get', 'style'], one.style], arcFilter]);
       map.setPaintProperty(
@@ -467,38 +541,154 @@ if (container !== null) {
           : (['*', one.opacity, arcOpacity] satisfies ExpressionSpecification),
       );
     }
+    for (const one of PRODUCTS) {
+      const pulse = `pulse-${one.key}`;
+      map.setLayoutProperty(
+        pulse,
+        'visibility',
+        moving && (product === 'all' || product === one.key) ? 'visible' : 'none',
+      );
+      map.setPaintProperty(pulse, 'line-opacity', arcOpacity);
+    }
     for (const one of reviewLabels)
       if (product === 'all' || one.product === product) one.marker.addTo(map);
       else one.marker.remove();
     for (const marker of exportLabels)
-      if (stage === 'export' && selected === null) marker.addTo(map);
+      if (step?.key === 'terminal' && selected === null) marker.addTo(map);
       else marker.remove();
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-product]'))
       button.setAttribute('aria-pressed', String(button.dataset['product'] === product));
-    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-stage]'))
-      button.setAttribute('aria-pressed', String(button.dataset['stage'] === stage));
+    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-step]'))
+      button.setAttribute('aria-pressed', String(button.dataset['step'] === step?.key));
+    if (caption !== null) caption.textContent = selected === null ? (step?.sentence ?? '') : '';
   };
+
+  // The camera goes to what a step puts forward. With reduced motion, it jumps.
+  const placesOf = (list: readonly unknown[]): [string, Position[]][] =>
+    list.map((one) => [text(propertiesOf(one)['id']), positions(geometryOf(one))]);
+  const places = new Map([...placesOf(features), ...placesOf(arcs), ...placesOf(exits)]);
+  const frame = (shown: NonNullable<typeof step>): void => {
+    const all = [...shown.assets, ...shown.arcs, ...shown.exits].flatMap(
+      (id) => places.get(id) ?? [],
+    );
+    if (all.length === 0) return;
+    map.fitBounds(
+      [
+        [Math.min(...all.map(([lon]) => lon)), Math.min(...all.map(([, lat]) => lat))],
+        [Math.max(...all.map(([lon]) => lon)), Math.max(...all.map(([, lat]) => lat))],
+      ],
+      { padding: 60, maxZoom: 5, duration: moving ? 2000 : 0 },
+    );
+  };
+
+  // The motion that starts by itself: the pulse, the spin and the camera flight. "Stop motion"
+  // stops all of it for the rest of the visit.
+  let moving = !still;
+
+  // The globe turns slowly until the reader acts. Each turn starts when the one before it ends.
+  let spinning = moving;
+  const spin = (): void => {
+    if (!spinning) return;
+    const centre = map.getCenter();
+    map.easeTo({ center: [centre.lng - 6, centre.lat], duration: 2000, easing: (t) => t });
+  };
+  const stopSpin = (): void => {
+    spinning = false;
+  };
+  map.on('moveend', spin);
+
+  // "Play the chain" goes to the next step every few seconds. With no motion, each press goes to
+  // the next step, and nothing moves by itself. The button changes its name only, so a screen
+  // reader says what a press does.
+  const play = document.querySelector<HTMLButtonElement>('[data-play]');
+  // Origin of the number: the camera flight takes 2 seconds, and the reader needs about 3 more
+  // to read the sentence of the step.
+  const STEP_TIME = 5000;
+  let timer: ReturnType<typeof setInterval> | null = null;
+  const stopPlay = (): void => {
+    if (timer !== null) clearInterval(timer);
+    timer = null;
+    if (play !== null) play.textContent = moving ? 'Play the chain' : 'Next step';
+  };
+  // An action of the reader on the map stops the spin and "Play the chain".
+  const stopAll = (): void => {
+    stopSpin();
+    stopPlay();
+  };
+  for (const event of ['mousedown', 'touchstart', 'wheel', 'dragstart'] as const)
+    map.on(event, stopAll);
+  container.addEventListener('keydown', stopAll);
+  stopPlay();
+  const goTo = (next: NonNullable<typeof step> | null): void => {
+    stopSpin();
+    step = next;
+    selected = null;
+    keepInAddress();
+    draw();
+    if (next !== null) frame(next);
+  };
+  const nextStep = (): void => {
+    goTo(steps[(step === null ? -1 : steps.indexOf(step)) + 1] ?? steps[0] ?? null);
+  };
+  play?.addEventListener('click', () => {
+    if (!moving) {
+      nextStep();
+      return;
+    }
+    if (timer !== null) {
+      stopPlay();
+      return;
+    }
+    nextStep();
+    timer = setInterval(nextStep, STEP_TIME);
+    play.textContent = 'Pause';
+  });
+
+  const motion = document.querySelector<HTMLButtonElement>('[data-motion]');
+  if (still) motion?.setAttribute('hidden', '');
+  motion?.addEventListener('click', () => {
+    moving = false;
+    stopAll();
+    motion.setAttribute('aria-pressed', 'true');
+    motion.disabled = true;
+    draw();
+  });
 
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-product]'))
     button.addEventListener('click', () => {
+      stopPlay();
       product = productOf(button.dataset['product']) ?? 'all';
       selected = null;
       keepInAddress();
       draw();
     });
-  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-stage]'))
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-step]'))
     button.addEventListener('click', () => {
-      const key = button.dataset['stage'] ?? null;
-      stage = stage === key ? null : key;
-      selected = null;
-      keepInAddress();
-      draw();
+      stopPlay();
+      const key = button.dataset['step'];
+      goTo(step?.key === key ? null : (steps.find((one) => one.key === key) ?? null));
     });
 
-  map.on('load', draw);
+  map.on('load', () => {
+    draw();
+    if (step !== null) frame(step);
+    else spin();
+    // The pulse runs along each link in 2.6 seconds, then waits for a short time. It stops with
+    // the motion.
+    const start = performance.now();
+    const pulse = (now: number): void => {
+      if (!moving) return;
+      const progress = (((now - start) / 2600) % 1) * 1.15;
+      for (const one of PRODUCTS)
+        map.setPaintProperty(`pulse-${one.key}`, 'line-gradient', pulseAt(Math.min(progress, 1)));
+      requestAnimationFrame(pulse);
+    };
+    requestAnimationFrame(pulse);
+  });
   const openEntity = (id: string): void => {
+    stopAll();
     selected = id;
-    stage = null;
+    step = null;
     keepInAddress();
     showCard(id);
     draw();
@@ -509,6 +699,7 @@ if (container !== null) {
     readonly properties: Record<string, unknown>;
   }
   const open = (hit: Hit): void => {
+    stopAll();
     if (hit.layer === 'exits') showExit(hit.properties);
     else if (hit.layer.startsWith('arcs')) showArc(hit.properties);
     else openEntity(text(hit.properties['id']));

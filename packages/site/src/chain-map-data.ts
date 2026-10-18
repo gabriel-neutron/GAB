@@ -2,6 +2,7 @@ import { arcLine } from './arc-line.ts';
 import type { ChainFlows } from './chain-flows.ts';
 import { PRODUCTS } from './chain-product.ts';
 import { STAGES } from './chain-stage.ts';
+import { chainSteps } from './chain-steps.ts';
 import { volumeCard } from './volume-card.ts';
 
 /** The largest flow of each unit among the accepted arcs, so a width compares only the flows of
@@ -18,8 +19,8 @@ const largestFlows = (flows: ChainFlows): ReadonlyMap<string, number> => {
 };
 
 /** The data that the map script draws for the chain: the arcs and the exit points as GeoJSON, and
- * the links that the script follows for a highlight and for the card of an arc. The line of each
- * arc comes from its volume and its state. */
+ * the links that the script follows for a highlight and for the card of an arc, and the six steps
+ * of the chain. The line of each arc comes from its volume and its state. */
 export const chainMapData = (flows: ChainFlows) => {
   const largest = largestFlows(flows);
   return {
@@ -73,5 +74,12 @@ export const chainMapData = (flows: ChainFlows) => {
       })),
       exits: flows.exits.map(({ id, assets }) => ({ id, assets })),
     },
+    steps: chainSteps(flows).map(({ key, sentence, assets, arcs, exits }) => ({
+      key,
+      sentence,
+      assets,
+      arcs,
+      exits,
+    })),
   };
 };

@@ -65,11 +65,21 @@ and their form are costly to change after the first publication.
   at 110 m. A tile server needs a host or a key, and the tile policy of OpenStreetMap does not
   permit a public application, so the site uses no tile server. The GeoJSON is in the page, so the
   map sends no request for data.
+- The map is a dark globe: the globe projection of MapLibre, with no new dependency. The globe
+  turns slowly until the reader acts, and a light pulse runs along each link that is a fact, so the
+  reader sees the direction of the flow. The map block takes the dark tokens of the stylesheet, and
+  the hues of the stages and the products are light ones for that ground.
 - The colour of a point is one of the six stages of the chain: field, upstream transport,
   refining and liquefaction, and export come from the asset kind of the asset; the exit from
   Russian control and the declared destination come from the relations. An asset outside Russia at
   the far end of an accepted physical link from an asset in Russia is a declared destination. The
-  card, the strip of the stages and the table give the same stage.
+  card and the table give the same stage.
+- A strip of six steps tells the chain from the well to the exit: extraction, pipeline, refinery,
+  terminal, export (the links after the export stage and the declared destinations) and exit. A
+  step puts its assets or its links forward, moves the camera to them, and gives one sentence.
+  "Play the chain" goes through the steps. A step counts accepted facts only.
+- The long text that tells how to read the map is in a panel that the reader opens, so the map
+  is the first thing the reader sees.
 - A physical link is an arc with the colour of its product: the relation type of the link gives
   the product, and one map of the code holds the type of each product for the release and the
   map. A filter shows one product chain.
@@ -87,7 +97,10 @@ and their form are costly to change after the first publication.
   line labelled "in review", and each of its volumes is marked in review. An exit point in review
   is a grey ring, and its card says "In review". A count of the page counts the accepted facts.
 - A click that hits more than one point lists each point, and the reader chooses one. The address
-  keeps the product chain and the stage, so a reload keeps them.
+  keeps the product chain and the step, so a reload keeps them.
+- When the reader asks for reduced motion, the globe does not turn, no pulse runs, the camera
+  jumps, and "Play the chain" goes one step for each press. A browser with no WebGL gets one
+  sentence in place of the map, and the list of the entities stays.
 - The map script and MapLibre are files of the site. MapLibre loads its worker as a module beside
   it, so the map needs a host: from the files on a disk, the map page shows the list of the
   entities with a position, and no map.
@@ -119,6 +132,8 @@ With none, the address `v1/` gives a page that says that this copy holds no buil
 - The basemap shows the coast and the borders only. It shows no road, no town and no relief.
 - MapLibre parses no oklch colour and no CSS custom property, so the hues of the stages and of the
   products are hex values in the code of the map, outside the stylesheet.
+- The pulse sets a paint property of the map at each frame. It costs a small part of the processor
+  while the page is in view.
 - A document, the release and the vocabulary have no page, so their identifiers open no page.
 - A vessel with no IMO number has no timeline page. Its entity page gives its relations.
 - The timeline draws only the dates that the sources give (`decisions.md` M5). A port call and a
