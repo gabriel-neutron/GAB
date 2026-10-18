@@ -46,6 +46,19 @@ const dayText = (year: number, month: number, day: number): string =>
 const WORD_DAY =
   /(?<!\d)(\d{1,2})(?:st|nd|rd|th|er)?(?:\s+of\s+|\s*,\s*|\s+|-)([\p{L}.]+)(?:\s*,\s*|\s+|-)(\d{4})(?!\d)/gu;
 const WORD_MONTH_FIRST = /([\p{L}.]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})(?!\d)/gu;
+// A day with no year: "Jan. 7", "June 28th", "7 January", "28 июня". It takes the year of the
+// publication day, as a night does, and the check then marks the item disputed. A year after it
+// makes the forms above match, never these.
+const NO_YEAR = String.raw`(?!(?:\s*,\s*|\s+|-)\d{4}(?!\d))`;
+const MONTH_DAY_NO_YEAR = new RegExp(
+  // A news dateline is the day of the report, not of the event: it states no day.
+  String.raw`(?<!\p{L})(\p{L}+\.?)\s+(\d{1,2})(?:st|nd|rd|th)?(?!\d)${NO_YEAR}(?!\s+\((?:Reuters|AP|AFP)\))`,
+  'gu',
+);
+const DAY_MONTH_NO_YEAR = new RegExp(
+  String.raw`(?<![\d.,/-])(\d{1,2})(?:st|nd|rd|th|er)?(?:\s+of\s+|\s+)(\p{L}+)\.?(?!\p{L})${NO_YEAR}`,
+  'gu',
+);
 // A Ukrainian night: "у ніч на 15 травня". The night starts on the day before the day that it
 // names, so it states two days. The year is the one that the text gives, or else the year of the
 // publication date of the document.
@@ -179,6 +192,15 @@ const daysIn = (
   for (const [, word, day, year] of text.matchAll(WORD_MONTH_FIRST)) {
     const month = monthOf(word ?? '');
     if (month !== null) found.add(dayText(Number(year), month, Number(day)));
+  }
+  if (publishedOn !== undefined && DAY.test(publishedOn)) {
+    const add = (day: number, word: string): void => {
+      const month = monthOf(word);
+      const year = month === null ? null : yearBefore(day, month, publishedOn);
+      if (month !== null && year !== null) found.add(dayText(year, month, day));
+    };
+    for (const [, word = '', day] of text.matchAll(MONTH_DAY_NO_YEAR)) add(Number(day), word);
+    for (const [, day, word = ''] of text.matchAll(DAY_MONTH_NO_YEAR)) add(Number(day), word);
   }
   for (const [, first = '', mark = '', second = '', third = ''] of text.matchAll(NUMERIC_DAY))
     for (const day of numericDays(first, mark, second, third, dayFirst)) found.add(day);
