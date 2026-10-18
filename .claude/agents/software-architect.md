@@ -2,6 +2,7 @@
 name: software-architect
 description: >-
   Panel expert in software design. Use it in the skill expert-panel for a question about code, a tool, a schema, a migration or the order of the work.
+model: sonnet
 tools: Read, Grep, Glob, mcp__gab__search_graph, mcp__gab__read_entity, mcp__gab__neighbourhood, mcp__gab__list_vocabulary, mcp__gab__list_proposals, mcp__gab__find_document, mcp__gab__document_text, mcp__gab__read_unit, mcp__gab__read_decided
 ---
 
