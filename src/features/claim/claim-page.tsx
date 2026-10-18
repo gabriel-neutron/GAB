@@ -65,6 +65,15 @@ const factsOf = (
 /** The permanent page of one claim, on the reading scale: what it says, its label, its licence,
  * and each of its documents with the passages that hold the claim. It reads its props only, so a
  * release step can write it as HTML. */
+// An identifier that cannot be a path has no permanent address, and the page still shows the claim.
+function addressOf(base: string, id: string): string {
+  try {
+    return permanentAddress(base, 'claim', id);
+  } catch {
+    return '';
+  }
+}
+
 export function ClaimPage({ release, claimId, entityHref, claimHref }: ClaimPageProps) {
   if (release === null)
     return (
@@ -98,7 +107,7 @@ export function ClaimPage({ release, claimId, entityHref, claimHref }: ClaimPage
           { key: 'Claim identifier', value: claim.id, figure: true },
           {
             key: 'Permanent address',
-            value: permanentAddress(release.manifest.iriBase, 'claim', claim.id),
+            value: addressOf(release.manifest.iriBase, claim.id),
             figure: true,
           },
         ]}

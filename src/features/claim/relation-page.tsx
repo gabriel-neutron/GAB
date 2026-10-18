@@ -24,7 +24,7 @@ export function RelationPage({ release, relationId, claimHref }: RelationPagePro
         <EmptyState sentence="This site holds no release, and a relation comes from a release." />
       </ReadingPage>
     );
-  if (!release.claimById.has(relationId))
+  if (release.claimById.get(relationId)?.kind !== 'relation')
     return (
       <ReadingPage>
         <PageHeader title="Relation not found" />

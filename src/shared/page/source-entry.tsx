@@ -63,9 +63,9 @@ export function SourceEntry({ source }: SourceEntryProps) {
       {source.passages === null ? null : source.passages.length === 0 ? (
         <EmptyState sentence="The release holds no passage of this document for this claim." />
       ) : (
-        source.passages.map((passage) => (
-          // A passage has no identifier of its own. Its page and its words name it.
-          <figure key={`${passage.page} ${passage.excerpt}`} className="flex flex-col gap-1">
+        source.passages.map((passage, place) => (
+          // A passage has no identifier of its own. Its place in the claim and its page name it.
+          <figure key={`${String(place)} ${passage.page}`} className="flex flex-col gap-1">
             <blockquote className="max-w-prose bg-muted px-3 py-2">{passage.excerpt}</blockquote>
             <figcaption className="text-xs/5 text-muted-foreground">
               Page {passage.page}, {passage.modality}

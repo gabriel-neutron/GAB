@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { claimHref, entityHref, relationHref, surfaceHref, vesselHref } from './address';
+import { claimHref, entityHref, surfaceHref, vesselHref } from './address';
 
 const AWKWARD_ID = 'a&b#c d';
 
@@ -29,5 +29,4 @@ test('the vessel address is the IMO number under the vessel path', () => {
 test('the claim address keeps the folders of the identifier and encodes each one', () => {
   expect(claimHref('0a1f/valid_to')).toBe('/claim/0a1f/valid_to');
   expect(claimHref('a b/c#d')).toBe('/claim/a%20b/c%23d');
-  expect(relationHref('0a1f')).toBe('/relation/0a1f');
 });

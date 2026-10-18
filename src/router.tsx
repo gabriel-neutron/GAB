@@ -65,6 +65,8 @@ keepOperatorKey();
 
 export const router = createRouter({
   routeTree,
+  // An old address of the static site ends with a slash, and it opens the same page.
+  trailingSlash: 'never',
   defaultNotFoundComponent: PathNotFound,
   defaultErrorComponent: RouteError,
   defaultPendingComponent: RoutePending,
