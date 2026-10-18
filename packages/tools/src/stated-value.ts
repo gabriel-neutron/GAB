@@ -361,12 +361,16 @@ const stated = (value: Scalar, passage: string, options: DayOptions): boolean =>
 // in that form.
 const WORDS_OF_A_LIST: readonly string[] = [EVENT_KIND, EVENT_PRECISION];
 
+// The kind of an asset is a word of the closed list ASSET_KINDS too ("refinery", "lng_plant"),
+// and propose refuses another word. A page writes "oil refinery" or "НПЗ", never the word.
+const ASSET_KIND = 'asset_kind';
+
 const attributeValues = (
   attrs: Readonly<Record<string, { readonly v: unknown }>> | undefined,
   skipped: readonly string[] = [],
 ): ActValue[] =>
   Object.entries(attrs ?? {})
-    .filter(([key]) => !skipped.includes(key))
+    .filter(([key]) => key !== ASSET_KIND && !skipped.includes(key))
     .flatMap(([key, held]) =>
       (Array.isArray(held.v) ? held.v : [held.v])
         .filter(

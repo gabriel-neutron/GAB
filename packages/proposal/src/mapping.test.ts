@@ -318,3 +318,16 @@ test('only an asset has a closed list of lookup keys, and a far end with no type
   expect(vocabularyFaults(table('person', 'ofac_uid'), vocabulary)).toStrictEqual([]);
   expect(vocabularyFaults(table('facility', 'gem_entity_id'), vocabulary)).toHaveLength(1);
 });
+
+test('the kind of an asset is a constant, never a column', () => {
+  const read = mappingDraft.safeParse({
+    ...DRAFT,
+    rows: {
+      ...DRAFT.rows,
+      entity_type: 'facility',
+      attrs: { asset_kind: { column: 'Notes', cast: { type: 'text' } } },
+    },
+  });
+  expect(read.success).toBe(false);
+  expect(JSON.stringify(read.error?.issues)).toContain('asset_kind is a constant');
+});
