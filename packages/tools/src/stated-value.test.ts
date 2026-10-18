@@ -827,13 +827,25 @@ test('a day with a year never takes the year of the publication day', () => {
   const options = { publishedOn: '2025-02-01' };
   expect(unstatedValues(relationFrom('2024-06-28'), ['June 28, 2019'], options)).toHaveLength(1);
   expect(unstatedValues(relationFrom('2024-06-28'), ['28 June 2019'], options)).toHaveLength(1);
+  expect(unstatedValues(relationFrom('2024-06-28'), ['June 28th, 2019'], options)).toHaveLength(1);
+  expect(unstatedValues(relationFrom('2025-01-07'), ['Jan. 7th 2019'], options)).toHaveLength(1);
 });
 
-test('a news dateline with no year states no day', () => {
-  const passage = 'MOSCOW, Feb 24 (Reuters) - Exports rose.';
+test.each([
+  'MOSCOW, Feb 24 (Reuters) - Exports rose.',
+  'MOSCOW, February 24. /TASS/. Exports rose.',
+  'МОСКВА, 24 февраля. /ТАСС/. Экспорт вырос.',
+  'KYIV, Feb 24 /Ukrinform/. Exports rose.',
+])('a news dateline with no year states no day: %s', (passage) => {
   expect(
     unstatedValues(relationFrom('2025-02-24'), [passage], { publishedOn: '2025-02-24' }),
   ).toHaveLength(1);
+});
+
+test.each(['Article 5 may apply.', 'Лист 2 отчёта.'])('"%s" states no day', (passage) => {
+  const options = { publishedOn: '2025-12-31' };
+  expect(unstatedValues(relationFrom('2025-05-05'), [passage], options)).toHaveLength(1);
+  expect(unstatedValues(relationFrom('2025-11-02'), [passage], options)).toHaveLength(1);
 });
 
 test('a day that the text writes as 03/04/2024 stays in doubt, also with a publication day', () => {

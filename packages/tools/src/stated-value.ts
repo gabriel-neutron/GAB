@@ -38,6 +38,31 @@ const monthOf = (word: string): number | null => {
   return index === -1 ? null : index + 1;
 };
 
+// The English short forms of a month. With no year, a month is a full name, or one of these with
+// a capital ("Jan. 7"), so "Article 5 may apply" or "Лист 2" states no day.
+const SHORT_MONTHS = [
+  'jan',
+  'feb',
+  'mar',
+  'apr',
+  'jun',
+  'jul',
+  'aug',
+  'sep',
+  'sept',
+  'oct',
+  'nov',
+  'dec',
+];
+
+const strictMonthOf = (word: string): number | null => {
+  const lower = word.toLowerCase().replace(/\.$/u, '');
+  if (word === 'may') return null;
+  const full = MONTHS.findIndex((names) => names.includes(lower));
+  if (full !== -1) return full + 1;
+  return /^\p{Lu}/u.test(word) && SHORT_MONTHS.includes(lower) ? monthOf(lower) : null;
+};
+
 const dayText = (year: number, month: number, day: number): string =>
   `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
@@ -49,14 +74,15 @@ const WORD_MONTH_FIRST = /([\p{L}.]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})(?!
 // A day with no year: "Jan. 7", "June 28th", "7 January", "28 июня". It takes the year of the
 // publication day, as a night does, and the check then marks the item disputed. A year after it
 // makes the forms above match, never these.
-const NO_YEAR = String.raw`(?!(?:\s*,\s*|\s+|-)\d{4}(?!\d))`;
+// A news dateline is the day of the report, not of the event, so a day before an agency mark
+// ("Feb 24 (Reuters)", "February 24. /TASS/", "24 февраля. /ТАСС/") states no day.
+const NO_YEAR = String.raw`(?!\p{L})(?!(?:\s*,\s*|\s+|-)\d{4}(?!\d))(?!\.?\s*[(/])`;
 const MONTH_DAY_NO_YEAR = new RegExp(
-  // A news dateline is the day of the report, not of the event: it states no day.
-  String.raw`(?<!\p{L})(\p{L}+\.?)\s+(\d{1,2})(?:st|nd|rd|th)?(?!\d)${NO_YEAR}(?!\s+\((?:Reuters|AP|AFP)\))`,
+  String.raw`(?<!\p{L})(\p{L}+\.?)\s+(\d{1,2})(?:st|nd|rd|th)?(?!\d)${NO_YEAR}`,
   'gu',
 );
 const DAY_MONTH_NO_YEAR = new RegExp(
-  String.raw`(?<![\d.,/-])(\d{1,2})(?:st|nd|rd|th|er)?(?:\s+of\s+|\s+)(\p{L}+)\.?(?!\p{L})${NO_YEAR}`,
+  String.raw`(?<![\d.,/-])(\d{1,2})(?:st|nd|rd|th|er)?(?:\s+of\s+|\s+)(\p{L}+)\.?${NO_YEAR}`,
   'gu',
 );
 // A Ukrainian night: "у ніч на 15 травня". The night starts on the day before the day that it
@@ -195,7 +221,7 @@ const daysIn = (
   }
   if (publishedOn !== undefined && DAY.test(publishedOn)) {
     const add = (day: number, word: string): void => {
-      const month = monthOf(word);
+      const month = strictMonthOf(word);
       const year = month === null ? null : yearBefore(day, month, publishedOn);
       if (month !== null && year !== null) found.add(dayText(year, month, day));
     };
