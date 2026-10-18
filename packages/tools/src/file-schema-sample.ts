@@ -29,8 +29,8 @@ export const fileSchemaSample = defineTool({
     rows: z.array(z.strictObject({ row: z.number().int(), values: z.array(z.string()) })),
   }),
   async run(session, input) {
-    const { text } = await readTablePage(session, input.document, input.textSet);
-    const { header, rows } = tableOf(text);
+    const { text, format } = await readTablePage(session, input.document, input.textSet);
+    const { header, rows } = tableOf(text, format);
     return {
       document: input.document,
       header,

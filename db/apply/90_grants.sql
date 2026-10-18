@@ -89,10 +89,12 @@ REVOKE ALL ON FUNCTION pending_unit(uuid)          FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_needs(uuid)            FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_waits_for(uuid)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_faults(uuid[])        FROM PUBLIC;
+REVOKE ALL ON FUNCTION place_gap_said(geometry,geometry,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION parent_link(uuid,boolean)   FROM PUBLIC;
 REVOKE ALL ON FUNCTION parent_of(uuid)             FROM PUBLIC;
 REVOKE ALL ON FUNCTION dispute_said(text)          FROM PUBLIC;
-REVOKE ALL ON FUNCTION end_was_rejected(text,jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION end_was_rejected(text,jsonb,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION joined_unit(public.proposals,public.proposals,uuid[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION group_subject(uuid)         FROM PUBLIC;
 REVOKE ALL ON FUNCTION queue_groups()              FROM PUBLIC;
 REVOKE ALL ON FUNCTION rejection_note(text,text,text) FROM PUBLIC;
@@ -101,6 +103,7 @@ REVOKE ALL ON FUNCTION promote_unit(uuid,text)     FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_unit_as(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION decision_said(uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_unit(uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION merge_waiting_act(uuid,uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_unit_as(uuid,text,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_relation(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_relation_as(uuid,text,text,text,text,text) FROM PUBLIC;
@@ -143,7 +146,7 @@ REVOKE ALL ON FUNCTION store_reference_author(text,text,text,text,text[],text,bo
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION store_reference_sites(text,text[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION join_author_name(text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION name_joins_no_author(text)  FROM PUBLIC;
+REVOKE ALL ON FUNCTION name_joins_no_author(text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION name_row(text)              FROM PUBLIC;
 REVOKE ALL ON FUNCTION lock_name(text)             FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_state(uuid)            FROM PUBLIC;
@@ -159,6 +162,8 @@ REVOKE ALL ON FUNCTION confirm_name_candidate(text,uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION refuse_name_candidate(text,uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION name_candidate_counts()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION decide_author_name(text,boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION move_author_name(text,text)  FROM PUBLIC;
+REVOKE ALL ON FUNCTION rerate_author_name(text)    FROM PUBLIC;
 REVOKE ALL ON FUNCTION author_names_dry_run()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION letter_of(text)             FROM PUBLIC, gabriel_app;
 REVOKE ALL ON FUNCTION approve_reference_set()     FROM PUBLIC;
@@ -210,6 +215,7 @@ REVOKE ALL ON FUNCTION correct_document_title(text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_provider(text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fill_document_archive(text,text,text) FROM PUBLIC;
 
 -- THE TIER IS HELD BY NO ROLE. The owner of a view does not lend EXECUTE on a function that the
 -- view calls, so the reader role of an export gets the grant together with that export.
@@ -224,6 +230,8 @@ GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,dat
   TO gabriel_agent, gabriel_research;
 -- THE PROVIDER OF A KNOWN OFFICIAL FILE goes with the fetched-document door.
 GRANT EXECUTE ON FUNCTION fill_document_provider(text,text) TO gabriel_agent, gabriel_research;
+-- THE ARCHIVE THAT HELD A FILE goes with the fetched-document door too.
+GRANT EXECUTE ON FUNCTION fill_document_archive(text,text,text) TO gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
   TO gabriel_app;
 -- THE ADDRESS OF A KNOWN UPLOAD goes with the upload door, so only the operator holds it.
@@ -241,6 +249,7 @@ GRANT EXECUTE ON FUNCTION propose_batch(jsonb) TO gabriel_agent, gabriel_researc
 GRANT EXECUTE ON FUNCTION promote_unit(uuid,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION decision_said(uuid,uuid) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_unit(uuid,text,text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION merge_waiting_act(uuid,uuid,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_relation(uuid,text,text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION promote_group(uuid,uuid[],text) TO gabriel_app;
 -- THE DECISIONS OF AN AI REVIEWER. The research role holds four doors of its own, and no door of
@@ -352,6 +361,9 @@ GRANT EXECUTE ON FUNCTION requeue_failed_ratings()  TO gabriel_app;
 -- raises a letter, so the worker, the research AI, the checker and the AI reviewer hold no grant.
 GRANT EXECUTE ON FUNCTION author_names_waiting()   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION decide_author_name(text,boolean) TO gabriel_app;
+-- The operator moves a name from an author that the worker rated to a reference author.
+GRANT EXECUTE ON FUNCTION move_author_name(text,text) TO gabriel_app;
+GRANT EXECUTE ON FUNCTION rerate_author_name(text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION author_names_dry_run()   TO gabriel_app;
 GRANT EXECUTE ON FUNCTION rating_context(text)     TO gabriel_agent;
 

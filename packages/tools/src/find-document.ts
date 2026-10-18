@@ -12,7 +12,9 @@ const escaped = (text: string): string => text.replace(/[\\%_]/g, '\\$&');
 const FIND = `SELECT d.id::text AS id, d.title, d.uri, d.kind, d.mime,
          d.retrieved_at::text AS retrieved_at,
          (SELECT max(t.page) FROM public.document_text t WHERE t.document_id = d.id)::int
-           AS text_pages
+           AS text_pages,
+         (SELECT p.archive_id FROM public.documents p WHERE p.id = d.id) AS archive_id,
+         (SELECT p.archive_path FROM public.documents p WHERE p.id = d.id) AS archive_path
     FROM api.document d
    WHERE ($1::text IS NULL OR d.uri ILIKE '%' || $1::text || '%' ESCAPE '\\')
      AND ($2::text IS NULL OR d.title ILIKE '%' || $2::text || '%' ESCAPE '\\')
@@ -27,6 +29,8 @@ const row = z.strictObject({
   mime: z.string().nullable(),
   retrieved_at: z.string().nullable(),
   text_pages: z.number().int().nullable(),
+  archive_id: z.string().nullable(),
+  archive_path: z.string().nullable(),
 });
 
 export const findDocument = defineTool({
@@ -35,7 +39,8 @@ export const findDocument = defineTool({
     'Finds the stored documents whose address or title holds the text you give. An exact ' +
     'address comes first. Call it before fetch_document, so you do not fetch a page that ' +
     'Gabriel already holds. "textPages" is the number of pages of stored text, and null means ' +
-    'that the document has no text to read or to cite.',
+    'that the document has no text to read or to cite. "archive" names the zip archive that ' +
+    'held a file, and the path of the file in it.',
   input: z
     .strictObject({
       url: z.string().trim().min(1).max(2048).optional().describe('the address, or a part of it'),
@@ -54,6 +59,7 @@ export const findDocument = defineTool({
         mime: z.string().nullable(),
         retrievedAt: z.string().nullable(),
         textPages: z.number().int().nullable(),
+        archive: z.strictObject({ document: z.string(), path: z.string() }).nullable(),
       }),
     ),
   }),
@@ -73,6 +79,10 @@ export const findDocument = defineTool({
         mime: held.mime,
         retrievedAt: held.retrieved_at,
         textPages: held.text_pages,
+        archive:
+          held.archive_id === null || held.archive_path === null
+            ? null
+            : { document: held.archive_id, path: held.archive_path },
       })),
     };
   },

@@ -49,6 +49,17 @@ test('a pending proposal never takes the pending status again', async () => {
   ).rejects.toThrow(/^a proposal leaves pending and never returns to it$/);
 });
 
+// A pending act sent again takes a new dispute, and nothing else of it changes.
+test('a pending proposal that takes a new dispute keeps its payload', async () => {
+  await expect(
+    onAct(
+      false,
+      `UPDATE public.proposals SET dissent = NOT dissent,
+         payload = '{"type":"vessel","label":"A rewritten label"}'::jsonb WHERE id = $1::uuid`,
+    ),
+  ).rejects.toThrow(/^a proposal leaves pending and never returns to it$/);
+});
+
 test('a decision does not change the payload of the act', async () => {
   await expect(
     onAct(

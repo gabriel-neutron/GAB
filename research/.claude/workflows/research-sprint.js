@@ -1,11 +1,11 @@
 export const meta = {
   name: 'research-sprint',
-  description: 'Run one research sprint: a coordinator, one worker for each lot of lots.json, then a synthesis and the prompt of the review session',
+  description: 'Run one research sprint: a coordinator, one worker for each lot of lots.json, then a synthesis and a review by a new reviewer agent',
   whenToUse: 'The operator asks to run a research sprint that has a SPEC.md and a lots.json. Start the session in research/, with the gab server connected.',
   phases: [
     { title: 'Coordinate', detail: 'the coordinator part of SPEC.md, and the list of lots' },
     { title: 'Work', detail: 'one worker for each worker id of lots.json' },
-    { title: 'Synthesize', detail: 'RAPPORT.md, ticket, review prompt' },
+    { title: 'Synthesize', detail: 'RAPPORT.md, ticket, review ids' },
   ],
 }
 
@@ -92,8 +92,8 @@ Workers with no result: ${lost.join(', ') || 'none'}.
 2. Write ${DIR}/RAPPORT.md in French: counts, proposal ids, documents, what stays open.
 3. Add the lines of needs once to research/out/needs.md, after a fresh read of the file (no duplicate).
 4. Close the step with the skill carto-step: tick the true boxes of ${TICKET}, and post the comment (ASD-STE100, no local path). The operator started this workflow, and that is the request to post.
-5. Write in RAPPORT.md the prompt of a separate review session (skill review-unit) on the proposal ids of the sprint.
-Return the path of RAPPORT.md and the prompt of the review session.`,
+5. Write in RAPPORT.md the proposal ids of the sprint. The lead session gives them to a new reviewer subagent (skill review-unit).
+Return the path of RAPPORT.md and the proposal ids.`,
   { label: 'synthesis', phase: 'Synthesize' },
 )
 // The lead session runs the skill expert-panel on each open question: a workflow agent cannot start a panel.

@@ -28,3 +28,10 @@ Data and Information System (ESDIS).
 A link to an object of OpenStreetMap, https://www.openstreetmap.org, in asset-links.csv.
 © OpenStreetMap contributors, under the Open Database Licence,
 https://www.openstreetmap.org/copyright. This release holds no OpenStreetMap geometry.
+
+## EOX Sentinel-2 cloudless 2016
+
+A point placed on a satellite image cites the image: EOxCloudless https://cloudless.eox.at by
+EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016), under the Creative
+Commons Attribution 4.0 International licence, https://creativecommons.org/licenses/by/4.0/.
+The image shows each site as it was in 2016.

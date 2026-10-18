@@ -139,3 +139,12 @@ it('names an act that gives a new type the type change of a relation, with both 
     ])[0]?.actWords,
   ).toBe('Type change of a relation, from designated_by to restricted_by');
 });
+
+it('names an act that gives a place the change of the place, and not of the name', () => {
+  expect(
+    decidedRows([
+      act({ op: 'update_entity', payload: { geom: { type: 'Point', coordinates: [28, 59] } } }),
+      act({ op: 'update_entity', payload: {} }),
+    ]).map((row) => row.actWords),
+  ).toStrictEqual(['Change of the place', 'Change of the name or the type']);
+});

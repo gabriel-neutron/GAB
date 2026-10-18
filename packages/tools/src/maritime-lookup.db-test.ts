@@ -72,7 +72,7 @@ test('an entity and the events of a vessel are each stored once as an api docume
     expect(
       await heldBy(
         ask,
-        `Global Fishing Watch encounter, loitering, gap events of ${VESSEL} from 2026-01-01 to 2026-02-01`,
+        `Global Fishing Watch encounter, loitering, gap, port_visit events of ${VESSEL} from 2026-01-01 to 2026-02-01`,
       ),
     ).toStrictEqual([{ kind: 'api', mime: 'application/json', pages: 1 }]);
   });

@@ -53,7 +53,7 @@ export interface Answer {
   readonly day: string;
   /** The publisher of an official file. Its licence gives the tier of the document. A tool names
    * it only for a file that it reads at the address of that publisher. */
-  readonly provider?: 'eu_eurlex' | 'ofac_sdn' | 'uk_sanctions_list';
+  readonly provider?: 'eu_eurlex' | 'ofac_sdn' | 'uk_sanctions_list' | 'eox_s2cloudless_2016';
 }
 
 const answerOf = <S extends 'known' | 'stored'>(known: z.infer<typeof knownRow>, status: S) => ({
@@ -72,7 +72,9 @@ const knownOf = async (session: Session, sha256: string) => {
   return row;
 };
 
-const hashOf = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
+/** The SHA-256 of the bytes, in hex: the identity of a document. */
+export const hashOf = (bytes: Uint8Array): string =>
+  createHash('sha256').update(bytes).digest('hex');
 
 /** The stored document that holds these bytes, as a known answer, or undefined. It writes
  * nothing. */

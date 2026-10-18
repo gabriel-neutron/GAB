@@ -51,7 +51,7 @@ flowchart LR
 | Actor | Can | Cannot |
 |---|---|---|
 | Operator | Upload, edit, promote, reject, start a lead. Merge two entities, and undo a merge. | — |
-| Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job, start a lead. Read the review queue and the leads. Accept or reject a unit or a relation, as an AI reviewer. | Decide a unit that its own session proposed (a rule of the skills). Merge. Write a table directly. |
+| Research AI | Read the record, the pending proposals and the jobs of a document. Fetch and store documents, propose a change, queue a job, start a lead. Read the review queue and the leads. Accept or reject a unit or a relation, as an AI reviewer. | Decide a unit that the same agent proposed (a rule of the skills: a new reviewer agent decides it). Merge. Write a table directly. |
 | Worker agents | Read a document, propose a change with the passage that states it. Rate a new author against the reference set. For a lead: search, fetch and store pages, and queue their extraction. | Promote. Merge. Start a lead. Read a lead that they do not run. |
 | Public | Read the public views. | Write. |
 
@@ -222,14 +222,17 @@ checker failure does not dispute the act. Of the verdicts of the checker, only "
 disputes it. An act that no model checked has no check. It waits, and the same batch sent again
 checks it.
 
-The flag keeps a short reason, which is frozen with the act. The reason is the value that no
+The flag keeps a short reason. The reason is the value that no
 passage states, the verdict and reason of the checker, or that the checker did not answer. The
 reason is private: the review card shows it, and the public read does not. After the write, the
 record also keeps each verdict with its act. It keeps the checker model, both families and the
 reason of the checker, so the rules can decide the unit. The review card says which check ran on
 each act: a second model, with its verdict, or code only. An act that the checker did not answer
 keeps no check until a later check. A later extraction of the document, or the same batch of the
-research AI, gives that check. The first check of an act stays.
+research AI, gives that check. The extractor keeps the first check of an act. When the research
+AI sends a pending act again, code and the checker check it again: the act takes the new dispute,
+its reason and its check, so a fix of a rule reaches the acts that wait. A decided act never
+changes, and an act that cites words read from an image stays disputed.
 Every model call goes to OpenRouter and is recorded.
 
 Before the extractor proposes the batch of a part, code drops each item that a rule can refuse, so
@@ -253,8 +256,13 @@ fails, with the same words as its reason. While a job waits or runs, the interfa
 again by itself.
 
 Each act gets a unit of decision when the door writes it, and the unit never changes (P11). An
-entity is a unit with the relations that depend on it. A relation that names an act that waits in
-another group, or names a relation, is a unit of its own, so no entity waits for another group.
+entity is a unit with the relations that depend on it. A relation between an entity of the record
+and a new entity that waits in another group joins the unit of that new entity. A rejection of that
+unit rejects such a relation with the reason "end rejected". A change of the place of a new entity
+that waits joins the unit of that entity in the same way: the promotion writes it after the entity,
+and a rejection of the entity rejects it with the reason "end rejected". Any other relation that names an act
+that waits in another group, or names a relation, is a unit of its own, so no entity waits for
+another group.
 The review queue shows one line for each unit. It reads one page of units at a time through the
 writer, because the cited passages are private. The AI reviewer of the MCP server reads the same
 page through its own role. Each line names who proposed the unit.

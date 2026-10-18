@@ -11,7 +11,7 @@ export const rejectUnit = defineTool({
     'Rejects one unit of the review queue, as the button "Reject" of the review page: every act ' +
     'of the unit that waits is rejected with one reason and one note. The record keeps the ' +
     'origin "decided by an AI reviewer" and your reason. Read the cited passage first, and never ' +
-    'decide a unit that your own session proposed.',
+    'decide a unit that you proposed: a new reviewer agent decides it.',
   input: z.strictObject({
     unitId: z.uuid().describe('the id of the unit, from a list'),
     ...rejection,

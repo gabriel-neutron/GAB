@@ -41,6 +41,11 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
   relationType('settles_through', 'settles through', 'is the settlement channel of', false),
   relationType('supplies_crude_to', 'supplies crude to', 'receives crude from', false),
   relationType('sells_products_to', 'sells products to', 'buys products from', false),
+  // A physical link between two assets, from upstream to downstream, between a facility and a
+  // port. valid_from is the start of operation, and valid_to is the end. These are not a sale
+  // between companies (supplies_crude_to). A gas link gets its own type when a source exists.
+  relationType('crude_flows_to', 'crude flows to', 'is fed crude by', true),
+  relationType('products_flow_to', 'products flow to', 'receives products from', true),
   relationType('berthed_at', 'berthed at', 'is the berth of', false),
   relationType('loads_at', 'loads at', 'is the loading place of', false),
   relationType('discharges_at', 'discharges at', 'is the discharge place of', false),
@@ -60,6 +65,17 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
   // missing word never fails the promotion.
   relationType('unknown', 'is linked to', 'is linked to', false),
 ];
+
+/** The relation type of a physical link for each product. A relation has no attributes, so its
+ * type gives the product. Gas and LNG have no relation type yet: the record gets one when a
+ * document supports a gas link. The release and the map both read this map. */
+export const PRODUCT_LINK_TYPES = {
+  crude: 'crude_flows_to',
+  products: 'products_flow_to',
+  gas: null,
+} as const;
+
+export type ProductKey = keyof typeof PRODUCT_LINK_TYPES;
 
 const WORDS = new Map(SEEDED_RELATION_TYPES.map((one) => [one.key, one]));
 

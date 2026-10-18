@@ -563,8 +563,44 @@ test.each([
   ["RU  ULU  Ust'-Luga  5940N 02819E", 28.3167, 59.6667],
   ['Latitude 59.6681, Longitude 28.3122', 28.3167, 59.6667],
   ['the port lies at 59°40′ N, 28°19′ E', 28.3167, 59.6667],
+  ['the port lies at 59,6681 N, 28,3122 E', 28.3167, 59.6667],
+  ['Leningrad Oblast,60.523347000000001,28.130122,exact', 28.130122, 60.523347],
+  // Degrees and decimal minutes with a comma or a dot, as a port authority writes a berth.
+  ['причал № 1: 60°20,02′ с.ш. 28°42,58′ в.д.', 28.70967, 60.33367],
+  ["berth 1: 60° 20.02' N, 28° 42.58' E", 28.70967, 60.33367],
+  // A Cyrillic or a Latin letter o in place of the degree sign.
+  ['60о20,02′ с.ш., 28о42,58′ в.д.', 28.70967, 60.33367],
+  ["60o20,02' N, 28o42,58' E", 28.70967, 60.33367],
+  // Degrees, minutes and seconds, with a decimal comma or dot in the seconds.
+  ['69°03′11″ N, 58°09′07,5″ E', 58.15208, 69.05306],
+  ['69о03\'11" с.ш., 58о09\'07.5" в.д.', 58.15208, 69.05306],
+  // The compact degrees, minutes and seconds of a port register.
+  ['RUVAR-0001 690311N 0580907E', 58.15194, 69.05306],
 ])('the passage %j states the point', (passage, lon, lat) => {
   expect(unstatedValues(placeAt(lon, lat), [passage])).toStrictEqual([]);
+});
+
+test.each(['60 of 20 berths, 28 of 42 tanks', 'el 60º aniversario, 28o año', '5o, 60o, 28о.'])(
+  'a letter o or an ordinal sign with no minutes after it is no degree sign: %j',
+  (passage) => {
+    expect(unstatedValues(placeAt(28, 60), [passage]).map((one) => one.name)).toStrictEqual([
+      'geom.longitude',
+      'geom.latitude',
+    ]);
+  },
+);
+
+test('the place of a new entity is checked against the passage', () => {
+  const created = writeRequest.parse({
+    op: 'create_entity',
+    type: 'facility',
+    label: 'Orsk refinery',
+    geom: { type: 'Point', coordinates: [58.511982, 51.254268] },
+  });
+  expect(unstatedValues(created, ['Orsk refinery, 51.254268, 58.511982'])).toStrictEqual([]);
+  expect(
+    unstatedValues(created, ['Orsk refinery, 51.9, 58.511982']).map((one) => one.name),
+  ).toStrictEqual(['geom.latitude']);
 });
 
 test('a point that the passage does not state is unstated, coordinate by coordinate', () => {
@@ -575,6 +611,11 @@ test('a point that the passage does not state is unstated, coordinate by coordin
   ).toStrictEqual(['geom.latitude']);
   expect(
     unstatedValues(placeAt(28.3167, 59.6667), ['left Sikka on 12 March 2024']).map(
+      (one) => one.name,
+    ),
+  ).toStrictEqual(['geom.longitude', 'geom.latitude']);
+  expect(
+    unstatedValues(placeAt(23.13, 23.34), ['Leningrad Oblast,60.523347000000001,28.130122']).map(
       (one) => one.name,
     ),
   ).toStrictEqual(['geom.longitude', 'geom.latitude']);
@@ -630,4 +671,139 @@ test('a port call with no day keeps its other attributes', () => {
   expect(withoutCallDay(act)).toMatchObject({ attrs: { cargo: { v: 'crude' } } });
   expect(withoutCallDay(act)).not.toHaveProperty('attrs.observed_on');
   expect(withoutCallDay(callOf('loads_at', '2026-05-19'))).not.toHaveProperty('attrs');
+});
+
+// Real excerpts of stored Reuters documents: doc_36e638d26604, doc_ed1cabe98546, doc_d94ce1cf864b.
+const RYAZAN = [
+  "MOSCOW, Feb 24 (Reuters) - Russia's Ryazan oil refinery has suspended operations after an attack by Ukrainian drones on Monday, three industry sources told Reuters.",
+  "Ukraine's military said on Monday some of its drones had hit the Ryazan oil refinery overnight",
+];
+const NIGHT_OF = (first: string, second: string) =>
+  writeRequest.parse({
+    op: 'create_entity',
+    type: 'event',
+    label: `claimed attack — Ryazan Refinery — ${second}`,
+    attrs: {
+      event_kind: { v: 'claimed attack' },
+      occurred_on: { v: [first, second] },
+      occurred_on_precision: { v: 'night' },
+    },
+  });
+
+test('a dateline and "overnight" state the night that ends on the dateline day', () => {
+  const options = { publishedOn: '2025-02-24' };
+  expect(unstatedValues(NIGHT_OF('2025-02-23', '2025-02-24'), RYAZAN, options)).toStrictEqual([]);
+  expect(unstatedValues(NIGHT_OF('2025-02-24', '2025-02-25'), RYAZAN, options)).toHaveLength(1);
+});
+
+test('a dateline with no year states nothing without a publication date', () => {
+  expect(unstatedValues(NIGHT_OF('2025-02-23', '2025-02-24'), RYAZAN)).toHaveLength(2);
+});
+
+test('a dateline with no night word states no day', () => {
+  const passage =
+    "KYIV, Sept 5 (Reuters) - Ukraine attacked Russia's Ryazan oil refinery, the commander of its drone forces, Robert Brovdi, said on messaging app Telegram on Friday, as well as an oil depot in the occupied Luhansk region.";
+  const options = { publishedOn: '2025-09-05' };
+  expect(unstatedValues(NIGHT_OF('2025-09-04', '2025-09-05'), [passage], options)).toHaveLength(2);
+  expect(unstatedValues(relationFrom('2025-09-05'), [passage], options)).toHaveLength(1);
+});
+
+test('"early-morning" is no night word', () => {
+  const passages = [
+    'MOSCOW, Sept 20 (Reuters) - The largest Ukrainian drone attack reported so far on the Moscow region killed three people and damaged part of an oil refinery in the capital, authorities said on Sunday',
+    'Two people were killed in the early-morning attacks and a third died of his injuries later in hospital',
+  ];
+  expect(
+    unstatedValues(NIGHT_OF('2026-09-19', '2026-09-20'), passages, { publishedOn: '2026-09-20' }),
+  ).toHaveLength(2);
+});
+
+test('a dateline and "overnight" state no day of a relation or a port call', () => {
+  const options = { publishedOn: '2025-02-24' };
+  expect(unstatedValues(relationFrom('2025-02-23'), RYAZAN, options)).toHaveLength(1);
+  expect(statedBounds(relationFrom('2025-02-23'), RYAZAN, options).dropped).toStrictEqual([
+    'validFrom',
+  ]);
+  const call = writeRequest.parse({
+    op: 'create_relation',
+    type: 'loads_at',
+    srcId: '3f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+    dstId: '4f2b8c1e-5d4a-4e6f-8a7b-1c2d3e4f5a6b',
+    attrs: { observed_on: { v: '2025-02-23' } },
+  });
+  expect(unstatedCallDay(call, RYAZAN, options)).toBe(true);
+});
+
+test('"Saturday night" and "last night" name another night', () => {
+  const options = { publishedOn: '2025-02-24' };
+  for (const words of ['on Saturday night', 'last night'])
+    expect(
+      unstatedValues(
+        NIGHT_OF('2025-02-23', '2025-02-24'),
+        [`MOSCOW, Feb 24 (Reuters) - Drones hit the Ryazan oil refinery ${words}.`],
+        options,
+      ),
+    ).toHaveLength(2);
+});
+
+test('the night of a dateline is named as a day from the publication date', () => {
+  expect(
+    daysFromPublication(NIGHT_OF('2025-02-23', '2025-02-24'), RYAZAN, '2025-02-24'),
+  ).toStrictEqual(['2025-02-23', '2025-02-24']);
+});
+
+// Real excerpts of stored documents: doc_0b306287fb32 (Reuters) and doc_82746201e328 (ISW).
+const YANOS = [
+  "Sept 17 (Reuters) - Russia's Slavneft Yaroslavnefteorgsintez (YANOS) oil refinery halted crude processing on Thursday following a Ukrainian drone attack that damaged equipment at the facility",
+  "Ukraine hit Russia's Yaroslavl oil refinery overnight, ​Ukrainian President Volodymyr Zelenskiy said on Thursday.",
+];
+const RYAZAN_ISW = [
+  'Ukrainian forces continued their long-range strike campaign against Russian oil infrastructure on the night of September 5 to 6.',
+];
+
+test('a dateline with no city and "overnight" state the night that ends on the dateline day', () => {
+  const options = { publishedOn: '2026-09-17' };
+  expect(unstatedValues(NIGHT_OF('2026-09-16', '2026-09-17'), YANOS, options)).toStrictEqual([]);
+  expect(unstatedValues(NIGHT_OF('2026-09-17', '2026-09-18'), YANOS, options)).toHaveLength(1);
+});
+
+test('"the night of September 5 to 6" states the two days of the night', () => {
+  const options = { publishedOn: '2026-09-06' };
+  expect(unstatedValues(NIGHT_OF('2026-09-05', '2026-09-06'), RYAZAN_ISW, options)).toStrictEqual(
+    [],
+  );
+  expect(unstatedValues(NIGHT_OF('2026-09-05', '2026-09-06'), RYAZAN_ISW)).toHaveLength(2);
+  expect(
+    daysFromPublication(NIGHT_OF('2026-09-05', '2026-09-06'), RYAZAN_ISW, '2026-09-06'),
+  ).toStrictEqual(['2026-09-05', '2026-09-06']);
+});
+
+test('a night of two days with a year and the "overnight on" form state the night', () => {
+  for (const words of ['on the night of September 5 to 6, 2026', 'overnight on September 5 to 6'])
+    expect(
+      unstatedValues(NIGHT_OF('2026-09-05', '2026-09-06'), [`Drones struck ${words}.`], {
+        publishedOn: '2026-09-06',
+      }),
+    ).toStrictEqual([]);
+  expect(
+    unstatedValues(NIGHT_OF('2026-09-05', '2026-09-06'), [
+      'Drones struck on the night of September 5 to 6, 2026.',
+    ]),
+  ).toStrictEqual([]);
+});
+
+test('a night of two days that are not side by side states nothing', () => {
+  expect(
+    unstatedValues(NIGHT_OF('2026-09-05', '2026-09-06'), ['on the night of September 4 to 6'], {
+      publishedOn: '2026-09-06',
+    }),
+  ).toHaveLength(2);
+});
+
+test('a dateline with no city states no day without a night word, or for a relation', () => {
+  const options = { publishedOn: '2026-09-17' };
+  expect(
+    unstatedValues(NIGHT_OF('2026-09-16', '2026-09-17'), [YANOS[0] ?? ''], options),
+  ).toHaveLength(2);
+  expect(unstatedValues(relationFrom('2026-09-16'), YANOS, options)).toHaveLength(1);
 });

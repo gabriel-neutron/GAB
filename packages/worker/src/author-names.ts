@@ -11,6 +11,8 @@ const DRY_RUN = `SELECT name_key, author, letter::text AS letter, units, change_
        change_if_refused
   FROM public.author_names_dry_run()`;
 const DECIDE = 'SELECT public.decide_author_name($1::text, $2::boolean) AS units';
+const MOVE = 'SELECT public.move_author_name($1::text, $2::text) AS units';
+const RERATE = 'SELECT public.rerate_author_name($1::text) AS units';
 
 const waitingRow = z.object({
   name_key: z.string(),
@@ -46,6 +48,27 @@ export const decideName = async (
     .array(z.object({ units: z.number().int() }))
     .length(1)
     .parse((await db.query(DECIDE, [name, confirm])).rows);
+  return row?.units ?? 0;
+};
+
+/** Moves one name from an author that the worker rated to an approved reference author or to
+ * another author that the worker rated, and gives the number of its units that the rules read
+ * again. */
+export const moveName = async (db: Queryable, name: string, author: string): Promise<number> => {
+  const [row] = z
+    .array(z.object({ units: z.number().int() }))
+    .length(1)
+    .parse((await db.query(MOVE, [name, author])).rows);
+  return row?.units ?? 0;
+};
+
+/** Takes one name away from the author that the worker rated, so that the rater rates it again,
+ * and gives the number of its units that the rules read again. */
+export const rerateName = async (db: Queryable, name: string): Promise<number> => {
+  const [row] = z
+    .array(z.object({ units: z.number().int() }))
+    .length(1)
+    .parse((await db.query(RERATE, [name])).rows);
   return row?.units ?? 0;
 };
 

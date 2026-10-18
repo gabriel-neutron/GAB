@@ -100,7 +100,8 @@ interface ActBase {
   readonly disputed: boolean;
   /** The check of a second model, or null when only code checked the act. */
   readonly check: ActCheck | null;
-  /** The act is a relation whose other end was rejected, so the reason "end rejected" fits it. */
+  /** The act is a relation whose other end was rejected, or a place of a new entity that was
+   * rejected, so the reason "end rejected" fits it. */
   readonly endRejected: boolean;
 }
 
@@ -114,6 +115,12 @@ export type UnitAct =
       readonly dst: UnitEnd;
     })
   | (ActBase & { readonly kind: 'change'; readonly op: string; readonly target: UnitEnd | null })
+  | (ActBase & {
+      readonly kind: 'place';
+      /** The entity that the act gives a place: an entity of the record, or the new entity of
+       * the unit. The attributes hold the place. */
+      readonly target: UnitEnd;
+    })
   | (ActBase & {
       readonly kind: 'close';
       /** The relation that the act ends. */
@@ -458,6 +465,8 @@ const actOf = (read: ReadAct): UnitAct => {
       from: read.targetType ?? 'its old type',
       to: read.payload.type,
     };
+  if (read.op === 'update_entity' && read.targetId !== null && read.payload.geom !== undefined)
+    return { ...base, kind: 'place', target: endOf(read.targetId, read.target) };
   return {
     ...base,
     kind: 'change',

@@ -4,6 +4,7 @@ import { LAYER_READER } from '@gab/text/geojson';
 import { TABLE_READER } from '@gab/text/xlsx';
 import { fileSchemaSample } from '@gab/tools/file-schema-sample';
 import { proposeMappingOf } from '@gab/tools/propose-mapping';
+import { tableFormatOf } from '@gab/tools/table';
 import { callTool, type Session, type Tool } from '@gab/tools/tool';
 import { z } from 'zod';
 
@@ -13,10 +14,6 @@ import { promptOf, withinBudget } from '../tool-turn.ts';
 
 const MAPPER_NAME = 'mapper';
 const VERSION = 'v1';
-
-// A format joins the list when code can give each row a span in a stored page. Today only a CSV
-// is one page of text with a row on each line.
-const MAPPED_MIME = 'text/csv';
 
 // The readers that make a text set: the text of a set starts with the version of its reader.
 const TABLE_SETS = [TABLE_READER, LAYER_READER];
@@ -47,9 +44,6 @@ const MIME = 'SELECT mime FROM public.documents WHERE id = $1::text';
 
 const REUSE = 'SELECT public.enqueue_mapped_load($1::text, $2::text)::text AS id';
 
-const baseMime = (mime: string | null): string =>
-  (mime ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
-
 /** The mapper. It reads the header and the first rows of one table, and the model proposes how
  * the columns map. A second file of the same header from the same host takes the mapping that the
  * operator accepted, and no model reads it. */
@@ -73,9 +67,12 @@ export const makeMapper = (config: MapperConfig, options: MapperOptions = {}): R
       throw new JobStop(
         `the mapper reads a workbook or a layer text set, and ${textSet} is not one`,
       );
-    if (textSet === undefined && baseMime(held.mime) !== MAPPED_MIME)
+    // A format is mapped when code can give each row a span in a stored page: a CSV, a TSV and
+    // an SDMX-CSV table are each one page of text with a row on each line.
+    if (textSet === undefined && tableFormatOf(held.mime) === undefined)
       throw new JobStop(
-        `the mapper reads a CSV table only, and document ${document} is ${held.mime ?? 'of no type'}`,
+        `the mapper reads a CSV, TSV or SDMX-CSV table only, and document ${document} is ` +
+          (held.mime ?? 'of no type'),
       );
 
     const read = await callTool(tools.fileSchemaSample, session, { document, textSet });

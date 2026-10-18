@@ -1,0 +1,27 @@
+﻿# GAB dataset, version 1.0 of 08/11/2026.
+#
+# **About this data.** A machine reads public documents and proposes each claim. Each claim cites the documents that state it, and each claim carries a label that tells who decided it.
+#
+# - **Proposed — not checked:** a candidate. No rule and no person checked it. It is not evidence.
+# - **Accepted by rule … — no person read it:** the claim passed a named rule on its cited sources. No person read it. Nobody has measured the accuracy of the rules yet.
+# - **Accepted by an AI reviewer — no person read it:** an AI checked the claim. No person read it.
+# - **Validated manually by the operator:** the operator read the sources and accepted the claim.
+#
+# A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.
+#
+# Report an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.
+#
+# Volumes table.
+# One row for each row of the volume table of the research that the release keeps. A volume is an aggregate of the research for a period, not a fact of the record, and it has no label of the record.
+# class is observed (a published figure), estimated (a computed figure with its range in minimum and maximum) or capacity (the nominal capacity of a pipeline, not a flow). A capacity is never added to a flow.
+# unit is the unit of the source. Do not compare or add two rows with different units.
+# period is the year and the month of the figure, YYYY-MM.
+# upstream and downstream give the entity identifier of each asset, or the name that the research gives to an asset that the record does not hold. The research names an asset by its entity identifier or by the exact label of one entity of the record. relation_id is the physical link of the two assets and the product, or empty when the record has no such link. When an accepted link and a link in review have the same assets and product, relation_id is the accepted link.
+# Each row cites one public document of the release, with its page.
+# Rows: 5. On a physical link: 3.
+relation_id,upstream,downstream,product,period,value,minimum,maximum,unit,class,document_id,document_title,document_address,page,note,licence
+0a1f0000-0000-4000-8000-000000000032,0a1f0000-0000-4000-8000-000000000031,0a1f0000-0000-4000-8000-000000000004,crude,2026-07,400,,,kb/j,observed,volume_report,A test report of export volumes,https://news.example.org/volumes,3,Joined by the identifiers of the two assets,"derived fact; source under the provider licence, not redistributed"
+0a1f0000-0000-4000-8000-000000000032,0a1f0000-0000-4000-8000-000000000031,0a1f0000-0000-4000-8000-000000000004,crude,2026-07,1200,,,kb/j,capacity,volume_report,A test report of export volumes,https://news.example.org/volumes,5,Joined by the labels of the two assets,"derived fact; source under the provider licence, not redistributed"
+0a1f0000-0000-4000-8000-000000000032,0a1f0000-0000-4000-8000-000000000031,0a1f0000-0000-4000-8000-000000000004,crude,2026-06,9.5,8,11,Mt/an,estimated,volume_report,A test report of export volumes,https://news.example.org/volumes,6,A second unit: never compared with kb/j,"derived fact; source under the provider licence, not redistributed"
+,Test refinery,0a1f0000-0000-4000-8000-000000000004,products,2026-07,100,80,130,kt/mois,estimated,volume_report,A test report of export volumes,https://news.example.org/volumes,7,The record has no such asset: joins no link,"derived fact; source under the provider licence, not redistributed"
+,Test gas pipeline,Test border point,gas,2026-07,900,,,GWh/mois,observed,volume_report,A test report of export volumes,https://news.example.org/volumes,8,No relation type for gas: joins no link,"derived fact; source under the provider licence, not redistributed"

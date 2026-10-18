@@ -74,6 +74,54 @@ LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
   END
 $$;
 
+-- THE FACT OF A PAYLOAD, WITHOUT ITS DOCUMENTS. A machine act writes its documents into
+-- payload.sources and into the src of each attribute (packages/proposal/src/machine.ts). Two
+-- payloads that differ only there state one fact.
+CREATE OR REPLACE FUNCTION payload_without_documents(p_payload jsonb)
+RETURNS jsonb
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
+  SELECT CASE
+    WHEN jsonb_typeof(p_payload) <> 'object' THEN p_payload
+    WHEN jsonb_typeof(p_payload->'attrs') = 'object' THEN
+      (p_payload - 'sources') || jsonb_build_object('attrs',
+        (SELECT coalesce(jsonb_object_agg(a.key, CASE WHEN jsonb_typeof(a.value) = 'object'
+                                                      THEN a.value - 'src' ELSE a.value END),
+                         '{}'::jsonb)
+           FROM jsonb_each(p_payload->'attrs') AS a))
+    ELSE p_payload - 'sources'
+  END
+$$;
+
+-- MORE DOCUMENTS FOR A ROW OF THE RECORD. The row-level list takes them when p_row is true, and
+-- the src of each named attribute takes them. A document that a list holds already is not added
+-- again. No role holds this step: the promotion runs it.
+CREATE OR REPLACE FUNCTION cite_on_row(p_kind text, p_id uuid, p_row boolean, p_keys text[],
+                                       p_docs text[])
+RETURNS void
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF coalesce(cardinality(p_docs), 0) = 0 THEN
+    RETURN;
+  END IF;
+  EXECUTE format(
+    'UPDATE public.%I r
+        SET sources = CASE WHEN $3 THEN r.sources || ARRAY(
+                             SELECT DISTINCT d FROM unnest($2) AS d
+                              WHERE NOT d = ANY (r.sources::text[]))::doc_id[]
+                           ELSE r.sources END,
+            attrs = r.attrs || coalesce((
+              SELECT jsonb_object_agg(k, r.attrs->k || jsonb_build_object(''src'',
+                       coalesce(r.attrs->k->''src'', ''[]''::jsonb) || coalesce((
+                         SELECT jsonb_agg(DISTINCT d) FROM unnest($2) AS d
+                          WHERE NOT coalesce(r.attrs->k->''src'', ''[]''::jsonb)
+                                    @> jsonb_build_array(d)), ''[]''::jsonb)))
+                FROM unnest($4) AS k
+               WHERE jsonb_typeof(r.attrs->k) = ''object''), ''{}''::jsonb)
+      WHERE r.id = $1',
+    CASE p_kind WHEN 'entity' THEN 'entities' WHEN 'relation' THEN 'relations' END)
+  USING p_id, p_docs, p_row, coalesce(p_keys, '{}');
+END $$;
+
 CREATE OR REPLACE FUNCTION stamp_author_role() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
@@ -138,19 +186,35 @@ BEGIN
 END $$;
 
 -- THE UNIT OF DECISION (P11). The operator decides one entity with the relations that depend on
--- it. A relation whose end is a pending act outside its group, or a relation, is a unit of its
--- own, so that no entity waits for another group or for a relation. If not, a relation belongs to its source end when that end is a
--- pending entity of the same group, then to its target end. Every other act is its own unit. An
--- entity act has the identifier of the entity it creates, so the unit of an entity is that
--- identifier. The unit is frozen with the act.
+-- it. A relation from an entity of the record to a pending entity outside its group, or the
+-- reverse, joins the unit of that pending entity: a later session can link an entity that waits.
+-- Any other relation whose end is a pending act outside its group, or a relation, is a
+-- unit of its own, so that no entity waits for another group or for a relation. If not, a
+-- relation belongs to its source end when that end is a pending entity of the same group, then to
+-- its target end. Every other act is its own unit. An entity act has the identifier of the entity
+-- it creates, so the unit of an entity is that identifier. A change of the place of a pending
+-- entity joins the unit of that entity in the same way, from any group: the promotion writes it
+-- after the entity. The unit is frozen with the act.
 CREATE OR REPLACE FUNCTION stamp_unit() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
-  v_src uuid;
-  v_dst uuid;
+  v_src  uuid;
+  v_dst  uuid;
+  v_wait uuid;
 BEGIN
   NEW.unit_id := NEW.id;
-  IF NEW.op <> 'create_relation' OR NEW.batch_id IS NULL THEN
+  IF NEW.op = 'update_entity' AND NEW.payload ? 'geom' THEN
+    -- The lock waits for a decision on the entity that runs now, so the place never joins a unit
+    -- that the operator rejects at the same time.
+    PERFORM 1 FROM public.proposals o
+      WHERE o.id = NEW.target_id AND o.status = 'pending' AND o.op = 'create_entity'
+      FOR SHARE;
+    IF FOUND THEN
+      NEW.unit_id := NEW.target_id;
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF NEW.op <> 'create_relation' THEN
     RETURN NEW;
   END IF;
   -- The door checks the shape of the payload after this stamp, so an end that is no identifier
@@ -159,6 +223,19 @@ BEGIN
                 THEN (NEW.payload->>'src_id')::uuid END;
   v_dst := CASE WHEN pg_input_is_valid(NEW.payload->>'dst_id', 'uuid')
                 THEN (NEW.payload->>'dst_id')::uuid END;
+  -- One end is a pending entity of another group, and the other end is an entity of the record.
+  SELECT o.id INTO v_wait FROM public.proposals o
+   WHERE o.id IN (v_src, v_dst) AND o.status = 'pending' AND o.op = 'create_entity'
+     AND NOT coalesce(o.batch_id = NEW.batch_id, false)
+     AND EXISTS (SELECT 1 FROM public.entities e
+                  WHERE e.id = CASE WHEN o.id = v_src THEN v_dst ELSE v_src END);
+  IF FOUND THEN
+    NEW.unit_id := v_wait;
+    RETURN NEW;
+  END IF;
+  IF NEW.batch_id IS NULL THEN
+    RETURN NEW;
+  END IF;
   IF EXISTS (SELECT 1 FROM public.proposals o
               WHERE o.id IN (v_src, v_dst) AND o.status = 'pending'
                 AND NOT (o.op = 'create_entity'
@@ -199,6 +276,16 @@ BEGIN
   END IF;
   IF OLD.status <> 'pending' THEN
     RAISE EXCEPTION 'proposal % is already %, and a decided act is frozen', OLD.id, OLD.status;
+  END IF;
+  -- A PENDING ACT SENT AGAIN IS CHECKED AGAIN (propose_batch): only its dispute and the reason of
+  -- the dispute change, and it stays pending. The dispute is the verdict of code and of a checker
+  -- on the act, and not what the author said, so a fix of a rule reaches the acts that wait.
+  -- The generated proposer is not computed yet in a BEFORE trigger, so the test leaves it out.
+  IF NEW.status = 'pending'
+     AND (NEW.dissent, NEW.dissent_reason) IS DISTINCT FROM (OLD.dissent, OLD.dissent_reason)
+     AND to_jsonb(NEW) - '{dissent,dissent_reason,proposer}'::text[]
+         = to_jsonb(OLD) - '{dissent,dissent_reason,proposer}'::text[] THEN
+    RETURN NEW;
   END IF;
   IF NEW.status = 'pending' THEN
     RAISE EXCEPTION 'a proposal leaves pending and never returns to it';
@@ -683,7 +770,8 @@ END $$;
 -- the batch creates. The promotion gives the new row that identifier.
 --
 -- A PENDING ACT THAT IS ALREADY WRITTEN IS RETURNED, NOT WRITTEN AGAIN. The unique index on the
--- digest of a pending act makes a retry return the act that waits. That act keeps its own
+-- digest of a pending act makes a retry return the act that waits, and the retry checks its
+-- dispute again. That act keeps its own
 -- identifier and its own originator, so each later item that named the minted one names the act
 -- that waits instead. The door adds to that act each citation of the item that it does not hold
 -- yet, so a second passage of the same witness is kept, and a retry writes no citation twice.
@@ -735,6 +823,7 @@ DECLARE
   v_written  uuid[] := '{}';
   v_passages jsonb;
   v_lock     bigint;
+  v_join     uuid[];
 BEGIN
   IF coalesce(jsonb_typeof(p_items), 'absent') <> 'array' OR jsonb_array_length(p_items) = 0 THEN
     RAISE EXCEPTION 'a batch holds at least one item'
@@ -1040,8 +1129,85 @@ BEGIN
     -- The stamp trigger reads the passages of a new entity into its digest.
     v_passages := public.act_passages_of(v_item->>'op', v_item->'citations');
     PERFORM set_config('gabriel.act_passages', coalesce(v_passages::text, ''), true);
+
+    -- THE SAME FACT FROM THE SAME AUTHOR IN A NEW DOCUMENT JOINS THE ACT THAT WAITS (ADR 0012, the
+    -- trust boundary): the item adds its citations to that act, and no second act waits. The
+    -- author of a citation is the author of its act, and the check of a second model belongs to
+    -- the act. So only an item of the same author, with the same modality and no words read from
+    -- an image, joins: such a citation adds no independent author and no support, so the citation
+    -- that no model checked cannot make the fact stronger. An item of another author is a second
+    -- act, with its own letter and its own check, and the promotion closes the act that repeats it.
+    -- A new entity never joins: a label does not identify a unit, so two documents can name two
+    -- units with one label. An exact retry keeps the act of its digest. An older act keeps the
+    -- first match.
+    -- shortcut: two batches that write the same fact at the same time can both write an act, as
+    -- before this join; the promotion closes the second one. Lock the claim key if this shows.
+    v_join := NULL;
+    IF v_item->>'op' IN ('update_entity', 'update_attrs', 'update_relation')
+       AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(
+                         CASE WHEN jsonb_typeof(v_item->'citations') = 'array'
+                              THEN v_item->'citations' ELSE '[]'::jsonb END) AS c
+                        WHERE c->>'transcription' IS NOT NULL)
+       AND NOT EXISTS (SELECT 1 FROM public.proposals x
+                        WHERE x.status = 'pending'
+                          AND x.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind',
+                                                           v_target, v_payload::jsonb, v_src,
+                                                           session_user::text, v_passages)) THEN
+      SELECT array_agg(j.id ORDER BY j.created_at, j.id) INTO v_join
+        FROM (SELECT p.id, p.created_at FROM public.proposals p
+               WHERE p.status = 'pending' AND p.author_role = session_user
+                 AND p.claim_key = public.claim_key_of(v_item->>'op', v_item->>'target_kind',
+                                                       v_target, v_payload::jsonb)
+                 AND p.op = v_item->>'op'
+                 AND p.target_kind IS NOT DISTINCT FROM v_item->>'target_kind'
+                 AND p.target_id IS NOT DISTINCT FROM v_target
+                 AND public.payload_without_documents(p.payload)
+                     = public.payload_without_documents(v_payload::jsonb)
+                 AND p.names @> v_names AND p.names <@ v_names
+                 AND p.dissent = coalesce((v_item->>'dissent')::boolean, false)
+                 AND (public.name_key(p.originator) = public.name_key(v_item->>'originator')
+                      OR public.author_of(p.originator) = public.author_of(v_item->>'originator'))
+                 AND NOT EXISTS (SELECT 1 FROM public.citation c
+                                  WHERE c.claim_id = p.id
+                                    AND (c.modality IS DISTINCT FROM v_item->>'modality'
+                                         OR c.transcription IS NOT NULL))
+               ORDER BY p.created_at, p.id
+               LIMIT 1
+               FOR SHARE OF p) AS j;
+    END IF;
+
+    -- THE SAME PLACE ON A NEW ENTITY THAT WAITS. The change joins the unit of that entity, and the
+    -- promotion refuses an act that changes nothing, so the whole unit could never be written. An
+    -- exact retry keeps its act.
+    IF v_join IS NULL AND v_item->>'op' = 'update_entity' AND v_payload::jsonb ? 'geom' THEN
+      -- Two batches that give one place at the same time wait for each other here.
+      PERFORM pg_advisory_xact_lock(hashtextextended('entity_place:' || v_target::text, 0));
+      SELECT CASE WHEN w.op = 'create_entity'
+                  THEN format('item %s: the new entity %s has this place already', v_no, v_target)
+                  ELSE format('item %s: the act %s gives this place to the new entity %s already',
+                              v_no, w.id, v_target) END
+        INTO v_said
+        FROM public.proposals w
+       WHERE w.status = 'pending' AND w.payload ? 'geom'
+         AND ((w.op = 'create_entity' AND w.id = v_target)
+              OR (w.op = 'update_entity' AND w.target_id = v_target AND w.unit_id = v_target
+                  AND w.act_digest IS DISTINCT FROM
+                      act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
+                                    v_payload::jsonb, v_src, session_user::text, v_passages)))
+         AND EXISTS (SELECT 1 FROM public.proposals o
+                      WHERE o.id = v_target AND o.status = 'pending' AND o.op = 'create_entity')
+         AND public.ST_Equals(public.ST_GeomFromGeoJSON(w.payload->'geom'),
+                              public.ST_GeomFromGeoJSON(v_payload::jsonb->'geom'))
+       ORDER BY w.op <> 'create_entity', w.id
+       LIMIT 1;
+      IF FOUND THEN
+        RAISE EXCEPTION '%', v_said
+          USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'act_changes_something';
+      END IF;
+    END IF;
+
     -- A rule of the table refuses the act, and the caller must know which item it refused.
-    BEGIN
+    IF v_join IS NULL THEN BEGIN
       INSERT INTO public.proposals
         (id, op, target_kind, target_id, payload, src, names, dissent, dissent_reason,
          author_role, model_call_id, originator, batch_id, found_by)
@@ -1058,19 +1224,35 @@ BEGIN
       GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_code = RETURNED_SQLSTATE,
                               v_said = MESSAGE_TEXT;
       PERFORM public.raise_item_rule(v_no, v_rule, v_code, v_said);
-    END;
+    END; END IF;
 
     written := v_id IS NOT NULL;
-    IF v_id IS NULL THEN
+    IF v_join IS NOT NULL THEN
+      -- The joined act keeps its batch, and the group of the item keeps its own.
+      v_id := v_join[1];
+      v_held := NULL;
+      v_moved := v_moved || jsonb_build_object(v_minted::text, v_id::text);
+    ELSIF v_id IS NULL THEN
       -- The conflict is the only way to get no row, so the act waits under its digest.
       -- The share lock waits for a decision on that act that runs now. So a retry never joins a
       -- unit that the operator decides at the same time.
-      SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p
-       WHERE p.status = 'pending'
-         AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
-                                          v_payload::jsonb, v_src, session_user::text,
-                                          v_passages)
-         FOR SHARE;
+      -- A re-check writes the act, so it takes the write lock now: two retries that both held a
+      -- share lock and then wrote would wait for each other.
+      IF session_user = 'gabriel_research' AND coalesce((v_item->>'recheck')::boolean, false) THEN
+        SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p
+         WHERE p.status = 'pending'
+           AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
+                                            v_payload::jsonb, v_src, session_user::text,
+                                            v_passages)
+           FOR NO KEY UPDATE;
+      ELSE
+        SELECT p.id, p.batch_id INTO v_id, v_held FROM public.proposals p
+         WHERE p.status = 'pending'
+           AND p.act_digest = act_digest_of(v_item->>'op', v_item->>'target_kind', v_target,
+                                            v_payload::jsonb, v_src, session_user::text,
+                                            v_passages)
+           FOR SHARE;
+      END IF;
       IF NOT FOUND THEN
         RAISE EXCEPTION 'item %: the operator decided the act that this item repeats while the '
                         'batch was written, so send the batch again', v_no
@@ -1080,6 +1262,30 @@ BEGIN
     END IF;
     IF v_batch IS NOT NULL AND NOT v_batches ? v_key THEN
       v_batches := v_batches || jsonb_build_object(v_key, coalesce(v_held, v_batch));
+    END IF;
+
+    -- A PENDING ACT SENT AGAIN IS CHECKED AGAIN. The tool computes the dispute again with the code
+    -- and the checker of today, and gives recheck when a check ran. Only the research AI sends it,
+    -- because its door alone replaces the check of an act that waits. The act that waits then takes
+    -- the new dispute and its reason, so a fix of a rule needs no rejection and no new proposal.
+    -- A decided act is never here: the digest returns a pending act only. An act that cites words
+    -- read from an image stays disputed, so the operator still compares them with the image.
+    IF NOT written AND v_join IS NULL AND session_user = 'gabriel_research'
+       AND coalesce((v_item->>'recheck')::boolean, false)
+       AND (coalesce((v_item->>'dissent')::boolean, false)
+            OR NOT EXISTS (SELECT 1 FROM public.citation c
+                            WHERE c.claim_id = v_id AND c.transcription IS NOT NULL)) THEN
+      UPDATE public.proposals p
+         SET dissent = coalesce((v_item->>'dissent')::boolean, false),
+             dissent_reason = v_item->>'dissent_reason'
+       WHERE p.id = v_id AND p.status = 'pending'
+         -- The checker read the claim of the item, so the act must state the same claim: the
+         -- digest leaves out the originator and the modality.
+         AND public.name_key(p.originator) = public.name_key(v_item->>'originator')
+         AND NOT EXISTS (SELECT 1 FROM public.citation c
+                          WHERE c.claim_id = p.id AND c.modality IS DISTINCT FROM v_item->>'modality')
+         AND (p.dissent, p.dissent_reason) IS DISTINCT FROM
+             (coalesce((v_item->>'dissent')::boolean, false), v_item->>'dissent_reason');
     END IF;
 
     -- An act that waits already and is not disputed takes no words read from an image.
@@ -1600,6 +1806,10 @@ DECLARE
   v_attrs jsonb;
   v_type  text;
   v_uses  bigint;
+  v_kind  text;
+  v_keys  text[];
+  v_row   boolean;
+  v_twin  public.proposals%ROWTYPE;
 BEGIN
   IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
     RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
@@ -1900,6 +2110,61 @@ BEGIN
     RAISE EXCEPTION 'the act % has no write path', p.op USING CONSTRAINT = 'op_has_path';
   END IF;
 
+  -- THE DOCUMENTS OF AN ACT THAT A LATER ITEM JOINED (propose_batch). The act is frozen, so its
+  -- src does not name them, and its citations do. The row takes them as it takes the src.
+  IF p.op IN ('create_entity', 'create_relation', 'update_entity', 'update_attrs',
+              'update_relation') THEN
+    v_kind := CASE p.op WHEN 'create_entity' THEN 'entity' WHEN 'create_relation' THEN 'relation'
+                        ELSE p.target_kind END;
+    v_row  := p.op NOT IN ('update_attrs', 'update_relation')
+              OR p.payload ?| ARRAY['type', 'valid_from', 'valid_to'];
+    v_keys := CASE WHEN jsonb_typeof(p.payload->'attrs') = 'object'
+                   THEN ARRAY(SELECT jsonb_object_keys(p.payload->'attrs')) END;
+    PERFORM public.cite_on_row(v_kind, v_id, v_row, v_keys,
+      ARRAY(SELECT DISTINCT c.doc_id::text FROM public.citation c
+             WHERE c.claim_id = p.id AND NOT c.doc_id = ANY (p.src)));
+  END IF;
+
+  -- THE ACTS THAT REPEAT THIS FACT. Each one waits in a unit of its own: an act of another author
+  -- keeps its own author and its own check, and the rules count it as a source of the fact.
+  -- Once the fact is in the record, a second promotion would write a second entity, or change
+  -- nothing. So the row takes the documents of each such act, and the act is closed as a
+  -- duplicate. An act that shares its unit, or that another act names, stays: its rejection
+  -- would take an end from that act. An act of the same batch stays: a decision of the group can
+  -- hold it.
+  -- shortcut: such an act waits as a second fact; the operator rejects it. Add a fault "promoted
+  -- already" if that shows in the queue.
+  IF p.op IN ('create_entity', 'update_entity', 'update_attrs') AND p.author_role <> 'gabriel_app'
+  THEN
+    FOR v_twin IN
+      SELECT q.* FROM public.proposals q
+       WHERE q.status = 'pending' AND q.claim_key = p.claim_key AND q.op = p.op
+         AND q.target_kind IS NOT DISTINCT FROM p.target_kind
+         AND q.target_id IS NOT DISTINCT FROM p.target_id
+         AND q.unit_id <> p.unit_id AND q.author_role <> 'gabriel_app'
+         AND (p.batch_id IS NULL OR q.batch_id IS DISTINCT FROM p.batch_id)
+         AND public.payload_without_documents(q.payload)
+             = public.payload_without_documents(p.payload)
+         AND NOT EXISTS (SELECT 1 FROM public.proposals n
+                          WHERE n.status = 'pending' AND n.id <> q.id
+                            AND (n.unit_id = q.unit_id OR q.id = ANY (n.names)
+                                 OR q.id = n.target_id
+                                 OR q.id::text IN (n.payload->>'src_id', n.payload->>'dst_id')))
+       ORDER BY q.id
+         FOR UPDATE
+    LOOP
+      PERFORM public.cite_on_row(v_kind, v_id, v_row, v_keys,
+        ARRAY(SELECT d::text FROM unnest(v_twin.src) AS d
+              UNION SELECT c.doc_id::text FROM public.citation c WHERE c.claim_id = v_twin.id));
+      UPDATE public.proposals
+         SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
+             decided_as = 'rule', reject_reason = 'duplicate',
+             reject_note = 'the same fact as the act ' || p.id || ', which is promoted',
+             decision_origin = 'closed when the act ' || p.id || ' was promoted'
+       WHERE id = v_twin.id;
+    END LOOP;
+  END IF;
+
   UPDATE public.proposals
      SET status      = 'accepted',
          decided_at  = now(),
@@ -2174,18 +2439,39 @@ BEGIN
   RETURN v_note;
 END $$;
 
--- AN END OF A NEW RELATION THAT THE OPERATOR REJECTED. Only such a relation takes the reason "end
--- rejected", so the reason never hides another one. It takes the operation and the payload of the
--- act, so a query can give the columns of any row. No role holds this step.
+-- AN END OF A NEW RELATION, OR A NEW ENTITY THAT A PLACE NAMES, THAT THE OPERATOR REJECTED. Only
+-- such an act takes the reason "end rejected", so the reason never hides another one. It takes the
+-- operation, the payload and the target of the act, so a query can give the columns of any row.
+-- No role holds this step.
 DROP FUNCTION IF EXISTS end_was_rejected(public.proposals);
-CREATE OR REPLACE FUNCTION end_was_rejected(p_op text, p_payload jsonb)
+DROP FUNCTION IF EXISTS end_was_rejected(text, jsonb);
+CREATE OR REPLACE FUNCTION end_was_rejected(p_op text, p_payload jsonb, p_target uuid)
 RETURNS boolean
 LANGUAGE sql STABLE
 SET search_path = pg_catalog, public, pg_temp AS $$
-  SELECT p_op = 'create_relation'
-     AND EXISTS (SELECT 1 FROM public.proposals w
-                  WHERE w.id IN ((p_payload->>'src_id')::uuid, (p_payload->>'dst_id')::uuid)
-                    AND w.status = 'rejected')
+  SELECT (p_op = 'create_relation'
+          AND EXISTS (SELECT 1 FROM public.proposals w
+                       WHERE w.id IN ((p_payload->>'src_id')::uuid, (p_payload->>'dst_id')::uuid)
+                         AND w.status = 'rejected'))
+      OR (p_op = 'update_entity'
+          AND EXISTS (SELECT 1 FROM public.proposals w
+                       WHERE w.id = p_target AND w.op = 'create_entity'
+                         AND w.status = 'rejected'))
+$$;
+
+-- AN ACT THAT JOINED THE UNIT OF A PENDING ENTITY FROM OUTSIDE: a relation or a change of the
+-- place of that entity, from another group. Its own fact is not judged with the entity, so a rejection
+-- of the unit gives it the reason "end rejected". No role holds this step.
+CREATE OR REPLACE FUNCTION joined_unit(p_act public.proposals, p_head public.proposals,
+                                       p_left uuid[])
+RETURNS boolean
+LANGUAGE sql IMMUTABLE
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT p_act.id <> p_head.id AND p_head.id = ANY (p_left)
+     AND ((p_act.op = 'create_relation'
+           AND NOT coalesce(p_act.batch_id = p_head.batch_id, false))
+          OR (p_act.op = 'update_entity' AND p_act.target_id = p_head.id
+              AND NOT coalesce(p_act.batch_id = p_head.batch_id, false)))
 $$;
 
 -- THE REJECTION OF ONE UNIT, WITH ITS ORIGIN. No role holds this step: the door of the operator
@@ -2203,15 +2489,23 @@ DECLARE
 BEGIN
   IF p_reason = 'end_rejected'
      AND EXISTS (SELECT 1 FROM public.proposals x
-                  WHERE x.id = ANY (v_left) AND NOT public.end_was_rejected(x.op, x.payload)) THEN
+                  WHERE x.id = ANY (v_left)
+                    AND NOT public.end_was_rejected(x.op, x.payload, x.target_id)) THEN
     RAISE EXCEPTION 'the reason "end rejected" is only for a relation whose other end was rejected'
       USING CONSTRAINT = 'rejection_end';
   END IF;
-  UPDATE public.proposals
+  -- A relation of another group joined the unit through its pending entity, and a change of
+  -- place joined it through the entity that it names. The fact of such an act was not judged, so
+  -- it takes the reason "end rejected".
+  UPDATE public.proposals x
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
-         decided_as = 'unit', reject_reason = p_reason, reject_note = v_note,
+         decided_as = 'unit',
+         reject_reason = CASE WHEN public.joined_unit(x, h, v_left)
+                              THEN 'end_rejected' ELSE p_reason END,
+         reject_note = CASE WHEN public.joined_unit(x, h, v_left) THEN NULL ELSE v_note END,
          decision_origin = p_origin, decision_reason = p_why
-   WHERE id = ANY (v_left);
+    FROM public.proposals h
+   WHERE x.id = ANY (v_left) AND h.id = p_unit;
   RETURN cardinality(v_left);
 END $$;
 
@@ -2223,6 +2517,73 @@ LANGUAGE sql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT public.reject_unit_as(p_unit, p_reason, p_note, p_decided_by, NULL, NULL)
 $$;
+
+-- ONE ACT THAT REPEATS ANOTHER ACT THAT WAITS, BY THE OPERATOR. The two acts state the same fact
+-- of the same author, from two documents: they were written before a repeat joined the act that
+-- waits (propose_batch). The survivor takes each citation of the duplicate, and the duplicate is
+-- rejected as a duplicate, with a note that names the survivor. The duplicate must be alone in
+-- its unit. The rules then judge the unit of the survivor again. Only the operator role holds it.
+CREATE OR REPLACE FUNCTION merge_waiting_act(p_duplicate uuid, p_survivor uuid,
+                                             p_decided_by text)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  d public.proposals%ROWTYPE;
+  s public.proposals%ROWTYPE;
+  v_note text := 'merged into the act ' || p_survivor;
+BEGIN
+  PERFORM public.rejection_note('duplicate', v_note, p_decided_by);
+  PERFORM 1 FROM public.proposals WHERE id IN (p_duplicate, p_survivor) ORDER BY id FOR UPDATE;
+  SELECT * INTO d FROM public.proposals WHERE id = p_duplicate;
+  SELECT * INTO s FROM public.proposals WHERE id = p_survivor;
+  IF d.id IS NULL OR s.id IS NULL OR d.id = s.id
+     OR d.status <> 'pending' OR s.status <> 'pending' THEN
+    RAISE EXCEPTION 'the duplicate and the survivor are two acts that wait'
+      USING CONSTRAINT = 'proposal_pending';
+  END IF;
+  IF (d.claim_key, d.op, d.target_kind, d.target_id, d.author_role, d.dissent)
+       IS DISTINCT FROM (s.claim_key, s.op, s.target_kind, s.target_id, s.author_role, s.dissent)
+     OR d.author_role = 'gabriel_app'
+     OR NOT (d.names @> s.names AND d.names <@ s.names)
+     OR public.payload_without_documents(d.payload) <> public.payload_without_documents(s.payload)
+     OR NOT coalesce(public.name_key(d.originator) = public.name_key(s.originator)
+                     OR public.author_of(d.originator) = public.author_of(s.originator), false)
+     OR (SELECT array_agg(DISTINCT c.modality ORDER BY c.modality) FROM public.citation c
+          WHERE c.claim_id = d.id)
+        IS DISTINCT FROM (SELECT array_agg(DISTINCT c.modality ORDER BY c.modality)
+                            FROM public.citation c WHERE c.claim_id = s.id)
+     OR EXISTS (SELECT 1 FROM public.citation c
+                 WHERE c.claim_id IN (d.id, s.id) AND c.transcription IS NOT NULL) THEN
+    RAISE EXCEPTION 'the two acts do not state the same fact of the same author with the same '
+                    'modality, or one cites words read from an image'
+      USING CONSTRAINT = 'merge_same_fact';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.proposals n
+              WHERE n.status = 'pending' AND n.id <> d.id
+                AND (n.unit_id = d.unit_id OR d.id = ANY (n.names) OR d.id = n.target_id
+                     OR d.id::text IN (n.payload->>'src_id', n.payload->>'dst_id'))) THEN
+    RAISE EXCEPTION 'another act waits with the duplicate or names it, so it is not merged'
+      USING CONSTRAINT = 'merge_alone';
+  END IF;
+  INSERT INTO public.citation
+    (claim_id, doc_id, text_extractor, page, start, "end", transcription, modality)
+  SELECT s.id, c.doc_id, c.text_extractor, c.page, c.start, c."end", c.transcription, c.modality
+    FROM public.citation c
+   WHERE c.claim_id = d.id
+     AND NOT EXISTS (SELECT 1 FROM public.citation h
+                      WHERE h.claim_id = s.id AND h.doc_id = c.doc_id
+                        AND h.text_extractor = c.text_extractor AND h.page = c.page
+                        AND h.start IS NOT DISTINCT FROM c.start
+                        AND h."end" IS NOT DISTINCT FROM c."end"
+                        AND h.modality = c.modality);
+  UPDATE public.proposals
+     SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
+         decided_as = 'unit', reject_reason = 'duplicate', reject_note = v_note
+   WHERE id = d.id;
+  PERFORM public.run_rules(ARRAY[s.unit_id]);
+  RETURN s.id;
+END $$;
 
 -- THE REJECTION OF ONE RELATION OF A UNIT, WITH ITS ORIGIN. No role holds this step. One bad link
 -- does not block a correct entity: the rest of the unit waits, and it stays one unit.
@@ -2247,7 +2608,7 @@ BEGIN
     RAISE EXCEPTION 'the act % is no new relation: reject its unit', p_id
       USING CONSTRAINT = 'relation_only';
   END IF;
-  IF p_reason = 'end_rejected' AND NOT public.end_was_rejected(p.op, p.payload) THEN
+  IF p_reason = 'end_rejected' AND NOT public.end_was_rejected(p.op, p.payload, p.target_id) THEN
     RAISE EXCEPTION 'the reason "end rejected" is only for a relation whose other end was rejected'
       USING CONSTRAINT = 'rejection_end';
   END IF;
@@ -2381,8 +2742,10 @@ BEGIN
     SELECT u.id, f.state,
            (SELECT string_agg(x->>'said', '; ') FROM jsonb_array_elements(f.faults) AS x
              WHERE x->>'level' IN ('blocks', 'not_clean')) AS stops,
+           -- The group of a unit is the group of its head act: a relation of another group can
+           -- join the unit of a pending entity.
            EXISTS (SELECT 1 FROM public.proposals p
-                    WHERE p.unit_id = u.id AND p.status = 'pending'
+                    WHERE p.id = u.id AND p.unit_id = u.id AND p.status = 'pending'
                       AND p.batch_id = p_group) AS in_group,
            EXISTS (SELECT 1 FROM public.proposals p WHERE p.unit_id = u.id) AS known
       FROM unnest(v_units) WITH ORDINALITY AS u(id, at)
@@ -2485,11 +2848,12 @@ DECLARE
   v_rail jsonb;
 BEGIN
   WITH RECURSIVE waiting AS (
-    SELECT p.unit_id, p.batch_id, p.proposer, p.src
+    SELECT p.id, p.unit_id, p.batch_id, p.proposer, p.src
       FROM public.proposals p
      WHERE p.status = 'pending' AND p.batch_id IS NOT NULL
   ), units AS (
-    SELECT DISTINCT w.unit_id, w.batch_id FROM waiting w
+    -- The group of a unit is the group of its head act.
+    SELECT DISTINCT w.unit_id, w.batch_id FROM waiting w WHERE w.id = w.unit_id
   ), checked AS (
     SELECT u.batch_id, u.unit_id, f.state, f.faults
       FROM units u
@@ -2554,8 +2918,10 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET jit = off
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
+  -- The group of a unit is the group of its head act.
   v_units uuid[] := ARRAY(SELECT DISTINCT p.unit_id FROM public.proposals p
-                           WHERE p.batch_id = p_group AND p.status = 'pending');
+                           WHERE p.batch_id = p_group AND p.status = 'pending'
+                             AND p.id = p.unit_id);
   v_read  jsonb;
 BEGIN
   IF cardinality(v_units) = 0 THEN
@@ -3478,6 +3844,41 @@ SET search_path = pg_catalog, pg_temp AS $$
            '(states |, )attrs\.', '\1', 'g')
 $$;
 
+-- THE GAP BETWEEN TWO PLACES OF ONE ENTITY, for the reason of a doubt of place. Any other place
+-- stays a doubt (S3): the gap only tells the operator how far apart the two points are. A point
+-- has a role (the attribute point_role: plant, port, gate or berth). Two points of one role that
+-- are more than the limit of that role apart (1 km for a plant or a port, 200 m for a gate or a
+-- berth) are two different places, and the reason says so. Two points of two roles are not
+-- compared: an office entrance and the process units of a plant are both right. The distance is
+-- the shortest one on the WGS 84 ellipsoid, in whole metres.
+CREATE OR REPLACE FUNCTION place_gap_said(p_held geometry, p_given geometry, p_held_role text,
+                                          p_given_role text)
+RETURNS text
+LANGUAGE sql IMMUTABLE
+SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH gap AS (
+    SELECT round(public.ST_Distance(public.ST_SetSRID(p_held, 4326)::public.geography,
+                                    public.ST_SetSRID(p_given, 4326)::public.geography))::bigint
+             AS metres,
+           -- A limit holds only for two points of one known role: a point with no role can be
+           -- any of them.
+           CASE WHEN p_held_role = p_given_role THEN
+             CASE p_held_role WHEN 'plant' THEN 1000 WHEN 'port' THEN 1000
+                              WHEN 'gate' THEN 200 WHEN 'berth' THEN 200 END END AS limit_metres
+  )
+  SELECT coalesce(', ' || g.metres || ' m apart' ||
+         CASE
+           WHEN p_held_role IS NOT NULL AND p_given_role IS NOT NULL
+                AND p_held_role <> p_given_role
+             THEN ', and the two points have two roles (' || p_held_role || ', ' || p_given_role
+                  || '), so they are not compared'
+           WHEN g.limit_metres IS NOT NULL AND g.metres > g.limit_metres
+             THEN ', more than the ' || g.limit_metres || ' m of one ' || p_held_role
+                  || ': two sources give two places'
+           ELSE '' END, '')
+    FROM gap g
+$$;
+
 -- THE FAULTS OF EACH UNIT, AND ITS STATE. The queue, the promotion and the group action read this
 -- one check, so the screen and the record always agree on "clean". Each fault has a level:
 --
@@ -3520,7 +3921,8 @@ BEGIN
     SELECT a.* FROM public.proposals a
      WHERE a.unit_id = ANY (p_units) AND a.status = 'pending'
   ), units AS (
-    SELECT a.unit_id, (array_agg(a.batch_id))[1] AS batch_id,
+    -- The group of a unit is the group of its head act: a relation of another group can join it.
+    SELECT a.unit_id, (array_agg(a.batch_id ORDER BY a.id <> a.unit_id, a.id))[1] AS batch_id,
            bool_or(a.op = 'create_entity' AND a.id = a.unit_id) AS entity_unit
       FROM acts a GROUP BY a.unit_id
   ), ends AS (
@@ -3639,6 +4041,7 @@ BEGIN
       FROM acts a
       JOIN public.proposals r ON r.claim_key = a.claim_key AND r.status = 'rejected'
                              AND r.id <> a.id AND r.decided_as IS DISTINCT FROM 'rule'
+                             AND r.reject_reason IS DISTINCT FROM 'duplicate'
       LEFT JOIN named n ON n.id = a.id
      WHERE a.op <> 'create_entity'
         OR n.parent_key IS NOT DISTINCT FROM (SELECT l.claim_key
@@ -3868,7 +4271,9 @@ BEGIN
     SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
            'The record holds another geometry than the ' ||
            CASE WHEN public.act_reference_dataset(a.id) IS NOT NULL
-                THEN 'reference dataset gives' ELSE 'loaded row gives' END
+                THEN 'reference dataset gives' ELSE 'loaded row gives' END ||
+           public.place_gap_said(e.geom, public.ST_GeomFromGeoJSON(a.payload->'geom'),
+                                 e.attrs->'point_role'->>'v', a.payload->'attrs'->'point_role'->>'v')
       FROM acts a
       JOIN public.entities e ON e.id = a.target_id
      WHERE a.op = 'update_entity' AND a.payload ? 'geom' AND e.geom IS NOT NULL
@@ -3876,6 +4281,41 @@ BEGIN
             OR a.author_role <> 'gabriel_app')
        AND NOT public.ST_Equals(e.geom,
              public.ST_SetSRID(public.ST_GeomFromGeoJSON(a.payload->'geom'), 4326))
+    UNION ALL
+    -- A change of place that joined a new entity which gives a place of its own. The change is
+    -- written after the entity and replaces that place, so the operator compares the two (S3).
+    SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
+           'The new entity gives another geometry than this change of place' ||
+           public.place_gap_said(public.ST_GeomFromGeoJSON(n.payload->'geom'),
+                                 public.ST_GeomFromGeoJSON(a.payload->'geom'),
+                                 n.payload->'attrs'->'point_role'->>'v', a.payload->'attrs'->'point_role'->>'v')
+      FROM acts a
+      JOIN acts n ON n.id = a.target_id AND n.op = 'create_entity' AND n.payload ? 'geom'
+     WHERE a.op = 'update_entity' AND a.payload ? 'geom'
+       AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(n.payload->'geom'),
+                                public.ST_GeomFromGeoJSON(a.payload->'geom'))
+    UNION ALL
+    -- Two changes of place of one entity in one unit. The promotion writes both, and the last one
+    -- replaces the other, so the operator compares them (S3).
+    SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
+           'Another change of place of the unit gives another geometry' ||
+           coalesce((SELECT public.place_gap_said(public.ST_GeomFromGeoJSON(o.payload->'geom'),
+                                                  public.ST_GeomFromGeoJSON(a.payload->'geom'),
+                                                  o.payload->'attrs'->'point_role'->>'v',
+                                                  a.payload->'attrs'->'point_role'->>'v')
+                       FROM acts o
+                      WHERE o.id <> a.id AND o.op = 'update_entity' AND o.payload ? 'geom'
+                        AND o.target_id = a.target_id
+                        AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(o.payload->'geom'),
+                                                 public.ST_GeomFromGeoJSON(a.payload->'geom'))
+                      ORDER BY o.id LIMIT 1), '')
+      FROM acts a
+     WHERE a.op = 'update_entity' AND a.payload ? 'geom'
+       AND EXISTS (SELECT 1 FROM acts o
+                    WHERE o.id <> a.id AND o.op = 'update_entity' AND o.payload ? 'geom'
+                      AND o.target_id = a.target_id
+                      AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(o.payload->'geom'),
+                                               public.ST_GeomFromGeoJSON(a.payload->'geom')))
     -- --------------------------------------------------------------------------- information --
     UNION ALL
     SELECT DISTINCT i.unit_id, 'information', 'sources_from_parent', NULL::uuid,
@@ -3954,7 +4394,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   ), pending AS (
     SELECT p.batch_id, count(DISTINCT p.unit_id)::int AS units
       FROM public.proposals p
-     WHERE p.status = 'pending' AND p.batch_id IS NOT NULL
+     WHERE p.status = 'pending' AND p.batch_id IS NOT NULL AND p.id = p.unit_id
      GROUP BY p.batch_id
   )
   SELECT n.batch_id, n.subject,
@@ -4417,14 +4857,14 @@ SET search_path = pg_catalog, public, pg_temp AS $$
              'targetType', (SELECT r.type FROM public.relations r
                              WHERE a.op = 'update_relation' AND r.id = a.target_id),
              'createdAt', a.created_at, 'dissent', a.dissent,
-             'endRejected', public.end_was_rejected(a.op, a.payload),
+             'endRejected', public.end_was_rejected(a.op, a.payload, a.target_id),
              'dissentReason', public.dispute_said(a.dissent_reason),
              'check', (SELECT jsonb_build_object('model', k.checker_model, 'verdict', k.verdict,
                                                  'passed', k.passed, 'reason', k.reason)
                          FROM public.act_check k WHERE k.proposal_id = a.id),
              'target', et.said, 'src', es.said, 'dst', ed.said)
              ORDER BY (a.op <> 'create_entity'), a.created_at, a.id) AS acts,
-           bool_and(public.end_was_rejected(a.op, a.payload)) AS end_rejected
+           bool_and(public.end_was_rejected(a.op, a.payload, a.target_id)) AS end_rejected
       FROM acts a
       LEFT JOIN ends et ON et.id = a.target_id
       LEFT JOIN ends es ON es.id = (a.payload->>'src_id')::uuid
@@ -4957,6 +5397,68 @@ BEGIN
   RETURN CASE WHEN v_provider = p_provider THEN 'same' ELSE 'other' END;
 END $$;
 
+-- THE ARCHIVE THAT HELD A FILE. A store tool unpacks a zip archive into one document for each
+-- file, and this door links the file to the archive and to its path in it (#595). The same bytes
+-- are stored once, so a file that is already a document takes the link here too. A row keeps its
+-- first link, and the door never changes it. The archive is a fetched zip archive, and its text
+-- (the list that the store tool writes) names the path and the hash of the file, so a caller
+-- cannot link a document to an archive that does not hold it. It answers what it found:
+--   filled       the row had no archive, and it holds this one now;
+--   same         the row holds this archive and this path already;
+--   other        the row holds another link, and keeps it;
+--   not_fetched  the row is no fetched document (an upload of the operator), so it takes no link.
+-- The row lock makes two stores of the same file fill the link once.
+CREATE OR REPLACE FUNCTION fill_document_archive(p_document text, p_archive text, p_path text)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_kind    text;
+  v_archive text;
+  v_path    text;
+  v_sha256  text;
+BEGIN
+  IF p_path IS NULL OR btrim(p_path, E' \t\n\r\f\v') = '' THEN
+    RAISE EXCEPTION 'a file of an archive has its path in the archive'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF p_document = p_archive THEN
+    RAISE EXCEPTION 'document % cannot hold itself', p_document
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.documents d
+                  WHERE d.id = p_archive::doc_id AND d.kind IN ('url', 'api')
+                    AND lower(split_part(d.mime, ';', 1)) = 'application/zip') THEN
+    RAISE EXCEPTION 'document % is no fetched zip archive', coalesce(p_archive, 'nothing')
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  SELECT d.kind, d.archive_id, d.archive_path, d.sha256 INTO v_kind, v_archive, v_path, v_sha256
+    FROM public.documents d WHERE d.id = p_document::doc_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  IF NOT EXISTS (SELECT 1
+                   FROM public.document_text t,
+                        regexp_split_to_table(t.text, E'\n') AS l(line)
+                  WHERE t.document_id = p_archive::doc_id
+                    AND split_part(l.line, E'\t', 1) = p_path
+                    AND split_part(l.line, E'\t', 3) = 'sha256 ' || v_sha256) THEN
+    RAISE EXCEPTION 'the text of archive % names no file % with the hash of document %',
+      p_archive, p_path, p_document
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF v_kind NOT IN ('url', 'api') THEN
+    RETURN 'not_fetched';
+  END IF;
+  IF v_archive IS NULL THEN
+    UPDATE public.documents SET archive_id = p_archive, archive_path = p_path
+     WHERE id = p_document::doc_id;
+    RETURN 'filled';
+  END IF;
+  RETURN CASE WHEN v_archive = p_archive AND v_path = p_path THEN 'same' ELSE 'other' END;
+END $$;
+
 -- THE END OF A JOB THAT RAN TO ITS END. Only a running row ends, so a row that nobody claimed
 -- cannot be marked done by hand.
 --
@@ -5101,6 +5603,15 @@ BEGIN
      AND to_jsonb(OLD) -> 'sites' = '[]'::jsonb
      AND jsonb_array_length(to_jsonb(NEW) -> 'sites') > 0
      AND to_jsonb(NEW) - 'sites' = to_jsonb(OLD) - 'sites' THEN
+    RETURN NEW;
+  END IF;
+  -- The newest check of a research act that waits replaces its old check (store_act_check). The
+  -- check of a decided act is frozen.
+  IF TG_OP = 'UPDATE' AND TG_TABLE_NAME = 'act_check'
+     AND to_jsonb(NEW) -> 'proposal_id' = to_jsonb(OLD) -> 'proposal_id'
+     AND EXISTS (SELECT 1 FROM public.proposals p
+                  WHERE p.id = (to_jsonb(OLD) ->> 'proposal_id')::uuid
+                    AND p.status = 'pending' AND p.author_role = 'gabriel_research') THEN
     RETURN NEW;
   END IF;
   RAISE EXCEPTION 'a row of % is never %', TG_TABLE_NAME,
@@ -5303,12 +5814,19 @@ END $$;
 -- WHY A NAME CAN JOIN NO AUTHOR, or NULL when it can. A name that holds two authors ("OFAC;
 -- Reuters", "Reuters, Tass") is no name of one author. A generic name (a country, or a role with
 -- no body, such as "the secretary of state") names no author that a reader can find. Such a name
--- goes to the rater as a new author. Inside the doors only.
-CREATE OR REPLACE FUNCTION name_joins_no_author(p_key text) RETURNS text
+-- goes to the rater as a new author. A comma is not always two authors: the official name of one
+-- body can hold one ("Foreign, Commonwealth & Development Office"), and so can a parent body after
+-- the name ("OFSI, HM Treasury"). So a join that is a doubt (`p_doubt`, into an author A or B)
+-- passes a comma, and the operator decides it. A semicolon always holds two authors. Inside the
+-- doors only.
+DROP FUNCTION IF EXISTS name_joins_no_author(text);
+CREATE OR REPLACE FUNCTION name_joins_no_author(p_key text, p_doubt boolean DEFAULT false)
+RETURNS text
 LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT CASE
     WHEN p_key ~ '[^[:space:];,][[:space:]]*;[[:space:]]*[^[:space:];,]'
-      OR (p_key ~ '[^[:space:];,][[:space:]]*,[[:space:]]*[^[:space:];,]'
+      OR (NOT coalesce(p_doubt, false)
+          AND p_key ~ '[^[:space:];,][[:space:]]*,[[:space:]]*[^[:space:];,]'
           -- A legal form after a comma is a part of the name of one company.
           AND regexp_replace(p_key, ',[[:space:]]*(inc|ltd|llc|plc|pjsc|pao|jsc|oao|ooo|zao|co|'
                                     'corp|ag|gmbh|sa|s\.a|nv|bv|limited)\.?(?=$|[[:space:],])',
@@ -5335,7 +5853,9 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   v_key text := public.name_key(coalesce(p_name, ''));
   v_author uuid := public.author_of(p_known_name);
-  v_no_join text := public.name_joins_no_author(v_key);
+  v_doubt boolean := coalesce(
+    (SELECT a.letter IN ('A','B') FROM public.author a WHERE a.id = v_author), false);
+  v_no_join text := public.name_joins_no_author(v_key, v_doubt);
 BEGIN
   IF v_key = '' THEN
     RAISE EXCEPTION 'a join names the new name' USING ERRCODE = 'invalid_parameter_value';
@@ -5359,9 +5879,7 @@ BEGIN
       v_key
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
-  INSERT INTO public.author_name (name_key, author_id, doubt)
-  VALUES (v_key, v_author,
-          (SELECT a.letter IN ('A','B') FROM public.author a WHERE a.id = v_author));
+  INSERT INTO public.author_name (name_key, author_id, doubt) VALUES (v_key, v_author, v_doubt);
   PERFORM public.run_rules(public.units_of_author(v_author));
 END $$;
 
@@ -5477,9 +5995,12 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                                            AND NOT d.confirmed)))
                        ORDER BY a.reference_set DESC, a.letter, a.name_key)
                   FROM public.author a
-                 WHERE NOT a.reference_set
-                    OR EXISTS (SELECT 1 FROM public.reference_approval r
-                                WHERE r.author_id = a.id)), '[]'::jsonb))
+                 -- An author whose own name the operator moved to another author is no
+                 -- author that a new name can join.
+                 WHERE (SELECT n.author_id FROM public.name_row(a.name_key) n) = a.id
+                   AND (NOT a.reference_set
+                        OR EXISTS (SELECT 1 FROM public.reference_approval r
+                                    WHERE r.author_id = a.id))), '[]'::jsonb))
          END
 $$;
 
@@ -5565,6 +6086,157 @@ BEGIN
        AND (j.status = 'done' OR (j.status = 'failed' AND j.refusal IS NOT NULL));
     INSERT INTO public.jobs (kind, author) VALUES ('rate_author', v_key) ON CONFLICT DO NOTHING;
   END IF;
+  PERFORM public.run_rules(v_units);
+  RETURN cardinality(v_units);
+END $$;
+
+-- THE MOVE OF A NAME BY THE OPERATOR, from an author that the worker rated (C to F) to another
+-- author: an approved author of the reference set, or another author that the worker rated. The
+-- worker can make a wrong author, for example when it reads a comma as two authors, or join a
+-- name to a wrong author, and no other door takes a name from it. Each row stays: the door writes
+-- the name again for the new author, a refusal that retires the old row and a confirmation of the
+-- new row. Both decisions record the operator. The door refuses a move into an author of the
+-- reference set that the operator did not approve, because only the operator gives a letter A or
+-- B, and a move into an author whose own name moved to another author. It refuses a name of a
+-- reference author, because the operator approved that name with the set or decided it, and a
+-- name that an earlier move gave to its author, because a decision is written once. It refuses
+-- while the rating job of the name runs. The rules run again on the units of the name,
+-- and the door gives their number.
+CREATE OR REPLACE FUNCTION move_author_name(p_name text, p_author text) RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_key text := public.name_key(coalesce(p_name, ''));
+  v_target_key text := public.name_key(coalesce(p_author, ''));
+  v_from record;
+  v_to record;
+  v_units uuid[];
+BEGIN
+  IF v_key = '' OR v_target_key = '' THEN
+    RAISE EXCEPTION 'a move names the name and the author that gets it'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  PERFORM public.lock_name(v_key);
+  SELECT a.id, a.name_key, a.reference_set INTO v_from
+    FROM public.name_row(v_key) n JOIN public.author a ON a.id = n.author_id;
+  IF v_from.id IS NULL THEN
+    RAISE EXCEPTION 'the name "%" has no author: the rater rates it first', v_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF v_from.reference_set THEN
+    RAISE EXCEPTION 'the name "%" is a name of the reference author "%", and no move takes it',
+      v_key, v_from.name_key USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  -- A name that a move gave to an author holds the decision of the operator already.
+  IF EXISTS (SELECT 1 FROM public.author_name_decision d
+              WHERE d.name_key = v_key AND d.author_id = v_from.id) THEN
+    RAISE EXCEPTION 'the operator decided the name "%" for the author "%" already, and a decision '
+                    'is written once', v_key, v_from.name_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  -- The author of the target name, when it is an author that a new name can join: an approved
+  -- reference author, or an author that the worker rated and whose own name is still its name.
+  SELECT a.id, a.name_key, a.letter IN ('A','B') AS high INTO v_to
+    FROM public.name_row(v_target_key) n JOIN public.author a ON a.id = n.author_id
+   WHERE NOT n.waits
+     AND (SELECT o.author_id FROM public.name_row(a.name_key) o) = a.id
+     AND (NOT a.reference_set
+          OR EXISTS (SELECT 1 FROM public.reference_approval r WHERE r.author_id = a.id));
+  IF v_to.id IS NULL THEN
+    RAISE EXCEPTION 'the name "%" is the name of no author that a name can move into: an '
+                    'approved author of the reference set, or an author that the worker rated',
+                    v_target_key USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF v_to.id = v_from.id THEN
+    RAISE EXCEPTION 'the name "%" is a name of the author "%" already', v_key, v_to.name_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.author_name n
+              WHERE n.name_key = v_key AND n.author_id = v_to.id) THEN
+    RAISE EXCEPTION 'the operator refused the name "%" for the author "%" before, and a decision '
+                    'is written once', v_key, v_to.name_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  -- A rating job that runs now would end on the old answer.
+  IF EXISTS (SELECT 1 FROM public.jobs j
+              WHERE j.kind = 'rate_author' AND j.author = v_key AND j.status = 'running') THEN
+    RAISE EXCEPTION 'the rating of the name "%" runs now: move it when the job has ended', v_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  v_units := public.units_of_name(v_key);
+  INSERT INTO public.author_name_decision (name_key, author_id, confirmed)
+  VALUES (v_key, v_from.id, false);
+  -- A row into an author A or B is a doubt that the operator decides at once, as a join into such
+  -- an author. A reference author of a lower letter, and an author that the worker rated, get a
+  -- row with no doubt. The confirmation records the operator in each case.
+  INSERT INTO public.author_name (name_key, author_id, doubt) VALUES (v_key, v_to.id, v_to.high);
+  INSERT INTO public.author_name_decision (name_key, author_id, confirmed)
+  VALUES (v_key, v_to.id, true);
+  PERFORM public.run_rules(v_units);
+  RETURN cardinality(v_units);
+END $$;
+
+-- THE RETURN OF A NAME TO THE RATER, BY THE OPERATOR. The operator takes a name away from a wrong
+-- author that the worker rated, and the rater rates the name again. Each row stays: the door
+-- writes a refusal that retires the row of the name, and that refusal records the operator. The
+-- rating job of the name goes back to the queue, and the name reads as F until the rater answers.
+-- The rater cannot join the name to that author again, because the refusal stands. The door
+-- refuses the own name of an author, because the record holds one author for each own name, so
+-- the rater could not write it as a new author: the operator moves such a name. It refuses a name of a reference author, and it refuses while the
+-- rating job of the name runs. The rules run again on the units of the name, and the door gives
+-- their number.
+CREATE OR REPLACE FUNCTION rerate_author_name(p_name text) RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_key text := public.name_key(coalesce(p_name, ''));
+  v_from record;
+  v_units uuid[];
+BEGIN
+  IF v_key = '' THEN
+    RAISE EXCEPTION 'a return to the rater names the name'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  PERFORM public.lock_name(v_key);
+  SELECT a.id, a.name_key, a.reference_set INTO v_from
+    FROM public.name_row(v_key) n JOIN public.author a ON a.id = n.author_id;
+  IF v_from.id IS NULL THEN
+    RAISE EXCEPTION 'the name "%" has no author: the rater rates it first', v_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF v_from.reference_set THEN
+    RAISE EXCEPTION 'the name "%" is a name of the reference author "%", and the rater does not '
+                    'rate it again', v_key, v_from.name_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  -- A name that a move gave to an author holds the decision of the operator already.
+  IF EXISTS (SELECT 1 FROM public.author_name_decision d
+              WHERE d.name_key = v_key AND d.author_id = v_from.id) THEN
+    RAISE EXCEPTION 'the operator decided the name "%" for the author "%" already, and a decision '
+                    'is written once', v_key, v_from.name_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  -- An author keeps its own name, also after a move, so the rater could not write it again.
+  IF EXISTS (SELECT 1 FROM public.author a WHERE a.name_key = v_key) THEN
+    RAISE EXCEPTION 'the name "%" is the own name of an author: move it to another author', v_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  -- A rating job that runs now would end on the old answer and hide the refusal.
+  IF EXISTS (SELECT 1 FROM public.jobs j
+              WHERE j.kind = 'rate_author' AND j.author = v_key AND j.status = 'running') THEN
+    RAISE EXCEPTION 'the rating of the name "%" runs now: return it when the job has ended',
+      v_key USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  -- The units come first: after the refusal the name has no author.
+  v_units := public.units_of_name(v_key);
+  INSERT INTO public.author_name_decision (name_key, author_id, confirmed)
+  VALUES (v_key, v_from.id, false);
+  UPDATE public.jobs j
+     SET status = 'queued', failure_reason = NULL, refused_parts = 0, refusal = NULL,
+         claimed_by = NULL, claimed_at = NULL, finished_at = NULL, updated_at = now()
+   WHERE j.kind = 'rate_author' AND j.author = v_key
+     AND (j.status = 'done' OR (j.status = 'failed' AND j.refusal IS NOT NULL));
+  INSERT INTO public.jobs (kind, author) VALUES ('rate_author', v_key) ON CONFLICT DO NOTHING;
   PERFORM public.run_rules(v_units);
   RETURN cardinality(v_units);
 END $$;
@@ -5737,9 +6409,10 @@ $$;
 -- ================================================================== THE CHECK AND THE DIGIT ==
 -- THE DOORS FOR THE CHECK BY A SECOND MODEL FAMILY. The check proves that the passage says the
 -- fact, and never that the fact is true. The row names the family of the reader and the family of
--- the checker: a check by the same family does not pass. A check is written once for an act: a
--- second check of the same act changes nothing, and the first one stays. So a process that writes
--- the check again after a stop or a retry is safe. The row keeps the reason of a verdict that is
+-- the checker: a check by the same family does not pass. The worker writes a check once for an
+-- act: a second check of the same act changes nothing, and the first one stays. So a process that
+-- writes the check again after a stop or a retry is safe. The research AI sends a pending act
+-- again to check it again, so its newest check replaces the check of an act that waits. The row keeps the reason of a verdict that is
 -- not `supported`, cut to the length that the table keeps.
 --
 -- EACH DOOR CHECKS THE ACTS OF ONE AUTHOR ROLE. The worker checks the acts of gabriel_agent, and
@@ -5754,6 +6427,8 @@ CREATE OR REPLACE FUNCTION store_act_check(p_act uuid, p_author_role text, p_che
 RETURNS void
 LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_replace boolean;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.proposals p
                   WHERE p.id = p_act AND p.originator IS NOT NULL
@@ -5761,12 +6436,22 @@ BEGIN
     RAISE EXCEPTION 'a check of this door belongs to an act of a machine that % wrote', p_author_role
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
+  -- A RESEARCH ACT THAT WAITS IS CHECKED AGAIN when the research AI sends it again, so the newest
+  -- check replaces the old one. The share lock makes a decision of the act wait for this write.
+  -- The check of a decided act, and each check of the worker, stays as it was written first.
+  PERFORM 1 FROM public.proposals p
+    WHERE p.id = p_act AND p.status = 'pending' AND p_author_role = 'gabriel_research' FOR SHARE;
+  v_replace := FOUND;
   INSERT INTO public.act_check (proposal_id, checker_model, checker_family, reader_family, verdict,
                                 reason)
   VALUES (p_act, p_checker_model, p_checker_family, p_reader_family, p_verdict,
           CASE WHEN p_verdict = 'supported' OR btrim(coalesce(p_reason, '')) = '' THEN NULL
                ELSE left(p_reason, 1000) END)
-  ON CONFLICT (proposal_id) DO NOTHING;
+  ON CONFLICT (proposal_id) DO UPDATE
+    SET checker_model = EXCLUDED.checker_model, checker_family = EXCLUDED.checker_family,
+        reader_family = EXCLUDED.reader_family, verdict = EXCLUDED.verdict,
+        reason = EXCLUDED.reason, checked_at = now()
+    WHERE v_replace;
   -- The end of the check makes the units that share the fact go through the rules again.
   PERFORM public.run_rules(ARRAY(
     SELECT DISTINCT q.unit_id FROM public.proposals q
@@ -6105,12 +6790,13 @@ BEGIN
     UPDATE public.proposals p
        SET status = 'rejected', decided_at = now(), decided_by = v_by, decided_as = 'rule',
            decision_origin = v_origin,
-           reject_reason = CASE WHEN v_rule = 'impossible' AND public.end_was_rejected(p.op, p.payload)
+           reject_reason = CASE WHEN v_rule = 'impossible'
+                                     AND public.end_was_rejected(p.op, p.payload, p.target_id)
                                 THEN 'end_rejected' ELSE 'other' END,
            reject_note = CASE WHEN v_rule = 'weak_sources'
                               THEN 'weak sources: after a deepening search, every source of the '
                                    'facts is rated D or E'
-                              WHEN public.end_was_rejected(p.op, p.payload) THEN NULL
+                              WHEN public.end_was_rejected(p.op, p.payload, p.target_id) THEN NULL
                               ELSE 'impossible: the unit links an element to itself, or to an '
                                    'element that was rejected' END
      WHERE p.unit_id = p_unit AND p.status = 'pending';
@@ -6209,22 +6895,49 @@ DROP FUNCTION IF EXISTS nato_pair(uuid[]);
 
 -- The position is GeoJSON as RFC 7946 asks: an outer ring turns counter-clockwise and a hole
 -- clockwise, and 6 decimals (about 10 cm) is the precision that RFC 7946 recommends.
+--
+-- `geom_sources` gives the public documents of each accepted act that gave the geometry that the
+-- entity holds now: an update of the entity or the act that made it. Each act with an equal
+-- geometry counts, so two acts of one promotion, which share one time, cannot hide each other. A
+-- later act that changes only the name replaces the row-level sources, so these can differ from
+-- `sources`. A geometry that no act gave keeps the row-level sources.
 CREATE FUNCTION release_entities()
-RETURNS TABLE (id uuid, type text, label text, origin_label text, sources text[], geom jsonb)
+RETURNS TABLE (id uuid, type text, label text, origin_label text, sources text[], geom jsonb,
+               geom_sources text[])
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   WITH shown AS (
     SELECT e.id, e.type, e.label, e.origin_label, e.geom,
            ARRAY(SELECT s.id::text FROM unnest(e.sources) AS s(id)
                   WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = s.id)
-                  ORDER BY 1) AS sources
+                  ORDER BY 1) AS sources,
+           CASE WHEN e.geom IS NULL THEN '{}'::text[] ELSE ARRAY(
+             SELECT DISTINCT s.id FROM unnest(coalesce(
+               (SELECT array_agg(a.src) FROM public.entities x
+                  CROSS JOIN LATERAL (
+                    SELECT CASE WHEN u.op = 'create_entity' AND u.payload ? 'sources'
+                                THEN ARRAY(SELECT jsonb_array_elements_text(u.payload->'sources'))
+                                ELSE u.src::text[] END AS docs
+                      FROM public.proposals u
+                     WHERE u.status = 'accepted' AND u.payload ? 'geom'
+                       AND ((u.op = 'update_entity' AND u.target_kind = 'entity'
+                             AND u.target_id = x.id)
+                            OR (u.op = 'create_entity' AND u.id = x.promoted_from))
+                       AND public.ST_Equals(x.geom, public.ST_SetSRID(
+                             public.ST_GeomFromGeoJSON(u.payload->'geom'), 4326))) AS g
+                  CROSS JOIN LATERAL unnest(g.docs) AS a(src)
+                 WHERE x.id = e.id),
+               e.sources::text[])) AS s(id)
+              WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id::text = s.id)
+              ORDER BY 1) END AS geom_sources
       FROM api.entity e
   ), sourced AS (
     SELECT * FROM shown WHERE cardinality(sources) > 0
   )
   SELECT h.id, h.type, h.label, h.origin_label, h.sources,
          public.ST_AsGeoJSON(public.ST_ForcePolygonCCW(public.ST_SetSRID(
-           public.ST_GeomFromGeoJSON(h.geom), 4326)), 6)::jsonb
+           public.ST_GeomFromGeoJSON(h.geom), 4326)), 6)::jsonb,
+         h.geom_sources
     FROM sourced h
    WHERE h.type <> 'person'
       OR EXISTS (SELECT 1 FROM api.relation r JOIN sourced t ON t.id = r.dst_id

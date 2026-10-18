@@ -26,9 +26,8 @@ export const proposeMappingOf = (modelCallId: string) =>
     }),
     output: z.strictObject({ proposalId: z.uuid() }),
     async run(session, input) {
-      const { header } = tableOf(
-        (await readTablePage(session, input.document, input.textSet)).text,
-      );
+      const page = await readTablePage(session, input.document, input.textSet);
+      const { header } = tableOf(page.text, page.format);
       const faults = missingColumns(input.mapping, header);
       if (faults.length > 0) throw new ToolRefusal(faults.join('; '));
 

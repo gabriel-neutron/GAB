@@ -172,6 +172,52 @@ test('a geometry that cites an OpenStreetMap document stops the release', () => 
   expect(() => assertNoOsmGeometry(RECORD)).not.toThrow();
 });
 
+const NOMINATIM: ReleaseDocument = {
+  ...GEM,
+  id: 'nominatim_doc',
+  uri: 'https://nominatim.openstreetmap.org/lookup?osm_ids=N1',
+  licence: null,
+  provider: null,
+};
+
+test('an OpenStreetMap document that holds up only the identifier lets the release go on', () => {
+  const record: ReleaseRecord = {
+    ...RECORD,
+    entities: [
+      { ...entity(FIELD_A, 'facility', POINT, ['gem', 'nominatim_doc']), geom_sources: ['gem'] },
+    ],
+    documents: new Map([
+      ['gem', GEM],
+      ['nominatim_doc', NOMINATIM],
+    ]),
+  };
+  expect(() => assertNoOsmGeometry(record)).not.toThrow();
+});
+
+test('the error names each entity whose geometry cites an OpenStreetMap document', () => {
+  const record: ReleaseRecord = {
+    ...RECORD,
+    entities: [
+      { ...entity(FIELD_A, 'facility', POINT, ['nominatim_doc']), geom_sources: ['nominatim_doc'] },
+      { ...entity(FIELD_B, 'facility', POINT, ['gem']), geom_sources: ['gem'] },
+      { ...entity(PIPE, 'facility', POINT, ['nominatim_doc']), geom_sources: ['nominatim_doc'] },
+    ],
+    documents: new Map([
+      ['gem', GEM],
+      ['nominatim_doc', NOMINATIM],
+    ]),
+  };
+  let message = '';
+  try {
+    assertNoOsmGeometry(record);
+  } catch (error) {
+    message = (error as Error).message;
+  }
+  expect(message).toContain(`${FIELD_A} (Entity a1): nominatim_doc`);
+  expect(message).toContain(`${PIPE} (Entity a3): nominatim_doc`);
+  expect(message).not.toContain(FIELD_B);
+});
+
 const featureIds = (text: string): ReadonlySet<string> => {
   const parsed = JSON.parse(text) as { features: { id: string }[] };
   return new Set(parsed.features.map((one) => one.id));
@@ -184,11 +230,12 @@ const MANIFEST: ReleaseManifest = {
   dateRules: { eu: 'entry_into_force', ofac: 'recent_actions_notice', uk: 'date_designated' },
   contacts: { reportError: 'mailto:error@example.org', rightOfReply: 'mailto:reply@example.org' },
   criticalNodes: null,
+  volumes: null,
   iriBase: 'https://example.org/id/',
 };
 
 test('no release file holds an OpenStreetMap geometry, and each asset of the release has a sourced point', () => {
-  const files = releaseFiles(RECORD, MANIFEST, null, null);
+  const { files } = releaseFiles(RECORD, MANIFEST, null, null, null);
   expect(files.map((one) => one.path)).toContain('asset-links.csv');
   expect(files.map((one) => one.path)).toContain('credits.md');
   const geojson = files.find((one) => one.path === 'entities.geojson');
@@ -212,5 +259,7 @@ test('no release file holds an OpenStreetMap geometry, and each asset of the rel
     entities: [entity(FIELD_A, 'facility', POINT, ['osm_doc'])],
     documents: new Map([['osm_doc', osm]]),
   };
-  expect(() => releaseFiles(bad, MANIFEST, null, null)).toThrow(/holds no OpenStreetMap geometry/);
+  expect(() => releaseFiles(bad, MANIFEST, null, null, null)).toThrow(
+    /holds no OpenStreetMap geometry/,
+  );
 });

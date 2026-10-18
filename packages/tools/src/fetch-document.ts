@@ -2,7 +2,16 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { decodeHtml, extractText, RefusedImageError, UnsupportedTypeError } from '@gab/text';
+import {
+  decodeHtml,
+  extractText,
+  RefusedImageError,
+  RefusedTextError,
+  UnsupportedTypeError,
+} from '@gab/text';
+import { zipContainerType } from '@gab/text/archive';
+import { ZIP_MIME } from '@gab/text/geojson';
+import { XLSX_MIME } from '@gab/text/xlsx';
 import { ExifTool } from 'exiftool-vendored';
 import { z } from 'zod';
 
@@ -15,7 +24,9 @@ import {
   type GetOptions,
   type Got,
 } from './fetch-guard.ts';
+import { refusedSource } from './refused-source.ts';
 import { renderPage } from './render-page.ts';
+import { holdsLayers, skippedFileShape, storeArchive, storedFileShape } from './store-archive.ts';
 import { knownAnswer, storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 import { CHALLENGE_PAGE, isHtml, SHORT_PAGE, unreadablePage } from './unreadable-page.ts';
@@ -96,9 +107,10 @@ const metadataOf = async (bytes: Uint8Array, mime: string): Promise<Metadata> =>
   }
 };
 
-// External constraint: the signatures that open a PNG and a JPEG file.
+// External constraint: the signatures that open a PNG, a JPEG and a zip file.
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const JPEG_SIGNATURE = Buffer.from([0xff, 0xd8, 0xff]);
+const ZIP_SIGNATURE = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
 
 const OCR_TYPES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg']);
 
@@ -109,6 +121,7 @@ const sniffedMime = (bytes: Uint8Array): string | undefined => {
   if (Buffer.from(bytes.subarray(0, 5)).toString('latin1') === '%PDF-') return 'application/pdf';
   if (opensWith(bytes, PNG_SIGNATURE)) return 'image/png';
   if (opensWith(bytes, JPEG_SIGNATURE)) return 'image/jpeg';
+  if (opensWith(bytes, ZIP_SIGNATURE)) return ZIP_MIME;
   return undefined;
 };
 
@@ -236,6 +249,30 @@ const unreadableRefusal = (sentence: string): string =>
 
 const blank = (pages: readonly string[]): boolean => pages.join('').trim() === '';
 
+const ERROR_KEYS: ReadonlySet<string> = new Set(['error', 'message', 'status']);
+
+/**
+ * The message of a JSON error that a server sends with a success status, or null. The shape comes
+ * from a real ENTSOG answer: an object with only the keys error, message and status. An object
+ * with other keys is data, also when it holds the key error.
+ */
+export const jsonErrorOf = (bytes: Uint8Array): string | null => {
+  let value: unknown;
+  try {
+    value = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+  } catch {
+    return null;
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const fields = value as Record<string, unknown>;
+  const keys = Object.keys(fields);
+  if (!keys.includes('error') || keys.some((key) => !ERROR_KEYS.has(key))) return null;
+  const said = fields['message'] ?? fields['error'];
+  return (typeof said === 'string' ? said : JSON.stringify(said)).slice(0, 300);
+};
+
+const isJson = (mime: string): boolean => mime === 'application/json' || mime.endsWith('+json');
+
 // The text of a shell is its title at most. A page with other text holds text of its own.
 const shellOnly = (bytes: Uint8Array, type: string, pages: readonly string[]): boolean => {
   const text = pages.join(' ').replace(/\s+/gu, ' ').trim();
@@ -291,11 +328,22 @@ const checkedPages = async (
 ): Promise<readonly string[]> => {
   // An answer with no bytes but blanks holds no text, whatever its type says. The caller refuses it.
   if (blankBytes(bytes)) return [''];
+  // An error is no record of the source, also when the server gives it as a success.
+  const error = isJson(mime) ? jsonErrorOf(bytes) : null;
+  if (error !== null)
+    throw new ToolRefusal(
+      `the server sent a JSON error with a success status: "${error}". It holds no data, and ` +
+        'nothing is stored',
+    );
   let pages: readonly string[];
   try {
     ({ pages } = await extractText(bytes, type));
   } catch (fault) {
-    if (fault instanceof UnsupportedTypeError || fault instanceof RefusedImageError)
+    if (
+      fault instanceof UnsupportedTypeError ||
+      fault instanceof RefusedImageError ||
+      fault instanceof RefusedTextError
+    )
       throw new ToolRefusal(fault.message);
     throw new ToolRefusal(`no text is read from the answer of type ${mime}`);
   }
@@ -323,6 +371,8 @@ const outputShape = z.strictObject({
   truncated: z.boolean(),
   next: nextShape,
   notice: z.string().nullable(),
+  files: z.array(storedFileShape).nullable(),
+  skipped: z.array(skippedFileShape).nullable(),
   rendered: z
     .strictObject({
       document: z.string(),
@@ -359,10 +409,23 @@ export const fetchDocument = defineTool({
     'store it with store_saved_file, or list it in research/out/needs.md. A compressed answer ' +
     '(gzip, deflate or brotli, also with no Content-Encoding header, as a raw capture of the ' +
     'Wayback Machine) is decoded, and the decoded bytes are stored. An answer of a text type ' +
-    'whose bytes are not text is refused. A PNG or a JPEG image is stored as ' +
+    'whose bytes are not text is refused. A data file (JSON, CSV, TSV, XML, plain text, any ' +
+    'type that ends with +json or +xml, and every SDMX type) must be strict UTF-8 with no ' +
+    'control character but tab, line feed and carriage return, or it is refused. Its bytes are ' +
+    'stored as they came. The text of a JSON file is an indented view of it; when the view ' +
+    'would change a number or an escape, the text is the raw file. A JSON error that the ' +
+    'server sends with a success status (an object with only the keys error, message and ' +
+    'status) is refused. A text above 16 MiB is cut into pages at the end of a line, and a ' +
+    'table repeats its header line on each page. A PNG or a JPEG image is stored as ' +
     'its bytes, and its pages are the text that OCR read in it (English, Ukrainian and ' +
-    'Russian). OCR can misread a sign: cite an excerpt as the stored text gives it, and ' +
-    'compare it with the image. An image in which OCR reads no text is refused.',
+    'Russian). A Nominatim, Overpass or geocoder answer and a search result page are refused, ' +
+    'and nothing is stored: a geocoder is a check of an address only, and a search lists ' +
+    'pages. OCR can misread a sign: cite an excerpt as the stored text gives it, and ' +
+    'compare it with the image. An image in which OCR reads no text is refused. A ZIP archive ' +
+    'that holds no GeoJSON is unpacked: "document" is the archive, whose text lists its files, ' +
+    'and "files" names one more document for each file that a reader takes, each linked to the ' +
+    'archive; cite the document of the file. "skipped" names each other file and the reason. A ' +
+    'hostile archive (too large, too deep, a path that leaves it, a zip bomb) is refused.',
   input: z.strictObject({
     url: z.string().trim().min(1).max(2048),
     fromPage: z.number().int().min(1).default(1),
@@ -373,6 +436,8 @@ export const fetchDocument = defineTool({
     if (reach?.store === undefined)
       throw new ToolRefusal('this surface gives no object store, so it fetches no page');
     const toPage = checkedRange(input.fromPage, input.toPage);
+    const refused = refusedSource(input.url);
+    if (refused !== null) throw new ToolRefusal(refused);
 
     const day = reach.now().toISOString().slice(0, 10);
     const getOptions: GetOptions = {
@@ -413,6 +478,9 @@ export const fetchDocument = defineTool({
         bytes: new TextEncoder().encode(passed.html),
       };
     }
+    // A redirect can lead to an address that is no source.
+    const redirected = refusedSource(got.url);
+    if (redirected !== null) throw new ToolRefusal(redirected);
     // The stored bytes are the page that the server encoded, not its compressed form, so their
     // text is read and an excerpt is checked on them.
     got = {
@@ -420,7 +488,18 @@ export const fetchDocument = defineTool({
       bytes: decodedBody(got.bytes, got.contentEncoding, got.contentType, MAX_BYTES),
     };
 
-    const mime = mimeOf(got.contentType, got.bytes);
+    let mime = mimeOf(got.contentType, got.bytes);
+    // A workbook is a zip container too, so the parts of the container decide its type. Another
+    // office document has no reader, and it is not unpacked into its XML parts.
+    if (mime === ZIP_MIME) {
+      const container = await zipContainerType(got.bytes);
+      if (container === 'workbook') mime = XLSX_MIME;
+      if (container === 'office')
+        throw new ToolRefusal(
+          'the answer is an office document (a text document or a slide set) that no reader ' +
+            'takes, and nothing is stored',
+        );
+    }
     // Bytes that are not text give a text of noise, and an excerpt of it could never be checked.
     if (textType(mime) && binaryBytes(got.bytes, got.contentType))
       throw new ToolRefusal(
@@ -432,6 +511,41 @@ export const fetchDocument = defineTool({
     // OCR of an image takes seconds, and bytes that are already stored have their text already.
     const known = OCR_TYPES.has(mime) ? await knownAnswer(session, got.bytes) : undefined;
     const pages = known === undefined ? await checkedPages(got.bytes, mime, type) : [];
+
+    // An archive with no GeoJSON layer gives no text of its own: each of its files is a document.
+    if (known === undefined && mime === ZIP_MIME && !holdsLayers(pages)) {
+      const metadata = await metadataOf(got.bytes, mime);
+      const unpacked = await storeArchive(session, reach.store, {
+        kind: 'url',
+        bytes: got.bytes,
+        uri: got.url,
+        title: titleOf(mime, type, got.bytes, metadata, got.url),
+        day,
+      });
+      const text = await documentText.run(session, {
+        document: unpacked.archive.id,
+        fromPage: input.fromPage,
+        fromCharacter: 0,
+        toPage,
+      });
+      return {
+        document: unpacked.archive.id,
+        status: unpacked.archive.status,
+        title: unpacked.archive.title,
+        mime: unpacked.archive.mime ?? mime,
+        url: got.url,
+        retrievedAt: unpacked.archive.retrieved_at ?? day,
+        metadata: { author: metadata.author, created: metadata.created },
+        pages: text.pages,
+        lastPage: text.lastPage,
+        truncated: text.truncated,
+        next: text.next,
+        notice: notices.length === 0 ? null : notices.join('; '),
+        files: unpacked.files,
+        skipped: unpacked.skipped,
+        rendered: null,
+      };
+    }
 
     let page: Awaited<ReturnType<typeof renderedOf>> = null;
     const allText = pages.join('').trim().length;
@@ -527,6 +641,8 @@ export const fetchDocument = defineTool({
       truncated: text.truncated,
       next: text.next,
       notice: notices.length === 0 ? null : notices.join('; '),
+      files: null,
+      skipped: null,
       rendered:
         rendered === null
           ? null

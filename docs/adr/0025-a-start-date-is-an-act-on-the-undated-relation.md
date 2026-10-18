@@ -33,6 +33,9 @@ costly to change.
   day of the relation in the record.
 - The public read, the release and the undo of a merge treat the start as they treat the end:
   PU1 on the copy, a claim of its own with the label of the act, and a later start is kept.
+  The release gives a later start only in its claim, and not on the row of the relation, so the
+  start cites only the documents and the passages of its act. A start from the creation of the
+  relation stays on the row.
 
 ## Alternatives
 

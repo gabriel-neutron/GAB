@@ -26,6 +26,11 @@ session: each proposal waits in the review queue, and the operator decides it th
   as a document.
 - Read the official text of an EU act from its CELEX number: `eu_act`. It stores the file of the
   Publications Office as a public document. `fetch_document` also reads an XML file.
+- Cite a data file of an API or of a statistics office (JSON, CSV, TSV, XML, SDMX, plain text):
+  `fetch_document` stores it with its full address and its bytes as they came. The file must be
+  UTF-8 text. The text of a JSON file is an indented view; cite a value as the source writes it.
+  A JSON error that the server sends as a success is refused. `store_saved_file` takes the same
+  files from the inbox (`.json`, `.tsv`, `.csv`, `.xml`, `.txt`, `.md`).
 - Cite an entry of the OFAC SDN list: `ofac_sdn` stores the whole official file once, as a public
   document with its hash and its date of publication, and gives the line of one entry by its
   ent_num. Cite that line on page 1 of the stored file. Never store one entry alone.
@@ -41,7 +46,7 @@ session: each proposal waits in the review queue, and the operator decides it th
 - Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,
   `read_group`, `read_decided`, `read_leads`.
 - Write: `archive_snapshot`, `fetch_document`, `eu_act`, `ofac_sdn`, `uk_sanctions_list`,
-  `firms_detections`, `store_saved_file`, `telegram_channel`, `enqueue_extract`,
+  `firms_detections`, `site_image`, `store_saved_file`, `telegram_channel`, `enqueue_extract`,
   `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question.
   `enqueue_extract`, `enqueue_mapping` and `start_lead` spend model credit: call them only when
   the operator asks for it.
@@ -57,8 +62,8 @@ session: each proposal waits in the review queue, and the operator decides it th
 - **The extractor is the back-end AI.** It reads a whole stored document and proposes each claim
   that it finds, also the facts outside your layer. Queue it (`enqueue_extract`) only when the
   operator asks for it.
-- **The mapper is the back-end AI for a table.** A stored CSV file has columns that Gabriel does
-  not know. Queue its mapping (`enqueue_mapping`) only when the operator asks for it. Follow it
+- **The mapper is the back-end AI for a table.** A stored CSV, TSV or SDMX-CSV table has columns that
+  Gabriel does not know. Queue its mapping (`enqueue_mapping`) only when the operator asks for it. Follow it
   with `job_status`, and read the mapping with `list_proposals`. The operator promotes the
   mapping, and then code loads the rows. You do not propose the rows of a table by hand.
 - **The lead agent finds sources for a lead.** For a broad lead, such as a company and its
@@ -75,15 +80,18 @@ session: each proposal waits in the review queue, and the operator decides it th
   key, and `vessel_events` needs a free token. When one is not set, the tool says so, and the
   other tools work. OpenSanctions is a repeater: fetch the official entry that the tool names with
   `fetch_document`, and cite that. Events that are matched by an MMSI alone are a lead.
-- **An AI reviewer decides a doubt only in another session.** The rules of the database decide
-  each unit from its sources, and a unit with a doubt goes to a reviewer. When the operator asks
-  for a review session, follow the skill `review-unit`: read the cited passage first, and never
-  decide a unit that your own session proposed. Each decision records "decided by an AI
-  reviewer" and your reason.
+- **An AI reviewer with a new context decides a doubt.** The rules of the database decide each
+  unit from its sources, and a unit with a doubt goes to a reviewer. The agent that proposed a
+  unit never decides it. It starts a new reviewer subagent, which follows the skill
+  `review-unit` and gets only the ids, not the history. Each decision records "decided by an AI
+  reviewer" and the reason of the reviewer.
 - **You can propose linked facts in one batch.** For example: a company, its vessels and the
   relations between them. A relation names an entity of an earlier item by its `ref`.
 
 ## The rules of a research ticket
+
+Run each research ticket with the skill `ticket`. It holds the loop of a ticket: the research
+subagents, the reviewer subagent, the code sessions and the close of the step.
 
 1. **The deliverable is data in Gabriel** (#159). A research ticket is done when its facts are in
    Gabriel as stored documents and proposals. A report, a note or a chat answer is not the

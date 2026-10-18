@@ -410,7 +410,7 @@ test('another refusal is not asked again', async () => {
   });
 });
 
-test.each([['OFAC; Reuters'], ['Reuters, State Register'], ['UK'], ['The Secretary of State']])(
+test.each([['OFAC; Reuters'], ['UK'], ['The Secretary of State']])(
   'a join of "%s" is refused, and the rater rates the name as a new author',
   async (name) => {
     await inTransaction(async (held) => {
@@ -436,6 +436,24 @@ test.each([['OFAC; Reuters'], ['Reuters, State Register'], ['UK'], ['The Secreta
     });
   },
 );
+
+test('a name with a comma joins an author B as a doubt, and the operator decides it', async () => {
+  await inTransaction(async (held) => {
+    await held.actOf('Reuters, London Desk');
+    const { did, bodies } = await held.rateInTurn([{ kind: 'same', as: 'Reuters' }]);
+
+    expect(did).toBe('done');
+    expect(bodies).toHaveLength(1);
+    expect(await held.letter('reuters, london desk')).toBe('F');
+    expect(
+      await held.ask(
+        `SELECT a.name_key, n.doubt FROM public.author_name n
+           JOIN public.author a ON a.id = n.author_id WHERE n.name_key = $1`,
+        ['reuters, london desk'],
+      ),
+    ).toStrictEqual([{ name_key: 'reuters', doubt: true }]);
+  });
+});
 
 test('a second join after a refused join is refused, and the author stays F', async () => {
   await inTransaction(async (held) => {
@@ -495,6 +513,24 @@ test.each([
     else expect(row?.said).toContain(said);
   });
 });
+
+test.each([
+  ['foreign, commonwealth & development office', null],
+  ['ofsi, hm treasury', null],
+  ['ofac; reuters', 'holds two authors'],
+  ['the ministry', 'is generic'],
+])(
+  'the name "%s" joins an author A or B as a doubt unless it is refused: %s',
+  async (name, said) => {
+    await inTransaction(async (held) => {
+      const [row] = z
+        .array(z.object({ said: z.string().nullable() }))
+        .parse(await held.ask('SELECT public.name_joins_no_author($1, true) AS said', [name]));
+      if (said === null) expect(row?.said).toBeNull();
+      else expect(row?.said).toContain(said);
+    });
+  },
+);
 
 test('a name that the operator refused is rated again as a new author', async () => {
   await inTransaction(async (held) => {
