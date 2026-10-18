@@ -35,7 +35,9 @@ export const EachEntityWithAPositionIsListed: Story = {
       canvas.getByRole('region', { name: 'Map of the entities with a position' }),
     ).toBeVisible();
     await expect(
-      canvas.getByText(/12 entities of this release have their own position/u),
+      canvas.getByText(
+        /12 entities of this release have their own position, and 8 physical links/u,
+      ),
     ).toBeVisible();
     await expect(canvas.getByRole('link', { name: 'Primorsk' })).toHaveAttribute(
       'href',
@@ -44,15 +46,44 @@ export const EachEntityWithAPositionIsListed: Story = {
   },
 };
 
-export const TheStripCountsEachOfTheSixStages: Story = {
+export const TheStripGivesTheSixStepsOfTheChainWithTheirCounts: Story = {
   play: async ({ canvas }) => {
-    const strip = canvas.getByRole('list', { name: 'Stages of the chain' });
-    await expect(strip).toHaveTextContent('Fields: 1');
-    await expect(strip).toHaveTextContent('Upstream transport: 1');
-    await expect(strip).toHaveTextContent('Refining and liquefaction: 1');
+    const strip = canvas.getByRole('list', { name: 'Steps of the chain' });
+    await expect(strip).toHaveTextContent('Extraction: 1');
+    await expect(strip).toHaveTextContent('Pipeline: 4');
+    await expect(strip).toHaveTextContent('Refinery: 1');
+    await expect(strip).toHaveTextContent('Terminal: 2');
     await expect(strip).toHaveTextContent('Export: 2');
-    await expect(strip).toHaveTextContent('Exit from Russian control: 4');
-    await expect(strip).toHaveTextContent('Declared destination: 2');
+    await expect(strip).toHaveTextContent('Exit: 4');
+    await expect(canvas.getByRole('button', { name: 'Play the chain' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  },
+};
+
+export const TheLongTextIsInAPanelThatTheReaderOpens: Story = {
+  play: async ({ canvas, canvasElement }) => {
+    const panel = canvasElement.querySelector('details');
+    await expect(panel).not.toHaveAttribute('open');
+    await expect(canvas.getByText('How to read this map')).toBeVisible();
+    await expect(canvas.getByText(/A volume is an aggregate of the research/u)).not.toBeVisible();
+    await expect(canvas.getByRole('link', { name: 'Method page', hidden: true })).toHaveAttribute(
+      'href',
+      '../method/index.html',
+    );
+    await expect(
+      canvas.getByRole('list', { name: 'Stages of the chain', hidden: true }),
+    ).toHaveTextContent('Declared destination: 2');
+  },
+};
+
+export const ThePageSaysSoWhenTheBrowserCannotDrawTheMap: Story = {
+  play: async ({ canvas }) => {
+    // The map script shows this line when the browser has no WebGL.
+    const line = canvas.getByText(/This browser cannot draw the map, because it has no WebGL/u);
+    await expect(line).not.toBeVisible();
+    await expect(line).toHaveTextContent('The list of the entities is below the map.');
   },
 };
 
@@ -71,8 +102,8 @@ export const TheFilterOffersEachProductChain: Story = {
 
 export const ALinkInReviewIsCountedAndNamedSo: Story = {
   play: async ({ canvas }) => {
-    await expect(canvas.getByText(/8 physical links join two assets/u)).toHaveTextContent(
-      '2 of them are in review',
+    await expect(canvas.getByText(/physical links are in review/u)).toHaveTextContent(
+      '2 physical links are in review',
     );
     await expect(canvas.getByText(/exit point is in review/u)).toHaveTextContent(
       '1 exit point is in review.',
