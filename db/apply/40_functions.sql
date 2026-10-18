@@ -5978,15 +5978,18 @@ BEGIN
   RETURN cardinality(v_units);
 END $$;
 
--- THE MOVE OF A NAME BY THE OPERATOR, from an author that the worker rated (C to F) to an approved
--- author of the reference set. The worker can make a wrong author, for example when it reads a
--- comma as two authors, and no other door takes a name from it. Each row stays: the door writes
+-- THE MOVE OF A NAME BY THE OPERATOR, from an author that the worker rated (C to F) to another
+-- author: an approved author of the reference set, or another author that the worker rated. The
+-- worker can make a wrong author, for example when it reads a comma as two authors, or join a
+-- name to a wrong author, and no other door takes a name from it. Each row stays: the door writes
 -- the name again for the new author, a refusal that retires the old row and a confirmation of the
--- new row. Both decisions record the operator. The door refuses a move into an author out of the
--- reference set, because only the operator gives a letter A or B. It refuses a name of a reference
--- author, because the operator approved that name with the set or decided it. It refuses while
--- the rating job of the name runs. The rules run again on the units of the name, and the door
--- gives their number.
+-- new row. Both decisions record the operator. The door refuses a move into an author of the
+-- reference set that the operator did not approve, because only the operator gives a letter A or
+-- B, and a move into an author whose own name moved to another author. It refuses a name of a
+-- reference author, because the operator approved that name with the set or decided it, and a
+-- name that an earlier move gave to its author, because a decision is written once. It refuses
+-- while the rating job of the name runs. The rules run again on the units of the name,
+-- and the door gives their number.
 CREATE OR REPLACE FUNCTION move_author_name(p_name text, p_author text) RETURNS int
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -5994,7 +5997,7 @@ DECLARE
   v_key text := public.name_key(coalesce(p_name, ''));
   v_target_key text := public.name_key(coalesce(p_author, ''));
   v_from record;
-  v_to uuid;
+  v_to record;
   v_units uuid[];
 BEGIN
   IF v_key = '' OR v_target_key = '' THEN
@@ -6012,18 +6015,34 @@ BEGIN
     RAISE EXCEPTION 'the name "%" is a name of the reference author "%", and no move takes it',
       v_key, v_from.name_key USING ERRCODE = 'invalid_parameter_value';
   END IF;
-  SELECT a.id INTO v_to
-    FROM public.name_row(v_target_key) n JOIN public.author a ON a.id = n.author_id
-   WHERE a.reference_set AND NOT n.waits
-     AND EXISTS (SELECT 1 FROM public.reference_approval r WHERE r.author_id = a.id);
-  IF v_to IS NULL THEN
-    RAISE EXCEPTION 'the author "%" is no approved author of the reference set, and a name moves '
-                    'only into one', v_target_key USING ERRCODE = 'invalid_parameter_value';
+  -- A name that a move gave to an author holds the decision of the operator already.
+  IF EXISTS (SELECT 1 FROM public.author_name_decision d
+              WHERE d.name_key = v_key AND d.author_id = v_from.id) THEN
+    RAISE EXCEPTION 'the operator decided the name "%" for the author "%" already, and a decision '
+                    'is written once', v_key, v_from.name_key
+      USING ERRCODE = 'invalid_parameter_value';
   END IF;
-  IF EXISTS (SELECT 1 FROM public.author_name n WHERE n.name_key = v_key AND n.author_id = v_to)
-  THEN
+  -- The author of the target name, when it is an author that a new name can join: an approved
+  -- reference author, or an author that the worker rated and whose own name is still its name.
+  SELECT a.id, a.name_key, a.letter IN ('A','B') AS high INTO v_to
+    FROM public.name_row(v_target_key) n JOIN public.author a ON a.id = n.author_id
+   WHERE NOT n.waits
+     AND (SELECT o.author_id FROM public.name_row(a.name_key) o) = a.id
+     AND (NOT a.reference_set
+          OR EXISTS (SELECT 1 FROM public.reference_approval r WHERE r.author_id = a.id));
+  IF v_to.id IS NULL THEN
+    RAISE EXCEPTION 'the name "%" is the name of no author that a name can move into: an '
+                    'approved author of the reference set, or an author that the worker rated',
+                    v_target_key USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF v_to.id = v_from.id THEN
+    RAISE EXCEPTION 'the name "%" is a name of the author "%" already', v_key, v_to.name_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.author_name n
+              WHERE n.name_key = v_key AND n.author_id = v_to.id) THEN
     RAISE EXCEPTION 'the operator refused the name "%" for the author "%" before, and a decision '
-                    'is written once', v_key, v_target_key
+                    'is written once', v_key, v_to.name_key
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
   -- A rating job that runs now would end on the old answer.
@@ -6035,11 +6054,77 @@ BEGIN
   v_units := public.units_of_name(v_key);
   INSERT INTO public.author_name_decision (name_key, author_id, confirmed)
   VALUES (v_key, v_from.id, false);
-  -- The new row is a doubt that the operator decides at once, as a join into an author A or B.
-  -- A reference author of a lower letter gets the same row: the confirmation makes it live.
-  INSERT INTO public.author_name (name_key, author_id, doubt) VALUES (v_key, v_to, true);
+  -- A row into an author A or B is a doubt that the operator decides at once, as a join into such
+  -- an author. A reference author of a lower letter, and an author that the worker rated, get a
+  -- row with no doubt. The confirmation records the operator in each case.
+  INSERT INTO public.author_name (name_key, author_id, doubt) VALUES (v_key, v_to.id, v_to.high);
   INSERT INTO public.author_name_decision (name_key, author_id, confirmed)
-  VALUES (v_key, v_to, true);
+  VALUES (v_key, v_to.id, true);
+  PERFORM public.run_rules(v_units);
+  RETURN cardinality(v_units);
+END $$;
+
+-- THE RETURN OF A NAME TO THE RATER, BY THE OPERATOR. The operator takes a name away from a wrong
+-- author that the worker rated, and the rater rates the name again. Each row stays: the door
+-- writes a refusal that retires the row of the name, and that refusal records the operator. The
+-- rating job of the name goes back to the queue, and the name reads as F until the rater answers.
+-- The rater cannot join the name to that author again, because the refusal stands. The door
+-- refuses the own name of an author, because the record holds one author for each own name, so
+-- the rater could not write it as a new author: the operator moves such a name. It refuses a name of a reference author, and it refuses while the
+-- rating job of the name runs. The rules run again on the units of the name, and the door gives
+-- their number.
+CREATE OR REPLACE FUNCTION rerate_author_name(p_name text) RETURNS int
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_key text := public.name_key(coalesce(p_name, ''));
+  v_from record;
+  v_units uuid[];
+BEGIN
+  IF v_key = '' THEN
+    RAISE EXCEPTION 'a return to the rater names the name'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  PERFORM public.lock_name(v_key);
+  SELECT a.id, a.name_key, a.reference_set INTO v_from
+    FROM public.name_row(v_key) n JOIN public.author a ON a.id = n.author_id;
+  IF v_from.id IS NULL THEN
+    RAISE EXCEPTION 'the name "%" has no author: the rater rates it first', v_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF v_from.reference_set THEN
+    RAISE EXCEPTION 'the name "%" is a name of the reference author "%", and the rater does not '
+                    'rate it again', v_key, v_from.name_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  -- A name that a move gave to an author holds the decision of the operator already.
+  IF EXISTS (SELECT 1 FROM public.author_name_decision d
+              WHERE d.name_key = v_key AND d.author_id = v_from.id) THEN
+    RAISE EXCEPTION 'the operator decided the name "%" for the author "%" already, and a decision '
+                    'is written once', v_key, v_from.name_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  -- An author keeps its own name, also after a move, so the rater could not write it again.
+  IF EXISTS (SELECT 1 FROM public.author a WHERE a.name_key = v_key) THEN
+    RAISE EXCEPTION 'the name "%" is the own name of an author: move it to another author', v_key
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  -- A rating job that runs now would end on the old answer and hide the refusal.
+  IF EXISTS (SELECT 1 FROM public.jobs j
+              WHERE j.kind = 'rate_author' AND j.author = v_key AND j.status = 'running') THEN
+    RAISE EXCEPTION 'the rating of the name "%" runs now: return it when the job has ended',
+      v_key USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  -- The units come first: after the refusal the name has no author.
+  v_units := public.units_of_name(v_key);
+  INSERT INTO public.author_name_decision (name_key, author_id, confirmed)
+  VALUES (v_key, v_from.id, false);
+  UPDATE public.jobs j
+     SET status = 'queued', failure_reason = NULL, refused_parts = 0, refusal = NULL,
+         claimed_by = NULL, claimed_at = NULL, finished_at = NULL, updated_at = now()
+   WHERE j.kind = 'rate_author' AND j.author = v_key
+     AND (j.status = 'done' OR (j.status = 'failed' AND j.refusal IS NOT NULL));
+  INSERT INTO public.jobs (kind, author) VALUES ('rate_author', v_key) ON CONFLICT DO NOTHING;
   PERFORM public.run_rules(v_units);
   RETURN cardinality(v_units);
 END $$;

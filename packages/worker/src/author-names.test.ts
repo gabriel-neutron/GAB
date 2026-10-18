@@ -33,6 +33,7 @@ test.each([
   [[]],
   [['confirm']],
   [['refuse', ' ']],
+  [['rerate']],
   [['list', 'x']],
   [['undo', 'x']],
   [['move', 'one name']],
