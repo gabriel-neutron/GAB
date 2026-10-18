@@ -3,7 +3,7 @@
 import { shareWords } from '@gab/proposal/share';
 import { positionFromWords, relationLines } from '@/shared/canvas-label';
 import { proposerWords } from '@/shared/proposer-words';
-import type { DecidedAct } from '@/shared/read/decided-acts';
+import { isUnread, type DecidedAct, type UnreadAct } from '@/shared/read/decided-acts';
 import type {
   Corpus,
   DocId,
@@ -257,15 +257,20 @@ function typeChoicesOf(types: TypeVocabulary, held: string): readonly TypeChoice
 
 // PU1: the origin line is the label that the public data carries, word for word. The record
 // writes the words and the day, so the screen and a copy of the data cannot say two things.
-function decisionOf(entityFrom: string, decided: readonly DecidedAct[]): string | null {
-  return decided.find((held) => held.act.id === entityFrom)?.originLabel ?? null;
+function decisionOf(
+  entityFrom: string,
+  decided: readonly (DecidedAct | UnreadAct)[],
+): string | null {
+  const held = decided.find((line) => (isUnread(line) ? line.id : line.act.id) === entityFrom);
+  if (held === undefined) return null;
+  return isUnread(held) ? 'The act that promoted this entity cannot be read.' : held.originLabel;
 }
 
 export function readDossier(
   read: Corpus,
   entityId: string,
   types: TypeVocabulary,
-  decided: readonly DecidedAct[],
+  decided: readonly (DecidedAct | UnreadAct)[],
 ): Dossier | null {
   const entity = read.entities.find((candidate) => candidate.id === entityId);
   if (entity === undefined) return null;
