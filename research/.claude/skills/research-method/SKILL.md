@@ -91,6 +91,24 @@ exists.
 - A sanctions status cites the official act or the official entry, never OpenSanctions and never a
   news article (skill `cite-claim`).
 
+### A register aggregator in Russia and in Belarus
+
+An aggregator (list-org, rusprofile, checko and other sites like them) copies the state register.
+It is a repeater and not the register.
+
+1. First, use the official register for the tax number or the registration number: the EGRUL
+   extract or the financial statements register of the Russian tax service, or the register of
+   Belarus.
+2. Cite an aggregator page only when the register cannot be reached for that number. Cite it
+   only for an identifier or a registration fact: the tax number, the registration number, the
+   name, the address, the registration date. Never cite it for an owner or a director.
+3. The stored page must name its own source (the tax service or the register) next to the date
+   of its register data. If it does not, the page is a lead only.
+4. The originator is the tax service (or the register of Belarus), and the modality is
+   `attributes`, never `asserts`. The page never counts as a second independent source.
+5. For each such citation, add a line to `research/out/needs.md`: replace it with the register
+   extract when the register answers again.
+
 ### The place of an asset
 
 Use the highest source that gives the point. A published point never comes from a lower one.
