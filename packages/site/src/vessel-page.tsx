@@ -1,6 +1,6 @@
 import { isValidImo } from '@gab/proposal/identifiers';
 
-import { claimText } from './claim-text.ts';
+import { claimText } from '@gab/release/claim-text';
 import { NatoPairMark } from './nato-pair-mark.tsx';
 import { releaseDay } from '@gab/release/release-day';
 import { SiteFrame } from './site-frame.tsx';

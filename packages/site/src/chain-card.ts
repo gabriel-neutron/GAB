@@ -2,7 +2,7 @@ import { relationWords } from '@gab/proposal/relation-types';
 import { CLAIMED_ATTACK } from '@gab/tools/event-rules';
 
 import { assetSanctions, type AssetMeasure } from './asset-sanctions.ts';
-import { attributeName } from './attribute-name.ts';
+import { attributeName } from '@gab/release/attribute-name';
 import { isAccepted, PROPOSED_LABEL } from './accepted.ts';
 import { stageOf, type StageKey } from '@gab/proposal/chain-stage';
 import { eventsAt } from './event-lane.ts';

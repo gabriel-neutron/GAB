@@ -1,4 +1,4 @@
-import { claimText } from './claim-text.ts';
+import { claimText } from '@gab/release/claim-text';
 import { eventsAt, strikeCount, type SiteEvent } from './event-lane.ts';
 import { safeHref } from './safe-href.ts';
 import { claimPage, entityPage, hrefFrom, type SitePath } from '@gab/release/site-paths';

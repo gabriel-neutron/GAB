@@ -15,6 +15,8 @@ export interface NodesPageProps {
     /** The day of the release, YYYY-MM-DD. */
     readonly date: string;
     readonly nodes: readonly CriticalNode[];
+    /** What each claim of a tick says, by claim identifier. */
+    readonly claimTexts: Readonly<Record<string, string>>;
   } | null;
   /** The address of the page of one entity. */
   readonly entityHref: (id: string) => string;
@@ -27,7 +29,13 @@ const CONDITIONS = [
 ] as const;
 
 // The word is the mark: "not sourced" also takes the dissent hue, and never the hue alone.
-function ConditionCell({ condition }: { readonly condition: NodeCondition | undefined }) {
+function ConditionCell({
+  condition,
+  claimTexts,
+}: {
+  readonly condition: NodeCondition | undefined;
+  readonly claimTexts: Readonly<Record<string, string>>;
+}) {
   if (condition === undefined) return null;
   return (
     <div className="flex flex-col gap-0.5">
@@ -35,9 +43,7 @@ function ConditionCell({ condition }: { readonly condition: NodeCondition | unde
         {condition.state}
       </p>
       {condition.claimIds.map((id) => (
-        <p key={id} className="font-mono break-all text-label">
-          {id}
-        </p>
+        <p key={id}>{claimTexts[id] ?? id}</p>
       ))}
     </div>
   );
@@ -45,6 +51,7 @@ function ConditionCell({ condition }: { readonly condition: NodeCondition | unde
 
 const columnsOf = (
   entityHref: NodesPageProps['entityHref'],
+  claimTexts: Readonly<Record<string, string>>,
 ): readonly DataColumn<CriticalNode>[] => [
   {
     key: 'node',
@@ -62,7 +69,10 @@ const columnsOf = (
     key,
     header: words,
     cell: (node: CriticalNode) => (
-      <ConditionCell condition={node.conditions.find((one) => one.key === key)} />
+      <ConditionCell
+        condition={node.conditions.find((one) => one.key === key)}
+        claimTexts={claimTexts}
+      />
     ),
   })),
   {
@@ -88,7 +98,7 @@ export function NodesPage({ release, entityHref }: NodesPageProps) {
       </ReadingPage>
     );
   const { retained, others, summary } = groupNodes(release.nodes);
-  const columns = columnsOf(entityHref);
+  const columns = columnsOf(entityHref, release.claimTexts);
   return (
     <ReadingPage>
       <PageHeader

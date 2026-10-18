@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./attribute-name": "./src/attribute-name.ts",
+    "./claim-text": "./src/claim-text.ts",
     "./csv": "./src/csv.ts",
     "./release-day": "./src/release-day.ts",
     "./site-manifest": "./src/site-manifest.ts",

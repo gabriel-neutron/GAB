@@ -28,7 +28,14 @@ const NODES = [
 const meta = {
   component: NodesPage,
   args: {
-    release: { date: '2026-11-08', nodes: NODES },
+    release: {
+      date: '2026-11-08',
+      nodes: NODES,
+      claimTexts: {
+        'claim-1': 'Primorsk oil terminal: Designated by Council',
+        'claim-2': 'Primorsk oil terminal: Loads at Primorsk',
+      },
+    },
     entityHref: (id: string) => `/entity/${id}`,
   },
   parameters: { layout: 'fullscreen' },
@@ -53,6 +60,14 @@ export const GroupsTheRetainedNodesFirstAndNamesTheRelease: Story = {
       'href',
       '/entity/n1',
     );
+  },
+};
+
+export const SaysWhatEachClaimOfATickSays: Story = {
+  play: async ({ canvas }) => {
+    await expect(
+      (await canvas.findAllByText('Primorsk oil terminal: Designated by Council')).length,
+    ).toBeGreaterThan(0);
   },
 };
 

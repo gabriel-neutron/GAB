@@ -7,7 +7,7 @@ import { chainFlows } from './chain-flows.ts';
 import { chainMapData } from './chain-map-data.ts';
 import { stagedGeojson } from './staged-geojson.ts';
 import { ClaimPage } from './claim-page.tsx';
-import { claimText } from './claim-text.ts';
+import { claimText } from '@gab/release/claim-text';
 import { DownloadsPage } from './downloads-page.tsx';
 import { EntityPage } from './entity-page.tsx';
 import { HomePage } from './home-page.tsx';
