@@ -169,3 +169,19 @@ export const ARelationWithNoShareDrawsNoShareRow: Story = {
     await expect(canvas.queryByText('Share')).toBeNull();
   },
 };
+
+export const ThePanelOfTheGraphShowsTheRelationOnTheMap: Story = {
+  args: { showOn: 'map' },
+  play: async ({ canvas }) => {
+    const link = canvas.getByRole('link', { name: 'Show on map' });
+    await expect(link).toHaveAttribute('href', `/map?relation=${BERTHED_ID}`);
+  },
+};
+
+export const ThePanelOfTheMapShowsTheRelationInTheGraph: Story = {
+  args: { showOn: 'graph' },
+  play: async ({ canvas }) => {
+    const link = canvas.getByRole('link', { name: 'Show in graph' });
+    await expect(link).toHaveAttribute('href', `/graph?relation=${BERTHED_ID}`);
+  },
+};

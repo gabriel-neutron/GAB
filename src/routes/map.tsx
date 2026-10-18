@@ -1,8 +1,9 @@
 import { createFileRoute, stripSearchParams } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RelationSidebar, Sidebar } from '@/features/detail/sidebar';
 import { readDossier, readRelation } from '@/features/detail/dossier';
 import { MapPage } from '@/features/map/map-page';
+import { UnplacedNotice } from '@/features/detail/unplaced-notice';
 import { loadCorpus } from '@/shared/read/corpus';
 import { loadEntityTypes } from '@/shared/read/vocabulary';
 
@@ -55,6 +56,24 @@ function MapRoute() {
   const current = useRef({ entity, relation });
   useEffect(() => void (current.current = { entity, relation }), [entity, relation]);
 
+  // The adapter drops an entity or a relation it cannot draw, and the address loses it. So the
+  // reason is read at the mount, and it dies with the view or at the next act of the analyst.
+  const [unplaced, setUnplaced] = useState<string | null>(() => {
+    const opened = readDossier(corpus, entity, types, []);
+    if (opened !== null && !opened.drawnOnMap)
+      return `${opened.label} has no position, so the map does not show it.`;
+    const link = corpus.relations.find((one) => one.id === relation);
+    if (link === undefined) return null;
+    const placed = new Set(
+      corpus.positions.flatMap((at) => (at.point === null ? [] : [at.entityId])),
+    );
+    return placed.has(link.srcId) && placed.has(link.dstId)
+      ? null
+      : 'This relation has an end with no position, so the map does not show it.';
+  });
+  // The notice goes at the next choice of an entity or a relation. A click on the ground with no
+  // selection changes no selection, so the adapter calls no listener and the notice stays.
+
   // `replace: true`: a walk over twenty points would otherwise need twenty presses of the back
   // button to leave the map. It must be the same function at each render, because it is the one
   // prop of the memoised canvas below.
@@ -63,6 +82,7 @@ function MapRoute() {
       // `onSelect` calls a new listener at once with the selection of that moment, so a mount on
       // a plain `/map` would write `?entity=` before the analyst acts. A seed that differs still
       // writes: `adapter.ts` drops a restored identifier it cannot draw, and the address loses it.
+      if (id !== null) setUnplaced(null);
       if ((id ?? '') === current.current.entity) return;
       // A new entity ends the choice of a relation: `adapter.ts` holds that rule for a click on
       // the canvas, but a click on the sidebar list picks a relation with no call into the
@@ -84,6 +104,7 @@ function MapRoute() {
   // of the mount first, so a relation the canvas cannot draw arrives as `null` and leaves.
   const handleChooseRelation = useCallback(
     (id: string | null) => {
+      if (id !== null) setUnplaced(null);
       if ((id ?? '') === current.current.relation) return;
       void navigate({
         search: (previous: MapSearch): MapSearch => ({ ...previous, relation: id ?? '' }),
@@ -123,9 +144,11 @@ function MapRoute() {
     <div className="flex h-full overflow-hidden">
       <div className="min-h-0 min-w-0 flex-1">{canvas}</div>
       {chosen !== null ? (
-        <RelationSidebar relation={chosen} />
-      ) : dossier === null ? null : (
-        <Sidebar dossier={dossier} onSelectRelation={handleChooseRelation} />
+        <RelationSidebar relation={chosen} showOn="graph" />
+      ) : dossier?.drawnOnMap === true ? (
+        <Sidebar dossier={dossier} onSelectRelation={handleChooseRelation} showOn="graph" />
+      ) : unplaced === null ? null : (
+        <UnplacedNotice words={unplaced} />
       )}
     </div>
   );

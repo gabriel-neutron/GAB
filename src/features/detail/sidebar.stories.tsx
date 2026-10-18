@@ -225,3 +225,19 @@ export const ANewSelectionDrawsTheValuesOfTheNewEntity: Story = {
     await expect(canvas.queryByDisplayValue('9482137')).toBeNull();
   },
 };
+
+export const ThePanelOfTheMapShowsTheEntityInTheGraph: Story = {
+  args: { showOn: 'graph' },
+  play: async ({ canvas }) => {
+    const link = canvas.getByRole('link', { name: 'Show in graph' });
+    await expect(link).toHaveAttribute('href', `/graph?entity=${DOSSIER.entityId}`);
+  },
+};
+
+export const ThePanelOfTheGraphShowsTheEntityOnTheMap: Story = {
+  args: { showOn: 'map' },
+  play: async ({ canvas }) => {
+    const link = canvas.getByRole('link', { name: 'Show on map' });
+    await expect(link).toHaveAttribute('href', `/map?entity=${DOSSIER.entityId}`);
+  },
+};

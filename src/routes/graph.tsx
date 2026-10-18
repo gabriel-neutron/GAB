@@ -97,10 +97,10 @@ function GraphRoute() {
       {/* **No selection draws no panel.** The canvas then takes the whole row, and
           `adapter` and `controller` each observe their own element, so the resize is answered. */}
       {dossier !== null ? (
-        <Sidebar dossier={dossier} />
+        <Sidebar dossier={dossier} showOn="map" />
       ) : relation !== null ? (
         /* The same pane, at the same width, so the canvas never changes size on a selection. */
-        <RelationSidebar relation={relation} />
+        <RelationSidebar relation={relation} showOn="map" />
       ) : selection === null ? null : (
         <aside
           aria-label="Detail"

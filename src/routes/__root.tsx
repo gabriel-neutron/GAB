@@ -7,6 +7,7 @@ import {
   useRouter,
 } from '@tanstack/react-router';
 import { CreateEntityDialog } from '@/features/edit/create-entity-dialog';
+import { carriedSelection } from '@/shared/carried-selection';
 import { cn } from '@/shared/lib/utils';
 import { refreshCorpus } from '@/shared/read/corpus';
 import { ModeToggle } from '@/shared/mode-toggle';
@@ -63,26 +64,35 @@ const SURFACE_LINK = cn(
   'data-[status=active]:border-primary data-[status=active]:text-foreground',
 );
 
-// The empty search is written out because the graph declares both keys and strips neither. A
-// link that carries no search would open the graph on a pair of parameters it never validated.
-const NO_SELECTION = { entity: '', relation: '' } as const;
+// The graph writes its selection with `history.replaceState`, which the router never sees, so
+// the selection is read from the address bar. The router calls each function again at the click.
+// shortcut: the `href` of the graph is computed at render and can name an older selection, which
+// a click with a modifier opens; read the selection from a store of the graph when one exists.
+const TO_MAP = () => carriedSelection(window.location.pathname, window.location.search, '/map');
+const TO_GRAPH = () => carriedSelection(window.location.pathname, window.location.search, '/graph');
 
 // The entity page is absent: it names one record and no fixed address reaches it. It is reached
 // from the surface that draws that record.
 function SurfaceNav() {
+  // The map writes its selection through the router. A link keeps the `href` of its first render,
+  // so each new address of the router builds the two links again, and each one names the
+  // selection of that moment. The graph writes past the router, and its click reads the address.
+  const address = useLocation({ select: (location) => location.searchStr });
   return (
     <nav aria-label="Surfaces" className="flex h-full items-stretch">
       <Link
+        key={`map${address}`}
         to="/map"
-        search={NO_SELECTION}
+        search={TO_MAP}
         activeOptions={{ includeSearch: false }}
         className={SURFACE_LINK}
       >
         Map
       </Link>
       <Link
+        key={`graph${address}`}
         to="/graph"
-        search={NO_SELECTION}
+        search={TO_GRAPH}
         activeOptions={{ includeSearch: false }}
         className={SURFACE_LINK}
       >
