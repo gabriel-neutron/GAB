@@ -60,6 +60,19 @@ export const GivesTheDisclaimerAndEachSectionOfTheMethod: Story = {
   },
 };
 
+export const GivesTheDateRulesOfTheRelease: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText(/Date rules of this release/u)).toBeVisible();
+  },
+};
+
+export const SaysWhenTheReleaseGivesNoDateRules: Story = {
+  args: { manifest: { ...MANIFEST, dateRules: null } },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText(/This release does not give its date rules/u)).toBeVisible();
+  },
+};
+
 export const CountsTheMergeCandidatesOfTheRelease: Story = {
   play: async ({ canvas }) => {
     await expect(
