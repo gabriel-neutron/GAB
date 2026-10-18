@@ -37,7 +37,7 @@ function SwappedSidebar() {
   const [dossier, setDossier] = useState<Dossier>(DOSSIER);
 
   return (
-    <div className="flex h-[600px]">
+    <div className="flex h-[600px] w-80">
       <button
         type="button"
         onClick={() => {
@@ -91,7 +91,7 @@ const meta = {
   // The row states a height, exactly as the route does. Without a stated height on the row,
   // `overflow-y-auto` is not a scroll at all.
   render: (args) => (
-    <div className="flex h-[600px]">
+    <div className="flex h-[600px] w-80">
       <Sidebar {...args} />
     </div>
   ),

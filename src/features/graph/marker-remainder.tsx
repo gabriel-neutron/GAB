@@ -17,10 +17,7 @@ export function MarkerRemainder({ drawn, remainder }: MarkerRemainderProps) {
     <p
       role="status"
       data-marker-remainder={remainder}
-      className={cn(
-        'pointer-events-none max-w-80 border border-border bg-popover px-2 py-1',
-        'text-xs text-popover-foreground',
-      )}
+      className={cn('max-w-prose text-muted-foreground')}
     >
       The graph marks {drawn} of {drawn + remainder}, most pending evidence first. {remainder}{' '}
       {remainder === 1 ? 'element carries' : 'elements carry'} pending evidence and no marker.

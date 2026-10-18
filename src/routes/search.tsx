@@ -9,9 +9,13 @@ import { searchByDocument } from '@/features/search/document-search';
 import { searchByName } from '@/features/search/name-search';
 import { SearchPage } from '@/features/search/search-page';
 import { keepLastQuery, readLastQuery } from '@/features/search/workspace';
+import { PageHeader } from '@/shared/page/page-header';
+import { ReadingPage } from '@/shared/page/reading-page';
 import { loadCorpus, refreshCorpus } from '@/shared/read/corpus';
 import { loadProviders } from '@/shared/read/providers';
+import { useReleaseNote } from '@/shared/read/release-note';
 import { useWriterOnline } from '@/shared/write/writer-status';
+import { releaseDay } from '@gab/release/release-day';
 
 const pageOf = (entityId: string): string => entityHref(entityId, null);
 
@@ -28,40 +32,43 @@ function SearchRoute() {
   const { corpus, providers } = Route.useLoaderData();
   const router = useRouter();
   const writerOnline = useWriterOnline();
+  const releaseNote = useReleaseNote();
   const [query, setQuery] = useState(readLastQuery);
-  const nameAnswer = useMemo(() => searchByName(corpus.entities, query), [corpus, query]);
-  const attributeAnswer = useMemo(
-    () => searchByAttributeValue(corpus.entities, query),
-    [corpus, query],
-  );
-  const documentAnswer = useMemo(() => searchByDocument(corpus.documents, query), [corpus, query]);
+  const name = useMemo(() => searchByName(corpus.entities, query), [corpus, query]);
+  const attribute = useMemo(() => searchByAttributeValue(corpus.entities, query), [corpus, query]);
+  const document = useMemo(() => searchByDocument(corpus.documents, query), [corpus, query]);
 
   // The documents are searched on this page, so a new document is uploaded and a lead is given
-  // from it. The search feature and the ingest feature meet here and nowhere else.
+  // from it. The search feature and the ingest feature meet here and nowhere else. Where no write
+  // service answers, the two controls are not drawn.
+  const actions = writerOnline ? (
+    <>
+      <LeadDialog />
+      <UploadDocumentDialog
+        providers={providers}
+        onStored={() => refreshCorpus(() => router.invalidate())}
+      />
+    </>
+  ) : undefined;
+  const detail =
+    releaseNote === null ? undefined : `From the release of ${releaseDay(releaseNote.date)}`;
+
   return (
-    <div className="flex h-full flex-col">
-      {writerOnline ? (
-        <div className="flex shrink-0 justify-end gap-2 border-b border-border p-2">
-          <LeadDialog />
-          <UploadDocumentDialog
-            providers={providers}
-            onStored={() => refreshCorpus(() => router.invalidate())}
-          />
-        </div>
-      ) : null}
-      <div className="min-h-0 flex-1">
-        <SearchPage
-          query={query}
-          nameAnswer={nameAnswer}
-          attributeAnswer={attributeAnswer}
-          documentAnswer={documentAnswer}
-          onQueryChange={(next) => {
-            setQuery(next);
-            keepLastQuery(next);
-          }}
-          hrefOf={pageOf}
-        />
-      </div>
-    </div>
+    <ReadingPage>
+      <PageHeader
+        title="Search"
+        {...(detail === undefined ? {} : { detail })}
+        {...(actions === undefined ? {} : { actions })}
+      />
+      <SearchPage
+        query={query}
+        answers={{ name, attribute, document }}
+        onQueryChange={(next) => {
+          setQuery(next);
+          keepLastQuery(next);
+        }}
+        hrefOf={pageOf}
+      />
+    </ReadingPage>
   );
 }
