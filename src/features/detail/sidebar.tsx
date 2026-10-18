@@ -104,7 +104,7 @@ export function Sidebar({ dossier, onSelectRelation, showOn }: SidebarProps) {
 export interface RelationSidebarProps {
   readonly relation: RelationDossier;
   /** The other canvas, where the panel gives a link to the same selection. */
-  readonly showOn?: Surface;
+  readonly showOn?: 'graph';
 }
 
 export function RelationSidebar({ relation, showOn }: RelationSidebarProps) {

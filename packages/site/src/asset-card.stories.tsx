@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, within } from 'storybook/test';
 
 import { AssetCard } from './asset-card.tsx';
-import { chainView } from './chain-card.ts';
+import { chainView } from '@gab/release/chain-card';
 import { SITE } from './event-fixture.ts';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
 

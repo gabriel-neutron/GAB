@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { eventsAt } from '@gab/site/event-lane';
+import { eventsAt } from '@gab/release/event-lane';
 import { readSiteRelease } from '@gab/release/site-release';
 import { readCsv } from '@gab/tools/csv';
 import { Pool } from 'pg';

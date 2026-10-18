@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./event-lane": "./src/event-lane.ts",
     "./write-site": "./src/write-site.ts"
   },
   "dependencies": {

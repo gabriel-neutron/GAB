@@ -13,6 +13,7 @@
     "./chain-steps": "./src/chain-steps.ts",
     "./countries.json": "./src/countries.json",
     "./day": "./src/day.ts",
+    "./event-keys": "./src/event-keys.ts",
     "./geometry-positions": "./src/geometry-positions.ts",
     "./identifiers": "./src/identifiers.ts",
     "./machine": "./src/machine.ts",

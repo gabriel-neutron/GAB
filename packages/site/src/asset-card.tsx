@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import type { Card } from './chain-card.ts';
+import type { Card } from '@gab/release/chain-card';
 import { STAGES, type StageKey } from '@gab/proposal/chain-stage';
 import { LINK } from './site-style.ts';
 

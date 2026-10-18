@@ -100,7 +100,7 @@ function GraphRoute() {
         <Sidebar dossier={dossier} showOn="map" />
       ) : relation !== null ? (
         /* The same pane, at the same width, so the canvas never changes size on a selection. */
-        <RelationSidebar relation={relation} showOn="map" />
+        <RelationSidebar relation={relation} />
       ) : selection === null ? null : (
         <aside
           aria-label="Detail"

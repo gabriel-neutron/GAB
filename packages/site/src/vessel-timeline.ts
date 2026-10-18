@@ -1,5 +1,6 @@
 import { isDay } from '@gab/proposal/day';
 import { relationWords } from '@gab/proposal/relation-types';
+import { elementsOf } from '@gab/release/value-elements';
 import type { SiteClaim, SiteRelation, SiteRelease } from '@gab/release/site-release';
 
 /** When a mark holds. An interval with no end is open: the release gives no end date, which does
@@ -85,22 +86,6 @@ const END_KEY = 'valid_to';
 // The day of an event is its `observed_on` value. With none, any value of the event that is a day
 // is its day, the first in the order of the release.
 const OBSERVED_KEY = 'observed_on';
-
-/** The elements of a value: a list in its JSON text gives each element, and any other text gives
- * itself. */
-export const elementsOf = (value: string): readonly string[] => {
-  if (!value.startsWith('[')) return [value];
-  try {
-    const list: unknown = JSON.parse(value);
-    if (Array.isArray(list))
-      return list.flatMap((one) =>
-        typeof one === 'string' || typeof one === 'number' ? [String(one)] : [],
-      );
-  } catch {
-    // A text that only starts like a list is one value.
-  }
-  return [value];
-};
 
 const dayOf = (
   values: readonly SiteClaim[],

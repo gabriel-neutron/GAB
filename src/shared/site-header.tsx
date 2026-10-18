@@ -27,7 +27,10 @@ const PAGE_LINK = cn(
 // the selection is read from the address bar. The router calls each function again at the click.
 // shortcut: the `href` of the graph is computed at render and can name an older selection, which
 // a click with a modifier opens; read the selection from a store of the graph when one exists.
-const TO_MAP = () => carriedSelection(window.location.pathname, window.location.search, '/map');
+// The map holds the entity only: a relation of the graph is not carried to it.
+const TO_MAP = () => ({
+  entity: carriedSelection(window.location.pathname, window.location.search, '/map').entity,
+});
 const TO_GRAPH = () => carriedSelection(window.location.pathname, window.location.search, '/graph');
 
 /** The one header of the site: the name of the dataset, one navigation with every page, and the

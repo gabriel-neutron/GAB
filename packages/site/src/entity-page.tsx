@@ -1,6 +1,6 @@
 import { attributeName } from '@gab/release/attribute-name';
 import { claimText } from '@gab/release/claim-text';
-import { eventsAt } from './event-lane.ts';
+import { eventsAt } from '@gab/release/event-lane';
 import { EventLane } from './events-section.tsx';
 import { NatoPairMark } from './nato-pair-mark.tsx';
 import { relationWords } from '@gab/proposal/relation-types';

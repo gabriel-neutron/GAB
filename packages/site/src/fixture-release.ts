@@ -1,4 +1,4 @@
-import { withChain } from './chain-fixture.ts';
+import { withChain } from '@gab/release/chain-fixture';
 import { withEvents } from './event-fixture.ts';
 import { readSiteRelease, type SiteRelease } from '@gab/release/site-release';
 
