@@ -1801,6 +1801,37 @@ test('a place that differs from the place of the new entity is a doubt', async (
   expect(found).toContain('record_disagrees');
 });
 
+test('two different places of one new entity that waits are a doubt', async () => {
+  const said = await rolledBack('superuser', async (ask) => {
+    const { vessel, outcome } = await placeOfPending(ask);
+    batchOf(outcome);
+    batchOf(
+      await proposeAgain(ask, [
+        item(
+          'other',
+          {
+            op: 'update_entity',
+            targetId: vessel,
+            geom: { type: 'Point', coordinates: [30.5, 50.4] },
+          },
+          '5940N 02819E',
+        ),
+      ]),
+    );
+    return z
+      .array(z.object({ said: z.string() }))
+      .parse(
+        await ask(
+          `SELECT k->>'said' AS said FROM public.unit_faults(ARRAY[$1::uuid]) f,
+                  jsonb_array_elements(f.faults) k WHERE k->>'kind' = 'record_disagrees'`,
+          [vessel],
+        ),
+      )
+      .map((one) => one.said);
+  });
+  expect(said).toContain('Another change of place of the unit gives another geometry');
+});
+
 test('propose refuses new attributes of a new entity that waits, and tells the agent to wait', async () => {
   const outcome = await rolledBack('superuser', async (ask) => {
     const [vessel] = batchOf(await proposeOnPage(ask, [NAYARA])).proposals;

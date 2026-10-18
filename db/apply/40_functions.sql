@@ -203,11 +203,15 @@ DECLARE
   v_wait uuid;
 BEGIN
   NEW.unit_id := NEW.id;
-  IF NEW.op = 'update_entity' AND NEW.payload ? 'geom'
-     AND EXISTS (SELECT 1 FROM public.proposals o
-                  WHERE o.id = NEW.target_id AND o.status = 'pending'
-                    AND o.op = 'create_entity') THEN
-    NEW.unit_id := NEW.target_id;
+  IF NEW.op = 'update_entity' AND NEW.payload ? 'geom' THEN
+    -- The lock waits for a decision on the entity that runs now, so the place never joins a unit
+    -- that the operator rejects at the same time.
+    PERFORM 1 FROM public.proposals o
+      WHERE o.id = NEW.target_id AND o.status = 'pending' AND o.op = 'create_entity'
+      FOR SHARE;
+    IF FOUND THEN
+      NEW.unit_id := NEW.target_id;
+    END IF;
     RETURN NEW;
   END IF;
   IF NEW.op <> 'create_relation' THEN
@@ -1176,6 +1180,8 @@ BEGIN
     -- promotion refuses an act that changes nothing, so the whole unit could never be written. An
     -- exact retry keeps its act.
     IF v_join IS NULL AND v_item->>'op' = 'update_entity' AND v_payload::jsonb ? 'geom' THEN
+      -- Two batches that give one place at the same time wait for each other here.
+      PERFORM pg_advisory_xact_lock(hashtextextended('entity_place:' || v_target::text, 0));
       SELECT CASE WHEN w.op = 'create_entity'
                   THEN format('item %s: the new entity %s has this place already', v_no, v_target)
                   ELSE format('item %s: the act %s gives this place to the new entity %s already',
@@ -2453,8 +2459,8 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                          AND w.status = 'rejected'))
 $$;
 
--- AN ACT THAT JOINED THE UNIT OF A PENDING ENTITY FROM OUTSIDE: a relation of another group, or
--- a change of the place of that entity. Its own fact is not judged with the entity, so a rejection
+-- AN ACT THAT JOINED THE UNIT OF A PENDING ENTITY FROM OUTSIDE: a relation or a change of the
+-- place of that entity, from another group. Its own fact is not judged with the entity, so a rejection
 -- of the unit gives it the reason "end rejected". No role holds this step.
 CREATE OR REPLACE FUNCTION joined_unit(p_act public.proposals, p_head public.proposals,
                                        p_left uuid[])
@@ -2464,7 +2470,8 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT p_act.id <> p_head.id AND p_head.id = ANY (p_left)
      AND ((p_act.op = 'create_relation'
            AND NOT coalesce(p_act.batch_id = p_head.batch_id, false))
-          OR (p_act.op = 'update_entity' AND p_act.target_id = p_head.id))
+          OR (p_act.op = 'update_entity' AND p_act.target_id = p_head.id
+              AND NOT coalesce(p_act.batch_id = p_head.batch_id, false)))
 $$;
 
 -- THE REJECTION OF ONE UNIT, WITH ITS ORIGIN. No role holds this step: the door of the operator
@@ -4247,6 +4254,18 @@ BEGIN
      WHERE a.op = 'update_entity' AND a.payload ? 'geom'
        AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(n.payload->'geom'),
                                 public.ST_GeomFromGeoJSON(a.payload->'geom'))
+    UNION ALL
+    -- Two changes of place of one entity in one unit. The promotion writes both, and the last one
+    -- replaces the other, so the operator compares them (S3).
+    SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
+           'Another change of place of the unit gives another geometry'
+      FROM acts a
+     WHERE a.op = 'update_entity' AND a.payload ? 'geom'
+       AND EXISTS (SELECT 1 FROM acts o
+                    WHERE o.id <> a.id AND o.op = 'update_entity' AND o.payload ? 'geom'
+                      AND o.target_id = a.target_id
+                      AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(o.payload->'geom'),
+                                               public.ST_GeomFromGeoJSON(a.payload->'geom')))
     -- --------------------------------------------------------------------------- information --
     UNION ALL
     SELECT DISTINCT i.unit_id, 'information', 'sources_from_parent', NULL::uuid,
