@@ -25,21 +25,21 @@ const NAV: readonly { readonly path: SitePath; readonly words: string }[] = [
 export function SiteFrame({ release, page, children }: SiteFrameProps) {
   const { manifest } = release;
   return (
-    <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-4 px-2 py-2 text-xs">
-      <header className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-border pb-2">
-        <a className={`font-medium ${LINK}`} href={hrefFrom(page.path, HOME)}>
+    <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-4 pt-3 pb-4 text-sm/6 [&_h2]:text-base [&_h2]:font-semibold">
+      <header className="flex flex-wrap items-baseline gap-x-4 gap-y-2 border-b border-border pb-3">
+        <a className={`font-semibold tracking-tight ${LINK}`} href={hrefFrom(page.path, HOME)}>
           GAB dataset
         </a>
-        <p className="text-muted-foreground">
+        <p className="text-label">
           Version of {releaseDay(manifest.date)}{' '}
           <span className="font-mono">({manifest.version})</span>
         </p>
-        <nav aria-label="Pages of the site" className="ml-auto">
-          <ul className="flex flex-wrap gap-3">
+        <nav aria-label="Pages of the site" className="w-full sm:ml-auto sm:w-auto">
+          <ul className="flex flex-wrap gap-x-4 gap-y-1">
             {NAV.map((one) => (
               <li key={one.path}>
                 <a
-                  className={LINK}
+                  className={`${LINK} text-muted-foreground hover:text-foreground aria-[current=page]:font-medium aria-[current=page]:text-foreground aria-[current=page]:decoration-primary`}
                   href={hrefFrom(page.path, one.path)}
                   aria-current={one.path === page.path ? 'page' : undefined}
                 >
@@ -50,11 +50,11 @@ export function SiteFrame({ release, page, children }: SiteFrameProps) {
           </ul>
         </nav>
       </header>
-      <main className="flex flex-col gap-4">
-        <h1 className="text-base font-medium">{page.title}</h1>
+      <main className="flex flex-col gap-6">
+        <h1 className="text-xl/7 font-semibold tracking-tight">{page.title}</h1>
         {children}
       </main>
-      <footer className="mt-auto flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-2 text-muted-foreground">
+      <footer className="mt-auto flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-xs/5 text-label">
         <a className={LINK} href={manifest.contacts.reportError}>
           Report an error
         </a>
