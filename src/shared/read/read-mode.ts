@@ -22,8 +22,9 @@ export async function readFrom<T>(
     return read;
   } catch (cause) {
     if (!(cause instanceof ReadServiceDown)) throw cause;
+    const fallback = await release();
     mode = 'release';
-    return release();
+    return fallback;
   }
 }
 

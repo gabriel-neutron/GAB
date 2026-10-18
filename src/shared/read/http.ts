@@ -14,6 +14,10 @@ const LOOPBACK = 'http://127.0.0.1:3000';
 function address(): string {
   const held: unknown = import.meta.env['VITE_API_URL'];
   const stated = typeof held === 'string' ? held.trim() : '';
+  // A built site names its service or has none: the loopback is the address of the visitor.
+  if (stated === '' && !import.meta.env.DEV) {
+    throw new ReadServiceDown('No read service address is set in this build.');
+  }
   const chosen = stated === '' ? LOOPBACK : stated;
   if (URL.parse(chosen) === null) {
     throw new Error(
