@@ -178,6 +178,8 @@ export type ProposalPayload =
   | { readonly kind: 'close'; readonly valid_to: string }
   /** The start date of a relation that has none, and no other value. */
   | { readonly kind: 'start'; readonly valid_from: string }
+  /** One more source for a relation of the record, and no other value. */
+  | { readonly kind: 'source' }
   /** The type of a relation, changed from designated_by to restricted_by, and no other value. */
   | { readonly kind: 'retype'; readonly type: string }
   | { readonly kind: 'columns'; readonly label: string | null; readonly type: string | null }

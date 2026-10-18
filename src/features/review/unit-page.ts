@@ -138,6 +138,11 @@ export type UnitAct =
       readonly validTo: string | null;
     })
   | (ActBase & {
+      readonly kind: 'source';
+      /** The relation that gets the documents of the act as sources. */
+      readonly target: UnitEnd;
+    })
+  | (ActBase & {
       readonly kind: 'retype';
       /** The relation whose type the act changes. */
       readonly target: UnitEnd;
@@ -248,6 +253,7 @@ const payload = z.object({
   geom: z.object({ type: z.string(), coordinates: z.unknown() }).optional(),
   valid_from: z.string().nullable().optional(),
   valid_to: z.string().nullable().optional(),
+  add_source: z.boolean().optional(),
 });
 
 const act = z.object({
@@ -441,6 +447,8 @@ const actOf = (read: ReadAct): UnitAct => {
       validTo: read.payload.valid_to,
       validFrom: read.targetFrom ?? null,
     };
+  if (read.op === 'update_relation' && read.targetId !== null && read.payload.add_source === true)
+    return { ...base, kind: 'source', target: endOf(read.targetId, read.target) };
   if (
     read.op === 'update_relation' &&
     read.targetId !== null &&

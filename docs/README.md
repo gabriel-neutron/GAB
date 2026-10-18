@@ -45,3 +45,4 @@ rules of the code review.
 | [0024](adr/0024-a-slash-date-of-the-fcdo-list-is-day-month.md) | A slash date of the FCDO UK Sanctions List is day/month | Accepted |
 | [0025](adr/0025-a-start-date-is-an-act-on-the-undated-relation.md) | A start date is an act on the undated relation | Accepted |
 | [0026](adr/0026-the-day-of-a-port-call-is-part-of-its-claim-key.md) | The day of a port call is part of its claim key | Accepted |
+| [0027](adr/0027-a-source-is-an-act-on-the-promoted-relation.md) | A source is an act on the promoted relation | Accepted |

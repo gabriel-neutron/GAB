@@ -110,11 +110,12 @@ export const writeRequest = z.discriminatedUnion('op', [
     attrs: attributeEdit,
   }),
 
-  // A change of a relation of the record has three forms, and each one holds a single value. The
+  // A change of a relation of the record has four forms, and each one holds a single value. The
   // start date: the database refuses it on a type that takes no interval, on a relation that has
   // a start, and after the end. The end date: the same, on a relation that has an end, and before
   // the start. The type: only designated_by to restricted_by, on a relation that has no open
-  // restricted_by twin.
+  // restricted_by twin. The source: the cited documents join the documents of the relation, and
+  // no date and no type changes.
   z
     .strictObject({
       op: z.literal('update_relation'),
@@ -122,11 +123,16 @@ export const writeRequest = z.discriminatedUnion('op', [
       validFrom: z.string().optional(),
       validTo: z.string().optional(),
       type: z.literal('restricted_by').optional(),
+      addSource: z.literal(true).optional(),
     })
     .refine(
       (act) =>
-        [act.validFrom, act.validTo, act.type].filter((one) => one !== undefined).length === 1,
-      { message: 'a change of a relation gives validFrom, validTo or type, and only one of them' },
+        [act.validFrom, act.validTo, act.type, act.addSource].filter((one) => one !== undefined)
+          .length === 1,
+      {
+        message:
+          'a change of a relation gives validFrom, validTo, type or addSource, and only one of them',
+      },
     ),
 
   z.strictObject({
