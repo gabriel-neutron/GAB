@@ -29,11 +29,14 @@ possible. You then propose the facts with the skill `cite-claim`.
    | 403, 429 or 503, a 202 or a 200 with no text, a challenge page | A bot filter (Cloudflare, AWS WAF) | Another copy, then the browser |
    | No whole answer within the time, no connection | A state site that refuses foreign addresses | The browser, then the list of needs |
    | 404 or 410, or the page says that it is missing | The address is wrong or old | Another copy, then the archive; never the browser |
+   | A 200 with no text from Interfax e-disclosure (`e-disclosure.ru`) | A filter that runs a script in the page | The browser, one page at a time and slowly |
 
    1. **Another official copy** of the same text from the same issuer: the PDF of the publisher,
       the Publications Office of the EU for an EU act (`eu_act` with the CELEX number), a
       repository of the paper (EconStor, RePEc, SSRN), the page of the institution itself. Find
-      it with `web_search`.
+      it with `web_search`. For a Russian or a Belarusian company, the copy of a register
+      aggregator is no official copy: use it only as the skill `research-method` says (a
+      register aggregator).
    2. **The browser** of the session (see "The browser step").
    3. **The web archive.** `archive_snapshot` lists the captures. Then `fetch_document` on the
       address of the newest capture. The archive often refuses the address of the PC (429): one

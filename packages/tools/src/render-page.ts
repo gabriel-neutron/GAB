@@ -4,7 +4,13 @@
 
 import { chromium, type Browser, type Route } from 'playwright';
 
-import { FetchRefusal, guardedGet, refusedAddress, type GetOptions } from './fetch-guard.ts';
+import {
+  FetchRefusal,
+  guardedGet,
+  refusedAddress,
+  type FetchMetadata,
+  type GetOptions,
+} from './fetch-guard.ts';
 
 interface RenderOptions extends GetOptions {
   /** The time of the whole render: launch, load, the requests of the page and the read. */
@@ -62,6 +68,41 @@ const withinTime = <T>(work: Promise<T>, ms: number): Promise<T> =>
     );
   });
 
+// External constraint: the sec-fetch-dest and sec-fetch-mode that Chrome sends for each kind of
+// request (Fetch Metadata Request Headers, W3C). A filter can compare them with the kind of the
+// request, so a script is not asked for as a page.
+const DEST: Readonly<Record<string, string>> = {
+  document: 'iframe',
+  script: 'script',
+  stylesheet: 'style',
+  image: 'image',
+  font: 'font',
+  media: 'video',
+  manifest: 'manifest',
+};
+const CORS = new Set(['xhr', 'fetch', 'eventsource', 'font', 'manifest']);
+
+// shortcut: the site is the last two labels of the host name, so a host under a public suffix of
+// two labels (co.uk) is same-site with another host of that suffix. Upgrade with a list of public
+// suffixes if a filter refuses the render for this reason.
+const siteOf = (host: string): string => host.split('.').slice(-2).join('.');
+
+/** The fetch metadata of a part of the page at `page`. */
+export const partMetadata = (page: string, part: string, kind: string): FetchMetadata => {
+  const from = new URL(page);
+  const to = new URL(part);
+  return {
+    dest: DEST[kind] ?? 'empty',
+    mode: kind === 'document' ? 'navigate' : CORS.has(kind) ? 'cors' : 'no-cors',
+    site:
+      from.origin === to.origin
+        ? 'same-origin'
+        : siteOf(from.hostname) === siteOf(to.hostname)
+          ? 'same-site'
+          : 'cross-site',
+  };
+};
+
 /** Loads one page in Chromium from the bytes already fetched, and returns its HTML. */
 export const renderPage = async (
   url: string,
@@ -95,7 +136,12 @@ export const renderPage = async (
     }
     let got;
     try {
-      got = await guardedGet(request.url(), { ...opts, timeoutMs, refuses });
+      got = await guardedGet(request.url(), {
+        ...opts,
+        timeoutMs,
+        refuses,
+        subresource: partMetadata(url, request.url(), request.resourceType()),
+      });
     } catch (fault) {
       if (!(fault instanceof FetchRefusal)) throw fault;
       await settled(() => route.abort());
