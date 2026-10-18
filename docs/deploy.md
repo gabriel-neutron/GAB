@@ -6,7 +6,7 @@ write a release (below) and put its site on any static host.
 
 Every worker command is a sub-command of `pnpm worker`. Run it with no argument for the list and
 the usage. Run a command with `--dry-run` first when it has that flag. Every value below is
-listed, with its comment, in `infra/.env.example`.
+listed, with its comment, in `infra/.env.example`, except `FIRMS_MAP_KEY` (set it in the environment).
 
 ## The database and the raw store
 
@@ -110,7 +110,8 @@ command refuses an unknown key and names the fault.
   Set it once, to the public site, before the first public release. Never change it after.
 - `criticalNodes` is the path of your CSV sheet of candidate nodes, relative to the manifest. Keep
   it outside the checkout. Condition `b` is documented production in 2024-2026; `c` is presence in
-  a bypass routing; `a` is ticked by the release itself. A tick with no `claim_ids` shows "not
+  a bypass routing; `a` is ticked by the release itself. `controller` and `bypass_pattern` are public text: name no person that the release does not show.
+  A tick with no `claim_ids` shows "not
   sourced" and does not count. The release refuses the sheet when a row names a node or a claim that
   is not public.
 - `volumes` is the path of the volume table of the research, relative to the manifest. The release

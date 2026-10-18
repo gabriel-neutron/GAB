@@ -219,4 +219,4 @@ results. Do not paste the key into a chat or a ticket.
 
 ## 8. Rollback
 
-To stop a service, run `docker compose down` on its file (`down -v` deletes test data only). To cut GitHub access, revoke the VPS PAT: the PC PAT stays valid. An agent lands its work as pull requests into `staging`: undo one with `git revert` on `staging`. Never force-push `staging`.
+To stop a service, run `docker compose down` on its file (SearXNG needs `--env-file ~/gab-services/.env`; `down -v` deletes test data only). To cut GitHub access, revoke the VPS PAT: the PC PAT stays valid. A `401 Bad credentials` means that the VPS PAT expired: replace it in `.claude/settings.local.json` (step 4). An agent lands its work as pull requests into `staging`: undo one with `git revert` on `staging`. Never force-push `staging`.
