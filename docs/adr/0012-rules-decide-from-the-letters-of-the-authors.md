@@ -1,7 +1,8 @@
 # ADR 0012 — Named rules in the database decide from the letters of the authors
 
-**Status** Accepted · 8 October 2026, corrected the same day (#378) and on 17 October 2026 (the
-move of a name, the addition to the reference set) · Replaces ADR 0011.
+**Status** Accepted · 8 October 2026, corrected the same day (#378), on 17 October 2026 (the
+move of a name, the addition to the reference set) and on 18 October 2026 (the move between two
+rated authors, the return of a name to the rater) · Replaces ADR 0011.
 
 ## Context
 
@@ -47,8 +48,18 @@ ADR 0011 had a similar method, but it was large, and the product removed it on 7
   old row and a confirmation of the new row, and both decisions record the operator. Then the
   rules run again on the units of the name. A move into an author out of the reference set is
   refused, because only the operator gives A or B, and so is a move of a name of a reference
-  author. A move between two rated authors is not in this build. The old author keeps its row,
-  and the rater no longer sees it once its own name has moved.
+  author. The old author keeps its row, and the rater no longer sees it once its own name has
+  moved.
+- The rater can also join a name to a wrong author that it rated. On 17 October 2026 the name of
+  the government of the Russian Federation was a name of the ministry of defence (D). So a move
+  can also go into another author that the worker rated, and the new row needs no decision of A
+  or B, but it has a confirmation that records the operator. And the operator can **give a name
+  back to the rater** with `pnpm worker author-names rerate <name>`: a refusal retires the row,
+  the rating job of the name goes back to the queue, and the name reads as F until the rater
+  answers. The rater cannot join the name to that author again, because the refusal stands. The
+  door refuses the own name of an author, because each author keeps its own name: the operator
+  moves that name. In each case the rules run again on the units of the name. A change of the
+  letter of an author is not in this build.
 - A is only for the issuer of an official record, on its own record. A and B come only from the
   reference set, which the operator approves. Each reference author keeps its **sites**: the host
   names where it publishes its own records. One source A counts alone only when the cited
