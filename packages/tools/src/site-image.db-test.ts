@@ -59,10 +59,17 @@ const sessionOf = (ask: Ask): Session => ({
 const KIRISHI = { south: 59.42, west: 32.0, north: 59.46, east: 32.08, site: 'KINEF, Kirishi' };
 
 test('the size of the image is about 10 m for each pixel, and at most 2048 pixels on a side', () => {
-  expect(imageSize(KIRISHI)).toStrictEqual({ width: 453, height: 445 });
+  expect(imageSize(KIRISHI)).toStrictEqual({ width: 453, height: 445, metres: 10 });
   expect(imageSize({ south: 0, west: 0, north: 0.25, east: 0.25 })).toStrictEqual({
     width: 2048,
     height: 2048,
+    metres: 13.6,
+  });
+  // A thin box keeps its shape: the short side takes 64 pixels, and a pixel is smaller.
+  expect(imageSize({ south: 0, west: 0, north: 0.002, east: 0.05 })).toStrictEqual({
+    width: 1600,
+    height: 64,
+    metres: 3.5,
   });
   expect(imageAddress('https://wms.test/wms', KIRISHI)).toContain(
     'layers=s2cloudless&styles=&srs=EPSG%3A4326&bbox=32.000000%2C59.420000%2C32.080000%2C59.460000',
@@ -90,6 +97,7 @@ test('the image of a box is stored once, with its provider, its licence and a te
     expect(got.status).toBe('stored');
     expect(got.url).toBe(imageAddress(wms, KIRISHI));
     expect(got.credit).toBe(SITE_IMAGE_CREDIT);
+    expect(first.output).toMatchObject({ notice: null });
 
     const [row] = z.array(documentRow).parse(
       await ask(
@@ -113,7 +121,21 @@ test('the image of a box is stored once, with its provider, its licence and a te
     expect(row?.text).toContain(SITE_IMAGE_CREDIT);
 
     const again = await callTool(tool, sessionOf(ask), KIRISHI, fixtureReach(store));
-    expect(again).toMatchObject({ ok: true, output: { status: 'known', document: got.document } });
+    expect(again).toMatchObject({
+      ok: true,
+      output: { status: 'known', document: got.document, notice: null },
+    });
+    // Another box with the same bytes gets the first document and a notice.
+    const other = await callTool(
+      tool,
+      sessionOf(ask),
+      { ...KIRISHI, north: 59.47, site: 'Another site' },
+      fixtureReach(store),
+    );
+    expect(other).toMatchObject({ ok: true, output: { status: 'known', document: got.document } });
+    expect(other.ok ? other.output : null).toMatchObject({
+      notice: expect.stringContaining('states its own box') as string,
+    });
   });
   expect(store.puts).toHaveLength(1);
 });
@@ -122,6 +144,11 @@ test.each([
   ['a box with north under south', { ...KIRISHI, north: 59.4 }, 'north is larger'],
   ['a box larger than the limit', { ...KIRISHI, east: 32.5 }, 'at most'],
   ['a box too small to show a site', { ...KIRISHI, east: 32.001 }, 'at least'],
+  [
+    'a box too thin for one image',
+    { ...KIRISHI, north: 59.4221, east: 32.2 },
+    'times its short side',
+  ],
 ])('%s is refused before any request', async (_name, input, reason) => {
   const before = asked.length;
   const outcome = await callTool(

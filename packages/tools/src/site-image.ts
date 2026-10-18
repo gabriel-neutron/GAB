@@ -27,6 +27,8 @@ export const SITE_IMAGE_CREDIT =
 const METRES_PER_PIXEL = 10;
 const MAX_PIXELS = 2048;
 const MIN_PIXELS = 64;
+// The image keeps the shape of the box, so a long side holds at most this many short sides.
+const MAX_SHAPE = MAX_PIXELS / MIN_PIXELS;
 const MAX_SPAN_DEGREES = 0.25;
 const MIN_SPAN_DEGREES = 0.002;
 const METRES_PER_DEGREE = 111_320;
@@ -41,15 +43,27 @@ const longitude = z.number().min(-180).max(180);
 // Six decimals are about 10 cm, so the same box gives the same address and the same bytes.
 const fixed = (degrees: number): string => degrees.toFixed(6);
 
-/** The size of the image in pixels: about 10 m for each pixel, and at most 2048 on a side. */
-export const imageSize = (box: Box): { width: number; height: number } => {
+// The width and the height of the box on the ground, in metres.
+const groundOf = (box: Box): { wide: number; high: number } => {
   const middle = ((box.south + box.north) / 2) * (Math.PI / 180);
-  const wide = ((box.east - box.west) * METRES_PER_DEGREE * Math.cos(middle)) / METRES_PER_PIXEL;
-  const high = ((box.north - box.south) * METRES_PER_DEGREE) / METRES_PER_PIXEL;
-  const scale = Math.min(1, MAX_PIXELS / Math.max(wide, high));
   return {
-    width: Math.max(MIN_PIXELS, Math.round(wide * scale)),
-    height: Math.max(MIN_PIXELS, Math.round(high * scale)),
+    wide: (box.east - box.west) * METRES_PER_DEGREE * Math.cos(middle),
+    high: (box.north - box.south) * METRES_PER_DEGREE,
+  };
+};
+
+/** The size of the image in pixels, and the metres of one pixel: about 10 m, at most 2048 and
+ * at least 64 pixels on a side. The image keeps the shape of the box. */
+export const imageSize = (box: Box): { width: number; height: number; metres: number } => {
+  const { wide, high } = groundOf(box);
+  const native = Math.max(wide, high) / METRES_PER_PIXEL;
+  const short = Math.min(wide, high) / METRES_PER_PIXEL;
+  let scale = Math.min(1, MAX_PIXELS / native);
+  if (short * scale < MIN_PIXELS) scale = MIN_PIXELS / short;
+  return {
+    width: Math.round((wide / METRES_PER_PIXEL) * scale),
+    height: Math.round((high / METRES_PER_PIXEL) * scale),
+    metres: Math.round((METRES_PER_PIXEL / scale) * 10) / 10,
   };
 };
 
@@ -80,13 +94,13 @@ export const imageAddress = (wms: string, box: Box): string => {
 
 // The text of the image: what it shows, its date and its credit. A reader cites a point placed on
 // the image with this document, and OCR reads nothing in a satellite image.
-const pageOf = (site: string, box: Box, width: number, height: number): string =>
+const pageOf = (site: string, box: Box, size: ReturnType<typeof imageSize>): string =>
   [
     `Sentinel-2 cloudless 2016 image (EOX, layer ${LAYER}) of the site: ${site}.`,
     `Box (WGS 84): south ${fixed(box.south)}, west ${fixed(box.west)}, north ` +
       `${fixed(box.north)}, east ${fixed(box.east)}.`,
-    `${String(width)} by ${String(height)} pixels, about ${String(METRES_PER_PIXEL)} m for each ` +
-      'pixel.',
+    `${String(size.width)} by ${String(size.height)} pixels, ${String(size.metres)} m for each ` +
+      `pixel (the data has ${String(METRES_PER_PIXEL)} m).`,
     'The image shows the site as it was in 2016. A site that was built later is not on it, and ' +
       'a gate or a small berth is not visible at this size. A point placed on the image must ' +
       'show a feature that is visible on it.',
@@ -110,6 +124,9 @@ const boxShape = z
       fault(`a side of the box is at most ${String(MAX_SPAN_DEGREES)} degrees`);
     if (box.north - box.south < MIN_SPAN_DEGREES || box.east - box.west < MIN_SPAN_DEGREES)
       fault(`a side of the box is at least ${String(MIN_SPAN_DEGREES)} degrees`);
+    const { wide, high } = groundOf(box);
+    if (Math.max(wide, high) > MAX_SHAPE * Math.min(wide, high))
+      fault(`the long side of the box is at most ${String(MAX_SHAPE)} times its short side`);
   });
 
 /** The tool on one WMS address. A test gives the address of a local server. */
@@ -134,12 +151,13 @@ export const siteImageAt = (wms: string) =>
       width: z.number().int(),
       height: z.number().int(),
       credit: z.string(),
+      notice: z.string().nullable(),
     }),
     async run(session, input, reach) {
       if (reach?.store === undefined)
         throw new ToolRefusal('this surface gives no object store, so it stores no image');
       const url = imageAddress(wms, input);
-      const { width, height } = imageSize(input);
+      const size = imageSize(input);
       let got;
       try {
         got = await guardedGet(url, {
@@ -162,13 +180,17 @@ export const siteImageAt = (wms: string) =>
             'stored',
         );
 
+      const title = (
+        `Sentinel-2 cloudless 2016 image of ${input.site} (box ` +
+        `${[input.south, input.west, input.north, input.east].map(fixed).join(', ')})`
+      ).slice(0, MAX_TITLE);
       const stored = await storeAnswer(session, reach.store, {
         kind: 'api',
         bytes: got.bytes,
         mime: 'image/jpeg',
         uri: url,
-        title: `Sentinel-2 cloudless 2016 image of ${input.site}`.slice(0, MAX_TITLE),
-        pages: [pageOf(input.site, input, width, height)],
+        title,
+        pages: [pageOf(input.site, input, size)],
         day: reach.now().toISOString().slice(0, 10),
         provider: 'eox_s2cloudless_2016',
       });
@@ -177,9 +199,16 @@ export const siteImageAt = (wms: string) =>
         status: stored.status,
         title: stored.title,
         url,
-        width,
-        height,
+        width: size.width,
+        height: size.height,
         credit: SITE_IMAGE_CREDIT,
+        // The same bytes are one document. A uniform image (water, snow) of another box or site
+        // gives the document of the first one, and its text states that box.
+        notice:
+          stored.title === title
+            ? null
+            : `these bytes are already document ${stored.id} (${stored.title}), and its text ` +
+              'states its own box: the image shows no feature of this box',
       };
     },
   });

@@ -1929,6 +1929,7 @@ test('the reason of a doubt of place gives the gap, and the limit of the role of
                                       held, given) AS said
            FROM (VALUES (32.0, 59.4517, NULL, NULL), (32.0, 59.4517, 'plant', 'plant'),
                         (32.0, 59.4517, NULL, 'gate'), (32.0, 59.4517, 'plant', 'gate'),
+                        (32.0, 59.4419, 'gate', 'gate'),
                         (32.0, 59.4405, 'berth', NULL))
                 AS v(a, b, held, given)`,
       ),
@@ -1937,8 +1938,17 @@ test('the reason of a doubt of place gives the gap, and the limit of the role of
   expect(said.map((row) => row.said)).toStrictEqual([
     ', 1303 m apart',
     ', 1303 m apart, more than the 1000 m of one plant: two sources give two places',
-    ', 1303 m apart, more than the 200 m of one gate: two sources give two places',
+    ', 1303 m apart',
     ', 1303 m apart, and the two points have two roles (plant, gate), so they are not compared',
+    ', 212 m apart, more than the 200 m of one gate: two sources give two places',
     ', 56 m apart',
   ]);
+  // An empty geometry gives no gap, and the reason keeps its words.
+  const empty = await rolledBack('superuser', async (ask) =>
+    ask(
+      `SELECT public.place_gap_said(public.ST_MakePoint(32.0, 59.44),
+                                    'POINT EMPTY'::public.geometry, NULL, NULL) AS said`,
+    ),
+  );
+  expect(empty).toStrictEqual([{ said: '' }]);
 });

@@ -100,8 +100,8 @@ Use the highest source that gives the point. A published point never comes from 
 2. A point that a person places on a stored satellite image (tool `site_image`: the Sentinel-2
    cloudless 2016 layer of EOX, CC BY 4.0). The point must show a feature that is visible on the
    image. The image is of 2016, with 10 m pixels: a site that was built later is not on it, and
-   a gate is not visible. Store the image for the reviewer. The review of a point placed on the
-   image is a later step, so do not propose such a point yet.
+   a gate is not visible. Store the image for the reviewer. An agent does not place the point:
+   the operator places it on the image, and the review of such a point is a later ticket.
 
 A geocoder (ArcGIS, Yandex, 2GIS, HERE, Google, Nominatim) is only a check of an address. Its
 licence forbids storage or binds the record, and an address point marks an entrance, not a

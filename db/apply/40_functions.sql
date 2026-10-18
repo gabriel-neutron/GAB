@@ -3860,21 +3860,22 @@ SET search_path = pg_catalog, public, pg_temp AS $$
     SELECT round(public.ST_Distance(public.ST_SetSRID(p_held, 4326)::public.geography,
                                     public.ST_SetSRID(p_given, 4326)::public.geography))::bigint
              AS metres,
-           coalesce(p_given_role, p_held_role) AS role,
-           CASE coalesce(p_given_role, p_held_role)
-             WHEN 'plant' THEN 1000 WHEN 'port' THEN 1000
-             WHEN 'gate' THEN 200 WHEN 'berth' THEN 200 END AS limit_metres
+           -- A limit holds only for two points of one known role: a point with no role can be
+           -- any of them.
+           CASE WHEN p_held_role = p_given_role THEN
+             CASE p_held_role WHEN 'plant' THEN 1000 WHEN 'port' THEN 1000
+                              WHEN 'gate' THEN 200 WHEN 'berth' THEN 200 END END AS limit_metres
   )
-  SELECT ', ' || g.metres || ' m apart' ||
+  SELECT coalesce(', ' || g.metres || ' m apart' ||
          CASE
            WHEN p_held_role IS NOT NULL AND p_given_role IS NOT NULL
                 AND p_held_role <> p_given_role
              THEN ', and the two points have two roles (' || p_held_role || ', ' || p_given_role
                   || '), so they are not compared'
            WHEN g.limit_metres IS NOT NULL AND g.metres > g.limit_metres
-             THEN ', more than the ' || g.limit_metres || ' m of one ' || g.role
+             THEN ', more than the ' || g.limit_metres || ' m of one ' || p_held_role
                   || ': two sources give two places'
-           ELSE '' END
+           ELSE '' END, '')
     FROM gap g
 $$;
 
@@ -4300,10 +4301,13 @@ BEGIN
            'Another change of place of the unit gives another geometry' ||
            coalesce((SELECT public.place_gap_said(public.ST_GeomFromGeoJSON(o.payload->'geom'),
                                                   public.ST_GeomFromGeoJSON(a.payload->'geom'),
-                                                  o.payload->'attrs'->'point_role'->>'v', a.payload->'attrs'->'point_role'->>'v')
+                                                  o.payload->'attrs'->'point_role'->>'v',
+                                                  a.payload->'attrs'->'point_role'->>'v')
                        FROM acts o
                       WHERE o.id <> a.id AND o.op = 'update_entity' AND o.payload ? 'geom'
                         AND o.target_id = a.target_id
+                        AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(o.payload->'geom'),
+                                                 public.ST_GeomFromGeoJSON(a.payload->'geom'))
                       ORDER BY o.id LIMIT 1), '')
       FROM acts a
      WHERE a.op = 'update_entity' AND a.payload ? 'geom'
