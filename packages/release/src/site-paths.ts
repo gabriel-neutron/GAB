@@ -3,12 +3,7 @@ import { SiteReleaseFault } from './site-release-fault.ts';
 /** A file of the site, by its path from the root of the site, with `/` between the folders. */
 export type SitePath = string;
 
-export const HOME: SitePath = 'index.html';
 export const MAP: SitePath = 'map/index.html';
-export const DOWNLOADS: SitePath = 'downloads/index.html';
-export const METHOD: SitePath = 'method/index.html';
-export const V1: SitePath = 'v1/index.html';
-export const STYLE: SitePath = 'assets/site.css';
 
 /** An identifier of the release cannot be a path of the site. */
 export class SitePathFault extends SiteReleaseFault {}
@@ -48,8 +43,3 @@ export const permanentAddress = (base: string, kind: 'entity' | 'claim', id: str
  * and from the files on a disk. */
 export const hrefFrom = (here: SitePath, target: SitePath): string =>
   '../'.repeat(here.split('/').length - 1) + target.split('/').map(encodeURIComponent).join('/');
-
-/** The map script and the stylesheet of MapLibre, beside the stylesheet of the site. */
-export const MAP_SCRIPT: SitePath = 'assets/map.js';
-export const MAP_COUNTRIES: SitePath = 'assets/countries.json';
-export const MAP_STYLE: SitePath = 'assets/maplibre-gl.css';

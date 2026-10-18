@@ -59,5 +59,6 @@ const subscribe = (listener: () => void): (() => void) => {
 
 /** True only when the writer said it is online. */
 export function useWriterOnline(): boolean {
-  return useSyncExternalStore(subscribe, writerStatus) === 'online';
+  // The render at the release has no writer, and the browser asks it after the first paint.
+  return useSyncExternalStore(subscribe, writerStatus, () => 'unknown') === 'online';
 }

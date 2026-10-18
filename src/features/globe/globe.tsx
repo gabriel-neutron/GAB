@@ -21,9 +21,9 @@ export interface GlobeProps {
 }
 
 // External constraint: the user agent tells the system choice of the reader here, and a media
-// query is the one way to read it.
+// query is the one way to read it. The render at the release has no user agent and no motion.
 const asksForNoMotion = (): boolean =>
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** The globe of the release, as a dark island in the light page: the canvas, the product chains
  * over it, the six steps under it and the card beside it. Then the list of the entities. */

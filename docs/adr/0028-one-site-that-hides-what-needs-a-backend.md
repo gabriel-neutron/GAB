@@ -67,5 +67,7 @@ that need a backend show only when the backend answers.
 - The files of a release hold the own point of an entity, and no precision word and no row-level
   source list. A page that reads the files shows the same claims, relations and sources, but the
   map draws own points only and cannot borrow the point of a parent.
-- Until the move is done, the release still writes the static site of ADR 0020. The deployment
-  guide and the spec describe the build as it is, and change with the code.
+- The move is done (18 October 2026). The release builds the application and no longer writes the
+  static site of ADR 0020. The code of the static pages, the map script and the second style
+  sheet are deleted. The release command no longer copies a build of the version 1 map: the old
+  address of that map gives a short page that links the critical nodes.

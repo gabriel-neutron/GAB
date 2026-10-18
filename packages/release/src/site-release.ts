@@ -109,7 +109,7 @@ export interface SiteVolume {
   readonly note: string;
 }
 
-/** What the static site shows of one release, read from its files. */
+/** What the site shows of one release, read from its files. */
 export interface SiteRelease {
   readonly manifest: SiteManifest;
   readonly entities: readonly SiteEntity[];

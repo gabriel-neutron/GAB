@@ -181,7 +181,7 @@
 
   /* The reading scale. A public page is read and cited, not worked on, so its prose is 14px and
      it has a page title and a section title. A table and a screen of the operator keep the dense
-     scale. The values are the ones the static site was measured at. */
+     scale. The values are the ones the first public pages were measured at. */
   --text-body: 14px;
   --text-body--line-height: 24px;
   --text-section: 16px;

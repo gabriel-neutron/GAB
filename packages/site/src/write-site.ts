@@ -1,47 +1,44 @@
-import {
-  access,
-  copyFile,
-  cp,
-  mkdir,
-  mkdtemp,
-  readFile,
-  rename,
-  rm,
-  writeFile,
-} from 'node:fs/promises';
-import { basename, dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { access, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
 
-import tailwindcss from '@tailwindcss/vite';
 import { build, createServer } from 'vite';
 import { z } from 'zod';
 
-import { MAP_COUNTRIES, MAP_SCRIPT, V1 } from '@gab/release/site-paths';
+import { claimPage, entityPage, relationPage, vesselPage } from '@gab/release/site-paths';
+import { readSiteRelease, type SiteRelease } from '@gab/release/site-release';
 import { SiteReleaseFault } from '@gab/release/site-release-fault';
 
 /** A site of the same release is in the folder already. */
 export class SiteFolderExists extends Error {}
 
 const REPOSITORY = resolve(import.meta.dirname, '../../..');
-const BUILDER = resolve(import.meta.dirname, 'build-site.tsx');
-const MAP_ENTRY = resolve(import.meta.dirname, 'map-script.ts');
-// The outlines of the countries, from Natural Earth (public domain), simplified at 110 m.
-const COUNTRIES = fileURLToPath(import.meta.resolve('@gab/proposal/countries.json'));
+const CONFIG = join(REPOSITORY, 'vite.config.ts');
+const PRERENDER = join(REPOSITORY, 'src/prerender.tsx');
 
-// The site takes the one stylesheet of the application, so it paints with the same tokens and
-// no second palette exists. Tailwind builds the classes that the repository uses.
-const STYLESHEET = '/src/index.css?inline';
+/** The folder of the host where the site stands. Set `SITE_BASE` to a path that starts and ends
+ * with a slash to put the site in a folder, as `/gab/`. The default is the root of the host. */
+const baseOfSite = (): string => {
+  const given = process.env['SITE_BASE'] ?? '/';
+  if (!/^\/([\w.-]+\/)*$/u.test(given))
+    throw new SiteReleaseFault(
+      `SITE_BASE is "${given}". It must start and end with a slash, as "/" or "/gab/".`,
+    );
+  return given;
+};
 
-const V1_PROJECT = 'project.gpkg';
+// A release build has no read service: the public host has none, and the application then reads
+// the files of the release (ADR 0028). The value is fixed here, so a service address in the
+// environment of the operator never goes into a file that is published.
+const NO_READ_SERVICE = { 'import.meta.env.VITE_API_URL': '""' };
 
-// External constraint: MapLibre loads its worker from the address of its own module, beside it,
-// so its three modules and its stylesheet go to the assets folder as they are.
-const MAPLIBRE_FILES = [
-  'maplibre-gl.mjs',
-  'maplibre-gl-shared.mjs',
-  'maplibre-gl-worker.mjs',
-  'maplibre-gl.css',
-];
+// The shell is the page of the build. Each page of the site is the shell with its own title and,
+// for a page with a permanent address, its own markup in the root element.
+const SHELL_ROOT = '<div id="root"></div>';
+const SHELL_TITLE = /<title>[^<]*<\/title>/u;
+const TITLE_SUFFIX = ' · GAB dataset';
+
+// The pages that need a script and hold no permanent text: the shell opens them as it is.
+const SCRIPT_PAGES = ['graph', 'search', 'review'] as const;
 
 const fileManifest = z.object({
   files: z.array(z.object({ path: z.string().regex(/^[\w-][\w.-]*$/u) })),
@@ -74,101 +71,221 @@ const readReleaseFolder = async (folder: string): Promise<ReadonlyMap<string, st
   return files;
 };
 
-// The worker type-checks this file with no JSX and no DOM, so the shape of the builder is stated
-// here and not imported from its file.
-type BuildSite = (
+const escapeHtml = (text: string): string =>
+  text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+
+/** One page of the site: the folder of its file from the root of the site (empty for the home
+ * page), and how it opens. */
+interface Page {
+  readonly folder: string;
+  /** `text`: the application renders it. `script`: the shell opens it as it is. `merged`: a short
+   * page that sends the reader to the entity that survived a merge. */
+  readonly kind: 'text' | 'script' | 'merged';
+  readonly survivor?: { readonly folder: string; readonly label: string };
+}
+
+const folderOf = (file: string): string => dirname(file);
+
+/** Each page of the release at its permanent address, the address of the version 1 map, and the
+ * pages that need a script. */
+const pagesOf = (release: SiteRelease): readonly Page[] => {
+  const pages: Page[] = [
+    { folder: '', kind: 'text' },
+    { folder: 'map', kind: 'text' },
+    { folder: 'downloads', kind: 'text' },
+    { folder: 'method', kind: 'text' },
+    { folder: 'v1', kind: 'text' },
+    ...SCRIPT_PAGES.map((folder) => ({ folder, kind: 'script' as const })),
+  ];
+  for (const entity of release.entities)
+    pages.push({ folder: folderOf(entityPage(entity.id)), kind: 'text' });
+  for (const imo of release.vesselsByImo.keys())
+    pages.push({ folder: folderOf(vesselPage(imo)), kind: 'text' });
+  for (const claim of release.claims)
+    pages.push({ folder: folderOf(claimPage(claim.id)), kind: 'text' });
+  for (const relation of release.relations)
+    if (release.claimById.has(relation.id))
+      pages.push({ folder: folderOf(relationPage(relation.id)), kind: 'text' });
+  for (const [absorbed, survivor] of release.aliases) {
+    const target = release.entityById.get(survivor);
+    if (target === undefined || release.entityById.has(absorbed)) continue;
+    pages.push({
+      folder: folderOf(entityPage(absorbed)),
+      kind: 'merged',
+      survivor: { folder: folderOf(entityPage(survivor)), label: target.label },
+    });
+  }
+  return pages;
+};
+
+/** The page of a merged entity: one sentence and a link to the entity that holds its claims. The
+ * document also sends the browser there, and the script of the application does the same. */
+const mergedPage = (base: string, survivor: NonNullable<Page['survivor']>) => {
+  const target = escapeHtml(`${base}${survivor.folder}/`);
+  return {
+    head: `<meta http-equiv="refresh" content="0; url=${target}">`,
+    html:
+      '<main><h1>Merged entity</h1><p>A merge joined this entity to another entity, which now ' +
+      `holds its claims: <a href="${target}">${escapeHtml(survivor.label)}</a></p></main>`,
+  };
+};
+
+interface RenderedPage {
+  readonly html: string;
+  readonly title: string;
+}
+
+interface Renderer {
+  renderPage(address: string): Promise<RenderedPage>;
+}
+
+const isRenderer = (value: unknown): value is Renderer =>
+  typeof value === 'object' &&
+  value !== null &&
+  'renderPage' in value &&
+  typeof value.renderPage === 'function';
+
+// The render runs in Node, so a relative address has no host and no `fetch` to answer it. This
+// `fetch` answers the files of the release and refuses every other address, so the read service
+// looks down and each page reads the release, as the built site does on a static host.
+const NO_HOST = 'http://release.invalid/';
+
+const releaseFetch =
+  (files: ReadonlyMap<string, string>, base: string): typeof fetch =>
+  (input) => {
+    const address = new URL(
+      typeof input === 'string' || input instanceof URL ? input : input.url,
+      NO_HOST,
+    );
+    const prefix = `${base}release/`;
+    if (address.origin !== new URL(NO_HOST).origin || !address.pathname.startsWith(prefix))
+      return Promise.reject(new TypeError('The render at the release has no network.'));
+    const text = files.get(decodeURIComponent(address.pathname.slice(prefix.length)));
+    return Promise.resolve(
+      text === undefined ? new Response(null, { status: 404 }) : new Response(text),
+    );
+  };
+
+const setVariable = (name: string, value: string | undefined): void => {
+  if (value === undefined) Reflect.deleteProperty(process.env, name);
+  else process.env[name] = value;
+};
+
+/** Runs `work` with the variables of the environment that the build reads, and puts the old values
+ * back. The release folder is the one input that the build takes from the environment
+ * (vite.config.ts). The mode is production in every process, a test run included. */
+const withBuildEnvironment = async <T>(
+  releaseFolder: string | undefined,
+  work: () => Promise<T>,
+): Promise<T> => {
+  const names = { RELEASE_DIR: releaseFolder, NODE_ENV: 'production' } as const;
+  const held = Object.fromEntries(Object.keys(names).map((name) => [name, process.env[name]]));
+  for (const [name, value] of Object.entries(names)) setVariable(name, value);
+  try {
+    return await work();
+  } finally {
+    for (const [name, value] of Object.entries(held)) setVariable(name, value);
+  }
+};
+
+/** Builds the application in `target`, with a copy of each file of the release beside it. */
+const buildApplication = (releaseFolder: string, target: string, base: string): Promise<void> =>
+  withBuildEnvironment(releaseFolder, async () => {
+    await build({
+      root: REPOSITORY,
+      configFile: CONFIG,
+      logLevel: 'error',
+      base,
+      define: NO_READ_SERVICE,
+      build: { outDir: target, emptyOutDir: true },
+    });
+  });
+
+/** Renders each page that has a permanent text. Vite loads the application, because Node cannot
+ * run its JSX and its routes. */
+const renderPages = (
   files: ReadonlyMap<string, string>,
-  style: string,
-  withV1: boolean,
-) => readonly { readonly path: string; readonly text: string }[];
+  pages: readonly Page[],
+  base: string,
+): Promise<ReadonlyMap<string, RenderedPage>> =>
+  withBuildEnvironment(undefined, () => renderWithServer(files, pages, base));
 
-const isBuilder = (value: unknown): value is BuildSite => typeof value === 'function';
-
-/** Loads the page components through Vite, which compiles the JSX that Node cannot run, and builds
- * the stylesheet with Tailwind. */
-const renderSite = async (files: ReadonlyMap<string, string>, withV1: boolean) => {
+const renderWithServer = async (
+  files: ReadonlyMap<string, string>,
+  pages: readonly Page[],
+  base: string,
+): Promise<ReadonlyMap<string, RenderedPage>> => {
   const server = await createServer({
-    configFile: false,
     root: REPOSITORY,
-    plugins: [tailwindcss()],
+    configFile: CONFIG,
+    mode: 'production',
+    base,
+    define: NO_READ_SERVICE,
     logLevel: 'error',
     appType: 'custom',
     server: { middlewareMode: true, hmr: false, watch: null },
     optimizeDeps: { noDiscovery: true },
   });
+  const fetchHeld = globalThis.fetch;
+  globalThis.fetch = releaseFetch(files, base);
   try {
-    const builder: unknown = (await server.ssrLoadModule(BUILDER))['buildSite'];
-    const style: unknown = (await server.ssrLoadModule(STYLESHEET))['default'];
-    if (!isBuilder(builder) || typeof style !== 'string')
-      throw new Error('the site builder or the stylesheet did not load');
-    return builder(files, style, withV1);
+    const renderer: unknown = await server.ssrLoadModule(PRERENDER);
+    if (!isRenderer(renderer)) throw new Error('the render of the pages did not load');
+    const rendered = new Map<string, RenderedPage>();
+    for (const page of pages)
+      if (page.kind === 'text')
+        rendered.set(page.folder, await renderer.renderPage(`/${page.folder}`));
+    return rendered;
   } finally {
+    globalThis.fetch = fetchHeld;
     await server.close();
   }
 };
 
-/** The map script as one module that imports MapLibre from beside it. */
-const mapScript = async (): Promise<string> => {
-  const output = await build({
-    configFile: false,
-    root: REPOSITORY,
-    logLevel: 'error',
-    build: {
-      write: false,
-      minify: true,
-      lib: { entry: MAP_ENTRY, formats: ['es'], fileName: 'map' },
-      rolldownOptions: {
-        external: ['maplibre-gl'],
-        output: { paths: { 'maplibre-gl': './maplibre-gl.mjs' } },
-      },
-    },
-  });
-  const results = Array.isArray(output) ? output : [output];
-  for (const result of results)
-    if ('output' in result)
-      for (const chunk of result.output) if (chunk.type === 'chunk') return chunk.code;
-  throw new Error('the map script did not build');
-};
-
-/** Writes the static site of the release in `releaseFolder` to `siteFolder`: each page, a copy of
- * each file of the release, the stylesheet, the map script with MapLibre, and the old site of
- * version 1 from `v1Folder` under `v1/` when it is given, with its demonstration project at the
- * root. The site is written in a hidden folder
- * first and never over an existing folder. */
-export const writeSite = async (
-  releaseFolder: string,
-  siteFolder: string,
-  v1Folder: string | null,
-): Promise<void> => {
+/** Writes the site of the release in `releaseFolder` to `siteFolder`: the application, built once
+ * with a copy of each file of the release under `release/`, and a file `<path>/index.html` for each
+ * page. A page with a permanent address holds its text in the HTML, and the script of the
+ * application takes over in the browser. The site is written in a hidden folder first and never
+ * over an existing folder. */
+export const writeSite = async (releaseFolder: string, siteFolder: string): Promise<void> => {
   if (await exists(siteFolder))
     throw new SiteFolderExists(
       `The site folder ${siteFolder} exists already. A release never writes over another site.`,
     );
-  if (v1Folder !== null && !(await exists(join(v1Folder, basename(V1)))))
-    throw new SiteReleaseFault(`The folder ${v1Folder} holds no index.html of version 1.`);
+  const base = baseOfSite();
   const files = await readReleaseFolder(releaseFolder);
-  const site = await renderSite(files, v1Folder !== null);
-  const script = await mapScript();
-  const maplibre = dirname(fileURLToPath(import.meta.resolve('maplibre-gl')));
+  const pages = pagesOf(readSiteRelease(files));
 
   await mkdir(dirname(siteFolder), { recursive: true });
   const partial = await mkdtemp(join(dirname(siteFolder), '.gab-site-'));
   try {
-    for (const file of site) {
-      await mkdir(dirname(join(partial, file.path)), { recursive: true });
-      await writeFile(join(partial, file.path), file.text);
-    }
-    for (const path of files.keys()) await copyFile(join(releaseFolder, path), join(partial, path));
-    await writeFile(join(partial, MAP_SCRIPT), script);
-    await copyFile(COUNTRIES, join(partial, MAP_COUNTRIES));
-    for (const name of MAPLIBRE_FILES)
-      await copyFile(join(maplibre, name), join(partial, dirname(MAP_SCRIPT), name));
-    if (v1Folder !== null) {
-      await cp(v1Folder, join(partial, dirname(V1)), { recursive: true });
-      // External constraint: the build of version 1 reads its demonstration project at the root
-      // of the host, so the root holds a copy of it.
-      const project = join(v1Folder, V1_PROJECT);
-      if (await exists(project)) await copyFile(project, join(partial, V1_PROJECT));
+    await buildApplication(releaseFolder, partial, base);
+    const shell = await readFile(join(partial, 'index.html'), 'utf8');
+    if (!shell.includes(SHELL_ROOT) || !SHELL_TITLE.test(shell))
+      throw new Error('the shell of the application has an unexpected form');
+    const rendered = await renderPages(files, pages, base);
+    for (const page of pages) {
+      let text = shell;
+      if (page.kind === 'merged' && page.survivor !== undefined) {
+        const merged = mergedPage(base, page.survivor);
+        text = text
+          .replace(SHELL_TITLE, () => `<title>Merged entity${TITLE_SUFFIX}</title>`)
+          .replace('</head>', () => `${merged.head}</head>`)
+          .replace(SHELL_ROOT, () => `<div id="root">${merged.html}</div>`);
+      } else if (page.kind === 'text') {
+        const one = rendered.get(page.folder);
+        if (one === undefined) throw new Error(`the page ${page.folder} was not rendered`);
+        text = text
+          .replace(SHELL_TITLE, () => `<title>${escapeHtml(one.title)}</title>`)
+          .replace(SHELL_ROOT, () => `<div id="root">${one.html}</div>`);
+      }
+      const file = join(partial, page.folder, 'index.html');
+      await mkdir(dirname(file), { recursive: true });
+      await writeFile(file, text);
     }
     await rename(partial, siteFolder);
   } catch (fault) {

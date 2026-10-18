@@ -17,6 +17,10 @@ void probeWriter();
 // needs the record, so it is not shown twice.
 loadCorpus().catch(() => undefined);
 
+// A page of the release holds its text in the root already. The first render waits for the data of
+// the route, so the text is replaced by the same text and never by a loading notice.
+if (container.hasChildNodes()) await router.load().catch(() => undefined);
+
 createRoot(container).render(
   <StrictMode>
     <RouterProvider router={router} />

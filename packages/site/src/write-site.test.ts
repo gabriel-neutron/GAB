@@ -1,197 +1,165 @@
-import {
-  mkdtempSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, posix, relative, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 
-import { beforeAll, describe, expect, test } from 'vitest';
-import { z } from 'zod';
+import { beforeAll, describe, expect, test, vi } from 'vitest';
 
-import { writeSite } from './write-site.ts';
+import { claimText } from '@gab/release/claim-text';
+import { claimPage, entityPage, relationPage, vesselPage } from '@gab/release/site-paths';
+import { readSiteRelease, type SiteRelease } from '@gab/release/site-release';
+import { SiteReleaseFault } from '@gab/release/site-release-fault';
+import { SiteFolderExists, writeSite } from './write-site.ts';
+
+// The build of the application and the render of every page take some seconds.
+const BUILD_TIMEOUT = 180_000;
 
 const FIXTURES = resolve(import.meta.dirname, '../fixtures');
-const VESSEL = '0a1f0000-0000-4000-8000-000000000001';
 const ABSORBED = '0a1f0000-0000-4000-8000-000000000005';
 
-const filesOf = (root: string): readonly string[] =>
-  readdirSync(root, { recursive: true, encoding: 'utf8' })
-    .filter((one) => statSync(join(root, one)).isFile())
-    .map((one) => one.split('\\').join('/'));
+const filesOf = (folder: string): Map<string, string> =>
+  new Map(readdirSync(folder).map((name) => [name, readFileSync(join(folder, name), 'utf8')]));
+
+/** The text of an HTML page that a reader sees with no script: the tags, the scripts and the styles
+ * are gone, and the entities are decoded. */
+const textOf = (html: string): string =>
+  html
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gu, ' ')
+    .replace(/<[^>]*>/gu, ' ')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#x27;', "'")
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&amp;', '&')
+    .replace(/\s+/gu, ' ');
 
 interface Site {
   readonly root: string;
-  readonly files: readonly string[];
-  readonly pages: readonly string[];
-  readonly read: (path: string) => string;
+  readonly release: SiteRelease;
+  /** The HTML file at one old address of the static site, as `<path>/index.html`. */
+  readonly page: (path: string) => string;
 }
 
-const writeOf = async (fixture: string, v1: string | null): Promise<Site> => {
+const writeOf = async (fixture: string): Promise<Site> => {
   const root = join(mkdtempSync(join(tmpdir(), 'gab-site-')), 'site');
-  await writeSite(join(FIXTURES, fixture), root, v1);
-  const files = filesOf(root);
+  await writeSite(join(FIXTURES, fixture), root);
   return {
     root,
-    files,
-    pages: files.filter((one) => one.endsWith('.html') && !one.startsWith('v1/')),
-    read: (path) => readFileSync(join(root, path), 'utf8'),
+    release: readSiteRelease(filesOf(join(FIXTURES, fixture))),
+    page: (path) => readFileSync(join(root, path), 'utf8'),
   };
 };
 
 let off: Site;
 let on: Site;
 
+// A service address in the environment of the operator must not go into a site that is published.
+const SERVICE = 'https://service.example.invalid';
+
 beforeAll(async () => {
-  const v1 = mkdtempSync(join(tmpdir(), 'gab-v1-'));
-  writeFileSync(join(v1, 'index.html'), '<!doctype html><title>v1 stub</title>');
-  mkdirSync(join(v1, 'assets'));
-  writeFileSync(join(v1, 'assets', 'app.js'), 'export {};');
-  off = await writeOf('release', v1);
-  on = await writeOf('release-nato', null);
-}, 60_000);
+  vi.stubEnv('VITE_API_URL', SERVICE);
+  off = await writeOf('release');
+  on = await writeOf('release-nato');
+  vi.unstubAllEnvs();
+}, BUILD_TIMEOUT);
 
 describe.each([
   ['off', () => off],
   ['on', () => on],
 ])('the site of the release with the pair %s', (_name, site) => {
-  test('each page type exists, with a page for each entity and each claim', () => {
-    const { files } = site();
-    for (const page of [
-      'index.html',
-      'map/index.html',
-      'downloads/index.html',
-      'method/index.html',
-      `entity/${VESSEL}/index.html`,
-      `claim/${VESSEL}/imo/index.html`,
-      'claim/0a1f0000-0000-4000-8000-000000000012/index.html',
-      `entity/${ABSORBED}/index.html`,
-      'v1/index.html',
-      'entities.csv',
-      'manifest.json',
-      'changelog.csv',
-    ])
-      expect(files).toContain(page);
+  test('every page of the static site opens at its old address and holds its text', () => {
+    const { release, page } = site();
+    for (const entity of release.entities)
+      expect(textOf(page(entityPage(entity.id)))).toContain(entity.label);
+    for (const claim of release.claims)
+      expect(textOf(page(claimPage(claim.id)))).toContain(claimText(claim));
+    for (const imo of release.vesselsByImo.keys())
+      expect(textOf(page(vesselPage(imo)))).toContain(`IMO ${imo}`);
+    for (const relation of release.relations)
+      if (release.claimById.has(relation.id))
+        expect(textOf(page(relationPage(relation.id)))).toContain('has its page at its claim');
+    expect(release.entities.length).toBeGreaterThan(0);
+    expect(release.claims.length).toBeGreaterThan(0);
+    expect(release.vesselsByImo.size).toBeGreaterThan(0);
   });
 
-  test('each relative link of each page opens a file of the site', () => {
-    const { files, pages, read } = site();
-    for (const page of pages)
-      for (const [, address = ''] of read(page).matchAll(/(?:href|src)="([^"]*)"/gu)) {
-        if (/^(https:|mailto:|data:image\/svg\+xml,)/u.test(address)) continue;
-        const target = posix.normalize(
-          posix.join(posix.dirname(page), decodeURIComponent(address)),
-        );
-        expect(files).toContain(target);
-      }
-  });
-
-  test('no page reads an API: each address out of the site is a source, a contact or the external viewer', () => {
-    const { pages, read } = site();
-    const SOURCE = /^https:\/\/(example\.org|news\.example\.org|eur-lex\.europa\.eu)\//u;
-    const VIEWER = /^https:\/\/www\.vesselfinder\.com\/vessels\/details\/\d{7}$/u;
-    for (const page of pages)
-      for (const [, address = ''] of read(page).matchAll(/(?:href|src)="(https:[^"]*)"/gu))
-        expect([address, SOURCE.test(address) || VIEWER.test(address)]).toStrictEqual([
-          address,
-          true,
-        ]);
-  });
-
-  test('each page gives the day of the version and the two contact links, and never "live"', () => {
-    const { pages, read } = site();
-    for (const page of pages) {
-      const text = read(page);
-      expect(text).toContain('Version of 08/11/2026');
-      expect(text).toContain('href="https://example.org/report-an-error">Report an error');
-      expect(text).toContain('href="mailto:reply@example.org">Right of reply');
-      expect(text).not.toMatch(/\blive\b/iu);
+  test('the pages of the site have their text, and a title, outside any script', () => {
+    const { page } = site();
+    const expected: readonly (readonly [string, string, string])[] = [
+      ['index.html', 'Critical nodes', 'Critical nodes · GAB dataset'],
+      ['map/index.html', 'physical link', 'Map · GAB dataset'],
+      ['downloads/index.html', 'SHA-256 checksum', 'Downloads · GAB dataset'],
+      ['method/index.html', 'About this data', 'Method · GAB dataset'],
+      ['v1/index.html', 'holds no build of the version 1 map', 'Version 1 · GAB dataset'],
+    ];
+    for (const [path, words, title] of expected) {
+      expect(textOf(page(path))).toContain(words);
+      expect(page(path)).toContain(`<title>${title}</title>`);
+      expect(page(path)).toContain('<div id="root"><');
     }
   });
 
-  test('a claim has a permanent page with its excerpt and its source', () => {
-    const text = site().read(`claim/${VESSEL}/imo/index.html`);
-    expect(text).toContain('SEVERNAYA VOLNA, IMO 9000001');
-    expect(text).toContain('Council Implementing Regulation (EU) 2025/0000');
-    expect(text).toContain('https://eur-lex.europa.eu/eli/reg_impl/2025/0000/oj');
-    expect(text).toContain('2026-09-30');
-    expect(text).toContain('Page 4');
-    expect(text).toContain('CC-BY 4.0');
-    expect(text).toContain('Accepted by rule strong_sources v2 — no person read it');
-    expect(text).toContain(`https://gab.example.org/claim/${VESSEL}/imo`);
+  test('the footer of a page gives the version of the release', () => {
+    const { release, page } = site();
+    const [year, month, day] = release.manifest.date.split('-');
+    expect(textOf(page('index.html'))).toContain(`Version of ${day}/${month}/${year}`);
   });
 
-  test('the address of a merged entity sends the reader to the survivor', () => {
-    const text = site().read(`entity/${ABSORBED}/index.html`);
-    expect(text).toContain(`content="0; url=../../entity/${VESSEL}/index.html"`);
-    expect(text).toContain('Severnaya Volna');
+  test('a merged entity opens a short page that links the survivor and sends the browser there', () => {
+    const { release, page } = site();
+    const survivor = release.aliases.get(ABSORBED);
+    expect(survivor).toBeDefined();
+    const html = page(entityPage(ABSORBED));
+    expect(html).toContain(`<meta http-equiv="refresh" content="0; url=/entity/${survivor}/">`);
+    expect(html).toContain(`href="/entity/${survivor}/"`);
+    expect(textOf(html)).toContain(release.entityById.get(survivor ?? '')?.label);
   });
 
-  test('the home page gives the retained node first, with "not sourced" for a tick with no claim', () => {
-    const text = site().read('index.html');
-    expect(text.indexOf('Retained nodes')).toBeLessThan(text.indexOf('Other candidate nodes'));
-    expect(text).toContain('not sourced');
-    expect(text).toContain('Ship-to-ship transfer off Gabon');
-  });
-
-  test('a node with two ticks and one sourced tick is not retained', () => {
-    const text = site().read('index.html');
-    expect(text).toContain('2 candidate nodes, 1 retained.');
-    const others = text.indexOf('Other candidate nodes');
-    expect(others).toBeGreaterThan(text.indexOf('Retained nodes'));
-    expect(text.slice(others)).toContain('Arctic Bridge Shipping</a>');
-    expect(text.slice(0, others)).not.toContain('Arctic Bridge Shipping</a>');
-  });
-
-  test('the downloads page gives each file with its checksum and the changelog summary', () => {
-    const text = site().read('downloads/index.html');
-    const { files } = z
-      .object({ files: z.array(z.object({ path: z.string(), sha256: z.string() })) })
-      .parse(JSON.parse(site().read('manifest.json')));
-    expect(files.length).toBeGreaterThan(0);
-    for (const { path, sha256 } of files) {
-      expect(text).toContain(`href="../${path}"`);
-      expect(text).toContain(sha256);
+  test('the graph, the search and the review open the shell, with no text of a record', () => {
+    const { release, page } = site();
+    for (const folder of ['graph', 'search', 'review']) {
+      const html = page(`${folder}/index.html`);
+      expect(html).toContain('<div id="root"></div>');
+      expect(html).toContain('type="module"');
+      for (const entity of release.entities) expect(textOf(html)).not.toContain(entity.label);
     }
-    expect(text).toContain('Changes since the version of 01/10/2026 (0.9).');
-    expect(text).toContain('href="../changelog.csv"');
   });
 
-  test('each copy of a release file has the bytes of the release', () => {
-    for (const name of ['claims.csv', 'entities.geojson', 'manifest.json'])
-      expect(readFileSync(join(site().root, name))).toStrictEqual(
-        readFileSync(join(FIXTURES, site() === off ? 'release' : 'release-nato', name)),
+  test('every file of the release is copied byte for byte under release/', () => {
+    const { root } = site();
+    const fixture = join(FIXTURES, root === off.root ? 'release' : 'release-nato');
+    for (const name of readdirSync(fixture))
+      expect(
+        readFileSync(join(root, 'release', name)).equals(readFileSync(join(fixture, name))),
+      ).toBe(true);
+  });
+
+  test('the shell loads the script and the style of the build, and no service of the operator', () => {
+    const { root, page } = site();
+    const html = page('index.html');
+    expect(html).toMatch(/<script type="module"[^>]*src="\/assets\/[^"]+\.js"/u);
+    expect(html).toMatch(/<link rel="stylesheet"[^>]*href="\/assets\/[^"]+\.css"/u);
+    expect(html).not.toContain('jsx-dev-runtime');
+    expect(existsSync(join(root, 'assets', 'maplibre-gl-worker.mjs'))).toBe(true);
+    expect(existsSync(join(root, 'assets', 'maplibre-gl-shared.mjs'))).toBe(true);
+    for (const name of readdirSync(join(root, 'assets')).filter((one) => one.endsWith('.js')))
+      expect(readFileSync(join(root, 'assets', name), 'utf8')).not.toContain(
+        'service.example.invalid',
       );
   });
 });
 
-test('with the pair off, no page shows a letter or a digit of the pair', () => {
-  for (const page of off.pages) {
-    const text = off.read(page);
-    expect(text).not.toMatch(/\b[A-F][1-6]\b|NATO|data-nato-pair/u);
-  }
-});
+describe('a site that cannot be written', () => {
+  test('a folder that exists is never written over', async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'gab-site-'));
+    await expect(writeSite(join(FIXTURES, 'release'), folder)).rejects.toThrow(SiteFolderExists);
+  });
 
-test('with the pair on, the pair shows next to each claim that has one, and the method explains it', () => {
-  expect(on.read(`claim/${VESSEL}/imo/index.html`)).toMatch(/NATO A<!-- -->2|NATO A2/u);
-  expect(on.read(`entity/${VESSEL}/index.html`)).toContain('data-nato-pair');
-  expect(on.read('index.html')).toContain('data-nato-pair');
-  expect(on.read('method/index.html')).toContain('STANAG 2511');
-  expect(off.read('method/index.html')).not.toContain('STANAG');
-});
-
-test('the old site of version 1 is copied under v1, and with none a page says so', () => {
-  expect(off.read('v1/index.html')).toContain('v1 stub');
-  expect(off.files).toContain('v1/assets/app.js');
-  expect(on.read('v1/index.html')).toContain('holds no build of the version 1 map');
-  expect(relative(dirname(on.root), on.root)).toBe('site');
-});
-
-test('a second site in the same folder is refused', async () => {
-  await expect(writeSite(join(FIXTURES, 'release'), off.root, null)).rejects.toThrow(
-    /exists already/u,
-  );
+  test('a folder with no manifest is refused, and no site folder is left', async () => {
+    const empty = mkdtempSync(join(tmpdir(), 'gab-empty-'));
+    const parent = mkdtempSync(join(tmpdir(), 'gab-site-'));
+    mkdirSync(join(parent, 'inside'));
+    const site = join(parent, 'inside', 'site');
+    await expect(writeSite(empty, site)).rejects.toThrow(SiteReleaseFault);
+    expect(readdirSync(join(parent, 'inside'))).toStrictEqual([]);
+  });
 });

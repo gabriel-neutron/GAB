@@ -5,8 +5,13 @@ import type { SiteRelease } from '@gab/release/site-release';
 import { readOnce } from './once';
 import { fetchRelease, ReleaseAbsent } from './release-files';
 
+// The render at the release has no document. Its base is an address that no network serves, and the
+// release command answers it from the folder of the release.
+const origin = (): string =>
+  typeof document === 'undefined' ? 'http://release.invalid/' : document.baseURI;
+
 const memory = readOnce<SiteRelease>(() =>
-  fetchRelease(new URL(`${import.meta.env.BASE_URL}release/`, document.baseURI)),
+  fetchRelease(new URL(`${import.meta.env.BASE_URL}release/`, origin())),
 );
 
 export const loadRelease = memory.load;
