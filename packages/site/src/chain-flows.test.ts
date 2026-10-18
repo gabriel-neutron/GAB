@@ -3,7 +3,7 @@ import { expect, test } from 'vitest';
 import { chainView } from './chain-card.ts';
 import { CHAIN } from './chain-fixture.ts';
 import { chainFlows } from './chain-flows.ts';
-import { chainOf, productChain } from './chain-highlight.ts';
+import { chainOf, productChain } from '@gab/proposal/chain-highlight';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
 
 const {

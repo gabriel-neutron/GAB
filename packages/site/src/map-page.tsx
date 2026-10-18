@@ -1,9 +1,9 @@
 import { AssetCard } from './asset-card.tsx';
 import type { ChainView } from './chain-card.ts';
 import type { ChainFlows } from './chain-flows.ts';
-import { PRODUCTS } from './chain-product.ts';
-import { STAGES } from './chain-stage.ts';
-import { chainSteps } from './chain-steps.ts';
+import { PRODUCTS } from '@gab/proposal/chain-product';
+import { STAGES } from '@gab/proposal/chain-stage';
+import { chainSteps } from '@gab/proposal/chain-steps';
 import {
   CAPTION_ELEMENT,
   CARD_ELEMENT,

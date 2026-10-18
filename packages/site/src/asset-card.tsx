@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 import type { Card } from './chain-card.ts';
-import { STAGES, type StageKey } from './chain-stage.ts';
+import { STAGES, type StageKey } from '@gab/proposal/chain-stage';
 import { LINK } from './site-style.ts';
 
 const IN_REVIEW = 'In review';
