@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { endOcr } from '@gab/text';
-import { zipOf } from '@gab/text/xlsx-fixture';
+import { workbookOf, zipOf } from '@gab/text/xlsx-fixture';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
@@ -95,6 +95,13 @@ const BULK = zipOf([
   ['sanctions/targets.json', `{"run":"${RUN}"}`],
 ]);
 const HOSTILE = zipOf([['../outside.txt', `Run ${RUN}.`]]);
+// A workbook served as bytes with no type is a zip container, and it is read as a workbook.
+const WORKBOOK = workbookOf({
+  Data: [
+    ['Name', 'Run'],
+    ['Nayara', RUN],
+  ],
+});
 
 const PDF = pdfOf(`Asset freeze notice ${RUN}`, 'HM Treasury');
 
@@ -130,6 +137,7 @@ beforeAll(async () => {
       body: BIG_CSV,
     },
     '/bulk.zip': { headers: { 'content-type': 'application/octet-stream' }, body: BULK },
+    '/table.bin': { headers: { 'content-type': 'application/octet-stream' }, body: WORKBOOK },
     '/hostile.zip': { headers: { 'content-type': 'application/zip' }, body: HOSTILE },
     '/notice.pdf': { headers: { 'content-type': 'application/pdf' }, body: PDF },
     '/viewtopic.php': { headers: { 'content-type': 'text/html' }, body: cp1251 },
@@ -325,6 +333,16 @@ test('a ZIP archive is stored with its list of files, and each file is a child d
     'text/csv',
     'application/json',
   ]);
+});
+
+test('a workbook served as bytes with no type is read as a workbook, and not unpacked', async () => {
+  const store = memoryStore();
+  await rolledBack('research', async (ask) => {
+    const got = await fetched(ask, `${base}/table.bin`, fixtureReach(store));
+    expect(got.mime).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    expect(got.pages[0]?.text).toContain(`Nayara,${RUN}`);
+  });
+  expect(store.puts).toHaveLength(1);
 });
 
 test('a ZIP archive with a path that leaves it is refused, and nothing is stored', async () => {

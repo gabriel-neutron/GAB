@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { ArchiveRefusal, archiveFiles, MAX_FOLDER_DEPTH } from './archive.ts';
+import { ArchiveRefusal, archiveFiles, MAX_FOLDER_DEPTH, zipContainerType } from './archive.ts';
 import { zipOf } from './xlsx-fixture.ts';
 
 const textOf = (bytes: Uint8Array): string => new TextDecoder().decode(bytes);
@@ -73,4 +73,23 @@ test('bytes that are no zip archive are refused', async () => {
   await expect(archiveFiles(new TextEncoder().encode('no archive'))).rejects.toThrow(
     /no zip archive/u,
   );
+});
+
+test('a workbook in the archive is one file, and not an archive inside it', async () => {
+  const workbook = zipOf([
+    ['[Content_Types].xml', '<Types/>'],
+    ['xl/workbook.xml', '<workbook/>'],
+  ]);
+  const files = await archiveFiles(zipOf([['data/table.xlsx', 'placeholder']]));
+  expect(files.map((file) => file.path)).toStrictEqual(['data/table.xlsx']);
+  expect(await zipContainerType(workbook)).toBe('workbook');
+  expect(await zipContainerType(zipOf([['[Content_Types].xml', '<Types/>']]))).toBe('office');
+  expect(await zipContainerType(zipOf([['entities.csv', 'id\n']]))).toBe('archive');
+});
+
+test('an encrypted file is refused with the reason', async () => {
+  const bytes = Buffer.from(zipOf([['secret.txt', 'x']]));
+  const directory = bytes.readUInt32LE(bytes.length - 22 + 16);
+  bytes.writeUInt16LE(1, directory + 8);
+  await expect(archiveFiles(new Uint8Array(bytes))).rejects.toThrow(/is encrypted/u);
 });

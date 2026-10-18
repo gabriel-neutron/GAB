@@ -9,7 +9,9 @@ import {
   RefusedTextError,
   UnsupportedTypeError,
 } from '@gab/text';
+import { zipContainerType } from '@gab/text/archive';
 import { ZIP_MIME } from '@gab/text/geojson';
+import { XLSX_MIME } from '@gab/text/xlsx';
 import { ExifTool } from 'exiftool-vendored';
 import { z } from 'zod';
 
@@ -104,7 +106,7 @@ const metadataOf = async (bytes: Uint8Array, mime: string): Promise<Metadata> =>
   }
 };
 
-// External constraint: the signatures that open a PNG and a JPEG file.
+// External constraint: the signatures that open a PNG, a JPEG and a zip file.
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const JPEG_SIGNATURE = Buffer.from([0xff, 0xd8, 0xff]);
 const ZIP_SIGNATURE = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
@@ -478,7 +480,18 @@ export const fetchDocument = defineTool({
       bytes: decodedBody(got.bytes, got.contentEncoding, got.contentType, MAX_BYTES),
     };
 
-    const mime = mimeOf(got.contentType, got.bytes);
+    let mime = mimeOf(got.contentType, got.bytes);
+    // A workbook is a zip container too, so the parts of the container decide its type. Another
+    // office document has no reader, and it is not unpacked into its XML parts.
+    if (mime === ZIP_MIME) {
+      const container = await zipContainerType(got.bytes);
+      if (container === 'workbook') mime = XLSX_MIME;
+      if (container === 'office')
+        throw new ToolRefusal(
+          'the answer is an office document (a text document or a slide set) that no reader ' +
+            'takes, and nothing is stored',
+        );
+    }
     // Bytes that are not text give a text of noise, and an excerpt of it could never be checked.
     if (textType(mime) && binaryBytes(got.bytes, got.contentType))
       throw new ToolRefusal(

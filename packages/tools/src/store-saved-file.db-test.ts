@@ -197,13 +197,20 @@ test('a ZIP archive is one document, and each file that a reader takes is a chil
     const output = z
       .object({
         document: z.string(),
-        files: z.array(z.object({ path: z.string(), document: z.string(), status: z.string() })),
+        files: z.array(
+          z.object({
+            path: z.string(),
+            document: z.string(),
+            status: z.string(),
+            linked: z.string(),
+          }),
+        ),
         skipped: z.array(z.object({ path: z.string(), reason: z.string() })),
       })
       .parse(got.output);
-    expect(output.files.map((file) => [file.path, file.status])).toStrictEqual([
-      ['entities.csv', 'stored'],
-      ['data/notes.txt', 'stored'],
+    expect(output.files.map((file) => [file.path, file.status, file.linked])).toStrictEqual([
+      ['entities.csv', 'stored', 'filled'],
+      ['data/notes.txt', 'stored', 'filled'],
     ]);
     expect(output.skipped).toStrictEqual([
       { path: 'logo.bin', reason: 'no reader takes the type of its name' },
@@ -248,6 +255,17 @@ test('a ZIP archive is one document, and each file that a reader takes is a chil
     );
     expect(listing?.text).toContain('logo.bin\tnot stored: no reader takes the type of its name');
 
+    // The door links no file that the text of the archive does not name with its hash.
+    await ask('SAVEPOINT wrong_link');
+    await expect(
+      ask('SELECT public.fill_document_archive($1, $2, $3)', [
+        children[0]?.id,
+        output.document,
+        'entities.csv',
+      ]),
+    ).rejects.toThrow(/names no file entities.csv with the hash/u);
+    await ask('ROLLBACK TO SAVEPOINT wrong_link');
+
     // The same archive again is known, and so is each file.
     const again = await callTool(
       storeSavedFile,
@@ -257,7 +275,13 @@ test('a ZIP archive is one document, and each file that a reader takes is a chil
     );
     expect(again).toMatchObject({
       ok: true,
-      output: { status: 'known', files: [{ status: 'known' }, { status: 'known' }] },
+      output: {
+        status: 'known',
+        files: [
+          { status: 'known', linked: 'same' },
+          { status: 'known', linked: 'same' },
+        ],
+      },
     });
   });
   expect(store.puts.map((put) => put.mime)).toStrictEqual([

@@ -72,7 +72,9 @@ const knownOf = async (session: Session, sha256: string) => {
   return row;
 };
 
-const hashOf = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
+/** The SHA-256 of the bytes, in hex: the identity of a document. */
+export const hashOf = (bytes: Uint8Array): string =>
+  createHash('sha256').update(bytes).digest('hex');
 
 /** The stored document that holds these bytes, as a known answer, or undefined. It writes
  * nothing. */

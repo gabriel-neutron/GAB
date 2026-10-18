@@ -15,7 +15,7 @@ SET LOCAL ROLE gabriel_owner;
 
 ALTER TABLE documents
   -- text and not doc_id: the domain refuses NULL, and a document that no archive held has none.
-  ADD COLUMN archive_id text REFERENCES documents (id) ON DELETE RESTRICT,
+  ADD COLUMN archive_id text REFERENCES documents (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
   ADD COLUMN archive_path text,
   ADD CONSTRAINT documents_archive_shape
       CHECK ((archive_id IS NULL) = (archive_path IS NULL)

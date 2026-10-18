@@ -1,11 +1,9 @@
-// A zip archive that holds no GeoJSON layer is unpacked into one child document for each file
-// (#595). The archive is a document too: its bytes are kept, and its text lists its files with the
+// A zip archive that holds no GeoJSON layer is unpacked into one child document for each file.
+// The archive is a document too: its bytes are kept, and its text lists its files with the
 // hash of each one. Each child follows the rules of any document: its text is read and checked
 // before any write, the hash decides its identity, and a fetched file is cited as itself. The
 // door fill_document_archive links each child to the archive and to its path in it. A hostile
 // archive is refused, and nothing is stored.
-
-import { createHash } from 'node:crypto';
 
 import {
   extractText,
@@ -19,7 +17,7 @@ import { ZIP_MIME } from '@gab/text/geojson';
 import { z } from 'zod';
 
 import { rowsOf } from './fields.ts';
-import { storeAnswer } from './store-answer.ts';
+import { hashOf, storeAnswer } from './store-answer.ts';
 import { ToolRefusal, type Reach, type Session } from './tool.ts';
 import { unreadablePage } from './unreadable-page.ts';
 
@@ -45,6 +43,9 @@ export const storedFileShape = z.strictObject({
   status: z.enum(['stored', 'known']),
   title: z.string(),
   pages: z.number().int(),
+  /** What the door did with the link: a file that another archive held first keeps that link
+   * (other), and an upload of the operator takes none (not_fetched). */
+  linked: z.enum(['filled', 'same', 'other', 'not_fetched']),
 });
 
 export const skippedFileShape = z.strictObject({ path: z.string(), reason: z.string() });
@@ -55,8 +56,6 @@ interface ReadFile {
   readonly mime: string;
   readonly pages: readonly string[];
 }
-
-const hashOf = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
 
 // The text of one file, or the reason that no reader takes it.
 const readFile = async (path: string, bytes: Uint8Array): Promise<ReadFile | string> => {
@@ -140,24 +139,36 @@ export const storeArchive = async (
     day: archive.day,
   });
   const stored: z.infer<typeof storedFileShape>[] = [];
-  for (const file of files) {
-    const child = await storeAnswer(session, store, {
-      kind: archive.kind,
-      bytes: file.bytes,
-      mime: file.mime,
-      uri: `${archive.uri.split('#')[0] ?? archive.uri}#${file.path}`,
-      title: `${file.path} (in ${parent.title})`.slice(0, MAX_TITLE),
-      pages: file.pages,
-      day: archive.day,
-    });
-    await rowsOf(session, linkedRow, LINK, [child.id, parent.id, file.path]);
-    stored.push({
-      path: file.path,
-      document: child.id,
-      status: child.status,
-      title: child.title,
-      pages: file.pages.length,
-    });
+  // Each store is a write of its own. A fault half way leaves some files stored, and a second
+  // call finds them known and stores the rest.
+  try {
+    for (const file of files) {
+      const child = await storeAnswer(session, store, {
+        kind: archive.kind,
+        bytes: file.bytes,
+        mime: file.mime,
+        uri: `${archive.uri.split('#')[0] ?? archive.uri}#${encodeURI(file.path)}`,
+        title: `${file.path} (in ${parent.title})`.slice(0, MAX_TITLE),
+        pages: file.pages,
+        day: archive.day,
+      });
+      const [linked] = await rowsOf(session, linkedRow, LINK, [child.id, parent.id, file.path]);
+      if (linked === undefined) throw new Error('the door linked a file and returned no outcome');
+      stored.push({
+        path: file.path,
+        document: child.id,
+        status: child.status,
+        title: child.title,
+        pages: file.pages.length,
+        linked: linked.outcome,
+      });
+    }
+  } catch (fault) {
+    throw new ToolRefusal(
+      `${String(stored.length)} of ${String(files.length)} files of archive ${parent.id} are ` +
+        `stored, and the next one failed: ${fault instanceof Error ? fault.message : String(fault)}. ` +
+        'Call the tool again to store the rest',
+    );
   }
   return { archive: parent, files: stored, skipped };
 };
