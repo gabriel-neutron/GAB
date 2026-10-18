@@ -209,36 +209,6 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
           'lg:grid-cols-[auto_minmax(0,1fr)_20rem]',
         )}
       >
-        {/* The rail is first in the order of the keys, because the canvas has no key of its own.
-            A stacked screen reads the canvas and the card first. */}
-        <div
-          className={cn(
-            'max-h-96 min-h-0 overflow-hidden border-t border-border max-lg:order-last',
-            'lg:col-start-1 lg:row-start-1 lg:max-h-128 lg:border-t-0 lg:border-r',
-          )}
-        >
-          {snapshot === null || rows === null ? null : (
-            <Rail
-              rows={rows.rail}
-              onAct={act}
-              index={(type) => {
-                const list = rows.lists.get(type);
-                return list === undefined ? null : (
-                  <IndexRows
-                    list={list}
-                    onSelect={reach}
-                    onShowWholeList={() => {
-                      showWholeList(type);
-                    }}
-                    onOpen={openUnit}
-                  />
-                );
-              }}
-              className={cn('h-full max-h-96 bg-background lg:max-h-128')}
-            />
-          )}
-        </div>
-
         <div className={cn('relative h-96 min-w-0 lg:col-start-2 lg:row-start-1 lg:h-128')}>
           <GraphCanvas canvas={canvas} overlay={overlay} />
           <div className={cn('absolute top-2 right-2')}>
@@ -266,6 +236,36 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
           )}
         >
           {card}
+        </div>
+
+        {/* The rail is last in the order of the keys and of the screen when the island stacks, and
+            the grid puts it first on a wide screen. */}
+        <div
+          className={cn(
+            'max-h-96 min-h-0 overflow-hidden border-t border-border',
+            'lg:col-start-1 lg:row-start-1 lg:max-h-128 lg:border-t-0 lg:border-r',
+          )}
+        >
+          {snapshot === null || rows === null ? null : (
+            <Rail
+              rows={rows.rail}
+              onAct={act}
+              index={(type) => {
+                const list = rows.lists.get(type);
+                return list === undefined ? null : (
+                  <IndexRows
+                    list={list}
+                    onSelect={reach}
+                    onShowWholeList={() => {
+                      showWholeList(type);
+                    }}
+                    onOpen={openUnit}
+                  />
+                );
+              }}
+              className={cn('h-full max-h-96 bg-background lg:max-h-128')}
+            />
+          )}
         </div>
       </div>
 

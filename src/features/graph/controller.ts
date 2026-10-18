@@ -160,7 +160,10 @@ export function mountGraph(
   const placement = graphPositions(corpus.entities, layout);
   const positions = placement.positions;
 
-  const motion = motionOf();
+  // External constraint: Sigma divides by the duration, so a duration of 0 makes the camera NaN
+  // for one frame. The three settings below take at least 1 ms, and a call that must jump sets the
+  // state itself.
+  const settingMs = Math.max(1, motionOf());
   const model = buildGraphModel(corpus, positions, types, GROUND);
   const wordsOf = relationWording(corpus.relationTypes);
 
@@ -338,9 +341,9 @@ export function mountGraph(
 
     // The three gestures that animate the camera take the same short time as a call of the
     // controller. The defaults are 200 to 250 ms, and the motion rule allows 120.
-    zoomDuration: motion,
-    doubleClickZoomingDuration: motion,
-    inertiaDuration: motion,
+    zoomDuration: settingMs,
+    doubleClickZoomingDuration: settingMs,
+    inertiaDuration: settingMs,
 
     // External constraint: Sigma bounds no zoom by default, so a wheel or a pinch can reach a
     // ratio where the canvas shows empty ground. Sigma applies these bounds to each camera state.
@@ -721,13 +724,16 @@ export function mountGraph(
       // The approach only ever moves nearer: a smaller ratio is a nearer camera, and a
       // selection must never undo the zoom the analyst chose.
       const ratio = Math.min(camera.getState().ratio, REACH_RATIO);
-      void camera.animate({ x: point.x, y: point.y, ratio }, { duration: motion });
+      // A reader who asks for no motion gets a jump. The preference is read at each call.
+      if (motionOf() === 0) camera.setState({ x: point.x, y: point.y, ratio });
+      else void camera.animate({ x: point.x, y: point.y, ratio }, { duration: motionOf() });
     },
     showWholeGraph: () => {
       if (destroyed) return;
       // External constraint: the reset of Sigma puts the centre at 0.5 and the ratio at 1,
       // which frames every node. The `updated` event stores it as any other move.
-      void camera.animatedReset({ duration: motion });
+      if (motionOf() === 0) camera.setState({ x: 0.5, y: 0.5, ratio: 1, angle: 0 });
+      else void camera.animatedReset({ duration: motionOf() });
     },
     subscribe: (listener) => {
       if (destroyed) return NO_OP;
