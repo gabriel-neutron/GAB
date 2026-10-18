@@ -1,4 +1,4 @@
-import { disclaimerBlocks, type DisclaimerRun } from './disclaimer-blocks.ts';
+import { disclaimerBlocks, type DisclaimerRun } from '@gab/release/disclaimer-blocks';
 import { safeHref } from '@gab/release/safe-href';
 import { LINK } from './site-style.ts';
 

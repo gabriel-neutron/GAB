@@ -6,7 +6,8 @@ const RULE_WORDS: Readonly<Record<string, string>> = {
   date_designated: 'the date designated',
 };
 
-/** How a card reads the sanctions of an asset, and the date rules of the release. */
+/** How a card reads the sanctions of an asset, and the date rules of the release. The globe notes
+ * and the method page give this same text, so a change here changes both. */
 export function SanctionsRules({ manifest }: { readonly manifest: SiteManifest }) {
   const rules = manifest.dateRules;
   return (
@@ -19,7 +20,7 @@ export function SanctionsRules({ manifest }: { readonly manifest: SiteManifest }
         operating or ownership link counts, and the map gives no share. The map does not apply the
         50% rule. “No measure found in this release” tells only what this release holds.
       </p>
-      <p>
+      <p data-date-rules="">
         {rules === null
           ? 'This release does not give its date rules.'
           : `Date rules of this release, for the alignment matrix. EU: ${RULE_WORDS[rules.eu] ?? rules.eu}. US: ${RULE_WORDS[rules.ofac] ?? rules.ofac}. UK: ${RULE_WORDS[rules.uk] ?? rules.uk}.`}{' '}

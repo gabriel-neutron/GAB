@@ -1,5 +1,5 @@
 import type { GlobeData } from './globe-data';
-import { SanctionsRules } from './sanctions-rules';
+import { SanctionsRules } from '@/shared/page/sanctions-rules';
 
 // A count and its noun, in the singular for one.
 const count = (n: number, one: string, many: string): string =>
