@@ -17,6 +17,7 @@
     "./csv": "./src/csv.ts",
     "./event-fixture": "./src/event-fixture.ts",
     "./event-lane": "./src/event-lane.ts",
+    "./file-words": "./src/file-words.ts",
     "./map-features": "./src/map-features.ts",
     "./release-day": "./src/release-day.ts",
     "./safe-href": "./src/safe-href.ts",

@@ -81,6 +81,9 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
         <Link to="/search" className={PAGE_LINK}>
           Search
         </Link>
+        <Link to="/downloads" className={PAGE_LINK}>
+          Downloads
+        </Link>
         {writerOnline ? (
           <Link
             to="/review"
