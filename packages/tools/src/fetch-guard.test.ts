@@ -1,6 +1,9 @@
+import { createServer, type IncomingHttpHeaders } from 'node:http';
+import type { AddressInfo } from 'node:net';
+
 import { describe, expect, test } from 'vitest';
 
-import { FetchRefusal, pageAddress, refusedAddress } from './fetch-guard.ts';
+import { FetchRefusal, guardedGet, HEADERS, pageAddress, refusedAddress } from './fetch-guard.ts';
 
 describe('refusedAddress', () => {
   test.each([
@@ -71,5 +74,46 @@ describe('pageAddress', () => {
   test('refuses an address that is never fetched', () => {
     expect(() => pageAddress('file:///etc/passwd')).toThrow(FetchRefusal);
     expect(() => pageAddress('not an address')).toThrow(FetchRefusal);
+  });
+});
+
+describe('the headers of the outgoing request', () => {
+  test('a request has the headers of a page that a person opens in Chrome, and a caller sets accept', async () => {
+    const asked: IncomingHttpHeaders[] = [];
+    const server = createServer((request, response) => {
+      asked.push(request.headers);
+      response.writeHead(200, { 'content-type': 'text/plain' }).end('ok');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    const options = { maxBytes: 1024, timeoutMs: 5000, maxRedirects: 0, refuses: () => false };
+    try {
+      await guardedGet(`http://127.0.0.1:${String(port)}/`, options);
+      await guardedGet(`http://127.0.0.1:${String(port)}/`, {
+        ...options,
+        ask: { accept: 'application/xhtml+xml', 'accept-language': 'eng' },
+      });
+    } finally {
+      server.close();
+    }
+
+    const [plain, asking] = asked;
+    expect(plain).toMatchObject(HEADERS);
+    expect(plain?.['user-agent']).toMatch(/Chrome\/141\./u);
+    expect(plain?.['sec-ch-ua']).toContain('v="141"');
+    expect(plain).toMatchObject({
+      'sec-fetch-mode': 'navigate',
+      'sec-fetch-dest': 'document',
+      'sec-fetch-site': 'none',
+      'sec-fetch-user': '?1',
+      'upgrade-insecure-requests': '1',
+      'accept-encoding': 'identity',
+    });
+    // The caller sets the format and the language, and the other headers stay.
+    expect(asking).toMatchObject({
+      ...HEADERS,
+      accept: 'application/xhtml+xml',
+      'accept-language': 'eng',
+    });
   });
 });
