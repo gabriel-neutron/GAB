@@ -27,9 +27,8 @@ const SHOW_ON: Readonly<Record<Surface, string>> = { map: 'Show on map', graph: 
 const LINK =
   'shrink-0 text-small/4 text-primary underline underline-offset-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50';
 
-/** 24 rem, which is `w-96`. It states no height: the route states the geometry of the row. */
-const PANE =
-  'w-96 min-h-0 shrink-0 space-y-3 overflow-y-auto overscroll-contain border-l border-border bg-sidebar p-2 text-sidebar-foreground';
+/** It states no width and no height: the page that holds the panel states its place. */
+const PANE = 'min-h-0 w-full min-w-0 space-y-3 overflow-y-auto overscroll-contain p-2';
 
 export function Sidebar({ dossier, onSelectRelation, showOn }: SidebarProps) {
   // The sidebar states the count of documents, and not a number. A number would point at a
@@ -40,9 +39,9 @@ export function Sidebar({ dossier, onSelectRelation, showOn }: SidebarProps) {
 
   return (
     <aside aria-label={dossier.label} className={PANE}>
-      <div className="flex items-baseline gap-2">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <h1 className="flex min-w-0 items-baseline gap-2">
-          <span className="min-w-0 truncate text-base" title={dossier.label}>
+          <span className="min-w-0 text-base break-words" title={dossier.label}>
             {dossier.label}
           </span>
           <span className="shrink-0 text-xs text-label">{dossier.type}</span>

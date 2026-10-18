@@ -9,7 +9,14 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
-import { useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import {
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+} from 'react';
 
 import { cn } from '@/shared/lib/utils';
 import { RAIL_WIDTH, railWidthWithin } from '@/shared/rail-width';
@@ -169,6 +176,7 @@ function ResizeEdge({ width, onDrag, onAct }: ResizeEdgeProps) {
       onKeyDown={step}
       className={cn(
         'pointer-events-auto absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize touch-none',
+        'max-lg:hidden',
         'transition-colors duration-100 hover:bg-ring/50',
         'outline-none focus-visible:bg-ring/50',
       )}
@@ -180,22 +188,27 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
   const { open, links } = rows;
   const [dragged, setDragged] = useState<number | null>(null);
   const width = dragged ?? railWidthWithin(rows.width);
+  // External constraint: a class cannot hold a number that changes, so the width is a custom
+  // property that a class reads. The rail takes the whole row where the caller stacks it.
+  const style: CSSProperties & Record<'--rail-width', string> = {
+    '--rail-width': `${String(width)}px`,
+  };
 
   return (
     <aside
-      aria-label="Layers"
+      aria-label="Types"
       // Departure: the caller states the ground and any hairline of its own, and the rail states
       // its width, so both callers clamp the stored width in one place.
-      style={open ? { width } : undefined}
-      className={cn('relative flex flex-col text-xs', open ? null : 'w-11', className)}
+      style={open ? style : undefined}
+      className={cn(
+        'relative flex flex-col text-xs',
+        open ? 'w-full lg:w-(--rail-width)' : 'w-11',
+        className,
+      )}
     >
       {open ? <ResizeEdge width={width} onDrag={setDragged} onAct={onAct} /> : null}
       <div className="flex h-6 shrink-0 items-center gap-1 px-1.5">
-        {open ? (
-          <span className="min-w-0 flex-1 truncate text-small/4 tracking-caps text-label uppercase">
-            Layers
-          </span>
-        ) : null}
+        {open ? <span className="min-w-0 flex-1 truncate text-label">Types</span> : null}
         {/* External constraint: an icon-only control has no name without `aria-label`. The
             label says the act, and `aria-expanded` says the state. */}
         <button

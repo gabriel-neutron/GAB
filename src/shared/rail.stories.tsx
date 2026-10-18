@@ -202,7 +202,7 @@ export const TheRailReportsItsOwnFold: Story = {
 export const TheOpenRailTakesTheStoredWidthInsideItsBounds: Story = {
   args: { rows: rows({ width: 300 }) },
   play: async ({ canvas }) => {
-    const rail = canvas.getByRole('complementary', { name: 'Layers' });
+    const rail = canvas.getByRole('complementary', { name: 'Types' });
     await expect(Math.round(rail.getBoundingClientRect().width)).toBe(300);
     await expect(canvas.getByRole('separator', { name: 'Rail width' })).toHaveAttribute(
       'aria-valuenow',
@@ -214,7 +214,7 @@ export const TheOpenRailTakesTheStoredWidthInsideItsBounds: Story = {
 export const ATooNarrowWidthIsDrawnAtTheNarrowestBound: Story = {
   args: { rows: rows({ width: 40 }) },
   play: async ({ canvas }) => {
-    const rail = canvas.getByRole('complementary', { name: 'Layers' });
+    const rail = canvas.getByRole('complementary', { name: 'Types' });
     await expect(Math.round(rail.getBoundingClientRect().width)).toBe(192);
   },
 };

@@ -1,10 +1,18 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 
 import type { Corpus, EntityPosition, TypeVocabulary } from '@/shared/read/model';
 import { cn } from '@/shared/lib/utils';
 import { Rail, type RailAct } from '@/shared/rail';
 import { useScreenQuery } from '@/shared/screen-query';
-import { Button } from '@/shared/ui/button';
 
 import { mountGraph, type GraphController, type GraphView } from './controller';
 import { MarkerRemainder } from './marker-remainder';
@@ -41,21 +49,30 @@ const GraphCanvas = memo(function GraphCanvas({ canvas, overlay }: GraphCanvasPr
   );
 });
 
-interface GraphPageProps {
-  // The record this canvas draws. It arrives as a value, so the canvas never reads a store that
-  // may hold nothing, and a later read of the record reaches the graph as a new value.
+/** What the graph draws. The page keeps one value for it, so a later read is one new value. */
+export interface GraphRecord {
   readonly corpus: Corpus;
   /** The declared types. The canvas paints a node in the hue its type states. */
   readonly types: TypeVocabulary;
   // Where the layout run placed each entity. An entity it did not place is absent, and the canvas
   // then places it at a position read from its identifier.
   readonly layout: ReadonlyMap<string, EntityPosition>;
+}
+
+interface GraphPageProps {
+  readonly record: GraphRecord;
   // This function must be the same function at each render of the caller. A caller that builds a
   // new function at each render mounts a new graph at each render.
   readonly onSelect: (selection: GraphSelection | null) => void;
+  /** The card of the selection. It stands beside the canvas, and under it on a narrow screen. */
+  readonly card: ReactNode;
 }
 
-export function GraphPage({ corpus, types, layout, onSelect }: GraphPageProps) {
+/** The graph as a dark island in the light page: the types and the lists beside the canvas, and
+ * the card of the selection on the other side. Under the island, the notes that correct the
+ * picture. */
+export function GraphPage({ record, onSelect, card }: GraphPageProps) {
+  const { corpus, types, layout } = record;
   const canvas = useRef<HTMLDivElement | null>(null);
   const overlay = useRef<HTMLDivElement | null>(null);
   const controller = useRef<GraphController | null>(null);
@@ -185,66 +202,82 @@ export function GraphPage({ corpus, types, layout, onSelect }: GraphPageProps) {
   }, []);
 
   return (
-    <div className={cn('relative size-full overflow-hidden')}>
-      <GraphCanvas canvas={canvas} overlay={overlay} />
-
+    <>
       <div
-        className={cn('pointer-events-none absolute top-2 right-2 flex flex-col items-end gap-2')}
+        className={cn(
+          'dark grid border border-border bg-background text-foreground',
+          'lg:grid-cols-[auto_minmax(0,1fr)_20rem]',
+        )}
       >
-        {snapshot === null ? null : (
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            onClick={showWholeGraph}
-            className={cn('pointer-events-auto')}
-          >
-            Show the whole graph
-          </Button>
-        )}
-      </div>
-
-      {/* Each floating panel takes no pointer event on its own padding, and neither does the box
-          that places it. A drag that starts there still moves the graph below. */}
-      <div className={cn('pointer-events-none absolute inset-y-2 left-2 flex')}>
-        {snapshot === null || rows === null ? null : (
-          <Rail
-            rows={rows.rail}
-            onAct={act}
-            index={(type) => {
-              const list = rows.lists.get(type);
-              return list === undefined ? null : (
-                <IndexRows
-                  list={list}
-                  onSelect={reach}
-                  onShowWholeList={() => {
-                    showWholeList(type);
-                  }}
-                  onOpen={openUnit}
-                />
-              );
-            }}
-            className={cn(
-              'pointer-events-none max-h-full border border-border bg-popover',
-              'text-popover-foreground',
-            )}
-          />
-        )}
-      </div>
-
-      {/* The line corrects the canvas, so it stands on the canvas. The rail folds away and the
-          fold is stored, so a reader could hide this report for good and never meet it again. */}
-      <div className={cn('pointer-events-none absolute right-2 bottom-2 flex flex-col gap-2')}>
-        {snapshot === null ? null : (
-          <>
-            <MarkerRemainder
-              drawn={snapshot.view.markersDrawn}
-              remainder={snapshot.view.markersOverCap}
+        {/* The rail is first in the order of the keys, because the canvas has no key of its own.
+            A stacked screen reads the canvas and the card first. */}
+        <div
+          className={cn(
+            'max-h-96 min-h-0 overflow-hidden border-t border-border max-lg:order-last',
+            'lg:col-start-1 lg:row-start-1 lg:max-h-128 lg:border-t-0 lg:border-r',
+          )}
+        >
+          {snapshot === null || rows === null ? null : (
+            <Rail
+              rows={rows.rail}
+              onAct={act}
+              index={(type) => {
+                const list = rows.lists.get(type);
+                return list === undefined ? null : (
+                  <IndexRows
+                    list={list}
+                    onSelect={reach}
+                    onShowWholeList={() => {
+                      showWholeList(type);
+                    }}
+                    onOpen={openUnit}
+                  />
+                );
+              }}
+              className={cn('h-full max-h-96 bg-background lg:max-h-128')}
             />
-            <UnplacedCount unplaced={snapshot.view.unplaced} />
-          </>
-        )}
+          )}
+        </div>
+
+        <div className={cn('relative h-96 min-w-0 lg:col-start-2 lg:row-start-1 lg:h-128')}>
+          <GraphCanvas canvas={canvas} overlay={overlay} />
+          <div className={cn('absolute top-2 right-2')}>
+            {snapshot === null ? null : (
+              <button
+                type="button"
+                onClick={showWholeGraph}
+                className={cn(
+                  'h-6 border border-input bg-background px-2 text-xs text-foreground',
+                  'transition-colors duration-100 hover:bg-muted',
+                  'outline-none focus-visible:border-ring focus-visible:ring-3',
+                  'focus-visible:ring-ring/50',
+                )}
+              >
+                Show the whole graph
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div
+          className={cn(
+            'max-h-96 min-h-0 min-w-0 overflow-y-auto overscroll-contain border-t border-border',
+            'lg:col-start-3 lg:row-start-1 lg:max-h-128 lg:border-t-0 lg:border-l',
+          )}
+        >
+          {card}
+        </div>
       </div>
-    </div>
+
+      {snapshot === null ? null : (
+        <>
+          <MarkerRemainder
+            drawn={snapshot.view.markersDrawn}
+            remainder={snapshot.view.markersOverCap}
+          />
+          <UnplacedCount unplaced={snapshot.view.unplaced} />
+        </>
+      )}
+    </>
   );
 }

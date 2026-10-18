@@ -18,7 +18,6 @@ import {
   buildGraphModel,
   dimmedColour,
   GROUND_HUE,
-  repaintGraphModel,
   type EdgeAttrs,
   type GraphGround,
   type GraphModel,
@@ -121,9 +120,18 @@ const NO_OP = (): void => {
   // A destroyed handle registers no listener, so it has nothing to remove.
 };
 
-/** Which ground the document has: the class on `documentElement`, and never React. */
-const groundOf = (): GraphGround =>
-  document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+// The page draws the canvas as a dark island in a light page, so the ground is the dark one in
+// each theme of the site.
+const GROUND: GraphGround = 'dark';
+
+// A state change of the camera takes at most this long. Origin: the 120 ms limit of the motion
+// rule. A reader who asks for no motion gets a jump.
+const MOTION_MS = 120;
+
+// External constraint: the user agent tells the choice of the reader here, and a media query is
+// the one way to read it.
+const motionOf = (): number =>
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : MOTION_MS;
 
 const sameSelection = (one: GraphSelection | null, two: GraphSelection | null): boolean =>
   one === null || two === null ? one === two : one.kind === two.kind && one.id === two.id;
@@ -152,8 +160,8 @@ export function mountGraph(
   const placement = graphPositions(corpus.entities, layout);
   const positions = placement.positions;
 
-  let ground = groundOf();
-  let model = buildGraphModel(corpus, positions, types, ground);
+  const motion = motionOf();
+  const model = buildGraphModel(corpus, positions, types, GROUND);
   const wordsOf = relationWording(corpus.relationTypes);
 
   const stored = readGraphWorkspace();
@@ -190,8 +198,7 @@ export function mountGraph(
   const dimOf = (colour: string): string => {
     const held = dimCache.get(colour);
     if (held !== undefined) return held;
-    // The fraction follows the ground, so the cache is emptied at each theme change below.
-    const made = dimmedColour(colour, GROUND_HUE[ground], DIM_ALPHA[ground]);
+    const made = dimmedColour(colour, GROUND_HUE[GROUND], DIM_ALPHA[GROUND]);
     dimCache.set(colour, made);
     return made;
   };
@@ -328,6 +335,12 @@ export function mountGraph(
     // cannot carry would be lost at the reload, and the analyst would meet a picture that is not
     // the one that was left.
     enableCameraRotation: false,
+
+    // The three gestures that animate the camera take the same short time as a call of the
+    // controller. The defaults are 200 to 250 ms, and the motion rule allows 120.
+    zoomDuration: motion,
+    doubleClickZoomingDuration: motion,
+    inertiaDuration: motion,
 
     // External constraint: Sigma bounds no zoom by default, so a wheel or a pinch can reach a
     // ratio where the canvas shows empty ground. Sigma applies these bounds to each camera state.
@@ -653,20 +666,6 @@ export function mountGraph(
     if (hovered?.id === edge) nameHover(null);
   });
 
-  // A theme change moves the palette and nothing else: the record, the topology and the positions
-  // are the same, so the paint is written over the graph that is already drawn. Nothing is built
-  // again, so no node moves, and the camera and the selection both hold. `settle` refreshes.
-  const themeObserver = new MutationObserver(() => {
-    if (destroyed) return;
-    const next = groundOf();
-    if (next === ground) return;
-    ground = next;
-    dimCache.clear();
-    model = repaintGraphModel(model, types, ground);
-    settle(acceptable(selection));
-  });
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-
   // Each member does nothing after `destroy`: a call into a killed Sigma throws, and a write to
   // the workspace from a dead adapter keeps that value for each later open.
   const controller: GraphController = {
@@ -722,13 +721,13 @@ export function mountGraph(
       // The approach only ever moves nearer: a smaller ratio is a nearer camera, and a
       // selection must never undo the zoom the analyst chose.
       const ratio = Math.min(camera.getState().ratio, REACH_RATIO);
-      void camera.animate({ x: point.x, y: point.y, ratio });
+      void camera.animate({ x: point.x, y: point.y, ratio }, { duration: motion });
     },
     showWholeGraph: () => {
       if (destroyed) return;
       // External constraint: the reset of Sigma puts the centre at 0.5 and the ratio at 1,
       // which frames every node. The `updated` event stores it as any other move.
-      void camera.animatedReset();
+      void camera.animatedReset({ duration: motion });
     },
     subscribe: (listener) => {
       if (destroyed) return NO_OP;
@@ -757,7 +756,6 @@ export function mountGraph(
       }
       destroyed = true;
       sizeObserver.disconnect();
-      themeObserver.disconnect();
       camera.off('updated', onCameraUpdated);
       sigma.off('afterRender', drawOverlay);
       listeners.clear();

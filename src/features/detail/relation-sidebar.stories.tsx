@@ -51,7 +51,7 @@ const meta = {
   parameters: { layout: 'fullscreen' },
   // The row states a height, exactly as the route does, and the panel stretches to it.
   render: (args) => (
-    <div className="flex h-[600px]">
+    <div className="flex h-[600px] w-80">
       <RelationSidebar {...args} />
     </div>
   ),
