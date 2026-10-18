@@ -65,6 +65,10 @@ export const writeRoutes = (
   app.use('/write/*', admitOperatorJson(operatorKey));
   app.use('/private/*', admitOperatorJson(operatorKey));
 
+  // The answer is public and holds no data: the application hides the entries that need the
+  // writer when this answer does not come.
+  app.get('/writer-status', (context) => context.json({ online: true }));
+
   // A unit of the queue holds its cited passages and the reason of each dispute, so the queue
   // reaches the review page through the writer, one page at a time.
   app.post('/private/review-units', capped(LARGEST_BODY_BYTES), async (context) => {

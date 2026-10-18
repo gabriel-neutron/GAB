@@ -3,6 +3,7 @@ import { Button } from '@/shared/ui/button';
 import { ErrorNotice } from '@/shared/error-notice';
 import { refreshCorpus } from '@/shared/read/corpus';
 import { keepOperatorKey } from '@/shared/write/operator-key';
+import { recheckWriter } from '@/shared/write/writer-status';
 import { routeTree } from './routeTree.gen';
 
 // The router default answers an unknown path. An unknown entity identifier is a different
@@ -37,6 +38,7 @@ function RouteError({ error }: { error: Error }) {
     <ErrorNotice
       detail={error.message}
       onRetry={() => {
+        void recheckWriter();
         void refreshCorpus(() => router.invalidate());
       }}
     />
