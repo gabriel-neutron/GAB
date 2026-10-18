@@ -46,7 +46,8 @@ const LANES: readonly { readonly key: LaneKey; readonly words: string }[] = [
   { key: 'owners', words: 'Owners' },
   { key: 'operators', words: 'Managers and operators' },
   { key: 'insurers', words: 'Insurers' },
-  { key: 'designations', words: 'Designations' },
+  // A vessel entry is no asset freeze: an EU Annex XLII entry is a ban on port access and services.
+  { key: 'designations', words: 'Listed on a vessel list' },
   { key: 'port calls', words: 'Port calls' },
 ];
 

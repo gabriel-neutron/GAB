@@ -73,7 +73,9 @@ export interface ChainView {
   readonly cards: Readonly<Record<string, Card>>;
 }
 
-const MEASURE_WORDS: Readonly<Record<AssetMeasure['measure'], string>> = {
+// A card measure belongs to a facility, never to a vessel (the vessel list has its own words on the
+// vessel page), so the asset freeze wording holds.
+const MEASURE_WORDS:Readonly<Record<AssetMeasure['measure'], string>> = {
   designated_by: 'Listing (asset freeze)',
   restricted_by: 'Sectoral measure',
 };
