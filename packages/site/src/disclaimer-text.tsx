@@ -1,5 +1,5 @@
 import { disclaimerBlocks, type DisclaimerRun } from './disclaimer-blocks.ts';
-import { safeHref } from './safe-href.ts';
+import { safeHref } from '@gab/release/safe-href';
 import { LINK } from './site-style.ts';
 
 function Runs({ runs }: { readonly runs: readonly DisclaimerRun[] }) {

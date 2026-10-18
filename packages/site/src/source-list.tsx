@@ -1,4 +1,4 @@
-import { safeHref } from './safe-href.ts';
+import { safeHref } from '@gab/release/safe-href';
 import type { SiteSource } from '@gab/release/site-release';
 import { LINK } from './site-style.ts';
 

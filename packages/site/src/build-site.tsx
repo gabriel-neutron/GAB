@@ -2,10 +2,10 @@ import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import countries from '@gab/proposal/countries.json?raw';
-import { chainView } from './chain-card.ts';
-import { chainFlows } from './chain-flows.ts';
-import { chainMapData } from './chain-map-data.ts';
-import { stagedGeojson } from './staged-geojson.ts';
+import { chainView } from '@gab/release/chain-card';
+import { chainFlows } from '@gab/release/chain-flows';
+import { chainMapData } from '@gab/release/chain-map-data';
+import { stagedGeojson } from '@gab/release/staged-geojson';
 import { ClaimPage } from './claim-page.tsx';
 import { claimText } from '@gab/release/claim-text';
 import { DownloadsPage } from './downloads-page.tsx';

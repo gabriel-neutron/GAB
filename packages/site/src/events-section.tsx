@@ -1,6 +1,6 @@
 import { claimText } from '@gab/release/claim-text';
-import { eventsAt, strikeCount, type SiteEvent } from './event-lane.ts';
-import { safeHref } from './safe-href.ts';
+import { eventsAt, strikeCount, type SiteEvent } from '@gab/release/event-lane';
+import { safeHref } from '@gab/release/safe-href';
 import { claimPage, entityPage, hrefFrom, type SitePath } from '@gab/release/site-paths';
 import type { SiteRelease, SiteSource } from '@gab/release/site-release';
 import { LINK } from './site-style.ts';

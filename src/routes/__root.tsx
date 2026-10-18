@@ -26,7 +26,7 @@ export const Route = createRootRoute({
 
 // Departure: only these screens read the header filter. The search page has a field of its own,
 // and a screen that reads no filter shows no field.
-const FILTERED_SCREENS: ReadonlySet<string> = new Set(['/map', '/graph']);
+const FILTERED_SCREENS: ReadonlySet<string> = new Set(['/graph']);
 
 function RootLayout() {
   const path = useLocation({ select: (location) => location.pathname });

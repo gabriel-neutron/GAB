@@ -1,6 +1,6 @@
 import { AssetCard } from './asset-card.tsx';
-import type { ChainView } from './chain-card.ts';
-import type { ChainFlows } from './chain-flows.ts';
+import type { ChainView } from '@gab/release/chain-card';
+import type { ChainFlows } from '@gab/release/chain-flows';
 import { PRODUCTS } from '@gab/proposal/chain-product';
 import { STAGES } from '@gab/proposal/chain-stage';
 import { chainSteps } from '@gab/proposal/chain-steps';
@@ -11,7 +11,7 @@ import {
   MAP_ELEMENT,
   NO_MAP_ELEMENT,
 } from './map-elements.ts';
-import { mapFeatures } from './map-features.ts';
+import { mapFeatures } from '@gab/release/map-features';
 import { SanctionsRules } from './sanctions-rules.tsx';
 import { SiteFrame } from './site-frame.tsx';
 import { entityPage, hrefFrom, MAP, METHOD } from '@gab/release/site-paths';

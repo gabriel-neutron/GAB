@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { chainView } from './chain-card.ts';
+import { chainView } from '@gab/release/chain-card';
 import { ACCEPTED_STRIKE, SITE, STRIKE } from './event-fixture.ts';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
 
