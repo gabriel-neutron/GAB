@@ -7,3 +7,4 @@ Decide each technical detail yourself. Send each other question to the skill `ex
 Do each step that git can undo without asking: fix, test, commit, push, open the PR, review it with a separate agent (add `visual-qa` when the diff changes the user interface), apply the findings, merge into `staging`.
 Ask before a merge into `main`, a loss that git cannot undo, a GitHub write outside the task, or a cost.
 End each message with one line: **Done.**, **Next:** a step for the operator or a new session, **New session:** the prompt, or **Your decision:** one critical question with the panel verdict and a recommendation. Offer no optional extra work.
+Agent skills: issue tracker docs/agents/issue-tracker.md, triage labels docs/agents/triage-labels.md, domain docs (single-context) docs/agents/domain.md.
