@@ -53,7 +53,7 @@ export const Route = createFileRoute('/graph')({
   },
 
   component: GraphRoute,
-  head: () => ({ meta: [{ title: 'Graph · Gabriel' }] }),
+  head: () => ({ meta: [{ title: 'Graph · GAB dataset' }] }),
 });
 
 function GraphRoute() {

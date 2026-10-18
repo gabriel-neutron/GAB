@@ -1,6 +1,8 @@
 import { createRouter, useRouter } from '@tanstack/react-router';
 import { Button } from '@/shared/ui/button';
 import { ErrorNotice } from '@/shared/error-notice';
+import { PageHeader } from '@/shared/page/page-header';
+import { ReadingPage } from '@/shared/page/reading-page';
 import { refreshCorpus } from '@/shared/read/corpus';
 import { keepOperatorKey } from '@/shared/write/operator-key';
 import { recheckWriter } from '@/shared/write/writer-status';
@@ -13,19 +15,22 @@ function PathNotFound() {
 
   // A typed address can be the first entry in the history. Then there is no page to go back to.
   return (
-    <div>
+    <ReadingPage>
+      <PageHeader title="Page not found" />
       <p>This address does not name a page.</p>
       {router.history.canGoBack() && (
-        <Button
-          variant="outline"
-          onClick={() => {
-            router.history.back();
-          }}
-        >
-          Go back
-        </Button>
+        <div>
+          <Button
+            variant="outline"
+            onClick={() => {
+              router.history.back();
+            }}
+          >
+            Go back
+          </Button>
+        </div>
       )}
-    </div>
+    </ReadingPage>
   );
 }
 
