@@ -46,7 +46,7 @@ session: each proposal waits in the review queue, and the operator decides it th
 - Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,
   `read_group`, `read_decided`, `read_leads`.
 - Write: `archive_snapshot`, `fetch_document`, `eu_act`, `ofac_sdn`, `uk_sanctions_list`,
-  `firms_detections`, `store_saved_file`, `telegram_channel`, `enqueue_extract`,
+  `firms_detections`, `site_image`, `store_saved_file`, `telegram_channel`, `enqueue_extract`,
   `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question.
   `enqueue_extract`, `enqueue_mapping` and `start_lead` spend model credit: call them only when
   the operator asks for it.

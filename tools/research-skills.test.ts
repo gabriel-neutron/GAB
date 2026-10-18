@@ -63,6 +63,7 @@ const RECORD_WORDS = new Set([
   'restricted_by',
   'registration_number',
   'tax_id',
+  'point_role',
 ]);
 
 const namedTools = (text: string): string[] =>

@@ -15,6 +15,7 @@ const SEEDED = [
   { id: 'cyprus_registrar', licence: 'paid-filing' },
   { id: 'datalastic', licence: 'commercial-no-redistribution' },
   { id: 'egrul', licence: 'restricted' },
+  { id: 'eox_s2cloudless_2016', licence: 'cc-by-4.0' },
   { id: 'equasis', licence: 'registration-terms' },
   { id: 'eu_eurlex', licence: 'eu-reuse' },
   { id: 'eu_fsf', licence: 'eu-reuse' },
@@ -52,7 +53,7 @@ const tierOf = async (ask: Ask, document: string): Promise<string> => {
 const providerOf = async (ask: Ask, document: string): Promise<readonly unknown[]> =>
   stored.parse(await ask('SELECT id, provider_id FROM public.documents WHERE id = $1', [document]));
 
-test('the seed holds the twenty providers of the ticket, each with its licence', async () => {
+test('the seed holds each provider of the tickets, each with its licence', async () => {
   const found = await probe('superuser', async (ask) =>
     providers.parse(await ask('SELECT id, licence FROM public.document_provider ORDER BY id')),
   );
