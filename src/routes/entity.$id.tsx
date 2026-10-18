@@ -50,7 +50,7 @@ export const Route = createFileRoute('/entity/$id')({
 
   // The identifier is in the title. Four routes that all report "Gabriel" tell a screen reader
   // nothing, and an entity page is the one route where the name changes on every visit.
-  head: ({ params }) => ({ meta: [{ title: `Entity ${params.id} · Gabriel` }] }),
+  head: ({ params }) => ({ meta: [{ title: `Entity ${params.id} · GAB dataset` }] }),
 });
 
 function EntityRoute() {

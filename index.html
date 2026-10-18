@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gabriel</title>
+    <title>GAB dataset</title>
     <script>
       // This script sets the theme class before the first paint. No React code can do it: the
       // entry point is a module script, and a module script always waits for the parser. Without
@@ -18,7 +18,7 @@
       // the effect in the theme provider sets the same class one moment later anyway.
       try {
         var raw = localStorage.getItem('gab.shell.v1');
-        var theme = raw === null ? 'system' : JSON.parse(raw).theme;
+        var theme = raw === null ? 'light' : JSON.parse(raw).theme;
         if (theme !== 'dark' && theme !== 'light') theme = 'system';
         var dark =
           theme === 'dark' ||

@@ -129,7 +129,7 @@ export function ScreenQueryField() {
   };
 
   return (
-    <div className="relative">
+    <div className="relative w-full sm:w-auto">
       <Input
         type="search"
         autoComplete="off"
@@ -176,7 +176,7 @@ export function ScreenQueryField() {
               return;
           }
         }}
-        className="h-7 w-48"
+        className="h-7 w-full sm:w-48"
       />
       {listed === null ? null : (
         <MatchList id={listId} matches={listed} active={activeRow} onChoose={choose} />

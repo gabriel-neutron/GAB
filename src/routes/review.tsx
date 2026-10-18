@@ -119,7 +119,7 @@ export const Route = createFileRoute('/review')({
   },
 
   component: ReviewRoute,
-  head: () => ({ meta: [{ title: 'Review · Gabriel' }] }),
+  head: () => ({ meta: [{ title: 'Review · GAB dataset' }] }),
 });
 
 /** The pages read from the first page that the loader gave, the counts of the last read (what the

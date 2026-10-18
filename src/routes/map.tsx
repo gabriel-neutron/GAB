@@ -42,7 +42,7 @@ export const Route = createFileRoute('/map')({
   },
 
   component: MapRoute,
-  head: () => ({ meta: [{ title: 'Map · Gabriel' }] }),
+  head: () => ({ meta: [{ title: 'Map · GAB dataset' }] }),
 });
 
 function MapRoute() {

@@ -21,7 +21,7 @@ export const Route = createFileRoute('/search')({
     return { corpus, providers };
   },
   component: SearchRoute,
-  head: () => ({ meta: [{ title: 'Search · Gabriel' }] }),
+  head: () => ({ meta: [{ title: 'Search · GAB dataset' }] }),
 });
 
 function SearchRoute() {
