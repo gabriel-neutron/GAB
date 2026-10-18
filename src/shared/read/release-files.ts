@@ -6,6 +6,9 @@ import { z } from 'zod';
 
 const listing = z.object({ files: z.array(z.object({ path: z.string() })) });
 
+/** The site holds no release folder: no manifest answers, or the host serves a page in its place. */
+export class ReleaseAbsent extends Error {}
+
 async function textOf(address: URL): Promise<string> {
   let answer: Response;
   try {
@@ -21,12 +24,19 @@ async function textOf(address: URL): Promise<string> {
 
 /** Reads the release at `folder`: its manifest, then each file that the manifest lists. */
 export async function fetchRelease(folder: URL): Promise<SiteRelease> {
-  const manifest = await textOf(new URL('manifest.json', folder));
+  let manifest: string;
+  try {
+    manifest = await textOf(new URL('manifest.json', folder));
+  } catch (cause) {
+    throw new ReleaseAbsent(cause instanceof Error ? cause.message : 'No release manifest.');
+  }
   let json: unknown;
   try {
     json = JSON.parse(manifest);
   } catch {
-    throw new Error('The release manifest is not JSON. The host may serve a page in its place.');
+    throw new ReleaseAbsent(
+      'The release manifest is not JSON. The host may serve a page in its place.',
+    );
   }
   const listed = listing.safeParse(json);
   if (!listed.success) throw new Error('The release manifest does not list files.');

@@ -1,4 +1,4 @@
-import { claimText } from './claim-text.ts';
+import { claimText } from '@gab/release/claim-text';
 import { NatoPairMark } from './nato-pair-mark.tsx';
 import { LINK } from './site-style.ts';
 import { claimPage, hrefFrom, type SitePath } from '@gab/release/site-paths';

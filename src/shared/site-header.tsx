@@ -54,6 +54,9 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
         aria-label="Pages of the site"
         className="order-1 -mx-2 flex h-9 basis-full items-stretch overflow-x-auto border-t border-border px-1 sm:order-none sm:mx-0 sm:mr-auto sm:h-10 sm:basis-auto sm:border-t-0 sm:px-0"
       >
+        <Link to="/" activeOptions={{ exact: true }} className={PAGE_LINK}>
+          Critical nodes
+        </Link>
         <Link
           key={`map${address}`}
           to="/map"

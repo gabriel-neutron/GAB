@@ -8,6 +8,7 @@ import { readOnce } from './once';
 import type { Corpus } from './model';
 import { forgetReadMode, readFrom, readMode } from './read-mode';
 import { corpusFromRelease } from './release-corpus';
+import { setReleaseNote } from './release-note';
 import { forgetRelease, loadRelease } from './release-record';
 import { forgetVocabulary, loadRelationTypes } from './vocabulary';
 
@@ -39,8 +40,19 @@ async function readFromService(): Promise<Corpus> {
 
 // The service does not answer: the files of the release give the same shapes. The release has no
 // pending act, because the review is a part that writes, and it is hidden.
+// The footer names the version only here: with the service up, the record is the live one.
+let generation = 0;
+
 async function readFromRelease(): Promise<Corpus> {
+  const own = generation;
   const [release, relationTypes] = await Promise.all([loadRelease(), loadRelationTypes()]);
+  // A load that ends after a forget must not show the footer: the service may be back.
+  if (own === generation)
+    setReleaseNote({
+      date: release.manifest.date,
+      reportError: release.manifest.contacts.reportError,
+      rightOfReply: release.manifest.contacts.rightOfReply,
+    });
   return corpusFromRelease(release, relationTypes);
 }
 
@@ -57,6 +69,8 @@ export function forgetCorpus(): void {
   if (readMode() === 'release') forgetVocabulary();
   forgetReadMode();
   forgetRelease();
+  generation += 1;
+  setReleaseNote(null);
 }
 
 /** Forget each held answer, then run the loaders again through `reload`. The order is the whole

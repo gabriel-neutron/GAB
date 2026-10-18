@@ -1,16 +1,34 @@
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
+import { entityHref } from '@/features/detail/address';
+import { NodesPage } from '@/features/nodes/nodes-page';
+import { claimText } from '@gab/release/claim-text';
+import { loadCorpus } from '@/shared/read/corpus';
+import { ReleaseAbsent } from '@/shared/read/release-files';
+import { loadRelease } from '@/shared/read/release-record';
 
-// `redirect({ throw: true })` is the documented alternative to `throw redirect()`, used because
-// the value TanStack Router raises is a `Response` and not an `Error`, and `only-throw-error`
-// stays on. Its return type is `Redirect` and not `never`, so this wrapper states `never` once.
-function toTheMap(): never {
-  redirect({ to: '/map', search: { entity: '', relation: '' }, replace: true, throw: true });
-  throw new Error('The router did not raise the redirect.');
-}
-
-// The map is the ground the analyst works over, so it is what an empty address opens. The root
-// carries no surface of its own: a landing page between the address and the work is one more
-// press on every visit, and it holds nothing the navigation bar above does not already state.
+// The critical nodes table exists in a release and nowhere else, so it reads the release files
+// whether the read service answers or not. A site with no release files shows one sentence.
 export const Route = createFileRoute('/')({
-  beforeLoad: toTheMap,
+  loader: async () => {
+    // The record is read first, so the footer knows whether the service answers.
+    await loadCorpus().catch(() => undefined);
+    try {
+      const release = await loadRelease();
+      return {
+        date: release.manifest.date,
+        nodes: release.criticalNodes,
+        claimTexts: Object.fromEntries(release.claims.map((claim) => [claim.id, claimText(claim)])),
+      };
+    } catch (cause) {
+      if (cause instanceof ReleaseAbsent) return null;
+      throw cause;
+    }
+  },
+  component: NodesRoute,
+  head: () => ({ meta: [{ title: 'Critical nodes · GAB dataset' }] }),
 });
+
+function NodesRoute() {
+  const release = Route.useLoaderData();
+  return <NodesPage release={release} entityHref={(id) => entityHref(id, null)} />;
+}

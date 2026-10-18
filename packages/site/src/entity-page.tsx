@@ -1,5 +1,5 @@
-import { attributeName } from './attribute-name.ts';
-import { claimText } from './claim-text.ts';
+import { attributeName } from '@gab/release/attribute-name';
+import { claimText } from '@gab/release/claim-text';
 import { eventsAt } from './event-lane.ts';
 import { EventLane } from './events-section.tsx';
 import { NatoPairMark } from './nato-pair-mark.tsx';
