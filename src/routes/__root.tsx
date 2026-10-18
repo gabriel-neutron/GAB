@@ -7,12 +7,15 @@ import {
   useRouter,
 } from '@tanstack/react-router';
 import { CreateEntityDialog } from '@/features/edit/create-entity-dialog';
+import { ErrorNotice } from '@/shared/error-notice';
 import { carriedSelection } from '@/shared/carried-selection';
 import { cn } from '@/shared/lib/utils';
 import { refreshCorpus } from '@/shared/read/corpus';
 import { ModeToggle } from '@/shared/mode-toggle';
 import { ScreenQueryField, ScreenQueryProvider } from '@/shared/screen-query';
 import { ThemeProvider, useTheme } from '@/shared/theme-provider';
+import { WhenWriterOnline } from '@/shared/write/when-writer-online';
+import { recheckWriter } from '@/shared/write/writer-status';
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -39,7 +42,9 @@ function RootLayout() {
             <SurfaceNav />
             <div className="flex items-center gap-2">
               {FILTERED_SCREENS.has(path) ? <ScreenQueryField /> : null}
-              <NewEntityControl />
+              <WhenWriterOnline>
+                <NewEntityControl />
+              </WhenWriterOnline>
               <ThemeControl />
             </div>
           </header>
@@ -98,14 +103,16 @@ function SurfaceNav() {
       >
         Graph
       </Link>
-      <Link
-        to="/review"
-        search={{ unit: '', view: 'queue', group: '' }}
-        activeOptions={{ includeSearch: false }}
-        className={SURFACE_LINK}
-      >
-        Review
-      </Link>
+      <WhenWriterOnline>
+        <Link
+          to="/review"
+          search={{ unit: '', view: 'queue', group: '' }}
+          activeOptions={{ includeSearch: false }}
+          className={SURFACE_LINK}
+        >
+          Review
+        </Link>
+      </WhenWriterOnline>
       <Link to="/search" className={SURFACE_LINK}>
         Search
       </Link>
@@ -139,10 +146,14 @@ function ThemeControl() {
 }
 
 function RootError({ error }: { error: Error }) {
+  const router = useRouter();
   return (
-    <div className="p-4">
-      <p>The application failed.</p>
-      <pre>{error.message}</pre>
-    </div>
+    <ErrorNotice
+      detail={error.message}
+      onRetry={() => {
+        void recheckWriter();
+        void refreshCorpus(() => router.invalidate());
+      }}
+    />
   );
 }

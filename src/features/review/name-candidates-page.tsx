@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { ErrorNotice } from '@/shared/error-notice';
 import { cn } from '@/shared/lib/utils';
 import { forgetCorpus } from '@/shared/read/corpus';
 import { SaidLine } from '@/shared/said-line';
@@ -102,7 +103,7 @@ export function NameCandidatesPage({ read }: NameCandidatesPageProps) {
     return (
       <div className="flex flex-col gap-2 p-2">
         {decision.step === 'idle' ? null : said}
-        <p className="text-xs text-label">{now.why}</p>
+        <ErrorNotice detail={now.why} />
       </div>
     );
   const working = decision.step === 'working';

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { ErrorNotice } from '@/shared/error-notice';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import type { WriteState } from '@/shared/write/write-state';
@@ -36,6 +37,8 @@ export interface GroupPanelProps {
   readonly words: UnitWords;
   /** The operator confirmed the group action on the clean units that the screen showed. */
   readonly onPromote: (groupId: string, unitIds: readonly string[]) => void;
+  /** The operator asked to read the group again. */
+  readonly onRetry: () => void;
 }
 
 const typeWords = (kind: string, type: string | null, words: UnitWords): string => {
@@ -108,7 +111,7 @@ const sentenceOf = (action: GroupActionState): string | null => {
 
 /** One group: the action "Promote the clean proposals of this group", its confirmation with the
  * counts and the tree of the clean units, and the result of each unit. */
-export function GroupPanel({ view, document, words, onPromote }: GroupPanelProps) {
+export function GroupPanel({ view, document, words, onPromote, onRetry }: GroupPanelProps) {
   // The confirmation dies with the view: a reload asks for it again.
   const [confirming, setConfirming] = useState(false);
   // After the last group, the result of its action stays on the screen.
@@ -129,7 +132,7 @@ export function GroupPanel({ view, document, words, onPromote }: GroupPanelProps
         {view.action.step === 'done' ? (
           <Results name={view.action.name} results={view.action.results} />
         ) : null}
-        <p className="text-label">{view.why}</p>
+        <ErrorNotice detail={view.why} onRetry={onRetry} />
       </section>
     );
 

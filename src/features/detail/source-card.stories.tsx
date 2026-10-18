@@ -1,9 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, userEvent } from 'storybook/test';
+import { expect, restoreAllMocks, userEvent } from 'storybook/test';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
 import { toDomain } from '@/shared/read/map';
 import type { Corpus, DocId } from '@/shared/read/model';
+import { holdWriter } from '@/shared/write/hold-writer.story-support';
 
 import { readDossier, type SourceCardModel } from './dossier';
 import { SourceCard } from './source-card';
@@ -76,6 +77,12 @@ const addressed = (uri: string): SourceCardModel => {
 const meta = {
   component: SourceCard,
   args: { source: REPORT },
+  beforeEach: async () => {
+    await holdWriter(true);
+    return () => {
+      restoreAllMocks();
+    };
+  },
   // The card sits in a 24 rem rail, and the two lines are measured at that width, so every
   // story states it.
   render: (args) => (
@@ -184,6 +191,17 @@ export const AStoredDocumentOffersAnExtraction: Story = {
   play: async ({ canvas }) => {
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
     await expect(canvas.getByRole('button', { name: 'Extract claims' })).toBeEnabled();
+  },
+};
+
+// With the write service off, the card offers no extraction.
+export const AnOfflineWriterOffersNoExtraction: Story = {
+  beforeEach: async () => {
+    await holdWriter(false);
+  },
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
+    await expect(canvas.queryByRole('button', { name: 'Extract claims' })).toBeNull();
   },
 };
 

@@ -361,6 +361,8 @@ export const TheListStartsAtThePlaceOfTheOperator: Story = {
 export const WithNoWriterThePageSaysWhy: Story = {
   args: { view: { state: 'private', why: 'The queue is private.' } },
   play: async ({ canvas }) => {
+    await expect(canvas.getByRole('button', { name: 'Retry' })).toBeVisible();
+    await userEvent.click(canvas.getByText('Technical detail'));
     await expect(canvas.getByText('The queue is private.')).toBeVisible();
   },
 };

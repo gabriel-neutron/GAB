@@ -5,6 +5,7 @@ import type { AttributeEdit } from '@gab/proposal/attribute-value';
 
 import type { DocId } from '@/shared/read/model';
 import { SaidLine } from '@/shared/said-line';
+import { useWriterOnline } from '@/shared/write/writer-status';
 
 import { Band } from './band';
 import { surfaceHref } from './address';
@@ -86,7 +87,9 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
   // A draft outlives a move to the reading view, which draws the stored record. A switch that
   // threw the draft away would lose the one thing the analyst typed.
   const [view, setView] = useState<DetailView>('reading');
-  const writing = view === 'writing';
+  // The edit entries need the write service. When it goes offline, the page draws the record.
+  const writerOnline = useWriterOnline();
+  const writing = view === 'writing' && writerOnline;
 
   const said = structureSaid(structure);
 
@@ -206,7 +209,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
                 </a>
               ) : null}
             </nav>
-            <EditSwitch view={view} busy={busy} onSwitch={setView} />
+            {writerOnline ? <EditSwitch view={view} busy={busy} onSwitch={setView} /> : null}
             {writing ? (
               <DeleteControl
                 name={dossier.label}
