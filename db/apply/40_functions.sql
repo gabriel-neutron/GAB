@@ -1790,7 +1790,7 @@ BEGIN
        FROM public.proposals a, unnest(a.src::text[]) AS d(doc)
       WHERE a.op = 'update_relation' AND a.status = 'accepted'
         AND a.target_id = k.key::uuid
-        AND (a.payload ? 'valid_to' OR a.payload ? 'type')) AS c
+        AND (a.payload ? 'valid_to' OR a.payload ? 'type' OR a.payload ? 'add_source')) AS c
    WHERE r.id = k.key::uuid
      AND to_jsonb(r.sources) @> (k.value->'after'->'sources')
      AND NOT EXISTS (SELECT 1 FROM unnest(r.sources::text[]) AS y(d)

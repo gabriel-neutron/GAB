@@ -590,13 +590,22 @@ const checkSourceNames = async (
     SOURCE_NAMES,
     [targetId],
   );
-  const text = squeezed(cited.map((one) => one.passage).join(' '));
   const imo = /(?<!\d)\d{7}(?!\d)/u.exec(names?.imo ?? '')?.[0];
   const act = squeezed(names?.act ?? '');
-  if ((imo !== undefined && text.includes(imo)) || (act !== '' && text.includes(act))) return;
+  // Each cited document must name the vessel or the act: one good line must not carry another.
+  const namesIt = (document: string): boolean => {
+    const text = squeezed(
+      cited
+        .filter((one) => one.document === document)
+        .map((one) => one.passage)
+        .join(' '),
+    );
+    return (imo !== undefined && text.includes(imo)) || (act !== '' && text.includes(act));
+  };
+  if ([...new Set(cited.map((one) => one.document))].every(namesIt)) return;
   refuse(
     ref,
-    'no excerpt names the vessel by its IMO number' +
+    'no excerpt of a cited document names the vessel by its IMO number' +
       `${imo === undefined ? ' (the vessel has none in the record)' : ` ${imo}`} or the act ` +
       `${JSON.stringify(names?.act ?? '')}: cite the passage that names one of them`,
   );
