@@ -26,6 +26,47 @@ request.
 
 Documentation starts at [`docs/README.md`](docs/README.md).
 
+## Start the MCP server
+
+The MCP server `gab` gives the research tools to the AI agent. Its client starts it over stdio. You do
+not start it by hand for normal work.
+
+Before you start it:
+
+1. Install the dependencies: `pnpm install`. Node 24 is required.
+2. Start the database stack from the root of the repository:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml up -d
+   ```
+
+3. Copy `research/.env.example` to `research/.env`, and set the values.
+
+To start it, open a Claude Code session in the research folder. The file `research/.mcp.json` starts
+the server. Check that it runs:
+
+```bash
+cd research
+claude mcp list
+```
+
+`gab` must show as connected.
+
+To run the server alone, from the root of the repository:
+
+```bash
+node packages/mcp/src/main.ts
+```
+
+The server then waits for a client on stdin, so it shows no prompt. Stop it with Ctrl+C.
+
+If the server does not start, it prints the cause on stderr:
+
+- The database does not answer: start the stack (step 2).
+- The password is wrong: set `GAB_RESEARCH_DATABASE_URL` with the value of
+  `GABRIEL_RESEARCH_PASSWORD` in `infra/.env`.
+- The database name is wrong: name the database `gabriel`.
+
 ## License
 
 MIT — see [`LICENSE`](LICENSE).

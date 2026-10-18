@@ -79,7 +79,7 @@ const valueText = (value: unknown): string =>
  * digit. The log of the merges gives the entity that each absorbed identifier resolves to. */
 export const csvExport = (record: ReleaseRecord, preamble: string): readonly ReleaseFile[] => {
   const lookup = releaseLookup(record);
-  const { documentOf, licenceOf, labelOf, relationOf } = lookup;
+  const { documentOf, licenceOf, labelOf, relationOf, daysOf } = lookup;
 
   const entities = record.entities.map((one) => {
     const columns = entityColumns(one, lookup);
@@ -102,8 +102,8 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
     labelOf(one.src_id),
     one.dst_id,
     labelOf(one.dst_id),
-    one.valid_from ?? '',
-    one.valid_to ?? '',
+    daysOf(one).from ?? '',
+    daysOf(one).to ?? '',
     one.origin_label,
     licenceOf(one.sources),
     one.sources.join(' '),
@@ -126,8 +126,8 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
         relation.type,
         relation.dst_id,
         labelOf(relation.dst_id),
-        relation.valid_from ?? '',
-        relation.valid_to ?? '',
+        daysOf(relation).from ?? '',
+        daysOf(relation).to ?? '',
       ];
     }
     const relation = claim.subject_kind === 'relation' ? relationOf(claim.subject_id) : undefined;

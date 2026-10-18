@@ -236,6 +236,34 @@ test('an entity and a relation keep their label, licence and sources', () => {
   });
 });
 
+test('a day that a later act gave is not on the relation node, and a day from creation is', () => {
+  const file = jsonldExport(
+    {
+      ...RECORD,
+      claims: [
+        ...RECORD.claims,
+        {
+          claim_id: `${OWNS}/valid_to`,
+          subject_kind: 'relation',
+          subject_id: OWNS,
+          attribute: 'valid_to',
+          value: '2024-06-30',
+          origin_label: LABEL,
+          sources: ['doc b'],
+          act_id: ACT,
+          passages: [],
+        },
+      ],
+    },
+    HEADING,
+    BASE,
+  );
+  const graph = (JSON.parse(file.text) as { '@graph': Record<string, unknown>[] })['@graph'];
+  const node = graph.find((one) => one['@id'] === `relation/${OWNS}`);
+  expect(node?.['validFrom']).toBe('2024-01-02');
+  expect(node).not.toHaveProperty('validThrough');
+});
+
 test('a sectoral measure is a relation of the type restricted_by, with its label', () => {
   const file = jsonldExport(
     {
