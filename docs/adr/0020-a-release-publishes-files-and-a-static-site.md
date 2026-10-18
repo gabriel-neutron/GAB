@@ -1,6 +1,12 @@
 # ADR 0020 — A release publishes files and a static site, with no public API
 
-**Status** Accepted · 10 October 2026
+**Status** Superseded by ADR 0028 · 18 October 2026 · Accepted 10 October 2026
+
+**Superseded by ADR 0028.** On 18 October 2026 the operator asked for one site: the application,
+with all the pages, which hides each part that needs a backend when the backend does not answer.
+ADR 0028 lists the rules below that stay true. The rule that the site holds no script except
+the map script ends.
+
 **Replaces** the hosted read API of the deployment guide as the public surface of Gabriel.
 
 ## Context
