@@ -1,9 +1,9 @@
 import type { Message } from '@gab/model';
-import { mappingDraft } from '@gab/proposal/mapping';
+import { ASSET_KINDS, mappingDraft } from '@gab/proposal/mapping';
 import { LAYER_READER } from '@gab/text/geojson';
 import { TABLE_READER } from '@gab/text/xlsx';
 import { fileSchemaSample } from '@gab/tools/file-schema-sample';
-import { proposeMappingOf } from '@gab/tools/propose-mapping';
+import { mappingVocabulary, proposeMappingOf } from '@gab/tools/propose-mapping';
 import { tableFormatOf } from '@gab/tools/table';
 import { callTool, type Session, type Tool } from '@gab/tools/tool';
 import { z } from 'zod';
@@ -13,7 +13,7 @@ import { readMapperConfig, type MapperConfig } from '../reader-config.ts';
 import { promptOf, withinBudget } from '../tool-turn.ts';
 
 const MAPPER_NAME = 'mapper';
-const VERSION = 'v1';
+const VERSION = 'v2';
 
 // The readers that make a text set: the text of a set starts with the version of its reader.
 const TABLE_SETS = [TABLE_READER, LAYER_READER];
@@ -86,9 +86,22 @@ export const makeMapper = (config: MapperConfig, options: MapperOptions = {}): R
 
     // A refusal of the tool goes back to the model once, with its sentence, and the model gives
     // the mapping again. The second refusal ends the job with that sentence.
+    // The model gets the words of the record, so it makes up no type and no key.
+    const vocabulary = await mappingVocabulary(session);
     const messages: Message[] = [
       { role: 'system', content: prompt },
-      { role: 'user', content: JSON.stringify(read.output) },
+      {
+        role: 'user',
+        content: JSON.stringify({
+          ...z.looseObject({}).parse(read.output),
+          vocabulary: {
+            entityTypes: vocabulary.entityTypes.map((one) => one.key),
+            relationTypes: vocabulary.relationTypes.map((one) => one.key),
+            identifierKeys: vocabulary.identifierKeys,
+            assetKinds: ASSET_KINDS,
+          },
+        }),
+      },
     ];
     for (let retries = 1; ; retries -= 1) {
       const asked = await withinBudget(

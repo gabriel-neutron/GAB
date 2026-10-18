@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { identifierKey } from './identifiers.ts';
+import { IDENTIFIER_KEYS, identifierKey } from './identifiers.ts';
 
 /** How a page states a claim. The table states one word for every row. */
 const MODALITIES = ['enacts', 'asserts', 'attributes', 'alleges', 'denies'] as const;
@@ -302,3 +302,68 @@ export const missingColumns = (mapping: MappingDraft, header: readonly string[])
   namedColumns(mapping)
     .filter((name) => !header.includes(name))
     .map((name) => `the column "${name}" is not in the header. Use one of: ${header.join(', ')}`);
+
+/** The words of the record that a mapping can use: the live entity types and relation types. */
+export interface MappingVocabulary {
+  readonly entityTypes: readonly string[];
+  readonly relationTypes: readonly string[];
+}
+
+/** The words of a mapping that the record does not hold, each with the sentence that says what to
+ * correct: an entity type or a relation type that is not live, and a lookup key that is not an
+ * identifier of an asset (`opensanctions_id` for a facility). An asset is the type
+ * `facility` with an asset kind, never a type `field`. */
+export const vocabularyFaults = (
+  mapping: MappingDraft,
+  { entityTypes, relationTypes }: MappingVocabulary,
+): string[] => {
+  const faults: string[] = [];
+  const type = (where: string, held: string): void => {
+    if (!entityTypes.includes(held))
+      faults.push(
+        `${where} "${held}" is not an entity type of the record. Use one of: ` +
+          `${entityTypes.join(', ')}. An asset is "facility" with the constant asset_kind`,
+      );
+  };
+  const relationType = (where: string, held: string): void => {
+    if (!relationTypes.includes(held))
+      faults.push(
+        `${where} "${held}" is not a relation type of the record. Use one of: ` +
+          relationTypes.join(', '),
+      );
+  };
+  const keys = (where: string, held: string, lookups: readonly { readonly key: string }[]) => {
+    // Only an asset has a closed list of keys: the lists of a company or a person are a convention
+    // of the writers, and a sanctions table finds a person by ofac_uid.
+    if (held !== 'facility' && held !== 'port') return;
+    const allowed: readonly string[] = IDENTIFIER_KEYS[held];
+    for (const { key: name } of lookups)
+      if (name !== 'label' && !allowed.includes(name))
+        faults.push(
+          `${where} key "${name}" is not an identifier of the type ${held}. Use one of: ` +
+            [...allowed, 'label'].join(', '),
+        );
+  };
+  const { rows: held } = mapping;
+  if (isLinkTable(held)) {
+    relationType('rows.relation_type', held.relation_type);
+    for (const [where, end] of [
+      ['rows.src', held.src],
+      ['rows.dst', held.dst],
+    ] as const) {
+      type(`${where}.entity_type`, end.entity_type);
+      keys(`${where}.lookup`, end.entity_type, end.lookup);
+    }
+    return faults;
+  }
+  type('rows.entity_type', held.entity_type);
+  keys('rows.lookup', held.entity_type, held.lookup);
+  for (const [index, one] of mapping.relations.entries()) {
+    relationType(`relations.${String(index)}.type`, one.type);
+    // With no other_type, the far end can be of another type, so its key is not checked.
+    if (one.other_type === undefined) continue;
+    type(`relations.${String(index)}.other_type`, one.other_type);
+    keys(`relations.${String(index)}.other`, one.other_type, [one.other]);
+  }
+  return faults;
+};
