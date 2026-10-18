@@ -886,4 +886,11 @@ test('propose refuses an asset kind that is not a word of the closed list', () =
     });
   expect(assetKindRefusal(facility('refinery'))).toBeNull();
   expect(assetKindRefusal(facility('oil refinery'))).toMatch(/^asset_kind is one of: field, /u);
+  const company = writeRequest.parse({
+    op: 'create_entity',
+    type: 'company',
+    label: 'Novatek',
+    attrs: { asset_kind: { v: 'export_terminal' } },
+  });
+  expect(assetKindRefusal(company)).toBe('only a facility or a port has an asset_kind');
 });

@@ -170,6 +170,10 @@ const entityRows = z
     attrs: z.record(key, z.strictObject({ column, cast })),
     constants: constants.optional(),
   })
+  // A column gives free words ("Oil Refinery"), so the kind of an asset is a constant only.
+  .refine((held) => !('asset_kind' in held.attrs), {
+    message: 'asset_kind is a constant of the table (rows.constants), never a column',
+  })
   .refine((held) => Object.keys(held.constants ?? {}).every((name) => !(name in held.attrs)), {
     message: 'a constant attribute and an attribute of a column never share a key',
   })

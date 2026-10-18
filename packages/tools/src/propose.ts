@@ -78,7 +78,11 @@ const PUBLISHED_ON =
 export const assetKindRefusal = (act: WriteRequest): string | null => {
   const attrs = 'attrs' in act ? act.attrs : undefined;
   const kind = attrs?.['asset_kind']?.v;
-  return kind === undefined || ASSET_KINDS.some((one) => one === kind)
+  if (kind === undefined) return null;
+  // shortcut: an update_attrs does not read the type of its target, add it when one is wrong.
+  if (act.op === 'create_entity' && act.type !== 'facility' && act.type !== 'port')
+    return 'only a facility or a port has an asset_kind';
+  return ASSET_KINDS.some((one) => one === kind)
     ? null
     : `asset_kind is one of: ${ASSET_KINDS.join(', ')}`;
 };
@@ -708,7 +712,9 @@ export const proposeOf = (modelCallId: string | null) =>
       'days: one day, or the two days of a night) and occurred_on_precision (day, night or ' +
       'month); the day of the name is the last day. Link it with occurred_at (to a facility, a ' +
       'port or a vessel) and carried_out_by (to a military unit or a state body). A denial is ' +
-      'the modality denies on the same name. First call search_graph with each identifier, and ' +
+      'the modality denies on the same name. The attribute asset_kind of a facility or a port is ' +
+      `one of ${ASSET_KINDS.join(', ')}; no passage needs to write the word. ` +
+      'First call search_graph with each identifier, and ' +
       'list_proposals for the document, so you propose no fact that the record or the queue ' +
       'already holds. Give published_on for an excerpt that writes a date with no year. A port ' +
       'call (berthed_at, loads_at, discharges_at) takes the day of the call as the attribute ' +
