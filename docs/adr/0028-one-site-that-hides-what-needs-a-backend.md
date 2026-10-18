@@ -24,15 +24,16 @@ that need a backend show only when the backend answers.
   of their identifier, a vessel at the path of its IMO number. A citation that a reader made before
   this change still opens its page.
 
-### The application finds its mode at start
+### The application finds its mode from the services
 
-- At start, the application asks the read service and the write service if they answer.
+- The application asks the read service and the write service if they answer.
 - **Read service down:** the application reads the files of the release that it was built with.
   It shows the record of that release, and each page says "Version of DD/MM/YYYY", as ADR 0020
   required. No page says that the data is live.
 - **Write service down:** each part that writes is hidden: the review, the button that creates an
   entity, the edit bar, the extraction, the upload and the lead. A direct visit to the address of
-  the review gives one short page that says the page is not available.
+  the review gives one short page that says the page is not available. This part is built
+  already (the read-only work of the application, 18 October 2026).
 - **Both services up:** the operator sees every part, as today.
 - The mode comes from the answer of the services only. There is no build flag and no second build.
 
@@ -45,6 +46,8 @@ that need a backend show only when the backend answers.
 - The rules of ADR 0020 that are not about two surfaces stay true: the site is a pure function of
   the files of the release, it holds a copy of each file byte for byte, the basemap is a file of the
   site, and no page sends a request for data to a third host.
+- The rule of ADR 0020 that the site holds no script except the map script ends. A page at a
+  permanent address keeps its text with no script, and the other pages need one.
 
 ## Reasons
 
