@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import countries from './countries.json?raw';
+import countries from '@gab/proposal/countries.json?raw';
 import { chainView } from './chain-card.ts';
 import { chainFlows } from './chain-flows.ts';
 import { chainMapData } from './chain-map-data.ts';
@@ -14,7 +14,7 @@ import { HomePage } from './home-page.tsx';
 import { FEATURES_ELEMENT, FLOWS_ELEMENT } from './map-elements.ts';
 import { MapPage } from './map-page.tsx';
 import { MethodPage } from './method-page.tsx';
-import { outsideRussia } from './outside-russia.ts';
+import { outsideRussia } from '@gab/proposal/outside-russia';
 import { RedirectPage } from './redirect-page.tsx';
 import { SiteDocument } from './site-document.tsx';
 import { VesselPage } from './vessel-page.tsx';

@@ -101,6 +101,9 @@ and their form are costly to change after the first publication.
 - When the reader asks for reduced motion, the globe does not turn, no pulse runs, the camera
   jumps, and "Play the chain" goes one step for each press. A browser with no WebGL gets one
   sentence in place of the map, and the list of the entities stays.
+- The chain logic (the stages, the products, the arcs, the exit points, the steps and the outlines
+  of the countries) is in the shared package that the application imports too, so the two surfaces
+  compute the same chain. The site keeps the volumes and the release reader.
 - The map script and MapLibre are files of the site. MapLibre loads its worker as a module beside
   it, so the map needs a host: from the files on a disk, the map page shows the list of the
   entities with a position, and no map.

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { NO_STAGE_COLOUR, STAGES, type StageKey } from './chain-stage.ts';
+import { NO_STAGE_COLOUR, STAGES, type StageKey } from '@gab/proposal/chain-stage';
 
 const collection = z.looseObject({
   features: z.array(

@@ -7,9 +7,9 @@ import {
   type StyleSpecification,
 } from 'maplibre-gl';
 
-import { chainOf, productChain, type Highlight } from './chain-highlight.ts';
-import { PRODUCTS, type ProductKey } from './chain-product.ts';
-import { positions, type Position } from './geometry-positions.ts';
+import { chainOf, productChain, type Highlight } from '@gab/proposal/chain-highlight';
+import { PRODUCTS, type ProductKey } from '@gab/proposal/chain-product';
+import { positions, type Position } from '@gab/proposal/geometry-positions';
 import { LINK } from './site-style.ts';
 import {
   CAPTION_ELEMENT,

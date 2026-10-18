@@ -3,7 +3,7 @@ import { expect, test } from 'vitest';
 import { chainView } from './chain-card.ts';
 import { CHAIN } from './chain-fixture.ts';
 import { chainFlows } from './chain-flows.ts';
-import { chainSteps } from './chain-steps.ts';
+import { chainSteps } from '@gab/proposal/chain-steps';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
 
 const { FIELD, PIPELINE_TO_ABROAD, PORT_TO_ABROAD, REFINERY_TO_TERMINAL, TERMINAL_ABROAD } = CHAIN;
