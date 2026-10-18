@@ -15,6 +15,7 @@ import { Route as MapRouteImport } from './routes/map'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as EntityIdRouteImport } from './routes/entity.$id'
+import { Route as VesselImoRouteImport } from './routes/vessel.$imo'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,11 @@ const EntityIdRoute = EntityIdRouteImport.update({
   path: '/entity/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VesselImoRoute = VesselImoRouteImport.update({
+  id: '/vessel/$imo',
+  path: '/vessel/$imo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
   '/entity/$id': typeof EntityIdRoute
+  '/vessel/$imo': typeof VesselImoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
   '/entity/$id': typeof EntityIdRoute
+  '/vessel/$imo': typeof VesselImoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,14 +79,36 @@ export interface FileRoutesById {
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
   '/entity/$id': typeof EntityIdRoute
+  '/vessel/$imo': typeof VesselImoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/graph' | '/map' | '/review' | '/search' | '/entity/$id'
+  fullPaths:
+    | '/'
+    | '/graph'
+    | '/map'
+    | '/review'
+    | '/search'
+    | '/entity/$id'
+    | '/vessel/$imo'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/graph' | '/map' | '/review' | '/search' | '/entity/$id'
+  to:
+    | '/'
+    | '/graph'
+    | '/map'
+    | '/review'
+    | '/search'
+    | '/entity/$id'
+    | '/vessel/$imo'
   id:
-    '__root__' | '/' | '/graph' | '/map' | '/review' | '/search' | '/entity/$id'
+    | '__root__'
+    | '/'
+    | '/graph'
+    | '/map'
+    | '/review'
+    | '/search'
+    | '/entity/$id'
+    | '/vessel/$imo'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -88,6 +118,7 @@ export interface RootRouteChildren {
   ReviewRoute: typeof ReviewRoute
   SearchRoute: typeof SearchRoute
   EntityIdRoute: typeof EntityIdRoute
+  VesselImoRoute: typeof VesselImoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -134,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EntityIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/vessel/$imo': {
+      id: '/vessel/$imo'
+      path: '/vessel/$imo'
+      fullPath: '/vessel/$imo'
+      preLoaderRoute: typeof VesselImoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -144,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReviewRoute: ReviewRoute,
   SearchRoute: SearchRoute,
   EntityIdRoute: EntityIdRoute,
+  VesselImoRoute: VesselImoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

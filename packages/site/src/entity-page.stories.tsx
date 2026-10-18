@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect } from 'storybook/test';
 
-import { SITE, QUIET_SITE } from './event-fixture.ts';
+import { SITE, QUIET_SITE } from '@gab/release/event-fixture';
 import { EntityPage } from './entity-page.tsx';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
 

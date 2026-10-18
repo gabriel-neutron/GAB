@@ -14,8 +14,8 @@ import {
 import type { SiteEntity, SiteRelease } from '@gab/release/site-release';
 import { LINK } from './site-style.ts';
 import { TimelineFigure } from './timeline-figure.tsx';
-import { vesselFinderUrl } from './vessel-finder.ts';
-import { vesselLanes, type MarkTime, type TimelineMark } from './vessel-timeline.ts';
+import { vesselFinderUrl } from '@gab/release/vessel-finder';
+import { vesselLanes, type MarkTime, type TimelineMark } from '@gab/release/vessel-timeline';
 
 export interface VesselPageProps {
   readonly release: SiteRelease;

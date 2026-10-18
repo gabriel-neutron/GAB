@@ -16,3 +16,6 @@ export const surfaceHref = (
   id: string,
   kind: 'entity' | 'relation' = 'entity',
 ): string => `/${surface}?${kind}=${encodeURIComponent(id)}`;
+
+/** The address of the timeline of a vessel: its IMO number, as the permanent address has it. */
+export const vesselHref = (imo: string): string => `/vessel/${encodeURIComponent(imo)}`;

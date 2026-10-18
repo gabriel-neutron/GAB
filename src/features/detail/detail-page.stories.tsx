@@ -13,7 +13,11 @@ import {
 import { corpus } from '@/shared/committed-fixture/corpus';
 import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
+import { SITE } from '@gab/release/event-fixture';
+
 import { DetailPage } from './detail-page';
+import { EVENTS_RELEASE } from './fixture-release';
+import { releaseFactsOf } from './release-facts';
 import { readDossier, type Dossier, type RelationLine, type SourceCardModel } from './dossier';
 import type { DecidedAct } from '@/shared/read/decided-acts';
 import { holdWriter } from '@/shared/write/hold-writer.story-support';
@@ -41,12 +45,6 @@ const MARK_NAME = `Source ${CARD.number} — ${CARD.title}`;
 
 const railOf = (root: HTMLElement): HTMLElement =>
   within(root).getByRole('complementary', { name: 'Sources' });
-
-const recordPaneOf = (root: HTMLElement): HTMLElement => {
-  const pane = root.querySelector<HTMLElement>('[data-pane="record"]');
-  if (pane === null) throw new Error('The page draws no record pane');
-  return pane;
-};
 
 const knock = fn<(address: string, body: unknown) => void>();
 
@@ -197,19 +195,20 @@ export const AnOfflineWriterLeavesTheRecordReadOnly: Story = {
   },
   play: async ({ canvas, canvasElement }) => {
     await expect(canvas.queryByRole('button', { name: 'Edit' })).toBeNull();
-    await expect(recordPaneOf(canvasElement).querySelector('[data-claim]')).not.toBeNull();
+    await expect(canvasElement.querySelector('[data-claim]')).not.toBeNull();
   },
 };
 
-export const TheRecordAndTheSourcesStandInSeparatePanes: Story = {
+export const TheSourceDocumentsFollowTheRecordInOneColumn: Story = {
   play: async ({ canvasElement }) => {
     const rail = railOf(canvasElement);
-    const record = recordPaneOf(canvasElement);
+    const claim = canvasElement.querySelector('[data-claim]');
+    if (claim === null) throw new Error('The page draws no claim');
 
-    await expect(record).not.toBe(rail);
-    await expect(record.contains(rail)).toBe(false);
-    await expect(rail.contains(record)).toBe(false);
-    await expect(record.querySelector('[data-claim]')).not.toBeNull();
+    await expect(rail.contains(claim)).toBe(false);
+    await expect(claim.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(
+      0,
+    );
   },
 };
 
@@ -293,6 +292,55 @@ export const TheEntityIsReachedOnBothCanvases: Story = {
   },
 };
 
+const ABSORBED = '0a1f0000-0000-4000-8000-000000000005';
+
+/** A release that knows the vessel gives the link to its timeline and the identifiers it absorbed. */
+export const AVesselOfTheReleaseLinksItsTimelineAndNamesTheMergedIdentifiers: Story = {
+  args: {
+    dossier: {
+      ...DOSSIER,
+      facts: {
+        imo: '9000001',
+        merged: [ABSORBED],
+        label: { origin: 'Proposed — not checked', licence: 'CC-BY 4.0' },
+        events: null,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('link', { name: 'IMO 9000001' })).toHaveAttribute(
+      'href',
+      '/vessel/9000001',
+    );
+    await expect(canvas.getByText(ABSORBED)).toBeVisible();
+    await expect(canvas.getByText('CC-BY 4.0')).toBeVisible();
+  },
+};
+
+export const AnEntityWithNoFactOfTheReleaseDrawsNoTimelineLink: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByRole('link', { name: /^IMO/u })).toBeNull();
+    await expect(canvas.queryByRole('heading', { name: 'Events' })).toBeNull();
+  },
+};
+
+export const ASiteOfTheReleaseDrawsItsEvents: Story = {
+  args: {
+    dossier: {
+      ...DOSSIER,
+      facts: {
+        imo: null,
+        label: null,
+        merged: [],
+        events: releaseFactsOf(EVENTS_RELEASE, SITE, 'facility', true).events,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('heading', { level: 2, name: 'Events' })).toBeVisible();
+  },
+};
+
 /** A link that opens a surface which then selects nothing states a position the record lacks. */
 export const AnEntityOffTheMapIsReachedOnTheGraphOnly: Story = {
   args: { dossier: readCompany() },
@@ -321,13 +369,14 @@ const readBorrower = (): Dossier => {
 export const TheHeaderStatesTheExtractedWordAndTheBorrowedPosition: Story = {
   args: { dossier: readBorrower() },
   play: async ({ canvas, canvasElement }) => {
-    const heading = canvas.getByRole('heading', { level: 1 });
-    await expect(heading).toHaveTextContent(`proposed as ${PROPOSED}`);
+    const header = canvasElement.querySelector('header');
+    if (header === null) throw new Error('The page draws no header');
+    await expect(header).toHaveTextContent(`proposed as ${PROPOSED}`);
 
     // Departure: the word is a column of the promoted row, so it takes no candidate hue.
-    const word = within(heading).getByText(`proposed as ${PROPOSED}`);
-    await expect(word).toHaveClass('text-label');
+    const word = within(header).getByText(`proposed as ${PROPOSED}`);
     await expect(word).not.toHaveClass('text-candidate');
+    await expect(canvas.getByRole('heading', { level: 1 })).not.toHaveTextContent('proposed as');
 
     const from = canvasElement.querySelector('[data-position-from]');
     await expect(from).toHaveTextContent('position from 92nd Coastal Battery');
@@ -412,8 +461,7 @@ export const TheElementSaysThatAnAIReviewerDecidedIt: Story = {
 };
 
 // The origin of an AI reviewer is the longest origin. On a narrow page it goes to its own line,
-// and it covers no other word of the header. Departure: no story below 780 px, because the rail of
-// the sources keeps 24 rem, and the record pane then has no width.
+// and it covers no other word of the header.
 const originFitsAt = (width: number): Story => ({
   args: {
     dossier: readDecidedBy(
@@ -430,7 +478,6 @@ const originFitsAt = (width: number): Story => ({
   play: async ({ canvasElement }) => {
     const decision = canvasElement.querySelector('[data-decision]');
     const heading = canvasElement.querySelector('h1');
-    const pane = recordPaneOf(canvasElement);
     if (!(decision instanceof HTMLElement) || heading === null)
       throw new Error('the header holds no origin or no heading');
     const said = decision.getBoundingClientRect();
@@ -442,13 +489,16 @@ const originFitsAt = (width: number): Story => ({
       named.top < said.bottom;
     await expect(overlaps).toBe(false);
     await expect(decision.scrollWidth).toBeLessThanOrEqual(decision.clientWidth);
-    await expect(said.right).toBeLessThanOrEqual(pane.getBoundingClientRect().right + 1);
+    await expect(said.right).toBeLessThanOrEqual(canvasElement.getBoundingClientRect().right + 1);
     await expect(decision).toBeVisible();
   },
 });
 
 /** At 780 px, the origin of an AI reviewer covers neither the name nor the type. */
 export const TheOriginOfAnAIReviewerFitsAt780Pixels: Story = originFitsAt(780);
+
+/** At 375 px, the origin of an AI reviewer covers neither the name nor the type. */
+export const TheOriginOfAnAIReviewerFitsAt375Pixels: Story = originFitsAt(375);
 
 /** The page of an element says "validated manually" when the operator decided. */
 export const TheElementSaysValidatedManually: Story = {
@@ -847,37 +897,37 @@ export const ASignedEntityDeletionLeavesThePage: Story = {
   },
 };
 
-// A part may hold a region of its own, and the form that makes a relation is one. The parts are
-// read from the mark the band carries, and never from the role alone.
 const namesOfPartsIn = (root: HTMLElement): readonly string[] =>
-  Array.from(root.querySelectorAll<HTMLElement>('[data-part]')).map(
-    (part) => part.getAttribute('aria-label') ?? '',
+  Array.from(root.querySelectorAll<HTMLElement>('section > h2')).map(
+    (heading) => heading.textContent,
   );
 
-export const TheFourPartsAreNamedAndSeparated: Story = {
+export const ThePartsAreNamedAndSeparated: Story = {
   play: async ({ canvasElement }) => {
-    const pane = recordPaneOf(canvasElement);
-    await expect(namesOfPartsIn(pane)).toEqual([
+    await expect(namesOfPartsIn(canvasElement)).toEqual([
       'Record',
       'Relations',
       'Pending proposals',
       'Sources of the name, the type and the map location',
+      'Source documents',
     ]);
   },
 };
 
-export const EachPartStatesItsOwnCount: Story = {
-  play: async ({ canvasElement }) => {
-    const pane = recordPaneOf(canvasElement);
-    const headingOf = (name: string): HTMLElement =>
-      within(within(pane).getByRole('region', { name })).getByRole('heading', { level: 2 });
-
-    await expect(headingOf('Record')).toHaveTextContent(String(DOSSIER.rows.length));
-    await expect(headingOf('Relations')).toHaveTextContent(String(DOSSIER.relations.length));
-    await expect(headingOf('Pending proposals')).toHaveTextContent(String(DOSSIER.pending.length));
-    await expect(headingOf('Sources of the name, the type and the map location')).toHaveTextContent(
-      String(DOSSIER.entitySources.length),
-    );
+/** With no write service, the page is read-only: no proposal part and no control that writes. */
+export const AnOfflineWriterHidesThePendingPartAndEveryControlThatWrites: Story = {
+  beforeEach: async () => {
+    await holdWriter(false);
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(namesOfPartsIn(canvasElement)).not.toContain('Pending proposals');
+    await expect(canvas.queryByRole('button', { name: 'Edit' })).toBeNull();
+    await expect(canvas.queryByRole('button', { name: 'Save' })).toBeNull();
+    await expect(canvas.queryByRole('button', { name: `Delete ${DOSSIER.label}` })).toBeNull();
+    await expect(canvas.queryByRole('button', { name: `Delete ${RELATION}` })).toBeNull();
+    await expect(canvas.queryByRole('button', { name: 'Make the relation' })).toBeNull();
+    await expect(canvas.queryByLabelText('Key')).toBeNull();
+    await expect(canvas.queryByLabelText('Entity name')).toBeNull();
   },
 };
 
@@ -885,7 +935,7 @@ export const EachPartStatesItsOwnCount: Story = {
  * record. */
 export const NoNameGroupsTwoClaimsInsideTheRecord: Story = {
   play: async ({ canvasElement }) => {
-    const record = within(recordPaneOf(canvasElement)).getByRole('region', { name: 'Record' });
+    const record = within(canvasElement).getByRole('region', { name: 'Record' });
     const claims = record.querySelectorAll('[data-claim]');
     await expect(claims.length).toBeGreaterThan(0);
     // The band states one heading for the whole part. A second one would group the claims.

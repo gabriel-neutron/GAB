@@ -1,7 +1,7 @@
 import { releaseDay } from '@gab/release/release-day';
 import { claimPage, hrefFrom, type SitePath } from '@gab/release/site-paths';
-import { timelineAxis } from './timeline-axis.ts';
-import type { MarkTime, TimelineLane, TimelineMark } from './vessel-timeline.ts';
+import { timelineAxis } from '@gab/release/timeline-axis';
+import type { MarkTime, TimelineLane, TimelineMark } from '@gab/release/vessel-timeline';
 
 export interface TimelineFigureProps {
   readonly lanes: readonly TimelineLane[];

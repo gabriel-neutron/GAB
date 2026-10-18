@@ -1,0 +1,49 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { QUIET_SITE, SITE, withEvents } from '@gab/release/event-fixture';
+import { readSiteRelease } from '@gab/release/site-release';
+import { expect, test } from 'vitest';
+
+import { releaseFactsOf } from './release-facts';
+
+const FOLDER = join(import.meta.dirname, '../../../packages/site/fixtures/release');
+const VESSEL = '0a1f0000-0000-4000-8000-000000000001';
+const ABSORBED = '0a1f0000-0000-4000-8000-000000000005';
+const COMPANY = '0a1f0000-0000-4000-8000-000000000002';
+
+const files = new Map(
+  readdirSync(FOLDER).map((one) => [one, readFileSync(join(FOLDER, one), 'utf8')]),
+);
+const release = readSiteRelease(withEvents(files));
+
+test('a public vessel gives its IMO number and the identifiers that a merge absorbed', () => {
+  const facts = releaseFactsOf(release, VESSEL, 'vessel', true);
+  expect(facts.imo).toBe('9000001');
+  expect(facts.merged).toEqual([ABSORBED]);
+});
+
+test('an entity that is no vessel has no IMO number and no merged identifier', () => {
+  const facts = releaseFactsOf(release, COMPANY, 'company', true);
+  expect(facts.imo).toBeNull();
+  expect(facts.merged).toEqual([]);
+  expect(facts.events).toBeNull();
+});
+
+test('a site gives its events, and a site with none still gives the counter part', () => {
+  const lines = releaseFactsOf(release, SITE, 'facility', true).events;
+  expect(lines?.length).toBeGreaterThan(0);
+  expect(releaseFactsOf(release, QUIET_SITE, 'facility', true).events).toEqual([]);
+});
+
+test('a page that reads the live record asks for no events', () => {
+  expect(releaseFactsOf(release, SITE, 'facility', false).events).toBeNull();
+});
+
+test('an actor has a page of its own only when the release holds it', () => {
+  const lines = releaseFactsOf(release, SITE, 'facility', true).events ?? [];
+  const named = lines.filter((line) => line.event.actor !== null);
+  expect(named.length).toBeGreaterThan(0);
+  for (const line of named)
+    expect(line.actorKnown).toBe(release.entityById.has(line.event.actor?.id ?? ''));
+});

@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { entityHref } from '@/features/detail/address';
+import { entityHref, vesselHref } from '@/features/detail/address';
 import { NodesPage } from '@/features/nodes/nodes-page';
 import { claimText } from '@gab/release/claim-text';
 import { loadCorpus } from '@/shared/read/corpus';
@@ -18,6 +18,7 @@ export const Route = createFileRoute('/')({
         date: release.manifest.date,
         nodes: release.criticalNodes,
         claimTexts: Object.fromEntries(release.claims.map((claim) => [claim.id, claimText(claim)])),
+        imoOf: Object.fromEntries(release.imoOfVessel),
       };
     } catch (cause) {
       if (cause instanceof ReleaseAbsent) return null;
@@ -30,5 +31,11 @@ export const Route = createFileRoute('/')({
 
 function NodesRoute() {
   const release = Route.useLoaderData();
-  return <NodesPage release={release} entityHref={(id) => entityHref(id, null)} />;
+  return (
+    <NodesPage
+      release={release}
+      entityHref={(id) => entityHref(id, null)}
+      vesselHref={vesselHref}
+    />
+  );
 }
