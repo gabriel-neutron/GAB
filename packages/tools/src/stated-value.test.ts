@@ -14,6 +14,7 @@ import {
   withCodedJurisdiction,
   withoutCallDay,
 } from './stated-value.ts';
+import { assetKindRefusal } from './propose.ts';
 
 const relationFrom = (validFrom: string) =>
   writeRequest.parse({
@@ -852,4 +853,37 @@ test('a day that the text writes as 03/04/2024 stays in doubt, also with a publi
   const options = { publishedOn: '2024-05-01' };
   expect(unstatedValues(relationFrom('2024-04-03'), ['on 03/04/2024'], options)).toHaveLength(1);
   expect(unstatedValues(relationFrom('2024-03-04'), ['on 03/04/2024'], options)).toHaveLength(1);
+});
+
+test('the asset kind is a word of the closed list, and no passage states it in that form', () => {
+  const act = (op: 'create_entity' | 'update_attrs') =>
+    writeRequest.parse(
+      op === 'create_entity'
+        ? {
+            op,
+            type: 'facility',
+            label: 'Kirishi refinery',
+            attrs: { asset_kind: { v: 'refinery' } },
+          }
+        : {
+            op,
+            targetKind: 'entity',
+            targetId: '0a1f0000-0000-4000-8000-000000000001',
+            attrs: { asset_kind: { v: 'refinery' } },
+          },
+    );
+  expect(unstatedValues(act('create_entity'), ['Kirishi refinery (KINEF).'])).toStrictEqual([]);
+  expect(unstatedValues(act('update_attrs'), ['Киришский НПЗ.'])).toStrictEqual([]);
+});
+
+test('propose refuses an asset kind that is not a word of the closed list', () => {
+  const facility = (kind: string) =>
+    writeRequest.parse({
+      op: 'create_entity',
+      type: 'facility',
+      label: 'Kirishi refinery',
+      attrs: { asset_kind: { v: kind } },
+    });
+  expect(assetKindRefusal(facility('refinery'))).toBeNull();
+  expect(assetKindRefusal(facility('oil refinery'))).toMatch(/^asset_kind is one of: field, /u);
 });

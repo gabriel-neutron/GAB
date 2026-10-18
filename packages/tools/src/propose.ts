@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { day } from '@gab/proposal/day';
 import { attributeEdit } from '@gab/proposal/attribute-value';
 import { machineAct } from '@gab/proposal/machine';
+import { ASSET_KINDS } from '@gab/proposal/mapping';
 import type { ProposalAct } from '@gab/proposal/payload';
 import { writeRequest, type WriteRequest } from '@gab/proposal/request';
 import { z } from 'zod';
@@ -71,6 +72,16 @@ const PUBLISHED_ON =
   'wins. With no published_on, a date with no year is not stated, and the item is disputed. An ' +
   'item that takes a year from it is disputed too, and the review card says so: the operator ' +
   'decides it. An item value beats the value of the call';
+
+/** Why the asset kind of an act is not a word of the closed list, or null. The check of a stated
+ * value never reads the kind in the text, so the list is its only check. */
+export const assetKindRefusal = (act: WriteRequest): string | null => {
+  const attrs = 'attrs' in act ? act.attrs : undefined;
+  const kind = attrs?.['asset_kind']?.v;
+  return kind === undefined || ASSET_KINDS.some((one) => one === kind)
+    ? null
+    : `asset_kind is one of: ${ASSET_KINDS.join(', ')}`;
+};
 
 const publishedOn = day.describe(PUBLISHED_ON);
 
@@ -727,6 +738,8 @@ export const proposeOf = (modelCallId: string | null) =>
         const resolved = withCodedJurisdiction(await resolvedAct(session, given, index, minted));
         const eventFault = eventActRefusal(resolved);
         if (eventFault !== null) refuse(given.ref, eventFault);
+        const kindFault = assetKindRefusal(resolved);
+        if (kindFault !== null) refuse(given.ref, kindFault);
         await checkEventEnds(session, given, created);
         // A back-end agent reads the stored text only, so it never gives words read from an image.
         if (modelCallId !== null && given.evidence.some((one) => one.fromImage === true))
