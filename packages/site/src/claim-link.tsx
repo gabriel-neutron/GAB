@@ -1,8 +1,8 @@
 import { claimText } from './claim-text.ts';
 import { NatoPairMark } from './nato-pair-mark.tsx';
 import { LINK } from './site-style.ts';
-import { claimPage, hrefFrom, type SitePath } from './site-paths.ts';
-import type { SiteClaim } from './site-release.ts';
+import { claimPage, hrefFrom, type SitePath } from '@gab/release/site-paths';
+import type { SiteClaim } from '@gab/release/site-release';
 
 /** A link to the permanent page of a claim, with its NATO pair when the release shows it. */
 export function ClaimLink({ claim, here }: { readonly claim: SiteClaim; readonly here: SitePath }) {

@@ -1,0 +1,16 @@
+{
+  // The reader of the files of a release, imported by the browser bundle, by the site writer and
+  // by the release command. It names neither the DOM nor Node, because every side imports it.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2024"],
+    "module": "preserve",
+    "types": [],
+
+    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.release.tsbuildinfo",
+
+    // Node runs the source directly and strips the types, so an import needs the real extension.
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src"]
+}

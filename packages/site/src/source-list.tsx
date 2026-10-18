@@ -1,5 +1,5 @@
 import { safeHref } from './safe-href.ts';
-import type { SiteSource } from './site-release.ts';
+import type { SiteSource } from '@gab/release/site-release';
 import { LINK } from './site-style.ts';
 
 function SourceAddress({ address }: { readonly address: string | null }) {

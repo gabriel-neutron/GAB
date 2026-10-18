@@ -5,7 +5,7 @@ import { CHAIN } from './chain-fixture.ts';
 import { chainFlows } from './chain-flows.ts';
 import { chainMapData } from './chain-map-data.ts';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
-import type { SiteVolume } from './site-release.ts';
+import type { SiteVolume } from '@gab/release/site-release';
 import { volumeCard } from './volume-card.ts';
 
 const {

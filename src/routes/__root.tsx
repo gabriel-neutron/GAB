@@ -8,8 +8,10 @@ import {
 import { CreateEntityDialog } from '@/features/edit/create-entity-dialog';
 import { ErrorNotice } from '@/shared/error-notice';
 import { refreshCorpus } from '@/shared/read/corpus';
+import { useReleaseNote } from '@/shared/read/release-note';
 import { ModeToggle } from '@/shared/mode-toggle';
 import { ScreenQueryField, ScreenQueryProvider } from '@/shared/screen-query';
+import { SiteFooter } from '@/shared/site-footer';
 import { SiteHeader } from '@/shared/site-header';
 import { ThemeProvider, useTheme } from '@/shared/theme-provider';
 import { recheckWriter, useWriterOnline } from '@/shared/write/writer-status';
@@ -29,6 +31,7 @@ const FILTERED_SCREENS: ReadonlySet<string> = new Set(['/map', '/graph']);
 function RootLayout() {
   const path = useLocation({ select: (location) => location.pathname });
   const writerOnline = useWriterOnline();
+  const releaseNote = useReleaseNote();
   return (
     <ThemeProvider>
       {/* External constraint: `HeadContent` writes the `head` of a matched route into the
@@ -51,6 +54,7 @@ function RootLayout() {
           <main className="min-h-0 flex-1">
             <Outlet />
           </main>
+          {releaseNote === null ? null : <SiteFooter note={releaseNote} />}
         </div>
       </ScreenQueryProvider>
     </ThemeProvider>

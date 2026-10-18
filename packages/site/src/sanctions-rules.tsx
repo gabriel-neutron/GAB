@@ -1,4 +1,4 @@
-import type { SiteManifest } from './site-manifest.ts';
+import type { SiteManifest } from '@gab/release/site-manifest';
 
 const RULE_WORDS: Readonly<Record<string, string>> = {
   entry_into_force: 'the date of entry into force of the act',

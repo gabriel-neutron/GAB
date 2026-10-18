@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { expect, test } from 'vitest';
 
 import { buildSite } from './build-site.tsx';
-import { SiteReleaseFault } from './site-release-fault.ts';
+import { SiteReleaseFault } from '@gab/release/site-release-fault';
 
 const FIXTURE = resolve(import.meta.dirname, '../fixtures/release');
 const VESSEL = '0a1f0000-0000-4000-8000-000000000001';

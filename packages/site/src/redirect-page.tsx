@@ -1,6 +1,6 @@
 import { SiteFrame } from './site-frame.tsx';
-import { hrefFrom, type SitePath } from './site-paths.ts';
-import type { SiteRelease } from './site-release.ts';
+import { hrefFrom, type SitePath } from '@gab/release/site-paths';
+import type { SiteRelease } from '@gab/release/site-release';
 import { LINK } from './site-style.ts';
 
 export interface RedirectPageProps {

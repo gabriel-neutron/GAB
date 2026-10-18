@@ -2,10 +2,16 @@ import { isValidImo } from '@gab/proposal/identifiers';
 
 import { claimText } from './claim-text.ts';
 import { NatoPairMark } from './nato-pair-mark.tsx';
-import { releaseDay } from './release-day.ts';
+import { releaseDay } from '@gab/release/release-day';
 import { SiteFrame } from './site-frame.tsx';
-import { claimPage, entityPage, hrefFrom, vesselPage, type SitePath } from './site-paths.ts';
-import type { SiteEntity, SiteRelease } from './site-release.ts';
+import {
+  claimPage,
+  entityPage,
+  hrefFrom,
+  vesselPage,
+  type SitePath,
+} from '@gab/release/site-paths';
+import type { SiteEntity, SiteRelease } from '@gab/release/site-release';
 import { LINK } from './site-style.ts';
 import { TimelineFigure } from './timeline-figure.tsx';
 import { vesselFinderUrl } from './vessel-finder.ts';

@@ -14,8 +14,8 @@ import {
 import { mapFeatures } from './map-features.ts';
 import { SanctionsRules } from './sanctions-rules.tsx';
 import { SiteFrame } from './site-frame.tsx';
-import { entityPage, hrefFrom, MAP, METHOD } from './site-paths.ts';
-import type { SiteRelease } from './site-release.ts';
+import { entityPage, hrefFrom, MAP, METHOD } from '@gab/release/site-paths';
+import type { SiteRelease } from '@gab/release/site-release';
 import { CELL, HEAD, LINK, TABLE, TABLE_HEAD } from './site-style.ts';
 
 // The map script reads `aria-pressed` and sets it, so the page needs no script to render.

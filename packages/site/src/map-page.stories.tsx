@@ -10,7 +10,7 @@ import { FIXTURE_RELEASE } from './fixture-release.ts';
 import { CARDS_ELEMENT } from './map-elements.ts';
 import { MapPage } from './map-page.tsx';
 import { outsideRussia } from '@gab/proposal/outside-russia';
-import type { SiteRelease } from './site-release.ts';
+import type { SiteRelease } from '@gab/release/site-release';
 
 const argsOf = (release: SiteRelease) => {
   const view = chainView(release);

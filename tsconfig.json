@@ -17,6 +17,7 @@
     { "path": "./packages/mcp" },
     { "path": "./packages/model" },
     { "path": "./packages/proposal" },
+    { "path": "./packages/release" },
     { "path": "./packages/site" },
     { "path": "./packages/store" },
     { "path": "./packages/text" },

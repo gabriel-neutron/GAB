@@ -1,9 +1,9 @@
 import { FILE_WORDS } from './file-words.ts';
-import { releaseDay } from './release-day.ts';
+import { releaseDay } from '@gab/release/release-day';
 import { SiteFrame } from './site-frame.tsx';
-import type { ChangeCounts } from './site-manifest.ts';
-import { DOWNLOADS, hrefFrom } from './site-paths.ts';
-import type { SiteRelease } from './site-release.ts';
+import type { ChangeCounts } from '@gab/release/site-manifest';
+import { DOWNLOADS, hrefFrom } from '@gab/release/site-paths';
+import type { SiteRelease } from '@gab/release/site-release';
 import { CELL, HEAD, LINK, TABLE, TABLE_HEAD } from './site-style.ts';
 
 // The licence of each file is the licence of the dataset. The paragraph above the table says that

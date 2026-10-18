@@ -1,0 +1,22 @@
+{
+  "name": "@gab/release",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./csv": "./src/csv.ts",
+    "./release-day": "./src/release-day.ts",
+    "./site-manifest": "./src/site-manifest.ts",
+    "./site-paths": "./src/site-paths.ts",
+    "./site-release": "./src/site-release.ts",
+    "./site-release-fault": "./src/site-release-fault.ts",
+    "./vessel-imo": "./src/vessel-imo.ts"
+  },
+  "dependencies": {
+    "@gab/proposal": "workspace:*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.10"
+  }
+}

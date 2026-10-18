@@ -13,6 +13,7 @@
   "dependencies": {
     "@gab/model": "workspace:*",
     "@gab/proposal": "workspace:*",
+    "@gab/release": "workspace:*",
     "@gab/site": "workspace:*",
     "@gab/store": "workspace:*",
     "@gab/text": "workspace:*",

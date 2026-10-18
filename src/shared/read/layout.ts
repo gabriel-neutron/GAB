@@ -6,18 +6,25 @@ import { readRows } from './http';
 import { toDomain } from './map';
 import type { Entity, EntityPosition } from './model';
 import { readOnce } from './once';
+import { readFrom } from './read-mode';
 
 /** The stored position of each entity the last layout run placed. An entity it did not place is
  * absent from the map, and the surface that draws it places that entity itself. */
-const memory = readOnce<ReadonlyMap<string, EntityPosition>>(async () => {
-  const rows = await readRows('layout');
-  const placed = new Map<string, EntityPosition>();
-  for (const row of rows) {
-    const { entityId, position } = toDomain.placement(row);
-    if (position !== null) placed.set(entityId, position);
-  }
-  return placed;
-});
+// A release holds no layout, so the surface places each entity itself.
+const memory = readOnce<ReadonlyMap<string, EntityPosition>>(() =>
+  readFrom(
+    async () => {
+      const rows = await readRows('layout');
+      const placed = new Map<string, EntityPosition>();
+      for (const row of rows) {
+        const { entityId, position } = toDomain.placement(row);
+        if (position !== null) placed.set(entityId, position);
+      }
+      return placed;
+    },
+    () => Promise.resolve(new Map<string, EntityPosition>()),
+  ),
+);
 
 /** The held layout while it places every entity of the corpus, and a later read when it does
  * not. The layout job runs outside the browser, so a later run can place an entity that the held

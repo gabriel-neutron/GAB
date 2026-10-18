@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { hrefFrom, STYLE, type SitePath } from './site-paths.ts';
+import { hrefFrom, STYLE, type SitePath } from '@gab/release/site-paths';
 
 export interface SiteDocumentProps {
   readonly page: { readonly path: SitePath; readonly title: string };

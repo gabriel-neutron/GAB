@@ -1,4 +1,4 @@
-import type { SiteVolume } from './site-release.ts';
+import type { SiteVolume } from '@gab/release/site-release';
 
 // A flow is what the link carries, so it comes before a capacity. An observed figure comes before
 // an estimate.

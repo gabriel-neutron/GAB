@@ -1,5 +1,5 @@
-import { releaseDay } from './release-day.ts';
-import { claimPage, hrefFrom, type SitePath } from './site-paths.ts';
+import { releaseDay } from '@gab/release/release-day';
+import { claimPage, hrefFrom, type SitePath } from '@gab/release/site-paths';
 import { timelineAxis } from './timeline-axis.ts';
 import type { MarkTime, TimelineLane, TimelineMark } from './vessel-timeline.ts';
 

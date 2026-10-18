@@ -1,6 +1,6 @@
 import { isDay } from '@gab/proposal/day';
 import { relationWords } from '@gab/proposal/relation-types';
-import type { SiteClaim, SiteRelation, SiteRelease } from './site-release.ts';
+import type { SiteClaim, SiteRelation, SiteRelease } from '@gab/release/site-release';
 
 /** When a mark holds. An interval with no end is open: the release gives no end date, which does
  * not say that the relation ended. */

@@ -3,8 +3,14 @@ import { claimText } from './claim-text.ts';
 import { NatoPairMark } from './nato-pair-mark.tsx';
 import { relationWords } from '@gab/proposal/relation-types';
 import { SiteFrame } from './site-frame.tsx';
-import { claimPage, entityPage, hrefFrom, permanentAddress, type SitePath } from './site-paths.ts';
-import type { SiteRelease } from './site-release.ts';
+import {
+  claimPage,
+  entityPage,
+  hrefFrom,
+  permanentAddress,
+  type SitePath,
+} from '@gab/release/site-paths';
+import type { SiteRelease } from '@gab/release/site-release';
 import { LINK } from './site-style.ts';
 import { SourceList } from './source-list.tsx';
 

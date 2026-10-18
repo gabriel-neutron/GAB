@@ -1,8 +1,8 @@
 import { ClaimLink } from './claim-link.tsx';
 import { SiteFrame } from './site-frame.tsx';
 import { CELL, HEAD, LINK, TABLE, TABLE_HEAD } from './site-style.ts';
-import { entityPage, HOME, hrefFrom, vesselPage } from './site-paths.ts';
-import type { CriticalNode, NodeCondition, SiteRelease } from './site-release.ts';
+import { entityPage, HOME, hrefFrom, vesselPage } from '@gab/release/site-paths';
+import type { CriticalNode, NodeCondition, SiteRelease } from '@gab/release/site-release';
 
 const CONDITIONS = [
   { key: 'a', words: '(a) Sanctions exposure' },

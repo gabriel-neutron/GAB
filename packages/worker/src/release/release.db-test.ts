@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { eventsAt } from '@gab/site/event-lane';
-import { readSiteRelease } from '@gab/site/site-release';
+import { readSiteRelease } from '@gab/release/site-release';
 import { readCsv } from '@gab/tools/csv';
 import { Pool } from 'pg';
 import { afterAll, expect, test, vi } from 'vitest';

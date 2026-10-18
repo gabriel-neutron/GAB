@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
-import { SiteReleaseFault } from '@gab/site/site-release-fault';
+import { SiteReleaseFault } from '@gab/release/site-release-fault';
 import { SiteFolderExists, writeSite } from '@gab/site/write-site';
 import { Client } from 'pg';
 

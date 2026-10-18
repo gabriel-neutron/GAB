@@ -33,8 +33,8 @@ import {
   V1,
   type SitePath,
   vesselPage,
-} from './site-paths.ts';
-import { readSiteRelease } from './site-release.ts';
+} from '@gab/release/site-paths';
+import { readSiteRelease } from '@gab/release/site-release';
 
 /** One file of the site: its path from the root of the site and its text. */
 export interface SiteFile {

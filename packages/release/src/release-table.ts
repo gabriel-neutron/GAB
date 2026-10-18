@@ -1,4 +1,4 @@
-import { readCsv } from '@gab/tools/csv';
+import { readCsv } from './csv.ts';
 
 import { SiteReleaseFault } from './site-release-fault.ts';
 
