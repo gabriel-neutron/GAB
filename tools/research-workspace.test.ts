@@ -1,4 +1,4 @@
-// The research workspace opens Claude Code and Codex on the GAB tools alone. Its sessions must not
+// The research workspace opens Claude Code on the GAB tools alone. Its sessions must not
 // reach the secret of the build stack, so its files name one server and its own credentials only.
 // The test reads text and opens no socket.
 
@@ -48,20 +48,9 @@ const gabServerOf = (folder: string): readonly string[] => {
   return gab.args;
 };
 
-const codexArgsOf = (folder: string): readonly string[] => {
-  const text = read(folder, '.codex', 'config.toml');
-  expect(text).toMatch(/^\[mcp_servers\.gab\]$/mu);
-  expect(text).toMatch(/^command = "node"$/mu);
-  const args = /^args = (\[.*\])$/mu.exec(text)?.[1];
-  if (args === undefined) throw new Error(`${folder}/.codex/config.toml gives no args`);
-  return z.array(z.string()).parse(JSON.parse(args));
-};
-
 test.each([
   ['the Claude Code file of the workspace', 'research', gabServerOf],
   ['the Claude Code file of the root', '.', gabServerOf],
-  ['the Codex file of the workspace', 'research', codexArgsOf],
-  ['the Codex file of the root', '.', codexArgsOf],
 ] as const)('%s starts the one server and passes no environment file', (_, folder, argsOf) => {
   const args = argsOf(folder);
   expect(args).toHaveLength(1);
@@ -131,10 +120,10 @@ test('git ignores the research environment file and keeps its example', () => {
   expect(ignored('research/.env.example')).toBe(false);
 });
 
-// Claude Code and Codex read the rules of the parent folder too. The first line of each research
+// Claude Code reads the rules of the parent folder too. The first line of each research
 // rules file says that it wins, so a research session never builds, commits or pushes.
-test.each(['CLAUDE.md', 'AGENTS.md'])('the first line of %s overrides the build rules', (file) => {
-  const [first] = read('research', file).split(/\r?\n/u);
+test('the first line of CLAUDE.md overrides the build rules', () => {
+  const [first] = read('research', 'CLAUDE.md').split(/\r?\n/u);
   expect(first).toMatch(/override the build rules of the parent repository/u);
   expect(first).toMatch(/never commits/u);
 });

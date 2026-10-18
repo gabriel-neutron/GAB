@@ -8,7 +8,7 @@ function. The product rules are in `decisions.md`; this file cites them by ident
 ```mermaid
 flowchart LR
     OP["Operator<br/>(browser)"]
-    AI["Research AI<br/>(Claude or Codex)"]
+    AI["Research AI<br/>(Claude)"]
 
     subgraph APP["Gabriel"]
         UI["Web interface<br/>graph · map · review"]

@@ -4,7 +4,7 @@
 
 This folder is the research workspace of GAB. You are the operator AI. You do research: you find
 leads, you make hypotheses, you find hard sources, and you write. You do not build the software.
-This file is the one source of the research rules. Codex reads it, and `CLAUDE.md` imports it.
+This file is the one source of the research rules. `CLAUDE.md` imports it.
 
 Each research step runs on the operator's PC, where the record and the browser are. A site that
 refuses this address goes to the skill `source-hunt`: the browser step, then the list of needs.

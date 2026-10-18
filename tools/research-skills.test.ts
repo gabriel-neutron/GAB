@@ -1,7 +1,6 @@
 // The research workspace states each research procedure once, as a skill. A skill that names a tool
-// the research MCP server does not offer sends the model to a tool it cannot call, and a Codex copy
-// that differs from its Claude source gives the two clients two procedures. The test reads text
-// and opens no socket.
+// the research MCP server does not offer sends the model to a tool it cannot call. The test reads
+// text and opens no socket.
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -13,7 +12,6 @@ import { z } from 'zod';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const CLAUDE_SKILLS = path.join(ROOT, 'research', '.claude', 'skills');
-const CODEX_SKILLS = path.join(ROOT, 'research', '.agents', 'skills');
 
 const SKILLS = [
   'research-method',
@@ -27,7 +25,6 @@ const SKILLS = [
 const frontMatter = z.object({ name: z.string().min(1), description: z.string().trim().min(1) });
 
 const sourceOf = (skill: string): string => path.join(CLAUDE_SKILLS, skill, 'SKILL.md');
-const copyOf = (skill: string): string => path.join(CODEX_SKILLS, skill, 'SKILL.md');
 
 const read = (file: string): string => readFileSync(file, 'utf8');
 
@@ -119,17 +116,6 @@ test('the Claude Code settings allow each tool of the server, except the ones th
     'Edit(//**/infra/.env)',
     'Bash(*infra*.env*)',
   ]);
-});
-
-test.each(SKILLS)('the Codex copy of %s is the same bytes as its Claude source', (skill) => {
-  const source = sourceOf(skill);
-  const copy = copyOf(skill);
-
-  expect(existsSync(copy), `${shown(copy)} is absent. Copy ${shown(source)} over it.`).toBe(true);
-  expect(
-    readFileSync(copy).equals(readFileSync(source)),
-    `${shown(copy)} differs from its source ${shown(source)}. Copy the source over it.`,
-  ).toBe(true);
 });
 
 // A session at the root of the repository loads the same server, and the operator chose that it

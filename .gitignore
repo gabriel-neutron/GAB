@@ -54,3 +54,6 @@ ingest-report.json
 # stay on the machine of the operator.
 research/out/
 research/inbox/
+
+# TanStack Router plugin scratch folder
+.tanstack/
