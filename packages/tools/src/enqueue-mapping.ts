@@ -12,8 +12,8 @@ const row = z.strictObject({ id: z.uuid() });
 export const enqueueMapping = defineTool({
   name: 'enqueue_mapping',
   description:
-    'Queues the mapping of one stored table (a CSV file, or a named text set of a workbook), and ' +
-    'returns the job id. The back-end ' +
+    'Queues the mapping of one stored table (a CSV, TSV or SDMX-CSV file, or a named text set ' +
+    'of a workbook or a GeoJSON layer), and returns the job id. The back-end ' +
     'AI reads the header and a sample of the rows and proposes how the columns map to the ' +
     'record. The operator promotes the mapping, and then code loads the rows. The job runs ' +
     'later: call job_status with the same document to see where it stands, then list_proposals ' +

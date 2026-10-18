@@ -1,3 +1,5 @@
+import { LAYER_READER } from '@gab/text/geojson';
+import { TABLE_READER } from '@gab/text/xlsx';
 import { z } from 'zod';
 
 import { CsvFault, readCsv, readTsv, type CsvRecord } from './csv.ts';
@@ -56,8 +58,8 @@ const pageRow = z.object({
 
 /** The one page of a stored table, the set of text it belongs to, and the format of its fields.
  * A table of a workbook is a named text set, and the reader takes that set and never the newest
- * one. The reader of a workbook or a layer writes a CSV, so a type that is no table reads as
- * CSV. */
+ * one. The reader of a workbook or a layer writes a CSV, so its text set and a type that is no
+ * table read as CSV. */
 export const readTablePage = async (
   session: Session,
   document: string,
@@ -74,6 +76,8 @@ export const readTablePage = async (
     textSet: first.extractor,
     page: first.page,
     text: first.text,
-    format: tableFormatOf(first.mime) ?? 'csv',
+    format: [TABLE_READER, LAYER_READER].some((reader) => first.extractor.startsWith(`${reader}|`))
+      ? 'csv'
+      : (tableFormatOf(first.mime) ?? 'csv'),
   };
 };

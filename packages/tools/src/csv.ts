@@ -75,7 +75,10 @@ const TAB = '\t';
 
 /** Reads a page as tab-separated records (IANA text/tab-separated-values). A TSV has no quote: a
  * field holds no tab and no line break, and a quote in it is a character of the field. The
- * offsets count code points, as in readCsv, and a line that holds nothing is no record. */
+ * offsets count code points, as in readCsv, and a line that holds nothing is no record.
+ * The TSV of Eurostat puts all the dimensions in its first column, joined by commas, and one
+ * column for each period. The reader keeps that shape. Fetch the SDMX-CSV of the same query to
+ * get one column for each dimension and one row for each observation. */
 export const readTsv = (page: string): CsvRecord[] => {
   const points = Array.from(page);
   const records: CsvRecord[] = [];

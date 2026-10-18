@@ -77,3 +77,13 @@ test('a TSV record splits at each tab, and a quote or a comma is a character of 
     'last\t',
   ]);
 });
+
+test('the TSV of Eurostat keeps its dimensions in one column and a column for each period', () => {
+  const page =
+    'freq,reporter,partner,product,flow,indicators\\TIME_PERIOD\t2026-07 \n' +
+    'M,HU,RU,27090090,1,QUANTITY_IN_100KG\t3272070.00\n';
+  expect(readTsv(page).map((record) => record.fields)).toStrictEqual([
+    ['freq,reporter,partner,product,flow,indicators\\TIME_PERIOD', '2026-07 '],
+    ['M,HU,RU,27090090,1,QUANTITY_IN_100KG', '3272070.00'],
+  ]);
+});

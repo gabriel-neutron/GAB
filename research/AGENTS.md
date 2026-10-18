@@ -62,8 +62,8 @@ session: each proposal waits in the review queue, and the operator decides it th
 - **The extractor is the back-end AI.** It reads a whole stored document and proposes each claim
   that it finds, also the facts outside your layer. Queue it (`enqueue_extract`) only when the
   operator asks for it.
-- **The mapper is the back-end AI for a table.** A stored CSV file has columns that Gabriel does
-  not know. Queue its mapping (`enqueue_mapping`) only when the operator asks for it. Follow it
+- **The mapper is the back-end AI for a table.** A stored CSV, TSV or SDMX-CSV table has columns that
+  Gabriel does not know. Queue its mapping (`enqueue_mapping`) only when the operator asks for it. Follow it
   with `job_status`, and read the mapping with `list_proposals`. The operator promotes the
   mapping, and then code loads the rows. You do not propose the rows of a table by hand.
 - **The lead agent finds sources for a lead.** For a broad lead, such as a company and its
