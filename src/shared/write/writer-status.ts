@@ -7,9 +7,9 @@ import { z } from 'zod';
 
 export type WriterStatus = 'unknown' | 'online' | 'offline';
 
-// The `/write` prefix of the development proxy covers this address. A public site that has no
-// writer answers 404 or a page of the site, and neither one says the writer is online.
-const ADDRESS = '/writer-status';
+// The `/write` prefix covers this address, in the development proxy and in the host. A public site
+// that has no writer answers 404 or a page of the site, and neither one says the writer is online.
+const ADDRESS = '/write/status';
 
 const answer = z.object({ online: z.literal(true) });
 
@@ -17,7 +17,7 @@ let status: WriterStatus = 'unknown';
 let probing: Promise<boolean> | null = null;
 const listeners = new Set<() => void>();
 
-const hold = (next: WriterStatus): void => {
+const setStatus = (next: WriterStatus): void => {
   status = next;
   listeners.forEach((listener) => {
     listener();
@@ -36,7 +36,7 @@ const ask = async (): Promise<boolean> => {
 /** Read the answer of the writer again, and hold it. */
 export function recheckWriter(): Promise<boolean> {
   const own: Promise<boolean> = ask().then((online) => {
-    if (probing === own) hold(online ? 'online' : 'offline');
+    if (probing === own) setStatus(online ? 'online' : 'offline');
     return online;
   });
   probing = own;

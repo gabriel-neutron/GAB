@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, restoreAllMocks } from 'storybook/test';
 
-import { holdWriter } from './hold-writer';
-import { NotAvailable } from './not-available';
+import { holdWriter } from './hold-writer.story-support';
 import { WhenWriterOnline } from './when-writer-online';
 
 const meta = {
@@ -32,16 +31,5 @@ export const AnOfflineWriterHidesTheEntry: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.queryByRole('button', { name: 'Create entity' })).toBeNull();
-  },
-};
-
-export const TheReviewPageOfflineStatesItAndOffersTheMap: Story = {
-  render: () => <NotAvailable />,
-  play: async ({ canvas }) => {
-    await expect(canvas.getByText('This part is not available here.')).toBeVisible();
-    await expect(canvas.getByRole('link', { name: 'Go to the map' })).toHaveAttribute(
-      'href',
-      '/map',
-    );
   },
 };

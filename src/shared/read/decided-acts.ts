@@ -33,8 +33,14 @@ export interface UnreadAct {
   readonly id: string;
 }
 
+/** One line of the history: an act that was read, or an act that was not. */
+export type DecidedLine = DecidedAct | UnreadAct;
+
 /** True when the act of the history could not be read. */
-export const isUnread = (held: DecidedAct | UnreadAct): held is UnreadAct => 'unreadable' in held;
+export const isUnread = (held: DecidedLine): held is UnreadAct => 'unreadable' in held;
+
+/** The identifier of the act of a line. */
+export const idOf = (held: DecidedLine): string => (isUnread(held) ? held.id : held.act.id);
 
 const rowId = z.looseObject({ id: z.string() });
 
@@ -51,7 +57,7 @@ function decidedOf(row: unknown): DecidedAct {
   return { act, verdict: status, decidedAt, decidedBy, decidedAs, decisionOrigin, originLabel };
 }
 
-function lineOf(row: unknown): DecidedAct | UnreadAct {
+function lineOf(row: unknown): DecidedLine {
   try {
     return decidedOf(row);
   } catch {
@@ -60,7 +66,7 @@ function lineOf(row: unknown): DecidedAct | UnreadAct {
   }
 }
 
-async function read(): Promise<readonly (DecidedAct | UnreadAct)[]> {
+async function read(): Promise<readonly DecidedLine[]> {
   const accepted = await readRows('proposal', { status: 'accepted' });
   return accepted.map((row) => lineOf(row));
 }

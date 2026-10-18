@@ -8,7 +8,7 @@ export async function holdWriter(online: boolean): Promise<void> {
   const real = globalThis.fetch.bind(globalThis);
   spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
     const address = input instanceof Request ? input.url : String(input);
-    if (!address.endsWith('/writer-status')) return real(input, init);
+    if (!address.endsWith('/write/status')) return real(input, init);
     return online
       ? Promise.resolve(Response.json({ online: true }))
       : Promise.reject(new TypeError('The write service is off.'));

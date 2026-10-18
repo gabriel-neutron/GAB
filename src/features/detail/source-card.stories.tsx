@@ -4,7 +4,7 @@ import { expect, restoreAllMocks, userEvent } from 'storybook/test';
 import { corpus } from '@/shared/committed-fixture/corpus';
 import { toDomain } from '@/shared/read/map';
 import type { Corpus, DocId } from '@/shared/read/model';
-import { holdWriter } from '@/shared/write/hold-writer';
+import { holdWriter } from '@/shared/write/hold-writer.story-support';
 
 import { readDossier, type SourceCardModel } from './dossier';
 import { SourceCard } from './source-card';
