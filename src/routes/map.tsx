@@ -92,6 +92,7 @@ function MapRoute() {
   // of the mount first, so a relation the canvas cannot draw arrives as `null` and leaves.
   const handleChooseRelation = useCallback(
     (id: string | null) => {
+      if (id !== null) setUnplaced(null);
       if ((id ?? '') === current.current.relation) return;
       void navigate({
         search: (previous: MapSearch): MapSearch => ({ ...previous, relation: id ?? '' }),

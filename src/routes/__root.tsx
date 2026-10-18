@@ -68,14 +68,20 @@ const SURFACE_LINK = cn(
 // read from the address bar. The router calls this function again at the click.
 // shortcut: the `href` is computed at render and can name an older selection, which a click with
 // a modifier opens; read the selection from a store of the graph when one exists.
-const carriedSelection = (): { readonly entity: string; readonly relation: string } => {
-  if (!FILTERED_SCREENS.has(window.location.pathname)) return { entity: '', relation: '' };
-  const params = new URLSearchParams(window.location.search);
-  const relation = params.get('relation') ?? '';
-  // The map can hold both keys, and its panel then names the relation. The graph reads the
-  // entity first, so the relation goes alone.
-  return { entity: relation === '' ? (params.get('entity') ?? '') : '', relation };
-};
+const carriedSelection =
+  (to: '/map' | '/graph') => (): { readonly entity: string; readonly relation: string } => {
+    const from = window.location.pathname;
+    if (!FILTERED_SCREENS.has(from)) return { entity: '', relation: '' };
+    const params = new URLSearchParams(window.location.search);
+    const entity = params.get('entity') ?? '';
+    const relation = params.get('relation') ?? '';
+    // The map can hold both keys, and its panel then names the relation. The graph reads the
+    // entity first, so the relation goes alone. A link to the same surface keeps both keys.
+    return { entity: relation === '' || from === to ? entity : '', relation };
+  };
+
+const TO_MAP = carriedSelection('/map');
+const TO_GRAPH = carriedSelection('/graph');
 
 // The entity page is absent: it names one record and no fixed address reaches it. It is reached
 // from the surface that draws that record.
@@ -84,7 +90,7 @@ function SurfaceNav() {
     <nav aria-label="Surfaces" className="flex h-full items-stretch">
       <Link
         to="/map"
-        search={carriedSelection}
+        search={TO_MAP}
         activeOptions={{ includeSearch: false }}
         className={SURFACE_LINK}
       >
@@ -92,7 +98,7 @@ function SurfaceNav() {
       </Link>
       <Link
         to="/graph"
-        search={carriedSelection}
+        search={TO_GRAPH}
         activeOptions={{ includeSearch: false }}
         className={SURFACE_LINK}
       >
