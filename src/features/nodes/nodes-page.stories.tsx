@@ -31,14 +31,18 @@ const meta = {
     release: {
       date: '2026-11-08',
       nodes: NODES,
-      claimTexts: {
-        'claim-1': 'Primorsk oil terminal: Designated by Council',
-        'claim-2': 'Primorsk oil terminal: Loads at Primorsk',
+      claims: {
+        'claim-1': { text: 'Primorsk oil terminal: Designated by Council', pair: null },
+        'claim-2': {
+          text: 'Primorsk oil terminal: Loads at Primorsk',
+          pair: { letter: 'B', digit: '2' },
+        },
       },
       imoOf: { n1: '9000001' },
     },
     entityHref: (id: string) => `/entity/${id}`,
     vesselHref: (imo: string) => `/vessel/${imo}`,
+    claimHref: (id: string) => `/claim/${id}`,
   },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
@@ -75,11 +79,13 @@ export const LinksTheTimelineOfAVesselNodeByItsIMONumber: Story = {
   },
 };
 
-export const SaysWhatEachClaimOfATickSays: Story = {
+export const LinksTheClaimOfATickWithItsNATOPair: Story = {
   play: async ({ canvas }) => {
-    await expect(
-      (await canvas.findAllByText('Primorsk oil terminal: Designated by Council')).length,
-    ).toBeGreaterThan(0);
+    const links = await canvas.findAllByRole('link', {
+      name: 'Primorsk oil terminal: Designated by Council',
+    });
+    await expect(links[0]).toHaveAttribute('href', '/claim/claim-1');
+    await expect((await canvas.findAllByText('NATO B2')).length).toBeGreaterThan(0);
   },
 };
 

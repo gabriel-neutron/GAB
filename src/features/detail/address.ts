@@ -19,3 +19,11 @@ export const surfaceHref = (
 
 /** The address of the timeline of a vessel: its IMO number, as the permanent address has it. */
 export const vesselHref = (imo: string): string => `/vessel/${encodeURIComponent(imo)}`;
+
+/** The address of the page of one claim, or of one relation: the identifier is the path, as the
+ * permanent address has it, so an identifier with a `/` keeps its folders. */
+export const claimHref = (claimId: string): string =>
+  `/claim/${claimId.split('/').map(encodeURIComponent).join('/')}`;
+
+export const relationHref = (relationId: string): string =>
+  `/relation/${relationId.split('/').map(encodeURIComponent).join('/')}`;

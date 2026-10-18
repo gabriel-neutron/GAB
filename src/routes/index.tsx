@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { entityHref, vesselHref } from '@/features/detail/address';
+import { claimHref, entityHref, vesselHref } from '@/features/detail/address';
 import { NodesPage } from '@/features/nodes/nodes-page';
 import { claimText } from '@gab/release/claim-text';
 import { loadCorpus } from '@/shared/read/corpus';
@@ -17,7 +17,9 @@ export const Route = createFileRoute('/')({
       return {
         date: release.manifest.date,
         nodes: release.criticalNodes,
-        claimTexts: Object.fromEntries(release.claims.map((claim) => [claim.id, claimText(claim)])),
+        claims: Object.fromEntries(
+          release.claims.map((claim) => [claim.id, { text: claimText(claim), pair: claim.pair }]),
+        ),
         imoOf: Object.fromEntries(release.imoOfVessel),
       };
     } catch (cause) {
@@ -36,6 +38,7 @@ function NodesRoute() {
       release={release}
       entityHref={(id) => entityHref(id, null)}
       vesselHref={vesselHref}
+      claimHref={claimHref}
     />
   );
 }

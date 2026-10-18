@@ -5,6 +5,7 @@ import { FIXTURE_RELEASE } from './fixture-release';
 import { VesselPage } from './vessel-page';
 
 const ABSORBED = '0a1f0000-0000-4000-8000-000000000005';
+const CLOSED = '0a1f0000-0000-4000-8000-000000000014';
 const VESSEL = '0a1f0000-0000-4000-8000-000000000001';
 
 const meta = {
@@ -13,6 +14,7 @@ const meta = {
     release: FIXTURE_RELEASE.off,
     imo: '9000001',
     entityHref: (id: string) => `/entity/${id}`,
+    claimHref: (id: string) => `/claim/${id}`,
   },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
@@ -90,6 +92,15 @@ export const TheDrawingHoldsTheDatedMarksAndTheVersionLine: Story = {
     const figure = canvasElement.querySelector('[data-timeline]');
     await expect(figure).not.toBeNull();
     await expect(figure).toHaveTextContent('Version 08/11/2026');
+  },
+};
+
+export const EachMarkLinksItsClaimAndAClosedIntervalLinksItsEndDate: Story = {
+  play: async ({ canvas }) => {
+    const claim = canvas.getAllByRole('link', { name: /^Claim: / })[0];
+    await expect(claim).toHaveAttribute('href', expect.stringMatching(/^\/claim\//u));
+    const end = canvas.getByRole('link', { name: /^End date: / });
+    await expect(end).toHaveAttribute('href', `/claim/${CLOSED}/valid_to`);
   },
 };
 

@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-import { entityHref } from '@/features/detail/address';
+import { claimHref, entityHref } from '@/features/detail/address';
 import { VesselPage } from '@/features/vessel/vessel-page';
 import { loadCorpus } from '@/shared/read/corpus';
 import { loadReleaseOrNull } from '@/shared/read/release-record';
@@ -20,5 +20,12 @@ export const Route = createFileRoute('/vessel/$imo')({
 function VesselRoute() {
   const { imo } = Route.useParams();
   const release = Route.useLoaderData();
-  return <VesselPage release={release} imo={imo} entityHref={(id) => entityHref(id, null)} />;
+  return (
+    <VesselPage
+      release={release}
+      imo={imo}
+      entityHref={(id) => entityHref(id, null)}
+      claimHref={claimHref}
+    />
+  );
 }

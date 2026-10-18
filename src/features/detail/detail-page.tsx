@@ -12,7 +12,7 @@ import { ReadingPage } from '@/shared/page/reading-page';
 import { SaidLine } from '@/shared/said-line';
 import { useWriterOnline } from '@/shared/write/writer-status';
 
-import { surfaceHref, vesselHref } from './address';
+import { claimHref, surfaceHref, vesselHref } from './address';
 import type { TypedValue } from './claims';
 import { DeleteControl } from './delete-control';
 import { draftsAfterSave, pendingEdit, recordCells, typedInto, type Drafts } from './draft';
@@ -159,6 +159,10 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
   );
 
   const facts = dossier.facts;
+  // A row links its claim page only where the release holds that claim.
+  const claimed = new Set(facts?.claimIds ?? []);
+  const claimOf = (id: string): string | null => (claimed.has(id) ? claimHref(id) : null);
+  const claimOfKey = (key: string): string | null => claimOf(`${dossier.entityId}/${key}`);
   const events = facts?.events ?? null;
   const detail = (
     <>
@@ -276,8 +280,8 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
               re-renders it in place instead of tearing down and remounting every field. */}
         <EntityRecord
           {...(writing
-            ? { mode: 'writing', cells, mark, onEdit }
-            : { mode: 'reading', cells, mark })}
+            ? { mode: 'writing', cells, mark, onEdit, claimHref: claimOfKey }
+            : { mode: 'reading', cells, mark, claimHref: claimOfKey })}
         />
         {writing ? <NewClaim rows={dossier.rows} busy={busy} onMint={onMint} /> : null}
       </PageSection>
@@ -288,6 +292,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
         <Relations
           relations={dossier.relations}
           mark={mark}
+          claimHref={claimOf}
           deleting={
             writing
               ? {

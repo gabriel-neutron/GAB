@@ -1,6 +1,7 @@
-import type { CriticalNode, NodeCondition } from '@gab/release/site-release';
+import type { CriticalNode, NatoPair, NodeCondition } from '@gab/release/site-release';
 
 import { DataTable, type DataColumn } from '@/shared/page/data-table';
+import { ClaimLink } from '@/shared/page/claim-link';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
 import { READING_LINK } from '@/shared/page/reading-link';
@@ -9,14 +10,19 @@ import { releaseDay } from '@gab/release/release-day';
 
 import { groupNodes } from './nodes';
 
+export interface TickClaim {
+  readonly text: string;
+  readonly pair: NatoPair | null;
+}
+
 export interface NodesPageProps {
   /** Null when the site holds no release: the table comes from a release and from nothing else. */
   readonly release: {
     /** The day of the release, YYYY-MM-DD. */
     readonly date: string;
     readonly nodes: readonly CriticalNode[];
-    /** What each claim of a tick says, by claim identifier. */
-    readonly claimTexts: Readonly<Record<string, string>>;
+    /** What each claim of a tick says, and its NATO pair, by claim identifier. */
+    readonly claims: Readonly<Record<string, TickClaim>>;
     /** The IMO number of each node that is a vessel with one, by node identifier. */
     readonly imoOf: Readonly<Record<string, string>>;
   } | null;
@@ -24,6 +30,8 @@ export interface NodesPageProps {
   readonly entityHref: (id: string) => string;
   /** The address of the timeline of the vessels with one IMO number. */
   readonly vesselHref: (imo: string) => string;
+  /** The address of the page of one claim. */
+  readonly claimHref: (id: string) => string;
 }
 
 const CONDITIONS = [
@@ -35,10 +43,12 @@ const CONDITIONS = [
 // The word is the mark: "not sourced" also takes the dissent hue, and never the hue alone.
 function ConditionCell({
   condition,
-  claimTexts,
+  claims,
+  claimHref,
 }: {
   readonly condition: NodeCondition | undefined;
-  readonly claimTexts: Readonly<Record<string, string>>;
+  readonly claims: Readonly<Record<string, TickClaim>>;
+  readonly claimHref: NodesPageProps['claimHref'];
 }) {
   if (condition === undefined) return null;
   return (
@@ -46,9 +56,18 @@ function ConditionCell({
       <p className={condition.state === 'not sourced' ? 'text-dissent' : undefined}>
         {condition.state}
       </p>
-      {condition.claimIds.map((id) => (
-        <p key={id}>{claimTexts[id] ?? id}</p>
-      ))}
+      {condition.claimIds.map((id) => {
+        const claim = claims[id];
+        return (
+          <p key={id}>
+            {claim === undefined ? (
+              id
+            ) : (
+              <ClaimLink text={claim.text} href={claimHref(id)} pair={claim.pair} />
+            )}
+          </p>
+        );
+      })}
     </div>
   );
 }
@@ -57,11 +76,12 @@ interface Links {
   readonly entityHref: NodesPageProps['entityHref'];
   readonly vesselHref: NodesPageProps['vesselHref'];
   readonly imoOf: Readonly<Record<string, string>>;
+  readonly claimHref: NodesPageProps['claimHref'];
 }
 
 const columnsOf = (
-  { entityHref, vesselHref, imoOf }: Links,
-  claimTexts: Readonly<Record<string, string>>,
+  { entityHref, vesselHref, imoOf, claimHref }: Links,
+  claims: Readonly<Record<string, TickClaim>>,
 ): readonly DataColumn<CriticalNode>[] => [
   {
     key: 'node',
@@ -91,7 +111,8 @@ const columnsOf = (
     cell: (node: CriticalNode) => (
       <ConditionCell
         condition={node.conditions.find((one) => one.key === key)}
-        claimTexts={claimTexts}
+        claims={claims}
+        claimHref={claimHref}
       />
     ),
   })),
@@ -107,7 +128,7 @@ const columnsOf = (
 
 /** The critical nodes table of a release, on the reading scale: the retained nodes first, then
  * the other candidates. Each condition gives its word and the claims of its tick. */
-export function NodesPage({ release, entityHref, vesselHref }: NodesPageProps) {
+export function NodesPage({ release, entityHref, vesselHref, claimHref }: NodesPageProps) {
   if (release === null)
     return (
       <ReadingPage>
@@ -118,7 +139,10 @@ export function NodesPage({ release, entityHref, vesselHref }: NodesPageProps) {
       </ReadingPage>
     );
   const { retained, others, summary } = groupNodes(release.nodes);
-  const columns = columnsOf({ entityHref, vesselHref, imoOf: release.imoOf }, release.claimTexts);
+  const columns = columnsOf(
+    { entityHref, vesselHref, imoOf: release.imoOf, claimHref },
+    release.claims,
+  );
   return (
     <ReadingPage>
       <PageHeader

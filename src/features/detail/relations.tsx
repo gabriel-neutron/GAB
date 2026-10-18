@@ -3,6 +3,8 @@
 
 import type { ReactNode } from 'react';
 
+import { READING_LINK } from '@/shared/page/reading-link';
+
 import { DeleteControl } from './delete-control';
 import type { RelationLine, SourceRef } from './dossier';
 
@@ -24,11 +26,14 @@ export interface RelationsProps {
   /** A panel beside a canvas gives this, so a click puts the relation on the canvas and in the
    * sidebar. A list with no canvas beside it gives none, and the sentence then is plain text. */
   readonly onSelect?: (relationId: string) => void;
+  /** The address of the claim page of a relation, or null where the release holds no such claim. */
+  readonly claimHref?: (relationId: string) => string | null;
 }
 
 const UNDRAWABLE = 'The graph does not draw this relation. One endpoint is a relation.';
 
-export function Relations({ relations, mark, deleting, onSelect }: RelationsProps) {
+export function Relations({ relations, mark, deleting, onSelect, claimHref }: RelationsProps) {
+  const claimLink = (id: string): string | null => claimHref?.(id) ?? null;
   if (relations.length === 0) {
     return (
       <p className="text-xs text-label">
@@ -78,6 +83,15 @@ export function Relations({ relations, mark, deleting, onSelect }: RelationsProp
               </span>
             )}
             {mark(relation.sources)}
+            {claimLink(relation.id) === null ? null : (
+              <a
+                className={`${READING_LINK} shrink-0 text-xs`}
+                href={claimLink(relation.id) ?? undefined}
+                aria-label={`Claim: ${relation.sentence}`}
+              >
+                Claim
+              </a>
+            )}
             {deleting.offered ? (
               <DeleteControl
                 name={relation.sentence}
