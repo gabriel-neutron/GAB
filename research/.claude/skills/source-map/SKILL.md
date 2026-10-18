@@ -16,9 +16,9 @@ the last 36 hours). Update this table when a source changes.
 | Facility, pipeline, refinery, owner share | `gem.wiki` (Global Energy Monitor) and the GEM trackers | 36 of 37. Cite the page; GEM is the origin of its row. |
 | Port code | `unlocode.info` | 10 of 10. The UNECE site `service.unece.org` gives 403 and the archive gives 429. |
 | EU act | `eu_act` with the CELEX number | Works. Do not fetch EUR-Lex by hand. |
-| OFAC and UK lists | `ofac_sdn`, `uk_sanctions_list` | Work. Cite one entry. `uk_sanctions_list` failed 3 times of 4 on 18 October: check the key in the answer before a retry. |
+| OFAC and UK lists | `ofac_sdn`, `uk_sanctions_list` | Work. Cite one entry. `uk_sanctions_list` failed 3 times of 4 on 18 October. After 3 failures, do not call it again in the session (`source-hunt`). |
 | Shipping news on a cargo | `gcaptain.com`, `reuters.com`, `thebarentsobserver.com`, `energyandcleanair.org` | Store the article. Reuters only for the lead; the claim needs its own source. |
-| Lead search | `web_search` (works since the repair), or `html.duckduckgo.com/html/?q=` through `fetch_document` | 107 of 107 and 19 of 19. A result page is a lead, never a source. |
+| Lead search | `web_search` (works since the repair), or `html.duckduckgo.com/html/?q=` through `fetch_document` | 107 of 107 and 19 of 19. A result page is a lead, never a source (`source-hunt`). Fetch the page that it points to. |
 | Place | `yandex-point`, `osm-overpass`, `geocode-check` | See each skill. |
 
 ## Sources that failed, and what to do
@@ -32,7 +32,7 @@ the last 36 hours). Update this table when a source changes.
 | Files above 20 MB | `store_saved_file` refuses | Ask for a tool cap change, or cite the pages from the operator. |
 | `sanctions_match`, `vessel_events` | 1 failure each (key or time) | Check the error text once, then use the official list. |
 
-## Habits that wasted calls
+## Habits that cost calls
 
 - A fetch of a URL that is already on `research/out/needs.md`. Read the list first.
 - Retrying a site that failed 3 times. Put its next URLs on the list.

@@ -5,9 +5,11 @@ description: Place the point of an industrial site (refinery, terminal, plant) o
 
 # Point from Yandex Maps
 
-The rules of the place of an asset are in the skill `research-method` ("The place of an asset").
-This skill gives the working method. The operator must choose Yandex Maps as the source of the
-point: without that choice, use the order of `research-method`.
+This skill is an **exception** to the order of `research-method` ("The place of an asset"): there,
+only the operator places a point on a satellite image. Use this skill only when the operator names
+Yandex Maps as the source of the point (as in the sessions of 18 October 2026). Without that
+choice, use only `research-method`. A Yandex point waits in review as a proposal, with a doubt
+for the reviewer. It is never a decided fact.
 
 ## What works
 
@@ -41,4 +43,5 @@ point: without that choice, use the order of `research-method`.
   (`plant`, `port`, `gate`, `berth`). Vadinar: the point was the jetty, not the refinery.
 - Do not change the point of an entity that waits in review: `update_entity` refuses it. Wait
   for the promotion, or give the point in the notes for the reviewer.
-- Do not store a geocoder answer as a source. See `geocode-check`.
+- Do not store a geocoder answer as a source. See `geocode-check`. The card of this skill is a
+  reading of the map page, not a geocoder answer.

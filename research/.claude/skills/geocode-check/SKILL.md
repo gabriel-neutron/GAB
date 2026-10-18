@@ -21,11 +21,12 @@ write only "geocoder X agrees within N m with source Y on date D" in your notes.
 ## Steps
 
 1. Query with `curl` or the browser. Keep the answer in your scratch file, not in the inbox.
-2. Compare to the point you hold. Under 300 m for a plant, or under 50 m for a gate, is "agrees".
+2. Compare to the point you hold. Use the gaps of `research-method`: 1 km for a plant or a port,
+   200 m for a gate or a berth. A larger gap means two places.
 3. Write the result in the notes of the proposal. Never store the answer with `fetch_document`
    or `store_saved_file`, and never propose its coordinate.
 
 ## Do not
 
-- Do not use a geocoder point of a city as the point of a plant ("no city point" rule).
+- Do not use the point of a city (for example a UN/LOCODE point) as the point of a plant.
 - Do not trust the first candidate when the score is under 90.
