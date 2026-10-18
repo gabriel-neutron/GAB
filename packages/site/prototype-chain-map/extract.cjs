@@ -1,0 +1,12 @@
+const fs=require("fs");
+const h=fs.readFileSync(process.argv[2],"utf8");
+const get=id=>{const a=h.indexOf('id="'+id+'">')+id.length+6;const b=h.indexOf("</script>",a);return JSON.parse(h.slice(a,b))};
+const f=get("gab-features"), fl=get("gab-flows");
+fs.writeFileSync("data.json",JSON.stringify({features:f,flows:fl}));
+console.log("features",f.features.length, JSON.stringify(f.features[0]).slice(0,700));
+console.log("flows keys",Object.keys(fl));
+console.log("arc0",fl.arcs.features.length, JSON.stringify(fl.arcs.features[0].properties));
+console.log("exit0",fl.exits.features.length, JSON.stringify(fl.exits.features[0]));
+console.log("links",JSON.stringify(fl.links).slice(0,300));
+const st={};f.features.forEach(x=>{const k=x.properties.stageKey+"/"+x.geometry.type;st[k]=(st[k]||0)+1});console.log(st);
+const s2={};fl.arcs.features.forEach(x=>{const k=x.properties.style+"/"+x.properties.product;s2[k]=(s2[k]||0)+1});console.log(s2);

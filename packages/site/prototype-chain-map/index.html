@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE chain map</title>
+<style>
+:root{--bg:#070b12;--panel:rgba(12,18,28,.86);--line:#243042;--fg:#e8edf3;--muted:#93a1b3;--accent:#4aa8ff;--review:#9aa3ad}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,sans-serif}
+#map{position:fixed;inset:0}
+.top{position:fixed;top:12px;left:12px;right:12px;display:flex;gap:12px;align-items:flex-start;pointer-events:none;z-index:5}
+.top>*{pointer-events:auto}
+.brand{background:var(--panel);border:1px solid var(--line);padding:8px 12px;backdrop-filter:blur(8px)}
+.brand b{display:block;font-size:15px;letter-spacing:.02em}.brand span{color:var(--muted);font-size:12px}
+.chips{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);padding:4px;backdrop-filter:blur(8px)}
+button{font:inherit;color:inherit;background:transparent;border:1px solid var(--line);padding:4px 10px;cursor:pointer}
+button[aria-pressed=true]{background:var(--fg);color:var(--bg)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.card{position:fixed;top:72px;right:12px;width:320px;max-height:calc(100% - 200px);overflow:auto;background:var(--panel);border:1px solid var(--line);padding:12px;backdrop-filter:blur(8px);z-index:5}
+.card h2{margin:0 0 4px;font-size:16px}.card .k{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-top:10px}
+.review{color:#ffd166}
+.steps{position:fixed;left:12px;right:12px;bottom:56px;display:grid;grid-template-columns:auto repeat(6,1fr);gap:4px;z-index:5}
+.steps button{background:var(--panel);text-align:left;padding:8px;backdrop-filter:blur(8px);display:flex;flex-direction:column;gap:2px}
+.steps button[aria-pressed=true]{background:var(--fg);color:var(--bg)}
+.steps button small{color:var(--muted)}.steps button[aria-pressed=true] small{color:var(--bg)}
+.steps .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.steps .bar{height:2px;background:var(--line);margin-top:4px;overflow:hidden}.steps .bar i{display:block;height:100%;width:0;background:var(--accent)}
+.caption{position:fixed;left:50%;bottom:140px;transform:translateX(-50%);max-width:560px;background:var(--panel);border:1px solid var(--line);padding:10px 14px;z-index:5;backdrop-filter:blur(8px)}
+.caption:empty{display:none}
+details.about{position:fixed;left:12px;top:72px;width:300px;background:var(--panel);border:1px solid var(--line);padding:8px 12px;z-index:5;font-size:13px}
+details.about summary{cursor:pointer}
+.proto{position:fixed;left:50%;bottom:8px;transform:translateX(-50%);display:flex;gap:4px;background:#ffd166;color:#111;padding:4px;z-index:20;font-size:12px;align-items:center}
+.proto button{border-color:#111;padding:2px 8px}.proto button[aria-pressed=true]{background:#111;color:#ffd166}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+/* C: story */
+.story{position:relative;z-index:5;width:min(420px,100%);padding:96px 16px 50vh}
+.chapter{min-height:80vh;display:flex;align-items:center}
+.chapter>div{background:var(--panel);border:1px solid var(--line);padding:16px 18px;backdrop-filter:blur(8px);opacity:.35;transition:none}
+.chapter.on>div{opacity:1}
+.chapter h2{margin:0 0 6px;font-size:22px}.chapter .n{font-size:40px;font-weight:700;line-height:1}
+.chapter .n small{font-size:13px;font-weight:400;color:var(--muted);margin-left:6px}
+body.c #map{left:min(420px,100%)}
+@media (max-width:720px){.card{left:12px;right:12px;width:auto;top:auto;bottom:150px;max-height:40%}.steps{grid-template-columns:repeat(3,1fr)}.steps .play{grid-column:1/-1}details.about{display:none}body.c #map{left:0}}
+</style>
+</head>
+<body>
+<div id="map" role="region" aria-label="Map of the oil chain"></div>
+<div class="top">
+  <div class="brand"><b>Russian oil chain</b><span>Accepted facts only · release of 18/10/2026</span></div>
+  <div class="chips" role="group" aria-label="Product chain">
+    <button data-product="all" aria-pressed="true">All</button>
+    <button data-product="crude" aria-pressed="false">Crude oil</button>
+    <button data-product="products" aria-pressed="false">Refined products</button>
+    <button data-product="gas" aria-pressed="false">Gas and LNG</button>
+  </div>
+</div>
+<details class="about"><summary>How to read this map</summary>
+<p>A point is an asset of the record, coloured by its stage. A line is a physical link between two assets; its colour is the product. A dashed line is a link after the export stage. A link with no volume has one width: a volume is an aggregate of the research, not a fact of the record. A grey dotted line marked "in review" is a proposal, not a fact. A link from GEM is a GEM claim. Full text: Method page.</p></details>
+<div class="card" id="card" hidden></div>
+<div class="caption" id="caption" aria-live="polite"></div>
+<div class="steps" id="steps"></div>
+<div class="story" id="story" hidden></div>
+<ul class="sr" id="list" aria-label="Assets, as a list"></ul>
+<div class="proto" role="group" aria-label="Prototype variant">PROTOTYPE ·
+  <button data-v="a">A Night globe</button><button data-v="b">B 3D arcs</button><button data-v="c">C Story</button>
+</div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
