@@ -109,6 +109,36 @@ It is a repeater and not the register.
 5. For each such citation, add a line to `research/out/needs.md`: replace it with the register
    extract when the register answers again.
 
+### The place of an asset
+
+Use the highest source that gives the point. A published point never comes from a lower one.
+
+1. Official coordinates (a port order, a register, an official map), or a GEM row whose location
+   is exact.
+2. A point that a person places on a stored satellite image (tool `site_image`: the Sentinel-2
+   cloudless 2016 layer of EOX, CC BY 4.0). The point must show a feature that is visible on the
+   image. The image is of 2016, with 10 m pixels: a site that was built later is not on it, and
+   a gate is not visible. Store the image for the reviewer. An agent does not place the point:
+   the operator places it on the image, and the review of such a point is a later ticket.
+
+A geocoder (ArcGIS, Yandex, 2GIS, HERE, Google, Nominatim) is only a check of an address. Its
+licence forbids storage or binds the record, and an address point marks an entrance, not a
+plant. Run a query that is not stored, and never store or propose its coordinate. Your notes can
+keep the address text and "geocoder X agrees within N m with source Y on date D". Esri World
+Imagery is a visual check only: store nothing from it, and place no point from it. The record
+keeps the identifier of an OpenStreetMap object, never its geometry. The store tools refuse a
+Nominatim, Overpass or geocoder answer and a search result page.
+
+Give two attributes with a place, from the same source:
+
+- `address`: the address as the source writes it.
+- `point_role`: what the point marks, `plant`, `port`, `gate` or `berth`.
+
+Compare two points of one entity only when they have the same role. Points of one role that are
+more than 1 km apart (`plant`, `port`) or more than 200 m apart (`gate`, `berth`) are two places:
+propose the point of the higher source, and write the gap in your notes. The reason of the doubt
+gives the gap too.
+
 ## The steps of a layer
 
 1. Read the ticket of the layer. Write the list of the candidate nodes in a file under

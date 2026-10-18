@@ -80,6 +80,8 @@ INSERT INTO document_provider (id, name, licence) VALUES
   ('hk_icris',            'HK ICRIS',                   'paid-filing'),
   ('egrul',               'EGRUL',                      'restricted'),
   ('copernicus_sentinel', 'Sentinel-1/2 (Copernicus)',  'copernicus'),
+  -- Only the 2016 layer of EOX: the service states CC BY 4.0 for it, and CC BY-NC-SA from 2018.
+  ('eox_s2cloudless_2016', 'EOX Sentinel-2 cloudless 2016', 'cc-by-4.0'),
   ('osm',                 'OSM',                        'odbl'),
   ('own',                 'own',                        'own')
 ON CONFLICT (id) DO UPDATE SET

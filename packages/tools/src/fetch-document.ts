@@ -24,6 +24,7 @@ import {
   type GetOptions,
   type Got,
 } from './fetch-guard.ts';
+import { refusedSource } from './refused-source.ts';
 import { renderPage } from './render-page.ts';
 import { holdsLayers, skippedFileShape, storeArchive, storedFileShape } from './store-archive.ts';
 import { knownAnswer, storeAnswer } from './store-answer.ts';
@@ -417,7 +418,9 @@ export const fetchDocument = defineTool({
     'status) is refused. A text above 16 MiB is cut into pages at the end of a line, and a ' +
     'table repeats its header line on each page. A PNG or a JPEG image is stored as ' +
     'its bytes, and its pages are the text that OCR read in it (English, Ukrainian and ' +
-    'Russian). OCR can misread a sign: cite an excerpt as the stored text gives it, and ' +
+    'Russian). A Nominatim, Overpass or geocoder answer and a search result page are refused, ' +
+    'and nothing is stored: a geocoder is a check of an address only, and a search lists ' +
+    'pages. OCR can misread a sign: cite an excerpt as the stored text gives it, and ' +
     'compare it with the image. An image in which OCR reads no text is refused. A ZIP archive ' +
     'that holds no GeoJSON is unpacked: "document" is the archive, whose text lists its files, ' +
     'and "files" names one more document for each file that a reader takes, each linked to the ' +
@@ -433,6 +436,8 @@ export const fetchDocument = defineTool({
     if (reach?.store === undefined)
       throw new ToolRefusal('this surface gives no object store, so it fetches no page');
     const toPage = checkedRange(input.fromPage, input.toPage);
+    const refused = refusedSource(input.url);
+    if (refused !== null) throw new ToolRefusal(refused);
 
     const day = reach.now().toISOString().slice(0, 10);
     const getOptions: GetOptions = {
@@ -473,6 +478,9 @@ export const fetchDocument = defineTool({
         bytes: new TextEncoder().encode(passed.html),
       };
     }
+    // A redirect can lead to an address that is no source.
+    const redirected = refusedSource(got.url);
+    if (redirected !== null) throw new ToolRefusal(redirected);
     // The stored bytes are the page that the server encoded, not its compressed form, so their
     // text is read and an excerpt is checked on them.
     got = {

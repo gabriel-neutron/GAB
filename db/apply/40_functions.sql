@@ -3844,6 +3844,41 @@ SET search_path = pg_catalog, pg_temp AS $$
            '(states |, )attrs\.', '\1', 'g')
 $$;
 
+-- THE GAP BETWEEN TWO PLACES OF ONE ENTITY, for the reason of a doubt of place. Any other place
+-- stays a doubt (S3): the gap only tells the operator how far apart the two points are. A point
+-- has a role (the attribute point_role: plant, port, gate or berth). Two points of one role that
+-- are more than the limit of that role apart (1 km for a plant or a port, 200 m for a gate or a
+-- berth) are two different places, and the reason says so. Two points of two roles are not
+-- compared: an office entrance and the process units of a plant are both right. The distance is
+-- the shortest one on the WGS 84 ellipsoid, in whole metres.
+CREATE OR REPLACE FUNCTION place_gap_said(p_held geometry, p_given geometry, p_held_role text,
+                                          p_given_role text)
+RETURNS text
+LANGUAGE sql IMMUTABLE
+SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH gap AS (
+    SELECT round(public.ST_Distance(public.ST_SetSRID(p_held, 4326)::public.geography,
+                                    public.ST_SetSRID(p_given, 4326)::public.geography))::bigint
+             AS metres,
+           -- A limit holds only for two points of one known role: a point with no role can be
+           -- any of them.
+           CASE WHEN p_held_role = p_given_role THEN
+             CASE p_held_role WHEN 'plant' THEN 1000 WHEN 'port' THEN 1000
+                              WHEN 'gate' THEN 200 WHEN 'berth' THEN 200 END END AS limit_metres
+  )
+  SELECT coalesce(', ' || g.metres || ' m apart' ||
+         CASE
+           WHEN p_held_role IS NOT NULL AND p_given_role IS NOT NULL
+                AND p_held_role <> p_given_role
+             THEN ', and the two points have two roles (' || p_held_role || ', ' || p_given_role
+                  || '), so they are not compared'
+           WHEN g.limit_metres IS NOT NULL AND g.metres > g.limit_metres
+             THEN ', more than the ' || g.limit_metres || ' m of one ' || p_held_role
+                  || ': two sources give two places'
+           ELSE '' END, '')
+    FROM gap g
+$$;
+
 -- THE FAULTS OF EACH UNIT, AND ITS STATE. The queue, the promotion and the group action read this
 -- one check, so the screen and the record always agree on "clean". Each fault has a level:
 --
@@ -4236,7 +4271,9 @@ BEGIN
     SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
            'The record holds another geometry than the ' ||
            CASE WHEN public.act_reference_dataset(a.id) IS NOT NULL
-                THEN 'reference dataset gives' ELSE 'loaded row gives' END
+                THEN 'reference dataset gives' ELSE 'loaded row gives' END ||
+           public.place_gap_said(e.geom, public.ST_GeomFromGeoJSON(a.payload->'geom'),
+                                 e.attrs->'point_role'->>'v', a.payload->'attrs'->'point_role'->>'v')
       FROM acts a
       JOIN public.entities e ON e.id = a.target_id
      WHERE a.op = 'update_entity' AND a.payload ? 'geom' AND e.geom IS NOT NULL
@@ -4248,7 +4285,10 @@ BEGIN
     -- A change of place that joined a new entity which gives a place of its own. The change is
     -- written after the entity and replaces that place, so the operator compares the two (S3).
     SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
-           'The new entity gives another geometry than this change of place'
+           'The new entity gives another geometry than this change of place' ||
+           public.place_gap_said(public.ST_GeomFromGeoJSON(n.payload->'geom'),
+                                 public.ST_GeomFromGeoJSON(a.payload->'geom'),
+                                 n.payload->'attrs'->'point_role'->>'v', a.payload->'attrs'->'point_role'->>'v')
       FROM acts a
       JOIN acts n ON n.id = a.target_id AND n.op = 'create_entity' AND n.payload ? 'geom'
      WHERE a.op = 'update_entity' AND a.payload ? 'geom'
@@ -4258,7 +4298,17 @@ BEGIN
     -- Two changes of place of one entity in one unit. The promotion writes both, and the last one
     -- replaces the other, so the operator compares them (S3).
     SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
-           'Another change of place of the unit gives another geometry'
+           'Another change of place of the unit gives another geometry' ||
+           coalesce((SELECT public.place_gap_said(public.ST_GeomFromGeoJSON(o.payload->'geom'),
+                                                  public.ST_GeomFromGeoJSON(a.payload->'geom'),
+                                                  o.payload->'attrs'->'point_role'->>'v',
+                                                  a.payload->'attrs'->'point_role'->>'v')
+                       FROM acts o
+                      WHERE o.id <> a.id AND o.op = 'update_entity' AND o.payload ? 'geom'
+                        AND o.target_id = a.target_id
+                        AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(o.payload->'geom'),
+                                                 public.ST_GeomFromGeoJSON(a.payload->'geom'))
+                      ORDER BY o.id LIMIT 1), '')
       FROM acts a
      WHERE a.op = 'update_entity' AND a.payload ? 'geom'
        AND EXISTS (SELECT 1 FROM acts o

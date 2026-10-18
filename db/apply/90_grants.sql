@@ -89,6 +89,7 @@ REVOKE ALL ON FUNCTION pending_unit(uuid)          FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_needs(uuid)            FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_waits_for(uuid)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_faults(uuid[])        FROM PUBLIC;
+REVOKE ALL ON FUNCTION place_gap_said(geometry,geometry,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION parent_link(uuid,boolean)   FROM PUBLIC;
 REVOKE ALL ON FUNCTION parent_of(uuid)             FROM PUBLIC;
 REVOKE ALL ON FUNCTION dispute_said(text)          FROM PUBLIC;

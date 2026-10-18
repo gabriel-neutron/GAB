@@ -53,7 +53,7 @@ export interface Answer {
   readonly day: string;
   /** The publisher of an official file. Its licence gives the tier of the document. A tool names
    * it only for a file that it reads at the address of that publisher. */
-  readonly provider?: 'eu_eurlex' | 'ofac_sdn' | 'uk_sanctions_list';
+  readonly provider?: 'eu_eurlex' | 'ofac_sdn' | 'uk_sanctions_list' | 'eox_s2cloudless_2016';
 }
 
 const answerOf = <S extends 'known' | 'stored'>(known: z.infer<typeof knownRow>, status: S) => ({

@@ -1829,7 +1829,12 @@ test('two different places of one new entity that waits are a doubt', async () =
       )
       .map((one) => one.said);
   });
-  expect(said).toContain('Another change of place of the unit gives another geometry');
+  // The reason gives the gap between the two points.
+  expect(said).toContainEqual(
+    expect.stringMatching(
+      /^Another change of place of the unit gives another geometry, \d+ m apart$/u,
+    ),
+  );
 });
 
 test('propose refuses new attributes of a new entity that waits, and tells the agent to wait', async () => {
@@ -1914,4 +1919,36 @@ test('job_status of a document with no job is an empty list', async () => {
     JOBS.parse(await output(ask, 'job_status', { document: 'doc_absent' })),
   );
   expect(found.jobs).toStrictEqual([]);
+});
+
+test('the reason of a doubt of place gives the gap, and the limit of the role of the point', async () => {
+  const said = await rolledBack('superuser', async (ask) =>
+    z.array(z.object({ said: z.string() })).parse(
+      await ask(
+        `SELECT public.place_gap_said(public.ST_MakePoint(32.0, 59.44), public.ST_MakePoint(a, b),
+                                      held, given) AS said
+           FROM (VALUES (32.0, 59.4517, NULL, NULL), (32.0, 59.4517, 'plant', 'plant'),
+                        (32.0, 59.4517, NULL, 'gate'), (32.0, 59.4517, 'plant', 'gate'),
+                        (32.0, 59.4419, 'gate', 'gate'),
+                        (32.0, 59.4405, 'berth', NULL))
+                AS v(a, b, held, given)`,
+      ),
+    ),
+  );
+  expect(said.map((row) => row.said)).toStrictEqual([
+    ', 1303 m apart',
+    ', 1303 m apart, more than the 1000 m of one plant: two sources give two places',
+    ', 1303 m apart',
+    ', 1303 m apart, and the two points have two roles (plant, gate), so they are not compared',
+    ', 212 m apart, more than the 200 m of one gate: two sources give two places',
+    ', 56 m apart',
+  ]);
+  // An empty geometry gives no gap, and the reason keeps its words.
+  const empty = await rolledBack('superuser', async (ask) =>
+    ask(
+      `SELECT public.place_gap_said(public.ST_MakePoint(32.0, 59.44),
+                                    'POINT EMPTY'::public.geometry, NULL, NULL) AS said`,
+    ),
+  );
+  expect(empty).toStrictEqual([{ said: '' }]);
 });

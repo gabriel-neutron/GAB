@@ -9,6 +9,8 @@ import type { ReleaseHeading } from './release-heading.ts';
 //   holds derived facts.
 // - OpenStreetMap: the release links to objects and copies no geometry, and the credit still names
 //   the contributors.
+// - EOX: the Sentinel-2 cloudless layer of 2016 is under CC BY 4.0, and the service gives the
+//   credit with the layer. A point placed on such an image cites the image.
 const CREDITS = [
   '## Global Energy Monitor',
   '',
@@ -36,6 +38,13 @@ const CREDITS = [
   'A link to an object of OpenStreetMap, https://www.openstreetmap.org, in asset-links.csv.',
   '© OpenStreetMap contributors, under the Open Database Licence,',
   'https://www.openstreetmap.org/copyright. This release holds no OpenStreetMap geometry.',
+  '',
+  '## EOX Sentinel-2 cloudless 2016',
+  '',
+  'A point placed on a satellite image cites the image: EOxCloudless https://cloudless.eox.at by',
+  'EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016), under the Creative',
+  'Commons Attribution 4.0 International licence, https://creativecommons.org/licenses/by/4.0/.',
+  'The image shows each site as it was in 2016.',
 ];
 
 /** The credits file of a release: each source of the hydrocarbon layer, with the words that its
