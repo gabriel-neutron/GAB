@@ -311,7 +311,7 @@ export interface MappingVocabulary {
 
 /** The words of a mapping that the record does not hold, each with the sentence that says what to
  * correct: an entity type or a relation type that is not live, and a lookup key that is not an
- * identifier of its entity type (`opensanctions_id` for a facility). An asset is the type
+ * identifier of an asset (`opensanctions_id` for a facility). An asset is the type
  * `facility` with an asset kind, never a type `field`. */
 export const vocabularyFaults = (
   mapping: MappingDraft,
@@ -333,11 +333,10 @@ export const vocabularyFaults = (
       );
   };
   const keys = (where: string, held: string, lookups: readonly { readonly key: string }[]) => {
-    // A type with no list of keys (an event) takes any identifier key.
-    const allowed = (IDENTIFIER_KEYS as Readonly<Record<string, readonly string[] | undefined>>)[
-      held
-    ];
-    if (allowed === undefined) return;
+    // Only an asset has a closed list of keys: the lists of a company or a person are a convention
+    // of the writers, and a sanctions table finds a person by ofac_uid.
+    if (held !== 'facility' && held !== 'port') return;
+    const allowed: readonly string[] = IDENTIFIER_KEYS[held];
     for (const { key: name } of lookups)
       if (name !== 'label' && !allowed.includes(name))
         faults.push(
@@ -361,9 +360,10 @@ export const vocabularyFaults = (
   keys('rows.lookup', held.entity_type, held.lookup);
   for (const [index, one] of mapping.relations.entries()) {
     relationType(`relations.${String(index)}.type`, one.type);
-    const other = one.other_type ?? held.entity_type;
-    if (one.other_type !== undefined) type(`relations.${String(index)}.other_type`, other);
-    keys(`relations.${String(index)}.other`, other, [one.other]);
+    // With no other_type, the far end can be of another type, so its key is not checked.
+    if (one.other_type === undefined) continue;
+    type(`relations.${String(index)}.other_type`, one.other_type);
+    keys(`relations.${String(index)}.other`, one.other_type, [one.other]);
   }
   return faults;
 };

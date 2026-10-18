@@ -303,3 +303,18 @@ test('a relation table checks its type, the types of its ends and their keys', (
     ),
   ).toHaveLength(1);
 });
+
+test('only an asset has a closed list of lookup keys, and a far end with no type is not checked', () => {
+  const table = (entityType: string, key: 'ofac_uid' | 'gem_entity_id') =>
+    mappingDraft.parse({
+      table: 'list.csv',
+      modality: 'enacts',
+      rows: { entity_type: entityType, label: 'Name', lookup: [{ key, column: 'ID' }], attrs: {} },
+      relations: [
+        { type: 'operates', row_is: 'dst', other: { key: 'gem_entity_id', column: 'Op' } },
+      ],
+    });
+  const vocabulary = { ...VOCABULARY, entityTypes: [...VOCABULARY.entityTypes, 'person'] };
+  expect(vocabularyFaults(table('person', 'ofac_uid'), vocabulary)).toStrictEqual([]);
+  expect(vocabularyFaults(table('facility', 'gem_entity_id'), vocabulary)).toHaveLength(1);
+});
