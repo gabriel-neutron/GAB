@@ -20,13 +20,25 @@ interface Listing {
   /** The title of the official file of the regime that the measure cites. */
   readonly act_document: string | null;
   readonly origin_label: string;
+  /** Null when the act names the asset. Else the operator or the owner of the asset that the act
+   * names, one step away (a direct `operates` or `owns` relation), with the label of that link. */
+  readonly via: {
+    readonly role: 'operator' | 'owner';
+    readonly entity_id: string;
+    readonly entity_label: string;
+    readonly link_origin_label: string;
+  } | null;
 }
 
-/** The dated measures of each asset (an entity of the facility type), for each regime, by entity
- * identifier. A measure is a `designated_by` (listing) or a `restricted_by` (sectoral measure)
- * relation of the asset, with the dates of the relation, its act and its label.
- * shortcut: a derived status (50% rule), a listing of the operator and a measure with no single
- * regime are not exported, add them when the view needs them. */
+/** The entity types that have a sanctions status on the map. */
+const ASSET_TYPES: ReadonlySet<string> = new Set(['facility', 'port']);
+const ROLE_OF_LINK = { operates: 'operator', owns: 'owner' } as const;
+
+/** The dated measures of each asset (an entity of the facility or port type), for each regime, by
+ * entity identifier. A measure is a `designated_by` (listing) or a `restricted_by` (sectoral
+ * measure) relation, with the dates of the relation, its act and its label. A measure names the
+ * asset, or names its direct operator or owner (one step only, never the 50% rule).
+ * shortcut: a measure with no single regime is not exported, add it when the view needs it. */
 const listingsOf = (
   record: ReleaseRecord,
   { documentOf, labelOf }: Pick<ReleaseLookup, 'documentOf' | 'labelOf'>,
@@ -60,10 +72,37 @@ const listingsOf = (
       act_label: labelOf(one.dst_id),
       act_document: document === undefined ? null : documentOf(document).title,
       origin_label: claim?.origin_label ?? one.origin_label,
+      via: null,
     });
     found.set(one.src_id, held);
   }
-  return found;
+  const assets = new Set(
+    record.entities.filter((one) => ASSET_TYPES.has(one.type)).map((one) => one.id),
+  );
+  const byAsset = new Map<string, Record<'eu' | 'us' | 'uk', Listing[]>>();
+  for (const id of assets) {
+    const own = found.get(id);
+    byAsset.set(id, {
+      eu: [...(own?.eu ?? [])],
+      us: [...(own?.us ?? [])],
+      uk: [...(own?.uk ?? [])],
+    });
+  }
+  for (const link of record.relations) {
+    if (link.type !== 'operates' && link.type !== 'owns') continue;
+    const held = byAsset.get(link.dst_id);
+    const theirs = found.get(link.src_id);
+    if (held === undefined || theirs === undefined) continue;
+    const via = {
+      role: ROLE_OF_LINK[link.type],
+      entity_id: link.src_id,
+      entity_label: labelOf(link.src_id),
+      link_origin_label: relationClaims.get(link.id)?.origin_label ?? link.origin_label,
+    };
+    for (const key of ['eu', 'us', 'uk'] as const)
+      held[key].push(...theirs[key].map((one) => ({ ...one, via })));
+  }
+  return byAsset;
 };
 
 /** The GeoJSON file of a release (RFC 7946): one feature for each entity with a position, with
@@ -84,9 +123,9 @@ export const geojsonExport = (record: ReleaseRecord, heading: ReleaseHeading): R
             geometry: one.geom,
             properties: {
               ...entityColumns(one, lookup),
-              // Null for an entity with no asset kind. Only a facility has a sanctions status.
+              // Null for an entity with no asset kind. Only a facility or a port has a sanctions status.
               asset_kind: kinds.get(one.id) ?? null,
-              ...(one.type === 'facility'
+              ...(ASSET_TYPES.has(one.type)
                 ? { sanctions: listings.get(one.id) ?? { eu: [], us: [], uk: [] } }
                 : {}),
             },

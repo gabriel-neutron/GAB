@@ -207,6 +207,7 @@ test('a facility carries its asset kind and its dated measures for each regime, 
           ...act,
           act_document: 'The document doc_eu',
           origin_label: LABEL,
+          via: null,
         },
       ],
       us: [{ measure: 'designated_by', from: '2023-02-24', to: '2024-01-31', ...act }],
@@ -222,9 +223,14 @@ test('a facility carries its asset kind and its dated measures for each regime, 
       ],
     },
   });
-  // Another entity has no sanctions member, and no asset kind.
+  // A vessel has no sanctions member, and no asset kind. A port with no measure has an empty status.
   expect(collection().features[0]?.properties).toMatchObject({ asset_kind: null });
   expect(collection().features[0]?.properties).not.toHaveProperty('sanctions');
+  expect(collection().features[1]?.properties['sanctions']).toStrictEqual({
+    eu: [],
+    us: [],
+    uk: [],
+  });
 });
 
 test('the collection carries the version and the disclaimer of the release', () => {
@@ -273,5 +279,36 @@ test('a US or a UK measure with no start takes the entry into force of its act, 
     us: [{ from: '2024-02-23' }],
     // The entry into force of the act of the UK measure cites an EU file only, so it has no date.
     uk: [{ from: null }],
+  });
+});
+
+test('a port that the act does not name takes the measures of its direct operator, with the name of the operator', () => {
+  const operates = {
+    id: '00000000-0000-4000-8000-0000000000b1',
+    type: 'operates',
+    src_id: DEPOT,
+    dst_id: PORT,
+    valid_from: null,
+    valid_to: null,
+    origin_label: PROPOSED,
+    sources: ['doc_b'],
+  };
+  const port = collection({ ...RECORD, relations: [...RECORD.relations, operates] }).features.find(
+    (one) => one['id'] === PORT,
+  );
+  expect(port?.properties['sanctions']).toMatchObject({
+    eu: [
+      {
+        measure: 'designated_by',
+        from: '2022-06-03',
+        via: {
+          role: 'operator',
+          entity_id: DEPOT,
+          entity_label: 'A depot',
+          link_origin_label: PROPOSED,
+        },
+      },
+    ],
+    uk: [{ measure: 'restricted_by', via: { role: 'operator' } }],
   });
 });

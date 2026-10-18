@@ -35,12 +35,16 @@ export interface CardRelation extends CardFact {
 /** One sanction measure against an asset: the kind of measure, the act, and the dates. */
 export interface CardMeasure extends CardFact {
   readonly measure: string;
+  /** Empty when the act names the asset. Else the direct operator or owner that the act names,
+   * for example "operator KINEF". */
+  readonly via: string;
   readonly act: string;
   readonly from: string;
   readonly to: string;
 }
 
-/** The measures of one regime. No measure means no listing in the release. */
+/** The measures of one regime. No measure means that the release holds no measure, not that the
+ * regime has none. */
 export interface CardRegime {
   readonly regime: 'EU' | 'US' | 'UK';
   readonly measures: readonly CardMeasure[];
@@ -60,7 +64,7 @@ export interface Card {
   readonly inReview: boolean;
   readonly values: readonly CardValue[];
   readonly relations: readonly CardRelation[];
-  /** Null for an entity that has no sanctions status: only a facility has one. */
+  /** Null for an entity that has no sanctions status: only a facility or a port has one. */
   readonly sanctions: readonly CardRegime[] | null;
   readonly strikes: readonly CardStrike[];
 }
@@ -74,7 +78,7 @@ export interface ChainView {
 }
 
 const MEASURE_WORDS: Readonly<Record<AssetMeasure['measure'], string>> = {
-  designated_by: 'Listing (asset freeze)',
+  designated_by: 'Listed',
   restricted_by: 'Sectoral measure',
 };
 
@@ -148,12 +152,16 @@ export const chainView = (release: SiteRelease): ChainView => {
               measures: acceptedFirst(
                 status[key].map((one) => ({
                   measure: MEASURE_WORDS[one.measure],
+                  via: one.via === null ? '' : `${one.via.role} ${one.via.entity_label}`,
                   act: [one.act_label, one.act_document ?? ''].filter(Boolean).join(', '),
                   from: one.from ?? '',
                   to: one.to ?? '',
+                  // A measure through an operator or an owner is in review when its link is.
                   ...fact(
-                    `${key} ${one.measure} ${one.act_id} ${one.from ?? ''}`,
-                    one.origin_label,
+                    `${key} ${one.measure} ${one.act_id} ${one.from ?? ''} ${one.via?.entity_id ?? ''}`.trim(),
+                    [one.origin_label, one.via?.link_origin_label ?? one.origin_label].find(
+                      (label) => !isAccepted(label),
+                    ) ?? one.origin_label,
                   ),
                 })),
               ),

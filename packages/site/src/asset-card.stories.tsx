@@ -25,16 +25,19 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-export const AFacilityGivesTheStatusOfEachRegimeOrNoListing: Story = {
+export const AFacilityGivesTheStatusOfEachRegimeOrNoMeasure: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole('heading', { name: 'Sanctions' })).toBeVisible();
     await expect(
       canvas.getByText(
-        /Listing \(asset freeze\), act: Council of the European Union, Council Implementing Regulation \(EU\) 2025\/0000, from/u,
+        /Listed in Council of the European Union, Council Implementing Regulation \(EU\) 2025\/0000,/u,
       ),
     ).toBeVisible();
     await expect(canvas.getByText('2025-05-20')).toBeVisible();
-    await expect(canvas.getByText('No listing.')).toBeVisible();
+    await expect(
+      canvas.getByText(/Not named\. Its operator Site Operator JSC: Listed in OFAC/u),
+    ).toBeVisible();
+    await expect(canvas.getByText('date not in release')).toBeVisible();
   },
 };
 

@@ -12,6 +12,7 @@ import {
   NO_MAP_ELEMENT,
 } from './map-elements.ts';
 import { mapFeatures } from './map-features.ts';
+import { SanctionsRules } from './sanctions-rules.tsx';
 import { SiteFrame } from './site-frame.tsx';
 import { entityPage, hrefFrom, MAP, METHOD } from './site-paths.ts';
 import type { SiteRelease } from './site-release.ts';
@@ -96,6 +97,7 @@ export function MapPage({
             pipeline, not a flow. A link with no volume has one width. Select a link for its value,
             its range, its period, its class and its source.
           </p>
+          <SanctionsRules manifest={release.manifest} />
           <ul className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Product chains">
             {PRODUCTS.map((one) => (
               <li key={one.key}>
