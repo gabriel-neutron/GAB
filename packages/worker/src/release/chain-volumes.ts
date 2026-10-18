@@ -107,9 +107,8 @@ export const chainVolumes = (
     }
     const upstream = resolved(row.upstream, row.line);
     const downstream = resolved(row.downstream, row.line);
-    // Gas has no relation type of a physical link yet, so a gas row joins no link.
     const type = PRODUCT_LINK_TYPES[row.product];
-    const link = type === null ? undefined : links.get(`${type} ${upstream} ${downstream}`)?.id;
+    const link = links.get(`${type} ${upstream} ${downstream}`)?.id;
     if (link !== undefined) joined += 1;
     rows.push([
       link ?? '',
