@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 
-import { entityHref } from './address';
+import { entityHref, surfaceHref, type Surface } from './address';
 import { Band } from './band';
 import type { Dossier, RelationDossier, SourceRef } from './dossier';
 import { SourceCount } from './mark';
@@ -16,15 +16,21 @@ export interface SidebarProps {
   /** A panel beside a canvas gives this, so a click on a relation puts it on the canvas and
    * opens `RelationSidebar` for it. A panel with no canvas beside it gives none. */
   readonly onSelectRelation?: (relationId: string) => void;
+  /** The other canvas, where the panel gives a link to the same selection. */
+  readonly showOn?: Surface;
 }
 
 const WAY_OUT = 'Open the page';
+
+const SHOW_ON: Readonly<Record<Surface, string>> = { map: 'Show on map', graph: 'Show in graph' };
+
+const LINK = 'shrink-0 text-small/4 text-primary underline underline-offset-2';
 
 /** 24 rem, which is `w-96`. It states no height: the route states the geometry of the row. */
 const PANE =
   'w-96 min-h-0 shrink-0 space-y-3 overflow-y-auto overscroll-contain border-l border-border bg-sidebar p-2 text-sidebar-foreground';
 
-export function Sidebar({ dossier, onSelectRelation }: SidebarProps) {
+export function Sidebar({ dossier, onSelectRelation, showOn }: SidebarProps) {
   // The sidebar states the count of documents, and not a number. A number would point at a
   // rail, and this surface has no rail.
   const mark = (sources: readonly SourceRef[]): ReactNode => (
@@ -42,12 +48,18 @@ export function Sidebar({ dossier, onSelectRelation }: SidebarProps) {
         </h1>
         {/* A panel beside a canvas holds a record and not the whole dossier. The page carries
             the rail of documents, which no panel of 24 rem can hold beside a canvas. */}
-        <a
-          href={entityHref(dossier.entityId, null)}
-          className="ml-auto shrink-0 text-small/4 text-primary underline underline-offset-2"
-        >
-          {WAY_OUT}
-        </a>
+        <div className="ml-auto flex shrink-0 gap-3">
+          {/* The map shows a link to an entity it cannot draw too: the map then says that the
+              entity has no position, and a link that is absent says nothing. */}
+          {showOn === undefined ? null : (
+            <a href={surfaceHref(showOn, dossier.entityId)} className={LINK}>
+              {SHOW_ON[showOn]}
+            </a>
+          )}
+          <a href={entityHref(dossier.entityId, null)} className={LINK}>
+            {WAY_OUT}
+          </a>
+        </div>
       </div>
 
       {/* On its own line, and not beside the type: this pane is 24 rem, and a third word in that
@@ -90,9 +102,11 @@ export function Sidebar({ dossier, onSelectRelation }: SidebarProps) {
 
 export interface RelationSidebarProps {
   readonly relation: RelationDossier;
+  /** The other canvas, where the panel gives a link to the same selection. */
+  readonly showOn?: Surface;
 }
 
-export function RelationSidebar({ relation }: RelationSidebarProps) {
+export function RelationSidebar({ relation, showOn }: RelationSidebarProps) {
   return (
     <aside aria-label={relation.sentence} className={PANE}>
       {/* **The name of the heading is the sentence, and not the three lines.** The arrow is a
@@ -112,6 +126,15 @@ export function RelationSidebar({ relation }: RelationSidebarProps) {
           </span>
         ))}
       </h1>
+
+      {showOn === undefined ? null : (
+        <a
+          href={surfaceHref(showOn, relation.relationId, 'relation')}
+          className={cn(LINK, 'block')}
+        >
+          {SHOW_ON[showOn]}
+        </a>
+      )}
 
       {/* M6 and M9: the interval is written at both ends, and a relation that carries none draws
           a blank under a header that names the key. An absence must never read as a fault, and a

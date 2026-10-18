@@ -1,7 +1,7 @@
 import type { DocId } from '@/shared/read/model';
 
 /** The two surfaces that draw one named entity. Each reads the identity from the address. */
-type Surface = 'map' | 'graph';
+export type Surface = 'map' | 'graph';
 
 // Both exports are one job: each builds an address of this application, and each holds the one
 // encoding rule. No identifier shape is settled, so an unencoded `&`, `#`, `?` or space would
@@ -11,5 +11,8 @@ export const entityHref = (entityId: string, source: DocId | null): string => {
   return source === null ? page : `${page}?src=${encodeURIComponent(source)}`;
 };
 
-export const surfaceHref = (surface: Surface, entityId: string): string =>
-  `/${surface}?entity=${encodeURIComponent(entityId)}`;
+export const surfaceHref = (
+  surface: Surface,
+  id: string,
+  kind: 'entity' | 'relation' = 'entity',
+): string => `/${surface}?${kind}=${encodeURIComponent(id)}`;

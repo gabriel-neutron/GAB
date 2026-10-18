@@ -1,5 +1,5 @@
 import { createFileRoute, stripSearchParams } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RelationSidebar, Sidebar } from '@/features/detail/sidebar';
 import { readDossier, readRelation } from '@/features/detail/dossier';
 import { MapPage } from '@/features/map/map-page';
@@ -55,6 +55,13 @@ function MapRoute() {
   const current = useRef({ entity, relation });
   useEffect(() => void (current.current = { entity, relation }), [entity, relation]);
 
+  // The adapter drops an entity it cannot draw, and the address loses it. So the name of an
+  // entity with no position is read at the mount, and it dies with the view.
+  const [unplaced, setUnplaced] = useState<string | null>(() => {
+    const opened = readDossier(corpus, entity, types, []);
+    return opened === null || opened.drawnOnMap ? null : opened.label;
+  });
+
   // `replace: true`: a walk over twenty points would otherwise need twenty presses of the back
   // button to leave the map. It must be the same function at each render, because it is the one
   // prop of the memoised canvas below.
@@ -63,6 +70,7 @@ function MapRoute() {
       // `onSelect` calls a new listener at once with the selection of that moment, so a mount on
       // a plain `/map` would write `?entity=` before the analyst acts. A seed that differs still
       // writes: `adapter.ts` drops a restored identifier it cannot draw, and the address loses it.
+      if (id !== null) setUnplaced(null);
       if ((id ?? '') === current.current.entity) return;
       // A new entity ends the choice of a relation: `adapter.ts` holds that rule for a click on
       // the canvas, but a click on the sidebar list picks a relation with no call into the
@@ -123,9 +131,16 @@ function MapRoute() {
     <div className="flex h-full overflow-hidden">
       <div className="min-h-0 min-w-0 flex-1">{canvas}</div>
       {chosen !== null ? (
-        <RelationSidebar relation={chosen} />
-      ) : dossier === null ? null : (
-        <Sidebar dossier={dossier} onSelectRelation={handleChooseRelation} />
+        <RelationSidebar relation={chosen} showOn="graph" />
+      ) : dossier?.drawnOnMap === true ? (
+        <Sidebar dossier={dossier} onSelectRelation={handleChooseRelation} showOn="graph" />
+      ) : unplaced === null ? null : (
+        <aside
+          aria-label="Detail"
+          className="w-96 shrink-0 border-l border-border bg-sidebar p-2 text-xs text-label"
+        >
+          <p>{`${unplaced} has no position, so the map does not show it.`}</p>
+        </aside>
       )}
     </div>
   );

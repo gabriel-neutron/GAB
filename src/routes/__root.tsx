@@ -63,9 +63,19 @@ const SURFACE_LINK = cn(
   'data-[status=active]:border-primary data-[status=active]:text-foreground',
 );
 
-// The empty search is written out because the graph declares both keys and strips neither. A
-// link that carries no search would open the graph on a pair of parameters it never validated.
-const NO_SELECTION = { entity: '', relation: '' } as const;
+// Both keys are written out, because the map and the graph each declare both. The graph writes
+// its selection with `history.replaceState`, which the router never sees, so the selection is
+// read from the address bar. The router calls this function again at the click.
+// shortcut: the `href` is computed at render and can name an older selection, which a click with
+// a modifier opens; read the selection from a store of the graph when one exists.
+const carriedSelection = (): { readonly entity: string; readonly relation: string } => {
+  if (!FILTERED_SCREENS.has(window.location.pathname)) return { entity: '', relation: '' };
+  const params = new URLSearchParams(window.location.search);
+  const relation = params.get('relation') ?? '';
+  // The map can hold both keys, and its panel then names the relation. The graph reads the
+  // entity first, so the relation goes alone.
+  return { entity: relation === '' ? (params.get('entity') ?? '') : '', relation };
+};
 
 // The entity page is absent: it names one record and no fixed address reaches it. It is reached
 // from the surface that draws that record.
@@ -74,7 +84,7 @@ function SurfaceNav() {
     <nav aria-label="Surfaces" className="flex h-full items-stretch">
       <Link
         to="/map"
-        search={NO_SELECTION}
+        search={carriedSelection}
         activeOptions={{ includeSearch: false }}
         className={SURFACE_LINK}
       >
@@ -82,7 +92,7 @@ function SurfaceNav() {
       </Link>
       <Link
         to="/graph"
-        search={NO_SELECTION}
+        search={carriedSelection}
         activeOptions={{ includeSearch: false }}
         className={SURFACE_LINK}
       >
