@@ -36,7 +36,15 @@
       "mcp__gab__uk_sanctions_list",
       "mcp__gab__vessel_events",
       "mcp__gab__web_search",
-      "mcp__gab__wikidata_ids"
+      "mcp__gab__wikidata_ids",
+      "mcp__Claude_Browser__*",
+      "mcp__playwright__*",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue comment:*)",
+      "Bash(gh api user --jq .login)",
+      "Bash(git -C .. pull --ff-only origin staging)",
+      "Bash(pnpm -C .. db:migrate)",
+      "Bash(pnpm -C .. db:apply)"
     ],
     "deny": [
       "Read(//**/infra/.env)",
