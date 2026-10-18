@@ -23,6 +23,10 @@ interface MapWorkspace {
   readonly railWidth: number;
   readonly ground: Ground;
   readonly imagery: Imagery;
+  /** The Chain mode of the map. */
+  readonly chain: boolean;
+  /** The globe projection, or the flat one. */
+  readonly globe: boolean;
 }
 
 const DEFAULT_WORKSPACE: MapWorkspace = {
@@ -33,6 +37,8 @@ const DEFAULT_WORKSPACE: MapWorkspace = {
   railWidth: 240,
   ground: 'plan',
   imagery: DEFAULT_IMAGERY,
+  chain: false,
+  globe: false,
 };
 
 const isCamera = (value: unknown): value is Camera =>
@@ -58,9 +64,12 @@ const DECLARED_KEYS: Readonly<Record<keyof MapWorkspace, true>> = {
   railWidth: true,
   ground: true,
   imagery: true,
+  chain: true,
+  globe: true,
 };
 
-// The cost of the strict guard here is one camera position, one time.
+// The cost of the strict guard here is one camera position, one time. A record written before the
+// Chain mode has no `chain` and no `globe`, and it stays valid: the read gives the defaults.
 const isWorkspace = (value: unknown): value is MapWorkspace => {
   if (!holdsOnlyDeclaredKeys(value, DECLARED_KEYS)) return false;
   const w = value;
@@ -74,12 +83,14 @@ const isWorkspace = (value: unknown): value is MapWorkspace => {
     typeof w['railWidth'] === 'number' &&
     Number.isFinite(w['railWidth']) &&
     (w['ground'] === 'plan' || w['ground'] === 'imagery') &&
-    isImagery(w['imagery'])
+    isImagery(w['imagery']) &&
+    (w['chain'] === undefined || typeof w['chain'] === 'boolean') &&
+    (w['globe'] === undefined || typeof w['globe'] === 'boolean')
   );
 };
 
 export function readMapWorkspace(): MapWorkspace {
-  return readWorkspace(FEATURE, isWorkspace, DEFAULT_WORKSPACE);
+  return { ...DEFAULT_WORKSPACE, ...readWorkspace(FEATURE, isWorkspace, DEFAULT_WORKSPACE) };
 }
 
 // Every writer patches, and never replaces: two writers with partial records erase each other.
