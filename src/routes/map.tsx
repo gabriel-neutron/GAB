@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RelationSidebar, Sidebar } from '@/features/detail/sidebar';
 import { readDossier, readRelation } from '@/features/detail/dossier';
 import { MapPage } from '@/features/map/map-page';
+import { UnplacedNotice } from '@/features/detail/unplaced-notice';
 import { loadCorpus } from '@/shared/read/corpus';
 import { loadEntityTypes } from '@/shared/read/vocabulary';
 
@@ -55,12 +56,23 @@ function MapRoute() {
   const current = useRef({ entity, relation });
   useEffect(() => void (current.current = { entity, relation }), [entity, relation]);
 
-  // The adapter drops an entity it cannot draw, and the address loses it. So the name of an
-  // entity with no position is read at the mount, and it dies with the view.
+  // The adapter drops an entity or a relation it cannot draw, and the address loses it. So the
+  // reason is read at the mount, and it dies with the view or at the next act of the analyst.
   const [unplaced, setUnplaced] = useState<string | null>(() => {
     const opened = readDossier(corpus, entity, types, []);
-    return opened === null || opened.drawnOnMap ? null : opened.label;
+    if (opened !== null && !opened.drawnOnMap)
+      return `${opened.label} has no position, so the map does not show it.`;
+    const link = corpus.relations.find((one) => one.id === relation);
+    if (link === undefined) return null;
+    const placed = new Set(
+      corpus.positions.flatMap((at) => (at.point === null ? [] : [at.entityId])),
+    );
+    return placed.has(link.srcId) && placed.has(link.dstId)
+      ? null
+      : 'This relation has an end with no position, so the map does not show it.';
   });
+  // The notice goes at the next choice of an entity or a relation. A click on the ground with no
+  // selection changes no selection, so the adapter calls no listener and the notice stays.
 
   // `replace: true`: a walk over twenty points would otherwise need twenty presses of the back
   // button to leave the map. It must be the same function at each render, because it is the one
@@ -136,12 +148,7 @@ function MapRoute() {
       ) : dossier?.drawnOnMap === true ? (
         <Sidebar dossier={dossier} onSelectRelation={handleChooseRelation} showOn="graph" />
       ) : unplaced === null ? null : (
-        <aside
-          aria-label="Detail"
-          className="w-96 shrink-0 border-l border-border bg-sidebar p-2 text-xs text-label"
-        >
-          <p>{`${unplaced} has no position, so the map does not show it.`}</p>
-        </aside>
+        <UnplacedNotice words={unplaced} />
       )}
     </div>
   );

@@ -24,7 +24,8 @@ const WAY_OUT = 'Open the page';
 
 const SHOW_ON: Readonly<Record<Surface, string>> = { map: 'Show on map', graph: 'Show in graph' };
 
-const LINK = 'shrink-0 text-small/4 text-primary underline underline-offset-2';
+const LINK =
+  'shrink-0 text-small/4 text-primary underline underline-offset-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50';
 
 /** 24 rem, which is `w-96`. It states no height: the route states the geometry of the row. */
 const PANE =
