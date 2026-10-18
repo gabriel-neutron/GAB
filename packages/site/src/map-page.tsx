@@ -165,8 +165,11 @@ export function MapPage({
             />
           </div>
           <div className="flex flex-col gap-1 border-t border-border p-1 lg:flex-row">
-            <button type="button" className={CONTROL} data-play aria-pressed="false">
+            <button type="button" className={CONTROL} data-play>
               Play the chain
+            </button>
+            <button type="button" className={CONTROL} data-motion aria-pressed="false">
+              Stop motion
             </button>
             <ol
               aria-label="Steps of the chain"

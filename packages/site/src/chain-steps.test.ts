@@ -41,3 +41,21 @@ test('no step puts a link or an exit point in review forward', () => {
   expect(review).toHaveLength(1);
   expect(all.flatMap((one) => one.exits)).not.toContain(review[0]);
 });
+
+test('the exit step says how many exit points have no position and are not on the map', () => {
+  const exit = (id: string, position: readonly [number, number] | null) => ({
+    id,
+    kind: 'sts' as const,
+    label: 'Ship-to-ship transfer',
+    why: '',
+    position,
+    assets: [],
+    inReview: false,
+  });
+  const [, , , , , last] = chainSteps({
+    ...flows,
+    exits: [exit('placed', [30, 60]), exit('unplaced-1', null), exit('unplaced-2', null)],
+  });
+  expect(last?.count).toBe(3);
+  expect(last?.sentence).toMatch(/ 2 of them have no position and are not on the map\.$/u);
+});

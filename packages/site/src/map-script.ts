@@ -28,9 +28,9 @@ const MARK = '#4aa8ff';
 const IN_REVIEW = '#9aa3ad';
 // The head of the pulse that runs along a link.
 const PULSE = '#ffffff';
-// Origin of the number: at this opacity a dimmed point stays visible on the white land, and a
+// Origin of the number: at this opacity a dimmed point stays visible on the dark land, and a
 // point put forward reads at once.
-const DIMMED = 0.15;
+const DIMMED = 0.35;
 
 // The basemap is a file of the site: the outlines of the countries, from Natural Earth (public
 // domain). The site sends no request to a tile server.
@@ -203,20 +203,21 @@ const ARC_COLOURS: Readonly<Record<ArcLayer['colour'], string | ExpressionSpecif
   land: LAND,
 };
 
-// MapLibre draws with WebGL only. With no WebGL, the page says so, the controls of the map go, and
-// the list of the entities below the map stays.
-const hasWebGL = (): boolean => {
-  const canvas = document.createElement('canvas');
-  return (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) !== null;
-};
+// External constraint: MapLibre draws with WebGL 2 only. With no WebGL 2, the page says so, the
+// controls and the card of the map go, and the list of the entities below the map stays.
+const hasWebGL = (): boolean => document.createElement('canvas').getContext('webgl2') !== null;
 
 const noMap = (): void => {
   document.getElementById(NO_MAP_ELEMENT)?.removeAttribute('hidden');
-  for (const control of document.querySelectorAll('[data-product], [data-play], [data-step]'))
+  document.getElementById(CARD_ELEMENT)?.setAttribute('hidden', '');
+  for (const control of document.querySelectorAll(
+    '[data-product], [data-play], [data-motion], [data-step]',
+  ))
     control.closest('[role="group"], div')?.setAttribute('hidden', '');
 };
 
-// The reader asks for reduced motion: no pulse, no spin and no camera flight.
+// The reader asks for reduced motion: no pulse, no spin, no camera flight, and no control to stop
+// a motion that does not start.
 const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** A gradient along a line, with a bright head at `progress` (0 to 1) and a short tail behind it. */
@@ -240,6 +241,16 @@ const pulseAt = (progress: number): ExpressionSpecification => {
     1,
     clear,
   ];
+};
+
+// A map that cannot start gives the same page as a browser with no WebGL.
+const startMap = (options: ConstructorParameters<typeof MapLibre>[0]): MapLibre | null => {
+  try {
+    return new MapLibre(options);
+  } catch {
+    noMap();
+    return null;
+  }
 };
 
 if (container !== null && !hasWebGL()) noMap();
@@ -311,7 +322,7 @@ else if (container !== null) {
         type: 'line',
         source: 'arcs',
         filter: ['all', ['==', ['get', 'product'], one.key], ['!=', ['get', 'style'], 'in review']],
-        layout: { 'line-cap': 'round', visibility: still ? 'none' : 'visible' },
+        layout: { 'line-cap': 'round', visibility: 'none' },
         paint: { 'line-width': 3, 'line-blur': 1, 'line-gradient': pulseAt(0.5) },
       })),
       {
@@ -340,7 +351,10 @@ else if (container !== null) {
       },
     ],
   };
-  const map = new MapLibre({ container, style, center: [0, 30], zoom: 1 });
+  const started = startMap({ container, style, center: [0, 30], zoom: 1 });
+  // The page already shows the line for no map, and the rest of the script needs the map.
+  if (started === null) throw new Error('The map did not start.');
+  const map = started;
   // The page can change width after the map starts, for example when a scroll bar comes, and
   // MapLibre follows only the window.
   new ResizeObserver(() => {
@@ -532,7 +546,7 @@ else if (container !== null) {
       map.setLayoutProperty(
         pulse,
         'visibility',
-        !still && (product === 'all' || product === one.key) ? 'visible' : 'none',
+        moving && (product === 'all' || product === one.key) ? 'visible' : 'none',
       );
       map.setPaintProperty(pulse, 'line-opacity', arcOpacity);
     }
@@ -563,12 +577,16 @@ else if (container !== null) {
         [Math.min(...all.map(([lon]) => lon)), Math.min(...all.map(([, lat]) => lat))],
         [Math.max(...all.map(([lon]) => lon)), Math.max(...all.map(([, lat]) => lat))],
       ],
-      { padding: 60, maxZoom: 5, duration: still ? 0 : 2000 },
+      { padding: 60, maxZoom: 5, duration: moving ? 2000 : 0 },
     );
   };
 
+  // The motion that starts by itself: the pulse, the spin and the camera flight. "Stop motion"
+  // stops all of it for the rest of the visit.
+  let moving = !still;
+
   // The globe turns slowly until the reader acts. Each turn starts when the one before it ends.
-  let spinning = !still;
+  let spinning = moving;
   const spin = (): void => {
     if (!spinning) return;
     const centre = map.getCenter();
@@ -578,14 +596,11 @@ else if (container !== null) {
     spinning = false;
   };
   map.on('moveend', spin);
-  for (const event of ['mousedown', 'touchstart', 'wheel', 'dragstart'] as const)
-    map.on(event, stopSpin);
-  container.addEventListener('keydown', stopSpin);
 
-  // "Play the chain" goes to the next step every few seconds. With reduced motion, each press
-  // goes to the next step, and nothing moves by itself.
+  // "Play the chain" goes to the next step every few seconds. With no motion, each press goes to
+  // the next step, and nothing moves by itself. The button changes its name only, so a screen
+  // reader says what a press does.
   const play = document.querySelector<HTMLButtonElement>('[data-play]');
-  if (play !== null && still) play.textContent = 'Next step';
   // Origin of the number: the camera flight takes 2 seconds, and the reader needs about 3 more
   // to read the sentence of the step.
   const STEP_TIME = 5000;
@@ -593,11 +608,17 @@ else if (container !== null) {
   const stopPlay = (): void => {
     if (timer !== null) clearInterval(timer);
     timer = null;
-    if (play !== null && !still) {
-      play.textContent = 'Play the chain';
-      play.setAttribute('aria-pressed', 'false');
-    }
+    if (play !== null) play.textContent = moving ? 'Play the chain' : 'Next step';
   };
+  // An action of the reader on the map stops the spin and "Play the chain".
+  const stopAll = (): void => {
+    stopSpin();
+    stopPlay();
+  };
+  for (const event of ['mousedown', 'touchstart', 'wheel', 'dragstart'] as const)
+    map.on(event, stopAll);
+  container.addEventListener('keydown', stopAll);
+  stopPlay();
   const goTo = (next: NonNullable<typeof step> | null): void => {
     stopSpin();
     step = next;
@@ -610,7 +631,7 @@ else if (container !== null) {
     goTo(steps[(step === null ? -1 : steps.indexOf(step)) + 1] ?? steps[0] ?? null);
   };
   play?.addEventListener('click', () => {
-    if (still) {
+    if (!moving) {
       nextStep();
       return;
     }
@@ -621,7 +642,16 @@ else if (container !== null) {
     nextStep();
     timer = setInterval(nextStep, STEP_TIME);
     play.textContent = 'Pause';
-    play.setAttribute('aria-pressed', 'true');
+  });
+
+  const motion = document.querySelector<HTMLButtonElement>('[data-motion]');
+  if (still) motion?.setAttribute('hidden', '');
+  motion?.addEventListener('click', () => {
+    moving = false;
+    stopAll();
+    motion.setAttribute('aria-pressed', 'true');
+    motion.disabled = true;
+    draw();
   });
 
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-product]'))
@@ -643,10 +673,11 @@ else if (container !== null) {
     draw();
     if (step !== null) frame(step);
     else spin();
-    if (still) return;
-    // The pulse runs along each link in 2.6 seconds, then waits for a short time.
+    // The pulse runs along each link in 2.6 seconds, then waits for a short time. It stops with
+    // the motion.
     const start = performance.now();
     const pulse = (now: number): void => {
+      if (!moving) return;
       const progress = (((now - start) / 2600) % 1) * 1.15;
       for (const one of PRODUCTS)
         map.setPaintProperty(`pulse-${one.key}`, 'line-gradient', pulseAt(Math.min(progress, 1)));
@@ -655,8 +686,7 @@ else if (container !== null) {
     requestAnimationFrame(pulse);
   });
   const openEntity = (id: string): void => {
-    stopPlay();
-    stopSpin();
+    stopAll();
     selected = id;
     step = null;
     keepInAddress();
@@ -669,6 +699,7 @@ else if (container !== null) {
     readonly properties: Record<string, unknown>;
   }
   const open = (hit: Hit): void => {
+    stopAll();
     if (hit.layer === 'exits') showExit(hit.properties);
     else if (hit.layer.startsWith('arcs')) showArc(hit.properties);
     else openEntity(text(hit.properties['id']));

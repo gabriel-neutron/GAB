@@ -55,7 +55,9 @@ export const TheStripGivesTheSixStepsOfTheChainWithTheirCounts: Story = {
     await expect(strip).toHaveTextContent('Terminal: 2');
     await expect(strip).toHaveTextContent('Export: 2');
     await expect(strip).toHaveTextContent('Exit: 4');
-    await expect(canvas.getByRole('button', { name: 'Play the chain' })).toHaveAttribute(
+    await expect(canvas.getByRole('button', { name: 'Play the chain' })).toBeVisible();
+    // The reader can stop the pulse, the spin and the camera flight.
+    await expect(canvas.getByRole('button', { name: 'Stop motion' })).toHaveAttribute(
       'aria-pressed',
       'false',
     );
