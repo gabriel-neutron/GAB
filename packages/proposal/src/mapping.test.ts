@@ -5,6 +5,7 @@ import {
   mappingDraft,
   mappingPayload,
   missingColumns,
+  vocabularyFaults,
   type MappingDraft,
 } from './mapping.ts';
 
@@ -241,4 +242,64 @@ test('a relation names the entity type of its far end, and a split cell needs a 
       }),
     ).success,
   ).toBe(false);
+});
+
+const VOCABULARY = {
+  entityTypes: ['vessel', 'company', 'facility'],
+  relationTypes: ['owns', 'operates'],
+};
+
+const fieldTable = (
+  entityType: string,
+  key: 'gem_unit_id' | 'opensanctions_id',
+  relation: string,
+) =>
+  mappingDraft.parse({
+    table: 'GEM-fields.xlsx',
+    modality: 'asserts',
+    rows: {
+      entity_type: entityType,
+      label: 'Name',
+      lookup: [{ key, column: 'Unit ID' }],
+      attrs: {},
+      constants: { asset_kind: 'field' },
+    },
+    relations: [
+      {
+        type: relation,
+        row_is: 'dst',
+        other: { key: 'gem_entity_id', column: 'Operator ID' },
+        other_type: 'company',
+      },
+    ],
+  });
+
+test('a GEM field is a facility with a GEM key, and a made-up type or key is a fault', () => {
+  expect(
+    vocabularyFaults(fieldTable('facility', 'gem_unit_id', 'operates'), VOCABULARY),
+  ).toStrictEqual([]);
+  expect(
+    vocabularyFaults(fieldTable('field', 'gem_unit_id', 'operated_by'), VOCABULARY),
+  ).toStrictEqual([
+    expect.stringMatching(/^rows\.entity_type "field" is not an entity type .*"facility" with/u),
+    expect.stringMatching(/^relations\.0\.type "operated_by" is not a relation type/u),
+  ]);
+  expect(
+    vocabularyFaults(fieldTable('facility', 'opensanctions_id', 'operates'), VOCABULARY),
+  ).toStrictEqual([
+    expect.stringMatching(
+      /^rows\.lookup key "opensanctions_id" is not an identifier of the type facility\. Use one of: .*gem_unit_id/u,
+    ),
+  ]);
+});
+
+test('a relation table checks its type, the types of its ends and their keys', () => {
+  const read = mappingDraft.parse(LINKS);
+  expect(vocabularyFaults(read, VOCABULARY)).toStrictEqual([]);
+  expect(
+    vocabularyFaults(
+      mappingDraft.parse({ ...LINKS, rows: { ...LINKS.rows, relation_type: 'holds' } }),
+      VOCABULARY,
+    ),
+  ).toHaveLength(1);
 });

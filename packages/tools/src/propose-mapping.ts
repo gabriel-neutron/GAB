@@ -1,14 +1,19 @@
-import { mappingDraft, missingColumns } from '@gab/proposal/mapping';
+import { mappingDraft, missingColumns, vocabularyFaults } from '@gab/proposal/mapping';
 import { z } from 'zod';
 
 import { headerSignature } from './header-signature.ts';
+import { listVocabulary } from './list-vocabulary.ts';
 import { documentId, rowsOf } from './fields.ts';
 import { readTablePage, tableOf } from './table.ts';
-import { defineTool, ToolRefusal } from './tool.ts';
+import { defineTool, ToolRefusal, type Session } from './tool.ts';
 
 const PROPOSE = 'SELECT public.propose_mapping($1::text, $2::jsonb, $3::uuid)::text AS id';
 
 const identified = z.strictObject({ id: z.uuid() });
+
+/** The words of the record that a mapping can use, as list_vocabulary gives them. */
+export const mappingVocabulary = async (session: Session) =>
+  listVocabulary.output.parse(await listVocabulary.run(session, {}));
 
 /** The propose tool of the mapper. The runner knows the model call of the mapping, so it is no
  * input that a caller gives. The database holds the rules of the act. */
@@ -28,7 +33,14 @@ export const proposeMappingOf = (modelCallId: string) =>
     async run(session, input) {
       const page = await readTablePage(session, input.document, input.textSet);
       const { header } = tableOf(page.text, page.format);
-      const faults = missingColumns(input.mapping, header);
+      const vocabulary = await mappingVocabulary(session);
+      const faults = [
+        ...missingColumns(input.mapping, header),
+        ...vocabularyFaults(input.mapping, {
+          entityTypes: vocabulary.entityTypes.map((one) => one.key),
+          relationTypes: vocabulary.relationTypes.map((one) => one.key),
+        }),
+      ];
       if (faults.length > 0) throw new ToolRefusal(faults.join('; '));
 
       const [made] = await rowsOf(session, identified, PROPOSE, [
