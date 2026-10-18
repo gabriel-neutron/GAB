@@ -95,8 +95,8 @@
     },
     {
       "path": "entities.geojson",
-      "bytes": 2287,
-      "sha256": "ace82be708cd593666d530025af270b64d6a3c41af311ee54c1ebec066f478da"
+      "bytes": 2325,
+      "sha256": "0a6256dff9a796498d4bd156d9018b6c3c02920e3f3366883017d773cac2768e"
     },
     {
       "path": "dataset.jsonld",

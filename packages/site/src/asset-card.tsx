@@ -9,19 +9,23 @@ const IN_REVIEW = 'In review';
 // A fact in review never takes the form of an accepted fact: it carries a tag in words, a dashed
 // edge and the muted text.
 const ACCEPTED_ITEM = 'border-l border-border pl-1.5';
+// A measure that names the operator or the owner, not the asset, has a dotted edge.
+const VIA_ITEM = 'border-l-2 border-dotted border-foreground/60 pl-1.5';
 const REVIEW_ITEM = 'border-l-2 border-dashed border-candidate pl-1.5 text-muted-foreground';
 
 function Fact({
   inReview,
   label,
+  via = false,
   children,
 }: {
   readonly inReview: boolean;
   readonly label: string;
+  readonly via?: boolean;
   readonly children: ReactNode;
 }) {
   return (
-    <li className={inReview ? REVIEW_ITEM : ACCEPTED_ITEM} title={label}>
+    <li className={inReview ? REVIEW_ITEM : via ? VIA_ITEM : ACCEPTED_ITEM} title={label}>
       {inReview ? <span className="mr-1 text-small/4 text-candidate">{IN_REVIEW}</span> : null}
       {children}
     </li>
@@ -78,14 +82,20 @@ export function AssetCard({
                 <dt className="text-label">{regime.regime}</dt>
                 <dd>
                   {regime.measures.length === 0 ? (
-                    'No listing.'
+                    'No measure found in this release.'
                   ) : (
                     <ul className="flex flex-col gap-0.5">
                       {regime.measures.map((one) => (
-                        <Fact key={one.id} inReview={one.inReview} label={one.label}>
-                          {one.measure}, act: {one.act === '' ? 'not stored' : one.act}, from{' '}
+                        <Fact
+                          key={one.id}
+                          inReview={one.inReview}
+                          label={one.label}
+                          via={one.via !== ''}
+                        >
+                          {one.via === '' ? '' : `Not named. Its ${one.via}: `}
+                          {one.measure} in {one.act === '' ? 'an act not stored' : one.act},{' '}
                           <span className="tabular-nums">
-                            {one.from === '' ? 'no date stored' : one.from}
+                            {one.from === '' ? 'date not in release' : one.from}
                           </span>
                           {one.to === '' ? '' : ` to ${one.to}`}.
                         </Fact>

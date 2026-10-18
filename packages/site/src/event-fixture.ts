@@ -187,7 +187,8 @@ const measure = (
   origin_label: origin,
 });
 
-// The site on the map, with one accepted EU listing and one UK measure in review.
+// The site on the map, with one accepted EU listing, one US listing of its operator with no date
+// and one UK measure in review.
 const SITE_FEATURE = {
   type: 'Feature',
   id: SITE,
@@ -210,7 +211,18 @@ const SITE_FEATURE = {
           RULE,
         ),
       ],
-      us: [],
+      us: [
+        {
+          ...measure('designated_by', '', 'OFAC', 'SDN list', RULE),
+          from: null,
+          via: {
+            role: 'operator',
+            entity_id: '0a1f0000-0000-4000-8000-000000000002',
+            entity_label: 'Arctic Bridge Shipping',
+            link_origin_label: RULE,
+          },
+        },
+      ],
       uk: [measure('restricted_by', '2025-09-01', 'HM Treasury', 'UK sanctions list', LABEL)],
     },
   },
