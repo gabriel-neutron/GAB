@@ -65,6 +65,8 @@ const documentRow = z.object({
   licence: z.string().nullable(),
   /** The provider that distributed the document, or null. */
   provider: z.string().nullable(),
+  /** The type of the document. A test record may leave it out, and it reads as `other`. */
+  doc_type: z.string().optional(),
 });
 
 const mergeRow = z.object({
@@ -156,7 +158,7 @@ export const readReleaseRecord = async (
   const documents = await rowsOf(
     db,
     documentRow,
-    `SELECT id, title, uri, retrieved_at::text AS retrieved_at, licence, provider
+    `SELECT id, title, uri, retrieved_at::text AS retrieved_at, licence, provider, doc_type
        FROM public.release_documents() ORDER BY id`,
   );
   const [said] = await rowsOf(

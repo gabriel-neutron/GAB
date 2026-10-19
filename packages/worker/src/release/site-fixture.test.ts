@@ -420,6 +420,7 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
         retrieved_at: '2026-09-30',
         licence: 'eu-reuse',
         provider: 'eu',
+        doc_type: 'other',
       },
     ],
     [
@@ -431,6 +432,7 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
         retrieved_at: '2026-09-28',
         licence: null,
         provider: null,
+        doc_type: 'other',
       },
     ],
     [
@@ -442,6 +444,7 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
         retrieved_at: '2026-09-29',
         licence: null,
         provider: null,
+        doc_type: 'other',
       },
     ],
   ]),

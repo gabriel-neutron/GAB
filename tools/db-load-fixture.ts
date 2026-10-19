@@ -33,7 +33,8 @@ const SEEDED_DOCUMENT = 'manual';
 // A decision names who took it. This load is a script, so no screen reads a human decision here.
 const DECIDED_BY = 'fixture-loader';
 
-const PUT_DOCUMENT = 'SELECT put_document($1, $2, $3, $4, $5, $6, $7, $8, $9) AS id';
+const PUT_DOCUMENT =
+  'SELECT put_document($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, NULL, $10) AS id';
 const PROPOSE = 'SELECT propose_change($1, $2::jsonb, $3::text[], $4, $5, $6::uuid[]) AS id';
 const PROPOSE_BATCH = 'SELECT proposal_id AS id FROM propose_batch($1::jsonb)';
 const PUT_TEXT = `INSERT INTO public.document_text (document_id, extractor, page, text)
@@ -150,6 +151,7 @@ const loadDocument = async (client: Client, row: DocumentRow): Promise<void> => 
       row.sha256,
       null,
       row.retrievedAt,
+      row.docType,
     ]);
   } catch (error) {
     throw named(row.title, error);
