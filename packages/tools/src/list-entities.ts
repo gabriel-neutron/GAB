@@ -76,7 +76,7 @@ export const listEntities = defineTool({
     const last = entities.at(-1);
     return {
       entities,
-      next: rows.length > input.limit && last !== undefined ? last.id : null,
+      next: rows.length > input.limit ? (last?.id ?? null) : null,
       total: counts.total,
       withKey: key === null ? null : counts.with_key,
       withoutKey: key === null ? null : counts.total - counts.with_key,

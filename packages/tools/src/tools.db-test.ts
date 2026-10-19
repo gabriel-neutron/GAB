@@ -231,7 +231,31 @@ test('list_entities lists only the entities without a key when presence says wit
           `SELECT id::text AS id FROM api.entity WHERE type = 'vessel' AND attrs ? 'call_sign'`,
         ),
       );
+    expect(found.entities.length).toBeGreaterThan(0);
     for (const held of withKey) expect(ids).not.toContain(held.id);
+  });
+});
+
+test('list_entities lists only the entities with a key when presence says with', async () => {
+  await rolledBack('research', async (ask) => {
+    const found = listed.parse(
+      await output(ask, 'list_entities', {
+        type: 'vessel',
+        key: 'flag_history',
+        presence: 'with',
+        limit: 200,
+      }),
+    );
+    const held = z
+      .array(z.object({ id: z.uuid() }))
+      .parse(
+        await ask(
+          `SELECT id::text AS id FROM api.entity WHERE type = 'vessel' AND attrs ? 'flag_history'`,
+        ),
+      );
+    const ids = new Set(held.map((row) => row.id));
+    for (const entity of found.entities) expect(ids.has(entity.id)).toBe(true);
+    expect(found.entities.length).toBe(Math.min(200, held.length));
   });
 });
 
