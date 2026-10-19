@@ -206,7 +206,7 @@ test('the waiting unit takes the documents and the passage, and the doubted unit
   expect(found.doubted).toStrictEqual({
     status: 'rejected',
     reject_reason: 'duplicate',
-    reject_note: `joined into the unit ${found.ids.waiting}`,
+    reject_note: `joined into the unit ${found.ids.waiting}; it was a doubt: a fault of the check`,
     decision_origin: 'decided by an AI reviewer',
     decision_reason: WHY,
     decided_as: 'unit',
@@ -257,7 +257,7 @@ const REFUSALS: readonly Refusal[] = [
   {
     name: 'a waiting unit that is a doubt of its own',
     change: { waiting: { doubt: true } },
-    said: /is a doubt of its own/u,
+    said: /is a doubt of its own, or it is no unit/u,
   },
   {
     name: 'a unit that is no event',
@@ -319,7 +319,7 @@ test('the join leaves no state where the documents are in both units or in none'
   await rolledBack('superuser', async (ask) => {
     const { waiting, doubted } = await pair(ask, { waiting: { doubt: true } });
     const copied = await refusal(ask, () => join(ask, doubted, waiting));
-    expect(copied).toMatch(/is a doubt of its own/u);
+    expect(copied).toMatch(/is a doubt of its own, or it is no unit/u);
     expect(await documentsOf(ask, waiting)).toStrictEqual([GENERAL_STAFF]);
     expect(await documentsOf(ask, doubted)).toStrictEqual([AGENCY]);
     expect((await stateOf(ask, doubted)).status).toBe('pending');

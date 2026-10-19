@@ -20,14 +20,14 @@ dispute then makes the new unit a doubt. The reviewer could not decide the pair:
 - The two units are new events with the same kind, the same site and the same day in their names.
   The doubted unit holds one act. The two units cite their passages in the same modalities, so a
   denial never joins an assertion. The step refuses words read from an image.
-- The doubted unit is a doubt. The waiting unit is no doubt of its own. The doubt of a check
+- The doubted unit is a doubt. The waiting unit has weak sources and is no doubt of its own. The doubt of a check
   spreads to each act of one claim, so the state of the waiting unit is read after the doubted
   unit is closed. A doubt of its own rolls the step back.
 - The database refuses the step when the waiting unit cites each document of the doubted unit
   already. If it cites some of them, it takes the passages of the other documents only.
 - A citation is written once, so the waiting act takes copies of the passages. The promotion of
   the act reads its citations, as it does for an act that a later item joined.
-- The doubted unit is closed as a duplicate, with a note that names the waiting unit and the
+- The doubted unit is closed as a duplicate, with a note that names the waiting unit and the cause of the doubt, and the
   origin and the reason of the reviewer. A later claim of the same fact does not read this
   closure as a rejection (the rule that finds a claim rejected before skips a duplicate).
 - The step is one statement of the database. It locks the acts of both units, in the order of
@@ -58,6 +58,8 @@ values.
 
 ## Cost
 
+- The join does not make a second author of the waiting unit: the author and the claim stay, so the
+  unit stays in the waiting lane for its reviewer.
 - The closure of the doubted unit uses the reason "duplicate". The note holds the link.
 - A pair of units with more than one act each is not joined. The reviewer decides it by hand.
 - The operator has no button for the step yet. The tool and the database door of the AI reviewer

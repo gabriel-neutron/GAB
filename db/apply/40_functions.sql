@@ -2782,6 +2782,7 @@ DECLARE
   v_docs   int;
   v_copied int;
   v_rule   text;
+  v_cause  text;
 BEGIN
   PERFORM public.rejection_note('duplicate', NULL, p_decided_by);
   IF p_doubted IS NULL OR p_waiting IS NULL OR p_doubted = p_waiting THEN
@@ -2818,6 +2819,7 @@ BEGIN
   IF public.unit_rule(p_doubted) IS DISTINCT FROM 'doubt' THEN
     RAISE EXCEPTION 'the unit % is no doubt', p_doubted USING CONSTRAINT = 'join_doubted';
   END IF;
+  v_cause := coalesce(public.unit_doubt_cause(p_doubted), 'a fault of the check');
   IF EXISTS (SELECT 1 FROM public.proposals n
               WHERE n.status = 'pending' AND n.id <> d.id
                 AND (n.unit_id = d.unit_id OR d.id = ANY (n.names) OR d.id = n.target_id
@@ -2852,15 +2854,16 @@ BEGIN
      AND NOT EXISTS (SELECT 1 FROM public.citation h
                       WHERE h.claim_id = w.id AND h.doc_id = c.doc_id);
   GET DIAGNOSTICS v_copied = ROW_COUNT;
-  v_note := 'joined into the unit ' || w.unit_id;
+  v_note := 'joined into the unit ' || w.unit_id || '; it was a doubt: ' || v_cause;
   UPDATE public.proposals
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
          decided_as = 'unit', reject_reason = 'duplicate', reject_note = v_note,
          decision_origin = p_origin, decision_reason = p_why
    WHERE id = d.id;
   v_rule := public.unit_rule(w.unit_id);
-  IF v_rule IS NULL OR v_rule IN ('doubt', 'impossible') THEN
-    RAISE EXCEPTION 'the unit % is a doubt of its own, and no unit that waits', p_waiting
+  IF v_rule IS DISTINCT FROM 'weak_sources' THEN
+    RAISE EXCEPTION 'the unit % is a doubt of its own, or it is no unit that waits for a source',
+                    p_waiting
       USING CONSTRAINT = 'join_waiting';
   END IF;
   RETURN jsonb_build_object('name', w.payload->>'label', 'doubted', d.id, 'waiting', w.unit_id,
@@ -2886,13 +2889,14 @@ BEGIN
   END IF;
   RETURN public.join_unit_as(p_doubted, p_waiting, 'an AI reviewer, through the MCP server',
                              'decided by an AI reviewer', v_why);
-EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception THEN
+EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception
+            OR insufficient_privilege THEN
   GET STACKED DIAGNOSTICS v_text = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
                           v_code = RETURNED_SQLSTATE;
   RAISE EXCEPTION USING MESSAGE = v_text, ERRCODE = v_code, CONSTRAINT = v_rule,
     HINT = CASE WHEN v_rule = 'review_reason' THEN 'why'
                 WHEN v_rule = 'join_doubted' THEN 'unitId'
-                ELSE 'waitingId' END;
+                WHEN v_rule LIKE 'join\_%' THEN 'waitingId' END;
 END $$;
 
 -- THE GROUP ACTION (P11): "promote the clean proposals of this group". No role holds this step:
