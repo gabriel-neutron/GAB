@@ -24,6 +24,13 @@ import {
   type GetOptions,
   type Got,
 } from './fetch-guard.ts';
+import {
+  isBlockPage,
+  isRussianHost,
+  PROXY_NOTICE,
+  proxyKey,
+  readThroughProxy,
+} from './hosted-proxy.ts';
 import { refusedSource } from './refused-source.ts';
 import { renderPage } from './render-page.ts';
 import { holdsLayers, skippedFileShape, storeArchive, storedFileShape } from './store-archive.ts';
@@ -425,7 +432,10 @@ export const fetchDocument = defineTool({
     'that holds no GeoJSON is unpacked: "document" is the archive, whose text lists its files, ' +
     'and "files" names one more document for each file that a reader takes, each linked to the ' +
     'archive; cite the document of the file. "skipped" names each other file and the reason. A ' +
-    'hostile archive (too large, too deep, a path that leaves it, a zip bomb) is refused.',
+    'hostile archive (too large, too deep, a path that leaves it, a zip bomb) is refused. When ' +
+    'the plain read of a .ru or .рф host fails, or gives the block page of the host, and the ' +
+    'operator set a key for the hosted proxy, the page is read once through a Russian exit; ' +
+    '"notice" says so.',
   input: z.strictObject({
     url: z.string().trim().min(1).max(2048),
     fromPage: z.number().int().min(1).default(1),
@@ -449,11 +459,20 @@ export const fetchDocument = defineTool({
     };
     const notices: string[] = [];
     let got: Got;
-    let throughFilter = false;
-    try {
-      got = await guardedGet(input.url, getOptions);
-    } catch (fault) {
-      if (!(fault instanceof FetchRefusal)) throw fault;
+    let throughFilter = false as boolean; // set in a closure, so the type stays wide
+    // A Russian host that refuses the direct read is read once through the hosted proxy.
+    const key = isRussianHost(input.url) ? proxyKey(reach.hostedProxyKey) : null;
+    const viaProxy = async (key: string): Promise<Got> => {
+      try {
+        const read = await readThroughProxy(input.url, key, getOptions, reach.hostedProxyEndpoint);
+        notices.push(PROXY_NOTICE);
+        return read;
+      } catch (fault) {
+        if (!(fault instanceof FetchRefusal)) throw fault;
+        throw new ToolRefusal(`${fault.message}, and nothing is stored`);
+      }
+    };
+    const throughChrome = async (fault: FetchRefusal): Promise<Got> => {
       const passed =
         fault.fault?.kind === 'status' &&
         BROWSER_STATUSES.has(fault.fault.status) &&
@@ -469,7 +488,7 @@ export const fetchDocument = defineTool({
           'the page was read in a Chrome window; the stored bytes are the HTML that the browser shows',
       );
       throughFilter = true;
-      got = {
+      return {
         url: passed.url,
         status: 200,
         contentType: 'text/html; charset=utf-8',
@@ -477,6 +496,13 @@ export const fetchDocument = defineTool({
         lastModified: null,
         bytes: new TextEncoder().encode(passed.html),
       };
+    };
+    try {
+      got = await guardedGet(input.url, getOptions);
+      if (key !== null && isBlockPage(got.bytes)) got = await viaProxy(key);
+    } catch (fault) {
+      if (!(fault instanceof FetchRefusal)) throw fault;
+      got = key !== null ? await viaProxy(key) : await throughChrome(fault);
     }
     // A redirect can lead to an address that is no source.
     const redirected = refusedSource(got.url);
@@ -553,6 +579,7 @@ export const fetchDocument = defineTool({
     const renders =
       known === undefined &&
       !throughFilter &&
+      !notices.includes(PROXY_NOTICE) &&
       mime === 'text/html' &&
       allText < RENDER_BELOW &&
       !blankBytes(got.bytes);
