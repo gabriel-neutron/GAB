@@ -24,6 +24,15 @@ const RUN = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}
 const rows = [
   ukRow({ 'Unique ID': 'AFG0001', 'Name 6': `EXCHANGE ${RUN}`, 'Name type': 'Primary Name' }),
   KOROLEV_PROSPECT,
+  // A made-up line with the shape of a ship that only the UK lists.
+  ukRow({
+    'Unique ID': 'RUS2928',
+    'Name 6': 'EXAMPLE TANKER',
+    'Name type': 'Primary Name',
+    'Designation source': 'UK',
+    'Date Designated': '15/05/2025',
+    'IMO number': 'IMO9000001',
+  }),
 ].join('\n');
 
 // The report date differs from the Last-Modified date, so the test shows which one the tool reads.
@@ -45,6 +54,7 @@ beforeAll(async () => {
     '/docs/UK-Sanctions-List.csv': { body: CSV, headers: DOWNLOAD },
     '/undated.csv': { body: UNDATED, headers: DOWNLOAD },
     '/no-imo.csv': { body: NO_IMO, headers: DOWNLOAD },
+    '/refused.csv': { status: 405, headers: { 'content-type': 'text/plain' }, body: 'no' },
     '/not-the-list.csv': {
       body: '<html><body>Service unavailable</body></html>',
       headers: { 'content-type': 'text/html' },
@@ -142,6 +152,57 @@ test('the whole file is stored once with its hash, its date and its provider, an
   // The tool stores the file and loads no entry of it into the record.
   expect(read.after).toStrictEqual(read.before);
   expect(store.puts.map((put) => put.mime)).toStrictEqual(['text/csv']);
+});
+
+test('a file that is stored already is said to be known, and its entry comes from its pages', async () => {
+  const store = memoryStore();
+  const tool = ukSanctionsListAt(at('/docs/UK-Sanctions-List.csv'));
+  const read = await rolledBack('research', async (ask) => {
+    const first = await callTool(tool, sessionOf(ask), {}, fixtureReach(store));
+    const second = await callTool(
+      tool,
+      sessionOf(ask),
+      { uniqueId: 'RUS2928' },
+      fixtureReach(store),
+    );
+    if (!first.ok || !second.ok) throw new Error('the tool refused');
+    return { first: answer.parse(first.output), second: answer.parse(second.output) };
+  });
+  expect(read.first.status).toBe('stored');
+  expect(read.second.status).toBe('known');
+  expect(read.second.document).toBe(read.first.document);
+  expect(read.second.entry).toMatchObject({ uniqueId: 'RUS2928', page: 1 });
+  expect(read.second.entry?.identity).toContain('EXAMPLE TANKER');
+  expect(read.second.entry?.identifiers).toContain('IMO9000001');
+});
+
+test('a ship that only the UK lists gives its identity and its identifiers with a page', async () => {
+  const read = await rolledBack('research', async (ask) =>
+    callTool(
+      ukSanctionsListAt(at('/docs/UK-Sanctions-List.csv')),
+      sessionOf(ask),
+      { uniqueId: 'RUS2928' },
+      fixtureReach(memoryStore()),
+    ),
+  );
+  if (!read.ok) throw new Error(read.refusal);
+  const entry = answer.parse(read.output).entry;
+  expect(entry?.page).toBe(1);
+  expect(entry?.identity).toMatch(/^.*,RUS2928,.*EXAMPLE TANKER.*,UK$/u);
+  expect(entry?.identifiers).toMatch(/^15\/05\/2025,.*IMO9000001/u);
+});
+
+test('a refusal of the server names its HTTP status, and nothing is stored', async () => {
+  const store = memoryStore();
+  const read = await rolledBack('research', async (ask) =>
+    callTool(ukSanctionsListAt(at('/refused.csv')), sessionOf(ask), {}, fixtureReach(store)),
+  );
+  expect(read).toStrictEqual({
+    ok: false,
+    refusal:
+      'the FCDO gave no UK Sanctions List: the server answered 405, and only a success is kept',
+  });
+  expect(store.puts).toStrictEqual([]);
 });
 
 test('a file with no valid report date takes the day of its Last-Modified date', async () => {
