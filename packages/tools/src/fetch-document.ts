@@ -502,7 +502,16 @@ export const fetchDocument = defineTool({
       if (key !== null && isBlockPage(got.bytes)) got = await viaProxy(key);
     } catch (fault) {
       if (!(fault instanceof FetchRefusal)) throw fault;
-      got = key !== null ? await viaProxy(key) : await throughChrome(fault);
+      if (key === null) got = await throughChrome(fault);
+      else {
+        // The Chrome window is free, so a bot filter meets it first; the proxy costs credits.
+        try {
+          got = await throughChrome(fault);
+        } catch (refusal) {
+          if (!(refusal instanceof ToolRefusal)) throw refusal;
+          got = await viaProxy(key);
+        }
+      }
     }
     // A redirect can lead to an address that is no source.
     const redirected = refusedSource(got.url);

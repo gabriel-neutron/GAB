@@ -5,6 +5,9 @@
 
 import { FetchRefusal, guardedGet, type GetOptions, type Got } from './fetch-guard.ts';
 
+// A premium exit is slower than a direct read.
+const PROXY_TIMEOUT_MS = 60_000;
+
 const ENDPOINT = 'https://app.scrapingbee.com/api/v1/';
 
 /** The note that a document read through the proxy carries. */
@@ -52,7 +55,10 @@ export const readThroughProxy = async (
   call.searchParams.set('render_js', 'false');
   let got: Got;
   try {
-    got = await guardedGet(call.href, options);
+    got = await guardedGet(call.href, {
+      ...options,
+      timeoutMs: Math.max(options.timeoutMs, PROXY_TIMEOUT_MS),
+    });
   } catch (fault) {
     if (!(fault instanceof FetchRefusal)) throw fault;
     throw new FetchRefusal(`the hosted proxy gave no page: ${fault.message}`, fault.fault);
