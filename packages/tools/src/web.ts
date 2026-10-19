@@ -48,6 +48,7 @@ export const webOf = (env: Environment, fetcher: typeof fetch = fetch): Web => {
   const openSanctionsKey = given(env['OPENSANCTIONS_API_KEY']);
   const gfwToken = given(env['GFW_API_TOKEN']);
   const firmsKey = given(env['FIRMS_MAP_KEY']);
+  const comtradeKey = given(env['COMTRADE_API_KEY']);
   return {
     ...(searxngUrl === undefined ? {} : { searxngUrl }),
     ...(braveKey === undefined ? {} : { braveKey }),
@@ -55,6 +56,7 @@ export const webOf = (env: Environment, fetcher: typeof fetch = fetch): Web => {
     ...(openSanctionsKey === undefined ? {} : { openSanctionsKey }),
     ...(gfwToken === undefined ? {} : { gfwToken }),
     ...(firmsKey === undefined ? {} : { firmsKey }),
+    ...(comtradeKey === undefined ? {} : { comtradeKey }),
     get: async (url, request) => {
       const response = await fetcher(url, {
         method: 'GET',

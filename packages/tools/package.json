@@ -7,6 +7,7 @@
     "./catalogue": "./src/catalogue.ts",
     "./challenge-page": "./src/challenge-page.ts",
     "./check-answer": "./src/check-answer.ts",
+    "./comtrade-data": "./src/comtrade-data.ts",
     "./csv": "./src/csv.ts",
     "./document-text": "./src/document-text.ts",
     "./enqueue-extract": "./src/enqueue-extract.ts",

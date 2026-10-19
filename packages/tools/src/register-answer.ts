@@ -5,7 +5,7 @@
 import type { z } from 'zod';
 
 import { anyAnswerOf, UpstreamFault } from './web-access.ts';
-import { storeAnswer } from './store-answer.ts';
+import { storeAnswer, type Answer } from './store-answer.ts';
 import { type Reach, type Session, type Web, ToolRefusal } from './tool.ts';
 
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
@@ -18,6 +18,9 @@ export interface RegisterRequest {
   /** The sentence of a refusal when the register moved the record: it gets the new address. A
    * redirect is never followed. */
   readonly moved?: (location: string) => string;
+  /** The provider of the answer, when the register is a known provider. Its licence gives the
+   * tier of the document. */
+  readonly provider?: Answer['provider'];
 }
 
 export interface RegisterAnswer {
@@ -83,6 +86,7 @@ export const storeRegister = async (
     title: request.title,
     pages: [answer.body],
     day: reach.now().toISOString().slice(0, 10),
+    ...(request.provider === undefined ? {} : { provider: request.provider }),
   });
   return { document: stored.id, status: stored.status };
 };
