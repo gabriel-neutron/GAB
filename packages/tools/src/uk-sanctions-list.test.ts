@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 
 import { KOROLEV_PROSPECT, UK_HEADER, ukRow } from './uk-list-fixture.ts';
-import { headerOf, missingColumn, reportDay, ukEntry } from './uk-sanctions-list.ts';
+import { entryOf, headerOf, missingColumn, reportDay, ukEntry } from './uk-sanctions-list.ts';
 import { csvRows } from './csv-rows.ts';
 
 const lines = (...rows: readonly string[]): string =>
@@ -92,4 +92,29 @@ test('a later page repeats the first line and holds no header, so the columns of
   expect(ukEntry(later, 'RUS2176', columns)?.identity).toContain('KOROLEV PROSPECT');
   expect(ukEntry(later, 'RUS2176', columns)?.identifiers).toContain('IMO9826902');
   expect(ukEntry(later, 'AFG0001', columns)).toBeNull();
+});
+
+// RUS2928 is a ship that only the UK lists. This line is made up, with the shape of the real one.
+const RUS2928 = ukRow({
+  'Unique ID': 'RUS2928',
+  'Name 6': 'EXAMPLE TANKER',
+  'Name type': 'Primary Name',
+  'Designation source': 'UK',
+  'Date Designated': '15/05/2025',
+  'IMO number': 'IMO9000001',
+});
+
+test('an entry on a later page of a long file is read from the page that holds it', () => {
+  const first = lines(KOROLEV_PROSPECT);
+  const second = `Report Date: 08-Oct-2026\n${RUS2928}\n`;
+  const third = `Report Date: 08-Oct-2026\n${ukRow({ 'Unique ID': 'AFG0009', 'Name 6': 'OTHER' })}\n`;
+  const pages = [first, second, third];
+  const found = entryOf(pages, 'RUS2928', 'doc');
+  expect(found).toMatchObject({ page: 2 });
+  expect(found?.identity).toContain('EXAMPLE TANKER');
+  expect(found?.identifiers).toContain('IMO9000001');
+  expect(second.includes(found?.identity ?? '-')).toBe(true);
+  expect(entryOf(pages, 'RUS2176', 'doc')).toMatchObject({ page: 1 });
+  expect(entryOf(pages, 'AFG0009', 'doc')).toMatchObject({ page: 3 });
+  expect(entryOf(pages, 'RUS0000', 'doc')).toBeNull();
 });
