@@ -50,6 +50,10 @@ export interface SourceCardModel {
   readonly uri: string | null;
   readonly uriShort: string | null;
   readonly retrievedAt: string | null;
+  /** The kind in words. It is null where the record holds no row for the document. */
+  readonly kind: string | null;
+  /** The stored import of the old data set: it has no web address and it is no primary source. */
+  readonly imported: boolean;
   /** The relations that the document backs: the type, the ends and the dates. */
   readonly backs: readonly BackedFact[];
   /** The attributes of the entity that the document backs. */
@@ -198,11 +202,32 @@ function cardOf(
     uri: row?.uri ?? null,
     uriShort: shorten(row?.uri ?? null),
     retrievedAt: row?.retrievedAt ?? null,
+    kind: kindOf(row),
+    imported: isImport(row),
     backs,
     holdsUp,
     missing: row === undefined,
     extractable: row?.sha256 !== undefined && row.sha256 !== null,
   };
+}
+
+const KIND_WORDS: Readonly<Record<DocumentRow['kind'], string>> = {
+  url: 'Web page',
+  file: 'File',
+  api: 'API',
+  report: 'Report',
+  manual: 'Manual entry',
+};
+
+// External constraint: the stored import has kind `file`, and the writer names it by this title
+// alone. The title is the key that the batch door uses to reserve the import.
+const IMPORT_TITLE = 'GAB v1 ORBAT: military units and organisations of the v1 GeoPackage';
+
+const isImport = (row: DocumentRow | undefined): boolean => row?.title === IMPORT_TITLE;
+
+function kindOf(row: DocumentRow | undefined): string | null {
+  if (row === undefined) return null;
+  return isImport(row) ? 'Import' : KIND_WORDS[row.kind];
 }
 
 function titleOf(id: DocId, row: DocumentRow | undefined): string {

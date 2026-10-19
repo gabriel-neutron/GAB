@@ -35,6 +35,9 @@ export function SourceCard({ source }: SourceCardProps) {
         <span className="min-w-0 flex-1 truncate text-xs" title={source.title}>
           {source.title}
         </span>
+        {source.kind === null ? null : (
+          <span className="shrink-0 text-small/4 text-label">{source.kind}</span>
+        )}
         {source.missing ? (
           <FileX size={14} aria-hidden="true" className="shrink-0 text-dissent" />
         ) : null}
@@ -42,7 +45,9 @@ export function SourceCard({ source }: SourceCardProps) {
 
       <div className="mt-1 flex items-center gap-2 text-small/4">
         {source.uri === null ? (
-          <span className="min-w-0 flex-1 truncate text-label">No web address recorded</span>
+          <span className="min-w-0 flex-1 truncate text-label">
+            {source.imported ? 'Import dataset, no web address' : 'No web address recorded'}
+          </span>
         ) : (
           <a
             href={source.uri}
@@ -54,7 +59,9 @@ export function SourceCard({ source }: SourceCardProps) {
           </a>
         )}
         <span className="shrink-0 font-mono tabular-nums text-label">
-          {source.retrievedAt ?? 'No date of retrieval'}
+          {source.retrievedAt === null
+            ? 'No retrieval date recorded'
+            : `Retrieved on ${source.retrievedAt}`}
         </span>
         {factCount === 0 ? (
           <p className="shrink-0 text-label">This document backs no fact on this page.</p>
@@ -120,6 +127,10 @@ export function SourceCard({ source }: SourceCardProps) {
           )}
           {source.extractable ? (
             <WhenWriterOnline>
+              <p className="text-label">
+                An extraction reads the stored document and proposes facts. A person reviews each
+                proposal before it enters the record.
+              </p>
               <ExtractionControl documentId={source.id} />
             </WhenWriterOnline>
           ) : null}
