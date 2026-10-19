@@ -8,7 +8,7 @@ import { claimText } from '@gab/release/claim-text';
 import { claimPage, entityPage, relationPage, vesselPage } from '@gab/release/site-paths';
 import { readSiteRelease, type SiteRelease } from '@gab/release/site-release';
 import { SiteReleaseFault } from '@gab/release/site-release-fault';
-import { SiteFolderExists, writeSite } from './write-site.ts';
+import { renderPages, SiteFolderExists, writeSite } from './write-site.ts';
 
 // The build of the application and the render of every page take some seconds.
 const BUILD_TIMEOUT = 180_000;
@@ -114,6 +114,16 @@ describe.each([
     expect(textOf(html)).toContain(release.entityById.get(survivor ?? '')?.label);
   });
 
+  test('a relation page sends the browser to its claim with no script', () => {
+    const { release, page } = site();
+    const sent = release.relations.filter((one) => release.claimById.has(one.id));
+    expect(sent.length).toBeGreaterThan(0);
+    for (const relation of sent)
+      expect(page(relationPage(relation.id))).toContain(
+        `<meta http-equiv="refresh" content="0; url=/claim/${relation.id}/">`,
+      );
+  });
+
   test('the graph, the search and the review open the shell, with no text of a record', () => {
     const { release, page } = site();
     for (const folder of ['graph', 'search', 'review']) {
@@ -162,4 +172,16 @@ describe('a site that cannot be written', () => {
     await expect(writeSite(empty, site)).rejects.toThrow(SiteReleaseFault);
     expect(readdirSync(join(parent, 'inside'))).toStrictEqual([]);
   });
+});
+
+describe('a page that cannot be rendered', () => {
+  test(
+    'the page of an unknown entity is a fault and never a page of the site',
+    async () => {
+      const files = filesOf(join(FIXTURES, 'release'));
+      const page = { folder: 'entity/no-such-entity', kind: 'text' } as const;
+      await expect(renderPages(files, [page], '/')).rejects.toThrow(/not found/u);
+    },
+    BUILD_TIMEOUT,
+  );
 });

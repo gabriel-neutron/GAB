@@ -42,6 +42,10 @@ test.each(['..', 'a:b', 'index.html', 'a b'])(
   },
 );
 
+test('an entity identifier with a slash refuses the release', () => {
+  expect(() => changed(VESSEL, 'ship/one')).toThrow(/holds a "\/"/u);
+});
+
 test('two claim keys that differ only by case refuse the release', () => {
   expect(() => changed(`${VESSEL}/flag`, `${VESSEL}/IMO`)).toThrow(/case/u);
 });

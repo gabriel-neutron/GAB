@@ -1,5 +1,5 @@
 actif_amont,actif_aval,produit,periode,valeur,minimum,maximum,unite,classe,document,page,note
-# An example volume table of the research. All the data is invented. The assets are those of the fixed release of the static site.
+# An example volume table of the research. All the data is invented. The assets are those of the fixed release fixture of the site package.
 0a1f0000-0000-4000-8000-000000000031,0a1f0000-0000-4000-8000-000000000004,brut,2026-07,400,,,kb/j,observé,volume_report,3,Joined by the identifiers of the two assets
 Test export pipeline,Primorsk,brut,2026-07,"1 200",,,kb/j,capacité,volume_report,5,Joined by the labels of the two assets
 Test export pipeline,Primorsk,brut,2026-06,"9,5",8,11,Mt/an,estimé,volume_report,6,A second unit: never compared with kb/j

@@ -40,15 +40,18 @@ const flagsOf = (
     : { manifest, out, previous: given.get('--previous') ?? null };
 };
 
-/** Writes one release folder from the record, with the release manifest that the operator
- * gives, and the changelog since the previous release folder when the operator gives one. Then it
- * builds the application with the files of the release, and writes the site of the release
- * beside it: each page at its permanent address holds its text in the HTML. A usage fault, a refused manifest, a refused sheet of the
- * candidate nodes, a volume table that cannot be read, a refused previous release, a release of the same date or a site that cannot be
- * written gives 2, and no release folder is written. A row of the volume table that the release
- * rejects is left out, and the command gives its line and the reason. The command also gives the
- * line of a row whose asset label names more than one entity: that row joins no link. The paths of the sheet and
- * of the volume table are relative to the folder of the manifest. */
+/** Writes one release folder from the record, with the release manifest that the operator gives,
+ * and the changelog since the previous release folder when the operator gives one. Then it builds
+ * the application with the files of the release, and writes the site of the release beside it:
+ * each page at its permanent address holds its text in the HTML.
+ *
+ * Each of these gives 2 with a message, and writes no release folder: a usage fault, a refused
+ * manifest, a refused sheet of the candidate nodes, a volume table that cannot be read, a refused
+ * previous release, a release of the same date, and a site that cannot be built or written. A row
+ * of the volume table that the release rejects is left out, and the command gives its line and the
+ * reason. The command also gives the line of a row whose asset label names more than one entity:
+ * that row joins no link. The paths of the sheet and of the volume table are relative to the
+ * folder of the manifest. */
 export const releaseCommand: SubCommand = async (args) => {
   const flags = flagsOf(args);
   if (flags === null) {

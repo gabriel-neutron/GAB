@@ -46,6 +46,9 @@ const MARK_NAME = `Source ${CARD.number} — ${CARD.title}`;
 const railOf = (root: HTMLElement): HTMLElement =>
   within(root).getByRole('complementary', { name: 'Sources' });
 
+// The reading view draws a value as text in the page, and a control draws it in a box.
+const READ_VALUE = { selector: '[data-reading]' };
+
 const knock = fn<(address: string, body: unknown) => void>();
 
 const addressOf = (input: RequestInfo | URL): string => {
@@ -302,6 +305,8 @@ export const AVesselOfTheReleaseLinksItsTimelineAndNamesTheMergedIdentifiers: St
       facts: {
         imo: '9000001',
         merged: [ABSORBED],
+        claims: [],
+        address: null,
         claimIds: [],
         label: { origin: 'Proposed — not checked', licence: 'CC-BY 4.0' },
         events: null,
@@ -327,6 +332,8 @@ export const ARowLinksItsClaimOnlyWhereTheReleaseHoldsIt: Story = {
         imo: null,
         label: null,
         merged: [],
+        claims: [],
+        address: null,
         claimIds: [`${VESSEL}/${DOSSIER.rows[0]?.claim.key ?? ''}`, DOSSIER.relations[0]?.id ?? ''],
         events: null,
       },
@@ -336,6 +343,40 @@ export const ARowLinksItsClaimOnlyWhereTheReleaseHoldsIt: Story = {
     const links = canvas.getAllByRole('link', { name: /^Claim: / });
     await expect(links).toHaveLength(2);
     await expect(links[0]).toHaveAttribute('href', expect.stringMatching(/^\/claim\//u));
+  },
+};
+
+/** The release words who decided each claim and its licence, and it gives the permanent address. */
+export const TheReleaseGivesTheLabelAndTheLicenceOfEachClaimAndTheAddress: Story = {
+  args: {
+    dossier: {
+      ...DOSSIER,
+      facts: {
+        imo: null,
+        label: null,
+        merged: [],
+        claimIds: [],
+        claims: [
+          {
+            id: `${VESSEL}/flag`,
+            text: 'Northern Ledger: Flag Gabon',
+            origin: 'Proposed — not checked',
+            licence: 'CC-BY 4.0',
+          },
+        ],
+        address: `https://gab.example.org/entity/${VESSEL}`,
+        events: null,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    const table = canvas.getByRole('table', { name: 'Claims of the release' });
+    await expect(
+      within(table).getByRole('link', { name: 'Northern Ledger: Flag Gabon' }),
+    ).toHaveAttribute('href', `/claim/${VESSEL}/flag`);
+    await expect(within(table).getByText('Proposed — not checked')).toBeVisible();
+    await expect(within(table).getByText('CC-BY 4.0')).toBeVisible();
+    await expect(canvas.getByText(`https://gab.example.org/entity/${VESSEL}`)).toBeVisible();
   },
 };
 
@@ -360,6 +401,8 @@ export const ASiteOfTheReleaseDrawsItsEvents: Story = {
         imo: null,
         label: null,
         merged: [],
+        claims: [],
+        address: null,
         claimIds: [],
         events: releaseFactsOf(EVENTS_RELEASE, SITE, 'facility', true).events,
       },
@@ -979,7 +1022,9 @@ export const ThePageOpensInTheReadingView: Story = {
       'aria-pressed',
       'false',
     );
-    await expect(canvas.getByLabelText('Hull note')).toBeDisabled();
+    await expect(canvas.getByText(HULL_NOTE, READ_VALUE)).toBeVisible();
+    await expect(canvas.queryByLabelText('Hull note')).toBeNull();
+    await expect(canvas.queryAllByRole('textbox')).toHaveLength(0);
     await expect(canvas.queryByRole('button', { name: 'Save' })).toBeNull();
     await expect(canvas.queryByRole('button', { name: `Delete ${DOSSIER.label}` })).toBeNull();
     await expect(canvas.queryByRole('button', { name: `Delete ${RELATION}` })).toBeNull();
@@ -1033,7 +1078,8 @@ export const ADraftSurvivesTheReadingView: Story = {
     await userEvent.type(canvas.getByLabelText('Hull note'), ' and starboard');
 
     await toggleView(canvasElement);
-    await expect(canvas.getByLabelText('Hull note')).toHaveValue(HULL_NOTE);
+    await expect(canvas.getByText(HULL_NOTE, READ_VALUE)).toBeVisible();
+    await expect(canvas.queryByText(`${HULL_NOTE} and starboard`)).toBeNull();
 
     await toggleView(canvasElement);
     await expect(canvas.getByLabelText('Hull note')).toHaveValue(`${HULL_NOTE} and starboard`);

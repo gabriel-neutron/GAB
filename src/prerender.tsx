@@ -6,6 +6,8 @@
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router';
 import { renderToString } from 'react-dom/server';
 
+import { SiteReleaseFault } from '@gab/release/site-release-fault';
+
 import { createAppRouter } from './app-router';
 
 export interface RenderedPage {
@@ -28,6 +30,14 @@ export async function renderPage(address: string): Promise<RenderedPage> {
   const base = import.meta.env.BASE_URL.replace(/\/+$/u, '');
   const router = createAppRouter(createMemoryHistory({ initialEntries: [`${base}${address}`] }));
   await router.load();
+  // A page that is not found, or that failed, is never a good page of the site.
+  const failed = router.state.matches.some(
+    (match) => match.status === 'notFound' || match.status === 'error',
+  );
+  if (failed || router.state.matches.length === 0)
+    throw new SiteReleaseFault(
+      `The page ${address} is not found or has an error, and it has no permanent page.`,
+    );
   // External constraint: the router loads the data of a route on the server and not its code, and
   // `renderToString` does not wait for code. A page would then hold its loading notice in place of
   // its text.

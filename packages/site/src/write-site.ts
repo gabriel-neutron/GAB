@@ -86,6 +86,9 @@ interface Page {
    * page that sends the reader to the entity that survived a merge. */
   readonly kind: 'text' | 'script' | 'merged';
   readonly survivor?: { readonly folder: string; readonly label: string };
+  /** The folder that the document sends the browser to, as the page of a relation does to its
+   * claim. A reader with no script follows it too. */
+  readonly sendsTo?: string;
 }
 
 const folderOf = (file: string): string => dirname(file);
@@ -109,7 +112,11 @@ const pagesOf = (release: SiteRelease): readonly Page[] => {
     pages.push({ folder: folderOf(claimPage(claim.id)), kind: 'text' });
   for (const relation of release.relations)
     if (release.claimById.has(relation.id))
-      pages.push({ folder: folderOf(relationPage(relation.id)), kind: 'text' });
+      pages.push({
+        folder: folderOf(relationPage(relation.id)),
+        kind: 'text',
+        sendsTo: folderOf(claimPage(relation.id)),
+      });
   for (const [absorbed, survivor] of release.aliases) {
     const target = release.entityById.get(survivor);
     if (target === undefined || release.entityById.has(absorbed)) continue;
@@ -124,10 +131,13 @@ const pagesOf = (release: SiteRelease): readonly Page[] => {
 
 /** The page of a merged entity: one sentence and a link to the entity that holds its claims. The
  * document also sends the browser there, and the script of the application does the same. */
+const refreshTo = (base: string, folder: string): string =>
+  `<meta http-equiv="refresh" content="0; url=${escapeHtml(`${base}${folder}/`)}">`;
+
 const mergedPage = (base: string, survivor: NonNullable<Page['survivor']>) => {
   const target = escapeHtml(`${base}${survivor.folder}/`);
   return {
-    head: `<meta http-equiv="refresh" content="0; url=${target}">`,
+    head: refreshTo(base, survivor.folder),
     html:
       '<main><h1>Merged entity</h1><p>A merge joined this entity to another entity, which now ' +
       `holds its claims: <a href="${target}">${escapeHtml(survivor.label)}</a></p></main>`,
@@ -206,8 +216,9 @@ const buildApplication = (releaseFolder: string, target: string, base: string): 
   });
 
 /** Renders each page that has a permanent text. Vite loads the application, because Node cannot
- * run its JSX and its routes. */
-const renderPages = (
+ * run its JSX and its routes. A page that is not found, or that has an error, is a fault and
+ * never a page of the site. */
+export const renderPages = (
   files: ReadonlyMap<string, string>,
   pages: readonly Page[],
   base: string,
@@ -246,12 +257,7 @@ const renderWithServer = async (
   }
 };
 
-/** Writes the site of the release in `releaseFolder` to `siteFolder`: the application, built once
- * with a copy of each file of the release under `release/`, and a file `<path>/index.html` for each
- * page. A page with a permanent address holds its text in the HTML, and the script of the
- * application takes over in the browser. The site is written in a hidden folder first and never
- * over an existing folder. */
-export const writeSite = async (releaseFolder: string, siteFolder: string): Promise<void> => {
+const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promise<void> => {
   if (await exists(siteFolder))
     throw new SiteFolderExists(
       `The site folder ${siteFolder} exists already. A release never writes over another site.`,
@@ -281,6 +287,9 @@ export const writeSite = async (releaseFolder: string, siteFolder: string): Prom
         if (one === undefined) throw new Error(`the page ${page.folder} was not rendered`);
         text = text
           .replace(SHELL_TITLE, () => `<title>${escapeHtml(one.title)}</title>`)
+          .replace('</head>', () =>
+            page.sendsTo === undefined ? '</head>' : `${refreshTo(base, page.sendsTo)}</head>`,
+          )
           .replace(SHELL_ROOT, () => `<div id="root">${one.html}</div>`);
       }
       const file = join(partial, page.folder, 'index.html');
@@ -291,5 +300,22 @@ export const writeSite = async (releaseFolder: string, siteFolder: string): Prom
   } catch (fault) {
     await rm(partial, { recursive: true, force: true });
     throw fault;
+  }
+};
+
+/** Writes the site of the release in `releaseFolder` to `siteFolder`: the application, built once
+ * with a copy of each file of the release under `release/`, and a file `<path>/index.html` for each
+ * page. A page with a permanent address holds its text in the HTML, and the script of the
+ * application takes over in the browser. The site is written in a hidden folder first and never
+ * over an existing folder. */
+export const writeSite = async (releaseFolder: string, siteFolder: string): Promise<void> => {
+  try {
+    await writeSiteFolder(releaseFolder, siteFolder);
+  } catch (fault) {
+    // Every fault of the build, of the render and of the files ends the release with a message
+    // and not with an unhandled error. The message of the first fault stays.
+    if (fault instanceof SiteFolderExists || fault instanceof SiteReleaseFault) throw fault;
+    const why = fault instanceof Error ? fault.message : String(fault);
+    throw new SiteReleaseFault(`The site cannot be built: ${why}`, { cause: fault });
   }
 };

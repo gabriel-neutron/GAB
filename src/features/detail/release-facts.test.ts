@@ -2,6 +2,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { QUIET_SITE, SITE, withEvents } from '@gab/release/event-fixture';
+import { claimText } from '@gab/release/claim-text';
+import { permanentAddress } from '@gab/release/site-paths';
 import { readSiteRelease } from '@gab/release/site-release';
 import { expect, test } from 'vitest';
 
@@ -46,4 +48,26 @@ test('an actor has a page of its own only when the release holds it', () => {
   expect(named.length).toBeGreaterThan(0);
   for (const line of named)
     expect(line.actorKnown).toBe(release.entityById.has(line.event.actor?.id ?? ''));
+});
+
+test('the claims of the release give their words, their label and their licence', () => {
+  const facts = releaseFactsOf(release, VESSEL, 'vessel', true);
+  const expected = release.claimsAbout.get(VESSEL) ?? [];
+  expect(expected.length).toBeGreaterThan(0);
+  expect(facts.claims.map((claim) => claim.id)).toEqual(expected.map((claim) => claim.id));
+  expected.forEach((claim, place) => {
+    expect(facts.claims[place]).toEqual({
+      id: claim.id,
+      text: claimText(claim),
+      origin: claim.originLabel,
+      licence: claim.licence,
+    });
+  });
+  expect(facts.address).toBe(permanentAddress(release.manifest.iriBase, 'entity', VESSEL));
+});
+
+test('a page that reads the live record gets no claim line and no address from the release', () => {
+  const facts = releaseFactsOf(release, VESSEL, 'vessel', false);
+  expect(facts.claims).toEqual([]);
+  expect(facts.address).toBeNull();
 });

@@ -140,9 +140,9 @@ pnpm worker release --manifest <manifest> --out <folder> --previous <previous re
 
 ## Publish the site
 
-1. Put the content of `gab-site-<date>` at the root of a static host. The host needs no rewrite
-   rule. Each page is a folder with an `index.html`, so the host must send `/map` to `/map/`, as
-   most hosts do.
+1. Put the content of `gab-site-<date>` at the root of a static host. Each page is a folder with
+   an `index.html`. A static host serves `/map/` as it stands and normally sends `/map` to
+   `/map/`. The reader needs no rewrite rule and no script for the text of a page.
 2. A page at a permanent address (the critical nodes, the map, the downloads, the method, an
    entity, a vessel, a claim, a relation) holds its text in the HTML. It opens with no script, and
    the script of the application then takes over. The graph, the search and the review need the

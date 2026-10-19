@@ -17,6 +17,8 @@ that need a backend show only when the backend answers.
 
 ### One application
 
+- An entity identifier that holds a `/` is not a valid entity address for now, because the route
+  of an entity takes one segment. The release refuses it.
 - The public site is the application. There is no second set of pages. Each page of the static
   site becomes a page of the application: the critical nodes table, the globe map with the chain,
   the downloads, the method, the page of a claim and the page of a vessel.
