@@ -67,11 +67,15 @@ session: each proposal waits in the review queue, and the operator decides it th
 - Read the heat detections of one site: `firms_detections` takes a site box and a period, and
   stores the NASA FIRMS answer as a document. It needs a free map key. When the key is not
   set, the tool says so, and the other tools work.
+- Read official trade statistics: `comtrade_data` takes a reporter, a period, a flow, an HS code
+  and a partner, and stores the UN Comtrade answer as a document. It needs a free key. The
+  provider has a restricted licence, so the document stays internal. When the key is not set, the
+  tool says so, and the other tools work.
 - Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,
   `read_group`, `read_decided`, `read_leads`.
 - Write: `archive_snapshot`, `fetch_document`, `eu_act`, `ofac_sdn`, `uk_sanctions_list`,
-  `firms_detections`, `site_image`, `store_saved_file`, `telegram_channel`, `enqueue_extract`,
-  `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question.
+  `firms_detections`, `comtrade_data`, `site_image`, `store_saved_file`, `telegram_channel`,
+  `enqueue_extract`, `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question.
   `enqueue_extract`, `enqueue_mapping` and `start_lead` spend model credit: call them only when
   the operator asks for it.
 - Decide as an AI reviewer: `promote_unit`, `reject_unit`, `reject_relation`, `join_unit`,

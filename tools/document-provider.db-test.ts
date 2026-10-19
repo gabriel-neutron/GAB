@@ -30,6 +30,7 @@ const SEEDED = [
   { id: 'osm', licence: 'odbl' },
   { id: 'own', licence: 'own' },
   { id: 'uk_sanctions_list', licence: 'ogl-v3' },
+  { id: 'un_comtrade', licence: 'restricted' },
 ] as const;
 
 const providers = z.array(z.object({ id: z.string(), licence: z.string() }));

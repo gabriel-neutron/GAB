@@ -96,6 +96,8 @@ export const hashDatabase = (): Session & { readonly stored: unknown[][] } => {
                 ],
         });
       }
+      if (statement.includes('fill_document_provider'))
+        return Promise.resolve({ rows: [{ outcome: 'filled' }] });
       stored.push(values);
       const id = `doc_${String(values[3]).slice(0, 12)}`;
       known.set(String(values[3]), id);

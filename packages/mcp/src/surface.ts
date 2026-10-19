@@ -131,6 +131,13 @@ export const RESEARCH_TOOLS = {
     idempotentHint: true,
     openWorldHint: true,
   },
+  // Each call reads and stores one answer, so a second call writes nothing.
+  comtrade_data: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
   // A second call meets the open job and is refused.
   enqueue_extract: {
     readOnlyHint: false,

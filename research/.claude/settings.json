@@ -9,6 +9,7 @@
       "mcp__gab__file_schema_sample",
       "mcp__gab__find_document",
       "mcp__gab__firms_detections",
+      "mcp__gab__comtrade_data",
       "mcp__gab__gleif_lookup",
       "mcp__gab__job_status",
       "mcp__gab__list_proposals",
