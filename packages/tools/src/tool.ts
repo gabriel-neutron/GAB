@@ -40,6 +40,9 @@ export interface Web {
   /** The map key of NASA FIRMS. FIRMS reads it in the address path, so the tool never stores that
    * address, never logs it and never puts it in a message. */
   readonly firmsKey?: string;
+  /** The key of the UN Comtrade API. It leaves in the header Ocp-Apim-Subscription-Key and in no
+   * address. */
+  readonly comtradeKey?: string;
 }
 
 /** One passage that an item cites: the words that code found in the page, and the words around
