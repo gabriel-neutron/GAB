@@ -10,6 +10,7 @@ import { findDocument } from './find-document.ts';
 import { firmsDetections } from './firms-detections.ts';
 import { gleifLookup } from './gleif-lookup.ts';
 import { jobStatus } from './job-status.ts';
+import { joinUnit } from './join-unit.ts';
 import { listProposals } from './list-proposals.ts';
 import { listVocabulary } from './list-vocabulary.ts';
 import { neighbourhood } from './neighbourhood.ts';
@@ -80,6 +81,7 @@ export const CATALOGUE = [
   promoteUnit,
   rejectUnit,
   rejectRelation,
+  joinUnit,
   promoteCleanProposals,
 ] as const;
 

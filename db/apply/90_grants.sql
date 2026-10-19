@@ -111,6 +111,8 @@ REVOKE ALL ON FUNCTION ai_decision(text,uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_promote_unit(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_reject_unit(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_reject_relation(uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION join_unit_as(uuid,uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ai_join_unit(uuid,uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_group(uuid,uuid[],text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_group_as(uuid,uuid[],text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_promote_group(uuid,uuid[],text) FROM PUBLIC;
@@ -259,6 +261,7 @@ GRANT EXECUTE ON FUNCTION promote_group(uuid,uuid[],text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION ai_promote_unit(uuid,text) TO gabriel_research;
 GRANT EXECUTE ON FUNCTION ai_reject_unit(uuid,text,text,text) TO gabriel_research;
 GRANT EXECUTE ON FUNCTION ai_reject_relation(uuid,text,text,text) TO gabriel_research;
+GRANT EXECUTE ON FUNCTION ai_join_unit(uuid,uuid,text) TO gabriel_research;
 GRANT EXECUTE ON FUNCTION ai_promote_group(uuid,uuid[],text) TO gabriel_research;
 -- The act of the operator, proposed and promoted in one transaction. A machine role holds no
 -- grant on it, as it holds none on the promotion.

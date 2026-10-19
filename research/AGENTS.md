@@ -74,7 +74,7 @@ session: each proposal waits in the review queue, and the operator decides it th
   `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question.
   `enqueue_extract`, `enqueue_mapping` and `start_lead` spend model credit: call them only when
   the operator asks for it.
-- Decide as an AI reviewer: `promote_unit`, `reject_unit`, `reject_relation`,
+- Decide as an AI reviewer: `promote_unit`, `reject_unit`, `reject_relation`, `join_unit`,
   `promote_clean_proposals`. Follow the skill `review-unit`.
 
 ## Who proposes what

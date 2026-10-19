@@ -49,12 +49,21 @@ export interface CheckedPassage {
   readonly page: number;
   readonly excerpt: string;
   readonly context: string;
+  /** The day when the document was published, from the caller or from its address. Null when no
+   * source gives it. */
+  readonly publishedOn?: string | null;
 }
 
 /** One item that the propose tool is about to write, with the passages that state it. */
 export interface ItemToCheck {
   readonly ref: string;
-  readonly claim: { readonly act: unknown; readonly originator: string; readonly modality: string };
+  readonly claim: {
+    readonly act: unknown;
+    readonly originator: string;
+    readonly modality: string;
+    /** Each day of `occurred_on` that the act claims, with its weekday. */
+    readonly occurredOnWeekdays?: readonly { readonly day: string; readonly weekday: string }[];
+  };
   readonly passages: readonly CheckedPassage[];
 }
 
