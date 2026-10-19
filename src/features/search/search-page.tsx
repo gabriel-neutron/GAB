@@ -129,6 +129,8 @@ export function SearchPage({ query, answers, onQueryChange, hrefOf }: SearchPage
           </a>
         ),
     },
+    { key: 'type', header: 'Type', cell: (hit) => hit.type },
+    { key: 'host', header: 'Host', cell: (hit) => hit.host },
     { key: 'kind', header: 'Kind', cell: (hit) => hit.kind },
   ];
 

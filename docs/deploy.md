@@ -80,6 +80,9 @@ each decision is final). The Names page of the review page does the same.
 
 ### Other commands
 
+- `document-labels`: gives a readable title and a type to the stored documents that lack them, and
+  lists the stored search pages. Run it with `--dry-run` first. It deletes nothing: you decide on
+  each search page.
 - `reread-html`: rereads stored HTML pages. Run it with `--dry-run` first. It keeps the old text set
   so each citation stays valid.
 - `name-candidates`: finds merge candidates across a Latin and a Cyrillic spelling. Run it before a

@@ -299,6 +299,7 @@ function document(row: unknown): DocumentRow {
   return {
     id: read.id,
     kind: read.kind,
+    docType: read.doc_type,
     title: read.title,
     uri: webAddressOf(read.uri),
     archiveUri: webAddressOf(read.archive_uri),

@@ -581,10 +581,13 @@ END $$;
 -- of a bought filing in euros. put_fetched_document passes ten arguments by position, so it
 -- stores no cost, and a fetch costs nothing that the record must keep.
 --
+-- THE TYPE IS AFTER THE COST, AND IT IS OPTIONAL TOO. A caller that gives none stores `other`.
+--
 -- The earlier signatures are dropped here: a re-runnable file that only replaces would leave them
 -- side by side, and a call with fewer arguments would then be ambiguous.
 DROP FUNCTION IF EXISTS put_document(text,text,text,text,text,text,text,text,date);
 DROP FUNCTION IF EXISTS put_document(text,text,text,text,text,text,text,text,date,text);
+DROP FUNCTION IF EXISTS put_document(text,text,text,text,text,text,text,text,date,text,numeric);
 CREATE OR REPLACE FUNCTION put_document(
   p_id           text,
   p_kind         text,
@@ -596,7 +599,8 @@ CREATE OR REPLACE FUNCTION put_document(
   p_mime         text DEFAULT NULL,
   p_retrieved_at date DEFAULT NULL,
   p_provider_id  text DEFAULT NULL,
-  p_cost_eur     numeric DEFAULT NULL)
+  p_cost_eur     numeric DEFAULT NULL,
+  p_doc_type     text DEFAULT 'other')
 RETURNS doc_id
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -608,10 +612,10 @@ DECLARE v_id text;
 BEGIN
   INSERT INTO public.documents
     (id, kind, title, s3_key, uri, archive_uri, sha256, mime, retrieved_at, provider_id,
-     cost_eur)
+     cost_eur, doc_type)
   VALUES
     (p_id::doc_id, p_kind, p_title, p_s3_key, p_uri, p_archive_uri, p_sha256, p_mime,
-     p_retrieved_at, p_provider_id, p_cost_eur)
+     p_retrieved_at, p_provider_id, p_cost_eur, coalesce(p_doc_type, 'other'))
   RETURNING id INTO v_id;
 
   -- STORING A DOCUMENT STARTS NO WORK. The row says that the document entered the door, and it is
@@ -5316,6 +5320,19 @@ BEGIN
   RETURN FOUND;
 END $$;
 
+-- THE TYPE OF A DOCUMENT THAT STANDS AS `other`. A command reads the stored documents again and
+-- gives each one the type that the rules of the tool decide. The door fills the type only when the
+-- row holds `other`, so a type that was set stays. It answers whether it changed the row.
+CREATE OR REPLACE FUNCTION fill_document_type(p_document text, p_type text)
+RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  UPDATE public.documents SET doc_type = p_type
+   WHERE id = p_document::doc_id AND doc_type = 'other' AND p_type <> 'other';
+  RETURN FOUND;
+END $$;
+
 -- THE NEWEST TEXT OF A DOCUMENT. A document can hold more than one set of text, one for each
 -- extractor version, and an older set is a reading that a newer one replaced. Each reader of the
 -- text and the propose tool choose the set here, so they choose the same one. The caller reads the
@@ -5354,6 +5371,7 @@ $$;
 -- THE PROVIDER IS THE LAST PARAMETER, OPTIONAL, and it goes to put_document unchanged. The earlier
 -- signature is dropped for the reason that put_document gives.
 DROP FUNCTION IF EXISTS put_fetched_document(text,text,text,text,text,text,date,text);
+DROP FUNCTION IF EXISTS put_fetched_document(text,text,text,text,text,text,date,text,text);
 CREATE OR REPLACE FUNCTION put_fetched_document(
   p_kind          text,
   p_title         text,
@@ -5363,7 +5381,8 @@ CREATE OR REPLACE FUNCTION put_fetched_document(
   p_mime          text,
   p_retrieved_at  date,
   p_archive_uri   text DEFAULT NULL,
-  p_provider_id   text DEFAULT NULL)
+  p_provider_id   text DEFAULT NULL,
+  p_doc_type      text DEFAULT 'other')
 RETURNS doc_id
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -5409,7 +5428,8 @@ BEGIN
   END IF;
 
   RETURN public.put_document('doc_' || left(p_sha256, 12), p_kind, p_title, p_s3_key, p_uri,
-                             p_archive_uri, p_sha256, p_mime, v_today, p_provider_id);
+                             p_archive_uri, p_sha256, p_mime, v_today, p_provider_id, NULL,
+                             p_doc_type);
 END $$;
 
 -- THE PROVIDER OF A KNOWN OFFICIAL FILE. The same bytes are stored once, so a tool that reads an

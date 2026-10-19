@@ -16,6 +16,7 @@ import { readDossier, readRelation, type PendingLine } from './dossier';
 const DOCUMENT: DocumentRow = {
   id: 'd1',
   kind: 'report',
+  docType: 'other',
   title: 'Port call register',
   uri: null,
   archiveUri: null,

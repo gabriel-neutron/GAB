@@ -104,6 +104,7 @@ function probeAttributes(): Attributes {
 const document_ = (id: DocId, title: string): DocumentRow => ({
   id,
   kind: 'report',
+  docType: 'other',
   title,
   uri: `https://example.invalid/${id}`,
   archiveUri: null,

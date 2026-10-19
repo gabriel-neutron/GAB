@@ -1,4 +1,4 @@
-import type { DocId, DocumentKind, DocumentRow } from '@/shared/read/model';
+import type { DocId, DocumentKind, DocumentRow, DocumentType } from '@/shared/read/model';
 
 import { folded } from '@/shared/text-fold';
 
@@ -6,8 +6,24 @@ export interface DocumentHit {
   readonly documentId: DocId;
   readonly title: string;
   readonly kind: DocumentKind;
+  readonly type: string;
+  /** The host of the address, with no "www.", or null when the document has no address. */
+  readonly host: string | null;
   readonly uri: string | null;
 }
+
+const TYPE_WORDS: Readonly<Record<DocumentType, string>> = {
+  legal_act: 'Legal act',
+  register_entry: 'Register entry',
+  press_release: 'Press release',
+  report: 'Report',
+  other: 'Other',
+};
+
+const hostOf = (uri: string | null): string | null => {
+  const host = uri === null ? null : (URL.parse(uri)?.hostname ?? null);
+  return host === null || host === '' ? null : host.replace(/^www\./u, '');
+};
 
 export type DocumentSearchAnswer =
   | { readonly kind: 'no-query' }
@@ -33,6 +49,8 @@ export function searchByDocument(
       documentId: document.id,
       title: document.title,
       kind: document.kind,
+      type: TYPE_WORDS[document.docType],
+      host: hostOf(document.uri),
       uri: document.uri,
     };
     (at === 0 ? starts : holds).push(hit);
