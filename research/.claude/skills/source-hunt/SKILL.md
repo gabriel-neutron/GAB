@@ -30,6 +30,7 @@ possible. You then propose the facts with the skill `cite-claim`.
    | 403, 429 or 503, a 202 or a 200 with no text, a challenge page | A bot filter (Cloudflare, AWS WAF) | Another copy, then the browser |
    | No whole answer within the time, no connection | A state site that refuses foreign addresses | The browser, then the list of needs |
    | 404 or 410, or the page says that it is missing | The address is wrong or old | Another copy, then the archive; never the browser |
+   | A 200 with the page "Доступ временно ограничен" from a `.ru` state site | A block of foreign addresses | The browser, then the paid proxy |
    | A 200 with no text from Interfax e-disclosure (`e-disclosure.ru`) | A filter that runs a script in the page | The browser, one page at a time and slowly |
 
    1. **Another official copy** of the same text from the same issuer: the PDF of the publisher,
