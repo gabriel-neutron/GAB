@@ -47,11 +47,11 @@ const CLAIM_HEADER = [
   'document_title',
   'document_address',
   'document_read_on',
-  'document_type',
   'page',
   'excerpt',
   'modality',
   'transcribed',
+  'document_type',
 ];
 
 const NATO_HEADER = ['nato_letter', 'nato_digit'];
@@ -179,16 +179,11 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
     const nato = natoFields(claim);
     return claim.sources.flatMap((id) => {
       const document = documentOf(id);
-      const source = [
-        id,
-        document.title,
-        document.uri ?? '',
-        document.retrieved_at ?? '',
-        document.doc_type ?? 'other',
-      ];
+      const source = [id, document.title, document.uri ?? '', document.retrieved_at ?? ''];
+      const type = document.doc_type ?? 'other';
       const cited = claim.passages.filter((one) => one.document === id);
       return cited.length === 0
-        ? [[...head, ...source, '', '', '', '', ...nato]]
+        ? [[...head, ...source, '', '', '', '', type, ...nato]]
         : cited.map((one) => [
             ...head,
             ...source,
@@ -196,6 +191,7 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
             one.excerpt,
             one.modality,
             String(one.transcribed),
+            type,
             ...nato,
           ]);
     });
