@@ -180,6 +180,116 @@ test('search_graph finds nothing for an imo that no entity holds', async () => {
   expect(found.entities).toStrictEqual([]);
 });
 
+// --------------------------------------------------------- list_entities ---
+
+const listed = z.object({
+  entities: z.array(z.object({ id: z.uuid(), label: z.string(), type: z.string() })),
+  next: z.uuid().nullable(),
+  total: z.number(),
+  withKey: z.number().nullable(),
+  withoutKey: z.number().nullable(),
+});
+
+const COUNT_KEYS = ['flag_history', 'mmsi_history', 'call_sign'] as const;
+
+test('list_entities counts the vessels with a key and without it, and the two add up', async () => {
+  await rolledBack('research', async (ask) => {
+    for (const key of COUNT_KEYS) {
+      const found = listed.parse(
+        await output(ask, 'list_entities', { type: 'vessel', key, limit: 1 }),
+      );
+      expect(found.total).toBeGreaterThan(0);
+      expect((found.withKey ?? 0) + (found.withoutKey ?? 0)).toBe(found.total);
+      const [direct] = z
+        .array(z.object({ n: z.number() }))
+        .parse(
+          await ask(
+            `SELECT count(*)::int AS n FROM api.entity WHERE type = 'vessel' AND NOT (attrs ? $1)`,
+            [key],
+          ),
+        );
+      expect(found.withoutKey).toBe(direct?.n);
+    }
+  });
+});
+
+test('list_entities lists only the entities without a key when presence says without', async () => {
+  await rolledBack('research', async (ask) => {
+    const found = listed.parse(
+      await output(ask, 'list_entities', {
+        type: 'vessel',
+        key: 'call_sign',
+        presence: 'without',
+        limit: 200,
+      }),
+    );
+    const ids = found.entities.map((entity) => entity.id);
+    const withKey = z
+      .array(z.object({ id: z.uuid() }))
+      .parse(
+        await ask(
+          `SELECT id::text AS id FROM api.entity WHERE type = 'vessel' AND attrs ? 'call_sign'`,
+        ),
+      );
+    expect(found.entities.length).toBeGreaterThan(0);
+    for (const held of withKey) expect(ids).not.toContain(held.id);
+  });
+});
+
+test('list_entities lists only the entities with a key when presence says with', async () => {
+  await rolledBack('research', async (ask) => {
+    const found = listed.parse(
+      await output(ask, 'list_entities', {
+        type: 'vessel',
+        key: 'flag_history',
+        presence: 'with',
+        limit: 200,
+      }),
+    );
+    const held = z
+      .array(z.object({ id: z.uuid() }))
+      .parse(
+        await ask(
+          `SELECT id::text AS id FROM api.entity WHERE type = 'vessel' AND attrs ? 'flag_history'`,
+        ),
+      );
+    const ids = new Set(held.map((row) => row.id));
+    for (const entity of found.entities) expect(ids.has(entity.id)).toBe(true);
+    expect(found.entities.length).toBe(Math.min(200, held.length));
+  });
+});
+
+test('list_entities reads all entities of a type through the cursor, none lost, none repeated', async () => {
+  await rolledBack('research', async (ask) => {
+    const seen: string[] = [];
+    let after: string | undefined;
+    let total: number | undefined;
+    let pages = 0;
+    do {
+      const page = listed.parse(
+        await output(ask, 'list_entities', { type: 'vessel', limit: 3, ...(after && { after }) }),
+      );
+      seen.push(...page.entities.map((entity) => entity.id));
+      total = page.total;
+      after = page.next ?? undefined;
+      pages += 1;
+    } while (after !== undefined && pages < 10_000);
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen.length).toBe(total);
+    const all = z
+      .array(z.object({ id: z.uuid() }))
+      .parse(await ask(`SELECT id::text AS id FROM api.entity WHERE type = 'vessel'`));
+    expect([...seen].sort()).toStrictEqual(all.map((row) => row.id).sort());
+  });
+});
+
+test('list_entities refuses a type that the record does not hold', async () => {
+  await rolledBack('research', async (ask) => {
+    const outcome = await call(ask, 'list_entities', { type: 'no_such_type' });
+    expect(outcome.ok).toBe(false);
+  });
+});
+
 // --------------------------------------------------------- neighbourhood ---
 
 const walk = z.object({

@@ -11,6 +11,7 @@ import { comtradeData } from './comtrade-data.ts';
 import { firmsDetections } from './firms-detections.ts';
 import { gleifLookup } from './gleif-lookup.ts';
 import { jobStatus } from './job-status.ts';
+import { listEntities } from './list-entities.ts';
 import { listProposals } from './list-proposals.ts';
 import { listVocabulary } from './list-vocabulary.ts';
 import { neighbourhood } from './neighbourhood.ts';
@@ -46,6 +47,7 @@ export const CATALOGUE = [
   readEntity,
   neighbourhood,
   listVocabulary,
+  listEntities,
   listProposals,
   findDocument,
   documentText,

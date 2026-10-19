@@ -19,6 +19,7 @@ export const RESEARCH_TOOLS = {
   read_entity: READ_RECORD,
   neighbourhood: READ_RECORD,
   list_vocabulary: READ_RECORD,
+  list_entities: READ_RECORD,
   list_proposals: READ_RECORD,
   find_document: READ_RECORD,
   document_text: READ_RECORD,
