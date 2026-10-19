@@ -9,7 +9,7 @@ How a skill uses the documentation of this project while it explores the code.
   report nothing.
 - **`docs/prd.md` and `docs/decisions.md`**: the purpose and the product rules. The operator owns
   them.
-- **`docs/adr/`**: the build decisions. `docs/README.md` lists them.
+- **`docs/adr/`**: the build decisions. `ls docs/adr` lists them.
 
 ## Use the words of the glossary
 

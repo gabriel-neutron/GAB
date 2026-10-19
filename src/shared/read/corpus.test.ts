@@ -2,6 +2,9 @@
 // caller, a failure clears the memory, and a refresh reads again. The words of the relation types
 // travel with the corpus and are read once, because a refresh of the record does not change them.
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import type { Corpus } from './model';
@@ -114,9 +117,26 @@ const rowsOf = (view: string): readonly unknown[] => {
   return [PROPOSAL_ROW];
 };
 
+let serviceDown = false;
+
+const RELEASE_FOLDER = join(import.meta.dirname, '../../../packages/site/fixtures/release');
+
+// The host of the application serves the release folder beside it, and the page file otherwise.
+const releaseFile = (address: URL): Response => {
+  try {
+    return new Response(
+      readFileSync(join(RELEASE_FOLDER, address.pathname.slice('/release/'.length))),
+    );
+  } catch {
+    return new Response('not found', { status: 404 });
+  }
+};
+
 const stub = vi.fn((input: URL): Promise<Response> => {
+  if (input.pathname.startsWith('/release/')) return Promise.resolve(releaseFile(input));
   const view = input.pathname.slice(1);
-  if (view === 'entity' && refuseEntity) return Promise.resolve(listed({ message: 'no' }, 503));
+  if (serviceDown) return Promise.resolve(listed({ message: 'down' }, 503));
+  if (view === 'entity' && refuseEntity) return Promise.resolve(listed({ message: 'no' }, 400));
   return Promise.resolve(listed(rowsOf(view)));
 });
 
@@ -140,8 +160,10 @@ const refusalOf = async (run: () => Promise<unknown>): Promise<string> => {
 beforeEach(() => {
   entityRows = [NORTHERN];
   refuseEntity = false;
+  serviceDown = false;
   stub.mockClear();
   vi.stubGlobal('fetch', stub);
+  vi.stubGlobal('document', { baseURI: 'http://site.test/' });
   // The module holds the answer of the read, so each test takes its own copy of the module.
   vi.resetModules();
 });
@@ -174,7 +196,7 @@ test('a read that fails clears the memory, so the next caller reads again and ar
   const { loadCorpus } = await import('./corpus');
 
   expect(await refusalOf(() => loadCorpus())).toBe(
-    'The read API refused the entity list, and answered 503.',
+    'The read API refused the entity list, and answered 400.',
   );
 
   refuseEntity = false;
@@ -228,4 +250,35 @@ test('a refresh holds its later answer, and a caller after it reads no view agai
   await loadCorpus();
 
   expect(viewsRead()).toStrictEqual([...READ_ONCE, ...READ_ONCE, VOCABULARY].sort());
+});
+
+test('a service that does not answer gives the corpus from the files of the release', async () => {
+  serviceDown = true;
+  const { loadCorpus } = await import('./corpus');
+
+  const read = await loadCorpus();
+
+  expect(read.entities.length).toBeGreaterThan(0);
+  expect(read.proposals).toStrictEqual([]);
+  expect(read.relationTypes.map((one) => one.key)).toContain('owns');
+});
+
+test('a service that comes back is read again after a refresh', async () => {
+  serviceDown = true;
+  const { loadCorpus, refreshCorpus } = await import('./corpus');
+  await loadCorpus();
+
+  serviceDown = false;
+  const seen: Corpus[] = [];
+  await refreshCorpus(async () => {
+    seen.push(await loadCorpus());
+  });
+
+  expect(seen[0]?.entities.map((entity) => entity.label)).toStrictEqual(['MV Northern Ledger']);
+});
+
+test('with the service down, the history of decided acts is empty and does not fail', async () => {
+  serviceDown = true;
+  const { loadDecidedActs } = await import('./decided-acts');
+  expect(await loadDecidedActs()).toStrictEqual([]);
 });

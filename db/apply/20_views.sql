@@ -226,7 +226,8 @@ CREATE VIEW api.proposal AS
               -- documents of the row (and the old type). It is
               -- public when one of them is a public document, and it names those alone.
               WHEN op = 'update_relation'
-               AND (payload ? 'valid_to' OR payload ? 'valid_from' OR payload ? 'type') THEN
+               AND (payload ? 'valid_to' OR payload ? 'valid_from' OR payload ? 'type'
+                    OR payload ? 'add_source') THEN
                 CASE WHEN EXISTS (SELECT 1 FROM jsonb_array_elements_text(
                                                   CASE jsonb_typeof(prior_value->'sources')
                                                        WHEN 'array' THEN prior_value->'sources'
@@ -241,7 +242,8 @@ CREATE VIEW api.proposal AS
                 END
               WHEN op = 'update_attrs'
                 OR (op = 'update_relation' AND NOT payload ? 'valid_to'
-                    AND NOT payload ? 'valid_from' AND NOT payload ? 'type') THEN
+                    AND NOT payload ? 'valid_from' AND NOT payload ? 'type'
+                    AND NOT payload ? 'add_source') THEN
                 (SELECT coalesce(jsonb_object_agg(a.key, a.value), '{}'::jsonb)
                    FROM jsonb_each(prior_value) AS a(key, value)
                   WHERE EXISTS (SELECT 1 FROM jsonb_array_elements_text(a.value->'src') s(id)

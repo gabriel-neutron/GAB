@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { cn } from '@/shared/lib/utils';
+import { READING_LINK } from '@/shared/page/reading-link';
 
 import type { TypedValue } from './claims';
 import type { RecordCell } from './draft';
@@ -12,11 +13,14 @@ export type EntityRecordProps =
       readonly mode: 'reading';
       readonly cells: readonly RecordCell[];
       readonly mark: (sources: readonly SourceRef[]) => ReactNode;
+      /** The address of the claim page of one key, or null where the release holds no such claim. */
+      readonly claimHref?: (key: string) => string | null;
     }
   | {
       readonly mode: 'writing';
       readonly cells: readonly RecordCell[];
       readonly mark: (sources: readonly SourceRef[]) => ReactNode;
+      readonly claimHref?: (key: string) => string | null;
       readonly onEdit: (key: string, typed: TypedValue) => void;
     };
 
@@ -31,6 +35,7 @@ const WIDTH = {
 
 export function EntityRecord(props: EntityRecordProps) {
   const onEdit = props.mode === 'writing' ? props.onEdit : null;
+  const claimLink = (key: string): string | null => props.claimHref?.(key) ?? null;
 
   return (
     // `@container` makes the name column read the width of the pane, not of the window.
@@ -65,6 +70,15 @@ export function EntityRecord(props: EntityRecordProps) {
             )}
           </span>
           {props.mark(cell.sources)}
+          {claimLink(cell.key) === null ? null : (
+            <a
+              className={cn(READING_LINK, 'shrink-0 text-xs')}
+              href={claimLink(cell.key) ?? undefined}
+              aria-label={`Claim: ${cell.label}`}
+            >
+              Claim
+            </a>
+          )}
         </div>
       ))}
     </div>

@@ -26,6 +26,7 @@ export const decidedAct = z.object({
       valid_to: z.unknown(),
       type: z.unknown(),
       geom: z.unknown(),
+      add_source: z.unknown(),
     })
     .partial()
     .nullish(),
@@ -125,11 +126,13 @@ export function decidedRows(acts: readonly DecidedAct[]): readonly DecidedRow[] 
           ? 'End of a relation'
           : act.op === 'update_relation' && typeof act.payload?.valid_from === 'string'
             ? 'Start of a relation'
-            : act.op === 'update_relation' && typeof act.payload?.type === 'string'
-              ? `Type change of a relation, from ${act.priorType ?? 'its old type'} to ${act.payload.type}`
-              : act.op === 'update_entity' && act.payload?.geom !== undefined
-                ? 'Change of the place'
-                : (ACT_WORDS[act.op] ?? act.op.replaceAll('_', ' ')),
+            : act.op === 'update_relation' && act.payload?.add_source === true
+              ? 'Source added to a relation'
+              : act.op === 'update_relation' && typeof act.payload?.type === 'string'
+                ? `Type change of a relation, from ${act.priorType ?? 'its old type'} to ${act.payload.type}`
+                : act.op === 'update_entity' && act.payload?.geom !== undefined
+                  ? 'Change of the place'
+                  : (ACT_WORDS[act.op] ?? act.op.replaceAll('_', ' ')),
       subject: act.name ?? 'An element that the act does not name',
       reason: reasonOf(act),
       decidedAt: act.decidedAt,

@@ -62,6 +62,11 @@ export const writeRoutes = (
   operatorKey: string,
 ): Hono => {
   const app = new Hono();
+  // The answer is public and holds no data: the application hides the entries that need the
+  // writer when this answer does not come. It sits under the `/write` prefix, which the proxy
+  // and the host already send to the writer, and it comes before the admission, which it skips.
+  app.get('/write/status', (context) => context.json({ online: true }));
+
   app.use('/write/*', admitOperatorJson(operatorKey));
   app.use('/private/*', admitOperatorJson(operatorKey));
 

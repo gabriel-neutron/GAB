@@ -85,8 +85,8 @@
     },
     {
       "path": "volumes.csv",
-      "bytes": 3919,
-      "sha256": "b1e1d1694a4cc3249ea696e0ba388e48cf847e8a6251a6a6eda000b76894fe26"
+      "bytes": 3920,
+      "sha256": "42de1d92f554379e7e56feed87388f35cf896d955cf1c61950c2aa2a75af0a33"
     },
     {
       "path": "credits.md",
@@ -95,8 +95,8 @@
     },
     {
       "path": "entities.geojson",
-      "bytes": 2287,
-      "sha256": "ace82be708cd593666d530025af270b64d6a3c41af311ee54c1ebec066f478da"
+      "bytes": 2325,
+      "sha256": "0a6256dff9a796498d4bd156d9018b6c3c02920e3f3366883017d773cac2768e"
     },
     {
       "path": "dataset.jsonld",

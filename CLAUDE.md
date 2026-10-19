@@ -1,11 +1,10 @@
-Write your chat replies to the operator in French. Write every repository document, code comment, commit, pull request, issue and GitHub comment in ASD-STE100 Simplified Technical English (exception: the research deliverables, see `research/AGENTS.md`).
-Do the development on the VPS. The VPS runs the code and the test stack. The research sessions, the record, the writer and the worker are on the operator's Windows PC (`infra/vps/README.md`).
-In a worktree, run `pnpm stack:up` before a database test and `pnpm stack:down` at the end of the work, also in a subagent (`infra/README.md`).
-The repository is public: never write a local path, a user name or private data in GitHub, a commit or a file (section "Privacy" of docs/agents/issue-tracker.md).
-Work with the Matt Pocock skills (`/to-spec`, `/to-tickets`, `/implement-spec`). Fix a small detail in the current work, with no ticket. Read docs/authoring.md before you write a document.
-Decide each technical detail yourself. Send each other question to the skill `expert-panel`, and act on its verdict: it defines the critical questions, the only ones for the operator.
-Do each step of the request that git can undo, and do not ask first: fix, test, commit, push, open the PR, review it with a separate agent (add a `visual-qa` agent when the diff changes the user interface: a component, a style, a route or a page), apply the findings, merge into `staging` (docs/agents/issue-tracker.md). Ask before a merge into `main`, a loss that git cannot undo, a GitHub write outside the task, or a cost.
-End each message with one line: **Done.**, **Next:** a step that only the operator or a new session can do, **New session:** the prompt, or **Your decision:** one critical question with the panel verdict and a recommendation. Offer no optional extra work.
+Write every document, code comment, commit, pull request, issue and GitHub comment in ASD-STE100 Simplified Technical English. Keep replies to the operator short.
+The repository is public: never write a local path, a user name or private data in GitHub, a commit or a file (docs/agents/issue-tracker.md, section "Privacy").
+Docs map: docs/README.md. Read docs/authoring.md before you write a document. The code is the source of truth: a document never copies a name, a count or a command output.
+Develop on the VPS (infra/vps/README.md). In a worktree, run `pnpm stack:up` before a database test and `pnpm stack:down` at the end, also in a subagent (infra/README.md).
+Use the Matt Pocock skills (`/to-spec`, `/to-tickets`, `/implement-spec`). Fix a small detail in the current work with no ticket.
+Decide each technical detail yourself. Send each other question to the skill `expert-panel` and act on its verdict. Only a critical question goes to the operator.
+Do each step that git can undo without asking: fix, test, commit, push, open the PR, review it with a separate agent (add `visual-qa` when the diff changes the user interface), apply the findings, merge into `staging`.
+Ask before a merge into `main`, a loss that git cannot undo, a GitHub write outside the task, or a cost.
+End each message with one line: **Done.**, **Next:** a step for the operator or a new session, **New session:** the prompt, or **Your decision:** one critical question with the panel verdict and a recommendation. Offer no optional extra work.
 Agent skills: issue tracker docs/agents/issue-tracker.md, triage labels docs/agents/triage-labels.md, domain docs (single-context) docs/agents/domain.md.
-
-When reporting information to me, be extremely concise and sacrifice grammar for the sake of concision

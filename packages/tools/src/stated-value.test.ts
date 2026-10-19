@@ -14,6 +14,7 @@ import {
   withCodedJurisdiction,
   withoutCallDay,
 } from './stated-value.ts';
+import { assetKindRefusal } from './propose.ts';
 
 const relationFrom = (validFrom: string) =>
   writeRequest.parse({
@@ -405,8 +406,11 @@ test('a night with a year uses that year', () => {
   ).toStrictEqual([]);
 });
 
-test('a Ukrainian day with no year and no night stays contested', () => {
-  expect(unstatedValues(relationFrom('2024-05-15'), ['15 травня'], PUBLISHED)).toHaveLength(1);
+test('a Ukrainian day with no year and no night takes the year of the publication, and the item stays disputed', () => {
+  expect(unstatedValues(relationFrom('2024-05-15'), ['15 травня'], PUBLISHED)).toStrictEqual([]);
+  expect(
+    daysFromPublication(relationFrom('2024-05-15'), ['15 травня'], '2024-05-15'),
+  ).toStrictEqual(['2024-05-15']);
 });
 
 test('a publication date does not change the formats that the reader knew', () => {
@@ -806,4 +810,87 @@ test('a dateline with no city states no day without a night word, or for a relat
     unstatedValues(NIGHT_OF('2026-09-16', '2026-09-17'), [YANOS[0] ?? ''], options),
   ).toHaveLength(2);
   expect(unstatedValues(relationFrom('2026-09-16'), YANOS, options)).toHaveLength(1);
+});
+
+test.each([
+  ['The tanker loaded at Ust-Luga on Jan. 7.', '2025-01-07'],
+  ['It discharged at Beihai on June 28th.', '2024-06-28'],
+  ['Le navire a chargé le 7 janvier.', '2025-01-07'],
+  ['Танкер загрузился 28 июня.', '2024-06-28'],
+])('a day with no year in "%s" takes the year of the publication day', (passage, day) => {
+  const options = { publishedOn: '2025-02-01' };
+  expect(unstatedValues(relationFrom(day), [passage], options)).toStrictEqual([]);
+  expect(daysFromPublication(relationFrom(day), [passage], '2025-02-01')).toStrictEqual([day]);
+  expect(unstatedValues(relationFrom(day), [passage])).toHaveLength(1);
+});
+
+test('a day with a year never takes the year of the publication day', () => {
+  const options = { publishedOn: '2025-02-01' };
+  expect(unstatedValues(relationFrom('2024-06-28'), ['June 28, 2019'], options)).toHaveLength(1);
+  expect(unstatedValues(relationFrom('2024-06-28'), ['28 June 2019'], options)).toHaveLength(1);
+  expect(unstatedValues(relationFrom('2024-06-28'), ['June 28th, 2019'], options)).toHaveLength(1);
+  expect(unstatedValues(relationFrom('2025-01-07'), ['Jan. 7th 2019'], options)).toHaveLength(1);
+});
+
+test.each([
+  'MOSCOW, Feb 24 (Reuters) - Exports rose.',
+  'MOSCOW, February 24. /TASS/. Exports rose.',
+  'МОСКВА, 24 февраля. /ТАСС/. Экспорт вырос.',
+  'KYIV, Feb 24 /Ukrinform/. Exports rose.',
+])('a news dateline with no year states no day: %s', (passage) => {
+  expect(
+    unstatedValues(relationFrom('2025-02-24'), [passage], { publishedOn: '2025-02-24' }),
+  ).toHaveLength(1);
+});
+
+test.each(['Article 5 may apply.', 'Лист 2 отчёта.'])('"%s" states no day', (passage) => {
+  const options = { publishedOn: '2025-12-31' };
+  expect(unstatedValues(relationFrom('2025-05-05'), [passage], options)).toHaveLength(1);
+  expect(unstatedValues(relationFrom('2025-11-02'), [passage], options)).toHaveLength(1);
+});
+
+test('a day that the text writes as 03/04/2024 stays in doubt, also with a publication day', () => {
+  const options = { publishedOn: '2024-05-01' };
+  expect(unstatedValues(relationFrom('2024-04-03'), ['on 03/04/2024'], options)).toHaveLength(1);
+  expect(unstatedValues(relationFrom('2024-03-04'), ['on 03/04/2024'], options)).toHaveLength(1);
+});
+
+test('the asset kind is a word of the closed list, and no passage states it in that form', () => {
+  const act = (op: 'create_entity' | 'update_attrs') =>
+    writeRequest.parse(
+      op === 'create_entity'
+        ? {
+            op,
+            type: 'facility',
+            label: 'Kirishi refinery',
+            attrs: { asset_kind: { v: 'refinery' } },
+          }
+        : {
+            op,
+            targetKind: 'entity',
+            targetId: '0a1f0000-0000-4000-8000-000000000001',
+            attrs: { asset_kind: { v: 'refinery' } },
+          },
+    );
+  expect(unstatedValues(act('create_entity'), ['Kirishi refinery (KINEF).'])).toStrictEqual([]);
+  expect(unstatedValues(act('update_attrs'), ['Киришский НПЗ.'])).toStrictEqual([]);
+});
+
+test('propose refuses an asset kind that is not a word of the closed list', () => {
+  const facility = (kind: string) =>
+    writeRequest.parse({
+      op: 'create_entity',
+      type: 'facility',
+      label: 'Kirishi refinery',
+      attrs: { asset_kind: { v: kind } },
+    });
+  expect(assetKindRefusal(facility('refinery'))).toBeNull();
+  expect(assetKindRefusal(facility('oil refinery'))).toMatch(/^asset_kind is one of: field, /u);
+  const company = writeRequest.parse({
+    op: 'create_entity',
+    type: 'company',
+    label: 'Novatek',
+    attrs: { asset_kind: { v: 'export_terminal' } },
+  });
+  expect(assetKindRefusal(company)).toBe('only a facility or a port has an asset_kind');
 });

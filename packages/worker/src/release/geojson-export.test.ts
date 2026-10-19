@@ -207,6 +207,7 @@ test('a facility carries its asset kind and its dated measures for each regime, 
           ...act,
           act_document: 'The document doc_eu',
           origin_label: LABEL,
+          via: null,
         },
       ],
       us: [{ measure: 'designated_by', from: '2023-02-24', to: '2024-01-31', ...act }],
@@ -222,9 +223,14 @@ test('a facility carries its asset kind and its dated measures for each regime, 
       ],
     },
   });
-  // Another entity has no sanctions member, and no asset kind.
+  // A vessel has no sanctions member, and no asset kind. A port with no measure has an empty status.
   expect(collection().features[0]?.properties).toMatchObject({ asset_kind: null });
   expect(collection().features[0]?.properties).not.toHaveProperty('sanctions');
+  expect(collection().features[1]?.properties['sanctions']).toStrictEqual({
+    eu: [],
+    us: [],
+    uk: [],
+  });
 });
 
 test('the collection carries the version and the disclaimer of the release', () => {
@@ -274,4 +280,64 @@ test('a US or a UK measure with no start takes the entry into force of its act, 
     // The entry into force of the act of the UK measure cites an EU file only, so it has no date.
     uk: [{ from: null }],
   });
+});
+
+test('a port that the act does not name takes the measures of its direct operator, with the name of the operator', () => {
+  const operates = {
+    id: '00000000-0000-4000-8000-0000000000b1',
+    type: 'operates',
+    src_id: DEPOT,
+    dst_id: PORT,
+    valid_from: null,
+    valid_to: null,
+    origin_label: PROPOSED,
+    sources: ['doc_b'],
+  };
+  const port = collection({ ...RECORD, relations: [...RECORD.relations, operates] }).features.find(
+    (one) => one['id'] === PORT,
+  );
+  expect(port?.properties['sanctions']).toMatchObject({
+    eu: [
+      {
+        measure: 'designated_by',
+        from: '2022-06-03',
+        via: {
+          role: 'operator',
+          entity_id: DEPOT,
+          entity_label: 'A depot',
+          link_origin_label: PROPOSED,
+        },
+      },
+    ],
+    uk: [{ measure: 'restricted_by', via: { role: 'operator' } }],
+  });
+});
+
+test('an owner gives its measures once, as the operator when it is both, and an ended link gives none', () => {
+  const link = (id: string, type: string, src: string, to: string | null) => ({
+    id,
+    type,
+    src_id: src,
+    dst_id: PORT,
+    valid_from: null,
+    valid_to: to,
+    origin_label: LABEL,
+    sources: ['doc_b'],
+  });
+  const port = (relations: ReleaseRecord['relations']) =>
+    collection({ ...RECORD, relations: [...RECORD.relations, ...relations] }).features.find(
+      (one) => one['id'] === PORT,
+    )?.properties['sanctions'];
+  expect(port([link('00000000-0000-4000-8000-0000000000b2', 'owns', DEPOT, null)])).toMatchObject({
+    eu: [{ via: { role: 'owner', entity_id: DEPOT } }],
+  });
+  expect(
+    port([
+      link('00000000-0000-4000-8000-0000000000b3', 'owns', DEPOT, null),
+      link('00000000-0000-4000-8000-0000000000b4', 'operates', DEPOT, null),
+    ]),
+  ).toMatchObject({ eu: [{ via: { role: 'operator' } }], us: [{}], uk: [{}] });
+  expect(
+    port([link('00000000-0000-4000-8000-0000000000b5', 'operates', DEPOT, '2019-12-31')]),
+  ).toStrictEqual({ eu: [], us: [], uk: [] });
 });

@@ -248,6 +248,9 @@ export const NoWriterSaysWhy: Story = {
     },
   },
   play: async ({ canvas }) => {
+    await expect(canvas.getByRole('button', { name: 'Retry' })).toBeVisible();
+    await expect(canvas.getByText(/did not give them/u)).not.toBeVisible();
+    await userEvent.click(canvas.getByText('Technical detail'));
     await expect(canvas.getByText(/did not give them/u)).toBeVisible();
     await expect(canvas.queryByRole('table')).toBeNull();
   },

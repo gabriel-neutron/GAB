@@ -3,7 +3,7 @@
 import { shareWords } from '@gab/proposal/share';
 import { positionFromWords, relationLines } from '@/shared/canvas-label';
 import { proposerWords } from '@/shared/proposer-words';
-import type { DecidedAct } from '@/shared/read/decided-acts';
+import { idOf, isUnread, type DecidedLine } from '@/shared/read/decided-acts';
 import type {
   Corpus,
   DocId,
@@ -17,6 +17,7 @@ import type {
 import { relationWording, type RelationWords } from '@/shared/relation-words';
 
 import { readClaims, type ClaimRow } from './claims';
+import type { ReleaseFacts } from './release-facts';
 
 /** One cited document, at the position it was first met. The badge is a number. */
 export interface SourceRef {
@@ -121,6 +122,9 @@ export interface Dossier {
   /** A retired type the entity holds stays offered, or the chooser would draw a type the entity
    * does not hold. */
   readonly typeChoices: readonly TypeChoice[];
+  /** What the release adds. The record has none of it, so `readDossier` leaves it null and the
+   * route fills it when a release is at hand. */
+  readonly facts: ReleaseFacts | null;
 }
 
 /** A long address does not fit a two-line card, so the card carries a short form too. */
@@ -257,15 +261,17 @@ function typeChoicesOf(types: TypeVocabulary, held: string): readonly TypeChoice
 
 // PU1: the origin line is the label that the public data carries, word for word. The record
 // writes the words and the day, so the screen and a copy of the data cannot say two things.
-function decisionOf(entityFrom: string, decided: readonly DecidedAct[]): string | null {
-  return decided.find((held) => held.act.id === entityFrom)?.originLabel ?? null;
+function decisionOf(entityFrom: string, decided: readonly DecidedLine[]): string | null {
+  const held = decided.find((line) => idOf(line) === entityFrom);
+  if (held === undefined) return null;
+  return isUnread(held) ? 'The act that promoted this entity cannot be read.' : held.originLabel;
 }
 
 export function readDossier(
   read: Corpus,
   entityId: string,
   types: TypeVocabulary,
-  decided: readonly DecidedAct[],
+  decided: readonly DecidedLine[],
 ): Dossier | null {
   const entity = read.entities.find((candidate) => candidate.id === entityId);
   if (entity === undefined) return null;
@@ -370,9 +376,11 @@ export function readDossier(
           ? `Closes the relation on ${proposal.payload.valid_to}`
           : proposal.payload.kind === 'start'
             ? `Starts the relation on ${proposal.payload.valid_from}`
-            : proposal.payload.kind === 'retype' && held !== undefined
-              ? `Changes the type of the relation from ${held.type} to ${proposal.payload.type}`
-              : OP_WORDS[proposal.op];
+            : proposal.payload.kind === 'source'
+              ? 'Adds a source to the relation'
+              : proposal.payload.kind === 'retype' && held !== undefined
+                ? `Changes the type of the relation from ${held.type} to ${proposal.payload.type}`
+                : OP_WORDS[proposal.op];
       const keys = keysOf(proposal.payload);
       const body = keys.length === 0 ? head : `${head}: ${keys.join(', ')}`;
       return {
@@ -426,6 +434,7 @@ export function readDossier(
     pending,
     linkChoices,
     typeChoices: typeChoicesOf(types, entity.type),
+    facts: null,
   };
 }
 

@@ -23,7 +23,7 @@ const FILE_MANIFEST = 'manifest.json';
 
 /** Each file of one release, the file manifest last: the exports, the changelog since
  * `previous` (or a first release with none), and the file manifest with the size and the checksum
- * of each other file. The static site reads the contact addresses and the base of the
+ * of each other file. The site reads the contact addresses and the base of the
  * identifiers from the file manifest. The file manifest also gives the number of merge candidates
  * across a Latin and a Cyrillic spelling that wait, that the operator confirmed and refused. The
  * rows of the volume table that the volumes table rejects, and the rows whose asset label names

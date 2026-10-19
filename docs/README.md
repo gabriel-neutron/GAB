@@ -1,4 +1,7 @@
-# Documentation index
+# Documentation map
+
+Read a document only when its row matches your task. The code is the source of truth for every
+detail. Find a decision record with `ls docs/adr`; open one only when a file or a document cites it.
 
 | Document | Owner | Read it when |
 |---|---|---|
@@ -8,40 +11,7 @@
 | `deploy.md` | Agent | You write and publish a release, or point the writer at a remote database. |
 | `authoring.md` | Agent | You write or change a document. |
 | `agents/issue-tracker.md` | Agent | You write to GitHub. |
+| `agents/commit.md` | Agent | You write a commit message. |
+| `agents/coding-standards.md` | Agent | You review a diff against the standards of the code. |
 | `agents/domain.md` | Agent | You need the domain words, or your change disagrees with a decision. |
 | `agents/triage-labels.md` | Agent | You apply a triage label. |
-| `agents/commit.md` | Agent | You write a commit message. |
-
-The code is the source of truth for every detail. `CODING_STANDARDS.md`, at the root, holds the
-rules of the code review.
-
-## Architecture decision records
-
-| ADR | Decision | Status |
-|---|---|---|
-| [0001](adr/0001-repository-conventions.md) | Repository conventions | Accepted |
-| [0002](adr/0002-local-runtime.md) | Local runtime and data stores | Accepted |
-| [0003](adr/0003-schema-pipeline-and-read-contract.md) | Schema pipeline and the read contract | Accepted |
-| [0004](adr/0004-frontend-stack.md) | Frontend stack | Accepted |
-| [0005](adr/0005-map-and-tile-path.md) | Cartographic library and tile path | Accepted |
-| [0006](adr/0006-a-comment-records-a-reason.md) | A comment records a reason | Accepted |
-| [0007](adr/0007-object-store-end-of-life.md) | The object store is SeaweedFS | Accepted |
-| [0008](adr/0008-the-read-role-carries-no-row-cap.md) | The read role carries no row cap | Accepted |
-| [0009](adr/0009-the-map-read-resolves-a-borrowed-position.md) | The map read resolves a borrowed position | Accepted |
-| [0010](adr/0010-three-ais-one-tool-catalogue.md) | Three AIs share one tool catalogue | Accepted |
-| [0011](adr/0011-trust-and-rating-method.md) | A decision table decides the public state of a claim; a letter rates only the originator | Superseded by 0012 |
-| [0012](adr/0012-rules-decide-from-the-letters-of-the-authors.md) | Named rules in the database decide from the letters of the authors | Accepted |
-| [0013](adr/0013-a-release-is-a-dated-folder-of-files.md) | A release is a dated folder of files, read through the release functions | Accepted |
-| [0014](adr/0014-a-merge-is-an-act-with-an-alias-and-a-copy.md) | A merge is an act of the ledger, with an alias and a full copy | Accepted |
-| [0015](adr/0015-a-release-gives-three-formats-of-the-same-rows.md) | A release gives three formats of the same rows | Accepted |
-| [0016](adr/0016-the-nato-pair-of-a-claim.md) | The NATO pair of a claim | Accepted |
-| [0017](adr/0017-the-alignment-matrix-reads-the-regime-from-the-provider.md) | The alignment matrix reads the regime of a designation from the provider of its document | Accepted |
-| [0018](adr/0018-the-critical-nodes-table-comes-from-a-sheet-and-the-record.md) | The critical nodes table comes from a sheet of the operator and the record | Accepted |
-| [0019](adr/0019-the-changelog-is-a-diff-of-two-release-folders.md) | The changelog is a diff of two release folders | Accepted |
-| [0020](adr/0020-a-release-publishes-files-and-a-static-site.md) | A release publishes files and a static site, with no public API | Accepted |
-| [0021](adr/0021-an-end-date-is-an-act-on-the-open-relation.md) | An end date is an act on the open relation | Accepted |
-| [0022](adr/0022-merge-candidates-across-two-scripts.md) | Merge candidates across two scripts come from one fixed table and a stored pair | Accepted |
-| [0023](adr/0023-a-type-change-is-an-act-on-the-promoted-relation.md) | A type change is an act on the promoted relation | Accepted |
-| [0024](adr/0024-a-slash-date-of-the-fcdo-list-is-day-month.md) | A slash date of the FCDO UK Sanctions List is day/month | Accepted |
-| [0025](adr/0025-a-start-date-is-an-act-on-the-undated-relation.md) | A start date is an act on the undated relation | Accepted |
-| [0026](adr/0026-the-day-of-a-port-call-is-part-of-its-claim-key.md) | The day of a port call is part of its claim key | Accepted |

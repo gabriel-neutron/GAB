@@ -5,10 +5,13 @@ import { readDossier, readRelation } from '@/features/detail/dossier';
 import { RelationSidebar, Sidebar } from '@/features/detail/sidebar';
 import type { GraphSelection } from '@/features/graph/selection';
 import { GraphPage } from '@/features/graph/graph-page';
+import { PageHeader } from '@/shared/page/page-header';
+import { ReadingPage } from '@/shared/page/reading-page';
 import { loadCorpus } from '@/shared/read/corpus';
 import { loadLayout } from '@/shared/read/layout';
+import { useReleaseNote } from '@/shared/read/release-note';
 import { loadEntityTypes } from '@/shared/read/vocabulary';
-import { cn } from '@/shared/lib/utils';
+import { releaseDay } from '@gab/release/release-day';
 
 // Departure: the address is the one store of what is examined. A write through the router
 // re-renders this route and destroys the canvas, so the canvas controller writes the address
@@ -53,11 +56,16 @@ export const Route = createFileRoute('/graph')({
   },
 
   component: GraphRoute,
-  head: () => ({ meta: [{ title: 'Graph · Gabriel' }] }),
+  head: () => ({ meta: [{ title: 'Graph · GAB dataset' }] }),
 });
 
+const count = (n: number, one: string, many: string): string =>
+  `${String(n)} ${n === 1 ? one : many}`;
+
 function GraphRoute() {
-  const { corpus, types, layout } = Route.useLoaderData();
+  const record = Route.useLoaderData();
+  const releaseNote = useReleaseNote();
+  const { corpus, types } = record;
 
   // Do not seed this state from `Route.useSearch()`. The canvas is the authority on what it drew,
   // and a second reader of the address gave the route and the canvas two different answers.
@@ -80,35 +88,37 @@ function GraphRoute() {
     [corpus, selection],
   );
 
-  // No React render inside the tree that wraps the live element. A change of the selection
-  // re-renders this route, and without this memo it would rebuild the element that owns the
-  // canvas. The list holds the record, which a selection never changes. Do not remove it.
-  const canvas = useMemo(
-    () => <GraphPage corpus={corpus} types={types} layout={layout} onSelect={setSelection} />,
-    [corpus, types, layout],
-  );
+  // The card stands in the island at all times, so a selection never changes the size of the
+  // canvas. The page re-renders with the selection, and the live element is held by its own memo.
+  const card =
+    dossier !== null ? (
+      <Sidebar dossier={dossier} showOn="map" />
+    ) : relation !== null ? (
+      <RelationSidebar relation={relation} />
+    ) : selection === null ? (
+      <p className="p-2">Select a node or a relation on the graph, or a name in the list.</p>
+    ) : (
+      <p aria-label="Detail" className="p-2">
+        {reportOf(selection)}
+      </p>
+    );
 
-  // External constraint: a flex row of automatic height grows to the tallest item, so the
-  // sidebar gets no scroll and the window scrolls both panes together. The row takes `h-full`,
-  // because the shell gives `<main>` the rest of the height.
+  // The words state what the page draws. Where the files of a release are read, the page names
+  // the release. Where the service answers, it names no date and does not call the record live.
   return (
-    <div className={cn('flex h-full overflow-hidden')}>
-      <div className={cn('min-h-0 min-w-0 flex-1')}>{canvas}</div>
-      {/* **No selection draws no panel.** The canvas then takes the whole row, and
-          `adapter` and `controller` each observe their own element, so the resize is answered. */}
-      {dossier !== null ? (
-        <Sidebar dossier={dossier} />
-      ) : relation !== null ? (
-        /* The same pane, at the same width, so the canvas never changes size on a selection. */
-        <RelationSidebar relation={relation} />
-      ) : selection === null ? null : (
-        <aside
-          aria-label="Detail"
-          className={cn('w-96 shrink-0 border-l border-border bg-sidebar p-2 text-xs text-label')}
-        >
-          <p>{reportOf(selection)}</p>
-        </aside>
+    <ReadingPage>
+      {releaseNote === null ? (
+        <PageHeader title="Graph" />
+      ) : (
+        <PageHeader title="Graph" detail={`From the release of ${releaseDay(releaseNote.date)}`} />
       )}
-    </div>
+      <p className="max-w-prose">
+        {count(corpus.entities.length, 'entity is', 'entities are')} drawn as a node, and{' '}
+        {count(corpus.relations.length, 'relation joins', 'relations join')} two of them with a
+        line. Select a node, a line or a name in the list to read its record. The types switch off
+        and dim what they hold, and the field in the header narrows the lists.
+      </p>
+      <GraphPage record={record} onSelect={setSelection} card={card} />
+    </ReadingPage>
   );
 }

@@ -1952,3 +1952,41 @@ test('the reason of a doubt of place gives the gap, and the limit of the role of
   );
   expect(empty).toStrictEqual([{ said: '' }]);
 });
+
+const sourcing = (target: string, excerpt: string) =>
+  item('source', { op: 'add_source', targetId: target }, excerpt);
+
+test('propose adds a source to a relation when its excerpt names the act', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await designatedRelation(ask);
+    const outcome = await proposeOnPage(
+      ask,
+      [sourcing(held, 'A treasury lists A bank')],
+      'A treasury lists A bank under its list.',
+    );
+    return { outcome, rows: await rowsOfDocument(ask) };
+  });
+  expect(batchOf(found.outcome).proposals).toMatchObject([
+    { ref: 'source', written: true, disputed: false, unstated: [], droppedBounds: [] },
+  ]);
+  expect(found.rows[0]?.payload).toStrictEqual({ add_source: true });
+});
+
+test('propose refuses a source whose excerpt names neither the vessel nor the act', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await designatedRelation(ask);
+    const outcome = await proposeOnPage(
+      ask,
+      [sourcing(held, 'An unrelated line')],
+      'An unrelated line of another entry.',
+    );
+    return { outcome, rows: await rowsOfDocument(ask) };
+  });
+  expect(found.outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(
+      'item source: no excerpt of a cited document names the vessel',
+    ) as string,
+  });
+  expect(found.rows).toStrictEqual([]);
+});

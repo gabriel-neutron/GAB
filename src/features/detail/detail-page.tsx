@@ -4,15 +4,22 @@ import type { ReactNode } from 'react';
 import type { AttributeEdit } from '@gab/proposal/attribute-value';
 
 import type { DocId } from '@/shared/read/model';
+import { DataTable } from '@/shared/page/data-table';
+import { KeyValue } from '@/shared/page/key-value';
+import { PageHeader } from '@/shared/page/page-header';
+import { PageSection } from '@/shared/page/page-section';
+import { READING_LINK } from '@/shared/page/reading-link';
+import { ReadingPage } from '@/shared/page/reading-page';
 import { SaidLine } from '@/shared/said-line';
+import { useWriterOnline } from '@/shared/write/writer-status';
 
-import { Band } from './band';
-import { surfaceHref } from './address';
+import { claimHref, surfaceHref, vesselHref } from './address';
 import type { TypedValue } from './claims';
 import { DeleteControl } from './delete-control';
 import { draftsAfterSave, pendingEdit, recordCells, typedInto, type Drafts } from './draft';
 import type { Dossier, SourceRef } from './dossier';
 import { EditSwitch, type DetailView } from './edit-switch';
+import { EventLane } from './event-lane';
 import { SourceMark } from './mark';
 import { NewClaim } from './new-claim';
 import { NewRelation } from './new-relation';
@@ -48,11 +55,6 @@ interface SourceSelection {
 const IDLE: SaveState = { step: 'idle' };
 const NO_ACT: StructureState = { step: 'idle' };
 
-// The route gives the main element the rest of the window height, so `h-full` settles a pane.
-const SHELL = 'flex h-full gap-4 p-4';
-
-const ON_A_SURFACE = 'shrink-0 text-small/4 text-primary underline underline-offset-2';
-
 // Two live regions stand on this page, and a reader needs to know which one spoke.
 const STRUCTURE_SAYS = 'The shape of the record';
 
@@ -86,7 +88,9 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
   // A draft outlives a move to the reading view, which draws the stored record. A switch that
   // threw the draft away would lose the one thing the analyst typed.
   const [view, setView] = useState<DetailView>('reading');
-  const writing = view === 'writing';
+  // The edit entries need the write service. When it goes offline, the page draws the record.
+  const writerOnline = useWriterOnline();
+  const writing = view === 'writing' && writerOnline;
 
   const said = structureSaid(structure);
 
@@ -155,58 +159,59 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
     <SourceMark sources={sources} activeSource={activeSource} onSelectSource={onSelectSource} />
   );
 
+  const facts = dossier.facts;
+  // A row links its claim page only where the release holds that claim.
+  const claimed = new Set(facts?.claimIds ?? []);
+  const claimOf = (id: string): string | null => (claimed.has(id) ? claimHref(id) : null);
+  const claimOfKey = (key: string): string | null => claimOf(`${dossier.entityId}/${key}`);
+  const events = facts?.events ?? null;
+  const detail = (
+    <>
+      <p className="flex flex-wrap items-baseline gap-x-2">
+        <span>{dossier.type}</span>
+        {/* The extracted word is kept where it was not a live type, and it is drawn, or the
+            entry the analyst wrote is lost to every reader of the record. */}
+        {dossier.proposedType === null ? null : (
+          <span>{`proposed as ${dossier.proposedType}`}</span>
+        )}
+        {/* The words stand beside the type, because they say what the entity IS and not what a
+            reader may do with it: this position was borrowed, and it was borrowed from that
+            entity. */}
+        {dossier.positionFrom === null ? null : (
+          <span data-position-from="">{dossier.positionFrom}</span>
+        )}
+      </p>
+      {/* Each public claim says who decided it. */}
+      {dossier.decision === null ? null : <p data-decision="">{dossier.decision}</p>}
+      {/* A double click stops at each hyphen of the value, so one click selects all of it. */}
+      <p data-identifier="">
+        Identifier{' '}
+        <code className="font-mono break-all text-foreground select-all">{dossier.entityId}</code>
+      </p>
+    </>
+  );
+
   return (
-    <div className={SHELL}>
-      {/* The left pane. `min-h-0` is what lets a flex child scroll instead of growing, and
-          `overscroll-contain` is what stops the window from taking over at the end of it. */}
-      <div
-        data-pane="record"
-        className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain"
-      >
-        {/* The row wraps, so a long origin goes to its own line on a narrow pane and never
-            covers the type. */}
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <h1 className="flex min-w-0 items-baseline gap-2">
-            <span className="min-w-0 truncate text-base" title={dossier.label}>
-              {dossier.label}
-            </span>
-            <span className="shrink-0 text-xs text-label">{dossier.type}</span>
-            {/* The extracted word is kept where it was not a live type, and it is drawn, or the
-                entry the analyst wrote is lost to every reader of the record. */}
-            {dossier.proposedType === null ? null : (
-              <span className="shrink-0 text-small/4 text-label">
-                {`proposed as ${dossier.proposedType}`}
-              </span>
-            )}
-            {/* The canvas draws a halo for this, and this panel draws no canvas. The words stand
-                beside the type, because they say what the entity IS and not what a reader may do
-                with it: this position was borrowed, and it was borrowed from that entity. */}
-            {dossier.positionFrom === null ? null : (
-              <span className="shrink-0 text-small/4 text-label" data-position-from="">
-                {dossier.positionFrom}
-              </span>
-            )}
-          </h1>
-          {/* Each public claim says who decided it. */}
-          {dossier.decision === null ? null : (
-            <span className="min-w-0 text-small/4 text-label" data-decision="">
-              {dossier.decision}
-            </span>
-          )}
-          <div className="ml-auto flex shrink-0 items-center gap-3">
+    <ReadingPage>
+      <PageHeader
+        title={dossier.label}
+        detail={detail}
+        actions={
+          <>
             {/* The map link is drawn only where the map draws the entity. A link that opens a
-                surface which then selects nothing states a position the record does not hold. */}
+                  surface which then selects nothing states a position the record does not
+                  hold. */}
             <nav aria-label="This entity on a canvas" className="flex gap-3">
-              <a href={surfaceHref('graph', dossier.entityId)} className={ON_A_SURFACE}>
+              <a href={surfaceHref('graph', dossier.entityId)} className={READING_LINK}>
                 Show on the graph
               </a>
               {dossier.drawnOnMap ? (
-                <a href={surfaceHref('map', dossier.entityId)} className={ON_A_SURFACE}>
+                <a href={surfaceHref('map', dossier.entityId)} className={READING_LINK}>
                   Show on the map
                 </a>
               ) : null}
             </nav>
-            <EditSwitch view={view} busy={busy} onSwitch={setView} />
+            {writerOnline ? <EditSwitch view={view} busy={busy} onSwitch={setView} /> : null}
             {writing ? (
               <DeleteControl
                 name={dossier.label}
@@ -216,95 +221,164 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
                 }}
               />
             ) : null}
-          </div>
-        </div>
-
-        {/* A double click stops at each hyphen of the value, so one click selects all of it. */}
-        <p className="text-small/4 text-label" data-identifier="">
-          Identifier{' '}
-          <code className="font-mono break-all text-foreground select-all">{dossier.entityId}</code>
-        </p>
-
-        {writing ? (
-          <>
-            <Rename
-              entityId={dossier.entityId}
-              stored={{ label: dossier.label, type: dossier.type }}
-              choices={dossier.typeChoices}
-              busy={busy}
-              onRename={onStructure}
-            />
-            <SaidLine said={said} label={STRUCTURE_SAYS} />
-            <SaveBar said={saveSaid(save, edit)} canSave={edit.ready && !busy} onSave={onSave} />
           </>
-        ) : null}
+        }
+      />
 
-        {/* The control that mints a key is a control of the record, so it stands inside that
+      {facts === null ||
+      (facts.imo === null &&
+        facts.merged.length === 0 &&
+        facts.label === null &&
+        facts.address === null) ? null : (
+        <KeyValue
+          entries={[
+            ...(facts.imo === null
+              ? []
+              : [
+                  {
+                    key: 'Timeline',
+                    value: (
+                      <a className={READING_LINK} href={vesselHref(facts.imo)}>
+                        {`IMO ${facts.imo}`}
+                      </a>
+                    ),
+                  },
+                ]),
+            ...(facts.label === null
+              ? []
+              : [
+                  { key: 'Origin', value: facts.label.origin },
+                  { key: 'Licence', value: facts.label.licence },
+                ]),
+            ...(facts.address === null
+              ? []
+              : [{ key: 'Permanent address', value: facts.address, figure: true as const }]),
+            ...(facts.merged.length === 0
+              ? []
+              : [
+                  {
+                    key: 'Merged identifiers',
+                    value: facts.merged.map((id) => <p key={id}>{id}</p>),
+                    figure: true as const,
+                  },
+                ]),
+          ]}
+        />
+      )}
+
+      {writing ? (
+        <div className="flex flex-col gap-3">
+          <Rename
+            entityId={dossier.entityId}
+            stored={{ label: dossier.label, type: dossier.type }}
+            choices={dossier.typeChoices}
+            busy={busy}
+            onRename={onStructure}
+          />
+          <SaidLine said={said} label={STRUCTURE_SAYS} />
+          <SaveBar said={saveSaid(save, edit)} canSave={edit.ready && !busy} onSave={onSave} />
+        </div>
+      ) : null}
+
+      {/* The control that mints a key is a control of the record, so it stands inside that
             part and never between two parts. */}
-        <Band name="Record" count={dossier.rows.length}>
-          {/* EntityRecord stays one element at one position across a mode switch, so React
+      <PageSection title="Record">
+        {/* EntityRecord stays one element at one position across a mode switch, so React
               re-renders it in place instead of tearing down and remounting every field. */}
-          <EntityRecord
-            {...(writing
-              ? { mode: 'writing', cells, mark, onEdit }
-              : { mode: 'reading', cells, mark })}
-          />
-          {writing ? <NewClaim rows={dossier.rows} busy={busy} onMint={onMint} /> : null}
-        </Band>
+        <EntityRecord
+          {...(writing
+            ? { mode: 'writing', cells, mark, onEdit, claimHref: claimOfKey }
+            : { mode: 'reading', cells, mark, claimHref: claimOfKey })}
+        />
+        {writing ? <NewClaim rows={dossier.rows} busy={busy} onMint={onMint} /> : null}
+      </PageSection>
 
-        {/* The form that makes a relation is a control of the relations, so it stands inside
+      {/* The form that makes a relation is a control of the relations, so it stands inside
             that part and never between two parts. */}
-        <Band name="Relations" count={dossier.relations.length}>
-          <Relations
-            relations={dossier.relations}
-            mark={mark}
-            deleting={
-              writing
-                ? {
-                    offered: true,
-                    busy,
-                    onDelete: (relationId) => {
-                      onStructure({ op: 'delete_relation', targetId: relationId });
-                    },
-                  }
-                : { offered: false }
-            }
+      <PageSection title="Relations">
+        <Relations
+          relations={dossier.relations}
+          mark={mark}
+          claimHref={claimOf}
+          deleting={
+            writing
+              ? {
+                  offered: true,
+                  busy,
+                  onDelete: (relationId) => {
+                    onStructure({ op: 'delete_relation', targetId: relationId });
+                  },
+                }
+              : { offered: false }
+          }
+        />
+        {writing ? (
+          <NewRelation
+            srcId={dossier.entityId}
+            choices={dossier.linkChoices}
+            busy={busy}
+            onCreate={sendStructure}
           />
-          {writing ? (
-            <NewRelation
-              srcId={dossier.entityId}
-              choices={dossier.linkChoices}
-              busy={busy}
-              onCreate={sendStructure}
-            />
-          ) : null}
-        </Band>
+        ) : null}
+      </PageSection>
 
-        <Band name="Pending proposals" count={dossier.pending.length}>
+      {facts === null || facts.claims.length === 0 ? null : (
+        <PageSection title="Claims of the release">
+          <DataTable
+            name="Claims of the release"
+            empty="The release holds no claim about this entity."
+            columns={[
+              {
+                key: 'claim',
+                header: 'Claim',
+                cell: (line) => (
+                  <a className={READING_LINK} href={claimHref(line.id)}>
+                    {line.text}
+                  </a>
+                ),
+              },
+              { key: 'label', header: 'Label', cell: (line) => line.origin },
+              { key: 'licence', header: 'Licence', cell: (line) => line.licence },
+            ]}
+            rows={facts.claims.map((line) => ({ id: line.id, row: line }))}
+          />
+        </PageSection>
+      )}
+
+      {events === null ? null : <EventLane events={events} />}
+
+      {/* A proposal is a part of the review. A site with no write service draws none. */}
+      {writerOnline ? (
+        <PageSection title="Pending proposals">
           <Pending proposals={dossier.pending} mark={mark} />
-        </Band>
+        </PageSection>
+      ) : null}
 
-        {/* S2 at row level: this list backs the name, the type and the map location (geom),
+      {/* S2 at row level: this list backs the name, the type and the map location (geom),
             not one claim. "Position" already names the borrowed canvas position (see above),
             so this text says "location" instead. */}
-        <Band
-          name="Sources of the name, the type and the map location"
-          count={dossier.entitySources.length}
-        >
-          <p className="pb-1 text-small/4 text-label">
-            These documents back the name, the type and the map location of this entity. A claim
-            below carries its own mark for the document that backs its value.
-          </p>
-          {mark(dossier.entitySources)}
-        </Band>
-      </div>
+      <PageSection title="Sources of the name, the type and the map location">
+        <p className="text-xs/5 text-label">
+          These documents back the name, the type and the map location of this entity. A claim above
+          carries its own mark for the document that backs its value.
+        </p>
+        {mark(dossier.entitySources)}
+      </PageSection>
 
-      <div className="w-96 min-h-0 shrink-0">
+      <PageSection title="Source documents">
         {/* Departure: the rail follows `activeSource` on its own, and its mount run is the
-            arrival case. `arrivedAtSource` reaches it through the state above and by no other
-            path: two writers of one scroll position fight each other. */}
-        <Rail sources={dossier.sources} activeSource={activeSource} selections={selection.count} />
-      </div>
-    </div>
+              arrival case. `arrivedAtSource` reaches it through the state above and by no other
+              path: two writers of one scroll position fight each other. */}
+        {/* The rail scrolls inside a box of a fixed height, so a mark brings its card into view
+            and the page does not move. */}
+        <div className="h-[32rem] min-h-0">
+          <Rail
+            sources={dossier.sources}
+            activeSource={activeSource}
+            selections={selection.count}
+          />
+        </div>
+      </PageSection>
+    </ReadingPage>
   );
 }

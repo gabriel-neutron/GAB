@@ -1,0 +1,44 @@
+{
+  "name": "@gab/release",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./accepted": "./src/accepted.ts",
+    "./arc-line": "./src/arc-line.ts",
+    "./arc-volume": "./src/arc-volume.ts",
+    "./asset-sanctions": "./src/asset-sanctions.ts",
+    "./attribute-name": "./src/attribute-name.ts",
+    "./chain-card": "./src/chain-card.ts",
+    "./chain-fixture": "./src/chain-fixture.ts",
+    "./chain-flows": "./src/chain-flows.ts",
+    "./chain-map-data": "./src/chain-map-data.ts",
+    "./claim-text": "./src/claim-text.ts",
+    "./csv": "./src/csv.ts",
+    "./disclaimer-blocks": "./src/disclaimer-blocks.ts",
+    "./event-fixture": "./src/event-fixture.ts",
+    "./event-lane": "./src/event-lane.ts",
+    "./file-words": "./src/file-words.ts",
+    "./map-features": "./src/map-features.ts",
+    "./release-day": "./src/release-day.ts",
+    "./safe-href": "./src/safe-href.ts",
+    "./site-manifest": "./src/site-manifest.ts",
+    "./site-paths": "./src/site-paths.ts",
+    "./site-release": "./src/site-release.ts",
+    "./site-release-fault": "./src/site-release-fault.ts",
+    "./staged-geojson": "./src/staged-geojson.ts",
+    "./timeline-axis": "./src/timeline-axis.ts",
+    "./value-elements": "./src/value-elements.ts",
+    "./vessel-finder": "./src/vessel-finder.ts",
+    "./vessel-imo": "./src/vessel-imo.ts",
+    "./vessel-timeline": "./src/vessel-timeline.ts",
+    "./volume-card": "./src/volume-card.ts"
+  },
+  "dependencies": {
+    "@gab/proposal": "workspace:*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.10"
+  }
+}

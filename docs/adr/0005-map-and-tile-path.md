@@ -1,6 +1,7 @@
 # ADR 0005 — Cartographic library and tile path
 
 **Status** Accepted · 10 August 2026 · **Amended 17 August and 13 October 2026**
+**Narrowed 18 October 2026** by ADR 0028: the map of the application is the globe of the release. It draws the outlines of the countries from a file of the bundle, and it sends no request to a tile server. The plan ground, the imagery and the tile path below no longer apply. The choice of `maplibre-gl`, with no wrapper, stays.
 **Replaces** an earlier entry of `decisions.md` that deferred the cartographic library and the tile path.
 
 Two operator constraints control this decision: no paid third-party service, and the region of work

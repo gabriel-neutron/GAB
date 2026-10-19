@@ -106,15 +106,22 @@ type Story = StoryObj<typeof meta>;
 
 type PlayContext = Parameters<NonNullable<Story['play']>>[0];
 
-// A disabled shadcn input loses half its opacity and draws the value at about 3.3:1. The
-// read-only arm beats that fade and says so in a word, and a contrast ratio is out of the reach
-// of a story: it needs the two colours and a measurement.
-const expectUnfaded = async (control: HTMLElement): Promise<void> => {
-  await expect(control).toBeDisabled();
-  await expect(control).toHaveAttribute('data-reading', 'unfaded');
+// A value that nobody edits is text in the page. It is no control, so a reader with no script
+// and a search engine get it. A contrast ratio is out of the reach of a story: it needs the two
+// colours and a measurement, so the story asserts the opacity.
+const expectReadOnly = async (value: HTMLElement): Promise<void> => {
+  await expect(value).toBeVisible();
+  await expect(value).toHaveAttribute('data-reading', 'unfaded');
+  await expect(value.closest('input, textarea')).toBeNull();
+  await expect(getComputedStyle(value).opacity).toBe('1');
 };
 
-// A control whose content is wider than its box draws part of the value outside it, and the
+const expectNoControl = async ({ canvas }: PlayContext): Promise<void> => {
+  await expect(canvas.queryAllByRole('textbox')).toHaveLength(0);
+  await expect(canvas.queryAllByRole('checkbox')).toHaveLength(0);
+};
+
+// A value whose content is wider than its box draws part of the value outside it, and the
 // browser clips it. `scrollWidth` is the content and `clientWidth` is the box. A cell narrowed to
 // 6 rem fails with `expected 455 to be less than or equal to 94`, so the assertion is live.
 const expectNothingIsClipped = async (control: HTMLElement): Promise<void> => {
@@ -122,35 +129,18 @@ const expectNothingIsClipped = async (control: HTMLElement): Promise<void> => {
 };
 
 // The fonts are awaited before the first geometry read: `Roboto Condensed` and `JetBrains Mono`
-// are not installed yet, so a measurement that did not wait would flake. A checkbox holds no text
-// value, so the whole word is asserted under `title`.
-const expectEveryValue = async ({ canvas }: PlayContext): Promise<void> => {
+// are not installed yet, so a measurement that did not wait would flake. A truth value is the word
+// of the record, so a checkbox reads `yes`.
+const expectEveryValue = async (context: PlayContext): Promise<void> => {
+  const { canvas } = context;
   await document.fonts.ready;
 
-  const tick = canvas.getByLabelText('Crew certified');
-  await expect(tick).toBeChecked();
-  await expect(tick).toHaveAttribute('title', 'yes');
-  await expectUnfaded(tick);
-
-  const tonnage = canvas.getByLabelText('Gross tonnage');
-  await expect(tonnage).toHaveValue('32567');
-  await expectNothingIsClipped(tonnage);
-  await expectUnfaded(tonnage);
-
-  const delivered = canvas.getByLabelText('Delivered on');
-  await expect(delivered).toHaveValue('2019-04-17');
-  await expectNothingIsClipped(delivered);
-  await expectUnfaded(delivered);
-
-  const imo = canvas.getByLabelText('Imo number');
-  await expect(imo).toHaveValue('9482137');
-  await expectNothingIsClipped(imo);
-  await expectUnfaded(imo);
-
-  const names = canvas.getByLabelText('Former names');
-  await expect(names).toHaveValue(FORMER_NAMES);
-  await expectNothingIsClipped(names);
-  await expectUnfaded(names);
+  for (const text of ['yes', '32567', '2019-04-17', '9482137', FORMER_NAMES]) {
+    const value = canvas.getByText(text);
+    await expectReadOnly(value);
+    await expectNothingIsClipped(value);
+  }
+  await expectNoControl(context);
 };
 
 export const EveryControlIsLegibleAtItsFullValue: Story = {
@@ -175,17 +165,15 @@ export const NoValueIsTruncated: Story = {
   play: async ({ canvas }) => {
     await document.fonts.ready;
 
-    const tonnage = canvas.getByLabelText('Gross tonnage');
-    await expect(tonnage).toHaveValue('32567');
+    const tonnage = canvas.getByText('32567');
     await expect(tonnage).toHaveAttribute('title', '32567');
     await expectNothingIsClipped(tonnage);
-    await expectUnfaded(tonnage);
+    await expectReadOnly(tonnage);
 
-    const note = canvas.getByLabelText('Condition note');
-    await expect(note).toHaveValue(LONG_TEXT);
+    const note = canvas.getByText(LONG_TEXT);
     await expect(note).toHaveAttribute('title', LONG_TEXT);
     await expectNothingIsClipped(note);
-    await expectUnfaded(note);
+    await expectReadOnly(note);
   },
 };
 
@@ -228,9 +216,11 @@ export const ANoteKeepsItsLineBreaks: Story = {
     await expect(onTyped).toHaveBeenLastCalledWith(`${TWO_LINES}!`);
     await expect(box).toHaveValue(`${TWO_LINES}!`);
 
-    const stored = canvas.getByLabelText('Stored note');
-    await expect(stored).toHaveValue(TWO_LINES);
-    await expectUnfaded(stored);
+    // The line break stays in the text of the page, and the box shows it as a line break.
+    const stored = canvas.getByText(/^Line one/u, { selector: '[data-reading]' });
+    await expect(stored.textContent).toBe(TWO_LINES);
+    await expect(getComputedStyle(stored).whiteSpace).toBe('pre-wrap');
+    await expectReadOnly(stored);
   },
 };
 

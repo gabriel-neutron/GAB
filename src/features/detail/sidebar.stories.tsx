@@ -37,7 +37,7 @@ function SwappedSidebar() {
   const [dossier, setDossier] = useState<Dossier>(DOSSIER);
 
   return (
-    <div className="flex h-[600px]">
+    <div className="flex h-[600px] w-80">
       <button
         type="button"
         onClick={() => {
@@ -91,7 +91,7 @@ const meta = {
   // The row states a height, exactly as the route does. Without a stated height on the row,
   // `overflow-y-auto` is not a scroll at all.
   render: (args) => (
-    <div className="flex h-[600px]">
+    <div className="flex h-[600px] w-80">
       <Sidebar {...args} />
     </div>
   ),
@@ -213,15 +213,34 @@ export const AnOwnPointStatesNoBorrowedPosition: Story = {
   },
 };
 
+// A value in reading mode is text in the page, and a control draws it in a box.
+const READ_VALUE = { selector: '[data-reading]' };
+
 export const ANewSelectionDrawsTheValuesOfTheNewEntity: Story = {
   render: () => <SwappedSidebar />,
   play: async ({ canvas }) => {
-    await expect(canvas.getByDisplayValue('9482137')).toBeInTheDocument();
+    await expect(canvas.getByText('9482137', READ_VALUE)).toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole('button', { name: SWAP }));
 
     await expect(canvas.getByRole('heading', { level: 1 })).toHaveTextContent(NEXT_DOSSIER.label);
-    await expect(canvas.getByDisplayValue('9613428')).toBeInTheDocument();
-    await expect(canvas.queryByDisplayValue('9482137')).toBeNull();
+    await expect(canvas.getByText('9613428', READ_VALUE)).toBeInTheDocument();
+    await expect(canvas.queryByText('9482137', READ_VALUE)).toBeNull();
+  },
+};
+
+export const ThePanelOfTheMapShowsTheEntityInTheGraph: Story = {
+  args: { showOn: 'graph' },
+  play: async ({ canvas }) => {
+    const link = canvas.getByRole('link', { name: 'Show in graph' });
+    await expect(link).toHaveAttribute('href', `/graph?entity=${DOSSIER.entityId}`);
+  },
+};
+
+export const ThePanelOfTheGraphShowsTheEntityOnTheMap: Story = {
+  args: { showOn: 'map' },
+  play: async ({ canvas }) => {
+    const link = canvas.getByRole('link', { name: 'Show on map' });
+    await expect(link).toHaveAttribute('href', `/map?entity=${DOSSIER.entityId}`);
   },
 };

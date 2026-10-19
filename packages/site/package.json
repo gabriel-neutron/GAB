@@ -2,30 +2,18 @@
   "name": "@gab/site",
   "version": "0.0.0",
   "private": true,
+  "description": "Builds the application with the files of a release and writes each page of the site (ADR 0028).",
   "type": "module",
   "exports": {
-    "./event-lane": "./src/event-lane.ts",
-    "./site-release": "./src/site-release.ts",
-    "./write-site": "./src/write-site.ts",
-    "./site-release-fault": "./src/site-release-fault.ts"
+    "./write-site": "./src/write-site.ts"
   },
   "dependencies": {
-    "@gab/proposal": "workspace:*",
-    "@gab/tools": "workspace:*",
-    "@tailwindcss/vite": "^4.3.3",
-    "maplibre-gl": "^6.2.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "tailwindcss": "^4.3.3",
+    "@gab/release": "workspace:*",
     "vite": "^8.2.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@storybook/react-vite": "^10.5.7",
     "@types/node": "^24.13.3",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "storybook": "^10.5.7",
     "vitest": "^4.1.10"
   }
 }

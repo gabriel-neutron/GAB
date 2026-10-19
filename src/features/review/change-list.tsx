@@ -125,7 +125,10 @@ export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) 
         Choose a unit in the list.
       </section>
     );
-  const { entity, relations, places, others, closes, starts, retypes } = unitChanges(unit, words);
+  const { entity, relations, places, others, closes, starts, sources, retypes } = unitChanges(
+    unit,
+    words,
+  );
   return (
     <section
       aria-label="The changes of the unit"
@@ -226,6 +229,14 @@ export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) 
             {start.validTo === null
               ? 'The relation has no last day in the record.'
               : `The relation ends on ${start.validTo} in the record.`}
+          </p>
+        </div>
+      ))}
+      {sources.map((source) => (
+        <div key={source.id} data-change={source.id}>
+          <h3 className={HEADING}>Source of a relation</h3>
+          <p className="break-words">
+            Adds the cited documents to the sources of the relation: {source.relation}.
           </p>
         </div>
       ))}

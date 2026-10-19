@@ -1,11 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, userEvent } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
 
 import { searchByAttributeValue } from './attribute-search';
 import { searchByDocument } from './document-search';
 import { searchByName } from './name-search';
+import { ReadingPage } from '@/shared/page/reading-page';
+import { PageHeader } from '@/shared/page/page-header';
+
 import { SearchPage } from './search-page';
 
 const onQueryChange = fn();
@@ -14,9 +17,11 @@ const hrefOf = (entityId: string): string => `/entity/${encodeURIComponent(entit
 
 const answersFor = (query: string) => ({
   query,
-  nameAnswer: searchByName(corpus.entities, query),
-  attributeAnswer: searchByAttributeValue(corpus.entities, query),
-  documentAnswer: searchByDocument(corpus.documents, query),
+  answers: {
+    name: searchByName(corpus.entities, query),
+    attribute: searchByAttributeValue(corpus.entities, query),
+    document: searchByDocument(corpus.documents, query),
+  },
 });
 
 const meta = {
@@ -27,6 +32,17 @@ const meta = {
     hrefOf,
   },
   parameters: { layout: 'fullscreen' },
+  // The route gives the frame of the page: the page shows no title of its own.
+  decorators: [
+    (Story) => (
+      <div className="h-svh">
+        <ReadingPage>
+          <PageHeader title="Search" />
+          <Story />
+        </ReadingPage>
+      </div>
+    ),
+  ],
 } satisfies Meta<typeof SearchPage>;
 
 export default meta;
@@ -41,6 +57,7 @@ export const EachMatchOpensItsEntity: Story = {
     await expect(company).toHaveAttribute('href', expect.stringMatching(/^\/entity\//));
     await expect(vessel).toBeVisible();
     await expect(canvas.getAllByRole('status')[0]).toHaveTextContent('entity names hold');
+    await expect(canvas.getByRole('table', { name: 'Entity names' })).toBeVisible();
   },
 };
 
@@ -48,7 +65,7 @@ export const EachMatchOpensItsEntity: Story = {
 export const TypingIsAnnouncedToTheCaller: Story = {
   play: async ({ canvas }) => {
     onQueryChange.mockClear();
-    await userEvent.type(canvas.getByRole('searchbox', { name: 'Entity name' }), 'x');
+    await userEvent.type(canvas.getByRole('searchbox', { name: 'Search text' }), 'x');
     await expect(onQueryChange).toHaveBeenCalledWith('northern ledgerx');
   },
 };
@@ -58,7 +75,18 @@ export const AnEmptyFieldAsksForAName: Story = {
   args: answersFor(''),
   play: async ({ canvas }) => {
     await expect(canvas.getAllByRole('status')[0]).toHaveTextContent('Type a part of a name.');
-    await expect(canvas.queryByRole('list', { name: 'Matches' })).toBeNull();
+    await expect(canvas.queryByRole('table', { name: 'Entity names' })).toBeNull();
+  },
+};
+
+/** Each of the three answers states its own empty case in one sentence, and none draws a table. */
+export const EachAnswerStatesItsOwnEmptyCase: Story = {
+  args: answersFor('zzqx'),
+  play: async ({ canvas }) => {
+    await expect(canvas.getAllByRole('status')).toHaveLength(3);
+    await expect(canvas.getByText('No attribute value holds "zzqx".')).toBeVisible();
+    await expect(canvas.getByText('No document title holds "zzqx".')).toBeVisible();
+    await expect(canvas.queryAllByRole('table')).toHaveLength(0);
   },
 };
 
@@ -69,7 +97,7 @@ export const NoMatchIsStated: Story = {
     await expect(canvas.getAllByRole('status')[0]).toHaveTextContent(
       'No entity name holds "zzqx".',
     );
-    await expect(canvas.queryByRole('list', { name: 'Matches' })).toBeNull();
+    await expect(canvas.queryByRole('table', { name: 'Entity names' })).toBeNull();
   },
 };
 
@@ -78,7 +106,11 @@ export const NoMatchIsStated: Story = {
 export const AnAttributeMatchNamesTheKeyAndTheEntity: Story = {
   args: answersFor('director'),
   play: async ({ canvas }) => {
-    const hit = canvas.getByRole('link', { name: /role_title/ });
+    const key = canvas.getAllByRole('cell', { name: 'role_title' })[0];
+    const row = key?.closest('tr') ?? null;
+    if (row === null) throw new Error('The attribute table holds no row for role_title');
+    await expect(row).toHaveTextContent(/director/i);
+    const hit = within(row).getByRole('link');
     await expect(hit).toHaveAttribute('href', expect.stringMatching(/^\/entity\//));
   },
 };

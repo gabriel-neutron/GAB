@@ -51,7 +51,7 @@ const meta = {
   parameters: { layout: 'fullscreen' },
   // The row states a height, exactly as the route does, and the panel stretches to it.
   render: (args) => (
-    <div className="flex h-[600px]">
+    <div className="flex h-[600px] w-80">
       <RelationSidebar {...args} />
     </div>
   ),
@@ -167,5 +167,13 @@ export const AShareThatGemEstimatedSaysSo: Story = {
 export const ARelationWithNoShareDrawsNoShareRow: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.queryByText('Share')).toBeNull();
+  },
+};
+
+export const ThePanelOfTheMapShowsTheRelationInTheGraph: Story = {
+  args: { showOn: 'graph' },
+  play: async ({ canvas }) => {
+    const link = canvas.getByRole('link', { name: 'Show in graph' });
+    await expect(link).toHaveAttribute('href', `/graph?relation=${BERTHED_ID}`);
   },
 };

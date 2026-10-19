@@ -22,6 +22,8 @@ export default defineConfig(
       '**/storybook-static',
       '.scratch',
       '.claude/worktrees',
+      // A hook is a script that Claude Code runs in Node, outside the application.
+      '.claude/hooks',
       // A workflow script is the body of an async function, so a top-level return is valid there.
       '**/.claude/workflows',
       'src/routeTree.gen.ts',
@@ -68,7 +70,7 @@ export default defineConfig(
       'packages/*/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
       '.storybook/**/*.{ts,tsx,mts,cts}',
     ],
-    ignores: ['src/main.tsx', 'src/router.tsx'],
+    ignores: ['src/main.tsx', 'src/router.tsx', 'src/app-router.tsx', 'src/prerender.tsx'],
     plugins: { boundaries },
     settings: {
       'boundaries/elements': [
@@ -160,7 +162,12 @@ export default defineConfig(
             { name: 'maplibre-gl', message: CANVAS },
             { name: 'sigma', message: CANVAS },
           ],
-          patterns: [{ group: ['**/map-page', '**/graph-page'], message: CANVAS }],
+          patterns: [
+            {
+              group: ['**/globe', '**/globe-canvas', '**/graph-page'],
+              message: CANVAS,
+            },
+          ],
         },
       ],
     },
@@ -169,11 +176,7 @@ export default defineConfig(
   { files: ['src/**/*.{ts,tsx}'], extends: [reactHooks.configs.flat.recommended] },
 
   {
-    files: [
-      '**/*.{test,db-test,e2e-test}.{ts,tsx}',
-      'src/**/*.stories.tsx',
-      'packages/site/src/**/*.stories.tsx',
-    ],
+    files: ['**/*.{test,db-test,e2e-test}.{ts,tsx}', 'src/**/*.stories.tsx'],
     plugins: { vitest },
     rules: {
       'vitest/no-focused-tests': 'error',

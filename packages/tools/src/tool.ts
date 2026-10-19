@@ -81,6 +81,10 @@ export interface Reach {
   readonly fetchTimeoutMs?: number;
   /** Opens a page that a bot filter refused in a browser. With no value, the refusal stays. */
   readonly readThroughFilter?: ChallengeReader;
+  /** The key of the hosted proxy for Russian hosts. The default is the variable SCRAPINGBEE_KEY. */
+  readonly hostedProxyKey?: string;
+  /** The address of the hosted proxy. A test gives its own; the default is the real service. */
+  readonly hostedProxyEndpoint?: string;
   /** A check of each item by a model of another family, before the write. It gives the verdict
    * on each item that the checker answered. `checkMarks` says which items are written as
    * disputed. It throws a `CheckFailure` when no model could check the batch. */

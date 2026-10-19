@@ -33,7 +33,8 @@ const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undef
 
 export function ThemeProvider({
   children,
-  defaultTheme = 'system',
+  // A public page is read and printed, so the light theme is the default.
+  defaultTheme = 'light',
 }: {
   children: ReactNode;
   defaultTheme?: Theme;

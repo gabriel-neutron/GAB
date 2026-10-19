@@ -1,5 +1,6 @@
 import { cn } from '@/shared/lib/utils';
 
+import { ErrorNotice } from '@/shared/error-notice';
 import { documentName } from './document-name';
 import { GroupPanel, type GroupView } from './group-panel';
 import { GroupRail } from './group-rail';
@@ -10,6 +11,7 @@ import type { UnitWords } from './unit-changes';
  * action on the clean units that the screen showed. */
 export type GroupsAct =
   | { readonly kind: 'select'; readonly groupId: string }
+  | { readonly kind: 'reload' }
   | { readonly kind: 'promote'; readonly groupId: string; readonly unitIds: readonly string[] };
 
 export interface GroupsPageProps {
@@ -52,7 +54,12 @@ export function GroupsPage({ rail, group, words, onAct }: GroupsPageProps) {
       >
         <div className="flex max-h-[60dvh] flex-col border-b border-border @3xl:max-h-none @3xl:min-h-0 @3xl:border-r @3xl:border-b-0">
           {rail.state === 'private' ? (
-            <p className="p-3 text-xs text-label">{rail.why}</p>
+            <ErrorNotice
+              detail={rail.why}
+              onRetry={() => {
+                onAct({ kind: 'reload' });
+              }}
+            />
           ) : (
             <GroupRail
               groups={rail.read}
@@ -72,6 +79,9 @@ export function GroupsPage({ rail, group, words, onAct }: GroupsPageProps) {
             words={words}
             onPromote={(groupId, unitIds) => {
               onAct({ kind: 'promote', groupId, unitIds });
+            }}
+            onRetry={() => {
+              if (selected !== null) onAct({ kind: 'select', groupId: selected });
             }}
           />
         </div>

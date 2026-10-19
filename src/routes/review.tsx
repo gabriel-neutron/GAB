@@ -37,6 +37,8 @@ import { UnitsPage, type QueueView, type ReviewAct } from '@/features/review/uni
 import { forgetCorpus } from '@/shared/read/corpus';
 import { loadEntityTypes, loadRelationTypes } from '@/shared/read/vocabulary';
 import { sendDecision } from '@/shared/write/door';
+import { NotAvailable } from '@/shared/write/not-available';
+import { requireWriter } from '@/shared/write/require-writer';
 
 export interface ReviewSearch {
   /** The unit under examination. An empty string opens the queue at its first unit. */
@@ -47,6 +49,10 @@ export interface ReviewSearch {
 }
 
 export const Route = createFileRoute('/review')({
+  // The review needs the write service. Offline, the route answers not-found before any read.
+  beforeLoad: requireWriter,
+  notFoundComponent: NotAvailable,
+
   // The address comes from outside, so it is validated before its first use. A stale identifier
   // opens the queue at its first unit, and it never takes the surface off the screen.
   validateSearch: (search: Record<string, unknown>): ReviewSearch => {
@@ -113,7 +119,7 @@ export const Route = createFileRoute('/review')({
   },
 
   component: ReviewRoute,
-  head: () => ({ meta: [{ title: 'Review · Gabriel' }] }),
+  head: () => ({ meta: [{ title: 'Review · GAB dataset' }] }),
 });
 
 /** The pages read from the first page that the loader gave, the counts of the last read (what the
@@ -328,6 +334,10 @@ function ReviewRoute() {
   // read again, so each count is the count of the record. The group of the action is not read
   // again: its clean units are written, and the rest waits for a decision of its own.
   const onGroupAct = (act: GroupsAct): void => {
+    if (act.kind === 'reload') {
+      void router.invalidate();
+      return;
+    }
     if (act.kind === 'select') {
       setGroupAction({ step: 'idle' });
       openGroup(act.groupId);

@@ -1,19 +1,15 @@
 /** The rules of the event entity type: its name, its attributes and the types its relations reach. */
 
 import { isDay } from '@gab/proposal/day';
+import { CLAIMED_ATTACK, EVENT_DAYS, EVENT_KIND, EVENT_PRECISION } from '@gab/proposal/event-keys';
 import type { WriteRequest } from '@gab/proposal/request';
 
+export { CLAIMED_ATTACK, EVENT_DAYS, EVENT_KIND, EVENT_PRECISION };
+
 /** The closed list of kinds of the first batch. An explosion keeps its word in the excerpt. */
-export const CLAIMED_ATTACK = 'claimed attack';
 const KINDS = [CLAIMED_ATTACK, 'fire', 'stoppage'] as const;
 
 const PRECISIONS = ['day', 'night', 'month'] as const;
-
-/** The attribute keys of an event. The kind and the precision are words of a closed list that a
- * page never states in that form, so the stated-value check does not read them. */
-export const EVENT_KIND = 'event_kind';
-export const EVENT_PRECISION = 'occurred_on_precision';
-export const EVENT_DAYS = 'occurred_on';
 
 /** The types that the end of a relation of an event can have. */
 const RELATION_ENDS: ReadonlyMap<

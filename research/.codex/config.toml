@@ -1,5 +1,0 @@
-# The one MCP server of the research workspace. Start Codex in this folder. The server reads
-# research/.env by itself.
-[mcp_servers.gab]
-command = "node"
-args = ["../packages/mcp/src/main.ts"]

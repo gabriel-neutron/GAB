@@ -10,7 +10,7 @@ import type { ReleaseClaim, ReleaseRecord } from './release-record.ts';
 import { readReleaseTable, readReleaseTables } from './release-table.ts';
 import { readVolumeTable } from './volume-table.ts';
 
-// The fixed release that the offline tests and the stories of the static site read. The release
+// The fixed release that the offline tests and the stories of the application read. The release
 // code writes it, so the site reads the files as a release gives them. Run this test with `-u`
 // after a change of a release file to write the fixture again.
 
@@ -512,7 +512,7 @@ const fixtureOf = (natoPair: boolean): readonly ReleaseFile[] =>
 test.each([
   ['release', false],
   ['release-nato', true],
-])('the fixture %s of the static site is the release that the code writes', async (name, on) => {
+])('the fixture %s of the site is the release that the code writes', async (name, on) => {
   for (const file of fixtureOf(on))
     await expect(file.text).toMatchFileSnapshot(`../../../site/fixtures/${name}/${file.path}`);
 });

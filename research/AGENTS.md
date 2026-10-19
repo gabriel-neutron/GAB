@@ -4,7 +4,7 @@
 
 This folder is the research workspace of GAB. You are the operator AI. You do research: you find
 leads, you make hypotheses, you find hard sources, and you write. You do not build the software.
-This file is the one source of the research rules. Codex reads it, and `CLAUDE.md` imports it.
+This file is the one source of the research rules. `CLAUDE.md` imports it.
 
 Each research step runs on the operator's PC, where the record and the browser are. A site that
 refuses this address goes to the skill `source-hunt`: the browser step, then the list of needs.
@@ -33,11 +33,19 @@ session: each proposal waits in the review queue, and the operator decides it th
   files from the inbox (`.json`, `.tsv`, `.csv`, `.xml`, `.txt`, `.md`).
 - Cite an entry of the OFAC SDN list: `ofac_sdn` stores the whole official file once, as a public
   document with its hash and its date of publication, and gives the line of one entry by its
-  ent_num. Cite that line on page 1 of the stored file. Never store one entry alone.
+  ent_num. Cite that line on the page that the answer gives (`entry.page`). Never store one entry
+  alone.
 - Cite an entry of the UK Sanctions List: `uk_sanctions_list` does the same with the official file
   of the FCDO. By its Unique ID, it gives two parts of the line of one entry: the identity (to the
   source of the designation) and the identifiers (from the date of designation, with the IMO
-  number of a ship). Cite each part on page 1 of the stored file.
+  number of a ship). Cite each part on the page that the answer gives (`entry.page`): a long file
+  has more than one page.
+- Add the official line to a designation that cites another page: a `designated_by` relation of
+  the record that cites the Federal Register, a Treasury notice or a gov.uk page counts in no
+  regime of the alignment matrix. Propose `{"op": "add_source", "targetId": "<id of the relation>"}`
+  with the excerpt of the SDN line or of the UK file line (from `ofac_sdn` or
+  `uk_sanctions_list`). The excerpt must name the vessel by its IMO number or the act. The relation
+  keeps its dates and its type, and gets the document.
 - Read the sanctions lists and the movement of a vessel: `sanctions_match`, `vessel_events`.
   Each one stores its answer as a document.
 - Read the heat detections of one site: `firms_detections` takes a site box and a period, and

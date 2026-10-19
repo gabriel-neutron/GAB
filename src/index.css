@@ -43,7 +43,8 @@
  *   - One text face, one monospace. Every identifier, coordinate, count, date, code and hash
  *     is monospace.
  *   - Figures are tabular and align right. A column of numbers must line up.
- *   - Three text sizes and one heading size. No display text on a working screen.
+ *   - Three text sizes and one heading size on a working screen. A public page reads on the
+ *     reading scale: a body, a section title and a page title. No display text anywhere.
  *   - Sentence case. Uppercase only for a small table header, with tracking.
  *   - A value never wraps in a row. It truncates, and the full value appears on hover.
  *
@@ -177,6 +178,16 @@
 @theme {
   --text-small: 11px; /* the floor of the text ladder. Nothing is smaller */
   --tracking-caps: 0.06em; /* a small uppercase table header only */
+
+  /* The reading scale. A public page is read and cited, not worked on, so its prose is 14px and
+     it has a page title and a section title. A table and a screen of the operator keep the dense
+     scale. The values are the ones the first public pages were measured at. */
+  --text-body: 14px;
+  --text-body--line-height: 24px;
+  --text-section: 16px;
+  --text-section--line-height: 24px;
+  --text-title: 20px;
+  --text-title--line-height: 28px;
 }
 
 /* ------------------------------------------------------------------------------- light --- */

@@ -15,10 +15,7 @@ export function UnplacedCount({ unplaced }: UnplacedCountProps) {
     <p
       role="status"
       data-unplaced-count={unplaced}
-      className={cn(
-        'pointer-events-none max-w-80 border border-border bg-popover px-2 py-1',
-        'text-xs text-popover-foreground',
-      )}
+      className={cn('max-w-prose text-muted-foreground')}
     >
       The layout run placed no position for {unplaced}{' '}
       {unplaced === 1 ? 'entity. It stands' : 'entities. They stand'} on the outer band, at a place

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
-import { SiteReleaseFault } from '@gab/site/site-release-fault';
+import { SiteReleaseFault } from '@gab/release/site-release-fault';
 import { SiteFolderExists, writeSite } from '@gab/site/write-site';
 import { Client } from 'pg';
 
@@ -15,18 +15,17 @@ import { inOneSnapshot } from './snapshot.ts';
 import { VolumeTableFault } from './volume-table.ts';
 
 const USAGE =
-  'Usage: pnpm worker release --manifest <file> --out <folder> [--previous <release folder>] ' +
-  '[--v1 <folder of the version 1 build>]';
+  'Usage: pnpm worker release --manifest <file> --out <folder> [--previous <release folder>]';
 
 // Departure: the role waits 30 seconds for one statement, and a release reads the whole record in
 // one statement for each file. The command runs on the machine of the operator, by hand.
 const RELEASE_TIMEOUT = '10min';
 
-const FLAGS = new Set(['--manifest', '--out', '--previous', '--v1']);
+const FLAGS = new Set(['--manifest', '--out', '--previous']);
 
 const flagsOf = (
   args: readonly string[],
-): { manifest: string; out: string; previous: string | null; v1: string | null } | null => {
+): { manifest: string; out: string; previous: string | null } | null => {
   if (args.length % 2 !== 0) return null;
   const given = new Map<string, string>();
   for (let at = 0; at < args.length; at += 2) {
@@ -38,18 +37,21 @@ const flagsOf = (
   const out = given.get('--out');
   return manifest === undefined || out === undefined
     ? null
-    : { manifest, out, previous: given.get('--previous') ?? null, v1: given.get('--v1') ?? null };
+    : { manifest, out, previous: given.get('--previous') ?? null };
 };
 
-/** Writes one release folder from the record, with the release manifest that the operator
- * gives, and the changelog since the previous release folder when the operator gives one. Then it
- * writes the static site of the release beside it, with the build of version 1 under `v1/` when
- * the operator gives its folder. A usage fault, a refused manifest, a refused sheet of the
- * candidate nodes, a volume table that cannot be read, a refused previous release, a release of the same date or a site that cannot be
- * written gives 2, and no release folder is written. A row of the volume table that the release
- * rejects is left out, and the command gives its line and the reason. The command also gives the
- * line of a row whose asset label names more than one entity: that row joins no link. The paths of the sheet and
- * of the volume table are relative to the folder of the manifest. */
+/** Writes one release folder from the record, with the release manifest that the operator gives,
+ * and the changelog since the previous release folder when the operator gives one. Then it builds
+ * the application with the files of the release, and writes the site of the release beside it:
+ * each page at its permanent address holds its text in the HTML.
+ *
+ * Each of these gives 2 with a message, and writes no release folder: a usage fault, a refused
+ * manifest, a refused sheet of the candidate nodes, a volume table that cannot be read, a refused
+ * previous release, a release of the same date, and a site that cannot be built or written. A row
+ * of the volume table that the release rejects is left out, and the command gives its line and the
+ * reason. The command also gives the line of a row whose asset label names more than one entity:
+ * that row joins no link. The paths of the sheet and of the volume table are relative to the
+ * folder of the manifest. */
 export const releaseCommand: SubCommand = async (args) => {
   const flags = flagsOf(args);
   if (flags === null) {
@@ -75,13 +77,13 @@ export const releaseCommand: SubCommand = async (args) => {
     const site = join(flags.out, `gab-site-${manifest.date}`);
     const written = await inOneSnapshot(client, () =>
       writeRelease(client, manifest, flags.out, flags.previous, (folder) =>
-        writeSite(folder, site, flags.v1),
+        writeSite(folder, site),
       ),
     );
     console.log(
       `The release ${manifest.version} is in ${written.folder}: ${String(written.entities)} ` +
         `entities, ${String(written.relations)} relations, ${String(written.claims)} claims. ` +
-        `Its static site is in ${site}.`,
+        `Its site is in ${site}.`,
     );
     for (const one of written.volumeRejections)
       console.error(`The volume table, line ${String(one.line)}: ${one.why}. The row is left out.`);

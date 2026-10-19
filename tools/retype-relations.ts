@@ -251,6 +251,9 @@ export const requalify = async (
 // cited set; a moved passage shows as a doubtful case. The joins are LEFT joins, so a relation
 // with no usable citation or no stored text still shows in the report as a doubtful case.
 // The script reads the record in SQL because the read API gives no citations and no text.
+// One chunk at a time. The newest text of a page is large and many relations cite the same page,
+// so PAGE reads each page once and the script keeps it.
+const CHUNK = 100;
 export const READ = `SELECT r.id::text AS relation_id, e.type AS subject_type,
     coalesce(w.kind, 'none') AS waiting, coalesce(o.originator, '') AS originator,
     coalesce(d.label, '') AS destination,
@@ -260,7 +263,8 @@ export const READ = `SELECT r.id::text AS relation_id, e.type AS subject_type,
                AND x.src_kind = r.src_kind AND x.src_id = r.src_id
                AND x.dst_kind = r.dst_kind AND x.dst_id = r.dst_id) AS collides,
     coalesce(cs.cites, '[]'::json) AS cites
-  FROM public.relations r
+  FROM (SELECT * FROM public.relations WHERE type = 'designated_by' AND src_kind = 'entity' AND id > $1::uuid
+         ORDER BY id LIMIT ${String(CHUNK)}) r
   JOIN public.entities e ON e.id = r.src_id AND r.src_kind = 'entity'
   LEFT JOIN public.entities d ON d.id = r.dst_id AND r.dst_kind = 'entity'
   LEFT JOIN public.proposals o ON o.id = r.promoted_from
@@ -268,46 +272,92 @@ export const READ = `SELECT r.id::text AS relation_id, e.type AS subject_type,
     SELECT json_agg(json_build_object(
              'document', c.doc_id, 'page', c.page,
              'excerpt', coalesce(substr(t.text, c.start + 1, c."end" - c.start), ''),
-             'pageText', CASE WHEN t.text IS NULL THEN NULL ELSE n.text END)
+             'stored', t.text IS NOT NULL)
            ORDER BY c.created_at, c.id) AS cites
       FROM public.citation c
       LEFT JOIN public.document_text t ON t.document_id = c.doc_id
                                       AND t.extractor = c.text_extractor AND t.page = c.page
-      LEFT JOIN public.document_text n ON n.document_id = c.doc_id AND n.page = c.page
-                                      AND n.extractor = public.newest_text_extractor(c.doc_id)
      WHERE c.claim_id = r.promoted_from AND c.start IS NOT NULL) cs ON true
-  LEFT JOIN LATERAL (
-    SELECT CASE WHEN bool_or(p.status = 'pending' AND p.payload->>'type' = 'restricted_by')
+  LEFT JOIN (
+    SELECT p.target_id,
+           CASE WHEN bool_or(p.status = 'pending' AND p.payload->>'type' = 'restricted_by')
                 THEN 'retype'
                 WHEN bool_or(p.status = 'pending') THEN 'other'
                 WHEN bool_or(p.payload->>'type' = 'restricted_by') THEN 'rejected' END AS kind
       FROM public.proposals p
      WHERE p.status IN ('pending', 'rejected') AND p.target_kind = 'relation'
-       AND p.target_id = r.id) w ON true
-  WHERE r.type = 'designated_by'`;
+     GROUP BY p.target_id) w ON w.target_id = r.id
+  ORDER BY r.id`;
+
+type StoredCite = Omit<Cite, 'pageText'> & { readonly stored: boolean };
+
+export const PAGE = `SELECT n.document_id AS document, n.page, n.text
+  FROM public.document_text n
+ WHERE (n.document_id, n.page) IN (SELECT * FROM unnest($1::text[], $2::int[]))
+   AND n.extractor = public.newest_text_extractor(n.document_id)`;
 
 const main = async (): Promise<number> => {
   const write = argv.slice(2).includes('--write');
-  const reader = new Pool({ connectionString: connectionString('app') });
+  // The READ joins citations and page text: it needs more than the role default. Session setting only.
+  const reader = new Pool({
+    connectionString: connectionString('app'),
+    statement_timeout: 300_000,
+  });
   const writer = new Pool({ connectionString: connectionString('research') });
   try {
-    const { rows } = await reader.query<Record<string, unknown>>(READ);
-    const candidates = rows.map((row): Candidate => ({
-      relationId: String(row['relation_id']),
-      subjectType: String(row['subject_type']),
-      waiting: row['waiting'] as Candidate['waiting'],
-      collides: row['collides'] === true,
-      originator: String(row['originator']),
-      destination: String(row['destination']),
-      cites: row['cites'] as Cite[],
+    const pages = new Map<string, string>();
+    const decide = (candidates: Candidate[]) =>
+      requalify(candidates, { write: false, send: () => undefined });
+    const merged: Report = {
+      batches: ORDER.map((name) => ({ name, items: [] as Item[] })),
+      keep: [],
+      doubtful: [],
+      skipped: [],
+    };
+    for (let after = '00000000-0000-0000-0000-000000000000'; ;) {
+      const { rows } = await reader.query<Record<string, unknown>>(READ, [after]);
+      if (rows.length === 0) break;
+      after = String(rows[rows.length - 1]?.['relation_id']);
+      const found = rows.flatMap((row) => row['cites'] as StoredCite[]);
+      const fresh = found.filter(({ document, page }) => !pages.has(`${document}#${String(page)}`));
+      if (fresh.length > 0) {
+        const got = await reader.query<{ document: string; page: number; text: string }>(PAGE, [
+          fresh.map((c) => c.document),
+          fresh.map((c) => c.page),
+        ]);
+        for (const g of got.rows) pages.set(`${g.document}#${String(g.page)}`, g.text);
+      }
+      const part = await decide(
+        rows.map((row): Candidate => ({
+          relationId: String(row['relation_id']),
+          subjectType: String(row['subject_type']),
+          waiting: row['waiting'] as Candidate['waiting'],
+          collides: row['collides'] === true,
+          originator: String(row['originator']),
+          destination: String(row['destination']),
+          cites: (row['cites'] as StoredCite[]).map(({ stored, ...cite }) => ({
+            ...cite,
+            pageText: stored ? (pages.get(`${cite.document}#${String(cite.page)}`) ?? null) : null,
+          })),
+        })),
+      );
+      part.batches.forEach(({ items }, i) => (merged.batches[i]?.items as Item[]).push(...items));
+      for (const k of ['keep', 'doubtful', 'skipped'] as const)
+        (merged[k] as unknown[]).push(...part[k]);
+    }
+    let count = 0;
+    const batches = merged.batches.map(({ name, items }) => ({
+      name,
+      items: items.map((item) => ({ ...item, ref: `r${String((count += 1))}` })),
     }));
-    const report = await requalify(candidates, {
-      write,
-      send: async ({ name, items }) => {
-        await propose.run(writer, { items: [...items] });
-        console.log(`batch ${name}: ${String(items.length)} retype acts proposed`);
-      },
-    });
+    const report: Report = { ...merged, batches };
+    if (write)
+      for (const { name, items } of batches)
+        for (let from = 0; from < items.length; from += MAX_ITEMS) {
+          const part = items.slice(from, from + MAX_ITEMS);
+          await propose.run(writer, { items: part });
+          console.log(`batch ${name}: ${String(part.length)} retype acts proposed`);
+        }
     for (const { name, items } of report.batches)
       console.log(`${name}: ${String(items.length)} to retype${write ? '' : ' (dry run)'}`);
     for (const [title, list] of [

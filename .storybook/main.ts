@@ -16,11 +16,11 @@ const config: StorybookConfig = {
   // inside a feature folder needs no lint rule. It gets the element of that folder, so it can
   // import `shared/` and no second feature.
   //
-  // Write no story for `map-page.tsx`, and no story for `graph-page.tsx`. MapLibre and Sigma
+  // Write no story for `globe.tsx`, and no story for `graph-page.tsx`. MapLibre and Sigma
   // each get one element and their own loop, and React state stays out of both. One story makes one live WebGL context, and a browser removes the oldest context
   // after approximately sixteen. Write a story for each panel beside the canvas, and none for
   // the canvas.
-  stories: ['../src/**/*.stories.tsx', '../packages/site/src/**/*.stories.tsx'],
+  stories: ['../src/**/*.stories.tsx'],
 
   addons: ['@storybook/addon-vitest'],
 

@@ -500,6 +500,25 @@ BEGIN
   END IF;
 END $$;
 
+-- A SOURCE GOES ONLY ON A RELATION OF THE RECORD, AND ONLY WITH A DOCUMENT THAT THE RELATION DOES
+-- NOT CITE YET. An act that adds nothing would wait for ever, because the promotion refuses it. The
+-- batch door reads it, and the promotion reads it again under the row lock.
+CREATE OR REPLACE FUNCTION check_relation_add_source(p_target uuid, p_docs text[])
+RETURNS void
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_rel public.relations%ROWTYPE;
+BEGIN
+  SELECT * INTO v_rel FROM public.relations WHERE id = p_target;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'the relation % does not exist, so it gets no source', p_target
+      USING CONSTRAINT = 'target_exists', HINT = 'targetId';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM unnest(p_docs) AS d WHERE NOT d = ANY (v_rel.sources::text[])) THEN
+    RAISE EXCEPTION 'the relation cites each of these documents already, so the act adds no source'
+      USING ERRCODE = 'check_violation', CONSTRAINT = 'relation_has_sources', HINT = 'targetId';
+  END IF;
+END $$;
+
 -- A TYPE CHANGE GOES ONLY ON A designated_by RELATION, AND ONLY WHEN NO OPEN restricted_by RELATION
 -- LINKS THE SAME TWO ENDS. The batch door reads it so that an act that can never apply does not
 -- wait in the queue, and the promotion reads it again under the row lock, because another act can
@@ -952,9 +971,12 @@ BEGIN
                          OR ((v_item->'payload') ? 'valid_from'
                              AND (v_item->'payload') - 'valid_from' = '{}'::jsonb)
                          OR ((v_item->'payload') ? 'type'
-                             AND (v_item->'payload') - 'type' = '{}'::jsonb)))) THEN
+                             AND (v_item->'payload') - 'type' = '{}'::jsonb)
+                         OR ((v_item->'payload') ? 'add_source'
+                             AND (v_item->'payload') - 'add_source' = '{}'::jsonb)))) THEN
       RAISE EXCEPTION 'item %: a machine proposes a new entity, a new relation, new attributes '
                       'or the start or end date of a relation, or the type change of a relation, or '
+                      'a source for a relation, or '
                       'the geometry of an entity, and never a change of a name, a type or a relation, '
                       'nor a deletion', v_no
         USING ERRCODE = 'invalid_parameter_value', HINT = 'op';
@@ -1065,6 +1087,24 @@ BEGIN
       BEGIN
         PERFORM public.check_relation_retype(v_target);
       EXCEPTION WHEN raise_exception OR check_violation OR unique_violation THEN
+        GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_said = MESSAGE_TEXT,
+                                v_hint = PG_EXCEPTION_HINT;
+        RAISE EXCEPTION 'item %: %', v_no, v_said
+          USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = v_rule, HINT = v_hint;
+      END;
+    ELSIF v_item->>'op' = 'update_relation' AND v_payload::jsonb ? 'add_source' THEN
+      IF v_payload::jsonb IS DISTINCT FROM '{"add_source": true}'::jsonb THEN
+        PERFORM public.raise_item_rule(v_no, 'proposals_add_source_shape', '23514',
+                                       'the source form holds the flag add_source and nothing else');
+      END IF;
+      IF v_item->>'target_kind' IS DISTINCT FROM 'relation' THEN
+        PERFORM public.raise_item_rule(v_no, 'proposals_op_target_kind', '23514',
+                                       'the act names a target of the wrong kind');
+      END IF;
+      BEGIN
+        PERFORM public.check_relation_add_source(
+          v_target, ARRAY(SELECT jsonb_array_elements_text(v_item->'src')));
+      EXCEPTION WHEN raise_exception OR check_violation THEN
         GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_said = MESSAGE_TEXT,
                                 v_hint = PG_EXCEPTION_HINT;
         RAISE EXCEPTION 'item %: %', v_no, v_said
@@ -1750,7 +1790,7 @@ BEGIN
        FROM public.proposals a, unnest(a.src::text[]) AS d(doc)
       WHERE a.op = 'update_relation' AND a.status = 'accepted'
         AND a.target_id = k.key::uuid
-        AND (a.payload ? 'valid_to' OR a.payload ? 'type')) AS c
+        AND (a.payload ? 'valid_to' OR a.payload ? 'type' OR a.payload ? 'add_source')) AS c
    WHERE r.id = k.key::uuid
      AND to_jsonb(r.sources) @> (k.value->'after'->'sources')
      AND NOT EXISTS (SELECT 1 FROM unnest(r.sources::text[]) AS y(d)
@@ -1891,6 +1931,19 @@ BEGIN
     UPDATE public.relations r
        SET type       = p.payload->>'type',
            sources    = r.sources || ARRAY(SELECT x.d FROM unnest(p.src) WITH ORDINALITY AS x(d, n)
+                                            WHERE NOT x.d = ANY (r.sources)
+                                            GROUP BY x.d ORDER BY min(x.n)),
+           updated_at = now()
+     WHERE r.id = p.target_id;
+    v_id := p.target_id;
+
+  ELSIF p.op = 'update_relation' AND p.payload ? 'add_source' THEN
+    PERFORM 1 FROM public.relations r WHERE r.id = p.target_id FOR UPDATE;
+    PERFORM public.check_relation_add_source(p.target_id, p.src::text[]);
+    SELECT jsonb_build_object('sources', to_jsonb(r.sources)) INTO v_prior
+      FROM public.relations r WHERE r.id = p.target_id;
+    UPDATE public.relations r
+       SET sources    = r.sources || ARRAY(SELECT x.d FROM unnest(p.src) WITH ORDINALITY AS x(d, n)
                                             WHERE NOT x.d = ANY (r.sources)
                                             GROUP BY x.d ORDER BY min(x.n)),
            updated_at = now()
@@ -2117,7 +2170,7 @@ BEGIN
     v_kind := CASE p.op WHEN 'create_entity' THEN 'entity' WHEN 'create_relation' THEN 'relation'
                         ELSE p.target_kind END;
     v_row  := p.op NOT IN ('update_attrs', 'update_relation')
-              OR p.payload ?| ARRAY['type', 'valid_from', 'valid_to'];
+              OR p.payload ?| ARRAY['type', 'valid_from', 'valid_to', 'add_source'];
     v_keys := CASE WHEN jsonb_typeof(p.payload->'attrs') = 'object'
                    THEN ARRAY(SELECT jsonb_object_keys(p.payload->'attrs')) END;
     PERFORM public.cite_on_row(v_kind, v_id, v_row, v_keys,

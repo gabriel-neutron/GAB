@@ -149,6 +149,7 @@ INSERT INTO relation_type (key, label, inverse_label, takes_interval) VALUES
   ('sells_products_to', 'sells products to', 'buys products from',           false),
   ('crude_flows_to',    'crude flows to',    'is fed crude by',              true),
   ('products_flow_to',  'products flow to',  'receives products from',       true),
+  ('gas_flows_to',      'gas flows to',      'is fed gas by',                true),
   ('berthed_at',        'berthed at',        'is the berth of',              false),
   ('loads_at',          'loads at',          'is the loading place of',      false),
   ('discharges_at',     'discharges at',     'is the discharge place of',    false),

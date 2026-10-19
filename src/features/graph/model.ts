@@ -203,25 +203,3 @@ export function buildGraphModel(
     hierarchy: unitHierarchy(corpus.relations, new Set(graph.nodes())),
   };
 }
-
-// A palette is a property of a drawing and a topology is a property of the record, so a ground
-// change reaches the paint and never the analysis. The graph is written in place: it carries each
-// position, and a copy of it makes a second place that holds one. The model object is new.
-export function repaintGraphModel(
-  model: GraphModel,
-  types: TypeVocabulary,
-  ground: GraphGround,
-): GraphModel {
-  const palette = GRAPH_PALETTES[ground];
-  const hueOfType = typeHues(types, ground);
-
-  const { graph } = model;
-  graph.forEachNode((node, attrs) => {
-    graph.setNodeAttribute(node, 'color', hueOfNode(attrs, palette, hueOfType, ground));
-  });
-  graph.forEachEdge((edge) => {
-    graph.setEdgeAttribute(edge, 'color', palette.edge);
-  });
-
-  return { ...model, hueOfType };
-}

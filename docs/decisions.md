@@ -461,3 +461,7 @@ no person read it", "Validated manually by the operator". It shows no NATO lette
 - **Official files (10 October 2026).** An official file that a tool reads at the address of its
   publisher, such as an act of the Official Journal of the EU or the OFAC SDN list, is a public
   document.
+- **One site (18 October 2026).** The public site and the application are one site, with all the
+  pages. When the backend does not answer, the site is read-only: it shows the record of its
+  release, and it hides each part that needs the backend (the review, the creation and the edit of
+  an entity, the extraction, the upload, the lead). There is no second site.

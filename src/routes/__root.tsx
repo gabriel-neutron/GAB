@@ -1,32 +1,37 @@
 import {
   createRootRoute,
   HeadContent,
-  Link,
   Outlet,
   useLocation,
   useRouter,
 } from '@tanstack/react-router';
 import { CreateEntityDialog } from '@/features/edit/create-entity-dialog';
-import { cn } from '@/shared/lib/utils';
+import { ErrorNotice } from '@/shared/error-notice';
 import { refreshCorpus } from '@/shared/read/corpus';
+import { useReleaseNote } from '@/shared/read/release-note';
 import { ModeToggle } from '@/shared/mode-toggle';
 import { ScreenQueryField, ScreenQueryProvider } from '@/shared/screen-query';
+import { SiteFooter } from '@/shared/site-footer';
+import { SiteHeader } from '@/shared/site-header';
 import { ThemeProvider, useTheme } from '@/shared/theme-provider';
+import { recheckWriter, useWriterOnline } from '@/shared/write/writer-status';
 
 export const Route = createRootRoute({
   component: RootLayout,
   errorComponent: RootError,
 
   // The router uses the deepest title a route sets. This one applies where no route sets one.
-  head: () => ({ meta: [{ title: 'Gabriel' }] }),
+  head: () => ({ meta: [{ title: 'GAB dataset' }] }),
 });
 
 // Departure: only these screens read the header filter. The search page has a field of its own,
 // and a screen that reads no filter shows no field.
-const FILTERED_SCREENS: ReadonlySet<string> = new Set(['/map', '/graph']);
+const FILTERED_SCREENS: ReadonlySet<string> = new Set(['/graph']);
 
 function RootLayout() {
   const path = useLocation({ select: (location) => location.pathname });
+  const writerOnline = useWriterOnline();
+  const releaseNote = useReleaseNote();
   return (
     <ThemeProvider>
       {/* External constraint: `HeadContent` writes the `head` of a matched route into the
@@ -34,72 +39,25 @@ function RootLayout() {
       <HeadContent />
       <ScreenQueryProvider path={path}>
         <div className="relative flex h-svh flex-col overflow-hidden">
-          <header className="flex h-10 shrink-0 items-center justify-between border-b border-border px-2">
-            <SurfaceNav />
-            <div className="flex items-center gap-2">
-              {FILTERED_SCREENS.has(path) ? <ScreenQueryField /> : null}
-              <NewEntityControl />
-              <ThemeControl />
-            </div>
-          </header>
+          <SiteHeader
+            writerOnline={writerOnline}
+            filter={FILTERED_SCREENS.has(path) ? <ScreenQueryField /> : null}
+            actions={
+              <>
+                {writerOnline ? <NewEntityControl /> : null}
+                <ThemeControl />
+              </>
+            }
+          />
           {/* External constraint: `min-h-0` lets this row hold a scroll of its own. Without it,
               the row grows to its content and pushes the window. */}
           <main className="min-h-0 flex-1">
             <Outlet />
           </main>
+          {releaseNote === null ? null : <SiteFooter note={releaseNote} />}
         </div>
       </ScreenQueryProvider>
     </ThemeProvider>
-  );
-}
-
-// The state of a link is drawn from the `data-status` the router writes, and never from an
-// `activeProps` class list: two colour utilities in one list are resolved by the order of the
-// stylesheet, and a variant is resolved by the cascade, which is the order this file states.
-const SURFACE_LINK = cn(
-  'inline-flex h-full items-center border-b-2 border-transparent px-2 text-xs text-label',
-  'outline-none hover:text-foreground focus-visible:border-ring focus-visible:ring-3',
-  'focus-visible:ring-ring/50',
-  'data-[status=active]:border-primary data-[status=active]:text-foreground',
-);
-
-// The empty search is written out because the graph declares both keys and strips neither. A
-// link that carries no search would open the graph on a pair of parameters it never validated.
-const NO_SELECTION = { entity: '', relation: '' } as const;
-
-// The entity page is absent: it names one record and no fixed address reaches it. It is reached
-// from the surface that draws that record.
-function SurfaceNav() {
-  return (
-    <nav aria-label="Surfaces" className="flex h-full items-stretch">
-      <Link
-        to="/map"
-        search={NO_SELECTION}
-        activeOptions={{ includeSearch: false }}
-        className={SURFACE_LINK}
-      >
-        Map
-      </Link>
-      <Link
-        to="/graph"
-        search={NO_SELECTION}
-        activeOptions={{ includeSearch: false }}
-        className={SURFACE_LINK}
-      >
-        Graph
-      </Link>
-      <Link
-        to="/review"
-        search={{ unit: '', view: 'queue', group: '' }}
-        activeOptions={{ includeSearch: false }}
-        className={SURFACE_LINK}
-      >
-        Review
-      </Link>
-      <Link to="/search" className={SURFACE_LINK}>
-        Search
-      </Link>
-    </nav>
   );
 }
 
@@ -129,10 +87,14 @@ function ThemeControl() {
 }
 
 function RootError({ error }: { error: Error }) {
+  const router = useRouter();
   return (
-    <div className="p-4">
-      <p>The application failed.</p>
-      <pre>{error.message}</pre>
-    </div>
+    <ErrorNotice
+      detail={error.message}
+      onRetry={() => {
+        void recheckWriter();
+        void refreshCorpus(() => router.invalidate());
+      }}
+    />
   );
 }
