@@ -1,14 +1,14 @@
-import { withChain } from '@gab/release/chain-fixture';
-import { withEvents } from '@gab/release/event-fixture';
-import { readSiteRelease, type SiteRelease } from '@gab/release/site-release';
+import { withChain } from './chain-fixture.ts';
+import { withEvents } from './event-fixture.ts';
+import { readSiteRelease, type SiteRelease } from './site-release.ts';
 
-// The stories read the fixed release that the release code wrote, as the site reads it.
-const OFF = import.meta.glob<string>('../fixtures/release/*', {
+// The tests read the fixed release that the release code wrote, as the application reads it.
+const OFF = import.meta.glob<string>('../../site/fixtures/release/*', {
   query: '?raw',
   import: 'default',
   eager: true,
 });
-const ON = import.meta.glob<string>('../fixtures/release-nato/*', {
+const ON = import.meta.glob<string>('../../site/fixtures/release-nato/*', {
   query: '?raw',
   import: 'default',
   eager: true,

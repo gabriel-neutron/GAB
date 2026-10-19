@@ -6,6 +6,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 import { openWithKey } from './tools/dev-open.ts';
+import { maplibreWorker } from './tools/maplibre-worker.ts';
 import { releaseFolder } from './tools/release-folder.ts';
 
 // External constraint: the key of the operator lives in infra/.env, and only the operator side
@@ -28,6 +29,7 @@ export default defineConfig({
     // Departure: the release is the one input that the build takes from the environment, because
     // a release is a folder of the operator and not a file of the repository.
     releaseFolder(process.env['RELEASE_DIR']),
+    maplibreWorker(),
   ],
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },

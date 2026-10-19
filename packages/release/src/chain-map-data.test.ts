@@ -1,12 +1,12 @@
 import { expect, test } from 'vitest';
 
-import { chainView } from '@gab/release/chain-card';
-import { CHAIN } from '@gab/release/chain-fixture';
-import { chainFlows } from '@gab/release/chain-flows';
-import { chainMapData } from '@gab/release/chain-map-data';
+import { chainView } from './chain-card.ts';
+import { CHAIN } from './chain-fixture.ts';
+import { chainFlows } from './chain-flows.ts';
+import { chainMapData } from './chain-map-data.ts';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
-import type { SiteVolume } from '@gab/release/site-release';
-import { volumeCard } from '@gab/release/volume-card';
+import type { SiteVolume } from './site-release.ts';
+import { volumeCard } from './volume-card.ts';
 
 const {
   FIELD_TO_PIPELINE,

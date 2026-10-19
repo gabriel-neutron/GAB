@@ -92,8 +92,9 @@ spellings of one name in two scripts (ADR 0022).
 
 The operator runs one worker command with a manifest that stays outside the repository. It reads
 one snapshot of the record through functions that only tool roles can call, and writes one dated
-folder of files, and a static site beside it. It never writes over an earlier folder (ADR 0013,
-0015, 0019, 0020).
+folder of files, and the site beside it. The site is the application, built once with the files of
+the release, and a file for each page. It never writes over an earlier folder (ADR 0013, 0015, 0019,
+0028).
 
 - A row is in the release only when it has a public document. A person is in only with a
   designation. A relation is in only when its two ends are. The release holds no candidate.
@@ -101,7 +102,11 @@ folder of files, and a static site beside it. It never writes over an earlier fo
 - The same rows go out as CSV, GeoJSON and JSON-LD. The manifest gives the size and checksum of each
   file. The changelog compares two release folders.
 - No file shows a NATO letter or digit (S1), unless the manifest turns it on.
-- No page of the site reads an API.
+- A page at a permanent address holds its text in its HTML, so it opens with no script and a
+  static host with no rewrite rule serves it. The pages that have no permanent text (the graph, the
+  search, the review) need a script.
+- No page of the site reads an API. The site reads the files of the release, and it hides each part
+  that needs the write service.
 
 ## The write path
 

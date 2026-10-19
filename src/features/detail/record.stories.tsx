@@ -236,13 +236,9 @@ export const AReadRecordGivenDraftsStaysReadOnly: Story = {
   parameters: { layout: 'fullscreen' },
   args: { cells: recordCells(ROWS, new Map()) },
   play: async ({ canvasElement }) => {
-    const controls = Array.from(
-      canvasElement.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input, textarea'),
-    );
-    await expect(controls).toHaveLength(100);
-    for (const control of controls) {
-      await expect(control).toBeDisabled();
-    }
+    // Each of the 100 values is text in the page, and none is a control that a reader can edit.
+    await expect(canvasElement.querySelectorAll('[data-reading]')).toHaveLength(100);
+    await expect(canvasElement.querySelectorAll('input, textarea')).toHaveLength(0);
   },
 };
 

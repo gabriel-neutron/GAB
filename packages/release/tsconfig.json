@@ -1,11 +1,12 @@
 {
-  // The reader of the files of a release, imported by the browser bundle, by the site writer and
+  // The reader of the files of a release, imported by the browser bundle, by the writer of the site and
   // by the release command. It names neither the DOM nor Node, because every side imports it.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2024"],
     "module": "preserve",
-    "types": [],
+    // The tests read the fixture files with `import.meta.glob`, which Vite types.
+    "types": ["vite/client"],
 
     "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.release.tsbuildinfo",
 

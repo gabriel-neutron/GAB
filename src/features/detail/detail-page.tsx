@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import type { AttributeEdit } from '@gab/proposal/attribute-value';
 
 import type { DocId } from '@/shared/read/model';
+import { DataTable } from '@/shared/page/data-table';
 import { KeyValue } from '@/shared/page/key-value';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
@@ -225,7 +226,10 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
       />
 
       {facts === null ||
-      (facts.imo === null && facts.merged.length === 0 && facts.label === null) ? null : (
+      (facts.imo === null &&
+        facts.merged.length === 0 &&
+        facts.label === null &&
+        facts.address === null) ? null : (
         <KeyValue
           entries={[
             ...(facts.imo === null
@@ -246,6 +250,9 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
                   { key: 'Origin', value: facts.label.origin },
                   { key: 'Licence', value: facts.label.licence },
                 ]),
+            ...(facts.address === null
+              ? []
+              : [{ key: 'Permanent address', value: facts.address, figure: true as const }]),
             ...(facts.merged.length === 0
               ? []
               : [
@@ -314,6 +321,29 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
           />
         ) : null}
       </PageSection>
+
+      {facts === null || facts.claims.length === 0 ? null : (
+        <PageSection title="Claims of the release">
+          <DataTable
+            name="Claims of the release"
+            empty="The release holds no claim about this entity."
+            columns={[
+              {
+                key: 'claim',
+                header: 'Claim',
+                cell: (line) => (
+                  <a className={READING_LINK} href={claimHref(line.id)}>
+                    {line.text}
+                  </a>
+                ),
+              },
+              { key: 'label', header: 'Label', cell: (line) => line.origin },
+              { key: 'licence', header: 'Licence', cell: (line) => line.licence },
+            ]}
+            rows={facts.claims.map((line) => ({ id: line.id, row: line }))}
+          />
+        </PageSection>
+      )}
 
       {events === null ? null : <EventLane events={events} />}
 

@@ -28,4 +28,9 @@ const subscribe = (listener: () => void): (() => void) => {
   };
 };
 
-export const useReleaseNote = (): ReleaseNote | null => useSyncExternalStore(subscribe, () => note);
+export const useReleaseNote = (): ReleaseNote | null =>
+  useSyncExternalStore(
+    subscribe,
+    () => note,
+    () => note,
+  );

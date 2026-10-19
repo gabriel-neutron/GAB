@@ -1,8 +1,9 @@
 # Deploy
 
-The public surface is the static site of a release: plain files, no API, no server (ADR 0020). The
-database, the read API, the writer and the worker stay on the operator's machine. To publish,
-write a release (below) and put its site on any static host.
+The public surface is the site of a release: plain files, no API, no server (ADR 0028). The site is
+the application, built with the files of the release. The database, the read API, the writer and
+the worker stay on the operator's machine. To publish, write a release (below) and put its site on
+any static host.
 
 Every worker command is a sub-command of `pnpm worker`. Run it with no argument for the list and
 the usage. Run a command with `--dry-run` first when it has that flag. Every value below is
@@ -126,31 +127,38 @@ pnpm worker release --manifest <manifest> --out <folder> --previous <previous re
 ```
 
 - `--previous` is the last release as you published it. Leave it out for the first release.
-- `--v1 <folder>` copies the build of the version 1 site under `v1/`.
-- The command writes `gab-release-<date>` and the site `gab-site-<date>`. It writes the site first,
-  so a failed run leaves no release folder. It refuses a folder of the same date, and a previous
-  folder that disagrees with its checksums.
+- The command writes `gab-release-<date>` and the site `gab-site-<date>`. It builds the application
+  once with the files of the release, then writes a file `index.html` in a folder for each page. It
+  writes the site first, so a failed run leaves no release folder. It refuses a folder of the same
+  date, and a previous folder that disagrees with its checksums.
+- The site is for the root of a host. To put it in a folder of the host, set `SITE_BASE` to the
+  path, with a slash at each end, as `SITE_BASE=/gab/`.
+- The build never holds the address of a read service, whatever `VITE_API_URL` says: the site
+  reads the files of the release.
 - Each CSV file starts with `#` lines (version, date, disclaimer). A program that reads it must
   skip them.
 
 ## Publish the site
 
-1. Put the content of `gab-site-<date>` at the root of a static host. The host must send `/map`
-   to `/map/`, because each page is a folder with relative links.
-2. The map needs an `http` or `https` address (MapLibre). To look at the site locally, run
+1. Put the content of `gab-site-<date>` at the root of a static host. Each page is a folder with
+   an `index.html`. A static host serves `/map/` as it stands and normally sends `/map` to
+   `/map/`. The reader needs no rewrite rule and no script for the text of a page.
+2. A page at a permanent address (the critical nodes, the map, the downloads, the method, an
+   entity, a vessel, a claim, a relation) holds its text in the HTML. It opens with no script, and
+   the script of the application then takes over. The graph, the search and the review need the
+   script. The review says that it is not available when no write service answers.
+3. The map needs an `http` or `https` address (MapLibre). To look at the site locally, run
    `python -m http.server 8000` in the site folder.
-3. To keep the old ORBAT site under `/v1`, build it once in the GABRIEL repository with
-   `npx vite build --base=/v1/`, and give its `dist` folder to `--v1`. That site reads
-   `/project.gpkg` at the root of the host: the release copies the file there, or make the host
-   send it to `/v1/project.gpkg`.
+4. The address `/v1/` gives a short page that links the critical nodes. The site holds no build of
+   the version 1 map.
 
 ## The application with no backend
 
 The application reads the files of a release when the read service does not answer (ADR 0028).
-Set `RELEASE_DIR` to a release folder when you run `pnpm dev` or `pnpm build`. The build copies the
-files to `release/` beside the application. With no read service, each page then says "Version of
+For `pnpm dev` or `pnpm build`, set `RELEASE_DIR` to a release folder. The build copies the files to
+`release/` beside the application. With no read service, each page then says "Version of
 DD/MM/YYYY", and the footer gives the two contact links of the release. The release command does
-not build the application yet, and the site above is still the public site.
+the same build for the public site, and then renders each page that has a permanent address.
 
 ## Public writes
 

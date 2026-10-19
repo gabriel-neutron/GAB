@@ -28,10 +28,13 @@ const PAGE_LINK = cn(
 // shortcut: the `href` of the graph is computed at render and can name an older selection, which
 // a click with a modifier opens; read the selection from a store of the graph when one exists.
 // The map holds the entity only: a relation of the graph is not carried to it.
+// The render at the release has no address bar, and no selection is carried there.
+const addressBar = (): { readonly pathname: string; readonly search: string } =>
+  typeof window === 'undefined' ? { pathname: '', search: '' } : window.location;
 const TO_MAP = () => ({
-  entity: carriedSelection(window.location.pathname, window.location.search, '/map').entity,
+  entity: carriedSelection(addressBar().pathname, addressBar().search, '/map').entity,
 });
-const TO_GRAPH = () => carriedSelection(window.location.pathname, window.location.search, '/graph');
+const TO_GRAPH = () => carriedSelection(addressBar().pathname, addressBar().search, '/graph');
 
 /** The one header of the site: the name of the dataset, one navigation with every page, and the
  * controls of the screen. A page that writes is in the navigation only when the writer answers.

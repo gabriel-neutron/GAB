@@ -3,12 +3,7 @@ import { SiteReleaseFault } from './site-release-fault.ts';
 /** A file of the site, by its path from the root of the site, with `/` between the folders. */
 export type SitePath = string;
 
-export const HOME: SitePath = 'index.html';
 export const MAP: SitePath = 'map/index.html';
-export const DOWNLOADS: SitePath = 'downloads/index.html';
-export const METHOD: SitePath = 'method/index.html';
-export const V1: SitePath = 'v1/index.html';
-export const STYLE: SitePath = 'assets/site.css';
 
 /** An identifier of the release cannot be a path of the site. */
 export class SitePathFault extends SiteReleaseFault {}
@@ -33,7 +28,19 @@ const pageOf =
   (id: string): SitePath =>
     `${kind}/${segmentsOf(id).join('/')}/${INDEX}`;
 
-export const entityPage = pageOf('entity');
+const entityFolder = pageOf('entity');
+
+// The route of an entity takes one segment of the address, so an identifier with a `/` has no
+// page that the application can open.
+const oneSegment = (id: string): string => {
+  if (id.includes('/'))
+    throw new SitePathFault(
+      `The entity identifier "${id}" holds a "/", and it cannot be an address.`,
+    );
+  return id;
+};
+
+export const entityPage = (id: string): SitePath => entityFolder(oneSegment(id));
 export const relationPage = pageOf('relation');
 export const claimPage = pageOf('claim');
 
@@ -42,14 +49,11 @@ export const vesselPage = pageOf('vessel');
 
 /** The identifier of an entity or a claim in the JSON-LD file: its path under the base. */
 export const permanentAddress = (base: string, kind: 'entity' | 'claim', id: string): string =>
-  `${base}${kind}/${segmentsOf(id).map(encodeURIComponent).join('/')}`;
+  `${base}${kind}/${segmentsOf(kind === 'entity' ? oneSegment(id) : id)
+    .map(encodeURIComponent)
+    .join('/')}`;
 
 /** The relative address of `target` from the page `here`, so the site works under any base path
  * and from the files on a disk. */
 export const hrefFrom = (here: SitePath, target: SitePath): string =>
   '../'.repeat(here.split('/').length - 1) + target.split('/').map(encodeURIComponent).join('/');
-
-/** The map script and the stylesheet of MapLibre, beside the stylesheet of the site. */
-export const MAP_SCRIPT: SitePath = 'assets/map.js';
-export const MAP_COUNTRIES: SitePath = 'assets/countries.json';
-export const MAP_STYLE: SitePath = 'assets/maplibre-gl.css';

@@ -70,7 +70,7 @@ export default defineConfig(
       'packages/*/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
       '.storybook/**/*.{ts,tsx,mts,cts}',
     ],
-    ignores: ['src/main.tsx', 'src/router.tsx'],
+    ignores: ['src/main.tsx', 'src/router.tsx', 'src/app-router.tsx', 'src/prerender.tsx'],
     plugins: { boundaries },
     settings: {
       'boundaries/elements': [
@@ -176,11 +176,7 @@ export default defineConfig(
   { files: ['src/**/*.{ts,tsx}'], extends: [reactHooks.configs.flat.recommended] },
 
   {
-    files: [
-      '**/*.{test,db-test,e2e-test}.{ts,tsx}',
-      'src/**/*.stories.tsx',
-      'packages/site/src/**/*.stories.tsx',
-    ],
+    files: ['**/*.{test,db-test,e2e-test}.{ts,tsx}', 'src/**/*.stories.tsx'],
     plugins: { vitest },
     rules: {
       'vitest/no-focused-tests': 'error',

@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 
-import { chainView } from '@gab/release/chain-card';
-import { ACCEPTED_STRIKE, SITE, STRIKE } from '@gab/release/event-fixture';
+import { chainView } from './chain-card.ts';
+import { ACCEPTED_STRIKE, SITE, STRIKE } from './event-fixture.ts';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
 
 const VESSEL = '0a1f0000-0000-4000-8000-000000000001';

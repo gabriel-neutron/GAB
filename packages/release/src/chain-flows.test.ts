@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
 
-import { chainView } from '@gab/release/chain-card';
-import { CHAIN } from '@gab/release/chain-fixture';
-import { chainFlows } from '@gab/release/chain-flows';
+import { chainView } from './chain-card.ts';
+import { CHAIN } from './chain-fixture.ts';
+import { chainFlows } from './chain-flows.ts';
 import { chainOf, productChain } from '@gab/proposal/chain-highlight';
 import { FIXTURE_RELEASE } from './fixture-release.ts';
 

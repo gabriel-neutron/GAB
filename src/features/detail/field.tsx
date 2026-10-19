@@ -34,11 +34,6 @@ const NOTE = cn(SURFACE, 'min-h-6 resize-none py-1');
 // edit and that the fade of the kit is beaten.
 const UNFADED = 'unfaded';
 
-// The shadcn kit sets `opacity-50`, a dark fill, and `disabled:pointer-events-none`, which killed
-// every `title`. Each is beaten here, and each belongs to the arm that draws a disabled control.
-const READING =
-  'disabled:opacity-100 disabled:bg-muted disabled:text-foreground disabled:cursor-default disabled:pointer-events-auto dark:disabled:bg-muted';
-
 // The box carries no edge at rest, so a hover states the edge before the analyst reaches it. The
 // `focus-visible` recipe is the kit's own, copied whole: `ring` alone paints `currentcolor`.
 const WRITING =
@@ -55,83 +50,26 @@ const FIGURES = 'font-mono tabular-nums';
 const TICK_BOX = 'inline-flex h-6 shrink-0 items-center';
 const TICK =
   'size-3.5 shrink-0 appearance-none rounded-none border border-input bg-muted checked:border-foreground checked:bg-foreground';
-const TICK_READING = 'disabled:opacity-100 disabled:cursor-default disabled:pointer-events-auto';
 const TICK_WRITING = 'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
 
 const SENTENCE = 'block text-small/4 text-label';
 
-function ReadOnlyField({ label, value }: { label: string; value: ClaimValue }) {
-  switch (value.control) {
-    case 'boolean':
-      return (
-        <span className={cn(TICK_BOX)}>
-          <input
-            type="checkbox"
-            checked={value.checked}
-            readOnly
-            disabled
-            aria-label={label}
-            title={value.text}
-            data-reading={UNFADED}
-            className={cn(TICK, TICK_READING)}
-          />
-        </span>
-      );
-    case 'number':
-      return (
-        // A native number field prints in the locale of the machine, so this box shows `32,26`
-        // on one machine and `32.26` on another. A surface that must print a decimal point takes
-        // a text box, and the digits keep the figures class.
-        <Input
-          type="text"
-          // The surface writes nothing, so the value is a default and never a bound
-          // value with no handler.
-          defaultValue={value.text}
-          disabled
-          aria-label={label}
-          title={value.text}
-          data-reading={UNFADED}
-          className={cn(BOX, READING, FIGURES)}
-        />
-      );
-    case 'date':
-      return (
-        <Input
-          type="date"
-          defaultValue={value.text}
-          disabled
-          aria-label={label}
-          title={value.text}
-          data-reading={UNFADED}
-          className={cn(BOX, READING, FIGURES)}
-        />
-      );
-    case 'note':
-      return (
-        <Textarea
-          defaultValue={value.text}
-          disabled
-          aria-label={label}
-          title={value.text}
-          data-reading={UNFADED}
-          className={cn(NOTE, READING)}
-        />
-      );
-    case 'text':
-    case 'list':
-      // A list is already joined into the one text of the value, and no control splits it here.
-      return (
-        <Input
-          type="text"
-          defaultValue={value.text}
-          disabled
-          aria-label={label}
-          title={value.text}
-          data-reading={UNFADED}
-          className={cn(BOX, READING)}
-        />
-      );
-  }
+// A value that nobody edits is text in the page, so it reaches a reader with no script and a
+// search engine. A disabled control would keep it in an attribute, out of the text of the page.
+function ReadOnlyField({ value }: { label: string; value: ClaimValue }) {
+  const figures = value.control === 'number' || value.control === 'date';
+  return (
+    <span
+      title={value.text}
+      data-reading={UNFADED}
+      className={cn(
+        'flex min-h-6 w-full items-center bg-muted px-1.5 py-1 text-xs break-words whitespace-pre-wrap',
+        figures && FIGURES,
+      )}
+    >
+      {value.text}
+    </span>
+  );
 }
 
 function WritingField({

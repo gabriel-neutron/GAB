@@ -33,6 +33,14 @@ export const NamesTheVersionAndGivesTheTwoContacts: Story = {
   },
 };
 
+export const StatesTheLicenceOfTheDataset: Story = {
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByText('The dataset is under CC-BY 4.0. Each row gives its own licence.'),
+    ).toBeVisible();
+  },
+};
+
 export const NeverSaysTheDataIsLive: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.queryByText(/live/iu)).toBeNull();

@@ -1,13 +1,12 @@
 {
-  // The static site of a release. The pages are React components that the release renders to
-  // HTML in Node, and the stories render them in the browser, so the target has the DOM and JSX.
-  // Nothing is built: Vite loads the source when the release writes the site.
+  // The build of the site of a release. Node runs the writer, which builds the application with Vite
+  // and renders its pages. The fixtures of the release stay here, and the tests of the application
+  // read them. Nothing is built from this folder: Node runs the source.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["ES2024", "DOM", "DOM.Iterable"],
-    "jsx": "react-jsx",
+    "lib": ["ES2024"],
     "module": "preserve",
-    "types": ["node", "vite/client"],
+    "types": ["node"],
 
     "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.site.tsbuildinfo",
 
