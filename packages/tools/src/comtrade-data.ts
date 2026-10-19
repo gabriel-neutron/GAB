@@ -16,6 +16,11 @@ const MIN_GAP_MS = 1100;
 // holds one key, so one clock is enough.
 let lastCallAt = 0;
 
+/** Clears the clock of the rate limit. A test calls it. */
+export const resetComtradeClock = (): void => {
+  lastCallAt = 0;
+};
+
 const SENTENCE =
   'The United Nations asks for a written permission to redistribute Comtrade data, so this document stays internal and no release publishes it.';
 
@@ -82,10 +87,13 @@ export const comtradeData = defineTool({
     const frequency = input.period.length === 4 ? 'A' : 'M';
     const url = `${BASE}/data/v1/get/C/${frequency}/HS?${query.toString()}`;
 
-    const wait = lastCallAt + MIN_GAP_MS - reach.now().getTime();
-    if (wait > 0)
-      await (reach.sleep ?? ((ms) => new Promise((done) => setTimeout(done, ms))))(wait);
-    lastCallAt = reach.now().getTime();
+    // The slot is reserved before the wait, so calls that run together take slots one after the
+    // other.
+    const now = reach.now().getTime();
+    const slot = Math.max(now, lastCallAt + MIN_GAP_MS);
+    lastCallAt = slot;
+    if (slot > now)
+      await (reach.sleep ?? ((ms) => new Promise((done) => setTimeout(done, ms))))(slot - now);
 
     query.set('maxRecords', String(MAX_ROWS));
     let answer;
@@ -100,9 +108,13 @@ export const comtradeData = defineTool({
     // A sentence below never repeats the body: the body is the words of the server.
     if (answer.status === 429)
       throw new ToolRefusal(
-        /volume/iu.test(answer.body)
-          ? `${REGISTER} stopped the call: the daily quota of 500 calls is spent, so try again tomorrow`
-          : `${REGISTER} stopped the call: the limit is one call a second, so try again in a few seconds`,
+        // The word in the body is a hint only. Both causes are named, so a changed wording of
+        // the server gives no wrong advice.
+        `${REGISTER} stopped the call with a limit: ${
+          /volume/iu.test(answer.body)
+            ? 'the daily quota of 500 calls is probably spent, so try again tomorrow.'
+            : 'the rate limit of one call a second is probably the cause, so try again in a few seconds.'
+        } The daily quota (500 calls) and the rate limit (one call a second) are the two causes.`,
       );
     if (answer.status === 400)
       throw new ToolRefusal(

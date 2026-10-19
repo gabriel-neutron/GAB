@@ -4,6 +4,7 @@
 import { expect, test } from 'vitest';
 
 import { CATALOGUE } from './catalogue.ts';
+import { resetComtradeClock } from './comtrade-data.ts';
 import { memoryStore } from './fetch-fixture.ts';
 import { callTool, type ToolOutcome, type WebAnswer } from './tool.ts';
 import { hashDatabase, json, stubWeb, text, type Asked } from './web-stub.ts';
@@ -25,6 +26,7 @@ const INPUT = { reporter: '643', period: '2023', flow: 'X', hsCode: '2709', part
 const setup = (
   options: { key?: string; answer?: (asked: Asked) => WebAnswer | Error; sleeps?: number[] } = {},
 ) => {
+  resetComtradeClock();
   const web = stubWeb(options.answer ?? (() => json(ANSWER)), {
     ...(options.key === '' ? {} : { comtradeKey: options.key ?? KEY }),
   });
@@ -145,13 +147,29 @@ test('an answer of another shape is refused', async () => {
   expect(refusalOf(outcome)).toContain('UN Comtrade');
 });
 
-test('two calls in a row wait for the rate limit of one call a second', async () => {
+test('the first call does not wait and the second waits about one second', async () => {
   const sleeps: number[] = [];
   const { session, reach } = setup({ sleeps });
   await callTool(tool, session, INPUT, reach);
+  expect(sleeps).toEqual([]);
   await callTool(tool, session, { ...INPUT, hsCode: '2710' }, reach);
-  expect(sleeps.length).toBeGreaterThan(0);
-  expect(Math.max(...sleeps)).toBeGreaterThanOrEqual(1000);
+  expect(sleeps).toEqual([1100]);
+});
+
+test('calls that run together take slots one second apart', async () => {
+  const sleeps: number[] = [];
+  const { session, reach } = setup({ sleeps });
+  await Promise.all(
+    ['2709', '2710', '2711'].map((hsCode) => callTool(tool, session, { ...INPUT, hsCode }, reach)),
+  );
+  expect([...sleeps].sort((a, b) => a - b)).toEqual([1100, 2200]);
+});
+
+test('a 429 names both causes', async () => {
+  const { session, reach } = setup({ answer: () => text('something new', 429) });
+  const outcome = await callTool(tool, session, INPUT, reach);
+  expect(refusalOf(outcome)).toContain('daily quota');
+  expect(refusalOf(outcome)).toContain('one call a second');
 });
 
 test('a code or a period of a wrong shape is refused before any call', async () => {
