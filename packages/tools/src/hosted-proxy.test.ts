@@ -65,7 +65,8 @@ const reachWith = (store: ReturnType<typeof memoryStore>, key: string | undefine
   hostedProxyEndpoint: `http://proxy.test:${port}/proxy`,
 });
 
-const run = (url: string, reach: Reach) => callTool(fetchDocument, noSql, { url }, reach);
+const run = (url: string, reach: Reach) =>
+  callTool(fetchDocument, noSql, { url, proxy: true }, reach);
 
 describe('the host rule', () => {
   test.each([
@@ -98,6 +99,18 @@ describe('a Russian host that refuses the direct read', () => {
     } finally {
       if (saved !== undefined) process.env['SCRAPINGBEE_KEY'] = saved;
     }
+  });
+
+  test('a key with no "proxy" in the request calls no proxy', async () => {
+    seen.length = 0;
+    const outcome = await callTool(
+      fetchDocument,
+      noSql,
+      { url: `http://www.cbr.ru:${port}/gone` },
+      reachWith(memoryStore(), KEY),
+    );
+    expect(outcome.ok).toBe(false);
+    expect(seen.some((path) => path.startsWith('/proxy'))).toBe(false);
   });
 
   test('a host outside .ru calls no proxy', async () => {

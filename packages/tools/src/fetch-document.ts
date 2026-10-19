@@ -432,14 +432,16 @@ export const fetchDocument = defineTool({
     'that holds no GeoJSON is unpacked: "document" is the archive, whose text lists its files, ' +
     'and "files" names one more document for each file that a reader takes, each linked to the ' +
     'archive; cite the document of the file. "skipped" names each other file and the reason. A ' +
-    'hostile archive (too large, too deep, a path that leaves it, a zip bomb) is refused. When ' +
-    'the plain read of a .ru or .рф host fails, or gives the block page of the host, and the ' +
-    'operator set a key for the hosted proxy, the page is read once through a Russian exit; ' +
-    '"notice" says so.',
+    'hostile archive (too large, too deep, a path that leaves it, a zip bomb) is refused. ' +
+    'With "proxy" true, a .ru or .рф host whose plain read fails (or gives the block page of ' +
+    'the host) is read once through a paid hosted proxy with a Russian exit, when the ' +
+    'operator set its key; 10 credits for each page that it reads, and "notice" says so. ' +
+    'Set "proxy" only after the other ways failed, for one source that a fact needs.',
   input: z.strictObject({
     url: z.string().trim().min(1).max(2048),
     fromPage: z.number().int().min(1).default(1),
     toPage: z.number().int().min(1).optional(),
+    proxy: z.boolean().default(false),
   }),
   output: outputShape,
   async run(session, input, reach) {
@@ -461,7 +463,7 @@ export const fetchDocument = defineTool({
     let got: Got;
     let throughFilter = false as boolean; // set in a closure, so the type stays wide
     // A Russian host that refuses the direct read is read once through the hosted proxy.
-    const key = isRussianHost(input.url) ? proxyKey(reach.hostedProxyKey) : null;
+    const key = input.proxy && isRussianHost(input.url) ? proxyKey(reach.hostedProxyKey) : null;
     const viaProxy = async (key: string): Promise<Got> => {
       try {
         const read = await readThroughProxy(input.url, key, getOptions, reach.hostedProxyEndpoint);

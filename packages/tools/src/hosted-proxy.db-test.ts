@@ -71,7 +71,12 @@ test.each(['/gone', '/block'])(
     seen.length = 0;
     const url = `http://www.cbr.ru:${port}${path}`;
     await rolledBack('research', async (ask) => {
-      const outcome = await callTool(fetchDocument, sessionOf(ask), { url }, reachWith(store));
+      const outcome = await callTool(
+        fetchDocument,
+        sessionOf(ask),
+        { url, proxy: true },
+        reachWith(store),
+      );
       if (!outcome.ok) throw new Error(outcome.refusal);
       const out = outcome.output as { url: string; notice: string | null };
       // The source address is the original one, and the key is in no output and no stored byte.

@@ -20,7 +20,8 @@ possible. You then propose the facts with the skill `cite-claim`.
    the answer has `rendered`, keep the id of `rendered.document`. Read the start of the stored
    text with `document_text`: a challenge page, an error page or an empty text is not the source.
    The tool renders a page with JavaScript when its text is short, and it refuses a challenge
-   page. When the fetch is refused, read the refusal: it names the next step.
+   page. When the fetch is refused, read the refusal: it names the next step. A `.ru` host that
+   refuses is never read through the proxy on this call: that is step 5.4.
 5. When the fetch fails, find the next step in this table, then try the steps below in order.
    Stop at the first that stores the full text.
 
@@ -41,7 +42,16 @@ possible. You then propose the facts with the skill `cite-claim`.
    3. **The web archive.** `archive_snapshot` lists the captures. Then `fetch_document` on the
       address of the newest capture. The archive often refuses the address of the PC (429): one
       call for each URL, never a retry. An address with a query string has no capture.
-   4. **The list of needs.** Add the source to `research/out/needs.md`, and continue with the
+   4. **The paid proxy.** Call `fetch_document` again with `proxy` true. It reads a `.ru` or
+      `.рф` host once through a Russian exit, and costs 10 credits for each page that it reads.
+      It works only when the operator set the key. Use it only when all of these hold: the
+      source is the official page of a Russian issuer, a fact of the current layer waits for
+      it, no other copy is stored, and the steps above failed. One page for each call: never
+      for a list, never for a page that needs JavaScript, never a retry. Write the error of
+      each earlier step in the report. A page that comes back through the proxy says so in its
+      `notice`: keep that in the report, and replace it with a direct or browser copy when one
+      is reachable.
+   5. **The list of needs.** Add the source to `research/out/needs.md`, and continue with the
       next fact.
 6. Give the result as a table: URL, document id, status (stored, known, blocked), and the reason
    of each failure.
