@@ -51,7 +51,7 @@ const HASH = stated(
   'hash for doc_8f2a41',
 );
 
-const DISCLOSURE = /Claims/;
+const DISCLOSURE = /Facts \(/;
 
 const NO_WEB_ADDRESS = 'No web address recorded';
 
@@ -174,15 +174,50 @@ export const AMissingDocumentSaysMissing: Story = {
   },
 };
 
-export const AClaimTheDocumentHoldsUpIsNamed: Story = {
+export const AnAttributeTheDocumentHoldsUpIsNamedUnderItsOwnHeading: Story = {
   play: async ({ canvas }) => {
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
 
-    await expect(canvas.getAllByRole('listitem')).toHaveLength(REPORT.holdsUp.length);
+    await expect(
+      canvas.getByText(`Attributes this document backs (${REPORT.holdsUp.length})`),
+    ).toBeInTheDocument();
     for (const claim of REPORT.holdsUp) {
       await expect(canvas.getByText(claim.label)).toBeInTheDocument();
       await expect(canvas.getByText(claim.text)).toBeInTheDocument();
     }
+  },
+};
+
+export const ARelationTheDocumentBacksIsNamedAsAFact: Story = {
+  args: { source: { ...REPORT, backs: [{ key: 'r1', text: 'Quartanus designated by an act' }] } },
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
+
+    await expect(canvas.getByText('Facts this document backs (1)')).toBeInTheDocument();
+    await expect(canvas.getByText('Quartanus designated by an act')).toBeInTheDocument();
+  },
+};
+
+export const ADocumentThatBacksNoAttributeDrawsNoAttributeHeading: Story = {
+  args: {
+    source: {
+      ...REPORT,
+      holdsUp: [],
+      backs: [{ key: 'r1', text: 'Quartanus designated by an act' }],
+    },
+  },
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
+
+    await expect(canvas.queryByText(/Attributes this document backs/)).toBeNull();
+  },
+};
+
+export const ADocumentThatBacksNothingSaysSoInAPlainSentence: Story = {
+  args: { source: { ...REPORT, holdsUp: [], backs: [] } },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('This document backs no fact on this page.')).toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: DISCLOSURE })).toBeNull();
   },
 };
 

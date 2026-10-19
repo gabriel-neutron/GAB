@@ -54,8 +54,7 @@ export function SourceMark({ sources, activeSource, onSelectSource }: SourceMark
         <button
           key={source.id}
           type="button"
-          // The visible text is the number alone. The accessible name adds the title of the
-          // document.
+          // The visible text is the number alone. The accessible name adds the fact.
           aria-label={source.name}
           aria-pressed={activeSource === source.id}
           onClick={() => {
@@ -87,9 +86,7 @@ export function SourceCount({ sources, cards, entityId }: SourceCountProps) {
       <PopoverTrigger
         // No `aria-pressed`: nothing is active in a sidebar, because there is no rail for a mark
         // to move.
-        aria-label={
-          one ? '1 source document. Open it.' : `${sources.length} source documents. Open them.`
-        }
+        aria-label={`${one ? '1 source document' : `${sources.length} source documents`} for: ${sources[0]?.fact ?? ''}. Open ${one ? 'it' : 'them'}.`}
         className={cn(MARK)}
       >
         {sources.length}
