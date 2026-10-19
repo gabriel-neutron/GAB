@@ -117,7 +117,7 @@ export const AnAbsentAddressSaysSo: Story = {
   args: { source: HAND_ENTRY },
   play: async ({ canvas }) => {
     await expect(canvas.getByText(NO_WEB_ADDRESS)).toBeInTheDocument();
-    await expect(canvas.getByText('No date of retrieval')).toBeInTheDocument();
+    await expect(canvas.getByText('No retrieval date recorded')).toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
 
@@ -226,6 +226,36 @@ export const AStoredDocumentOffersAnExtraction: Story = {
   play: async ({ canvas }) => {
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
     await expect(canvas.getByRole('button', { name: 'Extract claims' })).toBeEnabled();
+  },
+};
+
+export const TheDateAndTheKindAreLabelled: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Report')).toBeInTheDocument();
+    await expect(canvas.getByText(/^Retrieved on \d{4}-\d{2}-\d{2}$/)).toBeInTheDocument();
+  },
+};
+
+export const AHandEntryNamesItsKind: Story = {
+  args: { source: HAND_ENTRY },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Manual entry')).toBeInTheDocument();
+  },
+};
+
+export const AnImportSaysItHasNoWebAddress: Story = {
+  args: { source: { ...REPORT, uri: null, uriShort: null, kind: 'Import', imported: true } },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Import')).toBeInTheDocument();
+    await expect(canvas.getByText('Import dataset, no web address')).toBeInTheDocument();
+    await expect(canvas.queryByText(NO_WEB_ADDRESS)).toBeNull();
+  },
+};
+
+export const AnExtractionIsExplainedBeforeItsControl: Story = {
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
+    await expect(canvas.getByText(/reads the stored document/)).toBeInTheDocument();
   },
 };
 

@@ -427,3 +427,34 @@ test('two relations that read the same still give two names and two facts', () =
   expect(new Set(names).size).toBe(2);
   expect(dossier.sources[0]?.backs).toHaveLength(3);
 });
+
+const cardOf = (document: DocumentRow) => {
+  const dossier = readDossier({ ...CORPUS, documents: [document] }, VESSEL.id, [], []);
+  const card = dossier?.sources[0];
+  if (card === undefined) throw new Error('The corpus holds no card');
+  return card;
+};
+
+test('a card names the kind of its document in words', () => {
+  const words = (kind: DocumentRow['kind']): string | null => cardOf({ ...DOCUMENT, kind }).kind;
+  expect(words('url')).toBe('Web page');
+  expect(words('file')).toBe('File');
+  expect(words('api')).toBe('API');
+  expect(words('report')).toBe('Report');
+  expect(words('manual')).toBe('Manual entry');
+});
+
+test('a cited document with no row has no kind', () => {
+  const dossier = readDossier({ ...CORPUS, documents: [] }, VESSEL.id, [], []);
+  expect(dossier?.sources[0]?.kind).toBeNull();
+});
+
+test('the stored import of the v1 work is marked as an import', () => {
+  const v1: DocumentRow = {
+    ...DOCUMENT,
+    kind: 'file',
+    title: 'GAB v1 ORBAT: military units and organisations of the v1 GeoPackage',
+  };
+  expect(cardOf(v1)).toMatchObject({ kind: 'Import', imported: true });
+  expect(cardOf(DOCUMENT).imported).toBe(false);
+});
