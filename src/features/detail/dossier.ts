@@ -210,11 +210,9 @@ function titleOf(id: DocId, row: DocumentRow | undefined): string {
 }
 
 interface SourceRegister {
-  readonly refsOf: (ids: readonly DocId[], fact: string) => readonly SourceRef[];
-  readonly cards: (
-    backsOf: (id: DocId) => readonly BackedFact[],
-    holdsUpOf: (id: DocId) => readonly ClaimLine[],
-  ) => readonly SourceCardModel[];
+  /** `listed` is false for an attribute: the card lists attributes in their own group. */
+  readonly refsOf: (ids: readonly DocId[], fact: string, listed?: boolean) => readonly SourceRef[];
+  readonly cards: (holdsUpOf: (id: DocId) => readonly ClaimLine[]) => readonly SourceCardModel[];
 }
 
 // Departure: a document keeps the number of the list where it is first met, so the call order
@@ -222,6 +220,8 @@ interface SourceRegister {
 // would draw one key twice, and would count the evidence twice.
 function sourceRegister(documentById: ReadonlyMap<DocId, DocumentRow>): SourceRegister {
   const met = new Map<DocId, number>();
+  const backed = new Map<DocId, BackedFact[]>();
+  const facts = new Set<string>();
   const numberOf = (id: DocId): number => {
     const held = met.get(id);
     if (held !== undefined) return held;
@@ -229,15 +229,25 @@ function sourceRegister(documentById: ReadonlyMap<DocId, DocumentRow>): SourceRe
     met.set(id, number);
     return number;
   };
+  // Two facts can read the same, so a repeat takes an ordinal and each name stays unique.
+  const uniqueFact = (fact: string): string => {
+    let candidate = fact;
+    for (let ordinal = 2; facts.has(candidate); ordinal += 1) candidate = `${fact} (${ordinal})`;
+    facts.add(candidate);
+    return candidate;
+  };
   return {
-    refsOf: (ids, fact) =>
-      [...new Set(ids)].map((id) => {
+    refsOf: (ids, text, listed = true) => {
+      const fact = uniqueFact(text);
+      return [...new Set(ids)].map((id) => {
         const number = numberOf(id);
+        if (listed) backed.set(id, [...(backed.get(id) ?? []), { key: fact, text: fact }]);
         return { id, number, fact, name: `Source ${number} for: ${fact}` };
-      }),
-    cards: (backsOf, holdsUpOf) =>
+      });
+    },
+    cards: (holdsUpOf) =>
       [...met].map(([id, number]) =>
-        cardOf(id, number, documentById.get(id), backsOf(id), holdsUpOf(id)),
+        cardOf(id, number, documentById.get(id), backed.get(id) ?? [], holdsUpOf(id)),
       ),
   };
 }
@@ -312,7 +322,7 @@ export function readDossier(
   const claims = readClaims(entity.attrs);
   const claimSources = claims.map((claim) => ({
     claim,
-    sources: refsOf(claim.sources, `${claim.label} of ${entity.label}`),
+    sources: refsOf(claim.sources, `${claim.label} of ${entity.label}`, false),
   }));
 
   const rows: readonly RecordRow[] = claimSources.map((held) => ({
@@ -346,12 +356,10 @@ export function readDossier(
     return fromFarEnd ? `${to} ${words.inverseLabel} ${from}` : `${from} ${words.label} ${to}`;
   };
 
-  const relationFacts = new Map<string, BackedFact>();
   const relations: readonly RelationLine[] = [...direct, ...pointing].map((relation) => {
     const sentence = sentenceOf(relation);
     const interval = intervalWords(relation);
     const fact = factWords(sentence, interval);
-    relationFacts.set(relation.id, { key: relation.id, text: fact });
     return {
       id: relation.id,
       sentence,
@@ -426,15 +434,10 @@ export function readDossier(
       };
     });
 
-  const sources = cards(
-    (id) =>
-      [...direct, ...pointing]
-        .filter((relation) => relation.sources.includes(id))
-        .flatMap((relation) => relationFacts.get(relation.id) ?? []),
-    (id) =>
-      claims
-        .filter((claim) => claim.sources.includes(id))
-        .map((claim) => ({ key: claim.key, label: claim.label, text: claim.value.text })),
+  const sources = cards((id) =>
+    claims
+      .filter((claim) => claim.sources.includes(id))
+      .map((claim) => ({ key: claim.key, label: claim.label, text: claim.value.text })),
   );
 
   const linkChoices: LinkChoices = {
@@ -520,10 +523,7 @@ export function readRelation(read: Corpus, relationId: string): RelationDossier 
   const sources = register.refsOf(relation.sources, fact);
   // Departure: this view draws no attribute, so no document holds one up here. The card says
   // that in its own words.
-  const cards = register.cards(
-    (id) => (relation.sources.includes(id) ? [{ key: relation.id, text: fact }] : []),
-    () => [],
-  );
+  const cards = register.cards(() => []);
 
   return {
     relationId: relation.id,

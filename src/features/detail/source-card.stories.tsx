@@ -193,7 +193,7 @@ export const ARelationTheDocumentBacksIsNamedAsAFact: Story = {
   play: async ({ canvas }) => {
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
 
-    await expect(canvas.getByText('Relations this document backs (1)')).toBeInTheDocument();
+    await expect(canvas.getByText('Facts this document backs (1)')).toBeInTheDocument();
     await expect(canvas.getByText('Quartanus designated by an act')).toBeInTheDocument();
   },
 };

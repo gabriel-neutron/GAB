@@ -85,7 +85,12 @@ test('the relation panel and the entity page draw the same card for one document
     dossier.sources.map((card) => ({
       ...card,
       holdsUp: [],
-      backs: [{ key: OWNED_BY.id, text: 'MV Northern Ledger owned_by Ledger Shipping' }],
+      backs: [
+        {
+          key: 'MV Northern Ledger owned_by Ledger Shipping',
+          text: 'MV Northern Ledger owned_by Ledger Shipping',
+        },
+      ],
     })),
   );
 });
@@ -410,4 +415,15 @@ test('the entity shows the label of the act that promoted it, in the words of th
     );
   // An entity whose promotion the read does not hold says nothing of it.
   expect(readDossier(CORPUS, VESSEL.id, [], [])?.decision).toBeNull();
+});
+
+test('two relations that read the same still give two names and two facts', () => {
+  const twin: Relation = { ...OWNED_BY, id: 'r2' };
+  const read: Corpus = { ...CORPUS, relations: [OWNED_BY, twin] };
+  const dossier = readDossier(read, VESSEL.id, [], []);
+  if (dossier === null) throw new Error('The corpus holds no vessel');
+
+  const names = dossier.relations.flatMap((line) => line.sources.map((ref) => ref.name));
+  expect(new Set(names).size).toBe(2);
+  expect(dossier.sources[0]?.backs).toHaveLength(3);
 });

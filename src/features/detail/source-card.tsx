@@ -88,7 +88,7 @@ export function SourceCard({ source }: SourceCardProps) {
           {source.backs.length === 0 ? null : (
             <div>
               <p className={cn(NAME, 'w-auto')}>
-                {`Relations this document backs (${source.backs.length})`}
+                {`Facts this document backs (${source.backs.length})`}
               </p>
               <ul className="mt-0.5 space-y-0.5">
                 {source.backs.map((fact) => (
