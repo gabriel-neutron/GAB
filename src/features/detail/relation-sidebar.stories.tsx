@@ -32,7 +32,7 @@ const TYPE = 'berthed at';
 
 /** The one document of `BERTHED`, and the count control that opens it. */
 const CARD_TITLE = 'Vessel movement log, scanned';
-const ONE_SOURCE = '1 source document. Open it.';
+const ONE_SOURCE = /^1 source document for: .+\. Open it\.$/;
 
 /** The way out of the entity panel. A relation has no full page, so no popover here carries it. */
 const WAY_OUT = 'Open the full page at this source, in a new tab';

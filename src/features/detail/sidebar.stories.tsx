@@ -66,7 +66,7 @@ const firstCard = (): SourceCardModel => {
 const CARD = firstCard();
 
 /** A count, and never a number. A number points at a rail, and this surface has no rail. */
-const ONE_SOURCE = '1 source document. Open it.';
+const ONE_SOURCE = /^1 source document for: .+\. Open it\.$/;
 
 const WAY_OUT = 'Open the full page at this source, in a new tab';
 

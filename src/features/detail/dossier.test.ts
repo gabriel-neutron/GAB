@@ -81,7 +81,13 @@ test('the relation panel and the entity page draw the same card for one document
   if (dossier === null || relation === null) throw new Error('The corpus holds no such row');
 
   expect(relation.sources.map((ref) => [ref.id, ref.number])).toEqual([['d1', 1]]);
-  expect(relation.cards).toEqual(dossier.sources.map((card) => ({ ...card, holdsUp: [] })));
+  expect(relation.cards).toEqual(
+    dossier.sources.map((card) => ({
+      ...card,
+      holdsUp: [],
+      backs: [{ key: OWNED_BY.id, text: 'MV Northern Ledger owned_by Ledger Shipping' }],
+    })),
+  );
 });
 
 const OWNS: RelationTypeDeclaration = {
@@ -170,7 +176,7 @@ const ACT: Proposal = {
   batchId: null,
 };
 
-const SOURCE_1 = { id: 'd1', number: 1, name: 'Source 1 — Port call register' };
+const source1 = (fact: string) => ({ id: 'd1', number: 1, fact, name: `Source 1 for: ${fact}` });
 
 const withActs = (...proposals: readonly Proposal[]): Corpus => ({
   ...CORPUS,
@@ -196,14 +202,14 @@ test('a pending deletion and a pending attribute act on a relation stand on both
       summary: 'Deletes a relation',
       dissent: false,
       origin: 'extractor',
-      sources: [SOURCE_1],
+      sources: [source1('Deletes a relation')],
     },
     {
       id: 'a2',
       summary: 'Changes an attribute',
       dissent: false,
       origin: 'extractor',
-      sources: [SOURCE_1],
+      sources: [source1('Changes an attribute')],
     },
   ];
   expect(pendingOf(read, VESSEL.id)).toHaveLength(2);
@@ -234,7 +240,7 @@ test('a pending update_relation act stands on both ends of the relation it names
       summary: 'Changes a relation',
       dissent: false,
       origin: 'operator',
-      sources: [SOURCE_1],
+      sources: [source1('Changes a relation')],
     },
   ];
   expect(pendingOf(read, VESSEL.id)).toEqual(expected);
@@ -286,7 +292,7 @@ test('a pending merge stands on the kept entity and on each absorbed entity', ()
       summary: 'Merges entities',
       dissent: true,
       origin: 'extractor',
-      sources: [SOURCE_1],
+      sources: [source1('Merges entities')],
     },
   ];
   expect(pendingOf(read, VESSEL.id)).toEqual(expected);

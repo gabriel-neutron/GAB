@@ -41,7 +41,7 @@ const firstCard = (): SourceCardModel => {
 
 const CARD = firstCard();
 
-const MARK_NAME = `Source ${CARD.number} — ${CARD.title}`;
+const MARK_NAME = new RegExp(`^Source ${CARD.number} for: `);
 
 const railOf = (root: HTMLElement): HTMLElement =>
   within(root).getByRole('complementary', { name: 'Sources' });
@@ -227,6 +227,16 @@ export const AMarkInTheRecordMarksTheCardInTheRail: Story = {
 
     await expect(rail.querySelector('[aria-current="true"]')).toHaveTextContent(CARD.title);
     await expect(first).toHaveAttribute('aria-pressed', 'true');
+  },
+};
+
+export const NoTwoSourceButtonsShareAName: Story = {
+  play: async ({ canvasElement }) => {
+    const names = within(canvasElement)
+      .getAllByRole('button', { name: /^Source \d+ for: / })
+      .map((button) => button.getAttribute('aria-label'));
+
+    await expect(new Set(names).size).toBe(names.length);
   },
 };
 

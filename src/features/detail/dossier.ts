@@ -24,8 +24,17 @@ export interface SourceRef {
   readonly id: DocId;
   /** 1-based, and the position in the page order. */
   readonly number: number;
-  /** The accessible name of the mark: `Source 7 — <title>`. It says which document (M8). */
+  /** The fact that the mark documents, in words. */
+  readonly fact: string;
+  /** The accessible name of the mark: `Source 7 for: <fact>`. It says which fact the button
+   * documents, so no two buttons of one panel read the same. */
   readonly name: string;
+}
+
+/** A relation that a document backs, as the reader meets it on the page. */
+export interface BackedFact {
+  readonly key: string;
+  readonly text: string;
 }
 
 export interface ClaimLine {
@@ -41,6 +50,9 @@ export interface SourceCardModel {
   readonly uri: string | null;
   readonly uriShort: string | null;
   readonly retrievedAt: string | null;
+  /** The relations that the document backs: the type, the ends and the dates. */
+  readonly backs: readonly BackedFact[];
+  /** The attributes of the entity that the document backs. */
   readonly holdsUp: readonly ClaimLine[];
   /** Cited, and with no row in `documents`. It is drawn and never hidden: a surface that drops
    * evidence in silence is worse than one that says what it dropped. */
@@ -173,17 +185,20 @@ function indexOf(read: Corpus): Index {
 }
 
 function cardOf(
-  ref: SourceRef,
+  id: DocId,
+  number: number,
   row: DocumentRow | undefined,
+  backs: readonly BackedFact[],
   holdsUp: readonly ClaimLine[],
 ): SourceCardModel {
   return {
-    id: ref.id,
-    number: ref.number,
-    title: titleOf(ref.id, row),
+    id,
+    number,
+    title: titleOf(id, row),
     uri: row?.uri ?? null,
     uriShort: shorten(row?.uri ?? null),
     retrievedAt: row?.retrievedAt ?? null,
+    backs,
     holdsUp,
     missing: row === undefined,
     extractable: row?.sha256 !== undefined && row.sha256 !== null,
@@ -195,31 +210,35 @@ function titleOf(id: DocId, row: DocumentRow | undefined): string {
 }
 
 interface SourceRegister {
-  readonly refsOf: (ids: readonly DocId[]) => readonly SourceRef[];
-  readonly cards: (holdsUpOf: (id: DocId) => readonly ClaimLine[]) => readonly SourceCardModel[];
+  readonly refsOf: (ids: readonly DocId[], fact: string) => readonly SourceRef[];
+  readonly cards: (
+    backsOf: (id: DocId) => readonly BackedFact[],
+    holdsUpOf: (id: DocId) => readonly ClaimLine[],
+  ) => readonly SourceCardModel[];
 }
 
 // Departure: a document keeps the number of the list where it is first met, so the call order
 // of `refsOf` is the page order. A document cited twice is one mark and one card: two entries
 // would draw one key twice, and would count the evidence twice.
 function sourceRegister(documentById: ReadonlyMap<DocId, DocumentRow>): SourceRegister {
-  const met = new Map<DocId, SourceRef>();
-  const refOf = (id: DocId): SourceRef => {
+  const met = new Map<DocId, number>();
+  const numberOf = (id: DocId): number => {
     const held = met.get(id);
     if (held !== undefined) return held;
     const number = met.size + 1;
-    const made: SourceRef = {
-      id,
-      number,
-      name: `Source ${number} — ${titleOf(id, documentById.get(id))}`,
-    };
-    met.set(id, made);
-    return made;
+    met.set(id, number);
+    return number;
   };
   return {
-    refsOf: (ids) => [...new Set(ids)].map(refOf),
-    cards: (holdsUpOf) =>
-      [...met.values()].map((ref) => cardOf(ref, documentById.get(ref.id), holdsUpOf(ref.id))),
+    refsOf: (ids, fact) =>
+      [...new Set(ids)].map((id) => {
+        const number = numberOf(id);
+        return { id, number, fact, name: `Source ${number} for: ${fact}` };
+      }),
+    cards: (backsOf, holdsUpOf) =>
+      [...met].map(([id, number]) =>
+        cardOf(id, number, documentById.get(id), backsOf(id), holdsUpOf(id)),
+      ),
   };
 }
 
@@ -248,6 +267,11 @@ function intervalWords(relation: Relation): string | null {
   if (relation.validFrom !== null) return `from ${relation.validFrom}, with no end date`;
   if (relation.validTo !== null) return `to ${relation.validTo}, with no start date`;
   return null;
+}
+
+/** The relation as a fact, with its dates, so a reader sees what the document backs. */
+function factWords(sentence: string, interval: string | null): string {
+  return interval === null ? sentence : `${sentence}, ${interval}`;
 }
 
 function typeChoicesOf(types: TypeVocabulary, held: string): readonly TypeChoice[] {
@@ -283,10 +307,13 @@ export function readDossier(
   // pending proposals, so the lists below call the register in that order.
   const { refsOf, cards } = sourceRegister(documentById);
 
-  const entitySources = refsOf(entity.sources);
+  const entitySources = refsOf(entity.sources, `the entity ${entity.label}`);
 
   const claims = readClaims(entity.attrs);
-  const claimSources = claims.map((claim) => ({ claim, sources: refsOf(claim.sources) }));
+  const claimSources = claims.map((claim) => ({
+    claim,
+    sources: refsOf(claim.sources, `${claim.label} of ${entity.label}`),
+  }));
 
   const rows: readonly RecordRow[] = claimSources.map((held) => ({
     claim: held.claim,
@@ -319,16 +346,23 @@ export function readDossier(
     return fromFarEnd ? `${to} ${words.inverseLabel} ${from}` : `${from} ${words.label} ${to}`;
   };
 
-  const relations: readonly RelationLine[] = [...direct, ...pointing].map((relation) => ({
-    id: relation.id,
-    sentence: sentenceOf(relation),
-    interval: intervalWords(relation),
-    // The mark comes from the relation and never from the list it is placed in: a relation can
-    // be direct and invisible at once.
-    undrawable: relation.srcKind === 'relation' || relation.dstKind === 'relation',
-    share: shareWords(relation.attrs),
-    sources: refsOf(relation.sources),
-  }));
+  const relationFacts = new Map<string, BackedFact>();
+  const relations: readonly RelationLine[] = [...direct, ...pointing].map((relation) => {
+    const sentence = sentenceOf(relation);
+    const interval = intervalWords(relation);
+    const fact = factWords(sentence, interval);
+    relationFacts.set(relation.id, { key: relation.id, text: fact });
+    return {
+      id: relation.id,
+      sentence,
+      interval,
+      // The mark comes from the relation and never from the list it is placed in: a relation can
+      // be direct and invisible at once.
+      undrawable: relation.srcKind === 'relation' || relation.dstKind === 'relation',
+      share: shareWords(relation.attrs),
+      sources: refsOf(relation.sources, fact),
+    };
+  });
 
   // Departure: an act on a relation carries no ends, so the ends come from the relation it names,
   // and the act stands on the page of each end. A relation the record does not hold puts the act
@@ -388,14 +422,19 @@ export function readDossier(
         summary: body,
         dissent: proposal.dissent,
         origin: proposerWords(proposal.proposer),
-        sources: refsOf(proposal.src),
+        sources: refsOf(proposal.src, body),
       };
     });
 
-  const sources = cards((id) =>
-    claims
-      .filter((claim) => claim.sources.includes(id))
-      .map((claim) => ({ key: claim.key, label: claim.label, text: claim.value.text })),
+  const sources = cards(
+    (id) =>
+      [...direct, ...pointing]
+        .filter((relation) => relation.sources.includes(id))
+        .flatMap((relation) => relationFacts.get(relation.id) ?? []),
+    (id) =>
+      claims
+        .filter((claim) => claim.sources.includes(id))
+        .map((claim) => ({ key: claim.key, label: claim.label, text: claim.value.text })),
   );
 
   const linkChoices: LinkChoices = {
@@ -476,10 +515,15 @@ export function readRelation(read: Corpus, relationId: string): RelationDossier 
   const [fromLine, typeLine, toLine] = relationLines(from, type, to);
 
   const register = sourceRegister(documentById);
-  const sources = register.refsOf(relation.sources);
-  // Departure: this view draws no claim, so no document holds one up here. The card says that
-  // in its own words.
-  const cards = register.cards(() => []);
+  const interval = intervalWords(relation);
+  const fact = factWords(`${from} ${type} ${to}`, interval);
+  const sources = register.refsOf(relation.sources, fact);
+  // Departure: this view draws no attribute, so no document holds one up here. The card says
+  // that in its own words.
+  const cards = register.cards(
+    (id) => (relation.sources.includes(id) ? [{ key: relation.id, text: fact }] : []),
+    () => [],
+  );
 
   return {
     relationId: relation.id,
@@ -490,7 +534,7 @@ export function readRelation(read: Corpus, relationId: string): RelationDossier 
       { key: 'to', text: toLine },
     ],
     sentence: `${from} ${type} ${to}`,
-    interval: intervalWords(relation),
+    interval,
     share: shareWords(relation.attrs),
     sources,
     cards,
