@@ -33,19 +33,20 @@ session: each proposal waits in the review queue, and the operator decides it th
   files from the inbox (`.json`, `.tsv`, `.csv`, `.xml`, `.txt`, `.md`).
 - Read the customs trade of the EU (Eurostat Comext): the API is open, with no account and no key.
   Store a small query with `fetch_document`, in JSON (the CSV format is refused). Find the dataset
-  and its dimensions in the Eurostat user guide of the Comext API, and cite "Source: Eurostat
-  (Comext)" with the date of the query. Russia and China are not reporters, so the data gives the
-  EU and partner countries, such as Turkey, as a mirror of Russian exports. Eurostat allows reuse
-  with the source named, but not for the data of a country outside the EU, EFTA and the
-  candidates.
+  and its dimensions in the Eurostat user guide of the Comext API. Cite "Source: Eurostat
+  (Comext)" with the date of the query. Russia and China do not report to Comext. Use the imports
+  that another country reports from Russia, for example Turkey. This is a mirror figure, not a
+  Russian figure. A missing line, such as crude oil for Turkey, is not a zero. Eurostat allows
+  reuse with the source named, but not for commercial use of the data of a country outside the
+  EU, EFTA and the candidates.
 - Read the trade between any two countries (UN Comtrade): it needs the key `COMTRADE_API_KEY` in
   `research/.env`. **Never call `fetch_document` with the key**: it stores the full address, and the
   key would enter a public document. Use the tool `comtrade_data`, which sends the key in a header,
-  when it exists. Until then, Comtrade is not available in a session. The UN licence needs a
-  written permission to republish, so a Comtrade figure is cited with its source and not
-  redistributed in the open dataset.
-- OpenCorporates and OCCRP Aleph are requested, and no access has arrived. Do not plan work that
-  depends on them. Their licences do not fit the open dataset: they give a lead or a cited fact.
+  when it exists. Until then, Comtrade is not available in a session. The UN licence asks for a
+  written permission to republish. The operator accepts the risk: cite a Comtrade figure with the
+  source "UN Comtrade".
+- The licences of OpenCorporates and OCCRP Aleph do not fit the open dataset. Use them only as a
+  lead, or cite a fact from them.
 - Cite an entry of the OFAC SDN list: `ofac_sdn` stores the whole official file once, as a public
   document with its hash and its date of publication, and gives the line of one entry by its
   ent_num. Cite that line on page 1 of the stored file. Never store one entry alone.
