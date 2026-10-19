@@ -58,6 +58,7 @@ test('a weak title takes the first line, a type is filled, and a search page is 
   const report = await relabelDocuments(db, false);
   expect(writes).toStrictEqual([
     ['title', 'doc_1', 'example.org/files/act.pdf', 'COUNCIL REGULATION (EU) 2026/12'],
+    ['title', 'doc_4', 'google.com/search', 'search'],
     ['type', 'doc_1', 'legal_act'],
     ['type', 'doc_2', 'press_release'],
   ]);
@@ -69,7 +70,7 @@ test('a dry run writes nothing and reports the same changes', async () => {
   const { db, writes } = database(ROWS);
   const report = await relabelDocuments(db, true);
   expect(writes).toStrictEqual([]);
-  expect(report.titles).toHaveLength(1);
+  expect(report.titles).toHaveLength(2);
   expect(report.types).toHaveLength(2);
 });
 

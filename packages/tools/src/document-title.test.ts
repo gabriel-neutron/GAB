@@ -10,7 +10,10 @@ test.each([
   ['/home/user/inbox/act.pdf', true],
   ['C:\\inbox\\act.pdf', true],
   ['act.pdf', true],
-  ['example.org', true],
+  ['/home/user/my inbox/act', true],
+  ['inbox/my act.pdf', true],
+  ['Rosneft.Report', false],
+  ['Rosneft annual report', false],
   ['example.org/files/act.pdf (saved by the browser)', true],
   ['inbox/act.pdf (in archive.zip)', true],
   ['Council Regulation (EU) 2026/12', false],
@@ -52,6 +55,14 @@ test('a weak title takes the first line, and keeps its note', () => {
   );
 });
 
-test('a weak title with no text to read stays', () => {
-  expect(readableTitle('example.org/a/act.pdf', [' '])).toBe('example.org/a/act.pdf');
+test('a weak title with no usable line takes the name of the file with no extension', () => {
+  expect(readableTitle('example.org/a/ship-list.pdf', [' '])).toBe('ship list');
+  expect(readableTitle('example.org/a/ship-list.pdf (saved by the browser)', ['3'])).toBe(
+    'ship list (saved by the browser)',
+  );
+  expect(readableTitle('https://example.org/', [], 'https://example.org/')).toBe('example.org');
+});
+
+test('a weak title with nothing to read in it stays', () => {
+  expect(readableTitle('/12.pdf', [])).toBe('/12.pdf');
 });

@@ -53,6 +53,16 @@ describe('the title and the type of a stored document', () => {
     expect(done.title).toBe('COUNCIL REGULATION (EU) 2026/12');
   });
 
+  test('a path title with no usable line takes the name of the file, and never the path', async () => {
+    const { session, stored } = recording();
+    await storeAnswer(
+      session,
+      memoryStore(),
+      answer({ title: 'example.org/files/ship-list.pdf', pages: ['  3 '] }),
+    );
+    expect(stored[0]?.[0]).toBe('ship list');
+  });
+
   test('a readable title stays', async () => {
     const { session, stored } = recording();
     await storeAnswer(session, memoryStore(), answer({ title: 'Annual report 2025' }));

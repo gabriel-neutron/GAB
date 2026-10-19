@@ -53,7 +53,7 @@ const RULES: readonly Rule[] = [
   },
   {
     type: 'press_release',
-    address: /\/(?:press-?releases?|presscorner|pressroom|press|news|newsroom|media)(?:\/|$|\?)/iu,
+    address: /\/(?:press-?releases?|presscorner)(?:\/|$|\?)/iu,
     title: /\bpress release\b/iu,
   },
   {

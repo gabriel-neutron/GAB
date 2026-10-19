@@ -20,6 +20,8 @@ const TYPE_WORDS: Readonly<Record<DocumentType, string>> = {
   other: 'Other',
 };
 
+// The same rule as hostOf in packages/tools/src/document-type.ts. The interface does not import
+// @gab/tools, which holds the server tools, so each side holds a copy.
 const hostOf = (uri: string | null): string | null => {
   const host = uri === null ? null : (URL.parse(uri)?.hostname ?? null);
   return host === null || host === '' ? null : host.replace(/^www\./u, '');

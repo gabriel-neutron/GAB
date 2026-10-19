@@ -67,7 +67,11 @@ export const relabelDocuments = async (db: Queryable, dryRun: boolean): Promise<
   const searchPages: SearchPage[] = [];
 
   for (const row of rows) {
-    const title = readableTitle(row.title, row.first_page === null ? [] : [row.first_page]);
+    const title = readableTitle(
+      row.title,
+      row.first_page === null ? [] : [row.first_page],
+      row.uri,
+    );
     if (title !== row.title) titles.push({ document: row.id, from: row.title, to: title });
 
     const type = documentType({ uri: row.uri, title, provider: row.provider_id });

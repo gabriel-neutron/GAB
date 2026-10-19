@@ -47,6 +47,7 @@ const CLAIM_HEADER = [
   'document_title',
   'document_address',
   'document_read_on',
+  'document_type',
   'page',
   'excerpt',
   'modality',
@@ -178,7 +179,13 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
     const nato = natoFields(claim);
     return claim.sources.flatMap((id) => {
       const document = documentOf(id);
-      const source = [id, document.title, document.uri ?? '', document.retrieved_at ?? ''];
+      const source = [
+        id,
+        document.title,
+        document.uri ?? '',
+        document.retrieved_at ?? '',
+        document.doc_type ?? 'other',
+      ];
       const cited = claim.passages.filter((one) => one.document === id);
       return cited.length === 0
         ? [[...head, ...source, '', '', '', '', ...nato]]

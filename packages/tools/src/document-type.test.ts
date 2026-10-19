@@ -21,7 +21,7 @@ test.each([
   ['https://search.gleif.org/#/record/5493001KJTIIGC8Y1R12', 'Record', 'register_entry'],
   ['https://home.treasury.gov/news/press-releases/jy1234', 'Treasury action', 'press_release'],
   ['https://example.org/a', 'Press release: a new designation', 'press_release'],
-  ['https://example.org/media/news/2026/ship', 'A ship was seized', 'press_release'],
+  ['https://example.org/media/news/2026/ship', 'A ship was seized', 'other'],
   ['https://example.org/files/annual.pdf', 'Annual report 2025', 'report'],
   ['https://example.org/reports/2025', 'Overview', 'report'],
   ['https://example.org/a', 'A page', 'other'],

@@ -105,7 +105,7 @@ export const storeAnswer = async (
   let known = await knownOf(session, sha256);
   if (known === undefined) {
     // The key holds the hash alone, as the worker writes it, so the two paths name one object.
-    const title = readableTitle(answer.title, answer.pages);
+    const title = readableTitle(answer.title, answer.pages, answer.uri);
     const key = await store.put({ key: `raw/${sha256}`, bytes: answer.bytes, mime: answer.mime });
     try {
       await rowsOf(session, storedRow, STORE, [

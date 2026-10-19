@@ -7146,10 +7146,11 @@ $$;
 -- Each public document, with its provider and the licence of its provider. A document with no
 -- provider has none. The alignment matrix reads the regime of a designation from the provider.
 CREATE FUNCTION release_documents()
-RETURNS TABLE (id text, title text, uri text, retrieved_at date, licence text, provider text)
+RETURNS TABLE (id text, title text, uri text, retrieved_at date, licence text, provider text,
+               doc_type text)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
-  SELECT d.id::text, d.title, d.uri, d.retrieved_at, p.licence, p.id
+  SELECT d.id::text, d.title, d.uri, d.retrieved_at, p.licence, p.id, d.doc_type
     FROM public.documents d
     LEFT JOIN public.document_provider p ON p.id = d.provider_id
    WHERE d.id IN (SELECT o.id FROM public.public_document o)
