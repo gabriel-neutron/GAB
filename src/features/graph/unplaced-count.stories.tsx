@@ -55,7 +55,7 @@ export const TheSwitchAsksToShow: Story = {
   args: { shown: false },
   play: async ({ canvas, args }) => {
     const button = canvas.getByRole('button', { name: 'Show them' });
-    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    await expect(canvas.getByRole('status')).not.toHaveTextContent('Grey dots');
     await userEvent.click(button);
     await expect(args.onSwitch).toHaveBeenCalledWith(true);
   },

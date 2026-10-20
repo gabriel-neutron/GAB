@@ -24,7 +24,7 @@ import { stepAfterTypeOpen, stepShowingWholeList, type RailStep } from './rail-s
 import { IndexRows } from './row';
 import type { GraphSelection } from './selection';
 import { StartPanel } from './start-panel';
-import { everyTypeShown, hiddenAfterSwitch, type FilterState } from './type-filter';
+import { everyTypeShown, hiddenAfterSwitch, isShown, type FilterState } from './type-filter';
 import { UnplacedCount } from './unplaced-count';
 import { DEFAULT_GRAPH_WORKSPACE } from './workspace';
 
@@ -146,7 +146,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     const hidden = new Set(filter.hiddenTypes);
     const shown: { id: string; label: string; degree: number }[] = [];
     model.graph.forEachNode((node, attrs) => {
-      if (!hidden.has(attrs.entityType) && (showUnplaced || !attrs.unplaced)) {
+      if (isShown(attrs, hidden, showUnplaced)) {
         shown.push({ id: node, label: attrs.label, degree: attrs.degree });
       }
     });

@@ -9,12 +9,12 @@ import type { NodePosition } from './model';
 
 const TAU = Math.PI * 2;
 
-// An unplaced entity stands outside the reach of the stored picture, in a band of this depth, so
+// An unplaced entity stands outside the reach of the stored picture, in a ring of this depth, so
 // that it reads as unplaced and does not set the bounding box that Sigma normalises on its own.
-const BAND_INNER = 1.1;
-const BAND_DEPTH = 0.15;
+const RING_INNER = 1.1;
+const RING_DEPTH = 0.15;
 
-// The reach of a corpus that carries no stored position at all. The band is then the whole
+// The reach of a corpus that carries no stored position at all. The ring is then the whole
 // picture, and only the ratios between the dots matter.
 const BARE_REACH = 1;
 
@@ -110,8 +110,8 @@ export function graphPositions(
       });
       continue;
     }
-    const band = reach * (BAND_INNER + BAND_DEPTH * unitOf(entity.id, 2));
-    positions.set(entity.id, { x: band * Math.cos(angle), y: band * Math.sin(angle) });
+    const ring = reach * (RING_INNER + RING_DEPTH * unitOf(entity.id, 2));
+    positions.set(entity.id, { x: ring * Math.cos(angle), y: ring * Math.sin(angle) });
     unplaced.add(entity.id);
   }
 

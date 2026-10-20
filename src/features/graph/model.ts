@@ -51,7 +51,7 @@ interface GraphPalette {
 export type GraphGround = 'light' | 'dark';
 
 // Contrast against `--background` of the same ground, where the minimum is 3:1: `isolate` gives
-// 8.6:1 and 8.7:1, `edge` gives 5.6:1,
+// 8.6:1 and 8.7:1, `edge` gives 5.6:1 and
 // `unplaced` gives 4.0:1 and 4.1:1. The `--border` hue gives 1.5:1 on the dark ground.
 const GRAPH_PALETTES: Readonly<Record<GraphGround, GraphPalette>> = Object.freeze({
   light: Object.freeze({ isolate: '#42494c', unplaced: '#767b7e', edge: '#5e6468' }),
@@ -109,9 +109,10 @@ const isM4 = (relation: Relation): boolean =>
   relation.srcKind === 'relation' || relation.dstKind === 'relation';
 
 // A node on the ring is painted before all else: its place means nothing, so no other mark may
-// make it read as a member of a cluster. An isolate is painted before its type, because the reader is told which elements stand alone
-// before which kind of thing each one is. The two callers below state the rule one time: a node
-// that the build paints and a node that a ground change repaints must take the same hue.
+// make it read as a member of a cluster. An isolate is painted before its type, because the
+// reader is told which elements stand alone before which kind of thing each one is. The two
+// callers below state the rule one time: a node that the build paints and a node that a ground
+// change repaints must take the same hue.
 const hueOfNode = (
   attrs: Pick<NodeAttrs, 'isolate' | 'entityType' | 'unplaced'>,
   palette: GraphPalette,
@@ -135,7 +136,7 @@ export function buildGraphModel(
   positions: ReadonlyMap<string, NodePosition>,
   types: TypeVocabulary,
   ground: GraphGround,
-  unplaced: ReadonlySet<string> = new Set(),
+  unplaced: ReadonlySet<string>,
 ): GraphModel {
   const palette = GRAPH_PALETTES[ground];
   const drawn = new Set<string>();

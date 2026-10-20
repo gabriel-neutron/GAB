@@ -28,7 +28,7 @@ import {
 } from './model';
 import { graphPositions } from './positions';
 import { readSelectionAddress, writeSelectionAddress, type GraphSelection } from './selection';
-import type { FilterState } from './type-filter';
+import { isShown, type FilterState } from './type-filter';
 import { patchGraphWorkspace, readGraphWorkspace } from './workspace';
 
 /**
@@ -291,8 +291,7 @@ export function mountGraph(
 
   // The test is on the dim of the filter, and not on the dim of a selection. The two hops of a
   // selection dim as well, and they must not stop a click on a node on the other side.
-  const passesFilter = (attrs: NodeAttrs): boolean =>
-    !hidden.has(attrs.entityType) && (showUnplaced || !attrs.unplaced);
+  const passesFilter = (attrs: NodeAttrs): boolean => isShown(attrs, hidden, showUnplaced);
 
   const nodeConsidered = (node: string): boolean =>
     model.graph.hasNode(node) && passesFilter(model.graph.getNodeAttributes(node));
@@ -543,8 +542,7 @@ export function mountGraph(
     edgeReducer: (edge: string, data: EdgeAttrs): Partial<EdgeDisplayData> => {
       if (
         !showUnplaced &&
-        (model.graph.getNodeAttribute(model.graph.source(edge), 'unplaced') ||
-          model.graph.getNodeAttribute(model.graph.target(edge), 'unplaced'))
+        model.graph.extremities(edge).some((end) => model.graph.getNodeAttribute(end, 'unplaced'))
       ) {
         return { ...data, hidden: true, label: null };
       }
@@ -843,6 +841,22 @@ export function mountGraph(
     writePositions(placed);
   };
 
+  // A focus draws the nodes that pass the filter. A centre that the filter puts out leaves
+  // nothing to draw around, so the reader meets the choice again. Nothing is drawn then, and a
+  // selection that is not drawn is a lie on the screen.
+  const redrawFocus = (): void => {
+    if (mode !== 'focus') return;
+    if (focusCentre !== null && !nodeConsidered(focusCentre)) {
+      mode = 'start';
+      focusCentre = null;
+      expanded = [];
+      selection = null;
+      writeSelectionAddress(null);
+      announce();
+    }
+    arrange();
+  };
+
   function expandableCount(): number {
     if (mode !== 'focus' || selection?.kind !== 'entity') return 0;
     if (!drawnNodes.has(selection.id)) return 0;
@@ -1119,20 +1133,7 @@ export function mountGraph(
         filter = { hiddenTypes: [...next.hiddenTypes] };
         hidden = new Set(filter.hiddenTypes);
         patchGraphWorkspace({ hiddenTypes: filter.hiddenTypes });
-        // A focus draws the nodes that pass the filter. A centre that the filter puts out leaves
-        // nothing to draw around, so the reader meets the choice again.
-        if (mode === 'focus') {
-          if (focusCentre !== null && !nodeConsidered(focusCentre)) {
-            mode = 'start';
-            focusCentre = null;
-            expanded = [];
-            // Nothing is drawn, and a selection that is not drawn is a lie on the screen.
-            selection = null;
-            writeSelectionAddress(null);
-            announce();
-          }
-          arrange();
-        }
+        redrawFocus();
       }
       // **A filter that excludes the selection drops the selection.**
       settle(acceptable(selection));
@@ -1141,18 +1142,7 @@ export function mountGraph(
       if (destroyed || show === showUnplaced) return;
       showUnplaced = show;
       patchGraphWorkspace({ showUnplaced });
-      // The same rule as a filter: a focus on a hidden centre has nothing to draw around.
-      if (mode === 'focus') {
-        if (focusCentre !== null && !nodeConsidered(focusCentre)) {
-          mode = 'start';
-          focusCentre = null;
-          expanded = [];
-          selection = null;
-          writeSelectionAddress(null);
-          announce();
-        }
-        arrange();
-      }
+      redrawFocus();
       settle(acceptable(selection));
     },
     setRailOpen: (open) => {

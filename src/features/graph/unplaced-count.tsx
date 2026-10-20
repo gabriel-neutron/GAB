@@ -24,11 +24,10 @@ export function UnplacedCount({ unplaced, shown, onSwitch }: UnplacedCountProps)
         {unplaced === 1
           ? '1 new entity has no place yet. Its place on the ring means nothing.'
           : `${String(unplaced)} new entities have no place yet. Their place on the ring means nothing.`}{' '}
-        Grey dots on the outer ring are the entities with no place.
+        {shown ? 'Grey dots on the outer ring are the entities with no place.' : null}
       </p>
       <button
         type="button"
-        aria-pressed={!shown}
         onClick={() => {
           onSwitch(!shown);
         }}

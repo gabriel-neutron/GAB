@@ -67,6 +67,16 @@ describe('the places of the graph', () => {
     expect(unplaced.has('n')).toBe(true);
   });
 
+  it('keeps a new entity whose only neighbour is also new on the ring', () => {
+    const { unplaced } = graphPositions([entity('a'), entity('n'), entity('m')], STORED, [
+      link('a', 'n'),
+      link('n', 'm'),
+    ]);
+
+    expect(unplaced.has('n')).toBe(false);
+    expect(unplaced.has('m')).toBe(true);
+  });
+
   it('gives the same place on every call', () => {
     const run = () =>
       graphPositions([entity('a'), entity('n')], STORED, [link('n', 'a')]).positions.get('n');

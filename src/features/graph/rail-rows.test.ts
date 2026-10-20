@@ -10,7 +10,7 @@ const positions: ReadonlyMap<string, NodePosition> = new Map(
   corpus.entities.map((entity, index) => [entity.id, { x: index, y: index }]),
 );
 
-const model = buildGraphModel(corpus, positions, entityTypes, 'dark');
+const model = buildGraphModel(corpus, positions, entityTypes, 'dark', new Set());
 
 const first = corpus.entities[0];
 if (first === undefined) throw new Error('The committed corpus holds no entity');
