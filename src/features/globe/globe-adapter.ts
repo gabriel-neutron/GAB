@@ -263,9 +263,9 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
     else queue.push(work);
   };
 
-  // The library measures the container once, while the chrome around it is still being built.
   map.addControl(new ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left');
 
+  // The library measures the container once, while the chrome around it is still being built.
   const observer = new ResizeObserver(() => {
     if (!destroyed) map.resize();
   });

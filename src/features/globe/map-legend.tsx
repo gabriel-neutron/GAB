@@ -8,7 +8,7 @@ const dashArray = (dash: LineRow['dash']): string | undefined =>
   dash === null ? undefined : dash.map((one) => String(one * WIDTH)).join(' ');
 
 function Line({ row }: { readonly row: LineRow }) {
-  const stroke = row.review ? 'var(--color-muted-foreground)' : 'var(--color-foreground)';
+  const stroke = row.review ? 'stroke-muted-foreground' : 'stroke-foreground';
   return (
     <svg width={LENGTH} height="8" aria-hidden="true" className="shrink-0">
       <line
@@ -16,12 +16,12 @@ function Line({ row }: { readonly row: LineRow }) {
         y1="4"
         x2={LENGTH}
         y2="4"
-        stroke={stroke}
+        className={stroke}
         strokeWidth={WIDTH}
         strokeDasharray={dashArray(row.dash)}
       />
       {row.hollow ? (
-        <line x1="0" y1="4" x2={LENGTH} y2="4" stroke="var(--color-background)" strokeWidth="1.5" />
+        <line x1="0" y1="4" x2={LENGTH} y2="4" className="stroke-background" strokeWidth="1.5" />
       ) : null}
     </svg>
   );
@@ -49,7 +49,7 @@ export function MapLegend() {
             aria-hidden="true"
             className="inline-block size-2.5 shrink-0 rounded-full border-2 border-muted-foreground"
           />
-          Exit point, computed from the relations
+          Exit point: a ring in the colour of its stage, grey in review
         </li>
       </ul>
       <ul aria-label="Lines" className="flex flex-wrap gap-x-4 gap-y-1">

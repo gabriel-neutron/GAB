@@ -1,5 +1,7 @@
 import { NO_STAGE_COLOUR, STAGES } from '@gab/proposal/chain-stage';
 
+import type { ArcLine } from '@gab/release/arc-line';
+
 import { ARC_LAYERS } from './arc-layers';
 
 /** A point of the legend: one colour and the words for it. */
@@ -11,7 +13,7 @@ export interface PointRow {
 
 /** A line of the legend: the dash pattern of the canvas, null for a full line. */
 export interface LineRow {
-  readonly style: string;
+  readonly style: ArcLine['style'];
   readonly label: string;
   readonly dash: readonly number[] | null;
   /** True when the canvas draws the line in the grey of a fact in review. */
@@ -20,8 +22,9 @@ export interface LineRow {
   readonly hollow: boolean;
 }
 
+// The legend has two related exports: the points and the lines of one key.
 // One wording for each style of the canvas. A style with no words is a fault that a test finds.
-const LINE_WORDS: Readonly<Record<string, string>> = {
+const LINE_WORDS: Readonly<Record<ArcLine['style'], string>> = {
   solid: 'Link with no volume',
   dashed: 'Link after the export stage, with no volume',
   observed: 'Observed flow: the width grows with the value',
@@ -30,7 +33,14 @@ const LINE_WORDS: Readonly<Record<string, string>> = {
   'in review': 'Link in review, not a fact',
 };
 
-const ORDER = ['solid', 'dashed', 'observed', 'estimated', 'capacity', 'in review'] as const;
+const ORDER: readonly ArcLine['style'][] = [
+  'solid',
+  'dashed',
+  'observed',
+  'estimated',
+  'capacity',
+  'in review',
+];
 
 /** The stages of the chain, then the grey of an entity with no stage. */
 export const pointRows = (): readonly PointRow[] => [
@@ -47,7 +57,7 @@ export const lineRows = (): readonly LineRow[] =>
     return [
       {
         style,
-        label: LINE_WORDS[style] ?? style,
+        label: LINE_WORDS[style],
         dash: main.dash,
         review: main.colour === 'review',
         hollow: layers.some((one) => one.colour === 'land'),

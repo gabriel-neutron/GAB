@@ -1,9 +1,11 @@
 // The layers of the arcs, from the bottom. The canvas draws them and the legend reads them, so the
 // two cannot differ.
 
+import type { ArcLine } from '@gab/release/arc-line';
+
 export interface ArcLayer {
   readonly id: string;
-  readonly style: string;
+  readonly style: ArcLine['style'];
   /** The property that gives the width, or a fixed width. */
   readonly width: 'width' | 'halo' | number;
   readonly dash: number[] | null;
