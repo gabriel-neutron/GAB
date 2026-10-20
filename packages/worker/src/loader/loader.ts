@@ -27,9 +27,12 @@ import {
   type Attrs,
   daysOf,
   makeEndFinder,
+  nameTableOf,
   resolveEnd,
+  splitNames,
   type Days,
   type HeldAttrs,
+  type NamedEnd,
   type SplitOwner,
 } from './link.ts';
 
@@ -42,6 +45,8 @@ const REPORT_MIME = 'text/csv';
 const PENDING_OWNER = `SELECT id::text AS id FROM public.proposals
   WHERE op = 'create_entity' AND status = 'pending' AND payload->>'type' = $1::text
     AND payload #>> '{attrs,gem_entity_id,v}' = $2::text ORDER BY id LIMIT 20`;
+
+const ENTITY_EXISTS = 'SELECT id::text AS id FROM api.entity WHERE id = $1::uuid';
 
 const NOT_IN_GRAPH = 'relation not loaded: the other end is not in the record';
 
@@ -301,6 +306,61 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         ? { kind: 'none' }
         : { kind: 'one', id: first.id, key: 'gem_entity_id' };
     };
+    // The approved name tables that the relations of the mapping read, one for each document.
+    const nameTables = new Map<string, Map<string, NamedEnd>>();
+    for (const { names } of mapping.relations) {
+      if (names === undefined || nameTables.has(names.table)) continue;
+      try {
+        const named = await readTablePage(session, names.table, null);
+        nameTables.set(names.table, nameTableOf(tableOf(named.text, named.format)));
+      } catch (cause) {
+        if (cause instanceof ToolRefusal) throw new JobStop(cause.message);
+        throw cause;
+      }
+    }
+
+    /** The far ends of a cell of names. A name with a GEM identifier in the table finds its entity
+     * in the record. A name that the table gives as a candidate finds its entity too, and the
+     * link carries the mark "unconfirmed". An open name gives no link, and the name stays text.
+     * Each name that gives no link goes to `note`. */
+    const namedEnds = async (
+      relation: MappingPayload['relations'][number],
+      text: string,
+      farType: string,
+      note: (reason: string) => void,
+    ): Promise<{ id: string; extra: Attrs }[]> => {
+      const { names } = relation;
+      const table = names === undefined ? undefined : nameTables.get(names.table);
+      if (names === undefined || table === undefined) return [];
+      const ends: { id: string; extra: Attrs }[] = [];
+      for (const { name, share } of splitNames(text, names.separator)) {
+        const extra: Attrs = share === null ? {} : { share_pct: { v: share } };
+        const held = table.get(nameKey(name)) ?? { kind: 'open' as const };
+        if (held.kind === 'open') {
+          note(`relation not loaded: the name "${name}" is open in the name table, and stays text`);
+          continue;
+        }
+        if (held.kind === 'candidate') {
+          const [exists] = idRow.parse((await context.db.query(ENTITY_EXISTS, [held.entity])).rows);
+          if (exists === undefined)
+            note(`relation not loaded: the candidate of "${name}" is not in the record`);
+          else ends.push({ id: exists.id, extra: { ...extra, unconfirmed: { v: true } } });
+          continue;
+        }
+        const owned =
+          (await ownerOf(farType, held.gemId)).kind === 'none'
+            ? await findByIdentifier(context.db, 'gem_entity_id', held.gemId, null)
+            : await ownerOf(farType, held.gemId);
+        if (owned.kind === 'one') ends.push({ id: owned.id, extra });
+        else
+          note(
+            `relation not loaded: the name "${name}" with ${held.gemId} ` +
+              (owned.kind === 'many' ? 'finds more than one entity' : 'is not in the record'),
+          );
+      }
+      return ends;
+    };
+
     // A link that an earlier edition gave, and that this edition no longer gives, goes to the
     // report. A table with no relation type gives no link, so it reads no earlier edition.
     const types = isLinkTable(rows)
@@ -495,7 +555,10 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         if (text === '') continue;
         const farType = relation.other_type ?? rows.entity_type;
         const far: (string | null)[] = [];
-        if (relation.split === undefined) {
+        if (relation.names !== undefined)
+          for (const end of await namedEnds(relation, text, farType, () => undefined))
+            far.push(end.id);
+        else if (relation.split === undefined) {
           const end = await find(record, [relation.other], farType);
           far.push(end.kind === 'one' ? end.id : null);
         } else {
@@ -685,7 +748,9 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         // The far ends of this relation: one entity for a plain cell, and one for each owner of a
         // cell that splits.
         const ends: { id: string; extra: Attrs }[] = [];
-        if (relation.split === undefined) {
+        if (relation.names !== undefined)
+          ends.push(...(await namedEnds(relation, otherText, farType, note)));
+        else if (relation.split === undefined) {
           const end = await find(record, [relation.other], farType);
           if (end.kind === 'none') {
             await skip(NOT_IN_GRAPH);
