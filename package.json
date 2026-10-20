@@ -50,7 +50,7 @@
     "@gab/tools": "workspace:*",
     "@gab/worker": "workspace:*",
     "@gab/writer": "workspace:*",
-    "@storybook/addon-a11y": "10.5.7",
+    "@storybook/addon-a11y": "^10.5.7",
     "@storybook/addon-vitest": "^10.5.7",
     "@storybook/react-vite": "^10.5.7",
     "@tailwindcss/vite": "^4.3.3",

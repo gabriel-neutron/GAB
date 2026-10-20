@@ -76,7 +76,7 @@ importers:
         specifier: workspace:*
         version: link:packages/writer
       '@storybook/addon-a11y':
-        specifier: 10.5.7
+        specifier: ^10.5.7
         version: 10.5.7(storybook@10.5.7(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8))
       '@storybook/addon-vitest':
         specifier: ^10.5.7
