@@ -1,10 +1,11 @@
 /** A router loader returns these shapes, so they carry arrays and no `Map`. */
 
-import { shareWords } from '@gab/proposal/share';
+import { SHARE_IMPUTED_KEY, SHARE_KEY, shareWords } from '@gab/proposal/share';
 import { positionFromWords, relationLines } from '@/shared/canvas-label';
 import { proposerWords } from '@/shared/proposer-words';
 import { idOf, isUnread, type DecidedLine } from '@/shared/read/decided-acts';
 import type {
+  AttributeValue,
   Corpus,
   DocId,
   DocumentRow,
@@ -16,7 +17,7 @@ import type {
 } from '@/shared/read/model';
 import { relationWording, type RelationWords } from '@/shared/relation-words';
 
-import { readClaims, type ClaimRow } from './claims';
+import { labelOf, readClaims, type ClaimRow } from './claims';
 import type { ReleaseFacts } from './release-facts';
 
 /** One cited document, at the position it was first met. The badge is a number. */
@@ -80,6 +81,8 @@ export interface RelationLine {
   /** The share of an ownership link in words, with the mark of a share that GEM estimated.
    * `null` where the relation holds no share. */
   readonly share: string | null;
+  /** Each other stored attribute of the relation, as "Key: value". Empty where there is none. */
+  readonly facts: readonly string[];
   readonly sources: readonly SourceRef[];
 }
 
@@ -179,6 +182,7 @@ interface Index {
   readonly relationById: ReadonlyMap<string, Relation>;
   readonly documentById: ReadonlyMap<DocId, DocumentRow>;
   readonly wordsOf: (type: string) => RelationWords;
+  readonly takesPeriod: (type: string) => boolean;
 }
 
 function indexOf(read: Corpus): Index {
@@ -187,6 +191,7 @@ function indexOf(read: Corpus): Index {
     relationById: new Map(read.relations.map((row) => [row.id, row])),
     documentById: new Map(read.documents.map((row) => [row.id, row])),
     wordsOf: relationWording(read.relationTypes),
+    takesPeriod: (type) => read.relationTypes.some((one) => one.key === type && one.takesInterval),
   };
 }
 
@@ -345,6 +350,29 @@ function intervalWords(index: Index, relation: Relation): string | null {
   return relation.type === DESIGNATION ? designationWords(index, relation) : periodWords(relation);
 }
 
+/** What a line writes for the period. A type that takes a period and holds none says so, because
+ * a blank reads as a period that does not apply. */
+function periodLine(index: Index, relation: Relation): string | null {
+  return (
+    intervalWords(index, relation) ??
+    (index.takesPeriod(relation.type) ? 'period not recorded' : null)
+  );
+}
+
+const SHARE_KEYS: ReadonlySet<string> = new Set([SHARE_KEY, SHARE_IMPUTED_KEY]);
+
+function factWord(value: AttributeValue): string {
+  return typeof value === 'object' ? value.join(', ') : String(value);
+}
+
+/** Every stored attribute of a relation that the share does not already word. */
+function storedFacts(relation: Relation): readonly string[] {
+  return Object.entries(relation.attrs)
+    .filter(([key]) => !SHARE_KEYS.has(key))
+    .sort(([one], [other]) => one.localeCompare(other))
+    .map(([key, attribute]) => `${labelOf(key)}: ${factWord(attribute.v)}`);
+}
+
 /** The relation as a fact, with its dates, so a reader sees what the document backs. */
 function factWords(sentence: string, interval: string | null): string {
   return interval === null ? sentence : `${sentence}, ${interval}`;
@@ -424,16 +452,16 @@ export function readDossier(
 
   const relations: readonly RelationLine[] = [...direct, ...pointing].map((relation) => {
     const sentence = sentenceOf(relation);
-    const interval = intervalWords(index, relation);
-    const fact = factWords(sentence, interval);
+    const fact = factWords(sentence, intervalWords(index, relation));
     return {
       id: relation.id,
       sentence,
-      interval,
+      interval: periodLine(index, relation),
       // The mark comes from the relation and never from the list it is placed in: a relation can
       // be direct and invisible at once.
       undrawable: relation.srcKind === 'relation' || relation.dstKind === 'relation',
       share: shareWords(relation.attrs),
+      facts: storedFacts(relation),
       sources: refsOf(relation.sources, fact),
     };
   });
@@ -563,6 +591,8 @@ export interface RelationDossier {
   readonly interval: string | null;
   /** The share of an ownership link in words, or `null` where the relation holds no share. */
   readonly share: string | null;
+  /** Each other stored attribute of the relation, as "Key: value". Empty where there is none. */
+  readonly facts: readonly string[];
   readonly sources: readonly SourceRef[];
   readonly cards: readonly SourceCardModel[];
 }
@@ -600,8 +630,9 @@ export function readRelation(read: Corpus, relationId: string): RelationDossier 
       { key: 'to', text: toLine },
     ],
     sentence: `${from} ${type} ${to}`,
-    interval,
+    interval: periodLine(index, relation),
     share: shareWords(relation.attrs),
+    facts: storedFacts(relation),
     sources,
     cards,
   };

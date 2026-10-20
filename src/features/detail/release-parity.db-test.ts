@@ -141,3 +141,22 @@ test('the compared pages hold claims and relations', () => {
   expect(dossiers.some((page) => (page?.rows.length ?? 0) > 0)).toBe(true);
   expect(dossiers.some((page) => (page?.relations.length ?? 0) > 0)).toBe(true);
 });
+
+// A stored fact of a relation shows on its line in the release as it does on the live page. The
+// count of the facts of each line is the count of the stored attributes that the share does not
+// word, and the two pages must then give the same lines.
+test('each stored fact of a relation shows on the line of both pages', () => {
+  const held = new Map(fromFiles.relations.map((one) => [one.id, one]));
+  const shown = (corpus: Corpus) =>
+    fromFiles.entities.flatMap(
+      (one) => pageOf(corpus, one.id, [])?.relations.map((line) => [line.id, line.facts]) ?? [],
+    );
+  for (const [id, facts] of shown(fromFiles)) {
+    const relation = held.get(String(id));
+    const stored = Object.keys(relation?.attrs ?? {}).filter(
+      (key) => key !== 'share_pct' && key !== 'share_imputed',
+    );
+    expect(facts).toHaveLength(stored.length);
+  }
+  expect(shown(fromFiles)).toStrictEqual(shown(withinRelease(fromService, fromFiles)));
+});

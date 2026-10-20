@@ -158,6 +158,12 @@ export function RelationSidebar({ relation, showOn }: RelationSidebarProps) {
         </div>
       )}
 
+      {relation.facts.map((fact) => (
+        <p key={fact} title={fact} className="min-w-0 truncate text-small/4">
+          {fact}
+        </p>
+      ))}
+
       {/* External constraint: S2 at row level. This list backs the type, the two ends and the
           dates of the relation, and not one attribute, so M8 does not govern it. */}
       <div className="flex items-center gap-2">

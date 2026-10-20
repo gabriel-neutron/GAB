@@ -177,3 +177,27 @@ export const ThePanelOfTheMapShowsTheRelationInTheGraph: Story = {
     await expect(link).toHaveAttribute('href', `/graph?relation=${BERTHED_ID}`);
   },
 };
+
+/** The berthed relation, with a day stored as an attribute. */
+const WITH_DAY = ((): RelationDossier => {
+  const held = readRelation(
+    {
+      ...corpus,
+      relations: corpus.relations.map((one) =>
+        one.id === BERTHED_ID
+          ? { ...one, attrs: { ...one.attrs, day: { v: '2024-03-02', src: ['doc_3c1104'] } } }
+          : one,
+      ),
+    },
+    BERTHED_ID,
+  );
+  if (held === null) throw new Error(`The committed corpus holds no relation ${BERTHED_ID}`);
+  return held;
+})();
+
+export const AStoredDayShowsOnThePanel: Story = {
+  args: { relation: WITH_DAY },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Day: 2024-03-02')).toBeVisible();
+  },
+};
