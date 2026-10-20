@@ -90,7 +90,16 @@ const withinRelease = (service: Corpus, files: Corpus): Corpus => {
       const held = relations.get(one.id);
       return held === undefined
         ? []
-        : [{ ...one, sources: one.sources.filter((id) => held.sources.includes(id)) }];
+        : [
+            {
+              ...one,
+              // The release keeps an attribute only with a source, so the service is cut the same.
+              attrs: Object.fromEntries(
+                Object.entries(one.attrs).filter(([key]) => key in held.attrs),
+              ),
+              sources: one.sources.filter((id) => held.sources.includes(id)),
+            },
+          ];
     }),
   };
 };
@@ -129,4 +138,13 @@ test('the compared pages hold claims and relations', () => {
   const dossiers = fromFiles.entities.map((one) => pageOf(fromFiles, one.id, []));
   expect(dossiers.some((page) => (page?.rows.length ?? 0) > 0)).toBe(true);
   expect(dossiers.some((page) => (page?.relations.length ?? 0) > 0)).toBe(true);
+});
+
+// A stored fact of a relation shows on its line in the release as it does on the live page.
+test('each stored fact of a relation shows on the line of both pages', () => {
+  const shown = (corpus: Corpus) =>
+    fromFiles.entities.flatMap(
+      (one) => pageOf(corpus, one.id, [])?.relations.map((line) => [line.id, line.facts]) ?? [],
+    );
+  expect(shown(fromFiles)).toStrictEqual(shown(withinRelease(fromService, fromFiles)));
 });

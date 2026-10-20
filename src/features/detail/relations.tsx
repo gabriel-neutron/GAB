@@ -82,6 +82,11 @@ export function Relations({ relations, mark, deleting, onSelect, claimHref }: Re
                 {relation.share}
               </span>
             )}
+            {relation.facts.map((fact) => (
+              <span key={fact} className="min-w-0 text-small/4 text-label" title={fact}>
+                {fact}
+              </span>
+            ))}
             {mark(relation.sources)}
             {claimLink(relation.id) === null ? null : (
               <a

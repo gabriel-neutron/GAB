@@ -516,3 +516,72 @@ test('no line says that a relation is still in force', () => {
 
   expect(words).not.toMatch(/in force|with no end date/);
 });
+
+const STS: RelationTypeDeclaration = {
+  key: 'sts_with',
+  label: 'sts with',
+  inverseLabel: 'sts with',
+  takesInterval: false,
+  retired: false,
+};
+
+test('a relation line shows each stored fact that is not the share', () => {
+  const transfer: Relation = {
+    ...OWNED_BY,
+    type: 'sts_with',
+    attrs: {
+      day: { v: '2024-03-02', src: ['d1'] },
+      place: { v: 'Gulf of Laconia', src: ['d1'] },
+      share_pct: { v: 10, src: ['d1'] },
+    },
+  };
+  const read: Corpus = { ...CORPUS, relations: [transfer], relationTypes: [STS] };
+  const facts = ['Day: 2024-03-02', 'Place: Gulf of Laconia'];
+
+  expect(readDossier(read, VESSEL.id, [], [])?.relations[0]?.facts).toEqual(facts);
+  expect(readRelation(read, transfer.id)?.facts).toEqual(facts);
+  expect(readRelation(CORPUS, OWNED_BY.id)?.facts).toEqual([]);
+});
+
+test('a type that takes a period says so when the period is empty', () => {
+  const read: Corpus = {
+    ...CORPUS,
+    relations: [{ ...OWNED_BY, type: 'owns' }],
+    relationTypes: [OWNS],
+  };
+  expect(readDossier(read, VESSEL.id, [], [])?.relations[0]?.interval).toBe('period not recorded');
+  expect(readRelation(read, OWNED_BY.id)?.interval).toBe('period not recorded');
+
+  const dated: Corpus = {
+    ...read,
+    relations: [{ ...OWNED_BY, type: 'owns', validFrom: '2020-01-01' }],
+  };
+  expect(readDossier(dated, VESSEL.id, [], [])?.relations[0]?.interval).toBe(
+    'from 2020-01-01, no end date recorded',
+  );
+});
+
+test('a type that takes no period shows none', () => {
+  const read: Corpus = {
+    ...CORPUS,
+    relations: [{ ...OWNED_BY, type: 'sts_with' }],
+    relationTypes: [STS],
+  };
+  expect(readDossier(read, VESSEL.id, [], [])?.relations[0]?.interval).toBeNull();
+});
+
+test('a list value and a share that cannot be worded stay facts', () => {
+  const odd: Relation = {
+    ...OWNED_BY,
+    attrs: {
+      places: { v: ['Malta', 'Greece'], src: ['d1'] },
+      share_pct: { v: 'forty', src: ['d1'] },
+    },
+  };
+  const read: Corpus = { ...CORPUS, relations: [odd] };
+
+  expect(readDossier(read, VESSEL.id, [], [])?.relations[0]?.facts).toEqual([
+    'Places: Malta, Greece',
+    'Share pct: forty',
+  ]);
+});

@@ -172,3 +172,21 @@ export const AListThatOffersNoDeletionDrawsNoDeleteControl: Story = {
     }
   },
 };
+
+/** A stored fact shows on its line, and an empty period of a type that takes one says so. */
+export const AStoredDayAndAMissingPeriodShowOnTheLine: Story = {
+  args: {
+    relations: [
+      {
+        ...lineOf(FROM_ENTITY_END, APPOINTS),
+        interval: 'period not recorded',
+        facts: ['Day: 2024-03-02'],
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const row = rowOf(canvasElement, APPOINTS);
+    await expect(row).toHaveTextContent('Day: 2024-03-02');
+    await expect(row).toHaveTextContent('period not recorded');
+  },
+};

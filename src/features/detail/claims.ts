@@ -100,7 +100,7 @@ function byCodePoint(a: string, b: string): number {
 
 // NOTHING NAMES A KEY BUT THE KEY. There is no label column and no vocabulary, so the printed
 // name is the key with its underscores opened out and its first letter raised.
-function labelOf(key: string): string {
+export function labelOf(key: string): string {
   const words = key.replaceAll('_', ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
