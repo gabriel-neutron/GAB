@@ -78,6 +78,9 @@ test('the release words how it found the place of an entity, and says nothing fo
   expect(located).toBeDefined();
   const facts = releaseFactsOf(release, located?.id ?? '', located?.type ?? '', true);
   expect(facts.location).not.toBeNull();
+  expect(
+    releaseFactsOf(release, '0a1f0000-0000-4000-8000-000000000001', 'vessel', true).location,
+  ).toBe('coordinates that the source writes');
   const unlocated = release.entities.find((one) => one.geolocationMethod === null);
   expect(
     releaseFactsOf(release, unlocated?.id ?? '', unlocated?.type ?? '', true).location,

@@ -89,7 +89,7 @@ export function releaseFactsOf(
           rating: pairRating(release.manifest, claim),
         }))
       : [],
-    location: methodWords(withEvents ? row?.geolocationMethod : null),
+    location: methodWords(row?.geolocationMethod),
     address: withEvents ? addressOf(release.manifest.iriBase, entityId) : null,
     merged: [...release.aliases].filter(([, survivor]) => survivor === entityId).map(([id]) => id),
     events: drawsEvents

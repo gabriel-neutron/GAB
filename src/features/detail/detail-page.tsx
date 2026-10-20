@@ -259,7 +259,9 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
                   { key: 'Origin', value: facts.label.origin },
                   { key: 'Licence', value: facts.label.licence },
                 ]),
-            ...(facts.location === null ? [] : [{ key: 'Location', value: facts.location }]),
+            ...(facts.location === null
+              ? []
+              : [{ key: 'Position found by', value: facts.location }]),
             ...(facts.address === null
               ? []
               : [{ key: 'Permanent address', value: facts.address, figure: true as const }]),
