@@ -113,7 +113,7 @@ export function SearchPage({ query, answers, onQueryChange, hrefOf }: SearchPage
       header: 'Entity',
       cell: (hit) => (
         <a href={hrefOf(hit.entityId)} className={READING_LINK}>
-          <MarkedText text={hit.label} query={query} />
+          {hit.label}
         </a>
       ),
     },

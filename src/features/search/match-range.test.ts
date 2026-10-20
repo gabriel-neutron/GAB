@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { folded } from '@/shared/text-fold';
+
 import { matchRange } from './match-range';
 
 describe('matchRange', () => {
@@ -18,6 +20,16 @@ describe('matchRange', () => {
 
   it('trims the query as the search does', () => {
     expect(matchRange('Ledger', '  led ')).toEqual({ start: 0, end: 3 });
+  });
+
+  it('agrees with the search fold on odd input', () => {
+    const texts = ['Ǻrhus  Ølsen', 'école\tNord', 'ŞİŞLİ Port', ' lead  space '];
+    for (const text of texts) {
+      for (const query of ['a', 'ec', 'nord', 'port', 'lead space', 'sisli']) {
+        const found = folded(text).includes(folded(query));
+        expect(matchRange(text, query) !== null).toBe(found);
+      }
+    }
   });
 
   it('returns null for an empty query or no match', () => {
