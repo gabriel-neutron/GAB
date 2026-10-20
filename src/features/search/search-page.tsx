@@ -4,6 +4,8 @@ import { EmptyState } from '@/shared/page/empty-state';
 import { PageSection } from '@/shared/page/page-section';
 import { READING_LINK } from '@/shared/page/reading-link';
 import { Input } from '@/shared/ui/input';
+import { keyWords } from '@gab/proposal/key-words';
+import { typeLabel } from '@/shared/type-label';
 
 import type { AttributeHit, AttributeSearchAnswer } from './attribute-search';
 import type { DocumentHit, DocumentSearchAnswer } from './document-search';
@@ -101,7 +103,7 @@ export function SearchPage({ query, answers, onQueryChange, hrefOf }: SearchPage
         </a>
       ),
     },
-    { key: 'type', header: 'Type', cell: (hit) => hit.type },
+    { key: 'type', header: 'Type', cell: (hit) => typeLabel(hit.type) },
   ];
   const attributeColumns: readonly DataColumn<AttributeHit>[] = [
     {
@@ -113,7 +115,7 @@ export function SearchPage({ query, answers, onQueryChange, hrefOf }: SearchPage
         </a>
       ),
     },
-    { key: 'attribute', header: 'Attribute', cell: (hit) => hit.key },
+    { key: 'attribute', header: 'Attribute', cell: (hit) => keyWords(hit.key).label },
     { key: 'value', header: 'Value', cell: (hit) => hit.value },
   ];
   const documentColumns: readonly DataColumn<DocumentHit>[] = [

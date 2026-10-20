@@ -7,6 +7,7 @@ import { Rail, type RailRows, type RailTypeRow } from '@/shared/rail';
 // No story reads a class and none reads a colour.
 
 const row = (over: Partial<RailTypeRow> & { readonly type: string }): RailTypeRow => ({
+  label: over.type.charAt(0).toUpperCase() + over.type.slice(1),
   initial: over.type.slice(0, 1).toUpperCase(),
   count: 12,
   on: true,
@@ -78,7 +79,7 @@ export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
   },
   play: async ({ canvas, args }) => {
     const off = canvas.getByRole('button', { pressed: false });
-    await expect(off).toHaveTextContent('port');
+    await expect(off).toHaveTextContent('Port');
     await expect(off).toHaveTextContent('7');
     await expect(off).toHaveTextContent('off, dimmed');
 
@@ -90,7 +91,7 @@ export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
 /** A control that conflates the two acts switches a type off when the analyst looks inside it. */
 export const TheFoldAndTheSwitchAreTwoActs: Story = {
   play: async ({ canvas, args }) => {
-    await userEvent.click(canvas.getByRole('button', { name: 'Open the vessel list' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Open the Vessel list' }));
     await expect(args.onAct).toHaveBeenCalledWith({
       kind: 'open-type',
       type: 'vessel',
@@ -117,11 +118,11 @@ export const AnUnfoldedTypeCarriesItsOwnIndex: Story = {
     }),
   },
   play: async ({ canvas, canvasElement }) => {
-    const open = canvas.getByRole('button', { name: 'Close the vessel list' });
+    const open = canvas.getByRole('button', { name: 'Close the Vessel list' });
     await expect(open).toHaveAttribute('aria-expanded', 'true');
     await expect(open).toHaveAttribute('aria-controls', 'rail-index-vessel');
 
-    const closed = canvas.getByRole('button', { name: 'Open the port list' });
+    const closed = canvas.getByRole('button', { name: 'Open the Port list' });
     await expect(closed).toHaveAttribute('aria-expanded', 'false');
     await expect(closed).not.toHaveAttribute('aria-controls');
 
@@ -143,7 +144,7 @@ export const MoreThanOneTypeStandsUnfolded: Story = {
     await expect(canvasElement.querySelector('[data-index="vessel"]')).not.toBeNull();
     await expect(canvasElement.querySelector('[data-index="port"]')).not.toBeNull();
 
-    await userEvent.click(canvas.getByRole('button', { name: 'Close the port list' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Close the Port list' }));
     await expect(args.onAct).toHaveBeenCalledWith({
       kind: 'open-type',
       type: 'port',

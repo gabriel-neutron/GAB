@@ -447,8 +447,10 @@ no person read it", "Validated manually by the operator". It shows no NATO lette
   export copies it, and each export file holds the disclaimer of the dataset. The label must
   survive export and reuse.
 - The entity detail screen has no disclaimer of its own. The labels are enough.
-- An attribute key stays free (M11). A screen shows its readable name only by a fixed rule: each
-  underscore becomes a space, and the first letter becomes a capital.
+- An attribute key stays free (M11). A screen shows its readable name by a fixed rule: each
+  underscore becomes a space, and the first letter becomes a capital. A short table in the code
+  gives a better label and a help for the common keys, and the screen shows the stored key in a
+  secondary place. The table is not a registry: it never refuses a key.
 - A fact about a person is public only when at least one of its cited sources is a public
   document. A bought file, or an upload with no address, does not make a fact about a person
   public.

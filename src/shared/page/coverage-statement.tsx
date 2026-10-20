@@ -1,6 +1,8 @@
 import type { Coverage } from '@gab/release/coverage';
 import { releaseDay } from '@gab/release/release-day';
 
+import { typeLabel } from '@/shared/type-label';
+
 export interface CoverageStatementProps {
   readonly coverage: Coverage;
   /** The version and the day of the release that the counts come from, or null for the live record. */
@@ -24,7 +26,7 @@ export function CoverageStatement({ coverage, release }: CoverageStatementProps)
       </p>
       {coverage.byType.length === 0 ? null : (
         <p className="text-label">
-          By type: {coverage.byType.map((one) => `${one.count} ${one.type}`).join(', ')}.
+          By type: {coverage.byType.map((one) => `${one.count} ${typeLabel(one.type)}`).join(', ')}.
         </p>
       )}
       <p>{scope.covers}</p>

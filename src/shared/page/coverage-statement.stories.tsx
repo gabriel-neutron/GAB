@@ -4,7 +4,7 @@ import { expect } from 'storybook/test';
 
 import { CoverageStatement } from './coverage-statement';
 
-const coverage = coverageOf(['vessel', 'company', 'vessel', 'unit', 'vessel'], 2);
+const coverage = coverageOf(['vessel', 'company', 'vessel', 'military_unit', 'vessel'], 2);
 
 const meta = {
   component: CoverageStatement,
@@ -27,7 +27,7 @@ export const GivesTheCountsByTypeAndOfSources: Story = {
     await expect(
       canvas.getByText(/^The record holds 5 entities and cites 2 sources\.$/u),
     ).toBeVisible();
-    await expect(canvas.getByText('By type: 3 vessel, 1 company, 1 unit.')).toBeVisible();
+    await expect(canvas.getByText('By type: 3 Vessel, 1 Company, 1 Military unit.')).toBeVisible();
   },
 };
 
