@@ -12,6 +12,7 @@ import type { SheetRow } from './critical-nodes-sheet.ts';
 import { csvExport, type ReleaseFile } from './csv-export.ts';
 import { releaseDisclaimer } from './disclaimer.ts';
 import { geojsonExport } from './geojson-export.ts';
+import { geolocationCoverageOf } from './geolocation-coverage.ts';
 import { jsonldExport } from './jsonld-export.ts';
 import { natoCoverageOf } from './nato-coverage.ts';
 import { assertNoOsmGeometry } from './osm-geometry.ts';
@@ -48,6 +49,7 @@ export const releaseFiles = (
   const heading = releaseHeading(manifest, disclaimer);
   const preamble = `${heading.title}\n\n${disclaimer}`;
   const natoCoverage = record.natoPairs === null ? null : natoCoverageOf(record, record.natoPairs);
+  const geolocationCoverage = geolocationCoverageOf(record);
   const volumeTable = chainVolumes(record, volumes, preamble);
   const exports: readonly ReleaseFile[] = [
     ...csvExport(record, preamble),
@@ -56,7 +58,7 @@ export const releaseFiles = (
     assetLinks(record, preamble),
     volumeTable.file,
     releaseCredits(heading),
-    releaseNotes(heading, natoCoverage),
+    releaseNotes(heading, natoCoverage, geolocationCoverage),
     geojsonExport(record, heading),
     jsonldExport(record, heading, manifest.iriBase),
   ];
@@ -87,6 +89,7 @@ export const releaseFiles = (
       record.documents.size,
     ),
     natoCoverage,
+    geolocationCoverage,
     files: listed,
   };
   return {

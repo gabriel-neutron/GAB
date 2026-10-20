@@ -141,11 +141,29 @@
       }
     ]
   },
+  "geolocationCoverage": {
+    "places": 3,
+    "notStated": 1,
+    "byMethod": [
+      {
+        "method": "not_stated",
+        "count": 1
+      },
+      {
+        "method": "register_address",
+        "count": 1
+      },
+      {
+        "method": "source_coordinates",
+        "count": 1
+      }
+    ]
+  },
   "files": [
     {
       "path": "entities.csv",
-      "bytes": 2924,
-      "sha256": "0a640be68fe2a3503365dbbdb989da65bae9a806f1400818c26735c02bce9881"
+      "bytes": 2998,
+      "sha256": "745bc898d7dd9281e8ad22f22ee32a33e468877daaa7b94c30ee66791a2c536e"
     },
     {
       "path": "relations.csv",
@@ -189,13 +207,13 @@
     },
     {
       "path": "release-notes.md",
-      "bytes": 1682,
-      "sha256": "07cef0f57ffc36c773dce11c75a208eddd62cc49c28fc4fb07dafdfb663629c5"
+      "bytes": 2078,
+      "sha256": "e5dd4d31d083e980aad8e1b1b9fbca4467c8ddcb9ce9a471e19f2851b8ada424"
     },
     {
       "path": "entities.geojson",
-      "bytes": 2754,
-      "sha256": "5a984736a26baa1dd913d585c4f2b2b22d7dd268d41ae652744a51190a29c6d2"
+      "bytes": 2870,
+      "sha256": "a527b1ac18ea92a2f1f247323d9a2ba478606b81c3364dd210007e15d0f899be"
     },
     {
       "path": "dataset.jsonld",

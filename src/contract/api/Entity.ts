@@ -24,6 +24,8 @@ export default interface Entity {
   origin_label: string | null;
 
   attr_labels: unknown;
+
+  geom_method: string | null;
 }
 
 export const entity = z.object({
@@ -39,4 +41,5 @@ export const entity = z.object({
   updated_at: z.string().nullable(),
   origin_label: z.string().nullable(),
   attr_labels: z.unknown(),
+  geom_method: z.string().nullable(),
 });

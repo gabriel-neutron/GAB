@@ -215,6 +215,7 @@ REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_uri(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION correct_document_title(text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_type(text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fill_geolocation_method(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text,text)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_provider(text,text) FROM PUBLIC;
@@ -244,6 +245,8 @@ GRANT EXECUTE ON FUNCTION fill_document_uri(text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION correct_document_title(text,text,text) TO gabriel_app;
 -- THE TYPE OF A STORED DOCUMENT is filled by the same command, so it is the operator's too.
 GRANT EXECUTE ON FUNCTION fill_document_type(text,text) TO gabriel_app;
+-- THE METHOD OF A STORED PLACE is filled by a command of the operator too.
+GRANT EXECUTE ON FUNCTION fill_geolocation_method(uuid,text) TO gabriel_app;
 -- ONE PROPOSE DOOR FOR EACH SIDE. The operator proposes through the writer. A machine proposes a
 -- batch with a citation for each act, and it has no door that writes an act with no citation.
 GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],boolean,uuid)

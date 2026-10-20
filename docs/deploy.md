@@ -83,6 +83,10 @@ each decision is final). The Names page of the review page does the same.
 - `document-labels`: gives a readable title and a type to the stored documents that lack them, and
   lists the stored search pages. Run it with `--dry-run` first. It deletes nothing: you decide on
   each search page.
+- `geolocation-method`: gives the method of geolocation to the stored places that hold
+  `not_stated`, when the documents that gave the place state the method clearly. A place with
+  unclear documents stays `not_stated`. Run it with `--dry-run` first. It changes no place that has
+  a method. Apply the migration of the column first.
 - `reread-html`: rereads stored HTML pages. Run it with `--dry-run` first. It keeps the old text set
   so each citation stays valid.
 - `name-candidates`: finds merge candidates across a Latin and a Cyrillic spelling. Run it before a
@@ -113,6 +117,10 @@ command refuses an unknown key and names the fault.
   claim row then gives its letter and digit in the CSV, GeoJSON and JSON-LD files, or the text
   "not rated". The file manifest and `release-notes.md` then give the share of the public claims
   with a full pair, in all and by type.
+- Each release gives the method of geolocation of each place. The column `geolocation_method` of
+  `entities.csv` and the same property of `entities.geojson` hold one word of the closed list, or
+  `not_stated`. The file manifest and `release-notes.md` give the share of the places with
+  `not_stated`. An older release has no such column and no such member, and the site still reads it.
 - `iriBase` (an `https://` address that ends with a slash) is the base of the JSON-LD identifiers.
   Set it once, to the public site, before the first public release. Never change it after.
 - `criticalNodes` is the path of your CSV sheet of candidate nodes, relative to the manifest. Keep

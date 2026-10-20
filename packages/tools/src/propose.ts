@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { day } from '@gab/proposal/day';
 import { attributeEdit } from '@gab/proposal/attribute-value';
+import { GEOLOCATION_WORDS, geolocationMethod } from '@gab/proposal/geolocation-method';
 import { machineAct } from '@gab/proposal/machine';
 import { ASSET_KINDS } from '@gab/proposal/mapping';
 import type { ProposalAct } from '@gab/proposal/payload';
@@ -61,6 +62,14 @@ const ATTRIBUTES =
   'value is a text, a number, true or false, or a flat list of them; a key is lower case words ' +
   'joined by one underscore, with the unit in the key, as capacity_dwt';
 
+// The closed list of the methods, in the words of a reader. A place with no method is refused.
+const GEOLOCATION =
+  'how the page found the place; give it with every geom: ' +
+  Object.entries(GEOLOCATION_WORDS)
+    .map(([key, words]) => `${key} (${words})`)
+    .join(', ') +
+  '. Give not_stated only when the page does not say how the place was found';
+
 const BOUND =
   'only for a type whose takesInterval is true in list_vocabulary, and only when an excerpt ' +
   'states the day; write it as 2026-01-31';
@@ -109,6 +118,7 @@ const batchAct = z.discriminatedUnion('op', [
       .unknown()
       .optional()
       .describe('a GeoJSON geometry, for example {"type": "Point", "coordinates": [lon, lat]}'),
+    geomMethod: geolocationMethod.optional().describe(GEOLOCATION),
     attrs: attributeEdit.optional().describe(ATTRIBUTES),
   }),
   z.strictObject({
@@ -143,6 +153,7 @@ const batchAct = z.discriminatedUnion('op', [
           '"coordinates": [lon, lat]}; an excerpt must state it, such as the coordinates of a ' +
           'UN/LOCODE line or the Latitude and Longitude of a GEM row',
       ),
+    geomMethod: geolocationMethod.optional().describe(GEOLOCATION),
   }),
   z.strictObject({
     op: z.literal('add_source'),
@@ -480,6 +491,18 @@ const resolvedAct = async (
     checkQueuedEnds(given.ref, src, dst);
     raw = { ...act, srcId: src.id, dstId: dst.id };
   }
+  // A machine gives a place with its method. The door of the operator takes `not_stated` for a
+  // place with no method, and a machine does not get that default: the record must know whether
+  // the page says how it found the place.
+  if (
+    (act.op === 'create_entity' || act.op === 'update_entity') &&
+    act.geom !== undefined &&
+    act.geomMethod === undefined
+  )
+    refuse(
+      given.ref,
+      `a geom needs geomMethod, one of ${Object.keys(GEOLOCATION_WORDS).join(', ')}`,
+    );
   const parsed = writeRequest.safeParse(raw);
   if (!parsed.success)
     refuse(given.ref, parsed.error.issues.map((issue) => issue.message).join('; '));
@@ -749,7 +772,8 @@ export const proposeOf = (modelCallId: string | null) =>
       'by its IMO number or the act, and a relation that cites these documents already is ' +
       'refused), and the ' +
       'place of an entity of the record (update_entity with geom, when a page states its ' +
-      'coordinates; the tool refuses the place that the entity has already, and a place that ' +
+      'coordinates; every geom needs geomMethod, the closed list of the methods that found the ' +
+      'place, and the tool refuses a geom with no method; the tool refuses the place that the entity has already, and a place that ' +
       'differs from the place that the record holds waits as a doubt for the operator; give the ' +
       'place of a new entity as geom in its create_entity. The place of a new entity that waits ' +
       'in the review queue names its proposal id as targetId: it joins the unit of that entity, ' +

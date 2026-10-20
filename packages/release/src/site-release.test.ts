@@ -49,3 +49,30 @@ test('an entity identifier with a slash refuses the release', () => {
 test('two claim keys that differ only by case refuse the release', () => {
   expect(() => changed(`${VESSEL}/flag`, `${VESSEL}/IMO`)).toThrow(/case/u);
 });
+
+test('the site reads the method of geolocation of an entity with a place', () => {
+  const methods = changed('no such text', 'x').entities.map((one) => one.geolocationMethod);
+  expect(methods).toContain('register_address');
+  expect(methods).toContain(null);
+});
+
+// An older release has no such column: its header and its rows end at the sources.
+const withoutColumn = (name: string, text: string): string =>
+  name === 'entities.csv'
+    ? text
+        .replace('document_ids,geolocation_method', 'document_ids')
+        .replace(/^(0a1f[^\n]*?),[a-z_]*$/gmu, '$1')
+    : text;
+
+test('a release before the column of the methods is still read, and its entities have none', () => {
+  const release = readSiteRelease(
+    new Map(
+      Object.entries(FIXTURE).map(([path, text]) => {
+        const name = path.split('/').pop() ?? path;
+        return [name, withoutColumn(name, text)] as const;
+      }),
+    ),
+  );
+  expect(release.entities.length).toBeGreaterThan(0);
+  expect(release.entities.every((one) => one.geolocationMethod === null)).toBe(true);
+});

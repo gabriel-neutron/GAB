@@ -129,6 +129,8 @@ Imagery is a visual check only: store nothing from it, and place no point from i
 keeps the identifier of an OpenStreetMap object, never its geometry. The store tools refuse a
 Nominatim, Overpass or geocoder answer and a search result page.
 
+Give the method of the place as `geomMethod` in each act that carries a `geom` (the skill
+`cite-claim` lists the closed set of words). The `propose` tool refuses a place with no method.
 Give two attributes with a place, from the same source:
 
 - `address`: the address as the source writes it.

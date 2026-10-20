@@ -551,15 +551,18 @@ test('a correction of the geometry is an act of the operator, and the old point 
     });
     expect([status, reply.state]).toStrictEqual([200, 'signed']);
     expect(await one(point, [target])).toStrictEqual({ lon: 31.5, lat: 61.5, sources: ['manual'] });
+    // The door of the operator gives `not_stated` to a place with no method.
     expect((await decided(reply.proposalId))['prior_value']).toStrictEqual({
       sources: ['manual'],
       geom: { type: 'Point', coordinates: [30, 60] },
+      geom_method: 'not_stated',
     });
 
     // A second correction cites a stored document, which replaces the source list of the row.
     const [again, againReply] = await post('update-entity', {
       targetId: target,
       geom: { type: 'Point', coordinates: [32, 62] },
+      geomMethod: 'photo_video_match',
       cites: ['doc_8f2a41'],
     });
     expect(again).toBe(200);
@@ -571,7 +574,11 @@ test('a correction of the geometry is an act of the operator, and the old point 
     expect((await decided(againReply.proposalId))['prior_value']).toStrictEqual({
       sources: ['manual'],
       geom: { type: 'Point', coordinates: [31.5, 61.5] },
+      geom_method: 'not_stated',
     });
+    expect(
+      await one('SELECT geom_method FROM public.entities WHERE id = $1::uuid', [target]),
+    ).toStrictEqual({ geom_method: 'photo_video_match' });
 
     // The same point changes nothing, so the act is refused and writes nothing.
     const before = await proposalsFor(target);

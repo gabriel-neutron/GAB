@@ -189,9 +189,29 @@ test('a machine proposes the geometry of an entity, and no name or type beside i
     const call = await seed(ask);
     const [written] = z
       .array(z.object({ written: z.boolean() }))
-      .parse(await batchAs(ask, 'gabriel_agent', [asked({ geom: point }, call)]));
+      .parse(
+        await batchAs(ask, 'gabriel_agent', [
+          asked({ geom: point, geom_method: 'source_coordinates' }, call),
+        ]),
+      );
     expect(written?.written).toBe(true);
   });
+});
+
+test.each([
+  ['no method', {}, /^item 1: a geometry needs a method of geolocation/u],
+  ['a method outside the list', { geom_method: 'guess' }, /^item 1: /u],
+])('the door refuses a machine geometry with %s', async (_case, extra, said) => {
+  const point = { type: 'Point', coordinates: [30, 60] };
+  const cause = await refusalOf('gabriel_agent', (call) => [
+    itemOf(call, {
+      op: 'update_entity',
+      target_kind: 'entity',
+      target_id: randomUUID(),
+      payload: { geom: point, ...extra },
+    }),
+  ]);
+  expect(cause).toMatchObject({ code: '22023', message: expect.stringMatching(said) as string });
 });
 
 test.each(REFUSALS)(
@@ -534,7 +554,10 @@ const geomOf = (call: string): Item =>
     op: 'update_entity',
     target_kind: 'entity',
     target_id: randomUUID(),
-    payload: { geom: { type: 'Point', coordinates: [28.4, 59.7] } },
+    payload: {
+      geom: { type: 'Point', coordinates: [28.4, 59.7] },
+      geom_method: 'register_address',
+    },
   });
 
 test.each([

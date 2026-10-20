@@ -13,6 +13,7 @@
     "./document-title": "./src/document-title.ts",
     "./document-type": "./src/document-type.ts",
     "./enqueue-extract": "./src/enqueue-extract.ts",
+    "./geolocation-method": "./src/geolocation-method.ts",
     "./event-rules": "./src/event-rules.ts",
     "./excerpt": "./src/excerpt.ts",
     "./fetch-document": "./src/fetch-document.ts",
