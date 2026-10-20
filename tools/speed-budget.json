@@ -1,0 +1,10 @@
+{
+  "measuredOn": "2026-10-20",
+  "note": "Home measured on the build of the application with no release: 6.1 s, 15 ms, 976 kB. Each limit is the measure with a margin. The limits of the map and of the entity page are estimates: the first measure had no release, so these two rows were skipped. Measure them on a release site and tighten the limits.",
+  "network": { "downloadKbps": 1600, "uploadKbps": 750, "latencyMs": 150 },
+  "pages": {
+    "home": { "mainContentMs": 9500, "inputMs": 100, "weightKb": 1200 },
+    "map": { "mainContentMs": 12000, "inputMs": 150, "weightKb": 3500, "minFps": 10 },
+    "entity": { "mainContentMs": 9500, "inputMs": 100, "weightKb": 1500 }
+  }
+}
