@@ -1833,6 +1833,8 @@ const NAMES_BOOK = workbookOf({
       'North block',
     ],
     ['G2', 'Beta field', 'Russia', 'Maybe Co', 'Maybe Co [100%]', '', '', ''],
+    ['G3', 'Gamma field', 'Russia', 'Checked Co', '', '', '', ''],
+    ['G4', 'Delta field', 'Russia', 'Register Lead', '', '', '', ''],
   ],
   Production: [
     PRODUCTION_HEADER,
@@ -1880,11 +1882,13 @@ test('a field links to the owners and the operator that the name table gives, an
     // The approved name table: two sure names, one candidate, one open name. A sure name finds
     // its company by the GEM identifier, and a candidate finds the entity of the dossier.
     const table = [
-      'name,roles,status,gem_entity_id,dossier_entity_id,reason,candidates',
-      'Novatek PJSC,owner+operator,sûr,E200002,,exact,',
-      'Rosneftegaz,owner+parent,sûr,E200001,,exact,',
-      `Maybe Co,operator+owner,candidat-dossier,,${rosneftegaz},name only,`,
-      'Mystery Holder,owner,ouvert,,,,',
+      'name,roles,status,gem_entity_id,dossier_entity_id,reason,candidates,controle_registre',
+      'Novatek PJSC,owner+operator,sûr,E200002,,exact,,',
+      'Rosneftegaz,owner+parent,sûr,E200001,,exact,,',
+      `Maybe Co,operator+owner,candidat-dossier,,${rosneftegaz},name only,,sans-clé`,
+      `Checked Co,operator,candidat-dossier,,${rosneftegaz},name only,,confirmé`,
+      'Register Lead,operator,ouvert,,,,,candidat-registre',
+      'Mystery Holder,owner,ouvert,,,,,',
     ].join('\r\n');
     await held.ask(PUT, [
       NAMES_DOC,
@@ -1957,6 +1961,14 @@ test('a field links to the owners and the operator that the name table gives, an
         field: 'Beta field',
         share: 100,
         unconfirmed: 'true',
+      },
+      // A candidate that the register check confirmed is a sure link.
+      {
+        type: 'operates',
+        holder: 'Rosneftegaz',
+        field: 'Gamma field',
+        share: null,
+        unconfirmed: null,
       },
     ]);
     // The open name stays text on the field, with the group shares, the licence and the block.

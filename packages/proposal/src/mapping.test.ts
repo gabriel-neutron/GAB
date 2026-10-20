@@ -348,7 +348,7 @@ test('a split of a column with no GEM identifier is a fault', () => {
       {
         type: 'owns',
         row_is: 'dst' as const,
-        other: { key: 'gem_entity_id', column: 'Owner' },
+        other: { key: 'gem_entity_id' as const, column: 'Owner' },
         other_type: 'company',
         split: { separator: ';' },
       },

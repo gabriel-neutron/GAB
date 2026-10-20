@@ -253,15 +253,18 @@ export const splitOwners = (
 };
 
 /** What the approved name table says of one name. `sure` is a name with a GEM identifier;
- * `candidate` is a match of the name only, with the entity of the record; `open` is no match. */
+ * `candidate` is the entity of the record for the name, and `confirmed` says that the register
+ * check of the table confirmed it (a candidate that is not confirmed is a match of the name only); `open` is no match. */
 export type NamedEnd =
   | { readonly kind: 'sure'; readonly gemId: string }
-  | { readonly kind: 'candidate'; readonly entity: string }
+  | { readonly kind: 'candidate'; readonly entity: string; readonly confirmed: boolean }
   | { readonly kind: 'open' };
 
 // External constraint: the columns and the status words of the name table.
 const SURE = 'sûr';
 const CANDIDATE = 'candidat-dossier';
+// The register check of the table: a candidate whose key equals the key of the register is sure.
+const CONFIRMED = 'confirmé';
 
 /** The name table as a map from the name key to what the table says. A row with no identifier for
  * its status is open. */
@@ -280,6 +283,8 @@ export const nameTableOf = (table: {
     throw new Error(
       'the name table lacks one of the columns name, status, gem_entity_id, dossier_entity_id',
     );
+  // The register check column is absent from an older table, and then no candidate is confirmed.
+  const checkAt = at('controle_registre');
   const held = new Map<string, NamedEnd>();
   for (const { fields } of table.rows) {
     const cell = (index: number | undefined): string => (fields[index ?? -1] ?? '').trim();
@@ -291,7 +296,7 @@ export const nameTableOf = (table: {
       status === SURE && gemId !== ''
         ? { kind: 'sure', gemId }
         : status === CANDIDATE && entity !== ''
-          ? { kind: 'candidate', entity }
+          ? { kind: 'candidate', entity, confirmed: cell(checkAt).normalize('NFC') === CONFIRMED }
           : { kind: 'open' },
     );
   }

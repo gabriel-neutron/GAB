@@ -322,7 +322,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
 
     /** The far ends of a cell of names. A name with a GEM identifier in the table finds its entity
      * in the record. A name that the table gives as a candidate finds its entity too, and the
-     * link carries the mark "unconfirmed". An open name gives no link, and the name stays text.
+     * link carries the mark "unconfirmed", unless the register check confirmed the candidate. An open name gives no link, and the name stays text.
      * Each name that gives no link goes to `note`. */
     const namedEnds = async (
       relation: MappingPayload['relations'][number],
@@ -357,7 +357,11 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           if (exists === undefined) {
             note(`relation not loaded: the candidate of "${name}" is not in the record`);
             unresolved += 1;
-          } else push(name, { id: exists.id, extra: { ...extra, unconfirmed: { v: true } } });
+          } else
+            push(name, {
+              id: exists.id,
+              extra: held.confirmed ? extra : { ...extra, unconfirmed: { v: true } },
+            });
           continue;
         }
         const owned = await ownerOf(farType, held.gemId);
