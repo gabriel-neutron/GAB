@@ -1,19 +1,19 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect } from 'storybook/test';
+import { expect, fn, userEvent } from 'storybook/test';
 
 import { UnplacedCount } from './unplaced-count';
 
 const meta = {
   component: UnplacedCount,
-  args: { unplaced: 42 },
+  args: { unplaced: 42, shown: true, onSwitch: fn() },
 } satisfies Meta<typeof UnplacedCount>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** An entity on the band stands where its identifier puts it, so the picture around it is false. */
-export const TheBandIsStatedWhereItHolds: Story = {
+/** The count is on the element, so a check reads it without a parse of the sentence. */
+export const TheCountIsStated: Story = {
   play: async ({ canvas, canvasElement }) => {
     const line = canvasElement.querySelector('[data-unplaced-count]');
     if (line === null) throw new Error('The surface states no unplaced count');
@@ -22,22 +22,42 @@ export const TheBandIsStatedWhereItHolds: Story = {
   },
 };
 
-/** A bare count does not say why the place is false. The line says where they stand, and why. */
-export const TheLineNamesTheBand: Story = {
+/** A bare count does not say why the place is false. The line says it, and names the style. */
+export const TheLineSaysWhyAndNamesTheStyle: Story = {
   play: async ({ canvas }) => {
     const line = canvas.getByRole('status');
-    await expect(line).toHaveTextContent('The layout run placed no position for 42 entities');
-    await expect(line).toHaveTextContent('on the outer band, at a place read from the identifier');
+    await expect(line).toHaveTextContent('42 new entities have no place yet.');
+    await expect(line).toHaveTextContent('Their place on the ring means nothing.');
+    await expect(line).toHaveTextContent('Grey dots on the outer ring');
   },
 };
 
-/** A count of one is a real case, and "1 entities stand" is not a sentence. */
+/** A count of one is a real case, and "1 new entities" is not a sentence. */
 export const OneEntityReadsAsOne: Story = {
   args: { unplaced: 1 },
   play: async ({ canvas }) => {
     const line = canvas.getByRole('status');
-    await expect(line).toHaveTextContent('for 1 entity. It stands');
-    await expect(line).not.toHaveTextContent('1 entities');
+    await expect(line).toHaveTextContent('1 new entity has no place yet. Its place on the ring');
+    await expect(line).not.toHaveTextContent('1 new entities');
+  },
+};
+
+/** The switch hides the entities with no place. */
+export const TheSwitchAsksToHide: Story = {
+  play: async ({ canvas, args }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Hide them' }));
+    await expect(args.onSwitch).toHaveBeenCalledWith(false);
+  },
+};
+
+/** While they are hidden, the same switch brings them back. */
+export const TheSwitchAsksToShow: Story = {
+  args: { shown: false },
+  play: async ({ canvas, args }) => {
+    const button = canvas.getByRole('button', { name: 'Show them' });
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(button);
+    await expect(args.onSwitch).toHaveBeenCalledWith(true);
   },
 };
 

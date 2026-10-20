@@ -19,6 +19,8 @@ export interface GraphWorkspace {
   readonly railWidth: number;
   /** How far the focus reaches from the selected entity: one hop or two. */
   readonly hops: 1 | 2;
+  /** Whether the canvas draws the entities that stand on the ring with no place. */
+  readonly showUnplaced: boolean;
 }
 
 export const DEFAULT_GRAPH_WORKSPACE: GraphWorkspace = {
@@ -27,6 +29,7 @@ export const DEFAULT_GRAPH_WORKSPACE: GraphWorkspace = {
   railOpen: true,
   railWidth: 256,
   hops: 1,
+  showUnplaced: true,
 };
 
 const isCamera = (value: unknown): value is GraphCamera =>
@@ -50,6 +53,7 @@ const DECLARED_KEYS: Readonly<Record<keyof GraphWorkspace, true>> = {
   railOpen: true,
   railWidth: true,
   hops: true,
+  showUnplaced: true,
 };
 
 // The cost of the strict guard here is one camera position and one set of filters, one time.
@@ -64,7 +68,8 @@ const isWorkspace = (value: unknown): value is GraphWorkspace => {
     typeof w['railOpen'] === 'boolean' &&
     typeof w['railWidth'] === 'number' &&
     Number.isFinite(w['railWidth']) &&
-    (w['hops'] === 1 || w['hops'] === 2)
+    (w['hops'] === 1 || w['hops'] === 2) &&
+    typeof w['showUnplaced'] === 'boolean'
   );
 };
 
