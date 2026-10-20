@@ -146,7 +146,10 @@ misread a number, so the text can miss a fact that the image shows clearly.
 - `vessel_events` stores the events of one vessel for a range of dates, and it gives the
   document id. Cite that document for an event that its text holds.
 - A match by the MMSI alone is a lead: an MMSI is reused and spoofed. Join the events to a hull
-  only through the GFW vessel id or the IMO number.
+  only through the GFW vessel id or the IMO number (`imo` input: the tool checks it in the GFW
+  registry info).
+- A port visit gives its anchorage. A port visit shows a stay at an anchorage, not a loading:
+  propose `berthed_at` from it, and `loads_at` only with a second source that states the loading.
 
 ## Never
 
