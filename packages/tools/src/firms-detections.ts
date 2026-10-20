@@ -17,6 +17,8 @@ const MAX_PERIOD_DAYS = 366;
 // The transactions of the map key that stay unspent in the interval of ten minutes.
 const RESERVE = 100;
 const DAY_MS = 86_400_000;
+// An area read of the archive can take longer than the ten seconds that other tools allow.
+const TIMEOUT_MS = 60_000;
 
 /** A refusal that a wait of ten minutes cures: the map key is near its rate limit. */
 export class RateLimitRefusal extends ToolRefusal {}
@@ -60,6 +62,7 @@ const get = async (reach: Reach | undefined, path: string, key: string): Promise
       `${BASE}${path.replace('{key}', () => encodeURIComponent(key))}`,
       {
         headers: { accept: 'text/csv, application/json' },
+        timeoutMs: TIMEOUT_MS,
       },
     );
   } catch (fault) {
