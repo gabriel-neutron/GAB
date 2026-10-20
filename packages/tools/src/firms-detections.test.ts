@@ -183,6 +183,29 @@ test('a call of FIRMS that fails once is tried again', async () => {
   );
   expect(refusalOf(outcome)).toBe('');
   expect(failed).toBe(true);
+  // Two satellites hold the period, so two windows and one repeated call.
+  expect(areaPaths(web)).toHaveLength(3);
+});
+
+test('a call of FIRMS that always fails is tried three times and then refused', async () => {
+  const web = stubWeb(
+    (asked: Asked) => {
+      const path = asked.url.pathname;
+      if (path.startsWith('/api/data_availability/')) return text(AVAILABILITY);
+      if (path.startsWith('/mapserver/mapkey_status'))
+        return json({ transaction_limit: 5000, current_transactions: 0 });
+      return new Error('reset');
+    },
+    { firmsKey: KEY },
+  );
+  const outcome = await callTool(
+    tool,
+    hashDatabase(),
+    { ...BOX, from: '2026-06-01', to: '2026-06-01' },
+    { store: memoryStore(), web, now: () => new Date('2026-10-05T10:00:00Z') },
+  );
+  expect(refusalOf(outcome)).toBe('NASA FIRMS: no whole answer came');
+  expect(areaPaths(web)).toHaveLength(3);
 });
 
 test('a fault of FIRMS is a refusal that repeats no address and no key', async () => {
