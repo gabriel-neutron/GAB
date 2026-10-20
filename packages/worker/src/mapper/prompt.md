@@ -76,7 +76,16 @@ each entry gives the number of the row and its values. `vocabulary` gives the wo
     1. Keep a year under its own key, for example `status_year`, `discovery_year` or
     `production_start_year`. Map each column that states a fact about the row, with the status, the
     years and `position_precision`.
-14. Do not give an expression, a formula, a confidence or a note.
+14. `names` is optional in a relation, `{"separator": ";", "table": "<document>"}`. Use it only when
+    the operator gives the document of an approved name table. The cell of the other end then holds
+    names, each with its share in brackets (`Name [40%]`). It needs `other_type`, the key `label`,
+    and no `share_pct` in `attrs`. Never use it with `split`.
+15. In a table where many rows state one entity (a series by fuel and year), an attribute can give
+    `key_by`, a list of columns whose cells end the key (`production` with `Fuel description` and
+    `Data Year` gives `production_oil_2023`), and `years`, `{"column": "<column>", "from": 2020,
+    "to": 2024}`, to keep only these years. Give the unit as a second attribute with the same
+    `key_by` and the cast `text`.
+16. Do not give an expression, a formula, a confidence or a note.
 
 ## The answer
 

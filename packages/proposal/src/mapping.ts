@@ -94,9 +94,31 @@ const relation = z
         'the cell of the other end holds many owners, each with its GEM identifier and its share ' +
           'in percent. The cell never splits when one owner lacks the identifier or the share',
       ),
+    names: z
+      .strictObject({
+        separator: z.string().min(1).max(3),
+        table: z.string().min(1).max(200).describe('the document of the approved name table'),
+      })
+      .optional()
+      .describe(
+        'the cell of the other end holds names, each with an optional share in brackets. The ' +
+          'approved name table gives the entity of each name',
+      ),
     valid_from: datedColumn.optional(),
     valid_to: datedColumn.optional(),
     attrs: relationAttrs.optional(),
+  })
+  .refine((held) => held.names === undefined || held.split === undefined, {
+    message: 'a relation reads its cell with split or with names, never with both',
+  })
+  .refine((held) => held.names === undefined || held.other.key === 'label', {
+    message: 'a relation that reads names finds the other end by the key label',
+  })
+  .refine((held) => held.names === undefined || held.other_type !== undefined, {
+    message: 'a relation that reads names gives the entity type of the other end',
+  })
+  .refine((held) => held.names === undefined || !('share_pct' in (held.attrs ?? {})), {
+    message: 'a relation that reads names takes share_pct from the cell, so attrs has none',
   })
   .refine((held) => held.split === undefined || held.other.key === 'gem_entity_id', {
     message: 'a relation that splits its cell finds the other end by gem_entity_id',
@@ -157,6 +179,24 @@ const constants = z
     { message: `asset_kind is one of: ${ASSET_KINDS.join(', ')}` },
   );
 
+/** An attribute of a table where many rows state one entity, for example a series by year. The
+ * key of the attribute is the key of the rule with the cells of `key_by` added, and a row whose
+ * year is outside `years` gives nothing. */
+const seriesAttr = z.strictObject({
+  column,
+  cast,
+  key_by: z
+    .array(column)
+    .min(1)
+    .max(3)
+    .optional()
+    .describe('the columns whose cells (lower case, joined by an underscore) end the key'),
+  years: z
+    .strictObject({ column, from: z.number().int(), to: z.number().int() })
+    .optional()
+    .describe('the column of the year, and the years that the load keeps, both ends included'),
+});
+
 const entityRows = z
   .strictObject({
     entity_type: key,
@@ -167,7 +207,7 @@ const entityRows = z
       .max(4)
       .describe('how code finds the entity in the record before it proposes a new one'),
     geom: geom.optional(),
-    attrs: z.record(key, z.strictObject({ column, cast })),
+    attrs: z.record(key, seriesAttr),
     constants: constants.optional(),
   })
   // A column gives free words ("Oil Refinery"), so the kind of an asset is a constant only.
@@ -253,10 +293,14 @@ export const mappingDraft = z
   .strictObject(draftFields)
   .refine(linkTableHasNoRelations, NO_RELATIONS)
   // A name is not an identifier: the model has read a cell of names as a link to a record entity.
-  // The operator may still write a name lookup (the payload allows it), and the model may not.
-  .refine((held) => held.relations.every((one) => one.other.key !== 'label'), {
-    message: 'a relation finds the other end by an identifier, and a column of names gives none',
-  });
+  // The operator may still write a name lookup (the payload allows it), and the model may not,
+  // except through the approved name table (`names`).
+  .refine(
+    (held) => held.relations.every((one) => one.other.key !== 'label' || one.names !== undefined),
+    {
+      message: 'a relation finds the other end by an identifier, and a column of names gives none',
+    },
+  );
 
 export type MappingDraft = z.infer<typeof mappingDraft>;
 
@@ -296,6 +340,10 @@ const namedColumns = (mapping: MappingDraft): string[] => {
       ...held.lookup.map((one) => one.column),
       ...(where === undefined ? [] : 'geojson' in where ? [where.geojson] : [where.lon, where.lat]),
       ...attrColumns(held.attrs),
+      ...Object.values(held.attrs).flatMap((rule) => [
+        ...(rule.key_by ?? []),
+        ...(rule.years === undefined ? [] : [rule.years.column]),
+      ]),
       ...mapping.relations.flatMap((one) => [
         one.other.column,
         ...dayColumns(one),
@@ -311,6 +359,28 @@ export const missingColumns = (mapping: MappingDraft, header: readonly string[])
   namedColumns(mapping)
     .filter((name) => !header.includes(name))
     .map((name) => `the column "${name}" is not in the header. Use one of: ${header.join(', ')}`);
+
+// External constraint: GEM writes the identifier of an entity as "E" and digits.
+export const GEM_ENTITY = /\bE\d{6,}\b/gu;
+
+/** The relations that split a column which holds no GEM identifier in any row, each with the
+ * sentence that says what to correct. A column of names splits into no entity that the record
+ * holds, so the load would refuse each cell. */
+export const splitFaults = (
+  mapping: MappingDraft,
+  header: readonly string[],
+  rows: readonly (readonly string[])[],
+): string[] =>
+  mapping.relations.flatMap((one) => {
+    if (one.split === undefined) return [];
+    const at = header.indexOf(one.other.column);
+    const named = at >= 0 && !rows.some((row) => (row[at] ?? '').match(GEM_ENTITY) !== null);
+    return named
+      ? [
+          `the column "${one.other.column}" holds no GEM identifier in any row, so the relation does not split. Remove the relation`,
+        ]
+      : [];
+  });
 
 /** The words of the record that a mapping can use: the live entity types and relation types. */
 export interface MappingVocabulary {

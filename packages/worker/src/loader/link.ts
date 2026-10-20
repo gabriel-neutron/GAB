@@ -1,8 +1,9 @@
 import { isDeepStrictEqual } from 'node:util';
 
-import type { Cast, LinkEnd } from '@gab/proposal/mapping';
+import { GEM_ENTITY, type Cast, type LinkEnd } from '@gab/proposal/mapping';
 import type { CsvRecord } from '@gab/tools/csv';
 
+import { nameKey } from '../name-key.ts';
 import type { Queryable } from '../queryable.ts';
 import { castCell, dayOf } from './cast.ts';
 import { makeFinder, type ColumnCasts, type Found } from './join.ts';
@@ -14,12 +15,32 @@ const NOT_AN_ENTITY = /^(small share ?holder|natural person|individual)(s|\(s\))
 
 export type Value = string | number | boolean | string[];
 export type Attrs = Record<string, { v: Value }>;
-export type Rules = Readonly<Record<string, { readonly column: string; readonly cast: Cast }>>;
+export type Rules = Readonly<
+  Record<
+    string,
+    {
+      readonly column: string;
+      readonly cast: Cast;
+      readonly key_by?: readonly string[] | undefined;
+      readonly years?:
+        { readonly column: string; readonly from: number; readonly to: number } | undefined;
+    }
+  >
+>;
 export interface Days {
   validFrom?: string;
   validTo?: string;
 }
 export type DayRule = { readonly column: string; readonly pattern: string } | undefined;
+
+/** A cell as a part of a key: lower case words joined by an underscore, and a year that a
+ * workbook wrote as "2023.0" without its decimal. */
+const slug = (text: string): string =>
+  text
+    .replace(/^(\d+)\.0+$/u, '$1')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '_')
+    .replace(/^_+|_+$/gu, '');
 
 /** Casts each cell that a set of rules reads. A refused cell refuses the whole set, and a skipped
  * cell gives a note. */
@@ -35,14 +56,24 @@ export const castAll = (
       ([other, held]) =>
         other !== key && held.column === rule.column && held.cast.type === 'ru_register',
     );
-  for (const [key, rule] of Object.entries(rules)) {
+  for (const [name, rule] of Object.entries(rules)) {
     const text = cell(rule.column);
     if (text === '') continue;
+    if (rule.years !== undefined) {
+      const year = Number(slug(cell(rule.years.column)));
+      if (!(year >= rule.years.from && year <= rule.years.to)) continue;
+    }
+    const parts = (rule.key_by ?? []).map((one) => slug(cell(one)));
+    if (parts.includes('')) {
+      note(`the column "${rule.column}" gives no ${name}: a column of its key is empty`);
+      continue;
+    }
+    const key = [name, ...parts].join('_');
     const cast = castCell(rule.cast, key, text);
     if (cast.ok === 'skip') {
       // A register column that fills the tax number and the registration number gives one of
       // them in each row, and the other key is no fault of the row.
-      if (!pairedRegister(key, rule))
+      if (!pairedRegister(name, rule))
         note(`the column "${rule.column}" gives no ${key}: ${cast.reason}`);
       continue;
     }
@@ -166,9 +197,7 @@ export const changedValues = (held: HeldAttrs, attrs: Attrs): Attrs => {
   return changed;
 };
 
-// External constraint: GEM writes the identifier of an entity as "E" and digits, and a
-// share as a number with a percent sign.
-const GEM_ENTITY = /\bE\d{6,}\b/gu;
+// External constraint: GEM writes a share as a number with a percent sign.
 const PERCENT = /(?<![\d.,])(\d+(?:\.\d+)?)\s*%/gu;
 // A share with a comma as the decimal mark is not read. The part is refused, and the digits never
 // leak into the name of the owner.
@@ -222,3 +251,72 @@ export const splitOwners = (
   }
   return { owners };
 };
+
+/** What the approved name table says of one name. `sure` is a name with a GEM identifier;
+ * `candidate` is the entity of the record for the name, and `confirmed` says that the register
+ * check of the table confirmed it (a candidate that is not confirmed is a match of the name only); `open` is no match. */
+export type NamedEnd =
+  | { readonly kind: 'sure'; readonly gemId: string }
+  | { readonly kind: 'candidate'; readonly entity: string; readonly confirmed: boolean }
+  | { readonly kind: 'open' };
+
+// External constraint: the columns and the status words of the name table.
+const SURE = 'sûr';
+const CANDIDATE = 'candidat-dossier';
+// The register check of the table: a candidate whose key equals the key of the register is sure.
+const CONFIRMED = 'confirmé';
+
+/** The name table as a map from the name key to what the table says. A row with no identifier for
+ * its status is open. */
+export const nameTableOf = (table: {
+  readonly header: readonly string[];
+  readonly rows: readonly CsvRecord[];
+}): Map<string, NamedEnd> => {
+  const at = (name: string): number => table.header.indexOf(name);
+  const [nameAt, statusAt, gemAt, entityAt] = [
+    'name',
+    'status',
+    'gem_entity_id',
+    'dossier_entity_id',
+  ].map(at);
+  if ([nameAt, statusAt, gemAt, entityAt].some((index) => index === undefined || index < 0))
+    throw new Error(
+      'the name table lacks one of the columns name, status, gem_entity_id, dossier_entity_id',
+    );
+  // The register check column is absent from an older table, and then no candidate is confirmed.
+  const checkAt = at('controle_registre');
+  const held = new Map<string, NamedEnd>();
+  for (const { fields } of table.rows) {
+    const cell = (index: number | undefined): string => (fields[index ?? -1] ?? '').trim();
+    const status = cell(statusAt).normalize('NFC');
+    const gemId = cell(gemAt);
+    const entity = cell(entityAt);
+    held.set(
+      nameKey(cell(nameAt)),
+      status === SURE && gemId !== ''
+        ? { kind: 'sure', gemId }
+        : status === CANDIDATE && entity !== ''
+          ? { kind: 'candidate', entity, confirmed: cell(checkAt).normalize('NFC') === CONFIRMED }
+          : { kind: 'open' },
+    );
+  }
+  return held;
+};
+
+/** The parts of a cell of names: each name with its share in percent when the part ends with
+ * "[x%]". A part with no brackets has no share. */
+export const splitNames = (
+  text: string,
+  separator: string,
+): { readonly name: string; readonly share: number | null }[] =>
+  text
+    .split(separator)
+    .map((part) => part.trim())
+    .filter((part) => part !== '')
+    .map((part) => {
+      const share = /\[\s*(\d+(?:\.\d+)?)\s*%\s*\]\s*$/u.exec(part);
+      return {
+        name: (share === null ? part : part.slice(0, share.index)).trim(),
+        share: share?.[1] === undefined ? null : Number(share[1]),
+      };
+    });

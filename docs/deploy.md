@@ -94,6 +94,9 @@ each decision is final). The Names page of the review page does the same.
 - `nato-coverage`, `asset-coverage`, `asset-sanctions`: reports. They write nothing.
 - `firms-sweep`: reads NASA FIRMS heat. Set `FIRMS_MAP_KEY` first. Run it again after a stop or
   each day: it reads only days that no stored answer covers.
+- `sentinel2-pairs`: stores a clear Sentinel-2 image before and after each accepted strike that has
+  a day and a site point. Set `CDSE_CLIENT_ID` and `CDSE_CLIENT_SECRET` first. Run it with
+  `--list` to see the strikes without a call to the service.
 
 ## Write a release
 

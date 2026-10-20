@@ -28,6 +28,7 @@
     "./propose-mapping": "./src/propose-mapping.ts",
     "./refused-source": "./src/refused-source.ts",
     "./search-graph": "./src/search-graph.ts",
+    "./sentinel2-pairs": "./src/sentinel2-pairs.ts",
     "./stated-value": "./src/stated-value.ts",
     "./table": "./src/table.ts",
     "./tool": "./src/tool.ts",

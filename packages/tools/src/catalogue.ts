@@ -33,6 +33,7 @@ import { rejectRelation } from './reject-relation.ts';
 import { rejectUnit } from './reject-unit.ts';
 import { sanctionsMatch } from './sanctions-match.ts';
 import { searchGraph } from './search-graph.ts';
+import { sentinel2Pairs } from './sentinel2-pairs.ts';
 import { siteImage } from './site-image.ts';
 import { startLead } from './start-lead.ts';
 import { storeSavedFile } from './store-saved-file.ts';
@@ -68,6 +69,7 @@ export const CATALOGUE = [
   euAct,
   storeSavedFile,
   siteImage,
+  sentinel2Pairs,
   telegramChannel,
   gleifLookup,
   companiesHouse,
