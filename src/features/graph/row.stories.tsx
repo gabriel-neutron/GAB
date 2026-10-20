@@ -5,6 +5,7 @@ import { corpus } from '@/shared/committed-fixture/corpus';
 import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import { buildGraphModel, type NodePosition } from './model';
+import { countShown } from './shown-counts';
 import { deriveRailRows, type RailView } from './rail-rows';
 import { IndexRows } from './row';
 import { DEFAULT_GRAPH_WORKSPACE } from './workspace';
@@ -30,6 +31,7 @@ const TYPE = (() => {
 
 const VIEW: RailView = {
   filter: { hiddenTypes: DEFAULT_GRAPH_WORKSPACE.hiddenTypes },
+  counts: countShown(model.graph, new Set(corpus.entities.map((entity) => entity.id))),
   selection: null,
   openUnits: new Set(),
   railOpen: true,

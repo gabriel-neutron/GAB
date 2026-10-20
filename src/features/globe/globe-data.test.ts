@@ -49,3 +49,11 @@ test('the fixed release gives a globe whose counts follow its files', () => {
   expect(plain.rows.length).toBe(plain.entities.features.length);
   expect(plain.counts.arcs).toBeLessThan(data.counts.arcs);
 });
+
+test('the counts of each type add up to the entities of the release and to those on the map', () => {
+  const { byType } = data.counts;
+  expect(byType.reduce((sum, one) => sum + one.total, 0)).toBe(
+    FIXTURE_RELEASE.chain.entities.length,
+  );
+  expect(byType.reduce((sum, one) => sum + one.onMap, 0)).toBe(data.counts.entities);
+});

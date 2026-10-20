@@ -13,7 +13,7 @@ interface GraphRailRows {
 
 export type RailView = Pick<
   GraphView,
-  'filter' | 'selection' | 'openUnits' | 'railOpen' | 'railWidth'
+  'filter' | 'counts' | 'selection' | 'openUnits' | 'railOpen' | 'railWidth'
 >;
 
 // The controller already drops a selection the filter excludes. The test below states that rule a
@@ -24,7 +24,7 @@ export function deriveRailRows(
   step: RailStep,
   query: string,
 ): GraphRailRows {
-  const { filter, selection, openUnits } = view;
+  const { filter, counts: shownCounts, selection, openUnits } = view;
   const hidden = new Set(filter.hiddenTypes);
 
   // Departure: a type row counts every node of its type, and a fold of the list does not change
@@ -66,20 +66,28 @@ export function deriveRailRows(
 
   const types: readonly RailTypeRow[] = names.map((type) => {
     const on = !hidden.has(type);
-    const count = counts.get(type) ?? 0;
+    const total = counts.get(type) ?? 0;
+    // Departure: a typed filter turns the figure into the names that match, out of the whole type,
+    // and a type that is off has no list, so it counts none. Without a filter the figure is what
+    // the drawing shows, and the type switches change it.
+    const count = filtering
+      ? (matching.get(type)?.length ?? 0)
+      : (shownCounts.byType.get(type)?.shown ?? 0);
+    const spoken = `${String(count)} of ${String(total)}${filtering ? ' match the filter' : ''}`;
     return {
       type,
       label: model.labelOfType(type),
       initial: model.labelOfType(type).slice(0, 1).toUpperCase(),
       count,
+      figure: `${String(count)} of ${String(total)}${filtering ? ' match' : ''}`,
       on,
       open: openTypes.includes(type),
       // The filter dims and never hides, so the row states that consequence. The word reaches a
       // reader who sees no strike and no dimming.
       stateWord: on ? 'on' : 'off, dimmed',
       name: on
-        ? `${model.labelOfType(type)}, ${count}, on`
-        : `${model.labelOfType(type)}, ${count}, off and dimmed`,
+        ? `${model.labelOfType(type)}, ${spoken}, on`
+        : `${model.labelOfType(type)}, ${spoken}, off and dimmed`,
       // **The swatch is the words of the hue.** The canvas paints a node by its type, and a hue
       // alone is hidden from a reader who cannot see it, so the one place that names every type
       // carries the colour beside the name.
