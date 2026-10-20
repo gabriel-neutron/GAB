@@ -331,3 +331,11 @@ test('the kind of an asset is a constant, never a column', () => {
   expect(read.success).toBe(false);
   expect(JSON.stringify(read.error?.issues)).toContain('asset_kind is a constant');
 });
+
+test('a relation that finds the other end by a name is refused', () => {
+  const byName = {
+    ...DRAFT,
+    relations: [{ type: 'operates', row_is: 'dst', other: { key: 'label', column: 'Owner' } }],
+  };
+  expect(mappingDraft.safeParse(byName).success).toBe(false);
+});

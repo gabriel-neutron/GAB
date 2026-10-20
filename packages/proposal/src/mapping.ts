@@ -251,7 +251,12 @@ const NO_RELATIONS = {
 /** What the model gives for one table. The tool adds the signature of the header. */
 export const mappingDraft = z
   .strictObject(draftFields)
-  .refine(linkTableHasNoRelations, NO_RELATIONS);
+  .refine(linkTableHasNoRelations, NO_RELATIONS)
+  // A name is not an identifier: the model has read a cell of names as a link to a record entity.
+  // The operator may still write a name lookup (the payload allows it), and the model may not.
+  .refine((held) => held.relations.every((one) => one.other.key !== 'label'), {
+    message: 'a relation finds the other end by an identifier, and a column of names gives none',
+  });
 
 export type MappingDraft = z.infer<typeof mappingDraft>;
 
