@@ -61,6 +61,8 @@ const RECORD_WORDS = new Set([
   'registration_number',
   'tax_id',
   'point_role',
+  'berthed_at',
+  'loads_at',
 ]);
 
 const namedTools = (text: string): string[] =>
