@@ -1,8 +1,6 @@
 import Sigma from 'sigma';
-import { createEdgeArrowProgram } from 'sigma/rendering';
 import type { Coordinates, EdgeDisplayData, NodeDisplayData } from 'sigma/types';
 
-import { ARROW_LENGTH_RATIO, ARROW_WIDTH_RATIO } from '@/shared/canvas-arrow';
 import {
   CANVAS_LABEL_CLASS,
   canvasLabelTransform,
@@ -13,6 +11,7 @@ import type { Corpus, EntityPosition, TypeVocabulary } from '@/shared/read/model
 import { relationWording } from '@/shared/relation-words';
 import { foldEveryUnit } from '@/shared/unit-folds';
 
+import { createDashedArrowProgram } from './dashed-edge-program';
 import { FARTHEST_RATIO, NEAREST_RATIO, restorableCamera } from './camera-bounds';
 import { layoutFocus } from './focus';
 import { edgeLabelPlace, spreadDown } from './focus-labels';
@@ -27,6 +26,8 @@ import {
   type NodePosition,
 } from './model';
 import { graphPositions } from './positions';
+import { FAMILIES } from './relation-families';
+import { type RelationFilterState } from './relation-filter';
 import { readSelectionAddress, writeSelectionAddress, type GraphSelection } from './selection';
 import { countShown, type ShownCounts } from './shown-counts';
 import { isShown, type FilterState } from './type-filter';
@@ -49,6 +50,8 @@ export interface GraphView {
   readonly expandable: number;
   readonly selection: GraphSelection | null;
   readonly filter: FilterState;
+  /** The relation types that the legend switches off. */
+  readonly relationFilter: RelationFilterState;
   readonly lit: number;
   readonly dimmed: number;
   /** What the drawing shows against what the record holds: the nodes the filter keeps, and in a
@@ -77,6 +80,8 @@ export interface GraphController {
   readonly expand: () => void;
   readonly setUnitOpen: (unit: string, open: boolean) => void;
   readonly setFilter: (patch: Partial<FilterState>) => void;
+  /** Hides or draws the relations of the types the patch names. */
+  readonly setRelationFilter: (patch: Partial<RelationFilterState>) => void;
   /** Draws or hides the entities that stand on the ring with no place. */
   readonly setShowUnplaced: (show: boolean) => void;
   /** The rail was unfolded or folded. The workspace keeps it, so the next open finds it there. */
@@ -226,6 +231,10 @@ export function mountGraph(
   const stored = readGraphWorkspace();
   let filter: FilterState = { hiddenTypes: [...stored.hiddenTypes] };
   let hidden = new Set(filter.hiddenTypes);
+  let relationFilter: RelationFilterState = {
+    hiddenRelationTypes: [...stored.hiddenRelationTypes],
+  };
+  let hiddenRelations = new Set(relationFilter.hiddenRelationTypes);
   let railOpen = stored.railOpen;
   let railWidth = stored.railWidth;
   let hops = stored.hops;
@@ -274,7 +283,7 @@ export function mountGraph(
   const litEdges = new Set<string>();
   let lit = 0;
   let dimmed = 0;
-  let counts: ShownCounts = countShown(model.graph, new Set());
+  let counts: ShownCounts = countShown(model.graph, new Set(), hiddenRelations);
 
   /** The elements that carry a marker on this frame, and how many get none. */
   let markerTargets: readonly string[] = [];
@@ -301,9 +310,22 @@ export function mountGraph(
   const nodeConsidered = (node: string): boolean =>
     model.graph.hasNode(node) && passesFilter(model.graph.getNodeAttributes(node));
 
-  /** A relation is in consideration while both of its endpoints are. */
+  /** A relation of a type that the legend switches off is not drawn, and it joins nothing. */
+  const typeShown = (edge: string): boolean =>
+    !hiddenRelations.has(model.graph.getEdgeAttribute(edge, 'relationType'));
+
+  /** The other end of each relation of the node that is drawn. A relation of a type that is
+   * switched off leads nowhere, so a focus and a walk never reach a neighbour through it. */
+  const forEachLinked = (node: string, visit: (neighbour: string) => void): void => {
+    model.graph.forEachEdge(node, (edge, _attrs, source, target) => {
+      if (typeShown(edge)) visit(source === node ? target : source);
+    });
+  };
+
+  /** A relation is in consideration while both of its endpoints are, and its type is on. */
   const edgeConsidered = (edge: string): boolean =>
     model.graph.hasEdge(edge) &&
+    typeShown(edge) &&
     nodeConsidered(model.graph.source(edge)) &&
     nodeConsidered(model.graph.target(edge));
 
@@ -335,7 +357,7 @@ export function mountGraph(
     for (let hop = 0; hop < HOPS; hop += 1) {
       const next: string[] = [];
       for (const node of frontier) {
-        model.graph.forEachNeighbor(node, (neighbour) => {
+        forEachLinked(node, (neighbour) => {
           if (!passes.has(neighbour) || reach.has(neighbour)) return;
           reach.add(neighbour);
           next.push(neighbour);
@@ -354,7 +376,7 @@ export function mountGraph(
   const neighboursOf = (node: string): readonly string[] => {
     if (!model.graph.hasNode(node)) return [];
     const found = new Set<string>();
-    model.graph.forEachNeighbor(node, (neighbour) => {
+    forEachLinked(node, (neighbour) => {
       if (neighbour !== node && passesFilter(model.graph.getNodeAttributes(neighbour))) {
         found.add(neighbour);
       }
@@ -451,11 +473,11 @@ export function mountGraph(
       }
     }
     model.graph.forEachEdge((edge, _attrs, source, target) => {
-      if (!litNodes.has(source) || !litNodes.has(target)) return;
+      if (!litNodes.has(source) || !litNodes.has(target) || !typeShown(edge)) return;
       litEdges.add(edge);
     });
 
-    counts = countShown(model.graph, mode === 'focus' ? litNodes : passes);
+    counts = countShown(model.graph, mode === 'focus' ? litNodes : passes, hiddenRelations);
     lit = litNodes.size + litEdges.size;
     dimmed = model.graph.order + model.graph.size - lit;
 
@@ -497,16 +519,12 @@ export function mountGraph(
 
     // Sigma reads the edge program from the `type` of an edge, and this default reaches every
     // edge that states none, so no edge datum and no reducer below changes.
-    defaultEdgeType: 'arrow',
-    edgeProgramClasses: {
-      // The default export of the arrow program is typed for a graph that declares no attributes
-      // of its own. The factory beside it takes the two types of this graph, so the record needs
-      // no assertion and this file keeps its rule of writing none.
-      arrow: createEdgeArrowProgram<NodeAttrs, EdgeAttrs>({
-        lengthToThicknessRatio: ARROW_LENGTH_RATIO,
-        widenessToThicknessRatio: ARROW_WIDTH_RATIO,
-      }),
-    },
+    defaultEdgeType: 'other',
+    // One program for each family, and the `type` of an edge names it. The programs differ by
+    // the dash pattern alone, so the difference of the families also works without colour.
+    edgeProgramClasses: Object.fromEntries(
+      FAMILIES.map((family) => [family.key, createDashedArrowProgram(family.dash)]),
+    ),
 
     // A relation is selected on the canvas, so a relation takes a click: the selection carries
     // `kind: 'relation'`, and the route draws that case as a report. This is not the case the
@@ -546,6 +564,9 @@ export function mountGraph(
     },
 
     edgeReducer: (edge: string, data: EdgeAttrs): Partial<EdgeDisplayData> => {
+      // A relation type that the legend switches off is out of the picture, as the ring is when
+      // its switch is off: a hidden edge cannot be clicked, and no dim stands in its place.
+      if (hiddenRelations.has(data.relationType)) return { ...data, hidden: true, label: null };
       if (
         !showUnplaced &&
         model.graph.extremities(edge).some((end) => model.graph.getNodeAttribute(end, 'unplaced'))
@@ -881,6 +902,7 @@ export function mountGraph(
     expandable: expandableCount(),
     selection,
     filter,
+    relationFilter,
     lit,
     dimmed,
     counts,
@@ -1143,6 +1165,18 @@ export function mountGraph(
         redrawFocus();
       }
       // **A filter that excludes the selection drops the selection.**
+      settle(acceptable(selection));
+    },
+    setRelationFilter: (patch) => {
+      if (destroyed) return;
+      const next: RelationFilterState = { ...relationFilter, ...patch };
+      if (sameTypes(next.hiddenRelationTypes, relationFilter.hiddenRelationTypes)) return;
+      relationFilter = { hiddenRelationTypes: [...next.hiddenRelationTypes] };
+      hiddenRelations = new Set(relationFilter.hiddenRelationTypes);
+      patchGraphWorkspace({ hiddenRelationTypes: relationFilter.hiddenRelationTypes });
+      // A neighbour that only a hidden relation reached leaves the focus, and the layout runs again.
+      redrawFocus();
+      // A selected relation of a type that is now off is dropped, as the filter drops a node.
       settle(acceptable(selection));
     },
     setShowUnplaced: (show) => {

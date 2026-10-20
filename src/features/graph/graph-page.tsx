@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import type { Corpus, EntityPosition, TypeVocabulary } from '@/shared/read/model';
+import { relationWording } from '@/shared/relation-words';
 import { cn } from '@/shared/lib/utils';
 import { Rail, type RailAct } from '@/shared/rail';
 import { useScreenQuery } from '@/shared/screen-query';
@@ -19,6 +20,10 @@ import { FocusBar } from './focus-bar';
 import { FocusNote } from './focus-note';
 import { MarkerRemainder } from './marker-remainder';
 import type { GraphModel } from './model';
+import type { RelationFilterState } from './relation-filter';
+import { RelationLegend } from './relation-legend';
+import { deriveLegend } from './relation-legend-rows';
+import { hiddenRelationsAfterSwitch } from './relation-filter';
 import { deriveRailRows } from './rail-rows';
 import { stepAfterTypeOpen, stepShowingWholeList, type RailStep } from './rail-step';
 import { IndexRows } from './row';
@@ -87,6 +92,8 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   // list would make a new function at each filter change, and `GraphCanvas` is memoised on props.
   const filterNow = useRef<FilterState | null>(null);
 
+  const relationFilterNow = useRef<RelationFilterState>({ hiddenRelationTypes: [] });
+
   const [step, setStep] = useState<RailStep>({ openTypes: [], wholeList: [] });
 
   // The list holds the record, the declared types and one stable function, and no ref: a ref is
@@ -105,6 +112,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     controller.current = handle;
     const unsubscribe = handle.subscribe((view) => {
       filterNow.current = view.filter;
+      relationFilterNow.current = view.relationFilter;
       setSnapshot({ view, model: handle.model });
     });
     // It calls the listener at once with the selection this mount restored from the address, so
@@ -158,6 +166,16 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   // Departure: the filter narrows the rail and never the canvas, so the controller holds none of
   // it. `GraphCanvas` is memoised on two refs, so a new filter does not render the live element.
   const query = useScreenQuery({ named, choose: reach });
+
+  const wordsOf = useMemo(() => relationWording(corpus.relationTypes), [corpus.relationTypes]);
+  const hiddenRelationTypes = snapshot?.view.relationFilter.hiddenRelationTypes ?? null;
+  const legend = useMemo(
+    () =>
+      counts === null || hiddenRelationTypes === null
+        ? []
+        : deriveLegend(counts.byRelationType, new Set(hiddenRelationTypes), wordsOf),
+    [counts, hiddenRelationTypes, wordsOf],
+  );
 
   const rows = useMemo(
     () =>
@@ -213,6 +231,14 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
 
   const expand = useCallback(() => {
     controller.current?.expand();
+  }, []);
+
+  const switchRelationType = useCallback((type: string, on: boolean) => {
+    const handle = controller.current;
+    if (handle === null) return;
+    handle.setRelationFilter({
+      hiddenRelationTypes: hiddenRelationsAfterSwitch(relationFilterNow.current, type, on),
+    });
   }, []);
 
   const switchUnplaced = useCallback((show: boolean) => {
@@ -306,6 +332,12 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
             />
           )}
         </div>
+
+        {snapshot === null || snapshot.view.mode === 'start' ? null : (
+          <div className={cn('border-t border-border lg:col-span-3 lg:row-start-2')}>
+            <RelationLegend legend={legend} onSwitch={switchRelationType} />
+          </div>
+        )}
       </div>
 
       {snapshot === null ? null : (
