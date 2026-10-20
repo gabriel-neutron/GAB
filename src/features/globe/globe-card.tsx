@@ -1,4 +1,5 @@
 import { cn } from '@/shared/lib/utils';
+import { askPanelFocus, landOnPanel, returnPanelFocus } from '@/shared/panel-focus';
 import { PHONE_SHEET, SheetClose } from '@/shared/phone-sheet';
 import type { Card } from '@gab/release/chain-card';
 
@@ -57,12 +58,20 @@ export function GlobeCard({ store, data, entityHref }: GlobeCardProps) {
         PHONE_SHEET,
         panel.kind === 'none' ? 'max-md:hidden' : null,
       )}
+      onKeyDown={(event) => {
+        if (event.key !== 'Escape' || event.defaultPrevented || panel.kind === 'none') return;
+        store.select(null);
+        event.currentTarget.tabIndex = -1;
+        returnPanelFocus(event.currentTarget);
+      }}
     >
-      <SheetClose
-        onClose={() => {
-          store.select(null);
-        }}
-      />
+      {panel.kind === 'none' ? null : (
+        <SheetClose
+          onClose={() => {
+            store.select(null);
+          }}
+        />
+      )}
       <div className="p-2">
         {panel.kind === 'none' ? <p>Select a point on the map.</p> : null}
         {panel.kind === 'target' ? (
@@ -79,6 +88,7 @@ export function GlobeCard({ store, data, entityHref }: GlobeCardProps) {
                     type="button"
                     className="w-full px-1 py-0.5 text-left transition-colors duration-100 outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                     onClick={() => {
+                      askPanelFocus();
                       store.select(one.target);
                     }}
                   >
@@ -91,6 +101,17 @@ export function GlobeCard({ store, data, entityHref }: GlobeCardProps) {
           </div>
         ) : null}
       </div>
+      {panel.kind === 'none' ? null : (
+        <span
+          key={
+            panel.kind === 'target'
+              ? `${panel.target.kind}:${panel.target.id}`
+              : `choice:${String(panel.choices.length)}`
+          }
+          ref={landOnPanel}
+          hidden
+        />
+      )}
     </div>
   );
 }
