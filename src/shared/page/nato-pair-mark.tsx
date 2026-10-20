@@ -21,11 +21,10 @@ export function NatoPairMark({ rating }: NatoPairMarkProps) {
   const words = pairWords(letter, digit);
   return (
     <span
-      tabIndex={0}
       role="img"
       title={words}
       aria-label={`Admiralty ${letter}${digit}. ${words}`}
-      className="inline-block cursor-help border border-input px-1 font-mono text-small/4 font-medium outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="inline-block cursor-help border border-input px-1 font-mono text-small/4 font-medium "
       data-nato-pair=""
     >
       {`${letter}${digit}`}

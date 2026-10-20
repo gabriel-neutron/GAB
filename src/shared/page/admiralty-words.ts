@@ -19,4 +19,4 @@ const DIGIT_WORDS: Readonly<Record<string, string>> = {
 
 /** What a pair means, for example "Author: usually reliable. Fact: probably true.". */
 export const pairWords = (letter: string, digit: string): string =>
-  `Author: ${LETTER_WORDS[letter] ?? ''}. Fact: ${DIGIT_WORDS[digit] ?? ''}.`;
+  `Author: ${LETTER_WORDS[letter] ?? 'unknown'}. Fact: ${DIGIT_WORDS[digit] ?? 'unknown'}.`;

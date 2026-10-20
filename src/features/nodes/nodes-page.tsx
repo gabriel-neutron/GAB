@@ -9,7 +9,7 @@ import { ReadingPage } from '@/shared/page/reading-page';
 import { typeLabel } from '@/shared/type-label';
 import { releaseDay } from '@gab/release/release-day';
 
-import { groupNodes } from './nodes';
+import { groupNodes, withoutNodeName } from './nodes';
 
 export interface TickClaim {
   readonly text: string;
@@ -70,7 +70,7 @@ function ConditionCell({
               id
             ) : (
               <ClaimLink
-                text={claim.text.replace(`${label}: `, '')}
+                text={withoutNodeName(claim.text, label)}
                 href={claimHref(id)}
                 rating={claim.rating}
               />
@@ -139,7 +139,7 @@ const columnsOf = (
     key: 'ticks',
     header: 'Conditions met',
     figure: 'count',
-    cell: (node) => `${String(node.sourcedTicks)} of 3`,
+    cell: (node) => `${String(node.sourcedTicks)} of ${String(CONDITIONS.length)}`,
   },
   { key: 'controller', header: 'Controller', cell: (node) => node.controller },
   { key: 'bypass', header: 'Bypass pattern', cell: (node) => node.bypassPattern },
