@@ -79,6 +79,16 @@ export const TheDirectionIsTheOneBothCanvasesDraw: Story = {
   },
 };
 
+export const TheDefinitionOfTheTypeShowsWithALinkToTheGlossary: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText(/A vessel stood at a berth/u)).toBeVisible();
+    await expect(canvas.getByRole('link', { name: 'Glossary' })).toHaveAttribute(
+      'href',
+      '/glossary#relation-types',
+    );
+  },
+};
+
 export const TheTypeReadsInWordsAndNeverAsTheIdentifier: Story = {
   play: async ({ canvas }) => {
     const heading = canvas.getByRole('heading', { level: 1 });

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DownloadsRouteImport } from './routes/downloads'
+import { Route as GlossaryRouteImport } from './routes/glossary'
 import { Route as GraphRouteImport } from './routes/graph'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as MethodRouteImport } from './routes/method'
@@ -30,6 +31,11 @@ const IndexRoute = IndexRouteImport.update({
 const DownloadsRoute = DownloadsRouteImport.update({
   id: '/downloads',
   path: '/downloads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GlossaryRoute = GlossaryRouteImport.update({
+  id: '/glossary',
+  path: '/glossary',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GraphRoute = GraphRouteImport.update({
@@ -86,6 +92,7 @@ const VesselImoRoute = VesselImoRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/downloads': typeof DownloadsRoute
+  '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/downloads': typeof DownloadsRoute
+  '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/downloads': typeof DownloadsRoute
+  '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/downloads'
+    | '/glossary'
     | '/graph'
     | '/map'
     | '/method'
@@ -145,6 +155,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/downloads'
+    | '/glossary'
     | '/graph'
     | '/map'
     | '/method'
@@ -159,6 +170,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/downloads'
+    | '/glossary'
     | '/graph'
     | '/map'
     | '/method'
@@ -174,6 +186,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DownloadsRoute: typeof DownloadsRoute
+  GlossaryRoute: typeof GlossaryRoute
   GraphRoute: typeof GraphRoute
   MapRoute: typeof MapRoute
   MethodRoute: typeof MethodRoute
@@ -200,6 +213,13 @@ declare module '@tanstack/react-router' {
       path: '/downloads'
       fullPath: '/downloads'
       preLoaderRoute: typeof DownloadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/glossary': {
+      id: '/glossary'
+      path: '/glossary'
+      fullPath: '/glossary'
+      preLoaderRoute: typeof GlossaryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/graph': {
@@ -278,6 +298,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DownloadsRoute: DownloadsRoute,
+  GlossaryRoute: GlossaryRoute,
   GraphRoute: GraphRoute,
   MapRoute: MapRoute,
   MethodRoute: MethodRoute,

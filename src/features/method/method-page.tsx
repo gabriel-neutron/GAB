@@ -96,13 +96,6 @@ export function MethodPage({ manifest }: MethodPageProps) {
         </p>
       </PageSection>
 
-      <PageSection title="Affiliation" id="affiliation">
-        <p className={PROSE}>
-          The affiliation of a unit, such as Hostile, is the point of view of the project. It is not
-          a legal finding. A source states it, and the page of a unit names that source.
-        </p>
-      </PageSection>
-
       <PageSection title="Permanent addresses">
         <p className={PROSE}>
           Each entity and each claim has a permanent address under{' '}

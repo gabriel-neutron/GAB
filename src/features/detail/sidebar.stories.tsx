@@ -216,7 +216,7 @@ export const TheAffiliationLinksItsDefinitionAndTheSourceDayShows: Story = {
     await expect(canvas.getByText(/Affiliation: Hostile/)).toHaveTextContent('not a legal finding');
     await expect(canvas.getByRole('link', { name: 'Definition' })).toHaveAttribute(
       'href',
-      '/method#affiliation',
+      '/glossary#hostile',
     );
     await expect(canvas.getByText(/Newest source read on/)).toHaveTextContent('2026-07-30');
   },

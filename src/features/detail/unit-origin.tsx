@@ -5,8 +5,7 @@ export interface UnitOriginProps {
   readonly sourceDay: string | null;
 }
 
-/** The glossary is not built yet, so the affiliation links to the method page. */
-const AFFILIATION_HREF = '/method#affiliation';
+const AFFILIATION_HREF = '/glossary#hostile';
 
 const LINK =
   'text-primary underline underline-offset-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50';

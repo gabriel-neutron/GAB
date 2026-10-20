@@ -1,5 +1,7 @@
 import { expect, test } from 'vitest';
 
+import { relationDefinition } from '@gab/proposal/relation-types';
+
 import type { DecidedAct } from '@/shared/read/decided-acts';
 import type {
   Corpus,
@@ -730,4 +732,45 @@ test('a list value and a share that cannot be worded stay facts', () => {
     'Places: Malta, Greece',
     'Share pct: forty',
   ]);
+});
+
+const SUBORDINATE: RelationTypeDeclaration = {
+  key: 'subordinate_to',
+  label: 'subordinate to',
+  inverseLabel: 'is superior to',
+  takesInterval: false,
+  retired: false,
+};
+
+test('a relation line carries the definition of its type, and an unknown type has none', () => {
+  const read: Corpus = {
+    ...CORPUS,
+    relations: [{ ...OWNED_BY, type: 'owns' }],
+    relationTypes: [OWNS],
+  };
+  expect(readDossier(read, VESSEL.id, [], [])?.relations[0]?.definition).toBe(
+    relationDefinition('owns'),
+  );
+  expect(readRelation(read, OWNED_BY.id)?.definition).toBe(relationDefinition('owns'));
+  expect(readDossier(CORPUS, VESSEL.id, [], [])?.relations[0]?.definition).toBeNull();
+});
+
+test('two relations that link one pair show the type of each, and a lone relation shows none', () => {
+  const lone: Corpus = {
+    ...CORPUS,
+    relations: [{ ...OWNED_BY, type: 'owns' }],
+    relationTypes: [OWNS],
+  };
+  expect(readDossier(lone, VESSEL.id, [], [])?.relations[0]?.typeShown).toBeNull();
+
+  const pair: Corpus = {
+    ...CORPUS,
+    relations: [
+      { ...OWNED_BY, type: 'owns' },
+      { ...OWNED_BY, id: 'r2', type: 'subordinate_to', srcId: OWNER.id, dstId: VESSEL.id },
+    ],
+    relationTypes: [OWNS, SUBORDINATE],
+  };
+  const lines = readDossier(pair, VESSEL.id, [], [])?.relations ?? [];
+  expect(lines.map((line) => line.typeShown)).toEqual(['owns', 'is superior to']);
 });
