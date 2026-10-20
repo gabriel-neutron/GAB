@@ -91,6 +91,8 @@ each decision is final). The Names page of the review page does the same.
   so each citation stays valid.
 - `name-candidates`: finds merge candidates across a Latin and a Cyrillic spelling. Run it before a
   release, then decide each pair in the "Two scripts" tab.
+- `gem-duplicates`: report. It lists pairs of one entity with a GEM unit key and one without it, near
+  and with a similar name. It writes nothing. Merge a true pair by hand with `merge_entities`.
 - `nato-coverage`, `asset-coverage`, `asset-sanctions`: reports. They write nothing.
 - `firms-sweep`: reads NASA FIRMS heat. Set `FIRMS_MAP_KEY` first. Run it again after a stop or
   each day: it reads only days that no stored answer covers.
