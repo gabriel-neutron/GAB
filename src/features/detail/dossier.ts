@@ -633,6 +633,26 @@ export function readDossier(
   // this file reads the answer and repeats no rule of it.
   const at = read.positions.find((row) => row.entityId === entity.id);
   const borrowed = at?.parentId ?? null;
+  // The flag state of the newest `flags` relation of a vessel with no end date. A relation with no
+  // start date ranks last, and a flag state that the list lacks is skipped.
+  const openFlagOf = (read: Corpus, vesselId: string): string | null => {
+    const open = read.relations
+      .filter(
+        (one) =>
+          one.type === 'flags' &&
+          one.dstKind === 'entity' &&
+          one.dstId === vesselId &&
+          one.srcKind === 'entity' &&
+          one.validTo === null,
+      )
+      .flatMap((one) => {
+        const state = read.entities.find((row) => row.id === one.srcId);
+        return state === undefined ? [] : [{ label: state.label, from: one.validFrom ?? '' }];
+      })
+      .sort((one, other) => other.from.localeCompare(one.from));
+    return open[0]?.label ?? null;
+  };
+
   // Departure: the map and the entity list are two reads, so the parent can be absent from the
   // list. The point is still borrowed, so the words stand and only the name falls back.
   const positionFrom =
@@ -652,20 +672,7 @@ export function readDossier(
     positionChain: borrowed === null ? [] : parentChain(read, entity.id, borrowed),
     affiliation: typeof affiliation === 'string' ? affiliation : null,
     sourceDay: newestDay(read.documents.filter((one) => claimDocuments.has(one.id))),
-    identity: vesselIdentity(
-      entity.type,
-      entity.attrs,
-      read.relations
-        .filter(
-          (one) =>
-            one.type === 'flags' &&
-            one.dstKind === 'entity' &&
-            one.dstId === entity.id &&
-            one.srcKind === 'entity' &&
-            one.validTo === null,
-        )
-        .map((one) => nameOf(read, one.srcId)),
-    ),
+    identity: vesselIdentity(entity.type, entity.attrs, openFlagOf(read, entity.id)),
     decision: decisionOf(entity.promotedFrom, decided),
     rows,
     entitySources,

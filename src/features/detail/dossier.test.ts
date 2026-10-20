@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
 import { relationDefinition } from '@gab/proposal/relation-types';
 
@@ -786,4 +786,42 @@ test('a vessel dossier carries the identity of the vessel and another type carri
     callSign: 'HP1234',
   });
   expect(readDossier(other, named.id, [], [])?.identity).toBeNull();
+});
+
+describe('the flag of a vessel from its flags relations', () => {
+  const state = (id: string, label: string): Entity => ({ ...OWNER, id, label });
+  const flagLink = (id: string, patch: Partial<Relation>): Relation => ({
+    ...OWNED_BY,
+    id: `r-${id}`,
+    type: 'flags',
+    srcId: id,
+    dstId: VESSEL.id,
+    ...patch,
+  });
+  const flagOf = (entities: readonly Entity[], relations: readonly Relation[]) =>
+    readDossier({ ...CORPUS, entities, relations }, VESSEL.id, [], [])?.identity?.flag;
+  const bare: Entity = { ...VESSEL, attrs: {} };
+
+  test('the newest open relation gives the flag in either order', () => {
+    const states = [bare, state('s1', 'Comoros'), state('s2', 'Gabon')];
+    const old = flagLink('s1', { validFrom: '2019-01-01' });
+    const recent = flagLink('s2', { validFrom: '2023-01-01' });
+
+    expect(flagOf(states, [old, recent])).toBe('Gabon');
+    expect(flagOf(states, [recent, old])).toBe('Gabon');
+  });
+
+  test('a closed relation, a relation to another vessel and a missing state give none', () => {
+    const states = [bare, state('s1', 'Comoros')];
+
+    expect(flagOf(states, [flagLink('s1', { validTo: '2020-01-01' })])).toBeNull();
+    expect(flagOf(states, [flagLink('s1', { dstId: 'other' })])).toBeNull();
+    expect(flagOf(states, [flagLink('missing', {})])).toBeNull();
+  });
+
+  test('an attribute beats the relation', () => {
+    const states = [VESSEL, state('s1', 'Comoros')];
+
+    expect(flagOf(states, [flagLink('s1', {})])).toBe('Panama');
+  });
 });

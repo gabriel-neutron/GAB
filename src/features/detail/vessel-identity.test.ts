@@ -9,8 +9,8 @@ const held = (values: Readonly<Record<string, string | readonly string[]>>): Att
 
 const identityOf = (
   values: Readonly<Record<string, string | readonly string[]>>,
-  openFlags: readonly string[] = [],
-) => vesselIdentity('vessel', held(values), openFlags);
+  openFlag: string | null = null,
+) => vesselIdentity('vessel', held(values), openFlag);
 
 test('a vessel with the three values gives each of them', () => {
   expect(identityOf({ flag: 'Panama', mmsi_history: '352001234', call_sign: 'HP1234' })).toEqual({
@@ -41,8 +41,8 @@ test('a flag key beats the history of flags', () => {
 });
 
 test('a flag relation with no end gives the flag when no attribute does', () => {
-  expect(identityOf({}, ['Gabon'])).toMatchObject({ flag: 'Gabon' });
-  expect(identityOf({ flag: 'Panama' }, ['Gabon'])).toMatchObject({ flag: 'Panama' });
+  expect(identityOf({}, 'Gabon')).toMatchObject({ flag: 'Gabon' });
+  expect(identityOf({ flag: 'Panama' }, 'Gabon')).toMatchObject({ flag: 'Panama' });
 });
 
 test('an empty text or an empty list gives null', () => {
@@ -53,5 +53,5 @@ test('an empty text or an empty list gives null', () => {
 });
 
 test('an entity that is no vessel has no identity', () => {
-  expect(vesselIdentity('company', held({ call_sign: 'X1' }), [])).toBeNull();
+  expect(vesselIdentity('company', held({ call_sign: 'X1' }), null)).toBeNull();
 });
