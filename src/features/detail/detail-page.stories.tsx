@@ -319,6 +319,7 @@ export const AVesselOfTheReleaseLinksItsTimelineAndNamesTheMergedIdentifiers: St
         address: null,
         claimIds: [],
         label: { origin: 'Proposed — not checked', licence: 'CC-BY 4.0' },
+        location: null,
         events: null,
       },
     },
@@ -345,6 +346,7 @@ export const ARowLinksItsClaimOnlyWhereTheReleaseHoldsIt: Story = {
         claims: [],
         address: null,
         claimIds: [`${VESSEL}/${DOSSIER.rows[0]?.claim.key ?? ''}`, DOSSIER.relations[0]?.id ?? ''],
+        location: null,
         events: null,
       },
     },
@@ -376,6 +378,7 @@ export const TheReleaseGivesTheLabelAndTheLicenceOfEachClaimAndTheAddress: Story
           },
         ],
         address: `https://gab.example.org/entity/${VESSEL}`,
+        location: null,
         events: null,
       },
     },
@@ -389,6 +392,29 @@ export const TheReleaseGivesTheLabelAndTheLicenceOfEachClaimAndTheAddress: Story
     await expect(within(table).getByText('CC-BY 4.0')).toBeVisible();
     await expect(within(table).getByText('B2')).toBeVisible();
     await expect(canvas.getByText(`https://gab.example.org/entity/${VESSEL}`)).toBeVisible();
+  },
+};
+
+/** The release says how it found the place of an entity. */
+export const TheReleaseSaysHowItFoundThePlace: Story = {
+  args: {
+    dossier: {
+      ...DOSSIER,
+      facts: {
+        imo: null,
+        label: null,
+        merged: [],
+        claimIds: [],
+        claims: [],
+        address: null,
+        location: 'coordinates that the source writes',
+        events: null,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Position found by')).toBeVisible();
+    await expect(canvas.getByText('coordinates that the source writes')).toBeVisible();
   },
 };
 
@@ -416,6 +442,7 @@ export const ASiteOfTheReleaseDrawsItsEvents: Story = {
         claims: [],
         address: null,
         claimIds: [],
+        location: null,
         events: releaseFactsOf(EVENTS_RELEASE, SITE, 'facility', true).events,
       },
     },
