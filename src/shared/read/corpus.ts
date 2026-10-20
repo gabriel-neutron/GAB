@@ -79,7 +79,6 @@ export function forgetCorpus(): void {
   forgetRelease();
   generation += 1;
   setReleaseNote(null);
-  setReadAt(null);
 }
 
 /** Forget each held answer, then run the loaders again through `reload`. The order is the whole

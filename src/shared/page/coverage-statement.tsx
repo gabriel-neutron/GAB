@@ -14,7 +14,7 @@ const count = (n: number, noun: string): string => `${n} ${noun}`;
 export function CoverageStatement({ coverage, release }: CoverageStatementProps) {
   const { scope } = coverage;
   return (
-    <div className="flex max-w-prose flex-col gap-2" data-coverage="">
+    <div className="flex max-w-prose flex-col gap-2">
       <p>
         {release === null
           ? 'The record holds '
