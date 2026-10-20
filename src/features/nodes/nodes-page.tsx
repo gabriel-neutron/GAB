@@ -36,17 +36,20 @@ export interface NodesPageProps {
 }
 
 const CONDITIONS = [
-  { key: 'a', words: '(a) Sanctions exposure' },
-  { key: 'b', words: '(b) Production or throughput' },
-  { key: 'c', words: '(c) Bypass routing' },
+  { key: 'a', words: 'Sanctions' },
+  { key: 'b', words: 'Production' },
+  { key: 'c', words: 'Bypass routing' },
 ] as const;
 
 // The word is the mark: "not sourced" also takes the dissent hue, and never the hue alone.
 function ConditionCell({
+  label,
   condition,
   claims,
   claimHref,
 }: {
+  /** The node of the row. A claim that starts with its name does not repeat it. */
+  readonly label: string;
   readonly condition: NodeCondition | undefined;
   readonly claims: Readonly<Record<string, TickClaim>>;
   readonly claimHref: NodesPageProps['claimHref'];
@@ -66,7 +69,11 @@ function ConditionCell({
             {claim === undefined ? (
               id
             ) : (
-              <ClaimLink text={claim.text} href={claimHref(id)} rating={claim.rating} />
+              <ClaimLink
+                text={claim.text.replace(`${label}: `, '')}
+                href={claimHref(id)}
+                rating={claim.rating}
+              />
             )}
           </p>
         );
@@ -121,6 +128,7 @@ const columnsOf = (
     header: words,
     cell: (node: CriticalNode) => (
       <ConditionCell
+        label={node.label}
         condition={node.conditions.find((one) => one.key === key)}
         claims={claims}
         claimHref={claimHref}
@@ -129,9 +137,9 @@ const columnsOf = (
   })),
   {
     key: 'ticks',
-    header: 'Ticks',
+    header: 'Conditions met',
     figure: 'count',
-    cell: (node) => `${String(node.ticks)} (${String(node.sourcedTicks)} sourced)`,
+    cell: (node) => `${String(node.sourcedTicks)} of 3`,
   },
   { key: 'controller', header: 'Controller', cell: (node) => node.controller },
   { key: 'bypass', header: 'Bypass pattern', cell: (node) => node.bypassPattern },
@@ -161,11 +169,8 @@ export function NodesPage({ release, entityHref, vesselHref, claimHref }: NodesP
         detail={`From the release of ${releaseDay(release.date)}`}
       />
       <p className="max-w-prose">
-        A node is retained when two conditions of three have a sourced tick: (a) documented
-        sanctions exposure, (b) documented production or throughput in 2024-2026, (c) presence in a
-        bypass routing across jurisdictions. Condition (a) comes from the public designations of the
-        node in the record. The operator ticks (b) and (c) with the claims that support each tick. A
-        tick with no public claim shows "not sourced", and it does not count.
+        A node is retained when two of the three conditions have a public source: sanctions,
+        production or throughput in 2024-2026, and bypass routing.
       </p>
       <p>{summary}</p>
       {retained.length === 0 ? null : (
