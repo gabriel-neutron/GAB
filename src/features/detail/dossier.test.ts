@@ -459,3 +459,60 @@ test('the stored import of the v1 work is marked as an import', () => {
   expect(cardOf(v1)).toMatchObject({ kind: 'Import', imported: true });
   expect(cardOf(DOCUMENT).imported).toBe(false);
 });
+
+test('an open interval says that no end date is recorded', () => {
+  const read: Corpus = { ...CORPUS, relations: [{ ...OWNED_BY, validFrom: '2019-05-02' }] };
+
+  expect(readDossier(read, VESSEL.id, [], [])?.relations[0]?.interval).toBe(
+    'from 2019-05-02, no end date recorded',
+  );
+  expect(readRelation(read, OWNED_BY.id)?.interval).toBe('from 2019-05-02, no end date recorded');
+});
+
+const ISSUER: Entity = { ...VESSEL, id: 'e3', type: 'authority', label: 'OFAC', attrs: {} };
+const ACT_DOCUMENT: DocumentRow = {
+  ...DOCUMENT,
+  id: 'd2',
+  docType: 'legal_act',
+  title: 'EO 14024',
+  retrievedAt: '2025-03-10',
+};
+const DESIGNATED: Relation = {
+  ...OWNED_BY,
+  id: 'r2',
+  type: 'designated_by',
+  dstId: ISSUER.id,
+  sources: ['d1', 'd2'],
+  validFrom: '2024-02-23',
+};
+const DESIGNATION_READ: Corpus = {
+  ...CORPUS,
+  documents: [{ ...DOCUMENT, retrievedAt: '2024-06-01' }, ACT_DOCUMENT],
+  entities: [VESSEL, OWNER, ISSUER],
+  relations: [DESIGNATED],
+};
+
+test('a designation says who listed it, when, under which act, and when the status was checked', () => {
+  const expected =
+    'listed by OFAC on 2024-02-23 under EO 14024, no end date recorded; status checked on 2025-03-10';
+
+  expect(readDossier(DESIGNATION_READ, VESSEL.id, [], [])?.relations[0]?.interval).toBe(expected);
+  expect(readRelation(DESIGNATION_READ, DESIGNATED.id)?.interval).toBe(expected);
+});
+
+test('a designation whose sources hold no retrieval date shows no check date', () => {
+  const read: Corpus = {
+    ...DESIGNATION_READ,
+    documents: [DOCUMENT, { ...ACT_DOCUMENT, retrievedAt: null }],
+  };
+
+  const interval = readRelation(read, DESIGNATED.id)?.interval ?? '';
+  expect(interval).toBe('listed by OFAC on 2024-02-23 under EO 14024, no end date recorded');
+  expect(interval).not.toMatch(/checked/);
+});
+
+test('no line says that a relation is still in force', () => {
+  const words = readRelation(DESIGNATION_READ, DESIGNATED.id)?.interval ?? '';
+
+  expect(words).not.toMatch(/in force|with no end date/);
+});
