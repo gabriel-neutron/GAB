@@ -12,6 +12,7 @@ import { plainText } from './check-answer.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
 import { findExcerpt, MAX_TOLERANT_UNITS, pointSlice, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
+import { dateInUrl, occurredWeekdays } from './publication-date.ts';
 import {
   daysFromPublication,
   namesProvision,
@@ -251,12 +252,18 @@ const doorRow = z.strictObject({
 // tool. The UK tool then still gives the document its provider.
 const PAGE = `SELECT t.extractor, t.text, EXISTS (SELECT 1 FROM public.documents d
       WHERE d.id = t.document_id AND (d.uri = $3::text OR d.provider_id = 'uk_sanctions_list'))
-    AS fcdo_list
+    AS fcdo_list,
+    (SELECT d.uri FROM public.documents d WHERE d.id = t.document_id) AS uri
   FROM public.document_text t
   WHERE t.document_id = $1::text AND t.page = $2::int
     AND t.extractor = public.newest_text_extractor($1::text)`;
 
-const pageRow = z.strictObject({ extractor: z.string(), text: z.string(), fcdo_list: z.boolean() });
+const pageRow = z.strictObject({
+  extractor: z.string(),
+  text: z.string(),
+  fcdo_list: z.boolean(),
+  uri: z.string().nullable(),
+});
 
 // The types of an image whose OCR text is the stored page; the door holds the same list.
 const IMAGE = `SELECT 1 AS one FROM public.documents d
@@ -284,6 +291,8 @@ interface Cited {
   /** The document is the FCDO UK Sanctions List. */
   readonly fcdoList: boolean;
   readonly textExtractor: string;
+  /** The day in the path of the address of the document, when it holds one. */
+  readonly urlDay: string | null;
   readonly page: number;
   /** The place of the excerpt in the stored page, or null for words read from an image. */
   readonly span: Span | null;
@@ -325,6 +334,7 @@ const cite = async (
       document: given.document,
       fcdoList: page.fcdo_list,
       textExtractor: page.extractor,
+      urlDay: dateInUrl(page.uri),
       page: given.page,
       span: null,
       passage: given.excerpt,
@@ -347,6 +357,7 @@ const cite = async (
     document: given.document,
     fcdoList: page.fcdo_list,
     textExtractor: page.extractor,
+    urlDay: dateInUrl(page.uri),
     page: given.page,
     span,
     passage: pointSlice(page.text, span.start, span.end),
@@ -707,6 +718,8 @@ interface Prepared {
   readonly lostProvision: boolean;
   /** The publication day, when the year of a day of the act comes from it. */
   readonly deduced: string | null;
+  /** The day of publication that the caller gave for the item, or null. */
+  readonly published: string | null;
   readonly transcribed: boolean;
   readonly id: string | undefined;
 }
@@ -883,6 +896,7 @@ export const proposeOf = (modelCallId: string | null) =>
           lostBound,
           lostProvision,
           deduced,
+          published: published ?? null,
           transcribed,
           id: minted.get(given.ref)?.id,
         });
@@ -890,19 +904,23 @@ export const proposeOf = (modelCallId: string | null) =>
 
       // The check runs before the insert, because the door writes the dispute with the act. An
       // item that repeats a pending act gives the act its new dispute, when a check ran.
-      const toCheck: ItemToCheck[] = prepared.map(({ given, cited, claimAct }) => ({
+      const toCheck: ItemToCheck[] = prepared.map(({ given, cited, claimAct, published }) => ({
         ref: given.ref,
         claim: {
           // The checker reads the act that is written, so a dropped bound is not in the claim.
           act: claimAct,
           originator: given.originator,
           modality: given.modality,
+          // A passage that gives a weekday only is read with these two values.
+          occurredOnWeekdays: occurredWeekdays(claimAct),
         },
         passages: cited.map((one) => ({
           document: one.document,
           page: one.page,
           excerpt: one.passage,
           context: one.context,
+          // The day that the caller gave comes first, then the day in the address.
+          publishedOn: published ?? one.urlDay,
         })),
       }));
       let verdicts: ReadonlyMap<string, CheckVerdict> | null = null;

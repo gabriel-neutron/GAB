@@ -488,3 +488,59 @@ test('a decision of an AI reviewer needs its reason, and no other decision holds
     constraint: 'proposals_decision_reason',
   });
 });
+
+test('the research role joins a doubted event to an event that waits, through the server', async () => {
+  const other = 'doc_ai_reviewer_second';
+  const event = (id: string, originator: string, document: string, doubt: boolean): Item =>
+    cited(
+      {
+        id,
+        op: 'create_entity',
+        payload: {
+          type: 'event',
+          label: 'claimed attack — Riga — 2026-05-15',
+          sources: [document],
+        },
+        src: [document],
+        originator,
+        citations: [{ document, text_extractor: EXTRACTOR, page: 1, start: 4, end: 10 }],
+        ...(doubt ? { dissent: true, dissent_reason: 'two readings differ' } : {}),
+      },
+      'tanker',
+    );
+  const found = await rolledBack('superuser', async (ask) => {
+    const waiting = randomUUID();
+    const doubted = randomUUID();
+    for (const document of [DOC, other]) {
+      await ask(PUT, [document]);
+      await ask(TEXT, [document, JSON.stringify([PAGE]), EXTRACTOR]);
+    }
+    await proposed(ask, [event(waiting, 'The general staff', DOC, false)]);
+    await proposed(ask, [event(doubted, 'A news agency', other, true)]);
+    await fromAnEarlierTransaction(ask);
+    const calls = await asResearch(ask, async (call) => ({
+      backwards: await call('join_unit', { unitId: waiting, waitingId: doubted, why: WHY }),
+      joined: await call('join_unit', { unitId: doubted, waitingId: waiting, why: WHY }),
+      again: await call('join_unit', { unitId: doubted, waitingId: waiting, why: WHY }),
+    }));
+    const rows = await rowsOf(ask, [waiting, doubted]);
+    return { calls, rows, waiting, doubted };
+  });
+  expect(found.calls.backwards.refused).toBe(true);
+  expect(found.calls.backwards.text).toMatch(/^the record refused the call: unitId: /u);
+  expect(outputOf(found.calls.joined)).toStrictEqual({
+    name: 'claimed attack — Riga — 2026-05-15',
+    doubted: found.doubted,
+    waiting: found.waiting,
+    documents: 1,
+    passages: 1,
+    origin: AI,
+  });
+  expect(found.calls.again.refused).toBe(true);
+  expect(found.rows.get(found.doubted)).toMatchObject({
+    status: 'rejected',
+    decision_origin: AI,
+    decision_reason: WHY,
+  });
+  expect(found.rows.get(found.waiting)).toMatchObject({ status: 'pending' });
+});

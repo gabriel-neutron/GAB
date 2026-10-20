@@ -11,6 +11,7 @@ import { comtradeData } from './comtrade-data.ts';
 import { firmsDetections } from './firms-detections.ts';
 import { gleifLookup } from './gleif-lookup.ts';
 import { jobStatus } from './job-status.ts';
+import { joinUnit } from './join-unit.ts';
 import { listEntities } from './list-entities.ts';
 import { listProposals } from './list-proposals.ts';
 import { listVocabulary } from './list-vocabulary.ts';
@@ -84,6 +85,7 @@ export const CATALOGUE = [
   promoteUnit,
   rejectUnit,
   rejectRelation,
+  joinUnit,
   promoteCleanProposals,
 ] as const;
 

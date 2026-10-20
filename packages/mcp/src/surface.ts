@@ -173,5 +173,6 @@ export const RESEARCH_TOOLS = {
   promote_unit: DECIDE,
   reject_unit: DECIDE,
   reject_relation: DECIDE,
+  join_unit: DECIDE,
   promote_clean_proposals: DECIDE,
 } as const satisfies Record<ToolName, ToolAnnotations>;
