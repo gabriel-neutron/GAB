@@ -4,6 +4,7 @@ import type { ReleaseFile } from './csv-export.ts';
 import { entityColumns } from './entity-columns.ts';
 import type { ReleaseHeading } from './release-heading.ts';
 import { releaseLookup, type ReleaseLookup } from './release-lookup.ts';
+import { NOT_RATED } from './nato-pair.ts';
 import type { ReleaseRecord } from './release-record.ts';
 
 const SITE_KEY: Record<Regime, 'eu' | 'us' | 'uk'> = { eu: 'eu', ofac: 'us', uk: 'uk' };
@@ -116,12 +117,29 @@ const listingsOf = (
 
 /** The GeoJSON file of a release (RFC 7946): one feature for each entity with a position, with
  * the columns of the entity CSV as its properties. The collection carries the name of the release
- * and the disclaimer as foreign members. The database keeps each position in WGS84, and its
- * GeoJSON gives the longitude before the latitude, as RFC 7946 asks. */
+ * and the disclaimer as foreign members. When the release shows the NATO pair, a feature also lists
+ * the claims about its entity (not the claims about a relation), each with its letter and digit or
+ * "not rated". The database keeps each position in WGS84, and its GeoJSON gives the longitude
+ * before the latitude, as RFC 7946 asks. */
 export const geojsonExport = (record: ReleaseRecord, heading: ReleaseHeading): ReleaseFile => {
   const lookup = releaseLookup(record);
   const kinds = assetKinds(record);
   const listings = listingsOf(record, lookup);
+  const { natoPairs } = record;
+  const claimsOf = new Map<string, Record<string, string | null>[]>();
+  if (natoPairs !== null)
+    for (const claim of record.claims) {
+      if (claim.subject_kind !== 'entity') continue;
+      const pair = natoPairs.get(claim.claim_id);
+      const held = claimsOf.get(claim.subject_id) ?? [];
+      held.push({
+        claim_id: claim.claim_id,
+        attribute: claim.attribute,
+        nato_letter: pair === undefined ? NOT_RATED : pair.letter,
+        nato_digit: pair === undefined ? NOT_RATED : String(pair.digit),
+      });
+      claimsOf.set(claim.subject_id, held);
+    }
   const features = record.entities.flatMap((one) =>
     one.geom === null
       ? []
@@ -134,6 +152,7 @@ export const geojsonExport = (record: ReleaseRecord, heading: ReleaseHeading): R
               ...entityColumns(one, lookup),
               // Null for an entity with no asset kind. Only a facility or a port has a sanctions status.
               asset_kind: kinds.get(one.id) ?? null,
+              ...(natoPairs === null ? {} : { claim_pairs: claimsOf.get(one.id) ?? [] }),
               ...(ASSET_TYPES.has(one.type)
                 ? { sanctions: listings.get(one.id) ?? { eu: [], us: [], uk: [] } }
                 : {}),

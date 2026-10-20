@@ -341,3 +341,25 @@ test('an owner gives its measures once, as the operator when it is both, and an 
     port([link('00000000-0000-4000-8000-0000000000b5', 'operates', DEPOT, '2019-12-31')]),
   ).toStrictEqual({ eu: [], us: [], uk: [] });
 });
+
+test('with the NATO pair off, a feature lists no claim and no pair', () => {
+  expect(geojsonExport(RECORD, HEADING).text).not.toMatch(/nato|claim_pairs/iu);
+});
+
+test('with the NATO pair on, a feature lists the claims about its entity with their pair or "not rated"', () => {
+  const record: ReleaseRecord = {
+    ...RECORD,
+    natoPairs: new Map([[`${DEPOT}/asset_kind`, { letter: 'B', digit: 2 }]]),
+    claims: RECORD.claims.map((one) =>
+      one.claim_id === 'kind' ? { ...one, claim_id: `${DEPOT}/asset_kind` } : one,
+    ),
+  };
+  const { features } = JSON.parse(geojsonExport(record, HEADING).text) as {
+    features: { id: string; properties: { claim_pairs?: unknown } }[];
+  };
+  const pairsOf = (id: string) => features.find((one) => one.id === id)?.properties.claim_pairs;
+  expect(pairsOf(DEPOT)).toStrictEqual([
+    { claim_id: `${DEPOT}/asset_kind`, attribute: 'asset_kind', nato_letter: 'B', nato_digit: '2' },
+  ]);
+  expect(pairsOf(SHIP)).toStrictEqual([]);
+});

@@ -301,7 +301,11 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
       originLabel: cell(first, 'origin_label'),
       licence: cell(first, 'licence'),
       sources: [...sources.values()],
-      pair: manifest.showNatoPair && letter !== '' && digit !== '' ? { letter, digit } : null,
+      // A claim with no full pair is "not rated", or empty in an older release: it has no pair.
+      pair:
+        manifest.showNatoPair && /^[A-F]$/u.test(letter) && /^[1-6]$/u.test(digit)
+          ? { letter, digit }
+          : null,
     };
     if (cell(first, 'claim_kind') === 'relation') {
       const relation = relationOf.get(id);

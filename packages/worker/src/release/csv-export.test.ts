@@ -160,7 +160,7 @@ test('with the NATO pair off, the claims file has no column of a letter or a dig
   expect(header).not.toMatch(/nato/iu);
 });
 
-test('with the NATO pair on, each claim row gives its letter and its digit, or empty fields', () => {
+test('with the NATO pair on, each claim row gives its letter and its digit, or "not rated"', () => {
   const record: ReleaseRecord = {
     ...recordOf([claim({}), claim({ claim_id: `${SHIP}/imo`, attribute: 'imo', value: '1' })]),
     natoPairs: new Map([[`${SHIP}/flag`, { letter: 'B', digit: 1 }]]),
@@ -170,7 +170,7 @@ test('with the NATO pair on, each claim row gives its letter and its digit, or e
   expect(header?.split(',').slice(-2)).toStrictEqual(['nato_letter', 'nato_digit']);
   expect(paired?.split(',').slice(-2)).toStrictEqual(['B', '1']);
   expect(paired).toContain(`${SHIP}/flag`);
-  expect(unpaired?.split(',').slice(-2)).toStrictEqual(['', '']);
+  expect(unpaired?.split(',').slice(-2)).toStrictEqual(['not rated', 'not rated']);
   // Only the claims file shows the pair.
   for (const file of csvExport(record, ''))
     if (file.path !== 'claims.csv') expect(file.text).not.toMatch(/nato/iu);

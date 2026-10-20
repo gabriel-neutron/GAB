@@ -78,6 +78,7 @@
       "absence": "An absence means \"not yet in the record\". It does not mean \"not true\"."
     }
   },
+  "natoCoverage": null,
   "files": [
     {
       "path": "entities.csv",
@@ -123,6 +124,11 @@
       "path": "credits.md",
       "bytes": 1671,
       "sha256": "dd770c8247408b937e7a33e9be48acf8e7463443081bea786cf1176d5416eec1"
+    },
+    {
+      "path": "release-notes.md",
+      "bytes": 1013,
+      "sha256": "a68f14e2a282d05b5a1e7e4096cba8320f4759f24dacae9143fbdee0a53cf1e6"
     },
     {
       "path": "entities.geojson",

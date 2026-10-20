@@ -109,7 +109,10 @@ command refuses an unknown key and names the fault.
 
 - Only `contacts` is necessary. Each address starts with `https://` or `mailto:`. The date defaults
   to today (UTC), the version to the date.
-- `showNatoPair` is `false`. Set it to `true` only after a change of S1.
+- `showNatoPair` is `false`. Set it to `true` for a release that shows the pair (ADR 0016). Each
+  claim row then gives its letter and digit in the CSV, GeoJSON and JSON-LD files, or the text
+  "not rated". The file manifest and `release-notes.md` then give the share of the public claims
+  with a full pair, in all and by type.
 - `iriBase` (an `https://` address that ends with a slash) is the base of the JSON-LD identifiers.
   Set it once, to the public site, before the first public release. Never change it after.
 - `criticalNodes` is the path of your CSV sheet of candidate nodes, relative to the manifest. Keep
