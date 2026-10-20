@@ -377,7 +377,7 @@ export const splitFaults = (
     const named = at >= 0 && !rows.some((row) => (row[at] ?? '').match(GEM_ENTITY) !== null);
     return named
       ? [
-          `the column "${one.other.column}" holds names and no GEM identifier, so the relation does not split. Remove the relation`,
+          `the column "${one.other.column}" holds no GEM identifier in any row, so the relation does not split. Remove the relation`,
         ]
       : [];
   });

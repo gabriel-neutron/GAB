@@ -358,4 +358,7 @@ test('a split of a column with no GEM identifier is a fault', () => {
   expect(splitFaults(draft, header, [['a', '1', '2', 'Gazprom [100%]']])).toHaveLength(1);
   expect(splitFaults(draft, header, [['a', '1', '2', 'E100000123456 [100%]']])).toEqual([]);
   expect(splitFaults(DRAFT, header, [['a', '1', '2', 'Gazprom']])).toEqual([]);
+  // A column that the header lacks is a fault of missingColumns, and no table of rows is no proof.
+  expect(splitFaults(draft, ['Name'], [['a']])).toEqual([]);
+  expect(splitFaults(draft, header, [])).toHaveLength(1);
 });
