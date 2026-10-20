@@ -6,7 +6,7 @@ import { gemDuplicates } from './loader/gem-duplicates.ts';
 
 const USAGE =
   'Usage: pnpm worker gem-duplicates. It prints, as lines of text, the pairs of one entity with a ' +
-  'GEM unit key and one without it, near and with a similar name. It writes nothing in the record.';
+  'GEM unit key and one without it, near and with a similar name. A dossier entity with no point pairs on the name alone, and its metres show "no point". It writes nothing in the record.';
 
 /** The report of the candidate duplicates of a GEM load. It gives 2 for a usage fault. */
 export const gemDuplicatesCommand: SubCommand = async (args) => {

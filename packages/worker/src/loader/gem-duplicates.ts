@@ -36,12 +36,8 @@ const KIND = new Set(['gas', 'condensate', 'and', 'oil', 'asset', 'deposits']);
  * word, so it is never a part of a shorter one. */
 export const similarStem = (gem: string, dossier: string): boolean => {
   const [whole, part] = [placeWords(gem), placeWords(dossier).filter((w) => !KIND.has(w))];
-  return (
-    part.length > 0 &&
-    whole.some((_, from) =>
-      part.every((word, offset) => sameStem(whole[from + offset] ?? '', word)),
-    )
-  );
+  // The place name starts a GEM label, so a name with another word before it is another place.
+  return part.length > 0 && part.every((word, offset) => sameStem(whole[offset] ?? '', word));
 };
 
 /** True when two names are one name: the same key in the record, or after the generic words go, the
