@@ -101,7 +101,7 @@ density block. Divide a px value by 4 for the class: a 24px control is `h-6`.
 | An emoji, an illustration, a large centred icon, a friendly line | One sentence that says the count and the reason |
 | `transition-all duration-300` | A state change under 120ms, and nothing else animates |
 | `N/A`, `—` or `0` for an absent value | A blank cell, under a header that names the key |
-| `truncate` alone | `truncate min-w-0`, with the full value under `title` |
+| `truncate` on a name or a value of a panel or a search row | `break-words min-w-0`: the text wraps and no tooltip is needed. Keep `truncate min-w-0` for a fixed word |
 | A bare figure in a column | `font-mono text-right tabular-nums` |
 | A text size with no line height, or a length the theme already names | `text-small/4`, `tracking-caps` |
 

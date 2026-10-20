@@ -53,17 +53,18 @@ export function SourceCard({ source }: SourceCardProps) {
               id={addressId}
               href={source.uri}
               aria-label={`Open the original document at ${source.uri}`}
-              className={cn(LINK, 'flex-1')}
+              className={cn(LINK, addressOpen ? 'basis-full' : 'flex-1')}
             >
               {addressOpen ? source.uri : (source.uriShort ?? source.uri)}
             </a>
-            {source.uriShort === source.uri.replace(/^https?:\/\//, '') ? null : (
+            {source.uriCut ? (
               <Button
                 type="button"
                 variant="ghost"
                 size="xs"
                 aria-expanded={addressOpen}
                 aria-controls={addressId}
+                aria-label={`${addressOpen ? 'Show less of' : 'Show the whole'} address of source ${String(source.number)}`}
                 onClick={() => {
                   setAddressOpen(!addressOpen);
                 }}
@@ -71,7 +72,7 @@ export function SourceCard({ source }: SourceCardProps) {
               >
                 {addressOpen ? 'Show less' : 'Show more'}
               </Button>
-            )}
+            ) : null}
           </>
         )}
         <span className="shrink-0 font-mono tabular-nums text-label">

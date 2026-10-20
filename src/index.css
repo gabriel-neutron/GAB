@@ -46,7 +46,8 @@
  *   - Three text sizes and one heading size on a working screen. A public page reads on the
  *     reading scale: a body, a section title and a page title. No display text anywhere.
  *   - Sentence case. Uppercase only for a small table header, with tracking.
- *   - A value never wraps in a row. It truncates, and the full value appears on hover.
+ *   - A name or a value in a panel or a search row wraps. It is never cut, and no tooltip is
+ *     needed to read it. A very long web address has a short form and a Show more control.
  *
  * BEHAVIOUR
  *   - Nothing animates except a state change, and that lasts less than 120ms.

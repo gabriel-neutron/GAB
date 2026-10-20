@@ -139,12 +139,12 @@ export const ALongAddressOpensInFull: Story = {
     const link = canvas.getByRole('link', { name: /original document/ });
     await expect(link).not.toHaveTextContent(LONG_ADDRESS);
 
-    const more = canvas.getByRole('button', { name: 'Show more' });
+    const more = canvas.getByRole('button', { name: /Show the whole address/ });
     await expect(more).toHaveAttribute('aria-expanded', 'false');
     await userEvent.click(more);
 
     await expect(link).toHaveTextContent(LONG_ADDRESS);
-    await userEvent.click(canvas.getByRole('button', { name: 'Show less' }));
+    await userEvent.click(canvas.getByRole('button', { name: /Show less of address/ }));
     await expect(link).not.toHaveTextContent(LONG_ADDRESS);
   },
 };
@@ -153,7 +153,7 @@ export const ALongAddressOpensInFull: Story = {
 export const AShortAddressHasNoShowMore: Story = {
   args: { source: addressed('https://registry.example/e') },
   play: async ({ canvas }) => {
-    await expect(canvas.queryByRole('button', { name: 'Show more' })).toBeNull();
+    await expect(canvas.queryByRole('button', { name: /address of source/ })).toBeNull();
   },
 };
 
@@ -271,7 +271,9 @@ export const AHandEntryNamesItsKind: Story = {
 };
 
 export const AnImportSaysItHasNoWebAddress: Story = {
-  args: { source: { ...REPORT, uri: null, uriShort: null, kind: 'Import', imported: true } },
+  args: {
+    source: { ...REPORT, uri: null, uriShort: null, uriCut: false, kind: 'Import', imported: true },
+  },
   play: async ({ canvas }) => {
     await expect(canvas.getByText('Import')).toBeInTheDocument();
     await expect(canvas.getByText('Import dataset, no web address')).toBeInTheDocument();
