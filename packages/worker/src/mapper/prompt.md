@@ -43,7 +43,8 @@ each entry gives the number of the row and its values. `vocabulary` gives the wo
    when one cell lists many owners and each owner has its GEM identifier with its share in
    percent. It needs `other_type` and the key `gem_entity_id`, and `attrs` has no `share_pct`. Never use it for a cell of names.
    A column of names (an owner, a parent or an operator named in words) gives no relation: leave
-   `relations` as `[]`, and never put a name in `other.column` with the key `gem_entity_id`.
+   `relations` as `[]`, and never put a name in `other.column`. The key `label` is
+   refused for `other`.
 6. Name only columns of the header, spelled as the header spells them. A column that you do not
    use is left out.
 7. `modality` is one word for the whole table: `enacts` (the table makes the facts true, for
