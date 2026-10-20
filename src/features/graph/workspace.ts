@@ -17,6 +17,8 @@ export interface GraphWorkspace {
   readonly railOpen: boolean;
   /** The width of the open rail, in pixels. The rail clamps it where it draws it. */
   readonly railWidth: number;
+  /** How far the focus reaches from the selected entity: one hop or two. */
+  readonly hops: 1 | 2;
 }
 
 export const DEFAULT_GRAPH_WORKSPACE: GraphWorkspace = {
@@ -24,6 +26,7 @@ export const DEFAULT_GRAPH_WORKSPACE: GraphWorkspace = {
   hiddenTypes: [],
   railOpen: true,
   railWidth: 256,
+  hops: 1,
 };
 
 const isCamera = (value: unknown): value is GraphCamera =>
@@ -46,6 +49,7 @@ const DECLARED_KEYS: Readonly<Record<keyof GraphWorkspace, true>> = {
   hiddenTypes: true,
   railOpen: true,
   railWidth: true,
+  hops: true,
 };
 
 // The cost of the strict guard here is one camera position and one set of filters, one time.
@@ -59,7 +63,8 @@ const isWorkspace = (value: unknown): value is GraphWorkspace => {
     hidden.every((type) => typeof type === 'string') &&
     typeof w['railOpen'] === 'boolean' &&
     typeof w['railWidth'] === 'number' &&
-    Number.isFinite(w['railWidth'])
+    Number.isFinite(w['railWidth']) &&
+    (w['hops'] === 1 || w['hops'] === 2)
   );
 };
 

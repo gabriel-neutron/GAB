@@ -14,6 +14,8 @@ import { relationWording } from '@/shared/relation-words';
 import { foldEveryUnit } from '@/shared/unit-folds';
 
 import { FARTHEST_RATIO, NEAREST_RATIO, restorableCamera } from './camera-bounds';
+import { layoutFocus } from './focus';
+import { edgeLabelPlace, spreadDown } from './focus-labels';
 import {
   buildGraphModel,
   dimmedColour,
@@ -22,13 +24,28 @@ import {
   type GraphGround,
   type GraphModel,
   type NodeAttrs,
+  type NodePosition,
 } from './model';
 import { graphPositions } from './positions';
 import { readSelectionAddress, writeSelectionAddress, type GraphSelection } from './selection';
 import type { FilterState } from './type-filter';
 import { patchGraphWorkspace, readGraphWorkspace } from './workspace';
 
+/**
+ * What the canvas draws. `start` draws nothing and waits for a choice, `focus` draws one entity and
+ * its neighbours, and `whole` draws every entity.
+ */
+export type GraphMode = 'start' | 'focus' | 'whole';
+
 export interface GraphView {
+  readonly mode: GraphMode;
+  readonly hops: 1 | 2;
+  /** The entities the focus draws, and how many of those the canvas leaves without a name. */
+  readonly focusDrawn: number;
+  readonly focusUnnamed: number;
+  readonly focusUnnamedRelations: number;
+  /** The neighbours of the selected entity that the focus does not draw yet. */
+  readonly expandable: number;
   readonly selection: GraphSelection | null;
   readonly filter: FilterState;
   readonly lit: number;
@@ -46,15 +63,19 @@ export interface GraphView {
 
 export interface GraphController {
   readonly model: GraphModel;
-  /** Departure: a selection moves no camera. It opens each unit that folds it in the list. */
-  readonly select: (selection: GraphSelection | null) => void;
+  /** Draws the entity and its neighbours alone, and moves the camera to them. */
+  readonly focusOn: (id: string) => void;
+  /** How far the focus reaches from its centre. It draws the focus again from the centre. */
+  readonly setHops: (hops: 1 | 2) => void;
+  /** Adds the neighbours of the selected entity to the focus. */
+  readonly expand: () => void;
   readonly setUnitOpen: (unit: string, open: boolean) => void;
   readonly setFilter: (patch: Partial<FilterState>) => void;
   /** The rail was unfolded or folded. The workspace keeps it, so the next open finds it there. */
   readonly setRailOpen: (open: boolean) => void;
   /** The rail edge was dragged. The workspace keeps the width, as it keeps the fold. */
   readonly setRailWidth: (width: number) => void;
-  readonly flyTo: (id: string) => void;
+  /** Back to every entity: the focus ends, and the camera frames the whole picture. */
   readonly showWholeGraph: () => void;
   readonly subscribe: (listener: (view: GraphView) => void) => () => void;
   /** The selection alone. A fold of the rail publishes a view and calls no listener of this. */
@@ -72,10 +93,37 @@ const MARKER_CAP = 1000;
  */
 const HOPS = 2;
 
-// How near a selection from the rail is approached. The whole picture stands at a ratio of 1, so
-// this shows a node with the neighbourhood a selection lights and not the corpus. It is invented,
-// and here a nearer camera buys no detail: a node carries the same words at every ratio.
-const REACH_RATIO = 0.4;
+// The first ring of a focus has this radius, in parts of the span of the stored picture. Origin:
+// invented. The camera fits the focus to the canvas, so this sets only how large a disc draws.
+const FOCUS_RING = 0.1;
+
+// The camera leaves this much room around the nodes it fits, as a factor of their extent.
+const FIT_MARGIN = 1.6;
+
+// A click on a node fits the node and its neighbours, and never closer than this part of the fit
+// of the whole focus, so a leaf does not fill the canvas with one disc.
+const NEAREST_FIT = 0.8;
+
+// The camera counts the canvas as at most this much wider than it is high, so the names at the two
+// sides of a focus keep room. Origin: invented; the island is 32 rem high and about 44 rem wide.
+const MAX_ASPECT = 1.7;
+
+// A name and a relation are page elements, as the markers are, and the cost is the same: linear,
+// in the render loop. Origin: invented, at a tenth of the marker cap. A focus that holds more
+// elements names the most connected and says in words how many it leaves out.
+const NAME_CAP = 40;
+
+// The space between two names on one side of the focus, in pixels. A name is one line of text.
+const NAME_GAP = 16;
+
+// The space between a node and its name, beside the radius of the node, in pixels.
+const NAME_OFFSET = 4;
+
+const NAME_CLASS =
+  'pointer-events-none absolute top-0 left-0 max-w-48 truncate bg-background px-1 text-xs text-foreground';
+
+const RELATION_CLASS =
+  'pointer-events-none absolute top-0 left-0 max-w-32 truncate text-xs text-muted-foreground';
 
 // The dim keeps this much of the colour. It is measured against the two theme grounds: a
 // dimmed element reads at about 1.9:1 on light and 2.3:1 on dark, against
@@ -172,6 +220,36 @@ export function mountGraph(
   let hidden = new Set(filter.hiddenTypes);
   let railOpen = stored.railOpen;
   let railWidth = stored.railWidth;
+  let hops = stored.hops;
+
+  // The canvas opens on a choice and draws nothing. A focus replaces it, and the whole picture is
+  // one step further, so the reader always meets a small picture first.
+  let mode: GraphMode = 'start';
+  let focusCentre: string | null = null;
+  let expanded: string[] = [];
+  let drawnNodes: ReadonlySet<string> = new Set();
+  let hopsOf: ReadonlyMap<string, number> = new Map();
+  let usedAspect = MAX_ASPECT;
+
+  // The stored picture is the frame. Sigma normalises on the extent of the nodes it holds, and a
+  // focus moves nodes, so the frame is fixed here. A node that stands out of the frame is hidden.
+  const frame = (() => {
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const { x, y } of positions.values()) {
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+    if (minX > maxX) return { x: [0, 1] as [number, number], y: [0, 1] as [number, number] };
+    return { x: [minX, maxX] as [number, number], y: [minY, maxY] as [number, number] };
+  })();
+  const frameSpan = Math.max(frame.x[1] - frame.x[0], frame.y[1] - frame.y[0], Number.EPSILON);
+  const frameX = (frame.x[0] + frame.x[1]) / 2;
+  const frameY = (frame.y[0] + frame.y[1]) / 2;
 
   // Departure: the open units die with the canvas. A fold is a step of one reading, and every
   // unit starts closed, so an open always lists the tops of the hierarchy first.
@@ -258,17 +336,109 @@ export function mountGraph(
     return reach;
   };
 
+  // The neighbours a focus may draw: the nodes that pass the filter, each once, grouped by type
+  // and then by name, so that the same kind of thing stands side by side on the ring.
+  const orderKey = (node: string): string =>
+    `${model.graph.getNodeAttribute(node, 'entityType')}\u0000${model.graph.getNodeAttribute(node, 'label')}\u0000${node}`;
+
+  const neighboursOf = (node: string): readonly string[] => {
+    if (!model.graph.hasNode(node)) return [];
+    const found = new Set<string>();
+    model.graph.forEachNeighbor(node, (neighbour) => {
+      if (neighbour !== node && passesFilter(model.graph.getNodeAttributes(neighbour))) {
+        found.add(neighbour);
+      }
+    });
+    return [...found].sort((one, two) => orderKey(one).localeCompare(orderKey(two)));
+  };
+
+  /** The names and the relation words that the focus draws, and the count it leaves without. */
+  let focusNames: readonly string[] = [];
+  let focusRelations: readonly string[] = [];
+  let focusUnnamed = 0;
+  let focusUnnamedRelations = 0;
+  let parallels: ReadonlyMap<string, { readonly index: number; readonly count: number }> =
+    new Map();
+
+  function nameFocus(): void {
+    if (mode !== 'focus') {
+      focusNames = [];
+      focusRelations = [];
+      focusUnnamed = 0;
+      focusUnnamedRelations = 0;
+      parallels = new Map();
+      sizeLabelPool(names, 0, NAME_CLASS);
+      sizeLabelPool(relationLabels, 0, RELATION_CLASS);
+      return;
+    }
+
+    const selectedId = selection?.kind === 'entity' ? selection.id : null;
+    const rank = (node: string): number =>
+      node === focusCentre ? 0 : node === selectedId ? 1 : (hopsOf.get(node) ?? 3) + 1;
+    const ranked = [...litNodes].sort(
+      (one, two) =>
+        rank(one) - rank(two) ||
+        model.graph.getNodeAttribute(two, 'degree') - model.graph.getNodeAttribute(one, 'degree') ||
+        one.localeCompare(two),
+    );
+    focusNames = ranked.slice(0, NAME_CAP);
+    focusUnnamed = ranked.length - focusNames.length;
+
+    // Relations between the same two nodes share a key, whatever their direction.
+    const groups = new Map<string, string[]>();
+    for (const edge of [...litEdges].sort()) {
+      const ends = [model.graph.source(edge), model.graph.target(edge)].sort();
+      const key = `${ends[0] ?? ''}\u0000${ends[1] ?? ''}`;
+      const held = groups.get(key);
+      if (held === undefined) groups.set(key, [edge]);
+      else held.push(edge);
+    }
+    const slots = new Map<string, { readonly index: number; readonly count: number }>();
+    for (const group of groups.values()) {
+      group.forEach((edge, index) => slots.set(edge, { index, count: group.length }));
+    }
+    parallels = slots;
+
+    const touches = (edge: string): number =>
+      model.graph.source(edge) === focusCentre || model.graph.target(edge) === focusCentre ? 0 : 1;
+    const edges = [...litEdges].sort(
+      (one, two) => touches(one) - touches(two) || one.localeCompare(two),
+    );
+    focusRelations = edges.slice(0, NAME_CAP);
+    focusUnnamedRelations = edges.length - focusRelations.length;
+
+    sizeLabelPool(names, focusNames.length, NAME_CLASS);
+    sizeLabelPool(relationLabels, focusRelations.length, RELATION_CLASS);
+    focusNames.forEach((node, index) => {
+      const element = names[index];
+      if (element === undefined) return;
+      const label = model.graph.getNodeAttribute(node, 'label');
+      element.textContent = label;
+      element.title = label;
+    });
+    focusRelations.forEach((edge, index) => {
+      const element = relationLabels[index];
+      if (element === undefined) return;
+      const words = wordsOf(model.graph.getEdgeAttribute(edge, 'relationType')).label;
+      element.textContent = words;
+      element.title = words;
+    });
+  }
+
   const recount = (): void => {
     const passes = new Set<string>();
     model.graph.forEachNode((node, attrs) => {
       if (passesFilter(attrs)) passes.add(node);
     });
 
-    const reach = reachOf(passes);
+    // A focus lights what it draws, and `whole` lights what the two hops of the selection reach.
+    const reach = mode === 'whole' ? reachOf(passes) : null;
     litNodes.clear();
     litEdges.clear();
     for (const node of passes) {
-      if (reach === null || reach.has(node)) litNodes.add(node);
+      if (mode === 'whole' ? reach === null || reach.has(node) : drawnNodes.has(node)) {
+        litNodes.add(node);
+      }
     }
     model.graph.forEachEdge((edge, _attrs, source, target) => {
       if (!litNodes.has(source) || !litNodes.has(target)) return;
@@ -293,6 +463,8 @@ export function mountGraph(
     markerTargets = targets.slice(0, MARKER_CAP);
     markersOverCap = targets.length - markerTargets.length;
     sizeMarkerPool(markerTargets.length);
+
+    nameFocus();
   };
 
   // A reducer replaces the datum and does not merge into it. Each one below spreads the original,
@@ -352,6 +524,8 @@ export function mountGraph(
 
     nodeReducer: (node: string, data: NodeAttrs): Partial<NodeDisplayData> => {
       if (litNodes.has(node)) return { ...data };
+      // A focus draws its own nodes and nothing else, so the rest stays out of the picture.
+      if (mode !== 'whole') return { ...data, hidden: true, label: null };
       // A filter dims. **It never hides.** So `hidden` stays false for a node the filter puts
       // out, it keeps its position, and only the paint changes. The label goes, because an
       // element that is out of consideration does not name itself.
@@ -360,9 +534,12 @@ export function mountGraph(
 
     edgeReducer: (edge: string, data: EdgeAttrs): Partial<EdgeDisplayData> => {
       if (litEdges.has(edge)) return { ...data };
+      if (mode !== 'whole') return { ...data, hidden: true, label: null };
       return { ...data, color: dimOf(data.color), label: null };
     },
   });
+
+  sigma.setCustomBBox(frame);
 
   const camera = sigma.getCamera();
   // Departure: two guards read the stored camera. The workspace drops a record it does not
@@ -386,6 +563,22 @@ export function mountGraph(
   overlay.append(layer);
 
   const markers: HTMLDivElement[] = [];
+
+  const names: HTMLDivElement[] = [];
+  const relationLabels: HTMLDivElement[] = [];
+
+  function sizeLabelPool(pool: HTMLDivElement[], count: number, className: string): void {
+    while (pool.length < count) {
+      const element = document.createElement('div');
+      element.className = className;
+      element.hidden = true;
+      layer.append(element);
+      pool.push(element);
+    }
+    while (pool.length > count) {
+      pool.pop()?.remove();
+    }
+  }
 
   function sizeMarkerPool(count: number): void {
     while (markers.length < count) {
@@ -415,13 +608,23 @@ export function mountGraph(
   };
 
   /** `size` is the diameter in pixels, or `null` where the element carries its own size. */
-  const place = (element: HTMLElement, point: Coordinates, size: number | null): void => {
+  const outsideOf = (point: Coordinates): boolean => {
     const { width, height } = sigma.getDimensions();
-    const outside =
+    return (
       point.x < -OVERLAY_MARGIN ||
       point.y < -OVERLAY_MARGIN ||
       point.x > width + OVERLAY_MARGIN ||
-      point.y > height + OVERLAY_MARGIN;
+      point.y > height + OVERLAY_MARGIN
+    );
+  };
+
+  const viewportOf = (id: string): Coordinates | null => {
+    const point = framedPointOf(id);
+    return point === null ? null : sigma.framedGraphToViewport(point);
+  };
+
+  const place = (element: HTMLElement, point: Coordinates, size: number | null): void => {
+    const outside = outsideOf(point);
     element.hidden = outside;
     if (outside) return;
     if (size !== null) {
@@ -431,8 +634,73 @@ export function mountGraph(
     element.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%)`;
   };
 
+  // A name stands outside its node, on the side of the centre that the node is on, so that two
+  // names on the two sides never meet. The names of one side are spread down where they would.
+  const drawNames = (): void => {
+    const spots = new Map<string, Coordinates>();
+    const sides = {
+      left: [] as { id: string; y: number }[],
+      right: [] as { id: string; y: number }[],
+    };
+    const centreSpot = focusCentre === null ? null : viewportOf(focusCentre);
+    for (const id of focusNames) {
+      const spot = viewportOf(id);
+      if (spot === null) continue;
+      spots.set(id, spot);
+      if (id === focusCentre || centreSpot === null) continue;
+      (spot.x >= centreSpot.x ? sides.right : sides.left).push({ id, y: spot.y });
+    }
+    const spread = new Map([
+      ...spreadDown(sides.left, NAME_GAP),
+      ...spreadDown(sides.right, NAME_GAP),
+    ]);
+
+    focusNames.forEach((id, index) => {
+      const element = names[index];
+      if (element === undefined) return;
+      const spot = spots.get(id);
+      if (spot === undefined || outsideOf(spot)) {
+        element.hidden = true;
+        return;
+      }
+      element.hidden = false;
+      const radius = sigma.scaleSize(sigma.getNodeDisplayData(id)?.size ?? 0) + NAME_OFFSET;
+      const y = spread.get(id) ?? spot.y;
+      if (id === focusCentre || centreSpot === null) {
+        element.style.transform = `translate(${spot.x}px, ${spot.y - radius}px) translate(-50%, -100%)`;
+      } else if (spot.x >= centreSpot.x) {
+        element.style.transform = `translate(${spot.x + radius}px, ${y}px) translate(0, -50%)`;
+      } else {
+        element.style.transform = `translate(${spot.x - radius}px, ${y}px) translate(-100%, -50%)`;
+      }
+    });
+  };
+
+  // The type of a relation stands on its line and turns along it. The lines leave one node at
+  // different angles, so the words along them keep apart.
+  const drawRelations = (): void => {
+    focusRelations.forEach((edge, index) => {
+      const element = relationLabels[index];
+      if (element === undefined) return;
+      const from = viewportOf(model.graph.source(edge));
+      const to = viewportOf(model.graph.target(edge));
+      if (from === null || to === null) {
+        element.hidden = true;
+        return;
+      }
+      const slot = parallels.get(edge) ?? { index: 0, count: 1 };
+      const spot = edgeLabelPlace(from, to, slot.index, slot.count);
+      element.hidden = outsideOf(spot);
+      element.style.transform = `translate(${spot.x}px, ${spot.y}px) translate(-50%, -50%) rotate(${spot.angle}rad)`;
+    });
+  };
+
   const drawOverlay = (): void => {
     if (destroyed) return;
+    if (mode === 'focus') {
+      drawNames();
+      drawRelations();
+    }
 
     const selected = selection;
     const litSelection =
@@ -483,10 +751,99 @@ export function mountGraph(
     });
   };
 
+  const framedOf = (point: NodePosition): Coordinates => ({
+    x: (point.x - frameX) / frameSpan + 0.5,
+    y: (point.y - frameY) / frameSpan + 0.5,
+  });
+
+  const aspectNow = (): number => {
+    const { width, height } = sigma.getDimensions();
+    return width > 0 && height > 0 ? Math.min(Math.max(width / height, 1), MAX_ASPECT) : MAX_ASPECT;
+  };
+
+  const moveCamera = (target: { x: number; y: number; ratio: number }): void => {
+    // A reader who asks for no motion gets a jump. The preference is read at each call.
+    if (motionOf() === 0) camera.setState(target);
+    else void camera.animate(target, { duration: motionOf() });
+  };
+
+  /** Fits the camera to the nodes, and answers the ratio it chose. */
+  const fitCamera = (ids: Iterable<string>, nearest: number): number => {
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const id of ids) {
+      if (!model.graph.hasNode(id)) continue;
+      const { x, y } = framedOf(model.graph.getNodeAttributes(id));
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+    if (minX > maxX) return camera.getState().ratio;
+    // At a ratio of 1 the stored picture fills the shorter side of the canvas, so the longer side
+    // shows the ratio times the aspect.
+    const needed = Math.max(maxY - minY, (maxX - minX) / aspectNow()) * FIT_MARGIN;
+    const ratio = Math.min(FARTHEST_RATIO, Math.max(NEAREST_RATIO, nearest, needed));
+    moveCamera({ x: (minX + maxX) / 2, y: (minY + maxY) / 2, ratio });
+    return ratio;
+  };
+
+  let fitOfFocus = 1;
+
+  const fitFocus = (): void => {
+    usedAspect = aspectNow();
+    fitOfFocus = fitCamera(drawnNodes, NEAREST_RATIO);
+  };
+
+  // Every write of a position goes through this one call, so Sigma meets one change of layout.
+  const writePositions = (placed: ReadonlyMap<string, NodePosition>): void => {
+    model.graph.updateEachNodeAttributes(
+      (node, attrs) => {
+        const target = placed.get(node) ?? positions.get(node);
+        if (target === undefined || (attrs.x === target.x && attrs.y === target.y)) return attrs;
+        return { ...attrs, x: target.x, y: target.y };
+      },
+      { attributes: ['x', 'y'] },
+    );
+  };
+
+  // The centre of the focus stands at the middle of the stored picture. The result depends on
+  // the corpus, the centre, the hops and the asks, so a reader meets the same picture at each open.
+  const arrange = (): void => {
+    if (mode !== 'focus' || focusCentre === null) {
+      drawnNodes = new Set();
+      writePositions(new Map());
+      return;
+    }
+    const layout = layoutFocus({ centre: focusCentre, hops, expanded, neighbours: neighboursOf });
+    const radiusY = FOCUS_RING * frameSpan;
+    const placed = new Map<string, NodePosition>();
+    for (const [id, offset] of layout.offsets) {
+      placed.set(id, { x: frameX + offset.x * radiusY, y: frameY + offset.y * radiusY });
+    }
+    drawnNodes = new Set(layout.offsets.keys());
+    hopsOf = layout.hopOf;
+    writePositions(placed);
+  };
+
+  function expandableCount(): number {
+    if (mode !== 'focus' || selection?.kind !== 'entity') return 0;
+    if (!drawnNodes.has(selection.id)) return 0;
+    return neighboursOf(selection.id).filter((neighbour) => !drawnNodes.has(neighbour)).length;
+  }
+
   // Each value that did not change keeps its identity, so a consumer that memoises on `filter` or
   // on `selection` is not woken by a publish that only folded a panel. `graph-page.tsx` derives
   // every row of the rail from the filter.
   const viewOf = (): GraphView => ({
+    mode,
+    hops,
+    focusDrawn: mode === 'focus' ? litNodes.size : 0,
+    focusUnnamed,
+    focusUnnamedRelations,
+    expandable: expandableCount(),
     selection,
     filter,
     lit,
@@ -509,7 +866,7 @@ export function mountGraph(
     for (const listener of [...selectListeners]) listener(selection);
   };
 
-  // Departure: it moves no camera. `flyTo` and `showWholeGraph` are the controls that move it.
+  // Departure: it moves no camera. The callers that must move it do so after the call.
   const settle = (next: GraphSelection | null): void => {
     const changed = !sameSelection(next, selection);
     selection = next;
@@ -547,9 +904,20 @@ export function mountGraph(
     // that the picture and the address never state two different things.
     writeSelectionAddress(selection);
   }
+  // An entity in the address opens as a focus on it, and a relation opens the whole picture,
+  // because a relation has no centre. Nothing in the address opens the choice.
+  if (selection?.kind === 'entity') {
+    mode = 'focus';
+    focusCentre = selection.id;
+    arrange();
+  } else if (selection !== null) {
+    mode = 'whole';
+  }
   // The restore does not go through `settle`, so nothing announces it here. `onSelect` seeds
   // every listener with the selection of the moment, and no subscriber can arrive too late.
   recount();
+  // The restored focus takes the place of the stored camera.
+  if (mode === 'focus') fitFocus();
 
   // The first render occurs inside the constructor of Sigma, so this listener never hears that
   // first frame. One refresh, after the listener exists, puts the ring and each marker up.
@@ -573,6 +941,8 @@ export function mountGraph(
       // schedules no frame. Without the refresh the graph stays blank until the next event of
       // the pointer, and the panel that opens on a selection is what changes this width.
       sigma.resize();
+      // The first delivery gives the true shape of the canvas, and the camera fits to it.
+      if (mode === 'focus' && aspectNow() !== usedAspect) fitFocus();
       sigma.refresh();
     }
   });
@@ -595,14 +965,35 @@ export function mountGraph(
   };
   camera.on('updated', onCameraUpdated);
 
+  // A new focus forgets the asks of the old one: its nodes are drawn from the centre again.
+  const enterFocus = (id: string): void => {
+    if (destroyed || !nodeConsidered(id)) return;
+    mode = 'focus';
+    focusCentre = id;
+    expanded = [];
+    arrange();
+    const next: GraphSelection = { kind: 'entity', id };
+    reveal(next);
+    settle(next);
+    fitFocus();
+  };
+
   // The picking layer of Sigma answers with a dimmed node as well, because a filter dims and
-  // never hides, so the guard is here. There is no camera call in this handler, and that absence
-  // is the rule.
+  // never hides, so the guard is here.
   sigma.on('clickNode', ({ node }) => {
     if (destroyed || !nodeConsidered(node)) return;
     const next: GraphSelection = { kind: 'entity', id: node };
-    reveal(next);
-    settle(next);
+    // A click inside a focus keeps the focus and moves the camera to the node and its neighbours.
+    // A click anywhere else makes the node the centre of a new focus.
+    if (mode === 'focus' && drawnNodes.has(node)) {
+      reveal(next);
+      settle(next);
+      const near = neighboursOf(node).filter((neighbour) => drawnNodes.has(neighbour));
+      if (node === focusCentre) fitFocus();
+      else fitCamera([node, ...near], fitOfFocus * NEAREST_FIT);
+      return;
+    }
+    enterFocus(next.id);
   });
 
   sigma.on('clickEdge', ({ edge }) => {
@@ -675,13 +1066,27 @@ export function mountGraph(
     get model() {
       return model;
     },
-    select: (next) => {
-      if (destroyed) return;
-      // A control names an element, and this file states whether that element can take the
-      // selection. Departure: the camera stays where it is; a control that moves it calls
-      // `flyTo` or `showWholeGraph`.
-      reveal(next);
-      settle(acceptable(next));
+    focusOn: enterFocus,
+    setHops: (next) => {
+      if (destroyed || next === hops) return;
+      hops = next;
+      patchGraphWorkspace({ hops });
+      if (mode !== 'focus') {
+        publish();
+        return;
+      }
+      expanded = [];
+      arrange();
+      settle(acceptable(selection));
+      fitFocus();
+    },
+    expand: () => {
+      if (destroyed || mode !== 'focus' || selection?.kind !== 'entity') return;
+      if (!drawnNodes.has(selection.id)) return;
+      if (!expanded.includes(selection.id)) expanded.push(selection.id);
+      arrange();
+      settle(acceptable(selection));
+      fitFocus();
     },
     setUnitOpen: (unit, open) => {
       if (destroyed || !nodeConsidered(unit) || !folds.setOpen(unit, open)) return;
@@ -698,6 +1103,20 @@ export function mountGraph(
         filter = { hiddenTypes: [...next.hiddenTypes] };
         hidden = new Set(filter.hiddenTypes);
         patchGraphWorkspace({ hiddenTypes: filter.hiddenTypes });
+        // A focus draws the nodes that pass the filter. A centre that the filter puts out leaves
+        // nothing to draw around, so the reader meets the choice again.
+        if (mode === 'focus') {
+          if (focusCentre !== null && !nodeConsidered(focusCentre)) {
+            mode = 'start';
+            focusCentre = null;
+            expanded = [];
+            // Nothing is drawn, and a selection that is not drawn is a lie on the screen.
+            selection = null;
+            writeSelectionAddress(null);
+            announce();
+          }
+          arrange();
+        }
       }
       // **A filter that excludes the selection drops the selection.**
       settle(acceptable(selection));
@@ -717,19 +1136,15 @@ export function mountGraph(
       patchGraphWorkspace({ railWidth: width });
       publish();
     },
-    flyTo: (id) => {
-      if (destroyed) return;
-      const point = framedPointOf(id);
-      if (point === null) return;
-      // The approach only ever moves nearer: a smaller ratio is a nearer camera, and a
-      // selection must never undo the zoom the analyst chose.
-      const ratio = Math.min(camera.getState().ratio, REACH_RATIO);
-      // A reader who asks for no motion gets a jump. The preference is read at each call.
-      if (motionOf() === 0) camera.setState({ x: point.x, y: point.y, ratio });
-      else void camera.animate({ x: point.x, y: point.y, ratio }, { duration: motionOf() });
-    },
     showWholeGraph: () => {
       if (destroyed) return;
+      if (mode !== 'whole') {
+        mode = 'whole';
+        focusCentre = null;
+        expanded = [];
+        arrange();
+        settle(acceptable(selection));
+      }
       // External constraint: the reset of Sigma puts the centre at 0.5 and the ratio at 1,
       // which frames every node. The `updated` event stores it as any other move.
       if (motionOf() === 0) camera.setState({ x: 0.5, y: 0.5, ratio: 1, angle: 0 });
@@ -767,6 +1182,8 @@ export function mountGraph(
       listeners.clear();
       selectListeners.clear();
       markers.length = 0;
+      names.length = 0;
+      relationLabels.length = 0;
       // The layer is the one node this file added to the element of the caller.
       layer.remove();
       if (mounted.get(canvas) === controller) mounted.delete(canvas);
