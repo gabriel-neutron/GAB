@@ -7,7 +7,6 @@ import { relationWords } from '@gab/proposal/relation-types';
 
 import { EmptyState } from '@/shared/page/empty-state';
 import { KeyValue, type KeyValueEntry } from '@/shared/page/key-value';
-import { AdmiraltyLegend } from '@/shared/page/admiralty-legend';
 import { NatoPairMark } from '@/shared/page/nato-pair-mark';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
@@ -101,25 +100,31 @@ export function ClaimPage({ release, claimId, entityHref, claimHref }: ClaimPage
       <KeyValue
         entries={[
           ...factsOf(claim, entityHref, claimHref),
-          { key: 'Label', value: claim.originLabel },
-          { key: 'Licence', value: claim.licence },
           ...(rating.shown ? [{ key: 'Rating', value: <NatoPairMark rating={rating} /> }] : []),
-          { key: 'Claim identifier', value: claim.id, figure: true },
-          {
-            key: 'Permanent address',
-            value: addressOf(release.manifest.iriBase, claim.id),
-            figure: true,
-          },
+          { key: 'Decided by', value: claim.originLabel },
         ]}
       />
-      <AdmiraltyLegend shown={rating.shown} />
+      <details className="text-xs/5">
+        <summary className="cursor-pointer text-label">Licence and permanent address</summary>
+        <div className="pt-1">
+          <KeyValue
+            entries={[
+              { key: 'Licence', value: claim.licence },
+              { key: 'Claim identifier', value: claim.id, figure: true },
+              {
+                key: 'Permanent address',
+                value: addressOf(release.manifest.iriBase, claim.id),
+                figure: true,
+              },
+            ]}
+          />
+        </div>
+      </details>
       <PageSection title="Sources">
         {claim.sources.length === 0 ? (
           <EmptyState sentence="The release names no document here." />
         ) : (
-          claim.sources.map((source) => (
-            <SourceEntry key={source.documentId} source={source} rating={rating} />
-          ))
+          claim.sources.map((source) => <SourceEntry key={source.documentId} source={source} />)
         )}
       </PageSection>
     </ReadingPage>

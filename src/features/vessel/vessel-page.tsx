@@ -5,7 +5,6 @@ import { pairRating, type SiteEntity, type SiteRelease } from '@gab/release/site
 import { vesselFinderUrl } from '@gab/release/vessel-finder';
 import { vesselLanes, type TimelineLane, type TimelineMark } from '@gab/release/vessel-timeline';
 
-import { AdmiraltyLegend } from '@/shared/page/admiralty-legend';
 import { ClaimLink } from '@/shared/page/claim-link';
 import { DataTable, type DataColumn } from '@/shared/page/data-table';
 import { EmptyState } from '@/shared/page/empty-state';
@@ -148,7 +147,6 @@ function VesselTimeline({
         <EmptyState sentence="The release holds no former name, flag, owner, manager, insurer, designation or port call of this vessel." />
       ) : (
         <>
-          <AdmiraltyLegend shown={release.manifest.showNatoPair} />
           <TimelineFigure lanes={lanes} versionDate={release.manifest.date} />
           {undated === 0 ? null : (
             <p
