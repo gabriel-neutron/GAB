@@ -229,7 +229,7 @@ test('a relation names the entity type of its far end, and a split cell needs a 
   // A cell of names or of another key never splits.
   expect(
     mappingDraft.safeParse(
-      held({ other_type: 'company', split: { separator: ';' } }, { key: 'label', column: 'Owner' }),
+      held({ other_type: 'company', split: { separator: ';' } }, { key: 'imo', column: 'Owner' }),
     ).success,
   ).toBe(false);
   // A split cell gives the share, so a mapped share_pct would be overwritten.
