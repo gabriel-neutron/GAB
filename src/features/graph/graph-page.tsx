@@ -15,12 +15,15 @@ import { Rail, type RailAct } from '@/shared/rail';
 import { useScreenQuery } from '@/shared/screen-query';
 
 import { mountGraph, type GraphController, type GraphView } from './controller';
+import { FocusBar } from './focus-bar';
+import { FocusNote } from './focus-note';
 import { MarkerRemainder } from './marker-remainder';
 import type { GraphModel } from './model';
 import { deriveRailRows } from './rail-rows';
 import { stepAfterTypeOpen, stepShowingWholeList, type RailStep } from './rail-step';
 import { IndexRows } from './row';
 import type { GraphSelection } from './selection';
+import { StartPanel } from './start-panel';
 import { everyTypeShown, hiddenAfterSwitch, type FilterState } from './type-filter';
 import { UnplacedCount } from './unplaced-count';
 import { DEFAULT_GRAPH_WORKSPACE } from './workspace';
@@ -131,8 +134,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   const reach = useCallback((id: string) => {
     const handle = controller.current;
     if (handle === null) return;
-    handle.select({ kind: 'entity', id });
-    handle.flyTo(id);
+    handle.focusOn(id);
   }, []);
 
   // Departure: the controller drops a selection the filter excludes, so the header offers none.
@@ -197,6 +199,14 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     controller.current?.showWholeGraph();
   }, []);
 
+  const setHops = useCallback((hops: 1 | 2) => {
+    controller.current?.setHops(hops);
+  }, []);
+
+  const expand = useCallback(() => {
+    controller.current?.expand();
+  }, []);
+
   const openUnit = useCallback((unit: string, open: boolean) => {
     controller.current?.setUnitOpen(unit, open);
   }, []);
@@ -211,8 +221,19 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
       >
         <div className={cn('relative h-96 min-w-0 lg:col-start-2 lg:row-start-1 lg:h-128')}>
           <GraphCanvas canvas={canvas} overlay={overlay} />
+          {snapshot === null ? null : snapshot.view.mode === 'start' ? (
+            <StartPanel named={named} onChoose={reach} onShowWholeGraph={showWholeGraph} />
+          ) : snapshot.view.mode === 'focus' ? (
+            <FocusBar
+              hops={snapshot.view.hops}
+              expandable={snapshot.view.expandable}
+              onHops={setHops}
+              onExpand={expand}
+              onBack={showWholeGraph}
+            />
+          ) : null}
           <div className={cn('absolute top-2 right-2')}>
-            {snapshot === null ? null : (
+            {snapshot?.view.mode !== 'whole' ? null : (
               <button
                 type="button"
                 onClick={showWholeGraph}
@@ -275,7 +296,14 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
             drawn={snapshot.view.markersDrawn}
             remainder={snapshot.view.markersOverCap}
           />
-          <UnplacedCount unplaced={snapshot.view.unplaced} />
+          <FocusNote
+            drawn={snapshot.view.focusDrawn}
+            unnamed={snapshot.view.focusUnnamed}
+            unnamedRelations={snapshot.view.focusUnnamedRelations}
+          />
+          {snapshot.view.mode === 'whole' ? (
+            <UnplacedCount unplaced={snapshot.view.unplaced} />
+          ) : null}
         </>
       )}
     </>
