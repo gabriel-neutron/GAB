@@ -70,8 +70,9 @@ export const ADocumentWithNoPassageSaysSo: Story = {
 export const WithThePairOnTheClaimShowsItsPair: Story = {
   args: { release: FIXTURE_RELEASE.on },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText('NATO pair')).toBeVisible();
-    await expect(canvas.getByText('NATO A2')).toBeVisible();
+    await expect(canvas.getByText('Rating')).toBeVisible();
+    await expect(canvas.getAllByText('Admiralty A2').length).toBeGreaterThan(1);
+    await expect(canvas.getByText(/rates the author of the source/u)).toBeVisible();
   },
 };
 

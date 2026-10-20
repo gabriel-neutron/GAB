@@ -1,7 +1,10 @@
 import { useId } from 'react';
 
+import type { PairRating } from '@gab/release/site-release';
+
 import { EmptyState } from './empty-state';
 import { KeyValue } from './key-value';
+import { NatoPairMark } from './nato-pair-mark';
 import { READING_LINK } from './reading-link';
 import { safeHref } from './safe-href';
 
@@ -26,6 +29,9 @@ export interface SourceEntryModel {
 
 export interface SourceEntryProps {
   readonly source: SourceEntryModel;
+  /** The rating of the claim that this page cites the document for. Absent on a page that cites
+   * the document for many claims. */
+  readonly rating?: PairRating;
 }
 
 function SourceAddress({ address }: { readonly address: string | null }) {
@@ -40,8 +46,8 @@ function SourceAddress({ address }: { readonly address: string | null }) {
 }
 
 /** One public document that a page cites: its title, its address, the day it was read and, for
- * one claim, the passages that hold the claim. It carries no grade and no letter (S1). */
-export function SourceEntry({ source }: SourceEntryProps) {
+ * one claim, the passages that hold the claim. The pair is the rating of the claim, never of the document (S1). */
+export function SourceEntry({ source, rating }: SourceEntryProps) {
   const titleId = useId();
   return (
     <article
@@ -57,6 +63,9 @@ export function SourceEntry({ source }: SourceEntryProps) {
             { key: 'Address', value: <SourceAddress address={source.address} /> },
             { key: 'Read on', value: source.readOn, figure: true },
             { key: 'Document', value: source.documentId, figure: true },
+            ...(rating?.shown === true
+              ? [{ key: 'Rating of the claim', value: <NatoPairMark rating={rating} /> }]
+              : []),
           ]}
         />
       </div>

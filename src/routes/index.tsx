@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { claimHref, entityHref, vesselHref } from '@/features/detail/address';
 import { NodesPage } from '@/features/nodes/nodes-page';
 import { claimText } from '@gab/release/claim-text';
+import { pairRating } from '@gab/release/site-release';
 import { loadCorpus } from '@/shared/read/corpus';
 import { ReleaseAbsent } from '@/shared/read/release-files';
 import { loadRelease } from '@/shared/read/release-record';
@@ -18,7 +19,10 @@ export const Route = createFileRoute('/')({
         date: release.manifest.date,
         nodes: release.criticalNodes,
         claims: Object.fromEntries(
-          release.claims.map((claim) => [claim.id, { text: claimText(claim), pair: claim.pair }]),
+          release.claims.map((claim) => [
+            claim.id,
+            { text: claimText(claim), rating: pairRating(release.manifest, claim) },
+          ]),
         ),
         imoOf: Object.fromEntries(release.imoOfVessel),
       };

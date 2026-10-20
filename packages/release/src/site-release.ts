@@ -10,6 +10,11 @@ export interface NatoPair {
   readonly digit: string;
 }
 
+/** What a page shows of the pair of a claim: nothing when the release hides the pair, the pair,
+ * or "not rated" when the claim has no full pair. */
+export type PairRating =
+  { readonly shown: false } | { readonly shown: true; readonly pair: NatoPair | null };
+
 export interface SitePassage {
   readonly page: string;
   readonly excerpt: string;
@@ -115,6 +120,14 @@ export interface SiteVolume {
 }
 
 /** What the site shows of one release, read from its files. */
+/** The rating that a page shows for `claim`. */
+export function pairRating(
+  manifest: SiteManifest,
+  claim: { readonly pair: NatoPair | null },
+): PairRating {
+  return manifest.showNatoPair ? { shown: true, pair: claim.pair } : { shown: false };
+}
+
 export interface SiteRelease {
   readonly manifest: SiteManifest;
   readonly entities: readonly SiteEntity[];

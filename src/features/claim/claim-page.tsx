@@ -2,11 +2,12 @@ import { attributeName } from '@gab/release/attribute-name';
 import { claimText } from '@gab/release/claim-text';
 import { releaseDay } from '@gab/release/release-day';
 import { permanentAddress } from '@gab/release/site-paths';
-import type { SiteRelease } from '@gab/release/site-release';
+import { pairRating, type SiteRelease } from '@gab/release/site-release';
 import { relationWords } from '@gab/proposal/relation-types';
 
 import { EmptyState } from '@/shared/page/empty-state';
 import { KeyValue, type KeyValueEntry } from '@/shared/page/key-value';
+import { AdmiraltyLegend } from '@/shared/page/admiralty-legend';
 import { NatoPairMark } from '@/shared/page/nato-pair-mark';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
@@ -90,6 +91,7 @@ export function ClaimPage({ release, claimId, entityHref, claimHref }: ClaimPage
         <EmptyState sentence="The release holds no claim with this identifier. The link that brought you here may be stale." />
       </ReadingPage>
     );
+  const rating = pairRating(release.manifest, claim);
   return (
     <ReadingPage>
       <PageHeader
@@ -101,9 +103,7 @@ export function ClaimPage({ release, claimId, entityHref, claimHref }: ClaimPage
           ...factsOf(claim, entityHref, claimHref),
           { key: 'Label', value: claim.originLabel },
           { key: 'Licence', value: claim.licence },
-          ...(claim.pair === null
-            ? []
-            : [{ key: 'NATO pair', value: <NatoPairMark pair={claim.pair} /> }]),
+          ...(rating.shown ? [{ key: 'Rating', value: <NatoPairMark rating={rating} /> }] : []),
           { key: 'Claim identifier', value: claim.id, figure: true },
           {
             key: 'Permanent address',
@@ -112,11 +112,14 @@ export function ClaimPage({ release, claimId, entityHref, claimHref }: ClaimPage
           },
         ]}
       />
+      <AdmiraltyLegend shown={rating.shown} />
       <PageSection title="Sources">
         {claim.sources.length === 0 ? (
           <EmptyState sentence="The release names no document here." />
         ) : (
-          claim.sources.map((source) => <SourceEntry key={source.documentId} source={source} />)
+          claim.sources.map((source) => (
+            <SourceEntry key={source.documentId} source={source} rating={rating} />
+          ))
         )}
       </PageSection>
     </ReadingPage>

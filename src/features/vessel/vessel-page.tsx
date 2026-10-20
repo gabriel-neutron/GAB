@@ -1,10 +1,11 @@
 import { isValidImo } from '@gab/proposal/identifiers';
 import { releaseDay } from '@gab/release/release-day';
 import { claimText } from '@gab/release/claim-text';
-import type { SiteEntity, SiteRelease } from '@gab/release/site-release';
+import { pairRating, type SiteEntity, type SiteRelease } from '@gab/release/site-release';
 import { vesselFinderUrl } from '@gab/release/vessel-finder';
 import { vesselLanes, type TimelineLane, type TimelineMark } from '@gab/release/vessel-timeline';
 
+import { AdmiraltyLegend } from '@/shared/page/admiralty-legend';
 import { ClaimLink } from '@/shared/page/claim-link';
 import { DataTable, type DataColumn } from '@/shared/page/data-table';
 import { EmptyState } from '@/shared/page/empty-state';
@@ -58,14 +59,14 @@ const columnsOf = (
           text="Claim"
           label={`Claim: ${claimText(mark.claim)}`}
           href={claimHref(mark.claim.id)}
-          pair={mark.claim.pair}
+          rating={pairRating(release.manifest, mark.claim)}
         />
         {mark.time.kind === 'interval' && mark.time.endClaim !== null ? (
           <ClaimLink
             text="End date"
             label={`End date: ${claimText(mark.time.endClaim)}`}
             href={claimHref(mark.time.endClaim.id)}
-            pair={mark.time.endClaim.pair}
+            rating={pairRating(release.manifest, mark.time.endClaim)}
           />
         ) : null}
       </span>
@@ -147,6 +148,7 @@ function VesselTimeline({
         <EmptyState sentence="The release holds no former name, flag, owner, manager, insurer, designation or port call of this vessel." />
       ) : (
         <>
+          <AdmiraltyLegend shown={release.manifest.showNatoPair} />
           <TimelineFigure lanes={lanes} versionDate={release.manifest.date} />
           {undated === 0 ? null : (
             <p

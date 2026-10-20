@@ -1,7 +1,7 @@
 import { claimText } from '@gab/release/claim-text';
 import { eventsAt, type SiteEvent } from '@gab/release/event-lane';
 import { permanentAddress } from '@gab/release/site-paths';
-import type { SiteRelease } from '@gab/release/site-release';
+import { pairRating, type PairRating, type SiteRelease } from '@gab/release/site-release';
 
 /** One event of a site, and whether its actor has a page of its own. */
 export interface EventLine {
@@ -17,6 +17,7 @@ export interface ClaimLine {
   /** Who decided the claim, as the release words it. */
   readonly origin: string;
   readonly licence: string;
+  readonly rating: PairRating;
 }
 
 /** What a release adds to the page of one entity. */
@@ -76,6 +77,7 @@ export function releaseFactsOf(
           text: claimText(claim),
           origin: claim.originLabel,
           licence: claim.licence,
+          rating: pairRating(release.manifest, claim),
         }))
       : [],
     address: withEvents ? addressOf(release.manifest.iriBase, entityId) : null,
