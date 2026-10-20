@@ -40,6 +40,7 @@
     "writer": "node --env-file=infra/.env packages/writer/src/main.ts",
     "mcp": "node packages/mcp/src/main.ts",
     "worker": "node --env-file=infra/.env packages/worker/src/main.ts",
+    "speed:budget": "node tools/speed-budget.ts",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build"
   },

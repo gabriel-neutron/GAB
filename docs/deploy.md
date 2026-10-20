@@ -155,6 +155,13 @@ pnpm worker release --manifest <manifest> --out <folder> --previous <previous re
 4. The address `/v1/` gives a short page that links the critical nodes. The site holds no build of
    the version 1 map.
 
+## Measure the speed of the site
+
+Run `pnpm speed:budget --site <site folder>` before a release. It is a manual command and no
+required check. It opens the home page, the map and one entity page on a slow network, prints a
+table, and exits with 1 when a budget is passed. The budgets are in `tools/speed-budget.json`.
+A page that cannot render (no release data, no WebGL) gives a `skip` row and does not fail.
+
 ## The application with no backend
 
 The application reads the files of a release when the read service does not answer (ADR 0028).
