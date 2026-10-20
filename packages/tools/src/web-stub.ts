@@ -1,7 +1,7 @@
 // A web that answers from a table and opens no socket. Each request is recorded, so a test can
 // prove which address a tool asked for and which header carried a key.
 
-import type { Reach, Session, Web, WebAnswer, WebRequest } from './tool.ts';
+import type { Reach, Session, Web, WebAnswer, WebBytes, WebPost, WebRequest } from './tool.ts';
 
 export interface Asked {
   readonly url: URL;
@@ -9,10 +9,20 @@ export interface Asked {
   readonly request: WebRequest;
 }
 
+export interface AskedPost {
+  readonly url: URL;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body: string;
+  readonly request: WebPost;
+}
+
+export type PostAnswerer = (asked: AskedPost) => WebBytes | Error;
+
 export type Answerer = (asked: Asked) => WebAnswer | Error;
 
 export interface StubWeb extends Web {
   readonly asked: Asked[];
+  readonly posted: AskedPost[];
 }
 
 export const json = (value: unknown, status = 200): WebAnswer => ({
@@ -21,17 +31,49 @@ export const json = (value: unknown, status = 200): WebAnswer => ({
   body: JSON.stringify(value),
 });
 
+/** The answer of a POST: JSON text, or the bytes of an image. */
+export const bytes = (
+  body: Uint8Array | string,
+  status = 200,
+  headers: Record<string, string> = {},
+): WebBytes => ({
+  status,
+  headers,
+  bytes: typeof body === 'string' ? new TextEncoder().encode(body) : body,
+});
+
 export const text = (
   body: string,
   status = 200,
   headers: Record<string, string> = {},
 ): WebAnswer => ({ status, headers, body });
 
-export const stubWeb = (answer: Answerer, settings: Omit<Web, 'get'> = {}): StubWeb => {
+export const stubWeb = (
+  answer: Answerer,
+  settings: Omit<Web, 'get' | 'post'> = {},
+  poster?: PostAnswerer,
+): StubWeb => {
   const asked: Asked[] = [];
+  const posted: AskedPost[] = [];
   return {
     ...settings,
     asked,
+    posted,
+    ...(poster === undefined
+      ? {}
+      : {
+          post: (url: string, request: WebPost) => {
+            const entry: AskedPost = {
+              url: new URL(url),
+              headers: request.headers ?? {},
+              body: request.body,
+              request,
+            };
+            posted.push(entry);
+            const given = poster(entry);
+            return given instanceof Error ? Promise.reject(given) : Promise.resolve(given);
+          },
+        }),
     get: (url, request) => {
       const entry: Asked = { url: new URL(url), headers: request.headers ?? {}, request };
       asked.push(entry);

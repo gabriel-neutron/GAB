@@ -68,6 +68,11 @@ session: each proposal waits in the review queue, and the operator decides it th
 - Read the heat detections of one site: `firms_detections` takes a site box and a period, and
   stores the NASA FIRMS answer as a document. It needs a free map key. When the key is not
   set, the tool says so, and the other tools work.
+- Store the Sentinel-2 images before and after dated strikes: `sentinel2_pairs` takes a list of
+  strikes (a day and a point) and stores a clear image before and after each one as a document,
+  with the scene, the date and the cloud share. It needs a free Copernicus Data Space client.
+  The image states no damage. When the client is not set, the tool says so, and the other tools
+  work.
 - Read official trade statistics: `comtrade_data` takes a reporter, a period, a flow, an HS code
   and a partner, and stores the UN Comtrade answer as a document. It needs a free key. The
   provider has a restricted licence, so the document stays internal. When the key is not set, the
@@ -75,7 +80,7 @@ session: each proposal waits in the review queue, and the operator decides it th
 - Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,
   `read_group`, `read_decided`, `read_leads`.
 - Write: `archive_snapshot`, `fetch_document`, `eu_act`, `ofac_sdn`, `uk_sanctions_list`,
-  `firms_detections`, `comtrade_data`, `site_image`, `store_saved_file`, `telegram_channel`,
+  `firms_detections`, `comtrade_data`, `sentinel2_pairs`, `site_image`, `store_saved_file`, `telegram_channel`,
   `enqueue_extract`, `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question.
   `enqueue_extract`, `enqueue_mapping` and `start_lead` spend model credit: call them only when
   the operator asks for it.

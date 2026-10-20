@@ -34,6 +34,7 @@
       "mcp__gab__reject_unit",
       "mcp__gab__sanctions_match",
       "mcp__gab__search_graph",
+      "mcp__gab__sentinel2_pairs",
       "mcp__gab__site_image",
       "mcp__gab__store_saved_file",
       "mcp__gab__telegram_channel",
