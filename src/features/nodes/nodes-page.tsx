@@ -1,6 +1,7 @@
-import type { CriticalNode, NatoPair, NodeCondition } from '@gab/release/site-release';
+import type { CriticalNode, NodeCondition, PairRating } from '@gab/release/site-release';
 
 import { DataTable, type DataColumn } from '@/shared/page/data-table';
+import { AdmiraltyLegend } from '@/shared/page/admiralty-legend';
 import { ClaimLink } from '@/shared/page/claim-link';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
@@ -13,7 +14,7 @@ import { groupNodes } from './nodes';
 
 export interface TickClaim {
   readonly text: string;
-  readonly pair: NatoPair | null;
+  readonly rating: PairRating;
 }
 
 export interface NodesPageProps {
@@ -22,7 +23,7 @@ export interface NodesPageProps {
     /** The day of the release, YYYY-MM-DD. */
     readonly date: string;
     readonly nodes: readonly CriticalNode[];
-    /** What each claim of a tick says, and its NATO pair, by claim identifier. */
+    /** What each claim of a tick says, and its ADMIRALTY rating, by claim identifier. */
     readonly claims: Readonly<Record<string, TickClaim>>;
     /** The IMO number of each node that is a vessel with one, by node identifier. */
     readonly imoOf: Readonly<Record<string, string>>;
@@ -64,7 +65,7 @@ function ConditionCell({
             {claim === undefined ? (
               id
             ) : (
-              <ClaimLink text={claim.text} href={claimHref(id)} pair={claim.pair} />
+              <ClaimLink text={claim.text} href={claimHref(id)} rating={claim.rating} />
             )}
           </p>
         );
@@ -158,6 +159,7 @@ export function NodesPage({ release, entityHref, vesselHref, claimHref }: NodesP
         tick with no public claim shows "not sourced", and it does not count.
       </p>
       <p>{summary}</p>
+      <AdmiraltyLegend shown={Object.values(release.claims).some((one) => one.rating.shown)} />
       {retained.length === 0 ? null : (
         <PageSection title="Retained nodes">
           <DataTable

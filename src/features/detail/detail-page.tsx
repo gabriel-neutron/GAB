@@ -4,8 +4,10 @@ import type { ReactNode } from 'react';
 import type { AttributeEdit } from '@gab/proposal/attribute-value';
 
 import type { DocId } from '@/shared/read/model';
+import { AdmiraltyLegend } from '@/shared/page/admiralty-legend';
 import { DataTable } from '@/shared/page/data-table';
 import { KeyValue } from '@/shared/page/key-value';
+import { NatoPairMark } from '@/shared/page/nato-pair-mark';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
 import { READING_LINK } from '@/shared/page/reading-link';
@@ -20,6 +22,7 @@ import { draftsAfterSave, pendingEdit, recordCells, typedInto, type Drafts } fro
 import type { Dossier, SourceRef } from './dossier';
 import { EditSwitch, type DetailView } from './edit-switch';
 import { EventLane } from './event-lane';
+import type { ClaimLine } from './release-facts';
 import { SourceMark } from './mark';
 import { NewClaim } from './new-claim';
 import { NewRelation } from './new-relation';
@@ -162,6 +165,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
   );
 
   const facts = dossier.facts;
+  const pairShown = facts?.claims.some((line) => line.rating.shown) ?? false;
   // A row links its claim page only where the release holds that claim.
   const claimed = new Set(facts?.claimIds ?? []);
   const claimOf = (id: string): string | null => (claimed.has(id) ? claimHref(id) : null);
@@ -329,6 +333,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
 
       {facts === null || facts.claims.length === 0 ? null : (
         <PageSection title="Claims of the release">
+          <AdmiraltyLegend shown={pairShown} />
           <DataTable
             name="Claims of the release"
             empty="The release holds no claim about this entity."
@@ -344,6 +349,15 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
               },
               { key: 'label', header: 'Label', cell: (line) => line.origin },
               { key: 'licence', header: 'Licence', cell: (line) => line.licence },
+              ...(pairShown
+                ? [
+                    {
+                      key: 'rating',
+                      header: 'Rating',
+                      cell: (line: ClaimLine) => <NatoPairMark rating={line.rating} />,
+                    },
+                  ]
+                : []),
             ]}
             rows={facts.claims.map((line) => ({ id: line.id, row: line }))}
           />

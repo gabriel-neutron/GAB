@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { QUIET_SITE, SITE, withEvents } from '@gab/release/event-fixture';
 import { claimText } from '@gab/release/claim-text';
 import { permanentAddress } from '@gab/release/site-paths';
-import { readSiteRelease } from '@gab/release/site-release';
+import { pairRating, readSiteRelease } from '@gab/release/site-release';
 import { expect, test } from 'vitest';
 
 import { releaseFactsOf } from './release-facts';
@@ -61,6 +61,7 @@ test('the claims of the release give their words, their label and their licence'
       text: claimText(claim),
       origin: claim.originLabel,
       licence: claim.licence,
+      rating: pairRating(release.manifest, claim),
     });
   });
   expect(facts.address).toBe(permanentAddress(release.manifest.iriBase, 'entity', VESSEL));

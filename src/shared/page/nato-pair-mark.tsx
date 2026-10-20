@@ -1,16 +1,16 @@
-import type { NatoPair } from '@gab/release/site-release';
+import type { PairRating } from '@gab/release/site-release';
 
 export interface NatoPairMarkProps {
-  readonly pair: NatoPair | null;
+  readonly rating: PairRating;
 }
 
-/** The NATO pair of a claim, in words and in its two marks. Nothing when the claim has none, so
- * a release that does not show the pair shows no mark. */
-export function NatoPairMark({ pair }: NatoPairMarkProps) {
-  if (pair === null) return null;
+/** The ADMIRALTY pair of a claim in words. A claim with no full pair says "not rated", and a
+ * release that hides the pair shows nothing. */
+export function NatoPairMark({ rating }: NatoPairMarkProps) {
+  if (!rating.shown) return null;
   return (
     <span className="font-mono text-muted-foreground" data-nato-pair="">
-      {`NATO ${pair.letter}${pair.digit}`}
+      {rating.pair === null ? 'Not rated' : `Admiralty ${rating.pair.letter}${rating.pair.digit}`}
     </span>
   );
 }

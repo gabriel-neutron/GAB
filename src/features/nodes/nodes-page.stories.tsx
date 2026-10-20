@@ -32,10 +32,13 @@ const meta = {
       date: '2026-11-08',
       nodes: NODES,
       claims: {
-        'claim-1': { text: 'Primorsk oil terminal: Designated by Council', pair: null },
+        'claim-1': {
+          text: 'Primorsk oil terminal: Designated by Council',
+          rating: { shown: true, pair: null },
+        },
         'claim-2': {
           text: 'Primorsk oil terminal: Loads at Primorsk',
-          pair: { letter: 'B', digit: '2' },
+          rating: { shown: true, pair: { letter: 'B', digit: '2' } },
         },
       },
       imoOf: { n1: '9000001' },
@@ -79,13 +82,14 @@ export const LinksTheTimelineOfAVesselNodeByItsIMONumber: Story = {
   },
 };
 
-export const LinksTheClaimOfATickWithItsNATOPair: Story = {
+export const LinksTheClaimOfATickWithItsAdmiraltyPair: Story = {
   play: async ({ canvas }) => {
     const links = await canvas.findAllByRole('link', {
       name: 'Primorsk oil terminal: Designated by Council',
     });
     await expect(links[0]).toHaveAttribute('href', '/claim/claim-1');
-    await expect((await canvas.findAllByText('NATO B2')).length).toBeGreaterThan(0);
+    await expect((await canvas.findAllByText('Admiralty B2')).length).toBeGreaterThan(0);
+    await expect((await canvas.findAllByText('Not rated')).length).toBeGreaterThan(0);
   },
 };
 

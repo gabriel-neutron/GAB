@@ -372,6 +372,7 @@ export const TheReleaseGivesTheLabelAndTheLicenceOfEachClaimAndTheAddress: Story
             text: 'Northern Ledger: Flag Gabon',
             origin: 'Proposed — not checked',
             licence: 'CC-BY 4.0',
+            rating: { shown: true, pair: { letter: 'B', digit: '2' } },
           },
         ],
         address: `https://gab.example.org/entity/${VESSEL}`,
@@ -386,6 +387,7 @@ export const TheReleaseGivesTheLabelAndTheLicenceOfEachClaimAndTheAddress: Story
     ).toHaveAttribute('href', `/claim/${VESSEL}/flag`);
     await expect(within(table).getByText('Proposed — not checked')).toBeVisible();
     await expect(within(table).getByText('CC-BY 4.0')).toBeVisible();
+    await expect(within(table).getByText('Admiralty B2')).toBeVisible();
     await expect(canvas.getByText(`https://gab.example.org/entity/${VESSEL}`)).toBeVisible();
   },
 };
