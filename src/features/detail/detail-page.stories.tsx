@@ -1115,3 +1115,23 @@ export const AnActInFlightHoldsTheView: Story = {
     await expect(canvas.getByRole('button', { name: 'Edit' })).toBeEnabled();
   },
 };
+
+export const TheHeaderOfAVesselShowsItsFlagItsMmsiAndItsCallSign: Story = {
+  args: {
+    dossier: { ...DOSSIER, identity: { flag: 'Panama', mmsi: '352001234', callSign: 'HP1234' } },
+  },
+  play: async ({ canvasElement }) => {
+    const header = within(canvasElement).getByRole('banner');
+    await expect(within(header).getByText('Panama')).toBeVisible();
+    await expect(within(header).getByText('352001234')).toBeVisible();
+    await expect(within(header).getByText('HP1234')).toBeVisible();
+  },
+};
+
+export const TheHeaderOfAVesselWithoutThemReadsNotRecorded: Story = {
+  args: { dossier: { ...DOSSIER, identity: { flag: null, mmsi: null, callSign: null } } },
+  play: async ({ canvasElement }) => {
+    const header = within(canvasElement).getByRole('banner');
+    await expect(within(header).getAllByText(/not recorded/)).toHaveLength(3);
+  },
+};

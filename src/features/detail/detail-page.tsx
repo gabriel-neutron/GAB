@@ -31,6 +31,7 @@ import { Rename } from './rename';
 import { SaveBar } from './save-bar';
 import { saveClaims, saveSaid, type SaveState } from './save';
 import { UnitOrigin } from './unit-origin';
+import { VesselIds } from './vessel-ids';
 import {
   changeStructure,
   structureSaid,
@@ -176,6 +177,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
           <span>{`proposed as ${dossier.proposedType}`}</span>
         )}
       </p>
+      {dossier.identity === null ? null : <VesselIds identity={dossier.identity} />}
       {/* The words say what the entity IS and not what a reader may do with it: this position was
           borrowed, from which parents, and on which affiliation and date the record stands. */}
       <UnitOrigin

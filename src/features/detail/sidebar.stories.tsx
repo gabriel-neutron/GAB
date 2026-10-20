@@ -260,3 +260,23 @@ export const ThePanelOfTheGraphShowsTheEntityOnTheMap: Story = {
     await expect(link).toHaveAttribute('href', `/map?entity=${DOSSIER.entityId}`);
   },
 };
+
+export const AVesselShowsItsFlagItsMmsiAndItsCallSign: Story = {
+  args: {
+    dossier: { ...DOSSIER, identity: { flag: 'Panama', mmsi: '352001234', callSign: 'HP1234' } },
+  },
+  play: async ({ canvas }) => {
+    const sidebar = canvas.getByRole('complementary', { name: DOSSIER.label });
+    await expect(within(sidebar).getByText('Panama')).toBeVisible();
+    await expect(within(sidebar).getByText('352001234')).toBeVisible();
+    await expect(within(sidebar).getByText('HP1234')).toBeVisible();
+  },
+};
+
+export const AVesselWithoutThemReadsNotRecorded: Story = {
+  args: { dossier: { ...DOSSIER, identity: { flag: null, mmsi: null, callSign: null } } },
+  play: async ({ canvas }) => {
+    const sidebar = canvas.getByRole('complementary', { name: DOSSIER.label });
+    await expect(within(sidebar).getAllByText(/not recorded/)).toHaveLength(3);
+  },
+};

@@ -774,3 +774,16 @@ test('two relations that link one pair show the type of each, and a lone relatio
   const lines = readDossier(pair, VESSEL.id, [], [])?.relations ?? [];
   expect(lines.map((line) => line.typeShown)).toEqual(['owns', 'is superior to']);
 });
+
+test('a vessel dossier carries the identity of the vessel and another type carries none', () => {
+  const named: Entity = { ...VESSEL, attrs: { call_sign: { v: 'HP1234', src: ['d1'] } } };
+  const held: Corpus = { ...CORPUS, entities: [named, OWNER] };
+  const other: Corpus = { ...held, entities: [{ ...named, type: 'company' }] };
+
+  expect(readDossier(held, named.id, [], [])?.identity).toEqual({
+    flag: null,
+    mmsi: null,
+    callSign: 'HP1234',
+  });
+  expect(readDossier(other, named.id, [], [])?.identity).toBeNull();
+});
