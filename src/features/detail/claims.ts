@@ -3,7 +3,7 @@
 
 import type { AttributeValue, Attributes, DocId } from '@/shared/read/model';
 
-import { keyWords } from '@/shared/key-words';
+import { keyWords } from '@gab/proposal/key-words';
 
 import { isDay } from './day';
 

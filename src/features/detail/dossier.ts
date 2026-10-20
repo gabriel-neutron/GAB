@@ -17,7 +17,7 @@ import type {
   TypeVocabulary,
 } from '@/shared/read/model';
 import { relationWording, type RelationWords } from '@/shared/relation-words';
-import { keyWords } from '@/shared/key-words';
+import { keyWords } from '@gab/proposal/key-words';
 import { typeLabel } from '@/shared/type-label';
 
 import { readClaims, type ClaimRow } from './claims';

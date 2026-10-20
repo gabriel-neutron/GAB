@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { keyWords, valueHelp } from './key-words';
+import { keyWords, valueHelp } from '@gab/proposal/key-words';
 import { typeLabel } from './type-label';
 
 describe('the label of an entity type', () => {
@@ -35,5 +35,14 @@ describe('the words of an attribute key', () => {
     expect(valueHelp('position_precision', 'approximate')).toMatch(/near/);
     expect(valueHelp('position_precision', 'other')).toBeNull();
     expect(valueHelp('note', 'approximate')).toBeNull();
+  });
+});
+
+describe('the name of an attribute key on the release pages', () => {
+  it('uses the same table as the application', async () => {
+    const { attributeName } = await import('@gab/release/attribute-name');
+    expect(attributeName('v1_id')).toBe(keyWords('v1_id').label);
+    expect(attributeName('source_urls')).toBe('Source addresses');
+    expect(attributeName('crane_note')).toBe('Crane note');
   });
 });

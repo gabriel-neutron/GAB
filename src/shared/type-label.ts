@@ -1,7 +1,7 @@
 import type { TypeVocabulary } from '@/shared/read/model';
 
 import { seededVocabulary } from './vocabulary/declarations';
-import { keyLabel } from './key-words';
+import { keyLabel } from '@gab/proposal/key-words';
 
 const SEEDED = new Map(seededVocabulary.entityTypes.map((type) => [type.key, type.label]));
 

@@ -53,9 +53,9 @@ export function EntityRecord(props: EntityRecordProps) {
             className="flex w-24 shrink-0 flex-col items-end text-right @md:w-32"
             title={cell.help === null ? cell.label : `${cell.label}. ${cell.help}`}
           >
-            <span className="w-full min-w-0 truncate text-xs text-label">{cell.label}</span>
+            <span className="w-full min-w-0 text-xs break-words text-label">{cell.label}</span>
             {/* The stored key, in a secondary place, for a reader who looks for the raw word. */}
-            <span className="w-full min-w-0 truncate font-mono text-small/4 text-muted-foreground">
+            <span className="w-full min-w-0 font-mono break-all text-small/4 text-muted-foreground">
               {cell.key}
             </span>
           </span>

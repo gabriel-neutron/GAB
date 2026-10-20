@@ -1,3 +1,4 @@
+import { keyWords } from '@gab/proposal/key-words';
 import { releaseDay } from '@gab/release/release-day';
 import { timelineAxis } from '@gab/release/timeline-axis';
 import type { MarkTime, TimelineLane } from '@gab/release/vessel-timeline';
@@ -24,7 +25,7 @@ const cut = (text: string): string =>
   text.length > MOST_CHARACTERS ? `${text.slice(0, MOST_CHARACTERS - 1)}…` : text;
 
 const timeWords = (time: MarkTime): string => {
-  if (time.kind === 'day') return `${time.key}: ${releaseDay(time.day)}`;
+  if (time.kind === 'day') return `${keyWords(time.key).label}: ${releaseDay(time.day)}`;
   if (time.kind === 'no date') return 'no date';
   const from = time.from === null ? 'start unknown' : releaseDay(time.from);
   const to = time.to === null ? 'open' : releaseDay(time.to);

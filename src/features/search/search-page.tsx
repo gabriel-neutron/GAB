@@ -4,7 +4,7 @@ import { EmptyState } from '@/shared/page/empty-state';
 import { PageSection } from '@/shared/page/page-section';
 import { READING_LINK } from '@/shared/page/reading-link';
 import { Input } from '@/shared/ui/input';
-import { keyWords } from '@/shared/key-words';
+import { keyWords } from '@gab/proposal/key-words';
 import { typeLabel } from '@/shared/type-label';
 
 import type { AttributeHit, AttributeSearchAnswer } from './attribute-search';

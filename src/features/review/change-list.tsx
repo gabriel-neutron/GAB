@@ -1,5 +1,5 @@
 import { cn } from '@/shared/lib/utils';
-import { keyWords, valueHelp } from '@/shared/key-words';
+import { keyWords, valueHelp } from '@gab/proposal/key-words';
 
 import { LinkedWords } from './linked-words';
 import { unitChanges, type RelationLine, type UnitWords } from './unit-changes';
@@ -56,6 +56,7 @@ function Attributes({ attributes }: { readonly attributes: readonly Attribute[] 
     <dl className="grid grid-cols-[minmax(6rem,auto)_minmax(0,1fr)] gap-x-2 gap-y-0.5">
       {attributes.map((attribute) => {
         const words = keyWords(attribute.key);
+        const help = helpOf(attribute);
         return (
           <div key={attribute.key} className="contents">
             <dt className="text-label">
@@ -71,9 +72,7 @@ function Attributes({ attributes }: { readonly attributes: readonly Attribute[] 
                   <LinkedWords text={value} />
                 </span>
               ))}
-              {helpOf(attribute) === null ? null : (
-                <span className="block text-small/4 text-label">{helpOf(attribute)}</span>
-              )}
+              {help === null ? null : <span className="block text-small/4 text-label">{help}</span>}
             </dd>
           </div>
         );
