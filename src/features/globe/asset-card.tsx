@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import type { Card } from '@gab/release/chain-card';
 import { STAGES, type StageKey } from '@gab/proposal/chain-stage';
 
+import { typeLabel } from '@/shared/type-label';
+
 import { READING_LINK } from '@/shared/page/reading-link';
 
 const IN_REVIEW = 'In review';
@@ -71,7 +73,7 @@ export function AssetCard({ id, card, stage, entityHref }: AssetCardProps) {
           {card.label}
         </a>
       </h2>
-      <p>{[card.type, stageLabel].filter(Boolean).join(', ')}</p>
+      <p>{[typeLabel(card.type), stageLabel].filter(Boolean).join(', ')}</p>
       {card.inReview ? (
         <p className="text-candidate">
           {IN_REVIEW}: no rule and no person checked this entity, so each fact below is in review.

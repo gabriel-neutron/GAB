@@ -80,6 +80,9 @@ each decision is final). The Names page of the review page does the same.
 
 ### Other commands
 
+- `document-labels`: gives a readable title and a type to the stored documents that lack them, and
+  lists the stored search pages. Run it with `--dry-run` first. It deletes nothing: you decide on
+  each search page.
 - `reread-html`: rereads stored HTML pages. Run it with `--dry-run` first. It keeps the old text set
   so each citation stays valid.
 - `name-candidates`: finds merge candidates across a Latin and a Cyrillic spelling. Run it before a
@@ -151,6 +154,13 @@ pnpm worker release --manifest <manifest> --out <folder> --previous <previous re
    `python -m http.server 8000` in the site folder.
 4. The address `/v1/` gives a short page that links the critical nodes. The site holds no build of
    the version 1 map.
+
+## Measure the speed of the site
+
+Run `pnpm speed:budget --site <site folder>` before a release. It is a manual command and no
+required check. It opens the home page, the map and one entity page on a slow network, prints a
+table, and exits with 1 when a budget is passed. The budgets are in `tools/speed-budget.json`.
+A page that cannot render (no release data, no WebGL) gives a `skip` row and does not fail.
 
 ## The application with no backend
 

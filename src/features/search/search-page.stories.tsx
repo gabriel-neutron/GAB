@@ -65,7 +65,10 @@ export const EachMatchOpensItsEntity: Story = {
 export const TypingIsAnnouncedToTheCaller: Story = {
   play: async ({ canvas }) => {
     onQueryChange.mockClear();
-    await userEvent.type(canvas.getByRole('searchbox', { name: 'Search text' }), 'x');
+    await userEvent.type(
+      canvas.getByRole('searchbox', { name: 'Search names, values and documents' }),
+      'x',
+    );
     await expect(onQueryChange).toHaveBeenCalledWith('northern ledgerx');
   },
 };
@@ -106,9 +109,9 @@ export const NoMatchIsStated: Story = {
 export const AnAttributeMatchNamesTheKeyAndTheEntity: Story = {
   args: answersFor('director'),
   play: async ({ canvas }) => {
-    const key = canvas.getAllByRole('cell', { name: 'role_title' })[0];
+    const key = canvas.getAllByRole('cell', { name: 'Role title' })[0];
     const row = key?.closest('tr') ?? null;
-    if (row === null) throw new Error('The attribute table holds no row for role_title');
+    if (row === null) throw new Error('The attribute table holds no row for Role title');
     await expect(row).toHaveTextContent(/director/i);
     const hit = within(row).getByRole('link');
     await expect(hit).toHaveAttribute('href', expect.stringMatching(/^\/entity\//));
@@ -122,5 +125,22 @@ export const ADocumentMatchOpensItsAddress: Story = {
   play: async ({ canvas }) => {
     const hit = canvas.getByRole('link', { name: /Port of Rotterdam/ });
     await expect(hit).toHaveAttribute('href', 'https://example.invalid/rotterdam/q2-2026.pdf');
+  },
+};
+
+/** The field says what it searches, and one help line gives an example. */
+export const TheFieldNamesWhatItSearches: Story = {
+  play: async ({ canvas }) => {
+    const field = canvas.getByRole('searchbox', { name: 'Search names, values and documents' });
+    await expect(field).toHaveAccessibleDescription(/Example: ledger/);
+  },
+};
+
+/** The matched text shows in a mark in each row, in the case of the stored value. */
+export const TheMatchShowsInEachRow: Story = {
+  args: answersFor('northern'),
+  play: async ({ canvas }) => {
+    const link = canvas.getByRole('link', { name: /^MV Northern Ledger/ });
+    await expect(link.querySelector('mark')).toHaveTextContent('Northern');
   },
 };

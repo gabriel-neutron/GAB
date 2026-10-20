@@ -43,6 +43,13 @@ export const row = {
     archive_uri: nullableText('document.archive_uri'),
     sha256: nullableText('document.sha256'),
     retrieved_at: nullableText('document.retrieved_at'),
+    // A static release holds no type for a source, and it reads as `other`.
+    doc_type: z
+      .enum(
+        ['legal_act', 'register_entry', 'press_release', 'report', 'other'],
+        stated('document.doc_type'),
+      )
+      .default('other'),
   }),
 
   entity: z.object({

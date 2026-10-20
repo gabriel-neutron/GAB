@@ -7,6 +7,7 @@ import { searchByDocument } from './document-search';
 const document = (id: string, title: string, uri: string | null): DocumentRow => ({
   id,
   kind: 'report',
+  docType: 'other',
   title,
   uri,
   archiveUri: null,
@@ -46,9 +47,33 @@ describe('a search by document title', () => {
       kind: 'matches',
       query: 'analyst',
       hits: [
-        { documentId: 'doc_3', title: 'Direct entry by the analyst', kind: 'report', uri: null },
+        {
+          documentId: 'doc_3',
+          title: 'Direct entry by the analyst',
+          kind: 'report',
+          type: 'Other',
+          host: null,
+          uri: null,
+        },
       ],
     });
+  });
+
+  it('shows the type in words and the host of the address with no www', () => {
+    const typed: readonly DocumentRow[] = [
+      {
+        ...document(
+          'doc_4',
+          'Council Regulation (EU) 2026/12',
+          'https://www.eur-lex.example/a?b=1',
+        ),
+        docType: 'legal_act',
+      },
+    ];
+    const answer = searchByDocument(typed, 'regulation');
+    expect(answer.kind === 'matches' ? answer.hits.map((hit) => [hit.type, hit.host]) : []).toEqual(
+      [['Legal act', 'eur-lex.example']],
+    );
   });
 
   it('puts a title that starts with the query before a title that only holds it', () => {

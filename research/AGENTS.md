@@ -18,7 +18,8 @@ The MCP server `gab` gives each tool. A read changes nothing. A write needs no a
 session: each proposal waits in the review queue, and the operator decides it there (P12).
 
 - Read the record: `search_graph`, `read_entity`, `neighbourhood`, `list_vocabulary`,
-  `list_proposals`.
+  `list_proposals`, `list_entities` (the entities of one type in pages, with the count of those that
+  hold a key and of those that do not).
 - Read the documents: `find_document`, `document_text`, `file_schema_sample` (the header and the
   first rows of a stored CSV table), `job_status`.
 - Find leads on the web: `web_search`, `news_search`.

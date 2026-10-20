@@ -1,6 +1,8 @@
 import { day } from '@gab/proposal/day';
 import { z } from 'zod';
 
+import { coverageShape } from './coverage.ts';
+
 const counts = z.object({
   added: z.number().int(),
   changed: z.number().int(),
@@ -41,6 +43,8 @@ export const siteManifestShape = z.object({
     confirmed: z.number().int().nonnegative(),
     refused: z.number().int().nonnegative(),
   }),
+  // A release before the coverage statement has no member.
+  coverage: coverageShape.nullable().default(null),
   files: z.array(
     z.object({
       path: z.string().regex(/^[\w-][\w.-]*$/u),

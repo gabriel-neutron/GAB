@@ -18,8 +18,13 @@ import '../src/index.css';
  * that discussion would be a guess.
  */
 const preview: Preview = {
+  beforeEach: () => {
+    // Departure: the dark pass sets VITE_A11Y_DARK=1. The class goes on the root before each story.
+    if (import.meta.env['VITE_A11Y_DARK'] === '1') document.documentElement.classList.add('dark');
+  },
   parameters: {
     layout: 'centered',
+    a11y: { test: 'error' },
   },
 };
 

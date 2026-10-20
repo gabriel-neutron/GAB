@@ -81,6 +81,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
     {
       id: 'manual',
       kind: 'manual',
+      docType: 'other',
       title: 'Direct entry by the analyst',
       uri: null,
       archiveUri: null,
@@ -90,6 +91,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
     {
       id: 'doc_8f2a41',
       kind: 'report',
+      docType: 'report',
       title: 'Port of Rotterdam — bulk cargo throughput, Q2 2026',
       uri: 'https://example.invalid/rotterdam/q2-2026.pdf',
       archiveUri: 'https://web.archive.example.invalid/2026/rotterdam-q2.pdf',
@@ -99,6 +101,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
     {
       id: 'doc_3c1104',
       kind: 'url',
+      docType: 'register_entry',
       title: 'Corporate registry extract — Meridian Bulk Carriers Ltd',
       uri: 'https://example.invalid/registry/meridian-bulk',
       archiveUri: 'https://web.archive.example.invalid/2026/registry-meridian',
@@ -108,6 +111,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
     {
       id: 'doc_9b0417',
       kind: 'file',
+      docType: 'other',
       title: 'Vessel movement log, scanned',
       uri: null,
       archiveUri: null,
@@ -117,6 +121,7 @@ const record: Omit<Corpus, 'positions' | 'relationTypes'> = {
     {
       id: 'doc_5e7730',
       kind: 'url',
+      docType: 'press_release',
       title: 'Trade press article, unverified',
       uri: 'https://example.invalid/press/bulk-market-note',
       archiveUri: 'https://web.archive.example.invalid/2026/bulk-market-note',

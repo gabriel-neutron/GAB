@@ -14,6 +14,8 @@ import { positions, type Position } from '@gab/proposal/geometry-positions';
 import { outsideRussia } from '@gab/proposal/outside-russia';
 import { z } from 'zod';
 
+import { typeCounts, type TypeCount } from './type-counts';
+
 const outside = outsideRussia(countries);
 
 const position = z.array(z.number());
@@ -71,6 +73,8 @@ export interface EntityRow {
 /** The counts that the page says in words. */
 export interface GlobeCounts {
   readonly entities: number;
+  /** Each type of the record: how many entities it holds, and how many the map draws. */
+  readonly byType: readonly TypeCount[];
   readonly arcs: number;
   readonly arcsInReview: number;
   readonly arcsWithVolume: number;
@@ -161,6 +165,7 @@ export function globeData(release: SiteRelease): GlobeData {
     })),
     counts: {
       entities: entities.features.length,
+      byType: typeCounts(release.entities, mapFeatures(release.geojson)),
       arcs: flows.arcs.length,
       arcsInReview: flows.arcs.filter((one) => one.inReview).length,
       arcsWithVolume: flows.arcs.filter((one) => one.volume !== null).length,

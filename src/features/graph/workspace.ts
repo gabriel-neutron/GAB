@@ -17,6 +17,12 @@ export interface GraphWorkspace {
   readonly railOpen: boolean;
   /** The width of the open rail, in pixels. The rail clamps it where it draws it. */
   readonly railWidth: number;
+  /** How far the focus reaches from the selected entity: one hop or two. */
+  readonly hops: 1 | 2;
+  /** Whether the canvas draws the entities that stand on the ring with no place. */
+  readonly showUnplaced: boolean;
+  /** The relation types that are switched OFF, on the same rule as `hiddenTypes`. */
+  readonly hiddenRelationTypes: readonly string[];
 }
 
 export const DEFAULT_GRAPH_WORKSPACE: GraphWorkspace = {
@@ -24,6 +30,16 @@ export const DEFAULT_GRAPH_WORKSPACE: GraphWorkspace = {
   hiddenTypes: [],
   railOpen: true,
   railWidth: 256,
+  hops: 1,
+  showUnplaced: true,
+  hiddenRelationTypes: [],
+};
+
+// A record saved before a switch existed has no key for it. It stays valid, so the camera, the
+// filters and the rail of that reader are kept, and the switch takes its default.
+type StoredWorkspace = Omit<GraphWorkspace, 'showUnplaced' | 'hiddenRelationTypes'> & {
+  readonly showUnplaced?: boolean;
+  readonly hiddenRelationTypes?: readonly string[];
 };
 
 const isCamera = (value: unknown): value is GraphCamera =>
@@ -46,10 +62,13 @@ const DECLARED_KEYS: Readonly<Record<keyof GraphWorkspace, true>> = {
   hiddenTypes: true,
   railOpen: true,
   railWidth: true,
+  hops: true,
+  showUnplaced: true,
+  hiddenRelationTypes: true,
 };
 
 // The cost of the strict guard here is one camera position and one set of filters, one time.
-const isWorkspace = (value: unknown): value is GraphWorkspace => {
+const isWorkspace = (value: unknown): value is StoredWorkspace => {
   if (!holdsOnlyDeclaredKeys(value, DECLARED_KEYS)) return false;
   const w = value;
   const hidden = w['hiddenTypes'];
@@ -59,12 +78,22 @@ const isWorkspace = (value: unknown): value is GraphWorkspace => {
     hidden.every((type) => typeof type === 'string') &&
     typeof w['railOpen'] === 'boolean' &&
     typeof w['railWidth'] === 'number' &&
-    Number.isFinite(w['railWidth'])
+    Number.isFinite(w['railWidth']) &&
+    (w['hops'] === 1 || w['hops'] === 2) &&
+    (w['showUnplaced'] === undefined || typeof w['showUnplaced'] === 'boolean') &&
+    (w['hiddenRelationTypes'] === undefined ||
+      (Array.isArray(w['hiddenRelationTypes']) &&
+        w['hiddenRelationTypes'].every((type) => typeof type === 'string')))
   );
 };
 
 export function readGraphWorkspace(): GraphWorkspace {
-  return readWorkspace(FEATURE, isWorkspace, DEFAULT_GRAPH_WORKSPACE);
+  const stored = readWorkspace<StoredWorkspace>(FEATURE, isWorkspace, DEFAULT_GRAPH_WORKSPACE);
+  return {
+    ...stored,
+    showUnplaced: stored.showUnplaced ?? DEFAULT_GRAPH_WORKSPACE.showUnplaced,
+    hiddenRelationTypes: stored.hiddenRelationTypes ?? DEFAULT_GRAPH_WORKSPACE.hiddenRelationTypes,
+  };
 }
 
 // Every writer patches, and never replaces: two writers with partial records erase each other.

@@ -8,6 +8,8 @@ const COMMANDS = {
   'asset-sanctions': async () =>
     (await import('./release/asset-sanctions-command.ts')).assetSanctionsCommand,
   'author-names': async () => (await import('./author-names-command.ts')).authorNamesCommand,
+  'document-labels': async () =>
+    (await import('./document-labels-command.ts')).documentLabelsCommand,
   'dry-join': async () => (await import('./dry-join-command.ts')).dryJoinCommand,
   'firms-sweep': async () => (await import('./firms-sweep-command.ts')).firmsSweepCommand,
   ingest: async () => (await import('./ingest-command.ts')).ingestCommand,

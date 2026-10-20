@@ -118,6 +118,7 @@ const RECORD: ReleaseRecord = {
         retrieved_at: '2026-10-01',
         licence: 'public-domain',
         provider: 'ofac_sdn',
+        doc_type: 'other',
       },
     ],
     [
@@ -129,6 +130,7 @@ const RECORD: ReleaseRecord = {
         retrieved_at: null,
         licence: 'cc-by-nc-4.0',
         provider: 'gfw',
+        doc_type: 'other',
       },
     ],
   ]),

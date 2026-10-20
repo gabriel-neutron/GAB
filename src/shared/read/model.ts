@@ -52,9 +52,12 @@ export type RelationTypeVocabulary = readonly RelationTypeDeclaration[];
 
 export type DocumentKind = z.output<typeof row.document>['kind'];
 
+export type DocumentType = z.output<typeof row.document>['doc_type'];
+
 export interface DocumentRow {
   readonly id: DocId;
   readonly kind: DocumentKind;
+  readonly docType: DocumentType;
   readonly title: string;
   readonly uri: string | null;
   readonly archiveUri: string | null;

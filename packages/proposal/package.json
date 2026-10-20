@@ -15,6 +15,7 @@
     "./day": "./src/day.ts",
     "./event-keys": "./src/event-keys.ts",
     "./geometry-positions": "./src/geometry-positions.ts",
+    "./key-words": "./src/key-words.ts",
     "./identifiers": "./src/identifiers.ts",
     "./machine": "./src/machine.ts",
     "./mapping": "./src/mapping.ts",

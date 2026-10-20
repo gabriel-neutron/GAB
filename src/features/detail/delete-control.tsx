@@ -10,8 +10,8 @@ interface DeleteControlProps {
   readonly onDelete: () => void;
 }
 
-const ASKING = 'flex min-w-0 items-center gap-2';
-const QUESTION = 'min-w-0 truncate text-small/4 text-destructive';
+const ASKING = 'flex min-w-0 flex-wrap items-center gap-2';
+const QUESTION = 'min-w-0 text-small/4 break-words text-destructive';
 
 export function DeleteControl({ name, busy, onDelete }: DeleteControlProps) {
   // The question dies with the view. A confirmation that survived a reload would destroy a row
@@ -37,9 +37,7 @@ export function DeleteControl({ name, busy, onDelete }: DeleteControlProps) {
 
   return (
     <span className={ASKING}>
-      <span className={QUESTION} title={name}>
-        {`Delete ${name}? No door brings it back.`}
-      </span>
+      <span className={QUESTION}>{`Delete ${name}? No door brings it back.`}</span>
       <Button
         type="button"
         variant="destructive"

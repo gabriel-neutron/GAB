@@ -576,6 +576,7 @@ test('a release writes the public entities, relations and claims, each row with 
       document_title: 'OFAC SDN list',
       document_address: 'https://example.org/sdn.csv',
       document_read_on: '2026-10-01',
+      document_type: 'other',
       page: '1',
       excerpt: 'IMO 9123456',
       modality: 'asserts',
@@ -611,6 +612,7 @@ test('a release writes the public entities, relations and claims, each row with 
       document_title: 'Ship register answer',
       document_address: 'https://example.org/ships',
       document_read_on: '2026-10-03',
+      document_type: 'other',
       page: '1',
       excerpt: 'TEST OWNER LTD owns TEST TANKER',
       modality: 'asserts',
@@ -1809,6 +1811,46 @@ test('the file manifest gives the number of merge candidates across two scripts 
     refused: seen.before.refused + 1,
   });
   expect(manifest.nameCandidates).toStrictEqual(seen.after);
+});
+
+test('the file manifest gives the counts of the entities and of the sources that the database holds for the release', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const seen = await inTransaction(async (held) => {
+    await documents(held.ask);
+    await entity(held, '0c4d0000-0000-4000-8000-0000000000c1', 'company', 'TEST COVERED', [SHIPS]);
+    await entity(held, '0c4d0000-0000-4000-8000-0000000000c2', 'port', 'TEST COVERED PORT', [
+      SHIPS,
+    ]);
+    const operator = held.as('gabriel_app');
+    const byType = z
+      .array(z.object({ type: z.string(), count: z.number() }))
+      .parse(
+        (
+          await operator.query(
+            'SELECT type, count(*)::int AS count FROM public.release_entities() GROUP BY type',
+          )
+        ).rows,
+      );
+    const sources = (await readReleaseRecord(operator, { natoPair: false })).documents.size;
+    await writeRelease(operator, MANIFEST, root);
+    return { byType, sources };
+  });
+  const manifest = z
+    .object({
+      coverage: z.object({
+        entities: z.number(),
+        byType: z.array(z.object({ type: z.string(), count: z.number() })),
+        sources: z.number(),
+      }),
+    })
+    .parse(
+      JSON.parse(await readFile(join(root, 'gab-release-2026-11-08', 'manifest.json'), 'utf8')),
+    );
+  const sorted = (rows: readonly { type: string; count: number }[]) =>
+    rows.map((one) => `${one.type}:${one.count}`).sort();
+  expect(sorted(manifest.coverage.byType)).toStrictEqual(sorted(seen.byType));
+  expect(manifest.coverage.entities).toBe(seen.byType.reduce((sum, one) => sum + one.count, 0));
+  expect(manifest.coverage.sources).toBe(seen.sources);
 });
 
 const EVENT = '00000000-0000-4000-8000-00000000e101';

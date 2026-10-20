@@ -5,6 +5,7 @@ import { corpus } from '@/shared/committed-fixture/corpus';
 import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import { buildGraphModel, type NodePosition } from './model';
+import { countShown } from './shown-counts';
 import { deriveRailRows, type RailView } from './rail-rows';
 import { IndexRows } from './row';
 import { DEFAULT_GRAPH_WORKSPACE } from './workspace';
@@ -14,7 +15,7 @@ const positions: ReadonlyMap<string, NodePosition> = new Map(
   corpus.entities.map((entity, index) => [entity.id, { x: index, y: index }]),
 );
 
-const model = buildGraphModel(corpus, positions, entityTypes, 'dark');
+const model = buildGraphModel(corpus, positions, entityTypes, 'dark', new Set());
 
 /** The most populated type, so that the order of the list below is worth a check. */
 const TYPE = (() => {
@@ -30,6 +31,7 @@ const TYPE = (() => {
 
 const VIEW: RailView = {
   filter: { hiddenTypes: DEFAULT_GRAPH_WORKSPACE.hiddenTypes },
+  counts: countShown(model.graph, new Set(corpus.entities.map((entity) => entity.id)), new Set()),
   selection: null,
   openUnits: new Set(),
   railOpen: true,
@@ -111,7 +113,7 @@ export const TheRemainderIsTheControlThatOpensTheList: Story = {
   args: { list: { ...LIST, remainder: 40 } },
   play: async ({ canvas, args }) => {
     const control = canvas.getByRole('button', {
-      name: 'Show the remaining 40, most connected first',
+      name: 'Show 40 more, most connected first',
     });
     await expect(control).toBeVisible();
     await expect(control).toHaveTextContent('Show 40 more');

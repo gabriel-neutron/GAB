@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { hostOf } from './document-type.ts';
 import { rowsOf } from './fields.ts';
 import { defineTool } from './tool.ts';
 
@@ -9,7 +10,7 @@ const MAX_DOCUMENTS = 20;
 const escaped = (text: string): string => text.replace(/[\\%_]/g, '\\$&');
 
 // The exact address comes first, then the newest document.
-const FIND = `SELECT d.id::text AS id, d.title, d.uri, d.kind, d.mime,
+const FIND = `SELECT d.id::text AS id, d.title, d.uri, d.kind, d.doc_type, d.mime,
          d.retrieved_at::text AS retrieved_at,
          (SELECT max(t.page) FROM public.document_text t WHERE t.document_id = d.id)::int
            AS text_pages,
@@ -26,6 +27,7 @@ const row = z.strictObject({
   title: z.string(),
   uri: z.string().nullable(),
   kind: z.string(),
+  doc_type: z.string(),
   mime: z.string().nullable(),
   retrieved_at: z.string().nullable(),
   text_pages: z.number().int().nullable(),
@@ -38,7 +40,8 @@ export const findDocument = defineTool({
   description:
     'Finds the stored documents whose address or title holds the text you give. An exact ' +
     'address comes first. Call it before fetch_document, so you do not fetch a page that ' +
-    'Gabriel already holds. "textPages" is the number of pages of stored text, and null means ' +
+    'Gabriel already holds. "type" is legal_act, register_entry, press_release, report or other, ' +
+    'and "host" is the host of the address. "textPages" is the number of pages of stored text, and null means ' +
     'that the document has no text to read or to cite. "archive" names the zip archive that ' +
     'held a file, and the path of the file in it.',
   input: z
@@ -56,6 +59,8 @@ export const findDocument = defineTool({
         title: z.string(),
         url: z.string().nullable(),
         kind: z.string(),
+        type: z.string(),
+        host: z.string().nullable(),
         mime: z.string().nullable(),
         retrievedAt: z.string().nullable(),
         textPages: z.number().int().nullable(),
@@ -76,6 +81,8 @@ export const findDocument = defineTool({
         title: held.title,
         url: held.uri,
         kind: held.kind,
+        type: held.doc_type,
+        host: hostOf(held.uri),
         mime: held.mime,
         retrievedAt: held.retrieved_at,
         textPages: held.text_pages,

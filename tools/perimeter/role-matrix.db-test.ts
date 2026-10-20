@@ -59,6 +59,7 @@ test('the role matrix of the doors', async () => {
       "public.fail_job": "agent",
       "public.fill_document_archive": "agent research",
       "public.fill_document_provider": "agent research",
+      "public.fill_document_type": "app",
       "public.fill_document_uri": "app",
       "public.imo_duplicate_pairs": "app",
       "public.join_author_name": "agent",

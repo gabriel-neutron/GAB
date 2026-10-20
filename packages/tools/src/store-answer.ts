@@ -6,8 +6,11 @@ import { createHash } from 'node:crypto';
 
 import { z } from 'zod';
 
+import { readableTitle } from './document-title.ts';
+import { documentType, type DocumentType } from './document-type.ts';
 import { rowsOf } from './fields.ts';
-import type { Reach, Session } from './tool.ts';
+import { refusedSource } from './refused-source.ts';
+import { ToolRefusal, type Reach, type Session } from './tool.ts';
 
 // External constraint: the worker writes the text of a stored file under this same word, and a
 // second word would make two sets of pages for one reading. The worker holds the other copy, in
@@ -25,7 +28,7 @@ const FILL_PROVIDER = 'SELECT public.fill_document_provider($1, $2) AS outcome';
 // One statement is one transaction, and it holds inside the transaction of a caller too. The row
 // is written first and its text second, so a document never exists with no text.
 const STORE = `WITH stored AS (
-    SELECT public.put_fetched_document($9, $1, $2, $3, $4, $5, $6::date, NULL, $10)::text AS id)
+    SELECT public.put_fetched_document($9, $1, $2, $3, $4, $5, $6::date, NULL, $10, $11)::text AS id)
   SELECT s.id, public.put_document_text(s.id, $7::jsonb, $8) AS pages FROM stored s`;
 
 const knownRow = z.object({
@@ -55,6 +58,9 @@ export interface Answer {
    * it only for a file that it reads at the address of that publisher. */
   readonly provider?:
     'eu_eurlex' | 'ofac_sdn' | 'uk_sanctions_list' | 'eox_s2cloudless_2016' | 'un_comtrade';
+  /** The type of the document. A tool names it only when it knows the type better than the
+   * address and the title say. Without it, the rules of document-type decide. */
+  readonly docType?: DocumentType;
 }
 
 const answerOf = <S extends 'known' | 'stored'>(known: z.infer<typeof knownRow>, status: S) => ({
@@ -91,15 +97,19 @@ export const storeAnswer = async (
   store: NonNullable<Reach['store']>,
   answer: Answer,
 ) => {
+  // A search page lists pages and states no fact, so no door of the record keeps it as a source.
+  const refused = refusedSource(answer.uri);
+  if (refused !== null) throw new ToolRefusal(refused);
   const sha256 = hashOf(answer.bytes);
   let status: 'known' | 'stored' = 'known';
   let known = await knownOf(session, sha256);
   if (known === undefined) {
     // The key holds the hash alone, as the worker writes it, so the two paths name one object.
+    const title = readableTitle(answer.title, answer.pages, answer.uri);
     const key = await store.put({ key: `raw/${sha256}`, bytes: answer.bytes, mime: answer.mime });
     try {
       await rowsOf(session, storedRow, STORE, [
-        answer.title,
+        title,
         key,
         answer.uri,
         sha256,
@@ -109,6 +119,8 @@ export const storeAnswer = async (
         EXTRACTOR,
         answer.kind,
         answer.provider ?? null,
+        answer.docType ??
+          documentType({ uri: answer.uri, title, provider: answer.provider ?? null }),
       ]);
       status = 'stored';
     } catch (fault) {

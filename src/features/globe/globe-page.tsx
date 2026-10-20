@@ -2,9 +2,11 @@ import { PageHeader } from '@/shared/page/page-header';
 import { ReadingPage } from '@/shared/page/reading-page';
 import { releaseDay } from '@gab/release/release-day';
 
+import { FirstVisitCard } from './first-visit-card';
 import { Globe } from './globe';
 import type { GlobeData } from './globe-data';
 import { ReadingNotes } from './reading-notes';
+import { TypeCountList } from './type-count-list';
 
 export interface GlobePageProps {
   /** Null when the site holds no release: the map comes from a release and from nothing else. */
@@ -15,6 +17,8 @@ export interface GlobePageProps {
   readonly entityHref: (id: string) => string;
   /** This function must be the same function at each render of the caller. */
   readonly onSelect: (id: string | null) => void;
+  /** Closes the card of the first visit. Null when the card does not show. */
+  readonly onCloseFirstVisit: (() => void) | null;
 }
 
 const count = (n: number, one: string, many: string): string =>
@@ -22,7 +26,13 @@ const count = (n: number, one: string, many: string): string =>
 
 /** The map page: the globe of the entities of the release that have a position, with the chain of
  * the hydrocarbons from the well to the exit from Russian control. */
-export function GlobePage({ data, entity, entityHref, onSelect }: GlobePageProps) {
+export function GlobePage({
+  data,
+  entity,
+  entityHref,
+  onSelect,
+  onCloseFirstVisit,
+}: GlobePageProps) {
   if (data === null)
     return (
       <ReadingPage>
@@ -36,12 +46,14 @@ export function GlobePage({ data, entity, entityHref, onSelect }: GlobePageProps
   return (
     <ReadingPage>
       <PageHeader title="Map" detail={`From the release of ${releaseDay(data.date)}`} />
+      {onCloseFirstVisit === null ? null : <FirstVisitCard onClose={onCloseFirstVisit} />}
       <p className="max-w-prose">
         {count(counts.entities, 'entity of this release has', 'entities of this release have')}{' '}
         their own position, and {count(counts.arcs, 'physical link joins', 'physical links join')}{' '}
         two of them. A card gives the accepted facts first. A fact that is still in review carries
         the words “In review”: it is a proposal, not a fact.
       </p>
+      <TypeCountList counts={counts.byType} />
       {entity !== '' && data.cards[entity] === undefined ? (
         <p role="status" className="text-candidate">
           The entity of the address has no position in this release, so the map does not show it.

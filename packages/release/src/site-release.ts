@@ -23,6 +23,8 @@ export interface SiteSource {
   readonly title: string;
   readonly address: string | null;
   readonly readOn: string | null;
+  /** The type of the document. A release written before the type has none. */
+  readonly docType?: string;
   readonly passages: readonly SitePassage[];
 }
 
@@ -288,6 +290,7 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
         title: cell(row, 'document_title'),
         address: orNull(row['document_address']),
         readOn: orNull(row['document_read_on']),
+        ...(orNull(row['document_type']) === null ? {} : { docType: cell(row, 'document_type') }),
         passages: [...(known?.passages ?? []), ...passage],
       });
     }

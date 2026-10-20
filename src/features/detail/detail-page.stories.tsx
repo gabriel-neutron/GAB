@@ -41,7 +41,7 @@ const firstCard = (): SourceCardModel => {
 
 const CARD = firstCard();
 
-const MARK_NAME = `Source ${CARD.number} — ${CARD.title}`;
+const MARK_NAME = new RegExp(`^Source ${CARD.number} for: `);
 
 const railOf = (root: HTMLElement): HTMLElement =>
   within(root).getByRole('complementary', { name: 'Sources' });
@@ -227,6 +227,16 @@ export const AMarkInTheRecordMarksTheCardInTheRail: Story = {
 
     await expect(rail.querySelector('[aria-current="true"]')).toHaveTextContent(CARD.title);
     await expect(first).toHaveAttribute('aria-pressed', 'true');
+  },
+};
+
+export const NoTwoSourceButtonsShareAName: Story = {
+  play: async ({ canvasElement }) => {
+    const names = within(canvasElement)
+      .getAllByRole('button', { name: /^Source \d+ for: / })
+      .map((button) => button.getAttribute('aria-label'));
+
+    await expect(new Set(names).size).toBe(names.length);
   },
 };
 
@@ -451,7 +461,9 @@ export const TheHeaderStatesTheExtractedWordAndTheBorrowedPosition: Story = {
     await expect(canvas.getByRole('heading', { level: 1 })).not.toHaveTextContent('proposed as');
 
     const from = canvasElement.querySelector('[data-position-from]');
-    await expect(from).toHaveTextContent('position from 92nd Coastal Battery');
+    await expect(from).toHaveTextContent(
+      'Position borrowed from 92nd Coastal Battery (no own position recorded)',
+    );
   },
 };
 
@@ -1101,5 +1113,25 @@ export const AnActInFlightHoldsTheView: Story = {
       await expect(saidIn(canvasElement)).toHaveTextContent(PROPOSAL);
     });
     await expect(canvas.getByRole('button', { name: 'Edit' })).toBeEnabled();
+  },
+};
+
+export const TheHeaderOfAVesselShowsItsFlagItsMmsiAndItsCallSign: Story = {
+  args: {
+    dossier: { ...DOSSIER, identity: { flag: 'Panama', mmsi: '352001234', callSign: 'HP1234' } },
+  },
+  play: async ({ canvasElement }) => {
+    const header = within(canvasElement).getByRole('banner');
+    await expect(within(header).getByText('Panama')).toBeVisible();
+    await expect(within(header).getByText('352001234')).toBeVisible();
+    await expect(within(header).getByText('HP1234')).toBeVisible();
+  },
+};
+
+export const TheHeaderOfAVesselWithoutThemReadsNotRecorded: Story = {
+  args: { dossier: { ...DOSSIER, identity: { flag: null, mmsi: null, callSign: null } } },
+  play: async ({ canvasElement }) => {
+    const header = within(canvasElement).getByRole('banner');
+    await expect(within(header).getAllByText(/not recorded/)).toHaveLength(3);
   },
 };

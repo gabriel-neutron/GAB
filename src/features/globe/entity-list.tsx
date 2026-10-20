@@ -1,5 +1,6 @@
 import { DataTable, type DataColumn } from '@/shared/page/data-table';
 import { READING_LINK } from '@/shared/page/reading-link';
+import { typeLabel } from '@/shared/type-label';
 
 import type { EntityRow, GlobeData } from './globe-data';
 
@@ -22,7 +23,7 @@ export function EntityList({ data, entityHref }: EntityListProps) {
         </a>
       ),
     },
-    { key: 'type', header: 'Type', cell: (row) => row.type },
+    { key: 'type', header: 'Type', cell: (row) => typeLabel(row.type) },
     { key: 'stage', header: 'Stage', cell: (row) => row.stage },
     { key: 'geometry', header: 'Geometry', cell: (row) => row.geometry },
   ];

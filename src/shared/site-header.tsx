@@ -90,6 +90,12 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
         <Link to="/method" className={PAGE_LINK}>
           Method
         </Link>
+        <Link to="/glossary" className={PAGE_LINK}>
+          Glossary
+        </Link>
+        <Link to="/help" className={PAGE_LINK}>
+          Help
+        </Link>
         {writerOnline ? (
           <Link
             to="/review"

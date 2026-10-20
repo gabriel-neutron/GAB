@@ -89,6 +89,8 @@ describe.each([
       ['map/index.html', 'physical link', 'Map · GAB dataset'],
       ['downloads/index.html', 'SHA-256 checksum', 'Downloads · GAB dataset'],
       ['method/index.html', 'About this data', 'Method · GAB dataset'],
+      ['glossary/index.html', 'point of view of the project', 'Glossary · GAB dataset'],
+      ['help/index.html', 'How the facts are checked', 'Help · GAB dataset'],
       ['v1/index.html', 'holds no build of the version 1 map', 'Version 1 · GAB dataset'],
     ];
     for (const [path, words, title] of expected) {

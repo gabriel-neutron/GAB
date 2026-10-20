@@ -168,7 +168,8 @@ CREATE VIEW public.proposal_reading AS
 
 
 CREATE VIEW api.document AS
-  SELECT id, kind, title, uri, archive_uri, sha256, mime, retrieved_at, created_at, cost_eur
+  SELECT id, kind, title, uri, archive_uri, sha256, mime, retrieved_at, created_at, cost_eur,
+         doc_type
     FROM public.documents;
 -- s3_key is not published. The bucket is private, and #31 owns how a reader reaches a file.
 COMMENT ON VIEW api.document IS
