@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 
+import { coverageOf } from '@gab/release/coverage';
+
 import { alignmentMatrix } from './alignment-matrix.ts';
 import { assetLinks } from './asset-links.ts';
 import { chainVolumes } from './chain-volumes.ts';
@@ -76,6 +78,10 @@ export const releaseFiles = (
     iriBase: manifest.iriBase,
     changelog: changelog.summary,
     nameCandidates: record.nameCandidates,
+    coverage: coverageOf(
+      record.entities.map((one) => one.type),
+      record.documents.size,
+    ),
     files: listed,
   };
   return {

@@ -1,6 +1,7 @@
 import { releaseDay } from '@gab/release/release-day';
 import type { SiteManifest } from '@gab/release/site-manifest';
 
+import { CoverageStatement } from '@/shared/page/coverage-statement';
 import { DisclaimerText } from '@/shared/page/disclaimer-text';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
@@ -30,6 +31,15 @@ export function MethodPage({ manifest }: MethodPageProps) {
   return (
     <ReadingPage>
       <PageHeader title="Method" detail={`From the release of ${releaseDay(manifest.date)}`} />
+
+      {manifest.coverage === null ? null : (
+        <PageSection title="What the record covers">
+          <CoverageStatement
+            coverage={manifest.coverage}
+            release={{ version: manifest.version, date: manifest.date }}
+          />
+        </PageSection>
+      )}
 
       <PageSection title="About this data and the labels">
         <DisclaimerText markdown={manifest.disclaimer} />

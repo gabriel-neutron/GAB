@@ -5,6 +5,7 @@
 import { useSyncExternalStore } from 'react';
 
 export interface ReleaseNote {
+  readonly version: string;
   /** The day of the release, YYYY-MM-DD. */
   readonly date: string;
   readonly reportError: string;

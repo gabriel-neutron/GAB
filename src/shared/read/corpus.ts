@@ -7,6 +7,7 @@ import { toDomain } from './map';
 import { readOnce } from './once';
 import type { Corpus } from './model';
 import { forgetReadMode, readFrom, readMode } from './read-mode';
+import { setReadAt } from './read-time';
 import { corpusFromRelease } from './release-corpus';
 import { setReleaseNote } from './release-note';
 import { forgetRelease, loadRelease } from './release-record';
@@ -49,6 +50,7 @@ async function readFromRelease(): Promise<Corpus> {
   // A load that ends after a forget must not show the footer: the service may be back.
   if (own === generation)
     setReleaseNote({
+      version: release.manifest.version,
       date: release.manifest.date,
       reportError: release.manifest.contacts.reportError,
       rightOfReply: release.manifest.contacts.rightOfReply,
@@ -56,7 +58,13 @@ async function readFromRelease(): Promise<Corpus> {
   return corpusFromRelease(release, relationTypes);
 }
 
-const memory = readOnce(() => readFrom(readFromService, readFromRelease));
+const memory = readOnce(async () => {
+  const own = generation;
+  const read = await readFrom(readFromService, readFromRelease);
+  // A read that ends after a forget is not the record on the screen.
+  if (own === generation) setReadAt(new Date());
+  return read;
+});
 
 export const loadCorpus = memory.load;
 
