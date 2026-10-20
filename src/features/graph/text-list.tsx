@@ -2,7 +2,7 @@ import type { KeyboardEvent } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 
-import type { TextView } from './text-view';
+import { plural, type TextView } from './text-view';
 
 interface TextViewListProps {
   readonly view: TextView | null;
@@ -52,9 +52,6 @@ function walk(event: KeyboardEvent<HTMLElement>): void {
   next?.focus();
 }
 
-const plural = (n: number, one: string, many: string): string =>
-  `${String(n)} ${n === 1 ? one : many}`;
-
 // The list says in words what the drawing says in lines. A reader with a keyboard or a screen
 // reader selects, walks and opens from here. The line under the title is a live region, so a
 // change of the selection is announced.
@@ -90,6 +87,7 @@ export function TextViewList({ view, onOpenEntity, onOpenRelation }: TextViewLis
                     event.currentTarget.closest('section')?.focus();
                     onOpenEntity(row.entityId);
                   }}
+                  title={row.label}
                   className={cn(BUTTON, 'max-w-64 text-foreground')}
                 >
                   {row.label}
@@ -106,7 +104,8 @@ export function TextViewList({ view, onOpenEntity, onOpenRelation }: TextViewLis
                       event.currentTarget.closest('section')?.focus();
                       onOpenRelation(row.relationId);
                     }}
-                    className={cn(BUTTON, 'max-w-64 text-muted-foreground')}
+                    title={`${row.relation} (${row.direction === 'out' ? 'outgoing' : 'incoming'})`}
+                    className={cn(BUTTON, 'shrink-0 text-muted-foreground')}
                   >
                     {`${row.relation} (${row.direction === 'out' ? 'outgoing' : 'incoming'})`}
                   </button>
