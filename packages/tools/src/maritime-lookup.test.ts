@@ -178,6 +178,7 @@ const events = {
       position: { lat: 1.5, lon: 2.5 },
     },
     { id: 'ev2', type: 'gap', start: '2026-02-01T00:00:00Z', end: null },
+    { id: 'ev4', type: 'port_visit', start: '2026-02-07T00:00:00Z', port_visit: {} },
     {
       id: 'ev3',
       type: 'port_visit',
@@ -237,6 +238,7 @@ test('vessel_events stores the events of one vessel once, and gives the plain fi
       events: [
         { id: 'ev1', type: 'loitering', lat: 1.5, lon: 2.5, end: '2026-01-03T00:00:00Z' },
         { id: 'ev2', type: 'gap', lat: null, lon: null, end: null, anchorage: null },
+        { id: 'ev4', type: 'port_visit', anchorage: null },
         {
           id: 'ev3',
           type: 'port_visit',

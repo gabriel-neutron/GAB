@@ -34,7 +34,10 @@ const searchAnswer = z.object({
         selfReportedInfo: z
           .array(z.object({ id: z.string(), ssvid: z.string().nullish() }))
           .default([]),
-        registryInfo: z.array(z.object({ imo: z.string().nullish() })).default([]),
+        registryInfo: z
+          .array(z.object({ imo: z.string().nullish() }))
+          .nullish()
+          .transform((info) => info ?? []),
       }),
     )
     .default([]),
