@@ -52,7 +52,11 @@ export function SourceCard({ source }: SourceCardProps) {
             <a
               id={addressId}
               href={source.uri}
-              aria-label={`Open the original document at ${source.uri}`}
+              aria-label={
+                addressOpen
+                  ? `Open the original document at ${source.uri}`
+                  : `${source.uriShort ?? source.uri}, open the original document`
+              }
               className={cn(LINK, addressOpen ? 'basis-full' : 'flex-1')}
             >
               {addressOpen ? source.uri : (source.uriShort ?? source.uri)}

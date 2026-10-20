@@ -113,7 +113,7 @@ export const TheRemainderIsTheControlThatOpensTheList: Story = {
   args: { list: { ...LIST, remainder: 40 } },
   play: async ({ canvas, args }) => {
     const control = canvas.getByRole('button', {
-      name: 'Show the remaining 40, most connected first',
+      name: 'Show 40 more, most connected first',
     });
     await expect(control).toBeVisible();
     await expect(control).toHaveTextContent('Show 40 more');

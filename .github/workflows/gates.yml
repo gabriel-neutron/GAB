@@ -1,7 +1,7 @@
 # The gates that nobody has to remember. Two jobs run on each pull request.
 #
-# `no-stack` reaches no service: the type check, the lint, the format check, the build and the
-# check that the generated files match the committed ones.
+# `no-stack` reaches no service: the type check, the lint, the format check, the build, the
+# accessibility check of the stories and the check that the generated files match the committed ones.
 #
 # `stack` starts the services that the suite reaches (the database, the read service of the test
 # database and the S3 store), builds the test database from zero, runs the drift check against it,
@@ -118,6 +118,14 @@ jobs:
 
       # The production build must compile.
       - run: pnpm run build
+
+      # The accessibility check: each story runs the axe rules, in the light theme and then in the
+      # dark theme. A fault fails the step. The stories need Chromium and no service.
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - run: pnpm run test:a11y
+
+      - run: pnpm run test:a11y:dark
 
       # `tsr generate` runs inside the type check and writes the route tree. `--porcelain` names
       # an untracked file as well as a changed one, so a new generated route fails here too. A

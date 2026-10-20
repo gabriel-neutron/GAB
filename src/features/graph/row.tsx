@@ -64,13 +64,13 @@ export function IndexRows({ list, onSelect, onShowWholeList, onOpen }: IndexRows
         </div>
       ))}
 
-      {/* The `aria-label` overrides the visible text. It adds the order the rows come in. */}
+      {/* The `aria-label` starts with the visible text, as WCAG 2.5.3 asks. It adds the order the rows come in. */}
       {remainder === 0 ? null : (
         <button
           type="button"
           data-remainder={remainder}
           onClick={onShowWholeList}
-          aria-label={`Show the remaining ${remainder}, most connected first`}
+          aria-label={`Show ${remainder} more, most connected first`}
           className={cn(LINE, 'hover:bg-muted')}
         >
           <span className="min-w-0 flex-1 break-words text-label">Show {remainder} more</span>

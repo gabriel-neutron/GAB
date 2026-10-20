@@ -285,11 +285,11 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
             {open ? (
               <div className="flex h-6 items-center gap-1 px-1.5">
                 {/* External constraint: `aria-controls` must name an element in the tree, so
-                    the chevron names its region only while that region exists. */}
+                    the chevron names its region only while that region is drawn: it is open and its type is on. */}
                 <button
                   type="button"
                   aria-expanded={row.open}
-                  aria-controls={row.open ? listId(row.type) : undefined}
+                  aria-controls={row.open && row.on ? listId(row.type) : undefined}
                   aria-label={
                     row.open ? `Close the ${row.label} list` : `Open the ${row.label} list`
                   }
@@ -341,7 +341,14 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                 className={cn(CONTROL, 'w-full justify-center gap-1 px-1')}
               >
                 {row.colour === null ? (
-                  <span aria-hidden="true">{row.initial}</span>
+                  // External constraint: axe counts every visible character as the label, and the
+                  // name carries the type and the count. The initial is drawn by CSS, so it is
+                  // not in the tree.
+                  <span
+                    aria-hidden="true"
+                    data-initial={row.initial}
+                    className="before:content-[attr(data-initial)]"
+                  />
                 ) : (
                   <Swatch colour={row.colour} on={row.on} />
                 )}

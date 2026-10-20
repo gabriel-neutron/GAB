@@ -14,7 +14,7 @@ const row = (over: Partial<RailTypeRow> & { readonly type: string }): RailTypeRo
   on: true,
   open: false,
   stateWord: 'on',
-  name: `${over.type}, 12 on the map`,
+  name: `${over.type}, ${String(over.count ?? 12)} on the map`,
   colour: null,
   ...over,
 });
