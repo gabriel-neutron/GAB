@@ -140,6 +140,25 @@ test('the stored document and its address hold no key, and a second read is know
   );
 });
 
+test('a call of FIRMS has a long time limit and a timeout has its own sentence', async () => {
+  const { web, session, reach } = setup();
+  await callTool(tool, session, { ...BOX, from: '2026-06-01', to: '2026-06-02' }, reach);
+  expect(web.asked.every((asked) => asked.request.timeoutMs === 60_000)).toBe(true);
+  const slow = stubWeb(
+    () => {
+      throw new DOMException('timed out', 'TimeoutError');
+    },
+    { firmsKey: KEY },
+  );
+  const outcome = await callTool(
+    tool,
+    hashDatabase(),
+    { ...BOX, from: '2026-06-01', to: '2026-06-02' },
+    { store: memoryStore(), web: slow, now: () => new Date('2026-10-05T10:00:00Z') },
+  );
+  expect(refusalOf(outcome)).toBe('NASA FIRMS: no answer came before the time limit');
+});
+
 test('a fault of FIRMS is a refusal that repeats no address and no key', async () => {
   const web = stubWeb(() => new Error(`connect failed for /csv/${KEY}/`), { firmsKey: KEY });
   const outcome = await callTool(

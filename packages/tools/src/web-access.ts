@@ -32,7 +32,9 @@ export const anyAnswerOf = async (web: Web, url: string, options: Get = {}): Pro
       timeoutMs: options.timeoutMs ?? TIMEOUT_MS,
       maxBytes: MAX_BYTES,
     });
-  } catch {
+  } catch (fault) {
+    if (fault instanceof Error && fault.name === 'TimeoutError')
+      throw new UpstreamFault('no answer came before the time limit');
     throw new UpstreamFault('no whole answer came');
   }
 };
