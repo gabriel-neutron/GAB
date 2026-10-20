@@ -10,6 +10,7 @@ const row = (over: Partial<RailTypeRow> & { readonly type: string }): RailTypeRo
   label: over.type.charAt(0).toUpperCase() + over.type.slice(1),
   initial: over.type.slice(0, 1).toUpperCase(),
   count: 12,
+  figure: String(over.count ?? 12),
   on: true,
   open: false,
   stateWord: 'on',

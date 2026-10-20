@@ -73,21 +73,21 @@ export function deriveRailRows(
     const count = filtering
       ? (matching.get(type)?.length ?? 0)
       : (shownCounts.byType.get(type)?.shown ?? 0);
-    const figure = `${String(count)} of ${String(total)}${filtering ? ' match the filter' : ''}`;
+    const spoken = `${String(count)} of ${String(total)}${filtering ? ' match the filter' : ''}`;
     return {
       type,
       label: model.labelOfType(type),
       initial: model.labelOfType(type).slice(0, 1).toUpperCase(),
       count,
-      of: total,
+      figure: `${String(count)} of ${String(total)}${filtering ? ' match' : ''}`,
       on,
       open: openTypes.includes(type),
       // The filter dims and never hides, so the row states that consequence. The word reaches a
       // reader who sees no strike and no dimming.
       stateWord: on ? 'on' : 'off, dimmed',
       name: on
-        ? `${model.labelOfType(type)}, ${figure}, on`
-        : `${model.labelOfType(type)}, ${figure}, off and dimmed`,
+        ? `${model.labelOfType(type)}, ${spoken}, on`
+        : `${model.labelOfType(type)}, ${spoken}, off and dimmed`,
       // **The swatch is the words of the hue.** The canvas paints a node by its type, and a hue
       // alone is hidden from a reader who cannot see it, so the one place that names every type
       // carries the colour beside the name.

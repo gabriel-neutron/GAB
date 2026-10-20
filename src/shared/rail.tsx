@@ -28,9 +28,9 @@ export interface RailTypeRow {
   /** Departure: the folded strip fits no word, so it draws this letter where no colour is. */
   readonly initial: string;
   readonly count: number;
-  // Departure: where the surface hides or dims a part of the type, the figure is a part of this
-  // whole. The map sends none and its figure stays alone.
-  readonly of?: number;
+  // Departure: the wide row shows these words, and the strip shows the count alone. The caller
+  // states whether the count is a part of a whole, so the words say what the figure means.
+  readonly figure: string;
   readonly on: boolean;
   readonly open: boolean;
   // Departure: the map hides a layer and the graph dims one, and a struck-out eye claims the
@@ -318,9 +318,7 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                   </span>
                   {/* Departure: the count carries on the graph the weight a hue carries on the
                       map. */}
-                  <span className={cn(FIGURE, 'text-muted-foreground')}>
-                    {row.of === undefined ? row.count : `${String(row.count)} of ${String(row.of)}`}
-                  </span>
+                  <span className={cn(FIGURE, 'text-muted-foreground')}>{row.figure}</span>
                   {/* Departure: one icon cannot say "hidden" on the map and "dimmed" on the
                       graph, so the glyph is hidden and these words carry the state. */}
                   <span className="sr-only">{row.stateWord}</span>

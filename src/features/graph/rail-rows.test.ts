@@ -161,7 +161,7 @@ describe('the counter of each type in the graph rail', () => {
     const row = rowsUnder('', []).rail.types.find((one) => one.type === first.type);
 
     expect(row?.count).toBe(totalOf(first.type));
-    expect(row?.of).toBe(totalOf(first.type));
+    expect(row?.figure).toBe(`${String(totalOf(first.type))} of ${String(totalOf(first.type))}`);
   });
 
   it('follows the nodes the drawing shows, so a type switched off counts none', () => {
@@ -181,7 +181,7 @@ describe('the counter of each type in the graph rail', () => {
     const row = rows.rail.types.find((one) => one.type === first.type);
 
     expect(row?.count).toBe(0);
-    expect(row?.of).toBe(totalOf(first.type));
+    expect(row?.figure).toBe(`0 of ${String(totalOf(first.type))}`);
     expect(row?.name).toContain(`0 of ${String(totalOf(first.type))}`);
   });
 
@@ -196,7 +196,7 @@ describe('the counter of each type in the graph rail', () => {
           entity.label.toLowerCase().includes(first.label.toLowerCase()),
       ).length,
     );
-    expect(row?.of).toBe(totalOf(first.type));
+    expect(row?.figure).toMatch(new RegExp(`of ${String(totalOf(first.type))} match$`, 'u'));
     expect(row?.name).toContain('match');
   });
 });
