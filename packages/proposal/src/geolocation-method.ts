@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 // The method of geolocation says how a source found the place of an entity. The list is closed:
-// the database holds the same words in a CHECK (migration 0084), and a new word is a new migration,
-// as for the type of a document. `not_stated` is a true value: no source of the place says how it
+// the database holds the same words in a CHECK, and a new word is a new migration, as for the
+// type of a document. `not_stated` is a true value: no source of the place says how it
 // was found. The words of the list are the keys that a file of the release carries.
 
 export const GEOLOCATION_METHODS = [

@@ -1770,7 +1770,9 @@ BEGIN
   SELECT e.attrs INTO v_attrs FROM public.entities e WHERE e.id = v_target;
 
   INSERT INTO public.entities
-  SELECT * FROM jsonb_populate_record(NULL::public.entities, v_copy->'entity');
+  -- A copy made before the method existed has no such key, and the record function gives NULL.
+  SELECT * FROM jsonb_populate_record(NULL::public.entities,
+    jsonb_build_object('geom_method', 'not_stated') || (v_copy->'entity'));
   IF jsonb_typeof(v_copy->'layout') = 'object' THEN
     INSERT INTO public.entity_layout
     SELECT * FROM jsonb_populate_record(NULL::public.entity_layout, v_copy->'layout');

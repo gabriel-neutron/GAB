@@ -17,8 +17,8 @@ export interface PlaceSource {
 const IMAGERY_PROVIDERS = new Set(['copernicus_sentinel', 'eox_s2cloudless_2016']);
 
 // External constraint: the hosts and the titles of the datasets, as they stand on 20 October 2026.
-const COORDINATE_DATASET =
-  /globalenergymonitor\.org|\bglobal energy monitor\b|\bun\/locode\b|\bunlocode\b/iu;
+const COORDINATE_HOST = /(?:^|\.)(?:globalenergymonitor\.org|unece\.org)$/u;
+const COORDINATE_TITLE = /^(?:global energy monitor\b|un\/locode\b)/iu;
 const YANDEX_CARD = /\byandex\b[^\n]*\b(?:satellite|coord)/iu;
 
 /** The method that one document states, or null when no rule knows the document. */
@@ -34,7 +34,8 @@ export const methodOfSource = (source: PlaceSource): GeolocationMethod | null =>
     return 'osm_object';
   if (source.provider !== null && IMAGERY_PROVIDERS.has(source.provider)) return 'satellite_match';
   if (YANDEX_CARD.test(words)) return 'satellite_match';
-  if (COORDINATE_DATASET.test(words)) return 'source_coordinates';
+  if ((host !== null && COORDINATE_HOST.test(host)) || COORDINATE_TITLE.test(source.title))
+    return 'source_coordinates';
   return null;
 };
 
