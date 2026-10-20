@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { readSiteRelease } from './site-release.ts';
+import { pairRating, readSiteRelease } from './site-release.ts';
 import { SiteReleaseFault } from './site-release-fault.ts';
 
 const VESSEL = '0a1f0000-0000-4000-8000-000000000001';
@@ -48,6 +48,15 @@ test('an entity identifier with a slash refuses the release', () => {
 
 test('two claim keys that differ only by case refuse the release', () => {
   expect(() => changed(`${VESSEL}/flag`, `${VESSEL}/IMO`)).toThrow(/case/u);
+});
+
+test('a page shows the pair, "not rated", or nothing when the release hides the pair', () => {
+  const manifest = { showNatoPair: true } as Parameters<typeof pairRating>[0];
+  const hidden = { showNatoPair: false } as Parameters<typeof pairRating>[0];
+  const pair = { letter: 'B', digit: '2' };
+  expect(pairRating(manifest, { pair })).toEqual({ shown: true, pair });
+  expect(pairRating(manifest, { pair: null })).toEqual({ shown: true, pair: null });
+  expect(pairRating(hidden, { pair })).toEqual({ shown: false });
 });
 
 test('the site reads the method of geolocation of an entity with a place', () => {

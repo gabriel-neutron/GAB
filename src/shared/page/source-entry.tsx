@@ -46,7 +46,7 @@ function SourceAddress({ address }: { readonly address: string | null }) {
 }
 
 /** One public document that a page cites: its title, its address, the day it was read and, for
- * one claim, the passages that hold the claim. The pair is the rating of the claim, never of the document (S1). */
+ * one claim, the passages that hold the claim. The pair is the rating of the claim, never of the document. */
 export function SourceEntry({ source, rating }: SourceEntryProps) {
   const titleId = useId();
   return (
@@ -64,7 +64,7 @@ export function SourceEntry({ source, rating }: SourceEntryProps) {
             { key: 'Read on', value: source.readOn, figure: true },
             { key: 'Document', value: source.documentId, figure: true },
             ...(rating?.shown === true
-              ? [{ key: 'Rating of the claim', value: <NatoPairMark rating={rating} /> }]
+              ? [{ key: 'Pair of the claim', value: <NatoPairMark rating={rating} /> }]
               : []),
           ]}
         />

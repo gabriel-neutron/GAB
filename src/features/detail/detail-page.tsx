@@ -165,6 +165,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
   );
 
   const facts = dossier.facts;
+  const pairShown = facts?.claims.some((line) => line.rating.shown) ?? false;
   // A row links its claim page only where the release holds that claim.
   const claimed = new Set(facts?.claimIds ?? []);
   const claimOf = (id: string): string | null => (claimed.has(id) ? claimHref(id) : null);
@@ -332,7 +333,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
 
       {facts === null || facts.claims.length === 0 ? null : (
         <PageSection title="Claims of the release">
-          <AdmiraltyLegend shown={facts.claims.some((line) => line.rating.shown)} />
+          <AdmiraltyLegend shown={pairShown} />
           <DataTable
             name="Claims of the release"
             empty="The release holds no claim about this entity."
@@ -348,7 +349,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
               },
               { key: 'label', header: 'Label', cell: (line) => line.origin },
               { key: 'licence', header: 'Licence', cell: (line) => line.licence },
-              ...(facts.claims.some((line) => line.rating.shown)
+              ...(pairShown
                 ? [
                     {
                       key: 'rating',

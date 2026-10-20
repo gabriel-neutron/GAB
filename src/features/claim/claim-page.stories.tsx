@@ -76,6 +76,13 @@ export const WithThePairOnTheClaimShowsItsPair: Story = {
   },
 };
 
+export const AReleaseThatHidesThePairShowsNoRatingAndNoLegend: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByText('Rating')).toBeNull();
+    await expect(canvas.queryByText(/rates the author of the source/u)).toBeNull();
+  },
+};
+
 export const AnUnknownClaimShowsNotFound: Story = {
   args: { claimId: 'no-such-claim' },
   play: async ({ canvas }) => {

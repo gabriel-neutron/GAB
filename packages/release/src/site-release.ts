@@ -119,7 +119,6 @@ export interface SiteVolume {
   readonly note: string;
 }
 
-/** What the site shows of one release, read from its files. */
 /** The rating that a page shows for `claim`. */
 export function pairRating(
   manifest: SiteManifest,
@@ -128,6 +127,7 @@ export function pairRating(
   return manifest.showNatoPair ? { shown: true, pair: claim.pair } : { shown: false };
 }
 
+/** What the site shows of one release, read from its files. */
 export interface SiteRelease {
   readonly manifest: SiteManifest;
   readonly entities: readonly SiteEntity[];
