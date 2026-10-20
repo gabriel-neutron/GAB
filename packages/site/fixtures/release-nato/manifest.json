@@ -78,6 +78,69 @@
       "absence": "An absence means \"not yet in the record\". It does not mean \"not true\"."
     }
   },
+  "natoCoverage": {
+    "all": {
+      "claims": 20,
+      "paired": 3
+    },
+    "byType": [
+      {
+        "group": "entity company",
+        "claims": 1,
+        "paired": 0
+      },
+      {
+        "group": "entity vessel",
+        "claims": 5,
+        "paired": 1
+      },
+      {
+        "group": "relation crude_flows_to",
+        "claims": 1,
+        "paired": 0
+      },
+      {
+        "group": "relation designated_by",
+        "claims": 1,
+        "paired": 1
+      },
+      {
+        "group": "relation discharges_at",
+        "claims": 1,
+        "paired": 0
+      },
+      {
+        "group": "relation flagged_falsely",
+        "claims": 3,
+        "paired": 0
+      },
+      {
+        "group": "relation flags",
+        "claims": 1,
+        "paired": 0
+      },
+      {
+        "group": "relation insures",
+        "claims": 1,
+        "paired": 0
+      },
+      {
+        "group": "relation loads_at",
+        "claims": 2,
+        "paired": 0
+      },
+      {
+        "group": "relation operates",
+        "claims": 1,
+        "paired": 0
+      },
+      {
+        "group": "relation owns",
+        "claims": 3,
+        "paired": 1
+      }
+    ]
+  },
   "files": [
     {
       "path": "entities.csv",
@@ -91,8 +154,8 @@
     },
     {
       "path": "claims.csv",
-      "bytes": 9607,
-      "sha256": "e92007744c27e6bd4025db77c80130a2aa9580a90cb43e077613eaa9b65d4d32"
+      "bytes": 9913,
+      "sha256": "eabb9e52b5f48ee8a7a2d6ed111a90f44d63e20f426086c61f8c22d4318b1b27"
     },
     {
       "path": "merges.csv",
@@ -125,14 +188,19 @@
       "sha256": "dd770c8247408b937e7a33e9be48acf8e7463443081bea786cf1176d5416eec1"
     },
     {
+      "path": "release-notes.md",
+      "bytes": 1682,
+      "sha256": "07cef0f57ffc36c773dce11c75a208eddd62cc49c28fc4fb07dafdfb663629c5"
+    },
+    {
       "path": "entities.geojson",
-      "bytes": 2325,
-      "sha256": "0a6256dff9a796498d4bd156d9018b6c3c02920e3f3366883017d773cac2768e"
+      "bytes": 2754,
+      "sha256": "5a984736a26baa1dd913d585c4f2b2b22d7dd268d41ae652744a51190a29c6d2"
     },
     {
       "path": "dataset.jsonld",
-      "bytes": 26034,
-      "sha256": "565b77783fa3063a339edc967bc89879dbc59dd17f9a3f6bcf146fbd9aceeab8"
+      "bytes": 26741,
+      "sha256": "b8c9e029378ff12cbec0bbff338efa5213773773057c4fcf89ae41f454f5645b"
     },
     {
       "path": "changelog.csv",

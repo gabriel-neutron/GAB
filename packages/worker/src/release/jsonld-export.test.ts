@@ -404,7 +404,9 @@ test('with the NATO pair on, a claim gives its letter and its digit, and the ter
   expect(claimOf(`claim/${SHIP}/flag`)).toMatchObject({ natoLetter: 'B', natoDigit: 1 });
   expect(claimOf(`claim/${SHIP}/speed_knots`)).not.toHaveProperty('natoLetter');
   expect(claimOf(`claim/${SHIP}/speed_knots`)).not.toHaveProperty('natoDigit');
-  for (const key of ['natoLetter', 'natoDigit']) {
+  expect(claimOf(`claim/${SHIP}/speed_knots`)).toMatchObject({ natoRating: 'not rated' });
+  expect(claimOf(`claim/${SHIP}/flag`)).not.toHaveProperty('natoRating');
+  for (const key of ['natoLetter', 'natoDigit', 'natoRating']) {
     const iri = iriOf(context[key]);
     expect(iri).toBe(`gab:${key}`);
     const defined = graph.find((one) => one['@id'] === iri);

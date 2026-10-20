@@ -31,3 +31,21 @@ export const coverageOf = (entityTypes: readonly string[], sources: number): Cov
     .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type));
   return { entities: entityTypes.length, byType, sources, scope: SCOPE };
 };
+
+const share = z.object({
+  claims: z.number().int().nonnegative(),
+  paired: z.number().int().nonnegative(),
+});
+
+/** The number of public claims, and the number of them with a full NATO pair. */
+export type NatoShare = z.output<typeof share>;
+
+/** The share of the public claims with a full NATO pair: in all, and for each entity type and
+ * relation type (the group reads "entity vessel" or "relation owns"). A release that does not show
+ * the pair has no such statement. A release before the statement has no member. */
+export const natoCoverageShape = z.object({
+  all: share,
+  byType: z.array(share.extend({ group: z.string() })),
+});
+
+export type NatoCoverage = z.output<typeof natoCoverageShape>;

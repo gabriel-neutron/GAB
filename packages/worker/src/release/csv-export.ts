@@ -3,6 +3,7 @@ import { shareWords } from '@gab/proposal/share';
 
 import { csvFile } from './csv-file.ts';
 import { ENTITY_COLUMNS, entityColumns } from './entity-columns.ts';
+import { NOT_RATED } from './nato-pair.ts';
 import { releaseLookup } from './release-lookup.ts';
 import type { ReleaseClaim, ReleaseRecord } from './release-record.ts';
 
@@ -166,7 +167,7 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
   const natoFields = (claim: ReleaseClaim): string[] => {
     if (natoPairs === null) return [];
     const pair = natoPairs.get(claim.claim_id);
-    return pair === undefined ? ['', ''] : [pair.letter, String(pair.digit)];
+    return pair === undefined ? [NOT_RATED, NOT_RATED] : [pair.letter, String(pair.digit)];
   };
 
   const claimRows = (claim: ReleaseClaim): string[][] => {

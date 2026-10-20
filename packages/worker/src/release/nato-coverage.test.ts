@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { natoCoverageLines } from './nato-coverage.ts';
+import { natoCoverageLines, natoCoverageOf } from './nato-coverage.ts';
 import type { ReleaseClaim, ReleaseRecord } from './release-record.ts';
 
 const SHIP = '00000000-0000-4000-8000-000000000001';
@@ -87,4 +87,15 @@ test('a release with no claim has a coverage of zero, and no group', () => {
   expect(natoCoverageLines({ ...RECORD, claims: [] }, new Map()).slice(1)).toStrictEqual([
     'all\t0\t0\t0.0%',
   ]);
+});
+
+test('the coverage as data gives the whole set and each type', () => {
+  expect(natoCoverageOf(RECORD, new Map([[OWNS, PAIR]]))).toStrictEqual({
+    all: { claims: 5, paired: 1 },
+    byType: [
+      { group: 'entity company', claims: 1, paired: 0 },
+      { group: 'entity vessel', claims: 2, paired: 0 },
+      { group: 'relation owns', claims: 2, paired: 1 },
+    ],
+  });
 });

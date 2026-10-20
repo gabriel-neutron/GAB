@@ -3,6 +3,7 @@ import { relationWords } from '@gab/proposal/relation-types';
 import type { ReleaseFile } from './csv-export.ts';
 import type { RowLicence } from './licence.ts';
 import type { ReleaseHeading } from './release-heading.ts';
+import { NOT_RATED } from './nato-pair.ts';
 import { releaseLookup } from './release-lookup.ts';
 import type { ReleaseClaim, ReleaseRecord } from './release-record.ts';
 
@@ -60,6 +61,7 @@ const contextOf = (base: string) => ({
 });
 
 const NATO_CONTEXT = {
+  natoRating: 'gab:natoRating',
   natoLetter: 'gab:natoLetter',
   natoDigit: { '@id': 'gab:natoDigit', '@type': 'xsd:integer' },
 };
@@ -165,6 +167,12 @@ const VOCABULARY_TERMS = [
 
 const NATO_TERMS = [
   term(
+    'natoRating',
+    'Property',
+    'NATO rating',
+    'The text "not rated", on a claim that has no full NATO pair: no digit, or no known author for its fact. A claim with a full pair has a letter and a digit and no such text.',
+  ),
+  term(
     'natoLetter',
     'Property',
     'NATO letter',
@@ -197,7 +205,7 @@ const present = (fields: Record<string, unknown>): Record<string, unknown> =>
  * cited document, each absorbed entity with the entity that replaces it, and the definition of
  * each term of the vocabulary of a release. Each row keeps its origin label, its licence and its
  * sources, and each claim its passages. When the release shows the NATO pair, each claim that has
- * one also gives its letter and its digit. The identifiers are paths under `base`. */
+ * one also gives its letter and its digit, and each other claim is "not rated". The identifiers are paths under `base`. */
 export const jsonldExport = (
   record: ReleaseRecord,
   heading: ReleaseHeading,
@@ -206,8 +214,11 @@ export const jsonldExport = (
   const { documentOf, entityOf, licenceOf, relationOf, daysOf } = releaseLookup(record);
   const { natoPairs } = record;
   const nato = (one: ReleaseClaim) => {
-    const pair = natoPairs?.get(one.claim_id);
-    return pair === undefined ? {} : { natoLetter: pair.letter, natoDigit: pair.digit };
+    if (natoPairs === null) return {};
+    const pair = natoPairs.get(one.claim_id);
+    return pair === undefined
+      ? { natoRating: NOT_RATED }
+      : { natoLetter: pair.letter, natoDigit: pair.digit };
   };
   const entityId = (id: string): string => path('entity', entityOf(id).id);
   const relationId = (id: string): string => path('relation', relationOf(id).id);
