@@ -255,6 +255,7 @@ test('vessel_events stores the events of one vessel once, and gives the plain fi
   expect(web.asked[0]?.url.searchParams.get('start-date')).toBe('2026-01-01');
   const second = await callTool(tool, session, { vesselId: VESSEL, ...RANGE }, reach);
   expect(second).toMatchObject({ ok: true, output: { status: 'known' } });
+  expect(JSON.stringify(first)).not.toContain('"near"');
   expect(store.puts).toHaveLength(1);
 });
 

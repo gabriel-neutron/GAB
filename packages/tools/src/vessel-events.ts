@@ -113,10 +113,11 @@ const kmBetween = (a: { lat: number; lon: number }, b: { lat: number; lon: numbe
   return 2 * EARTH_KM * Math.asin(Math.sqrt(h));
 };
 
-// The export terminals and LNG plants of the record that hold a point.
+// The export terminals and LNG plants of the record that hold a place. The centroid serves a place
+// that is a line or an area.
 const sitesOf = async (session: Session) => {
   const { rows } = await session.query(
-    `SELECT id, label, st_y(geom) AS lat, st_x(geom) AS lon FROM entities
+    `SELECT id, label, st_y(st_centroid(geom)) AS lat, st_x(st_centroid(geom)) AS lon FROM entities
       WHERE geom IS NOT NULL AND attrs -> 'asset_kind' ->> 'v' IN ('export_terminal', 'lng_plant')`,
     [],
   );
@@ -215,7 +216,8 @@ export const vesselEvents = defineTool({
     'a lead, and the output says so. A port visit gives its anchorage, which may be the port ' +
     'near a terminal and not the terminal. With nearKm, the answer keeps only the events within ' +
     'that distance of an export terminal or an LNG plant of the record, and names the nearest ' +
-    'one: a short answer for a run over many vessels.',
+    'one: a short answer for a run over many vessels. The filter works on one page, so a page ' +
+    'can hold no event while nextOffset is set: keep reading until nextOffset is null.',
   input: z
     .strictObject({
       vesselId: z
@@ -277,9 +279,12 @@ export const vesselEvents = defineTool({
     const sites = input.nearKm === undefined ? [] : await sitesOf(session);
     const nearestOf = (point: { lat: number; lon: number } | null) => {
       if (point === null) return null;
-      const [nearest] = sites
+      const nearest = sites
         .map((site) => ({ id: site.id, name: site.label, km: kmBetween(point, site) }))
-        .sort((a, b) => a.km - b.km);
+        .reduce<{ id: string; name: string; km: number } | undefined>(
+          (best, site) => (best === undefined || site.km < best.km ? site : best),
+          undefined,
+        );
       return nearest === undefined ? null : { ...nearest, km: Math.round(nearest.km * 100) / 100 };
     };
     const events = entries.map((event) => {
