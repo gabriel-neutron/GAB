@@ -84,6 +84,13 @@ export const RESEARCH_TOOLS = {
     idempotentHint: true,
     openWorldHint: true,
   },
+  // The same scene and box give the same image, which is stored once.
+  sentinel2_pairs: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
   // The same act is stored once, so a second read writes nothing.
   eu_act: {
     readOnlyHint: false,
