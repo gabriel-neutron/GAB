@@ -123,6 +123,7 @@ const pageOf = (corpus: Corpus, id: string, types: TypeVocabulary) => {
     decision: dossier.decision,
     affiliation: dossier.affiliation,
     sourceDay: dossier.sourceDay,
+    identity: dossier.identity,
     rows: dossier.rows,
     relations: dossier.relations,
     sources: dossier.sources.map((card) => ({ ...card, extractable: false })),

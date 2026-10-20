@@ -11,6 +11,7 @@ import { recordCells } from './draft';
 import { EntityRecord } from './record';
 import { Relations } from './relations';
 import { UnitOrigin } from './unit-origin';
+import { VesselIds } from './vessel-ids';
 
 export interface SidebarProps {
   readonly dossier: Dossier;
@@ -62,6 +63,8 @@ export function Sidebar({ dossier, onSelectRelation, showOn }: SidebarProps) {
           </a>
         </div>
       </div>
+
+      {dossier.identity === null ? null : <VesselIds identity={dossier.identity} />}
 
       {/* On its own lines, and not beside the type: this pane is 24 rem, and a third word in that
           row truncates the name. The canvas beside it draws the halo, and these words are what

@@ -20,6 +20,7 @@ import { relationWording, type RelationWords } from '@/shared/relation-words';
 
 import { labelOf, readClaims, type ClaimRow } from './claims';
 import type { ReleaseFacts } from './release-facts';
+import { vesselIdentity, type VesselIdentity } from './vessel-identity';
 
 /** One cited document, at the position it was first met. The badge is a number. */
 export interface SourceRef {
@@ -143,6 +144,8 @@ export interface Dossier {
   readonly affiliation: string | null;
   /** The newest day on which a source of the claims of this entity was read, or null. */
   readonly sourceDay: string | null;
+  /** The flag, the MMSI and the call sign, or null for an entity that is no vessel. */
+  readonly identity: VesselIdentity | null;
   /** Who promoted the entity into the record, how and on which day. Null when the read of
    * the decided acts does not hold its promotion. */
   readonly decision: string | null;
@@ -630,6 +633,26 @@ export function readDossier(
   // this file reads the answer and repeats no rule of it.
   const at = read.positions.find((row) => row.entityId === entity.id);
   const borrowed = at?.parentId ?? null;
+  // The flag state of the newest `flags` relation of a vessel with no end date. A relation with no
+  // start date ranks last, and a flag state that the list lacks is skipped.
+  const openFlagOf = (read: Corpus, vesselId: string): string | null => {
+    const open = read.relations
+      .filter(
+        (one) =>
+          one.type === 'flags' &&
+          one.dstKind === 'entity' &&
+          one.dstId === vesselId &&
+          one.srcKind === 'entity' &&
+          one.validTo === null,
+      )
+      .flatMap((one) => {
+        const state = read.entities.find((row) => row.id === one.srcId);
+        return state === undefined ? [] : [{ label: state.label, from: one.validFrom ?? '' }];
+      })
+      .sort((one, other) => other.from.localeCompare(one.from));
+    return open[0]?.label ?? null;
+  };
+
   // Departure: the map and the entity list are two reads, so the parent can be absent from the
   // list. The point is still borrowed, so the words stand and only the name falls back.
   const positionFrom =
@@ -649,6 +672,7 @@ export function readDossier(
     positionChain: borrowed === null ? [] : parentChain(read, entity.id, borrowed),
     affiliation: typeof affiliation === 'string' ? affiliation : null,
     sourceDay: newestDay(read.documents.filter((one) => claimDocuments.has(one.id))),
+    identity: vesselIdentity(entity.type, entity.attrs, openFlagOf(read, entity.id)),
     decision: decisionOf(entity.promotedFrom, decided),
     rows,
     entitySources,
