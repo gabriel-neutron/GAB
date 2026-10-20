@@ -7,7 +7,13 @@ import { GlobePage } from './globe-page';
 // and no story mounts one. Each panel of the page has its own story.
 const meta = {
   component: GlobePage,
-  args: { data: null, entity: '', entityHref: (id: string) => `/entity/${id}`, onSelect: fn() },
+  args: {
+    data: null,
+    entity: '',
+    entityHref: (id: string) => `/entity/${id}`,
+    onSelect: fn(),
+    onCloseFirstVisit: null,
+  },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
     <div className="h-svh">
