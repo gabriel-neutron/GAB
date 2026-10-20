@@ -32,6 +32,8 @@ const MANIFEST = {
 
 let root = '';
 let fromFiles: Corpus;
+// The documents that the claims of each entity cite in the release, all claims included.
+let citedByEntity: Map<string, Set<string>>;
 let fromService: Corpus;
 
 beforeAll(async () => {
@@ -47,7 +49,15 @@ beforeAll(async () => {
   const files = new Map<string, string>();
   for (const name of await readdir(folder))
     files.set(name, await readFile(join(folder, name), 'utf8'));
-  fromFiles = corpusFromRelease(readSiteRelease(files), await loadRelationTypes());
+  const released = readSiteRelease(files);
+  fromFiles = corpusFromRelease(released, await loadRelationTypes());
+  citedByEntity = new Map();
+  for (const claim of released.claims) {
+    if (claim.kind !== 'attribute' || claim.subjectKind !== 'entity') continue;
+    const into = citedByEntity.get(claim.subjectId) ?? new Set<string>();
+    for (const source of claim.sources) into.add(source.documentId);
+    citedByEntity.set(claim.subjectId, into);
+  }
   fromService = await loadCorpus();
 }, 60_000);
 
@@ -70,22 +80,22 @@ const withinRelease = (service: Corpus, files: Corpus): Corpus => {
     ...service,
     entities: service.entities.flatMap((one) => {
       const held = entities.get(one.id);
-      return held === undefined
-        ? []
-        : [
-            {
-              ...one,
-              attrs: Object.fromEntries(
-                Object.entries(one.attrs)
-                  .filter(([key]) => key in held.attrs)
-                  .map(([key, value]) => [
-                    key,
-                    { ...value, src: value.src.filter((id) => held.attrs[key]?.src.includes(id)) },
-                  ]),
-              ),
-              sources: one.sources.filter((id) => held.sources.includes(id)),
-            },
-          ];
+      if (held === undefined) return [];
+      const attrs = Object.fromEntries(
+        Object.entries(one.attrs)
+          .filter(([key]) => key in held.attrs)
+          .map(([key, value]) => [
+            key,
+            { ...value, src: value.src.filter((id) => held.attrs[key]?.src.includes(id)) },
+          ]),
+      );
+      // Departure: a release holds no source list for the row of an entity. It gives only the
+      // documents of the claims. A source that the service holds for the row alone is a known
+      // difference by design of the release, so it is cut here. The service value stays in the
+      // comparison for each document that a claim of the release cites, including a claim that a
+      // later claim of the same attribute overwrites.
+      const cited = citedByEntity.get(one.id) ?? new Set<string>();
+      return [{ ...one, attrs, sources: one.sources.filter((id) => cited.has(id)) }];
     }),
     relations: service.relations.flatMap((one) => {
       const held = relations.get(one.id);
