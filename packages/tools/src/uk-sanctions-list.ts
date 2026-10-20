@@ -3,12 +3,13 @@ import { createHash } from 'node:crypto';
 import { extractText } from '@gab/text';
 import { z } from 'zod';
 
+import { rowsOf } from './fields.ts';
 import { FetchRefusal, guardedGet } from './fetch-guard.ts';
 import { CsvFault } from './csv.ts';
 import { csvRows, type CsvRow } from './csv-rows.ts';
 import { clippedExcerpt, dayOf } from './official-list.ts';
 import { storeAnswer } from './store-answer.ts';
-import { defineTool, ToolRefusal } from './tool.ts';
+import { defineTool, ToolRefusal, type Session } from './tool.ts';
 
 // External constraint: the FCDO publishes the UK Sanctions List as one CSV file at this address,
 // and serves it as application/octet-stream. So the tool knows the file by its first line and its
@@ -50,6 +51,8 @@ const outputShape = z.strictObject({
   sha256: z.string(),
   publishedAt: z.string().nullable(),
   retrievedAt: z.string(),
+  // Set when the FCDO refused the read and the answer comes from the stored file.
+  liveFault: z.string().nullable(),
   entry: z
     .strictObject({
       uniqueId: z.string(),
@@ -59,6 +62,24 @@ const outputShape = z.strictObject({
     })
     .nullable(),
 });
+
+const NEWEST = `SELECT d.id::text AS id, d.title, d.uri, d.sha256, d.retrieved_at::text AS retrieved_at
+    FROM public.documents d WHERE d.provider_id = 'uk_sanctions_list'
+   ORDER BY d.retrieved_at DESC NULLS LAST, d.id DESC LIMIT 1`;
+
+const NEWEST_PAGES = `SELECT t.text FROM public.document_text t
+   WHERE t.document_id = $1::text AND t.extractor = public.newest_text_extractor($1::text)
+   ORDER BY t.page`;
+
+const newestRow = z.strictObject({
+  id: z.string(),
+  title: z.string(),
+  uri: z.string().nullable(),
+  sha256: z.string().nullable(),
+  retrieved_at: z.string().nullable(),
+});
+
+const pageRow = z.strictObject({ text: z.string() });
 
 const firstLineOf = (page: string): string => {
   const end = page.indexOf('\n');
@@ -150,6 +171,14 @@ export const entryOf = (
   }
 };
 
+/** The newest stored file of the UK list, read page by page, or null when none is stored. */
+const storedList = async (session: Session) => {
+  const [row] = await rowsOf(session, newestRow, NEWEST, []);
+  if (row === undefined) return null;
+  const pages = (await rowsOf(session, pageRow, NEWEST_PAGES, [row.id])).map((page) => page.text);
+  return pages.length === 0 ? null : { row, pages };
+};
+
 /** The tool on one address of the file. A test gives the address of a local server. */
 export const ukSanctionsListAt = (address: string) =>
   defineTool({
@@ -162,7 +191,8 @@ export const ukSanctionsListAt = (address: string) =>
       'identifiers, from the date of designation to the end of the line, with the IMO number of ' +
       'a ship. Cite them on the page that the entry gives (page 1 for a short file, a later page for a long one). It refuses an identifier that the file does ' +
       'not hold. Cite the entry in this file by its Unique ID. The tool never ' +
-      'stores one entry alone. Use sanctions_match to find a lead by name.',
+      'stores one entry alone. When the FCDO refuses the read, the tool reads the newest stored file ' +
+      'and says why in liveFault. Use sanctions_match to find a lead by name.',
     input: z.strictObject({
       uniqueId: z
         .string()
@@ -185,9 +215,33 @@ export const ukSanctionsListAt = (address: string) =>
           ...(reach.refuses === undefined ? {} : { refuses: reach.refuses }),
         });
       } catch (fault) {
-        if (fault instanceof FetchRefusal)
-          throw new ToolRefusal(`the FCDO gave no UK Sanctions List: ${fault.message}`);
-        throw fault;
+        if (!(fault instanceof FetchRefusal)) throw fault;
+        const liveFault = `the FCDO gave no UK Sanctions List: ${fault.message}`;
+        // A refused read must not hide a file that the record holds already.
+        const stored = await storedList(session);
+        if (stored === null) throw new ToolRefusal(liveFault);
+        const { row, pages } = stored;
+        const entry = entryOf(pages, input.uniqueId, row.id);
+        const publishedAt = reportDay(pages[0] ?? '');
+        if (input.uniqueId !== undefined && entry === null)
+          throw new ToolRefusal(
+            `${liveFault}; the stored UK Sanctions List of ${publishedAt ?? 'an unknown date'} ` +
+              `(document ${row.id}) holds no entry ${input.uniqueId}`,
+          );
+        return {
+          document: row.id,
+          status: 'known' as const,
+          title: row.title,
+          url: row.uri ?? address,
+          sha256: row.sha256 ?? '',
+          publishedAt,
+          retrievedAt: row.retrieved_at ?? reach.now().toISOString().slice(0, 10),
+          liveFault,
+          entry:
+            input.uniqueId === undefined || entry === null
+              ? null
+              : { uniqueId: input.uniqueId, ...entry },
+        };
       }
       const mime = 'text/csv';
       const { pages } = await extractText(got.bytes, mime);
@@ -235,6 +289,7 @@ export const ukSanctionsListAt = (address: string) =>
         sha256: createHash('sha256').update(got.bytes).digest('hex'),
         publishedAt,
         retrievedAt: stored.retrieved_at ?? day,
+        liveFault: null,
         entry:
           input.uniqueId === undefined || entry === null
             ? null

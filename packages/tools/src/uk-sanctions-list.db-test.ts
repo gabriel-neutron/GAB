@@ -205,6 +205,35 @@ test('a refusal of the server names its HTTP status, and nothing is stored', asy
   expect(store.puts).toStrictEqual([]);
 });
 
+test('a refused read falls back to the stored file, says so, and reads the entry from its pages', async () => {
+  const store = memoryStore();
+  const read = await rolledBack('research', async (ask) => {
+    const first = await callTool(
+      ukSanctionsListAt(at('/docs/UK-Sanctions-List.csv')),
+      sessionOf(ask),
+      {},
+      fixtureReach(store),
+    );
+    const second = await callTool(
+      ukSanctionsListAt(at('/refused.csv')),
+      sessionOf(ask),
+      { uniqueId: 'RUS2928' },
+      fixtureReach(store),
+    );
+    if (!first.ok || !second.ok) throw new Error('the tool refused');
+    return { first: answer.parse(first.output), second: second.output };
+  });
+  expect(read.second).toMatchObject({
+    document: read.first.document,
+    status: 'known',
+    publishedAt: '2026-10-07',
+    sha256: read.first.sha256,
+    liveFault:
+      'the FCDO gave no UK Sanctions List: the server answered 405, and only a success is kept',
+    entry: { uniqueId: 'RUS2928', page: 1 },
+  });
+});
+
 test('a file with no valid report date takes the day of its Last-Modified date', async () => {
   const read = await rolledBack('research', async (ask) =>
     callTool(
