@@ -3,6 +3,7 @@ import { expect, test } from 'vitest';
 import {
   isLinkTable,
   mappingDraft,
+  splitFaults,
   mappingPayload,
   missingColumns,
   vocabularyFaults,
@@ -338,4 +339,23 @@ test('a relation that finds the other end by a name is refused', () => {
     relations: [{ type: 'operates', row_is: 'dst', other: { key: 'label', column: 'Owner' } }],
   };
   expect(mappingDraft.safeParse(byName).success).toBe(false);
+});
+
+test('a split of a column with no GEM identifier is a fault', () => {
+  const draft = {
+    ...DRAFT,
+    relations: [
+      {
+        type: 'owns',
+        row_is: 'dst' as const,
+        other: { key: 'gem_entity_id', column: 'Owner' },
+        other_type: 'company',
+        split: { separator: ';' },
+      },
+    ],
+  };
+  const header = ['Name', 'IMO', 'Length', 'Owner'];
+  expect(splitFaults(draft, header, [['a', '1', '2', 'Gazprom [100%]']])).toHaveLength(1);
+  expect(splitFaults(draft, header, [['a', '1', '2', 'E100000123456 [100%]']])).toEqual([]);
+  expect(splitFaults(DRAFT, header, [['a', '1', '2', 'Gazprom']])).toEqual([]);
 });

@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
 
-import type { Cast, LinkEnd } from '@gab/proposal/mapping';
+import { GEM_ENTITY, type Cast, type LinkEnd } from '@gab/proposal/mapping';
 import type { CsvRecord } from '@gab/tools/csv';
 
 import { nameKey } from '../name-key.ts';
@@ -197,9 +197,7 @@ export const changedValues = (held: HeldAttrs, attrs: Attrs): Attrs => {
   return changed;
 };
 
-// External constraint: GEM writes the identifier of an entity as "E" and digits, and a
-// share as a number with a percent sign.
-const GEM_ENTITY = /\bE\d{6,}\b/gu;
+// External constraint: GEM writes a share as a number with a percent sign.
 const PERCENT = /(?<![\d.,])(\d+(?:\.\d+)?)\s*%/gu;
 // A share with a comma as the decimal mark is not read. The part is refused, and the digits never
 // leak into the name of the owner.
