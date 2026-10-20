@@ -695,7 +695,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
             op: 'create_entity',
             type: rows.entity_type,
             label,
-            ...(geom === undefined ? {} : { geom }),
+            ...(geom === undefined ? {} : { geom, geomMethod: 'source_coordinates' as const }),
             ...(hasAttrs ? { attrs } : {}),
           },
           id: rowId,
@@ -729,7 +729,12 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         const place = typeof geom === 'object' && geom !== null ? geom : {};
         if (!samePlace(entity.geom, place))
           requests.push({
-            request: { op: 'update_entity', targetId: found.id, geom },
+            request: {
+              op: 'update_entity',
+              targetId: found.id,
+              geom,
+              geomMethod: 'source_coordinates',
+            },
             id: randomUUID(),
             foundBy: found.key,
           });

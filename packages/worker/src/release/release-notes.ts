@@ -1,4 +1,5 @@
-import type { NatoCoverage } from '@gab/release/coverage';
+import { NOT_STATED } from '@gab/proposal/geolocation-method';
+import type { GeolocationCoverage, NatoCoverage } from '@gab/release/coverage';
 
 import type { ReleaseFile } from './csv-export.ts';
 import { NOT_RATED } from './nato-pair.ts';
@@ -10,14 +11,32 @@ export const NOTES_PATH = 'release-notes.md';
 const percent = (paired: number, claims: number): string =>
   `${(claims === 0 ? 0 : (100 * paired) / claims).toFixed(1)}%`;
 
-/** The release notes: the title and the disclaimer of the release, and, when the release shows
- * the NATO pair, the share of the public claims with a full pair, in all and by type. A claim with
- * no full pair is "not rated" in each file. */
+/** The release notes: the title and the disclaimer of the release, the share of the public places
+ * with no stated method of geolocation, and, when the release shows the NATO pair, the share of the
+ * public claims with a full pair, in all and by type. A claim with no full pair is "not rated" in
+ * each file. */
 export const releaseNotes = (
   heading: ReleaseHeading,
   natoCoverage: NatoCoverage | null,
+  geolocation: GeolocationCoverage,
 ): ReleaseFile => {
-  const lines = [`# ${heading.title}`, '', heading.disclaimer, ''];
+  const lines = [
+    `# ${heading.title}`,
+    '',
+    heading.disclaimer,
+    '',
+    '## The method of geolocation of the places',
+    '',
+    `${String(geolocation.notStated)} of ${String(geolocation.places)} places (${percent(geolocation.notStated, geolocation.places)}) have no stated method of geolocation. Each place of the files has a method, or "${NOT_STATED}", in the column geolocation_method of entities.csv and in the properties of entities.geojson.`,
+    '',
+    '| Method | Places | Share |',
+    '| --- | --- | --- |',
+    ...geolocation.byMethod.map(
+      (one) =>
+        `| ${one.method} | ${String(one.count)} | ${percent(one.count, geolocation.places)} |`,
+    ),
+    '',
+  ];
   if (natoCoverage !== null) {
     const { all, byType } = natoCoverage;
     lines.push(

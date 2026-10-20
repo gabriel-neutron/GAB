@@ -30,3 +30,19 @@ test('a relation names its two ends and cites the documents', () => {
   expect(act.names).toStrictEqual([ENTITY, OTHER_ENTITY]);
   expect(act.src).toStrictEqual([DOC]);
 });
+
+test('a machine act with a geometry and no method is refused, and one with a method is kept', () => {
+  const place = { type: 'Point', coordinates: [30, 60] };
+  const make = (extra: object) =>
+    writeRequest.parse({
+      op: 'create_entity',
+      type: 'facility',
+      label: 'A',
+      geom: place,
+      ...extra,
+    });
+  expect(() => machineAct(make({}), [DOC])).toThrow(/method of geolocation/u);
+  expect(machineAct(make({ geomMethod: 'osm_object' }), [DOC]).payload['geom_method']).toBe(
+    'osm_object',
+  );
+});

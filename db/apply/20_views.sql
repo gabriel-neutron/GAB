@@ -404,7 +404,10 @@ CREATE VIEW api.entity AS
                        OR current_user IN ('gabriel_app', 'gabriel_agent', 'gabriel_research')
                        OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(k.value->'src') s(id)
                                     JOIN public.public_document d ON d.id = s.id)),
-                  '{}'::jsonb) AS attr_labels
+                  '{}'::jsonb) AS attr_labels,
+         -- How a source found the place. An entity with no place holds the default and no reader
+         -- reads it.
+         e.geom_method
     FROM public.entities e
    -- PU1: a person with no public source is not public.
    WHERE e.type <> 'person'

@@ -11,6 +11,16 @@ A claim tells what its sources say. A source can be wrong. GAB gives no personal
 
 Report an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.
 
+## The method of geolocation of the places
+
+1 of 3 places (33.3%) have no stated method of geolocation. Each place of the files has a method, or "not_stated", in the column geolocation_method of entities.csv and in the properties of entities.geojson.
+
+| Method | Places | Share |
+| --- | --- | --- |
+| not_stated | 1 | 33.3% |
+| register_address | 1 | 33.3% |
+| source_coordinates | 1 | 33.3% |
+
 ## The NATO pair of the claims
 
 3 of 20 public claims (15.0%) have a full pair: a letter for the author and a digit for the fact. Each other claim is "not rated".

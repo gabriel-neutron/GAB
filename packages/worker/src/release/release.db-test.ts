@@ -495,6 +495,7 @@ test('a release writes the public entities, relations and claims, each row with 
       origin_label: MANUAL,
       licence: CC_BY,
       document_ids: `${GFW} ${SDN}`,
+      geolocation_method: 'not_stated',
     },
     {
       id: OWNER,
@@ -503,6 +504,7 @@ test('a release writes the public entities, relations and claims, each row with 
       origin_label: MANUAL,
       licence: DERIVED,
       document_ids: SHIPS,
+      geolocation_method: 'not_stated',
     },
     {
       id: LIST,
@@ -511,6 +513,7 @@ test('a release writes the public entities, relations and claims, each row with 
       origin_label: MANUAL,
       licence: CC_BY,
       document_ids: SDN,
+      geolocation_method: '',
     },
     {
       id: PERSON,
@@ -519,6 +522,7 @@ test('a release writes the public entities, relations and claims, each row with 
       origin_label: MANUAL,
       licence: DERIVED,
       document_ids: PAGE,
+      geolocation_method: '',
     },
     {
       id: SECOND,
@@ -527,6 +531,7 @@ test('a release writes the public entities, relations and claims, each row with 
       origin_label: MANUAL,
       licence: CC_BY,
       document_ids: TWO,
+      geolocation_method: '',
     },
   ]);
   expect(entitiesText).not.toContain('TEST CANDIDATE VESSEL');
@@ -780,6 +785,27 @@ test('the documents of a geometry are the public documents of each act that gave
   expect(rows).toStrictEqual([
     { id: VESSEL, sources: [SHIPS], geom_sources: [GFW, TWO] },
     { id: OWNER, sources: [SHIPS], geom_sources: [SHIPS] },
+  ]);
+});
+
+test('the release reads the method of geolocation of each place, and none for an entity with no place', async () => {
+  const rows = await inTransaction(async (held) => {
+    await record(held);
+    await held.ask("UPDATE public.entities SET geom_method = 'satellite_match' WHERE id = $1", [
+      VESSEL,
+    ]);
+    const { rows } = await held
+      .as('gabriel_app')
+      .query(
+        'SELECT id, geom_method FROM public.release_entities() WHERE id = ANY ($1) ORDER BY id',
+        [[VESSEL, OWNER, LIST]],
+      );
+    return rows;
+  });
+  expect(rows).toStrictEqual([
+    { id: VESSEL, geom_method: 'satellite_match' },
+    { id: OWNER, geom_method: 'not_stated' },
+    { id: LIST, geom_method: null },
   ]);
 });
 

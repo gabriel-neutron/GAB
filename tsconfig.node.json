@@ -39,6 +39,9 @@
     "src/shared/vocabulary/*.ts",
     // The one place a relation type is declared. The seed and the fixture read it from here.
     "packages/proposal/src/relation-types.ts",
+    // The one place a method of geolocation is declared. A test under `tools/` compares the list
+    // with the CHECK.
+    "packages/proposal/src/geolocation-method.ts",
     "src/shared/read/model.ts",
     // The rows of the read API, with the closed sets of the base tables. A test under `tools/`
     // compares those sets with the CHECKs.

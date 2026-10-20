@@ -33,8 +33,8 @@ for the reviewer. It is never a decided fact.
 4. Save a text card as `research/inbox/yandex-<site>-coord.html`: the title, the URL, the
    coordinate that you read. Store it with `store_saved_file`. The browser cannot send the whole
    page to Gabriel (the local upload is refused), so the card is the proof.
-5. Propose the point with the skill `cite-claim`: `point_role` `plant`, the card as the document,
-   and in the notes "Yandex Maps satellite, precision 50 to 300 m, date".
+5. Propose the point with the skill `cite-claim`: `point_role` `plant`, `geomMethod`
+   "satellite_match", the card as the document, and in the notes "Yandex Maps satellite, precision 50 to 300 m, date".
 
 ## Do not
 

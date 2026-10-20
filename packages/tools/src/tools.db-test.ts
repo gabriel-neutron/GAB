@@ -1622,6 +1622,7 @@ test('propose refuses a geometry that is no valid shape on the globe at the inse
           type: 'vessel',
           label: 'Nayara',
           geom: { type: 'LineString', coordinates: [[69.6, 22.4]] },
+          geomMethod: 'source_coordinates',
         },
         'the tanker NAYARA',
       ),
@@ -1645,6 +1646,7 @@ test('propose refuses a position past the pole at the insert', async () => {
           type: 'vessel',
           label: 'Nayara',
           geom: { type: 'Point', coordinates: [69.6, -91] },
+          geomMethod: 'source_coordinates',
         },
         'the tanker NAYARA',
       ),
@@ -1654,6 +1656,45 @@ test('propose refuses a position past the pole at the insert', async () => {
     ok: false,
     refusal: expect.stringContaining('item nayara: act.geom: each position') as string,
   });
+});
+
+test.each([
+  [
+    'a new entity',
+    { op: 'create_entity', type: 'vessel', label: 'Nayara' },
+    'item nayara: a geom needs geomMethod',
+  ],
+  [
+    'a change of place',
+    { op: 'update_entity', targetId: ABSENT },
+    'item nayara: a geom needs geomMethod',
+  ],
+])('propose refuses a place with no method of geolocation for %s', async (_case, act, said) => {
+  const outcome = await rolledBack('superuser', async (ask) =>
+    proposeOnPage(ask, [
+      item('nayara', { ...act, geom: { type: 'Point', coordinates: [69.6, 22.4] } }, 'NAYARA'),
+    ]),
+  );
+  expect(outcome).toMatchObject({ ok: false, refusal: expect.stringContaining(said) as string });
+});
+
+test('propose refuses a word outside the list of the methods of geolocation', async () => {
+  const outcome = await rolledBack('superuser', async (ask) =>
+    proposeOnPage(ask, [
+      item(
+        'nayara',
+        {
+          op: 'create_entity',
+          type: 'vessel',
+          label: 'Nayara',
+          geom: { type: 'Point', coordinates: [69.6, 22.4] },
+          geomMethod: 'guess',
+        },
+        'the tanker NAYARA',
+      ),
+    ]),
+  );
+  expect(outcome).toMatchObject({ ok: false });
 });
 
 test('propose refuses an update of a target that does not exist', async () => {
@@ -1700,7 +1741,11 @@ test('propose gives a place to an entity of the record, and a different place is
   const found = await rolledBack('superuser', async (ask) => {
     const [bare, moved] = await placedPair(ask);
     const place = (ref: string, targetId: string, geom: unknown) =>
-      item(ref, { op: 'update_entity', targetId, geom }, '5940N 02819E');
+      item(
+        ref,
+        { op: 'update_entity', targetId, geom, geomMethod: 'source_coordinates' },
+        '5940N 02819E',
+      );
     const outcome = await proposeOnPage(
       ask,
       [
@@ -1738,7 +1783,11 @@ test('propose gives a place to an entity of the record, and a different place is
     { ref: 'far', written: true, disputed: true, unstated: ['geom.longitude', 'geom.latitude'] },
   ]);
   const of = (id: string, geom: unknown) =>
-    found.faults.find((one) => one.id === id && isDeepStrictEqual(one.payload, { geom }));
+    found.faults.find(
+      (one) =>
+        one.id === id &&
+        isDeepStrictEqual(one.payload, { geom, geom_method: 'source_coordinates' }),
+    );
   expect(of(found.bare, ULU)).toMatchObject({ src: [DOC] });
   expect(of(found.bare, ULU)?.kinds).not.toContain('record_disagrees');
   expect(of(found.moved, ULU)?.kinds).toContain('record_disagrees');
@@ -1750,7 +1799,12 @@ test('propose refuses the place that an entity of the record has already', async
     return proposeOnPage(ask, [
       item(
         'same',
-        { op: 'update_entity', targetId: moved, geom: { type: 'Point', coordinates: [20, 10] } },
+        {
+          op: 'update_entity',
+          targetId: moved,
+          geom: { type: 'Point', coordinates: [20, 10] },
+          geomMethod: 'source_coordinates',
+        },
         'left Sikka',
       ),
     ]);
@@ -1769,7 +1823,12 @@ test('propose refuses a place on an entity that does not exist', async () => {
     proposeOnPage(ask, [
       item(
         'place',
-        { op: 'update_entity', targetId: ABSENT, geom: { type: 'Point', coordinates: [28, 59] } },
+        {
+          op: 'update_entity',
+          targetId: ABSENT,
+          geom: { type: 'Point', coordinates: [28, 59] },
+          geomMethod: 'source_coordinates',
+        },
         'left Sikka',
       ),
     ]),
@@ -1787,7 +1846,13 @@ const placeOfPending = async (ask: Ask, geom: unknown = ULU, created?: unknown) 
       ? NAYARA
       : item(
           'nayara',
-          { op: 'create_entity', type: 'vessel', label: 'Nayara', geom: created },
+          {
+            op: 'create_entity',
+            type: 'vessel',
+            label: 'Nayara',
+            geom: created,
+            geomMethod: 'source_coordinates',
+          },
           '5940N 02819E',
         );
   const [vessel] = batchOf(
@@ -1795,7 +1860,11 @@ const placeOfPending = async (ask: Ask, geom: unknown = ULU, created?: unknown) 
   ).proposals;
   if (vessel === undefined) throw new Error('propose wrote no entity');
   const outcome = await proposeAgain(ask, [
-    item('place', { op: 'update_entity', targetId: vessel.proposalId, geom }, '5940N 02819E'),
+    item(
+      'place',
+      { op: 'update_entity', targetId: vessel.proposalId, geom, geomMethod: 'source_coordinates' },
+      '5940N 02819E',
+    ),
   ]);
   return { vessel: vessel.proposalId, outcome };
 };
@@ -1923,6 +1992,7 @@ test('two different places of one new entity that waits are a doubt', async () =
             op: 'update_entity',
             targetId: vessel,
             geom: { type: 'Point', coordinates: [30.5, 50.4] },
+            geomMethod: 'source_coordinates',
           },
           '5940N 02819E',
         ),

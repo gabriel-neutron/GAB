@@ -49,3 +49,14 @@ export const natoCoverageShape = z.object({
 });
 
 export type NatoCoverage = z.output<typeof natoCoverageShape>;
+
+/** The share of the public places with no stated method of geolocation, and the count of each
+ * method. A place is the geometry of a public entity. A release before the statement has no
+ * member. */
+export const geolocationCoverageShape = z.object({
+  places: z.number().int().nonnegative(),
+  notStated: z.number().int().nonnegative(),
+  byMethod: z.array(z.object({ method: z.string(), count: z.number().int().positive() })),
+});
+
+export type GeolocationCoverage = z.output<typeof geolocationCoverageShape>;

@@ -12,6 +12,8 @@ const COMMANDS = {
     (await import('./document-labels-command.ts')).documentLabelsCommand,
   'dry-join': async () => (await import('./dry-join-command.ts')).dryJoinCommand,
   'firms-sweep': async () => (await import('./firms-sweep-command.ts')).firmsSweepCommand,
+  'geolocation-method': async () =>
+    (await import('./geolocation-method-command.ts')).geolocationMethodCommand,
   ingest: async () => (await import('./ingest-command.ts')).ingestCommand,
   layout: async () => (await import('./layout-command.ts')).layoutCommand,
   'merge-act': async () => (await import('./merge-act-command.ts')).mergeActCommand,

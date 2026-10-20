@@ -696,6 +696,12 @@ BEGIN
     ('entities_geom_on_globe', 'geom',
      'the geometry is not a valid shape on the globe: a line has two positions or more, and a '
      'ring has four or more and ends on the position it starts on'),
+    ('proposals_geom_method', 'geomMethod',
+     'a geometry needs a method of geolocation: register_address, osm_object, '
+     'operator_statement, satellite_match, photo_video_match, source_coordinates or not_stated'),
+    ('entities_geom_method_closed', 'geomMethod',
+     'the method of geolocation is register_address, osm_object, operator_statement, '
+     'satellite_match, photo_video_match, source_coordinates or not_stated'),
     ('proposals_op_target_kind', 'targetKind', 'the act names a target of the wrong kind'),
     ('proposals_target_pairs', 'targetId', 'the act names its target with a kind and an id'),
     ('proposals_target_required', 'targetId', 'the act names its target'),
@@ -967,7 +973,7 @@ BEGIN
        OR (v_item->>'op' = 'update_entity'
            AND NOT (jsonb_typeof(v_item->'payload') = 'object'
                     AND (v_item->'payload') ? 'geom'
-                    AND (v_item->'payload') - 'geom' = '{}'::jsonb))
+                    AND (v_item->'payload') - 'geom' - 'geom_method' = '{}'::jsonb))
        OR (v_item->>'op' = 'update_relation'
            AND NOT (jsonb_typeof(v_item->'payload') = 'object'
                     AND (((v_item->'payload') ? 'valid_to'
@@ -1150,6 +1156,16 @@ BEGIN
         RAISE EXCEPTION 'item %: %', v_no, v_said
           USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = v_rule, HINT = v_hint;
       END;
+    END IF;
+    -- A MACHINE GIVES A PLACE WITH THE METHOD THAT FOUND IT. The shape of the act allows the key
+    -- and checks its words, and it cannot require the key: an act written before the key waits in
+    -- the queue. So the door of a machine requires it.
+    IF v_payload::jsonb ? 'geom'
+       AND NOT coalesce(v_payload::jsonb->>'geom_method' IN (
+                          'register_address','osm_object','operator_statement','satellite_match',
+                          'photo_video_match','source_coordinates','not_stated'), false) THEN
+      PERFORM public.raise_item_rule(v_no, 'proposals_geom_method', '23514',
+                                     'a geometry needs a method of geolocation');
     END IF;
     IF v_payload::jsonb ? 'geom' THEN
       BEGIN
@@ -1754,7 +1770,9 @@ BEGIN
   SELECT e.attrs INTO v_attrs FROM public.entities e WHERE e.id = v_target;
 
   INSERT INTO public.entities
-  SELECT * FROM jsonb_populate_record(NULL::public.entities, v_copy->'entity');
+  -- A copy made before the method existed has no such key, and the record function gives NULL.
+  SELECT * FROM jsonb_populate_record(NULL::public.entities,
+    jsonb_build_object('geom_method', 'not_stated') || (v_copy->'entity'));
   IF jsonb_typeof(v_copy->'layout') = 'object' THEN
     INSERT INTO public.entity_layout
     SELECT * FROM jsonb_populate_record(NULL::public.entity_layout, v_copy->'layout');
@@ -1881,7 +1899,7 @@ BEGIN
     -- The new row takes the identifier of its act, so an act of the same batch that names it
     -- before the promotion names the row that the promotion makes.
     INSERT INTO public.entities
-      (id, type, proposed_type, label, geom, attrs, sources, promoted_from)
+      (id, type, proposed_type, label, geom, geom_method, attrs, sources, promoted_from)
     VALUES (
       p.id,
       coalesce(v_type, 'unknown'),
@@ -1889,6 +1907,7 @@ BEGIN
       p.payload->>'label',
       CASE WHEN p.payload ? 'geom'
            THEN public.ST_SetSRID(public.ST_GeomFromGeoJSON(p.payload->'geom'), 4326) END,
+      coalesce(p.payload->>'geom_method', 'not_stated'),
       coalesce(p.payload->'attrs', '{}'::jsonb),
       CASE WHEN p.payload ? 'sources'
            THEN ARRAY(SELECT jsonb_array_elements_text(p.payload->'sources'))::doc_id[]
@@ -2054,7 +2073,8 @@ BEGIN
     -- P4: the old geometry stays in the history. NULL says that the entity had no place.
     IF p.payload ? 'geom' THEN
       v_prior := v_prior || jsonb_build_object('geom',
-        (SELECT public.ST_AsGeoJSON(e.geom)::jsonb FROM public.entities e WHERE e.id = p.target_id));
+        (SELECT public.ST_AsGeoJSON(e.geom)::jsonb FROM public.entities e WHERE e.id = p.target_id),
+        'geom_method', v_old->'geom_method');
     END IF;
 
     UPDATE public.entities e
@@ -2067,19 +2087,34 @@ BEGIN
                                 THEN public.ST_SetSRID(public.ST_GeomFromGeoJSON(p.payload->'geom'),
                                                        4326)
                                 ELSE e.geom END,
+           -- The method belongs to the place: a new place brings the method that found it. The
+           -- same place with `not_stated` keeps the method it holds, so a repeat of a place with
+           -- no method never takes a stated method away.
+           geom_method   = CASE WHEN NOT p.payload ? 'geom' THEN e.geom_method
+                                WHEN coalesce(p.payload->>'geom_method', 'not_stated') = 'not_stated'
+                                 AND public.ST_Equals(e.geom, public.ST_SetSRID(
+                                       public.ST_GeomFromGeoJSON(p.payload->'geom'), 4326))
+                                THEN e.geom_method
+                                ELSE coalesce(p.payload->>'geom_method', 'not_stated') END,
            -- The row-level list backs the name, the type and the location together, so an
            -- act that changes one of them replaces the whole list with its own sources.
            sources       = p.src,
            updated_at    = now()
      WHERE e.id = p.target_id
-       AND (e.label, e.type, e.proposed_type, e.geom::text) IS DISTINCT FROM
+       AND (e.label, e.type, e.proposed_type, e.geom::text, e.geom_method) IS DISTINCT FROM
            (coalesce(p.payload->>'label', e.label),
             CASE WHEN p.payload ? 'type' THEN coalesce(v_type, 'unknown') ELSE e.type END,
             CASE WHEN NOT p.payload ? 'type' THEN e.proposed_type
                  WHEN v_type IS NULL THEN p.payload->>'type' END,
             CASE WHEN p.payload ? 'geom'
                  THEN public.ST_SetSRID(public.ST_GeomFromGeoJSON(p.payload->'geom'), 4326)::text
-                 ELSE e.geom::text END);
+                 ELSE e.geom::text END,
+            CASE WHEN NOT p.payload ? 'geom' THEN e.geom_method
+                 WHEN coalesce(p.payload->>'geom_method', 'not_stated') = 'not_stated'
+                  AND public.ST_Equals(e.geom, public.ST_SetSRID(
+                        public.ST_GeomFromGeoJSON(p.payload->'geom'), 4326))
+                 THEN e.geom_method
+                 ELSE coalesce(p.payload->>'geom_method', 'not_stated') END);
     IF NOT FOUND THEN
       RAISE EXCEPTION 'the act changes neither the name, the type nor the geometry of the entity, '
                       'and nothing was applied'
@@ -5480,6 +5515,21 @@ BEGIN
   RETURN FOUND;
 END $$;
 
+-- THE METHOD OF A PLACE THAT STANDS AS `not_stated`. A command reads the sources of each stored
+-- place again and gives the method that the sources state clearly (geolocation-method). The door
+-- fills the method only when the row holds a place and `not_stated`, so a method that an act set
+-- stays. It answers whether it changed the row, and a word outside the list raises 23514.
+CREATE OR REPLACE FUNCTION fill_geolocation_method(p_entity uuid, p_method text)
+RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  UPDATE public.entities SET geom_method = p_method
+   WHERE id = p_entity AND geom IS NOT NULL AND geom_method = 'not_stated'
+     AND p_method <> 'not_stated';
+  RETURN FOUND;
+END $$;
+
 -- THE NEWEST TEXT OF A DOCUMENT. A document can hold more than one set of text, one for each
 -- extractor version, and an older set is a reading that a newer one replaced. Each reader of the
 -- text and the propose tool choose the set here, so they choose the same one. The caller reads the
@@ -7123,11 +7173,12 @@ DROP FUNCTION IF EXISTS nato_pair(uuid[]);
 -- `sources`. A geometry that no act gave keeps the row-level sources.
 CREATE FUNCTION release_entities()
 RETURNS TABLE (id uuid, type text, label text, origin_label text, sources text[], geom jsonb,
-               geom_sources text[])
+               geom_sources text[], geom_method text)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   WITH shown AS (
     SELECT e.id, e.type, e.label, e.origin_label, e.geom,
+           CASE WHEN e.geom IS NULL THEN NULL ELSE e.geom_method END AS geom_method,
            ARRAY(SELECT s.id::text FROM unnest(e.sources) AS s(id)
                   WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = s.id)
                   ORDER BY 1) AS sources,
@@ -7157,7 +7208,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   SELECT h.id, h.type, h.label, h.origin_label, h.sources,
          public.ST_AsGeoJSON(public.ST_ForcePolygonCCW(public.ST_SetSRID(
            public.ST_GeomFromGeoJSON(h.geom), 4326)), 6)::jsonb,
-         h.geom_sources
+         h.geom_sources, h.geom_method
     FROM sourced h
    WHERE h.type <> 'person'
       OR EXISTS (SELECT 1 FROM api.relation r JOIN sourced t ON t.id = r.dst_id

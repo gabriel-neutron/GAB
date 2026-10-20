@@ -34,6 +34,9 @@ export interface SiteEntity {
   readonly label: string;
   readonly originLabel: string;
   readonly licence: string;
+  /** How a source found the place, a word of the closed list of the methods. Null for an entity
+   * with no place, and for a release before the column. */
+  readonly geolocationMethod: string | null;
 }
 
 export interface SiteRelation {
@@ -206,6 +209,8 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
       label: cell(row, 'label'),
       originLabel: cell(row, 'origin_label'),
       licence: cell(row, 'licence'),
+      // An older release has no such column, and its cell reads as empty.
+      geolocationMethod: orNull(row['geolocation_method']),
     }),
   );
 

@@ -23,6 +23,9 @@ const entityRow = z.object({
   /** The documents of the act that set the geometry, empty when the entity has no geometry. The
    * database always gives it. A row without it is a test row, and its row-level sources count. */
   geom_sources: z.array(z.string()).optional(),
+  /** How a source found the place: a word of the closed list of the methods, null when the entity
+   * has no geometry. A row without it is a test row, and its place is `not_stated`. */
+  geom_method: z.string().nullable().optional(),
 });
 
 const relationRow = z.object({
@@ -132,7 +135,7 @@ export const readReleaseRecord = async (
   const entities = await rowsOf(
     db,
     entityRow,
-    'SELECT id, type, label, origin_label, sources, geom, geom_sources FROM public.release_entities() ORDER BY id',
+    'SELECT id, type, label, origin_label, sources, geom, geom_sources, geom_method FROM public.release_entities() ORDER BY id',
   );
   const relations = await rowsOf(
     db,

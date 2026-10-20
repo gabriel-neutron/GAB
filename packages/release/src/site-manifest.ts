@@ -1,7 +1,7 @@
 import { day } from '@gab/proposal/day';
 import { z } from 'zod';
 
-import { coverageShape, natoCoverageShape } from './coverage.ts';
+import { coverageShape, geolocationCoverageShape, natoCoverageShape } from './coverage.ts';
 
 const counts = z.object({
   added: z.number().int(),
@@ -47,6 +47,8 @@ export const siteManifestShape = z.object({
   coverage: coverageShape.nullable().default(null),
   // A release that does not show the pair, and a release before the statement, have no member.
   natoCoverage: natoCoverageShape.nullable().optional(),
+  // A release before the statement of the methods of geolocation has no member.
+  geolocationCoverage: geolocationCoverageShape.nullable().optional(),
   files: z.array(
     z.object({
       path: z.string().regex(/^[\w-][\w.-]*$/u),

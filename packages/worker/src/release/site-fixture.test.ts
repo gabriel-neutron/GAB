@@ -279,6 +279,7 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
       origin_label: RULE,
       sources: ['eu_act'],
       geom: { type: 'Point', coordinates: [28.85, 60.34] },
+      geom_method: 'source_coordinates',
     },
     {
       id: OWNER,
@@ -305,6 +306,7 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
             origin_label: CANDIDATE,
             sources: ['news'],
             geom: { type: 'Point', coordinates: [28.61, 60.35] },
+            geom_method: 'register_address',
           },
           {
             id: PIPELINE,
