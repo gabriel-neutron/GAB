@@ -117,6 +117,15 @@ export const SeveralPointsUnderOneClickGiveAChoice: Story = {
   },
 };
 
+// The control shows on a phone only (`md:hidden`), and a story runs at one width, so it asserts
+// that the control is in the card and not that it shows.
+export const TheCardCarriesAControlThatClosesItOnAPhone: Story = {
+  args: { store: storeOn({ kind: 'entity', id: CHAIN.FIELD }) },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Close the card')).toBeInTheDocument();
+  },
+};
+
 export const DrawsNothingWhenTheBrowserCannotDrawTheGlobe: Story = {
   args: {
     store: (() => {
