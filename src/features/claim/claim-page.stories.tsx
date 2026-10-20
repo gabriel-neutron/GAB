@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect } from 'storybook/test';
+import { expect, userEvent } from 'storybook/test';
 
 import { ClaimPage } from './claim-page';
 import { FIXTURE_RELEASE } from './fixture-release';
@@ -32,6 +32,7 @@ export const AClaimGivesItsExcerptAndItsSource: Story = {
     ).toBeVisible();
     await expect(canvas.getByText('2026-09-30')).toBeVisible();
     await expect(canvas.getByText(/Page 4/u)).toBeVisible();
+    await userEvent.click(canvas.getByText('Licence and permanent address'));
     await expect(canvas.getByText('CC-BY 4.0')).toBeVisible();
   },
 };
@@ -71,15 +72,15 @@ export const WithThePairOnTheClaimShowsItsPair: Story = {
   args: { release: FIXTURE_RELEASE.on },
   play: async ({ canvas }) => {
     await expect(canvas.getByText('Rating')).toBeVisible();
-    await expect(canvas.getAllByText('Admiralty A2').length).toBeGreaterThan(1);
-    await expect(canvas.getByText(/rates the author of the source/u)).toBeVisible();
+    await expect(canvas.getByText('A2')).toBeVisible();
+    await expect(canvas.getByText(/completely reliable author, probably true/u)).toBeVisible();
   },
 };
 
 export const AReleaseThatHidesThePairShowsNoRatingAndNoLegend: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.queryByText('Rating')).toBeNull();
-    await expect(canvas.queryByText(/rates the author of the source/u)).toBeNull();
+    await expect(canvas.queryByText(/reliable author/u)).toBeNull();
   },
 };
 

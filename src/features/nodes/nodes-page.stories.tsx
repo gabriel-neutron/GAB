@@ -88,7 +88,7 @@ export const LinksTheClaimOfATickWithItsAdmiraltyPair: Story = {
       name: 'Primorsk oil terminal: Designated by Council',
     });
     await expect(links[0]).toHaveAttribute('href', '/claim/claim-1');
-    await expect((await canvas.findAllByText('Admiralty B2')).length).toBeGreaterThan(0);
+    await expect((await canvas.findAllByText('B2')).length).toBeGreaterThan(0);
     await expect((await canvas.findAllByText('Not rated')).length).toBeGreaterThan(0);
   },
 };

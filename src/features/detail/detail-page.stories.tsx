@@ -387,7 +387,7 @@ export const TheReleaseGivesTheLabelAndTheLicenceOfEachClaimAndTheAddress: Story
     ).toHaveAttribute('href', `/claim/${VESSEL}/flag`);
     await expect(within(table).getByText('Proposed — not checked')).toBeVisible();
     await expect(within(table).getByText('CC-BY 4.0')).toBeVisible();
-    await expect(within(table).getByText('Admiralty B2')).toBeVisible();
+    await expect(within(table).getByText('B2')).toBeVisible();
     await expect(canvas.getByText(`https://gab.example.org/entity/${VESSEL}`)).toBeVisible();
   },
 };
