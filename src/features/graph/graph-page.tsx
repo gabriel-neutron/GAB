@@ -13,6 +13,7 @@ import type { Corpus, EntityPosition, TypeVocabulary } from '@/shared/read/model
 import { relationWording } from '@/shared/relation-words';
 import { cn } from '@/shared/lib/utils';
 import { useNarrowScreen } from '@/shared/narrow-screen';
+import { askPanelFocus, landOnPanel, returnPanelFocus } from '@/shared/panel-focus';
 import { PHONE_SHEET, SheetClose } from '@/shared/phone-sheet';
 import { Rail, type RailAct } from '@/shared/rail';
 import { useScreenQuery } from '@/shared/screen-query';
@@ -159,6 +160,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   const counts = snapshot?.view.counts ?? null;
 
   const reach = useCallback((id: string) => {
+    askPanelFocus();
     const handle = controller.current;
     if (handle === null) return;
     handle.focusOn(id);
@@ -211,10 +213,12 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   );
 
   const openEntity = useCallback((id: string) => {
+    askPanelFocus();
     controller.current?.focusOn(id);
   }, []);
 
   const openRelation = useCallback((id: string) => {
+    askPanelFocus();
     controller.current?.openRelation(id);
   }, []);
 
@@ -375,6 +379,11 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
         <div
           role="region"
           aria-label="Card of the selection"
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape' || selection === null) return;
+            clearSelection();
+            returnPanelFocus();
+          }}
           className={cn(
             'max-h-96 min-h-0 min-w-0 overflow-y-auto overscroll-contain border-t border-border',
             'lg:col-start-3 lg:row-start-1 lg:max-h-128 lg:border-t-0 lg:border-l',
@@ -382,8 +391,12 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
             selection === null ? 'max-md:hidden' : null,
           )}
         >
-          <SheetClose onClose={clearSelection} />
+          {selection === null ? null : <SheetClose onClose={clearSelection} />}
           {card}
+          {/* The marker mounts with each new selection and moves the focus into the card. */}
+          {selection === null ? null : (
+            <span key={`${selection.kind}:${selection.id}`} ref={landOnPanel} hidden />
+          )}
         </div>
 
         {/* The rail is last in the order of the keys and of the screen when the island stacks, and

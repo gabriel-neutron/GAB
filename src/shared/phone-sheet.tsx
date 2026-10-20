@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 
 import { cn } from '@/shared/lib/utils';
+import { returnPanelFocus } from '@/shared/panel-focus';
 
 // Two exports, one job: a card that is a column on a wide screen and a bottom sheet on a phone.
 // The class holds the phone half, and the control closes the sheet. A phone has no column to
@@ -16,13 +17,17 @@ interface SheetCloseProps {
   readonly onClose: () => void;
 }
 
-/** The close control of a bottom sheet. It shows on a phone only. */
+/** The close control of a panel. It shows at every width. A panel that a key opened gives the
+ * focus back to the control that opened it. */
 export function SheetClose({ onClose }: SheetCloseProps) {
   return (
-    <div className="sticky top-0 z-10 flex justify-end border-b border-border bg-background p-1 md:hidden">
+    <div className="sticky top-0 z-10 flex justify-end border-b border-border bg-background p-1">
       <button
         type="button"
-        onClick={onClose}
+        onClick={() => {
+          onClose();
+          returnPanelFocus();
+        }}
         className={cn(
           'flex h-6 items-center gap-1 border border-input bg-background px-1.5 text-small/4',
           'transition-colors duration-100 hover:bg-muted',
@@ -30,7 +35,7 @@ export function SheetClose({ onClose }: SheetCloseProps) {
         )}
       >
         <X size={14} aria-hidden="true" />
-        Close the card
+        Close panel
       </button>
     </div>
   );
