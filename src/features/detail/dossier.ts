@@ -313,26 +313,38 @@ const nameOf = (read: Corpus, id: string): string =>
   read.entities.find((row) => row.id === id)?.label ?? 'a parent';
 
 // Departure: the SQL walk gives the parent that supplied the point and not the path to it, so the
-// path is found here. A unit can have more than one parent, so every edge is tried and only a path
-// that ends at that parent counts. Bad source data can hold a ring, so a unit met twice is skipped.
+// path is found here. It is the shortest path, as the SQL picks the nearest parent, and it stops at
+// the hop limit of the SQL walk. A unit can have more than one parent, and bad source data can hold
+// a ring, so each unit is met once. With no path the chain holds the parent alone.
+const MAX_HOPS = 4;
+
 function parentChain(read: Corpus, entityId: string, source: string): readonly string[] {
-  const walk = (at: string, met: ReadonlySet<string>): readonly string[] | null => {
-    if (at === source) return [];
-    for (const one of read.relations) {
-      if (
-        one.type !== 'subordinate_to' ||
-        one.srcKind !== 'entity' ||
-        one.dstKind !== 'entity' ||
-        one.srcId !== at ||
-        met.has(one.dstId)
-      )
-        continue;
-      const rest = walk(one.dstId, new Set([...met, one.dstId]));
-      if (rest !== null) return [nameOf(read, one.dstId), ...rest];
-    }
-    return null;
-  };
-  return walk(entityId, new Set([entityId])) ?? [nameOf(read, source)];
+  const from = new Map<string, string>();
+  let level = [entityId];
+  const met = new Set(level);
+  for (let hop = 0; hop < MAX_HOPS && !met.has(source); hop += 1) {
+    const next: string[] = [];
+    for (const at of level)
+      for (const one of read.relations) {
+        if (
+          one.type !== 'subordinate_to' ||
+          one.srcKind !== 'entity' ||
+          one.dstKind !== 'entity' ||
+          one.srcId !== at ||
+          met.has(one.dstId)
+        )
+          continue;
+        met.add(one.dstId);
+        from.set(one.dstId, at);
+        next.push(one.dstId);
+      }
+    level = next;
+  }
+  if (!met.has(source)) return [nameOf(read, source)];
+  const chain: string[] = [];
+  for (let at = source; at !== entityId; at = from.get(at) ?? entityId)
+    chain.unshift(nameOf(read, at));
+  return chain;
 }
 
 function newestDay(documents: readonly DocumentRow[]): string | null {

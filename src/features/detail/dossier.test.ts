@@ -427,6 +427,39 @@ test('the chain follows the parent that gave the point and not another parent', 
   expect(readDossier(held, VESSEL.id, [], [])?.positionChain).toEqual([OWNER.label]);
 });
 
+test('the chain is the shortest path, and a missing path gives the parent alone', () => {
+  const step = (id: string, from: string, to: string): Relation => ({
+    ...OWNED_BY,
+    id,
+    type: 'subordinate_to',
+    srcId: from,
+    dstId: to,
+  });
+  const detour: Entity = { ...OWNER, id: 'e7', label: 'Detour' };
+  const position = {
+    entityId: VESSEL.id,
+    point: { lon: 4.4777, lat: 51.9244 },
+    precision: 'inherited',
+    area: null,
+    route: null,
+    parentId: OWNER.id,
+  };
+  const short: Corpus = {
+    ...CORPUS,
+    entities: [...CORPUS.entities, detour],
+    relations: [
+      step('s1', VESSEL.id, detour.id),
+      step('s2', detour.id, OWNER.id),
+      step('s3', VESSEL.id, OWNER.id),
+    ],
+    positions: [position],
+  };
+  const lost: Corpus = { ...CORPUS, relations: [], positions: [position] };
+
+  expect(readDossier(short, VESSEL.id, [], [])?.positionChain).toEqual([OWNER.label]);
+  expect(readDossier(lost, VESSEL.id, [], [])?.positionChain).toEqual([OWNER.label]);
+});
+
 test('a ring of parents ends the chain and does not loop', () => {
   const ring = (id: string, from: string, to: string): Relation => ({
     ...OWNED_BY,
