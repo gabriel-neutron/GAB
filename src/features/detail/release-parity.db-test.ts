@@ -70,22 +70,21 @@ const withinRelease = (service: Corpus, files: Corpus): Corpus => {
     ...service,
     entities: service.entities.flatMap((one) => {
       const held = entities.get(one.id);
-      return held === undefined
-        ? []
-        : [
-            {
-              ...one,
-              attrs: Object.fromEntries(
-                Object.entries(one.attrs)
-                  .filter(([key]) => key in held.attrs)
-                  .map(([key, value]) => [
-                    key,
-                    { ...value, src: value.src.filter((id) => held.attrs[key]?.src.includes(id)) },
-                  ]),
-              ),
-              sources: one.sources.filter((id) => held.sources.includes(id)),
-            },
-          ];
+      if (held === undefined) return [];
+      const attrs = Object.fromEntries(
+        Object.entries(one.attrs)
+          .filter(([key]) => key in held.attrs)
+          .map(([key, value]) => [
+            key,
+            { ...value, src: value.src.filter((id) => held.attrs[key]?.src.includes(id)) },
+          ]),
+      );
+      // Departure: a release holds no source list for the row of an entity. It gives the
+      // documents of the claims, so the sources of the row are the documents that its claims cite,
+      // in the order of the release. The source card lists the row as a fact that a document
+      // backs, so a document that only a claim cites must not back the row in one read only.
+      const cited = new Set(Object.values(attrs).flatMap((value) => value.src));
+      return [{ ...one, attrs, sources: held.sources.filter((id) => cited.has(id)) }];
     }),
     relations: service.relations.flatMap((one) => {
       const held = relations.get(one.id);
