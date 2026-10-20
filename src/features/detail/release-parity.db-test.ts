@@ -32,8 +32,6 @@ const MANIFEST = {
 
 let root = '';
 let fromFiles: Corpus;
-// The documents that the claims of each entity cite in the release, all claims included.
-let citedByEntity: Map<string, Set<string>>;
 let fromService: Corpus;
 
 beforeAll(async () => {
@@ -51,13 +49,6 @@ beforeAll(async () => {
     files.set(name, await readFile(join(folder, name), 'utf8'));
   const released = readSiteRelease(files);
   fromFiles = corpusFromRelease(released, await loadRelationTypes());
-  citedByEntity = new Map();
-  for (const claim of released.claims) {
-    if (claim.kind !== 'attribute' || claim.subjectKind !== 'entity') continue;
-    const into = citedByEntity.get(claim.subjectId) ?? new Set<string>();
-    for (const source of claim.sources) into.add(source.documentId);
-    citedByEntity.set(claim.subjectId, into);
-  }
   fromService = await loadCorpus();
 }, 60_000);
 
@@ -89,13 +80,11 @@ const withinRelease = (service: Corpus, files: Corpus): Corpus => {
             { ...value, src: value.src.filter((id) => held.attrs[key]?.src.includes(id)) },
           ]),
       );
-      // Departure: a release holds no source list for the row of an entity. It gives only the
-      // documents of the claims. A source that the service holds for the row alone is a known
-      // difference by design of the release, so it is cut here. The service value stays in the
-      // comparison for each document that a claim of the release cites, including a claim that a
-      // later claim of the same attribute overwrites.
-      const cited = citedByEntity.get(one.id) ?? new Set<string>();
-      return [{ ...one, attrs, sources: one.sources.filter((id) => cited.has(id)) }];
+      // Departure: a release holds no source list for the row of an entity (ADR 0028). The
+      // reader of the files gives the row the documents of all its claims. The service can hold
+      // a claim document that its row list lacks, so the row list of the release stands for both
+      // reads. The sources of each claim stay in the comparison.
+      return [{ ...one, attrs, sources: held.sources }];
     }),
     relations: service.relations.flatMap((one) => {
       const held = relations.get(one.id);
