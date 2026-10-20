@@ -1,4 +1,4 @@
-import { mappingDraft, missingColumns, vocabularyFaults } from '@gab/proposal/mapping';
+import { mappingDraft, missingColumns, splitFaults, vocabularyFaults } from '@gab/proposal/mapping';
 import { z } from 'zod';
 
 import { headerSignature } from './header-signature.ts';
@@ -32,10 +32,15 @@ export const proposeMappingOf = (modelCallId: string) =>
     output: z.strictObject({ proposalId: z.uuid() }),
     async run(session, input) {
       const page = await readTablePage(session, input.document, input.textSet);
-      const { header } = tableOf(page.text, page.format);
+      const { header, rows } = tableOf(page.text, page.format);
       const vocabulary = await mappingVocabulary(session);
       const faults = [
         ...missingColumns(input.mapping, header),
+        ...splitFaults(
+          input.mapping,
+          header,
+          rows.map((row) => row.fields),
+        ),
         ...vocabularyFaults(input.mapping, {
           entityTypes: vocabulary.entityTypes.map((one) => one.key),
           relationTypes: vocabulary.relationTypes.map((one) => one.key),

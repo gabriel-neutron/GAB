@@ -360,6 +360,28 @@ export const missingColumns = (mapping: MappingDraft, header: readonly string[])
     .filter((name) => !header.includes(name))
     .map((name) => `the column "${name}" is not in the header. Use one of: ${header.join(', ')}`);
 
+// External constraint: GEM writes the identifier of an entity as "E" and digits.
+export const GEM_ENTITY = /\bE\d{6,}\b/gu;
+
+/** The relations that split a column which holds no GEM identifier in any row, each with the
+ * sentence that says what to correct. A column of names splits into no entity that the record
+ * holds, so the load would refuse each cell. */
+export const splitFaults = (
+  mapping: MappingDraft,
+  header: readonly string[],
+  rows: readonly (readonly string[])[],
+): string[] =>
+  mapping.relations.flatMap((one) => {
+    if (one.split === undefined) return [];
+    const at = header.indexOf(one.other.column);
+    const named = at >= 0 && !rows.some((row) => (row[at] ?? '').match(GEM_ENTITY) !== null);
+    return named
+      ? [
+          `the column "${one.other.column}" holds no GEM identifier in any row, so the relation does not split. Remove the relation`,
+        ]
+      : [];
+  });
+
 /** The words of the record that a mapping can use: the live entity types and relation types. */
 export interface MappingVocabulary {
   readonly entityTypes: readonly string[];
