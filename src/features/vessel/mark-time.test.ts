@@ -4,7 +4,7 @@ import { markTimeWords } from './mark-time';
 
 test('a day mark names its key and the day', () => {
   expect(markTimeWords({ kind: 'day', key: 'observed_on', day: '2026-03-02' })).toBe(
-    'On observed_on: 02/03/2026.',
+    'On Observed on: 02/03/2026.',
   );
 });
 
