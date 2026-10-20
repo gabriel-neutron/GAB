@@ -1,5 +1,6 @@
 /** A router loader returns these shapes, so they carry arrays and no `Map`. */
 
+import { relationDefinition } from '@gab/proposal/relation-types';
 import { SHARE_IMPUTED_KEY, SHARE_KEY, shareWords } from '@gab/proposal/share';
 import { relationLines } from '@/shared/canvas-label';
 import { proposerWords } from '@/shared/proposer-words';
@@ -74,6 +75,11 @@ export interface RecordRow {
 export interface RelationLine {
   readonly id: string;
   readonly sentence: string;
+  /** What the type of the relation means, or `null` for a type with no definition. */
+  readonly definition: string | null;
+  /** The type in the words of the sentence. It is set only where another relation links the same
+   * two ends, so a reader can tell the two lines apart. */
+  readonly typeShown: string | null;
   /** M6: written at both ends, and a closed interval never reads as current. */
   readonly interval: string | null;
   /** The mark of an M4 relation comes from the relation, never from the list. */
@@ -499,23 +505,39 @@ export function readDossier(
 
   // A relation is stored in one direction only. Read from its far end, it takes the inverse words,
   // so the entity of the page stands first in each sentence that names it.
+  const fromFarEndOf = (relation: Relation): boolean =>
+    relation.dstKind === 'entity' &&
+    relation.dstId === entityId &&
+    !(relation.srcKind === 'entity' && relation.srcId === entityId);
+  const typeWordsOf = (relation: Relation): string => {
+    const words = index.wordsOf(relation.type);
+    return fromFarEndOf(relation) ? words.inverseLabel : words.label;
+  };
   const sentenceOf = (relation: Relation): string => {
     const from = endpointWords(index, relation.srcKind, relation.srcId, 1);
     const to = endpointWords(index, relation.dstKind, relation.dstId, 1);
-    const words = index.wordsOf(relation.type);
-    const fromFarEnd =
-      relation.dstKind === 'entity' &&
-      relation.dstId === entityId &&
-      !(relation.srcKind === 'entity' && relation.srcId === entityId);
-    return fromFarEnd ? `${to} ${words.inverseLabel} ${from}` : `${from} ${words.label} ${to}`;
+    const type = typeWordsOf(relation);
+    return fromFarEndOf(relation) ? `${to} ${type} ${from}` : `${from} ${type} ${to}`;
   };
 
-  const relations: readonly RelationLine[] = [...direct, ...pointing].map((relation) => {
+  // Two relations link one pair when they have the same two ends, in either direction.
+  const pairOf = (relation: Relation): string =>
+    [`${relation.srcKind}:${relation.srcId}`, `${relation.dstKind}:${relation.dstId}`]
+      .sort()
+      .join('|');
+  const shown = [...direct, ...pointing];
+  const pairCount = new Map<string, number>();
+  for (const relation of shown)
+    pairCount.set(pairOf(relation), (pairCount.get(pairOf(relation)) ?? 0) + 1);
+
+  const relations: readonly RelationLine[] = shown.map((relation) => {
     const sentence = sentenceOf(relation);
     const fact = factWords(sentence, intervalWords(index, relation));
     return {
       id: relation.id,
       sentence,
+      definition: relationDefinition(relation.type),
+      typeShown: (pairCount.get(pairOf(relation)) ?? 0) > 1 ? typeWordsOf(relation) : null,
       interval: periodLine(index, relation),
       // The mark comes from the relation and never from the list it is placed in: a relation can
       // be direct and invisible at once.
@@ -652,6 +674,8 @@ export interface RelationDossier {
   /** The heading arrow is a picture and not a word. This name gives the direction in the order
    * of the words, and never as "down arrow". */
   readonly sentence: string;
+  /** What the type of the relation means, or `null` for a type with no definition. */
+  readonly definition: string | null;
   /** M6, written at both ends. `null` where the relation carries no interval at all. */
   readonly interval: string | null;
   /** The share of an ownership link in words, or `null` where the relation holds no share. */
@@ -695,6 +719,7 @@ export function readRelation(read: Corpus, relationId: string): RelationDossier 
       { key: 'to', text: toLine },
     ],
     sentence: `${from} ${type} ${to}`,
+    definition: relationDefinition(relation.type),
     interval: periodLine(index, relation),
     share: shareWords(relation.attrs),
     facts: storedFacts(relation),

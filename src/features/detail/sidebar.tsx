@@ -129,6 +129,15 @@ export function RelationSidebar({ relation, showOn }: RelationSidebarProps) {
         ))}
       </h1>
 
+      {relation.definition === null ? null : (
+        <p data-relation-definition="" className="text-small/4 text-label">
+          {relation.definition}{' '}
+          <a href="/glossary#relation-types" className={LINK}>
+            Glossary
+          </a>
+        </p>
+      )}
+
       {showOn === undefined ? null : (
         <a
           href={surfaceHref(showOn, relation.relationId, 'relation')}

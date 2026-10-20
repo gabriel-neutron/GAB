@@ -30,6 +30,10 @@ export interface RelationsProps {
   readonly claimHref?: (relationId: string) => string | null;
 }
 
+/** The hover text of a line: the sentence, then the meaning of its type where the record has it. */
+const hoverOf = (relation: RelationLine): string =>
+  relation.definition === null ? relation.sentence : `${relation.sentence}. ${relation.definition}`;
+
 const UNDRAWABLE = 'The graph does not draw this relation. One endpoint is a relation.';
 
 export function Relations({ relations, mark, deleting, onSelect, claimHref }: RelationsProps) {
@@ -51,7 +55,7 @@ export function Relations({ relations, mark, deleting, onSelect, claimHref }: Re
             {onSelect === undefined ? (
               <span
                 className="min-w-0 flex-1 basis-48 text-xs break-words"
-                title={relation.sentence}
+                title={hoverOf(relation)}
               >
                 {relation.sentence}
               </span>
@@ -59,13 +63,22 @@ export function Relations({ relations, mark, deleting, onSelect, claimHref }: Re
               <button
                 type="button"
                 className="min-w-0 flex-1 basis-48 text-left text-xs break-words underline-offset-2 hover:underline"
-                title={relation.sentence}
+                title={hoverOf(relation)}
                 onClick={() => {
                   onSelect(relation.id);
                 }}
               >
                 {relation.sentence}
               </button>
+            )}
+            {relation.typeShown === null ? null : (
+              <span
+                data-relation-type=""
+                className="min-w-0 text-small/4 text-label underline decoration-dotted underline-offset-2"
+                title={relation.definition ?? undefined}
+              >
+                {`Type: ${relation.typeShown}`}
+              </span>
             )}
             {/* M6: the interval is written at both ends. The words arrive written, and
                   "and closed" is among them. */}

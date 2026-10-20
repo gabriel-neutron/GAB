@@ -1,7 +1,9 @@
+import { relationDefinition } from '@gab/proposal/relation-types';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
 
 import { corpus } from '@/shared/committed-fixture/corpus';
+import type { Corpus } from '@/shared/read/model';
 
 import { readDossier, type RelationLine } from './dossier';
 import { SourceMark } from './mark';
@@ -24,6 +26,16 @@ const APPOINTS = 'a2b3c4d5-8e9f-4012-b345-c6d7e8f90a1b';
 
 const relationsOf = (entityId: string): readonly RelationLine[] =>
   readDossier(corpus, entityId, entityTypes, [])?.relations ?? [];
+
+/** The `owns` relation of the vessel, and a second relation that links the same two ends. */
+const OWNS = 'e1f20a34-7b8c-4d16-9052-a3b4c5d6e7f8';
+const SECOND = 'f0000000-0000-4000-8000-000000000001';
+
+const PAIR_CORPUS = ((): Corpus => {
+  const owns = corpus.relations.find((relation) => relation.id === OWNS);
+  if (owns === undefined) throw new Error('The committed corpus lost its ownership');
+  return { ...corpus, relations: [...corpus.relations, { ...owns, id: SECOND, type: 'operates' }] };
+})();
 
 const FROM_ENTITY_END = relationsOf(COMPANY);
 const FROM_RELATION_END = relationsOf(VESSEL);
@@ -87,6 +99,30 @@ export const TheM4RelationIsReachableFromTheEntityEnd: Story = {
     await expect(row).toHaveTextContent(NOT_DRAWN);
     // The sentence of a relation is a property of the relation, so both ends read the same one.
     await expect(lineOf(FROM_ENTITY_END, M4).sentence).toBe(lineOf(FROM_RELATION_END, M4).sentence);
+  },
+};
+
+export const TwoRelationsOnOnePairShowTheTypeOfEach: Story = {
+  args: { relations: readDossier(PAIR_CORPUS, VESSEL, entityTypes, [])?.relations ?? [] },
+  play: async ({ canvasElement }) => {
+    await expect(
+      rowOf(canvasElement, OWNS).querySelector('[data-relation-type]'),
+    ).toHaveTextContent('Type: is owned by');
+    await expect(
+      rowOf(canvasElement, SECOND).querySelector('[data-relation-type]'),
+    ).toHaveTextContent('Type: is operated by');
+  },
+};
+
+export const ALoneRelationShowsNoTypeAndTheDefinitionIsOnHover: Story = {
+  play: async ({ canvasElement }) => {
+    const row = rowOf(canvasElement, APPOINTS);
+    await expect(row.querySelector('[data-relation-type]')).toBeNull();
+    const sentence = lineOf(FROM_ENTITY_END, APPOINTS).sentence;
+    await expect(within(row).getByText(sentence)).toHaveAttribute(
+      'title',
+      `${sentence}. ${relationDefinition('appoints')}`,
+    );
   },
 };
 
