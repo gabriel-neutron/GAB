@@ -177,6 +177,7 @@ function shorten(uri: string | null): string | null {
 interface Index {
   readonly entityById: ReadonlyMap<string, Entity>;
   readonly relationById: ReadonlyMap<string, Relation>;
+  readonly documentById: ReadonlyMap<DocId, DocumentRow>;
   readonly wordsOf: (type: string) => RelationWords;
 }
 
@@ -184,6 +185,7 @@ function indexOf(read: Corpus): Index {
   return {
     entityById: new Map(read.entities.map((row) => [row.id, row])),
     relationById: new Map(read.relations.map((row) => [row.id, row])),
+    documentById: new Map(read.documents.map((row) => [row.id, row])),
     wordsOf: relationWording(read.relationTypes),
   };
 }
@@ -292,16 +294,55 @@ function endpointWords(index: Index, kind: EndpointKind, id: string, depth: numb
   return `the "${index.wordsOf(held.type).label}" of ${from} and ${to}`;
 }
 
-/**
- * M6: an interval is written at both ends. A closed interval says that it is closed, or a
- * reader takes an ended relation for a current one. */
-function intervalWords(relation: Relation): string | null {
+const DESIGNATION = 'designated_by';
+
+// An absent end is not a live status: the record says only that no end is recorded.
+function periodWords(relation: Relation): string | null {
   if (relation.validFrom !== null && relation.validTo !== null) {
     return `from ${relation.validFrom} to ${relation.validTo}, and closed`;
   }
-  if (relation.validFrom !== null) return `from ${relation.validFrom}, with no end date`;
+  if (relation.validFrom !== null) return `from ${relation.validFrom}, no end date recorded`;
   if (relation.validTo !== null) return `to ${relation.validTo}, with no start date`;
   return null;
+}
+
+// The newest retrieval date of the sources of the relation, or null where no source has one.
+function checkDayOf(index: Index, relation: Relation): string | null {
+  const days = relation.sources
+    .map((id) => index.documentById.get(id)?.retrievedAt?.slice(0, 10))
+    .filter((day): day is string => day !== undefined && day !== '');
+  return days.reduce<string | null>(
+    (newest, day) => (newest === null || day > newest ? day : newest),
+    null,
+  );
+}
+
+function designationWords(index: Index, relation: Relation): string {
+  const issuer =
+    relation.dstKind === 'entity' ? index.entityById.get(relation.dstId)?.label : undefined;
+  const acts = relation.sources
+    .map((id) => index.documentById.get(id))
+    .filter((row): row is DocumentRow => row?.docType === 'legal_act')
+    .map((row) => row.title);
+  const listed = [
+    `listed by ${issuer ?? 'an issuer that is absent from the record'}`,
+    relation.validFrom === null ? '' : ` on ${relation.validFrom}`,
+    acts.length === 0 ? '' : ` under ${acts.join(', ')}`,
+  ].join('');
+  const end =
+    relation.validTo === null
+      ? 'no end date recorded'
+      : `ended on ${relation.validTo}, and closed${relation.validFrom === null ? ', with no start date' : ''}`;
+  const checked = checkDayOf(index, relation);
+  return `${listed}, ${end}${checked === null ? '' : `; status checked on ${checked}`}`;
+}
+
+/**
+ * M6: an interval is written at both ends. A closed interval says that it is closed, or a
+ * reader takes an ended relation for a current one. An open interval says that no end is
+ * recorded, and never that the relation holds now. */
+function intervalWords(index: Index, relation: Relation): string | null {
+  return relation.type === DESIGNATION ? designationWords(index, relation) : periodWords(relation);
 }
 
 /** The relation as a fact, with its dates, so a reader sees what the document backs. */
@@ -383,7 +424,7 @@ export function readDossier(
 
   const relations: readonly RelationLine[] = [...direct, ...pointing].map((relation) => {
     const sentence = sentenceOf(relation);
-    const interval = intervalWords(relation);
+    const interval = intervalWords(index, relation);
     const fact = factWords(sentence, interval);
     return {
       id: relation.id,
@@ -543,7 +584,7 @@ export function readRelation(read: Corpus, relationId: string): RelationDossier 
   const [fromLine, typeLine, toLine] = relationLines(from, type, to);
 
   const register = sourceRegister(documentById);
-  const interval = intervalWords(relation);
+  const interval = intervalWords(index, relation);
   const fact = factWords(`${from} ${type} ${to}`, interval);
   const sources = register.refsOf(relation.sources, fact);
   // Departure: this view draws no attribute, so no document holds one up here. The card says

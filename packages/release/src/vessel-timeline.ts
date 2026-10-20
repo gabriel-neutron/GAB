@@ -3,8 +3,8 @@ import { relationWords } from '@gab/proposal/relation-types';
 import { elementsOf } from './value-elements.ts';
 import type { SiteClaim, SiteRelation, SiteRelease } from './site-release.ts';
 
-/** When a mark holds. An interval with no end is open: the release gives no end date, which does
- * not say that the relation ended. */
+/** When a mark holds. An interval with no end is open: no end date is recorded, which does not
+ * say that the relation ended. */
 export type MarkTime =
   | {
       readonly kind: 'interval';

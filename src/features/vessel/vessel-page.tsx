@@ -196,8 +196,8 @@ export function VesselPage({ release, imo, entityHref, claimHref }: VesselPagePr
             claim.
             <span className="hidden md:inline">
               {' '}
-              A bar with an arrow is open: the release gives no end date, and the bar goes to the
-              line of the version of {version}. A dashed bar has no known start. A dot is a day.
+              A bar with an arrow is open: no end date is recorded, and the bar goes to the line of
+              the version of {version}. A dashed bar has no known start. A dot is a day.
             </span>
           </p>
           {isValidImo(imo) ? null : (
