@@ -73,14 +73,18 @@ export const WithThePairOnTheClaimShowsItsPair: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText('Rating')).toBeVisible();
     await expect(canvas.getByText('A2')).toBeVisible();
-    await expect(canvas.getByText(/completely reliable author, probably true/u)).toBeVisible();
+    await expect(
+      canvas.getByRole('img', {
+        name: /Admiralty A2. Author: completely reliable. Fact: probably true/u,
+      }),
+    ).toBeVisible();
   },
 };
 
 export const AReleaseThatHidesThePairShowsNoRatingAndNoLegend: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.queryByText('Rating')).toBeNull();
-    await expect(canvas.queryByText(/reliable author/u)).toBeNull();
+    await expect(canvas.queryByRole('img', { name: /Admiralty/u })).toBeNull();
   },
 };
 

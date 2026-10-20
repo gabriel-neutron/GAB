@@ -1,7 +1,6 @@
 import type { CriticalNode, NodeCondition, PairRating } from '@gab/release/site-release';
 
 import { DataTable, type DataColumn } from '@/shared/page/data-table';
-import { AdmiraltyLegend } from '@/shared/page/admiralty-legend';
 import { ClaimLink } from '@/shared/page/claim-link';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
@@ -55,9 +54,11 @@ function ConditionCell({
   if (condition === undefined) return null;
   return (
     <div className="flex flex-col gap-0.5">
-      <p className={condition.state === 'not sourced' ? 'text-dissent' : undefined}>
-        {condition.state}
-      </p>
+      {condition.state === 'not sourced' || condition.claimIds.length === 0 ? (
+        <p className={condition.state === 'not sourced' ? 'text-dissent' : undefined}>
+          {condition.state}
+        </p>
+      ) : null}
       {condition.claimIds.map((id) => {
         const claim = claims[id];
         return (
@@ -95,11 +96,19 @@ const columnsOf = (
           <a className={READING_LINK} href={entityHref(node.id)}>
             {node.label}
           </a>
-          <p className="font-normal text-muted-foreground">{typeLabel(node.type)}</p>
+          <p className="font-normal">
+            <span className="inline-block border border-border px-1 text-small/4 text-muted-foreground">
+              {typeLabel(node.type)}
+            </span>
+          </p>
           {imo === undefined ? null : (
             <p className="font-normal">
-              <a className={READING_LINK} href={vesselHref(imo)}>
-                {`Timeline of IMO ${imo}`}
+              <a
+                className={READING_LINK}
+                href={vesselHref(imo)}
+                aria-label={`Timeline of IMO ${imo}`}
+              >
+                Timeline
               </a>
             </p>
           )}
@@ -159,7 +168,6 @@ export function NodesPage({ release, entityHref, vesselHref, claimHref }: NodesP
         tick with no public claim shows "not sourced", and it does not count.
       </p>
       <p>{summary}</p>
-      <AdmiraltyLegend shown={Object.values(release.claims).some((one) => one.rating.shown)} />
       {retained.length === 0 ? null : (
         <PageSection title="Retained nodes">
           <DataTable

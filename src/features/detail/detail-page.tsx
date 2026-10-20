@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import type { AttributeEdit } from '@gab/proposal/attribute-value';
 
 import type { DocId } from '@/shared/read/model';
-import { AdmiraltyLegend } from '@/shared/page/admiralty-legend';
 import { DataTable } from '@/shared/page/data-table';
 import { KeyValue } from '@/shared/page/key-value';
 import { NatoPairMark } from '@/shared/page/nato-pair-mark';
@@ -333,7 +332,6 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
 
       {facts === null || facts.claims.length === 0 ? null : (
         <PageSection title="Claims of the release">
-          <AdmiraltyLegend shown={pairShown} />
           <DataTable
             name="Claims of the release"
             empty="The release holds no claim about this entity."

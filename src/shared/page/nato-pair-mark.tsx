@@ -6,8 +6,9 @@ export interface NatoPairMarkProps {
   readonly rating: PairRating;
 }
 
-/** The ADMIRALTY pair of a claim: the two marks, then the same in words. A claim with no full pair
- * says "not rated", and a release that hides the pair shows nothing. */
+/** The ADMIRALTY pair of a claim as a badge. The words that explain it are in the native tooltip
+ * and in the accessible name: a custom tooltip would be cut by the scroll box of a table. A claim
+ * with no full pair says "not rated", and a release that hides the pair shows nothing. */
 export function NatoPairMark({ rating }: NatoPairMarkProps) {
   if (!rating.shown) return null;
   if (rating.pair === null)
@@ -17,10 +18,17 @@ export function NatoPairMark({ rating }: NatoPairMarkProps) {
       </span>
     );
   const { letter, digit } = rating.pair;
+  const words = pairWords(letter, digit);
   return (
-    <span data-nato-pair="">
-      <span className="font-mono font-medium">{`${letter}${digit}`}</span>
-      <span className="text-muted-foreground">{` · ${pairWords(letter, digit)}`}</span>
+    <span
+      tabIndex={0}
+      role="img"
+      title={words}
+      aria-label={`Admiralty ${letter}${digit}. ${words}`}
+      className="inline-block cursor-help border border-input px-1 font-mono text-small/4 font-medium outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      data-nato-pair=""
+    >
+      {`${letter}${digit}`}
     </span>
   );
 }
