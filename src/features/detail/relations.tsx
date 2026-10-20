@@ -51,7 +51,6 @@ export function Relations({ relations, mark, deleting, onSelect, claimHref }: Re
       {relations.map((relation) => (
         <li key={relation.id} data-relation={relation.id} className="border-b border-border py-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            {/* Tailwind: `truncate` does nothing in a flex row without `min-w-0`. */}
             {onSelect === undefined ? (
               <span
                 className="min-w-0 flex-1 basis-48 text-xs break-words"
@@ -74,7 +73,7 @@ export function Relations({ relations, mark, deleting, onSelect, claimHref }: Re
             {relation.typeShown === null ? null : (
               <span
                 data-relation-type=""
-                className="min-w-0 text-small/4 text-label underline decoration-dotted underline-offset-2"
+                className="min-w-0 text-small/4 break-words text-label underline decoration-dotted underline-offset-2"
                 title={relation.definition ?? undefined}
               >
                 {`Type: ${relation.typeShown}`}
@@ -83,20 +82,15 @@ export function Relations({ relations, mark, deleting, onSelect, claimHref }: Re
             {/* M6: the interval is written at both ends. The words arrive written, and
                   "and closed" is among them. */}
             {relation.interval === null ? null : (
-              <span
-                className="min-w-0 font-mono text-small/4 tabular-nums text-label"
-                title={relation.interval}
-              >
+              <span className="min-w-0 font-mono text-small/4 break-words tabular-nums text-label">
                 {relation.interval}
               </span>
             )}
             {relation.share === null ? null : (
-              <span className="min-w-0 text-small/4 text-label" title={relation.share}>
-                {relation.share}
-              </span>
+              <span className="min-w-0 text-small/4 break-words text-label">{relation.share}</span>
             )}
             {relation.facts.map((fact) => (
-              <span key={fact} className="min-w-0 text-small/4 text-label" title={fact}>
+              <span key={fact} className="min-w-0 text-small/4 break-words text-label">
                 {fact}
               </span>
             ))}

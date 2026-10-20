@@ -91,7 +91,7 @@ const listId = (type: string): string => `rail-index-${type}`;
 // External constraint: `ring` alone paints at rest in `currentcolor`, and a border ring paints
 // nothing without a width. `pointer-events-auto` gives a drag on the graph rail back.
 const CONTROL = cn(
-  'pointer-events-auto flex h-6 items-center border border-transparent text-left',
+  'pointer-events-auto flex min-h-6 items-center border border-transparent text-left',
   'transition-colors duration-100 hover:bg-muted',
   'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
 );
@@ -250,7 +250,7 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
             open ? 'gap-1.5 px-1.5' : 'justify-center px-1',
           )}
         >
-          {open ? <span className="min-w-0 flex-1 truncate">{links.label}</span> : null}
+          {open ? <span className="min-w-0 flex-1 py-0.5 break-words">{links.label}</span> : null}
           {links.on ? (
             <Eye size={14} aria-hidden="true" className="shrink-0 text-label" />
           ) : (
@@ -313,9 +313,7 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                   className={cn(CONTROL, 'min-w-0 flex-1 gap-1.5')}
                 >
                   {row.colour === null ? null : <Swatch colour={row.colour} on={row.on} />}
-                  <span className="min-w-0 flex-1 truncate" title={row.label}>
-                    {row.label}
-                  </span>
+                  <span className="min-w-0 flex-1 py-0.5 break-words">{row.label}</span>
                   {/* Departure: the count carries on the graph the weight a hue carries on the
                       map. */}
                   <span className={cn(FIGURE, 'text-muted-foreground')}>{row.figure}</span>

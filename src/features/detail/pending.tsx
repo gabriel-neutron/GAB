@@ -26,14 +26,11 @@ export function Pending({ proposals, mark }: PendingProps) {
         <li
           key={proposal.id}
           data-proposal={proposal.id}
-          className="flex items-center gap-2 border-b border-dashed border-border py-1"
+          className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 border-b border-dashed border-border py-1"
         >
           <span className="shrink-0 text-small/4 text-candidate">{CANDIDATE}</span>
           <span className="shrink-0 text-small/4 text-label">{proposal.origin}</span>
-          {/* Tailwind: `truncate` does nothing in a flex row without `min-w-0`. */}
-          <span className="min-w-0 flex-1 truncate text-xs" title={proposal.summary}>
-            {proposal.summary}
-          </span>
+          <span className="min-w-0 flex-1 basis-48 text-xs break-words">{proposal.summary}</span>
           <span
             className={cn(
               'shrink-0 text-small/4',

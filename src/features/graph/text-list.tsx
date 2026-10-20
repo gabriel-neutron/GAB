@@ -13,7 +13,7 @@ interface TextViewListProps {
 }
 
 const BUTTON = cn(
-  'min-w-0 truncate border border-transparent px-1 text-left',
+  'min-w-0 border border-transparent px-1 text-left break-words',
   'transition-colors duration-100 hover:bg-muted',
   'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
 );
@@ -77,7 +77,7 @@ export function TextViewList({ view, onOpenEntity, onOpenRelation }: TextViewLis
             {view.rows.map((row) => (
               <li
                 key={`${row.relationId}-${row.entityId}-${row.direction}`}
-                className={cn('flex h-6 items-center gap-2')}
+                className={cn('flex min-h-6 items-start gap-2')}
               >
                 <button
                   type="button"
@@ -87,7 +87,6 @@ export function TextViewList({ view, onOpenEntity, onOpenRelation }: TextViewLis
                     event.currentTarget.closest('section')?.focus();
                     onOpenEntity(row.entityId);
                   }}
-                  title={row.label}
                   className={cn(BUTTON, 'max-w-64 text-foreground')}
                 >
                   {row.label}
@@ -104,8 +103,7 @@ export function TextViewList({ view, onOpenEntity, onOpenRelation }: TextViewLis
                       event.currentTarget.closest('section')?.focus();
                       onOpenRelation(row.relationId);
                     }}
-                    title={`${row.relation} (${row.direction === 'out' ? 'outgoing' : 'incoming'})`}
-                    className={cn(BUTTON, 'shrink-0 text-muted-foreground')}
+                    className={cn(BUTTON, 'text-muted-foreground')}
                   >
                     {`${row.relation} (${row.direction === 'out' ? 'outgoing' : 'incoming'})`}
                   </button>

@@ -54,6 +54,8 @@ export interface SourceCardModel {
   readonly title: string;
   readonly uri: string | null;
   readonly uriShort: string | null;
+  /** Whether `uriShort` is shorter than the address. */
+  readonly uriCut: boolean;
   readonly retrievedAt: string | null;
   /** The kind in words. It is null where the record holds no row for the document. */
   readonly kind: string | null;
@@ -192,9 +194,13 @@ function keysOf(payload: Proposal['payload']): readonly string[] {
   ];
 }
 
+const bareOf = (uri: string): string => uri.replace(/^https?:\/\//, '');
+
+const isCut = (uri: string | null): boolean => uri !== null && bareOf(uri).length > URI_LENGTH;
+
 function shorten(uri: string | null): string | null {
   if (uri === null) return null;
-  const bare = uri.replace(/^https?:\/\//, '');
+  const bare = bareOf(uri);
   return bare.length <= URI_LENGTH ? bare : `${bare.slice(0, URI_LENGTH - 1)}…`;
 }
 
@@ -229,6 +235,7 @@ function cardOf(
     title: titleOf(id, row),
     uri: row?.uri ?? null,
     uriShort: shorten(row?.uri ?? null),
+    uriCut: isCut(row?.uri ?? null),
     retrievedAt: row?.retrievedAt ?? null,
     kind: kindOf(row),
     imported: isImport(row),

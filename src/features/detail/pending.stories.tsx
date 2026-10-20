@@ -121,7 +121,7 @@ const meta = {
   component: Pending,
   args: { proposals: PROPOSALS, mark },
   parameters: { layout: 'fullscreen' },
-  // A proposal is one row, and a row truncates, so the width is fixed at 900px.
+  // The width is fixed at 900px, so a story measures one layout.
   render: (args) => (
     <div className="w-[900px] p-2">
       <Pending {...args} />

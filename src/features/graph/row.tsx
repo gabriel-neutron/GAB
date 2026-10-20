@@ -12,7 +12,7 @@ interface IndexRowsProps {
 
 /** A row is a `<button>` and not a `<div>` with `onClick`: it must reach the keyboard. */
 const LINE = cn(
-  'pointer-events-auto flex h-6 w-full min-w-0 items-center gap-2 px-1 text-left',
+  'pointer-events-auto flex min-h-6 w-full min-w-0 items-center gap-2 px-1 py-0.5 text-left',
   'border border-transparent transition-colors duration-100',
   'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
 );
@@ -43,7 +43,7 @@ export function IndexRows({ list, onSelect, onShowWholeList, onOpen }: IndexRows
       {entities.map((entity) => (
         // The fold control and the row are two targets, so they stand side by side, and never one
         // inside the other.
-        <div key={entity.id} className="flex h-6 items-center">
+        <div key={entity.id} className="flex min-h-6 items-start">
           <FolderToggle unit={entity} name={entity.label} onOpen={onOpen} />
           <button
             type="button"
@@ -58,9 +58,7 @@ export function IndexRows({ list, onSelect, onShowWholeList, onOpen }: IndexRows
               entity.selected ? 'bg-accent text-accent-foreground' : 'hover:bg-muted',
             )}
           >
-            <span className="min-w-0 flex-1 truncate" title={entity.label}>
-              {entity.label}
-            </span>
+            <span className="min-w-0 flex-1 break-words">{entity.label}</span>
             <span className={cn(FIGURE, 'text-label')}>{entity.degree}</span>
           </button>
         </div>
@@ -75,7 +73,7 @@ export function IndexRows({ list, onSelect, onShowWholeList, onOpen }: IndexRows
           aria-label={`Show the remaining ${remainder}, most connected first`}
           className={cn(LINE, 'hover:bg-muted')}
         >
-          <span className="min-w-0 flex-1 truncate text-label">Show {remainder} more</span>
+          <span className="min-w-0 flex-1 break-words text-label">Show {remainder} more</span>
         </button>
       )}
     </div>

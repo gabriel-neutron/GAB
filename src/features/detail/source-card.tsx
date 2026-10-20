@@ -12,12 +12,14 @@ export interface SourceCardProps {
   readonly source: SourceCardModel;
 }
 
-const LINK = 'min-w-0 truncate text-primary underline underline-offset-2';
+const LINK = 'min-w-0 text-primary underline underline-offset-2 break-all';
 
-const NAME = 'w-16 shrink-0 truncate text-label';
+const NAME = 'w-16 shrink-0 text-label break-words';
 
 export function SourceCard({ source }: SourceCardProps) {
   const [open, setOpen] = useState<boolean>(false);
+  const [addressOpen, setAddressOpen] = useState<boolean>(false);
+  const addressId = useId();
   const panelId = useId();
   const factCount = source.backs.length + source.holdsUp.length;
 
@@ -31,10 +33,7 @@ export function SourceCard({ source }: SourceCardProps) {
         <span className="shrink-0 font-mono text-small/4 tabular-nums text-label">
           {source.number}
         </span>
-        {/* Tailwind: `truncate` does nothing in a flex row without `min-w-0`. */}
-        <span className="min-w-0 flex-1 truncate text-xs" title={source.title}>
-          {source.title}
-        </span>
+        <span className="min-w-0 flex-1 text-xs break-words">{source.title}</span>
         {source.kind === null ? null : (
           <span className="shrink-0 text-small/4 text-label">{source.kind}</span>
         )}
@@ -43,20 +42,38 @@ export function SourceCard({ source }: SourceCardProps) {
         ) : null}
       </div>
 
-      <div className="mt-1 flex items-center gap-2 text-small/4">
+      <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-small/4">
         {source.uri === null ? (
-          <span className="min-w-0 flex-1 truncate text-label">
+          <span className="min-w-0 flex-1 text-label">
             {source.imported ? 'Import dataset, no web address' : 'No web address recorded'}
           </span>
         ) : (
-          <a
-            href={source.uri}
-            title={source.uri}
-            aria-label={`Open the original document at ${source.uri}`}
-            className={cn(LINK, 'flex-1')}
-          >
-            {source.uriShort ?? source.uri}
-          </a>
+          <>
+            <a
+              id={addressId}
+              href={source.uri}
+              aria-label={`Open the original document at ${source.uri}`}
+              className={cn(LINK, addressOpen ? 'basis-full' : 'flex-1')}
+            >
+              {addressOpen ? source.uri : (source.uriShort ?? source.uri)}
+            </a>
+            {source.uriCut ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                aria-expanded={addressOpen}
+                aria-controls={addressId}
+                aria-label={`${addressOpen ? 'Show less of' : 'Show more of'} address of source ${String(source.number)}`}
+                onClick={() => {
+                  setAddressOpen(!addressOpen);
+                }}
+                className="shrink-0 rounded-none px-1 text-small/4 transition-colors duration-100"
+              >
+                {addressOpen ? 'Show less' : 'Show more'}
+              </Button>
+            ) : null}
+          </>
         )}
         <span className="shrink-0 font-mono tabular-nums text-label">
           {source.retrievedAt === null
@@ -114,12 +131,8 @@ export function SourceCard({ source }: SourceCardProps) {
               <ul className="mt-0.5 space-y-0.5">
                 {source.holdsUp.map((claim) => (
                   <li key={claim.key} className="flex gap-2">
-                    <span className={cn(NAME)} title={claim.label}>
-                      {claim.label}
-                    </span>
-                    <span className="min-w-0 truncate" title={claim.text}>
-                      {claim.text}
-                    </span>
+                    <span className={cn(NAME)}>{claim.label}</span>
+                    <span className="min-w-0 break-words">{claim.text}</span>
                   </li>
                 ))}
               </ul>

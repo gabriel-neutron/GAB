@@ -15,7 +15,7 @@ interface RelationLegendProps {
 const GROUND = 'dark';
 
 const CONTROL = cn(
-  'flex h-6 w-full items-center gap-1.5 border border-transparent px-1 text-left',
+  'flex min-h-6 w-full items-center gap-1.5 border border-transparent px-1 text-left',
   'transition-colors duration-100 hover:bg-muted',
   'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
 );
@@ -54,12 +54,9 @@ export function RelationLegend({ legend, onSwitch }: RelationLegendProps) {
     >
       {legend.map((family) => (
         <div key={family.key} data-family={family.key} className={cn('min-w-0')}>
-          <div className={cn('flex h-6 items-center gap-1.5 px-1')}>
+          <div className={cn('flex min-h-6 items-center gap-1.5 px-1')}>
             <Line pattern={family.look.dash} colour={family.look.hue[GROUND]} />
-            <span
-              className={cn('min-w-0 flex-1 truncate text-foreground')}
-              title={family.look.label}
-            >
+            <span className={cn('min-w-0 flex-1 break-words text-foreground')}>
               {family.look.label}
             </span>
             <span className={cn('shrink-0 font-mono text-muted-foreground tabular-nums')}>
@@ -77,9 +74,7 @@ export function RelationLegend({ legend, onSwitch }: RelationLegendProps) {
                   }}
                   className={CONTROL}
                 >
-                  <span className={cn('min-w-0 flex-1 truncate')} title={row.label}>
-                    {row.label}
-                  </span>
+                  <span className={cn('min-w-0 flex-1 py-0.5 break-words')}>{row.label}</span>
                   <span className={cn('shrink-0 font-mono text-muted-foreground tabular-nums')}>
                     {figure(row.shown, row.total)}
                   </span>
