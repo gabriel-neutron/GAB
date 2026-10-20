@@ -19,6 +19,7 @@ const RESERVE = 100;
 const DAY_MS = 86_400_000;
 // An area read of the archive can take longer than the ten seconds that other tools allow.
 const TIMEOUT_MS = 60_000;
+const ATTEMPTS = 3;
 
 /** A refusal that a wait of ten minutes cures: the map key is near its rate limit. */
 export class RateLimitRefusal extends ToolRefusal {}
@@ -56,18 +57,22 @@ const msOf = (value: string): number => Date.parse(`${value}T00:00:00Z`);
 // A path holds the key. The sentence of a fault never holds the path.
 const get = async (reach: Reach | undefined, path: string, key: string): Promise<string> => {
   let answer;
-  try {
-    answer = await anyAnswerOf(
-      webFromReach(reach),
-      `${BASE}${path.replace('{key}', () => encodeURIComponent(key))}`,
-      {
-        headers: { accept: 'text/csv, application/json' },
-        timeoutMs: TIMEOUT_MS,
-      },
-    );
-  } catch (fault) {
-    if (fault instanceof UpstreamFault) throw new ToolRefusal(`${REGISTER}: ${fault.message}`);
-    throw fault;
+  // A run is up to hundreds of calls and stores nothing when one fails, so a slow call is tried again.
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      answer = await anyAnswerOf(
+        webFromReach(reach),
+        `${BASE}${path.replace('{key}', () => encodeURIComponent(key))}`,
+        {
+          headers: { accept: 'text/csv, application/json' },
+          timeoutMs: TIMEOUT_MS,
+        },
+      );
+      break;
+    } catch (fault) {
+      if (!(fault instanceof UpstreamFault)) throw fault;
+      if (attempt === ATTEMPTS) throw new ToolRefusal(`${REGISTER}: ${fault.message}`);
+    }
   }
   if (answer.status === 429) throw new RateLimitRefusal(`${REGISTER} answered 429`);
   if (answer.status < 200 || answer.status > 299)

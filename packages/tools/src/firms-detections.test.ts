@@ -159,6 +159,29 @@ test('a call of FIRMS has a long time limit and a timeout has its own sentence',
   expect(refusalOf(outcome)).toBe('NASA FIRMS: no answer came before the time limit');
 });
 
+test('a call of FIRMS that fails once is tried again', async () => {
+  let failed = false;
+  const { web, session, reach } = setup();
+  const flaky = stubWeb(
+    (asked: Asked) => {
+      if (!failed && asked.url.pathname.startsWith('/api/area/')) {
+        failed = true;
+        throw new Error('reset');
+      }
+      return web.get(asked.url.toString(), asked.request);
+    },
+    { firmsKey: KEY },
+  );
+  const outcome = await callTool(
+    tool,
+    session,
+    { ...BOX, from: '2026-06-01', to: '2026-06-02' },
+    { ...reach, web: flaky },
+  );
+  expect(refusalOf(outcome)).toBe('');
+  expect(failed).toBe(true);
+});
+
 test('a fault of FIRMS is a refusal that repeats no address and no key', async () => {
   const web = stubWeb(() => new Error(`connect failed for /csv/${KEY}/`), { firmsKey: KEY });
   const outcome = await callTool(
