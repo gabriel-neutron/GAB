@@ -23,7 +23,7 @@ export const gemDuplicatesCommand: SubCommand = async (args) => {
     );
     for (const p of pairs)
       console.log(
-        `${p.gemId}\t${p.dossierId}\t${p.type}\t${String(p.metres)}\t${p.gemLabel}\t${p.dossierLabel}`,
+        `${p.gemId}\t${p.dossierId}\t${p.type}\t${p.metres === null ? 'no point' : String(p.metres)}\t${p.gemLabel}\t${p.dossierLabel}`,
       );
     return 0;
   } finally {
