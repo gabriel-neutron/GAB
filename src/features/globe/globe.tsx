@@ -6,6 +6,7 @@ import { GlobeCanvas } from './globe-canvas';
 import { GlobeCard } from './globe-card';
 import type { GlobeData } from './globe-data';
 import { createGlobeStore } from './globe-store';
+import { MapLegend } from './map-legend';
 import { ProductFilter } from './product-filter';
 import { UnavailableNotice } from './unavailable-notice';
 
@@ -48,6 +49,7 @@ export function Globe({ data, entity, entityHref, onSelect }: GlobeProps) {
             <ProductFilter store={store} />
             <UnavailableNotice store={store} />
           </div>
+          <MapLegend />
           <ChainSteps store={store} steps={data.steps} />
         </div>
         <GlobeCard store={store} data={data} entityHref={entityHref} />
