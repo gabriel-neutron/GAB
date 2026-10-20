@@ -109,6 +109,8 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   // leaves it as it is.
   const narrow = useNarrowScreen();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // A wide screen has no drawer, so the drawer is closed in the render that meets one.
+  if (!narrow && drawerOpen) setDrawerOpen(false);
 
   // The list holds the record, the declared types and one stable function, and no ref: a ref is
   // one object for the life of the component. A later read of the record mounts a new graph,
@@ -314,8 +316,13 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
         />
       )}
       <div
+        // The drawer is absolute inside this island, so it is the positioned ancestor on a phone.
+        // The key is read here, and not on the drawer, because focus may stay on the Types button.
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') setDrawerOpen(false);
+        }}
         className={cn(
-          'dark relative grid border border-border bg-background text-foreground',
+          'dark grid border border-border bg-background text-foreground max-md:relative',
           'lg:grid-cols-[auto_minmax(0,1fr)_20rem]',
         )}
       >
@@ -339,7 +346,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
               setDrawerOpen(true);
             }}
             className={cn(
-              'absolute bottom-2 left-2 z-10 h-6 border border-input bg-background px-2 text-xs',
+              'absolute bottom-2 left-2 z-10 h-6 border border-input bg-background px-2 text-small/4',
               'text-foreground transition-colors duration-100 hover:bg-muted md:hidden',
               'outline-none focus-visible:border-ring focus-visible:ring-3',
               'focus-visible:ring-ring/50',
@@ -366,6 +373,8 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
         </div>
 
         <div
+          role="region"
+          aria-label="Card of the selection"
           className={cn(
             'max-h-96 min-h-0 min-w-0 overflow-y-auto overscroll-contain border-t border-border',
             'lg:col-start-3 lg:row-start-1 lg:max-h-128 lg:border-t-0 lg:border-l',
@@ -388,9 +397,6 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
             'max-md:bg-background',
             drawerOpen ? null : 'max-md:hidden',
           )}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') setDrawerOpen(false);
-          }}
         >
           {snapshot === null || rows === null ? null : (
             <Rail
