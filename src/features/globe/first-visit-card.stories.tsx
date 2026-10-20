@@ -59,6 +59,28 @@ export const TheReaderCanCloseIt: Story = {
   },
 };
 
+export const ClosingKeepsTheFocusOnThePage: Story = {
+  render: (props) => (
+    <RouterProvider
+      router={createRouter({
+        routeTree: createRootRoute({
+          component: () => (
+            <div>
+              <h1>Map</h1>
+              <FirstVisitCard {...props} />
+            </div>
+          ),
+        }),
+        history: createMemoryHistory({ initialEntries: ['/'] }),
+      })}
+    />
+  ),
+  play: async ({ canvas }) => {
+    await userEvent.click(await canvas.findByRole('button', { name: 'Close this card' }));
+    await expect(canvas.getByRole('heading', { name: 'Map' })).toHaveFocus();
+  },
+};
+
 export const InDarkTheCardKeepsItsBorder: Story = {
   decorators: [
     (Story) => (

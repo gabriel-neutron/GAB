@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react';
 import { Link } from '@tanstack/react-router';
 
 import { READING_LINK } from '@/shared/page/reading-link';
@@ -10,6 +11,14 @@ export interface FirstVisitCardProps {
 
 /** The card of the first visit: the scope of the record and three ways to start. */
 export function FirstVisitCard({ onClose }: FirstVisitCardProps) {
+  // The card leaves the page with its focused button, so the focus moves to the page title first.
+  // External constraint: a heading takes the focus only with a `tabindex`.
+  const close = (event: MouseEvent<HTMLButtonElement>) => {
+    const title = event.currentTarget.closest('section')?.parentElement?.querySelector('h1');
+    title?.setAttribute('tabindex', '-1');
+    title?.focus();
+    onClose();
+  };
   return (
     <section
       aria-label="Start here"
@@ -46,7 +55,7 @@ export function FirstVisitCard({ onClose }: FirstVisitCardProps) {
         says how the facts are checked.
       </p>
       <div>
-        <Button type="button" variant="outline" size="sm" onClick={onClose}>
+        <Button type="button" variant="outline" size="sm" onClick={close}>
           Close this card
         </Button>
       </div>
