@@ -101,6 +101,7 @@ export const boxOf = (latitude: number, longitude: number, halfWidth: number): B
 };
 
 const msOf = (value: string): number => Date.parse(`${value}T00:00:00Z`);
+const nextDay = (value: string): string => dayOf(msOf(value) + DAY_MS);
 const dayOf = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 
 interface Scene {
@@ -154,7 +155,7 @@ export interface Side {
   readonly image: PairImage | null;
   /** The days of the window, and the scenes that were tried with their share. */
   readonly window: { readonly from: string; readonly to: string };
-  readonly tried: readonly Tried[];
+  readonly tried: Tried[];
 }
 
 const strikeShape = z.strictObject({
@@ -164,12 +165,37 @@ const strikeShape = z.strictObject({
   latitude: z.number().min(-85).max(85),
   longitude: z.number().min(-180).max(180),
 });
+const MAX_NIGHT_DAYS = 7;
+
+const boxShape = z.strictObject({
+  south: z.number(),
+  west: z.number(),
+  north: z.number(),
+  east: z.number(),
+});
+const sideShape = z.strictObject({
+  image: z
+    .strictObject({
+      document: z.string(),
+      status: z.enum(['known', 'stored']),
+      scene: z.string(),
+      date: z.string(),
+      cloud: z.number(),
+      box: boxShape,
+      attribution: z.string(),
+    })
+    .nullable(),
+  window: z.strictObject({ from: z.string(), to: z.string() }),
+  tried: z.array(
+    z.strictObject({ date: z.string(), scene: z.string(), cloud: z.number().nullable() }),
+  ),
+});
 
 const strikeResult = z.strictObject({
   ref: z.string(),
   outcome: z.enum(['pair', 'one', 'none', 'error']),
-  before: z.custom<Side>().nullable(),
-  after: z.custom<Side>().nullable(),
+  before: sideShape.nullable(),
+  after: sideShape.nullable(),
   /** "no clear image" with the dates that were tried, one sentence for each side that has none. */
   notes: z.array(z.string()),
   error: z.string().nullable(),
@@ -303,7 +329,8 @@ export const sentinel2Pairs = defineTool({
       try {
         results.push(await oneStrike(strike));
       } catch (fault) {
-        if (!(fault instanceof ServiceFault) || fault.stops) throw fault;
+        if (!(fault instanceof ToolRefusal) || (fault instanceof ServiceFault && fault.stops))
+          throw fault;
         results.push({
           ref: strike.ref,
           outcome: 'error',
@@ -328,6 +355,10 @@ export const sentinel2Pairs = defineTool({
       const first = msOf(strike.day);
       const last = msOf(strike.until ?? strike.day);
       if (last < first) throw new ToolRefusal(`the strike ${strike.ref} ends before it starts`);
+      if ((last - first) / DAY_MS > MAX_NIGHT_DAYS)
+        throw new ToolRefusal(
+          `the strike ${strike.ref} lasts more than ${String(MAX_NIGHT_DAYS)} days`,
+        );
       const box = boxOf(strike.latitude, strike.longitude, input.halfWidthMetres);
       const windows = {
         before: { from: dayOf(first - WINDOW_DAYS * DAY_MS), to: dayOf(first - DAY_MS) },
@@ -374,7 +405,7 @@ export const sentinel2Pairs = defineTool({
         '/catalog/1.0.0/search',
         {
           collections: [COLLECTION],
-          datetime: `${range.from}T00:00:00Z/${range.to}T23:59:59Z`,
+          datetime: `${range.from}T00:00:00Z/${nextDay(range.to)}T00:00:00Z`,
           bbox: box4(box),
           limit: CATALOGUE_LIMIT,
           fields: { include: ['id', 'properties.datetime'] },
@@ -382,6 +413,9 @@ export const sentinel2Pairs = defineTool({
         'application/json',
       );
       const found = catalogueShape.safeParse(parse(bytes));
+      // A full page may hide more scenes. The tool does not read the next page, so it says so.
+      if (found.success && found.data.features.length >= CATALOGUE_LIMIT)
+        throw new ServiceFault('the catalogue holds more scenes than one page', false);
       if (!found.success)
         throw new ServiceFault(
           'Copernicus Data Space gave a catalogue that this tool does not read',
@@ -401,7 +435,7 @@ export const sentinel2Pairs = defineTool({
         {
           input: { bounds: bounds(box), data: [{ type: COLLECTION, dataFilter: {} }] },
           aggregation: {
-            timeRange: { from: `${range.from}T00:00:00Z`, to: `${range.to}T23:59:59Z` },
+            timeRange: { from: `${range.from}T00:00:00Z`, to: `${nextDay(range.to)}T00:00:00Z` },
             aggregationInterval: { of: 'P1D' },
             evalscript: CLOUD_SCRIPT,
             resx: STATISTICS_STEP_DEGREES,

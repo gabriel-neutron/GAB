@@ -380,11 +380,40 @@ test('the same scene and box a second time is the same document', async () => {
   expect(twice.results[0]?.before?.image?.['status']).toBe('known');
 });
 
-test('a strike whose last day comes before its first day is refused', async () => {
+test('a strike whose last day comes before its first day is an error of that strike only', async () => {
   const { session, reach } = setup();
-  expect(
-    refusalOf(
-      await callTool(tool, session, { strikes: [{ ...STRIKE, until: '2026-05-10' }] }, reach),
+  const output = outputOf(
+    await callTool(
+      tool,
+      session,
+      {
+        strikes: [
+          { ...STRIKE, until: '2026-05-10' },
+          { ...STRIKE, ref: 'good' },
+        ],
+      },
+      reach,
     ),
-  ).toContain('ends before it starts');
+  );
+  expect(output).toMatchObject({ error: 1, pair: 1 });
+});
+
+test('the statistics range ends at the start of the day after the window, so the last day has a share', async () => {
+  const { session, reach, web } = setup();
+  await callTool(tool, session, { strikes: [STRIKE] }, reach);
+  const statistics = web.posted.find((asked) => asked.url.pathname.endsWith('/statistics'));
+  expect(statistics?.body).toContain('"to":"2026-05-31T00:00:00Z"');
+});
+
+test('a full page of the catalogue is an error, and not a silent cut', async () => {
+  const many = {
+    scenes: Array.from({ length: 100 }, (_, at): readonly [string, string] => [
+      `S2_${String(at)}`,
+      '2026-05-13T08:50:00Z',
+    ]),
+    clouds: {},
+  };
+  const { session, reach } = setup(many);
+  const output = outputOf(await callTool(tool, session, { strikes: [STRIKE] }, reach));
+  expect(output.error).toBe(1);
 });

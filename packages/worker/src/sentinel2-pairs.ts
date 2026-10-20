@@ -7,8 +7,8 @@ import { z } from 'zod';
 // sentinel2_pairs over them. The tool stores the images. This code reads the strikes and counts.
 
 // Origin of the number: decided, not calibrated. One call to the tool makes at most 100 strikes,
-// and a batch of 20 keeps a stop (a limit of the service) from losing the counts of many strikes.
-const BATCH = 20;
+// and a batch of 5 keeps a stop (a limit of the service) from losing the counts of many strikes.
+const BATCH = 5;
 
 export interface Strike {
   readonly ref: string;
