@@ -979,9 +979,9 @@ const ENTITY_BOOK = workbookOf({
   [ENTITY_SHEET]: [
     ['Entity ID', 'Name', 'Country', 'Registry ID', 'LEI', 'Parent'],
     ['E100001', 'Rosneft', 'Russia', 105012345, 'not found', ''],
-    ['E100002', 'Lukoil', 'Russia', 1027700035769, 'not found', 'Novatek'],
+    ['E100002', 'Lukoil', 'Russia', 1027700035769, 'not found', '6316031581'],
     ['E100003', 'Novatek', 'Russia', 6316031581, '2138008R6GCRVBDFA581', ''],
-    ['E100004', 'Arctic New Co', 'Russia', '', '', 'Novatek'],
+    ['E100004', 'Arctic New Co', 'Russia', '', '', '6316031581'],
     ['E100005', 'Oslo Co', 'Norway', 912345678, '', ''],
   ],
 });
@@ -1005,7 +1005,7 @@ const ENTITY_DRAFT = {
       lei: { column: 'LEI', cast: { type: 'identifier' } },
     },
   },
-  relations: [{ type: 'owns', row_is: 'dst', other: { key: 'label', column: 'Parent' } }],
+  relations: [{ type: 'owns', row_is: 'dst', other: { key: 'tax_id', column: 'Parent' } }],
 };
 
 const recorded = async (
@@ -1789,5 +1789,226 @@ test('a second edition loads with no model, writes only the changed values, and 
     expect(
       await held.ask('SELECT valid_to FROM public.relations WHERE id = $1', [minor]),
     ).toStrictEqual([{ valid_to: null }]);
+  });
+});
+
+// A workbook in the shape of the GEM extraction tracker: fields with names of owners and an
+// operator, and a production sheet with one row for each fuel and year.
+const NAMES_DOC = 'doc_gem_names';
+const FIELDS_HEADER = [
+  'Unit ID',
+  'Unit name',
+  'Country/Area',
+  'Operator',
+  'Owner(s)',
+  'Parent(s)',
+  'Government unit ID',
+  'Block(s)',
+];
+const PRODUCTION_HEADER = [
+  'Unit ID',
+  'Unit Name',
+  'Country/Area',
+  'Fuel description',
+  'Quantity (converted)',
+  'Units (converted)',
+  'Data Year',
+];
+const NAMES_BOOK = workbookOf({
+  [ENTITY_SHEET]: [
+    ['Entity ID', 'Name', 'Country', 'Registry ID', 'LEI', 'Parent'],
+    ['E200001', 'Rosneftegaz', 'Russia', 7705630445, '', ''],
+    ['E200002', 'Novatek', 'Russia', 6316031581, '', ''],
+  ],
+  Fields: [
+    FIELDS_HEADER,
+    [
+      'G1',
+      'Alpha field',
+      'Russia',
+      'Novatek PJSC',
+      'Novatek PJSC [60%]; Rosneftegaz [30%]; Mystery Holder [10%]',
+      'Rosneftegaz [100.0%]',
+      'Rosnedra License ID: X1',
+      'North block',
+    ],
+    ['G2', 'Beta field', 'Russia', 'Maybe Co', 'Maybe Co [100%]', '', '', ''],
+  ],
+  Production: [
+    PRODUCTION_HEADER,
+    ['G1', 'Alpha field', 'Russia', 'Oil', 12.5, 'Million bbl/y', 2022],
+    ['G1', 'Alpha field', 'Russia', 'Oil', 11, 'Million bbl/y', 2019],
+    ['G1', 'Alpha field', 'Russia', 'Gas', 3.25, 'Million m3/y', 2023.0],
+  ],
+});
+
+const seriesRule = (column: string, cast: unknown) => ({
+  column,
+  cast,
+  key_by: ['Fuel description', 'Data Year'],
+  years: { column: 'Data Year', from: 2020, to: 2024 },
+});
+
+test('a field links to the owners and the operator that the name table gives, and carries its production by year', async () => {
+  await inTransaction(async (held) => {
+    await held.ask(PUT, [
+      BOOK,
+      `raw/${BOOK}.xlsx`,
+      'https://tracker.test/names.xlsx',
+      sha256(NAMES_BOOK),
+      XLSX_MIME,
+    ]);
+    const open = () => Promise.resolve(bytesSource(NAMES_BOOK));
+    const sets = { db: asQueryable(held), open };
+    await makeTextSet(sets, {
+      document: BOOK,
+      sheet: ENTITY_SHEET,
+      filter: { column: 'Country', value: 'Russia' },
+    });
+    for (const sheet of ['Fields', 'Production'])
+      await makeTextSet(sets, {
+        document: BOOK,
+        sheet,
+        filter: { column: 'Country/Area', value: 'Russia' },
+      });
+    await approve(held);
+    await runLoad(held, (await mapAndPromote(held, ENTITY_SET, COMPANY_DRAFT)).load);
+    const rosneftegaz = await held.idOf('SELECT id FROM public.entities WHERE label = $1', [
+      'Rosneftegaz',
+    ]);
+
+    // The approved name table: two sure names, one candidate, one open name. A sure name finds
+    // its company by the GEM identifier, and a candidate finds the entity of the dossier.
+    const table = [
+      'name,roles,status,gem_entity_id,dossier_entity_id,reason,candidates',
+      'Novatek PJSC,owner+operator,sûr,E200002,,exact,',
+      'Rosneftegaz,owner+parent,sûr,E200001,,exact,',
+      `Maybe Co,operator+owner,candidat-dossier,,${rosneftegaz},name only,`,
+      'Mystery Holder,owner,ouvert,,,,',
+    ].join('\r\n');
+    await held.ask(PUT, [
+      NAMES_DOC,
+      `raw/${NAMES_DOC}.csv`,
+      'https://names.test/t.csv',
+      sha256(table),
+      'text/csv',
+    ]);
+    await held.ask('SELECT public.put_document_text($1, $2::jsonb, $3)', [
+      NAMES_DOC,
+      JSON.stringify([table]),
+      'text-1',
+    ]);
+
+    const fields = {
+      table: 'GEM fields',
+      modality: 'asserts',
+      publisher: PUBLISHER,
+      rows: {
+        entity_type: 'facility',
+        label: 'Unit name',
+        lookup: [{ key: 'gem_unit_id', column: 'Unit ID' }],
+        attrs: {
+          gem_unit_id: { column: 'Unit ID', cast: { type: 'identifier' } },
+          owners_text: { column: 'Owner(s)', cast: { type: 'text' } },
+          group_owners_text: { column: 'Parent(s)', cast: { type: 'text' } },
+          licence: { column: 'Government unit ID', cast: { type: 'text' } },
+          block: { column: 'Block(s)', cast: { type: 'text' } },
+        },
+        constants: { asset_kind: 'field' },
+      },
+      relations: ['owns', 'operates'].map((type) => ({
+        type,
+        row_is: 'dst',
+        other: { key: 'label', column: type === 'owns' ? 'Owner(s)' : 'Operator' },
+        other_type: 'company',
+        names: { separator: ';', table: NAMES_DOC },
+      })),
+    };
+    const loaded = await mapAndPromote(
+      held,
+      'xlsx-1|sheet=Fields|where=Country/Area=Russia',
+      fields,
+    );
+    await runLoad(held, loaded.load);
+
+    expect(
+      await held.ask(
+        `SELECT r.type, s.label AS holder, d.label AS field,
+                (r.attrs #>> '{share_pct,v}')::numeric::float8 AS share,
+                (r.attrs #>> '{unconfirmed,v}') AS unconfirmed
+           FROM public.relations r
+           JOIN public.entities s ON s.id = r.src_id JOIN public.entities d ON d.id = r.dst_id
+          WHERE d.attrs ? 'asset_kind' ORDER BY d.label, r.type, s.label`,
+      ),
+    ).toStrictEqual([
+      { type: 'operates', holder: 'Novatek', field: 'Alpha field', share: null, unconfirmed: null },
+      { type: 'owns', holder: 'Novatek', field: 'Alpha field', share: 60, unconfirmed: null },
+      { type: 'owns', holder: 'Rosneftegaz', field: 'Alpha field', share: 30, unconfirmed: null },
+      {
+        type: 'operates',
+        holder: 'Rosneftegaz',
+        field: 'Beta field',
+        share: null,
+        unconfirmed: 'true',
+      },
+      {
+        type: 'owns',
+        holder: 'Rosneftegaz',
+        field: 'Beta field',
+        share: 100,
+        unconfirmed: 'true',
+      },
+    ]);
+    // The open name stays text on the field, with the group shares, the licence and the block.
+    expect(
+      await held.ask(
+        `SELECT attrs #>> '{owners_text,v}' AS owners, attrs #>> '{group_owners_text,v}' AS group_text,
+                attrs #>> '{licence,v}' AS licence, attrs #>> '{block,v}' AS block
+           FROM public.entities WHERE label = 'Alpha field'`,
+      ),
+    ).toStrictEqual([
+      {
+        owners: 'Novatek PJSC [60%]; Rosneftegaz [30%]; Mystery Holder [10%]',
+        group_text: 'Rosneftegaz [100.0%]',
+        licence: 'Rosnedra License ID: X1',
+        block: 'North block',
+      },
+    ]);
+    expect(held.stored.map((object) => new TextDecoder().decode(object.bytes)).join('')).toContain(
+      'the name ""Mystery Holder"" is open in the name table',
+    );
+
+    // The production rows add one value for each fuel and year of 2020 to 2024.
+    const production = {
+      ...fields,
+      table: 'GEM production',
+      rows: {
+        entity_type: 'facility',
+        label: 'Unit Name',
+        lookup: [{ key: 'gem_unit_id', column: 'Unit ID' }],
+        attrs: {
+          production: seriesRule('Quantity (converted)', { type: 'number', scale: 4 }),
+          production_unit: seriesRule('Units (converted)', { type: 'text' }),
+        },
+      },
+      relations: [],
+    };
+    await runLoad(
+      held,
+      (await mapAndPromote(held, 'xlsx-1|sheet=Production|where=Country/Area=Russia', production))
+        .load,
+    );
+    expect(
+      await held.ask(
+        `SELECT a.key, a.value #>> '{v}' AS v FROM public.entities e,
+                jsonb_each(e.attrs) AS a(key, value)
+          WHERE e.label = 'Alpha field' AND a.key LIKE 'production%' ORDER BY a.key`,
+      ),
+    ).toStrictEqual([
+      { key: 'production_gas_2023', v: '3.25' },
+      { key: 'production_oil_2022', v: '12.5' },
+      { key: 'production_unit_gas_2023', v: 'Million m3/y' },
+      { key: 'production_unit_oil_2022', v: 'Million bbl/y' },
+    ]);
   });
 });
