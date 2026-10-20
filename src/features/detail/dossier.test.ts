@@ -569,3 +569,19 @@ test('a type that takes no period shows none', () => {
   };
   expect(readDossier(read, VESSEL.id, [], [])?.relations[0]?.interval).toBeNull();
 });
+
+test('a list value and a share that cannot be worded stay facts', () => {
+  const odd: Relation = {
+    ...OWNED_BY,
+    attrs: {
+      places: { v: ['Malta', 'Greece'], src: ['d1'] },
+      share_pct: { v: 'forty', src: ['d1'] },
+    },
+  };
+  const read: Corpus = { ...CORPUS, relations: [odd] };
+
+  expect(readDossier(read, VESSEL.id, [], [])?.relations[0]?.facts).toEqual([
+    'Places: Malta, Greece',
+    'Share pct: forty',
+  ]);
+});

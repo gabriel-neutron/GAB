@@ -359,18 +359,23 @@ function periodLine(index: Index, relation: Relation): string | null {
   );
 }
 
-const SHARE_KEYS: ReadonlySet<string> = new Set([SHARE_KEY, SHARE_IMPUTED_KEY]);
-
 function factWord(value: AttributeValue): string {
   return typeof value === 'object' ? value.join(', ') : String(value);
 }
 
 /** Every stored attribute of a relation that the share does not already word. */
 function storedFacts(relation: Relation): readonly string[] {
-  return Object.entries(relation.attrs)
-    .filter(([key]) => !SHARE_KEYS.has(key))
-    .sort(([one], [other]) => one.localeCompare(other))
-    .map(([key, attribute]) => `${labelOf(key)}: ${factWord(attribute.v)}`);
+  return (
+    Object.entries(relation.attrs)
+      // The share words these two keys. A share it cannot word, such as a text value, stays a fact.
+      .filter(([key]) =>
+        shareWords(relation.attrs) === null
+          ? key !== SHARE_IMPUTED_KEY
+          : key !== SHARE_KEY && key !== SHARE_IMPUTED_KEY,
+      )
+      .sort(([one], [other]) => one.localeCompare(other))
+      .map(([key, attribute]) => `${labelOf(key)}: ${factWord(attribute.v)}`)
+  );
 }
 
 /** The relation as a fact, with its dates, so a reader sees what the document backs. */
