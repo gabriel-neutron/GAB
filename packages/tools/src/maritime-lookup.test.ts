@@ -255,6 +255,7 @@ test('vessel_events stores the events of one vessel once, and gives the plain fi
   expect(web.asked[0]?.url.searchParams.get('start-date')).toBe('2026-01-01');
   const second = await callTool(tool, session, { vesselId: VESSEL, ...RANGE }, reach);
   expect(second).toMatchObject({ ok: true, output: { status: 'known' } });
+  expect(JSON.stringify(first)).not.toContain('"near"');
   expect(store.puts).toHaveLength(1);
 });
 
@@ -434,6 +435,32 @@ test('vessel_events reads the port visits of a vessel from the port visit datase
   expect(web.asked[1]?.url.searchParams.get('datasets[3]')).toBe(
     'public-global-port-visits-events:latest',
   );
+});
+
+test('nearKm keeps the events near a terminal of the record and names the nearest one', async () => {
+  const web = gfwWeb();
+  const { session, reach } = setup(web);
+  const site = { id: 'site-1', label: 'Ust-Luga terminal', lat: 59.7, lon: 28.4 };
+  const withSites = {
+    ...session,
+    query: (statement: string, values: unknown[]) =>
+      statement.includes("'export_terminal'")
+        ? Promise.resolve({ rows: [site] })
+        : session.query(statement, values),
+  };
+  const outcome = await callTool(
+    toolNamed('vessel_events'),
+    withSites,
+    { vesselId: VESSEL, ...RANGE, nearKm: 3 },
+    reach,
+  );
+  expect(outcome).toMatchObject({ ok: true });
+  const output = outcome.ok
+    ? (outcome.output as { events: { id: string; near: unknown }[] })
+    : null;
+  const kept = output?.events ?? [];
+  expect(kept.map((event) => event.id)).toStrictEqual(['ev3']);
+  expect(kept[0]?.near).toMatchObject({ id: 'site-1', name: 'Ust-Luga terminal' });
 });
 
 test('an MMSI search that answers 404 is a vessel that is not known', async () => {
