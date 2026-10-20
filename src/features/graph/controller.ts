@@ -30,6 +30,7 @@ import { FAMILIES } from './relation-families';
 import { type RelationFilterState } from './relation-filter';
 import { readSelectionAddress, writeSelectionAddress, type GraphSelection } from './selection';
 import { countShown, type ShownCounts } from './shown-counts';
+import { describeDrawing, deriveTextView } from './text-view';
 import { isShown, type FilterState } from './type-filter';
 import { patchGraphWorkspace, readGraphWorkspace } from './workspace';
 
@@ -76,6 +77,8 @@ export interface GraphController {
   readonly focusOn: (id: string) => void;
   /** How far the focus reaches from its centre. It draws the focus again from the centre. */
   readonly setHops: (hops: 1 | 2) => void;
+  /** Selects a relation, as a click on it does. The picture and the focus stay as they are. */
+  readonly openRelation: (id: string) => void;
   /** Adds the neighbours of the selected entity to the focus. */
   readonly expand: () => void;
   readonly setUnitOpen: (unit: string, open: boolean) => void;
@@ -915,7 +918,19 @@ export function mountGraph(
     railWidth,
   });
 
+  // The canvases of the library carry no text. The element that holds them is one image with a
+  // name, and the text view beside the island says the same in a list.
+  canvas.setAttribute('role', 'img');
+  const nameCanvas = (): void => {
+    const rules = { hiddenTypes: hidden, showUnplaced, hiddenRelationTypes: hiddenRelations };
+    canvas.setAttribute(
+      'aria-label',
+      describeDrawing(counts, deriveTextView(model.graph, selection, rules, wordsOf)),
+    );
+  };
+
   const publish = (): void => {
+    nameCanvas();
     const view = viewOf();
     // The set is copied, because a listener may unsubscribe inside its own call.
     for (const listener of [...listeners]) listener(view);
@@ -975,6 +990,7 @@ export function mountGraph(
   // The restore does not go through `settle`, so nothing announces it here. `onSelect` seeds
   // every listener with the selection of the moment, and no subscriber can arrive too late.
   recount();
+  nameCanvas();
   // The restored focus takes the place of the stored camera.
   if (mode === 'focus') fitFocus();
 
@@ -1139,6 +1155,12 @@ export function mountGraph(
       settle(acceptable(selection));
       fitFocus();
     },
+    openRelation: (id) => {
+      if (destroyed || !edgeConsidered(id)) return;
+      const next: GraphSelection = { kind: 'relation', id };
+      reveal(next);
+      settle(next);
+    },
     expand: () => {
       if (destroyed || mode !== 'focus' || selection?.kind !== 'entity') return;
       if (!drawnNodes.has(selection.id)) return;
@@ -1251,6 +1273,8 @@ export function mountGraph(
       relationLabels.length = 0;
       // The layer is the one node this file added to the element of the caller.
       layer.remove();
+      canvas.removeAttribute('role');
+      canvas.removeAttribute('aria-label');
       if (mounted.get(canvas) === controller) mounted.delete(canvas);
       sigma.kill();
     },
