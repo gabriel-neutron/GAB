@@ -23,6 +23,8 @@ import { RAIL_WIDTH, railWidthWithin } from '@/shared/rail-width';
 
 export interface RailTypeRow {
   readonly type: string;
+  /** The human label of the type. The key stays the identity of the row. */
+  readonly label: string;
   /** Departure: the folded strip fits no word, so it draws this letter where no colour is. */
   readonly initial: string;
   readonly count: number;
@@ -285,7 +287,9 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                   type="button"
                   aria-expanded={row.open}
                   aria-controls={row.open ? listId(row.type) : undefined}
-                  aria-label={row.open ? `Close the ${row.type} list` : `Open the ${row.type} list`}
+                  aria-label={
+                    row.open ? `Close the ${row.label} list` : `Open the ${row.label} list`
+                  }
                   onClick={() => {
                     onAct({ kind: 'open-type', type: row.type, open: !row.open });
                   }}
@@ -306,8 +310,8 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                   className={cn(CONTROL, 'min-w-0 flex-1 gap-1.5')}
                 >
                   {row.colour === null ? null : <Swatch colour={row.colour} on={row.on} />}
-                  <span className="min-w-0 flex-1 truncate" title={row.type}>
-                    {row.type}
+                  <span className="min-w-0 flex-1 truncate" title={row.label}>
+                    {row.label}
                   </span>
                   {/* Departure: the count carries on the graph the weight a hue carries on the
                       map. */}

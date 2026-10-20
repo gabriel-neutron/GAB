@@ -6,6 +6,7 @@ import { MultiDirectedGraph } from 'graphology';
 
 import { typeHues, UNDECLARED_HUE } from '@/shared/entity-hues';
 import { unitHierarchy, type UnitHierarchy } from '@/shared/fold-subordinates';
+import { typeLabel } from '@/shared/type-label';
 import type { Corpus, Proposal, Relation, TypeVocabulary } from '@/shared/read/model';
 
 import { analyseStructure, topologyOf } from './structure';
@@ -80,6 +81,8 @@ export interface GraphModel {
   // The hue of each type. A node is the wrong source: an isolate wears grey, so a type whose only
   // drawn entity is isolated would give a swatch that disagrees with the canvas.
   readonly hueOfType: ReadonlyMap<string, string>;
+  /** The label of a type, from the vocabulary. A key it does not hold reads by the rule of the keys. */
+  readonly labelOfType: (type: string) => string;
   /** The chain of command between the drawn nodes. The rail folds its list by it. */
   readonly hierarchy: UnitHierarchy;
 }
@@ -200,6 +203,7 @@ export function buildGraphModel(
     graph,
     pendingByTarget,
     hueOfType,
+    labelOfType: (type) => typeLabel(type, types),
     hierarchy: unitHierarchy(corpus.relations, new Set(graph.nodes())),
   };
 }

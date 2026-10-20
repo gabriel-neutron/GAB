@@ -330,6 +330,8 @@ export const EveryKeyIsWrittenTheSameWay: Story = {
   play: async ({ canvas }) => {
     const box = canvas.getByLabelText('Imo number');
     await expect(box).toBeEnabled();
+    // The stored key stays readable, in a secondary place.
+    await expect(canvas.getByText('imo_number')).toBeVisible();
 
     await userEvent.click(box);
     await userEvent.type(box, '0');

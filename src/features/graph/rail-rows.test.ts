@@ -135,3 +135,16 @@ describe('the chain of command in the graph rail', () => {
     expect(unitRows(new Set()).rail.width).toBe(256);
   });
 });
+
+describe('the names of the types in the graph rail', () => {
+  it('shows the label of each type and never its key', () => {
+    const rows = rowsUnder('', []).rail.types;
+
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.label).not.toContain('_');
+      expect(row.name).toContain(row.label);
+    }
+    expect(rows.map((row) => row.label)).toContain('Vessel');
+  });
+});

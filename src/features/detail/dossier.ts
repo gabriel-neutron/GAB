@@ -17,8 +17,10 @@ import type {
   TypeVocabulary,
 } from '@/shared/read/model';
 import { relationWording, type RelationWords } from '@/shared/relation-words';
+import { keyWords } from '@/shared/key-words';
+import { typeLabel } from '@/shared/type-label';
 
-import { labelOf, readClaims, type ClaimRow } from './claims';
+import { readClaims, type ClaimRow } from './claims';
 import type { ReleaseFacts } from './release-facts';
 import { vesselIdentity, type VesselIdentity } from './vessel-identity';
 
@@ -125,6 +127,8 @@ export interface Dossier {
   readonly entityId: string;
   readonly label: string;
   readonly type: string;
+  /** The label of the type, from the vocabulary. */
+  readonly typeName: string;
   /** The word the extraction wrote, kept when it was not a live type. The row stands as
    * `unknown`, and the word must reach the screen or the entry is lost to the reader. */
   readonly proposedType: string | null;
@@ -438,7 +442,7 @@ function storedFacts(relation: Relation): readonly string[] {
           : key !== SHARE_KEY && key !== SHARE_IMPUTED_KEY,
       )
       .sort(([one], [other]) => one.localeCompare(other))
-      .map(([key, attribute]) => `${labelOf(key)}: ${factWord(attribute.v)}`)
+      .map(([key, attribute]) => `${keyWords(key).label}: ${factWord(attribute.v)}`)
   );
 }
 
@@ -451,7 +455,7 @@ function typeChoicesOf(types: TypeVocabulary, held: string): readonly TypeChoice
   const offered = types.filter((type) => !type.retired || type.key === held);
   const choices = offered.map((type) => ({ key: type.key, name: type.label }));
   const holds = choices.some((choice) => choice.key === held);
-  return [...choices, ...(holds ? [] : [{ key: held, name: held }])].sort((one, other) =>
+  return [...choices, ...(holds ? [] : [{ key: held, name: typeLabel(held) }])].sort((one, other) =>
     one.name.localeCompare(other.name),
   );
 }
@@ -625,7 +629,10 @@ export function readDossier(
     ),
     targets: read.entities
       .filter((candidate) => candidate.id !== entityId)
-      .map((candidate) => ({ id: candidate.id, name: `${candidate.label} — ${candidate.type}` }))
+      .map((candidate) => ({
+        id: candidate.id,
+        name: `${candidate.label} — ${typeLabel(candidate.type, types)}`,
+      }))
       .sort((one, other) => one.name.localeCompare(other.name)),
   };
 
@@ -666,6 +673,7 @@ export function readDossier(
     entityId: entity.id,
     label: entity.label,
     type: entity.type,
+    typeName: typeLabel(entity.type, types),
     proposedType: entity.proposedType,
     drawnOnMap: (at?.point ?? null) !== null,
     positionFrom,

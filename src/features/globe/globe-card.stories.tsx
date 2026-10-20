@@ -46,7 +46,7 @@ export const TheCardOfAnEntityLinksToItsPageAndNamesItsStage: Story = {
       'href',
       `/entity/${CHAIN.FIELD}`,
     );
-    await expect(canvas.getByText('facility, Fields')).toBeVisible();
+    await expect(canvas.getByText('Facility, Fields')).toBeVisible();
   },
 };
 

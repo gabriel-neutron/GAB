@@ -46,7 +46,7 @@ export function Sidebar({ dossier, onSelectRelation, showOn }: SidebarProps) {
           <span className="min-w-0 text-base break-words" title={dossier.label}>
             {dossier.label}
           </span>
-          <span className="shrink-0 text-xs text-label">{dossier.type}</span>
+          <span className="shrink-0 text-xs text-label">{dossier.typeName}</span>
         </h1>
         {/* A panel beside a canvas holds a record and not the whole dossier. The page carries
             the rail of documents, which no panel of 24 rem can hold beside a canvas. */}

@@ -69,14 +69,17 @@ export function deriveRailRows(
     const count = counts.get(type) ?? 0;
     return {
       type,
-      initial: type.slice(0, 1).toUpperCase(),
+      label: model.labelOfType(type),
+      initial: model.labelOfType(type).slice(0, 1).toUpperCase(),
       count,
       on,
       open: openTypes.includes(type),
       // The filter dims and never hides, so the row states that consequence. The word reaches a
       // reader who sees no strike and no dimming.
       stateWord: on ? 'on' : 'off, dimmed',
-      name: on ? `${type}, ${count}, on` : `${type}, ${count}, off and dimmed`,
+      name: on
+        ? `${model.labelOfType(type)}, ${count}, on`
+        : `${model.labelOfType(type)}, ${count}, off and dimmed`,
       // **The swatch is the words of the hue.** The canvas paints a node by its type, and a hue
       // alone is hidden from a reader who cannot see it, so the one place that names every type
       // carries the colour beside the name.

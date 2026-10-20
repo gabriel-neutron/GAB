@@ -348,7 +348,7 @@ test('the type choices add the held type under its own key when the vocabulary l
 
   expect(readDossier(CORPUS, VESSEL.id, types, [])?.typeChoices).toEqual([
     { key: 'port', name: 'Port' },
-    { key: 'vessel', name: 'vessel' },
+    { key: 'vessel', name: 'Vessel' },
   ]);
 });
 
@@ -730,7 +730,7 @@ test('a list value and a share that cannot be worded stay facts', () => {
 
   expect(readDossier(read, VESSEL.id, [], [])?.relations[0]?.facts).toEqual([
     'Places: Malta, Greece',
-    'Share pct: forty',
+    'Share (%): forty',
   ]);
 });
 

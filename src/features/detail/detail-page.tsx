@@ -170,7 +170,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
   const detail = (
     <>
       <p className="flex flex-wrap items-baseline gap-x-2">
-        <span>{dossier.type}</span>
+        <span>{dossier.typeName}</span>
         {/* The extracted word is kept where it was not a live type, and it is drawn, or the
             entry the analyst wrote is lost to every reader of the record. */}
         {dossier.proposedType === null ? null : (

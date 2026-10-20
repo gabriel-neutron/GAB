@@ -106,9 +106,9 @@ export const NoMatchIsStated: Story = {
 export const AnAttributeMatchNamesTheKeyAndTheEntity: Story = {
   args: answersFor('director'),
   play: async ({ canvas }) => {
-    const key = canvas.getAllByRole('cell', { name: 'role_title' })[0];
+    const key = canvas.getAllByRole('cell', { name: 'Role title' })[0];
     const row = key?.closest('tr') ?? null;
-    if (row === null) throw new Error('The attribute table holds no row for role_title');
+    if (row === null) throw new Error('The attribute table holds no row for Role title');
     await expect(row).toHaveTextContent(/director/i);
     const hit = within(row).getByRole('link');
     await expect(hit).toHaveAttribute('href', expect.stringMatching(/^\/entity\//));
