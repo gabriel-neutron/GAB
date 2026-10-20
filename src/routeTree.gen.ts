@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DownloadsRouteImport } from './routes/downloads'
 import { Route as GlossaryRouteImport } from './routes/glossary'
 import { Route as GraphRouteImport } from './routes/graph'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as MethodRouteImport } from './routes/method'
 import { Route as ReviewRouteImport } from './routes/review'
@@ -41,6 +42,11 @@ const GlossaryRoute = GlossaryRouteImport.update({
 const GraphRoute = GraphRouteImport.update({
   id: '/graph',
   path: '/graph',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MapRoute = MapRouteImport.update({
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/downloads': typeof DownloadsRoute
   '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
+  '/help': typeof HelpRoute
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
   '/review': typeof ReviewRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/downloads': typeof DownloadsRoute
   '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
+  '/help': typeof HelpRoute
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
   '/review': typeof ReviewRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/downloads': typeof DownloadsRoute
   '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
+  '/help': typeof HelpRoute
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
   '/review': typeof ReviewRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/downloads'
     | '/glossary'
     | '/graph'
+    | '/help'
     | '/map'
     | '/method'
     | '/review'
@@ -157,6 +167,7 @@ export interface FileRouteTypes {
     | '/downloads'
     | '/glossary'
     | '/graph'
+    | '/help'
     | '/map'
     | '/method'
     | '/review'
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/downloads'
     | '/glossary'
     | '/graph'
+    | '/help'
     | '/map'
     | '/method'
     | '/review'
@@ -188,6 +200,7 @@ export interface RootRouteChildren {
   DownloadsRoute: typeof DownloadsRoute
   GlossaryRoute: typeof GlossaryRoute
   GraphRoute: typeof GraphRoute
+  HelpRoute: typeof HelpRoute
   MapRoute: typeof MapRoute
   MethodRoute: typeof MethodRoute
   ReviewRoute: typeof ReviewRoute
@@ -227,6 +240,13 @@ declare module '@tanstack/react-router' {
       path: '/graph'
       fullPath: '/graph'
       preLoaderRoute: typeof GraphRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/map': {
@@ -300,6 +320,7 @@ const rootRouteChildren: RootRouteChildren = {
   DownloadsRoute: DownloadsRoute,
   GlossaryRoute: GlossaryRoute,
   GraphRoute: GraphRoute,
+  HelpRoute: HelpRoute,
   MapRoute: MapRoute,
   MethodRoute: MethodRoute,
   ReviewRoute: ReviewRoute,

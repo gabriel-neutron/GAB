@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { releaseDay } from '@gab/release/release-day';
 import type { SiteManifest } from '@gab/release/site-manifest';
 
@@ -5,6 +6,7 @@ import { CoverageStatement } from '@/shared/page/coverage-statement';
 import { DisclaimerText } from '@/shared/page/disclaimer-text';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
+import { READING_LINK } from '@/shared/page/reading-link';
 import { ReadingPage } from '@/shared/page/reading-page';
 import { SanctionsRules } from '@/shared/page/sanctions-rules';
 
@@ -43,6 +45,16 @@ export function MethodPage({ manifest }: MethodPageProps) {
 
       <PageSection title="About this data and the labels">
         <DisclaimerText markdown={manifest.disclaimer} />
+      </PageSection>
+
+      <PageSection title="Glossary">
+        <p className={PROSE}>
+          The{' '}
+          <Link to="/glossary" className={READING_LINK}>
+            glossary
+          </Link>{' '}
+          gives the meaning of each term that a reader can mistake, and of each type of relation.
+        </p>
       </PageSection>
 
       <PageSection title="The rating method">
