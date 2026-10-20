@@ -1,7 +1,7 @@
 /** A router loader returns these shapes, so they carry arrays and no `Map`. */
 
 import { SHARE_IMPUTED_KEY, SHARE_KEY, shareWords } from '@gab/proposal/share';
-import { positionFromWords, relationLines } from '@/shared/canvas-label';
+import { relationLines } from '@/shared/canvas-label';
 import { proposerWords } from '@/shared/proposer-words';
 import { idOf, isUnread, type DecidedLine } from '@/shared/read/decided-acts';
 import type {
@@ -125,10 +125,18 @@ export interface Dossier {
    * point carries no geometry of its own AND the map draws it. A link to the map for an entity
    * the map draws nowhere opens a surface that selects nothing. */
   readonly drawnOnMap: boolean;
-  /** Departure: `position from <parent label>`, `position from a parent` when the list lacks it,
-   * or null at its own point. The panel draws no canvas, so these words are the only place it
-   * can state a borrowed position. */
+  /** Departure: "Position borrowed from <parent label> (no own position recorded)", with "a
+   * parent" when the list lacks the parent, or null at its own point. The panel draws no canvas,
+   * so these words are the only place it can state a borrowed position. */
   readonly positionFrom: string | null;
+  /** The parents between the unit and the parent that gave the point, nearest first. It ends
+   * with that parent, and it is empty at an own point. */
+  readonly positionChain: readonly string[];
+  /** The affiliation as the record states it: the point of view of the project, not a finding.
+   * Null where the record states none. */
+  readonly affiliation: string | null;
+  /** The newest day on which a source of the claims of this entity was read, or null. */
+  readonly sourceDay: string | null;
   /** Who promoted the entity into the record, how and on which day. Null when the read of
    * the decided acts does not hold its promotion. */
   readonly decision: string | null;
@@ -301,6 +309,54 @@ function endpointWords(index: Index, kind: EndpointKind, id: string, depth: numb
 
 const DESIGNATION = 'designated_by';
 
+const nameOf = (read: Corpus, id: string): string =>
+  read.entities.find((row) => row.id === id)?.label ?? 'a parent';
+
+// Departure: the SQL walk gives the parent that supplied the point and not the path to it, so the
+// path is found here. It is the shortest path, as the SQL picks the nearest parent, and it stops at
+// the hop limit of the SQL walk. A unit can have more than one parent, and bad source data can hold
+// a ring, so each unit is met once. With no path the chain holds the parent alone.
+const MAX_HOPS = 4;
+
+function parentChain(read: Corpus, entityId: string, source: string): readonly string[] {
+  const from = new Map<string, string>();
+  let level = [entityId];
+  const met = new Set(level);
+  for (let hop = 0; hop < MAX_HOPS && !met.has(source); hop += 1) {
+    const next: string[] = [];
+    for (const at of level)
+      for (const one of read.relations) {
+        if (
+          one.type !== 'subordinate_to' ||
+          one.srcKind !== 'entity' ||
+          one.dstKind !== 'entity' ||
+          one.srcId !== at ||
+          met.has(one.dstId)
+        )
+          continue;
+        met.add(one.dstId);
+        from.set(one.dstId, at);
+        next.push(one.dstId);
+      }
+    level = next;
+  }
+  if (!met.has(source)) return [nameOf(read, source)];
+  const chain: string[] = [];
+  for (let at = source; at !== entityId; at = from.get(at) ?? entityId)
+    chain.unshift(nameOf(read, at));
+  return chain;
+}
+
+function newestDay(documents: readonly DocumentRow[]): string | null {
+  const days = documents
+    .map((one) => one.retrievedAt?.slice(0, 10))
+    .filter((day): day is string => day !== undefined && day !== '');
+  return days.reduce<string | null>(
+    (newest, day) => (newest === null || day > newest ? day : newest),
+    null,
+  );
+}
+
 // An absent end is not a live status: the record says only that no end is recorded.
 function periodWords(relation: Relation): string | null {
   if (relation.validFrom !== null && relation.validTo !== null) {
@@ -313,12 +369,11 @@ function periodWords(relation: Relation): string | null {
 
 // The newest retrieval date of the sources of the relation, or null where no source has one.
 function checkDayOf(index: Index, relation: Relation): string | null {
-  const days = relation.sources
-    .map((id) => index.documentById.get(id)?.retrievedAt?.slice(0, 10))
-    .filter((day): day is string => day !== undefined && day !== '');
-  return days.reduce<string | null>(
-    (newest, day) => (newest === null || day > newest ? day : newest),
-    null,
+  return newestDay(
+    relation.sources.flatMap((id) => {
+      const document = index.documentById.get(id);
+      return document === undefined ? [] : [document];
+    }),
   );
 }
 
@@ -558,7 +613,9 @@ export function readDossier(
   const positionFrom =
     borrowed === null
       ? null
-      : positionFromWords(read.entities.find((row) => row.id === borrowed)?.label ?? 'a parent');
+      : `Position borrowed from ${nameOf(read, borrowed)} (no own position recorded)`;
+  const claimDocuments = new Set(Object.values(entity.attrs).flatMap((one) => one.src));
+  const affiliation = entity.attrs['affiliation']?.v;
 
   return {
     entityId: entity.id,
@@ -567,6 +624,9 @@ export function readDossier(
     proposedType: entity.proposedType,
     drawnOnMap: (at?.point ?? null) !== null,
     positionFrom,
+    positionChain: borrowed === null ? [] : parentChain(read, entity.id, borrowed),
+    affiliation: typeof affiliation === 'string' ? affiliation : null,
+    sourceDay: newestDay(read.documents.filter((one) => claimDocuments.has(one.id))),
     decision: decisionOf(entity.promotedFrom, decided),
     rows,
     entitySources,

@@ -202,7 +202,23 @@ export const ABorrowedPositionNamesItsParent: Story = {
   args: { dossier: readBorrower() },
   play: async ({ canvasElement }) => {
     const from = canvasElement.querySelector('[data-position-from]');
-    await expect(from).toHaveTextContent('position from 92nd Coastal Battery');
+    await expect(from).toHaveTextContent(
+      'Position borrowed from 92nd Coastal Battery (no own position recorded)',
+    );
+    // One parent is named in the sentence, so no chain line repeats it.
+    await expect(canvasElement.querySelector('[data-position-chain]')).toBeNull();
+  },
+};
+
+export const TheAffiliationLinksItsDefinitionAndTheSourceDayShows: Story = {
+  args: { dossier: readBorrower() },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText(/Affiliation: Hostile/)).toHaveTextContent('not a legal finding');
+    await expect(canvas.getByRole('link', { name: 'Definition' })).toHaveAttribute(
+      'href',
+      '/method#affiliation',
+    );
+    await expect(canvas.getByText(/Newest source read on/)).toHaveTextContent('2026-07-30');
   },
 };
 

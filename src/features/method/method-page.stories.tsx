@@ -53,6 +53,7 @@ export const GivesTheDisclaimerAndEachSectionOfTheMethod: Story = {
       'Sanctions on the map',
       'The critical nodes',
       'One name in two scripts',
+      'Affiliation',
       'Permanent addresses',
     ])
       await expect(canvas.getByRole('heading', { name: title })).toBeVisible();

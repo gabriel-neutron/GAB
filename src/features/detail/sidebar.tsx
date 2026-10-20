@@ -10,6 +10,7 @@ import { Pending } from './pending';
 import { recordCells } from './draft';
 import { EntityRecord } from './record';
 import { Relations } from './relations';
+import { UnitOrigin } from './unit-origin';
 
 export interface SidebarProps {
   readonly dossier: Dossier;
@@ -62,14 +63,15 @@ export function Sidebar({ dossier, onSelectRelation, showOn }: SidebarProps) {
         </div>
       </div>
 
-      {/* On its own line, and not beside the type: this pane is 24 rem, and a third word in that
+      {/* On its own lines, and not beside the type: this pane is 24 rem, and a third word in that
           row truncates the name. The canvas beside it draws the halo, and these words are what
           name the ancestor the halo cannot name. */}
-      {dossier.positionFrom === null ? null : (
-        <p className="text-small/4 text-label" data-position-from="">
-          {dossier.positionFrom}
-        </p>
-      )}
+      <UnitOrigin
+        positionFrom={dossier.positionFrom}
+        positionChain={dossier.positionChain}
+        affiliation={dossier.affiliation}
+        sourceDay={dossier.sourceDay}
+      />
 
       {/* Every control is read-only and draws with `defaultValue`, which React reads once. A
           selection swaps the dossier under the same mounted element, so a field kept the
