@@ -23,6 +23,7 @@ import { deriveRailRows } from './rail-rows';
 import { stepAfterTypeOpen, stepShowingWholeList, type RailStep } from './rail-step';
 import { IndexRows } from './row';
 import type { GraphSelection } from './selection';
+import { ShownLine } from './shown-line';
 import { StartPanel } from './start-panel';
 import { everyTypeShown, hiddenAfterSwitch, isShown, type FilterState } from './type-filter';
 import { UnplacedCount } from './unplaced-count';
@@ -131,6 +132,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   const railWidth = snapshot?.view.railWidth ?? DEFAULT_GRAPH_WORKSPACE.railWidth;
   const openUnits = snapshot?.view.openUnits ?? null;
   const showUnplaced = snapshot?.view.showUnplaced ?? true;
+  const counts = snapshot?.view.counts ?? null;
 
   const reach = useCallback((id: string) => {
     const handle = controller.current;
@@ -159,10 +161,15 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
 
   const rows = useMemo(
     () =>
-      model === null || filter === null || openUnits === null
+      model === null || filter === null || openUnits === null || counts === null
         ? null
-        : deriveRailRows(model, { filter, selection, openUnits, railOpen, railWidth }, step, query),
-    [model, filter, selection, openUnits, railOpen, railWidth, step, query],
+        : deriveRailRows(
+            model,
+            { filter, counts, selection, openUnits, railOpen, railWidth },
+            step,
+            query,
+          ),
+    [model, filter, counts, selection, openUnits, railOpen, railWidth, step, query],
   );
 
   const act = useCallback((next: RailAct) => {
@@ -218,6 +225,12 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
 
   return (
     <>
+      {snapshot === null || snapshot.view.mode === 'start' ? null : (
+        <ShownLine
+          entities={snapshot.view.counts.entities}
+          relations={snapshot.view.counts.relations}
+        />
+      )}
       <div
         className={cn(
           'dark grid border border-border bg-background text-foreground',

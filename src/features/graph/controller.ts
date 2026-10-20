@@ -28,6 +28,7 @@ import {
 } from './model';
 import { graphPositions } from './positions';
 import { readSelectionAddress, writeSelectionAddress, type GraphSelection } from './selection';
+import { countShown, type ShownCounts } from './shown-counts';
 import { isShown, type FilterState } from './type-filter';
 import { patchGraphWorkspace, readGraphWorkspace } from './workspace';
 
@@ -50,6 +51,9 @@ export interface GraphView {
   readonly filter: FilterState;
   readonly lit: number;
   readonly dimmed: number;
+  /** What the drawing shows against what the record holds: the nodes the filter keeps, and in a
+   * focus only those the focus draws. */
+  readonly counts: ShownCounts;
   /** How many elements carry a marker, and how many carry pending evidence and none. */
   readonly markersDrawn: number;
   readonly markersOverCap: number;
@@ -270,6 +274,7 @@ export function mountGraph(
   const litEdges = new Set<string>();
   let lit = 0;
   let dimmed = 0;
+  let counts: ShownCounts = countShown(model.graph, new Set());
 
   /** The elements that carry a marker on this frame, and how many get none. */
   let markerTargets: readonly string[] = [];
@@ -450,6 +455,7 @@ export function mountGraph(
       litEdges.add(edge);
     });
 
+    counts = countShown(model.graph, mode === 'focus' ? litNodes : passes);
     lit = litNodes.size + litEdges.size;
     dimmed = model.graph.order + model.graph.size - lit;
 
@@ -877,6 +883,7 @@ export function mountGraph(
     filter,
     lit,
     dimmed,
+    counts,
     markersDrawn: markerTargets.length,
     markersOverCap,
     openUnits: folds.open,

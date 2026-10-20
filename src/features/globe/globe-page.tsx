@@ -5,6 +5,7 @@ import { releaseDay } from '@gab/release/release-day';
 import { Globe } from './globe';
 import type { GlobeData } from './globe-data';
 import { ReadingNotes } from './reading-notes';
+import { TypeCountList } from './type-count-list';
 
 export interface GlobePageProps {
   /** Null when the site holds no release: the map comes from a release and from nothing else. */
@@ -42,6 +43,7 @@ export function GlobePage({ data, entity, entityHref, onSelect }: GlobePageProps
         two of them. A card gives the accepted facts first. A fact that is still in review carries
         the words “In review”: it is a proposal, not a fact.
       </p>
+      <TypeCountList counts={counts.byType} />
       {entity !== '' && data.cards[entity] === undefined ? (
         <p role="status" className="text-candidate">
           The entity of the address has no position in this release, so the map does not show it.
