@@ -55,6 +55,12 @@ claude mcp list
 To run the server alone, from the root of the repository:
 
 ```bash
+npm run mcp
+```
+
+You can also run the file directly:
+
+```bash
 node packages/mcp/src/main.ts
 ```
 
