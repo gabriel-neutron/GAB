@@ -461,7 +461,9 @@ export const TheHeaderStatesTheExtractedWordAndTheBorrowedPosition: Story = {
     await expect(canvas.getByRole('heading', { level: 1 })).not.toHaveTextContent('proposed as');
 
     const from = canvasElement.querySelector('[data-position-from]');
-    await expect(from).toHaveTextContent('position from 92nd Coastal Battery');
+    await expect(from).toHaveTextContent(
+      'Position borrowed from 92nd Coastal Battery (no own position recorded)',
+    );
   },
 };
 

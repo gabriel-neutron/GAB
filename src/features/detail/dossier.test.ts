@@ -155,7 +155,8 @@ test('a point borrowed from a parent that the entity list lacks still states tha
   if (dossier === null) throw new Error('The corpus holds no vessel');
 
   expect(dossier.drawnOnMap).toBe(true);
-  expect(dossier.positionFrom).toBe('position from a parent');
+  expect(dossier.positionFrom).toBe('Position borrowed from a parent (no own position recorded)');
+  expect(dossier.positionChain).toEqual(['a parent']);
 });
 
 const THIRD: Entity = { ...VESSEL, id: 'e3', label: 'Rotterdam', attrs: {} };
@@ -365,7 +366,91 @@ test('a point borrowed from a parent that the entity list holds names that paren
   };
   const dossier = readDossier(held, VESSEL.id, [], []);
 
-  expect(dossier?.positionFrom).toBe(`position from ${OWNER.label}`);
+  expect(dossier?.positionFrom).toBe(
+    `Position borrowed from ${OWNER.label} (no own position recorded)`,
+  );
+});
+
+test('the chain of parents lists each step from the unit up to the parent that gave the point', () => {
+  const step = (id: string, from: string, to: string): Relation => ({
+    ...OWNED_BY,
+    id,
+    type: 'subordinate_to',
+    srcId: from,
+    dstId: to,
+  });
+  const middle: Entity = { ...THIRD, id: 'e4', label: 'Middle' };
+  const held: Corpus = {
+    ...CORPUS,
+    entities: [...CORPUS.entities, middle],
+    relations: [step('s1', VESSEL.id, middle.id), step('s2', middle.id, OWNER.id)],
+    positions: [
+      {
+        entityId: VESSEL.id,
+        point: { lon: 4.4777, lat: 51.9244 },
+        precision: 'inherited',
+        area: null,
+        route: null,
+        parentId: OWNER.id,
+      },
+    ],
+  };
+
+  expect(readDossier(held, VESSEL.id, [], [])?.positionChain).toEqual(['Middle', OWNER.label]);
+});
+
+test('a ring of parents ends the chain and does not loop', () => {
+  const ring = (id: string, from: string, to: string): Relation => ({
+    ...OWNED_BY,
+    id,
+    type: 'subordinate_to',
+    srcId: from,
+    dstId: to,
+  });
+  const held: Corpus = {
+    ...CORPUS,
+    relations: [ring('r1', VESSEL.id, 'e5'), ring('r2', 'e5', VESSEL.id)],
+    positions: [
+      {
+        entityId: VESSEL.id,
+        point: { lon: 4.4777, lat: 51.9244 },
+        precision: 'inherited',
+        area: null,
+        route: null,
+        parentId: OWNER.id,
+      },
+    ],
+  };
+
+  expect(readDossier(held, VESSEL.id, [], [])?.positionChain).toEqual([OWNER.label]);
+});
+
+test('an own point has no chain of parents', () => {
+  expect(readDossier(CORPUS, VESSEL.id, [], [])?.positionChain).toEqual([]);
+});
+
+test('the affiliation and the day of the newest source show as plain values', () => {
+  const unit: Entity = {
+    ...VESSEL,
+    attrs: {
+      affiliation: { v: 'Hostile', src: ['d1', 'd2'] },
+      echelon: { v: 'Battalion', src: ['d3'] },
+    },
+  };
+  const held: Corpus = {
+    ...CORPUS,
+    entities: [unit, ...CORPUS.entities.filter((one) => one.id !== unit.id)],
+    documents: [
+      { ...DOCUMENT, id: 'd1', retrievedAt: '2026-03-01T10:00:00Z' },
+      { ...DOCUMENT, id: 'd2', retrievedAt: '2026-05-21' },
+      { ...DOCUMENT, id: 'd3', retrievedAt: '2026-07-14' },
+    ],
+  };
+  const dossier = readDossier(held, unit.id, [], []);
+
+  expect(dossier?.affiliation).toBe('Hostile');
+  expect(dossier?.sourceDay).toBe('2026-07-14');
+  expect(readDossier(CORPUS, VESSEL.id, [], [])?.affiliation).toBeNull();
 });
 
 // PU1: the origin line of the screen is the label of the public data, word for word. The record

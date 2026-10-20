@@ -112,8 +112,8 @@ const pageOf = (corpus: Corpus, id: string, types: TypeVocabulary) => {
   if (dossier === null) return null;
   // Departure: a release holds the own point of an entity and no precision word, so it cannot
   // borrow the point of a parent, and the map of a release draws own points only. It holds the
-  // documents of each claim and no list for the row. So `drawnOnMap`, `positionFrom` and
-  // `entitySources` are left out, as are the parts that write: the choices of a new link, the type
+  // documents of each claim and no list for the row. So `drawnOnMap`, `positionFrom`, `positionChain`
+  // and `entitySources` are left out, as are the parts that write: the choices of a new link, the type
   // chooser, the pending acts and the flag of an extraction.
   return {
     entityId: dossier.entityId,
@@ -121,6 +121,8 @@ const pageOf = (corpus: Corpus, id: string, types: TypeVocabulary) => {
     type: dossier.type,
     proposedType: dossier.proposedType,
     decision: dossier.decision,
+    affiliation: dossier.affiliation,
+    sourceDay: dossier.sourceDay,
     rows: dossier.rows,
     relations: dossier.relations,
     sources: dossier.sources.map((card) => ({ ...card, extractable: false })),
