@@ -14,7 +14,7 @@ const positions: ReadonlyMap<string, NodePosition> = new Map(
   corpus.entities.map((entity, index) => [entity.id, { x: index, y: index }]),
 );
 
-const model = buildGraphModel(corpus, positions, entityTypes, 'dark');
+const model = buildGraphModel(corpus, positions, entityTypes, 'dark', new Set());
 
 /** The most populated type, so that the order of the list below is worth a check. */
 const TYPE = (() => {

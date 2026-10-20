@@ -19,6 +19,8 @@ export interface GraphWorkspace {
   readonly railWidth: number;
   /** How far the focus reaches from the selected entity: one hop or two. */
   readonly hops: 1 | 2;
+  /** Whether the canvas draws the entities that stand on the ring with no place. */
+  readonly showUnplaced: boolean;
 }
 
 export const DEFAULT_GRAPH_WORKSPACE: GraphWorkspace = {
@@ -27,6 +29,13 @@ export const DEFAULT_GRAPH_WORKSPACE: GraphWorkspace = {
   railOpen: true,
   railWidth: 256,
   hops: 1,
+  showUnplaced: true,
+};
+
+// A record saved before the switch existed has no `showUnplaced`. It stays valid, so the camera,
+// the filters and the rail of that reader are kept, and the switch takes its default.
+type StoredWorkspace = Omit<GraphWorkspace, 'showUnplaced'> & {
+  readonly showUnplaced?: boolean;
 };
 
 const isCamera = (value: unknown): value is GraphCamera =>
@@ -50,10 +59,11 @@ const DECLARED_KEYS: Readonly<Record<keyof GraphWorkspace, true>> = {
   railOpen: true,
   railWidth: true,
   hops: true,
+  showUnplaced: true,
 };
 
 // The cost of the strict guard here is one camera position and one set of filters, one time.
-const isWorkspace = (value: unknown): value is GraphWorkspace => {
+const isWorkspace = (value: unknown): value is StoredWorkspace => {
   if (!holdsOnlyDeclaredKeys(value, DECLARED_KEYS)) return false;
   const w = value;
   const hidden = w['hiddenTypes'];
@@ -64,12 +74,14 @@ const isWorkspace = (value: unknown): value is GraphWorkspace => {
     typeof w['railOpen'] === 'boolean' &&
     typeof w['railWidth'] === 'number' &&
     Number.isFinite(w['railWidth']) &&
-    (w['hops'] === 1 || w['hops'] === 2)
+    (w['hops'] === 1 || w['hops'] === 2) &&
+    (w['showUnplaced'] === undefined || typeof w['showUnplaced'] === 'boolean')
   );
 };
 
 export function readGraphWorkspace(): GraphWorkspace {
-  return readWorkspace(FEATURE, isWorkspace, DEFAULT_GRAPH_WORKSPACE);
+  const stored = readWorkspace<StoredWorkspace>(FEATURE, isWorkspace, DEFAULT_GRAPH_WORKSPACE);
+  return { ...stored, showUnplaced: stored.showUnplaced ?? DEFAULT_GRAPH_WORKSPACE.showUnplaced };
 }
 
 // Every writer patches, and never replaces: two writers with partial records erase each other.

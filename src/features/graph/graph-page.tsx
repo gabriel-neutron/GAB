@@ -24,7 +24,7 @@ import { stepAfterTypeOpen, stepShowingWholeList, type RailStep } from './rail-s
 import { IndexRows } from './row';
 import type { GraphSelection } from './selection';
 import { StartPanel } from './start-panel';
-import { everyTypeShown, hiddenAfterSwitch, type FilterState } from './type-filter';
+import { everyTypeShown, hiddenAfterSwitch, isShown, type FilterState } from './type-filter';
 import { UnplacedCount } from './unplaced-count';
 import { DEFAULT_GRAPH_WORKSPACE } from './workspace';
 
@@ -130,6 +130,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   const railOpen = snapshot?.view.railOpen ?? false;
   const railWidth = snapshot?.view.railWidth ?? DEFAULT_GRAPH_WORKSPACE.railWidth;
   const openUnits = snapshot?.view.openUnits ?? null;
+  const showUnplaced = snapshot?.view.showUnplaced ?? true;
 
   const reach = useCallback((id: string) => {
     const handle = controller.current;
@@ -145,12 +146,12 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     const hidden = new Set(filter.hiddenTypes);
     const shown: { id: string; label: string; degree: number }[] = [];
     model.graph.forEachNode((node, attrs) => {
-      if (!hidden.has(attrs.entityType)) {
+      if (isShown(attrs, hidden, showUnplaced)) {
         shown.push({ id: node, label: attrs.label, degree: attrs.degree });
       }
     });
     return shown.sort((one, two) => two.degree - one.degree || one.label.localeCompare(two.label));
-  }, [model, filter]);
+  }, [model, filter, showUnplaced]);
 
   // Departure: the filter narrows the rail and never the canvas, so the controller holds none of
   // it. `GraphCanvas` is memoised on two refs, so a new filter does not render the live element.
@@ -205,6 +206,10 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
 
   const expand = useCallback(() => {
     controller.current?.expand();
+  }, []);
+
+  const switchUnplaced = useCallback((show: boolean) => {
+    controller.current?.setShowUnplaced(show);
   }, []);
 
   const openUnit = useCallback((unit: string, open: boolean) => {
@@ -302,7 +307,11 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
             unnamedRelations={snapshot.view.focusUnnamedRelations}
           />
           {snapshot.view.mode === 'whole' ? (
-            <UnplacedCount unplaced={snapshot.view.unplaced} />
+            <UnplacedCount
+              unplaced={snapshot.view.unplaced}
+              shown={snapshot.view.showUnplaced}
+              onSwitch={switchUnplaced}
+            />
           ) : null}
         </>
       )}

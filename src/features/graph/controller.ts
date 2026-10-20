@@ -28,7 +28,7 @@ import {
 } from './model';
 import { graphPositions } from './positions';
 import { readSelectionAddress, writeSelectionAddress, type GraphSelection } from './selection';
-import type { FilterState } from './type-filter';
+import { isShown, type FilterState } from './type-filter';
 import { patchGraphWorkspace, readGraphWorkspace } from './workspace';
 
 /**
@@ -55,8 +55,10 @@ export interface GraphView {
   readonly markersOverCap: number;
   /** The units whose subordinates the rail list shows. The canvas draws each unit either way. */
   readonly openUnits: ReadonlySet<string>;
-  /** How many entities the layout run never placed, and the canvas draws on the band. */
+  /** How many entities have no place, and the canvas draws on the ring. */
   readonly unplaced: number;
+  /** Whether the canvas draws them. */
+  readonly showUnplaced: boolean;
   readonly railOpen: boolean;
   readonly railWidth: number;
 }
@@ -71,6 +73,8 @@ export interface GraphController {
   readonly expand: () => void;
   readonly setUnitOpen: (unit: string, open: boolean) => void;
   readonly setFilter: (patch: Partial<FilterState>) => void;
+  /** Draws or hides the entities that stand on the ring with no place. */
+  readonly setShowUnplaced: (show: boolean) => void;
   /** The rail was unfolded or folded. The workspace keeps it, so the next open finds it there. */
   readonly setRailOpen: (open: boolean) => void;
   /** The rail edge was dragged. The workspace keeps the width, as it keeps the fold. */
@@ -205,14 +209,14 @@ export function mountGraph(
   // **The positions are read one time.** A filter never moves a position, and an entity the
   // layout run did not place must stand in one place while the canvas lives. So nothing below
   // builds them again, and a theme change keeps them.
-  const placement = graphPositions(corpus.entities, layout);
+  const placement = graphPositions(corpus.entities, layout, corpus.relations);
   const positions = placement.positions;
 
   // External constraint: Sigma divides by the duration, so a duration of 0 makes the camera NaN
   // for one frame. The three settings below take at least 1 ms, and a call that must jump sets the
   // state itself.
   const settingMs = Math.max(1, motionOf());
-  const model = buildGraphModel(corpus, positions, types, GROUND);
+  const model = buildGraphModel(corpus, positions, types, GROUND, placement.unplaced);
   const wordsOf = relationWording(corpus.relationTypes);
 
   const stored = readGraphWorkspace();
@@ -221,6 +225,7 @@ export function mountGraph(
   let railOpen = stored.railOpen;
   let railWidth = stored.railWidth;
   let hops = stored.hops;
+  let showUnplaced = stored.showUnplaced;
 
   // The canvas opens on a choice and draws nothing. A focus replaces it, and the whole picture is
   // one step further, so the reader always meets a small picture first.
@@ -286,7 +291,7 @@ export function mountGraph(
 
   // The test is on the dim of the filter, and not on the dim of a selection. The two hops of a
   // selection dim as well, and they must not stop a click on a node on the other side.
-  const passesFilter = (attrs: NodeAttrs): boolean => !hidden.has(attrs.entityType);
+  const passesFilter = (attrs: NodeAttrs): boolean => isShown(attrs, hidden, showUnplaced);
 
   const nodeConsidered = (node: string): boolean =>
     model.graph.hasNode(node) && passesFilter(model.graph.getNodeAttributes(node));
@@ -523,6 +528,8 @@ export function mountGraph(
     maxCameraRatio: FARTHEST_RATIO,
 
     nodeReducer: (node: string, data: NodeAttrs): Partial<NodeDisplayData> => {
+      // The switch hides the ring. Unlike a filter, it takes the node out of the picture.
+      if (!showUnplaced && data.unplaced) return { ...data, hidden: true, label: null };
       if (litNodes.has(node)) return { ...data };
       // A focus draws its own nodes and nothing else, so the rest stays out of the picture.
       if (mode !== 'whole') return { ...data, hidden: true, label: null };
@@ -533,6 +540,12 @@ export function mountGraph(
     },
 
     edgeReducer: (edge: string, data: EdgeAttrs): Partial<EdgeDisplayData> => {
+      if (
+        !showUnplaced &&
+        model.graph.extremities(edge).some((end) => model.graph.getNodeAttribute(end, 'unplaced'))
+      ) {
+        return { ...data, hidden: true, label: null };
+      }
       if (litEdges.has(edge)) return { ...data };
       if (mode !== 'whole') return { ...data, hidden: true, label: null };
       return { ...data, color: dimOf(data.color), label: null };
@@ -828,6 +841,22 @@ export function mountGraph(
     writePositions(placed);
   };
 
+  // A focus draws the nodes that pass the filter. A centre that the filter puts out leaves
+  // nothing to draw around, so the reader meets the choice again. Nothing is drawn then, and a
+  // selection that is not drawn is a lie on the screen.
+  const redrawFocus = (): void => {
+    if (mode !== 'focus') return;
+    if (focusCentre !== null && !nodeConsidered(focusCentre)) {
+      mode = 'start';
+      focusCentre = null;
+      expanded = [];
+      selection = null;
+      writeSelectionAddress(null);
+      announce();
+    }
+    arrange();
+  };
+
   function expandableCount(): number {
     if (mode !== 'focus' || selection?.kind !== 'entity') return 0;
     if (!drawnNodes.has(selection.id)) return 0;
@@ -851,7 +880,8 @@ export function mountGraph(
     markersDrawn: markerTargets.length,
     markersOverCap,
     openUnits: folds.open,
-    unplaced: placement.unplaced,
+    unplaced: placement.unplaced.size,
+    showUnplaced,
     railOpen,
     railWidth,
   });
@@ -1103,22 +1133,16 @@ export function mountGraph(
         filter = { hiddenTypes: [...next.hiddenTypes] };
         hidden = new Set(filter.hiddenTypes);
         patchGraphWorkspace({ hiddenTypes: filter.hiddenTypes });
-        // A focus draws the nodes that pass the filter. A centre that the filter puts out leaves
-        // nothing to draw around, so the reader meets the choice again.
-        if (mode === 'focus') {
-          if (focusCentre !== null && !nodeConsidered(focusCentre)) {
-            mode = 'start';
-            focusCentre = null;
-            expanded = [];
-            // Nothing is drawn, and a selection that is not drawn is a lie on the screen.
-            selection = null;
-            writeSelectionAddress(null);
-            announce();
-          }
-          arrange();
-        }
+        redrawFocus();
       }
       // **A filter that excludes the selection drops the selection.**
+      settle(acceptable(selection));
+    },
+    setShowUnplaced: (show) => {
+      if (destroyed || show === showUnplaced) return;
+      showUnplaced = show;
+      patchGraphWorkspace({ showUnplaced });
+      redrawFocus();
       settle(acceptable(selection));
     },
     setRailOpen: (open) => {
