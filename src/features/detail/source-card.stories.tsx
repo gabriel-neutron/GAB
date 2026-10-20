@@ -139,7 +139,7 @@ export const ALongAddressOpensInFull: Story = {
     const link = canvas.getByRole('link', { name: /original document/ });
     await expect(link).not.toHaveTextContent(LONG_ADDRESS);
 
-    const more = canvas.getByRole('button', { name: /Show the whole address/ });
+    const more = canvas.getByRole('button', { name: /Show more of address/ });
     await expect(more).toHaveAttribute('aria-expanded', 'false');
     await userEvent.click(more);
 

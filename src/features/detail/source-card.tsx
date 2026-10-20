@@ -64,7 +64,7 @@ export function SourceCard({ source }: SourceCardProps) {
                 size="xs"
                 aria-expanded={addressOpen}
                 aria-controls={addressId}
-                aria-label={`${addressOpen ? 'Show less of' : 'Show the whole'} address of source ${String(source.number)}`}
+                aria-label={`${addressOpen ? 'Show less of' : 'Show more of'} address of source ${String(source.number)}`}
                 onClick={() => {
                   setAddressOpen(!addressOpen);
                 }}
