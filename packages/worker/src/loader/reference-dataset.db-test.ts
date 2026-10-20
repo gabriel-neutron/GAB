@@ -1834,6 +1834,7 @@ const NAMES_BOOK = workbookOf({
     ],
     ['G2', 'Beta field', 'Russia', 'Maybe Co', 'Maybe Co [100%]', '', '', ''],
     ['G3', 'Gamma field', 'Russia', 'Checked Co', '', '', '', ''],
+    ['G4', 'Delta field', 'Russia', 'Register Lead', '', '', '', ''],
   ],
   Production: [
     PRODUCTION_HEADER,

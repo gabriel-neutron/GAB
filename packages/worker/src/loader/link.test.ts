@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { splitNames, splitOwners } from './link.ts';
+import { nameTableOf, splitNames, splitOwners } from './link.ts';
 
 test('a cell splits when each owner has its GEM identifier and its share', () => {
   expect(
@@ -45,4 +45,30 @@ test('a cell of names splits into names with their shares', () => {
     { name: 'Rosneftegaz', share: 30 },
     { name: 'Mystery Holder', share: null },
   ]);
+});
+
+const nameTable = (header: string[], rows: string[][]) =>
+  nameTableOf({
+    header,
+    rows: rows.map((fields) => ({ fields, start: 0, end: 0 })),
+  });
+
+test('the register check confirms a candidate, and an older table confirms none', () => {
+  const header = ['name', 'status', 'gem_entity_id', 'dossier_entity_id', 'controle_registre'];
+  const held = nameTable(header, [
+    ['A', 'candidat-dossier', '', 'id-a', 'confirmé'],
+    ['B', 'candidat-dossier', '', 'id-b', 'sans-clé'],
+    ['C', 'candidat-dossier', '', 'id-c', ''],
+    ['D', 'ouvert', '', '', 'candidat-registre'],
+    ['E', 'marqueur', '', '', ''],
+    ['F', 'sûr', 'E1', '', ''],
+  ]);
+  expect(held.get('a')).toStrictEqual({ kind: 'candidate', entity: 'id-a', confirmed: true });
+  expect(held.get('b')).toStrictEqual({ kind: 'candidate', entity: 'id-b', confirmed: false });
+  expect(held.get('c')).toStrictEqual({ kind: 'candidate', entity: 'id-c', confirmed: false });
+  expect(held.get('d')).toStrictEqual({ kind: 'open' });
+  expect(held.get('e')).toStrictEqual({ kind: 'open' });
+  expect(held.get('f')).toStrictEqual({ kind: 'sure', gemId: 'E1' });
+  const older = nameTable(header.slice(0, 4), [['A', 'candidat-dossier', '', 'id-a']]);
+  expect(older.get('a')).toStrictEqual({ kind: 'candidate', entity: 'id-a', confirmed: false });
 });

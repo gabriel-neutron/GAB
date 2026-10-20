@@ -253,7 +253,8 @@ export const splitOwners = (
 };
 
 /** What the approved name table says of one name. `sure` is a name with a GEM identifier;
- * `candidate` is a match of the name only, with the entity of the record; `open` is no match. */
+ * `candidate` is the entity of the record for the name, and `confirmed` says that the register
+ * check of the table confirmed it (a candidate that is not confirmed is a match of the name only); `open` is no match. */
 export type NamedEnd =
   | { readonly kind: 'sure'; readonly gemId: string }
   | { readonly kind: 'candidate'; readonly entity: string; readonly confirmed: boolean }
@@ -282,7 +283,7 @@ export const nameTableOf = (table: {
     throw new Error(
       'the name table lacks one of the columns name, status, gem_entity_id, dossier_entity_id',
     );
-  // The column is absent from an older table, and then no candidate is confirmed.
+  // The register check column is absent from an older table, and then no candidate is confirmed.
   const checkAt = at('controle_registre');
   const held = new Map<string, NamedEnd>();
   for (const { fields } of table.rows) {
