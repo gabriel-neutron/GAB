@@ -178,17 +178,42 @@ const events = {
       position: { lat: 1.5, lon: 2.5 },
     },
     { id: 'ev2', type: 'gap', start: '2026-02-01T00:00:00Z', end: null },
+    {
+      id: 'ev3',
+      type: 'port_visit',
+      start: '2026-02-05T00:00:00Z',
+      end: '2026-02-06T00:00:00Z',
+      position: { lat: 59.7, lon: 28.4 },
+      port_visit: {
+        startAnchorage: {
+          id: 'rus-ust-luga',
+          name: 'UST LUGA',
+          flag: 'RUS',
+          atDock: true,
+          lat: 59.68,
+          lon: 28.4,
+        },
+      },
+    },
   ],
   nextOffset: 200,
 };
 
-const gfwWeb = (identities: unknown[][] = [[{ id: VESSEL, ssvid: MMSI }]]) =>
+const gfwWeb = (
+  identities: unknown[][] = [[{ id: VESSEL, ssvid: MMSI }]],
+  registry: (readonly { imo: string }[])[] = [],
+) =>
   stubWeb(
     (asked: Asked) => {
       const path = asked.url.pathname;
       if (path === '/v3/events') return json(events);
       if (path === '/v3/vessels/search')
-        return json({ entries: identities.map((selfReportedInfo) => ({ selfReportedInfo })) });
+        return json({
+          entries: identities.map((selfReportedInfo, at) => ({
+            selfReportedInfo,
+            registryInfo: registry[at] ?? [],
+          })),
+        });
       return text('absent', 404);
     },
     { gfwToken: GFW_TOKEN },
@@ -211,7 +236,12 @@ test('vessel_events stores the events of one vessel once, and gives the plain fi
       nextOffset: 200,
       events: [
         { id: 'ev1', type: 'loitering', lat: 1.5, lon: 2.5, end: '2026-01-03T00:00:00Z' },
-        { id: 'ev2', type: 'gap', lat: null, lon: null, end: null },
+        { id: 'ev2', type: 'gap', lat: null, lon: null, end: null, anchorage: null },
+        {
+          id: 'ev3',
+          type: 'port_visit',
+          anchorage: { id: 'rus-ust-luga', name: 'UST LUGA', flag: 'RUS', atDock: true },
+        },
       ],
     },
   });
@@ -263,6 +293,62 @@ test('an MMSI that names two identities is refused, and the events are not read'
   expect(web.asked).toHaveLength(1);
 });
 
+test('an IMO number found in the registry info reads the events and is no lead', async () => {
+  const web = gfwWeb([[{ id: VESSEL, ssvid: MMSI }]], [[{ imo: IMO }]]);
+  const { store, session, reach } = setup(web);
+  const outcome = await callTool(
+    toolNamed('vessel_events'),
+    session,
+    { imo: IMO, ...RANGE },
+    reach,
+  );
+  expect(outcome).toMatchObject({
+    ok: true,
+    output: { matchedBy: 'imo', vesselIds: [VESSEL], lead: null },
+  });
+  expect(web.asked[0]?.url.searchParams.get('query')).toBe(IMO);
+  expect(store.puts).toHaveLength(1);
+});
+
+test('an IMO number that the registry info does not hold is refused', async () => {
+  const tool = toolNamed('vessel_events');
+  // A near miss of the fuzzy search, and an IMO number that only the crew reports.
+  for (const registry of [[[{ imo: '9074730' }]], [[]]]) {
+    const web = gfwWeb([[{ id: VESSEL, ssvid: MMSI }]], registry);
+    const { session, reach } = setup(web);
+    const outcome = await callTool(tool, session, { imo: IMO, ...RANGE }, reach);
+    expect(refusalOf(outcome)).toContain(`no vessel with the IMO ${IMO}`);
+    expect(web.asked).toHaveLength(1);
+  }
+});
+
+test('an IMO number that two registry entries hold is refused, and the events are not read', async () => {
+  const web = gfwWeb(
+    [[{ id: 'aaaaaaaa-1', ssvid: MMSI }], [{ id: 'bbbbbbbb-2', ssvid: MMSI }]],
+    [[{ imo: IMO }], [{ imo: IMO }]],
+  );
+  const { session, reach } = setup(web);
+  const outcome = await callTool(
+    toolNamed('vessel_events'),
+    session,
+    { imo: IMO, ...RANGE },
+    reach,
+  );
+  expect(refusalOf(outcome)).toContain('aaaaaaaa-1');
+  expect(web.asked).toHaveLength(1);
+});
+
+test('an IMO number of the wrong size, or two vessel keys, are refused', async () => {
+  const { session, reach } = setup(gfwWeb());
+  const tool = toolNamed('vessel_events');
+  expect(refusalOf(await callTool(tool, session, { imo: '123456', ...RANGE }, reach))).toContain(
+    'seven digits',
+  );
+  expect(
+    refusalOf(await callTool(tool, session, { imo: IMO, mmsi: MMSI, ...RANGE }, reach)),
+  ).toContain('one of vesselId, mmsi or imo');
+});
+
 test('vessel_events with no token refuses, names the setting and asks nothing', async () => {
   const web = stubWeb(() => json({}));
   const outcome = await callTool(
@@ -278,7 +364,9 @@ test('vessel_events with no token refuses, names the setting and asks nothing', 
 test('vessel_events refuses with a sentence that says what to correct', async () => {
   const { session, reach } = setup(gfwWeb());
   const tool = toolNamed('vessel_events');
-  expect(refusalOf(await callTool(tool, session, RANGE, reach))).toContain('vesselId or an mmsi');
+  expect(refusalOf(await callTool(tool, session, RANGE, reach))).toContain(
+    'one of vesselId, mmsi or imo',
+  );
   expect(refusalOf(await callTool(tool, session, { mmsi: '12', ...RANGE }, reach))).toContain(
     'nine digits',
   );

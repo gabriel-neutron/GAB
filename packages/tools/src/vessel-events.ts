@@ -34,9 +34,19 @@ const searchAnswer = z.object({
         selfReportedInfo: z
           .array(z.object({ id: z.string(), ssvid: z.string().nullish() }))
           .default([]),
+        registryInfo: z.array(z.object({ imo: z.string().nullish() })).default([]),
       }),
     )
     .default([]),
+});
+
+const anchorageShape = z.object({
+  id: z.string().nullish(),
+  name: z.string().nullish(),
+  flag: z.string().nullish(),
+  atDock: z.boolean().nullish(),
+  lat: z.number().nullish(),
+  lon: z.number().nullish(),
 });
 
 const eventsAnswer = z.object({
@@ -48,6 +58,7 @@ const eventsAnswer = z.object({
         start: z.string().nullish(),
         end: z.string().nullish(),
         position: z.object({ lat: z.number().nullish(), lon: z.number().nullish() }).nullish(),
+        port_visit: z.object({ startAnchorage: anchorageShape.nullish() }).nullish(),
       }),
     )
     .default([]),
@@ -57,7 +68,7 @@ const eventsAnswer = z.object({
 const outputShape = z.strictObject({
   document: z.string(),
   status: z.enum(['known', 'stored']),
-  matchedBy: z.enum(['vesselId', 'mmsi']),
+  matchedBy: z.enum(['vesselId', 'mmsi', 'imo']),
   vesselIds: z.array(z.string()),
   lead: z.literal(MMSI_LEAD_SENTENCE).nullable(),
   nextOffset: z.number().int().nullable(),
@@ -69,6 +80,17 @@ const outputShape = z.strictObject({
       end: z.string().nullable(),
       lat: z.number().nullable(),
       lon: z.number().nullable(),
+      // The anchorage of a port visit may be the port near a terminal, and not the terminal.
+      anchorage: z
+        .strictObject({
+          id: z.string().nullable(),
+          name: z.string().nullable(),
+          flag: z.string().nullable(),
+          atDock: z.boolean().nullable(),
+          lat: z.number().nullable(),
+          lon: z.number().nullable(),
+        })
+        .nullable(),
     }),
   ),
 });
@@ -79,10 +101,16 @@ const requestOf = (token: string, url: string): RegisterRequest => ({
   headers: { accept: 'application/json', authorization: `Bearer ${token}` },
 });
 
-// A list of identities is a lead and is not stored. More than one identity for one MMSI is the
-// case that the MMSI cannot settle, so the tool names them and joins none.
-const vesselIdsOf = async (reach: Reach, token: string, mmsi: string): Promise<string[]> => {
-  const query = new URLSearchParams({ query: mmsi, 'datasets[0]': IDENTITY_DATASET });
+// A list of identities is a lead and is not stored. More than one identity for one MMSI or one
+// IMO number is the case that the number cannot settle, so the tool names them and joins none. An
+// IMO number counts only in the registry info: the crew types the self-reported one.
+const vesselIdsOf = async (
+  reach: Reach,
+  token: string,
+  by: { mmsi: string } | { imo: string },
+): Promise<string[]> => {
+  const [kind, number] = 'mmsi' in by ? (['MMSI', by.mmsi] as const) : (['IMO', by.imo] as const);
+  const query = new URLSearchParams({ query: number, 'datasets[0]': IDENTITY_DATASET });
   const answer = await readRegister(
     webFromReach(reach),
     requestOf(token, `${BASE}/v3/vessels/search?${query.toString()}`),
@@ -90,16 +118,21 @@ const vesselIdsOf = async (reach: Reach, token: string, mmsi: string): Promise<s
   const identities = (
     answer === null ? [] : shaped('Global Fishing Watch', searchAnswer, answer.json).entries
   )
+    .filter((entry) =>
+      'imo' in by ? entry.registryInfo.some((info) => info.imo?.trim() === by.imo) : true,
+    )
     .map((entry) =>
-      entry.selfReportedInfo.filter((info) => info.ssvid === mmsi).map((info) => info.id),
+      'mmsi' in by
+        ? entry.selfReportedInfo.filter((info) => info.ssvid === by.mmsi).map((info) => info.id)
+        : entry.selfReportedInfo.map((info) => info.id),
     )
     .filter((ids) => ids.length > 0);
   const [only, ...others] = identities;
   if (only === undefined)
-    throw new ToolRefusal(`Global Fishing Watch knows no vessel with the MMSI ${mmsi}`);
+    throw new ToolRefusal(`Global Fishing Watch knows no vessel with the ${kind} ${number}`);
   if (others.length > 0)
     throw new ToolRefusal(
-      `the MMSI ${mmsi} names ${identities.length} vessel identities in Global Fishing Watch ` +
+      `the ${kind} ${number} names ${identities.length} vessel identities in Global Fishing Watch ` +
         `(${identities.map((ids) => ids.join(' + ')).join(', ')}): give one of them as vesselId`,
     );
   return [...new Set(only)];
@@ -145,10 +178,12 @@ export const vesselEvents = defineTool({
   description:
     'Reads the encounter, loitering, AIS gap and port visit events of one vessel in Global ' +
     'Fishing Watch, ' +
-    'by its GFW vessel id or by its MMSI, between two dates. The API is free but needs a ' +
+    'by its GFW vessel id, by its IMO number (checked in the GFW registry info) or by its MMSI, ' +
+    'between two dates. The API is free but needs a ' +
     'token: with no token set, the tool refuses and names the setting. The answer is stored ' +
     'once as an api document; read the next page with nextOffset. A match by the MMSI alone is ' +
-    'a lead, and the output says so.',
+    'a lead, and the output says so. A port visit gives its anchorage, which may be the port ' +
+    'near a terminal and not the terminal.',
   input: z
     .strictObject({
       vesselId: z
@@ -161,6 +196,11 @@ export const vesselEvents = defineTool({
         .trim()
         .regex(/^\d{9}$/u, 'an MMSI is nine digits')
         .optional(),
+      imo: z
+        .string()
+        .trim()
+        .regex(/^\d{7}$/u, 'an IMO number is seven digits')
+        .optional(),
       from: day,
       to: day,
       types: z
@@ -169,9 +209,11 @@ export const vesselEvents = defineTool({
         .default([...TYPES]),
       offset: z.number().int().min(0).default(0),
     })
-    .refine((input) => (input.vesselId === undefined) !== (input.mmsi === undefined), {
-      error: 'give a vesselId or an mmsi, and not both',
-    })
+    .refine(
+      (input) =>
+        [input.vesselId, input.mmsi, input.imo].filter((given) => given !== undefined).length === 1,
+      { error: 'give one of vesselId, mmsi or imo, and not more' },
+    )
     .refine((input) => input.from <= input.to, { error: 'from comes before to' }),
   output: outputShape,
   async run(session, input, reach) {
@@ -182,11 +224,16 @@ export const vesselEvents = defineTool({
       );
     if (reach?.store === undefined)
       throw new ToolRefusal('this surface gives no object store, so it stores no answer');
-    const matchedBy: 'mmsi' | 'vesselId' = input.vesselId === undefined ? 'mmsi' : 'vesselId';
+    const matchedBy: 'mmsi' | 'imo' | 'vesselId' =
+      input.vesselId !== undefined ? 'vesselId' : input.imo !== undefined ? 'imo' : 'mmsi';
     const vessels =
-      input.vesselId === undefined
-        ? await vesselIdsOf(reach, token, input.mmsi ?? '')
-        : [input.vesselId];
+      input.vesselId !== undefined
+        ? [input.vesselId]
+        : await vesselIdsOf(
+            reach,
+            token,
+            input.imo !== undefined ? { imo: input.imo } : { mmsi: input.mmsi ?? '' },
+          );
     const read = await eventsOf(session, reach, token, vessels, {
       ...input,
       types: TYPES.filter((type) => input.types.includes(type)),
@@ -206,6 +253,17 @@ export const vesselEvents = defineTool({
         end: event.end ?? null,
         lat: event.position?.lat ?? null,
         lon: event.position?.lon ?? null,
+        anchorage:
+          event.port_visit?.startAnchorage === undefined || event.port_visit.startAnchorage === null
+            ? null
+            : {
+                id: event.port_visit.startAnchorage.id ?? null,
+                name: event.port_visit.startAnchorage.name ?? null,
+                flag: event.port_visit.startAnchorage.flag ?? null,
+                atDock: event.port_visit.startAnchorage.atDock ?? null,
+                lat: event.port_visit.startAnchorage.lat ?? null,
+                lon: event.port_visit.startAnchorage.lon ?? null,
+              },
       })),
     };
   },
