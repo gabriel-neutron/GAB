@@ -118,13 +118,13 @@ const listingsOf = (
 /** The GeoJSON file of a release (RFC 7946): one feature for each entity with a position, with
  * the columns of the entity CSV as its properties. The collection carries the name of the release
  * and the disclaimer as foreign members. When the release shows the NATO pair, a feature also lists
- * the claims about its entity, each with its letter and digit or "not rated". The database keeps each position in WGS84, and its
- * GeoJSON gives the longitude before the latitude, as RFC 7946 asks. */
+ * the claims about its entity (not the claims about a relation), each with its letter and digit or
+ * "not rated". The database keeps each position in WGS84, and its GeoJSON gives the longitude
+ * before the latitude, as RFC 7946 asks. */
 export const geojsonExport = (record: ReleaseRecord, heading: ReleaseHeading): ReleaseFile => {
   const lookup = releaseLookup(record);
   const kinds = assetKinds(record);
   const listings = listingsOf(record, lookup);
-  // With the pair on, a feature lists the claims about its entity, each with its pair or "not rated".
   const { natoPairs } = record;
   const claimsOf = new Map<string, Record<string, string | null>[]>();
   if (natoPairs !== null)
