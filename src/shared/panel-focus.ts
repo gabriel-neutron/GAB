@@ -26,13 +26,13 @@ const reachedByKeyboard = (element: HTMLElement): boolean => {
 /** Call it in the handler of an act that opens or changes a panel. Only a control that the
  * keyboard reached asks for the focus. `from` is the control that gets the focus back. */
 export function askPanelFocus(from: Element | null = document.activeElement): void {
-  // A new panel ends the claim of the old one.
-  opener = null;
   if (from instanceof HTMLElement && reachedByKeyboard(from)) {
     note = { opener: from, at: Date.now() };
     return;
   }
+  // A panel that a pointer opens ends the claim of the old one.
   note = null;
+  opener = null;
 }
 
 /** The ref callback of the marker, the last child of the panel. It moves the focus to the
