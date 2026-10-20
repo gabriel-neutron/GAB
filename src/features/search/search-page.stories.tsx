@@ -65,7 +65,10 @@ export const EachMatchOpensItsEntity: Story = {
 export const TypingIsAnnouncedToTheCaller: Story = {
   play: async ({ canvas }) => {
     onQueryChange.mockClear();
-    await userEvent.type(canvas.getByRole('searchbox', { name: 'Search text' }), 'x');
+    await userEvent.type(
+      canvas.getByRole('searchbox', { name: 'Search names, values and documents' }),
+      'x',
+    );
     await expect(onQueryChange).toHaveBeenCalledWith('northern ledgerx');
   },
 };
@@ -122,5 +125,22 @@ export const ADocumentMatchOpensItsAddress: Story = {
   play: async ({ canvas }) => {
     const hit = canvas.getByRole('link', { name: /Port of Rotterdam/ });
     await expect(hit).toHaveAttribute('href', 'https://example.invalid/rotterdam/q2-2026.pdf');
+  },
+};
+
+/** The field says what it searches, and one help line gives an example. */
+export const TheFieldNamesWhatItSearches: Story = {
+  play: async ({ canvas }) => {
+    const field = canvas.getByRole('searchbox', { name: 'Search names, values and documents' });
+    await expect(field).toHaveAccessibleDescription(/Example: ledger/);
+  },
+};
+
+/** The matched text shows in a mark in each row, in the case of the stored value. */
+export const TheMatchShowsInEachRow: Story = {
+  args: answersFor('northern'),
+  play: async ({ canvas }) => {
+    const link = canvas.getByRole('link', { name: /^MV Northern Ledger/ });
+    await expect(link.querySelector('mark')).toHaveTextContent('Northern');
   },
 };

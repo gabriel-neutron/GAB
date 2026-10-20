@@ -7,6 +7,7 @@ import { Input } from '@/shared/ui/input';
 import { keyWords } from '@gab/proposal/key-words';
 import { typeLabel } from '@/shared/type-label';
 
+import { MarkedText } from './marked-text';
 import type { AttributeHit, AttributeSearchAnswer } from './attribute-search';
 import type { DocumentHit, DocumentSearchAnswer } from './document-search';
 import type { NameHit, NameSearchAnswer } from './name-search';
@@ -26,6 +27,7 @@ interface SearchPageProps {
 }
 
 const FIELD_ID = 'search-by-name';
+const HELP_ID = 'search-help';
 
 const nameSummaryOf = (answer: NameSearchAnswer): string => {
   switch (answer.kind) {
@@ -99,7 +101,7 @@ export function SearchPage({ query, answers, onQueryChange, hrefOf }: SearchPage
       header: 'Entity',
       cell: (hit) => (
         <a href={hrefOf(hit.entityId)} className={READING_LINK}>
-          {hit.label}
+          <MarkedText text={hit.label} query={query} />
         </a>
       ),
     },
@@ -116,7 +118,7 @@ export function SearchPage({ query, answers, onQueryChange, hrefOf }: SearchPage
       ),
     },
     { key: 'attribute', header: 'Attribute', cell: (hit) => keyWords(hit.key).label },
-    { key: 'value', header: 'Value', cell: (hit) => hit.value },
+    { key: 'value', header: 'Value', cell: (hit) => <MarkedText text={hit.value} query={query} /> },
   ];
   const documentColumns: readonly DataColumn<DocumentHit>[] = [
     {
@@ -124,10 +126,10 @@ export function SearchPage({ query, answers, onQueryChange, hrefOf }: SearchPage
       header: 'Title',
       cell: (hit) =>
         hit.uri === null ? (
-          hit.title
+          <MarkedText text={hit.title} query={query} />
         ) : (
           <a href={hit.uri} className={READING_LINK}>
-            {hit.title}
+            <MarkedText text={hit.title} query={query} />
           </a>
         ),
     },
@@ -138,25 +140,26 @@ export function SearchPage({ query, answers, onQueryChange, hrefOf }: SearchPage
 
   return (
     <>
-      <p className="max-w-prose">
-        One field searches three parts of the record: the names of the entities, the values of their
-        attributes and the titles of the documents.
-      </p>
       <div className="flex max-w-prose flex-col gap-1">
         <label htmlFor={FIELD_ID} className="text-xs/5 text-label">
-          Search text
+          Search names, values and documents
         </label>
         <Input
           id={FIELD_ID}
           type="search"
           autoFocus
           autoComplete="off"
+          aria-describedby={HELP_ID}
           value={query}
           onChange={(event) => {
             onQueryChange(event.target.value);
           }}
           className={cn('rounded-none duration-100')}
         />
+        <p id={HELP_ID} className="text-xs/5 text-label">
+          Example: ledger. The field matches part of an entity name, of an attribute value and of a
+          document title. Case and accents do not count. The matched text shows in each row.
+        </p>
       </div>
 
       <PageSection title="Entity names">
