@@ -673,8 +673,8 @@ const checkSourceNames = async (
     ref,
     'no excerpt of a cited document names an end of the relation by the IMO number of the source ' +
       `end${imo === undefined ? ' (it has none in the record)' : ` ${imo}`} or by one of these ` +
-      `names: ${names.map((name) => JSON.stringify(name)).join(', ')}: cite the passage that ` +
-      'names one of them',
+      `names: ${names.length === 0 ? '(the record holds no name of 4 characters or more)' : names.map((name) => JSON.stringify(name)).join(', ')}: ` +
+      'cite the passage that names one of them',
   );
 };
 

@@ -2168,6 +2168,18 @@ test('propose adds a source to a relation when its excerpt holds a Cyrillic name
   expect(batchOf(found).proposals).toMatchObject([{ ref: 'source', written: true }]);
 });
 
+test('propose refuses a source whose excerpt holds only an alias under 4 characters', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await designatedRelation(ask);
+    await ask(
+      `UPDATE public.entities SET attrs = attrs || '{"aliases":{"v":["Kav"],"src":["manual"]}}'::jsonb
+        WHERE label = 'A treasury'`,
+    );
+    return proposeOnPage(ask, [sourcing(held, 'Kav')], 'Kav was hit.');
+  });
+  expect(found).toMatchObject({ ok: false });
+});
+
 test('propose refuses a source whose excerpt names no end of the relation', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const held = await designatedRelation(ask);
