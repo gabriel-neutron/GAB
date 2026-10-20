@@ -80,7 +80,7 @@ const withinRelease = (service: Corpus, files: Corpus): Corpus => {
             { ...value, src: value.src.filter((id) => held.attrs[key]?.src.includes(id)) },
           ]),
       );
-      // Departure: a release holds no source list for the row of an entity (ADR 0028). The
+      // Departure: a release holds no source list for the row of an entity. The
       // reader of the files gives the row the documents of all its claims. The service can hold
       // a claim document that its row list lacks, so the row list of the release stands for both
       // reads. The sources of each claim stay in the comparison.
