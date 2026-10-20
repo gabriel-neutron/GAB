@@ -330,7 +330,9 @@ function designationWords(index: Index, relation: Relation): string {
     acts.length === 0 ? '' : ` under ${acts.join(', ')}`,
   ].join('');
   const end =
-    relation.validTo === null ? 'no end date recorded' : `ended on ${relation.validTo}, and closed`;
+    relation.validTo === null
+      ? 'no end date recorded'
+      : `ended on ${relation.validTo}, and closed${relation.validFrom === null ? ', with no start date' : ''}`;
   const checked = checkDayOf(index, relation);
   return `${listed}, ${end}${checked === null ? '' : `; status checked on ${checked}`}`;
 }
