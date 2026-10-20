@@ -616,32 +616,49 @@ const claimActOf = async (
   return { ...act, relation: named?.words ?? null };
 };
 
-// The vessel of a designation and the act that designates it, as the record names them.
-const SOURCE_NAMES = `SELECT e.attrs->'imo'->>'v' AS imo, a.label AS act
+// The IMO number of the source end of a relation, and each name of both ends: the label, the
+// Cyrillic label and the aliases. An attribute holds one text or a list of texts.
+const SOURCE_NAMES = `SELECT s.attrs->'imo'->>'v' AS imo, n.name
   FROM api.relation r
-  LEFT JOIN api.entity e ON r.src_kind = 'entity' AND e.id = r.src_id
-  LEFT JOIN api.entity a ON r.dst_kind = 'entity' AND a.id = r.dst_id
+  LEFT JOIN api.entity s ON r.src_kind = 'entity' AND s.id = r.src_id
+  LEFT JOIN api.entity d ON r.dst_kind = 'entity' AND d.id = r.dst_id
+  CROSS JOIN LATERAL (VALUES (s.label, s.attrs), (d.label, d.attrs)) AS ends(label, attrs)
+  CROSS JOIN LATERAL (
+    SELECT ends.label AS name
+    UNION ALL
+    SELECT v.value #>> '{}'
+      FROM unnest(ARRAY['aliases', 'label_cyrillic']) AS k(key)
+     CROSS JOIN LATERAL jsonb_array_elements(
+             CASE WHEN jsonb_typeof(ends.attrs->k.key->'v') = 'array' THEN ends.attrs->k.key->'v'
+                  ELSE jsonb_build_array(ends.attrs->k.key->'v') END) AS v(value)
+     WHERE jsonb_typeof(v.value) = 'string'
+  ) AS n
   WHERE r.id = $1`;
 
 const squeezed = (text: string): string => text.replace(/\s+/gu, ' ').trim().toLowerCase();
 
+// A name under this length is too short to prove that an excerpt is about the relation.
+const MIN_NAME = 4;
+
 // A source added to a relation must be about that relation: an excerpt that names neither the
-// IMO number of the vessel nor the act would add a document that says nothing of the designation.
+// IMO number of the source end nor a name of either end would add a document that says nothing of it.
 const checkSourceNames = async (
   session: Session,
   ref: string,
   targetId: string,
   cited: readonly Cited[],
 ): Promise<void> => {
-  const [names] = await rowsOf(
+  const rows = await rowsOf(
     session,
-    z.strictObject({ imo: z.string().nullable(), act: z.string().nullable() }),
+    z.strictObject({ imo: z.string().nullable(), name: z.string().nullable() }),
     SOURCE_NAMES,
     [targetId],
   );
-  const imo = /(?<!\d)\d{7}(?!\d)/u.exec(names?.imo ?? '')?.[0];
-  const act = squeezed(names?.act ?? '');
-  // Each cited document must name the vessel or the act: one good line must not carry another.
+  const imo = /(?<!\d)\d{7}(?!\d)/u.exec(rows[0]?.imo ?? '')?.[0];
+  const names = [...new Set(rows.map((row) => squeezed(row.name ?? '')))].filter(
+    (name) => name.length >= MIN_NAME,
+  );
+  // Each cited document must name an end: one good line must not carry another.
   const namesIt = (document: string): boolean => {
     const text = squeezed(
       cited
@@ -649,14 +666,15 @@ const checkSourceNames = async (
         .map((one) => one.passage)
         .join(' '),
     );
-    return (imo !== undefined && text.includes(imo)) || (act !== '' && text.includes(act));
+    return (imo !== undefined && text.includes(imo)) || names.some((name) => text.includes(name));
   };
   if ([...new Set(cited.map((one) => one.document))].every(namesIt)) return;
   refuse(
     ref,
-    'no excerpt of a cited document names the vessel by its IMO number' +
-      `${imo === undefined ? ' (the vessel has none in the record)' : ` ${imo}`} or the act ` +
-      `${JSON.stringify(names?.act ?? '')}: cite the passage that names one of them`,
+    'no excerpt of a cited document names an end of the relation by the IMO number of the source ' +
+      `end${imo === undefined ? ' (it has none in the record)' : ` ${imo}`} or by one of these ` +
+      `names: ${names.map((name) => JSON.stringify(name)).join(', ')}: cite the passage that ` +
+      'names one of them',
   );
 };
 

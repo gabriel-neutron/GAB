@@ -216,6 +216,27 @@ test('a channel with no post and no limit is refused before any request', async 
   });
 });
 
+test('before reads the page that ends before that post, with limit', async () => {
+  const { store, web, reach } = setup(() => previewPage(HANDLE, ALL));
+  await rolledBack('research', async (ask) => {
+    const { posts } = await read(ask, { channel: HANDLE, before: 2042, limit: 1 }, reach);
+    expect(web.asked.map((asked) => asked.url.href)).toStrictEqual([
+      `https://t.me/s/${HANDLE}?before=2042`,
+    ]);
+    expect(posts).toHaveLength(1);
+    expect(store.puts).toHaveLength(1);
+  });
+});
+
+test('before with a post id is refused before any request', async () => {
+  const { web, reach } = setup(() => previewPage(HANDLE, ALL));
+  await rolledBack('research', async (ask) => {
+    const said = await refusal(ask, { channel: `t.me/${HANDLE}/2042`, before: 2042 }, reach);
+    expect(said).toMatch(/before_with_post/u);
+    expect(web.asked).toHaveLength(0);
+  });
+});
+
 test('two different post ids are refused before any request', async () => {
   const { web, reach } = setup(() => previewPage(HANDLE, ALL));
   await rolledBack('research', async (ask) => {

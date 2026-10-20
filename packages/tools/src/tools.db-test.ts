@@ -2152,7 +2152,23 @@ test('propose adds a source to a relation when its excerpt names the act', async
   expect(found.rows[0]?.payload).toStrictEqual({ add_source: true });
 });
 
-test('propose refuses a source whose excerpt names neither the vessel nor the act', async () => {
+test('propose adds a source to a relation when its excerpt holds a Cyrillic name of the far end', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await designatedRelation(ask);
+    await ask(
+      `UPDATE public.entities SET attrs = attrs || '{"label_cyrillic":{"v":"Кавказ","src":["manual"]}}'::jsonb
+        WHERE label = 'A treasury'`,
+    );
+    return proposeOnPage(
+      ask,
+      [sourcing(held, 'порту "Кавказ"')],
+      'Удар по порту "Кавказ" в ночь на вторник.',
+    );
+  });
+  expect(batchOf(found).proposals).toMatchObject([{ ref: 'source', written: true }]);
+});
+
+test('propose refuses a source whose excerpt names no end of the relation', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const held = await designatedRelation(ask);
     const outcome = await proposeOnPage(
@@ -2165,7 +2181,7 @@ test('propose refuses a source whose excerpt names neither the vessel nor the ac
   expect(found.outcome).toMatchObject({
     ok: false,
     refusal: expect.stringContaining(
-      'item source: no excerpt of a cited document names the vessel',
+      'item source: no excerpt of a cited document names an end of the relation',
     ) as string,
   });
   expect(found.rows).toStrictEqual([]);

@@ -63,6 +63,12 @@ export const telegramChannel = defineTool({
       .max(PAGE_POSTS)
       .optional()
       .describe(`the count of newest posts to read, from 1 to ${String(PAGE_POSTS)}`),
+    before: z
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe('read the posts older than this post id; valid only with no post id'),
   }),
   output: z.strictObject({ channel: z.string(), posts: z.array(postOutput) }),
   async run(session, input, reach) {
@@ -81,14 +87,25 @@ export const telegramChannel = defineTool({
           `${input.message_id}. Give one post id.`,
       );
     const id = address.message_id ?? input.message_id;
-    if (id === undefined && input.limit === undefined)
+    if (id !== undefined && input.before !== undefined)
+      throw new ToolRefusal(
+        `before_with_post: before reads older posts and a post id reads one post. Give one of ` +
+          'them.',
+      );
+    if (id === undefined && input.limit === undefined && input.before === undefined)
       throw new ToolRefusal(
         'channel_link_no_post: a channel address alone supports no claim. Give the post id ' +
           '(in the address or in message_id), or give limit to read the newest posts.',
       );
 
     // One post is on the page that ends just after it.
-    const page = `https://t.me/s/${address.handle}${id === undefined ? '' : `?before=${id + 1}`}`;
+    const page = `https://t.me/s/${address.handle}${
+      id !== undefined
+        ? `?before=${id + 1}`
+        : input.before === undefined
+          ? ''
+          : `?before=${input.before}`
+    }`;
     let body: string;
     try {
       ({ body } = await answerOf(web, page, { headers: { accept: 'text/html' } }));
