@@ -53,9 +53,20 @@ test('a true pair is listed; near fields of two names and a far pair of one name
     await entity(3, 'Kirinskoye field', 40.0, true);
     await entity(5, 'Urengoy gas field', 40.0, true);
     await entity(6, 'Urengoy', 43.0, false);
+    // Pair D: a dossier entity with no point pairs on the name. A name with a prefix, and an entity
+    // that holds a GEM key, do not.
+    await entity(8, 'Bovanenkovskoye (Gazprom) Oil and Gas Asset (Russia)', 41.0, true);
+    await entity(9, 'Bovanenkovo oil and gas condensate deposit', 0, false);
+    await entity(10, 'Bovanenkovo', 0, true);
+    await client.query('UPDATE public.entities SET geom = NULL WHERE id = ANY($1)', [
+      [id(9), id(10)],
+    ]);
 
-    const pairs = (await gemDuplicates(client)).filter((p) => Number(p.gemId.slice(-2)) < 7);
-    expect(pairs.map((p) => [p.gemId, p.dossierId])).toStrictEqual([[id(1), id(2)]]);
+    const pairs = (await gemDuplicates(client)).filter((p) => Number(p.gemId.slice(-2)) < 11);
+    expect(pairs.map((p) => [p.gemId, p.dossierId])).toStrictEqual([
+      [id(1), id(2)],
+      [id(8), id(9)],
+    ]);
   } finally {
     await client.query('ROLLBACK');
     client.release();
