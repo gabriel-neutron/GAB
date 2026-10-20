@@ -148,6 +148,7 @@ export const AKeyOpensTheCardWithTheFocusOnItsHeading: Story = {
     await expect(canvas.getByRole('heading', { name: 'Test field' })).toHaveFocus();
     await userEvent.keyboard('{Escape}');
     await expect(args.store.get().panel).toStrictEqual({ kind: 'none' });
+    await expect(canvas.getByRole('region', { name: 'Card of the selected entity' })).toHaveFocus();
   },
 };
 

@@ -26,6 +26,8 @@ const reachedByKeyboard = (element: HTMLElement): boolean => {
 /** Call it in the handler of an act that opens or changes a panel. Only a control that the
  * keyboard reached asks for the focus. `from` is the control that gets the focus back. */
 export function askPanelFocus(from: Element | null = document.activeElement): void {
+  // A new panel ends the claim of the old one.
+  opener = null;
   if (from instanceof HTMLElement && reachedByKeyboard(from)) {
     note = { opener: from, at: Date.now() };
     return;
@@ -48,10 +50,13 @@ export function landOnPanel(marker: HTMLElement | null): void {
   target.focus();
 }
 
-/** Call it when the panel closes. It gives the focus back to the control that opened the panel,
- * and does nothing where a pointer opened the panel or the control has left the page. */
-export function returnPanelFocus(): void {
+/** Call it when the panel closes. It gives the focus back to the control that opened the panel.
+ * It does nothing where a pointer opened the panel. Where the control has left the page or is
+ * hidden, the focus goes to `fallback`. */
+export function returnPanelFocus(fallback: HTMLElement | null = null): void {
   const back = opener;
   opener = null;
-  if (back?.isConnected === true) back.focus();
+  if (back === null) return;
+  const usable = back.isConnected && back.getClientRects().length > 0;
+  (usable ? back : fallback)?.focus();
 }

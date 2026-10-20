@@ -110,6 +110,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   // leaves it as it is.
   const narrow = useNarrowScreen();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const typesButton = useRef<HTMLButtonElement | null>(null);
   // A wide screen has no drawer, so the drawer is closed in the render that meets one.
   if (!narrow && drawerOpen) setDrawerOpen(false);
 
@@ -344,6 +345,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
             />
           ) : null}
           <button
+            ref={typesButton}
             type="button"
             aria-expanded={drawerOpen}
             onClick={() => {
@@ -380,9 +382,10 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
           role="region"
           aria-label="Card of the selection"
           onKeyDown={(event) => {
-            if (event.key !== 'Escape' || selection === null) return;
+            if (event.key !== 'Escape' || event.defaultPrevented || selection === null) return;
             clearSelection();
-            returnPanelFocus();
+            event.currentTarget.tabIndex = -1;
+            returnPanelFocus(narrow ? typesButton.current : event.currentTarget);
           }}
           className={cn(
             'max-h-96 min-h-0 min-w-0 overflow-y-auto overscroll-contain border-t border-border',
@@ -391,9 +394,10 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
             selection === null ? 'max-md:hidden' : null,
           )}
         >
-          {selection === null ? null : <SheetClose onClose={clearSelection} />}
+          {selection === null ? null : (
+            <SheetClose onClose={clearSelection} fallback={narrow ? typesButton : undefined} />
+          )}
           {card}
-          {/* The marker mounts with each new selection and moves the focus into the card. */}
           {selection === null ? null : (
             <span key={`${selection.kind}:${selection.id}`} ref={landOnPanel} hidden />
           )}

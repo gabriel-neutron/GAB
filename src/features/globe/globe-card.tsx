@@ -59,9 +59,10 @@ export function GlobeCard({ store, data, entityHref }: GlobeCardProps) {
         panel.kind === 'none' ? 'max-md:hidden' : null,
       )}
       onKeyDown={(event) => {
-        if (event.key !== 'Escape' || panel.kind === 'none') return;
+        if (event.key !== 'Escape' || event.defaultPrevented || panel.kind === 'none') return;
         store.select(null);
-        returnPanelFocus();
+        event.currentTarget.tabIndex = -1;
+        returnPanelFocus(event.currentTarget);
       }}
     >
       {panel.kind === 'none' ? null : (
@@ -100,7 +101,6 @@ export function GlobeCard({ store, data, entityHref }: GlobeCardProps) {
           </div>
         ) : null}
       </div>
-      {/* The marker mounts with each new card or list and moves the focus into it. */}
       {panel.kind === 'none' ? null : (
         <span
           key={
