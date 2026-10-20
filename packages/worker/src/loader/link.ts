@@ -261,7 +261,7 @@ export type NamedEnd =
   | { readonly kind: 'candidate'; readonly entity: string }
   | { readonly kind: 'open' };
 
-// External constraint: the columns and the status words of the name table (research step #525).
+// External constraint: the columns and the status words of the name table.
 const SURE = 'sûr';
 const CANDIDATE = 'candidat-dossier';
 

@@ -293,10 +293,14 @@ export const mappingDraft = z
   .strictObject(draftFields)
   .refine(linkTableHasNoRelations, NO_RELATIONS)
   // A name is not an identifier: the model has read a cell of names as a link to a record entity.
-  // The operator may still write a name lookup (the payload allows it), and the model may not.
-  .refine((held) => held.relations.every((one) => one.other.key !== 'label'), {
-    message: 'a relation finds the other end by an identifier, and a column of names gives none',
-  });
+  // The operator may still write a name lookup (the payload allows it), and the model may not,
+  // except through the approved name table (`names`).
+  .refine(
+    (held) => held.relations.every((one) => one.other.key !== 'label' || one.names !== undefined),
+    {
+      message: 'a relation finds the other end by an identifier, and a column of names gives none',
+    },
+  );
 
 export type MappingDraft = z.infer<typeof mappingDraft>;
 

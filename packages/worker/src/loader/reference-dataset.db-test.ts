@@ -979,9 +979,9 @@ const ENTITY_BOOK = workbookOf({
   [ENTITY_SHEET]: [
     ['Entity ID', 'Name', 'Country', 'Registry ID', 'LEI', 'Parent'],
     ['E100001', 'Rosneft', 'Russia', 105012345, 'not found', ''],
-    ['E100002', 'Lukoil', 'Russia', 1027700035769, 'not found', 'Novatek'],
+    ['E100002', 'Lukoil', 'Russia', 1027700035769, 'not found', '6316031581'],
     ['E100003', 'Novatek', 'Russia', 6316031581, '2138008R6GCRVBDFA581', ''],
-    ['E100004', 'Arctic New Co', 'Russia', '', '', 'Novatek'],
+    ['E100004', 'Arctic New Co', 'Russia', '', '', '6316031581'],
     ['E100005', 'Oslo Co', 'Norway', 912345678, '', ''],
   ],
 });
@@ -1005,7 +1005,7 @@ const ENTITY_DRAFT = {
       lei: { column: 'LEI', cast: { type: 'identifier' } },
     },
   },
-  relations: [{ type: 'owns', row_is: 'dst', other: { key: 'label', column: 'Parent' } }],
+  relations: [{ type: 'owns', row_is: 'dst', other: { key: 'tax_id', column: 'Parent' } }],
 };
 
 const recorded = async (
