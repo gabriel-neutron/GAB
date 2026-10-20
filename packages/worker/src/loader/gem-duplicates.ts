@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { nameKey } from '../name-key.ts';
 import type { Queryable } from '../queryable.ts';
 
-// Origin of the number: decided on #518. A GEM point and a dossier point of one field lie within a
+// Origin of the number: decided with the panel. A GEM point and a dossier point of one field lie within a
 // few km. Closeness alone proves nothing, so a name test follows.
 const NEAR_METRES = 10_000;
 
@@ -32,7 +32,7 @@ const NEAR = `SELECT g.id::text AS gem_id, g.label AS gem_label, d.id::text AS d
        d.label AS dossier_label, g.type,
        ST_Distance(g.geom::geography, d.geom::geography) AS metres
   FROM public.entities g
-  JOIN public.entities d ON d.type = g.type AND d.id <> g.id AND NOT d.attrs ? 'gem_unit_id'
+  JOIN public.entities d ON d.type = g.type AND d.id <> g.id AND NOT d.attrs ?| ARRAY['gem_unit_id', 'gem_project_id', 'gem_entity_id']
    AND ST_DWithin(g.geom::geography, d.geom::geography, $1::float8)
  WHERE g.attrs ? 'gem_unit_id' AND GeometryType(g.geom) = 'POINT' AND GeometryType(d.geom) = 'POINT'
  ORDER BY g.id, d.id`;
@@ -58,7 +58,7 @@ export interface GemDuplicate {
   readonly metres: number;
 }
 
-/** The pairs of entities of one type, one with the key gem_unit_id and one without it, with a point
+/** The pairs of entities of one type, one with the key gem_unit_id and one without a GEM key, with a point
  * within 10 km and a similar name. It reads the record and writes nothing. The operator merges a
  * true pair with merge_entities. */
 export const gemDuplicates = async (db: Queryable): Promise<readonly GemDuplicate[]> =>

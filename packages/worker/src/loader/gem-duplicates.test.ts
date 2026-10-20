@@ -14,3 +14,7 @@ test('a place and the place with a prefix are two names', () => {
   expect(similarName('Kirinskoye field', 'Yuzhno-Kirinskoye Field')).toBe(false);
   expect(similarName('Field', 'Deposit')).toBe(false);
 });
+
+test('a name that only one side gives in generic words equals the bare name', () => {
+  expect(similarName('Kirinskoye Oil and Gas Field (Russia)', 'Kirinskoye')).toBe(true);
+});
