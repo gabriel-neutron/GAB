@@ -32,6 +32,8 @@ const MANIFEST = {
 
 let root = '';
 let fromFiles: Corpus;
+// The documents that the claims of each entity cite in the release, all claims included.
+let citedByEntity: Map<string, Set<string>>;
 let fromService: Corpus;
 
 beforeAll(async () => {
@@ -47,7 +49,15 @@ beforeAll(async () => {
   const files = new Map<string, string>();
   for (const name of await readdir(folder))
     files.set(name, await readFile(join(folder, name), 'utf8'));
-  fromFiles = corpusFromRelease(readSiteRelease(files), await loadRelationTypes());
+  const released = readSiteRelease(files);
+  fromFiles = corpusFromRelease(released, await loadRelationTypes());
+  citedByEntity = new Map();
+  for (const claim of released.claims) {
+    if (claim.kind !== 'attribute' || claim.subjectKind !== 'entity') continue;
+    const into = citedByEntity.get(claim.subjectId) ?? new Set<string>();
+    for (const source of claim.sources) into.add(source.documentId);
+    citedByEntity.set(claim.subjectId, into);
+  }
   fromService = await loadCorpus();
 }, 60_000);
 
@@ -79,12 +89,13 @@ const withinRelease = (service: Corpus, files: Corpus): Corpus => {
             { ...value, src: value.src.filter((id) => held.attrs[key]?.src.includes(id)) },
           ]),
       );
-      // Departure: a release holds no source list for the row of an entity. It gives the
-      // documents of the claims, so the sources of the row are the documents that its claims cite,
-      // in the order of the release. The source card lists the row as a fact that a document
-      // backs, so a document that only a claim cites must not back the row in one read only.
-      const cited = new Set(Object.values(attrs).flatMap((value) => value.src));
-      return [{ ...one, attrs, sources: held.sources.filter((id) => cited.has(id)) }];
+      // Departure: a release holds no source list for the row of an entity. It gives only the
+      // documents of the claims. A source that the service holds for the row alone is a known
+      // difference by design of the release, so it is cut here. The service value stays in the
+      // comparison for each document that a claim of the release cites, including a claim that a
+      // later claim of the same attribute overwrites.
+      const cited = citedByEntity.get(one.id) ?? new Set<string>();
+      return [{ ...one, attrs, sources: one.sources.filter((id) => cited.has(id)) }];
     }),
     relations: service.relations.flatMap((one) => {
       const held = relations.get(one.id);
