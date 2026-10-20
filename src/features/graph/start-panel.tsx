@@ -16,7 +16,7 @@ interface StartPanelProps {
 const SHOWN = 8;
 
 const ROW_CLASS = cn(
-  'flex h-6 w-full items-baseline justify-between gap-2 px-1 text-left text-xs',
+  'flex min-h-6 w-full items-baseline justify-between gap-2 px-1 text-left text-xs',
   'transition-colors duration-100 hover:bg-muted',
   'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
 );
@@ -61,9 +61,7 @@ export function StartPanel({ named, onChoose, onShowWholeGraph }: StartPanelProp
               }}
               className={ROW_CLASS}
             >
-              <span className="min-w-0 truncate" title={row.label}>
-                {row.label}
-              </span>
+              <span className="min-w-0 text-left break-words">{row.label}</span>
               <span className="shrink-0 text-right font-mono text-muted-foreground tabular-nums">
                 {row.degree}
               </span>

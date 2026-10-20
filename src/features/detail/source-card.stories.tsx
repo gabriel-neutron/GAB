@@ -130,6 +130,33 @@ export const AnAbsentAddressSaysSo: Story = {
   },
 };
 
+const LONG_ADDRESS = `https://registry.example/${'long-path/'.repeat(8)}report.pdf`;
+
+/** A long address has a short form. "Show more" gives the whole address, and "Show less" takes it back. */
+export const ALongAddressOpensInFull: Story = {
+  args: { source: addressed(LONG_ADDRESS) },
+  play: async ({ canvas }) => {
+    const link = canvas.getByRole('link', { name: /original document/ });
+    await expect(link).not.toHaveTextContent(LONG_ADDRESS);
+
+    const more = canvas.getByRole('button', { name: 'Show more' });
+    await expect(more).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(more);
+
+    await expect(link).toHaveTextContent(LONG_ADDRESS);
+    await userEvent.click(canvas.getByRole('button', { name: 'Show less' }));
+    await expect(link).not.toHaveTextContent(LONG_ADDRESS);
+  },
+};
+
+/** A short address needs no control. */
+export const AShortAddressHasNoShowMore: Story = {
+  args: { source: addressed('https://registry.example/e') },
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByRole('button', { name: 'Show more' })).toBeNull();
+  },
+};
+
 export const AWebAddressIsALink: Story = {
   args: { source: addressed('https://registry.example/e') },
   play: async ({ canvas }) => {

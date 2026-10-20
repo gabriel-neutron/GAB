@@ -71,7 +71,7 @@ const meta = {
     deleting: { offered: true, busy: false, onDelete },
   },
   parameters: { layout: 'fullscreen' },
-  // A relation is one line, and a line truncates, so the width is fixed at 900px.
+  // The width is fixed at 900px, so a story measures one layout.
   render: (args) => (
     <div className="w-[900px] p-2">
       <Relations {...args} />
