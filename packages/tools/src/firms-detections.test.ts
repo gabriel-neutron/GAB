@@ -161,22 +161,25 @@ test('a call of FIRMS has a long time limit and a timeout has its own sentence',
 
 test('a call of FIRMS that fails once is tried again', async () => {
   let failed = false;
-  const { web, session, reach } = setup();
-  const flaky = stubWeb(
+  const web = stubWeb(
     (asked: Asked) => {
-      if (!failed && asked.url.pathname.startsWith('/api/area/')) {
+      const path = asked.url.pathname;
+      if (path.startsWith('/api/data_availability/')) return text(AVAILABILITY);
+      if (path.startsWith('/mapserver/mapkey_status'))
+        return json({ transaction_limit: 5000, current_transactions: 0 });
+      if (!failed) {
         failed = true;
-        throw new Error('reset');
+        return new Error('reset');
       }
-      return web.get(asked.url.toString(), asked.request);
+      return text(TABLE);
     },
     { firmsKey: KEY },
   );
   const outcome = await callTool(
     tool,
-    session,
+    hashDatabase(),
     { ...BOX, from: '2026-06-01', to: '2026-06-02' },
-    { ...reach, web: flaky },
+    { store: memoryStore(), web, now: () => new Date('2026-10-05T10:00:00Z') },
   );
   expect(refusalOf(outcome)).toBe('');
   expect(failed).toBe(true);
