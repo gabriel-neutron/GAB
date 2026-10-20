@@ -64,7 +64,8 @@ const outputShape = z.strictObject({
 });
 
 const NEWEST = `SELECT d.id::text AS id, d.title, d.uri, d.sha256, d.retrieved_at::text AS retrieved_at
-    FROM public.documents d WHERE d.provider_id = 'uk_sanctions_list'
+    FROM public.documents d WHERE d.provider_id = 'uk_sanctions_list' AND d.uri IS NOT NULL AND d.sha256 IS NOT NULL
+   AND d.retrieved_at IS NOT NULL
    ORDER BY d.retrieved_at DESC NULLS LAST, d.id DESC LIMIT 1`;
 
 const NEWEST_PAGES = `SELECT t.text FROM public.document_text t
@@ -74,9 +75,9 @@ const NEWEST_PAGES = `SELECT t.text FROM public.document_text t
 const newestRow = z.strictObject({
   id: z.string(),
   title: z.string(),
-  uri: z.string().nullable(),
-  sha256: z.string().nullable(),
-  retrieved_at: z.string().nullable(),
+  uri: z.string(),
+  sha256: z.string(),
+  retrieved_at: z.string(),
 });
 
 const pageRow = z.strictObject({ text: z.string() });
@@ -216,9 +217,10 @@ export const ukSanctionsListAt = (address: string) =>
         });
       } catch (fault) {
         if (!(fault instanceof FetchRefusal)) throw fault;
+        // Only an answer of the server falls back. A guard refusal (address, size, time) stays.
         const liveFault = `the FCDO gave no UK Sanctions List: ${fault.message}`;
         // A refused read must not hide a file that the record holds already.
-        const stored = await storedList(session);
+        const stored = fault.fault?.kind === 'status' ? await storedList(session) : null;
         if (stored === null) throw new ToolRefusal(liveFault);
         const { row, pages } = stored;
         const entry = entryOf(pages, input.uniqueId, row.id);
@@ -232,10 +234,10 @@ export const ukSanctionsListAt = (address: string) =>
           document: row.id,
           status: 'known' as const,
           title: row.title,
-          url: row.uri ?? address,
-          sha256: row.sha256 ?? '',
+          url: row.uri,
+          sha256: row.sha256,
           publishedAt,
-          retrievedAt: row.retrieved_at ?? reach.now().toISOString().slice(0, 10),
+          retrievedAt: row.retrieved_at,
           liveFault,
           entry:
             input.uniqueId === undefined || entry === null

@@ -234,6 +234,39 @@ test('a refused read falls back to the stored file, says so, and reads the entry
   });
 });
 
+test('a refused read reads an entry on a later page of the stored file, and refuses an unknown one', async () => {
+  const store = memoryStore();
+  const first = `Report Date: 07-Oct-2026\n${UK_HEADER}\n${KOROLEV_PROSPECT}\n`;
+  const second = `Report Date: 07-Oct-2026\n${rows.split('\n').find((row) => row.includes('RUS2928')) ?? ''}\n`;
+  const read = await rolledBack('research', async (ask) => {
+    const sha = createHash('sha256').update(first).digest('hex');
+    await ask(
+      `WITH d AS (SELECT public.put_fetched_document('url', 'UK list', $1, $2, $3, 'text/csv',
+         (clock_timestamp() AT TIME ZONE 'UTC')::date) AS id)
+       SELECT public.put_document_text(d.id, $4::jsonb, 'text-1'),
+              public.fill_document_provider(d.id, 'uk_sanctions_list') FROM d`,
+      [`raw/${sha}`, at('/docs/UK-Sanctions-List.csv'), sha, JSON.stringify([first, second])],
+    );
+    const found = await callTool(
+      ukSanctionsListAt(at('/refused.csv')),
+      sessionOf(ask),
+      { uniqueId: 'RUS2928' },
+      fixtureReach(store),
+    );
+    const missing = await callTool(
+      ukSanctionsListAt(at('/refused.csv')),
+      sessionOf(ask),
+      { uniqueId: 'RUS9999' },
+      fixtureReach(store),
+    );
+    return { found, missing };
+  });
+  expect(read.found.ok && read.found.output).toMatchObject({ entry: { page: 2 } });
+  expect(read.missing).toMatchObject({ ok: false });
+  if (read.missing.ok) return;
+  expect(read.missing.refusal).toMatch(/answered 405.*holds no entry RUS9999$/u);
+});
+
 test('a file with no valid report date takes the day of its Last-Modified date', async () => {
   const read = await rolledBack('research', async (ask) =>
     callTool(
