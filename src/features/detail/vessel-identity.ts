@@ -10,7 +10,8 @@ export interface VesselIdentity {
   readonly callSign: string | null;
 }
 
-// A history lists its values in the order of the record, so its last element is the current one.
+// The labels of the flag states of the `flags` relations with no end date come after the
+// attributes: a relation is the weaker source of a current value. A history lists its values in the order of the record, so its last element is the current one.
 function current(attrs: Attributes, keys: readonly string[]): string | null {
   for (const key of keys) {
     const value = attrs[key]?.v;
@@ -29,10 +30,14 @@ function current(attrs: Attributes, keys: readonly string[]): string | null {
 }
 
 /** The flag, the MMSI and the call sign of a vessel, or null for an entity that is no vessel. */
-export function vesselIdentity(type: string, attrs: Attributes): VesselIdentity | null {
+export function vesselIdentity(
+  type: string,
+  attrs: Attributes,
+  openFlags: readonly string[],
+): VesselIdentity | null {
   if (type !== 'vessel') return null;
   return {
-    flag: current(attrs, ['flag', 'flag_history']),
+    flag: current(attrs, ['flag', 'flag_history']) ?? openFlags.at(-1) ?? null,
     mmsi: current(attrs, ['mmsi_history', 'mmsi']),
     callSign: current(attrs, ['call_sign']),
   };

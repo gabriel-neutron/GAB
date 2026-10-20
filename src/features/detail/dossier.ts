@@ -652,7 +652,20 @@ export function readDossier(
     positionChain: borrowed === null ? [] : parentChain(read, entity.id, borrowed),
     affiliation: typeof affiliation === 'string' ? affiliation : null,
     sourceDay: newestDay(read.documents.filter((one) => claimDocuments.has(one.id))),
-    identity: vesselIdentity(entity.type, entity.attrs),
+    identity: vesselIdentity(
+      entity.type,
+      entity.attrs,
+      read.relations
+        .filter(
+          (one) =>
+            one.type === 'flags' &&
+            one.dstKind === 'entity' &&
+            one.dstId === entity.id &&
+            one.srcKind === 'entity' &&
+            one.validTo === null,
+        )
+        .map((one) => nameOf(read, one.srcId)),
+    ),
     decision: decisionOf(entity.promotedFrom, decided),
     rows,
     entitySources,
