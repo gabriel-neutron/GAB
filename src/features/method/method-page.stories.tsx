@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { coverageOf } from '@gab/release/coverage';
 import type { SiteManifest } from '@gab/release/site-manifest';
 import { expect } from 'storybook/test';
 
@@ -26,6 +27,7 @@ const MANIFEST: SiteManifest = {
     claims: COUNTS,
   },
   nameCandidates: { proposed: 3, confirmed: 2, refused: 1 },
+  coverage: coverageOf(['vessel', 'vessel', 'company'], 2),
   files: [],
 };
 
@@ -43,6 +45,14 @@ const meta = {
 export default meta;
 
 type Story = StoryObj<typeof meta>;
+
+export const StatesWhatTheRecordCoversAndWhatAnAbsenceMeans: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('heading', { name: 'What the record covers' })).toBeVisible();
+    await expect(canvas.getByText(/^Release 1\.0 of 08\/11\/2026 holds 3 entities/u)).toBeVisible();
+    await expect(canvas.getByText(/not yet in the record/u)).toBeVisible();
+  },
+};
 
 export const GivesTheDisclaimerAndEachSectionOfTheMethod: Story = {
   play: async ({ canvas }) => {

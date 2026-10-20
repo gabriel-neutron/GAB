@@ -25,6 +25,7 @@ const MANIFEST: SiteManifest = {
     claims: COUNTS,
   },
   nameCandidates: { proposed: 0, confirmed: 0, refused: 0 },
+  coverage: null,
   files: [
     {
       path: 'entities.csv',
