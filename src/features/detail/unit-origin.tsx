@@ -19,9 +19,10 @@ export function UnitOrigin({
   affiliation,
   sourceDay,
 }: UnitOriginProps) {
+  // One parent is already named in the sentence above, so the chain shows from two steps.
   if (
     positionFrom === null &&
-    positionChain.length === 0 &&
+    positionChain.length < 2 &&
     affiliation === null &&
     sourceDay === null
   )
@@ -29,7 +30,7 @@ export function UnitOrigin({
   return (
     <div className="space-y-0.5 text-small/4 text-label">
       {positionFrom === null ? null : <p data-position-from="">{positionFrom}</p>}
-      {positionChain.length === 0 ? null : (
+      {positionChain.length < 2 ? null : (
         <p data-position-chain="">{`Chain of parents: ${positionChain.join(', then ')}`}</p>
       )}
       {affiliation === null ? null : (

@@ -399,6 +399,34 @@ test('the chain of parents lists each step from the unit up to the parent that g
   expect(readDossier(held, VESSEL.id, [], [])?.positionChain).toEqual(['Middle', OWNER.label]);
 });
 
+test('the chain follows the parent that gave the point and not another parent', () => {
+  const step = (id: string, from: string, to: string): Relation => ({
+    ...OWNED_BY,
+    id,
+    type: 'subordinate_to',
+    srcId: from,
+    dstId: to,
+  });
+  const other: Entity = { ...OWNER, id: 'e6', label: 'Other parent' };
+  const held: Corpus = {
+    ...CORPUS,
+    entities: [...CORPUS.entities, other],
+    relations: [step('s1', VESSEL.id, other.id), step('s2', VESSEL.id, OWNER.id)],
+    positions: [
+      {
+        entityId: VESSEL.id,
+        point: { lon: 4.4777, lat: 51.9244 },
+        precision: 'inherited',
+        area: null,
+        route: null,
+        parentId: OWNER.id,
+      },
+    ],
+  };
+
+  expect(readDossier(held, VESSEL.id, [], [])?.positionChain).toEqual([OWNER.label]);
+});
+
 test('a ring of parents ends the chain and does not loop', () => {
   const ring = (id: string, from: string, to: string): Relation => ({
     ...OWNED_BY,

@@ -205,9 +205,8 @@ export const ABorrowedPositionNamesItsParent: Story = {
     await expect(from).toHaveTextContent(
       'Position borrowed from 92nd Coastal Battery (no own position recorded)',
     );
-    await expect(canvasElement.querySelector('[data-position-chain]')).toHaveTextContent(
-      'Chain of parents: 92nd Coastal Battery',
-    );
+    // One parent is named in the sentence, so no chain line repeats it.
+    await expect(canvasElement.querySelector('[data-position-chain]')).toBeNull();
   },
 };
 

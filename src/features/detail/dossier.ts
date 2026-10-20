@@ -312,27 +312,27 @@ const DESIGNATION = 'designated_by';
 const nameOf = (read: Corpus, id: string): string =>
   read.entities.find((row) => row.id === id)?.label ?? 'a parent';
 
-// External constraint: bad source data can hold a ring of `subordinate_to`. A parent that was met
-// already ends the walk, and the chain then holds the parent that gave the point and no more.
+// Departure: the SQL walk gives the parent that supplied the point and not the path to it, so the
+// path is found here. A unit can have more than one parent, so every edge is tried and only a path
+// that ends at that parent counts. Bad source data can hold a ring, so a unit met twice is skipped.
 function parentChain(read: Corpus, entityId: string, source: string): readonly string[] {
-  const chain: string[] = [];
-  const met = new Set([entityId]);
-  let at = entityId;
-  while (at !== source) {
-    const up = read.relations.find(
-      (one) =>
-        one.type === 'subordinate_to' &&
-        one.srcKind === 'entity' &&
-        one.dstKind === 'entity' &&
-        one.srcId === at &&
-        !met.has(one.dstId),
-    );
-    if (up === undefined) return [nameOf(read, source)];
-    chain.push(nameOf(read, up.dstId));
-    met.add(up.dstId);
-    at = up.dstId;
-  }
-  return chain;
+  const walk = (at: string, met: ReadonlySet<string>): readonly string[] | null => {
+    if (at === source) return [];
+    for (const one of read.relations) {
+      if (
+        one.type !== 'subordinate_to' ||
+        one.srcKind !== 'entity' ||
+        one.dstKind !== 'entity' ||
+        one.srcId !== at ||
+        met.has(one.dstId)
+      )
+        continue;
+      const rest = walk(one.dstId, new Set([...met, one.dstId]));
+      if (rest !== null) return [nameOf(read, one.dstId), ...rest];
+    }
+    return null;
+  };
+  return walk(entityId, new Set([entityId])) ?? [nameOf(read, source)];
 }
 
 function newestDay(documents: readonly DocumentRow[]): string | null {
