@@ -5,18 +5,22 @@ import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import { buildGraphModel, type NodePosition } from './model';
 import { deriveRailRows, type RailView } from './rail-rows';
+import { countShown } from './shown-counts';
 
 const positions: ReadonlyMap<string, NodePosition> = new Map(
   corpus.entities.map((entity, index) => [entity.id, { x: index, y: index }]),
 );
 
-const model = buildGraphModel(corpus, positions, entityTypes, 'dark');
+const model = buildGraphModel(corpus, positions, entityTypes, 'dark', new Set());
 
 const first = corpus.entities[0];
 if (first === undefined) throw new Error('The committed corpus holds no entity');
 
+const everyNode = new Set(corpus.entities.map((entity) => entity.id));
+
 const VIEW: RailView = {
   filter: { hiddenTypes: [] },
+  counts: countShown(model.graph, everyNode, new Set()),
   selection: null,
   openUnits: new Set(),
   railOpen: true,
@@ -133,5 +137,66 @@ describe('the chain of command in the graph rail', () => {
 
   it('carries the stored width of the rail to the rows', () => {
     expect(unitRows(new Set()).rail.width).toBe(256);
+  });
+});
+
+describe('the names of the types in the graph rail', () => {
+  it('shows the label of each type and never its key', () => {
+    const rows = rowsUnder('', []).rail.types;
+
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.label).not.toContain('_');
+      expect(row.name).toContain(row.label);
+    }
+    expect(rows.map((row) => row.label)).toContain('Vessel');
+  });
+});
+
+describe('the counter of each type in the graph rail', () => {
+  const totalOf = (type: string): number =>
+    corpus.entities.filter((entity) => entity.type === type).length;
+
+  it('says shown of total, and both are the total while every node is shown', () => {
+    const row = rowsUnder('', []).rail.types.find((one) => one.type === first.type);
+
+    expect(row?.count).toBe(totalOf(first.type));
+    expect(row?.figure).toBe(`${String(totalOf(first.type))} of ${String(totalOf(first.type))}`);
+  });
+
+  it('follows the nodes the drawing shows, so a type switched off counts none', () => {
+    const others = new Set(
+      corpus.entities.filter((entity) => entity.type !== first.type).map((entity) => entity.id),
+    );
+    const rows = deriveRailRows(
+      model,
+      {
+        ...VIEW,
+        filter: { hiddenTypes: [first.type] },
+        counts: countShown(model.graph, others, new Set()),
+      },
+      { openTypes: [], wholeList: [] },
+      '',
+    );
+    const row = rows.rail.types.find((one) => one.type === first.type);
+
+    expect(row?.count).toBe(0);
+    expect(row?.figure).toBe(`0 of ${String(totalOf(first.type))}`);
+    expect(row?.name).toContain(`0 of ${String(totalOf(first.type))}`);
+  });
+
+  it('counts the names that match a typed filter, out of the total of the type', () => {
+    const rows = rowsUnder(first.label, []);
+    const row = rows.rail.types.find((one) => one.type === first.type);
+
+    expect(row?.count).toBe(
+      corpus.entities.filter(
+        (entity) =>
+          entity.type === first.type &&
+          entity.label.toLowerCase().includes(first.label.toLowerCase()),
+      ).length,
+    );
+    expect(row?.figure).toMatch(new RegExp(`of ${String(totalOf(first.type))} match$`, 'u'));
+    expect(row?.name).toContain('match');
   });
 });

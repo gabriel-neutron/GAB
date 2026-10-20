@@ -402,6 +402,7 @@ test('a release writes the public entities, relations and claims, each row with 
     'manifest.json',
     'merges.csv',
     'relations.csv',
+    'release-notes.md',
     'volumes.csv',
   ]);
 
@@ -465,6 +466,7 @@ test('a release writes the public entities, relations and claims, each row with 
     'asset-links.csv',
     'volumes.csv',
     'credits.md',
+    'release-notes.md',
     'entities.geojson',
     'dataset.jsonld',
     'changelog.csv',
@@ -493,6 +495,7 @@ test('a release writes the public entities, relations and claims, each row with 
       origin_label: MANUAL,
       licence: CC_BY,
       document_ids: `${GFW} ${SDN}`,
+      geolocation_method: 'not_stated',
     },
     {
       id: OWNER,
@@ -501,6 +504,7 @@ test('a release writes the public entities, relations and claims, each row with 
       origin_label: MANUAL,
       licence: DERIVED,
       document_ids: SHIPS,
+      geolocation_method: 'not_stated',
     },
     {
       id: LIST,
@@ -509,6 +513,7 @@ test('a release writes the public entities, relations and claims, each row with 
       origin_label: MANUAL,
       licence: CC_BY,
       document_ids: SDN,
+      geolocation_method: '',
     },
     {
       id: PERSON,
@@ -517,6 +522,7 @@ test('a release writes the public entities, relations and claims, each row with 
       origin_label: MANUAL,
       licence: DERIVED,
       document_ids: PAGE,
+      geolocation_method: '',
     },
     {
       id: SECOND,
@@ -525,6 +531,7 @@ test('a release writes the public entities, relations and claims, each row with 
       origin_label: MANUAL,
       licence: CC_BY,
       document_ids: TWO,
+      geolocation_method: '',
     },
   ]);
   expect(entitiesText).not.toContain('TEST CANDIDATE VESSEL');
@@ -576,6 +583,7 @@ test('a release writes the public entities, relations and claims, each row with 
       document_title: 'OFAC SDN list',
       document_address: 'https://example.org/sdn.csv',
       document_read_on: '2026-10-01',
+      document_type: 'other',
       page: '1',
       excerpt: 'IMO 9123456',
       modality: 'asserts',
@@ -611,6 +619,7 @@ test('a release writes the public entities, relations and claims, each row with 
       document_title: 'Ship register answer',
       document_address: 'https://example.org/ships',
       document_read_on: '2026-10-03',
+      document_type: 'other',
       page: '1',
       excerpt: 'TEST OWNER LTD owns TEST TANKER',
       modality: 'asserts',
@@ -776,6 +785,27 @@ test('the documents of a geometry are the public documents of each act that gave
   expect(rows).toStrictEqual([
     { id: VESSEL, sources: [SHIPS], geom_sources: [GFW, TWO] },
     { id: OWNER, sources: [SHIPS], geom_sources: [SHIPS] },
+  ]);
+});
+
+test('the release reads the method of geolocation of each place, and none for an entity with no place', async () => {
+  const rows = await inTransaction(async (held) => {
+    await record(held);
+    await held.ask("UPDATE public.entities SET geom_method = 'satellite_match' WHERE id = $1", [
+      VESSEL,
+    ]);
+    const { rows } = await held
+      .as('gabriel_app')
+      .query(
+        'SELECT id, geom_method FROM public.release_entities() WHERE id = ANY ($1) ORDER BY id',
+        [[VESSEL, OWNER, LIST]],
+      );
+    return rows;
+  });
+  expect(rows).toStrictEqual([
+    { id: VESSEL, geom_method: 'satellite_match' },
+    { id: OWNER, geom_method: 'not_stated' },
+    { id: LIST, geom_method: null },
   ]);
 });
 
@@ -1262,11 +1292,14 @@ test('a release shows the NATO pair only when its manifest asks for it', async (
   // On: the manifest says so, and each claim row that has a pair gives it.
   expect(await manifestOf(on)).toMatchObject({ showNatoPair: true });
   const claims = tableOf(await readFile(join(folderOf(on), 'claims.csv'), 'utf8'));
-  const paired = claims.filter((row) => row['nato_letter'] !== '');
+  const paired = claims.filter((row) => row['nato_letter'] !== 'not rated');
   expect(
     paired.map((row) => [row['claim_id'], row['nato_letter'], row['nato_digit']]),
   ).toStrictEqual([[`${VESSEL}/imo`, 'A', '3']]);
-  expect(claims.filter((row) => row['nato_digit'] !== '')).toHaveLength(1);
+  expect(claims.filter((row) => row['nato_digit'] !== 'not rated')).toHaveLength(1);
+  expect(
+    claims.filter((row) => row['nato_letter'] === '' || row['nato_digit'] === ''),
+  ).toHaveLength(0);
   const graph = z
     .object({ '@graph': z.array(z.record(z.string(), z.unknown())) })
     .parse(JSON.parse(await readFile(join(folderOf(on), 'dataset.jsonld'), 'utf8')))['@graph'];
@@ -1275,8 +1308,29 @@ test('a release shows the NATO pair only when its manifest asks for it', async (
     natoDigit: 3,
   });
   expect(graph.filter((one) => 'natoLetter' in one)).toHaveLength(1);
-  // Only the claims show the pair.
-  for (const name of ['entities.csv', 'relations.csv', 'merges.csv', 'entities.geojson'])
+  // The GeoJSON file lists the claims of each entity with their pair or "not rated".
+  const features = z
+    .object({
+      features: z.array(
+        z.object({ id: z.string(), properties: z.object({ claim_pairs: z.array(z.unknown()) }) }),
+      ),
+    })
+    .parse(JSON.parse(await readFile(join(folderOf(on), 'entities.geojson'), 'utf8'))).features;
+  expect(features.find((one) => one.id === VESSEL)?.properties.claim_pairs).toContainEqual(
+    expect.objectContaining({ claim_id: `${VESSEL}/imo`, nato_letter: 'A', nato_digit: '3' }),
+  );
+  // The coverage is in the file manifest and in the release notes.
+  const coverage = z
+    .object({
+      natoCoverage: z.object({ all: z.object({ claims: z.number(), paired: z.number() }) }),
+    })
+    .parse(JSON.parse(await readFile(join(folderOf(on), 'manifest.json'), 'utf8'))).natoCoverage;
+  expect(coverage.all.paired).toBe(1);
+  expect(await readFile(join(folderOf(on), 'release-notes.md'), 'utf8')).toContain(
+    `1 of ${String(coverage.all.claims)} public claims`,
+  );
+  // Only the claims and the entities with a position show the pair.
+  for (const name of ['entities.csv', 'relations.csv', 'merges.csv'])
     expect(await readFile(join(folderOf(on), name), 'utf8')).not.toMatch(/nato/iu);
 
   // The report counts the public claims of the release and those with a full pair.
@@ -1809,6 +1863,46 @@ test('the file manifest gives the number of merge candidates across two scripts 
     refused: seen.before.refused + 1,
   });
   expect(manifest.nameCandidates).toStrictEqual(seen.after);
+});
+
+test('the file manifest gives the counts of the entities and of the sources that the database holds for the release', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
+  const seen = await inTransaction(async (held) => {
+    await documents(held.ask);
+    await entity(held, '0c4d0000-0000-4000-8000-0000000000c1', 'company', 'TEST COVERED', [SHIPS]);
+    await entity(held, '0c4d0000-0000-4000-8000-0000000000c2', 'port', 'TEST COVERED PORT', [
+      SHIPS,
+    ]);
+    const operator = held.as('gabriel_app');
+    const byType = z
+      .array(z.object({ type: z.string(), count: z.number() }))
+      .parse(
+        (
+          await operator.query(
+            'SELECT type, count(*)::int AS count FROM public.release_entities() GROUP BY type',
+          )
+        ).rows,
+      );
+    const sources = (await readReleaseRecord(operator, { natoPair: false })).documents.size;
+    await writeRelease(operator, MANIFEST, root);
+    return { byType, sources };
+  });
+  const manifest = z
+    .object({
+      coverage: z.object({
+        entities: z.number(),
+        byType: z.array(z.object({ type: z.string(), count: z.number() })),
+        sources: z.number(),
+      }),
+    })
+    .parse(
+      JSON.parse(await readFile(join(root, 'gab-release-2026-11-08', 'manifest.json'), 'utf8')),
+    );
+  const sorted = (rows: readonly { type: string; count: number }[]) =>
+    rows.map((one) => `${one.type}:${one.count}`).sort();
+  expect(sorted(manifest.coverage.byType)).toStrictEqual(sorted(seen.byType));
+  expect(manifest.coverage.entities).toBe(seen.byType.reduce((sum, one) => sum + one.count, 0));
+  expect(manifest.coverage.sources).toBe(seen.sources);
 });
 
 const EVENT = '00000000-0000-4000-8000-00000000e101';

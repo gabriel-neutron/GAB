@@ -18,7 +18,8 @@ The MCP server `gab` gives each tool. A read changes nothing. A write needs no a
 session: each proposal waits in the review queue, and the operator decides it there (P12).
 
 - Read the record: `search_graph`, `read_entity`, `neighbourhood`, `list_vocabulary`,
-  `list_proposals`.
+  `list_proposals`, `list_entities` (the entities of one type in pages, with the count of those that
+  hold a key and of those that do not).
 - Read the documents: `find_document`, `document_text`, `file_schema_sample` (the header and the
   first rows of a stored CSV table), `job_status`.
 - Find leads on the web: `web_search`, `news_search`.
@@ -31,6 +32,22 @@ session: each proposal waits in the review queue, and the operator decides it th
   UTF-8 text. The text of a JSON file is an indented view; cite a value as the source writes it.
   A JSON error that the server sends as a success is refused. `store_saved_file` takes the same
   files from the inbox (`.json`, `.tsv`, `.csv`, `.xml`, `.txt`, `.md`).
+- Read the customs trade of the EU (Eurostat Comext): the API is open, with no account and no key.
+  Store a small query with `fetch_document`, in JSON (the CSV format is refused). Find the dataset
+  and its dimensions in the Eurostat user guide of the Comext API. Cite "Source: Eurostat
+  (Comext)" with the date of the query. Russia and China do not report to Comext. Use the imports
+  that another country reports from Russia, for example Turkey. This is a mirror figure, not a
+  Russian figure. A missing line, such as crude oil for Turkey, is not a zero. Eurostat allows
+  reuse with the source named, but not for commercial use of the data of a country outside the
+  EU, EFTA and the candidates.
+- Read the trade between any two countries (UN Comtrade): it needs the key `COMTRADE_API_KEY` in
+  `research/.env`. **Never call `fetch_document` with the key**: it stores the full address, and the
+  key would enter a public document. Use the tool `comtrade_data`, which sends the key in a header,
+  when it exists. Until then, Comtrade is not available in a session. The UN licence asks for a
+  written permission to republish. The operator accepts the risk: cite a Comtrade figure with the
+  source "UN Comtrade".
+- The licences of OpenCorporates and OCCRP Aleph do not fit the open dataset. Use them only as a
+  lead, or cite a fact from them.
 - Cite an entry of the OFAC SDN list: `ofac_sdn` stores the whole official file once, as a public
   document with its hash and its date of publication, and gives the line of one entry by its
   ent_num. Cite that line on the page that the answer gives (`entry.page`). Never store one entry
@@ -51,14 +68,23 @@ session: each proposal waits in the review queue, and the operator decides it th
 - Read the heat detections of one site: `firms_detections` takes a site box and a period, and
   stores the NASA FIRMS answer as a document. It needs a free map key. When the key is not
   set, the tool says so, and the other tools work.
+- Store the Sentinel-2 images before and after dated strikes: `sentinel2_pairs` takes a list of
+  strikes (a day and a point) and stores a clear image before and after each one as a document,
+  with the scene, the date and the cloud share. It needs a free Copernicus Data Space client.
+  The image states no damage. When the client is not set, the tool says so, and the other tools
+  work.
+- Read official trade statistics: `comtrade_data` takes a reporter, a period, a flow, an HS code
+  and a partner, and stores the UN Comtrade answer as a document. It needs a free key. The
+  provider has a restricted licence, so the document stays internal. When the key is not set, the
+  tool says so, and the other tools work.
 - Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,
   `read_group`, `read_decided`, `read_leads`.
 - Write: `archive_snapshot`, `fetch_document`, `eu_act`, `ofac_sdn`, `uk_sanctions_list`,
-  `firms_detections`, `site_image`, `store_saved_file`, `telegram_channel`, `enqueue_extract`,
-  `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question.
+  `firms_detections`, `comtrade_data`, `sentinel2_pairs`, `site_image`, `store_saved_file`, `telegram_channel`,
+  `enqueue_extract`, `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question.
   `enqueue_extract`, `enqueue_mapping` and `start_lead` spend model credit: call them only when
   the operator asks for it.
-- Decide as an AI reviewer: `promote_unit`, `reject_unit`, `reject_relation`,
+- Decide as an AI reviewer: `promote_unit`, `reject_unit`, `reject_relation`, `join_unit`,
   `promote_clean_proposals`. Follow the skill `review-unit`.
 
 ## Who proposes what

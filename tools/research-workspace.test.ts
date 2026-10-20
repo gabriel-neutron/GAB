@@ -74,6 +74,9 @@ test('the research environment names its connection, the store, the two search s
       'OPENSANCTIONS_API_KEY',
       'GFW_API_TOKEN',
       'FIRMS_MAP_KEY',
+      'COMTRADE_API_KEY',
+      'CDSE_CLIENT_ID',
+      'CDSE_CLIENT_SECRET',
       'GAB_INBOX',
     ]),
   );
@@ -90,6 +93,9 @@ test('the research environment example names SearXNG and holds no key', () => {
   expect(value('OPENSANCTIONS_API_KEY')).toBe('');
   expect(value('GFW_API_TOKEN')).toBe('');
   expect(value('FIRMS_MAP_KEY')).toBe('');
+  expect(value('COMTRADE_API_KEY')).toBe('');
+  expect(value('CDSE_CLIENT_ID')).toBe('');
+  expect(value('CDSE_CLIENT_SECRET')).toBe('');
 });
 
 // Departure: the example of the build stack is the list of its secrets. The real file is never

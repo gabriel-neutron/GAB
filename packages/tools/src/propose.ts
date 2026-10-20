@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { day } from '@gab/proposal/day';
 import { attributeEdit } from '@gab/proposal/attribute-value';
+import { GEOLOCATION_WORDS, geolocationMethod } from '@gab/proposal/geolocation-method';
 import { machineAct } from '@gab/proposal/machine';
 import { ASSET_KINDS } from '@gab/proposal/mapping';
 import type { ProposalAct } from '@gab/proposal/payload';
@@ -12,6 +13,7 @@ import { plainText } from './check-answer.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
 import { findExcerpt, MAX_TOLERANT_UNITS, pointSlice, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
+import { dateInUrl, occurredWeekdays } from './publication-date.ts';
 import {
   daysFromPublication,
   namesProvision,
@@ -59,6 +61,14 @@ const ATTRIBUTES =
   'write each attribute as {"key": {"v": value}}, for example {"imo": {"v": "9074729"}}; a ' +
   'value is a text, a number, true or false, or a flat list of them; a key is lower case words ' +
   'joined by one underscore, with the unit in the key, as capacity_dwt';
+
+// The closed list of the methods, in the words of a reader. A place with no method is refused.
+const GEOLOCATION =
+  'how the page found the place; give it with every geom: ' +
+  Object.entries(GEOLOCATION_WORDS)
+    .map(([key, words]) => `${key} (${words})`)
+    .join(', ') +
+  '. Give not_stated only when the page does not say how the place was found';
 
 const BOUND =
   'only for a type whose takesInterval is true in list_vocabulary, and only when an excerpt ' +
@@ -108,6 +118,7 @@ const batchAct = z.discriminatedUnion('op', [
       .unknown()
       .optional()
       .describe('a GeoJSON geometry, for example {"type": "Point", "coordinates": [lon, lat]}'),
+    geomMethod: geolocationMethod.optional().describe(GEOLOCATION),
     attrs: attributeEdit.optional().describe(ATTRIBUTES),
   }),
   z.strictObject({
@@ -142,6 +153,7 @@ const batchAct = z.discriminatedUnion('op', [
           '"coordinates": [lon, lat]}; an excerpt must state it, such as the coordinates of a ' +
           'UN/LOCODE line or the Latitude and Longitude of a GEM row',
       ),
+    geomMethod: geolocationMethod.optional().describe(GEOLOCATION),
   }),
   z.strictObject({
     op: z.literal('add_source'),
@@ -251,12 +263,18 @@ const doorRow = z.strictObject({
 // tool. The UK tool then still gives the document its provider.
 const PAGE = `SELECT t.extractor, t.text, EXISTS (SELECT 1 FROM public.documents d
       WHERE d.id = t.document_id AND (d.uri = $3::text OR d.provider_id = 'uk_sanctions_list'))
-    AS fcdo_list
+    AS fcdo_list,
+    (SELECT d.uri FROM public.documents d WHERE d.id = t.document_id) AS uri
   FROM public.document_text t
   WHERE t.document_id = $1::text AND t.page = $2::int
     AND t.extractor = public.newest_text_extractor($1::text)`;
 
-const pageRow = z.strictObject({ extractor: z.string(), text: z.string(), fcdo_list: z.boolean() });
+const pageRow = z.strictObject({
+  extractor: z.string(),
+  text: z.string(),
+  fcdo_list: z.boolean(),
+  uri: z.string().nullable(),
+});
 
 // The types of an image whose OCR text is the stored page; the door holds the same list.
 const IMAGE = `SELECT 1 AS one FROM public.documents d
@@ -284,6 +302,8 @@ interface Cited {
   /** The document is the FCDO UK Sanctions List. */
   readonly fcdoList: boolean;
   readonly textExtractor: string;
+  /** The day in the path of the address of the document, when it holds one. */
+  readonly urlDay: string | null;
   readonly page: number;
   /** The place of the excerpt in the stored page, or null for words read from an image. */
   readonly span: Span | null;
@@ -325,6 +345,7 @@ const cite = async (
       document: given.document,
       fcdoList: page.fcdo_list,
       textExtractor: page.extractor,
+      urlDay: dateInUrl(page.uri),
       page: given.page,
       span: null,
       passage: given.excerpt,
@@ -347,6 +368,7 @@ const cite = async (
     document: given.document,
     fcdoList: page.fcdo_list,
     textExtractor: page.extractor,
+    urlDay: dateInUrl(page.uri),
     page: given.page,
     span,
     passage: pointSlice(page.text, span.start, span.end),
@@ -469,6 +491,18 @@ const resolvedAct = async (
     checkQueuedEnds(given.ref, src, dst);
     raw = { ...act, srcId: src.id, dstId: dst.id };
   }
+  // A machine gives a place with its method. The door of the operator takes `not_stated` for a
+  // place with no method, and a machine does not get that default: the record must know whether
+  // the page says how it found the place.
+  if (
+    (act.op === 'create_entity' || act.op === 'update_entity') &&
+    act.geom !== undefined &&
+    act.geomMethod === undefined
+  )
+    refuse(
+      given.ref,
+      `a geom needs geomMethod, one of ${Object.keys(GEOLOCATION_WORDS).join(', ')}`,
+    );
   const parsed = writeRequest.safeParse(raw);
   if (!parsed.success)
     refuse(given.ref, parsed.error.issues.map((issue) => issue.message).join('; '));
@@ -582,32 +616,49 @@ const claimActOf = async (
   return { ...act, relation: named?.words ?? null };
 };
 
-// The vessel of a designation and the act that designates it, as the record names them.
-const SOURCE_NAMES = `SELECT e.attrs->'imo'->>'v' AS imo, a.label AS act
+// The IMO number of the source end of a relation, and each name of both ends: the label, the
+// Cyrillic label and the aliases. An attribute holds one text or a list of texts.
+const SOURCE_NAMES = `SELECT s.attrs->'imo'->>'v' AS imo, n.name
   FROM api.relation r
-  LEFT JOIN api.entity e ON r.src_kind = 'entity' AND e.id = r.src_id
-  LEFT JOIN api.entity a ON r.dst_kind = 'entity' AND a.id = r.dst_id
+  LEFT JOIN api.entity s ON r.src_kind = 'entity' AND s.id = r.src_id
+  LEFT JOIN api.entity d ON r.dst_kind = 'entity' AND d.id = r.dst_id
+  CROSS JOIN LATERAL (VALUES (s.label, s.attrs), (d.label, d.attrs)) AS ends(label, attrs)
+  CROSS JOIN LATERAL (
+    SELECT ends.label AS name
+    UNION ALL
+    SELECT v.value #>> '{}'
+      FROM unnest(ARRAY['aliases', 'label_cyrillic']) AS k(key)
+     CROSS JOIN LATERAL jsonb_array_elements(
+             CASE WHEN jsonb_typeof(ends.attrs->k.key->'v') = 'array' THEN ends.attrs->k.key->'v'
+                  ELSE jsonb_build_array(ends.attrs->k.key->'v') END) AS v(value)
+     WHERE jsonb_typeof(v.value) = 'string'
+  ) AS n
   WHERE r.id = $1`;
 
 const squeezed = (text: string): string => text.replace(/\s+/gu, ' ').trim().toLowerCase();
 
+// A name under this length is too short to prove that an excerpt is about the relation.
+const MIN_NAME = 4;
+
 // A source added to a relation must be about that relation: an excerpt that names neither the
-// IMO number of the vessel nor the act would add a document that says nothing of the designation.
+// IMO number of the source end nor a name of either end would add a document that says nothing of it.
 const checkSourceNames = async (
   session: Session,
   ref: string,
   targetId: string,
   cited: readonly Cited[],
 ): Promise<void> => {
-  const [names] = await rowsOf(
+  const rows = await rowsOf(
     session,
-    z.strictObject({ imo: z.string().nullable(), act: z.string().nullable() }),
+    z.strictObject({ imo: z.string().nullable(), name: z.string().nullable() }),
     SOURCE_NAMES,
     [targetId],
   );
-  const imo = /(?<!\d)\d{7}(?!\d)/u.exec(names?.imo ?? '')?.[0];
-  const act = squeezed(names?.act ?? '');
-  // Each cited document must name the vessel or the act: one good line must not carry another.
+  const imo = /(?<!\d)\d{7}(?!\d)/u.exec(rows[0]?.imo ?? '')?.[0];
+  const names = [...new Set(rows.map((row) => squeezed(row.name ?? '')))].filter(
+    (name) => name.length >= MIN_NAME,
+  );
+  // Each cited document must name an end: one good line must not carry another.
   const namesIt = (document: string): boolean => {
     const text = squeezed(
       cited
@@ -615,14 +666,15 @@ const checkSourceNames = async (
         .map((one) => one.passage)
         .join(' '),
     );
-    return (imo !== undefined && text.includes(imo)) || (act !== '' && text.includes(act));
+    return (imo !== undefined && text.includes(imo)) || names.some((name) => text.includes(name));
   };
   if ([...new Set(cited.map((one) => one.document))].every(namesIt)) return;
   refuse(
     ref,
-    'no excerpt of a cited document names the vessel by its IMO number' +
-      `${imo === undefined ? ' (the vessel has none in the record)' : ` ${imo}`} or the act ` +
-      `${JSON.stringify(names?.act ?? '')}: cite the passage that names one of them`,
+    'no excerpt of a cited document names an end of the relation by the IMO number of the source ' +
+      `end${imo === undefined ? ' (it has none in the record)' : ` ${imo}`} or by one of these ` +
+      `names: ${names.length === 0 ? '(the record holds no name of 4 characters or more)' : names.map((name) => JSON.stringify(name)).join(', ')}: ` +
+      'cite the passage that names one of them',
   );
 };
 
@@ -707,6 +759,8 @@ interface Prepared {
   readonly lostProvision: boolean;
   /** The publication day, when the year of a day of the act comes from it. */
   readonly deduced: string | null;
+  /** The day of publication that the caller gave for the item, or null. */
+  readonly published: string | null;
   readonly transcribed: boolean;
   readonly id: string | undefined;
 }
@@ -736,7 +790,8 @@ export const proposeOf = (modelCallId: string | null) =>
       'by its IMO number or the act, and a relation that cites these documents already is ' +
       'refused), and the ' +
       'place of an entity of the record (update_entity with geom, when a page states its ' +
-      'coordinates; the tool refuses the place that the entity has already, and a place that ' +
+      'coordinates; every geom needs geomMethod, the closed list of the methods that found the ' +
+      'place, and the tool refuses a geom with no method; the tool refuses the place that the entity has already, and a place that ' +
       'differs from the place that the record holds waits as a doubt for the operator; give the ' +
       'place of a new entity as geom in its create_entity. The place of a new entity that waits ' +
       'in the review queue names its proposal id as targetId: it joins the unit of that entity, ' +
@@ -883,6 +938,7 @@ export const proposeOf = (modelCallId: string | null) =>
           lostBound,
           lostProvision,
           deduced,
+          published: published ?? null,
           transcribed,
           id: minted.get(given.ref)?.id,
         });
@@ -890,19 +946,23 @@ export const proposeOf = (modelCallId: string | null) =>
 
       // The check runs before the insert, because the door writes the dispute with the act. An
       // item that repeats a pending act gives the act its new dispute, when a check ran.
-      const toCheck: ItemToCheck[] = prepared.map(({ given, cited, claimAct }) => ({
+      const toCheck: ItemToCheck[] = prepared.map(({ given, cited, claimAct, published }) => ({
         ref: given.ref,
         claim: {
           // The checker reads the act that is written, so a dropped bound is not in the claim.
           act: claimAct,
           originator: given.originator,
           modality: given.modality,
+          // A passage that gives a weekday only is read with these two values.
+          occurredOnWeekdays: occurredWeekdays(claimAct),
         },
         passages: cited.map((one) => ({
           document: one.document,
           page: one.page,
           excerpt: one.passage,
           context: one.context,
+          // The day that the caller gave comes first, then the day in the address.
+          publishedOn: published ?? one.urlDay,
         })),
       }));
       let verdicts: ReadonlyMap<string, CheckVerdict> | null = null;

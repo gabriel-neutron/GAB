@@ -76,7 +76,7 @@ GRANT SELECT ON citation TO gabriel_app;
 -- and no view of the read API shows the column.
 
 -- The doors, and nothing else.
-REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
+REVOKE ALL ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric,text)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],boolean,uuid)
   FROM PUBLIC;
@@ -111,6 +111,8 @@ REVOKE ALL ON FUNCTION ai_decision(text,uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_promote_unit(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_reject_unit(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_reject_relation(uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION join_unit_as(uuid,uuid,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ai_join_unit(uuid,uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_group(uuid,uuid[],text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_group_as(uuid,uuid[],text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_promote_group(uuid,uuid[],text) FROM PUBLIC;
@@ -212,7 +214,9 @@ REVOKE ALL ON FUNCTION nato_pair(uuid[])        FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_uri(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION correct_document_title(text,text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
+REVOKE ALL ON FUNCTION fill_document_type(text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fill_geolocation_method(uuid,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text,text)
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_provider(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_archive(text,text,text) FROM PUBLIC;
@@ -226,19 +230,23 @@ GRANT EXECUTE ON FUNCTION put_document_text(text,jsonb,text)
 
 -- THE FETCHED-DOCUMENT DOOR IS HELD BY THE TWO MACHINE ROLES, AND NOT BY THE OPERATOR, who holds
 -- the wider put_document. It writes `url` and `api` rows with their bytes and nothing else.
-GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text)
+GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,text,text,text)
   TO gabriel_agent, gabriel_research;
 -- THE PROVIDER OF A KNOWN OFFICIAL FILE goes with the fetched-document door.
 GRANT EXECUTE ON FUNCTION fill_document_provider(text,text) TO gabriel_agent, gabriel_research;
 -- THE ARCHIVE THAT HELD A FILE goes with the fetched-document door too.
 GRANT EXECUTE ON FUNCTION fill_document_archive(text,text,text) TO gabriel_agent, gabriel_research;
-GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric)
+GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric,text)
   TO gabriel_app;
 -- THE ADDRESS OF A KNOWN UPLOAD goes with the upload door, so only the operator holds it.
 GRANT EXECUTE ON FUNCTION fill_document_uri(text,text) TO gabriel_app;
 -- THE CORRECTED TITLE OF A DOCUMENT THAT IS READ AGAIN is the operator's: the command runs as
 -- gabriel_app, on the local record.
 GRANT EXECUTE ON FUNCTION correct_document_title(text,text,text) TO gabriel_app;
+-- THE TYPE OF A STORED DOCUMENT is filled by the same command, so it is the operator's too.
+GRANT EXECUTE ON FUNCTION fill_document_type(text,text) TO gabriel_app;
+-- THE METHOD OF A STORED PLACE is filled by a command of the operator too.
+GRANT EXECUTE ON FUNCTION fill_geolocation_method(uuid,text) TO gabriel_app;
 -- ONE PROPOSE DOOR FOR EACH SIDE. The operator proposes through the writer. A machine proposes a
 -- batch with a citation for each act, and it has no door that writes an act with no citation.
 GRANT EXECUTE ON FUNCTION propose_change(text,jsonb,text[],text,uuid,uuid[],boolean,uuid)
@@ -259,6 +267,7 @@ GRANT EXECUTE ON FUNCTION promote_group(uuid,uuid[],text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION ai_promote_unit(uuid,text) TO gabriel_research;
 GRANT EXECUTE ON FUNCTION ai_reject_unit(uuid,text,text,text) TO gabriel_research;
 GRANT EXECUTE ON FUNCTION ai_reject_relation(uuid,text,text,text) TO gabriel_research;
+GRANT EXECUTE ON FUNCTION ai_join_unit(uuid,uuid,text) TO gabriel_research;
 GRANT EXECUTE ON FUNCTION ai_promote_group(uuid,uuid[],text) TO gabriel_research;
 -- The act of the operator, proposed and promoted in one transaction. A machine role holds no
 -- grant on it, as it holds none on the promotion.

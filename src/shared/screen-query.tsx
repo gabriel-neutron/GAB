@@ -134,12 +134,12 @@ export function ScreenQueryField() {
         type="search"
         autoComplete="off"
         role="combobox"
-        aria-label="Filter this screen"
+        aria-label="Filter the lists"
         aria-autocomplete="list"
         aria-expanded={listed !== null}
         aria-controls={listed === null ? undefined : listId}
         aria-activedescendant={activeRow === null ? undefined : matchOptionId(listId, activeRow)}
-        placeholder="Filter this screen"
+        placeholder="Filter the lists"
         value={context.query}
         onChange={(event) => {
           context.setQuery(event.target.value);

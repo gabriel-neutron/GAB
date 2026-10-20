@@ -82,11 +82,12 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-// Origin of a number: the height below is one 900 px screen.
-export const FourteenDocumentsFitOneScreen: Story = {
+// Origin of a number: the height below is the need of 14 cards when a long title or address wraps,
+// rounded up. A card wraps its text and does not cut it.
+export const FourteenDocumentsFitTheirRail: Story = {
   args: { sources: REPEATED },
   render: (args) => (
-    <div className="h-[900px] w-96">
+    <div className="h-[1200px] w-96">
       <Rail {...args} />
     </div>
   ),

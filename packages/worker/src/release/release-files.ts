@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 
+import { coverageOf } from '@gab/release/coverage';
+
 import { alignmentMatrix } from './alignment-matrix.ts';
 import { assetLinks } from './asset-links.ts';
 import { chainVolumes } from './chain-volumes.ts';
@@ -10,11 +12,14 @@ import type { SheetRow } from './critical-nodes-sheet.ts';
 import { csvExport, type ReleaseFile } from './csv-export.ts';
 import { releaseDisclaimer } from './disclaimer.ts';
 import { geojsonExport } from './geojson-export.ts';
+import { geolocationCoverageOf } from './geolocation-coverage.ts';
 import { jsonldExport } from './jsonld-export.ts';
+import { natoCoverageOf } from './nato-coverage.ts';
 import { assertNoOsmGeometry } from './osm-geometry.ts';
 import type { PreviousRelease } from './previous-release.ts';
 import { releaseHeading } from './release-heading.ts';
 import type { ReleaseManifest } from './release-manifest.ts';
+import { releaseNotes } from './release-notes.ts';
 import type { ReleaseRecord } from './release-record.ts';
 import type { VolumeRejection, VolumeTable } from './volume-table.ts';
 
@@ -43,6 +48,8 @@ export const releaseFiles = (
   const disclaimer = releaseDisclaimer(record.disclaimer, manifest.contacts);
   const heading = releaseHeading(manifest, disclaimer);
   const preamble = `${heading.title}\n\n${disclaimer}`;
+  const natoCoverage = record.natoPairs === null ? null : natoCoverageOf(record, record.natoPairs);
+  const geolocationCoverage = geolocationCoverageOf(record);
   const volumeTable = chainVolumes(record, volumes, preamble);
   const exports: readonly ReleaseFile[] = [
     ...csvExport(record, preamble),
@@ -51,6 +58,7 @@ export const releaseFiles = (
     assetLinks(record, preamble),
     volumeTable.file,
     releaseCredits(heading),
+    releaseNotes(heading, natoCoverage, geolocationCoverage),
     geojsonExport(record, heading),
     jsonldExport(record, heading, manifest.iriBase),
   ];
@@ -76,6 +84,12 @@ export const releaseFiles = (
     iriBase: manifest.iriBase,
     changelog: changelog.summary,
     nameCandidates: record.nameCandidates,
+    coverage: coverageOf(
+      record.entities.map((one) => one.type),
+      record.documents.size,
+    ),
+    natoCoverage,
+    geolocationCoverage,
     files: listed,
   };
   return {

@@ -2,7 +2,7 @@ import { attributeName } from '@gab/release/attribute-name';
 import { claimText } from '@gab/release/claim-text';
 import { releaseDay } from '@gab/release/release-day';
 import { permanentAddress } from '@gab/release/site-paths';
-import type { SiteRelease } from '@gab/release/site-release';
+import { pairRating, type SiteRelease } from '@gab/release/site-release';
 import { relationWords } from '@gab/proposal/relation-types';
 
 import { EmptyState } from '@/shared/page/empty-state';
@@ -90,6 +90,7 @@ export function ClaimPage({ release, claimId, entityHref, claimHref }: ClaimPage
         <EmptyState sentence="The release holds no claim with this identifier. The link that brought you here may be stale." />
       </ReadingPage>
     );
+  const rating = pairRating(release.manifest, claim);
   return (
     <ReadingPage>
       <PageHeader
@@ -99,19 +100,26 @@ export function ClaimPage({ release, claimId, entityHref, claimHref }: ClaimPage
       <KeyValue
         entries={[
           ...factsOf(claim, entityHref, claimHref),
-          { key: 'Label', value: claim.originLabel },
-          { key: 'Licence', value: claim.licence },
-          ...(claim.pair === null
-            ? []
-            : [{ key: 'NATO pair', value: <NatoPairMark pair={claim.pair} /> }]),
-          { key: 'Claim identifier', value: claim.id, figure: true },
-          {
-            key: 'Permanent address',
-            value: addressOf(release.manifest.iriBase, claim.id),
-            figure: true,
-          },
+          ...(rating.shown ? [{ key: 'Rating', value: <NatoPairMark rating={rating} /> }] : []),
+          { key: 'Decided by', value: claim.originLabel },
         ]}
       />
+      <details className="text-xs/5">
+        <summary className="cursor-pointer text-label">Licence and permanent address</summary>
+        <div className="pt-1">
+          <KeyValue
+            entries={[
+              { key: 'Licence', value: claim.licence },
+              { key: 'Claim identifier', value: claim.id, figure: true },
+              {
+                key: 'Permanent address',
+                value: addressOf(release.manifest.iriBase, claim.id),
+                figure: true,
+              },
+            ]}
+          />
+        </div>
+      </details>
       <PageSection title="Sources">
         {claim.sources.length === 0 ? (
           <EmptyState sentence="The release names no document here." />

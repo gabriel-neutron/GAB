@@ -88,6 +88,7 @@ export function corpusFromRelease(
           archive_uri: null,
           sha256: null,
           retrieved_at: source.readOn,
+          doc_type: source.docType,
         });
 
   const cited = (claims: readonly Cited[]): string[] =>

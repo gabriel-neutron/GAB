@@ -68,6 +68,8 @@ INSERT INTO document_provider (id, name, licence) VALUES
   ('eu_fsf',              'EU FSF',                     'eu-reuse'),
   ('gleif',               'GLEIF',                      'cc0'),
   ('crea',                'CREA',                       'restricted'),
+  -- The United Nations asks for a written permission to redistribute Comtrade data.
+  ('un_comtrade',         'UN Comtrade',                'restricted'),
   ('datalastic',          'Datalastic',                 'commercial-no-redistribution'),
   ('gfw',                 'GFW',                        'cc-by-nc-4.0'),
   ('imo_gisis',           'IMO GISIS',                  'registration-terms'),

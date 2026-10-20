@@ -19,6 +19,7 @@ export const RESEARCH_TOOLS = {
   read_entity: READ_RECORD,
   neighbourhood: READ_RECORD,
   list_vocabulary: READ_RECORD,
+  list_entities: READ_RECORD,
   list_proposals: READ_RECORD,
   find_document: READ_RECORD,
   document_text: READ_RECORD,
@@ -83,6 +84,13 @@ export const RESEARCH_TOOLS = {
     idempotentHint: true,
     openWorldHint: true,
   },
+  // The same scene and box give the same image, which is stored once.
+  sentinel2_pairs: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
   // The same act is stored once, so a second read writes nothing.
   eu_act: {
     readOnlyHint: false,
@@ -131,6 +139,13 @@ export const RESEARCH_TOOLS = {
     idempotentHint: true,
     openWorldHint: true,
   },
+  // Each call reads and stores one answer, so a second call writes nothing.
+  comtrade_data: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
   // A second call meets the open job and is refused.
   enqueue_extract: {
     readOnlyHint: false,
@@ -165,5 +180,6 @@ export const RESEARCH_TOOLS = {
   promote_unit: DECIDE,
   reject_unit: DECIDE,
   reject_relation: DECIDE,
+  join_unit: DECIDE,
   promote_clean_proposals: DECIDE,
 } as const satisfies Record<ToolName, ToolAnnotations>;

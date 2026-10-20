@@ -21,6 +21,7 @@ export type Drafts = ReadonlyMap<string, ClaimDraft>;
 export interface RecordCell {
   readonly key: string;
   readonly label: string;
+  readonly help: string | null;
   readonly width: ClaimWidth;
   readonly value: ClaimValue;
   /** The sentence the last keystroke earned, and `null` while the value stands. */
@@ -47,6 +48,7 @@ export function recordCells(
     return {
       key: claim.key,
       label: claim.label,
+      help: claim.help,
       width: claim.width,
       value: draft?.value ?? claim.value,
       refusal: draft?.refusal ?? null,

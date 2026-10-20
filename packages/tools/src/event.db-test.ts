@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { as, OWN_SITE, rate, reference } from '../../../tools/author-fixture.ts';
 import { rolledBack, type Ask } from '../../../tools/probe.ts';
 import { proposeOf } from './propose.ts';
-import { callTool, type Session } from './tool.ts';
+import { callTool, type ItemToCheck, type Reach, type Session } from './tool.ts';
 
 const sessionOf = (ask: Ask): Session => ({
   query: async (text, values) => ({ rows: await ask(text, values) }),
@@ -470,4 +470,66 @@ test.each([
     ]);
   });
   expect(outcome.ok).toBe(accepted);
+});
+
+// The checker reads a passage that gives a weekday only with two dates: the day of publication
+// and the weekday of the claimed day.
+const WEEKDAY_TEXT = `A fire began on Tuesday at ${SITE}, the residents said.`;
+const TUESDAY = 'claimed attack — Afipsky refinery — 2026-05-12';
+
+const dayEvent = eventAct(TUESDAY, {
+  attrs: {
+    event_kind: { v: 'claimed attack' },
+    occurred_on: { v: ['2026-05-12'] },
+    occurred_on_precision: { v: 'day' },
+  },
+});
+
+const readByChecker = async (
+  uri: string,
+  number: number,
+  given: { readonly published_on?: string } = {},
+) => {
+  const items: ItemToCheck[] = [];
+  const reach: Reach = {
+    now: () => new Date(),
+    check: async (asked) => {
+      items.push(...asked);
+      return Promise.resolve(
+        new Map(asked.map((one) => [one.ref, { verdict: 'supported' as const }])),
+      );
+    },
+  };
+  await rolledBack('superuser', async (ask) => {
+    const doc = await post(ask, number, uri, WEEKDAY_TEXT);
+    await as(ask, 'gabriel_research', () =>
+      callTool(
+        proposeOf(null),
+        sessionOf(ask),
+        { items: [item('ev', dayEvent, doc, 'on Tuesday', name())], ...given },
+        reach,
+      ),
+    );
+  });
+  return items;
+};
+
+test('the checker receives the weekday of the claimed day and the date in the address', async () => {
+  const [asked] = await readByChecker('https://news.example/2026/05/13/fire-at-the-plant', 4);
+  expect(asked?.claim.occurredOnWeekdays).toStrictEqual([
+    { day: '2026-05-12', weekday: 'Tuesday' },
+  ]);
+  expect(asked?.passages.map((one) => one.publishedOn)).toStrictEqual(['2026-05-13']);
+});
+
+test('the checker receives the day that the caller gave before the date in the address', async () => {
+  const [asked] = await readByChecker('https://news.example/2026/05/20/fire-at-the-plant', 5, {
+    published_on: '2026-05-13',
+  });
+  expect(asked?.passages.map((one) => one.publishedOn)).toStrictEqual(['2026-05-13']);
+});
+
+test('the checker receives no day when neither the caller nor the address gives one', async () => {
+  const [asked] = await readByChecker('https://news.example/world/fire-at-the-plant', 6);
+  expect(asked?.passages.map((one) => one.publishedOn)).toStrictEqual([null]);
 });

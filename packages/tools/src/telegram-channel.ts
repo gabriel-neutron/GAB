@@ -43,6 +43,7 @@ export const telegramChannel = defineTool({
     'or a t.me or tgstat.ru address of one post. With a post id (in the address or in ' +
     '"message_id"), the tool reads that post. With no post id, give "limit": the tool reads the ' +
     `newest posts of the channel, at most ${String(PAGE_POSTS)}, which is one page of the preview. ` +
+    'With no post id, give "before" (a post id) to read the posts that are older than that post. ' +
     'A channel address alone is no source of one post, so cite the document of a post and never ' +
     'the channel. Each post is one document at https://t.me/<handle>/<id>, with the text of the ' +
     'post. A post whose bytes are already stored comes back as "known". An edited post is a new ' +
@@ -63,6 +64,12 @@ export const telegramChannel = defineTool({
       .max(PAGE_POSTS)
       .optional()
       .describe(`the count of newest posts to read, from 1 to ${String(PAGE_POSTS)}`),
+    before: z
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe('read the posts older than this post id; valid only with no post id'),
   }),
   output: z.strictObject({ channel: z.string(), posts: z.array(postOutput) }),
   async run(session, input, reach) {
@@ -81,14 +88,25 @@ export const telegramChannel = defineTool({
           `${input.message_id}. Give one post id.`,
       );
     const id = address.message_id ?? input.message_id;
-    if (id === undefined && input.limit === undefined)
+    if (id !== undefined && input.before !== undefined)
+      throw new ToolRefusal(
+        `before_with_post: before reads older posts and a post id reads one post. Give one of ` +
+          'them.',
+      );
+    if (id === undefined && input.limit === undefined && input.before === undefined)
       throw new ToolRefusal(
         'channel_link_no_post: a channel address alone supports no claim. Give the post id ' +
-          '(in the address or in message_id), or give limit to read the newest posts.',
+          '(in the address or in message_id), or give limit to read the newest posts, or before to read older posts.',
       );
 
     // One post is on the page that ends just after it.
-    const page = `https://t.me/s/${address.handle}${id === undefined ? '' : `?before=${id + 1}`}`;
+    const page = `https://t.me/s/${address.handle}${
+      id !== undefined
+        ? `?before=${id + 1}`
+        : input.before === undefined
+          ? ''
+          : `?before=${input.before}`
+    }`;
     let body: string;
     try {
       ({ body } = await answerOf(web, page, { headers: { accept: 'text/html' } }));

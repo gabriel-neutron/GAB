@@ -47,11 +47,123 @@
     "confirmed": 2,
     "refused": 1
   },
+  "coverage": {
+    "entities": 11,
+    "byType": [
+      {
+        "type": "company",
+        "count": 4
+      },
+      {
+        "type": "vessel",
+        "count": 3
+      },
+      {
+        "type": "organisation",
+        "count": 2
+      },
+      {
+        "type": "facility",
+        "count": 1
+      },
+      {
+        "type": "port",
+        "count": 1
+      }
+    ],
+    "sources": 3,
+    "scope": {
+      "covers": "The record holds the entities, the relations and the facts that GAB read in public documents and that were then reviewed. Each fact names its sources.",
+      "excludes": "The record is not complete. It does not cover each vessel, company, person or unit, and it does not cover a source that GAB has not read.",
+      "absence": "An absence means \"not yet in the record\". It does not mean \"not true\"."
+    }
+  },
+  "natoCoverage": {
+    "all": {
+      "claims": 20,
+      "paired": 3
+    },
+    "byType": [
+      {
+        "group": "entity company",
+        "claims": 1,
+        "paired": 0
+      },
+      {
+        "group": "entity vessel",
+        "claims": 5,
+        "paired": 1
+      },
+      {
+        "group": "relation crude_flows_to",
+        "claims": 1,
+        "paired": 0
+      },
+      {
+        "group": "relation designated_by",
+        "claims": 1,
+        "paired": 1
+      },
+      {
+        "group": "relation discharges_at",
+        "claims": 1,
+        "paired": 0
+      },
+      {
+        "group": "relation flagged_falsely",
+        "claims": 3,
+        "paired": 0
+      },
+      {
+        "group": "relation flags",
+        "claims": 1,
+        "paired": 0
+      },
+      {
+        "group": "relation insures",
+        "claims": 1,
+        "paired": 0
+      },
+      {
+        "group": "relation loads_at",
+        "claims": 2,
+        "paired": 0
+      },
+      {
+        "group": "relation operates",
+        "claims": 1,
+        "paired": 0
+      },
+      {
+        "group": "relation owns",
+        "claims": 3,
+        "paired": 1
+      }
+    ]
+  },
+  "geolocationCoverage": {
+    "places": 3,
+    "notStated": 1,
+    "byMethod": [
+      {
+        "method": "not_stated",
+        "count": 1
+      },
+      {
+        "method": "register_address",
+        "count": 1
+      },
+      {
+        "method": "source_coordinates",
+        "count": 1
+      }
+    ]
+  },
   "files": [
     {
       "path": "entities.csv",
-      "bytes": 2924,
-      "sha256": "0a640be68fe2a3503365dbbdb989da65bae9a806f1400818c26735c02bce9881"
+      "bytes": 2998,
+      "sha256": "745bc898d7dd9281e8ad22f22ee32a33e468877daaa7b94c30ee66791a2c536e"
     },
     {
       "path": "relations.csv",
@@ -60,8 +172,8 @@
     },
     {
       "path": "claims.csv",
-      "bytes": 9473,
-      "sha256": "fa78c920f00a44ade05bb57a53d1363b33a58903c45bcb91b6bf9734184cf596"
+      "bytes": 9913,
+      "sha256": "eabb9e52b5f48ee8a7a2d6ed111a90f44d63e20f426086c61f8c22d4318b1b27"
     },
     {
       "path": "merges.csv",
@@ -94,14 +206,19 @@
       "sha256": "dd770c8247408b937e7a33e9be48acf8e7463443081bea786cf1176d5416eec1"
     },
     {
+      "path": "release-notes.md",
+      "bytes": 2078,
+      "sha256": "e5dd4d31d083e980aad8e1b1b9fbca4467c8ddcb9ce9a471e19f2851b8ada424"
+    },
+    {
       "path": "entities.geojson",
-      "bytes": 2325,
-      "sha256": "0a6256dff9a796498d4bd156d9018b6c3c02920e3f3366883017d773cac2768e"
+      "bytes": 2870,
+      "sha256": "a527b1ac18ea92a2f1f247323d9a2ba478606b81c3364dd210007e15d0f899be"
     },
     {
       "path": "dataset.jsonld",
-      "bytes": 26034,
-      "sha256": "565b77783fa3063a339edc967bc89879dbc59dd17f9a3f6bcf146fbd9aceeab8"
+      "bytes": 26741,
+      "sha256": "b8c9e029378ff12cbec0bbff338efa5213773773057c4fcf89ae41f454f5645b"
     },
     {
       "path": "changelog.csv",

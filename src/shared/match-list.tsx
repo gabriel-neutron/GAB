@@ -35,10 +35,9 @@ export function MatchList({ id, matches, active, onChoose }: MatchListProps) {
               onChoose(match.id);
             }}
             className={cn(
-              'flex h-6 cursor-pointer items-center truncate px-2',
+              'flex min-h-6 cursor-pointer items-center px-2 py-0.5 break-words',
               index === active ? 'bg-accent text-accent-foreground' : 'hover:bg-muted',
             )}
-            title={match.label}
           >
             {match.label}
           </li>

@@ -10,6 +10,11 @@ export interface NatoPair {
   readonly digit: string;
 }
 
+/** What a page shows of the pair of a claim: nothing when the release hides the pair, the pair,
+ * or "not rated" when the claim has no full pair. */
+export type PairRating =
+  { readonly shown: false } | { readonly shown: true; readonly pair: NatoPair | null };
+
 export interface SitePassage {
   readonly page: string;
   readonly excerpt: string;
@@ -23,6 +28,8 @@ export interface SiteSource {
   readonly title: string;
   readonly address: string | null;
   readonly readOn: string | null;
+  /** The type of the document. A release written before the type has none. */
+  readonly docType?: string;
   readonly passages: readonly SitePassage[];
 }
 
@@ -32,6 +39,9 @@ export interface SiteEntity {
   readonly label: string;
   readonly originLabel: string;
   readonly licence: string;
+  /** How a source found the place, a word of the closed list of the methods. Null for an entity
+   * with no place, and for a release before the column. */
+  readonly geolocationMethod: string | null;
 }
 
 export interface SiteRelation {
@@ -107,6 +117,14 @@ export interface SiteVolume {
   readonly documentAddress: string | null;
   readonly page: string;
   readonly note: string;
+}
+
+/** The rating that a page shows for `claim`. */
+export function pairRating(
+  manifest: SiteManifest,
+  claim: { readonly pair: NatoPair | null },
+): PairRating {
+  return manifest.showNatoPair ? { shown: true, pair: claim.pair } : { shown: false };
 }
 
 /** What the site shows of one release, read from its files. */
@@ -204,6 +222,8 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
       label: cell(row, 'label'),
       originLabel: cell(row, 'origin_label'),
       licence: cell(row, 'licence'),
+      // An older release has no such column, and its cell reads as empty.
+      geolocationMethod: orNull(row['geolocation_method']),
     }),
   );
 
@@ -288,6 +308,7 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
         title: cell(row, 'document_title'),
         address: orNull(row['document_address']),
         readOn: orNull(row['document_read_on']),
+        ...(orNull(row['document_type']) === null ? {} : { docType: cell(row, 'document_type') }),
         passages: [...(known?.passages ?? []), ...passage],
       });
     }
@@ -298,7 +319,11 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
       originLabel: cell(first, 'origin_label'),
       licence: cell(first, 'licence'),
       sources: [...sources.values()],
-      pair: manifest.showNatoPair && letter !== '' && digit !== '' ? { letter, digit } : null,
+      // A claim with no full pair is "not rated", or empty in an older release: it has no pair.
+      pair:
+        manifest.showNatoPair && /^[A-F]$/u.test(letter) && /^[1-6]$/u.test(digit)
+          ? { letter, digit }
+          : null,
     };
     if (cell(first, 'claim_kind') === 'relation') {
       const relation = relationOf.get(id);

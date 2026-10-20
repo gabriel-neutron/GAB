@@ -1,7 +1,8 @@
+import { GEOLOCATION_WORDS, isGeolocationMethod } from '@gab/proposal/geolocation-method';
 import { claimText } from '@gab/release/claim-text';
 import { eventsAt, type SiteEvent } from '@gab/release/event-lane';
 import { permanentAddress } from '@gab/release/site-paths';
-import type { SiteRelease } from '@gab/release/site-release';
+import { pairRating, type PairRating, type SiteRelease } from '@gab/release/site-release';
 
 /** One event of a site, and whether its actor has a page of its own. */
 export interface EventLine {
@@ -17,6 +18,7 @@ export interface ClaimLine {
   /** Who decided the claim, as the release words it. */
   readonly origin: string;
   readonly licence: string;
+  readonly rating: PairRating;
 }
 
 /** What a release adds to the page of one entity. */
@@ -38,6 +40,9 @@ export interface ReleaseFacts {
   /** The permanent address of the entity, or null where the page reads the live record or the
    * identifier cannot be an address. */
   readonly address: string | null;
+  /** How the release found the place of the entity, in words. Null when the entity has no place or
+   * the release has no such column. */
+  readonly location: string | null;
   /** The events of a site, or null where the page draws no events part. */
   readonly events: readonly EventLine[] | null;
 }
@@ -54,6 +59,11 @@ function addressOf(base: string, id: string): string | null {
     return null;
   }
 }
+
+const methodWords = (method: string | null | undefined): string | null =>
+  method !== null && method !== undefined && isGeolocationMethod(method)
+    ? GEOLOCATION_WORDS[method]
+    : null;
 
 /** The facts that the release holds about `entityId`. The events come from the release only, so a
  * page that reads the live record asks for none: the two would mix two dates. */
@@ -76,8 +86,10 @@ export function releaseFactsOf(
           text: claimText(claim),
           origin: claim.originLabel,
           licence: claim.licence,
+          rating: pairRating(release.manifest, claim),
         }))
       : [],
+    location: methodWords(row?.geolocationMethod),
     address: withEvents ? addressOf(release.manifest.iriBase, entityId) : null,
     merged: [...release.aliases].filter(([, survivor]) => survivor === entityId).map(([id]) => id),
     events: drawsEvents

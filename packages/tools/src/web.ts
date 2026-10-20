@@ -16,13 +16,13 @@ const given = (value: string | undefined): string | undefined => {
 const overCap = (maxBytes: number): Error =>
   new Error(`the answer is larger than the cap of ${maxBytes} bytes`);
 
-const bodyOf = async (response: Response, maxBytes: number): Promise<string> => {
+const bytesOf = async (response: Response, maxBytes: number): Promise<Buffer> => {
   const declared = Number(response.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > maxBytes) {
     await response.body?.cancel();
     throw overCap(maxBytes);
   }
-  if (response.body === null) return '';
+  if (response.body === null) return Buffer.alloc(0);
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -37,8 +37,11 @@ const bodyOf = async (response: Response, maxBytes: number): Promise<string> => 
     }
     chunks.push(value);
   }
-  return Buffer.concat(chunks).toString('utf8');
+  return Buffer.concat(chunks);
 };
+
+const bodyOf = async (response: Response, maxBytes: number): Promise<string> =>
+  (await bytesOf(response, maxBytes)).toString('utf8');
 
 /** The web of a surface, from the environment that the caller gives it. */
 export const webOf = (env: Environment, fetcher: typeof fetch = fetch): Web => {
@@ -48,6 +51,9 @@ export const webOf = (env: Environment, fetcher: typeof fetch = fetch): Web => {
   const openSanctionsKey = given(env['OPENSANCTIONS_API_KEY']);
   const gfwToken = given(env['GFW_API_TOKEN']);
   const firmsKey = given(env['FIRMS_MAP_KEY']);
+  const comtradeKey = given(env['COMTRADE_API_KEY']);
+  const cdseClientId = given(env['CDSE_CLIENT_ID']);
+  const cdseClientSecret = given(env['CDSE_CLIENT_SECRET']);
   return {
     ...(searxngUrl === undefined ? {} : { searxngUrl }),
     ...(braveKey === undefined ? {} : { braveKey }),
@@ -55,6 +61,23 @@ export const webOf = (env: Environment, fetcher: typeof fetch = fetch): Web => {
     ...(openSanctionsKey === undefined ? {} : { openSanctionsKey }),
     ...(gfwToken === undefined ? {} : { gfwToken }),
     ...(firmsKey === undefined ? {} : { firmsKey }),
+    ...(comtradeKey === undefined ? {} : { comtradeKey }),
+    ...(cdseClientId === undefined ? {} : { cdseClientId }),
+    ...(cdseClientSecret === undefined ? {} : { cdseClientSecret }),
+    post: async (url, request) => {
+      const response = await fetcher(url, {
+        method: 'POST',
+        redirect: 'manual',
+        headers: { 'user-agent': USER_AGENT, ...request.headers },
+        body: request.body,
+        signal: AbortSignal.timeout(request.timeoutMs),
+      });
+      return {
+        status: response.status,
+        headers: Object.fromEntries(response.headers),
+        bytes: await bytesOf(response, request.maxBytes),
+      };
+    },
     get: async (url, request) => {
       const response = await fetcher(url, {
         method: 'GET',

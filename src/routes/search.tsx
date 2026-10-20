@@ -9,12 +9,15 @@ import { searchByDocument } from '@/features/search/document-search';
 import { searchByName } from '@/features/search/name-search';
 import { SearchPage } from '@/features/search/search-page';
 import { keepLastQuery, readLastQuery } from '@/features/search/workspace';
+import { CoverageStatement } from '@/shared/page/coverage-statement';
 import { PageHeader } from '@/shared/page/page-header';
+import { PageSection } from '@/shared/page/page-section';
 import { ReadingPage } from '@/shared/page/reading-page';
 import { loadCorpus, refreshCorpus } from '@/shared/read/corpus';
 import { loadProviders } from '@/shared/read/providers';
 import { useReleaseNote } from '@/shared/read/release-note';
 import { useWriterOnline } from '@/shared/write/writer-status';
+import { coverageOf } from '@gab/release/coverage';
 import { releaseDay } from '@gab/release/release-day';
 
 const pageOf = (entityId: string): string => entityHref(entityId, null);
@@ -34,6 +37,14 @@ function SearchRoute() {
   const writerOnline = useWriterOnline();
   const releaseNote = useReleaseNote();
   const [query, setQuery] = useState(readLastQuery);
+  const coverage = useMemo(
+    () =>
+      coverageOf(
+        corpus.entities.map((one) => one.type),
+        corpus.documents.length,
+      ),
+    [corpus],
+  );
   const name = useMemo(() => searchByName(corpus.entities, query), [corpus, query]);
   const attribute = useMemo(() => searchByAttributeValue(corpus.entities, query), [corpus, query]);
   const document = useMemo(() => searchByDocument(corpus.documents, query), [corpus, query]);
@@ -60,6 +71,14 @@ function SearchRoute() {
         {...(detail === undefined ? {} : { detail })}
         {...(actions === undefined ? {} : { actions })}
       />
+      <PageSection title="What the record covers">
+        <CoverageStatement
+          coverage={coverage}
+          release={
+            releaseNote === null ? null : { version: releaseNote.version, date: releaseNote.date }
+          }
+        />
+      </PageSection>
       <SearchPage
         query={query}
         answers={{ name, attribute, document }}

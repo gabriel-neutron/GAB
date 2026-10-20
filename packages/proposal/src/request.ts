@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { attributeEdit } from './attribute-value.ts';
+import { geolocationMethod } from './geolocation-method.ts';
 
 /** The header that carries the key of the operator to the writer. The browser and the writer share this name. */
 export const OPERATOR_KEY_HEADER = 'x-gab-operator-key';
@@ -83,13 +84,20 @@ const geometry = z.discriminatedUnion('type', [
 
 /** The body of one write, with the act taken from the address and never from the caller. */
 export const writeRequest = z.discriminatedUnion('op', [
-  z.strictObject({
-    op: z.literal('create_entity'),
-    type: z.string().trim(),
-    label: z.string().trim(),
-    geom: geometry.optional(),
-    attrs: attributeEdit.optional(),
-  }),
+  z
+    .strictObject({
+      op: z.literal('create_entity'),
+      type: z.string().trim(),
+      label: z.string().trim(),
+      geom: geometry.optional(),
+      // How a source found the place. The door of the operator takes `not_stated` when it is
+      // absent. The propose tool of a machine refuses a place with no method.
+      geomMethod: geolocationMethod.optional(),
+      attrs: attributeEdit.optional(),
+    })
+    .refine((act) => act.geomMethod === undefined || act.geom !== undefined, {
+      message: 'a method of geolocation needs a geometry',
+    }),
 
   z.strictObject({
     op: z.literal('create_relation'),
@@ -135,17 +143,22 @@ export const writeRequest = z.discriminatedUnion('op', [
       },
     ),
 
-  z.strictObject({
-    op: z.literal('update_entity'),
-    targetId: z.uuid(),
-    label: z.string().trim().optional(),
-    type: z.string().trim().optional(),
-    // The place of the entity. A correction made in QGIS enters here, as an act of the operator
-    // (ADR 0005). `cites` names the stored documents that back it, such as a Sentinel-2 image, and
-    // the operator authority alone backs it when the list is absent.
-    geom: geometry.optional(),
-    cites: z.array(z.string().trim()).min(1).optional(),
-  }),
+  z
+    .strictObject({
+      op: z.literal('update_entity'),
+      targetId: z.uuid(),
+      label: z.string().trim().optional(),
+      type: z.string().trim().optional(),
+      // The place of the entity. A correction made in QGIS enters here, as an act of the operator
+      // (ADR 0005). `cites` names the stored documents that back it, such as a Sentinel-2 image,
+      // and the operator authority alone backs it when the list is absent.
+      geom: geometry.optional(),
+      geomMethod: geolocationMethod.optional(),
+      cites: z.array(z.string().trim()).min(1).optional(),
+    })
+    .refine((act) => act.geomMethod === undefined || act.geom !== undefined, {
+      message: 'a method of geolocation needs a geometry',
+    }),
 
   z.strictObject({ op: z.literal('delete_entity'), targetId: z.uuid() }),
   z.strictObject({ op: z.literal('delete_relation'), targetId: z.uuid() }),

@@ -5,7 +5,7 @@ import { readSiteRelease } from '@gab/release/site-release';
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { groupNodes } from './nodes';
+import { groupNodes, withoutNodeName } from './nodes';
 
 const FOLDER = join(import.meta.dirname, '../../../packages/site/fixtures/release');
 
@@ -40,4 +40,12 @@ test('the summary counts the candidates and the retained nodes', () => {
 
 test('a release with no node says so', () => {
   expect(groupNodes([]).summary).toBe('This release has no candidate node.');
+});
+
+test('a claim loses the name of its node only at the start, and never to an empty text', () => {
+  expect(withoutNodeName('Primorsk: Designated', 'Primorsk')).toBe('Designated');
+  expect(withoutNodeName('Designated by Primorsk: Primorsk: x', 'Primorsk')).toBe(
+    'Designated by Primorsk: Primorsk: x',
+  );
+  expect(withoutNodeName('Primorsk: ', 'Primorsk')).toBe('Primorsk: ');
 });

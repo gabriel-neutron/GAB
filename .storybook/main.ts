@@ -22,7 +22,7 @@ const config: StorybookConfig = {
   // the canvas.
   stories: ['../src/**/*.stories.tsx'],
 
-  addons: ['@storybook/addon-vitest'],
+  addons: ['@storybook/addon-vitest', '@storybook/addon-a11y'],
 
   // Storybook sends anonymous usage data to its maintainers by default. One named operator runs
   // Gabriel (C2, C5), and the names of the components show what the investigation examines. No

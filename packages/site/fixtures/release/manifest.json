@@ -47,11 +47,61 @@
     "confirmed": 2,
     "refused": 1
   },
+  "coverage": {
+    "entities": 11,
+    "byType": [
+      {
+        "type": "company",
+        "count": 4
+      },
+      {
+        "type": "vessel",
+        "count": 3
+      },
+      {
+        "type": "organisation",
+        "count": 2
+      },
+      {
+        "type": "facility",
+        "count": 1
+      },
+      {
+        "type": "port",
+        "count": 1
+      }
+    ],
+    "sources": 3,
+    "scope": {
+      "covers": "The record holds the entities, the relations and the facts that GAB read in public documents and that were then reviewed. Each fact names its sources.",
+      "excludes": "The record is not complete. It does not cover each vessel, company, person or unit, and it does not cover a source that GAB has not read.",
+      "absence": "An absence means \"not yet in the record\". It does not mean \"not true\"."
+    }
+  },
+  "natoCoverage": null,
+  "geolocationCoverage": {
+    "places": 3,
+    "notStated": 1,
+    "byMethod": [
+      {
+        "method": "not_stated",
+        "count": 1
+      },
+      {
+        "method": "register_address",
+        "count": 1
+      },
+      {
+        "method": "source_coordinates",
+        "count": 1
+      }
+    ]
+  },
   "files": [
     {
       "path": "entities.csv",
-      "bytes": 2924,
-      "sha256": "0a640be68fe2a3503365dbbdb989da65bae9a806f1400818c26735c02bce9881"
+      "bytes": 2998,
+      "sha256": "745bc898d7dd9281e8ad22f22ee32a33e468877daaa7b94c30ee66791a2c536e"
     },
     {
       "path": "relations.csv",
@@ -60,8 +110,8 @@
     },
     {
       "path": "claims.csv",
-      "bytes": 9404,
-      "sha256": "767d4d40624209dc6d1354a90a1156c1ee06f8041c0cb9212f71f9e69144a794"
+      "bytes": 9538,
+      "sha256": "92a93361fc3b7542b53861b5c65942cfd7897193272962d158b42b21d3bd617e"
     },
     {
       "path": "merges.csv",
@@ -94,9 +144,14 @@
       "sha256": "dd770c8247408b937e7a33e9be48acf8e7463443081bea786cf1176d5416eec1"
     },
     {
+      "path": "release-notes.md",
+      "bytes": 1409,
+      "sha256": "8fb91c620e0ae99c6c87b8e789ac372f0d1c6783ab80b5d9ae69696a15d85ee1"
+    },
+    {
       "path": "entities.geojson",
-      "bytes": 2325,
-      "sha256": "0a6256dff9a796498d4bd156d9018b6c3c02920e3f3366883017d773cac2768e"
+      "bytes": 2441,
+      "sha256": "fb64029682ba69e0f16f136763d0c7a580302cf055b8cd18c69a1ac63fdeda60"
     },
     {
       "path": "dataset.jsonld",

@@ -115,8 +115,9 @@ function GraphRoute() {
       <p className="max-w-prose">
         {count(corpus.entities.length, 'entity is', 'entities are')} drawn as a node, and{' '}
         {count(corpus.relations.length, 'relation joins', 'relations join')} two of them with a
-        line. Select a node, a line or a name in the list to read its record. The types switch off
-        and dim what they hold, and the field in the header narrows the lists.
+        line. The graph opens on a choice of an entity, and then draws that entity with its
+        neighbours. Select a node, a line or a name in the list to read its record. The types switch
+        off what they hold, and the field in the header narrows the lists.
       </p>
       <GraphPage record={record} onSelect={setSelection} card={card} />
     </ReadingPage>

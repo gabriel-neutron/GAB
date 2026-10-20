@@ -80,13 +80,25 @@ each decision is final). The Names page of the review page does the same.
 
 ### Other commands
 
+- `document-labels`: gives a readable title and a type to the stored documents that lack them, and
+  lists the stored search pages. Run it with `--dry-run` first. It deletes nothing: you decide on
+  each search page.
+- `geolocation-method`: gives the method of geolocation to the stored places that hold
+  `not_stated`, when the documents that gave the place state the method clearly. A place with
+  unclear documents stays `not_stated`. Run it with `--dry-run` first. It changes no place that has
+  a method. Apply the migration of the column first.
 - `reread-html`: rereads stored HTML pages. Run it with `--dry-run` first. It keeps the old text set
   so each citation stays valid.
 - `name-candidates`: finds merge candidates across a Latin and a Cyrillic spelling. Run it before a
   release, then decide each pair in the "Two scripts" tab.
+- `gem-duplicates`: report. It lists pairs of one entity with a GEM unit key and one without it, near
+  and with a similar name. It writes nothing. Merge a true pair by hand with `merge_entities`.
 - `nato-coverage`, `asset-coverage`, `asset-sanctions`: reports. They write nothing.
 - `firms-sweep`: reads NASA FIRMS heat. Set `FIRMS_MAP_KEY` first. Run it again after a stop or
   each day: it reads only days that no stored answer covers.
+- `sentinel2-pairs`: stores a clear Sentinel-2 image before and after each accepted strike that has
+  a day and a site point. Set `CDSE_CLIENT_ID` and `CDSE_CLIENT_SECRET` first. Run it with
+  `--list` to see the strikes without a call to the service.
 
 ## Write a release
 
@@ -106,7 +118,14 @@ command refuses an unknown key and names the fault.
 
 - Only `contacts` is necessary. Each address starts with `https://` or `mailto:`. The date defaults
   to today (UTC), the version to the date.
-- `showNatoPair` is `false`. Set it to `true` only after a change of S1.
+- `showNatoPair` is `false`. Set it to `true` for a release that shows the pair (ADR 0016). Each
+  claim row then gives its letter and digit in the CSV, GeoJSON and JSON-LD files, or the text
+  "not rated". The file manifest and `release-notes.md` then give the share of the public claims
+  with a full pair, in all and by type.
+- Each release gives the method of geolocation of each place. The column `geolocation_method` of
+  `entities.csv` and the same property of `entities.geojson` hold one word of the closed list, or
+  `not_stated`. The file manifest and `release-notes.md` give the share of the places with
+  `not_stated`. An older release has no such column and no such member, and the site still reads it.
 - `iriBase` (an `https://` address that ends with a slash) is the base of the JSON-LD identifiers.
   Set it once, to the public site, before the first public release. Never change it after.
 - `criticalNodes` is the path of your CSV sheet of candidate nodes, relative to the manifest. Keep
@@ -151,6 +170,13 @@ pnpm worker release --manifest <manifest> --out <folder> --previous <previous re
    `python -m http.server 8000` in the site folder.
 4. The address `/v1/` gives a short page that links the critical nodes. The site holds no build of
    the version 1 map.
+
+## Measure the speed of the site
+
+Run `pnpm speed:budget --site <site folder>` before a release. It is a manual command and no
+required check. It opens the home page, the map and one entity page on a slow network, prints a
+table, and exits with 1 when a budget is passed. The budgets are in `tools/speed-budget.json`.
+A page that cannot render (no release data, no WebGL) gives a `skip` row and does not fail.
 
 ## The application with no backend
 

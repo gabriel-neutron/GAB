@@ -24,9 +24,28 @@ export interface WebAnswer {
   readonly body: string;
 }
 
+/** One POST: the headers, the body as text, and the two caps of the answer. */
+export interface WebPost {
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly body: string;
+  readonly timeoutMs: number;
+  readonly maxBytes: number;
+}
+
+/** The answer of a POST, as bytes, because the answer can be an image. A redirect is an answer. */
+export interface WebBytes {
+  readonly status: number;
+  /** The names are in lower case. */
+  readonly headers: Readonly<Record<string, string>>;
+  readonly bytes: Uint8Array;
+}
+
 /** The only way a web tool reaches the web. The surface builds it, so a tool holds no socket. */
 export interface Web {
   get(url: string, request: WebRequest): Promise<WebAnswer>;
+  /** A POST, for an API that takes its question in a body. The tool that uses it checks that the
+   * surface gives it. */
+  post?(url: string, request: WebPost): Promise<WebBytes>;
   /** The address of the local SearXNG. It is an http address on the machine itself. */
   readonly searxngUrl?: string;
   /** The key of the Brave Search API. It leaves in a header and in no address. */
@@ -40,6 +59,13 @@ export interface Web {
   /** The map key of NASA FIRMS. FIRMS reads it in the address path, so the tool never stores that
    * address, never logs it and never puts it in a message. */
   readonly firmsKey?: string;
+  /** The key of the UN Comtrade API. It leaves in the header Ocp-Apim-Subscription-Key and in no
+   * address. */
+  readonly comtradeKey?: string;
+  /** The OAuth client of the Copernicus Data Space. The id and the secret leave in the body of the
+   * token request and in no address. */
+  readonly cdseClientId?: string;
+  readonly cdseClientSecret?: string;
 }
 
 /** One passage that an item cites: the words that code found in the page, and the words around
@@ -49,12 +75,21 @@ export interface CheckedPassage {
   readonly page: number;
   readonly excerpt: string;
   readonly context: string;
+  /** The day when the document was published, from the caller or from its address. Null when no
+   * source gives it. */
+  readonly publishedOn?: string | null;
 }
 
 /** One item that the propose tool is about to write, with the passages that state it. */
 export interface ItemToCheck {
   readonly ref: string;
-  readonly claim: { readonly act: unknown; readonly originator: string; readonly modality: string };
+  readonly claim: {
+    readonly act: unknown;
+    readonly originator: string;
+    readonly modality: string;
+    /** Each day of `occurred_on` that the act claims, with its weekday. */
+    readonly occurredOnWeekdays?: readonly { readonly day: string; readonly weekday: string }[];
+  };
   readonly passages: readonly CheckedPassage[];
 }
 

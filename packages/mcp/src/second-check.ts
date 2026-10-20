@@ -185,7 +185,21 @@ export const checkBatch = async (
     {
       role: 'user',
       content: JSON.stringify({
-        claims: items.map((item) => ({ ref: item.ref, ...item.claim, passages: item.passages })),
+        claims: items.map(({ ref, claim, passages }) => ({
+          ref,
+          act: claim.act,
+          originator: claim.originator,
+          modality: claim.modality,
+          // The weekday of each claimed day and the day of publication of each document let the
+          // checker read a passage that gives a weekday only.
+          ...(claim.occurredOnWeekdays?.length
+            ? { occurred_on_weekdays: claim.occurredOnWeekdays }
+            : {}),
+          passages: passages.map(({ publishedOn, ...rest }) => ({
+            ...rest,
+            ...(publishedOn ? { published_on: publishedOn } : {}),
+          })),
+        })),
       }),
     },
   ];

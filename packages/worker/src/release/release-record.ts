@@ -23,6 +23,9 @@ const entityRow = z.object({
   /** The documents of the act that set the geometry, empty when the entity has no geometry. The
    * database always gives it. A row without it is a test row, and its row-level sources count. */
   geom_sources: z.array(z.string()).optional(),
+  /** How a source found the place: a word of the closed list of the methods, null when the entity
+   * has no geometry. A row without it is a test row, and its place is `not_stated`. */
+  geom_method: z.string().nullable().optional(),
 });
 
 const relationRow = z.object({
@@ -65,6 +68,8 @@ const documentRow = z.object({
   licence: z.string().nullable(),
   /** The provider that distributed the document, or null. */
   provider: z.string().nullable(),
+  /** The type of the document. A test record may leave it out, and it reads as `other`. */
+  doc_type: z.string().optional(),
 });
 
 const mergeRow = z.object({
@@ -130,7 +135,7 @@ export const readReleaseRecord = async (
   const entities = await rowsOf(
     db,
     entityRow,
-    'SELECT id, type, label, origin_label, sources, geom, geom_sources FROM public.release_entities() ORDER BY id',
+    'SELECT id, type, label, origin_label, sources, geom, geom_sources, geom_method FROM public.release_entities() ORDER BY id',
   );
   const relations = await rowsOf(
     db,
@@ -156,7 +161,7 @@ export const readReleaseRecord = async (
   const documents = await rowsOf(
     db,
     documentRow,
-    `SELECT id, title, uri, retrieved_at::text AS retrieved_at, licence, provider
+    `SELECT id, title, uri, retrieved_at::text AS retrieved_at, licence, provider, doc_type
        FROM public.release_documents() ORDER BY id`,
   );
   const [said] = await rowsOf(

@@ -9,6 +9,7 @@ import {
   Marker,
   type ExpressionSpecification,
   type FilterSpecification,
+  ScaleControl,
   type LineLayerSpecification,
   type StyleSpecification,
 } from 'maplibre-gl';
@@ -17,6 +18,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import type { GlobeData } from './globe-data';
 import type { GlobeState, GlobeStore, Target } from './globe-store';
 import { selectedEntity } from './selected-entity';
+import { ARC_LAYERS, type ArcLayer } from './arc-layers';
 import { frameOf, highlightOf, pickHit, type Under } from './globe-view';
 
 // External constraint: the library parses no oklch colour and no CSS custom property, so the
@@ -44,78 +46,6 @@ const SPIN_STEP = 6;
 const SPIN_MS = 2000;
 // The pulse runs along a link in this time, then waits for a short time.
 const PULSE_MS = 2600;
-
-interface ArcLayer {
-  readonly id: string;
-  readonly style: string;
-  /** The property that gives the width, or a fixed width. */
-  readonly width: 'width' | 'halo' | number;
-  readonly dash: number[] | null;
-  readonly colour: 'product' | 'review' | 'land';
-  readonly opacity: number;
-}
-
-// The layers of the arcs, from the bottom. An estimate is hatched over a pale halo of its range,
-// and a capacity is a hollow line: a line of the land inside a line of the product.
-const ARC_LAYERS: readonly ArcLayer[] = [
-  {
-    id: 'arcs-halo',
-    style: 'estimated',
-    width: 'halo',
-    dash: null,
-    colour: 'product',
-    opacity: 0.25,
-  },
-  { id: 'arcs-solid', style: 'solid', width: 'width', dash: null, colour: 'product', opacity: 1 },
-  {
-    id: 'arcs-dashed',
-    style: 'dashed',
-    width: 'width',
-    dash: [3, 2],
-    colour: 'product',
-    opacity: 1,
-  },
-  {
-    id: 'arcs-review',
-    style: 'in review',
-    width: 'width',
-    dash: [0.5, 1.5],
-    colour: 'review',
-    opacity: 1,
-  },
-  {
-    id: 'arcs-observed',
-    style: 'observed',
-    width: 'width',
-    dash: null,
-    colour: 'product',
-    opacity: 1,
-  },
-  {
-    id: 'arcs-estimated',
-    style: 'estimated',
-    width: 'width',
-    dash: [1, 1],
-    colour: 'product',
-    opacity: 1,
-  },
-  {
-    id: 'arcs-capacity',
-    style: 'capacity',
-    width: 'width',
-    dash: null,
-    colour: 'product',
-    opacity: 1,
-  },
-  {
-    id: 'arcs-capacity-inside',
-    style: 'capacity',
-    width: 1.5,
-    dash: null,
-    colour: 'land',
-    opacity: 1,
-  },
-];
 
 const ARC_COLOURS: Readonly<Record<ArcLayer['colour'], string | ExpressionSpecification>> = {
   product: ['coalesce', ['get', 'colour'], MARK],
@@ -332,6 +262,8 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
     if (loaded) work();
     else queue.push(work);
   };
+
+  map.addControl(new ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left');
 
   // The library measures the container once, while the chrome around it is still being built.
   const observer = new ResizeObserver(() => {

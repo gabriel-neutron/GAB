@@ -46,6 +46,10 @@ decide the unit.
 - `promote_unit`, `reject_unit`, `reject_relation`: the decisions of the review page on one
   unit. `promote_clean_proposals`: the group action, which promotes the clean units of one group,
   each as its own decision with your reason.
+- `join_unit`: joins a doubted unit to a unit that waits, when both state the same event of the
+  same site on the same day (ADR 0029). The waiting unit takes the passages, and the doubted
+  unit is closed. Read the waiting unit with `read_unit` first. The waiting unit stays in the
+  queue for its reviewer.
 - `document_text`: the whole page of a cited document, when the passage is not enough.
 
 ## Steps
@@ -79,6 +83,9 @@ decide the unit.
    - Each clean unit of one group is correct: call `promote_clean_proposals` with the group and
      the units that you read. Give only the units whose passages you read. The database refuses
      each unit that is not clean, and writes the others.
+   - The unit is an event that a unit in the lane of the waiting units states already, from
+     another source: call `join_unit` with the doubted unit, the waiting unit and your reason.
+     Do not reject the doubted unit: a rejection loses its source.
    - You are not sure: send the unit to the skill `expert-panel`, and decide it with its verdict.
 5. Give `why` for each decision: one or two sentences that name the passage and say how it
    supports the decision. The operator reads it beside the origin.

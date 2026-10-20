@@ -32,7 +32,7 @@ const TYPE = 'berthed at';
 
 /** The one document of `BERTHED`, and the count control that opens it. */
 const CARD_TITLE = 'Vessel movement log, scanned';
-const ONE_SOURCE = '1 source document. Open it.';
+const ONE_SOURCE = /^1 source document for: .+\. Open it\.$/;
 
 /** The way out of the entity panel. A relation has no full page, so no popover here carries it. */
 const WAY_OUT = 'Open the full page at this source, in a new tab';
@@ -76,6 +76,16 @@ export const TheDirectionIsTheOneBothCanvasesDraw: Story = {
   play: async ({ canvas }) => {
     const heading = canvas.getByRole('heading', { level: 1 });
     await expect(heading).toHaveTextContent(relationLines(FROM, TYPE, TO).join(''));
+  },
+};
+
+export const TheDefinitionOfTheTypeShowsWithALinkToTheGlossary: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText(/A vessel stood at a berth/u)).toBeVisible();
+    await expect(canvas.getByRole('link', { name: 'Glossary' })).toHaveAttribute(
+      'href',
+      '/glossary#relation-types',
+    );
   },
 };
 
@@ -175,5 +185,29 @@ export const ThePanelOfTheMapShowsTheRelationInTheGraph: Story = {
   play: async ({ canvas }) => {
     const link = canvas.getByRole('link', { name: 'Show in graph' });
     await expect(link).toHaveAttribute('href', `/graph?relation=${BERTHED_ID}`);
+  },
+};
+
+/** The berthed relation, with a day stored as an attribute. */
+const WITH_DAY = ((): RelationDossier => {
+  const held = readRelation(
+    {
+      ...corpus,
+      relations: corpus.relations.map((one) =>
+        one.id === BERTHED_ID
+          ? { ...one, attrs: { ...one.attrs, day: { v: '2024-03-02', src: ['doc_3c1104'] } } }
+          : one,
+      ),
+    },
+    BERTHED_ID,
+  );
+  if (held === null) throw new Error(`The committed corpus holds no relation ${BERTHED_ID}`);
+  return held;
+})();
+
+export const AStoredDayShowsOnThePanel: Story = {
+  args: { relation: WITH_DAY },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Day: 2024-03-02')).toBeVisible();
   },
 };

@@ -8,8 +8,13 @@ const COMMANDS = {
   'asset-sanctions': async () =>
     (await import('./release/asset-sanctions-command.ts')).assetSanctionsCommand,
   'author-names': async () => (await import('./author-names-command.ts')).authorNamesCommand,
+  'document-labels': async () =>
+    (await import('./document-labels-command.ts')).documentLabelsCommand,
   'dry-join': async () => (await import('./dry-join-command.ts')).dryJoinCommand,
   'firms-sweep': async () => (await import('./firms-sweep-command.ts')).firmsSweepCommand,
+  'gem-duplicates': async () => (await import('./gem-duplicates-command.ts')).gemDuplicatesCommand,
+  'geolocation-method': async () =>
+    (await import('./geolocation-method-command.ts')).geolocationMethodCommand,
   ingest: async () => (await import('./ingest-command.ts')).ingestCommand,
   layout: async () => (await import('./layout-command.ts')).layoutCommand,
   'merge-act': async () => (await import('./merge-act-command.ts')).mergeActCommand,
@@ -26,6 +31,8 @@ const COMMANDS = {
     (await import('./requeue-ratings-command.ts')).requeueRatingsCommand,
   'reread-html': async () => (await import('./reread-command.ts')).rereadCommand,
   run: async () => (await import('./run-command.ts')).runCommand,
+  'sentinel2-pairs': async () =>
+    (await import('./sentinel2-pairs-command.ts')).sentinel2PairsCommand,
   'text-set': async () => (await import('./text-set-command.ts')).textSetCommand,
 } as const satisfies Record<string, () => Promise<SubCommand>>;
 

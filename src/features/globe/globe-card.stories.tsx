@@ -46,7 +46,7 @@ export const TheCardOfAnEntityLinksToItsPageAndNamesItsStage: Story = {
       'href',
       `/entity/${CHAIN.FIELD}`,
     );
-    await expect(canvas.getByText('facility, Fields')).toBeVisible();
+    await expect(canvas.getByText('Facility, Fields')).toBeVisible();
   },
 };
 
@@ -114,6 +114,41 @@ export const SeveralPointsUnderOneClickGiveAChoice: Story = {
       kind: 'target',
       target: { kind: 'entity', id: CHAIN.FIELD },
     });
+  },
+};
+
+/** The close control shows at every width, and it closes the card. */
+export const TheCardCarriesAVisibleControlThatClosesIt: Story = {
+  args: { store: storeOn({ kind: 'entity', id: CHAIN.FIELD }) },
+  play: async ({ args, canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Close panel' }));
+    await expect(args.store.get().panel).toStrictEqual({ kind: 'none' });
+  },
+};
+
+/** A key opens a card from the choice: the focus moves to the heading, and Escape closes it. */
+export const AKeyOpensTheCardWithTheFocusOnItsHeading: Story = {
+  args: {
+    store: (() => {
+      const store = storeOn(null);
+      store.choose([
+        { target: { kind: 'entity', id: CHAIN.FIELD }, label: 'Test field' },
+        {
+          target: { kind: 'exit', id: 'exit-sts-0a1f0000-0000-4000-8000-000000000119' },
+          label: 'Ship-to-ship transfer',
+        },
+      ]);
+      return store;
+    })(),
+  },
+  play: async ({ args, canvas }) => {
+    await userEvent.tab();
+    await userEvent.tab();
+    await userEvent.keyboard('{Enter}');
+    await expect(canvas.getByRole('heading', { name: 'Test field' })).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    await expect(args.store.get().panel).toStrictEqual({ kind: 'none' });
+    await expect(canvas.getByRole('region', { name: 'Card of the selected entity' })).toHaveFocus();
   },
 };
 

@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DownloadsRouteImport } from './routes/downloads'
+import { Route as GlossaryRouteImport } from './routes/glossary'
 import { Route as GraphRouteImport } from './routes/graph'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as MethodRouteImport } from './routes/method'
 import { Route as ReviewRouteImport } from './routes/review'
@@ -32,9 +34,19 @@ const DownloadsRoute = DownloadsRouteImport.update({
   path: '/downloads',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GlossaryRoute = GlossaryRouteImport.update({
+  id: '/glossary',
+  path: '/glossary',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GraphRoute = GraphRouteImport.update({
   id: '/graph',
   path: '/graph',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MapRoute = MapRouteImport.update({
@@ -86,7 +98,9 @@ const VesselImoRoute = VesselImoRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/downloads': typeof DownloadsRoute
+  '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
+  '/help': typeof HelpRoute
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
   '/review': typeof ReviewRoute
@@ -100,7 +114,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/downloads': typeof DownloadsRoute
+  '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
+  '/help': typeof HelpRoute
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
   '/review': typeof ReviewRoute
@@ -115,7 +131,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/downloads': typeof DownloadsRoute
+  '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
+  '/help': typeof HelpRoute
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
   '/review': typeof ReviewRoute
@@ -131,7 +149,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/downloads'
+    | '/glossary'
     | '/graph'
+    | '/help'
     | '/map'
     | '/method'
     | '/review'
@@ -145,7 +165,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/downloads'
+    | '/glossary'
     | '/graph'
+    | '/help'
     | '/map'
     | '/method'
     | '/review'
@@ -159,7 +181,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/downloads'
+    | '/glossary'
     | '/graph'
+    | '/help'
     | '/map'
     | '/method'
     | '/review'
@@ -174,7 +198,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DownloadsRoute: typeof DownloadsRoute
+  GlossaryRoute: typeof GlossaryRoute
   GraphRoute: typeof GraphRoute
+  HelpRoute: typeof HelpRoute
   MapRoute: typeof MapRoute
   MethodRoute: typeof MethodRoute
   ReviewRoute: typeof ReviewRoute
@@ -202,11 +228,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DownloadsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/glossary': {
+      id: '/glossary'
+      path: '/glossary'
+      fullPath: '/glossary'
+      preLoaderRoute: typeof GlossaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/graph': {
       id: '/graph'
       path: '/graph'
       fullPath: '/graph'
       preLoaderRoute: typeof GraphRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/map': {
@@ -278,7 +318,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DownloadsRoute: DownloadsRoute,
+  GlossaryRoute: GlossaryRoute,
   GraphRoute: GraphRoute,
+  HelpRoute: HelpRoute,
   MapRoute: MapRoute,
   MethodRoute: MethodRoute,
   ReviewRoute: ReviewRoute,

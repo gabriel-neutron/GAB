@@ -18,6 +18,10 @@ const citedAttributes = (attrs: unknown, cited: readonly string[]): unknown => {
  * database refuses an act that cites no document or a reserved one, and the promotion keeps the
  * documents that a kept value already cites. */
 export const machineAct = (request: WriteRequest, documents: readonly string[]): ProposalAct => {
+  // A machine states how it found a place. The door of the operator defaults to `not_stated`, and
+  // a machine gets no such default.
+  if ('geom' in request && request.geom !== undefined && request.geomMethod === undefined)
+    throw new Error('a machine act with a geometry names its method of geolocation');
   const cited = [...new Set(documents)];
   const act = proposalAct(request);
   const attrs = act.payload['attrs'];

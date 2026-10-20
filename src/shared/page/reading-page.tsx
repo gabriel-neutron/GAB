@@ -10,7 +10,12 @@ export function ReadingPage({ children }: ReadingPageProps) {
   // External constraint: the frame holds a fixed height, so the page scrolls inside it and the
   // header stays on the screen.
   return (
-    <div className="h-full overflow-y-auto overscroll-contain">
+    <div
+      // External constraint: a region that scrolls needs a tab stop, or a keyboard cannot reach
+      // a page that holds no link.
+      tabIndex={0}
+      className="h-full overflow-y-auto overscroll-contain outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50"
+    >
       <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 pt-4 pb-8 text-body">
         {children}
       </div>

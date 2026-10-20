@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { readSiteRelease } from './site-release.ts';
+import { pairRating, readSiteRelease } from './site-release.ts';
 import { SiteReleaseFault } from './site-release-fault.ts';
 
 const VESSEL = '0a1f0000-0000-4000-8000-000000000001';
@@ -48,4 +48,40 @@ test('an entity identifier with a slash refuses the release', () => {
 
 test('two claim keys that differ only by case refuse the release', () => {
   expect(() => changed(`${VESSEL}/flag`, `${VESSEL}/IMO`)).toThrow(/case/u);
+});
+
+test('a page shows the pair, "not rated", or nothing when the release hides the pair', () => {
+  const manifest = { showNatoPair: true } as Parameters<typeof pairRating>[0];
+  const hidden = { showNatoPair: false } as Parameters<typeof pairRating>[0];
+  const pair = { letter: 'B', digit: '2' };
+  expect(pairRating(manifest, { pair })).toEqual({ shown: true, pair });
+  expect(pairRating(manifest, { pair: null })).toEqual({ shown: true, pair: null });
+  expect(pairRating(hidden, { pair })).toEqual({ shown: false });
+});
+
+test('the site reads the method of geolocation of an entity with a place', () => {
+  const methods = changed('no such text', 'x').entities.map((one) => one.geolocationMethod);
+  expect(methods).toContain('register_address');
+  expect(methods).toContain(null);
+});
+
+// An older release has no such column: its header and its rows end at the sources.
+const withoutColumn = (name: string, text: string): string =>
+  name === 'entities.csv'
+    ? text
+        .replace('document_ids,geolocation_method', 'document_ids')
+        .replace(/^(0a1f[^\n]*?),[a-z_]*$/gmu, '$1')
+    : text;
+
+test('a release before the column of the methods is still read, and its entities have none', () => {
+  const release = readSiteRelease(
+    new Map(
+      Object.entries(FIXTURE).map(([path, text]) => {
+        const name = path.split('/').pop() ?? path;
+        return [name, withoutColumn(name, text)] as const;
+      }),
+    ),
+  );
+  expect(release.entities.length).toBeGreaterThan(0);
+  expect(release.entities.every((one) => one.geolocationMethod === null)).toBe(true);
 });

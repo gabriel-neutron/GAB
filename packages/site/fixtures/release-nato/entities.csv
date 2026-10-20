@@ -10,15 +10,15 @@
 # A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.
 #
 # Report an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.
-id,type,label,origin_label,licence,document_ids
-0a1f0000-0000-4000-8000-000000000001,vessel,Severnaya Volna,"Accepted by rule strong_sources v2 — no person read it, on 2026-10-02",CC-BY 4.0,eu_act
-0a1f0000-0000-4000-8000-000000000002,company,Arctic Bridge Shipping,"Validated manually by the operator, on 2026-10-04","derived fact; source under the provider licence, not redistributed",news
-0a1f0000-0000-4000-8000-000000000003,organisation,Council of the European Union,"Validated manually by the operator, on 2026-10-04",CC-BY 4.0,eu_act
-0a1f0000-0000-4000-8000-000000000004,port,Primorsk,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news
-0a1f0000-0000-4000-8000-000000000031,facility,Test export pipeline,"Validated manually by the operator, on 2026-10-04","derived fact; source under the provider licence, not redistributed",volume_report
-0a1f0000-0000-4000-8000-000000000006,company,Baltic Tanker Holding,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news
-0a1f0000-0000-4000-8000-000000000007,company,Gulf Ship Management,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news
-0a1f0000-0000-4000-8000-000000000008,company,Coastal Mutual,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news
-0a1f0000-0000-4000-8000-000000000009,vessel,Northern Wave,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news
-0a1f0000-0000-4000-8000-00000000000a,vessel,Polar Spirit,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news
-0a1f0000-0000-4000-8000-00000000000b,organisation,Republic of Cameroon,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news
+id,type,label,origin_label,licence,document_ids,geolocation_method
+0a1f0000-0000-4000-8000-000000000001,vessel,Severnaya Volna,"Accepted by rule strong_sources v2 — no person read it, on 2026-10-02",CC-BY 4.0,eu_act,source_coordinates
+0a1f0000-0000-4000-8000-000000000002,company,Arctic Bridge Shipping,"Validated manually by the operator, on 2026-10-04","derived fact; source under the provider licence, not redistributed",news,
+0a1f0000-0000-4000-8000-000000000003,organisation,Council of the European Union,"Validated manually by the operator, on 2026-10-04",CC-BY 4.0,eu_act,
+0a1f0000-0000-4000-8000-000000000004,port,Primorsk,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news,register_address
+0a1f0000-0000-4000-8000-000000000031,facility,Test export pipeline,"Validated manually by the operator, on 2026-10-04","derived fact; source under the provider licence, not redistributed",volume_report,not_stated
+0a1f0000-0000-4000-8000-000000000006,company,Baltic Tanker Holding,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news,
+0a1f0000-0000-4000-8000-000000000007,company,Gulf Ship Management,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news,
+0a1f0000-0000-4000-8000-000000000008,company,Coastal Mutual,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news,
+0a1f0000-0000-4000-8000-000000000009,vessel,Northern Wave,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news,
+0a1f0000-0000-4000-8000-00000000000a,vessel,Polar Spirit,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news,
+0a1f0000-0000-4000-8000-00000000000b,organisation,Republic of Cameroon,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news,

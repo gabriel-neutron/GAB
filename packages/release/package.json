@@ -14,6 +14,7 @@
     "./chain-flows": "./src/chain-flows.ts",
     "./chain-map-data": "./src/chain-map-data.ts",
     "./claim-text": "./src/claim-text.ts",
+    "./coverage": "./src/coverage.ts",
     "./csv": "./src/csv.ts",
     "./disclaimer-blocks": "./src/disclaimer-blocks.ts",
     "./event-fixture": "./src/event-fixture.ts",

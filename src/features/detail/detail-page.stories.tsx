@@ -41,7 +41,7 @@ const firstCard = (): SourceCardModel => {
 
 const CARD = firstCard();
 
-const MARK_NAME = `Source ${CARD.number} — ${CARD.title}`;
+const MARK_NAME = new RegExp(`^Source ${CARD.number} for: `);
 
 const railOf = (root: HTMLElement): HTMLElement =>
   within(root).getByRole('complementary', { name: 'Sources' });
@@ -230,6 +230,16 @@ export const AMarkInTheRecordMarksTheCardInTheRail: Story = {
   },
 };
 
+export const NoTwoSourceButtonsShareAName: Story = {
+  play: async ({ canvasElement }) => {
+    const names = within(canvasElement)
+      .getAllByRole('button', { name: /^Source \d+ for: / })
+      .map((button) => button.getAttribute('aria-label'));
+
+    await expect(new Set(names).size).toBe(names.length);
+  },
+};
+
 export const ArrivingWithASourceMarksThatCard: Story = {
   args: { arrivedAtSource: CARD.id },
   play: async ({ canvasElement }) => {
@@ -309,6 +319,7 @@ export const AVesselOfTheReleaseLinksItsTimelineAndNamesTheMergedIdentifiers: St
         address: null,
         claimIds: [],
         label: { origin: 'Proposed — not checked', licence: 'CC-BY 4.0' },
+        location: null,
         events: null,
       },
     },
@@ -335,6 +346,7 @@ export const ARowLinksItsClaimOnlyWhereTheReleaseHoldsIt: Story = {
         claims: [],
         address: null,
         claimIds: [`${VESSEL}/${DOSSIER.rows[0]?.claim.key ?? ''}`, DOSSIER.relations[0]?.id ?? ''],
+        location: null,
         events: null,
       },
     },
@@ -362,9 +374,11 @@ export const TheReleaseGivesTheLabelAndTheLicenceOfEachClaimAndTheAddress: Story
             text: 'Northern Ledger: Flag Gabon',
             origin: 'Proposed — not checked',
             licence: 'CC-BY 4.0',
+            rating: { shown: true, pair: { letter: 'B', digit: '2' } },
           },
         ],
         address: `https://gab.example.org/entity/${VESSEL}`,
+        location: null,
         events: null,
       },
     },
@@ -376,7 +390,31 @@ export const TheReleaseGivesTheLabelAndTheLicenceOfEachClaimAndTheAddress: Story
     ).toHaveAttribute('href', `/claim/${VESSEL}/flag`);
     await expect(within(table).getByText('Proposed — not checked')).toBeVisible();
     await expect(within(table).getByText('CC-BY 4.0')).toBeVisible();
+    await expect(within(table).getByText('B2')).toBeVisible();
     await expect(canvas.getByText(`https://gab.example.org/entity/${VESSEL}`)).toBeVisible();
+  },
+};
+
+/** The release says how it found the place of an entity. */
+export const TheReleaseSaysHowItFoundThePlace: Story = {
+  args: {
+    dossier: {
+      ...DOSSIER,
+      facts: {
+        imo: null,
+        label: null,
+        merged: [],
+        claimIds: [],
+        claims: [],
+        address: null,
+        location: 'coordinates that the source writes',
+        events: null,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Position found by')).toBeVisible();
+    await expect(canvas.getByText('coordinates that the source writes')).toBeVisible();
   },
 };
 
@@ -404,6 +442,7 @@ export const ASiteOfTheReleaseDrawsItsEvents: Story = {
         claims: [],
         address: null,
         claimIds: [],
+        location: null,
         events: releaseFactsOf(EVENTS_RELEASE, SITE, 'facility', true).events,
       },
     },
@@ -451,7 +490,9 @@ export const TheHeaderStatesTheExtractedWordAndTheBorrowedPosition: Story = {
     await expect(canvas.getByRole('heading', { level: 1 })).not.toHaveTextContent('proposed as');
 
     const from = canvasElement.querySelector('[data-position-from]');
-    await expect(from).toHaveTextContent('position from 92nd Coastal Battery');
+    await expect(from).toHaveTextContent(
+      'Position borrowed from 92nd Coastal Battery (no own position recorded)',
+    );
   },
 };
 
@@ -1101,5 +1142,25 @@ export const AnActInFlightHoldsTheView: Story = {
       await expect(saidIn(canvasElement)).toHaveTextContent(PROPOSAL);
     });
     await expect(canvas.getByRole('button', { name: 'Edit' })).toBeEnabled();
+  },
+};
+
+export const TheHeaderOfAVesselShowsItsFlagItsMmsiAndItsCallSign: Story = {
+  args: {
+    dossier: { ...DOSSIER, identity: { flag: 'Panama', mmsi: '352001234', callSign: 'HP1234' } },
+  },
+  play: async ({ canvasElement }) => {
+    const header = within(canvasElement).getByRole('banner');
+    await expect(within(header).getByText('Panama')).toBeVisible();
+    await expect(within(header).getByText('352001234')).toBeVisible();
+    await expect(within(header).getByText('HP1234')).toBeVisible();
+  },
+};
+
+export const TheHeaderOfAVesselWithoutThemReadsNotRecorded: Story = {
+  args: { dossier: { ...DOSSIER, identity: { flag: null, mmsi: null, callSign: null } } },
+  play: async ({ canvasElement }) => {
+    const header = within(canvasElement).getByRole('banner');
+    await expect(within(header).getAllByText(/not recorded/)).toHaveLength(3);
   },
 };

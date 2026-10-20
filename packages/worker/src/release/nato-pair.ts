@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 import type { Queryable } from '../queryable.ts';
 
+/** The text that a claim with no full pair shows in each file of a release, never an empty value. */
+export const NOT_RATED = 'not rated';
+
 const pairRow = z.object({
   act: z.uuid(),
   letter: z.enum(['A', 'B', 'C', 'D', 'E', 'F']),

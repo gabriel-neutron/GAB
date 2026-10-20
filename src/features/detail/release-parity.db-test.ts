@@ -47,7 +47,8 @@ beforeAll(async () => {
   const files = new Map<string, string>();
   for (const name of await readdir(folder))
     files.set(name, await readFile(join(folder, name), 'utf8'));
-  fromFiles = corpusFromRelease(readSiteRelease(files), await loadRelationTypes());
+  const released = readSiteRelease(files);
+  fromFiles = corpusFromRelease(released, await loadRelationTypes());
   fromService = await loadCorpus();
 }, 60_000);
 
@@ -70,28 +71,35 @@ const withinRelease = (service: Corpus, files: Corpus): Corpus => {
     ...service,
     entities: service.entities.flatMap((one) => {
       const held = entities.get(one.id);
-      return held === undefined
-        ? []
-        : [
-            {
-              ...one,
-              attrs: Object.fromEntries(
-                Object.entries(one.attrs)
-                  .filter(([key]) => key in held.attrs)
-                  .map(([key, value]) => [
-                    key,
-                    { ...value, src: value.src.filter((id) => held.attrs[key]?.src.includes(id)) },
-                  ]),
-              ),
-              sources: one.sources.filter((id) => held.sources.includes(id)),
-            },
-          ];
+      if (held === undefined) return [];
+      const attrs = Object.fromEntries(
+        Object.entries(one.attrs)
+          .filter(([key]) => key in held.attrs)
+          .map(([key, value]) => [
+            key,
+            { ...value, src: value.src.filter((id) => held.attrs[key]?.src.includes(id)) },
+          ]),
+      );
+      // Departure: a release holds no source list for the row of an entity. The
+      // reader of the files gives the row the documents of all its claims. The service can hold
+      // a claim document that its row list lacks, so the row list of the release stands for both
+      // reads. The sources of each claim stay in the comparison.
+      return [{ ...one, attrs, sources: held.sources }];
     }),
     relations: service.relations.flatMap((one) => {
       const held = relations.get(one.id);
       return held === undefined
         ? []
-        : [{ ...one, sources: one.sources.filter((id) => held.sources.includes(id)) }];
+        : [
+            {
+              ...one,
+              // The release keeps an attribute only with a source, so the service is cut the same.
+              attrs: Object.fromEntries(
+                Object.entries(one.attrs).filter(([key]) => key in held.attrs),
+              ),
+              sources: one.sources.filter((id) => held.sources.includes(id)),
+            },
+          ];
     }),
   };
 };
@@ -104,8 +112,8 @@ const pageOf = (corpus: Corpus, id: string, types: TypeVocabulary) => {
   if (dossier === null) return null;
   // Departure: a release holds the own point of an entity and no precision word, so it cannot
   // borrow the point of a parent, and the map of a release draws own points only. It holds the
-  // documents of each claim and no list for the row. So `drawnOnMap`, `positionFrom` and
-  // `entitySources` are left out, as are the parts that write: the choices of a new link, the type
+  // documents of each claim and no list for the row. So `drawnOnMap`, `positionFrom`, `positionChain`
+  // and `entitySources` are left out, as are the parts that write: the choices of a new link, the type
   // chooser, the pending acts and the flag of an extraction.
   return {
     entityId: dossier.entityId,
@@ -113,6 +121,9 @@ const pageOf = (corpus: Corpus, id: string, types: TypeVocabulary) => {
     type: dossier.type,
     proposedType: dossier.proposedType,
     decision: dossier.decision,
+    affiliation: dossier.affiliation,
+    sourceDay: dossier.sourceDay,
+    identity: dossier.identity,
     rows: dossier.rows,
     relations: dossier.relations,
     sources: dossier.sources.map((card) => ({ ...card, extractable: false })),
@@ -130,4 +141,13 @@ test('the compared pages hold claims and relations', () => {
   const dossiers = fromFiles.entities.map((one) => pageOf(fromFiles, one.id, []));
   expect(dossiers.some((page) => (page?.rows.length ?? 0) > 0)).toBe(true);
   expect(dossiers.some((page) => (page?.relations.length ?? 0) > 0)).toBe(true);
+});
+
+// A stored fact of a relation shows on its line in the release as it does on the live page.
+test('each stored fact of a relation shows on the line of both pages', () => {
+  const shown = (corpus: Corpus) =>
+    fromFiles.entities.flatMap(
+      (one) => pageOf(corpus, one.id, [])?.relations.map((line) => [line.id, line.facts]) ?? [],
+    );
+  expect(shown(fromFiles)).toStrictEqual(shown(withinRelease(fromService, fromFiles)));
 });

@@ -40,7 +40,7 @@ function SourceAddress({ address }: { readonly address: string | null }) {
 }
 
 /** One public document that a page cites: its title, its address, the day it was read and, for
- * one claim, the passages that hold the claim. It carries no grade and no letter (S1). */
+ * one claim, the passages that hold the claim.  */
 export function SourceEntry({ source }: SourceEntryProps) {
   const titleId = useId();
   return (

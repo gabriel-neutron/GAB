@@ -180,6 +180,116 @@ test('search_graph finds nothing for an imo that no entity holds', async () => {
   expect(found.entities).toStrictEqual([]);
 });
 
+// --------------------------------------------------------- list_entities ---
+
+const listed = z.object({
+  entities: z.array(z.object({ id: z.uuid(), label: z.string(), type: z.string() })),
+  next: z.uuid().nullable(),
+  total: z.number(),
+  withKey: z.number().nullable(),
+  withoutKey: z.number().nullable(),
+});
+
+const COUNT_KEYS = ['flag_history', 'mmsi_history', 'call_sign'] as const;
+
+test('list_entities counts the vessels with a key and without it, and the two add up', async () => {
+  await rolledBack('research', async (ask) => {
+    for (const key of COUNT_KEYS) {
+      const found = listed.parse(
+        await output(ask, 'list_entities', { type: 'vessel', key, limit: 1 }),
+      );
+      expect(found.total).toBeGreaterThan(0);
+      expect((found.withKey ?? 0) + (found.withoutKey ?? 0)).toBe(found.total);
+      const [direct] = z
+        .array(z.object({ n: z.number() }))
+        .parse(
+          await ask(
+            `SELECT count(*)::int AS n FROM api.entity WHERE type = 'vessel' AND NOT (attrs ? $1)`,
+            [key],
+          ),
+        );
+      expect(found.withoutKey).toBe(direct?.n);
+    }
+  });
+});
+
+test('list_entities lists only the entities without a key when presence says without', async () => {
+  await rolledBack('research', async (ask) => {
+    const found = listed.parse(
+      await output(ask, 'list_entities', {
+        type: 'vessel',
+        key: 'call_sign',
+        presence: 'without',
+        limit: 200,
+      }),
+    );
+    const ids = found.entities.map((entity) => entity.id);
+    const withKey = z
+      .array(z.object({ id: z.uuid() }))
+      .parse(
+        await ask(
+          `SELECT id::text AS id FROM api.entity WHERE type = 'vessel' AND attrs ? 'call_sign'`,
+        ),
+      );
+    expect(found.entities.length).toBeGreaterThan(0);
+    for (const held of withKey) expect(ids).not.toContain(held.id);
+  });
+});
+
+test('list_entities lists only the entities with a key when presence says with', async () => {
+  await rolledBack('research', async (ask) => {
+    const found = listed.parse(
+      await output(ask, 'list_entities', {
+        type: 'vessel',
+        key: 'flag_history',
+        presence: 'with',
+        limit: 200,
+      }),
+    );
+    const held = z
+      .array(z.object({ id: z.uuid() }))
+      .parse(
+        await ask(
+          `SELECT id::text AS id FROM api.entity WHERE type = 'vessel' AND attrs ? 'flag_history'`,
+        ),
+      );
+    const ids = new Set(held.map((row) => row.id));
+    for (const entity of found.entities) expect(ids.has(entity.id)).toBe(true);
+    expect(found.entities.length).toBe(Math.min(200, held.length));
+  });
+});
+
+test('list_entities reads all entities of a type through the cursor, none lost, none repeated', async () => {
+  await rolledBack('research', async (ask) => {
+    const seen: string[] = [];
+    let after: string | undefined;
+    let total: number | undefined;
+    let pages = 0;
+    do {
+      const page = listed.parse(
+        await output(ask, 'list_entities', { type: 'vessel', limit: 3, ...(after && { after }) }),
+      );
+      seen.push(...page.entities.map((entity) => entity.id));
+      total = page.total;
+      after = page.next ?? undefined;
+      pages += 1;
+    } while (after !== undefined && pages < 10_000);
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen.length).toBe(total);
+    const all = z
+      .array(z.object({ id: z.uuid() }))
+      .parse(await ask(`SELECT id::text AS id FROM api.entity WHERE type = 'vessel'`));
+    expect([...seen].sort()).toStrictEqual(all.map((row) => row.id).sort());
+  });
+});
+
+test('list_entities refuses a type that the record does not hold', async () => {
+  await rolledBack('research', async (ask) => {
+    const outcome = await call(ask, 'list_entities', { type: 'no_such_type' });
+    expect(outcome.ok).toBe(false);
+  });
+});
+
 // --------------------------------------------------------- neighbourhood ---
 
 const walk = z.object({
@@ -1512,6 +1622,7 @@ test('propose refuses a geometry that is no valid shape on the globe at the inse
           type: 'vessel',
           label: 'Nayara',
           geom: { type: 'LineString', coordinates: [[69.6, 22.4]] },
+          geomMethod: 'source_coordinates',
         },
         'the tanker NAYARA',
       ),
@@ -1535,6 +1646,7 @@ test('propose refuses a position past the pole at the insert', async () => {
           type: 'vessel',
           label: 'Nayara',
           geom: { type: 'Point', coordinates: [69.6, -91] },
+          geomMethod: 'source_coordinates',
         },
         'the tanker NAYARA',
       ),
@@ -1544,6 +1656,45 @@ test('propose refuses a position past the pole at the insert', async () => {
     ok: false,
     refusal: expect.stringContaining('item nayara: act.geom: each position') as string,
   });
+});
+
+test.each([
+  [
+    'a new entity',
+    { op: 'create_entity', type: 'vessel', label: 'Nayara' },
+    'item nayara: a geom needs geomMethod',
+  ],
+  [
+    'a change of place',
+    { op: 'update_entity', targetId: ABSENT },
+    'item nayara: a geom needs geomMethod',
+  ],
+])('propose refuses a place with no method of geolocation for %s', async (_case, act, said) => {
+  const outcome = await rolledBack('superuser', async (ask) =>
+    proposeOnPage(ask, [
+      item('nayara', { ...act, geom: { type: 'Point', coordinates: [69.6, 22.4] } }, 'NAYARA'),
+    ]),
+  );
+  expect(outcome).toMatchObject({ ok: false, refusal: expect.stringContaining(said) as string });
+});
+
+test('propose refuses a word outside the list of the methods of geolocation', async () => {
+  const outcome = await rolledBack('superuser', async (ask) =>
+    proposeOnPage(ask, [
+      item(
+        'nayara',
+        {
+          op: 'create_entity',
+          type: 'vessel',
+          label: 'Nayara',
+          geom: { type: 'Point', coordinates: [69.6, 22.4] },
+          geomMethod: 'guess',
+        },
+        'the tanker NAYARA',
+      ),
+    ]),
+  );
+  expect(outcome).toMatchObject({ ok: false });
 });
 
 test('propose refuses an update of a target that does not exist', async () => {
@@ -1590,7 +1741,11 @@ test('propose gives a place to an entity of the record, and a different place is
   const found = await rolledBack('superuser', async (ask) => {
     const [bare, moved] = await placedPair(ask);
     const place = (ref: string, targetId: string, geom: unknown) =>
-      item(ref, { op: 'update_entity', targetId, geom }, '5940N 02819E');
+      item(
+        ref,
+        { op: 'update_entity', targetId, geom, geomMethod: 'source_coordinates' },
+        '5940N 02819E',
+      );
     const outcome = await proposeOnPage(
       ask,
       [
@@ -1628,7 +1783,11 @@ test('propose gives a place to an entity of the record, and a different place is
     { ref: 'far', written: true, disputed: true, unstated: ['geom.longitude', 'geom.latitude'] },
   ]);
   const of = (id: string, geom: unknown) =>
-    found.faults.find((one) => one.id === id && isDeepStrictEqual(one.payload, { geom }));
+    found.faults.find(
+      (one) =>
+        one.id === id &&
+        isDeepStrictEqual(one.payload, { geom, geom_method: 'source_coordinates' }),
+    );
   expect(of(found.bare, ULU)).toMatchObject({ src: [DOC] });
   expect(of(found.bare, ULU)?.kinds).not.toContain('record_disagrees');
   expect(of(found.moved, ULU)?.kinds).toContain('record_disagrees');
@@ -1640,7 +1799,12 @@ test('propose refuses the place that an entity of the record has already', async
     return proposeOnPage(ask, [
       item(
         'same',
-        { op: 'update_entity', targetId: moved, geom: { type: 'Point', coordinates: [20, 10] } },
+        {
+          op: 'update_entity',
+          targetId: moved,
+          geom: { type: 'Point', coordinates: [20, 10] },
+          geomMethod: 'source_coordinates',
+        },
         'left Sikka',
       ),
     ]);
@@ -1659,7 +1823,12 @@ test('propose refuses a place on an entity that does not exist', async () => {
     proposeOnPage(ask, [
       item(
         'place',
-        { op: 'update_entity', targetId: ABSENT, geom: { type: 'Point', coordinates: [28, 59] } },
+        {
+          op: 'update_entity',
+          targetId: ABSENT,
+          geom: { type: 'Point', coordinates: [28, 59] },
+          geomMethod: 'source_coordinates',
+        },
         'left Sikka',
       ),
     ]),
@@ -1677,7 +1846,13 @@ const placeOfPending = async (ask: Ask, geom: unknown = ULU, created?: unknown) 
       ? NAYARA
       : item(
           'nayara',
-          { op: 'create_entity', type: 'vessel', label: 'Nayara', geom: created },
+          {
+            op: 'create_entity',
+            type: 'vessel',
+            label: 'Nayara',
+            geom: created,
+            geomMethod: 'source_coordinates',
+          },
           '5940N 02819E',
         );
   const [vessel] = batchOf(
@@ -1685,7 +1860,11 @@ const placeOfPending = async (ask: Ask, geom: unknown = ULU, created?: unknown) 
   ).proposals;
   if (vessel === undefined) throw new Error('propose wrote no entity');
   const outcome = await proposeAgain(ask, [
-    item('place', { op: 'update_entity', targetId: vessel.proposalId, geom }, '5940N 02819E'),
+    item(
+      'place',
+      { op: 'update_entity', targetId: vessel.proposalId, geom, geomMethod: 'source_coordinates' },
+      '5940N 02819E',
+    ),
   ]);
   return { vessel: vessel.proposalId, outcome };
 };
@@ -1813,6 +1992,7 @@ test('two different places of one new entity that waits are a doubt', async () =
             op: 'update_entity',
             targetId: vessel,
             geom: { type: 'Point', coordinates: [30.5, 50.4] },
+            geomMethod: 'source_coordinates',
           },
           '5940N 02819E',
         ),
@@ -1972,7 +2152,35 @@ test('propose adds a source to a relation when its excerpt names the act', async
   expect(found.rows[0]?.payload).toStrictEqual({ add_source: true });
 });
 
-test('propose refuses a source whose excerpt names neither the vessel nor the act', async () => {
+test('propose adds a source to a relation when its excerpt holds a Cyrillic name of the far end', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await designatedRelation(ask);
+    await ask(
+      `UPDATE public.entities SET attrs = attrs || '{"label_cyrillic":{"v":"Кавказ","src":["manual"]}}'::jsonb
+        WHERE label = 'A treasury'`,
+    );
+    return proposeOnPage(
+      ask,
+      [sourcing(held, 'порту "Кавказ"')],
+      'Удар по порту "Кавказ" в ночь на вторник.',
+    );
+  });
+  expect(batchOf(found).proposals).toMatchObject([{ ref: 'source', written: true }]);
+});
+
+test('propose refuses a source whose excerpt holds only an alias under 4 characters', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await designatedRelation(ask);
+    await ask(
+      `UPDATE public.entities SET attrs = attrs || '{"aliases":{"v":["Kav"],"src":["manual"]}}'::jsonb
+        WHERE label = 'A treasury'`,
+    );
+    return proposeOnPage(ask, [sourcing(held, 'Kav')], 'Kav was hit.');
+  });
+  expect(found).toMatchObject({ ok: false });
+});
+
+test('propose refuses a source whose excerpt names no end of the relation', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const held = await designatedRelation(ask);
     const outcome = await proposeOnPage(
@@ -1985,7 +2193,7 @@ test('propose refuses a source whose excerpt names neither the vessel nor the ac
   expect(found.outcome).toMatchObject({
     ok: false,
     refusal: expect.stringContaining(
-      'item source: no excerpt of a cited document names the vessel',
+      'item source: no excerpt of a cited document names an end of the relation',
     ) as string,
   });
   expect(found.rows).toStrictEqual([]);

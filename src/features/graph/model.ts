@@ -6,8 +6,10 @@ import { MultiDirectedGraph } from 'graphology';
 
 import { typeHues, UNDECLARED_HUE } from '@/shared/entity-hues';
 import { unitHierarchy, type UnitHierarchy } from '@/shared/fold-subordinates';
+import { typeLabel } from '@/shared/type-label';
 import type { Corpus, Proposal, Relation, TypeVocabulary } from '@/shared/read/model';
 
+import { familyOf, lookOf, type RelationFamily } from './relation-families';
 import { analyseStructure, topologyOf } from './structure';
 
 export interface NodePosition {
@@ -25,32 +27,36 @@ export interface NodeAttrs {
   readonly entityType: string;
   readonly degree: number;
   readonly isolate: boolean;
+  /** The layout run gave it no place, and it stands on the ring. */
+  readonly unplaced: boolean;
 }
 
 export interface EdgeAttrs {
   readonly size: number;
   readonly color: string;
+  /** The family of the relation. Sigma reads the program of an edge from `type`. */
+  readonly type: RelationFamily;
   readonly relationType: string;
   readonly validFrom: string | null;
   readonly validTo: string | null;
 }
 
-// The two colours the canvas paints that no type declares. Each one is `#rrggbb`: Sigma parses
+// The colours the canvas paints that no type declares, beside the hues of the relation families. Each one is `#rrggbb`: Sigma parses
 // hex on the CPU, and an `hsl()` colour comes out black in silence. The hue of a type is not
 // here: `entity_type` declares it, and this file reads that declaration.
 interface GraphPalette {
   readonly isolate: string;
-  readonly edge: string;
+  readonly unplaced: string;
 }
 
 /** Which ground the canvas has. The light theme is on `:root`, the dark theme on `.dark`. */
 export type GraphGround = 'light' | 'dark';
 
 // Contrast against `--background` of the same ground, where the minimum is 3:1: `isolate` gives
-// 8.6:1 and 8.7:1, `edge` gives 5.6:1. The `--border` hue gives 1.5:1 on the dark ground.
+// 8.6:1 and 8.7:1, and `unplaced` gives 4.0:1 and 4.1:1. The `--border` hue gives 1.5:1 on the dark ground.
 const GRAPH_PALETTES: Readonly<Record<GraphGround, GraphPalette>> = Object.freeze({
-  light: Object.freeze({ isolate: '#42494c', edge: '#5e6468' }),
-  dark: Object.freeze({ isolate: '#a9afb1', edge: '#848a8c' }),
+  light: Object.freeze({ isolate: '#42494c', unplaced: '#767b7e' }),
+  dark: Object.freeze({ isolate: '#a9afb1', unplaced: '#6e7679' }),
 });
 
 const hexPair = (value: number): string => value.toString(16).padStart(2, '0');
@@ -80,6 +86,8 @@ export interface GraphModel {
   // The hue of each type. A node is the wrong source: an isolate wears grey, so a type whose only
   // drawn entity is isolated would give a swatch that disagrees with the canvas.
   readonly hueOfType: ReadonlyMap<string, string>;
+  /** The label of a type, from the vocabulary. A key it does not hold reads by the rule of the keys. */
+  readonly labelOfType: (type: string) => string;
   /** The chain of command between the drawn nodes. The rail folds its list by it. */
   readonly hierarchy: UnitHierarchy;
 }
@@ -101,16 +109,22 @@ const isDrawable = (relation: Relation, drawn: ReadonlySet<string>): boolean =>
 const isM4 = (relation: Relation): boolean =>
   relation.srcKind === 'relation' || relation.dstKind === 'relation';
 
-// An isolate is painted before its type, because the reader is told which elements stand alone
-// before which kind of thing each one is. The two callers below state the rule one time: a node
-// that the build paints and a node that a ground change repaints must take the same hue.
+// A node on the ring is painted before all else: its place means nothing, so no other mark may
+// make it read as a member of a cluster. An isolate is painted before its type, because the
+// reader is told which elements stand alone before which kind of thing each one is. The two
+// callers below state the rule one time: a node that the build paints and a node that a ground
+// change repaints must take the same hue.
 const hueOfNode = (
-  attrs: Pick<NodeAttrs, 'isolate' | 'entityType'>,
+  attrs: Pick<NodeAttrs, 'isolate' | 'entityType' | 'unplaced'>,
   palette: GraphPalette,
   hueOfType: ReadonlyMap<string, string>,
   ground: GraphGround,
 ): string =>
-  attrs.isolate ? palette.isolate : (hueOfType.get(attrs.entityType) ?? UNDECLARED_HUE[ground]);
+  attrs.unplaced
+    ? palette.unplaced
+    : attrs.isolate
+      ? palette.isolate
+      : (hueOfType.get(attrs.entityType) ?? UNDECLARED_HUE[ground]);
 
 function hold<T>(index: Map<string, T[]>, key: string, value: T): void {
   const held = index.get(key);
@@ -123,6 +137,7 @@ export function buildGraphModel(
   positions: ReadonlyMap<string, NodePosition>,
   types: TypeVocabulary,
   ground: GraphGround,
+  unplaced: ReadonlySet<string>,
 ): GraphModel {
   const palette = GRAPH_PALETTES[ground];
   const drawn = new Set<string>();
@@ -164,23 +179,31 @@ export function buildGraphModel(
 
     const degree = topology.degree(entity.id);
     const isolate = isolates.has(entity.id);
+    const unplacedNode = unplaced.has(entity.id);
     graph.addNode(entity.id, {
       x: position.x,
       y: position.y,
       // `log1p(0)` is 0, so a node of degree 0 takes the floor.
       size: sizeSpan === 0 ? SIZE_FLOOR : SIZE_FLOOR + (Math.log1p(degree) / sizeSpan) * SIZE_RANGE,
-      color: hueOfNode({ isolate, entityType: entity.type }, palette, hueOfType, ground),
+      color: hueOfNode(
+        { isolate, entityType: entity.type, unplaced: unplacedNode },
+        palette,
+        hueOfType,
+        ground,
+      ),
       label: entity.label,
       entityType: entity.type,
       degree,
       isolate,
+      unplaced: unplacedNode,
     });
   }
 
   for (const relation of edges) {
     graph.addDirectedEdgeWithKey(relation.id, relation.srcId, relation.dstId, {
       size: 1,
-      color: palette.edge,
+      color: lookOf(familyOf(relation.type)).hue[ground],
+      type: familyOf(relation.type),
       relationType: relation.type,
       validFrom: relation.validFrom,
       validTo: relation.validTo,
@@ -200,6 +223,7 @@ export function buildGraphModel(
     graph,
     pendingByTarget,
     hueOfType,
+    labelOfType: (type) => typeLabel(type, types),
     hierarchy: unitHierarchy(corpus.relations, new Set(graph.nodes())),
   };
 }

@@ -1,4 +1,5 @@
 import { type AttributeEdit } from './attribute-value.ts';
+import { GEOLOCATION_KEY, NOT_STATED, type GeolocationMethod } from './geolocation-method.ts';
 import { type WriteRequest } from './request.ts';
 
 // The one document an act of the operator cites. A machine may never cite it, and the database
@@ -26,6 +27,16 @@ const sourcedAttributes = (edit: AttributeEdit | undefined): Sourced => {
   return sourced;
 };
 
+// The place of an act and the method that found it. A place with no method takes `not_stated`, so
+// the record never holds a place whose method is unknown to the record.
+const placeOf = (request: {
+  readonly geom?: unknown;
+  readonly geomMethod?: GeolocationMethod | undefined;
+}): Record<string, unknown> =>
+  request.geom === undefined
+    ? {}
+    : { geom: request.geom, [GEOLOCATION_KEY]: request.geomMethod ?? NOT_STATED };
+
 /** The act of the operator, in the words of the record. */
 export const proposalAct = (request: WriteRequest): ProposalAct => {
   switch (request.op) {
@@ -35,7 +46,7 @@ export const proposalAct = (request: WriteRequest): ProposalAct => {
         payload: {
           type: request.type,
           label: request.label,
-          ...(request.geom === undefined ? {} : { geom: request.geom }),
+          ...placeOf(request),
           attrs: sourcedAttributes(request.attrs),
           // The row-level list backs label, type and geom alone. The operator types each by
           // hand, so it is manual alone.
@@ -103,7 +114,7 @@ export const proposalAct = (request: WriteRequest): ProposalAct => {
         payload: {
           ...(request.label === undefined ? {} : { label: request.label }),
           ...(request.type === undefined ? {} : { type: request.type }),
-          ...(request.geom === undefined ? {} : { geom: request.geom }),
+          ...placeOf(request),
         },
         // The row-level list backs the name, the type and the place together. The operator
         // authority backs it. If the operator cites a stored image, the citations back it instead.

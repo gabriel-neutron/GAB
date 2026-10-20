@@ -21,6 +21,7 @@ const DOCUMENT_ROW = {
   retrieved_at: null,
   created_at: '2026-08-25T03:25:13.270163+00:00',
   cost_eur: null,
+  doc_type: 'report',
 };
 
 const NORTHERN = {
@@ -281,4 +282,32 @@ test('with the service down, the history of decided acts is empty and does not f
   serviceDown = true;
   const { loadDecidedActs } = await import('./decided-acts');
   expect(await loadDecidedActs()).toStrictEqual([]);
+});
+
+test('the time of the read is set by a read, kept by a held answer and changed by a refresh', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  try {
+    vi.setSystemTime(new Date('2026-11-08T10:00:00Z'));
+    const { loadCorpus, refreshCorpus } = await import('./corpus');
+    const { readTimeNow, readTimeText } = await import('./read-time');
+    const said = () => {
+      const time = readTimeNow();
+      return time === null ? null : readTimeText(time);
+    };
+    expect(said()).toBeNull();
+
+    await loadCorpus();
+    expect(said()).toBe('2026-11-08 10:00 UTC');
+
+    vi.setSystemTime(new Date('2026-11-08T10:05:00Z'));
+    await loadCorpus();
+    expect(said()).toBe('2026-11-08 10:00 UTC');
+
+    await refreshCorpus(async () => {
+      await loadCorpus();
+    });
+    expect(said()).toBe('2026-11-08 10:05 UTC');
+  } finally {
+    vi.useRealTimers();
+  }
 });
