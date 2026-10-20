@@ -17,9 +17,15 @@ import '../src/index.css';
  * The design of a decorator is a later discussion, and it is not decided. One written before
  * that discussion would be a guess.
  */
+// Departure: the a11y run in the dark theme sets VITE_A11Y_DARK=1. The theme class goes on the
+// root before each story, so axe measures the contrast of the dark pairs too.
 const preview: Preview = {
+  beforeEach: () => {
+    if (import.meta.env['VITE_A11Y_DARK'] === '1') document.documentElement.classList.add('dark');
+  },
   parameters: {
     layout: 'centered',
+    a11y: { test: 'error' },
   },
 };
 

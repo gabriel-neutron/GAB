@@ -94,7 +94,11 @@ export function SourceCount({ sources, cards, entityId }: SourceCountProps) {
       {/* The kit writes `w-72 rounded-lg p-4` at its own scale. The correction is made here, at
           the call site, because a vendored file is closed. The panel holds its own scroll: a
           popover that grows past the window puts the way out of its last card off the screen. */}
-      <PopoverContent className="max-h-96 w-80 overflow-y-auto overscroll-contain p-0" align="end">
+      <PopoverContent
+        aria-label={one ? '1 source document' : `${sources.length} source documents`}
+        className="max-h-96 w-80 overflow-y-auto overscroll-contain p-0"
+        align="end"
+      >
         {sources.map((source) => {
           // `number` is 1-based, so the card of source 7 is `cards[6]`.
           const card = cards[source.number - 1];
