@@ -91,6 +91,8 @@ export interface GraphController {
   readonly setRailOpen: (open: boolean) => void;
   /** The rail edge was dragged. The workspace keeps the width, as it keeps the fold. */
   readonly setRailWidth: (width: number) => void;
+  /** Ends the selection, as a click on the ground does. The focus and the camera stay. */
+  readonly clearSelection: () => void;
   /** Back to every entity: the focus ends, and the camera frames the whole picture. */
   readonly showWholeGraph: () => void;
   readonly subscribe: (listener: (view: GraphView) => void) => () => void;
@@ -1222,6 +1224,10 @@ export function mountGraph(
       railWidth = width;
       patchGraphWorkspace({ railWidth: width });
       publish();
+    },
+    clearSelection: () => {
+      if (destroyed) return;
+      settle(null);
     },
     showWholeGraph: () => {
       if (destroyed) return;

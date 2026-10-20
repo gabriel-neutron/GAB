@@ -12,6 +12,8 @@ import {
 import type { Corpus, EntityPosition, TypeVocabulary } from '@/shared/read/model';
 import { relationWording } from '@/shared/relation-words';
 import { cn } from '@/shared/lib/utils';
+import { useNarrowScreen } from '@/shared/narrow-screen';
+import { PHONE_SHEET, SheetClose } from '@/shared/phone-sheet';
 import { Rail, type RailAct } from '@/shared/rail';
 import { useScreenQuery } from '@/shared/screen-query';
 
@@ -101,6 +103,14 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   const relationFilterNow = useRef<RelationFilterState>({ hiddenRelationTypes: [] });
 
   const [step, setStep] = useState<RailStep>({ openTypes: [], wholeList: [] });
+
+  // Departure: on a phone the rail is a drawer over the canvas, closed at the start. The drawer
+  // dies with the view. The stored fold of the rail is the choice of a wide screen, so the drawer
+  // leaves it as it is.
+  const narrow = useNarrowScreen();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  // A wide screen has no drawer, so the drawer is closed in the render that meets one.
+  if (!narrow && drawerOpen) setDrawerOpen(false);
 
   // The list holds the record, the declared types and one stable function, and no ref: a ref is
   // one object for the life of the component. A later read of the record mounts a new graph,
@@ -221,31 +231,48 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     [model, filter, counts, selection, openUnits, railOpen, railWidth, step, query],
   );
 
-  const act = useCallback((next: RailAct) => {
-    const handle = controller.current;
-    if (handle === null) return;
-    switch (next.kind) {
-      case 'open-rail':
-        handle.setRailOpen(next.open);
-        return;
-      case 'resize-rail':
-        handle.setRailWidth(next.width);
-        return;
-      case 'switch-type': {
-        // The workspace holds the types that are switched **off**. The rows of the rail hold
-        // that polarity, so the shared control states the act and never the set it produces.
-        const filter = filterNow.current;
-        if (filter === null) return;
-        handle.setFilter({ hiddenTypes: hiddenAfterSwitch(filter, next.type, next.on) });
-        return;
+  const act = useCallback(
+    (next: RailAct) => {
+      const handle = controller.current;
+      if (handle === null) return;
+      switch (next.kind) {
+        case 'open-rail':
+          if (narrow) setDrawerOpen(next.open);
+          else handle.setRailOpen(next.open);
+          return;
+        case 'resize-rail':
+          handle.setRailWidth(next.width);
+          return;
+        case 'switch-type': {
+          // The workspace holds the types that are switched **off**. The rows of the rail hold
+          // that polarity, so the shared control states the act and never the set it produces.
+          const filter = filterNow.current;
+          if (filter === null) return;
+          handle.setFilter({ hiddenTypes: hiddenAfterSwitch(filter, next.type, next.on) });
+          return;
+        }
+        case 'show-every-type':
+          handle.setFilter({ hiddenTypes: everyTypeShown() });
+          return;
+        case 'open-type':
+          setStep((held) => stepAfterTypeOpen(held, next.type, next.open));
+          return;
       }
-      case 'show-every-type':
-        handle.setFilter({ hiddenTypes: everyTypeShown() });
-        return;
-      case 'open-type':
-        setStep((held) => stepAfterTypeOpen(held, next.type, next.open));
-        return;
-    }
+    },
+    [narrow],
+  );
+
+  // A choice in the drawer ends the drawer, so the reader sees the node that was chosen.
+  const reachFromDrawer = useCallback(
+    (id: string) => {
+      reach(id);
+      setDrawerOpen(false);
+    },
+    [reach],
+  );
+
+  const clearSelection = useCallback(() => {
+    controller.current?.clearSelection();
   }, []);
 
   const showWholeList = useCallback((type: string) => {
@@ -289,8 +316,13 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
         />
       )}
       <div
+        // The drawer is absolute inside this island, so it is the positioned ancestor on a phone.
+        // The key is read here, and not on the drawer, because focus may stay on the Types button.
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') setDrawerOpen(false);
+        }}
         className={cn(
-          'dark grid border border-border bg-background text-foreground',
+          'dark grid border border-border bg-background text-foreground max-md:relative',
           'lg:grid-cols-[auto_minmax(0,1fr)_20rem]',
         )}
       >
@@ -307,6 +339,21 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
               onBack={showWholeGraph}
             />
           ) : null}
+          <button
+            type="button"
+            aria-expanded={drawerOpen}
+            onClick={() => {
+              setDrawerOpen(true);
+            }}
+            className={cn(
+              'absolute bottom-2 left-2 z-10 h-6 border border-input bg-background px-2 text-small/4',
+              'text-foreground transition-colors duration-100 hover:bg-muted md:hidden',
+              'outline-none focus-visible:border-ring focus-visible:ring-3',
+              'focus-visible:ring-ring/50',
+            )}
+          >
+            Types
+          </button>
           <div className={cn('absolute top-2 right-2')}>
             {snapshot?.view.mode !== 'whole' ? null : (
               <button
@@ -326,11 +373,16 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
         </div>
 
         <div
+          role="region"
+          aria-label="Card of the selection"
           className={cn(
             'max-h-96 min-h-0 min-w-0 overflow-y-auto overscroll-contain border-t border-border',
             'lg:col-start-3 lg:row-start-1 lg:max-h-128 lg:border-t-0 lg:border-l',
+            PHONE_SHEET,
+            selection === null ? 'max-md:hidden' : null,
           )}
         >
+          <SheetClose onClose={clearSelection} />
           {card}
         </div>
 
@@ -340,18 +392,22 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
           className={cn(
             'max-h-96 min-h-0 overflow-hidden border-t border-border',
             'lg:col-start-1 lg:row-start-1 lg:max-h-128 lg:border-t-0 lg:border-r',
+            'max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-20 max-md:w-72',
+            'max-md:max-h-none max-md:max-w-[85%] max-md:border-t-0 max-md:border-r',
+            'max-md:bg-background',
+            drawerOpen ? null : 'max-md:hidden',
           )}
         >
           {snapshot === null || rows === null ? null : (
             <Rail
-              rows={rows.rail}
+              rows={narrow ? { ...rows.rail, open: true } : rows.rail}
               onAct={act}
               index={(type) => {
                 const list = rows.lists.get(type);
                 return list === undefined ? null : (
                   <IndexRows
                     list={list}
-                    onSelect={reach}
+                    onSelect={narrow ? reachFromDrawer : reach}
                     onShowWholeList={() => {
                       showWholeList(type);
                     }}
@@ -359,7 +415,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
                   />
                 );
               }}
-              className={cn('h-full max-h-96 bg-background lg:max-h-128')}
+              className={cn('h-full max-h-96 bg-background max-md:max-h-none lg:max-h-128')}
             />
           )}
         </div>
