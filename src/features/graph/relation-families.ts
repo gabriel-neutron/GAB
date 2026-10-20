@@ -78,6 +78,8 @@ const FAMILY_OF_TYPE: ReadonlyMap<string, RelationFamily> = new Map([
   ['sts_with', 'transfer'],
 ]);
 
+// The three exports are one job: the list of families, the map from a type to its family, and the
+// look of a family.
 export const familyOf = (relationType: string): RelationFamily =>
   FAMILY_OF_TYPE.get(relationType) ?? 'other';
 
