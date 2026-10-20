@@ -30,6 +30,8 @@ import { IndexRows } from './row';
 import type { GraphSelection } from './selection';
 import { ShownLine } from './shown-line';
 import { StartPanel } from './start-panel';
+import { TextViewList } from './text-list';
+import { deriveTextView } from './text-view';
 import { everyTypeShown, hiddenAfterSwitch, isShown, type FilterState } from './type-filter';
 import { UnplacedCount } from './unplaced-count';
 import { DEFAULT_GRAPH_WORKSPACE } from './workspace';
@@ -53,7 +55,11 @@ const GraphCanvas = memo(function GraphCanvas({ canvas, overlay }: GraphCanvasPr
       <div ref={canvas} className={cn('absolute inset-0')} />
       {/* The overlay is positioned, because the controller puts an absolute layer inside it.
           It takes no pointer event, so a drag that starts on it still moves the graph. */}
-      <div ref={overlay} className={cn('pointer-events-none absolute inset-0')} />
+      <div
+        ref={overlay}
+        className={cn('pointer-events-none absolute inset-0')}
+        aria-hidden="true"
+      />
     </>
   );
 });
@@ -176,6 +182,31 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
         : deriveLegend(counts.byRelationType, new Set(hiddenRelationTypes), wordsOf),
     [counts, hiddenRelationTypes, wordsOf],
   );
+
+  const textView = useMemo(
+    () =>
+      model === null || filter === null || hiddenRelationTypes === null
+        ? null
+        : deriveTextView(
+            model.graph,
+            selection,
+            {
+              hiddenTypes: new Set(filter.hiddenTypes),
+              showUnplaced,
+              hiddenRelationTypes: new Set(hiddenRelationTypes),
+            },
+            wordsOf,
+          ),
+    [model, filter, selection, showUnplaced, hiddenRelationTypes, wordsOf],
+  );
+
+  const openEntity = useCallback((id: string) => {
+    controller.current?.focusOn(id);
+  }, []);
+
+  const openRelation = useCallback((id: string) => {
+    controller.current?.openRelation(id);
+  }, []);
 
   const rows = useMemo(
     () =>
@@ -342,6 +373,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
 
       {snapshot === null ? null : (
         <>
+          <TextViewList view={textView} onOpenEntity={openEntity} onOpenRelation={openRelation} />
           <MarkerRemainder
             drawn={snapshot.view.markersDrawn}
             remainder={snapshot.view.markersOverCap}
