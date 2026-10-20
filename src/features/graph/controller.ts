@@ -866,7 +866,7 @@ export function mountGraph(
     for (const listener of [...selectListeners]) listener(selection);
   };
 
-  // Departure: it moves no camera. `flyTo` and `showWholeGraph` are the controls that move it.
+  // Departure: it moves no camera. The callers that must move it do so after the call.
   const settle = (next: GraphSelection | null): void => {
     const changed = !sameSelection(next, selection);
     selection = next;
@@ -979,8 +979,7 @@ export function mountGraph(
   };
 
   // The picking layer of Sigma answers with a dimmed node as well, because a filter dims and
-  // never hides, so the guard is here. There is no camera call in this handler, and that absence
-  // is the rule.
+  // never hides, so the guard is here.
   sigma.on('clickNode', ({ node }) => {
     if (destroyed || !nodeConsidered(node)) return;
     const next: GraphSelection = { kind: 'entity', id: node };
@@ -1111,6 +1110,10 @@ export function mountGraph(
             mode = 'start';
             focusCentre = null;
             expanded = [];
+            // Nothing is drawn, and a selection that is not drawn is a lie on the screen.
+            selection = null;
+            writeSelectionAddress(null);
+            announce();
           }
           arrange();
         }
