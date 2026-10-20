@@ -31,7 +31,7 @@ const TYPE = (() => {
 
 const VIEW: RailView = {
   filter: { hiddenTypes: DEFAULT_GRAPH_WORKSPACE.hiddenTypes },
-  counts: countShown(model.graph, new Set(corpus.entities.map((entity) => entity.id))),
+  counts: countShown(model.graph, new Set(corpus.entities.map((entity) => entity.id)), new Set()),
   selection: null,
   openUnits: new Set(),
   railOpen: true,

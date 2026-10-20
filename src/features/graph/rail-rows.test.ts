@@ -20,7 +20,7 @@ const everyNode = new Set(corpus.entities.map((entity) => entity.id));
 
 const VIEW: RailView = {
   filter: { hiddenTypes: [] },
-  counts: countShown(model.graph, everyNode),
+  counts: countShown(model.graph, everyNode, new Set()),
   selection: null,
   openUnits: new Set(),
   railOpen: true,
@@ -173,7 +173,7 @@ describe('the counter of each type in the graph rail', () => {
       {
         ...VIEW,
         filter: { hiddenTypes: [first.type] },
-        counts: countShown(model.graph, others),
+        counts: countShown(model.graph, others, new Set()),
       },
       { openTypes: [], wholeList: [] },
       '',

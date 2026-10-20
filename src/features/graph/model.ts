@@ -9,6 +9,7 @@ import { unitHierarchy, type UnitHierarchy } from '@/shared/fold-subordinates';
 import { typeLabel } from '@/shared/type-label';
 import type { Corpus, Proposal, Relation, TypeVocabulary } from '@/shared/read/model';
 
+import { familyOf, lookOf, type RelationFamily } from './relation-families';
 import { analyseStructure, topologyOf } from './structure';
 
 export interface NodePosition {
@@ -33,29 +34,29 @@ export interface NodeAttrs {
 export interface EdgeAttrs {
   readonly size: number;
   readonly color: string;
+  /** The family of the relation. Sigma reads the program of an edge from `type`. */
+  readonly type: RelationFamily;
   readonly relationType: string;
   readonly validFrom: string | null;
   readonly validTo: string | null;
 }
 
-// The two colours the canvas paints that no type declares. Each one is `#rrggbb`: Sigma parses
+// The colours the canvas paints that no type declares, beside the hues of the relation families. Each one is `#rrggbb`: Sigma parses
 // hex on the CPU, and an `hsl()` colour comes out black in silence. The hue of a type is not
 // here: `entity_type` declares it, and this file reads that declaration.
 interface GraphPalette {
   readonly isolate: string;
   readonly unplaced: string;
-  readonly edge: string;
 }
 
 /** Which ground the canvas has. The light theme is on `:root`, the dark theme on `.dark`. */
 export type GraphGround = 'light' | 'dark';
 
 // Contrast against `--background` of the same ground, where the minimum is 3:1: `isolate` gives
-// 8.6:1 and 8.7:1, `edge` gives 5.6:1 and
-// `unplaced` gives 4.0:1 and 4.1:1. The `--border` hue gives 1.5:1 on the dark ground.
+// 8.6:1 and 8.7:1, and `unplaced` gives 4.0:1 and 4.1:1. The `--border` hue gives 1.5:1 on the dark ground.
 const GRAPH_PALETTES: Readonly<Record<GraphGround, GraphPalette>> = Object.freeze({
-  light: Object.freeze({ isolate: '#42494c', unplaced: '#767b7e', edge: '#5e6468' }),
-  dark: Object.freeze({ isolate: '#a9afb1', unplaced: '#6e7679', edge: '#848a8c' }),
+  light: Object.freeze({ isolate: '#42494c', unplaced: '#767b7e' }),
+  dark: Object.freeze({ isolate: '#a9afb1', unplaced: '#6e7679' }),
 });
 
 const hexPair = (value: number): string => value.toString(16).padStart(2, '0');
@@ -201,7 +202,8 @@ export function buildGraphModel(
   for (const relation of edges) {
     graph.addDirectedEdgeWithKey(relation.id, relation.srcId, relation.dstId, {
       size: 1,
-      color: palette.edge,
+      color: lookOf(familyOf(relation.type)).hue[ground],
+      type: familyOf(relation.type),
       relationType: relation.type,
       validFrom: relation.validFrom,
       validTo: relation.validTo,

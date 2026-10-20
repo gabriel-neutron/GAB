@@ -30,6 +30,7 @@ describe('the saved workspace of the graph', () => {
       railWidth: 300,
       hops: 2,
       showUnplaced: true,
+      hiddenRelationTypes: [],
     });
   });
 
@@ -44,5 +45,32 @@ describe('the saved workspace of the graph', () => {
     });
 
     expect(readGraphWorkspace().showUnplaced).toBe(false);
+  });
+
+  it('keeps a saved list of relation types that are switched off', () => {
+    store({
+      camera: null,
+      hiddenTypes: [],
+      railOpen: true,
+      railWidth: 256,
+      hops: 1,
+      showUnplaced: true,
+      hiddenRelationTypes: ['sts_with'],
+    });
+
+    expect(readGraphWorkspace().hiddenRelationTypes).toEqual(['sts_with']);
+  });
+
+  it('drops a record whose list of relation types holds a value that is not a word', () => {
+    store({
+      camera: null,
+      hiddenTypes: [],
+      railOpen: true,
+      railWidth: 256,
+      hops: 1,
+      hiddenRelationTypes: [3],
+    });
+
+    expect(readGraphWorkspace().hiddenRelationTypes).toEqual([]);
   });
 });
