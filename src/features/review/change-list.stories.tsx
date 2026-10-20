@@ -231,7 +231,7 @@ type Story = StoryObj<typeof meta>;
 export const TheEntityComesFirstAsText: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole('heading', { name: '5th Combined Arms Army' })).toBeVisible();
-    await expect(canvas.getByText('echelon:')).toBeVisible();
+    await expect(canvas.getByText('Echelon:')).toBeVisible();
     await expect(canvas.getByText('Army')).toBeVisible();
     await expect(canvas.queryByRole('textbox')).toBeNull();
   },
@@ -358,7 +358,7 @@ export const APlaceOfTheNewEntityComesWithIt: Story = {
   play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByRole('heading', { name: 'Place that comes with it' })).toBeVisible();
     const change = canvasElement.querySelector(`[data-change="${PLACING}"]`);
-    await expect(change).toHaveTextContent('position:43.1, 131.9');
+    await expect(change).toHaveTextContent('Position:position43.1, 131.9');
     await expect(change).toHaveTextContent('A rejection of the entity rejects it.');
   },
 };

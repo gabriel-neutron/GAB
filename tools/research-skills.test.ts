@@ -110,7 +110,17 @@ test('the Claude Code settings allow each tool of the server, except the ones th
   const allowed = [...RESEARCH]
     .filter((name) => !ASKS_FIRST.has(name))
     .map((name) => `mcp__gab__${name}`);
-  expect([...settings.permissions.allow].sort()).toStrictEqual(allowed.sort());
+  const ownRules = [
+    'Bash(gh api user --jq .login)',
+    'Bash(gh issue comment:*)',
+    'Bash(gh issue view:*)',
+    'Bash(git -C .. pull --ff-only origin staging)',
+    'Bash(pnpm -C .. db:apply)',
+    'Bash(pnpm -C .. db:migrate)',
+    'mcp__Claude_Browser__*',
+    'mcp__playwright__*',
+  ];
+  expect([...settings.permissions.allow].sort()).toStrictEqual([...allowed, ...ownRules].sort());
   expect(settings.permissions.deny).toStrictEqual([
     'Read(//**/infra/.env)',
     'Edit(//**/infra/.env)',

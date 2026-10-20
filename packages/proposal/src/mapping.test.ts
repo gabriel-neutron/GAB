@@ -229,7 +229,7 @@ test('a relation names the entity type of its far end, and a split cell needs a 
   // A cell of names or of another key never splits.
   expect(
     mappingDraft.safeParse(
-      held({ other_type: 'company', split: { separator: ';' } }, { key: 'label', column: 'Owner' }),
+      held({ other_type: 'company', split: { separator: ';' } }, { key: 'imo', column: 'Owner' }),
     ).success,
   ).toBe(false);
   // A split cell gives the share, so a mapped share_pct would be overwritten.
@@ -330,4 +330,12 @@ test('the kind of an asset is a constant, never a column', () => {
   });
   expect(read.success).toBe(false);
   expect(JSON.stringify(read.error?.issues)).toContain('asset_kind is a constant');
+});
+
+test('a relation that finds the other end by a name is refused', () => {
+  const byName = {
+    ...DRAFT,
+    relations: [{ type: 'operates', row_is: 'dst', other: { key: 'label', column: 'Owner' } }],
+  };
+  expect(mappingDraft.safeParse(byName).success).toBe(false);
 });

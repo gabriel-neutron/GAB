@@ -54,8 +54,7 @@ export function SourceMark({ sources, activeSource, onSelectSource }: SourceMark
         <button
           key={source.id}
           type="button"
-          // The visible text is the number alone. The accessible name adds the title of the
-          // document.
+          // The visible text is the number alone. The accessible name adds the fact.
           aria-label={source.name}
           aria-pressed={activeSource === source.id}
           onClick={() => {
@@ -87,9 +86,7 @@ export function SourceCount({ sources, cards, entityId }: SourceCountProps) {
       <PopoverTrigger
         // No `aria-pressed`: nothing is active in a sidebar, because there is no rail for a mark
         // to move.
-        aria-label={
-          one ? '1 source document. Open it.' : `${sources.length} source documents. Open them.`
-        }
+        aria-label={`${one ? '1 source document' : `${sources.length} source documents`} for: ${sources[0]?.fact ?? ''}. Open ${one ? 'it' : 'them'}.`}
         className={cn(MARK)}
       >
         {sources.length}
@@ -97,7 +94,11 @@ export function SourceCount({ sources, cards, entityId }: SourceCountProps) {
       {/* The kit writes `w-72 rounded-lg p-4` at its own scale. The correction is made here, at
           the call site, because a vendored file is closed. The panel holds its own scroll: a
           popover that grows past the window puts the way out of its last card off the screen. */}
-      <PopoverContent className="max-h-96 w-80 overflow-y-auto overscroll-contain p-0" align="end">
+      <PopoverContent
+        aria-label={one ? '1 source document' : `${sources.length} source documents`}
+        className="max-h-96 w-80 overflow-y-auto overscroll-contain p-0"
+        align="end"
+      >
         {sources.map((source) => {
           // `number` is 1-based, so the card of source 7 is `cards[6]`.
           const card = cards[source.number - 1];

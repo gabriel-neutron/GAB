@@ -1,6 +1,7 @@
 // Every entity takes a position, so no entity is dropped from the picture in silence. A stored
 // position comes from the layout run; an entity the run did not place takes a position that is a
-// pure function of its identifier, so it stands in the same place on every open.
+// pure function of its identifier and of the stored places of its neighbours, so it stands in the
+// same place on every open.
 
 import type { Entity, EntityPosition } from '@/shared/read/model';
 
@@ -8,12 +9,12 @@ import type { NodePosition } from './model';
 
 const TAU = Math.PI * 2;
 
-// An unplaced entity stands outside the reach of the stored picture, in a band of this depth, so
+// An unplaced entity stands outside the reach of the stored picture, in a ring of this depth, so
 // that it reads as unplaced and does not set the bounding box that Sigma normalises on its own.
-const BAND_INNER = 1.1;
-const BAND_DEPTH = 0.15;
+const RING_INNER = 1.1;
+const RING_DEPTH = 0.15;
 
-// The reach of a corpus that carries no stored position at all. The band is then the whole
+// The reach of a corpus that carries no stored position at all. The ring is then the whole
 // picture, and only the ratios between the dots matter.
 const BARE_REACH = 1;
 
@@ -40,22 +41,51 @@ const reachOf = (stored: ReadonlyMap<string, EntityPosition>): number => {
   return furthest === 0 ? BARE_REACH : furthest;
 };
 
-/** Where the canvas draws each entity, and how many of them the layout run never placed and the
- * band therefore holds. */
-interface GraphPlacement {
-  readonly positions: ReadonlyMap<string, NodePosition>;
-  readonly unplaced: number;
+/** The two ends of a relation, as the placement reads them. */
+export interface PlacementLink {
+  readonly srcKind: string;
+  readonly srcId: string;
+  readonly dstKind: string;
+  readonly dstId: string;
 }
 
-/** Where the canvas draws each entity: the stored position where the layout run gave one, and a
- * place read from the identifier where it gave none. */
+/** Where the canvas draws each entity, and which entities stand on the ring. */
+interface GraphPlacement {
+  readonly positions: ReadonlyMap<string, NodePosition>;
+  /** The entities with no place: the layout run did not place them, and no placed entity joins
+   * them. Their place on the ring means nothing. */
+  readonly unplaced: ReadonlySet<string>;
+}
+
+// A new entity stands this far from the middle of its placed neighbours, in units of the reach.
+// The distance keeps two new entities of one neighbour apart, inside the cluster.
+const NEAR_MIN = 0.01;
+const NEAR_SPAN = 0.02;
+
+/** Where the canvas draws each entity: the stored position where the layout run gave one; near
+ * the middle of its placed neighbours where it gave none and a neighbour has a place; else on the
+ * ring. The pass reads the stored places only, so the order of the entities changes nothing. */
 export function graphPositions(
   entities: readonly Entity[],
   stored: ReadonlyMap<string, EntityPosition>,
+  relations: readonly PlacementLink[],
 ): GraphPlacement {
   const reach = reachOf(stored);
+  const neighbours = new Map<string, string[]>();
+  const join = (from: string, to: string): void => {
+    if (!stored.has(to)) return;
+    const held = neighbours.get(from);
+    if (held === undefined) neighbours.set(from, [to]);
+    else held.push(to);
+  };
+  for (const relation of relations) {
+    if (relation.srcKind !== 'entity' || relation.dstKind !== 'entity') continue;
+    join(relation.srcId, relation.dstId);
+    join(relation.dstId, relation.srcId);
+  }
+
   const positions = new Map<string, NodePosition>();
-  let unplaced = 0;
+  const unplaced = new Set<string>();
 
   for (const entity of entities) {
     const held = stored.get(entity.id);
@@ -64,9 +94,25 @@ export function graphPositions(
       continue;
     }
     const angle = TAU * unitOf(entity.id, 1);
-    const band = reach * (BAND_INNER + BAND_DEPTH * unitOf(entity.id, 2));
-    positions.set(entity.id, { x: band * Math.cos(angle), y: band * Math.sin(angle) });
-    unplaced += 1;
+    const near = neighbours.get(entity.id);
+    if (near !== undefined) {
+      let sumX = 0;
+      let sumY = 0;
+      for (const id of near) {
+        const at = stored.get(id);
+        sumX += at?.x ?? 0;
+        sumY += at?.y ?? 0;
+      }
+      const away = reach * (NEAR_MIN + NEAR_SPAN * unitOf(entity.id, 2));
+      positions.set(entity.id, {
+        x: sumX / near.length + away * Math.cos(angle),
+        y: sumY / near.length + away * Math.sin(angle),
+      });
+      continue;
+    }
+    const ring = reach * (RING_INNER + RING_DEPTH * unitOf(entity.id, 2));
+    positions.set(entity.id, { x: ring * Math.cos(angle), y: ring * Math.sin(angle) });
+    unplaced.add(entity.id);
   }
 
   return { positions, unplaced };

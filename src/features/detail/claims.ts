@@ -3,6 +3,8 @@
 
 import type { AttributeValue, Attributes, DocId } from '@/shared/read/model';
 
+import { keyWords } from '@gab/proposal/key-words';
+
 import { isDay } from './day';
 
 export type ClaimControl = 'boolean' | 'number' | 'date' | 'text' | 'note' | 'list';
@@ -25,6 +27,8 @@ export type TypedValue = string | boolean;
 export interface ClaimRow {
   readonly key: string;
   readonly label: string;
+  /** The short help of the key, or null. */
+  readonly help: string | null;
   readonly value: ClaimValue;
   readonly width: ClaimWidth;
   /** M8: every claim carries the documents it comes from. No control hides them. */
@@ -98,13 +102,6 @@ function byCodePoint(a: string, b: string): number {
   return a > b ? 1 : 0;
 }
 
-// NOTHING NAMES A KEY BUT THE KEY. There is no label column and no vocabulary, so the printed
-// name is the key with its underscores opened out and its first letter raised.
-function labelOf(key: string): string {
-  const words = key.replaceAll('_', ' ');
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
-
 export function readClaims(attrs: Attributes): readonly ClaimRow[] {
   return (
     Object.entries(attrs)
@@ -112,7 +109,8 @@ export function readClaims(attrs: Attributes): readonly ClaimRow[] {
       .sort(([a], [b]) => byCodePoint(a, b))
       .map(([key, attribute]) => {
         const value = shapeOf(attribute.v);
-        return { key, label: labelOf(key), value, width: widthOf(value), sources: attribute.src };
+        const { label, help } = keyWords(key);
+        return { key, label, help, value, width: widthOf(value), sources: attribute.src };
       })
   );
 }

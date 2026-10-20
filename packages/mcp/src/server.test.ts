@@ -93,6 +93,7 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "read_entity: read",
       "neighbourhood: read",
       "list_vocabulary: read",
+      "list_entities: read",
       "list_proposals: read",
       "find_document: read",
       "document_text: read",
@@ -121,6 +122,7 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "sanctions_match: write",
       "vessel_events: write",
       "firms_detections: write",
+      "comtrade_data: write",
       "enqueue_extract: write",
       "enqueue_mapping: write",
       "start_lead: write",
@@ -128,6 +130,7 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "promote_unit: write",
       "reject_unit: write",
       "reject_relation: write",
+      "join_unit: write",
       "promote_clean_proposals: write",
     ]
   `);

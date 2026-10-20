@@ -66,7 +66,7 @@ const firstCard = (): SourceCardModel => {
 const CARD = firstCard();
 
 /** A count, and never a number. A number points at a rail, and this surface has no rail. */
-const ONE_SOURCE = '1 source document. Open it.';
+const ONE_SOURCE = /^1 source document for: .+\. Open it\.$/;
 
 const WAY_OUT = 'Open the full page at this source, in a new tab';
 
@@ -105,7 +105,7 @@ export const TheTopShowsTheNameAndTheTypeOnly: Story = {
   play: async ({ canvas }) => {
     const heading = canvas.getByRole('heading', { level: 1 });
     await expect(heading).toHaveTextContent(DOSSIER.label);
-    await expect(heading).toHaveTextContent(DOSSIER.type);
+    await expect(heading).toHaveTextContent(DOSSIER.typeName);
 
     await expect(canvas.queryByText(DOSSIER.entityId)).toBeNull();
     // The coordinate of this entity in the committed corpus.
@@ -202,7 +202,23 @@ export const ABorrowedPositionNamesItsParent: Story = {
   args: { dossier: readBorrower() },
   play: async ({ canvasElement }) => {
     const from = canvasElement.querySelector('[data-position-from]');
-    await expect(from).toHaveTextContent('position from 92nd Coastal Battery');
+    await expect(from).toHaveTextContent(
+      'Position borrowed from 92nd Coastal Battery (no own position recorded)',
+    );
+    // One parent is named in the sentence, so no chain line repeats it.
+    await expect(canvasElement.querySelector('[data-position-chain]')).toBeNull();
+  },
+};
+
+export const TheAffiliationLinksItsDefinitionAndTheSourceDayShows: Story = {
+  args: { dossier: readBorrower() },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText(/Affiliation: Hostile/)).toHaveTextContent('not a legal finding');
+    await expect(canvas.getByRole('link', { name: 'Definition' })).toHaveAttribute(
+      'href',
+      '/glossary#hostile',
+    );
+    await expect(canvas.getByText(/Newest source read on/)).toHaveTextContent('2026-07-30');
   },
 };
 
@@ -242,5 +258,25 @@ export const ThePanelOfTheGraphShowsTheEntityOnTheMap: Story = {
   play: async ({ canvas }) => {
     const link = canvas.getByRole('link', { name: 'Show on map' });
     await expect(link).toHaveAttribute('href', `/map?entity=${DOSSIER.entityId}`);
+  },
+};
+
+export const AVesselShowsItsFlagItsMmsiAndItsCallSign: Story = {
+  args: {
+    dossier: { ...DOSSIER, identity: { flag: 'Panama', mmsi: '352001234', callSign: 'HP1234' } },
+  },
+  play: async ({ canvas }) => {
+    const sidebar = canvas.getByRole('complementary', { name: DOSSIER.label });
+    await expect(within(sidebar).getByText('Panama')).toBeVisible();
+    await expect(within(sidebar).getByText('352001234')).toBeVisible();
+    await expect(within(sidebar).getByText('HP1234')).toBeVisible();
+  },
+};
+
+export const AVesselWithoutThemReadsNotRecorded: Story = {
+  args: { dossier: { ...DOSSIER, identity: { flag: null, mmsi: null, callSign: null } } },
+  play: async ({ canvas }) => {
+    const sidebar = canvas.getByRole('complementary', { name: DOSSIER.label });
+    await expect(within(sidebar).getAllByText(/not recorded/)).toHaveLength(3);
   },
 };

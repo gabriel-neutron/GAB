@@ -7,7 +7,7 @@ import { draftsAfterSave, pendingEdit, type ClaimDraft, type Drafts } from './dr
 const typed = (text: string): ClaimDraft => ({ value: { control: 'text', text }, refusal: null });
 
 const row = (key: string, value: ClaimValue): RecordRow => ({
-  claim: { key, label: key, value, width: 'short', sources: [] },
+  claim: { key, label: key, help: null, value, width: 'short', sources: [] },
   sources: [],
 });
 

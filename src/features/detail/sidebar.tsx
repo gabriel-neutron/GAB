@@ -10,6 +10,8 @@ import { Pending } from './pending';
 import { recordCells } from './draft';
 import { EntityRecord } from './record';
 import { Relations } from './relations';
+import { UnitOrigin } from './unit-origin';
+import { VesselIds } from './vessel-ids';
 
 export interface SidebarProps {
   readonly dossier: Dossier;
@@ -44,7 +46,7 @@ export function Sidebar({ dossier, onSelectRelation, showOn }: SidebarProps) {
           <span className="min-w-0 text-base break-words" title={dossier.label}>
             {dossier.label}
           </span>
-          <span className="shrink-0 text-xs text-label">{dossier.type}</span>
+          <span className="shrink-0 text-xs text-label">{dossier.typeName}</span>
         </h1>
         {/* A panel beside a canvas holds a record and not the whole dossier. The page carries
             the rail of documents, which no panel of 24 rem can hold beside a canvas. */}
@@ -62,14 +64,17 @@ export function Sidebar({ dossier, onSelectRelation, showOn }: SidebarProps) {
         </div>
       </div>
 
-      {/* On its own line, and not beside the type: this pane is 24 rem, and a third word in that
-          row truncates the name. The canvas beside it draws the halo, and these words are what
+      {dossier.identity === null ? null : <VesselIds identity={dossier.identity} />}
+
+      {/* On its own lines, and not beside the type: this pane is 24 rem, and a third word in that
+          row squeezes the name. The canvas beside it draws the halo, and these words are what
           name the ancestor the halo cannot name. */}
-      {dossier.positionFrom === null ? null : (
-        <p className="text-small/4 text-label" data-position-from="">
-          {dossier.positionFrom}
-        </p>
-      )}
+      <UnitOrigin
+        positionFrom={dossier.positionFrom}
+        positionChain={dossier.positionChain}
+        affiliation={dossier.affiliation}
+        sourceDay={dossier.sourceDay}
+      />
 
       {/* Every control is read-only and draws with `defaultValue`, which React reads once. A
           selection swaps the dossier under the same mounted element, so a field kept the
@@ -116,9 +121,8 @@ export function RelationSidebar({ relation, showOn }: RelationSidebarProps) {
         {relation.rows.map((row) => (
           <span
             key={row.key}
-            title={row.text}
             className={cn(
-              'block truncate',
+              'block break-words',
               row.key === 'type' ? 'text-xs text-label' : 'text-base',
             )}
           >
@@ -126,6 +130,15 @@ export function RelationSidebar({ relation, showOn }: RelationSidebarProps) {
           </span>
         ))}
       </h1>
+
+      {relation.definition === null ? null : (
+        <p data-relation-definition="" className="text-small/4 text-label">
+          {relation.definition}{' '}
+          <a href="/glossary#relation-types" className={LINK}>
+            Glossary
+          </a>
+        </p>
+      )}
 
       {showOn === undefined ? null : (
         <a
@@ -141,10 +154,7 @@ export function RelationSidebar({ relation, showOn }: RelationSidebarProps) {
           row that vanishes tells the analyst nothing about what the record holds. */}
       <div className="flex items-baseline gap-2 text-small/4">
         <span className="w-20 shrink-0 text-label">Validity</span>
-        <span
-          title={relation.interval ?? undefined}
-          className="min-w-0 flex-1 truncate font-mono tabular-nums"
-        >
+        <span className="min-w-0 flex-1 font-mono break-words tabular-nums">
           {relation.interval}
         </span>
       </div>
@@ -152,11 +162,15 @@ export function RelationSidebar({ relation, showOn }: RelationSidebarProps) {
       {relation.share === null ? null : (
         <div className="flex items-baseline gap-2 text-small/4">
           <span className="w-20 shrink-0 text-label">Share</span>
-          <span title={relation.share} className="min-w-0 flex-1 truncate">
-            {relation.share}
-          </span>
+          <span className="min-w-0 flex-1 break-words">{relation.share}</span>
         </div>
       )}
+
+      {relation.facts.map((fact) => (
+        <p key={fact} className="min-w-0 text-small/4 break-words">
+          {fact}
+        </p>
+      ))}
 
       {/* External constraint: S2 at row level. This list backs the type, the two ends and the
           dates of the relation, and not one attribute, so M8 does not govern it. */}

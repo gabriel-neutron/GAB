@@ -30,8 +30,8 @@ const latestWords = (latest: Extraction | null): string => {
 };
 
 const WORDS: WriteWords<{ readonly latest: Extraction | null }, object> = {
-  idle: 'The status is not read yet.',
-  working: () => 'The write service is asked.',
+  idle: 'The status is not read yet. Queue an extraction to read the document.',
+  working: () => 'The write service is asked. This takes some seconds.',
   done: ({ latest }) => latestWords(latest),
   unknown: () => 'The state of the extraction is not known.',
 };

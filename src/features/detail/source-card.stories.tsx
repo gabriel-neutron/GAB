@@ -51,7 +51,7 @@ const HASH = stated(
   'hash for doc_8f2a41',
 );
 
-const DISCLOSURE = /Claims/;
+const DISCLOSURE = /Facts \(/;
 
 const NO_WEB_ADDRESS = 'No web address recorded';
 
@@ -117,7 +117,7 @@ export const AnAbsentAddressSaysSo: Story = {
   args: { source: HAND_ENTRY },
   play: async ({ canvas }) => {
     await expect(canvas.getByText(NO_WEB_ADDRESS)).toBeInTheDocument();
-    await expect(canvas.getByText('No date of retrieval')).toBeInTheDocument();
+    await expect(canvas.getByText('No retrieval date recorded')).toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
 
@@ -127,6 +127,33 @@ export const AnAbsentAddressSaysSo: Story = {
     await expect(canvas.queryByText('—')).toBeNull();
     await expect(canvas.queryByText('N/A')).toBeNull();
     await expect(canvas.queryByText('0')).toBeNull();
+  },
+};
+
+const LONG_ADDRESS = `https://registry.example/${'long-path/'.repeat(8)}report.pdf`;
+
+/** A long address has a short form. "Show more" gives the whole address, and "Show less" takes it back. */
+export const ALongAddressOpensInFull: Story = {
+  args: { source: addressed(LONG_ADDRESS) },
+  play: async ({ canvas }) => {
+    const link = canvas.getByRole('link', { name: /original document/ });
+    await expect(link).not.toHaveTextContent(LONG_ADDRESS);
+
+    const more = canvas.getByRole('button', { name: /Show more of address/ });
+    await expect(more).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(more);
+
+    await expect(link).toHaveTextContent(LONG_ADDRESS);
+    await userEvent.click(canvas.getByRole('button', { name: /Show less of address/ }));
+    await expect(link).not.toHaveTextContent(LONG_ADDRESS);
+  },
+};
+
+/** A short address needs no control. */
+export const AShortAddressHasNoShowMore: Story = {
+  args: { source: addressed('https://registry.example/e') },
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByRole('button', { name: /address of source/ })).toBeNull();
   },
 };
 
@@ -174,15 +201,50 @@ export const AMissingDocumentSaysMissing: Story = {
   },
 };
 
-export const AClaimTheDocumentHoldsUpIsNamed: Story = {
+export const AnAttributeTheDocumentHoldsUpIsNamedUnderItsOwnHeading: Story = {
   play: async ({ canvas }) => {
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
 
-    await expect(canvas.getAllByRole('listitem')).toHaveLength(REPORT.holdsUp.length);
+    await expect(
+      canvas.getByText(`Attributes this document backs (${REPORT.holdsUp.length})`),
+    ).toBeInTheDocument();
     for (const claim of REPORT.holdsUp) {
       await expect(canvas.getByText(claim.label)).toBeInTheDocument();
       await expect(canvas.getByText(claim.text)).toBeInTheDocument();
     }
+  },
+};
+
+export const ARelationTheDocumentBacksIsNamedAsAFact: Story = {
+  args: { source: { ...REPORT, backs: [{ key: 'r1', text: 'Quartanus designated by an act' }] } },
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
+
+    await expect(canvas.getByText('Facts this document backs (1)')).toBeInTheDocument();
+    await expect(canvas.getByText('Quartanus designated by an act')).toBeInTheDocument();
+  },
+};
+
+export const ADocumentThatBacksNoAttributeDrawsNoAttributeHeading: Story = {
+  args: {
+    source: {
+      ...REPORT,
+      holdsUp: [],
+      backs: [{ key: 'r1', text: 'Quartanus designated by an act' }],
+    },
+  },
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
+
+    await expect(canvas.queryByText(/Attributes this document backs/)).toBeNull();
+  },
+};
+
+export const ADocumentThatBacksNothingSaysSoInAPlainSentence: Story = {
+  args: { source: { ...REPORT, holdsUp: [], backs: [] } },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('This document backs no fact on this page.')).toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: DISCLOSURE })).toBeNull();
   },
 };
 
@@ -191,6 +253,38 @@ export const AStoredDocumentOffersAnExtraction: Story = {
   play: async ({ canvas }) => {
     await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
     await expect(canvas.getByRole('button', { name: 'Extract claims' })).toBeEnabled();
+  },
+};
+
+export const TheDateAndTheKindAreLabelled: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Report')).toBeInTheDocument();
+    await expect(canvas.getByText(/^Retrieved on \d{4}-\d{2}-\d{2}$/)).toBeInTheDocument();
+  },
+};
+
+export const AHandEntryNamesItsKind: Story = {
+  args: { source: HAND_ENTRY },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Manual entry')).toBeInTheDocument();
+  },
+};
+
+export const AnImportSaysItHasNoWebAddress: Story = {
+  args: {
+    source: { ...REPORT, uri: null, uriShort: null, uriCut: false, kind: 'Import', imported: true },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Import')).toBeInTheDocument();
+    await expect(canvas.getByText('Import dataset, no web address')).toBeInTheDocument();
+    await expect(canvas.queryByText(NO_WEB_ADDRESS)).toBeNull();
+  },
+};
+
+export const AnExtractionIsExplainedBeforeItsControl: Story = {
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole('button', { name: DISCLOSURE }));
+    await expect(canvas.getByText(/reads the stored document/)).toBeInTheDocument();
   },
 };
 

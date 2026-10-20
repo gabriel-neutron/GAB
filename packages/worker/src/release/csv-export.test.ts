@@ -89,13 +89,20 @@ test('a claim row gives the modality of its passage and whether the AI read it f
   const [header, row] = claimsText([claim({})])
     .slice(1)
     .split('\r\n');
-  expect(header?.split(',').slice(-4)).toStrictEqual([
+  expect(header?.split(',').slice(-5)).toStrictEqual([
     'page',
     'excerpt',
     'modality',
     'transcribed',
+    'document_type',
   ]);
-  expect(row?.split(',').slice(-4)).toStrictEqual(['2', 'flag of Panama', 'asserts', 'false']);
+  expect(row?.split(',').slice(-5)).toStrictEqual([
+    '2',
+    'flag of Panama',
+    'asserts',
+    'false',
+    'other',
+  ]);
 });
 
 test('an absent value writes an empty field, and not the word null', () => {

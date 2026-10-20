@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 
+import { coverageShape } from '@gab/release/coverage';
 import { expect, test } from 'vitest';
+import { z } from 'zod';
 
 import type { ReleaseFile } from './csv-export.ts';
 import { readCriticalNodesSheet } from './critical-nodes-sheet.ts';
@@ -420,6 +422,7 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
         retrieved_at: '2026-09-30',
         licence: 'eu-reuse',
         provider: 'eu',
+        doc_type: 'other',
       },
     ],
     [
@@ -431,6 +434,7 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
         retrieved_at: '2026-09-28',
         licence: null,
         provider: null,
+        doc_type: 'other',
       },
     ],
     [
@@ -442,6 +446,7 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
         retrieved_at: '2026-09-29',
         licence: null,
         provider: null,
+        doc_type: 'other',
       },
     ],
   ]),
@@ -532,4 +537,16 @@ test('the example volume table joins three rows, keeps two rows on no link and r
   const links = table.rows.map((row) => row[table.header.indexOf('relation_id')]);
   expect(links.filter((one) => one === CRUDE_LINK)).toHaveLength(3);
   expect(links.filter((one) => one === '')).toHaveLength(2);
+});
+
+test('the coverage in the file manifest counts the entities, the types and the sources of the record', () => {
+  const record = recordOf(false, true);
+  const written = releaseFiles(record, manifestOf(false, '2026-11-08', '1.0'), null, null, null);
+  const text = written.files.find((file) => file.path === 'manifest.json')?.text ?? '';
+  const { coverage } = z.object({ coverage: coverageShape }).parse(JSON.parse(text));
+  expect(coverage.entities).toBe(record.entities.length);
+  expect(coverage.sources).toBe(record.documents.size);
+  expect(coverage.byType.reduce((sum, one) => sum + one.count, 0)).toBe(record.entities.length);
+  for (const { type, count } of coverage.byType)
+    expect(record.entities.filter((one) => one.type === type)).toHaveLength(count);
 });

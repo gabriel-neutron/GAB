@@ -31,6 +31,8 @@ each entry gives the number of the row and its values. `vocabulary` gives the wo
    - `{"type": "list", "separator": ";"}`
 4. `geom` is optional. Give `{"lon": "<column>", "lat": "<column>"}` or `{"geojson": "<column>"}`.
    Use it only when the columns hold degrees of WGS84.
+   When the table has a latitude column and a longitude column in degrees, always give `geom`, and
+   never put the two columns in `attrs`.
 5. `relations` is a list. Each relation has a `type`, a `row_is` and an `other`. `row_is` is `src`
    or `dst`: the end of the relation that the entity of the row is. `other` is a key and a column
    that find the entity at the other end, which the record holds already (a cell that splits creates a missing owner with its GEM identifier). `valid_from` and
@@ -40,6 +42,9 @@ each entry gives the number of the row and its values. `vocabulary` gives the wo
    and the default is the type of the row. `split` is optional, `{"separator": ";"}`: use it only
    when one cell lists many owners and each owner has its GEM identifier with its share in
    percent. It needs `other_type` and the key `gem_entity_id`, and `attrs` has no `share_pct`. Never use it for a cell of names.
+   A column of names (an owner, a parent or an operator named in words) gives no relation: leave
+   `relations` as `[]`, and never put a name in `other.column`. The key `label` is
+   refused for `other`.
 6. Name only columns of the header, spelled as the header spells them. A column that you do not
    use is left out.
 7. `modality` is one word for the whole table: `enacts` (the table makes the facts true, for
@@ -52,7 +57,8 @@ each entry gives the number of the row and its values. `vocabulary` gives the wo
     column. Use it for the kind of an asset: `{"asset_kind": "field"}`. The kind is one of
     `vocabulary.assetKinds`.
 11. An attribute `position_precision` takes the accuracy of the place of a row (`exact` or
-    `approximate`) from its column, with the cast `text`.
+    `approximate`) from its column, with the cast `text`. The key is spelled `position_precision`, and no other key serves, so a column
+    such as `Location accuracy` maps to it.
 12. A relation table is a table where each row is one relation between two entities that the
     record holds, for example an ownership table. A row of a relation table creates no entity.
     For a relation table, `rows` has these keys, and `relations` is `[]`:
@@ -65,16 +71,21 @@ each entry gives the number of the row and its values. `vocabulary` gives the wo
       with the cast `boolean`, and the source address of the row as `source_url` with the cast
       `text`.
     - `valid_from` and `valid_to` are optional, as in rule 5.
-13. `names` is optional in a relation, `{"separator": ";", "table": "<document>"}`. Use it only when
+13. A year is a number, never a date. A column of years takes `{"type": "number", "scale": N}`, where N is the
+    count of digits after the point in its cells: a workbook writes the year 2023 as `2023.0`, so N is
+    1. Keep a year under its own key, for example `status_year`, `discovery_year` or
+    `production_start_year`. Map each column that states a fact about the row, with the status, the
+    years and `position_precision`.
+14. `names` is optional in a relation, `{"separator": ";", "table": "<document>"}`. Use it only when
     the operator gives the document of an approved name table. The cell of the other end then holds
     names, each with its share in brackets (`Name [40%]`). It needs `other_type`, the key `label`,
     and no `share_pct` in `attrs`. Never use it with `split`.
-14. In a table where many rows state one entity (a series by fuel and year), an attribute can give
+15. In a table where many rows state one entity (a series by fuel and year), an attribute can give
     `key_by`, a list of columns whose cells end the key (`production` with `Fuel description` and
     `Data Year` gives `production_oil_2023`), and `years`, `{"column": "<column>", "from": 2020,
     "to": 2024}`, to keep only these years. Give the unit as a second attribute with the same
     `key_by` and the cast `text`.
-15. Do not give an expression, a formula, a confidence or a note.
+16. Do not give an expression, a formula, a confidence or a note.
 
 ## The answer
 

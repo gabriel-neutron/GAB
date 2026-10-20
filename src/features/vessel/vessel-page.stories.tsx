@@ -43,12 +43,8 @@ export const AClosedRelationGivesBothDates: Story = {
 
 export const AnOpenRelationShowsAsOpenAndNeverAsEnded: Story = {
   play: async ({ canvas }) => {
-    await expect(
-      canvas.getByText('From 01/03/2024, open: the release gives no end date.'),
-    ).toBeVisible();
-    await expect(
-      canvas.getByText('Start unknown. End open: the release gives no end date.'),
-    ).toBeVisible();
+    await expect(canvas.getByText('From 01/03/2024, open: no end date recorded.')).toBeVisible();
+    await expect(canvas.getByText('Start unknown. End open: no end date recorded.')).toBeVisible();
   },
 };
 

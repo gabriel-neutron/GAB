@@ -31,7 +31,12 @@ const CELL = 'px-1.5 py-1.5 align-top';
 export function DataTable<Row>({ name, columns, rows, empty }: DataTableProps<Row>) {
   if (rows.length === 0) return <EmptyState sentence={empty} />;
   return (
-    <div className="max-w-full overflow-x-auto">
+    <div
+      // External constraint: a region that scrolls needs a tab stop, or a keyboard cannot reach
+      // the cells that are off the screen.
+      tabIndex={0}
+      className="max-w-full overflow-x-auto outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+    >
       <table aria-label={name} className="w-full border-collapse border border-border text-xs/5">
         <thead className="border-b border-input bg-muted text-label">
           <tr>

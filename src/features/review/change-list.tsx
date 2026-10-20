@@ -1,4 +1,5 @@
 import { cn } from '@/shared/lib/utils';
+import { keyWords, valueHelp } from '@gab/proposal/key-words';
 
 import { LinkedWords } from './linked-words';
 import { unitChanges, type RelationLine, type UnitWords } from './unit-changes';
@@ -40,25 +41,42 @@ const stateWords = (line: RelationLine): string => {
 
 const HEADING = 'mt-3 text-small/4 tracking-caps text-label uppercase';
 
+// The help of the key, then the help of each word that the attribute states.
+const helpOf = (attribute: Attribute): string | null => {
+  const parts = [
+    keyWords(attribute.key).help,
+    ...attribute.values.map((value) => valueHelp(attribute.key, value)),
+  ].filter((part): part is string => part !== null);
+  return parts.length === 0 ? null : parts.join(' ');
+};
+
 function Attributes({ attributes }: { readonly attributes: readonly Attribute[] }) {
   if (attributes.length === 0) return <p className="text-label">No attribute.</p>;
   return (
     <dl className="grid grid-cols-[minmax(6rem,auto)_minmax(0,1fr)] gap-x-2 gap-y-0.5">
-      {attributes.map((attribute) => (
-        <div key={attribute.key} className="contents">
-          <dt className="text-label">{attribute.key}:</dt>
-          <dd className="min-w-0 break-words">
-            {/* Each value of a list is its own text, so an address in it is its own link. */}
-            {attribute.values.map((value, at) => (
-              // The values of one attribute never move, so the position is their identity.
-              <span key={at}>
-                {at === 0 ? null : ', '}
-                <LinkedWords text={value} />
-              </span>
-            ))}
-          </dd>
-        </div>
-      ))}
+      {attributes.map((attribute) => {
+        const words = keyWords(attribute.key);
+        const help = helpOf(attribute);
+        return (
+          <div key={attribute.key} className="contents">
+            <dt className="text-label">
+              {words.label}:{/* The stored key, in a secondary place. */}
+              <span className="block font-mono text-small/4">{attribute.key}</span>
+            </dt>
+            <dd className="min-w-0 break-words">
+              {/* Each value of a list is its own text, so an address in it is its own link. */}
+              {attribute.values.map((value, at) => (
+                // The values of one attribute never move, so the position is their identity.
+                <span key={at}>
+                  {at === 0 ? null : ', '}
+                  <LinkedWords text={value} />
+                </span>
+              ))}
+              {help === null ? null : <span className="block text-small/4 text-label">{help}</span>}
+            </dd>
+          </div>
+        );
+      })}
     </dl>
   );
 }

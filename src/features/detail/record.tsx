@@ -50,10 +50,14 @@ export function EntityRecord(props: EntityRecordProps) {
               left edge leaves its slack beside the value, and it reads as attached to the cell
               on its left. Tailwind: `truncate` does nothing in a flex row without `min-w-0`. */}
           <span
-            className="w-24 shrink-0 truncate text-right text-xs text-label @md:w-32"
-            title={cell.label}
+            className="flex w-24 shrink-0 flex-col items-end text-right @md:w-32"
+            title={cell.help === null ? cell.label : `${cell.label}. ${cell.help}`}
           >
-            {cell.label}
+            <span className="w-full min-w-0 text-xs break-words text-label">{cell.label}</span>
+            {/* The stored key, in a secondary place, for a reader who looks for the raw word. */}
+            <span className="w-full min-w-0 font-mono break-all text-small/4 text-muted-foreground">
+              {cell.key}
+            </span>
           </span>
           <span className="min-w-0 flex-1">
             {onEdit !== null ? (

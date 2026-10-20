@@ -6,6 +6,7 @@ import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
 import { READING_LINK } from '@/shared/page/reading-link';
 import { ReadingPage } from '@/shared/page/reading-page';
+import { typeLabel } from '@/shared/type-label';
 import { releaseDay } from '@gab/release/release-day';
 
 import { groupNodes } from './nodes';
@@ -93,7 +94,7 @@ const columnsOf = (
           <a className={READING_LINK} href={entityHref(node.id)}>
             {node.label}
           </a>
-          <p className="font-normal text-muted-foreground">{node.type}</p>
+          <p className="font-normal text-muted-foreground">{typeLabel(node.type)}</p>
           {imo === undefined ? null : (
             <p className="font-normal">
               <a className={READING_LINK} href={vesselHref(imo)}>

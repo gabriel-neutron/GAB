@@ -127,7 +127,11 @@ export const ukEntry = (
 
 // shortcut: the entry is read on the first page that holds a line of it. The other lines of the
 // entry on a later page are not read; upgrade if a primary name falls on another page.
-const entryOf = (pages: readonly string[], uniqueId: string | undefined, document: string) => {
+export const entryOf = (
+  pages: readonly string[],
+  uniqueId: string | undefined,
+  document: string,
+) => {
   if (uniqueId === undefined) return null;
   try {
     const columns = headerOf(csvRows(pages[0] ?? '')) ?? undefined;

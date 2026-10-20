@@ -20,6 +20,8 @@ export default interface Document {
   created_at: string | null;
 
   cost_eur: number | null;
+
+  doc_type: string | null;
 }
 
 export const document = z.object({
@@ -33,4 +35,5 @@ export const document = z.object({
   retrieved_at: z.string().nullable(),
   created_at: z.string().nullable(),
   cost_eur: z.number().nullable(),
+  doc_type: z.string().nullable(),
 });

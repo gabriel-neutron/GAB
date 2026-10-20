@@ -7,9 +7,12 @@ import { enqueueMapping } from './enqueue-mapping.ts';
 import { fetchDocument } from './fetch-document.ts';
 import { fileSchemaSample } from './file-schema-sample.ts';
 import { findDocument } from './find-document.ts';
+import { comtradeData } from './comtrade-data.ts';
 import { firmsDetections } from './firms-detections.ts';
 import { gleifLookup } from './gleif-lookup.ts';
 import { jobStatus } from './job-status.ts';
+import { joinUnit } from './join-unit.ts';
+import { listEntities } from './list-entities.ts';
 import { listProposals } from './list-proposals.ts';
 import { listVocabulary } from './list-vocabulary.ts';
 import { neighbourhood } from './neighbourhood.ts';
@@ -45,6 +48,7 @@ export const CATALOGUE = [
   readEntity,
   neighbourhood,
   listVocabulary,
+  listEntities,
   listProposals,
   findDocument,
   documentText,
@@ -73,6 +77,7 @@ export const CATALOGUE = [
   ukSanctionsList,
   vesselEvents,
   firmsDetections,
+  comtradeData,
   enqueueExtract,
   enqueueMapping,
   startLead,
@@ -80,6 +85,7 @@ export const CATALOGUE = [
   promoteUnit,
   rejectUnit,
   rejectRelation,
+  joinUnit,
   promoteCleanProposals,
 ] as const;
 

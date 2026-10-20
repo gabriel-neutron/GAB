@@ -23,9 +23,14 @@ import { RAIL_WIDTH, railWidthWithin } from '@/shared/rail-width';
 
 export interface RailTypeRow {
   readonly type: string;
+  /** The human label of the type. The key stays the identity of the row. */
+  readonly label: string;
   /** Departure: the folded strip fits no word, so it draws this letter where no colour is. */
   readonly initial: string;
   readonly count: number;
+  // Departure: the wide row shows these words, and the strip shows the count alone. The caller
+  // states whether the count is a part of a whole, so the words say what the figure means.
+  readonly figure: string;
   readonly on: boolean;
   readonly open: boolean;
   // Departure: the map hides a layer and the graph dims one, and a struck-out eye claims the
@@ -86,7 +91,7 @@ const listId = (type: string): string => `rail-index-${type}`;
 // External constraint: `ring` alone paints at rest in `currentcolor`, and a border ring paints
 // nothing without a width. `pointer-events-auto` gives a drag on the graph rail back.
 const CONTROL = cn(
-  'pointer-events-auto flex h-6 items-center border border-transparent text-left',
+  'pointer-events-auto flex min-h-6 items-center border border-transparent text-left',
   'transition-colors duration-100 hover:bg-muted',
   'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
 );
@@ -245,7 +250,7 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
             open ? 'gap-1.5 px-1.5' : 'justify-center px-1',
           )}
         >
-          {open ? <span className="min-w-0 flex-1 truncate">{links.label}</span> : null}
+          {open ? <span className="min-w-0 flex-1 py-0.5 break-words">{links.label}</span> : null}
           {links.on ? (
             <Eye size={14} aria-hidden="true" className="shrink-0 text-label" />
           ) : (
@@ -280,12 +285,14 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
             {open ? (
               <div className="flex h-6 items-center gap-1 px-1.5">
                 {/* External constraint: `aria-controls` must name an element in the tree, so
-                    the chevron names its region only while that region exists. */}
+                    the chevron names its region only while that region is drawn: it is open and its type is on. */}
                 <button
                   type="button"
                   aria-expanded={row.open}
-                  aria-controls={row.open ? listId(row.type) : undefined}
-                  aria-label={row.open ? `Close the ${row.type} list` : `Open the ${row.type} list`}
+                  aria-controls={row.open && row.on ? listId(row.type) : undefined}
+                  aria-label={
+                    row.open ? `Close the ${row.label} list` : `Open the ${row.label} list`
+                  }
                   onClick={() => {
                     onAct({ kind: 'open-type', type: row.type, open: !row.open });
                   }}
@@ -306,12 +313,10 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                   className={cn(CONTROL, 'min-w-0 flex-1 gap-1.5')}
                 >
                   {row.colour === null ? null : <Swatch colour={row.colour} on={row.on} />}
-                  <span className="min-w-0 flex-1 truncate" title={row.type}>
-                    {row.type}
-                  </span>
+                  <span className="min-w-0 flex-1 py-0.5 break-words">{row.label}</span>
                   {/* Departure: the count carries on the graph the weight a hue carries on the
                       map. */}
-                  <span className={cn(FIGURE, 'text-muted-foreground')}>{row.count}</span>
+                  <span className={cn(FIGURE, 'text-muted-foreground')}>{row.figure}</span>
                   {/* Departure: one icon cannot say "hidden" on the map and "dimmed" on the
                       graph, so the glyph is hidden and these words carry the state. */}
                   <span className="sr-only">{row.stateWord}</span>
@@ -336,7 +341,14 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                 className={cn(CONTROL, 'w-full justify-center gap-1 px-1')}
               >
                 {row.colour === null ? (
-                  <span aria-hidden="true">{row.initial}</span>
+                  // External constraint: axe counts every visible character as the label, and the
+                  // name carries the type and the count. The initial is drawn by CSS, so it is
+                  // not in the tree.
+                  <span
+                    aria-hidden="true"
+                    data-initial={row.initial}
+                    className="before:content-[attr(data-initial)]"
+                  />
                 ) : (
                   <Swatch colour={row.colour} on={row.on} />
                 )}

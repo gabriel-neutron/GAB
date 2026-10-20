@@ -47,6 +47,37 @@
     "confirmed": 2,
     "refused": 1
   },
+  "coverage": {
+    "entities": 11,
+    "byType": [
+      {
+        "type": "company",
+        "count": 4
+      },
+      {
+        "type": "vessel",
+        "count": 3
+      },
+      {
+        "type": "organisation",
+        "count": 2
+      },
+      {
+        "type": "facility",
+        "count": 1
+      },
+      {
+        "type": "port",
+        "count": 1
+      }
+    ],
+    "sources": 3,
+    "scope": {
+      "covers": "The record holds the entities, the relations and the facts that GAB read in public documents and that were then reviewed. Each fact names its sources.",
+      "excludes": "The record is not complete. It does not cover each vessel, company, person or unit, and it does not cover a source that GAB has not read.",
+      "absence": "An absence means \"not yet in the record\". It does not mean \"not true\"."
+    }
+  },
   "files": [
     {
       "path": "entities.csv",
@@ -60,8 +91,8 @@
     },
     {
       "path": "claims.csv",
-      "bytes": 9404,
-      "sha256": "767d4d40624209dc6d1354a90a1156c1ee06f8041c0cb9212f71f9e69144a794"
+      "bytes": 9538,
+      "sha256": "92a93361fc3b7542b53861b5c65942cfd7897193272962d158b42b21d3bd617e"
     },
     {
       "path": "merges.csv",

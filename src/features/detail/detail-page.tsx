@@ -30,6 +30,8 @@ import { Relations } from './relations';
 import { Rename } from './rename';
 import { SaveBar } from './save-bar';
 import { saveClaims, saveSaid, type SaveState } from './save';
+import { UnitOrigin } from './unit-origin';
+import { VesselIds } from './vessel-ids';
 import {
   changeStructure,
   structureSaid,
@@ -168,19 +170,22 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
   const detail = (
     <>
       <p className="flex flex-wrap items-baseline gap-x-2">
-        <span>{dossier.type}</span>
+        <span>{dossier.typeName}</span>
         {/* The extracted word is kept where it was not a live type, and it is drawn, or the
             entry the analyst wrote is lost to every reader of the record. */}
         {dossier.proposedType === null ? null : (
           <span>{`proposed as ${dossier.proposedType}`}</span>
         )}
-        {/* The words stand beside the type, because they say what the entity IS and not what a
-            reader may do with it: this position was borrowed, and it was borrowed from that
-            entity. */}
-        {dossier.positionFrom === null ? null : (
-          <span data-position-from="">{dossier.positionFrom}</span>
-        )}
       </p>
+      {dossier.identity === null ? null : <VesselIds identity={dossier.identity} />}
+      {/* The words say what the entity IS and not what a reader may do with it: this position was
+          borrowed, from which parents, and on which affiliation and date the record stands. */}
+      <UnitOrigin
+        positionFrom={dossier.positionFrom}
+        positionChain={dossier.positionChain}
+        affiliation={dossier.affiliation}
+        sourceDay={dossier.sourceDay}
+      />
       {/* Each public claim says who decided it. */}
       {dossier.decision === null ? null : <p data-decision="">{dossier.decision}</p>}
       {/* A double click stops at each hyphen of the value, so one click selects all of it. */}

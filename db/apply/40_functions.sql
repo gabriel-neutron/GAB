@@ -581,10 +581,13 @@ END $$;
 -- of a bought filing in euros. put_fetched_document passes ten arguments by position, so it
 -- stores no cost, and a fetch costs nothing that the record must keep.
 --
+-- THE TYPE IS AFTER THE COST, AND IT IS OPTIONAL TOO. A caller that gives none stores `other`.
+--
 -- The earlier signatures are dropped here: a re-runnable file that only replaces would leave them
 -- side by side, and a call with fewer arguments would then be ambiguous.
 DROP FUNCTION IF EXISTS put_document(text,text,text,text,text,text,text,text,date);
 DROP FUNCTION IF EXISTS put_document(text,text,text,text,text,text,text,text,date,text);
+DROP FUNCTION IF EXISTS put_document(text,text,text,text,text,text,text,text,date,text,numeric);
 CREATE OR REPLACE FUNCTION put_document(
   p_id           text,
   p_kind         text,
@@ -596,7 +599,8 @@ CREATE OR REPLACE FUNCTION put_document(
   p_mime         text DEFAULT NULL,
   p_retrieved_at date DEFAULT NULL,
   p_provider_id  text DEFAULT NULL,
-  p_cost_eur     numeric DEFAULT NULL)
+  p_cost_eur     numeric DEFAULT NULL,
+  p_doc_type     text DEFAULT 'other')
 RETURNS doc_id
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -608,10 +612,10 @@ DECLARE v_id text;
 BEGIN
   INSERT INTO public.documents
     (id, kind, title, s3_key, uri, archive_uri, sha256, mime, retrieved_at, provider_id,
-     cost_eur)
+     cost_eur, doc_type)
   VALUES
     (p_id::doc_id, p_kind, p_title, p_s3_key, p_uri, p_archive_uri, p_sha256, p_mime,
-     p_retrieved_at, p_provider_id, p_cost_eur)
+     p_retrieved_at, p_provider_id, p_cost_eur, coalesce(p_doc_type, 'other'))
   RETURNING id INTO v_id;
 
   -- STORING A DOCUMENT STARTS NO WORK. The row says that the document entered the door, and it is
@@ -2751,6 +2755,153 @@ LANGUAGE sql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT public.ai_decision('relation', p_id, p_reason, p_note, p_why)
 $$;
+
+-- ONE UNIT THAT IS A DOUBT JOINS A UNIT THAT WAITS (ADR 0029). Two units state one event of one
+-- site on one day, and the doubted unit cites a second source of it. The waiting unit takes the
+-- passages of the doubted unit, and the doubted unit is closed as a duplicate, with a note that
+-- names the waiting unit. A citation is written once (citation_append_only), so the waiting act
+-- takes copies of the passages, as merge_waiting_act does, and the promotion reads them.
+--
+-- Both units are events, with the same kind, site and day in their names, and the doubted unit
+-- holds one act only. The doubted unit is a doubt, and the waiting unit is no doubt of its own
+-- once the doubted unit is closed: the doubt of a check spreads to every act of one claim, so the
+-- state of the waiting unit is read after the join, and a doubt rolls the whole step back. The
+-- two sets of modalities must be equal: a denial never joins an assertion. The waiting unit must
+-- not cite each document of the doubted unit already. The step takes the lock of the acts of both
+-- units, in the order of their ids, so two reviewers on one pair run one after the other: the
+-- second finds the doubted unit closed and is refused. The rules do not run here: the waiting
+-- unit stays for its reviewer. No role holds this step.
+CREATE OR REPLACE FUNCTION join_unit_as(p_doubted uuid, p_waiting uuid, p_decided_by text,
+                                        p_origin text, p_why text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  c_name CONSTANT text := '^(.+?) — (.+) — (\d{4}-\d{2}(?:-\d{2})?)$';
+  d        public.proposals%ROWTYPE;
+  w        public.proposals%ROWTYPE;
+  v_dname  text[];
+  v_wname  text[];
+  v_note   text;
+  v_docs   int;
+  v_copied int;
+  v_rule   text;
+  v_cause  text;
+BEGIN
+  PERFORM public.rejection_note('duplicate', NULL, p_decided_by);
+  IF p_doubted IS NULL OR p_waiting IS NULL OR p_doubted = p_waiting THEN
+    RAISE EXCEPTION 'a join names two units, a doubted unit and a unit that waits'
+      USING CONSTRAINT = 'join_doubted';
+  END IF;
+  PERFORM 1 FROM public.proposals
+   WHERE unit_id IN (p_doubted, p_waiting) AND status = 'pending' ORDER BY id FOR UPDATE;
+  SELECT * INTO d FROM public.proposals WHERE id = p_doubted;
+  SELECT * INTO w FROM public.proposals WHERE id = p_waiting;
+  IF d.id IS NULL OR d.status <> 'pending' OR d.unit_id <> d.id THEN
+    RAISE EXCEPTION 'the unit % is no unit that waits for a decision', p_doubted
+      USING CONSTRAINT = 'join_doubted';
+  END IF;
+  IF w.id IS NULL OR w.status <> 'pending' OR w.unit_id <> w.id THEN
+    RAISE EXCEPTION 'the unit % is no unit that waits for a decision', p_waiting
+      USING CONSTRAINT = 'join_waiting';
+  END IF;
+  IF d.op <> 'create_entity' OR d.payload->>'type' <> 'event' THEN
+    RAISE EXCEPTION 'the unit % is no new event', p_doubted USING CONSTRAINT = 'join_doubted';
+  END IF;
+  IF w.op <> 'create_entity' OR w.payload->>'type' <> 'event' THEN
+    RAISE EXCEPTION 'the unit % is no new event', p_waiting USING CONSTRAINT = 'join_waiting';
+  END IF;
+  v_dname := regexp_match(d.payload->>'label', c_name);
+  v_wname := regexp_match(w.payload->>'label', c_name);
+  IF v_dname IS NULL OR v_wname IS NULL
+     OR ARRAY(SELECT public.name_key(x) FROM unnest(v_dname) AS x)
+        IS DISTINCT FROM ARRAY(SELECT public.name_key(x) FROM unnest(v_wname) AS x) THEN
+    RAISE EXCEPTION 'the two units are not for the same kind of event, at the same site, on the '
+                    'same day'
+      USING CONSTRAINT = 'join_same_event';
+  END IF;
+  IF public.unit_rule(p_doubted) IS DISTINCT FROM 'doubt' THEN
+    RAISE EXCEPTION 'the unit % is no doubt', p_doubted USING CONSTRAINT = 'join_doubted';
+  END IF;
+  v_cause := coalesce(public.unit_doubt_cause(p_doubted), 'a fault of the check');
+  IF EXISTS (SELECT 1 FROM public.proposals n
+              WHERE n.status = 'pending' AND n.id <> d.id
+                AND (n.unit_id = d.unit_id OR d.id = ANY (n.names) OR d.id = n.target_id
+                     OR d.id::text IN (n.payload->>'src_id', n.payload->>'dst_id'))) THEN
+    RAISE EXCEPTION 'another act waits with the doubted unit or names it, so it is not joined'
+      USING CONSTRAINT = 'join_doubted';
+  END IF;
+  IF (SELECT array_agg(DISTINCT c.modality ORDER BY c.modality) FROM public.citation c
+       WHERE c.claim_id = d.id)
+     IS DISTINCT FROM (SELECT array_agg(DISTINCT c.modality ORDER BY c.modality)
+                         FROM public.citation c WHERE c.claim_id = w.id)
+     OR EXISTS (SELECT 1 FROM public.citation c
+                 WHERE c.claim_id IN (d.id, w.id) AND c.transcription IS NOT NULL) THEN
+    RAISE EXCEPTION 'the two units cite their passages in two modalities, or one cites words read '
+                    'from an image'
+      USING CONSTRAINT = 'join_modality';
+  END IF;
+  SELECT count(DISTINCT c.doc_id) INTO v_docs
+    FROM public.citation c
+   WHERE c.claim_id = d.id
+     AND NOT EXISTS (SELECT 1 FROM public.citation h
+                      WHERE h.claim_id = w.id AND h.doc_id = c.doc_id);
+  IF v_docs = 0 THEN
+    RAISE EXCEPTION 'the waiting unit cites each of these documents already'
+      USING CONSTRAINT = 'join_new_source';
+  END IF;
+  INSERT INTO public.citation
+    (claim_id, doc_id, text_extractor, page, start, "end", transcription, modality)
+  SELECT w.id, c.doc_id, c.text_extractor, c.page, c.start, c."end", c.transcription, c.modality
+    FROM public.citation c
+   WHERE c.claim_id = d.id
+     AND NOT EXISTS (SELECT 1 FROM public.citation h
+                      WHERE h.claim_id = w.id AND h.doc_id = c.doc_id);
+  GET DIAGNOSTICS v_copied = ROW_COUNT;
+  v_note := 'joined into the unit ' || w.unit_id || '; it was a doubt: ' || v_cause;
+  UPDATE public.proposals
+     SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
+         decided_as = 'unit', reject_reason = 'duplicate', reject_note = v_note,
+         decision_origin = p_origin, decision_reason = p_why
+   WHERE id = d.id;
+  v_rule := public.unit_rule(w.unit_id);
+  IF v_rule IS DISTINCT FROM 'weak_sources' THEN
+    RAISE EXCEPTION 'the unit % is a doubt of its own, or it is no unit that waits for a source',
+                    p_waiting
+      USING CONSTRAINT = 'join_waiting';
+  END IF;
+  RETURN jsonb_build_object('name', w.payload->>'label', 'doubted', d.id, 'waiting', w.unit_id,
+                            'documents', v_docs, 'passages', v_copied);
+END $$;
+
+-- THE JOIN OF A DOUBTED UNIT, BY AN AI REVIEWER. Only the research role holds it. It records the
+-- origin "decided by an AI reviewer" and the reason that the AI gives. A refusal keeps its
+-- sentence and names the field to correct in its hint.
+CREATE OR REPLACE FUNCTION ai_join_unit(p_doubted uuid, p_waiting uuid, p_why text)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_why  text := btrim(coalesce(p_why, ''), E' \t\n\r\f\v');
+  v_text text;
+  v_rule text;
+  v_code text;
+BEGIN
+  IF v_why = '' OR char_length(v_why) > 1000 THEN
+    RAISE EXCEPTION 'an AI reviewer gives the reason of its decision, in 1,000 characters at most'
+      USING CONSTRAINT = 'review_reason', HINT = 'why';
+  END IF;
+  RETURN public.join_unit_as(p_doubted, p_waiting, 'an AI reviewer, through the MCP server',
+                             'decided by an AI reviewer', v_why);
+EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception
+            OR insufficient_privilege THEN
+  GET STACKED DIAGNOSTICS v_text = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
+                          v_code = RETURNED_SQLSTATE;
+  RAISE EXCEPTION USING MESSAGE = v_text, ERRCODE = v_code, CONSTRAINT = v_rule,
+    HINT = CASE WHEN v_rule = 'review_reason' THEN 'why'
+                WHEN v_rule = 'join_doubted' THEN 'unitId'
+                WHEN v_rule LIKE 'join\_%' THEN 'waitingId' END;
+END $$;
 
 -- THE GROUP ACTION (P11): "promote the clean proposals of this group". No role holds this step:
 -- the door of the operator and the door of an AI reviewer run it. It takes the group and the exact list of units that the screen showed, so a unit that
@@ -5316,6 +5467,19 @@ BEGIN
   RETURN FOUND;
 END $$;
 
+-- THE TYPE OF A DOCUMENT THAT STANDS AS `other`. A command reads the stored documents again and
+-- gives each one the type that the rules of the tool decide. The door fills the type only when the
+-- row holds `other`, so a type that was set stays. It answers whether it changed the row.
+CREATE OR REPLACE FUNCTION fill_document_type(p_document text, p_type text)
+RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  UPDATE public.documents SET doc_type = p_type
+   WHERE id = p_document::doc_id AND doc_type = 'other' AND p_type <> 'other';
+  RETURN FOUND;
+END $$;
+
 -- THE NEWEST TEXT OF A DOCUMENT. A document can hold more than one set of text, one for each
 -- extractor version, and an older set is a reading that a newer one replaced. Each reader of the
 -- text and the propose tool choose the set here, so they choose the same one. The caller reads the
@@ -5354,6 +5518,7 @@ $$;
 -- THE PROVIDER IS THE LAST PARAMETER, OPTIONAL, and it goes to put_document unchanged. The earlier
 -- signature is dropped for the reason that put_document gives.
 DROP FUNCTION IF EXISTS put_fetched_document(text,text,text,text,text,text,date,text);
+DROP FUNCTION IF EXISTS put_fetched_document(text,text,text,text,text,text,date,text,text);
 CREATE OR REPLACE FUNCTION put_fetched_document(
   p_kind          text,
   p_title         text,
@@ -5363,7 +5528,8 @@ CREATE OR REPLACE FUNCTION put_fetched_document(
   p_mime          text,
   p_retrieved_at  date,
   p_archive_uri   text DEFAULT NULL,
-  p_provider_id   text DEFAULT NULL)
+  p_provider_id   text DEFAULT NULL,
+  p_doc_type      text DEFAULT 'other')
 RETURNS doc_id
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -5409,7 +5575,8 @@ BEGIN
   END IF;
 
   RETURN public.put_document('doc_' || left(p_sha256, 12), p_kind, p_title, p_s3_key, p_uri,
-                             p_archive_uri, p_sha256, p_mime, v_today, p_provider_id);
+                             p_archive_uri, p_sha256, p_mime, v_today, p_provider_id, NULL,
+                             p_doc_type);
 END $$;
 
 -- THE PROVIDER OF A KNOWN OFFICIAL FILE. The same bytes are stored once, so a tool that reads an
@@ -7126,10 +7293,11 @@ $$;
 -- Each public document, with its provider and the licence of its provider. A document with no
 -- provider has none. The alignment matrix reads the regime of a designation from the provider.
 CREATE FUNCTION release_documents()
-RETURNS TABLE (id text, title text, uri text, retrieved_at date, licence text, provider text)
+RETURNS TABLE (id text, title text, uri text, retrieved_at date, licence text, provider text,
+               doc_type text)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
-  SELECT d.id::text, d.title, d.uri, d.retrieved_at, p.licence, p.id
+  SELECT d.id::text, d.title, d.uri, d.retrieved_at, p.licence, p.id, d.doc_type
     FROM public.documents d
     LEFT JOIN public.document_provider p ON p.id = d.provider_id
    WHERE d.id IN (SELECT o.id FROM public.public_document o)
