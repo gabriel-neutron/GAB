@@ -51,11 +51,18 @@ const PAN_STEPS = 90;
  * and a missing page gets the root `index.html`, as the host of the site does. */
 function serve(root: string): Promise<{ port: number; close: () => void }> {
   const server = createServer((request, reply) => {
-    const path = decodeURIComponent((request.url ?? '/').split('?')[0] ?? '/');
+    let path: string;
+    try {
+      path = decodeURIComponent((request.url ?? '/').split('?')[0] ?? '/');
+    } catch {
+      path = '/';
+    }
     const target = join(root, normalize(path).replace(/^(\.\.[/\\])+/u, ''));
     const candidates = [target, join(target, 'index.html'), join(root, 'index.html')];
     const file = candidates.find((one) => existsSync(one) && statSync(one).isFile());
-    if (file === undefined) {
+    // A missing file, or a missing page under /entity/, is a 404: the home page must not answer.
+    const missing = file === undefined || (file === candidates[2] && path.startsWith('/entity/'));
+    if (file === undefined || missing) {
       reply.statusCode = 404;
       reply.end();
       return;
@@ -94,7 +101,11 @@ async function inputMs(page: Page): Promise<number> {
     );
   });
   await page.keyboard.press('Tab');
-  await page.waitForFunction(() => '__input' in window, undefined, { timeout: 10_000 });
+  const answered = await page
+    .waitForFunction(() => '__input' in window, undefined, { timeout: 10_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!answered) return Number.POSITIVE_INFINITY;
   return page.evaluate(() => (window as unknown as { __input: number }).__input);
 }
 
@@ -137,11 +148,19 @@ interface Target {
   readonly isMap: boolean;
 }
 
+/** True when the browser can make a WebGL context. */
+const hasWebgl = (page: Page): Promise<boolean> =>
+  page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    return canvas.getContext('webgl2') !== null || canvas.getContext('webgl') !== null;
+  });
+
 async function measure(
   browser: Awaited<ReturnType<typeof chromium.launch>>,
   base: string,
   target: Target,
   network: BudgetFile['network'],
+  hasRelease: boolean,
 ): Promise<PageMeasure> {
   if (target.path === null) return { skipped: 'no entity page in the site' };
   const context = await browser.newContext();
@@ -162,8 +181,11 @@ async function measure(
     await page.goto(`${base}${target.path}`, { waitUntil: 'commit' });
     const main = await mainContentMs(page, target.selector);
     if (main === null) {
+      // The map is skipped only when it cannot render by design. Else a broken map fails.
+      if (target.isMap && !hasRelease) return { skipped: 'the site holds no release data' };
+      if (target.isMap && !(await hasWebgl(page))) return { skipped: 'the browser has no WebGL' };
       return target.isMap
-        ? { skipped: 'the map did not render (no release data or no WebGL)' }
+        ? { mainContentMs: Number.POSITIVE_INFINITY, inputMs: 0, weightKb: bytes / 1000, fps: 0 }
         : { mainContentMs: Number.POSITIVE_INFINITY, inputMs: 0, weightKb: bytes / 1000 };
     }
     await page.waitForLoadState('networkidle', { timeout: MAIN_WAIT_MS }).catch(() => undefined);
@@ -214,6 +236,7 @@ async function main(): Promise<number> {
         `http://127.0.0.1:${String(server.port)}`,
         target,
         budgetFile.network,
+        existsSync(join(site, 'release')),
       );
     const rows = compare(budgetFile.pages, measures);
     console.log(`Budgets measured on ${budgetFile.measuredOn}`);

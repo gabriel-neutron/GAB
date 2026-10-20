@@ -62,8 +62,8 @@ export function compare(
       row(page, 'input response', measure.inputMs, limits.inputMs, 'ms', false),
       row(page, 'weight', measure.weightKb, limits.weightKb, 'kB', false),
     ];
-    if (limits.minFps !== undefined && measure.fps !== undefined)
-      rows.push(row(page, 'pan frame rate', measure.fps, limits.minFps, 'fps', true));
+    if (limits.minFps !== undefined)
+      rows.push(row(page, 'pan frame rate', measure.fps ?? 0, limits.minFps, 'fps', true));
     return rows;
   });
 }
