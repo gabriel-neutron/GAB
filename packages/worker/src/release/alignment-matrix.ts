@@ -125,20 +125,99 @@ interface Counts {
   readonly twoRegimes: number;
 }
 
+/** The dates of one row, and its two marks. */
+interface RowFacts {
+  readonly eu: string | null;
+  readonly ofac: string | null;
+  readonly uk: string | null;
+  readonly hasEu: boolean;
+  readonly hasOfac: boolean;
+  readonly ofacOrUkNotEu: boolean;
+}
+
+// The note splits the rows at these days.
+const EU_CUT = '2025-02-01';
+const OFAC_CUT = '2022-01-01';
+
+const days = (later: string | null, earlier: string | null): number | null =>
+  later === null || earlier === null
+    ? null
+    : Math.round((Date.parse(later) - Date.parse(earlier)) / 86_400_000);
+
+const plural = (count: number, word: string): string => `${String(count)} ${word}`;
+
+const meanOf = (gaps: readonly number[]): string =>
+  `${(gaps.reduce((sum, one) => sum + one, 0) / gaps.length).toFixed(1)} days for ${plural(gaps.length, gaps.length === 1 ? 'row' : 'rows')}`;
+
+/** The mean of one gap over the rows that have it, and the mean without the rows of the OFAC day
+ * that most rows share. */
+const meanLine = (
+  name: string,
+  rows: readonly RowFacts[],
+  gap: (row: RowFacts) => number | null,
+  commonDay: string,
+): string => {
+  const all = rows.flatMap((row) => gap(row) ?? []);
+  const others = rows.filter((row) => row.ofac !== commonDay).flatMap((row) => gap(row) ?? []);
+  if (all.length === 0) return `Mean of ${name}: no row.`;
+  const without =
+    others.length === 0
+      ? 'no row without the rows of that date'
+      : `${meanOf(others)} without the rows of that date`;
+  return `Mean of ${name}: ${meanOf(all)}; ${without}.`;
+};
+
+/** The lines of the note that the rows give: the EU split, the OFAC day that most rows share, the
+ * mean gaps with and without that day, and the floor of the mark ofac_or_uk_not_eu. */
+const countLines = (rows: readonly RowFacts[]): string[] => {
+  const euOnly = rows.filter((row) => row.hasEu && !row.hasOfac);
+  const before = euOnly.filter((row) => row.eu !== null && row.eu < EU_CUT).length;
+  const after = euOnly.filter((row) => row.eu !== null && row.eu >= EU_CUT).length;
+  const noDate = euOnly.filter((row) => row.eu === null).length;
+
+  const byDay = new Map<string, number>();
+  for (const row of rows)
+    if (row.ofac !== null) byDay.set(row.ofac, (byDay.get(row.ofac) ?? 0) + 1);
+  const dated = [...byDay.values()].reduce((sum, one) => sum + one, 0);
+  // A tie goes to the earlier day.
+  const [commonDay, commonRows] = [...byDay.entries()].sort(
+    (one, two) => two[1] - one[1] || (one[0] < two[0] ? -1 : 1),
+  )[0] ?? [null, 0];
+
+  return [
+    `Rows with an EU listing and no OFAC listing: ${String(euOnly.length)}. EU date before 1 February 2025: ${String(before)}. EU date on 1 February 2025 or later: ${String(after)}. No EU date: ${String(noDate)}.`,
+    commonDay === null
+      ? 'No row has an OFAC date.'
+      : `The OFAC date that most rows share is ${commonDay}: ${String(commonRows)} of the ${String(dated)} rows with an OFAC date.`,
+    `Rows with an OFAC date before 2022: ${String(rows.filter((row) => row.ofac !== null && row.ofac < OFAC_CUT).length)}.`,
+    meanLine('days_eu_after_ofac', rows, (row) => days(row.eu, row.ofac), commonDay ?? ''),
+    meanLine('days_uk_after_ofac', rows, (row) => days(row.uk, row.ofac), commonDay ?? ''),
+    `ofac_or_uk_not_eu is a floor: ${String(rows.filter((row) => row.ofacOrUkNotEu).length)} rows among the vessels in the record. A vessel that the record does not hold has no row.`,
+  ];
+};
+
 /** The text that the matrix adds to the preamble: what a row is, the date rule of each regime,
  * and the designations that count in no regime. */
-const matrixNote = (rules: ReleaseManifest['dateRules'], counts: Counts): string =>
+const matrixNote = (
+  rules: ReleaseManifest['dateRules'],
+  counts: Counts,
+  rows: readonly RowFacts[],
+): string =>
   [
     'Alignment matrix of the EU, OFAC and UK sanctions lists.',
     'One row for each IMO number of a public vessel that a public designation of at least one regime lists. The join is on the IMO number only, never on a name. imo_check_digit_ok tells if the check digit of the number is right.',
     'A designation belongs to a regime by the provider of its official file: EU EUR-Lex for the EU, the OFAC SDN list for OFAC, the UK Sanctions List for the UK.',
     `Date rules of this release. EU: ${RULE_WORDS[rules.eu]}. OFAC: ${RULE_WORDS[rules.ofac]}. UK: ${RULE_WORDS[rules.uk]}.`,
+    'Measure of each regime. EU: port and service ban (Regulation 833/2014, Annex XLII). OFAC: blocking under a Russia programme. UK: asset freeze (Russia Regulations 2019, UK Sanctions List row). The day gaps compare different measures.',
+    'The matrix gives the listing date, not the current status. The release tracks no OFAC removal and no UK removal.',
+    'The type of date is different for each regime. EU: the entry into force of the act. OFAC: the date of the action. UK: the date designated.',
     'The date of a listing is the start date of its designation, as the writer proposed it from the source (date_from designation_start). The release does not check the date against the rule.',
     'Under the EU rule, a designation with no start date takes the entry into force of the act that designates, when that value cites a document of the designation (date_from act_entry_into_force). Else the listing has no date (date_from none), and its gaps are empty.',
     'When a regime lists one IMO number more than once, the row gives the first listing with a date. ended_on is the end date of that listing. The marks count each listing, ended or not.',
     'days_eu_after_ofac is the EU date minus the OFAC date, in days. days_eu_after_uk and days_uk_after_ofac read the same way.',
     `Designations of a vessel with an IMO number that cite no official file of a regime, and count in no regime: ${String(counts.noOfficialFile)}.`,
     `Designations that cite the official files of more than one regime, and count in no regime: ${String(counts.twoRegimes)}.`,
+    ...countLines(rows),
   ].join('\n');
 
 /** The entry into force of the act of a designation counts only when its value cites a document
@@ -239,6 +318,7 @@ export const alignmentMatrix = (
     listings.set(imo, byRegime);
   }
 
+  const facts: RowFacts[] = [];
   const rows = [...listings.keys()].sort().map((imo) => {
     const byRegime = listings.get(imo) ?? new Map<Regime, Listing[]>();
     const chosen = (regime: Regime): Listing | undefined =>
@@ -261,6 +341,15 @@ export const alignmentMatrix = (
             listing.claimId,
           ];
     const on = (listing: Listing | undefined): string | null => listing?.listedOn ?? null;
+    const ofacOrUkNotEu = eu === undefined && (ofac !== undefined || uk !== undefined);
+    facts.push({
+      eu: on(eu),
+      ofac: on(ofac),
+      uk: on(uk),
+      hasEu: eu !== undefined,
+      hasOfac: ofac !== undefined,
+      ofacOrUkNotEu,
+    });
     return [
       imo,
       String(isValidImo(imo)),
@@ -274,7 +363,7 @@ export const alignmentMatrix = (
       daysBetween(on(eu), on(ofac)),
       daysBetween(on(eu), on(uk)),
       daysBetween(on(uk), on(ofac)),
-      String(eu === undefined && (ofac !== undefined || uk !== undefined)),
+      String(ofacOrUkNotEu),
       String(eu !== undefined && ofac === undefined),
     ];
   });
@@ -282,7 +371,7 @@ export const alignmentMatrix = (
   return {
     path: 'alignment-matrix.csv',
     text: csvFile(
-      `${preamble}\n\n${matrixNote(rules, { noOfficialFile, twoRegimes })}`,
+      `${preamble}\n\n${matrixNote(rules, { noOfficialFile, twoRegimes }, facts)}`,
       HEADER,
       rows,
     ),

@@ -120,8 +120,8 @@
     },
     {
       "path": "alignment-matrix.csv",
-      "bytes": 3091,
-      "sha256": "ba0c5988fa72c531299cdf0f403ef6159f31cca43067de6a4c84bbd55d4c1bda"
+      "bytes": 3998,
+      "sha256": "6c2fae19cad874ca0dd02219bce2f45b784da01a5a73bdd37793571c82a247b5"
     },
     {
       "path": "critical-nodes.csv",
