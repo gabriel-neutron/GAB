@@ -3,7 +3,7 @@ import { readCsv } from '@gab/tools/csv';
 import { bytesSource } from '@gab/text/zip';
 import { expect, test } from 'vitest';
 
-import { csvSetName, MAX_CSV_BYTES, headlessCsv, tagsOf } from './csv-set.ts';
+import { csvRecords, csvSetName, MAX_CSV_BYTES, headlessCsv, tagsOf } from './csv-set.ts';
 import type { Queryable } from './queryable.ts';
 import { requestOf } from './text-set-command.ts';
 import { makeTextSet } from './text-set.ts';
@@ -221,12 +221,22 @@ test('a file larger than one chunk is read as a stream, with a preamble and a he
   expect(text.length).toBeLessThan(MAX_TABLE_CHARS);
 });
 
-test('the stream reader splits a record like readCsv at any chunk edge', async () => {
-  const body = '\r\n\r\n"a""b",c\n,"",\r"x\ny"\r\n\n\n1,2';
+test('the stream reader gives the records of readCsv at every small chunk size', async () => {
+  const body = '\uFEFF\r\n\r\n"a""b",c\n,"",\r"x\ny"\r\n\n"é""",ü,日本\r\n\n"""",""""""\r\n1,2';
   const expected = readCsv(body).map((record) => record.fields);
-  const text = await headlessCsv(bytesSource(new TextEncoder().encode(body)), ['p', 'q', 'r']);
-  expect(readCsv(text).map((record) => record.fields)).toStrictEqual([
-    ['p', 'q', 'r'],
-    ...expected.map((fields) => [0, 1, 2].map((index) => fields[index] ?? '')),
-  ]);
+  const bytes = new TextEncoder().encode(body);
+  for (let size = 1; size <= 9; size += 1) {
+    const got: string[][] = [];
+    for await (const fields of csvRecords(bytesSource(bytes), size)) got.push(fields);
+    expect(got, `chunk size ${String(size)}`).toStrictEqual(expected);
+  }
+});
+
+test('a record or a field past its cap is refused', async () => {
+  const read = async (text: string) => {
+    for await (const fields of csvRecords(bytesSource(new TextEncoder().encode(text)))) void fields;
+  };
+  await expect(read(','.repeat(10_001))).rejects.toThrow('holds more than 10000 fields');
+  await expect(read(`"${'""'.repeat(1_100_000)}"`)).rejects.toThrow('characters');
+  await expect(read(`a\n"${'x'.repeat(2_000_000)}`)).rejects.toThrow('record 2');
 });

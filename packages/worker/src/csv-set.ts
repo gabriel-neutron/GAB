@@ -55,19 +55,35 @@ const CR = '\r';
 const LF = '\n';
 const BOM = '\uFEFF';
 
-/** The records of a CSV file, read as a stream of chunks. It follows RFC 4180 as `readCsv` does:
+/** The most fields of one record. A line of commas would otherwise fill the memory. */
+const MAX_FIELDS = 10_000;
+
+/** The records of a CSV file, read as a stream of chunks. It follows RFC 4180 as `readCsv` does
+ * (`readCsv` is in the release package, which the browser reads too, and it holds the whole page):
  * a line that holds nothing is no record, and a CR, a LF or a CRLF ends a record. The memory is
- * one chunk and one record, whatever the size of the file. */
-async function* csvRecords(source: ZipSource): AsyncGenerator<string[]> {
+ * one chunk and one record. One field and one record have a cap each, and the test compares the
+ * two readers at every small chunk size. */
+export async function* csvRecords(
+  source: ZipSource,
+  chunkBytes = CHUNK_BYTES,
+): AsyncGenerator<string[]> {
   if (source.size > MAX_CSV_BYTES)
     throw new WorkbookFault(`the file is larger than ${String(MAX_CSV_BYTES)} bytes`);
   const decoder = new TextDecoder();
   let fields: string[] = [];
   let field = '';
+  // `quoteSeen`: a quote inside a quoted field closes it, unless the next character is a quote.
   const state = { inQuote: false, quoteSeen: false, hasContent: false };
-  // A quote inside a quoted field closes it, unless the next character is a quote (an escape).
   let afterCr = false;
   let first = true;
+  let record = 1;
+
+  const checked = (): void => {
+    if (field.length > MAX_FIELD_CHARS)
+      throw new WorkbookFault(
+        `a field of the record ${String(record)} holds more than ${String(MAX_FIELD_CHARS)} characters`,
+      );
+  };
 
   // The records that end inside one piece of text.
   const feed = (text: string): string[][] => {
@@ -82,6 +98,7 @@ async function* csvRecords(source: ZipSource): AsyncGenerator<string[]> {
           state.quoteSeen = false;
           if (point === QUOTE) {
             field += QUOTE;
+            checked();
             continue;
           }
           state.inQuote = false;
@@ -90,16 +107,16 @@ async function* csvRecords(source: ZipSource): AsyncGenerator<string[]> {
           continue;
         } else {
           field += point;
-          if (field.length > MAX_FIELD_CHARS)
-            throw new WorkbookFault(
-              `a field holds more than ${String(MAX_FIELD_CHARS)} characters`,
-            );
+          checked();
           continue;
         }
       }
       if (point === CR || point === LF) {
         afterCr = point === CR;
-        if (state.hasContent) done.push([...fields, field]);
+        if (state.hasContent) {
+          done.push([...fields, field]);
+          record += 1;
+        }
         fields = [];
         field = '';
         state.hasContent = false;
@@ -110,17 +127,20 @@ async function* csvRecords(source: ZipSource): AsyncGenerator<string[]> {
       else if (point === COMMA) {
         fields.push(field);
         field = '';
+        if (fields.length > MAX_FIELDS)
+          throw new WorkbookFault(
+            `the record ${String(record)} holds more than ${String(MAX_FIELDS)} fields`,
+          );
       } else {
         field += point;
-        if (field.length > MAX_FIELD_CHARS)
-          throw new WorkbookFault(`a field holds more than ${String(MAX_FIELD_CHARS)} characters`);
+        checked();
       }
     }
     return done;
   };
 
-  for (let at = 0; at < source.size; at += CHUNK_BYTES) {
-    let text = decoder.decode(await source.read(at, Math.min(CHUNK_BYTES, source.size - at)), {
+  for (let at = 0; at < source.size; at += chunkBytes) {
+    let text = decoder.decode(await source.read(at, Math.min(chunkBytes, source.size - at)), {
       stream: true,
     });
     if (first && text !== '') {
@@ -131,7 +151,7 @@ async function* csvRecords(source: ZipSource): AsyncGenerator<string[]> {
   }
   yield* feed(decoder.decode());
   if (state.inQuote && !state.quoteSeen)
-    throw new WorkbookFault('a quote in the file never closes');
+    throw new WorkbookFault(`a quote of the record ${String(record)} never closes`);
   if (state.hasContent) yield [...fields, field];
 }
 
