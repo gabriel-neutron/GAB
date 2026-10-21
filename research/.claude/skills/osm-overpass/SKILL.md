@@ -1,6 +1,6 @@
 ---
 name: osm-overpass
-description: Find an OpenStreetMap object (a refinery, a port, a pipeline) and get its identifier or geometry without wasting calls on blocked servers. Use it when a task needs an OSM id, a way or a box search, or when an Overpass request fails.
+description: Find an OpenStreetMap object (a refinery, a port, a pipeline) and get its identifier (never its geometry) without wasting calls on blocked servers. Use it when a task needs an OSM id, a way or a box search, or when an Overpass request fails.
 ---
 
 # OpenStreetMap and Overpass
@@ -32,7 +32,13 @@ keep only the identifier in your notes. Do not work around the refusal.
    notes.
 4. On 429 or 502, wait and retry once. After that, put the site on `research/out/needs.md` and
    go on. Do not try more mirrors.
-5. Propose the OSM id as the identifier. For the point, follow the order of `research-method`.
+5. Propose the OSM id and the OSM version as attributes (`osm_id`, `osm_version`). For the point,
+   follow the order of `research-method`. An act with a `geom` never cites an OSM document, a
+   Nominatim lookup or an Overpass answer, and never has `geomMethod` "osm_object": the OSM
+   geometry is ODbL, and the release stops on it (`assertNoOsmGeometry`). If no other source
+   states the place, propose no `geom`, and put the site on `research/out/needs.md`. A point from
+   OSM is only a lead for the notes: use it to find the site, then find a source that states
+   the place.
 
 ## Do not
 
