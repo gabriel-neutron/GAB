@@ -190,3 +190,57 @@ test('the fill changes nothing for an entity that does not exist', async () => {
   );
   expect(found).toStrictEqual([{ changed: false }]);
 });
+
+// ============================================================= an act that clears a place =====
+const holdsPlace = async (ask: Ask, id: string): Promise<boolean> =>
+  z
+    .array(z.object({ placed: z.boolean() }))
+    .parse(
+      await ask('SELECT geom IS NOT NULL AS placed FROM public.entities WHERE id = $1', [id]),
+    )[0]?.placed === true;
+
+test('an act with geom null clears the place, keeps the old place in the history and resets the method', async () => {
+  await withEntity({ geom_method: 'satellite_match' }, async (ask, id) => {
+    const clear = await proposed(ask, 'update_entity', { geom: null }, id);
+    await promoted(ask, clear);
+    expect(await holdsPlace(ask, id)).toBe(false);
+    expect(await methodOf(ask, id)).toBe('not_stated');
+    const [row] = z
+      .array(z.object({ prior: z.unknown() }))
+      .parse(await ask('SELECT prior_value AS prior FROM public.proposals WHERE id = $1', [clear]));
+    expect(row?.prior).toMatchObject({
+      geom: { type: 'Point', coordinates: [30, 60] },
+      geom_method: 'satellite_match',
+    });
+  });
+});
+
+test('an act that clears a place that is NULL already is refused', async () => {
+  await withEntity({ geom: undefined }, async (ask, id) => {
+    const clear = await proposed(ask, 'update_entity', { geom: null }, id);
+    await expect(promoted(ask, clear)).rejects.toMatchObject({
+      constraint: 'act_changes_something',
+    });
+  });
+});
+
+test('a clearing act with a method is refused by the shape of the act', async () => {
+  await expect(
+    rolledBack('app', (ask) =>
+      proposed(
+        ask,
+        'update_entity',
+        { geom: null, geom_method: 'osm_object' },
+        '00000000-0000-4000-8000-000000000001',
+      ),
+    ),
+  ).rejects.toMatchObject({ code: '23514', constraint: 'proposals_update_entity_shape' });
+});
+
+test('a create_entity with geom null is not worded as a clearing act', async () => {
+  await expect(
+    rolledBack('app', (ask) =>
+      proposed(ask, 'create_entity', { type: 'facility', label: 'A', geom: null }),
+    ),
+  ).rejects.toMatchObject({ code: '23514', constraint: 'proposals_payload_geom' });
+});

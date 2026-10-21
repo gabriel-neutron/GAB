@@ -119,8 +119,11 @@ misread a number, so the text can miss a fact that the image shows clearly.
 - Never cite an OpenStreetMap document (an object page, a Nominatim lookup, an Overpass answer) in
   an act that carries a `geom`, and never give "osm_object" as the method of a new act. The
   OpenStreetMap geometry is ODbL, and the release stops on it. Cite an OSM document only for the
-  attributes `osm_id` and `osm_version`, in an act with no `geom`. When no other source states the
+  attributes "osm_id" and "osm_version", in an act with no `geom`. When no other source states the
   place, propose no `geom`.
+- To clear a place that has no good source, propose an act "update_entity" with `"geom": null` and no
+  `geomMethod`. Cite the document that shows why the old source is not good. The old place stays in
+  the history, and the entity shows no place until another act gives one.
 
 ## A sanctions status
 

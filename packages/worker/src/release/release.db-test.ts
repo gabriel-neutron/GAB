@@ -788,6 +788,44 @@ test('the documents of a geometry are the public documents of each act that gave
   ]);
 });
 
+test('a clearing act leaves the release with no place, and an old clearing act breaks no later read', async () => {
+  const rows = await inTransaction(async (held) => {
+    await record(held);
+    const place = async (geom: unknown, day: string, src: string[]) =>
+      decidedAct(
+        held,
+        'update_entity',
+        { geom },
+        { kind: 'entity', id: VESSEL },
+        'validated manually by the operator',
+        day,
+        src,
+      );
+    const point = { type: 'Point', coordinates: [32.5, 46.6] };
+    const read = async () =>
+      (
+        await held
+          .as('gabriel_app')
+          .query(
+            'SELECT geom, geom_sources, geom_method FROM public.release_entities() WHERE id = $1',
+            [VESSEL],
+          )
+      ).rows;
+    await place(point, '2026-10-09', [GFW]);
+    await place(null, '2026-10-10', [SHIPS]);
+    await held.ask('UPDATE public.entities SET geom = NULL WHERE id = $1', [VESSEL]);
+    const cleared = await read();
+    await place(point, '2026-10-11', [TWO]);
+    await held.ask(
+      'UPDATE public.entities SET geom = ST_SetSRID(ST_MakePoint(32.5, 46.6), 4326) WHERE id = $1',
+      [VESSEL],
+    );
+    return { cleared, placedAgain: await read() };
+  });
+  expect(rows.cleared).toStrictEqual([{ geom: null, geom_sources: [], geom_method: null }]);
+  expect(rows.placedAgain).toMatchObject([{ geom_sources: [GFW, TWO] }]);
+});
+
 test('the release reads the method of geolocation of each place, and none for an entity with no place', async () => {
   const rows = await inTransaction(async (held) => {
     await record(held);

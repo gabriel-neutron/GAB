@@ -1818,6 +1818,29 @@ test('propose refuses the place that an entity of the record has already', async
   });
 });
 
+test.each([
+  ['an entity with a place', true, {}, { ok: true }],
+  ['a method beside it', true, { geomMethod: 'osm_object' }, { ok: false }],
+  [
+    'an entity with no place',
+    false,
+    {},
+    { ok: false, refusal: expect.stringContaining('has no place to clear') as string },
+  ],
+])('propose clears the place with geom null: %s', async (_case, placed, more, expected) => {
+  const outcome = await rolledBack('superuser', async (ask) => {
+    const [bare, moved] = await placedPair(ask);
+    return proposeOnPage(ask, [
+      item(
+        'clear',
+        { op: 'update_entity', targetId: placed ? moved : bare, geom: null, ...more },
+        'left Sikka',
+      ),
+    ]);
+  });
+  expect(outcome).toMatchObject(expected);
+});
+
 test('propose refuses a place on an entity that does not exist', async () => {
   const outcome = await rolledBack('superuser', async (ask) =>
     proposeOnPage(ask, [
@@ -1927,6 +1950,34 @@ test('a place of a new entity that waits joins its unit, and is written after th
     { id: found.placed, unit_id: found.vessel, status: 'accepted' },
   ]);
   expect(found.entity).toStrictEqual({ same: true });
+});
+
+test('propose refuses a clear of the place of a new entity that waits with no place', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const [vessel] = batchOf(
+      await proposeOnPage(
+        ask,
+        [NAYARA],
+        `${PAGE_ONE}
+${LOCODE}`,
+      ),
+    ).proposals;
+    if (vessel === undefined) throw new Error('propose wrote no entity');
+    const outcome = await proposeAgain(ask, [
+      item(
+        'clear',
+        { op: 'update_entity', targetId: vessel.proposalId, geom: null },
+        '5940N 02819E',
+      ),
+    ]);
+    return { vessel: vessel.proposalId, outcome };
+  });
+  expect(found.outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(
+      `the new entity ${found.vessel} has no place to clear`,
+    ) as string,
+  });
 });
 
 test('a rejection of the new entity rejects its place as "end rejected"', async () => {

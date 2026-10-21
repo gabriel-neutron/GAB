@@ -117,6 +117,8 @@ export type UnitAct =
   | (ActBase & { readonly kind: 'change'; readonly op: string; readonly target: UnitEnd | null })
   | (ActBase & {
       readonly kind: 'place';
+      /** True when the act clears the place: the attributes then say so. */
+      readonly clearing: boolean;
       /** The entity that the act gives a place: an entity of the record, or the new entity of
        * the unit. The attributes hold the place. */
       readonly target: UnitEnd;
@@ -250,7 +252,8 @@ const payload = z.object({
   src_id: z.string().optional(),
   dst_id: z.string().optional(),
   attrs: z.record(z.string(), z.object({ v: z.unknown() })).optional(),
-  geom: z.object({ type: z.string(), coordinates: z.unknown() }).optional(),
+  // A null clears the place of the entity.
+  geom: z.object({ type: z.string(), coordinates: z.unknown() }).nullable().optional(),
   valid_from: z.string().nullable().optional(),
   valid_to: z.string().nullable().optional(),
   add_source: z.boolean().optional(),
@@ -380,7 +383,9 @@ const attributesOf = (read: ReadAct['payload']): readonly Attribute[] => {
         ]
       : read.geom === undefined
         ? []
-        : [{ key: 'shape', values: [read.geom.type] }]),
+        : read.geom === null
+          ? [{ key: 'position', values: ['cleared'] }]
+          : [{ key: 'shape', values: [read.geom.type] }]),
     ...dates,
     ...Object.entries(read.attrs ?? {}).map(([key, held]) => ({ key, values: textOf(held.v) })),
   ];
@@ -474,7 +479,12 @@ const actOf = (read: ReadAct): UnitAct => {
       to: read.payload.type,
     };
   if (read.op === 'update_entity' && read.targetId !== null && read.payload.geom !== undefined)
-    return { ...base, kind: 'place', target: endOf(read.targetId, read.target) };
+    return {
+      ...base,
+      kind: 'place',
+      clearing: read.payload.geom === null,
+      target: endOf(read.targetId, read.target),
+    };
   return {
     ...base,
     kind: 'change',

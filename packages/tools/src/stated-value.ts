@@ -523,7 +523,11 @@ const coordinatesIn = (text: string): number[] => [
 // of a point. Code reads no other shape in a text, so another shape is unstated, and the operator
 // compares it with the page.
 const placeValues = (act: WriteRequest): ActValue[] => {
-  if ((act.op !== 'update_entity' && act.op !== 'create_entity') || act.geom === undefined)
+  if (
+    (act.op !== 'update_entity' && act.op !== 'create_entity') ||
+    act.geom === undefined ||
+    act.geom === null
+  )
     return [];
   if (act.geom.type !== 'Point') return [{ name: 'geom', value: act.geom.type }];
   const [lon = Number.NaN, lat = Number.NaN] = act.geom.coordinates;
