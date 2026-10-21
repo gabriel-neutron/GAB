@@ -1,5 +1,5 @@
 // The three data files of the report for the stories: files with invented values in the columns
-// of the real files. The real files are private and are never copied here.
+// of the real files. The real files are in the site package.
 
 import type { ExportsFigures } from './exports-page';
 import { readFigureRows } from './figure-rows';

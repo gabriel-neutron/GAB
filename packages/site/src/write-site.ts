@@ -72,19 +72,20 @@ const readReleaseFolder = async (folder: string): Promise<ReadonlyMap<string, st
   return files;
 };
 
-/** The data files of the report, from the folder that `REPORT_DIR` names. The files are private and
- * stay on the machine of the operator, so a build with no such variable has none, and the report
- * page then says that its figures are not on this site. */
+/** The data files of the report. They are public and sit in the repository; `REPORT_DIR` names
+ * another folder for a build that tests other values. */
 const readReportFolder = async (): Promise<ReadonlyMap<string, string>> => {
-  const folder = process.env['REPORT_DIR'];
-  if (folder === undefined || folder === '') return new Map();
+  const named = process.env['REPORT_DIR'];
+  const folder =
+    named === undefined || named === '' ? resolve(import.meta.dirname, '../report') : named;
   const names = await readdir(folder, { withFileTypes: true }).catch(() => {
-    throw new SiteReleaseFault('REPORT_DIR does not name a folder that can be read.');
+    throw new SiteReleaseFault(`The report folder ${folder} cannot be read.`);
   });
   const present = new Set(names.filter((one) => one.isFile()).map((one) => one.name));
   // Only the named files are public. Any other file of the folder stays on the machine.
   for (const name of Object.values(REPORT_FILES))
-    if (!present.has(name)) throw new SiteReleaseFault(`REPORT_DIR holds no file ${name}.`);
+    if (!present.has(name))
+      throw new SiteReleaseFault(`The report folder ${folder} holds no file ${name}.`);
   return new Map(
     await Promise.all(
       Object.values(REPORT_FILES).map(

@@ -29,7 +29,9 @@ export default defineConfig({
     // Departure: the release is the one input that the build takes from the environment, because
     // a release is a folder of the operator and not a file of the repository.
     releaseFolder(process.env['RELEASE_DIR']),
-    reportFolder(process.env['REPORT_DIR']),
+    reportFolder(
+      process.env['REPORT_DIR'] || path.resolve(import.meta.dirname, 'packages/site/report'),
+    ),
     maplibreWorker(),
   ],
   resolve: {

@@ -78,7 +78,7 @@ const folderPlugin = (
 export const releaseFolder = (folder: string | undefined): Plugin =>
   folderPlugin('gab-release-folder', 'release', folder);
 
-/** The data files of the report, beside the application under `report/`. The operator machine
- * holds them, and the build takes their folder from the environment as it does the release. */
+/** The data files of the report, beside the application under `report/`. They sit in the
+ * repository, and `REPORT_DIR` names another folder when a build needs other values. */
 export const reportFolder = (folder: string | undefined): Plugin =>
   folderPlugin('gab-report-folder', 'report', folder, Object.values(REPORT_FILES));
