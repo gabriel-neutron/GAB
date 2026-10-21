@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { entryLine } from './ofac-sdn.ts';
+import { entryLine, entryOn } from './ofac-sdn.ts';
 
 const CSV =
   '36,"AEROCARIBBEAN AIRLINES",-0- ,"CUBA",-0- ,-0- \r\n' +
@@ -27,4 +27,11 @@ test('a clip never splits a character of two UTF-16 units', () => {
   const line = entryLine(`7,"${'\u{1F6A2}'.repeat(400)}"`, 7) ?? '';
   expect(line.length).toBeLessThanOrEqual(600);
   expect(line.endsWith('\u{1F6A2}')).toBe(true);
+});
+
+test('an entry on a later page is found, with the page that holds it', () => {
+  const pages = ['36,"A",-0- \n', '173,"B",-0- \n', '1736,"SCF",-0- \n'];
+  expect(entryOn(pages, 36)).toStrictEqual({ page: 1, excerpt: '36,"A",-0- ' });
+  expect(entryOn(pages, 1736)).toStrictEqual({ page: 3, excerpt: '1736,"SCF",-0- ' });
+  expect(entryOn(pages, 5)).toBeNull();
 });

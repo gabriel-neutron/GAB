@@ -100,10 +100,13 @@ export const reportDay = (page: string): string | null => {
   return date.toISOString().slice(0, 10);
 };
 
-/** The place of each column, read from the header that follows the first line. */
+const isReportRow = (row: CsvRow): boolean => REPORT_START.test(row.fields[0]?.value ?? '');
+
+/** The place of each column, read from the first row that is not the "Report Date" line. A stored
+ * text may lack that line, because a ship-only extraction skips it. */
 export const headerOf = (rows: Iterator<CsvRow>): Map<string, number> | null => {
-  rows.next();
-  const header = rows.next();
+  let header = rows.next();
+  if (header.done !== true && isReportRow(header.value)) header = rows.next();
   if (header.done === true) return null;
   return new Map(header.value.fields.map((field, index) => [field.value, index]));
 };
@@ -124,7 +127,6 @@ export const ukEntry = (
   columns?: ReadonlyMap<string, number>,
 ): { readonly identity: string; readonly identifiers: string } | null => {
   const rows = csvRows(page);
-  if (columns !== undefined) rows.next();
   const names = columns ?? headerOf(rows);
   if (names === null) return null;
   const at = (column: Column): number => names.get(column) ?? -1;
