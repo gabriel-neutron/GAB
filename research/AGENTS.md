@@ -48,14 +48,13 @@ session: each proposal waits in the review queue, and the operator decides it th
   source "UN Comtrade".
 - The licences of OpenCorporates and OCCRP Aleph do not fit the open dataset. Use them only as a
   lead, or cite a fact from them. Never use a leak collection of Aleph (see the rule on leaked data).
-- Never use leaked, hacked or stolen data, as a source or as a lead. The contract of the report
-  forbids unlawfully obtained data at any stage. A page is a leak when it, or its publisher, calls
-  the data leaked, hacked or stolen. Examples: the leak collections of Aleph, Offshore Leaks,
-  WikiLeaks and DDoSecrets. Stop when you find that a page is a leak. Do not store it. Do not cite
-  it. Do not cite an article that quotes a leaked document or copies its text. An article that
-  only summarises a leak, or names it, is allowed. Find each fact in a lawful source on your own.
-  Never go from a leak to its source. If a fact has no lawful source, do not propose it. When you
-  are not sure, ask the skill `expert-panel`.
+- Never cite leaked, hacked or stolen data, and never use it as a lead. The contract of the report
+  forbids unlawfully obtained data. A page is a leak when it, or its publisher, calls the data
+  leaked, hacked or stolen. Examples: the leak collections of Aleph, Offshore Leaks, WikiLeaks and
+  DDoSecrets. Stop when you find that a page is a leak. Do not store it. Do not cite it. A published
+  article of a news outlet is allowed, also when it uses leaked data. Cite the article, never the
+  leak. Never go from a leak to its source. If a fact has no other source, do not propose it. When
+  you are not sure, ask the skill `expert-panel`.
 - Cite an entry of the OFAC SDN list: `ofac_sdn` stores the whole official file once, as a public
   document with its hash and its date of publication, and gives the line of one entry by its
   ent_num. Cite that line on the page that the answer gives (`entry.page`). Never store one entry
