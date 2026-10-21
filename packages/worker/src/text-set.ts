@@ -8,8 +8,8 @@ import { CSV_MIMES, csvSetName, headlessCsv } from './csv-set.ts';
 import type { Queryable } from './queryable.ts';
 
 // A text set is the table of one sheet of a stored workbook, of one GeoJSON layer of a stored
-// zip archive, or of a stored CSV file with no header row, with one column filter. It is a set of pages of the same document under a name that
-// holds the sheet or the layer, the filter and the version of the reader. The bytes and the
+// zip archive, or of a stored CSV file with no header row, with one column filter. It is a set of
+// pages of the same document under a name that holds the sheet or the layer, the filter and the version of the reader. The bytes and the
 // filter alone make it, so the same file gives the same rows each time, and a citation names the
 // set that it cites (ADR 0012, decisions.md P5). The file is read as a stream, so a large file
 // costs the memory of the rows that the filter keeps.

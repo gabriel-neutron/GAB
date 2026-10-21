@@ -5,8 +5,8 @@ import { readCsv } from '@gab/tools/csv';
 // A text set of a CSV file that has no header row, such as the SDN list of OFAC. The request names
 // the columns by position, and it can keep the rows whose cell of one column holds one whole tag.
 // A cell holds several tags in the form `TAG1] [TAG2`. The file and the request alone make the
-// set, never the record, so the same file gives the same rows in the same order (ADR 0012). The
-// set is a page of the stored document, and no derived document is stored (decisions.md P6).
+// set, never the record, so the same file gives the same rows in the same order. The set is a page
+// of the stored document, and no derived document is stored.
 
 /** The mime types that a CSV set reads. A host often serves a CSV as plain bytes. */
 export const CSV_MIMES: readonly string[] = [
@@ -15,6 +15,10 @@ export const CSV_MIMES: readonly string[] = [
   'text/plain',
   'application/octet-stream',
 ];
+
+/** The most bytes of a CSV file that this reader holds. The file is held whole in memory, and the
+ * reader makes one item for each code point, so the cap is far below the cap of the kept text. */
+export const MAX_CSV_BYTES = 16 * 1024 * 1024;
 
 const TAG_OPEN = '[';
 const TAG_CLOSE = ']';
@@ -33,8 +37,8 @@ export const csvSetName = (columns: readonly string[], tag?: TableFilter): strin
   (tag === undefined ? '' : `|tag=${tag.column}=${tag.value}`);
 
 const bytesOf = async (source: ZipSource): Promise<Uint8Array> => {
-  if (source.size > MAX_TABLE_CHARS)
-    throw new WorkbookFault(`the file is larger than ${String(MAX_TABLE_CHARS)} bytes`);
+  if (source.size > MAX_CSV_BYTES)
+    throw new WorkbookFault(`the file is larger than ${String(MAX_CSV_BYTES)} bytes`);
   const chunk = 1024 * 1024;
   const out = new Uint8Array(source.size);
   for (let at = 0; at < source.size; at += chunk)
@@ -53,6 +57,10 @@ export const headlessCsv = async (
     throw new WorkbookFault('give a name to each column');
   if (new Set(columns).size !== columns.length)
     throw new WorkbookFault('the names of the columns must differ');
+  if (columns.some((name) => /[,|=]/u.test(name)))
+    throw new WorkbookFault('a name of a column holds no comma, bar or equals sign');
+  if (tag !== undefined && (tag.value.trim() === '' || /[[\]]/u.test(tag.value)))
+    throw new WorkbookFault('a tag is not empty and holds no bracket');
   const at = tag === undefined ? -1 : columns.indexOf(tag.column);
   if (tag !== undefined && at === -1)
     throw new WorkbookFault(`the columns hold no column "${tag.column}"`);

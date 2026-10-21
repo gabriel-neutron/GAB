@@ -1,7 +1,7 @@
 import { bytesSource } from '@gab/text/zip';
 import { expect, test } from 'vitest';
 
-import { csvSetName, headlessCsv, tagsOf } from './csv-set.ts';
+import { csvSetName, MAX_CSV_BYTES, headlessCsv, tagsOf } from './csv-set.ts';
 import type { Queryable } from './queryable.ts';
 import { makeTextSet } from './text-set.ts';
 
@@ -50,6 +50,15 @@ test('a bad request is refused', async () => {
     'no column "nope"',
   );
   await expect(headlessCsv(source(), ['a', 'a'])).rejects.toThrow('must differ');
+  await expect(headlessCsv(source(), ['a,b', 'c'])).rejects.toThrow('holds no comma');
+  await expect(
+    headlessCsv(source(), COLUMNS, { column: 'program', value: 'A] [B' }),
+  ).rejects.toThrow('no bracket');
+  await expect(headlessCsv(source(), COLUMNS, { column: 'program', value: ' ' })).rejects.toThrow(
+    'not empty',
+  );
+  const big = { size: MAX_CSV_BYTES + 1, read: () => Promise.resolve(new Uint8Array()) };
+  await expect(headlessCsv(big, COLUMNS)).rejects.toThrow('larger than');
   await expect(headlessCsv(source(), [])).rejects.toThrow('name to each column');
 });
 

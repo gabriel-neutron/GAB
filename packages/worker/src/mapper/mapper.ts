@@ -59,13 +59,13 @@ export const makeMapper = (config: MapperConfig, options: MapperOptions = {}): R
 
     const [held] = documentRow.parse((await context.db.query(MIME, [document])).rows);
     if (held === undefined) throw new JobStop(`the record holds no document ${document}`);
-    // A named text set of a workbook or of a GeoJSON layer is a table by its making, so it needs
+    // A named text set of a workbook, of a GeoJSON layer or of a headless CSV is a table by its making, so it needs
     // no CSV type.
     const [named] = textSetRow.parse((await context.db.query(TEXT_SET, [job.id])).rows);
     const textSet = named?.text_set ?? undefined;
     if (textSet !== undefined && !TABLE_SETS.some((reader) => textSet.startsWith(`${reader}|`)))
       throw new JobStop(
-        `the mapper reads a workbook or a layer text set, and ${textSet} is not one`,
+        `the mapper reads a workbook, layer or CSV text set, and ${textSet} is not one`,
       );
     // A format is mapped when code can give each row a span in a stored page: a CSV, a TSV and
     // an SDMX-CSV table are each one page of text with a row on each line.
