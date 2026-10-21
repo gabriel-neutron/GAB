@@ -45,6 +45,8 @@ export type TextSetRequest =
       readonly columns: readonly string[];
       /** Keeps the rows whose cell of this column holds this whole tag. */
       readonly tag?: TableFilter;
+      /** Keeps the rows whose cell of each column holds exactly this value. Each filter must hold. */
+      readonly equals?: readonly TableFilter[];
     };
 
 export interface TextSetResult {
@@ -74,7 +76,7 @@ export const makeTextSet = async (
 
   const name =
     'columns' in request
-      ? csvSetName(request.columns, request.tag)
+      ? csvSetName(request.columns, request.tag, request.equals)
       : 'sheet' in request
         ? textSetName(request.sheet, request.filter)
         : layerSetName(request.layer, request.filter);
@@ -83,7 +85,7 @@ export const makeTextSet = async (
   try {
     text =
       'columns' in request
-        ? await headlessCsv(file, request.columns, request.tag)
+        ? await headlessCsv(file, request.columns, request.tag, request.equals)
         : 'sheet' in request
           ? await sheetCsv(file, request.sheet, request.filter)
           : await layerCsv(file, request.layer, request.filter);

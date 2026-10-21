@@ -15,9 +15,9 @@ import { makeTextSet, type TextSetRequest } from './text-set.ts';
 const USAGE =
   'Usage: pnpm worker text-set <document> (--sheet <name> | --layer <name>) ' +
   '[--where "<column>=<value>"], or pnpm worker text-set <document> --columns "<a>,<b>,..." ' +
-  '[--tag "<column>=<tag>"]. It keeps the rows of one sheet of a stored workbook, of one GeoJSON ' +
+  '[--tag "<column>=<tag>"] [--equals "<column>=<value>"]. It keeps the rows of one sheet of a stored workbook, of one GeoJSON ' +
   'layer of a stored zip archive, or of a stored CSV file with no header row (--columns names ' +
-  'the columns by position, --tag keeps the rows whose cell holds that whole tag), as a named ' +
+  'the columns by position, --tag keeps the rows whose cell holds that whole tag, --equals keeps the rows whose cell is that value, and it may repeat), as a named ' +
   'text set of the document, and it prints the name of the set.';
 
 const pairOf = (text: string, option: string): { column: string; value: string } => {
@@ -37,6 +37,7 @@ const requestOf = (args: readonly string[]): TextSetRequest => {
       where: { type: 'string' },
       columns: { type: 'string' },
       tag: { type: 'string' },
+      equals: { type: 'string', multiple: true },
     },
   });
   const [document] = positionals;
@@ -47,13 +48,16 @@ const requestOf = (args: readonly string[]): TextSetRequest => {
   if (columns !== undefined && columns !== '') {
     if (values.where !== undefined) throw new Error('Use --tag, and not --where, with --columns.');
     const tag = values.tag === undefined ? undefined : pairOf(values.tag, '--tag');
+    const equals = (values.equals ?? []).map((pair) => pairOf(pair, '--equals'));
     return {
       document,
       columns: columns.split(',').map((name) => name.trim()),
       ...(tag === undefined ? {} : { tag }),
+      ...(equals.length === 0 ? {} : { equals }),
     };
   }
-  if (values.tag !== undefined) throw new Error('--tag goes with --columns.');
+  if (values.tag !== undefined || values.equals !== undefined)
+    throw new Error('--tag and --equals go with --columns.');
   const filter = values.where === undefined ? undefined : pairOf(values.where, '--where');
   const base = { document, ...(filter === undefined ? {} : { filter }) };
   return sheet !== undefined && sheet !== '' ? { ...base, sheet } : { ...base, layer: layer ?? '' };
