@@ -6,7 +6,7 @@ import type { SubCommand } from './command.ts';
 const USAGE =
   'Usage: pnpm worker merge-entities <duplicate> <survivor>. Two entities of one type are one ' +
   'thing. The survivor takes the relations and the values of the duplicate, and the duplicate ' +
-  'resolves to the survivor. The operator undoes a merge with undo_merge.';
+  'resolves to the survivor. The writer door undo_merge undoes a merge.';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 

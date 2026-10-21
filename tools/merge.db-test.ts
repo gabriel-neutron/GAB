@@ -189,7 +189,7 @@ test('a merge moves the relations and the values to the survivor, and keeps the 
   });
 });
 
-test('a duplicate vessel with a wrong IMO number leaves no number behind, and its designation joins the twin', async () => {
+test('a merge keeps the IMO number of the survivor, and the designation of the duplicate joins the twin', async () => {
   const seen = await rolledBack('app', async (ask) => {
     const keep = await entity(ask, 'vessel', 'WRONG IMO KEEP', { imo: manual('9308170') });
     const gone = await entity(ask, 'vessel', 'WRONG IMO GONE', { imo: manual('7381556') });
