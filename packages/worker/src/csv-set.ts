@@ -1,6 +1,5 @@
 import { csvOf, MAX_TABLE_CHARS, TABLE_READER, type TableFilter } from '@gab/text/xlsx';
 import { WorkbookFault, type ZipSource } from '@gab/text/zip';
-import { readCsv } from '@gab/tools/csv';
 
 // A text set of a CSV file that has no header row, such as the SDN list of OFAC. The request names
 // the columns by position, and it can keep the rows whose cell of one column holds one whole tag.
@@ -16,9 +15,9 @@ export const CSV_MIMES: readonly string[] = [
   'application/octet-stream',
 ];
 
-/** The most bytes of a CSV file that this reader holds. The file is held whole in memory, and the
- * reader makes one item for each code point, so the cap is far below the cap of the kept text. */
-export const MAX_CSV_BYTES = 16 * 1024 * 1024;
+/** The most bytes of a CSV file that this reader accepts. The file is read as a stream, so the cap
+ * does not set the memory: the kept text does, and MAX_TABLE_CHARS caps it. */
+export const MAX_CSV_BYTES = 512 * 1024 * 1024;
 
 const TAG_OPEN = '[';
 const TAG_CLOSE = ']';
@@ -45,15 +44,96 @@ export const csvSetName = (
     .map((filter) => `|equals=${filter.column}=${filter.value.trim()}`)
     .join('');
 
-const bytesOf = async (source: ZipSource): Promise<Uint8Array> => {
+const CHUNK_BYTES = 1024 * 1024;
+
+/** The most characters of one field. A quote that never closes would otherwise fill the memory. */
+const MAX_FIELD_CHARS = 1024 * 1024;
+
+const QUOTE = '"';
+const COMMA = ',';
+const CR = '\r';
+const LF = '\n';
+const BOM = '\uFEFF';
+
+/** The records of a CSV file, read as a stream of chunks. It follows RFC 4180 as `readCsv` does:
+ * a line that holds nothing is no record, and a CR, a LF or a CRLF ends a record. The memory is
+ * one chunk and one record, whatever the size of the file. */
+async function* csvRecords(source: ZipSource): AsyncGenerator<string[]> {
   if (source.size > MAX_CSV_BYTES)
     throw new WorkbookFault(`the file is larger than ${String(MAX_CSV_BYTES)} bytes`);
-  const chunk = 1024 * 1024;
-  const out = new Uint8Array(source.size);
-  for (let at = 0; at < source.size; at += chunk)
-    out.set(await source.read(at, Math.min(chunk, source.size - at)), at);
-  return out;
-};
+  const decoder = new TextDecoder();
+  let fields: string[] = [];
+  let field = '';
+  const state = { inQuote: false, quoteSeen: false, hasContent: false };
+  // A quote inside a quoted field closes it, unless the next character is a quote (an escape).
+  let afterCr = false;
+  let first = true;
+
+  // The records that end inside one piece of text.
+  const feed = (text: string): string[][] => {
+    const done: string[][] = [];
+    for (const point of text) {
+      if (afterCr) {
+        afterCr = false;
+        if (point === LF) continue;
+      }
+      if (state.inQuote) {
+        if (state.quoteSeen) {
+          state.quoteSeen = false;
+          if (point === QUOTE) {
+            field += QUOTE;
+            continue;
+          }
+          state.inQuote = false;
+        } else if (point === QUOTE) {
+          state.quoteSeen = true;
+          continue;
+        } else {
+          field += point;
+          if (field.length > MAX_FIELD_CHARS)
+            throw new WorkbookFault(
+              `a field holds more than ${String(MAX_FIELD_CHARS)} characters`,
+            );
+          continue;
+        }
+      }
+      if (point === CR || point === LF) {
+        afterCr = point === CR;
+        if (state.hasContent) done.push([...fields, field]);
+        fields = [];
+        field = '';
+        state.hasContent = false;
+        continue;
+      }
+      state.hasContent = true;
+      if (point === QUOTE && field === '') state.inQuote = true;
+      else if (point === COMMA) {
+        fields.push(field);
+        field = '';
+      } else {
+        field += point;
+        if (field.length > MAX_FIELD_CHARS)
+          throw new WorkbookFault(`a field holds more than ${String(MAX_FIELD_CHARS)} characters`);
+      }
+    }
+    return done;
+  };
+
+  for (let at = 0; at < source.size; at += CHUNK_BYTES) {
+    let text = decoder.decode(await source.read(at, Math.min(CHUNK_BYTES, source.size - at)), {
+      stream: true,
+    });
+    if (first && text !== '') {
+      first = false;
+      if (text.startsWith(BOM)) text = text.slice(1);
+    }
+    yield* feed(text);
+  }
+  yield* feed(decoder.decode());
+  if (state.inQuote && !state.quoteSeen)
+    throw new WorkbookFault('a quote in the file never closes');
+  if (state.hasContent) yield [...fields, field];
+}
 
 /** A CSV with no header row as CSV text: the header row of the given names, then each row that all
  * the filters keep. The tag filter and each exact-value filter must hold. A cell is compared after
@@ -89,11 +169,10 @@ export const headlessCsv = async (
   if (tag !== undefined && at === -1)
     throw new WorkbookFault(`the columns hold no column "${tag.column}"`);
 
-  const text = new TextDecoder().decode(await bytesOf(source));
   const kept = [...columns];
   const rows: string[][] = [kept];
   let chars = 0;
-  for (const { fields } of readCsv(text)) {
+  for await (const fields of csvRecords(source)) {
     if (tag !== undefined && !tagsOf(fields[at] ?? '').includes(tag.value)) continue;
     if (exact.some((filter) => (fields[filter.at] ?? '').trim() !== filter.value)) continue;
     const row = Array.from({ length: columns.length }, (_, index) => fields[index] ?? '');
