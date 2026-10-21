@@ -79,12 +79,13 @@ const readReportFolder = async (): Promise<ReadonlyMap<string, string>> => {
   const folder =
     named === undefined || named === '' ? resolve(import.meta.dirname, '../report') : named;
   const names = await readdir(folder, { withFileTypes: true }).catch(() => {
-    throw new SiteReleaseFault('REPORT_DIR does not name a folder that can be read.');
+    throw new SiteReleaseFault(`The report folder ${folder} cannot be read.`);
   });
   const present = new Set(names.filter((one) => one.isFile()).map((one) => one.name));
   // Only the named files are public. Any other file of the folder stays on the machine.
   for (const name of Object.values(REPORT_FILES))
-    if (!present.has(name)) throw new SiteReleaseFault(`REPORT_DIR holds no file ${name}.`);
+    if (!present.has(name))
+      throw new SiteReleaseFault(`The report folder ${folder} holds no file ${name}.`);
   return new Map(
     await Promise.all(
       Object.values(REPORT_FILES).map(
