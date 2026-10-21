@@ -1,7 +1,9 @@
+import { MAX_TABLE_CHARS } from '@gab/text/xlsx';
+import { readCsv } from '@gab/tools/csv';
 import { bytesSource } from '@gab/text/zip';
 import { expect, test } from 'vitest';
 
-import { csvSetName, MAX_CSV_BYTES, headlessCsv, tagsOf } from './csv-set.ts';
+import { csvRecords, csvSetName, MAX_CSV_BYTES, headlessCsv, tagsOf } from './csv-set.ts';
 import type { Queryable } from './queryable.ts';
 import { requestOf } from './text-set-command.ts';
 import { makeTextSet } from './text-set.ts';
@@ -122,6 +124,9 @@ test('a bad request is refused', async () => {
     'not empty',
   );
   const big = { size: MAX_CSV_BYTES + 1, read: () => Promise.resolve(new Uint8Array()) };
+  await expect(
+    headlessCsv(bytesSource(new TextEncoder().encode('1,"open\n')), ['a', 'b']),
+  ).rejects.toThrow('never closes');
   await expect(headlessCsv(big, COLUMNS)).rejects.toThrow('larger than');
   await expect(headlessCsv(source(), [])).rejects.toThrow('name to each column');
 });
@@ -191,4 +196,47 @@ test('the command reads a repeated --equals, and refuses a bad one', () => {
   expect(() => requestOf(['doc_x', '--sheet', 's', '--equals', 'a=1'])).toThrow(
     'go with --columns',
   );
+});
+
+test('a file larger than one chunk is read as a stream, with a preamble and a header line', async () => {
+  const names = ['Unique ID', 'Name', 'Designation Type', 'Note'];
+  const lines = ['Report Date,16/10/2026', names.join(',')];
+  // About 24 MiB: more than the old cap, and many chunks, with quoted fields that hold line breaks.
+  for (let index = 0; index < 120_000; index += 1) {
+    const type = index % 4000 === 0 ? 'Ship' : 'Individual';
+    lines.push(
+      `${String(index)},"Name, é ${String(index)}",${type},"line 1\r\nline 2 ""q"" ${'x'.repeat(180)}"`,
+    );
+  }
+  const file = bytesSource(new TextEncoder().encode(`\uFEFF${lines.join('\r\n')}\r\n`));
+  expect(file.size).toBeGreaterThan(16 * 1024 * 1024);
+  const tag = { column: 'type', value: 'Ship' };
+  const text = await headlessCsv(file, ['id', 'name', 'type', 'note'], tag);
+  const rows = readCsv(text);
+  expect(rows).toHaveLength(31);
+  expect(rows[1]?.fields[0]).toBe('0');
+  expect(rows[1]?.fields[1]).toBe('Name, é 0');
+  expect(rows[1]?.fields[3]).toContain('line 1\r\nline 2 "q" xxx');
+  expect(rows.at(-1)?.fields[0]).toBe('116000');
+  expect(text.length).toBeLessThan(MAX_TABLE_CHARS);
+});
+
+test('the stream reader gives the records of readCsv at every small chunk size', async () => {
+  const body = '\uFEFF\r\n\r\n"a""b",c\n,"",\r"x\ny"\r\n\n"é""",ü,日本\r\n\n"""",""""""\r\n1,2';
+  const expected = readCsv(body).map((record) => record.fields);
+  const bytes = new TextEncoder().encode(body);
+  for (let size = 1; size <= 9; size += 1) {
+    const got: string[][] = [];
+    for await (const fields of csvRecords(bytesSource(bytes), size)) got.push(fields);
+    expect(got, `chunk size ${String(size)}`).toStrictEqual(expected);
+  }
+});
+
+test('a record or a field past its cap is refused', async () => {
+  const read = async (text: string) => {
+    for await (const fields of csvRecords(bytesSource(new TextEncoder().encode(text)))) void fields;
+  };
+  await expect(read(','.repeat(10_001))).rejects.toThrow('holds more than 10000 fields');
+  await expect(read(`"${'""'.repeat(1_100_000)}"`)).rejects.toThrow('characters');
+  await expect(read(`a\n"${'x'.repeat(2_000_000)}`)).rejects.toThrow('record 2');
 });
