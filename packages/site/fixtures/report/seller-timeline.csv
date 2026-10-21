@@ -1,0 +1,11 @@
+serie,periode,valeur,unite,document,page,extrait_ou_cellule,note
+Seller One,2023,10,kt,news,2,Row One,Invented value for a test.
+Seller One,2024,14,kt,news,2,Row One,Invented value for a test.
+Seller One,2025,9,kt,news,2,Row One,Invented value for a test.
+Seller One,2026,12,kt,news,2,Row One,Invented value for a test.
+Seller Two,2023,5,kt,news,2,Row Two,Invented value for a test.
+Seller Two,2024,0,kt,news,2,Row Two,Invented value for a test.
+Seller Two,2025,7,kt,news,2,Row Two,Invented value for a test.
+Seller Three,2024,3,kt,news,2,Row ree,Invented value for a test.
+Seller Three,2025,4,kt,news,2,Row ree,Invented value for a test.
+Seller Three,2026,6,kt,news,2,Row ree,Invented value for a test.

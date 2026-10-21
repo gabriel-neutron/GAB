@@ -1,13 +1,12 @@
 // The files of one release, served by the dev server and the preview server, and copied beside the
 // application at the build (ADR 0028). The application reads them when the read service does not
 // answer. No folder named means no release: the application then has no files to fall back on.
+// The report folder is served the same way, under its own name.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import type { Plugin, PreviewServer, ViteDevServer } from 'vite';
-
-const PREFIX = '/release/';
 
 const TYPES: Readonly<Record<string, string>> = {
   '.json': 'application/json',
@@ -28,30 +27,32 @@ const filesOf = (folder: string): readonly string[] =>
 /** The files that the build copies beside the application, each one a copy byte for byte. */
 export const releaseAssets = (
   folder: string,
+  directory = 'release',
 ): readonly { readonly fileName: string; readonly source: Buffer }[] =>
   filesOf(folder).map((name) => ({
-    fileName: `release/${name}`,
+    fileName: `${directory}/${name}`,
     source: readFileSync(join(folder, name)),
   }));
 
-export function releaseFolder(folder: string | undefined): Plugin {
+const folderPlugin = (name: string, directory: string, folder: string | undefined): Plugin => {
+  const prefix = `/${directory}/`;
   const root = folder === undefined || folder === '' ? null : resolve(folder);
   const serve = ({ middlewares }: ViteDevServer | PreviewServer): void => {
     if (root === null) return;
     const names = new Set(filesOf(root));
     middlewares.use((request, reply, next) => {
       const address = request.url ?? '';
-      const name = address.split('?')[0]?.slice(PREFIX.length) ?? '';
-      if (!address.startsWith(PREFIX) || !names.has(name)) {
+      const file = address.split('?')[0]?.slice(prefix.length) ?? '';
+      if (!address.startsWith(prefix) || !names.has(file)) {
         next();
         return;
       }
-      reply.setHeader('Content-Type', typeOf(name));
-      reply.end(readFileSync(join(root, name)));
+      reply.setHeader('Content-Type', typeOf(file));
+      reply.end(readFileSync(join(root, file)));
     });
   };
   return {
-    name: 'gab-release-folder',
+    name,
     configureServer: (server) => {
       serve(server);
     },
@@ -60,8 +61,16 @@ export function releaseFolder(folder: string | undefined): Plugin {
     },
     generateBundle() {
       if (root === null) return;
-      for (const { fileName, source } of releaseAssets(root))
+      for (const { fileName, source } of releaseAssets(root, directory))
         this.emitFile({ type: 'asset', fileName, source });
     },
   };
-}
+};
+
+export const releaseFolder = (folder: string | undefined): Plugin =>
+  folderPlugin('gab-release-folder', 'release', folder);
+
+/** The data files of the report, beside the application under `report/`. The operator machine
+ * holds them, and the build takes their folder from the environment as it does the release. */
+export const reportFolder = (folder: string | undefined): Plugin =>
+  folderPlugin('gab-report-folder', 'report', folder);

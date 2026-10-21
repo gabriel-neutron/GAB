@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./accepted": "./src/accepted.ts",
+    "./alignment-rows": "./src/alignment-rows.ts",
     "./arc-line": "./src/arc-line.ts",
     "./arc-volume": "./src/arc-volume.ts",
     "./asset-sanctions": "./src/asset-sanctions.ts",

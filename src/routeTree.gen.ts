@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DownloadsRouteImport } from './routes/downloads'
+import { Route as ExportsRouteImport } from './routes/exports'
 import { Route as GlossaryRouteImport } from './routes/glossary'
 import { Route as GraphRouteImport } from './routes/graph'
 import { Route as HelpRouteImport } from './routes/help'
@@ -32,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
 const DownloadsRoute = DownloadsRouteImport.update({
   id: '/downloads',
   path: '/downloads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExportsRoute = ExportsRouteImport.update({
+  id: '/exports',
+  path: '/exports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GlossaryRoute = GlossaryRouteImport.update({
@@ -98,6 +104,7 @@ const VesselImoRoute = VesselImoRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/downloads': typeof DownloadsRoute
+  '/exports': typeof ExportsRoute
   '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
   '/help': typeof HelpRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/downloads': typeof DownloadsRoute
+  '/exports': typeof ExportsRoute
   '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
   '/help': typeof HelpRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/downloads': typeof DownloadsRoute
+  '/exports': typeof ExportsRoute
   '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
   '/help': typeof HelpRoute
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/downloads'
+    | '/exports'
     | '/glossary'
     | '/graph'
     | '/help'
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/downloads'
+    | '/exports'
     | '/glossary'
     | '/graph'
     | '/help'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/downloads'
+    | '/exports'
     | '/glossary'
     | '/graph'
     | '/help'
@@ -198,6 +210,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DownloadsRoute: typeof DownloadsRoute
+  ExportsRoute: typeof ExportsRoute
   GlossaryRoute: typeof GlossaryRoute
   GraphRoute: typeof GraphRoute
   HelpRoute: typeof HelpRoute
@@ -226,6 +239,13 @@ declare module '@tanstack/react-router' {
       path: '/downloads'
       fullPath: '/downloads'
       preLoaderRoute: typeof DownloadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/exports': {
+      id: '/exports'
+      path: '/exports'
+      fullPath: '/exports'
+      preLoaderRoute: typeof ExportsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/glossary': {
@@ -318,6 +338,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DownloadsRoute: DownloadsRoute,
+  ExportsRoute: ExportsRoute,
   GlossaryRoute: GlossaryRoute,
   GraphRoute: GraphRoute,
   HelpRoute: HelpRoute,
