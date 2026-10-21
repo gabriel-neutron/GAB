@@ -10,20 +10,33 @@ import { Client } from 'pg';
 
 import { appAddress } from './address.ts';
 import type { SubCommand } from './command.ts';
+import type { Extraction } from './csv-set.ts';
 import { makeTextSet, type TextSetRequest } from './text-set.ts';
 
 const USAGE =
   'Usage: pnpm worker text-set <document> (--sheet <name> | --layer <name>) ' +
   '[--where "<column>=<value>"], or pnpm worker text-set <document> --columns "<a>,<b>,..." ' +
-  '[--tag "<column>=<tag>"] [--equals "<column>=<value>"] [--skip <records>]. Add --dry-run to count the rows and write nothing. It keeps the rows of one sheet of a stored workbook, of one GeoJSON ' +
+  '[--tag "<column>=<tag>"] [--equals "<column>=<value>"] [--skip <records>] [--extract "<name>=<column>:<pattern>"]. Add --dry-run to count the rows and write nothing. It keeps the rows of one sheet of a stored workbook, of one GeoJSON ' +
   'layer of a stored zip archive, or of a stored CSV file with no header row (--columns names ' +
-  'the columns by position, --tag keeps the rows whose cell holds that whole tag, --equals keeps the rows whose cell is that value, and it may repeat, --skip drops the first records, such as a title line and the header), as a named ' +
+  'the columns by position, --tag keeps the rows whose cell holds that whole tag, --equals keeps the rows whose cell is that value, and it may repeat, --skip drops the first records, such as a title line and the header, --extract adds a column cut from a column by a pattern with one capture group), as a named ' +
   'text set of the document, and it prints the name of the set.';
 
 const pairOf = (text: string, option: string): { column: string; value: string } => {
   const at = text.indexOf('=');
   if (at < 1) throw new Error(`${option} is "<column>=<value>".`);
   return { column: text.slice(0, at), value: text.slice(at + 1) };
+};
+
+const extractionOf = (text: string): Extraction => {
+  const equals = text.indexOf('=');
+  const colon = text.indexOf(':', equals + 1);
+  if (equals < 1 || colon < equals + 2 || colon === text.length - 1)
+    throw new Error('--extract is "<name>=<column>:<pattern>".');
+  return {
+    name: text.slice(0, equals),
+    from: text.slice(equals + 1, colon),
+    pattern: text.slice(colon + 1),
+  };
 };
 
 export const requestOf = (args: readonly string[]): TextSetRequest => {
@@ -38,6 +51,7 @@ export const requestOf = (args: readonly string[]): TextSetRequest => {
       columns: { type: 'string' },
       tag: { type: 'string' },
       equals: { type: 'string', multiple: true },
+      extract: { type: 'string', multiple: true },
       skip: { type: 'string' },
     },
   });
@@ -50,6 +64,7 @@ export const requestOf = (args: readonly string[]): TextSetRequest => {
     if (values.where !== undefined) throw new Error('Use --tag, and not --where, with --columns.');
     const tag = values.tag === undefined ? undefined : pairOf(values.tag, '--tag');
     const equals = (values.equals ?? []).map((pair) => pairOf(pair, '--equals'));
+    const extract = (values.extract ?? []).map(extractionOf);
     if (values.skip !== undefined && !/^\d+$/u.test(values.skip))
       throw new Error('--skip is a count of records.');
     const skip = Number(values.skip ?? 0);
@@ -60,10 +75,16 @@ export const requestOf = (args: readonly string[]): TextSetRequest => {
       columns: columns.split(',').map((name) => name.trim()),
       ...(tag === undefined ? {} : { tag }),
       ...(equals.length === 0 ? {} : { equals }),
+      ...(extract.length === 0 ? {} : { extract }),
     };
   }
-  if (values.tag !== undefined || values.equals !== undefined || values.skip !== undefined)
-    throw new Error('--tag, --equals and --skip go with --columns.');
+  if (
+    values.tag !== undefined ||
+    values.equals !== undefined ||
+    values.skip !== undefined ||
+    values.extract !== undefined
+  )
+    throw new Error('--tag, --equals, --skip and --extract go with --columns.');
   const filter = values.where === undefined ? undefined : pairOf(values.where, '--where');
   const base = { document, ...(filter === undefined ? {} : { filter }) };
   return sheet !== undefined && sheet !== '' ? { ...base, sheet } : { ...base, layer: layer ?? '' };

@@ -4,7 +4,7 @@ import type { ZipSource } from '@gab/text/zip';
 import { readCsv } from '@gab/tools/csv';
 import { z } from 'zod';
 
-import { CSV_MIMES, csvSetName, headlessCsv } from './csv-set.ts';
+import { CSV_MIMES, csvSetName, headlessCsv, type Extraction } from './csv-set.ts';
 import type { Queryable } from './queryable.ts';
 
 // A text set is the table of one sheet of a stored workbook, of one GeoJSON layer of a stored
@@ -47,6 +47,8 @@ export type TextSetRequest =
       readonly tag?: TableFilter;
       /** Keeps the rows whose cell of each column holds exactly this value. Each filter must hold. */
       readonly equals?: readonly TableFilter[];
+      /** Adds columns, each cut from a named column by a pattern. A filter may name them. */
+      readonly extract?: readonly Extraction[];
       /** Drops this many records at the start of the file, before the filters. */
       readonly skip?: number;
     };
@@ -84,7 +86,7 @@ export const makeTextSet = async (
 
   const name =
     'columns' in request
-      ? csvSetName(request.columns, request.tag, request.equals, request.skip)
+      ? csvSetName(request.columns, request.tag, request.equals, request.skip, request.extract)
       : 'sheet' in request
         ? textSetName(request.sheet, request.filter)
         : layerSetName(request.layer, request.filter);
@@ -93,7 +95,14 @@ export const makeTextSet = async (
   try {
     text =
       'columns' in request
-        ? await headlessCsv(file, request.columns, request.tag, request.equals, request.skip)
+        ? await headlessCsv(
+            file,
+            request.columns,
+            request.tag,
+            request.equals,
+            request.skip,
+            request.extract,
+          )
         : 'sheet' in request
           ? await sheetCsv(file, request.sheet, request.filter)
           : await layerCsv(file, request.layer, request.filter);

@@ -241,6 +241,91 @@ test('a record or a field past its cap is refused', async () => {
   await expect(read(`a\n"${'x'.repeat(2_000_000)}`)).rejects.toThrow('record 2');
 });
 
+test('a column is cut from another column by a pattern', async () => {
+  const file = bytesSource(
+    new TextEncoder().encode(
+      [
+        '1,ALPHA,vessel,RUSSIA-EO14024,"Vessel Registration Identification IMO 9162928; MMSI 1"',
+        '2,BETA,vessel,RUSSIA-EO14024,"Other text, then IMO 1234567 and IMO 7654321"',
+        '3,GAMMA,vessel,RUSSIA-EO14024,"Vessel with no number; IMO 12"',
+        '4,DELTA,entity,RUSSIA-EO14024,"IMO 9999999"',
+        '5,EPSILON,vessel,IRAN-EO13902,"IMO 8888888"',
+      ].join('\n'),
+    ),
+  );
+  const imo = { name: 'imo', from: 'remarks', pattern: 'IMO (\\d{7})' };
+  const columns = ['ent_num', 'name', 'type', 'program', 'remarks'];
+  const text = await headlessCsv(file, columns, TAG, [{ column: 'type', value: 'vessel' }], 0, [
+    imo,
+  ]);
+  expect(readCsv(text).map((record) => [record.fields[0], record.fields[5]])).toStrictEqual([
+    ['ent_num', 'imo'],
+    ['1', '9162928'],
+    ['2', '1234567'],
+    ['3', ''],
+  ]);
+  // A filter may name the new column, and the same request gives the same text.
+  const only = await headlessCsv(
+    file,
+    columns,
+    undefined,
+    [{ column: 'imo', value: '9999999' }],
+    0,
+    [imo],
+  );
+  expect(readCsv(only).map((record) => record.fields[0])).toStrictEqual(['ent_num', '4']);
+  expect(
+    await headlessCsv(file, columns, TAG, [{ column: 'type', value: 'vessel' }], 0, [imo]),
+  ).toBe(text);
+});
+
+test('a long cell is cut before the pattern reads it', async () => {
+  const long = `${'x'.repeat(5000)} IMO 1234567`;
+  const file = bytesSource(new TextEncoder().encode(`1,"${long}"\n2,IMO 7654321`));
+  const text = await headlessCsv(file, ['a', 'b'], undefined, [], 0, [
+    { name: 'imo', from: 'b', pattern: 'IMO (\\d{7})' },
+  ]);
+  expect(readCsv(text).map((record) => record.fields[2])).toStrictEqual(['imo', '', '7654321']);
+});
+
+test('a bad extraction is refused', async () => {
+  const columns = ['a', 'b'];
+  const run = (one: { name: string; from: string; pattern: string }) =>
+    headlessCsv(source(), columns, undefined, [], 0, [one]);
+  const good = { name: 'c', from: 'b', pattern: '(\\d+)' };
+  await expect(run({ ...good, pattern: '\\d+' })).rejects.toThrow('exactly one capture group');
+  await expect(run({ ...good, pattern: '(\\d)(\\d)' })).rejects.toThrow('exactly one');
+  await expect(run({ ...good, pattern: '(\\d' })).rejects.toThrow('not a valid pattern');
+  await expect(run({ ...good, pattern: '(a+)+$' })).rejects.toThrow('repeats a group');
+  await expect(run({ ...good, pattern: '(\\w*\\d)*' })).rejects.toThrow('repeats a group');
+  await expect(run({ ...good, from: 'zz' })).rejects.toThrow('no column "zz"');
+  await expect(run({ ...good, name: ' ' })).rejects.toThrow('give a name');
+  await expect(run({ ...good, name: 'a' })).rejects.toThrow('clashes');
+  await expect(
+    headlessCsv(source(), columns, undefined, [], 0, [good, { ...good, from: 'a' }]),
+  ).rejects.toThrow('clashes');
+});
+
+test('the name holds the extractions, and the command reads --extract', () => {
+  const one = { name: 'imo', from: 'remarks', pattern: 'IMO (\\d{7}|x)' };
+  expect(csvSetName(['remarks'], undefined, [], 0, [one])).toBe(
+    'xlsx-1|csv=remarks|extract=imo:remarks:"IMO (\\\\d{7}|x)"',
+  );
+  expect(
+    requestOf(['doc_x', '--columns', 'a,remarks', '--extract', 'imo=remarks:IMO (\\d{7})']),
+  ).toStrictEqual({
+    document: 'doc_x',
+    columns: ['a', 'remarks'],
+    extract: [{ name: 'imo', from: 'remarks', pattern: 'IMO (\\d{7})' }],
+  });
+  expect(() => requestOf(['doc_x', '--columns', 'a', '--extract', 'imo=remarks'])).toThrow(
+    '--extract is',
+  );
+  expect(() => requestOf(['doc_x', '--sheet', 's', '--extract', 'a=b:(c)'])).toThrow(
+    'go with --columns',
+  );
+});
+
 test('skip drops the first records, such as a title line and the header', async () => {
   const titled = bytesSource(
     new TextEncoder().encode('Report Date: 1\r\nid,type\r\n1,Ship\r\n2,Person\r\n'),
