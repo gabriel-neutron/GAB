@@ -5,7 +5,8 @@ import { EXPORTS_TEXT } from '@/features/exports/exports-text';
 import { ExportsPage } from '@/features/exports/exports-page';
 import { readFigureRows } from '@/features/exports/figure-rows';
 import { loadCorpus } from '@/shared/read/corpus';
-import { loadReportFiles, REPORT_FILES } from '@/shared/read/report-files';
+import { REPORT_FILES } from '@gab/release/report-files';
+import { loadReportFiles } from '@/shared/read/report-files';
 import { loadReleaseOrNull } from '@/shared/read/release-record';
 
 const rowsOf = (name: string, text: string | null) =>
@@ -39,9 +40,7 @@ function ExportsRoute() {
       text={EXPORTS_TEXT}
       release={release}
       figures={figures}
-      entityHref={(id) => entityHref(id, null)}
-      vesselHref={vesselHref}
-      claimHref={claimHref}
+      links={{ entity: (id) => entityHref(id, null), vessel: vesselHref, claim: claimHref }}
     />
   );
 }

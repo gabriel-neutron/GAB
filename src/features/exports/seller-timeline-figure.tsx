@@ -43,7 +43,7 @@ export function SellerTimelineFigure({
               const max = largest.get(row.unit) ?? 0;
               return (
                 <span
-                  key={`${row.document}${row.excerpt}`}
+                  key={`${row.serie}${row.period}${row.document}${row.excerpt}`}
                   className="flex flex-col items-end gap-0.5"
                 >
                   {source.href === null ? (

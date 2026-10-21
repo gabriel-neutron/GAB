@@ -9,7 +9,7 @@ import { EXPORTS_RELEASE } from './fixture-release';
 const VESSEL = '0a1f0000-0000-4000-8000-000000000001';
 const CLAIM = '0a1f0000-0000-4000-8000-000000000012';
 
-// The text of the stories is made for the test. The real text comes from the writing step.
+// The text of the stories is made for the test.
 const TEXT: ExportsText = {
   title: 'Les exportations russes',
   blocks: [
@@ -73,9 +73,11 @@ const meta = {
     text: TEXT,
     release: EXPORTS_RELEASE,
     figures: EXPORTS_FIGURES,
-    entityHref: (id: string) => `/entity/${id}`,
-    vesselHref: (imo: string) => `/vessel/${imo}`,
-    claimHref: (id: string) => `/claim/${id}`,
+    links: {
+      entity: (id: string) => `/entity/${id}`,
+      vessel: (imo: string) => `/vessel/${imo}`,
+      claim: (id: string) => `/claim/${id}`,
+    },
   },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
@@ -221,5 +223,21 @@ export const SaysSoWhenTheSiteHoldsNoRelease: Story = {
       canvas.getByText('This site holds no release, and the matrix comes from a release.'),
     ).toBeVisible();
     await expect(canvas.queryByRole('link', { name: 'Severnaya Volna' })).toBeNull();
+  },
+};
+
+export const GivesNoLegendWhenTheReleaseHoldsNoMatrixRow: Story = {
+  args: { release: { ...EXPORTS_RELEASE, alignment: [] } },
+  play: async ({ canvas, canvasElement }) => {
+    await canvas.findByRole('heading', { name: 'Les exportations russes' });
+    await expect(canvas.getByText('This release holds no alignment matrix.')).toBeVisible();
+    await expect(canvasElement.querySelector('[data-matrix-legend]')).toBeNull();
+  },
+};
+
+export const SaysWhenAListingClaimIsNotInTheRelease: Story = {
+  play: async ({ canvas }) => {
+    await canvas.findByRole('heading', { name: 'Les exportations russes' });
+    await expect(canvas.getByText('2024-01-10 (no claim page)')).toBeVisible();
   },
 };

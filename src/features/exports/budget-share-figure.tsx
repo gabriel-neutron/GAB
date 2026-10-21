@@ -35,9 +35,12 @@ const ceiling = (largest: number): number => {
 export function BudgetShareFigure({ number, title, rows, documents }: BudgetShareFigureProps) {
   const periods = firstSeen(rows.map((row) => row.period));
   const top = ceiling(Math.max(0, ...rows.map((row) => row.value)));
+  // A negative value moves the foot of the axis down, so the line never leaves the plot.
+  const foot = Math.min(0, ...rows.map((row) => row.value));
   const x = (period: string): number =>
     LEFT + ((WIDTH - LEFT - RIGHT) * periods.indexOf(period)) / Math.max(1, periods.length - 1);
-  const y = (value: number): number => TOP + ((HEIGHT - TOP - BOTTOM) * (top - value)) / top;
+  const y = (value: number): number =>
+    TOP + ((HEIGHT - TOP - BOTTOM) * (top - value)) / (top - foot);
   const unit = rows[0]?.unit ?? '';
   const series = firstSeen(rows.map((row) => row.serie));
   const ends = [periods[0], periods.at(-1)];
@@ -52,7 +55,7 @@ export function BudgetShareFigure({ number, title, rows, documents }: BudgetShar
         <text x={LEFT} y={12} className="fill-label font-sans text-small">
           {unit}
         </text>
-        {[0, top / 2, top].map((tick) => (
+        {[...new Set([foot, 0, top / 2, top])].map((tick) => (
           <g key={tick}>
             <line
               x1={LEFT}

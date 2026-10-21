@@ -1,14 +1,9 @@
 // The data files of the report, read once and held. The files are private: the build copies them
 // from a folder of the operator, and a site built without that folder holds none.
 
-import { readOnce } from './once';
+import { REPORT_FILES } from '@gab/release/report-files';
 
-/** The name of each data file of the report. */
-export const REPORT_FILES = {
-  budget: 'budget-share.csv',
-  ledger: 'revenue-ledger.csv',
-  sellers: 'seller-timeline.csv',
-} as const;
+import { readOnce } from './once';
 
 /** The text of each data file, or null when the site does not hold it. */
 export type ReportFileTexts = { readonly [K in keyof typeof REPORT_FILES]: string | null };

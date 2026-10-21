@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { build, createServer } from 'vite';
 import { z } from 'zod';
 
+import { REPORT_FILES } from '@gab/release/report-files';
 import { claimPage, entityPage, relationPage, vesselPage } from '@gab/release/site-paths';
 import { readSiteRelease, type SiteRelease } from '@gab/release/site-release';
 import { SiteReleaseFault } from '@gab/release/site-release-fault';
@@ -80,11 +81,15 @@ const readReportFolder = async (): Promise<ReadonlyMap<string, string>> => {
   const names = await readdir(folder, { withFileTypes: true }).catch(() => {
     throw new SiteReleaseFault('REPORT_DIR does not name a folder that can be read.');
   });
+  const present = new Set(names.filter((one) => one.isFile()).map((one) => one.name));
+  // Only the named files are public. Any other file of the folder stays on the machine.
+  for (const name of Object.values(REPORT_FILES))
+    if (!present.has(name)) throw new SiteReleaseFault(`REPORT_DIR holds no file ${name}.`);
   return new Map(
     await Promise.all(
-      names
-        .filter((one) => one.isFile() && !one.name.startsWith('.'))
-        .map(async (one) => [one.name, await readFile(join(folder, one.name), 'utf8')] as const),
+      Object.values(REPORT_FILES).map(
+        async (name) => [name, await readFile(join(folder, name), 'utf8')] as const,
+      ),
     ),
   );
 };

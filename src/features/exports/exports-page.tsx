@@ -10,6 +10,7 @@ import { CriticalityMatrix } from './criticality-matrix';
 import type { Attachment, ExportsText } from './exports-text';
 import type { FigureRow } from './figure-rows';
 import { LedgerFigure } from './ledger-figure';
+import type { ReportLinks } from './report-links';
 import { ReportParagraph } from './report-paragraph';
 import { SellerTimelineFigure } from './seller-timeline-figure';
 import { documentsOf } from './value-source';
@@ -26,9 +27,7 @@ export interface ExportsPageProps {
   /** Null when the site holds no release: the matrix and the links come from a release. */
   readonly release: SiteRelease | null;
   readonly figures: ExportsFigures;
-  readonly entityHref: (id: string) => string;
-  readonly vesselHref: (imo: string) => string;
-  readonly claimHref: (id: string) => string;
+  readonly links: ReportLinks;
 }
 
 const FIGURES = ['budget', 'ledger', 'sellers'] as const;
@@ -36,23 +35,10 @@ const FIGURES = ['budget', 'ledger', 'sellers'] as const;
 /** The exports part of the report. The text comes from the text file, the figures from the data
  * files of the report, and the matrix from the release. A part that has no source says so in one
  * sentence and never draws a guess. */
-export function ExportsPage({
-  text,
-  release,
-  figures,
-  entityHref,
-  vesselHref,
-  claimHref,
-}: ExportsPageProps) {
+export function ExportsPage({ text, release, figures, links }: ExportsPageProps) {
   const documents = documentsOf(release);
   const paragraph = (parts: ExportsText['limits']['paragraph'], key: string) => (
-    <ReportParagraph
-      key={key}
-      parts={parts}
-      release={release}
-      entityHref={entityHref}
-      claimHref={claimHref}
-    />
+    <ReportParagraph key={key} parts={parts} release={release} links={links} />
   );
 
   const attachment = (kind: Attachment) => {
@@ -62,13 +48,7 @@ export function ExportsPage({
           This site holds no release, and the matrix comes from a release.
         </p>
       ) : (
-        <CriticalityMatrix
-          release={release}
-          title={text.captions.matrix}
-          entityHref={entityHref}
-          vesselHref={vesselHref}
-          claimHref={claimHref}
-        />
+        <CriticalityMatrix release={release} title={text.captions.matrix} links={links} />
       );
     const number = FIGURES.indexOf(kind) + 1;
     const rows = figures[kind];

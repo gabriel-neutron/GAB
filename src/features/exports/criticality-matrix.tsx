@@ -1,18 +1,18 @@
 import type { AlignmentListing, AlignmentRegime, AlignmentRow } from '@gab/release/alignment-rows';
 import { pairRating, type SiteRelease } from '@gab/release/site-release';
 
+import { cn } from '@/shared/lib/utils';
 import { ClaimLink } from '@/shared/page/claim-link';
 import { DataTable, type DataColumn } from '@/shared/page/data-table';
 import { READING_LINK } from '@/shared/page/reading-link';
 
+import type { ReportLinks } from './report-links';
 import { listingWords, matrixCounts } from './matrix-cells';
 
 export interface CriticalityMatrixProps {
   readonly release: SiteRelease;
   readonly title: string;
-  readonly entityHref: (id: string) => string;
-  readonly vesselHref: (imo: string) => string;
-  readonly claimHref: (id: string) => string;
+  readonly links: ReportLinks;
 }
 
 const REGIMES: readonly { readonly key: AlignmentRegime; readonly header: string }[] = [
@@ -29,13 +29,7 @@ const gapWords = (row: AlignmentRow): string =>
 /** The criticality matrix: one row for each vessel number that a regime lists, and one column for
  * each regime. A cell gives a mark and the date in words, the day when the listing ended when the
  * release has it, the act as a link to its page, and the ADMIRALTY pair of the listing claim. */
-export function CriticalityMatrix({
-  release,
-  title,
-  entityHref,
-  vesselHref,
-  claimHref,
-}: CriticalityMatrixProps) {
+export function CriticalityMatrix({ release, title, links }: CriticalityMatrixProps) {
   const counts = matrixCounts(release.alignment);
 
   const listingCell = (listing: AlignmentListing | null) => {
@@ -45,20 +39,22 @@ export function CriticalityMatrix({
       <span className="flex flex-col gap-0.5">
         <span className="inline-flex flex-wrap items-baseline gap-x-1.5">
           <span aria-hidden="true">{words.mark}</span>
-          {listing === null || claim === undefined ? (
+          {listing === null ? (
             <span>{words.words}</span>
+          ) : claim === undefined ? (
+            <span>{`${words.words} (no claim page)`}</span>
           ) : (
             <ClaimLink
               text={words.words}
               label={`Listing of ${words.words}`}
-              href={claimHref(claim.id)}
+              href={links.claim(claim.id)}
               rating={pairRating(release.manifest, claim)}
             />
           )}
         </span>
         {words.endedOn === null ? null : <span>{`ended ${words.endedOn}`}</span>}
         {listing === null ? null : release.entityById.has(listing.actId) ? (
-          <a className={READING_LINK} href={entityHref(listing.actId)}>
+          <a className={READING_LINK} href={links.entity(listing.actId)}>
             {listing.actLabel}
           </a>
         ) : (
@@ -76,7 +72,7 @@ export function CriticalityMatrix({
         <span className="flex flex-col gap-0.5">
           {row.vesselIds.map((id, place) =>
             release.entityById.has(id) ? (
-              <a key={id} className={READING_LINK} href={entityHref(id)}>
+              <a key={id} className={READING_LINK} href={links.entity(id)}>
                 {row.vesselLabels[place] ?? id}
               </a>
             ) : (
@@ -84,7 +80,7 @@ export function CriticalityMatrix({
             ),
           )}
           {release.vesselsByImo.has(row.imo) ? (
-            <a className={`${READING_LINK} font-mono`} href={vesselHref(row.imo)}>
+            <a className={cn(READING_LINK, 'font-mono')} href={links.vessel(row.imo)}>
               {`IMO ${row.imo}`}
             </a>
           ) : (
@@ -113,20 +109,22 @@ export function CriticalityMatrix({
         rows={release.alignment.map((row) => ({ id: row.imo, row }))}
         empty="This release holds no alignment matrix."
       />
-      <div className="flex flex-col gap-1 text-xs/5 text-label" data-matrix-legend="">
-        <p>
-          ● is a listing, with the date that the release gives. ○ is no listing in this release, and
-          it is not a legal permission. Each date follows the date rule of its regime.
-        </p>
-        <p>
-          {`${String(counts.rows)} vessel numbers. Listed by OFAC or the UK and not by the EU: ${String(counts.ofacOrUkNotEu)}. Listed by the EU and not by OFAC: ${String(counts.euNotOfac)}.`}
-        </p>
-        <p>
-          {counts.ended === 0
-            ? 'This release tracks no end date. The table shows the status on the day of the release, and a removal is not shown.'
-            : `${String(counts.ended)} vessel numbers have a listing with an end date.`}
-        </p>
-      </div>
+      {counts.rows === 0 ? null : (
+        <div className="flex flex-col gap-1 text-xs/5 text-label" data-matrix-legend="">
+          <p>
+            ● is a listing, with the date that the release gives. ○ is no listing in this release,
+            and it is not a legal permission. Each date follows the date rule of its regime.
+          </p>
+          <p>
+            {`${String(counts.rows)} vessel numbers. Listed by OFAC or the UK and not by the EU: ${String(counts.ofacOrUkNotEu)}. Listed by the EU and not by OFAC: ${String(counts.euNotOfac)}.`}
+          </p>
+          <p>
+            {counts.ended === 0
+              ? 'This release tracks no end date. The table shows the status on the day of the release, and a removal is not shown.'
+              : `${String(counts.ended)} vessel numbers have a listing with an end date.`}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

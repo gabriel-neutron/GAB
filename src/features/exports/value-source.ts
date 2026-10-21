@@ -33,7 +33,7 @@ export const documentOf = (
   documents.get(row.document) ?? { words: row.document, href: safeHref(row.document) };
 
 /** The source of one value: its document, then the page and the cell where the value stands.
- * The two functions are one job: the caption names the document, the value names the place. */
+ * The three functions are one job, the source of a value: the lookup, the document, and the place. */
 export function sourceOf(row: FigureRow, documents: ReadonlyMap<string, ValueSource>): ValueSource {
   const base = documentOf(row, documents);
   const place = [row.page === '' ? '' : `p. ${row.page}`, row.excerpt].filter((one) => one !== '');

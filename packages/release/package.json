@@ -23,6 +23,7 @@
     "./file-words": "./src/file-words.ts",
     "./map-features": "./src/map-features.ts",
     "./release-day": "./src/release-day.ts",
+    "./report-files": "./src/report-files.ts",
     "./safe-href": "./src/safe-href.ts",
     "./site-manifest": "./src/site-manifest.ts",
     "./site-paths": "./src/site-paths.ts",
