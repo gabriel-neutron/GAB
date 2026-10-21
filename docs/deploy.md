@@ -94,6 +94,9 @@ each decision is final). The Names page of the review page does the same.
 - `gem-duplicates`: report. It lists pairs of one entity with a GEM unit key and one without it, near
   and with a similar name. It writes nothing. Merge a true pair by hand with `merge_entities`.
 - `nato-coverage`, `asset-coverage`, `asset-sanctions`: reports. They write nothing.
+- `activity-report <flare document> <text set> [--operators <document> <text set>]`: report. It gives
+  each field, LNG plant and refinery an activity mark from the flare table, the stored FIRMS answers
+  and the dated strikes. It writes nothing. The report is internal: it is not a fact of the record.
 - `firms-sweep`: reads NASA FIRMS heat. Set `FIRMS_MAP_KEY` first. Run it again after a stop or
   each day: it reads only days that no stored answer covers.
 - `sentinel2-pairs`: stores a clear Sentinel-2 image before and after each accepted strike that has
