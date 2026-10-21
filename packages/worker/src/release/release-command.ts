@@ -85,6 +85,8 @@ export const releaseCommand: SubCommand = async (args) => {
         `entities, ${String(written.relations)} relations, ${String(written.claims)} claims. ` +
         `Its site is in ${site}.`,
     );
+    if ((process.env['REPORT_DIR'] ?? '') === '')
+      console.error('REPORT_DIR is not set: the exports page of this site has no figure.');
     for (const one of written.volumeRejections)
       console.error(`The volume table, line ${String(one.line)}: ${one.why}. The row is left out.`);
     for (const one of written.volumesUnjoined)

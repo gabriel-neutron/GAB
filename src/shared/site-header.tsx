@@ -87,6 +87,9 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
         <Link to="/downloads" className={PAGE_LINK}>
           Downloads
         </Link>
+        <Link to="/exports" className={PAGE_LINK}>
+          Exports
+        </Link>
         <Link to="/method" className={PAGE_LINK}>
           Method
         </Link>

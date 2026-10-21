@@ -89,6 +89,7 @@ describe.each([
       ['map/index.html', 'physical link', 'Map · GAB dataset'],
       ['downloads/index.html', 'SHA-256 checksum', 'Downloads · GAB dataset'],
       ['method/index.html', 'About this data', 'Method · GAB dataset'],
+      ['exports/index.html', 'is not on this site', 'Exports · GAB dataset'],
       ['glossary/index.html', 'point of view of the project', 'Glossary · GAB dataset'],
       ['help/index.html', 'How the facts are checked', 'Help · GAB dataset'],
       ['v1/index.html', 'holds no build of the version 1 map', 'Version 1 · GAB dataset'],
@@ -183,6 +184,21 @@ describe('a page that cannot be rendered', () => {
       const files = filesOf(join(FIXTURES, 'release'));
       const page = { folder: 'entity/no-such-entity', kind: 'text' } as const;
       await expect(renderPages(files, [page], '/')).rejects.toThrow(/not found/u);
+    },
+    BUILD_TIMEOUT,
+  );
+
+  test(
+    'the exports page holds its figures in the HTML when the report folder gives their files',
+    async () => {
+      const files = filesOf(join(FIXTURES, 'release'));
+      const report = filesOf(join(FIXTURES, 'report'));
+      const page = { folder: 'exports', kind: 'text' } as const;
+      const rendered = await renderPages(files, [page], '/', report);
+      const text = textOf(rendered.get('exports')?.html ?? '');
+      expect(text).toContain('Figure 2.');
+      expect(text).toContain('Seller One');
+      expect(text).not.toContain('is not on this site');
     },
     BUILD_TIMEOUT,
   );

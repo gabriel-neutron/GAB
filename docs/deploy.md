@@ -189,6 +189,12 @@ For `pnpm dev` or `pnpm build`, set `RELEASE_DIR` to a release folder. The build
 DD/MM/YYYY", and the footer gives the two contact links of the release. The release command does
 the same build for the public site, and then renders each page that has a permanent address.
 
+The exports page of the report also reads three data files in long format, which are private and
+are not in this repository. Set `REPORT_DIR` to the folder that holds them, for `pnpm dev`,
+`pnpm build` or the release command. The build copies the files to `report/` beside the
+application. With no such folder, the page says for each figure that its data file is not on the
+site. A file that holds a value that is not a number stops the build.
+
 ## Public writes
 
 No public write path exists. It needs real authentication first, and that is separate work.

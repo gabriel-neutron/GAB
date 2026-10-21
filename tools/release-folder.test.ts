@@ -1,5 +1,8 @@
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+import { REPORT_FILES } from '@gab/release/report-files';
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
@@ -25,4 +28,18 @@ test('the build copies every file of the release, byte for byte', () => {
   expect(copies.has('release/manifest.json')).toBe(true);
   // The downloads page links the changelog by the path that the manifest names.
   expect(copies.has(`release/${listed.changelog.path}`)).toBe(true);
+});
+
+test('the report folder copies the three data files and no other file', () => {
+  const folder = mkdtempSync(join(tmpdir(), 'gab-report-'));
+  for (const name of [...Object.values(REPORT_FILES), 'private-notes.txt'])
+    writeFileSync(join(folder, name), 'x');
+  const names = releaseAssets(folder, 'report', Object.values(REPORT_FILES)).map(
+    (one) => one.fileName,
+  );
+  expect(names.sort()).toStrictEqual(
+    Object.values(REPORT_FILES)
+      .map((name) => `report/${name}`)
+      .sort(),
+  );
 });

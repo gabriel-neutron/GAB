@@ -1,3 +1,4 @@
+import { readAlignmentRows, type AlignmentRow } from './alignment-rows.ts';
 import { readReleaseRows } from './release-table.ts';
 import { SiteReleaseFault } from './site-release-fault.ts';
 import { claimPage, entityPage, relationPage, SitePathFault, vesselPage } from './site-paths.ts';
@@ -149,6 +150,8 @@ export interface SiteRelease {
   readonly criticalNodes: readonly CriticalNode[];
   /** The volumes of each physical link, in the order of the volumes table. */
   readonly volumesOfRelation: ReadonlyMap<string, readonly SiteVolume[]>;
+  /** The rows of the alignment matrix. A release written before the matrix has none. */
+  readonly alignment: readonly AlignmentRow[];
   /** The GeoJSON file of the release, as the release wrote it. */
   readonly geojson: string;
 }
@@ -477,6 +480,9 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
     aliases,
     criticalNodes,
     volumesOfRelation,
+    alignment: files.has('alignment-matrix.csv')
+      ? readAlignmentRows(fileOf('alignment-matrix.csv'))
+      : [],
     geojson: fileOf('entities.geojson'),
   };
 };
