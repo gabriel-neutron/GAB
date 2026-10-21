@@ -255,7 +255,9 @@ test('a column is cut from another column by a pattern', async () => {
   );
   const imo = { name: 'imo', from: 'remarks', pattern: 'IMO (\\d{7})' };
   const columns = ['ent_num', 'name', 'type', 'program', 'remarks'];
-  const text = await headlessCsv(file, columns, TAG, [{ column: 'type', value: 'vessel' }], [imo]);
+  const text = await headlessCsv(file, columns, TAG, [{ column: 'type', value: 'vessel' }], 0, [
+    imo,
+  ]);
   expect(readCsv(text).map((record) => [record.fields[0], record.fields[5]])).toStrictEqual([
     ['ent_num', 'imo'],
     ['1', '9162928'],
@@ -268,31 +270,28 @@ test('a column is cut from another column by a pattern', async () => {
     columns,
     undefined,
     [{ column: 'imo', value: '9999999' }],
+    0,
     [imo],
   );
   expect(readCsv(only).map((record) => record.fields[0])).toStrictEqual(['ent_num', '4']);
-  expect(await headlessCsv(file, columns, TAG, [{ column: 'type', value: 'vessel' }], [imo])).toBe(
-    text,
-  );
+  expect(
+    await headlessCsv(file, columns, TAG, [{ column: 'type', value: 'vessel' }], 0, [imo]),
+  ).toBe(text);
 });
 
 test('a long cell is cut before the pattern reads it', async () => {
   const long = `${'x'.repeat(5000)} IMO 1234567`;
   const file = bytesSource(new TextEncoder().encode(`1,"${long}"\n2,IMO 7654321`));
-  const text = await headlessCsv(
-    file,
-    ['a', 'b'],
-    undefined,
-    [],
-    [{ name: 'imo', from: 'b', pattern: 'IMO (\\d{7})' }],
-  );
+  const text = await headlessCsv(file, ['a', 'b'], undefined, [], 0, [
+    { name: 'imo', from: 'b', pattern: 'IMO (\\d{7})' },
+  ]);
   expect(readCsv(text).map((record) => record.fields[2])).toStrictEqual(['imo', '', '7654321']);
 });
 
 test('a bad extraction is refused', async () => {
   const columns = ['a', 'b'];
   const run = (one: { name: string; from: string; pattern: string }) =>
-    headlessCsv(source(), columns, undefined, [], [one]);
+    headlessCsv(source(), columns, undefined, [], 0, [one]);
   const good = { name: 'c', from: 'b', pattern: '(\\d+)' };
   await expect(run({ ...good, pattern: '\\d+' })).rejects.toThrow('exactly one capture group');
   await expect(run({ ...good, pattern: '(\\d)(\\d)' })).rejects.toThrow('exactly one');
@@ -303,13 +302,13 @@ test('a bad extraction is refused', async () => {
   await expect(run({ ...good, name: ' ' })).rejects.toThrow('give a name');
   await expect(run({ ...good, name: 'a' })).rejects.toThrow('clashes');
   await expect(
-    headlessCsv(source(), columns, undefined, [], [good, { ...good, from: 'a' }]),
+    headlessCsv(source(), columns, undefined, [], 0, [good, { ...good, from: 'a' }]),
   ).rejects.toThrow('clashes');
 });
 
 test('the name holds the extractions, and the command reads --extract', () => {
   const one = { name: 'imo', from: 'remarks', pattern: 'IMO (\\d{7}|x)' };
-  expect(csvSetName(['remarks'], undefined, [], [one])).toBe(
+  expect(csvSetName(['remarks'], undefined, [], 0, [one])).toBe(
     'xlsx-1|csv=remarks|extract=imo:remarks:"IMO (\\\\d{7}|x)"',
   );
   expect(
@@ -325,4 +324,41 @@ test('the name holds the extractions, and the command reads --extract', () => {
   expect(() => requestOf(['doc_x', '--sheet', 's', '--extract', 'a=b:(c)'])).toThrow(
     'go with --columns',
   );
+});
+
+test('skip drops the first records, such as a title line and the header', async () => {
+  const titled = bytesSource(
+    new TextEncoder().encode('Report Date: 1\r\nid,type\r\n1,Ship\r\n2,Person\r\n'),
+  );
+  const filter = [{ column: 'type', value: 'Ship' }];
+  const text = await headlessCsv(titled, ['id', 'type'], undefined, filter, 2);
+  expect(text).toBe('id,type\r\n1,Ship\r\n');
+  expect(csvSetName(['id'], undefined, [], 2)).toBe(`${csvSetName(['id'])}|skip=2`);
+  await expect(headlessCsv(titled, ['id'], undefined, [], -1)).rejects.toThrow('count');
+});
+
+test('a dry run counts the rows and writes nothing', async () => {
+  const puts: unknown[] = [];
+  const db: Queryable = {
+    query: (sql) => {
+      if (sql.includes('s3_key'))
+        return Promise.resolve({ rows: [{ s3_key: 'k', mime: 'text/csv' }] });
+      puts.push(sql);
+      return Promise.resolve({ rows: [] });
+    },
+  };
+  const result = await makeTextSet(
+    { db, open: () => Promise.resolve(source()) },
+    { document: 'd', columns: COLUMNS, tag: TAG },
+    { dryRun: true },
+  );
+  expect(result.status).toBe('counted');
+  expect(result.rows).toBe(3);
+  expect(puts).toHaveLength(0);
+});
+
+test('the command reads --skip as digits only', () => {
+  expect(requestOf(['d', '--columns', 'a', '--skip', '2'])).toMatchObject({ skip: 2 });
+  for (const bad of ['', 'x', '-1', '0x2'])
+    expect(() => requestOf(['d', '--columns', 'a', '--skip', bad])).toThrow();
 });

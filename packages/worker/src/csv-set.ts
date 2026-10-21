@@ -51,9 +51,11 @@ export const csvSetName = (
   columns: readonly string[],
   tag?: TableFilter,
   equals: readonly TableFilter[] = [],
+  skip = 0,
   extract: readonly Extraction[] = [],
 ): string =>
   `${TABLE_READER}|csv=${columns.join(',')}` +
+  (skip > 0 ? `|skip=${String(skip)}` : '') +
   // The order of the extractions sets the order of the new columns, so it stays in the name. The
   // pattern is quoted as JSON text, so no pattern can look like another part of the name.
   extract.map((one) => `|extract=${one.name}:${one.from}:${JSON.stringify(one.pattern)}`).join('') +
@@ -178,14 +180,17 @@ export async function* csvRecords(
 /** A CSV with no header row as CSV text: the header row of the given names, then each row that all
  * the filters keep. The tag filter and each exact-value filter must hold. A cell is compared after
  * its spaces at both ends are cut. A row is padded or cut to the number of names of the file, and
- * each extraction adds a column at the end. A filter may name a new column. */
+ * each extraction adds a column at the end. A filter may name a new column. The first `skip`
+ * records, such as a title line and the header, are dropped before the filters. */
 export const headlessCsv = async (
   source: ZipSource,
   columns: readonly string[],
   tag?: TableFilter,
   equals: readonly TableFilter[] = [],
+  skip = 0,
   extract: readonly Extraction[] = [],
 ): Promise<string> => {
+  if (!Number.isInteger(skip) || skip < 0) throw new WorkbookFault('skip is a count of records');
   if (columns.length === 0 || columns.some((name) => name.trim() === ''))
     throw new WorkbookFault('give a name to each column');
   if (new Set(columns).size !== columns.length)
@@ -253,7 +258,12 @@ export const headlessCsv = async (
         filter.at < columns.length === base && (row[filter.at] ?? '').trim() !== filter.value,
     );
   };
+  let dropped = 0;
   for await (const fields of csvRecords(source)) {
+    if (dropped < skip) {
+      dropped += 1;
+      continue;
+    }
     const row = Array.from({ length: columns.length }, (_, index) => fields[index] ?? '');
     // The filters on the columns of the file run first, so a dropped row costs no pattern.
     if (!passes(row, true)) continue;

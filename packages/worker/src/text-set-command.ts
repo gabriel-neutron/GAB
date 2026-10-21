@@ -16,9 +16,9 @@ import { makeTextSet, type TextSetRequest } from './text-set.ts';
 const USAGE =
   'Usage: pnpm worker text-set <document> (--sheet <name> | --layer <name>) ' +
   '[--where "<column>=<value>"], or pnpm worker text-set <document> --columns "<a>,<b>,..." ' +
-  '[--tag "<column>=<tag>"] [--equals "<column>=<value>"] [--extract "<name>=<column>:<pattern>"]. It keeps the rows of one sheet of a stored workbook, of one GeoJSON ' +
+  '[--tag "<column>=<tag>"] [--equals "<column>=<value>"] [--skip <records>] [--extract "<name>=<column>:<pattern>"]. Add --dry-run to count the rows and write nothing. It keeps the rows of one sheet of a stored workbook, of one GeoJSON ' +
   'layer of a stored zip archive, or of a stored CSV file with no header row (--columns names ' +
-  'the columns by position, --tag keeps the rows whose cell holds that whole tag, --equals keeps the rows whose cell is that value, and it may repeat, --extract adds a column cut from a column by a pattern with one capture group), as a named ' +
+  'the columns by position, --tag keeps the rows whose cell holds that whole tag, --equals keeps the rows whose cell is that value, and it may repeat, --skip drops the first records, such as a title line and the header, --extract adds a column cut from a column by a pattern with one capture group), as a named ' +
   'text set of the document, and it prints the name of the set.';
 
 const pairOf = (text: string, option: string): { column: string; value: string } => {
@@ -52,6 +52,7 @@ export const requestOf = (args: readonly string[]): TextSetRequest => {
       tag: { type: 'string' },
       equals: { type: 'string', multiple: true },
       extract: { type: 'string', multiple: true },
+      skip: { type: 'string' },
     },
   });
   const [document] = positionals;
@@ -64,16 +65,26 @@ export const requestOf = (args: readonly string[]): TextSetRequest => {
     const tag = values.tag === undefined ? undefined : pairOf(values.tag, '--tag');
     const equals = (values.equals ?? []).map((pair) => pairOf(pair, '--equals'));
     const extract = (values.extract ?? []).map(extractionOf);
+    if (values.skip !== undefined && !/^\d+$/u.test(values.skip))
+      throw new Error('--skip is a count of records.');
+    const skip = Number(values.skip ?? 0);
+    if (!Number.isInteger(skip) || skip < 0) throw new Error('--skip is a count of records.');
     return {
       document,
+      ...(skip === 0 ? {} : { skip }),
       columns: columns.split(',').map((name) => name.trim()),
       ...(tag === undefined ? {} : { tag }),
       ...(equals.length === 0 ? {} : { equals }),
       ...(extract.length === 0 ? {} : { extract }),
     };
   }
-  if (values.tag !== undefined || values.equals !== undefined || values.extract !== undefined)
-    throw new Error('--tag, --equals and --extract go with --columns.');
+  if (
+    values.tag !== undefined ||
+    values.equals !== undefined ||
+    values.skip !== undefined ||
+    values.extract !== undefined
+  )
+    throw new Error('--tag, --equals, --skip and --extract go with --columns.');
   const filter = values.where === undefined ? undefined : pairOf(values.where, '--where');
   const base = { document, ...(filter === undefined ? {} : { filter }) };
   return sheet !== undefined && sheet !== '' ? { ...base, sheet } : { ...base, layer: layer ?? '' };
@@ -83,8 +94,9 @@ export const requestOf = (args: readonly string[]): TextSetRequest => {
  * a usage fault. */
 export const textSetCommand: SubCommand = async (args) => {
   let request: TextSetRequest;
+  const dryRun = args.includes('--dry-run');
   try {
-    request = requestOf(args);
+    request = requestOf(args.filter((arg) => arg !== '--dry-run'));
   } catch (error) {
     console.error(error instanceof Error ? error.message : 'The arguments are not usable.');
     console.error(USAGE);
@@ -108,6 +120,7 @@ export const textSetCommand: SubCommand = async (args) => {
         },
       },
       request,
+      { dryRun },
     );
     console.log(
       `${made.status} the text set ${made.name} of ${request.document}: ${String(made.rows)} rows`,
