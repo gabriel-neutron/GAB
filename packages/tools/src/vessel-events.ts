@@ -32,10 +32,27 @@ const searchAnswer = z.object({
     .array(
       z.object({
         selfReportedInfo: z
-          .array(z.object({ id: z.string(), ssvid: z.string().nullish() }))
+          .array(
+            z.object({
+              id: z.string(),
+              ssvid: z.string().nullish(),
+              shipname: z.string().nullish(),
+              flag: z.string().nullish(),
+              vesselType: z.string().nullish(),
+              shiptypes: z.array(z.object({ name: z.string().nullish() })).nullish(),
+              transmissionDateFrom: z.string().nullish(),
+              transmissionDateTo: z.string().nullish(),
+            }),
+          )
           .default([]),
         registryInfo: z
-          .array(z.object({ imo: z.string().nullish() }))
+          .array(
+            z.object({
+              imo: z.string().nullish(),
+              shipname: z.string().nullish(),
+              flag: z.string().nullish(),
+            }),
+          )
           .nullish()
           .transform((info) => info ?? []),
       }),
@@ -68,11 +85,26 @@ const eventsAnswer = z.object({
   nextOffset: z.number().int().nullish(),
 });
 
+// What lets a reader choose between the identities of one number: the API gives what it holds.
+const identityShape = z.strictObject({
+  vesselIds: z.array(z.string()),
+  name: z.string().nullable(),
+  mmsi: z.string().nullable(),
+  flag: z.string().nullable(),
+  vesselType: z.string().nullable(),
+  firstSeen: z.string().nullable(),
+  lastSeen: z.string().nullable(),
+  imo: z.string().nullable(),
+});
+type Identity = z.infer<typeof identityShape>;
+
 const outputShape = z.strictObject({
   document: z.string(),
   status: z.enum(['known', 'stored']),
   matchedBy: z.enum(['vesselId', 'mmsi', 'imo']),
   vesselIds: z.array(z.string()),
+  // Empty when the vessel is given by vesselId, as no search ran.
+  identities: z.array(identityShape),
   lead: z.literal(MMSI_LEAD_SENTENCE).nullable(),
   nextOffset: z.number().int().nullable(),
   events: z.array(
@@ -135,11 +167,11 @@ const requestOf = (token: string, url: string): RegisterRequest => ({
 // A list of identities is a lead and is not stored. More than one identity for one MMSI or one
 // IMO number is the case that the number cannot settle, so the tool names them and joins none. An
 // IMO number counts only in the registry info: the crew types the self-reported one.
-const vesselIdsOf = async (
+const identitiesOf = async (
   reach: Reach,
   token: string,
   by: { mmsi: string } | { imo: string },
-): Promise<string[]> => {
+): Promise<Identity[]> => {
   const [kind, number] = 'mmsi' in by ? (['MMSI', by.mmsi] as const) : (['IMO', by.imo] as const);
   const query = new URLSearchParams({ query: number, 'datasets[0]': IDENTITY_DATASET });
   const answer = await readRegister(
@@ -152,21 +184,48 @@ const vesselIdsOf = async (
     .filter((entry) =>
       'imo' in by ? entry.registryInfo.some((info) => info.imo?.trim() === by.imo) : true,
     )
-    .map((entry) =>
-      'mmsi' in by
-        ? entry.selfReportedInfo.filter((info) => info.ssvid === by.mmsi).map((info) => info.id)
-        : entry.selfReportedInfo.map((info) => info.id),
-    )
-    .filter((ids) => ids.length > 0);
+    .map((entry): Identity => {
+      // The newest record first, so a renamed vessel shows its last name.
+      const infos = (
+        'mmsi' in by
+          ? entry.selfReportedInfo.filter((info) => info.ssvid === by.mmsi)
+          : entry.selfReportedInfo
+      ).toSorted((a, b) => (b.transmissionDateTo ?? '').localeCompare(a.transmissionDateTo ?? ''));
+      // The ship name is text that the vessel reports, and the refusal reaches a model: cap it.
+      const capped = (value: string | null) => value?.slice(0, 60) ?? null;
+      const some = <T>(pick: (info: (typeof infos)[number]) => T | null | undefined): T | null =>
+        infos.map(pick).find((value) => value !== null && value !== undefined) ?? null;
+      const dates = (pick: (info: (typeof infos)[number]) => string | null | undefined) =>
+        infos.map(pick).filter((value): value is string => typeof value === 'string');
+      const registry = entry.registryInfo;
+      return {
+        vesselIds: [...new Set(infos.map((info) => info.id))],
+        name: capped(
+          some((info) => info.shipname) ?? registry.find((r) => r.shipname)?.shipname ?? null,
+        ),
+        mmsi: some((info) => info.ssvid),
+        flag: some((info) => info.flag) ?? registry.find((r) => r.flag)?.flag ?? null,
+        // shortcut: v3 field name unverified against a live answer, so both are read.
+        vesselType: capped(some((info) => info.vesselType ?? info.shiptypes?.[0]?.name)),
+        firstSeen: dates((info) => info.transmissionDateFrom).sort()[0] ?? null,
+        lastSeen:
+          dates((info) => info.transmissionDateTo)
+            .sort()
+            .at(-1) ?? null,
+        imo: registry.find((r) => r.imo?.trim())?.imo?.trim() ?? null,
+      };
+    })
+    .filter((identity) => identity.vesselIds.length > 0);
   const [only, ...others] = identities;
   if (only === undefined)
     throw new ToolRefusal(`Global Fishing Watch knows no vessel with the ${kind} ${number}`);
   if (others.length > 0)
     throw new ToolRefusal(
       `the ${kind} ${number} names ${identities.length} vessel identities in Global Fishing Watch ` +
-        `(${identities.map((ids) => ids.join(' + ')).join(', ')}): give one of them as vesselId`,
+        `(${identities.map((identity) => JSON.stringify(identity)).join(', ')}): ` +
+        'give the vesselIds of one of them as vesselId',
     );
-  return [...new Set(only)];
+  return [only];
 };
 
 const eventsOf = async (
@@ -213,7 +272,9 @@ export const vesselEvents = defineTool({
     'between two dates. The API is free but needs a ' +
     'token: with no token set, the tool refuses and names the setting. The answer is stored ' +
     'once as an api document; read the next page with nextOffset. A match by the MMSI alone is ' +
-    'a lead, and the output says so. A port visit gives its anchorage, which may be the port ' +
+    'a lead, and the output says so. When an IMO number or an MMSI names more than one GFW ' +
+    'identity, the tool refuses and describes each (name, MMSI, flag, type, first and last date ' +
+    'seen, registry IMO): choose one and give its vesselIds. A port visit gives its anchorage, which may be the port ' +
     'near a terminal and not the terminal. With nearKm, the answer keeps only the events within ' +
     'that distance of an export terminal or an LNG plant of the record, and names the nearest ' +
     'one: a short answer for a run over many vessels. The filter works on one page, so a page ' +
@@ -263,14 +324,16 @@ export const vesselEvents = defineTool({
       throw new ToolRefusal('this surface gives no object store, so it stores no answer');
     const matchedBy: 'mmsi' | 'imo' | 'vesselId' =
       input.vesselId !== undefined ? 'vesselId' : input.imo !== undefined ? 'imo' : 'mmsi';
-    const vessels =
+    const identities =
       input.vesselId !== undefined
-        ? [input.vesselId]
-        : await vesselIdsOf(
+        ? []
+        : await identitiesOf(
             reach,
             token,
             input.imo !== undefined ? { imo: input.imo } : { mmsi: input.mmsi ?? '' },
           );
+    const vessels =
+      input.vesselId !== undefined ? [input.vesselId] : (identities[0]?.vesselIds ?? []);
     const read = await eventsOf(session, reach, token, vessels, {
       ...input,
       types: TYPES.filter((type) => input.types.includes(type)),
@@ -302,6 +365,7 @@ export const vesselEvents = defineTool({
       status: read.status,
       matchedBy,
       vesselIds: vessels,
+      identities,
       lead: matchedBy === 'mmsi' ? MMSI_LEAD_SENTENCE : null,
       nextOffset: nextOffset ?? null,
       events: events

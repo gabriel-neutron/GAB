@@ -122,6 +122,8 @@ session: each proposal waits in the review queue, and the operator decides it th
   key, and `vessel_events` needs a free token. When one is not set, the tool says so, and the
   other tools work. OpenSanctions is a repeater: fetch the official entry that the tool names with
   `fetch_document`, and cite that. Events that are matched by an MMSI alone are a lead.
+  When an IMO number or an MMSI names more than one identity, `vessel_events` refuses and
+  describes each one: choose one and give its `vesselIds`.
 - **An AI reviewer with a new context decides a doubt.** The rules of the database decide each
   unit from its sources, and a unit with a doubt goes to a reviewer. The agent that proposed a
   unit never decides it. It starts a new reviewer subagent, which follows the skill
