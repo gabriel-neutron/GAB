@@ -14,28 +14,47 @@ import { makeTextSet, type TextSetRequest } from './text-set.ts';
 
 const USAGE =
   'Usage: pnpm worker text-set <document> (--sheet <name> | --layer <name>) ' +
-  '[--where "<column>=<value>"]. It keeps the rows of one sheet of a stored workbook, or of one ' +
-  'GeoJSON layer of a stored zip archive, as a named text set of the document, and it prints the ' +
-  'name of the set.';
+  '[--where "<column>=<value>"], or pnpm worker text-set <document> --columns "<a>,<b>,..." ' +
+  '[--tag "<column>=<tag>"]. It keeps the rows of one sheet of a stored workbook, of one GeoJSON ' +
+  'layer of a stored zip archive, or of a stored CSV file with no header row (--columns names ' +
+  'the columns by position, --tag keeps the rows whose cell holds that whole tag), as a named ' +
+  'text set of the document, and it prints the name of the set.';
+
+const pairOf = (text: string, option: string): { column: string; value: string } => {
+  const at = text.indexOf('=');
+  if (at < 1) throw new Error(`${option} is "<column>=<value>".`);
+  return { column: text.slice(0, at), value: text.slice(at + 1) };
+};
 
 const requestOf = (args: readonly string[]): TextSetRequest => {
   const { values, positionals } = parseArgs({
     args: [...args],
     allowPositionals: true,
     strict: true,
-    options: { sheet: { type: 'string' }, layer: { type: 'string' }, where: { type: 'string' } },
+    options: {
+      sheet: { type: 'string' },
+      layer: { type: 'string' },
+      where: { type: 'string' },
+      columns: { type: 'string' },
+      tag: { type: 'string' },
+    },
   });
   const [document] = positionals;
   if (positionals.length !== 1 || document === undefined) throw new Error('Name one document.');
-  const { sheet, layer } = values;
-  if ((sheet === undefined || sheet === '') === (layer === undefined || layer === ''))
-    throw new Error('Give --sheet or --layer, and not both.');
-  let filter: { column: string; value: string } | undefined;
-  if (values.where !== undefined) {
-    const at = values.where.indexOf('=');
-    if (at < 1) throw new Error('--where is "<column>=<value>".');
-    filter = { column: values.where.slice(0, at), value: values.where.slice(at + 1) };
+  const { sheet, layer, columns } = values;
+  const given = [sheet, layer, columns].filter((value) => value !== undefined && value !== '');
+  if (given.length !== 1) throw new Error('Give --sheet, --layer or --columns, and only one.');
+  if (columns !== undefined && columns !== '') {
+    if (values.where !== undefined) throw new Error('Use --tag, and not --where, with --columns.');
+    const tag = values.tag === undefined ? undefined : pairOf(values.tag, '--tag');
+    return {
+      document,
+      columns: columns.split(',').map((name) => name.trim()),
+      ...(tag === undefined ? {} : { tag }),
+    };
   }
+  if (values.tag !== undefined) throw new Error('--tag goes with --columns.');
+  const filter = values.where === undefined ? undefined : pairOf(values.where, '--where');
   const base = { document, ...(filter === undefined ? {} : { filter }) };
   return sheet !== undefined && sheet !== '' ? { ...base, sheet } : { ...base, layer: layer ?? '' };
 };
