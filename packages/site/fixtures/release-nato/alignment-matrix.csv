@@ -15,7 +15,7 @@
 # One row for each IMO number of a public vessel that a public designation of at least one regime lists. The join is on the IMO number only, never on a name. imo_check_digit_ok tells if the check digit of the number is right.
 # A designation belongs to a regime by the provider of its official file: EU EUR-Lex for the EU, the OFAC SDN list for OFAC, the UK Sanctions List for the UK.
 # Date rules of this release. EU: the date of entry into force. OFAC: the date of the Recent Actions notice. UK: the date designated.
-# Measure of each regime. EU: port and service ban (Regulation 833/2014, Annex XLII). OFAC: blocking under a Russia programme. UK: asset freeze (Russia Regulations 2019, UK Sanctions List row). The day gaps compare different measures.
+# Measure of each regime. EU: port and service ban (Council Regulation (EU) No 833/2014, Annex XLII). OFAC: blocking under a Russia programme. UK: asset freeze (Russia (Sanctions) (EU Exit) Regulations 2019, UK Sanctions List row). The day gaps compare different measures.
 # The matrix gives the listing date, not the current status. The release tracks no OFAC removal and no UK removal.
 # The type of date is different for each regime. EU: the entry into force of the act. OFAC: the date of the action. UK: the date designated.
 # The date of a listing is the start date of its designation, as the writer proposed it from the source (date_from designation_start). The release does not check the date against the rule.

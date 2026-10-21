@@ -490,9 +490,13 @@ test('the note says what the matrix measures, with counts that the data gives', 
     .filter((line) => line.startsWith('#'))
     .join('\n');
   // The measure of each regime, and the warning on the gaps.
-  expect(note).toContain('EU: port and service ban (Regulation 833/2014, Annex XLII).');
+  expect(note).toContain(
+    'EU: port and service ban (Council Regulation (EU) No 833/2014, Annex XLII).',
+  );
   expect(note).toContain('OFAC: blocking under a Russia programme.');
-  expect(note).toContain('UK: asset freeze (Russia Regulations 2019, UK Sanctions List row).');
+  expect(note).toContain(
+    'UK: asset freeze (Russia (Sanctions) (EU Exit) Regulations 2019, UK Sanctions List row).',
+  );
   expect(note).toContain('The day gaps compare different measures.');
   expect(note).toContain('The matrix gives the listing date, not the current status.');
   expect(note).toContain('The release tracks no OFAC removal and no UK removal.');
@@ -505,14 +509,14 @@ test('the note says what the matrix measures, with counts that the data gives', 
     'Rows with an EU listing and no OFAC listing: 3. EU date before 1 February 2025: 1. EU date on 1 February 2025 or later: 1. No EU date: 1.',
   );
   expect(note).toContain(
-    'The OFAC date that most rows share is 2025-01-10: 3 of the 6 rows with an OFAC date.',
+    'The OFAC date with the most rows is 2025-01-10: 3 of the 6 rows with an OFAC date.',
   );
   expect(note).toContain('Rows with an OFAC date before 2022: 1.');
   expect(note).toContain(
-    'Mean of days_eu_after_ofac: 98.3 days for 3 rows; 122.0 days for 1 row without the rows of that date.',
+    'Mean of days_eu_after_ofac: 98.3 days for 3 rows; 122.0 days for 1 row without the rows of that day.',
   );
   expect(note).toContain(
-    'Mean of days_uk_after_ofac: -119.5 days for 2 rows; 7.0 days for 1 row without the rows of that date.',
+    'Mean of days_uk_after_ofac: -119.5 days for 2 rows; 7.0 days for 1 row without the rows of that day.',
   );
   expect(note).toContain(
     'ofac_or_uk_not_eu is a floor: 3 rows among the vessels in the record. A vessel that the record does not hold has no row.',
