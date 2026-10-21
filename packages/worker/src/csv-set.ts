@@ -30,7 +30,7 @@ export const tagsOf = (cell: string): string[] =>
     .map((part) => part.trim().replace(TAG_OPEN, '').trim())
     .filter((tag) => tag !== '');
 
-/** The name of a CSV set. The same columns and the same tag filter give the same name, and the
+/** The name of a CSV set. The same columns and the same filters give the same name, and the
  * name holds the version of the reader. */
 export const csvSetName = (
   columns: readonly string[],
@@ -42,7 +42,7 @@ export const csvSetName = (
   // The filters are sorted by column, so the same filters in another order give the same name.
   [...equals]
     .sort((a, b) => (a.column < b.column ? -1 : a.column > b.column ? 1 : 0))
-    .map((filter) => `|equals=${filter.column}=${filter.value}`)
+    .map((filter) => `|equals=${filter.column}=${filter.value.trim()}`)
     .join('');
 
 const bytesOf = async (source: ZipSource): Promise<Uint8Array> => {

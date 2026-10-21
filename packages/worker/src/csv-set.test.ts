@@ -3,6 +3,7 @@ import { expect, test } from 'vitest';
 
 import { csvSetName, MAX_CSV_BYTES, headlessCsv, tagsOf } from './csv-set.ts';
 import type { Queryable } from './queryable.ts';
+import { requestOf } from './text-set-command.ts';
 import { makeTextSet } from './text-set.ts';
 
 // A sample in the shape of the SDN list of OFAC. It is a fixture and holds no row of a real file.
@@ -131,7 +132,10 @@ test('the name holds the columns and the tag', () => {
   );
 });
 
-test('the name sorts the exact-value filters', () => {
+test('the name sorts the exact-value filters and trims their values', () => {
+  expect(csvSetName(['a'], undefined, [{ column: 'a', value: ' x ' }])).toBe(
+    csvSetName(['a'], undefined, [{ column: 'a', value: 'x' }]),
+  );
   const a = { column: 'type', value: 'vessel' };
   const b = { column: 'flag', value: 'Russia' };
   expect(csvSetName(['type', 'flag'], TAG, [a, b])).toBe(csvSetName(['type', 'flag'], TAG, [b, a]));
@@ -169,4 +173,22 @@ test('a document that is no CSV is refused', async () => {
   await expect(
     makeTextSet({ db, open: () => Promise.resolve(source()) }, { document: 'd', columns: COLUMNS }),
   ).rejects.toThrow('is no CSV file');
+});
+
+test('the command reads a repeated --equals, and refuses a bad one', () => {
+  expect(
+    requestOf(['doc_x', '--columns', 'a,b', '--tag', 'b=T', '--equals', 'a=1', '--equals', 'b=2']),
+  ).toStrictEqual({
+    document: 'doc_x',
+    columns: ['a', 'b'],
+    tag: { column: 'b', value: 'T' },
+    equals: [
+      { column: 'a', value: '1' },
+      { column: 'b', value: '2' },
+    ],
+  });
+  expect(() => requestOf(['doc_x', '--columns', 'a', '--equals', 'a'])).toThrow('--equals is');
+  expect(() => requestOf(['doc_x', '--sheet', 's', '--equals', 'a=1'])).toThrow(
+    'go with --columns',
+  );
 });

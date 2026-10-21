@@ -26,7 +26,7 @@ const pairOf = (text: string, option: string): { column: string; value: string }
   return { column: text.slice(0, at), value: text.slice(at + 1) };
 };
 
-const requestOf = (args: readonly string[]): TextSetRequest => {
+export const requestOf = (args: readonly string[]): TextSetRequest => {
   const { values, positionals } = parseArgs({
     args: [...args],
     allowPositionals: true,
