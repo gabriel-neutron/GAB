@@ -204,7 +204,11 @@ export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) 
       {places.map((place) => (
         <div key={place.id} data-change={place.id}>
           <h3 className={HEADING}>
-            {place.joined ? 'Place that comes with it' : `Place of ${place.entity}`}
+            {place.clearing
+              ? `Clearing of the place of ${place.entity}`
+              : place.joined
+                ? 'Place that comes with it'
+                : `Place of ${place.entity}`}
           </h3>
           <Attributes attributes={place.attributes} />
           {place.joined ? (

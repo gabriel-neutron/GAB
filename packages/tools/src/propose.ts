@@ -518,6 +518,18 @@ const SAME_PLACE = `SELECT public.ST_Equals(public.ST_GeomFromGeoJSON(e.geom::te
 
 const HAS_PLACE = `SELECT 1 AS n FROM api.entity e WHERE e.id = $1 AND e.geom IS NOT NULL`;
 
+// A new entity that waits with no place: a clear of its place would change nothing.
+const queuedWithNoPlace = async (session: Session, id: string): Promise<boolean> =>
+  (
+    await rowsOf(
+      session,
+      z.strictObject({ n: z.number() }),
+      `SELECT 1 AS n FROM api.proposal p
+        WHERE p.id = $1 AND p.status = 'pending' AND p.op = 'create_entity' AND NOT p.payload ? 'geom'`,
+      [id],
+    )
+  ).length > 0;
+
 const checkTarget = async (session: Session, ref: string, act: WriteRequest): Promise<void> => {
   if (act.op !== 'update_attrs' && act.op !== 'update_relation' && act.op !== 'update_entity')
     return;
@@ -527,6 +539,12 @@ const checkTarget = async (session: Session, ref: string, act: WriteRequest): Pr
     if (kind === 'entity' && (await pendingEntityType(session, act.targetId)) !== null) {
       // A place joins the unit of the new entity, and the database refuses the place that the
       // unit gives already. Any other act would stay outside that unit, so the agent waits.
+      if (
+        act.op === 'update_entity' &&
+        act.geom === null &&
+        (await queuedWithNoPlace(session, act.targetId))
+      )
+        refuse(ref, `the new entity ${act.targetId} has no place to clear`);
       if (act.op === 'update_entity' && act.geom !== undefined) return;
       refuse(
         ref,

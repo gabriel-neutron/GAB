@@ -22,7 +22,8 @@ const nameOf = (act: UnitAct): string => {
   if (act.kind === 'start') return `start of ${act.target.name ?? NO_NAME}`;
   if (act.kind === 'source') return `source of ${act.target.name ?? NO_NAME}`;
   if (act.kind === 'retype') return `type of ${act.target.name ?? NO_NAME}`;
-  if (act.kind === 'place') return `place of ${act.target.name ?? NO_NAME}`;
+  if (act.kind === 'place')
+    return `${act.clearing ? 'clearing of the place' : 'place'} of ${act.target.name ?? NO_NAME}`;
   return act.target === null ? act.op : `${act.op} ${act.target.name ?? NO_NAME}`;
 };
 

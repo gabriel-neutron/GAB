@@ -236,3 +236,11 @@ test('a clearing act with a method is refused by the shape of the act', async ()
     ),
   ).rejects.toMatchObject({ code: '23514', constraint: 'proposals_update_entity_shape' });
 });
+
+test('a create_entity with geom null is not worded as a clearing act', async () => {
+  await expect(
+    rolledBack('app', (ask) =>
+      proposed(ask, 'create_entity', { type: 'facility', label: 'A', geom: null }),
+    ),
+  ).rejects.toMatchObject({ code: '23514', constraint: 'proposals_payload_geom' });
+});

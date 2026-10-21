@@ -1952,6 +1952,34 @@ test('a place of a new entity that waits joins its unit, and is written after th
   expect(found.entity).toStrictEqual({ same: true });
 });
 
+test('propose refuses a clear of the place of a new entity that waits with no place', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const [vessel] = batchOf(
+      await proposeOnPage(
+        ask,
+        [NAYARA],
+        `${PAGE_ONE}
+${LOCODE}`,
+      ),
+    ).proposals;
+    if (vessel === undefined) throw new Error('propose wrote no entity');
+    const outcome = await proposeAgain(ask, [
+      item(
+        'clear',
+        { op: 'update_entity', targetId: vessel.proposalId, geom: null },
+        '5940N 02819E',
+      ),
+    ]);
+    return { vessel: vessel.proposalId, outcome };
+  });
+  expect(found.outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(
+      `the new entity ${found.vessel} has no place to clear`,
+    ) as string,
+  });
+});
+
 test('a rejection of the new entity rejects its place as "end rejected"', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const { vessel, outcome } = await placeOfPending(ask);

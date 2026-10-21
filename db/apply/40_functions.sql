@@ -1164,7 +1164,7 @@ BEGIN
     -- the queue. So the door of a machine requires it.
     -- AN ACT THAT CLEARS THE PLACE (geom null) HAS NO PLACE TO DESCRIBE, so it carries no method
     -- and no shape to check.
-    IF jsonb_typeof(v_payload::jsonb->'geom') = 'null' THEN
+    IF v_item->>'op' = 'update_entity' AND jsonb_typeof(v_payload::jsonb->'geom') = 'null' THEN
       IF v_payload::jsonb ? 'geom_method' THEN
         PERFORM public.raise_item_rule(v_no, 'proposals_geom_clear_method', '23514',
                                        'an act that clears the geometry has no method');
@@ -1176,7 +1176,9 @@ BEGIN
       PERFORM public.raise_item_rule(v_no, 'proposals_geom_method', '23514',
                                      'a geometry needs a method of geolocation');
     END IF;
-    IF v_payload::jsonb ? 'geom' AND jsonb_typeof(v_payload::jsonb->'geom') <> 'null' THEN
+    IF v_payload::jsonb ? 'geom'
+       AND NOT (v_item->>'op' = 'update_entity'
+                AND jsonb_typeof(v_payload::jsonb->'geom') = 'null') THEN
       BEGIN
         v_valid := public.ST_IsValid(public.ST_GeomFromGeoJSON(v_payload::jsonb->'geom'));
       EXCEPTION WHEN OTHERS THEN
@@ -1248,6 +1250,16 @@ BEGIN
     -- THE SAME PLACE ON A NEW ENTITY THAT WAITS. The change joins the unit of that entity, and the
     -- promotion refuses an act that changes nothing, so the whole unit could never be written. An
     -- exact retry keeps its act.
+    -- A CLEAR OF A NEW ENTITY THAT HAS NO PLACE. The change joins the unit of that entity, and the
+    -- promotion refuses an act that changes nothing, so the whole unit could never be written.
+    IF v_join IS NULL AND v_item->>'op' = 'update_entity'
+       AND jsonb_typeof(v_payload::jsonb->'geom') = 'null'
+       AND EXISTS (SELECT 1 FROM public.proposals o
+                    WHERE o.id = v_target AND o.status = 'pending' AND o.op = 'create_entity'
+                      AND NOT o.payload ? 'geom') THEN
+      RAISE EXCEPTION 'item %: the new entity % has no place to clear', v_no, v_target
+        USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'act_changes_something';
+    END IF;
     IF v_join IS NULL AND v_item->>'op' = 'update_entity'
        AND jsonb_typeof(v_payload::jsonb->'geom') = 'object' THEN
       -- Two batches that give one place at the same time wait for each other here.
