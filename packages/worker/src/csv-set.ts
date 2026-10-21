@@ -35,8 +35,10 @@ export const csvSetName = (
   columns: readonly string[],
   tag?: TableFilter,
   equals: readonly TableFilter[] = [],
+  skip = 0,
 ): string =>
   `${TABLE_READER}|csv=${columns.join(',')}` +
+  (skip > 0 ? `|skip=${String(skip)}` : '') +
   (tag === undefined ? '' : `|tag=${tag.column}=${tag.value}`) +
   // The filters are sorted by column, so the same filters in another order give the same name.
   [...equals]
@@ -157,13 +159,16 @@ export async function* csvRecords(
 
 /** A CSV with no header row as CSV text: the header row of the given names, then each row that all
  * the filters keep. The tag filter and each exact-value filter must hold. A cell is compared after
- * its spaces at both ends are cut. A row is padded or cut to the number of names. */
+ * its spaces at both ends are cut. A row is padded or cut to the number of names. The first `skip`
+ * records, such as a title line and the header, are dropped before the filters. */
 export const headlessCsv = async (
   source: ZipSource,
   columns: readonly string[],
   tag?: TableFilter,
   equals: readonly TableFilter[] = [],
+  skip = 0,
 ): Promise<string> => {
+  if (!Number.isInteger(skip) || skip < 0) throw new WorkbookFault('skip is a count of records');
   if (columns.length === 0 || columns.some((name) => name.trim() === ''))
     throw new WorkbookFault('give a name to each column');
   if (new Set(columns).size !== columns.length)
@@ -192,7 +197,12 @@ export const headlessCsv = async (
   const kept = [...columns];
   const rows: string[][] = [kept];
   let chars = 0;
+  let dropped = 0;
   for await (const fields of csvRecords(source)) {
+    if (dropped < skip) {
+      dropped += 1;
+      continue;
+    }
     if (tag !== undefined && !tagsOf(fields[at] ?? '').includes(tag.value)) continue;
     if (exact.some((filter) => (fields[filter.at] ?? '').trim() !== filter.value)) continue;
     const row = Array.from({ length: columns.length }, (_, index) => fields[index] ?? '');

@@ -15,9 +15,9 @@ import { makeTextSet, type TextSetRequest } from './text-set.ts';
 const USAGE =
   'Usage: pnpm worker text-set <document> (--sheet <name> | --layer <name>) ' +
   '[--where "<column>=<value>"], or pnpm worker text-set <document> --columns "<a>,<b>,..." ' +
-  '[--tag "<column>=<tag>"] [--equals "<column>=<value>"]. It keeps the rows of one sheet of a stored workbook, of one GeoJSON ' +
+  '[--tag "<column>=<tag>"] [--equals "<column>=<value>"] [--skip <records>]. Add --dry-run to count the rows and write nothing. It keeps the rows of one sheet of a stored workbook, of one GeoJSON ' +
   'layer of a stored zip archive, or of a stored CSV file with no header row (--columns names ' +
-  'the columns by position, --tag keeps the rows whose cell holds that whole tag, --equals keeps the rows whose cell is that value, and it may repeat), as a named ' +
+  'the columns by position, --tag keeps the rows whose cell holds that whole tag, --equals keeps the rows whose cell is that value, and it may repeat, --skip drops the first records, such as a title line and the header), as a named ' +
   'text set of the document, and it prints the name of the set.';
 
 const pairOf = (text: string, option: string): { column: string; value: string } => {
@@ -38,6 +38,7 @@ export const requestOf = (args: readonly string[]): TextSetRequest => {
       columns: { type: 'string' },
       tag: { type: 'string' },
       equals: { type: 'string', multiple: true },
+      skip: { type: 'string' },
     },
   });
   const [document] = positionals;
@@ -49,15 +50,20 @@ export const requestOf = (args: readonly string[]): TextSetRequest => {
     if (values.where !== undefined) throw new Error('Use --tag, and not --where, with --columns.');
     const tag = values.tag === undefined ? undefined : pairOf(values.tag, '--tag');
     const equals = (values.equals ?? []).map((pair) => pairOf(pair, '--equals'));
+    if (values.skip !== undefined && !/^\d+$/u.test(values.skip))
+      throw new Error('--skip is a count of records.');
+    const skip = Number(values.skip ?? 0);
+    if (!Number.isInteger(skip) || skip < 0) throw new Error('--skip is a count of records.');
     return {
       document,
+      ...(skip === 0 ? {} : { skip }),
       columns: columns.split(',').map((name) => name.trim()),
       ...(tag === undefined ? {} : { tag }),
       ...(equals.length === 0 ? {} : { equals }),
     };
   }
-  if (values.tag !== undefined || values.equals !== undefined)
-    throw new Error('--tag and --equals go with --columns.');
+  if (values.tag !== undefined || values.equals !== undefined || values.skip !== undefined)
+    throw new Error('--tag, --equals and --skip go with --columns.');
   const filter = values.where === undefined ? undefined : pairOf(values.where, '--where');
   const base = { document, ...(filter === undefined ? {} : { filter }) };
   return sheet !== undefined && sheet !== '' ? { ...base, sheet } : { ...base, layer: layer ?? '' };
@@ -67,8 +73,9 @@ export const requestOf = (args: readonly string[]): TextSetRequest => {
  * a usage fault. */
 export const textSetCommand: SubCommand = async (args) => {
   let request: TextSetRequest;
+  const dryRun = args.includes('--dry-run');
   try {
-    request = requestOf(args);
+    request = requestOf(args.filter((arg) => arg !== '--dry-run'));
   } catch (error) {
     console.error(error instanceof Error ? error.message : 'The arguments are not usable.');
     console.error(USAGE);
@@ -92,6 +99,7 @@ export const textSetCommand: SubCommand = async (args) => {
         },
       },
       request,
+      { dryRun },
     );
     console.log(
       `${made.status} the text set ${made.name} of ${request.document}: ${String(made.rows)} rows`,
