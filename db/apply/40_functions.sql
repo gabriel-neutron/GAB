@@ -699,6 +699,8 @@ BEGIN
     ('proposals_geom_method', 'geomMethod',
      'a geometry needs a method of geolocation: register_address, osm_object, '
      'operator_statement, satellite_match, photo_video_match, source_coordinates or not_stated'),
+    ('proposals_geom_clear_method', 'geomMethod',
+     'an act that clears the geometry (geom null) has no method of geolocation'),
     ('entities_geom_method_closed', 'geomMethod',
      'the method of geolocation is register_address, osm_object, operator_statement, '
      'satellite_match, photo_video_match, source_coordinates or not_stated'),
@@ -1160,14 +1162,21 @@ BEGIN
     -- A MACHINE GIVES A PLACE WITH THE METHOD THAT FOUND IT. The shape of the act allows the key
     -- and checks its words, and it cannot require the key: an act written before the key waits in
     -- the queue. So the door of a machine requires it.
-    IF v_payload::jsonb ? 'geom'
+    -- AN ACT THAT CLEARS THE PLACE (geom null) HAS NO PLACE TO DESCRIBE, so it carries no method
+    -- and no shape to check.
+    IF jsonb_typeof(v_payload::jsonb->'geom') = 'null' THEN
+      IF v_payload::jsonb ? 'geom_method' THEN
+        PERFORM public.raise_item_rule(v_no, 'proposals_geom_clear_method', '23514',
+                                       'an act that clears the geometry has no method');
+      END IF;
+    ELSIF v_payload::jsonb ? 'geom'
        AND NOT coalesce(v_payload::jsonb->>'geom_method' IN (
                           'register_address','osm_object','operator_statement','satellite_match',
                           'photo_video_match','source_coordinates','not_stated'), false) THEN
       PERFORM public.raise_item_rule(v_no, 'proposals_geom_method', '23514',
                                      'a geometry needs a method of geolocation');
     END IF;
-    IF v_payload::jsonb ? 'geom' THEN
+    IF v_payload::jsonb ? 'geom' AND jsonb_typeof(v_payload::jsonb->'geom') <> 'null' THEN
       BEGIN
         v_valid := public.ST_IsValid(public.ST_GeomFromGeoJSON(v_payload::jsonb->'geom'));
       EXCEPTION WHEN OTHERS THEN
@@ -1239,7 +1248,8 @@ BEGIN
     -- THE SAME PLACE ON A NEW ENTITY THAT WAITS. The change joins the unit of that entity, and the
     -- promotion refuses an act that changes nothing, so the whole unit could never be written. An
     -- exact retry keeps its act.
-    IF v_join IS NULL AND v_item->>'op' = 'update_entity' AND v_payload::jsonb ? 'geom' THEN
+    IF v_join IS NULL AND v_item->>'op' = 'update_entity'
+       AND jsonb_typeof(v_payload::jsonb->'geom') = 'object' THEN
       -- Two batches that give one place at the same time wait for each other here.
       PERFORM pg_advisory_xact_lock(hashtextextended('entity_place:' || v_target::text, 0));
       SELECT CASE WHEN w.op = 'create_entity'
@@ -1256,7 +1266,7 @@ BEGIN
                                     v_payload::jsonb, v_src, session_user::text, v_passages)))
          AND EXISTS (SELECT 1 FROM public.proposals o
                       WHERE o.id = v_target AND o.status = 'pending' AND o.op = 'create_entity')
-         AND public.ST_Equals(public.ST_GeomFromGeoJSON(w.payload->'geom'),
+         AND public.ST_Equals(public.ST_GeomFromGeoJSON(nullif(w.payload->'geom', 'null'::jsonb)),
                               public.ST_GeomFromGeoJSON(v_payload::jsonb->'geom'))
        ORDER BY w.op <> 'create_entity', w.id
        LIMIT 1;
@@ -2083,14 +2093,16 @@ BEGIN
                                 THEN coalesce(v_type, 'unknown') ELSE e.type END,
            proposed_type = CASE WHEN NOT p.payload ? 'type' THEN e.proposed_type
                                 WHEN v_type IS NULL THEN p.payload->>'type' END,
+           -- A geom of JSON null clears the place: the parse of a null gives NULL.
            geom          = CASE WHEN p.payload ? 'geom'
-                                THEN public.ST_SetSRID(public.ST_GeomFromGeoJSON(p.payload->'geom'),
-                                                       4326)
+                                THEN public.ST_SetSRID(public.ST_GeomFromGeoJSON(
+                                       nullif(p.payload->'geom', 'null'::jsonb)), 4326)
                                 ELSE e.geom END,
            -- The method belongs to the place: a new place brings the method that found it. The
            -- same place with `not_stated` keeps the method it holds, so a repeat of a place with
            -- no method never takes a stated method away.
            geom_method   = CASE WHEN NOT p.payload ? 'geom' THEN e.geom_method
+                                WHEN jsonb_typeof(p.payload->'geom') = 'null' THEN 'not_stated'
                                 WHEN coalesce(p.payload->>'geom_method', 'not_stated') = 'not_stated'
                                  AND public.ST_Equals(e.geom, public.ST_SetSRID(
                                        public.ST_GeomFromGeoJSON(p.payload->'geom'), 4326))
@@ -2107,9 +2119,11 @@ BEGIN
             CASE WHEN NOT p.payload ? 'type' THEN e.proposed_type
                  WHEN v_type IS NULL THEN p.payload->>'type' END,
             CASE WHEN p.payload ? 'geom'
-                 THEN public.ST_SetSRID(public.ST_GeomFromGeoJSON(p.payload->'geom'), 4326)::text
+                 THEN public.ST_SetSRID(public.ST_GeomFromGeoJSON(
+                        nullif(p.payload->'geom', 'null'::jsonb)), 4326)::text
                  ELSE e.geom::text END,
             CASE WHEN NOT p.payload ? 'geom' THEN e.geom_method
+                 WHEN jsonb_typeof(p.payload->'geom') = 'null' THEN 'not_stated'
                  WHEN coalesce(p.payload->>'geom_method', 'not_stated') = 'not_stated'
                   AND public.ST_Equals(e.geom, public.ST_SetSRID(
                         public.ST_GeomFromGeoJSON(p.payload->'geom'), 4326))
@@ -4511,7 +4525,7 @@ BEGIN
            'The record holds another geometry than the ' ||
            CASE WHEN public.act_reference_dataset(a.id) IS NOT NULL
                 THEN 'reference dataset gives' ELSE 'loaded row gives' END ||
-           public.place_gap_said(e.geom, public.ST_GeomFromGeoJSON(a.payload->'geom'),
+           public.place_gap_said(e.geom, public.ST_GeomFromGeoJSON(nullif(a.payload->'geom', 'null'::jsonb)),
                                  e.attrs->'point_role'->>'v', a.payload->'attrs'->'point_role'->>'v')
       FROM acts a
       JOIN public.entities e ON e.id = a.target_id
@@ -4519,42 +4533,42 @@ BEGIN
        AND (a.found_by IS NOT NULL OR public.act_reference_dataset(a.id) IS NOT NULL
             OR a.author_role <> 'gabriel_app')
        AND NOT public.ST_Equals(e.geom,
-             public.ST_SetSRID(public.ST_GeomFromGeoJSON(a.payload->'geom'), 4326))
+             public.ST_SetSRID(public.ST_GeomFromGeoJSON(nullif(a.payload->'geom', 'null'::jsonb)), 4326))
     UNION ALL
     -- A change of place that joined a new entity which gives a place of its own. The change is
     -- written after the entity and replaces that place, so the operator compares the two (S3).
     SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
            'The new entity gives another geometry than this change of place' ||
            public.place_gap_said(public.ST_GeomFromGeoJSON(n.payload->'geom'),
-                                 public.ST_GeomFromGeoJSON(a.payload->'geom'),
+                                 public.ST_GeomFromGeoJSON(nullif(a.payload->'geom', 'null'::jsonb)),
                                  n.payload->'attrs'->'point_role'->>'v', a.payload->'attrs'->'point_role'->>'v')
       FROM acts a
       JOIN acts n ON n.id = a.target_id AND n.op = 'create_entity' AND n.payload ? 'geom'
      WHERE a.op = 'update_entity' AND a.payload ? 'geom'
        AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(n.payload->'geom'),
-                                public.ST_GeomFromGeoJSON(a.payload->'geom'))
+                                public.ST_GeomFromGeoJSON(nullif(a.payload->'geom', 'null'::jsonb)))
     UNION ALL
     -- Two changes of place of one entity in one unit. The promotion writes both, and the last one
     -- replaces the other, so the operator compares them (S3).
     SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
            'Another change of place of the unit gives another geometry' ||
-           coalesce((SELECT public.place_gap_said(public.ST_GeomFromGeoJSON(o.payload->'geom'),
-                                                  public.ST_GeomFromGeoJSON(a.payload->'geom'),
+           coalesce((SELECT public.place_gap_said(public.ST_GeomFromGeoJSON(nullif(o.payload->'geom', 'null'::jsonb)),
+                                                  public.ST_GeomFromGeoJSON(nullif(a.payload->'geom', 'null'::jsonb)),
                                                   o.payload->'attrs'->'point_role'->>'v',
                                                   a.payload->'attrs'->'point_role'->>'v')
                        FROM acts o
                       WHERE o.id <> a.id AND o.op = 'update_entity' AND o.payload ? 'geom'
                         AND o.target_id = a.target_id
-                        AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(o.payload->'geom'),
-                                                 public.ST_GeomFromGeoJSON(a.payload->'geom'))
+                        AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(nullif(o.payload->'geom', 'null'::jsonb)),
+                                                 public.ST_GeomFromGeoJSON(nullif(a.payload->'geom', 'null'::jsonb)))
                       ORDER BY o.id LIMIT 1), '')
       FROM acts a
      WHERE a.op = 'update_entity' AND a.payload ? 'geom'
        AND EXISTS (SELECT 1 FROM acts o
                     WHERE o.id <> a.id AND o.op = 'update_entity' AND o.payload ? 'geom'
                       AND o.target_id = a.target_id
-                      AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(o.payload->'geom'),
-                                               public.ST_GeomFromGeoJSON(a.payload->'geom')))
+                      AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(nullif(o.payload->'geom', 'null'::jsonb)),
+                                               public.ST_GeomFromGeoJSON(nullif(a.payload->'geom', 'null'::jsonb))))
     -- --------------------------------------------------------------------------- information --
     UNION ALL
     SELECT DISTINCT i.unit_id, 'information', 'sources_from_parent', NULL::uuid,
@@ -7195,7 +7209,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
                              AND u.target_id = x.id)
                             OR (u.op = 'create_entity' AND u.id = x.promoted_from))
                        AND public.ST_Equals(x.geom, public.ST_SetSRID(
-                             public.ST_GeomFromGeoJSON(u.payload->'geom'), 4326))) AS g
+                             public.ST_GeomFromGeoJSON(nullif(u.payload->'geom', 'null'::jsonb)), 4326))) AS g
                   CROSS JOIN LATERAL unnest(g.docs) AS a(src)
                  WHERE x.id = e.id),
                e.sources::text[])) AS s(id)

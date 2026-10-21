@@ -25,7 +25,7 @@ const PLACES = `SELECT e.id::text AS id, e.label,
         AND ((u.op = 'update_entity' AND u.target_kind = 'entity' AND u.target_id = e.id)
              OR (u.op = 'create_entity' AND u.id = e.promoted_from))
         AND public.ST_Equals(e.geom, public.ST_SetSRID(
-              public.ST_GeomFromGeoJSON(u.payload->'geom'), 4326))),
+              public.ST_GeomFromGeoJSON(nullif(u.payload->'geom', 'null'::jsonb)), 4326))),
     e.sources::text[]) AS docs
   FROM public.entities e
  WHERE e.geom IS NOT NULL AND e.geom_method = 'not_stated'
