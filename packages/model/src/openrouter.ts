@@ -34,8 +34,14 @@ export const pinnedName = (pinned: string): string => {
 // A prompt of the research can name a party before a source supports it. `data_collection` keeps
 // the prompt from a provider that stores it or trains on it. `require_parameters` keeps the
 // router from a provider that drops the tools or the JSON answer format, and then answers in
-// prose. No list of other models is sent, so the router never swaps the pinned model.
-const ROUTING = { data_collection: 'deny', require_parameters: true } as const;
+// prose. `ignore` skips the Vertex route: on 22 October 2026 it answered 404 for the pinned Qwen model
+// and the call failed with no fallback. No list of other models is sent, so the router never swaps
+// the pinned model.
+const ROUTING = {
+  data_collection: 'deny',
+  require_parameters: true,
+  ignore: ['google-vertex'],
+} as const;
 
 /** The one model of OpenRouter that an agent pins. The key comes from the environment. The
  * address is OpenRouter, and `OPENROUTER_BASE_URL` changes it only for a proxy or a test double.
