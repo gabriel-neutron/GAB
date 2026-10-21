@@ -47,14 +47,15 @@ session: each proposal waits in the review queue, and the operator decides it th
   written permission to republish. The operator accepts the risk: cite a Comtrade figure with the
   source "UN Comtrade".
 - The licences of OpenCorporates and OCCRP Aleph do not fit the open dataset. Use them only as a
-  lead, or cite a fact from them. This does not apply to a leak collection (next item).
-- **Never cite leaked, hacked or stolen data. Never use it as a lead.** The contract of the report
-  forbids unlawfully obtained data at any stage. Do not open, store or cite: the leak collections of
-  OCCRP Aleph, ICIJ Offshore Leaks, WikiLeaks, DDoSecrets, or any other leak. Do not store or cite an
-  article that quotes or reproduces leaked text, such as emails, cables or internal documents. An
-  article that only names a leak, with no leaked text, is allowed. If a fact has no other source,
-  do not propose it. When a lawful source states the same fact, cite only that source. Ask the
-  skill `expert-panel` when you are not sure.
+  lead, or cite a fact from them. Never use a leak collection of Aleph (see the rule on leaked data).
+- Never use leaked, hacked or stolen data, as a source or as a lead. The contract of the report
+  forbids unlawfully obtained data at any stage. A page is a leak when it, or its publisher, calls
+  the data leaked, hacked or stolen. Examples: the leak collections of Aleph, Offshore Leaks,
+  WikiLeaks and DDoSecrets. Stop when you find that a page is a leak. Do not store it. Do not cite
+  it. Do not cite an article that quotes a leaked document or copies its text. An article that
+  only summarises a leak, or names it, is allowed. Find each fact in a lawful source on your own.
+  Never go from a leak to its source. If a fact has no lawful source, do not propose it. When you
+  are not sure, ask the skill `expert-panel`.
 - Cite an entry of the OFAC SDN list: `ofac_sdn` stores the whole official file once, as a public
   document with its hash and its date of publication, and gives the line of one entry by its
   ent_num. Cite that line on the page that the answer gives (`entry.page`). Never store one entry
