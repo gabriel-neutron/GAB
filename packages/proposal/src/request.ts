@@ -151,14 +151,16 @@ export const writeRequest = z.discriminatedUnion('op', [
       type: z.string().trim().optional(),
       // The place of the entity. A correction made in QGIS enters here, as an act of the operator
       // (ADR 0005). `cites` names the stored documents that back it, such as a Sentinel-2 image,
-      // and the operator authority alone backs it when the list is absent.
-      geom: geometry.optional(),
+      // and the operator authority alone backs it when the list is absent. A null clears the
+      // place: the act then cites the document that says why, and it has no method.
+      geom: geometry.nullable().optional(),
       geomMethod: geolocationMethod.optional(),
       cites: z.array(z.string().trim()).min(1).optional(),
     })
-    .refine((act) => act.geomMethod === undefined || act.geom !== undefined, {
-      message: 'a method of geolocation needs a geometry',
-    }),
+    .refine(
+      (act) => act.geomMethod === undefined || (act.geom !== undefined && act.geom !== null),
+      { message: 'a method of geolocation needs a geometry' },
+    ),
 
   z.strictObject({ op: z.literal('delete_entity'), targetId: z.uuid() }),
   z.strictObject({ op: z.literal('delete_relation'), targetId: z.uuid() }),

@@ -1818,6 +1818,29 @@ test('propose refuses the place that an entity of the record has already', async
   });
 });
 
+test.each([
+  ['an entity with a place', true, {}, { ok: true }],
+  ['a method beside it', true, { geomMethod: 'osm_object' }, { ok: false }],
+  [
+    'an entity with no place',
+    false,
+    {},
+    { ok: false, refusal: expect.stringContaining('has no place to clear') as string },
+  ],
+])('propose clears the place with geom null: %s', async (_case, placed, more, expected) => {
+  const outcome = await rolledBack('superuser', async (ask) => {
+    const [bare, moved] = await placedPair(ask);
+    return proposeOnPage(ask, [
+      item(
+        'clear',
+        { op: 'update_entity', targetId: placed ? moved : bare, geom: null, ...more },
+        'left Sikka',
+      ),
+    ]);
+  });
+  expect(outcome).toMatchObject(expected);
+});
+
 test('propose refuses a place on an entity that does not exist', async () => {
   const outcome = await rolledBack('superuser', async (ask) =>
     proposeOnPage(ask, [

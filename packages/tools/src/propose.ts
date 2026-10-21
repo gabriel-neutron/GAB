@@ -151,7 +151,9 @@ const batchAct = z.discriminatedUnion('op', [
       .describe(
         'the place of the entity, a GeoJSON geometry, for example {"type": "Point", ' +
           '"coordinates": [lon, lat]}; an excerpt must state it, such as the coordinates of a ' +
-          'UN/LOCODE line or the Latitude and Longitude of a GEM row',
+          'UN/LOCODE line or the Latitude and Longitude of a GEM row. To clear a place that has ' +
+          'no good source, give null and no geomMethod, and cite the page that shows the old ' +
+          'source is not good',
       ),
     geomMethod: geolocationMethod.optional().describe(GEOLOCATION),
   }),
@@ -497,6 +499,7 @@ const resolvedAct = async (
   if (
     (act.op === 'create_entity' || act.op === 'update_entity') &&
     act.geom !== undefined &&
+    act.geom !== null &&
     act.geomMethod === undefined
   )
     refuse(
@@ -512,6 +515,8 @@ const resolvedAct = async (
 const SAME_PLACE = `SELECT public.ST_Equals(public.ST_GeomFromGeoJSON(e.geom::text),
     public.ST_GeomFromGeoJSON($2::text)) AS same
   FROM api.entity e WHERE e.id = $1 AND e.geom IS NOT NULL`;
+
+const HAS_PLACE = `SELECT 1 AS n FROM api.entity e WHERE e.id = $1 AND e.geom IS NOT NULL`;
 
 const checkTarget = async (session: Session, ref: string, act: WriteRequest): Promise<void> => {
   if (act.op !== 'update_attrs' && act.op !== 'update_relation' && act.op !== 'update_entity')
@@ -532,7 +537,13 @@ const checkTarget = async (session: Session, ref: string, act: WriteRequest): Pr
     refuse(ref, `the target ${act.targetId} does not exist`);
   }
   // The promotion refuses an act that changes nothing, so the same place would wait for ever.
-  if (act.op === 'update_entity' && act.geom !== undefined) {
+  if (act.op === 'update_entity' && act.geom === null) {
+    const [held] = await rowsOf(session, z.strictObject({ n: z.number() }), HAS_PLACE, [
+      act.targetId,
+    ]);
+    if (held === undefined && (await present(session, 'entity', act.targetId)))
+      refuse(ref, `the entity ${act.targetId} has no place to clear`);
+  } else if (act.op === 'update_entity' && act.geom !== undefined) {
     const [same] = await rowsOf(session, z.strictObject({ same: z.boolean() }), SAME_PLACE, [
       act.targetId,
       JSON.stringify(act.geom),
