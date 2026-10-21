@@ -118,3 +118,9 @@ test('an entry on a later page of a long file is read from the page that holds i
   expect(entryOf(pages, 'AFG0009', 'doc')).toMatchObject({ page: 3 });
   expect(entryOf(pages, 'RUS0000', 'doc')).toBeNull();
 });
+
+test('a ship-only text without the "Report Date" line is read, and its columns are found', () => {
+  const pages = [lines(RUS2928).split('\n').slice(1).join('\n')];
+  expect(missingColumn(pages[0] ?? '')).toBeNull();
+  expect(entryOf(pages, 'RUS2928', 'doc')).toMatchObject({ page: 1 });
+});
