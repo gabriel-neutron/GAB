@@ -29,14 +29,26 @@ export const tagsOf = (cell: string): string[] =>
     .map((part) => part.trim().replace(TAG_OPEN, '').trim())
     .filter((tag) => tag !== '');
 
+/** A column that is cut from another column: the first match of the pattern in the cell of `from`,
+ * and the text of its one capture group. A row with no match gets an empty cell. */
+export interface Extraction {
+  readonly name: string;
+  readonly from: string;
+  readonly pattern: string;
+}
+
 /** The name of a CSV set. The same columns and the same filters give the same name, and the
  * name holds the version of the reader. */
 export const csvSetName = (
   columns: readonly string[],
   tag?: TableFilter,
   equals: readonly TableFilter[] = [],
+  extract: readonly Extraction[] = [],
 ): string =>
   `${TABLE_READER}|csv=${columns.join(',')}` +
+  // The order of the extractions sets the order of the new columns, so it stays in the name. The
+  // pattern is quoted as JSON text, so no pattern can look like another part of the name.
+  extract.map((one) => `|extract=${one.name}:${one.from}:${JSON.stringify(one.pattern)}`).join('') +
   (tag === undefined ? '' : `|tag=${tag.column}=${tag.value}`) +
   // The filters are sorted by column, so the same filters in another order give the same name.
   [...equals]
@@ -163,6 +175,7 @@ export const headlessCsv = async (
   columns: readonly string[],
   tag?: TableFilter,
   equals: readonly TableFilter[] = [],
+  extract: readonly Extraction[] = [],
 ): Promise<string> => {
   if (columns.length === 0 || columns.some((name) => name.trim() === ''))
     throw new WorkbookFault('give a name to each column');
@@ -173,29 +186,53 @@ export const headlessCsv = async (
   if (tag !== undefined && (tag.value.trim() === '' || /[[\]]/u.test(tag.value)))
     throw new WorkbookFault('a tag is not empty and holds no bracket');
   if (tag?.value.includes('|') === true) throw new WorkbookFault('a tag holds no bar');
+  const patterns = extract.map((one) => {
+    if (one.name.trim() === '') throw new WorkbookFault('give a name to each new column');
+    if (/[,|=:]/u.test(one.name))
+      throw new WorkbookFault('a name of a new column holds no comma, bar, colon or equals sign');
+    if (one.from.includes(':')) throw new WorkbookFault('a source column holds no colon');
+    if (!columns.includes(one.from))
+      throw new WorkbookFault(`the columns hold no column "${one.from}"`);
+    let pattern: RegExp;
+    let groups: number;
+    try {
+      pattern = new RegExp(one.pattern, 'u');
+      // An empty alternative added to the pattern always matches, so its groups count.
+      groups = (new RegExp(`${one.pattern}|`, 'u').exec('')?.length ?? 1) - 1;
+    } catch {
+      throw new WorkbookFault(`the pattern "${one.pattern}" is not a valid pattern`);
+    }
+    if (groups !== 1)
+      throw new WorkbookFault(`the pattern "${one.pattern}" needs exactly one capture group`);
+    return { from: columns.indexOf(one.from), pattern };
+  });
+  const names = extract.map((one) => one.name);
+  const all = [...columns, ...names];
+  if (new Set(all).size !== all.length)
+    throw new WorkbookFault('the name of a new column clashes with another column');
   const seen = new Set<string>(tag === undefined ? [] : [tag.column]);
   const exact: { at: number; value: string }[] = [];
   for (const filter of equals) {
     if (filter.value.trim() === '') throw new WorkbookFault('a value is not empty');
     if (filter.value.includes('|')) throw new WorkbookFault('a value holds no bar');
-    const index = columns.indexOf(filter.column);
+    const index = all.indexOf(filter.column);
     if (index === -1) throw new WorkbookFault(`the columns hold no column "${filter.column}"`);
     if (seen.has(filter.column))
       throw new WorkbookFault(`the column "${filter.column}" has more than one filter`);
     seen.add(filter.column);
     exact.push({ at: index, value: filter.value.trim() });
   }
-  const at = tag === undefined ? -1 : columns.indexOf(tag.column);
+  const at = tag === undefined ? -1 : all.indexOf(tag.column);
   if (tag !== undefined && at === -1)
     throw new WorkbookFault(`the columns hold no column "${tag.column}"`);
 
-  const kept = [...columns];
-  const rows: string[][] = [kept];
+  const rows: string[][] = [all];
   let chars = 0;
   for await (const fields of csvRecords(source)) {
-    if (tag !== undefined && !tagsOf(fields[at] ?? '').includes(tag.value)) continue;
-    if (exact.some((filter) => (fields[filter.at] ?? '').trim() !== filter.value)) continue;
     const row = Array.from({ length: columns.length }, (_, index) => fields[index] ?? '');
+    for (const one of patterns) row.push(one.pattern.exec(row[one.from] ?? '')?.[1] ?? '');
+    if (tag !== undefined && !tagsOf(row[at] ?? '').includes(tag.value)) continue;
+    if (exact.some((filter) => (row[filter.at] ?? '').trim() !== filter.value)) continue;
     chars += row.reduce((sum, cell) => sum + cell.length + 1, 0);
     if (chars > MAX_TABLE_CHARS)
       throw new WorkbookFault(
