@@ -212,7 +212,7 @@ describe('OpenRouter', () => {
     expect(seen[0]?.url).toBe('https://openrouter.ai/api/v1/chat/completions');
     expect(seen[0]?.authorization).toBe('Bearer a-key');
     expect(seen[0]?.body).toMatchObject({
-      provider: { data_collection: 'deny', require_parameters: true },
+      provider: { data_collection: 'deny', require_parameters: true, ignore: ['google-vertex'] },
     });
   });
 
