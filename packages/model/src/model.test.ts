@@ -330,7 +330,10 @@ describe('the served model', () => {
     replies.push(refused(404, { message: 'model not found' }));
     const { ask } = open('no-family/no-model');
 
-    expect(await ask()).toMatchObject({ ok: false, failure: { kind: 'configuration' } });
+    expect(await ask()).toMatchObject({
+      ok: false,
+      failure: { kind: 'configuration', detail: 'HTTP 404' },
+    });
   });
 });
 
