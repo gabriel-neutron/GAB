@@ -7,9 +7,9 @@ import type { Strike } from './sentinel2-pairs.ts';
 
 // The activity report gives each asset one mark for its kind, from the World Bank flare table, the
 // stored FIRMS answers and the dated strikes. It is a report, not a fact of the record: it writes
-// nothing. The thresholds are the ones that the calibration of #530 proposed.
+// nothing. The thresholds are the ones that the FIRMS calibration proposed.
 
-// Origin of the numbers: the calibration of #530 (hot pixel, event, window after a strike) and
+// Origin of the numbers: the FIRMS calibration (hot pixel, event, window after a strike) and
 // assumptions of the first build (the radii). Each one is printed in the report.
 export const THRESHOLDS = {
   hotMegawatts: 3,
@@ -83,6 +83,7 @@ export interface ActivityInput {
 /** The stored flare table: one row for each site and year, read as one flare for each site. */
 export const flaresOf = (text: string): Flare[] => {
   const flares = new Map<string, Flare>();
+  const volumes = new Map<string, Map<number, number>>();
   let head: readonly string[] = [];
   for (const row of readCsv(text)) {
     if (row.fields[0] === 'id') {
@@ -100,17 +101,18 @@ export const flaresOf = (text: string): Flare[] => {
       !Number.isFinite(latitude + longitude + year + bcm)
     )
       continue;
-    const flare = flares.get(cell('id')) ?? {
+    const bcmByYear = volumes.get(cell('id')) ?? new Map<number, number>();
+    bcmByYear.set(year, bcm);
+    volumes.set(cell('id'), bcmByYear);
+    flares.set(cell('id'), {
       id: cell('id'),
       latitude,
       longitude,
       operator: cell('Operator'),
       field: cell('Field name'),
       type: cell('Field type'),
-      bcm: new Map<number, number>(),
-    };
-    (flare.bcm as Map<number, number>).set(year, bcm);
-    flares.set(flare.id, flare);
+      bcm: bcmByYear,
+    });
   }
   return [...flares.values()];
 };
@@ -233,11 +235,12 @@ const eventDays = (pixels: readonly Detection[]): Set<string> => {
   ]);
 };
 
-/** A pixel inside the window after a known strike, near it, is a strike pixel. */
+/** A pixel inside the window after a known strike, near it, is a strike pixel. FIRMS days are UTC
+ * and a strike day may be local, so the window starts one day early. */
 const inStrike = (pixel: Detection, strikes: readonly Strike[]): boolean =>
   strikes.some(
     (strike) =>
-      pixel.day >= strike.day &&
+      msOf(pixel.day) >= msOf(strike.day) - DAY_MS &&
       msOf(pixel.day) <= msOf(strike.until) + THRESHOLDS.strikeWindowDays * DAY_MS &&
       metres(strike, pixel) <= THRESHOLDS.strikeRadiusMetres,
   );
@@ -249,6 +252,8 @@ interface Month {
   /** Nights with an activity pixel; undefined when no stored answer covers the month. */
   readonly nights: number | undefined;
   readonly strikeNights: number;
+  /** Nights of an event that no known strike explains: kept out of the activity count. */
+  readonly eventNights: number;
 }
 
 export interface Row {
@@ -263,24 +268,25 @@ export interface ActivityReport {
   readonly review: readonly string[];
 }
 
+/** True when the stored answers of the boxes that hold the point cover every day of the month
+ * that has passed. Two answers that meet cover a month together. */
 const covers = (
   answers: readonly Answer[],
   point: { latitude: number; longitude: number },
   month: string,
   today: string,
 ): boolean => {
-  const first = `${month}-01`;
-  const next = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 1));
-  const last = dayOf(Math.min(next.getTime() - DAY_MS, msOf(today) - DAY_MS));
-  return answers.some(
-    ({ box: [w, s, e, n], from, to }) =>
-      point.longitude >= w &&
-      point.longitude <= e &&
-      point.latitude >= s &&
-      point.latitude <= n &&
-      from <= first &&
-      to >= last,
+  const held = answers.filter(
+    ({ box: [w, s, e, n] }) =>
+      point.longitude >= w && point.longitude <= e && point.latitude >= s && point.latitude <= n,
   );
+  const next = Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 1);
+  const last = Math.min(next - DAY_MS, msOf(today) - DAY_MS);
+  for (let at = msOf(`${month}-01`); at <= last; at += DAY_MS) {
+    const day = dayOf(at);
+    if (!held.some(({ from, to }) => from <= day && day <= to)) return false;
+  }
+  return true;
 };
 
 const monthsOf = (today: string): string[] => {
@@ -291,6 +297,12 @@ const monthsOf = (today: string): string[] => {
     (_, at) => `${String(year)}-${String(at + 1).padStart(2, '0')}`,
   );
 };
+
+/** A name as words between spaces, so that a short name never matches inside a longer word. */
+const words = (name: string): string =>
+  ` ${nameKey(name)
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()} `;
 
 export const buildActivityReport = (input: ActivityInput): ActivityReport => {
   const { today, assets, flares, answers, strikes, operators } = input;
@@ -314,24 +326,31 @@ export const buildActivityReport = (input: ActivityInput): ActivityReport => {
     radius: number,
     keepStatic: boolean,
   ): Month[] => {
-    const own = points.flatMap((point) => near(point, radius));
+    const own = [...new Set(points.flatMap((point) => near(point, radius)))];
     const events = eventDays(own);
     return months.map((month) => {
       const nights = new Set<string>();
       const struck = new Set<string>();
+      const evented = new Set<string>();
       for (const pixel of own) {
         if (!pixel.day.startsWith(month) || !pixel.night) continue;
         if (!keepStatic && pixel.type === '2') continue;
         if (inStrike(pixel, strikes)) struck.add(pixel.day);
-        else if (!events.has(pixel.day)) nights.add(pixel.day);
+        else if (events.has(pixel.day)) evented.add(pixel.day);
+        else nights.add(pixel.day);
       }
       const covered = points.some((point) => covers(answers, point, month, today));
-      return { month, nights: covered ? nights.size : undefined, strikeNights: struck.size };
+      return {
+        month,
+        nights: covered ? nights.size : undefined,
+        strikeNights: struck.size,
+        eventNights: evented.size,
+      };
     });
   };
 
   const cell = (one: Month): string =>
-    `${one.month}: ${one.nights === undefined ? 'unread' : String(one.nights)}${one.strikeNights > 0 ? ` (+${String(one.strikeNights)} strike)` : ''}`;
+    `${one.month}: ${one.nights === undefined ? 'unread' : String(one.nights)}${one.strikeNights > 0 ? ` (+${String(one.strikeNights)} strike)` : ''}${one.eventNights > 0 ? ` (+${String(one.eventNights)} event)` : ''}`;
   const summary = (list: readonly Month[]): string => list.map(cell).join(' ');
   const signal = (list: readonly Month[]): boolean => list.some((one) => (one.nights ?? 0) > 0);
   const readAny = (list: readonly Month[]): boolean => list.some((one) => one.nights !== undefined);
@@ -348,7 +367,7 @@ export const buildActivityReport = (input: ActivityInput): ActivityReport => {
     const operator = operators.get(nameKey(flare.operator));
     const fieldKey = nameKey(flare.field.replace(/\s*\(.*\)\s*/gu, ' '));
     const byName =
-      fieldKey === '' ? [] : fields.filter((one) => nameKey(one.label).includes(fieldKey));
+      fieldKey === '' ? [] : fields.filter((one) => words(one.label).includes(words(fieldKey)));
     const candidates = narrow(
       byName.length > 0
         ? byName
@@ -404,7 +423,7 @@ export const buildActivityReport = (input: ActivityInput): ActivityReport => {
         {
           asset,
           method:
-            'flare volume 2024-2025 of its LNG flares; FIRMS not used (the thresholds fail on a large flare, #530)',
+            'flare volume 2024-2025 of its LNG flares; FIRMS not used (the thresholds fail on a large flare)',
           mark:
             own.length === 0
               ? 'no flare matched'
@@ -439,7 +458,7 @@ export const buildActivityReport = (input: ActivityInput): ActivityReport => {
       'LNG plant = flare volume of its LNG flares; refinery = FIRMS nights near the site for each month; ' +
       'other kinds have no mark. A flare joins a field by the field name, narrowed by the sure rows of the operator table, ' +
       'then by distance. A flare that two fields can claim goes to review.',
-    `Thresholds (#530): hot pixel = night, ${String(t.hotMegawatts)} MW and ${String(t.hotKelvin)} K or more; ` +
+    `Thresholds (FIRMS calibration): hot pixel = night, ${String(t.hotMegawatts)} MW and ${String(t.hotKelvin)} K or more; ` +
       `event = ${String(t.eventPixels)} hot pixels in one overpass, or ${String(t.eventMegawatts)} MW on two satellites the same day (not counted as activity); ` +
       `strike window = ${String(t.strikeWindowDays)} days after a known strike within ${String(t.strikeRadiusMetres)} m (marked as strike, not counted as activity); ` +
       `radius: refinery ${String(t.refineryRadiusMetres)} m, flare ${String(t.flareRadiusMetres)} m; ` +

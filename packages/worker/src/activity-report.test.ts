@@ -34,6 +34,7 @@ const assets = [
   asset('l1', 'Yamal LNG', 'lng_plant', 71.25, 72.05),
 ];
 
+const NL = String.fromCharCode(13, 10);
 const HEAD =
   'id,lat,lon,Country,BCM,MMSCFD,Year,Field type,Operator,Field name,Location,Flare Level,Flaring Vol (million m3)';
 const flareRow = (
@@ -109,7 +110,7 @@ const line = (label: string): string =>
 
 test('the report names its method, its thresholds and its date', () => {
   expect(report.lines[0]).toContain('2026-10-05');
-  expect(report.lines.join('\n')).toMatch(/Method:.*\n.*Thresholds \(#530\)/u);
+  expect(report.lines.join('\n')).toMatch(/Method:.*\n.*Thresholds \(FIRMS calibration\)/u);
 });
 
 test('a refinery counts its activity night, and a strike night is kept apart', () => {
@@ -160,4 +161,54 @@ test('only a sure operator row joins; the address of an answer gives its box and
   );
   expect(stored?.box).toEqual([1, 2, 3, 4]);
   expect(stored?.detections).toHaveLength(1);
+});
+
+test('a month that two stored answers cover together is read', () => {
+  const half = (from: string, to: string) => ({ ...answer([]), from, to });
+  const split = buildActivityReport({
+    today: '2026-02-20',
+    assets: assets.filter((one) => one.kind === 'refinery'),
+    flares: [],
+    answers: [half('2026-01-01', '2026-01-15'), half('2026-01-16', '2026-02-19')],
+    strikes: [],
+    operators: new Map(),
+  });
+  expect(split.lines.at(-1)).toContain('2026-01: 0 2026-02: 0');
+});
+
+test('a sure operator narrows a flare to the field that the operator runs', () => {
+  const company = '11111111-1111-1111-1111-111111111111';
+  const two = [
+    asset('g1', 'Beta Oil and Gas Field', 'field', 60, 70, [company]),
+    asset('g2', 'Beta Oil and Gas Field', 'field', 60.01, 70.01, ['other']),
+  ];
+  const beta = flaresOf([HEAD, flareRow('b', 60, 70, 2025, 0.1, 'OIL', 'Acme', 'Beta')].join(NL));
+  const run = (operators: Map<string, string>) =>
+    buildActivityReport({
+      today: '2026-10-05',
+      assets: two,
+      flares: beta,
+      answers: [],
+      strikes: [],
+      operators,
+    });
+  expect(run(new Map()).review).toHaveLength(1);
+  const narrowed = run(
+    operatorsOf(`name,status,gem_entity_id,record_candidate${NL}Acme,sure,E1,${company} Acme`),
+  );
+  expect(narrowed.review).toHaveLength(0);
+  expect(narrowed.lines.filter((one) => one.includes('	flaring	'))).toHaveLength(1);
+});
+
+test('a short flare name never matches inside a longer field name', () => {
+  const far = [asset('h1', 'Alphabet Oil and Gas Field', 'field', 50, 40)];
+  const result = buildActivityReport({
+    today: '2026-10-05',
+    assets: far,
+    flares: flares.filter((one) => one.field === 'Alpha'),
+    answers: [],
+    strikes: [],
+    operators: new Map(),
+  });
+  expect(result.lines.at(-1)).toContain('no flare matched');
 });

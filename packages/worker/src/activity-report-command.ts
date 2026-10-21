@@ -15,12 +15,13 @@ import type { SubCommand } from './command.ts';
 import { strikesOf } from './sentinel2-pairs.ts';
 
 const USAGE =
-  'Usage: pnpm worker activity-report <flare document> <text set> [--operators <document> ' +
-  '<text set>]. It prints the activity mark of each asset for its kind, from the stored flare ' +
-  'table, the stored FIRMS answers and the dated strikes. The operator table is optional: with ' +
+  'Usage: pnpm worker activity-report <flare document> <text set> [--operators <document>]. ' +
+  'It prints the activity mark of each asset for its kind, from the stored flare ' +
+  'table, the stored FIRMS answers and the dated strikes. The operator table is optional and uses the same text set: with ' +
   'none, a flare joins a field by name and distance only. It writes nothing to the record.';
 
-/** Gives 2 for a usage fault. A flare for two fields is listed on the error output. */
+/** Returns 2 when the arguments are wrong. It prints each flare that two fields can claim on the
+ * error output. */
 export const activityReportCommand: SubCommand = async (args) => {
   let parsed;
   try {
