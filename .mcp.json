@@ -15,7 +15,17 @@
     "gab": {
       "type": "stdio",
       "command": "node",
-      "args": ["${CLAUDE_PROJECT_DIR:-.}/packages/mcp/src/main.ts"]
+      "args": [
+        "${CLAUDE_PROJECT_DIR:-.}/packages/mcp/src/main.ts"
+      ]
+    },
+    "motion": {
+      "type": "http",
+      "url": "https://mcp.motion.dev"
+    },
+    "motion-plus": {
+      "type": "http",
+      "url": "https://mcp.motion.dev/plus"
     }
   }
 }

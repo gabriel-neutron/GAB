@@ -34,9 +34,9 @@ export const pinnedName = (pinned: string): string => {
 // A prompt of the research can name a party before a source supports it. `data_collection` keeps
 // the prompt from a provider that stores it or trains on it. `require_parameters` keeps the
 // router from a provider that drops the tools or the JSON answer format, and then answers in
-// prose. `ignore` skips the Vertex route: on 22 October 2026 it answered 404 for the pinned Qwen model
-// and the call failed with no fallback. No list of other models is sent, so the router never swaps
-// the pinned model.
+// prose. `ignore` skips the Vertex route: it answers 404 for the pinned Qwen model, and the call
+// then fails with no fallback. Remove it when that route serves the model. No list of other models
+// is sent, so the router never swaps the pinned model.
 const ROUTING = {
   data_collection: 'deny',
   require_parameters: true,
