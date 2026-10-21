@@ -127,8 +127,8 @@ plant. Run a query that is not stored, and never store or propose its coordinate
 keep the address text and "geocoder X agrees within N m with source Y on date D". Esri World
 Imagery is a visual check only: store nothing from it, and place no point from it. The record
 keeps the identifier of an OpenStreetMap object, never its geometry: an act with a `geom` never
-cites an OpenStreetMap document, and never gives "osm_object" as its method (`osm-overpass`). The store tools refuse a
-Nominatim, Overpass or geocoder answer and a search result page.
+cites an OpenStreetMap document, and never gives "osm_object" as its method (`osm-overpass`).
+The store tools refuse a Nominatim, Overpass or geocoder answer and a search result page.
 
 Give the method of the place as `geomMethod` in each act that carries a `geom` (the skill
 `cite-claim` lists the closed set of words). The `propose` tool refuses a place with no method.

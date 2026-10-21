@@ -36,9 +36,8 @@ keep only the identifier in your notes. Do not work around the refusal.
    follow the order of `research-method`. An act with a `geom` never cites an OSM document, a
    Nominatim lookup or an Overpass answer, and never has `geomMethod` "osm_object": the OSM
    geometry is ODbL, and the release stops on it (`assertNoOsmGeometry`). If no other source
-   states the place, propose no `geom`, and put the site on `research/out/needs.md`. A point from
-   OSM is only a lead for the notes: use it to find the site, then find a source that states
-   the place.
+   states the place, propose no `geom`, and put the site on `research/out/needs.md`. Use an OSM
+   point only to find the site in your notes, then find a source that states the place.
 
 ## Do not
 
