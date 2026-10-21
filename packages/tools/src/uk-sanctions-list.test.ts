@@ -124,3 +124,8 @@ test('a ship-only text without the "Report Date" line is read, and its columns a
   expect(missingColumn(pages[0] ?? '')).toBeNull();
   expect(entryOf(pages, 'RUS2928', 'doc')).toMatchObject({ page: 1 });
 });
+
+test('a later page without the "Report Date" line keeps its first row', () => {
+  const pages = [lines(KOROLEV_PROSPECT), `${RUS2928}\n`];
+  expect(entryOf(pages, 'RUS2928', 'doc')).toMatchObject({ page: 2 });
+});
