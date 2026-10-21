@@ -234,7 +234,11 @@ export const checkBatch = async (
     if (recordFault !== null) throw cannotWrite(recordFault);
     throw cause;
   }
-  if (!asked.ok) throw new CheckFailure(`the checker failed: ${asked.failure.reason}`);
+  if (!asked.ok)
+    throw new CheckFailure(
+      `the checker failed: ${asked.failure.reason}` +
+        (asked.failure.detail === undefined ? '' : ` (${asked.failure.detail})`),
+    );
   if (!('value' in asked)) throw new CheckFailure('the checker answered with a tool call');
   return new Map(
     verdictsOf(
