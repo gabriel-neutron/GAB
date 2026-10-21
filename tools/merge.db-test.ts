@@ -189,6 +189,29 @@ test('a merge moves the relations and the values to the survivor, and keeps the 
   });
 });
 
+test('a duplicate vessel with a wrong IMO number leaves no number behind, and its designation joins the twin', async () => {
+  const seen = await rolledBack('app', async (ask) => {
+    const keep = await entity(ask, 'vessel', 'WRONG IMO KEEP', { imo: manual('9308170') });
+    const gone = await entity(ask, 'vessel', 'WRONG IMO GONE', { imo: manual('7381556') });
+    const state = await entity(ask, 'state_body', 'WRONG IMO STATE');
+    const twin = await relation(ask, 'designated_by', keep, state, { validFrom: '2025-05-21' });
+    await relation(ask, 'designated_by', gone, state, { validFrom: '2025-05-21' });
+    await merge(ask, keep, gone);
+    return {
+      twin,
+      survivor: await entityRow(ask, keep),
+      wrong: z
+        .array(z.object({ id: z.uuid() }))
+        .parse(await ask(`SELECT id FROM public.entities WHERE attrs->'imo'->>'v' = '7381556'`)),
+      relations: await relationsOf(ask, keep),
+    };
+  });
+
+  expect(seen.survivor?.['attrs']).toStrictEqual({ imo: manual('9308170') });
+  expect(seen.wrong).toStrictEqual([]);
+  expect(seen.relations.map((row) => row['id'])).toStrictEqual([seen.twin]);
+});
+
 test('an undo restores the absorbed entity, its relations and the values of the survivor', async () => {
   const seen = await rolledBack('app', async (ask) => {
     const keep = await entity(ask, 'vessel', 'UNDO TEST KEEP', { flag: manual('Panama') });

@@ -38,7 +38,7 @@ test('no word gives the usage, and the usage names each sub-command', () => {
 test('an unknown word gives the usage, and the usage names the word', () => {
   expect(readCommand(['runner'])).toStrictEqual({
     kind: 'usage',
-    text: '"runner" is not a sub-command. Usage: pnpm worker <activity-report|asset-coverage|asset-sanctions|author-names|document-labels|dry-join|firms-sweep|gem-duplicates|geolocation-method|ingest|layout|merge-act|name-candidates|nato-coverage|reconcile|reference-dataset|reference-set|release|requeue-ratings|reread-html|run|sentinel2-pairs|text-set> [arguments]',
+    text: '"runner" is not a sub-command. Usage: pnpm worker <activity-report|asset-coverage|asset-sanctions|author-names|document-labels|dry-join|firms-sweep|gem-duplicates|geolocation-method|ingest|layout|merge-act|merge-entities|name-candidates|nato-coverage|reconcile|reference-dataset|reference-set|release|requeue-ratings|reread-html|run|sentinel2-pairs|text-set> [arguments]',
   });
 });
 

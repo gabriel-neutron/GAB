@@ -92,7 +92,10 @@ each decision is final). The Names page of the review page does the same.
 - `name-candidates`: finds merge candidates across a Latin and a Cyrillic spelling. Run it before a
   release, then decide each pair in the "Two scripts" tab.
 - `gem-duplicates`: report. It lists pairs of one entity with a GEM unit key and one without it, near
-  and with a similar name. It writes nothing. Merge a true pair by hand with `merge_entities`.
+  and with a similar name. It writes nothing. Merge a true pair with `merge-entities`.
+- `merge-entities <duplicate> <survivor>`: the operator merges one entity into another through the
+  door `merge_entities` (ADR 0014). The act is in the ledger and the merge can be undone. The door
+  refuses two entities of two types, and a duplicate that an act in the waiting lane names.
 - `nato-coverage`, `asset-coverage`, `asset-sanctions`: reports. They write nothing.
 - `activity-report <flare document> <text set> [--operators <document>]`: report. It gives
   each field, LNG plant and refinery an activity mark from the flare table, the stored FIRMS answers
