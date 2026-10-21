@@ -276,6 +276,19 @@ test('a column is cut from another column by a pattern', async () => {
   );
 });
 
+test('a long cell is cut before the pattern reads it', async () => {
+  const long = `${'x'.repeat(5000)} IMO 1234567`;
+  const file = bytesSource(new TextEncoder().encode(`1,"${long}"\n2,IMO 7654321`));
+  const text = await headlessCsv(
+    file,
+    ['a', 'b'],
+    undefined,
+    [],
+    [{ name: 'imo', from: 'b', pattern: 'IMO (\\d{7})' }],
+  );
+  expect(readCsv(text).map((record) => record.fields[2])).toStrictEqual(['imo', '', '7654321']);
+});
+
 test('a bad extraction is refused', async () => {
   const columns = ['a', 'b'];
   const run = (one: { name: string; from: string; pattern: string }) =>
@@ -284,6 +297,8 @@ test('a bad extraction is refused', async () => {
   await expect(run({ ...good, pattern: '\\d+' })).rejects.toThrow('exactly one capture group');
   await expect(run({ ...good, pattern: '(\\d)(\\d)' })).rejects.toThrow('exactly one');
   await expect(run({ ...good, pattern: '(\\d' })).rejects.toThrow('not a valid pattern');
+  await expect(run({ ...good, pattern: '(a+)+$' })).rejects.toThrow('repeats a group');
+  await expect(run({ ...good, pattern: '(\\w*\\d)*' })).rejects.toThrow('repeats a group');
   await expect(run({ ...good, from: 'zz' })).rejects.toThrow('no column "zz"');
   await expect(run({ ...good, name: ' ' })).rejects.toThrow('give a name');
   await expect(run({ ...good, name: 'a' })).rejects.toThrow('clashes');

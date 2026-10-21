@@ -29,6 +29,14 @@ export const tagsOf = (cell: string): string[] =>
     .map((part) => part.trim().replace(TAG_OPEN, '').trim())
     .filter((tag) => tag !== '');
 
+/** The most characters of a cell that a pattern reads. A longer cell is cut, so a pattern costs a
+ * bounded time on each row. */
+const MAX_EXTRACT_CHARS = 4096;
+
+/** A group that holds a repeat and is repeated itself, such as `(a+)+`. It can take an
+ * exponential time on a cell, so the reader refuses it. */
+const NESTED_QUANTIFIER = /\([^)]*[+*}][^)]*\)[+*{]/u;
+
 /** A column that is cut from another column: the first match of the pattern in the cell of `from`,
  * and the text of its one capture group. A row with no match gets an empty cell. */
 export interface Extraction {
@@ -169,7 +177,8 @@ export async function* csvRecords(
 
 /** A CSV with no header row as CSV text: the header row of the given names, then each row that all
  * the filters keep. The tag filter and each exact-value filter must hold. A cell is compared after
- * its spaces at both ends are cut. A row is padded or cut to the number of names. */
+ * its spaces at both ends are cut. A row is padded or cut to the number of names of the file, and
+ * each extraction adds a column at the end. A filter may name a new column. */
 export const headlessCsv = async (
   source: ZipSource,
   columns: readonly string[],
@@ -200,8 +209,12 @@ export const headlessCsv = async (
       // An empty alternative added to the pattern always matches, so its groups count.
       groups = (new RegExp(`${one.pattern}|`, 'u').exec('')?.length ?? 1) - 1;
     } catch {
-      throw new WorkbookFault(`the pattern "${one.pattern}" is not a valid pattern`);
+      throw new WorkbookFault(
+        `the pattern "${one.pattern}" is not a valid pattern (the unicode mode is on: escape only a special character)`,
+      );
     }
+    if (NESTED_QUANTIFIER.test(one.pattern))
+      throw new WorkbookFault(`the pattern "${one.pattern}" repeats a group that holds a repeat`);
     if (groups !== 1)
       throw new WorkbookFault(`the pattern "${one.pattern}" needs exactly one capture group`);
     return { from: columns.indexOf(one.from), pattern };
@@ -228,11 +241,25 @@ export const headlessCsv = async (
 
   const rows: string[][] = [all];
   let chars = 0;
+  const passes = (row: readonly string[], base: boolean): boolean => {
+    if (
+      tag !== undefined &&
+      at < columns.length === base &&
+      !tagsOf(row[at] ?? '').includes(tag.value)
+    )
+      return false;
+    return !exact.some(
+      (filter) =>
+        filter.at < columns.length === base && (row[filter.at] ?? '').trim() !== filter.value,
+    );
+  };
   for await (const fields of csvRecords(source)) {
     const row = Array.from({ length: columns.length }, (_, index) => fields[index] ?? '');
-    for (const one of patterns) row.push(one.pattern.exec(row[one.from] ?? '')?.[1] ?? '');
-    if (tag !== undefined && !tagsOf(row[at] ?? '').includes(tag.value)) continue;
-    if (exact.some((filter) => (row[filter.at] ?? '').trim() !== filter.value)) continue;
+    // The filters on the columns of the file run first, so a dropped row costs no pattern.
+    if (!passes(row, true)) continue;
+    for (const one of patterns)
+      row.push(one.pattern.exec((row[one.from] ?? '').slice(0, MAX_EXTRACT_CHARS))?.[1] ?? '');
+    if (!passes(row, false)) continue;
     chars += row.reduce((sum, cell) => sum + cell.length + 1, 0);
     if (chars > MAX_TABLE_CHARS)
       throw new WorkbookFault(
