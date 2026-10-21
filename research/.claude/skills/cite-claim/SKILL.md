@@ -121,6 +121,9 @@ misread a number, so the text can miss a fact that the image shows clearly.
   OpenStreetMap geometry is ODbL, and the release stops on it. Cite an OSM document only for the
   attributes `osm_id` and `osm_version`, in an act with no `geom`. When no other source states the
   place, propose no `geom`.
+- To clear a place that has no good source, propose `update_entity` with `"geom": null` and no
+  `geomMethod`. Cite the document that shows why the old source is not good. The old place stays in
+  the history, and the entity shows no place until another act gives one.
 
 ## A sanctions status
 
