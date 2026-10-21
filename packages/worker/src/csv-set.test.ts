@@ -3,6 +3,7 @@ import { expect, test } from 'vitest';
 
 import { csvSetName, MAX_CSV_BYTES, headlessCsv, tagsOf } from './csv-set.ts';
 import type { Queryable } from './queryable.ts';
+import { requestOf } from './text-set-command.ts';
 import { makeTextSet } from './text-set.ts';
 
 // A sample in the shape of the SDN list of OFAC. It is a fixture and holds no row of a real file.
@@ -39,6 +40,69 @@ test('the filter keeps one tag, alone or with others, in file order, and not a l
   expect(await headlessCsv(source(), COLUMNS, TAG)).toBe(text);
 });
 
+test('the exact-value filter and the tag must both hold', async () => {
+  const mixed = bytesSource(
+    new TextEncoder().encode(
+      [
+        '1,ALPHA,vessel,RUSSIA-EO14024,Tanker',
+        '2,BETA CORP,entity,RUSSIA-EO14024,',
+        '3,GAMMA,vessel,IRAN-EO13902,Tanker',
+        '4,DELTA,vessel,UKRAINE-EO13662] [RUSSIA-EO14024,Tug',
+        '5,EPSILON,vessel ,RUSSIA-EO14024,Tug',
+        '6,ZETA,vessels,RUSSIA-EO14024,Tug',
+      ].join('\n'),
+    ),
+  );
+  const text = await headlessCsv(mixed, COLUMNS, TAG, [{ column: 'type', value: 'vessel' }]);
+  expect(text.split('\r\n').map((line) => line.split(',')[0])).toStrictEqual([
+    'ent_num',
+    '1',
+    '4',
+    '5',
+    '',
+  ]);
+  // The filter alone keeps the vessels of every tag, in file order.
+  const alone = await headlessCsv(mixed, COLUMNS, undefined, [{ column: 'type', value: 'vessel' }]);
+  expect(alone.split('\r\n').map((line) => line.split(',')[0])).toStrictEqual([
+    'ent_num',
+    '1',
+    '3',
+    '4',
+    '5',
+    '',
+  ]);
+  // Two filters on two columns must both hold.
+  const two = await headlessCsv(mixed, COLUMNS, undefined, [
+    { column: 'vessel_type', value: 'Tug' },
+    { column: 'type', value: 'vessel' },
+  ]);
+  expect(two.split('\r\n').map((line) => line.split(',')[0])).toStrictEqual([
+    'ent_num',
+    '4',
+    '5',
+    '',
+  ]);
+});
+
+test('a bad exact-value filter is refused', async () => {
+  const eq = (column: string, value: string) => ({ column, value });
+  await expect(headlessCsv(source(), COLUMNS, undefined, [eq('nope', 'x')])).rejects.toThrow(
+    'no column "nope"',
+  );
+  await expect(headlessCsv(source(), COLUMNS, undefined, [eq('type', ' ')])).rejects.toThrow(
+    'not empty',
+  );
+  await expect(headlessCsv(source(), COLUMNS, undefined, [eq('type', 'a|b')])).rejects.toThrow(
+    'no bar',
+  );
+  await expect(
+    headlessCsv(source(), COLUMNS, undefined, [eq('type', 'a'), eq('type', 'b')]),
+  ).rejects.toThrow('more than one filter');
+  await expect(headlessCsv(source(), COLUMNS, TAG, [eq('program', 'x')])).rejects.toThrow(
+    'more than one filter',
+  );
+});
+
 test('with no tag every row is kept, and a short row is padded', async () => {
   const text = await headlessCsv(source(), COLUMNS);
   expect(text.split('\r\n')).toHaveLength(8);
@@ -65,6 +129,18 @@ test('a bad request is refused', async () => {
 test('the name holds the columns and the tag', () => {
   expect(csvSetName(COLUMNS, TAG)).toBe(
     'xlsx-1|csv=ent_num,name,type,program,vessel_type|tag=program=RUSSIA-EO14024',
+  );
+});
+
+test('the name sorts the exact-value filters and trims their values', () => {
+  expect(csvSetName(['a'], undefined, [{ column: 'a', value: ' x ' }])).toBe(
+    csvSetName(['a'], undefined, [{ column: 'a', value: 'x' }]),
+  );
+  const a = { column: 'type', value: 'vessel' };
+  const b = { column: 'flag', value: 'Russia' };
+  expect(csvSetName(['type', 'flag'], TAG, [a, b])).toBe(csvSetName(['type', 'flag'], TAG, [b, a]));
+  expect(csvSetName(['type', 'flag'], TAG, [a])).toBe(
+    'xlsx-1|csv=type,flag|tag=program=RUSSIA-EO14024|equals=type=vessel',
   );
 });
 
@@ -97,4 +173,22 @@ test('a document that is no CSV is refused', async () => {
   await expect(
     makeTextSet({ db, open: () => Promise.resolve(source()) }, { document: 'd', columns: COLUMNS }),
   ).rejects.toThrow('is no CSV file');
+});
+
+test('the command reads a repeated --equals, and refuses a bad one', () => {
+  expect(
+    requestOf(['doc_x', '--columns', 'a,b', '--tag', 'b=T', '--equals', 'a=1', '--equals', 'b=2']),
+  ).toStrictEqual({
+    document: 'doc_x',
+    columns: ['a', 'b'],
+    tag: { column: 'b', value: 'T' },
+    equals: [
+      { column: 'a', value: '1' },
+      { column: 'b', value: '2' },
+    ],
+  });
+  expect(() => requestOf(['doc_x', '--columns', 'a', '--equals', 'a'])).toThrow('--equals is');
+  expect(() => requestOf(['doc_x', '--sheet', 's', '--equals', 'a=1'])).toThrow(
+    'go with --columns',
+  );
 });
