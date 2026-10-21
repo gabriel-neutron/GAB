@@ -39,6 +39,7 @@ const searchAnswer = z.object({
               shipname: z.string().nullish(),
               flag: z.string().nullish(),
               vesselType: z.string().nullish(),
+              shiptypes: z.array(z.object({ name: z.string().nullish() })).nullish(),
               transmissionDateFrom: z.string().nullish(),
               transmissionDateTo: z.string().nullish(),
             }),
@@ -184,10 +185,14 @@ const identitiesOf = async (
       'imo' in by ? entry.registryInfo.some((info) => info.imo?.trim() === by.imo) : true,
     )
     .map((entry): Identity => {
-      const infos =
+      // The newest record first, so a renamed vessel shows its last name.
+      const infos = (
         'mmsi' in by
           ? entry.selfReportedInfo.filter((info) => info.ssvid === by.mmsi)
-          : entry.selfReportedInfo;
+          : entry.selfReportedInfo
+      ).toSorted((a, b) => (b.transmissionDateTo ?? '').localeCompare(a.transmissionDateTo ?? ''));
+      // The ship name is text that the vessel reports, and the refusal reaches a model: cap it.
+      const capped = (value: string | null) => value?.slice(0, 60) ?? null;
       const some = <T>(pick: (info: (typeof infos)[number]) => T | null | undefined): T | null =>
         infos.map(pick).find((value) => value !== null && value !== undefined) ?? null;
       const dates = (pick: (info: (typeof infos)[number]) => string | null | undefined) =>
@@ -195,10 +200,13 @@ const identitiesOf = async (
       const registry = entry.registryInfo;
       return {
         vesselIds: [...new Set(infos.map((info) => info.id))],
-        name: some((info) => info.shipname) ?? registry.find((r) => r.shipname)?.shipname ?? null,
+        name: capped(
+          some((info) => info.shipname) ?? registry.find((r) => r.shipname)?.shipname ?? null,
+        ),
         mmsi: some((info) => info.ssvid),
         flag: some((info) => info.flag) ?? registry.find((r) => r.flag)?.flag ?? null,
-        vesselType: some((info) => info.vesselType),
+        // shortcut: v3 field name unverified against a live answer, so both are read.
+        vesselType: capped(some((info) => info.vesselType ?? info.shiptypes?.[0]?.name)),
         firstSeen: dates((info) => info.transmissionDateFrom).sort()[0] ?? null,
         lastSeen:
           dates((info) => info.transmissionDateTo)

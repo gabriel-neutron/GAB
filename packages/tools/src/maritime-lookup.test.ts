@@ -341,6 +341,7 @@ test('two identities of one IMO number are described so that a reader can choose
         {
           id: 'aaaaaaaa-3',
           ssvid: MMSI,
+          shipname: 'OLD NAME',
           transmissionDateFrom: '2019-06-01T00:00:00Z',
           transmissionDateTo: '2020-06-01T00:00:00Z',
         },
