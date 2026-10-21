@@ -240,3 +240,40 @@ test('a record or a field past its cap is refused', async () => {
   await expect(read(`"${'""'.repeat(1_100_000)}"`)).rejects.toThrow('characters');
   await expect(read(`a\n"${'x'.repeat(2_000_000)}`)).rejects.toThrow('record 2');
 });
+
+test('skip drops the first records, such as a title line and the header', async () => {
+  const titled = bytesSource(
+    new TextEncoder().encode('Report Date: 1\r\nid,type\r\n1,Ship\r\n2,Person\r\n'),
+  );
+  const filter = [{ column: 'type', value: 'Ship' }];
+  const text = await headlessCsv(titled, ['id', 'type'], undefined, filter, 2);
+  expect(text).toBe('id,type\r\n1,Ship\r\n');
+  expect(csvSetName(['id'], undefined, [], 2)).toBe(`${csvSetName(['id'])}|skip=2`);
+  await expect(headlessCsv(titled, ['id'], undefined, [], -1)).rejects.toThrow('count');
+});
+
+test('a dry run counts the rows and writes nothing', async () => {
+  const puts: unknown[] = [];
+  const db: Queryable = {
+    query: (sql) => {
+      if (sql.includes('s3_key'))
+        return Promise.resolve({ rows: [{ s3_key: 'k', mime: 'text/csv' }] });
+      puts.push(sql);
+      return Promise.resolve({ rows: [] });
+    },
+  };
+  const result = await makeTextSet(
+    { db, open: () => Promise.resolve(source()) },
+    { document: 'd', columns: COLUMNS, tag: TAG },
+    { dryRun: true },
+  );
+  expect(result.status).toBe('counted');
+  expect(result.rows).toBe(3);
+  expect(puts).toHaveLength(0);
+});
+
+test('the command reads --skip as digits only', () => {
+  expect(requestOf(['d', '--columns', 'a', '--skip', '2'])).toMatchObject({ skip: 2 });
+  for (const bad of ['', 'x', '-1', '0x2'])
+    expect(() => requestOf(['d', '--columns', 'a', '--skip', bad])).toThrow();
+});

@@ -47,13 +47,20 @@ export type TextSetRequest =
       readonly tag?: TableFilter;
       /** Keeps the rows whose cell of each column holds exactly this value. Each filter must hold. */
       readonly equals?: readonly TableFilter[];
+      /** Drops this many records at the start of the file, before the filters. */
+      readonly skip?: number;
     };
+
+export interface TextSetOptions {
+  /** Counts the rows that the set would keep, and writes nothing. */
+  readonly dryRun?: boolean;
+}
 
 export interface TextSetResult {
   /** The name of the set: the extractor that a mapping and a citation name. */
   readonly name: string;
   /** `stored` when this call wrote the set, `known` when the same set was stored before. */
-  readonly status: 'stored' | 'known';
+  readonly status: 'stored' | 'known' | 'counted';
   readonly rows: number;
 }
 
@@ -62,6 +69,7 @@ export interface TextSetResult {
 export const makeTextSet = async (
   deps: TextSetDeps,
   request: TextSetRequest,
+  options: TextSetOptions = {},
 ): Promise<TextSetResult> => {
   const [stored] = documentRows.parse((await deps.db.query(DOCUMENT, [request.document])).rows);
   if (stored === undefined) throw new Error(`document ${request.document} holds no stored file`);
@@ -76,7 +84,7 @@ export const makeTextSet = async (
 
   const name =
     'columns' in request
-      ? csvSetName(request.columns, request.tag, request.equals)
+      ? csvSetName(request.columns, request.tag, request.equals, request.skip)
       : 'sheet' in request
         ? textSetName(request.sheet, request.filter)
         : layerSetName(request.layer, request.filter);
@@ -85,7 +93,7 @@ export const makeTextSet = async (
   try {
     text =
       'columns' in request
-        ? await headlessCsv(file, request.columns, request.tag, request.equals)
+        ? await headlessCsv(file, request.columns, request.tag, request.equals, request.skip)
         : 'sheet' in request
           ? await sheetCsv(file, request.sheet, request.filter)
           : await layerCsv(file, request.layer, request.filter);
@@ -93,6 +101,7 @@ export const makeTextSet = async (
     await file.close?.();
   }
   const rows = readCsv(text).length - 1;
+  if (options.dryRun === true) return { name, status: 'counted', rows };
 
   const [held] = heldRows.parse((await deps.db.query(HELD, [request.document, name])).rows);
   if (held !== undefined) {
