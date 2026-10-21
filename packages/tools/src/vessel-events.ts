@@ -94,9 +94,37 @@ const outputShape = z.strictObject({
           lon: z.number().nullable(),
         })
         .nullable(),
+      // Set only when nearKm is given: the nearest facility or port of the record with a point.
+      near: z
+        .strictObject({ id: z.string(), name: z.string(), km: z.number() })
+        .nullable()
+        .optional(),
     }),
   ),
 });
+
+// The earth radius in km, for the great-circle distance of two points.
+const EARTH_KM = 6371;
+const radians = (degrees: number): number => (degrees * Math.PI) / 180;
+const kmBetween = (a: { lat: number; lon: number }, b: { lat: number; lon: number }): number => {
+  const h =
+    Math.sin(radians(b.lat - a.lat) / 2) ** 2 +
+    Math.cos(radians(a.lat)) * Math.cos(radians(b.lat)) * Math.sin(radians(b.lon - a.lon) / 2) ** 2;
+  return 2 * EARTH_KM * Math.asin(Math.sqrt(h));
+};
+
+// The export terminals and LNG plants of the record that hold a place. The centroid serves a place
+// that is a line or an area.
+const sitesOf = async (session: Session) => {
+  const { rows } = await session.query(
+    `SELECT id, label, st_y(st_centroid(geom)) AS lat, st_x(st_centroid(geom)) AS lon FROM entities
+      WHERE geom IS NOT NULL AND attrs -> 'asset_kind' ->> 'v' IN ('export_terminal', 'lng_plant')`,
+    [],
+  );
+  return z
+    .array(z.object({ id: z.string(), label: z.string(), lat: z.number(), lon: z.number() }))
+    .parse(rows);
+};
 
 const requestOf = (token: string, url: string): RegisterRequest => ({
   url,
@@ -186,7 +214,10 @@ export const vesselEvents = defineTool({
     'token: with no token set, the tool refuses and names the setting. The answer is stored ' +
     'once as an api document; read the next page with nextOffset. A match by the MMSI alone is ' +
     'a lead, and the output says so. A port visit gives its anchorage, which may be the port ' +
-    'near a terminal and not the terminal.',
+    'near a terminal and not the terminal. With nearKm, the answer keeps only the events within ' +
+    'that distance of an export terminal or an LNG plant of the record, and names the nearest ' +
+    'one: a short answer for a run over many vessels. The filter works on one page, so a page ' +
+    'can hold no event while nextOffset is set: keep reading until nextOffset is null.',
   input: z
     .strictObject({
       vesselId: z
@@ -211,6 +242,9 @@ export const vesselEvents = defineTool({
         .min(1)
         .default([...TYPES]),
       offset: z.number().int().min(0).default(0),
+      // Keeps only the events within this distance of a terminal or an LNG plant of the record,
+      // and names the nearest one: a short answer for a run over many vessels.
+      nearKm: z.number().min(0.1).max(50).optional(),
     })
     .refine(
       (input) =>
@@ -242,6 +276,27 @@ export const vesselEvents = defineTool({
       types: TYPES.filter((type) => input.types.includes(type)),
     });
     const { entries, nextOffset } = shaped('Global Fishing Watch', eventsAnswer, read.answer.json);
+    const sites = input.nearKm === undefined ? [] : await sitesOf(session);
+    const nearestOf = (point: { lat: number; lon: number } | null) => {
+      if (point === null) return null;
+      const nearest = sites
+        .map((site) => ({ id: site.id, name: site.label, km: kmBetween(point, site) }))
+        .reduce<{ id: string; name: string; km: number } | undefined>(
+          (best, site) => (best === undefined || site.km < best.km ? site : best),
+          undefined,
+        );
+      return nearest === undefined ? null : { ...nearest, km: Math.round(nearest.km * 100) / 100 };
+    };
+    const events = entries.map((event) => {
+      const anchorage = event.port_visit?.startAnchorage ?? null;
+      const at =
+        typeof anchorage?.lat === 'number' && typeof anchorage.lon === 'number'
+          ? { lat: anchorage.lat, lon: anchorage.lon }
+          : typeof event.position?.lat === 'number' && typeof event.position.lon === 'number'
+            ? { lat: event.position.lat, lon: event.position.lon }
+            : null;
+      return { event, anchorage, near: input.nearKm === undefined ? undefined : nearestOf(at) };
+    });
     return {
       document: read.document,
       status: read.status,
@@ -249,25 +304,32 @@ export const vesselEvents = defineTool({
       vesselIds: vessels,
       lead: matchedBy === 'mmsi' ? MMSI_LEAD_SENTENCE : null,
       nextOffset: nextOffset ?? null,
-      events: entries.map((event) => ({
-        id: event.id,
-        type: event.type,
-        start: event.start ?? null,
-        end: event.end ?? null,
-        lat: event.position?.lat ?? null,
-        lon: event.position?.lon ?? null,
-        anchorage:
-          event.port_visit?.startAnchorage === undefined || event.port_visit.startAnchorage === null
-            ? null
-            : {
-                id: event.port_visit.startAnchorage.id ?? null,
-                name: event.port_visit.startAnchorage.name ?? null,
-                flag: event.port_visit.startAnchorage.flag ?? null,
-                atDock: event.port_visit.startAnchorage.atDock ?? null,
-                lat: event.port_visit.startAnchorage.lat ?? null,
-                lon: event.port_visit.startAnchorage.lon ?? null,
-              },
-      })),
+      events: events
+        .filter(
+          ({ near }) =>
+            input.nearKm === undefined ||
+            (near !== undefined && near !== null && near.km <= input.nearKm),
+        )
+        .map(({ event, anchorage, near }) => ({
+          id: event.id,
+          type: event.type,
+          start: event.start ?? null,
+          end: event.end ?? null,
+          lat: event.position?.lat ?? null,
+          lon: event.position?.lon ?? null,
+          anchorage:
+            anchorage === null
+              ? null
+              : {
+                  id: anchorage.id ?? null,
+                  name: anchorage.name ?? null,
+                  flag: anchorage.flag ?? null,
+                  atDock: anchorage.atDock ?? null,
+                  lat: anchorage.lat ?? null,
+                  lon: anchorage.lon ?? null,
+                },
+          ...(near === undefined ? {} : { near }),
+        })),
     };
   },
 });

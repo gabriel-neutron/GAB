@@ -3,6 +3,8 @@ export type SubCommand = (args: readonly string[]) => Promise<number>;
 
 // Each sub-command loads only when it is picked, so a run of one opens no module of another.
 const COMMANDS = {
+  'activity-report': async () =>
+    (await import('./activity-report-command.ts')).activityReportCommand,
   'asset-coverage': async () =>
     (await import('./release/asset-coverage-command.ts')).assetCoverageCommand,
   'asset-sanctions': async () =>

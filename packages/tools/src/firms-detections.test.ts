@@ -140,6 +140,74 @@ test('the stored document and its address hold no key, and a second read is know
   );
 });
 
+test('a call of FIRMS has a long time limit and a timeout has its own sentence', async () => {
+  const { web, session, reach } = setup();
+  await callTool(tool, session, { ...BOX, from: '2026-06-01', to: '2026-06-02' }, reach);
+  expect(web.asked.every((asked) => asked.request.timeoutMs === 60_000)).toBe(true);
+  const slow = stubWeb(
+    () => {
+      throw new DOMException('timed out', 'TimeoutError');
+    },
+    { firmsKey: KEY },
+  );
+  const outcome = await callTool(
+    tool,
+    hashDatabase(),
+    { ...BOX, from: '2026-06-01', to: '2026-06-02' },
+    { store: memoryStore(), web: slow, now: () => new Date('2026-10-05T10:00:00Z') },
+  );
+  expect(refusalOf(outcome)).toBe('NASA FIRMS: no answer came before the time limit');
+});
+
+test('a call of FIRMS that fails once is tried again', async () => {
+  let failed = false;
+  const web = stubWeb(
+    (asked: Asked) => {
+      const path = asked.url.pathname;
+      if (path.startsWith('/api/data_availability/')) return text(AVAILABILITY);
+      if (path.startsWith('/mapserver/mapkey_status'))
+        return json({ transaction_limit: 5000, current_transactions: 0 });
+      if (!failed) {
+        failed = true;
+        return new Error('reset');
+      }
+      return text(TABLE);
+    },
+    { firmsKey: KEY },
+  );
+  const outcome = await callTool(
+    tool,
+    hashDatabase(),
+    { ...BOX, from: '2026-06-01', to: '2026-06-02' },
+    { store: memoryStore(), web, now: () => new Date('2026-10-05T10:00:00Z') },
+  );
+  expect(refusalOf(outcome)).toBe('');
+  expect(failed).toBe(true);
+  // Two satellites hold the period, so two windows and one repeated call.
+  expect(areaPaths(web)).toHaveLength(3);
+});
+
+test('a call of FIRMS that always fails is tried three times and then refused', async () => {
+  const web = stubWeb(
+    (asked: Asked) => {
+      const path = asked.url.pathname;
+      if (path.startsWith('/api/data_availability/')) return text(AVAILABILITY);
+      if (path.startsWith('/mapserver/mapkey_status'))
+        return json({ transaction_limit: 5000, current_transactions: 0 });
+      return new Error('reset');
+    },
+    { firmsKey: KEY },
+  );
+  const outcome = await callTool(
+    tool,
+    hashDatabase(),
+    { ...BOX, from: '2026-06-01', to: '2026-06-01' },
+    { store: memoryStore(), web, now: () => new Date('2026-10-05T10:00:00Z') },
+  );
+  expect(refusalOf(outcome)).toBe('NASA FIRMS: no whole answer came');
+  expect(areaPaths(web)).toHaveLength(3);
+});
+
 test('a fault of FIRMS is a refusal that repeats no address and no key', async () => {
   const web = stubWeb(() => new Error(`connect failed for /csv/${KEY}/`), { firmsKey: KEY });
   const outcome = await callTool(

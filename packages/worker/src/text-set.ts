@@ -4,11 +4,12 @@ import type { ZipSource } from '@gab/text/zip';
 import { readCsv } from '@gab/tools/csv';
 import { z } from 'zod';
 
+import { CSV_MIMES, csvSetName, headlessCsv, type Extraction } from './csv-set.ts';
 import type { Queryable } from './queryable.ts';
 
-// A text set is the table of one sheet of a stored workbook, or of one GeoJSON layer of a stored
-// zip archive, with one column filter. It is a set of pages of the same document under a name that
-// holds the sheet or the layer, the filter and the version of the reader. The bytes and the
+// A text set is the table of one sheet of a stored workbook, of one GeoJSON layer of a stored
+// zip archive, or of a stored CSV file with no header row, with one column filter. It is a set of
+// pages of the same document under a name that holds the sheet or the layer, the filter and the version of the reader. The bytes and the
 // filter alone make it, so the same file gives the same rows each time, and a citation names the
 // set that it cites (ADR 0012, decisions.md P5). The file is read as a stream, so a large file
 // costs the memory of the rows that the filter keeps.
@@ -33,16 +34,35 @@ export interface TextSetDeps {
   readonly open: (key: string) => Promise<OpenedFile>;
 }
 
-export type TextSetRequest = {
-  readonly document: string;
-  readonly filter?: TableFilter;
-} & ({ readonly sheet: string } | { readonly layer: string });
+export type TextSetRequest =
+  | ({
+      readonly document: string;
+      readonly filter?: TableFilter;
+    } & ({ readonly sheet: string } | { readonly layer: string }))
+  | {
+      /** A CSV file with no header row: the names of its columns, by position. */
+      readonly document: string;
+      readonly columns: readonly string[];
+      /** Keeps the rows whose cell of this column holds this whole tag. */
+      readonly tag?: TableFilter;
+      /** Keeps the rows whose cell of each column holds exactly this value. Each filter must hold. */
+      readonly equals?: readonly TableFilter[];
+      /** Adds columns, each cut from a named column by a pattern. A filter may name them. */
+      readonly extract?: readonly Extraction[];
+      /** Drops this many records at the start of the file, before the filters. */
+      readonly skip?: number;
+    };
+
+export interface TextSetOptions {
+  /** Counts the rows that the set would keep, and writes nothing. */
+  readonly dryRun?: boolean;
+}
 
 export interface TextSetResult {
   /** The name of the set: the extractor that a mapping and a citation name. */
   readonly name: string;
   /** `stored` when this call wrote the set, `known` when the same set was stored before. */
-  readonly status: 'stored' | 'known';
+  readonly status: 'stored' | 'known' | 'counted';
   readonly rows: number;
 }
 
@@ -51,31 +71,46 @@ export interface TextSetResult {
 export const makeTextSet = async (
   deps: TextSetDeps,
   request: TextSetRequest,
+  options: TextSetOptions = {},
 ): Promise<TextSetResult> => {
   const [stored] = documentRows.parse((await deps.db.query(DOCUMENT, [request.document])).rows);
   if (stored === undefined) throw new Error(`document ${request.document} holds no stored file`);
-  const mime = (stored.mime ?? '').split(';')[0]?.trim().toLowerCase();
-  const wanted = 'sheet' in request ? XLSX_MIME : ZIP_MIME;
-  if (mime !== wanted)
-    throw new Error(
-      `document ${request.document} is no ${'sheet' in request ? 'XLSX workbook' : 'zip archive'}`,
-    );
+  const mime = (stored.mime ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
+  const kind =
+    'columns' in request ? 'CSV file' : 'sheet' in request ? 'XLSX workbook' : 'zip archive';
+  const accepted =
+    'columns' in request
+      ? CSV_MIMES.includes(mime)
+      : mime === ('sheet' in request ? XLSX_MIME : ZIP_MIME);
+  if (!accepted) throw new Error(`document ${request.document} is no ${kind}`);
 
   const name =
-    'sheet' in request
-      ? textSetName(request.sheet, request.filter)
-      : layerSetName(request.layer, request.filter);
+    'columns' in request
+      ? csvSetName(request.columns, request.tag, request.equals, request.skip, request.extract)
+      : 'sheet' in request
+        ? textSetName(request.sheet, request.filter)
+        : layerSetName(request.layer, request.filter);
   const file = await deps.open(stored.s3_key);
   let text: string;
   try {
     text =
-      'sheet' in request
-        ? await sheetCsv(file, request.sheet, request.filter)
-        : await layerCsv(file, request.layer, request.filter);
+      'columns' in request
+        ? await headlessCsv(
+            file,
+            request.columns,
+            request.tag,
+            request.equals,
+            request.skip,
+            request.extract,
+          )
+        : 'sheet' in request
+          ? await sheetCsv(file, request.sheet, request.filter)
+          : await layerCsv(file, request.layer, request.filter);
   } finally {
     await file.close?.();
   }
   const rows = readCsv(text).length - 1;
+  if (options.dryRun === true) return { name, status: 'counted', rows };
 
   const [held] = heldRows.parse((await deps.db.query(HELD, [request.document, name])).rows);
   if (held !== undefined) {

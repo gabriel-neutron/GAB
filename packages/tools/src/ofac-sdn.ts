@@ -44,6 +44,18 @@ export const entryLine = (page: string, entNum: number): string | null => {
   return lineExcerpt(page, at === 0 ? 0 : at + 1);
 };
 
+/** The first page that holds the entry (counted from 1) and its line, or null. */
+export const entryOn = (
+  pages: readonly string[],
+  entNum: number,
+): { readonly page: number; readonly excerpt: string } | null => {
+  for (const [index, one] of pages.entries()) {
+    const excerpt = entryLine(one, entNum);
+    if (excerpt !== null) return { page: index + 1, excerpt };
+  }
+  return null;
+};
+
 /** The tool on one address of the file. A test gives the address of a local server. */
 export const ofacSdnAt = (address: string) =>
   defineTool({
@@ -105,12 +117,7 @@ export const ofacSdnAt = (address: string) =>
         provider: 'ofac_sdn',
       });
       // A later page of a long file repeats the header line, and the entry is on one page.
-      const at =
-        input.entNum === undefined
-          ? -1
-          : pages.findIndex((one) => entryLine(one, input.entNum ?? 0) !== null);
-      const excerpt =
-        input.entNum === undefined || at === -1 ? null : entryLine(pages[at] ?? '', input.entNum);
+      const found = input.entNum === undefined ? null : entryOn(pages, input.entNum);
       return {
         document: stored.id,
         status: stored.status,
@@ -120,11 +127,9 @@ export const ofacSdnAt = (address: string) =>
         publishedAt,
         retrievedAt: stored.retrieved_at ?? day,
         entry:
-          input.entNum === undefined || excerpt === null
-            ? null
-            : { entNum: input.entNum, page: at + 1, excerpt },
+          input.entNum === undefined || found === null ? null : { entNum: input.entNum, ...found },
         notice:
-          input.entNum !== undefined && excerpt === null
+          input.entNum !== undefined && found === null
             ? `the stored file holds no entry ${String(input.entNum)}`
             : null,
       };
