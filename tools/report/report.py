@@ -51,7 +51,7 @@ RESERVED = "À écrire par le co-auteur"
 OPEN_MARKER = (r"\[(?:À STOCKER|À CONFIRMER|LIEN JEU DE DONNÉES|TABLE DE CORRESPONDANCE EN ATTENTE)[^\]]*\]"
                rf"|{RESERVED}")
 CONFIDENCE = {"Établi": "●●●", "Probable": "●●○", "Indicatif": "●○○", "Non établi": "○○○"}
-DOC_ID = re.compile(r"doc_[0-9a-f]{12}")
+DOC_ID = re.compile(r"doc_[0-9A-Za-z]+")
 BIB_FIELDS = ("publisher", "title", "date", "url", "accessed")
 KEY_FIGURES = "Chiffres clés"
 TOC_HEADING = "Sommaire"
@@ -166,11 +166,17 @@ class Doc:
         first = label not in self.order
         if first:
             self.order[label] = len(self.order) + 1
+            self.refuse_marks(self.notes[label])
             self.note_html[self.order[label]] = self.dress(self.inline(self.notes[label]))
             self.section_notes[-1].append(self.order[label])
         k = self.order[label]
         self.uses[k] = self.uses.get(k, 0) + 1
         return f"@@{'F' if first else 'R'}{k}.{self.uses[k]}@@"
+
+    def refuse_marks(self, text):
+        """A reference or a badge that is not resolved must not print as raw text."""
+        if self.redesign and re.search(r"\[@|\{\{", text):
+            raise ReportError(f"a reference or a badge is not allowed here (heading, note) or is not valid: {text[:60]}")
 
     def reference(self, match):
         """One `[@key; @key]` group as [n] links, or as superscript numbers in a table."""
@@ -191,8 +197,13 @@ class Doc:
     def text(self, source):
         """Markdown to dressed HTML, with the footnote, reference and badge marks as tokens."""
         if self.redesign:
-            source = re.sub(r"\[(@[\w.-]+(?:\s*;\s*@[\w.-]+)*)\]", lambda m: f"@@REF:{m[1].replace('@', '')}@@", source)
-            source = re.sub(r"\{\{([^}]+)\}\}", r"@@BADGE:\1@@", source)
+            parts = re.split(r"(`[^`\n]*`)", source)  # a code span keeps its text
+            for i in range(0, len(parts), 2):
+                parts[i] = re.sub(r"\[(@[\w.-]+(?:\s*;\s*@[\w.-]+)*)\]",
+                                  lambda m: f"@@REF:{m[1].replace('@', '')}@@", parts[i])
+                parts[i] = re.sub(r"\{\{([^}]+)\}\}", r"@@BADGE:\1@@", parts[i])
+                self.refuse_marks(parts[i])
+            source = "".join(parts)
         out = self.dress(self.md(re.sub(r"\[\^([^\]]+)\]", r"@@FN:\1@@", source)))
         out = re.sub(r"@@FN:(?P<label>[^@]+)@@", self.cite, out)
         out = re.sub(r"@@REF:(?P<keys>[^@]+)@@", self.reference, out)
@@ -254,6 +265,7 @@ class Doc:
     def block(self, b):
         if m := re.match(r"(#{3,6})\s+(?:(\d+(?:\.\d+)*\.?)\s+)?(.*)", b):
             level, num, title = len(m[1]), m[2], m[3]
+            self.refuse_marks(title)
             return f'<h{level}>{f"<span class=num>{num}</span> " if num else ""}{self.dress(self.inline(title), False)}</h{level}>'
         if b.startswith("|"):
             return self.table(b)
@@ -272,8 +284,11 @@ class Doc:
                 groups.append([m[1], m[2], []])
             else:
                 groups[-1][2].append(b)
+        if self.redesign:  # reference numbers follow the order of print: annexes come last
+            groups[1:] = sorted(groups[1:], key=lambda g: bool(re.match(r"Annexe\b", g[1] or "")))
         out = []
         for num, title, body in groups:
+            self.refuse_marks(title or "")
             if title == NOTES_HEADING or (title is None and not body):
                 continue
             self.section = f"{num}. {title}" if num else (title or "")
@@ -365,14 +380,22 @@ def load_bibliography(source, meta):
     """The bibliography file named in the front matter, checked entry by entry."""
     if "bibliography" not in meta:
         return {}
+    path = Path(meta["bibliography"])
+    if path.is_absolute() or ".." in path.parts:
+        raise ReportError("the bibliography file must lie next to the input")
     try:
-        bib = json.loads((source.parent / meta["bibliography"]).read_text(encoding="utf-8"))
+        bib = json.loads((source.parent / path).read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
         raise ReportError(f"the bibliography file cannot be read: {e}") from e
+    if not isinstance(bib, dict) or not all(isinstance(e, dict) for e in bib.values()):
+        raise ReportError("the bibliography file must be an object of entries")
     for key, entry in bib.items():
-        missing = [f for f in BIB_FIELDS if not str(entry.get(f, "")).strip()]
+        if not re.fullmatch(r"[\w.-]+", key):
+            raise ReportError(f"bibliography key {key} may hold only letters, digits, _ . and -")
+        missing = [f for f in BIB_FIELDS if not isinstance(entry.get(f), str) or not entry[f].strip()]
         if missing:
-            raise ReportError(f"bibliography entry {key} lacks: {', '.join(missing)}")
+            raise ReportError(f"bibliography entry {key} lacks (as text): {', '.join(missing)}")
+        entry["page"] = str(entry["page"]) if entry.get("page") not in (None, "") else ""
     return bib
 
 

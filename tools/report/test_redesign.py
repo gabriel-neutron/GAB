@@ -138,3 +138,40 @@ def test_the_old_layout_is_unchanged_without_the_front_matter_key(tmp_path):
     text = "---\ntitle: T\n---\n\n## 1. A\n\nUn texte [@x] et {{Établi}}.\n"
     pages, html = build(tmp_path, text)
     assert "[@x]" in html and 'class="badge"' not in html and "{{" in html and "Sommaire" not in html and report.FUNDING in html
+
+
+def sample(old, new):
+    return (SAMPLE / "redesign.md").read_text(encoding="utf-8").replace(old, new)
+
+
+@pytest.mark.parametrize("old,new", [
+    ("## 2. Limites", "## 2. Limites [@acte]"),
+    ("Le registre ne couvre qu'un port.", "Le registre ne couvre qu'un port [@smith:2020]."),
+    ("Le registre ne couvre qu'un port.", "Le registre ne couvre qu'un port {{Établi."),
+])
+def test_a_mark_that_cannot_resolve_stops_the_build_instead_of_printing_raw(tmp_path, old, new):
+    with pytest.raises(report.ReportError, match="not allowed|not valid"):
+        build(tmp_path, sample(old, new))
+
+
+def test_a_code_span_keeps_its_marks_as_text(tmp_path):
+    _, html = build(tmp_path, sample("Le registre ne couvre qu'un port.", "Écrire `[@absent]` ou `{{x}}` pour citer."))
+    assert "<code>[@absent]</code>" in html and "<code>{{x}}</code>" in html
+
+
+def test_numbers_follow_the_order_of_print_when_an_annex_comes_first(tmp_path):
+    text = sample("## 1. Introduction", "## Annexe C. Premier\n\nUn point [@rapport].\n\n## 1. Introduction")
+    _, html = build(tmp_path, text)
+    entries = re.findall(r'<li id="ref-(\d)">(.*?)</li>', html)
+    assert "Autorité portuaire" in entries[0][1]
+
+
+def test_a_bad_bibliography_file_stops_the_build_with_a_clear_error(tmp_path):
+    for bad in ([], {"port": "text"}, {"a b": bib()["port"]}, {"port": bib()["port"] | {"date": 2027}}):
+        with pytest.raises(report.ReportError):
+            build(tmp_path, bib=bad)
+
+
+def test_the_funding_and_a_short_identifier_check(tmp_path):
+    with pytest.raises(report.ReportError, match="document identifier"):
+        build(tmp_path, sample("Le registre ne couvre", "Voir doc_abc. Le registre ne couvre"))
