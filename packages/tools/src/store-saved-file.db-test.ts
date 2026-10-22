@@ -626,3 +626,35 @@ test('a workbook given as a ZIP type is read as a workbook, and an office docume
     expect(refused).toMatchObject({ ok: false });
   });
 });
+
+test('a provider that does not own the address is refused, and nothing is stored', async () => {
+  await rolledBack('research', async (ask) => {
+    const url = `https://example.com/leak-${RUN}.xlsx`;
+    const refused = await callTool(
+      storeSavedFile,
+      sessionOf(ask),
+      { file: 'pink-sheet.xlsx', url, provider: 'world_bank' },
+      reachOf(),
+    );
+    expect(refused).toMatchObject({ ok: false });
+    expect(await ask('SELECT 1 FROM public.documents WHERE uri = $1', [url])).toHaveLength(0);
+  });
+});
+
+test('a workbook sent as base64 with the XLSX type is stored', async () => {
+  await rolledBack('research', async (ask) => {
+    const bytes = readFileSync(join(inbox, 'pink-sheet.xlsx'));
+    const done = await callTool(
+      storeSavedFile,
+      sessionOf(ask),
+      {
+        content: bytes.toString('base64'),
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        sha256: createHash('sha256').update(bytes).digest('hex'),
+        url: `https://www.worldbank.org/data/${RUN}-b64.xlsx`,
+      },
+      reachOf(),
+    );
+    expect(done).toMatchObject({ ok: true, output: { status: 'stored', pages: 2 } });
+  });
+});

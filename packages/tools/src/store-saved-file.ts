@@ -55,8 +55,10 @@ const SAVED_TYPES: ReadonlySet<string> = new Set([...CONTENT_TYPES, 'application
 const SAVED_EXTENSIONS =
   '.pdf, .html, .xhtml, .png, .jpg, .jpeg, .json, .tsv, .txt, .xml, .csv, .md, .xlsx or .zip';
 
-// The publishers of a public file that this tool names. Each id is a row of the seed, and the
-// licence of the row gives the tier of the document.
+// The publishers of a public file that this tool names, with the domain of each. Each id is a row
+// of the seed, and the licence of the row gives the tier of the document. The address of the file
+// must be on the domain of its publisher, so a call cannot give a licence to another file.
+const PROVIDER_DOMAINS = { world_bank: 'worldbank.org', bruegel: 'bruegel.org' } as const;
 const PROVIDERS = ['world_bank', 'bruegel'] as const;
 
 const MAX_TITLE = 500;
@@ -278,6 +280,14 @@ export const storeSavedFile = defineTool({
       throw new ToolRefusal('this surface gives no object store, so it stores no file');
     const refused = refusedSource(input.url);
     if (refused !== null) throw new ToolRefusal(refused);
+    if (input.provider !== undefined) {
+      const domain = PROVIDER_DOMAINS[input.provider];
+      const host = new URL(input.url).hostname.toLowerCase();
+      if (host !== domain && !host.endsWith(`.${domain}`))
+        throw new ToolRefusal(
+          `the provider ${input.provider} publishes on ${domain}, not on ${host}`,
+        );
+    }
     let mime: string;
     let bytes: Uint8Array;
     let label: string;
