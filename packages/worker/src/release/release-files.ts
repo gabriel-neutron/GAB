@@ -6,7 +6,7 @@ import { alignmentMatrix } from './alignment-matrix.ts';
 import { assetLinks } from './asset-links.ts';
 import { chainVolumes } from './chain-volumes.ts';
 import { releaseChangelog } from './changelog.ts';
-import { releaseCredits } from './credits.ts';
+import { claimProviders, releaseCredits } from './credits.ts';
 import { criticalNodes } from './critical-nodes.ts';
 import type { SheetRow } from './critical-nodes-sheet.ts';
 import { csvExport, type ReleaseFile } from './csv-export.ts';
@@ -57,7 +57,7 @@ export const releaseFiles = (
     criticalNodes(record, sheet, preamble),
     assetLinks(record, preamble),
     volumeTable.file,
-    releaseCredits(heading),
+    releaseCredits(heading, claimProviders(record)),
     releaseNotes(heading, natoCoverage, geolocationCoverage),
     geojsonExport(record, heading),
     jsonldExport(record, heading, manifest.iriBase),

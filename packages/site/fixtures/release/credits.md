@@ -35,3 +35,10 @@ A point placed on a satellite image cites the image: EOxCloudless https://cloudl
 EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016), under the Creative
 Commons Attribution 4.0 International licence, https://creativecommons.org/licenses/by/4.0/.
 The image shows each site as it was in 2016.
+
+## EU Official Journal (EUR-Lex)
+
+Facts about EU sanctions cite acts of the Official Journal of the European Union, EUR-Lex,
+https://eur-lex.europa.eu, reused under Commission Decision 2011/833/EU. The release holds
+derived facts and citations, and does not hold the acts. The European Union does not
+endorse GAB or this release.
