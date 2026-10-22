@@ -12,14 +12,15 @@ import { CriticalNodesSheetFault } from './critical-nodes-sheet.ts';
 import { PreviousReleaseFault } from './previous-release.ts';
 import { ReleaseFolderExists, writeRelease } from './release.ts';
 import { readReleaseManifest, ReleaseManifestFault } from './release-manifest.ts';
-import { inOneSnapshot } from './snapshot.ts';
+import { inOneSnapshot, statementTimeout } from './snapshot.ts';
 import { VolumeTableFault } from './volume-table.ts';
 
 const USAGE =
   'Usage: pnpm worker release --manifest <file> --out <folder> [--previous <release folder>]';
 
 // Departure: the role waits 30 seconds for one statement, and a release reads the whole record in
-// one statement for each file. The command runs on the machine of the operator, by hand.
+// one statement for each file. GAB_STATEMENT_TIMEOUT sets another value. The command runs on the
+// machine of the operator, by hand.
 const RELEASE_TIMEOUT = '10min';
 
 const FLAGS = new Set(['--manifest', '--out', '--previous']);
@@ -74,7 +75,7 @@ export const releaseCommand: SubCommand = async (args) => {
   const client = new Client({ connectionString: appAddress() });
   await client.connect();
   try {
-    await client.query(`SET statement_timeout = '${RELEASE_TIMEOUT}'`);
+    await client.query(`SET statement_timeout = '${statementTimeout(RELEASE_TIMEOUT)}'`);
     const site = join(flags.out, `gab-site-${manifest.date}`);
     const written = await inOneSnapshot(client, () =>
       writeRelease(client, manifest, flags.out, flags.previous, (folder) =>

@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 
 import type { Queryable } from '../queryable.ts';
-import { inOneSnapshot } from './snapshot.ts';
+import { inOneSnapshot, statementTimeout } from './snapshot.ts';
 
 const recorder = () => {
   const said: string[] = [];
@@ -34,4 +34,10 @@ test('the snapshot ends also when the work fails', async () => {
     'a fault',
   );
   expect(said.at(-1)).toBe('ROLLBACK');
+});
+
+test('the statement timeout is the default, or the value of the variable', () => {
+  expect(statementTimeout('10min', {})).toBe('10min');
+  expect(statementTimeout('10min', { GAB_STATEMENT_TIMEOUT: '4h' })).toBe('4h');
+  expect(() => statementTimeout('10min', { GAB_STATEMENT_TIMEOUT: "1'; DROP" })).toThrow();
 });
