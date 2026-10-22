@@ -26,7 +26,7 @@ def build(data, meta, out_dir, grey=False):
                     ha="left" if b >= a else "right", fontsize=st.TEXT_PT)
     ax.set_yticks(range(len(cats)), cats)
     ax.set_ylim(-0.6, len(cats) - 0.4)
-    ax.set_xlim(left=0)
+    ax.set_xlim(0, max(val.values()) / (1 - st.label_room(max(len(st.num(v)) for v in val.values()) + 1)))
     ax.plot([], [], "o", markerfacecolor="white", markeredgecolor=st.INK, label=periods[0])
     ax.plot([], [], "o", color=st.INK, label=periods[1])
     ax.legend(loc="lower left", bbox_to_anchor=(0, 1.0), ncol=2, fontsize=st.TEXT_PT, borderaxespad=0)

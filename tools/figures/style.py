@@ -7,6 +7,7 @@ the DejaVu face that ships with matplotlib.
 """
 import csv
 import html
+import sys
 import warnings
 import json
 import math
@@ -19,6 +20,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib import font_manager  # noqa: E402
+from matplotlib.ticker import FuncFormatter  # noqa: E402
 
 HERE = Path(__file__).parent
 WIDTH_MM = 160
@@ -82,8 +84,10 @@ GRID = oklch("oklch(0.91 0.005 230)")
 BAND = oklch("oklch(0.945 0.004 230)")
 INPUT = oklch("oklch(0.62 0.008 230)")
 WHITE = "#ffffff"
-# Parts of a stacked bar, light to dark (at most five parts).
+# Parts of a stacked bar, light to dark.
 GREY_STEPS = [oklch(f"oklch({v} 0.006 230)") for v in (0.88, 0.74, 0.6, 0.45, 0.3)]
+# Eight parts at most: parts six to eight reuse a grey with a hatch as the second mark.
+PART_FILLS = [(g, "") for g in GREY_STEPS] + [(GREY_STEPS[i], "///") for i in (3, 1, 4)]
 
 
 @dataclass(frozen=True)
@@ -106,6 +110,35 @@ REGIMES = {
     "US": Mark("US", oklch("oklch(0.80 0.06 200)"), hatch="\\\\\\", label="US"),
     "multi": Mark("multi", SECOND, hatch="xxx", label="Two or more"),
 }
+
+# Words of the output by locale. The default is English.
+WORDS = {
+    "en": {"Figure": "Figure", "Table": "Table", "source": "Source:", "note": "Note:",
+           "multi": "Two or more", "US": "US", "view": "View in the dataset", "high": "high bound", "min": "min", "max": "max", "median": "median",
+           "zero": "does not start at zero", "ratio": "ratio scale", "dec": ".", "thou": ","},
+    "fr": {"Figure": "Figure", "Table": "Tableau", "source": "Source :", "note": "Note :",
+           "multi": "Deux séries ou plus", "US": "États-Unis", "view": "Voir dans le jeu de données",
+           "high": "borne haute", "min": "min", "max": "max", "median": "médiane", "zero": "ne commence pas à zéro", "ratio": "échelle de rapport",
+           "dec": ",", "thou": " "},
+}
+UNSTORED = "non stocké"
+DOC_ID = re.compile(r"doc_[0-9a-f]{12}")
+# Run options set by `configure`; `unstored` turns true when a row has no stored document.
+OPTIONS = {"locale": "en", "allow_unstored": False, "unstored": False}
+
+
+def configure(locale="en", allow_unstored=False):
+    if locale not in WORDS:
+        raise StyleError(f"unknown locale: {locale}")
+    OPTIONS.update(locale=locale, allow_unstored=allow_unstored, unstored=False)
+
+
+def word(key):
+    return WORDS[OPTIONS["locale"]][key]
+
+
+def regime_label(key):
+    return word(key) if key in ("multi", "US") else REGIMES[key].label
 
 
 def check_marks(marks):
@@ -161,6 +194,7 @@ def style_axes(ax, unit="", value_axis="y"):
     ax.grid(True, axis=val)
     ax.set_axisbelow(True)
     ax.tick_params(axis=val, length=0)
+    (ax.yaxis if val == "y" else ax.xaxis).set_major_formatter(FuncFormatter(lambda v, _: num(v, 6)))
     ax.tick_params(axis=cat, length=2, width=0.5)
     if unit:
         # horizontal bars carry their legend at the left, so the unit goes to the right end
@@ -175,7 +209,18 @@ def panel_title(ax, text):
 
 def num(v, places=1):
     s = f"{v:,.{places}f}"
-    return s.rstrip("0").rstrip(".") if "." in s else s
+    s = s.rstrip("0").rstrip(".") if "." in s else s
+    return s.replace(",", "#").replace(".", word("dec")).replace("#", word("thou"))
+
+
+def num_label(v, floor=0.1):
+    """A value label; a positive value under the floor prints as '<floor'."""
+    return f"<{num(floor, 6)}" if 0 < v < floor else num(v)
+
+
+def label_room(chars, per_char=0.015):
+    """Share of the axis width to keep free after a label of this many characters."""
+    return min(0.5, per_char * chars + 0.02)
 
 
 def pct(v, places=1):
@@ -183,21 +228,30 @@ def pct(v, places=1):
 
 
 def read_data(path):
-    """Read one data file of the report: columns as in packages/site/report/*.csv."""
+    """Read one data file of the report: columns as in packages/site/report/*.csv.
+
+    The document is `doc_` plus 12 hex characters. With the option allow_unstored, any other
+    value passes with a warning and the caption source says "non stocké".
+    """
     with open(path, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     if not rows:
         raise StyleError("the data file is empty")
     for i, r in enumerate(rows, 2):
-        if not str(r.get("document", "")).startswith("doc_"):
-            raise StyleError(f"line {i}: the value has no doc_ identifier")
+        if not DOC_ID.fullmatch(str(r.get("document", ""))):
+            if not OPTIONS["allow_unstored"]:
+                raise StyleError(f"line {i}: the value has no doc_ identifier (doc_ and 12 hex characters)")
+            if not OPTIONS["unstored"]:
+                print(f"warning: line {i}: the document is not stored; the caption says '{UNSTORED}'",
+                      file=sys.stderr)
+            OPTIONS["unstored"] = True
         try:
             r["valeur"] = float(r["valeur"])
         except (KeyError, ValueError) as e:
             raise StyleError(f"line {i}: the value is not a number") from e
     seen = set()
     for r in rows:
-        key = (r["serie"], r["periode"])
+        key = (r["serie"], r["periode"], r.get("panel", ""))
         if key in seen:
             raise StyleError(f"duplicate row: {key}")
         seen.add(key)
@@ -222,10 +276,13 @@ def caption_html(meta, kind="Figure"):
         raise StyleError(f"the caption lacks: {', '.join(miss)}")
     e = html.escape
     unit = f" ({e(meta['unit'])})" if meta.get("unit") else ""
-    out = (f'<p class="caption"><strong>{kind} {e(str(meta["number"]))}. {e(meta["title"])}{unit}.'
-           f'</strong> Source: {e(meta["source"])} Note: {e(meta["note"])}</p>\n')
+    source = meta["source"]
+    if OPTIONS["unstored"]:
+        source = f"{source.rstrip('.')} ({UNSTORED})."
+    out = (f'<p class="caption"><strong>{word(kind)} {e(str(meta["number"]))}. {e(meta["title"])}{unit}.'
+           f'</strong> {word("source")} {e(source)} {word("note")} {e(meta["note"])}</p>\n')
     if meta.get("address"):
-        out += f'<p class="address"><code>View in the dataset → {e(meta["address"])}</code></p>\n'
+        out += f'<p class="address"><code>{word("view")} → {e(meta["address"])}</code></p>\n'
     return out
 
 
@@ -246,12 +303,41 @@ def save(fig, out_dir, stem, meta, grey=False):
 def require_axis_note(meta, zero, ratio):
     """The caption says when a value axis does not start at zero, or is a ratio scale."""
     note = meta.get("note", "").lower()
-    if ratio and "ratio scale" not in note:
-        raise StyleError('the note must say "ratio scale"')
-    if not ratio and not zero and "does not start at zero" not in note:
-        raise StyleError('the note must say "does not start at zero"')
+    if ratio and word("ratio") not in note:
+        raise StyleError(f'the note must say "{word("ratio")}"')
+    if not ratio and not zero and word("zero") not in note:
+        raise StyleError(f'the note must say "{word("zero")}"')
 
 
-def end_label(ax, x, y, text, color, dx=6):
-    ax.annotate(text, (x, y), xytext=(dx, 0), textcoords="offset points", va="center",
-                color=color, fontsize=TEXT_PT, annotation_clip=False)
+def spread(ys, gap):
+    """Move label positions apart by at least `gap`, keeping their order; clusters stay centred."""
+    clusters = []
+    for i in sorted(range(len(ys)), key=ys.__getitem__):
+        clusters.append([i])
+        while len(clusters) > 1 and _start(clusters[-2], ys, gap) + len(clusters[-2]) * gap > _start(clusters[-1], ys, gap):
+            last = clusters.pop()
+            clusters[-1] += last
+    out = list(ys)
+    for c in clusters:
+        for k, i in enumerate(c):
+            out[i] = _start(c, ys, gap) + k * gap
+    return out
+
+
+def _start(cluster, ys, gap):
+    return sum(ys[i] - k * gap for k, i in enumerate(cluster)) / len(cluster)
+
+
+def end_labels(fig, groups):
+    """Write the end labels; `groups` is [(ax, [(x, y, text, color)])]. Close labels move apart
+    and a leader line joins each moved label to its point. Call after the layout is set."""
+    fig.canvas.draw()
+    gap = TEXT_PT * 1.25 * fig.dpi / 72
+    for ax, items in groups:
+        ys = [ax.transData.transform((x, y))[1] for x, y, _, _ in items]
+        for (x, y, text, color), y0, y1 in zip(items, ys, spread(ys, gap)):
+            dy = (y1 - y0) * 72 / fig.dpi
+            ax.annotate(text, (x, y), xytext=(8, dy), textcoords="offset points", va="center", color=color,
+                        fontsize=TEXT_PT, annotation_clip=False,
+                        arrowprops=dict(arrowstyle="-", color=color, lw=0.5, shrinkA=0, shrinkB=2)
+                        if abs(dy) > 0.5 else None)
