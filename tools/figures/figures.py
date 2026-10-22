@@ -1,9 +1,12 @@
 """Make a figure from a data file with one command.
 
     python tools/figures/figures.py KIND DATA [--caption CAPTION.json] [--out DIR] [--grey]
+        [--locale fr] [--allow-unstored]
     python tools/figures/figures.py all MANIFEST.json
 
-KIND is line, bars, dumbbell, stacked, table, badge, inference, chain or plate. The caption
+KIND is line, bars, dots, spread, dumbbell, stacked, table, badge, inference, chain or plate.
+The locale is en (default) or fr. A document that is not doc_ and 12 hex characters is refused,
+unless --allow-unstored: then a warning prints and the caption source says "non stocké". The caption
 file defaults to the data file with the suffix .caption.json. A manifest is a list of
 {kind, data, caption?, out?} with paths relative to the manifest.
 """
@@ -15,13 +18,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 import style as st  # noqa: E402
 
-KINDS = ("line", "bars", "dumbbell", "stacked", "table", "badge", "inference", "chain", "plate")
-NEEDS_CAPTION = ("line", "bars", "dumbbell", "stacked", "table", "chain", "plate")
+KINDS = ("line", "bars", "dots", "spread", "dumbbell", "stacked", "table", "badge", "inference", "chain", "plate")
+NEEDS_CAPTION = ("line", "bars", "dots", "spread", "dumbbell", "stacked", "table", "chain", "plate")
 
 
-def make(kind, data, caption=None, out="figures-out", grey=False):
+def make(kind, data, caption=None, out="figures-out", grey=False, locale="en", allow_unstored=False):
     if kind not in KINDS:
         raise st.StyleError(f"unknown kind: {kind}")
+    st.configure(locale, allow_unstored)
     data = Path(data)
     cap = Path(caption) if caption else data.with_suffix(".caption.json")
     meta = st.read_json(cap) if cap.exists() else {}
@@ -37,6 +41,8 @@ def main(argv=None):
     p.add_argument("data")
     p.add_argument("--caption")
     p.add_argument("--out", default="figures-out")
+    p.add_argument("--locale", default="en", choices=sorted(st.WORDS))
+    p.add_argument("--allow-unstored", action="store_true", help="accept a document that is not stored")
     p.add_argument("--grey", action="store_true", help="also write a grey PNG to check the figure")
     a = p.parse_args(argv)
     try:
@@ -44,10 +50,11 @@ def main(argv=None):
             base = Path(a.data).parent
             for item in st.read_json(a.data):
                 cap = base / item["caption"] if item.get("caption") else None
-                print(*make(item["kind"], base / item["data"], cap, base / item.get("out", a.out), a.grey),
+                print(*make(item["kind"], base / item["data"], cap, base / item.get("out", a.out), a.grey, a.locale,
+                                a.allow_unstored),
                       sep="\n")
         else:
-            print(*make(a.kind, a.data, a.caption, a.out, a.grey), sep="\n")
+            print(*make(a.kind, a.data, a.caption, a.out, a.grey, a.locale, a.allow_unstored), sep="\n")
     except st.StyleError as e:
         print(f"style error: {e}", file=sys.stderr)
         return 1
