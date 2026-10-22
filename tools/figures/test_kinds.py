@@ -39,7 +39,7 @@ def caught(monkeypatch):
 def inside(fig):
     """Every text of the figure lies inside the figure."""
     fig.canvas.draw()
-    r = fig.canvas.get_renderer()
+    r = st.renderer(fig)
     for ax in fig.axes:
         for t in ax.texts:
             b = t.get_window_extent(r)
@@ -135,7 +135,7 @@ def test_line_end_labels_do_not_overlap(tmp_path, monkeypatch):
     make(tmp_path, "line", text, {"zero": True})
     fig = seen[0]
     fig.canvas.draw()
-    r = fig.canvas.get_renderer()
+    r = st.renderer(fig)
     a, b = (t.get_window_extent(r) for t in fig.axes[0].texts if t.get_text().startswith("V"))
     assert not a.overlaps(b)
 

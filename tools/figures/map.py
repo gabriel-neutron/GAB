@@ -30,7 +30,7 @@ SLOTS = [(dx * k, dy * k, ha, va) for k in (1, 2.4) for dx, dy, ha, va in (
 def place_labels(fig, ax, items):
     """Give each label the first slot that stays inside the map and overlaps no label placed."""
     fig.canvas.draw()
-    renderer = fig.canvas.get_renderer()
+    renderer = st.renderer(fig)
     frame = ax.get_window_extent(renderer)
     taken = []
     for x, y, text in items:

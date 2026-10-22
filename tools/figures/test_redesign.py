@@ -97,7 +97,7 @@ def test_map_labels_do_not_overlap(tmp_path, monkeypatch):
     seen = caught(monkeypatch)
     make(tmp_path, "map", data)
     fig = seen[0]
-    r = fig.canvas.get_renderer()
+    r = st.renderer(fig)
     boxes = [t.get_window_extent(r) for t in fig.axes[0].texts if t.get_text().startswith("Site")]
     assert len(boxes) == 5 and not any(a.overlaps(b) for i, a in enumerate(boxes) for b in boxes[i + 1:])
 
