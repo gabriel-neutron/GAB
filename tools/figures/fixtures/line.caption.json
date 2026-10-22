@@ -1,0 +1,8 @@
+{
+  "number": 1,
+  "title": "Synthetic trade value, volume and unit value",
+  "unit": "index, 2021 = 100",
+  "source": "Synthetic data for the test of the figure tool.",
+  "note": "Synthetic; the axis does not start at zero.",
+  "address": "example.org/r/f1"
+}

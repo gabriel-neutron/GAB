@@ -61,3 +61,6 @@ research/inbox/
 # Local plugin files (Motion), not shared
 .claude/agents/motion-reviewer.md
 .claude/skills/motion/
+
+# Output of the figure tool
+figures-out/
