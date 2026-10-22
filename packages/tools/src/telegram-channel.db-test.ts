@@ -118,9 +118,7 @@ test('a read of the newest posts stores each post once, and a second read return
         uri: `https://t.me/${HANDLE}/2042`,
         mime: 'application/json',
         retrieved_at: FETCH_DAY.toISOString().slice(0, 10),
-        text: `Post date: 2026-10-01T12:00:00Z
-
-${photo?.text ?? ''}`,
+        text: `Post date: 2026-10-01T12:00:00Z\n\n${photo?.text ?? ''}`,
       },
     ]);
 
@@ -149,6 +147,7 @@ test('the stored bytes are one record with a fixed key order, so the hash does n
       'text',
       'media',
     ]);
+    expect(String(record['text'])).toMatch(/^Post date: \d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\n\n/u);
     expect(record['media']).toStrictEqual(['photo']);
     expect(put?.key).toBe(`raw/${shaOf(put?.bytes ?? '')}`);
     expect(posts[0]?.document).toBe(`doc_${shaOf(put?.bytes ?? '').slice(0, 12)}`);
@@ -156,10 +155,14 @@ test('the stored bytes are one record with a fixed key order, so the hash does n
 });
 
 test('a post with a photo and no text is stored', async () => {
-  const { reach } = setup(() => previewPage(HANDLE, [SILENT]));
+  const { store, reach } = setup(() => previewPage(HANDLE, [SILENT]));
   await rolledBack('research', async (ask) => {
     const { posts } = await read(ask, { channel: HANDLE, limit: 1 }, reach);
     expect(posts[0]).toMatchObject({ status: 'stored', text: '', media: ['photo'] });
+    expect(store.puts).toHaveLength(1);
+    expect(JSON.parse(Buffer.from(store.puts[0]?.bytes ?? []).toString('utf8')).text).toMatch(
+      /^Post date: \S+Z$/u,
+    );
   });
 });
 

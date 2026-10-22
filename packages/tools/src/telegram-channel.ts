@@ -13,7 +13,8 @@ const PAGE_POSTS = 20;
 // The stored text opens with the post date, so a reader of the text sees the day and the year.
 // The same text is in the bytes, so a post that was stored with no date comes back as a new
 // document and the old document stays as it was.
-const datedText = (post: Post): string => `Post date: ${post.post_date}
+const datedText = (post: Post): string =>
+  `Post date: ${post.post_date}
 
 ${post.text}`.trim();
 
@@ -53,7 +54,7 @@ export const telegramChannel = defineTool({
     'With no post id, give "before" (a post id) to read the posts that are older than that post. ' +
     'A channel address alone is no source of one post, so cite the document of a post and never ' +
     'the channel. Each post is one document at https://t.me/<handle>/<id>, with the text of the ' +
-    'post. A post whose bytes are already stored comes back as "known". An edited post is a new ' +
+    'post, which opens with its post date. A post whose bytes are already stored comes back as "known". An edited post is a new ' +
     'document at the same address. The tool downloads no media, and "media" lists the kinds. A ' +
     'channel that the preview does not show, such as a group or a private channel, is refused.',
   input: z.strictObject({
