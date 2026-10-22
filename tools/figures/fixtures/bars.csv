@@ -1,0 +1,6 @@
+serie,periode,valeur,unite,document,page,extrait_ou_cellule,note,regime
+Group A,2025,42,count,doc_000000000002,1,synthetic,,EU
+Group B,2025,31,count,doc_000000000002,1,synthetic,,UK
+Group C,2025,24,count,doc_000000000002,1,synthetic,,US
+Group D,2025,12,count,doc_000000000002,1,synthetic,,multi
+Group E,2025,8,count,doc_000000000002,1,synthetic,,EU
