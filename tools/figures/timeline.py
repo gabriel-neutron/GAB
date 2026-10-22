@@ -22,6 +22,8 @@ def build(data, meta, out_dir, grey=False):
     bands = d.get("bands", [])
     st.need_sources(events, "an event")
     st.need_sources(bands, "a band")
+    if len(bands) > len(BAND_FILLS) or any(b["from"] > b["to"] for b in bands):
+        raise st.StyleError(f"at most {len(BAND_FILLS)} bands, each from an earlier to a later date")
     start, end = day(d["start"]), day(d["end"])
     if any(not start <= day(e["date"]) <= end for e in events):
         raise st.StyleError("an event lies outside the time range")
@@ -30,7 +32,9 @@ def build(data, meta, out_dir, grey=False):
     free, used = [-1] * LEVELS, []
     for e in events:
         x = (day(e["date"]) - start).days
-        lvl = next((k for k in range(LEVELS) if free[k] <= x), min(range(LEVELS), key=free.__getitem__))
+        lvl = next((k for k in range(LEVELS) if free[k] <= x), None)
+        if lvl is None:
+            raise st.StyleError(f"no free level for the label: {e['label']}")
         free[lvl] = x + len(e["label"]) * 1.5 / st.WIDTH_MM * span + span * 0.01
         used.append(lvl)
     fig = st.new_fig(st.size_height(meta, 24 + 8 * (max(used, default=0) + 1) + 7 * len(bands)))
@@ -46,7 +50,8 @@ def build(data, meta, out_dir, grey=False):
     for e, lvl in zip(events, used):
         ax.plot([day(e["date"])] * 2, [0, lvl + 0.55], color=st.SECOND, linewidth=0.7)
         ax.plot(day(e["date"]), 0, "o", color=st.INK, markersize=st.MARKER - 1)
-        ax.text(day(e["date"]), lvl + 0.6, e["label"], ha="left", va="bottom", fontsize=st.NOTE_PT, color=st.INK)
+        ax.text(day(e["date"]), lvl + 0.6, e["label"],
+                ha="right" if (day(e["date"]) - start).days > 0.85 * span else "left", va="bottom", fontsize=st.NOTE_PT, color=st.INK)
     for k, b in enumerate(bands):
         fill, hatch = BAND_FILLS[k % len(BAND_FILLS)]
         y = -0.9 - k * 0.45

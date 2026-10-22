@@ -41,8 +41,8 @@ def build(data, meta, out_dir, grey=False):
     bw, bh = 0.84, 0.62
     chars = max(8, int(st.WIDTH_MM / (cols + left) * bw / 1.7))
     for i, name in enumerate(rows):
-        ax.text(-left - 0.45, -i, name, ha="left", va="center", fontsize=st.TEXT_PT, fontweight="bold",
-                color=st.LABEL, wrap=True)
+        ax.text(-left - 0.45, -i, textwrap.fill(name, 12), ha="left", va="center", fontsize=st.TEXT_PT, fontweight="bold",
+                color=st.LABEL)
     for e in d["edges"]:
         (x1, y1), (x2, y2) = [(nodes[k]["col"], -nodes[k]["row"]) for k in (e["from"], e["to"])]
         # leave from the side facing the target: horizontal when rows match, else vertical
@@ -53,8 +53,8 @@ def build(data, meta, out_dir, grey=False):
         ax.annotate("", b, xytext=a, arrowprops=dict(
             arrowstyle="-|>", color=st.SECOND, lw=1, mutation_scale=st.ARROW, shrinkA=0, shrinkB=0,
             linestyle="-" if e.get("state", "solid") == "solid" else (0, (4, 3))))
-        if e.get("label"):
-            ax.text((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, e["label"], ha="center", va="bottom",
+        # the source key sits on the arrow: no arrow without its source in view
+        ax.text((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, " ".join(filter(None, (e.get("label"), e["source"]))), ha="center", va="bottom",
                     fontsize=st.NOTE_PT, color=st.LABEL)
     for n in d["nodes"]:
         x, y, state = n["col"], -n["row"], n.get("state", "solid")

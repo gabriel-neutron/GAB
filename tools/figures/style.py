@@ -199,6 +199,8 @@ def size_height(meta, default_mm):
         return default_mm
     if meta["size"] not in SIZES:
         raise StyleError(f"unknown size class: {meta['size']}")
+    if SIZES[meta["size"]] < default_mm:
+        raise StyleError(f"size class {meta['size']} is too small for the content: {default_mm:.0f} mm needed")
     return SIZES[meta["size"]]
 
 

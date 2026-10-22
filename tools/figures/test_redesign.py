@@ -222,3 +222,26 @@ def test_a_title_of_more_than_eight_words_warns(tmp_path):
     with pytest.warns(UserWarning, match="more than 8 words"):
         make(tmp_path, "tiles", TILES, {"title": "one two three four five six seven eight nine"})
     make(tmp_path, "tiles", TILES, {"title": "one two three four five six seven eight"})
+
+
+def test_size_class_smaller_than_the_content_is_refused(tmp_path):
+    many = {"tiles": TILES["tiles"] * 2}
+    with pytest.raises(st.StyleError, match="too small"):
+        make(tmp_path, "tiles", many, {"size": "third"})
+
+
+def test_map_scale_bar_has_the_true_length(tmp_path, monkeypatch):
+    import math
+    seen = caught(monkeypatch)
+    make(tmp_path, "map", map_data(tmp_path) | {"bbox": [20, 40, 60, 70], "scale_km": 500})
+    ax = seen[0].axes[0]
+    xs = [ln.get_xdata() for ln in ax.lines if len(ln.get_xdata()) == 2 and ln.get_linewidth() == 2][0]
+    assert (xs[1] - xs[0]) * 111.32 * math.cos(math.radians(55)) == pytest.approx(500, rel=0.01)
+
+
+def test_timeline_refuses_a_fifth_band_and_a_reversed_band(tmp_path):
+    band = TIMELINE["bands"][0]
+    with pytest.raises(st.StyleError, match="at most"):
+        make(tmp_path, "timeline", TIMELINE | {"bands": [band] * 4})
+    with pytest.raises(st.StyleError, match="earlier"):
+        make(tmp_path, "timeline", TIMELINE | {"bands": [band | {"from": "2025-01-01", "to": "2024-01-01"}]})

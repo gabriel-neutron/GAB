@@ -60,6 +60,9 @@ def build(data, meta, out_dir, grey=False):
     st.check_marks(STATUS.values())
     base = st.read_json(st.Path(data).parent / d["basemap"] if d.get("basemap") else BASEMAP)
     lon0, lat0, lon1, lat1 = d["bbox"]
+    bx = base.get("bbox")
+    if bx and not (bx[0] <= lon0 and bx[1] <= lat0 and lon1 <= bx[2] and lat1 <= bx[3]):
+        raise st.StyleError(f"the map lies outside the base map: {bx}")
     mid = (lat0 + lat1) / 2
     fig = st.new_fig(st.size_height(meta, 12 + st.WIDTH_MM * (lat1 - lat0) / ((lon1 - lon0) * math.cos(math.radians(mid)))))
     ax = fig.add_subplot()
@@ -80,7 +83,7 @@ def build(data, meta, out_dir, grey=False):
             ax.plot(p["lon"], p["lat"], marker="o", markersize=st.MARKER + 9, markerfacecolor="none",
                     markeredgecolor=st.SECOND, markeredgewidth=0.8, linestyle="")
     km = d["scale_km"]
-    deg = km / (111.32 * math.cos(math.radians(lat0 + 0.06 * (lat1 - lat0))))
+    deg = km / (111.32 * math.cos(math.radians(mid)))
     x0, y0 = lon0 + 0.03 * (lon1 - lon0), lat0 + 0.05 * (lat1 - lat0)
     ax.plot([x0, x0 + deg], [y0, y0], color=st.INK, linewidth=2, solid_capstyle="butt")
     ax.text(x0, y0 + 0.015 * (lat1 - lat0), f"{km} km", fontsize=st.NOTE_PT, color=st.INK, va="bottom")
