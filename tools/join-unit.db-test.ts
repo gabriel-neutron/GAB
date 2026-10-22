@@ -477,7 +477,13 @@ test('a doubted event does not join a waiting relation of another day', async ()
 });
 
 // A new event and its occurred_at link to a site of the record, in one unit of two acts.
-const eventWithLink = async (ask: Ask, call: string, label: string, site: string) => {
+const eventWithLink = async (
+  ask: Ask,
+  call: string,
+  label: string,
+  site: string,
+  linkModality = 'asserts',
+) => {
   const event = randomUUID();
   const link = randomUUID();
   const base = {
@@ -503,6 +509,7 @@ const eventWithLink = async (ask: Ask, call: string, label: string, site: string
           ...base,
           id: link,
           op: 'create_relation',
+          modality: linkModality,
           payload: { type: 'occurred_at', src_id: event, dst_id: site, sources: [AGENCY] },
           names: [event, site],
         },
@@ -544,9 +551,24 @@ test('a doubted event with a link to another site does not join a waiting relati
       other,
     );
     expect(await refusal(ask, () => join(ask, event, waiting.id))).toMatch(
-      /not for the same kind of event|another act waits/u,
+      /not for the same kind of event, at the same site, on the same day/u,
     );
     expect((await stateOf(ask, event)).status).toBe('pending');
     expect((await stateOf(ask, link)).status).toBe('pending');
+  });
+});
+
+test('a link that cites in another modality is refused', async () => {
+  await rolledBack('superuser', async (ask) => {
+    const call = await seed(ask);
+    const waiting = await waitingRelationAt(ask, call);
+    const { event } = await eventWithLink(
+      ask,
+      call,
+      'claimed attack — Plant refinery — 2026-05-15',
+      waiting.site,
+      'alleges',
+    );
+    expect(await refusal(ask, () => join(ask, event, waiting.id))).toMatch(/two modalities/u);
   });
 });

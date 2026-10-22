@@ -2824,7 +2824,10 @@ $$;
 -- takes copies of the passages, as merge_waiting_act does, and the promotion reads them.
 --
 -- Both units are events, with the same kind, site and day in their names, and the doubted unit
--- holds one act only. The doubted unit is a doubt, and the waiting unit is no doubt of its own
+-- holds one act only. The one exception: a waiting occurred_at relation of a recorded event takes a
+-- doubted unit of two acts, the event and its occurred_at link to the site where the relation ends.
+-- The names then match by kind and day, the site is matched through the link, and the step closes
+-- both acts. The doubted unit is a doubt, and the waiting unit is no doubt of its own
 -- once the doubted unit is closed: the doubt of a check spreads to every act of one claim, so the
 -- state of the waiting unit is read after the join, and a doubt rolls the whole step back. The
 -- two sets of modalities must be equal: a denial never joins an assertion. The waiting unit must
