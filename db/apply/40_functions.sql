@@ -2824,7 +2824,10 @@ $$;
 -- takes copies of the passages, as merge_waiting_act does, and the promotion reads them.
 --
 -- Both units are events, with the same kind, site and day in their names, and the doubted unit
--- holds one act only. The doubted unit is a doubt, and the waiting unit is no doubt of its own
+-- holds one act only. The one exception: a waiting occurred_at relation of a recorded event takes a
+-- doubted unit of two acts, the event and its occurred_at link to the site where the relation ends.
+-- The names then match by kind and day, the site is matched through the link, and the step closes
+-- both acts. The doubted unit is a doubt, and the waiting unit is no doubt of its own
 -- once the doubted unit is closed: the doubt of a check spreads to every act of one claim, so the
 -- state of the waiting unit is read after the join, and a doubt rolls the whole step back. The
 -- two sets of modalities must be equal: a denial never joins an assertion. The waiting unit must
@@ -2844,6 +2847,7 @@ DECLARE
   v_dname  text[];
   v_wname  text[];
   v_wlabel text;
+  v_link   uuid;
   v_note   text;
   v_docs   int;
   v_copied int;
@@ -2885,9 +2889,22 @@ BEGIN
   END IF;
   v_dname := regexp_match(d.payload->>'label', c_name);
   v_wname := regexp_match(v_wlabel, c_name);
+  -- A waiting relation is for the site that it ends at, and the record may write the name of that
+  -- site otherwise than the doubted event does. So the doubted unit holds its own occurred_at link
+  -- to the same site, and the names are compared by their kind and their day.
+  IF w.op = 'create_relation' THEN
+    SELECT l.id INTO v_link FROM public.proposals l
+     WHERE l.status = 'pending' AND l.unit_id = d.unit_id AND l.id <> d.id
+       AND l.op = 'create_relation' AND l.payload->>'type' = 'occurred_at'
+       AND l.payload->>'src_id' = d.id::text
+       AND coalesce(l.payload->>'dst_kind', 'entity') = coalesce(w.payload->>'dst_kind', 'entity')
+       AND l.payload->>'dst_id' = w.payload->>'dst_id';
+  END IF;
   IF v_dname IS NULL OR v_wname IS NULL
-     OR ARRAY(SELECT public.name_key(x) FROM unnest(v_dname) AS x)
-        IS DISTINCT FROM ARRAY(SELECT public.name_key(x) FROM unnest(v_wname) AS x) THEN
+     OR ARRAY(SELECT public.name_key(x) FROM unnest(
+          CASE WHEN v_link IS NULL THEN v_dname ELSE ARRAY[v_dname[1], v_dname[3]] END) AS x)
+        IS DISTINCT FROM ARRAY(SELECT public.name_key(x) FROM unnest(
+          CASE WHEN v_link IS NULL THEN v_wname ELSE ARRAY[v_wname[1], v_wname[3]] END) AS x) THEN
     RAISE EXCEPTION 'the two units are not for the same kind of event, at the same site, on the '
                     'same day'
       USING CONSTRAINT = 'join_same_event';
@@ -2897,18 +2914,18 @@ BEGIN
   END IF;
   v_cause := coalesce(public.unit_doubt_cause(p_doubted), 'a fault of the check');
   IF EXISTS (SELECT 1 FROM public.proposals n
-              WHERE n.status = 'pending' AND n.id <> d.id
+              WHERE n.status = 'pending' AND n.id <> d.id AND n.id IS DISTINCT FROM v_link
                 AND (n.unit_id = d.unit_id OR d.id = ANY (n.names) OR d.id = n.target_id
                      OR d.id::text IN (n.payload->>'src_id', n.payload->>'dst_id'))) THEN
     RAISE EXCEPTION 'another act waits with the doubted unit or names it, so it is not joined'
       USING CONSTRAINT = 'join_doubted';
   END IF;
   IF (SELECT array_agg(DISTINCT c.modality ORDER BY c.modality) FROM public.citation c
-       WHERE c.claim_id = d.id)
+       WHERE c.claim_id = ANY (ARRAY[d.id, v_link]))
      IS DISTINCT FROM (SELECT array_agg(DISTINCT c.modality ORDER BY c.modality)
                          FROM public.citation c WHERE c.claim_id = w.id)
      OR EXISTS (SELECT 1 FROM public.citation c
-                 WHERE c.claim_id IN (d.id, w.id) AND c.transcription IS NOT NULL) THEN
+                 WHERE c.claim_id IN (d.id, v_link, w.id) AND c.transcription IS NOT NULL) THEN
     RAISE EXCEPTION 'the two units cite their passages in two modalities, or one cites words read '
                     'from an image'
       USING CONSTRAINT = 'join_modality';
@@ -2935,7 +2952,7 @@ BEGIN
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
          decided_as = 'unit', reject_reason = 'duplicate', reject_note = v_note,
          decision_origin = p_origin, decision_reason = p_why
-   WHERE id = d.id;
+   WHERE id IN (d.id, v_link);
   v_rule := public.unit_rule(w.unit_id);
   IF v_rule IS DISTINCT FROM 'weak_sources' THEN
     RAISE EXCEPTION 'the unit % is a doubt of its own, or it is no unit that waits for a source',
