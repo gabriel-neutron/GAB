@@ -19,7 +19,8 @@ const USAGE =
   'Usage: pnpm worker release --manifest <file> --out <folder> [--previous <release folder>]';
 
 // Departure: the role waits 30 seconds for one statement, and a release reads the whole record in
-// one statement for each file. GAB_STATEMENT_TIMEOUT sets another value. The command runs on the machine of the operator, by hand.
+// one statement for each file. GAB_STATEMENT_TIMEOUT sets another value. The command runs on the
+// machine of the operator, by hand.
 const RELEASE_TIMEOUT = '10min';
 
 const FLAGS = new Set(['--manifest', '--out', '--previous']);
