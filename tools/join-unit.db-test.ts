@@ -414,7 +414,10 @@ const recorded = async (ask: Ask, type: string, label: string): Promise<string> 
   return row.id;
 };
 
-const waitingRelation = async (ask: Ask, call: string): Promise<string> => {
+const waitingRelation = async (ask: Ask, call: string): Promise<string> =>
+  (await waitingRelationAt(ask, call)).id;
+
+const waitingRelationAt = async (ask: Ask, call: string): Promise<{ id: string; site: string }> => {
   const event = await recorded(ask, 'event', PLANT);
   const site = await recorded(ask, 'facility', 'Plant');
   const id = randomUUID();
@@ -437,7 +440,7 @@ const waitingRelation = async (ask: Ask, call: string): Promise<string> => {
       ]),
     ]),
   );
-  return id;
+  return { id, site };
 };
 
 test('a doubted event joins the occurred_at relation of an event of the record that waits', async () => {
@@ -470,5 +473,80 @@ test('a doubted event does not join a waiting relation of another day', async ()
       label: 'claimed attack — Plant — 2026-05-16',
     });
     expect(await refusal(ask, () => join(ask, doubted, waiting))).toMatch(/not for the same kind/u);
+  });
+});
+
+// A new event and its occurred_at link to a site of the record, in one unit of two acts.
+const eventWithLink = async (ask: Ask, call: string, label: string, site: string) => {
+  const event = randomUUID();
+  const link = randomUUID();
+  const base = {
+    src: [AGENCY],
+    model_call_id: call,
+    originator: 'Reuters',
+    modality: 'asserts',
+    citations: [{ document: AGENCY, text_extractor: EXTRACTOR, page: 1, start: 2, end: 13 }],
+  };
+  await as(ask, 'gabriel_agent', () =>
+    ask(BATCH, [
+      JSON.stringify([
+        {
+          ...base,
+          id: event,
+          op: 'create_entity',
+          payload: { type: 'event', label, sources: [AGENCY] },
+          names: [],
+          dissent: true,
+          dissent_reason: 'two readings differ',
+        },
+        {
+          ...base,
+          id: link,
+          op: 'create_relation',
+          payload: { type: 'occurred_at', src_id: event, dst_id: site, sources: [AGENCY] },
+          names: [event, site],
+        },
+      ]),
+    ]),
+  );
+  return { event, link };
+};
+
+test('a doubted event with its link joins a waiting relation that ends at the same site', async () => {
+  await rolledBack('superuser', async (ask) => {
+    const call = await seed(ask);
+    const waiting = await waitingRelationAt(ask, call);
+    // The record writes the site as "Plant"; the doubted event writes it otherwise.
+    const { event, link } = await eventWithLink(
+      ask,
+      call,
+      'claimed attack — Plant refinery — 2026-05-15',
+      waiting.site,
+    );
+    const said = await join(ask, event, waiting.id);
+    expect(said).toMatchObject([{ said: { waiting: waiting.id, documents: 1 } }]);
+    expect(await documentsOf(ask, waiting.id)).toStrictEqual([AGENCY, GENERAL_STAFF]);
+    expect((await stateOf(ask, event)).status).toBe('rejected');
+    expect((await stateOf(ask, link)).status).toBe('rejected');
+    expect((await stateOf(ask, waiting.id)).status).toBe('pending');
+  });
+});
+
+test('a doubted event with a link to another site does not join a waiting relation', async () => {
+  await rolledBack('superuser', async (ask) => {
+    const call = await seed(ask);
+    const waiting = await waitingRelationAt(ask, call);
+    const other = await recorded(ask, 'facility', 'Other plant');
+    const { event, link } = await eventWithLink(
+      ask,
+      call,
+      'claimed attack — Plant refinery — 2026-05-15',
+      other,
+    );
+    expect(await refusal(ask, () => join(ask, event, waiting.id))).toMatch(
+      /not for the same kind of event|another act waits/u,
+    );
+    expect((await stateOf(ask, event)).status).toBe('pending');
+    expect((await stateOf(ask, link)).status).toBe('pending');
   });
 });
