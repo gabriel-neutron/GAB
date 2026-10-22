@@ -17,7 +17,9 @@ import {
   RefusedTextError,
   UnsupportedTypeError,
 } from '@gab/text';
+import { zipContainerType } from '@gab/text/archive';
 import { ZIP_MIME } from '@gab/text/geojson';
+import { XLSX_MIME } from '@gab/text/xlsx';
 import { z } from 'zod';
 
 import { addressTitle, htmlTitle } from './fetch-document.ts';
@@ -44,13 +46,20 @@ const CONTENT_TYPES = [
   'image/png',
   'image/jpeg',
   ZIP_MIME,
+  XLSX_MIME,
   ...TEXT_TYPES,
 ] as const;
 // A GeoJSON archive is read layer by layer. Another archive is unpacked into one document for
 // each file.
 const SAVED_TYPES: ReadonlySet<string> = new Set([...CONTENT_TYPES, 'application/xhtml+xml']);
 const SAVED_EXTENSIONS =
-  '.pdf, .html, .xhtml, .png, .jpg, .jpeg, .json, .tsv, .txt, .xml, .csv, .md or .zip';
+  '.pdf, .html, .xhtml, .png, .jpg, .jpeg, .json, .tsv, .txt, .xml, .csv, .md, .xlsx or .zip';
+
+// The publishers of a public file that this tool names, with the domain of each. Each id is a row
+// of the seed, and the licence of the row gives the tier of the document. The address of the file
+// must be on the domain of its publisher, so a call cannot give a licence to another file.
+const PROVIDER_DOMAINS = { world_bank: 'worldbank.org', bruegel: 'bruegel.org' } as const;
+const PROVIDERS = ['world_bank', 'bruegel'] as const;
 
 const MAX_TITLE = 500;
 // The base64 text of the largest file that a store accepts.
@@ -188,8 +197,9 @@ const titleOf = (
 export const storeSavedFile = defineTool({
   name: 'store_saved_file',
   description:
-    'Stores a PDF, an HTML page, a PNG or JPEG image, or a data file (JSON, TSV, CSV, XML, ' +
-    'plain text or Markdown) that the browser of the session holds, as the document of the ' +
+    'Stores a PDF, an HTML page, a PNG or JPEG image, an XLSX workbook (the text is one CSV page ' +
+    'for each sheet; a ZIP file that is a workbook is read as one), or a data file (JSON, TSV, ' +
+    'CSV, XML, plain text or Markdown) that the browser of the session holds, as the document of the ' +
     'page that it came from. A data file must be strict UTF-8 text; any other binary file is ' +
     'refused. A ZIP archive that holds no GeoJSON is unpacked: the archive is one document ' +
     'whose text lists its files, and each file that a reader takes is one more document, named ' +
@@ -227,6 +237,10 @@ export const storeSavedFile = defineTool({
       parts: z.number().int().min(1).max(MAX_PARTS).optional().describe('the count of the parts'),
       url: sourceAddress.describe('the address of the page in the browser'),
       title: z.string().trim().min(1).max(MAX_TITLE).optional().describe('the title of the page'),
+      provider: z
+        .enum(PROVIDERS)
+        .optional()
+        .describe('the publisher of an official file; its licence gives the tier of the document'),
     })
     .superRefine((given, context) => {
       const fault = (message: string) => context.addIssue({ code: 'custom', message });
@@ -266,6 +280,14 @@ export const storeSavedFile = defineTool({
       throw new ToolRefusal('this surface gives no object store, so it stores no file');
     const refused = refusedSource(input.url);
     if (refused !== null) throw new ToolRefusal(refused);
+    if (input.provider !== undefined) {
+      const domain = PROVIDER_DOMAINS[input.provider];
+      const host = new URL(input.url).hostname.toLowerCase();
+      if (host !== domain && !host.endsWith(`.${domain}`))
+        throw new ToolRefusal(
+          `the provider ${input.provider} publishes on ${domain}, not on ${host}`,
+        );
+    }
     let mime: string;
     let bytes: Uint8Array;
     let label: string;
@@ -298,6 +320,15 @@ export const storeSavedFile = defineTool({
       decodeAs = named;
       bytes = await readInboxFile(reach.inbox, file);
       label = file;
+    }
+
+    // A workbook is a zip container too: its parts decide, as in fetch_document. Another office
+    // document has no reader and is not unpacked into its XML parts.
+    if (mime === ZIP_MIME) {
+      const container = await zipContainerType(bytes);
+      if (container === 'workbook') mime = decodeAs = XLSX_MIME;
+      if (container === 'office')
+        throw new ToolRefusal(`${label} is an office document that no reader takes`);
     }
 
     let pages: readonly string[];
@@ -341,6 +372,7 @@ export const storeSavedFile = defineTool({
       title: titleOf(input.title, mime, bytes, input.url, decodeAs),
       pages,
       day: reach.now().toISOString().slice(0, 10),
+      ...(input.provider === undefined ? {} : { provider: input.provider }),
     });
     return { document: stored.id, status: stored.status, title: stored.title, pages: pages.length };
   },

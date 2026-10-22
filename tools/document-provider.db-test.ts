@@ -10,6 +10,7 @@ import { probe, rolledBack, type Ask } from './probe.ts';
 
 const SEEDED = [
   { id: 'acra', licence: 'paid-filing' },
+  { id: 'bruegel', licence: 'restricted' },
   { id: 'copernicus_sentinel', licence: 'copernicus' },
   { id: 'crea', licence: 'restricted' },
   { id: 'cyprus_registrar', licence: 'paid-filing' },
@@ -31,6 +32,7 @@ const SEEDED = [
   { id: 'own', licence: 'own' },
   { id: 'uk_sanctions_list', licence: 'ogl-v3' },
   { id: 'un_comtrade', licence: 'restricted' },
+  { id: 'world_bank', licence: 'cc-by-4.0' },
 ] as const;
 
 const providers = z.array(z.object({ id: z.string(), licence: z.string() }));
