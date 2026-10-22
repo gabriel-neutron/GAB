@@ -35,3 +35,9 @@ A point placed on a satellite image cites the image: EOxCloudless https://cloudl
 EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016), under the Creative
 Commons Attribution 4.0 International licence, https://creativecommons.org/licenses/by/4.0/.
 The image shows each site as it was in 2016.
+
+## GLEIF
+
+Legal entity identifiers and names of legal entities come from the Global Legal Entity
+Identifier Foundation (GLEIF), https://www.gleif.org, under the CC0 1.0 licence. The release
+holds derived facts and citations.

@@ -7,6 +7,7 @@ import { Client } from 'pg';
 
 import { appAddress } from '../address.ts';
 import type { SubCommand } from '../command.ts';
+import { CreditFault } from './credits.ts';
 import { CriticalNodesSheetFault } from './critical-nodes-sheet.ts';
 import { PreviousReleaseFault } from './previous-release.ts';
 import { ReleaseFolderExists, writeRelease } from './release.ts';
@@ -47,7 +48,7 @@ const flagsOf = (
  *
  * Each of these gives 2 with a message, and writes no release folder: a usage fault, a refused
  * manifest, a refused sheet of the candidate nodes, a volume table that cannot be read, a refused
- * previous release, a release of the same date, and a site that cannot be built or written. A row
+ * previous release, a claim that cites a provider with no credit line, a release of the same date, and a site that cannot be built or written. A row
  * of the volume table that the release rejects is left out, and the command gives its line and the
  * reason. The command also gives the line of a row whose asset label names more than one entity:
  * that row joins no link. The paths of the sheet and of the volume table are relative to the
@@ -93,6 +94,7 @@ export const releaseCommand: SubCommand = async (args) => {
   } catch (fault) {
     if (!(
       fault instanceof ReleaseFolderExists ||
+      fault instanceof CreditFault ||
       fault instanceof CriticalNodesSheetFault ||
       fault instanceof VolumeTableFault ||
       fault instanceof PreviousReleaseFault ||
