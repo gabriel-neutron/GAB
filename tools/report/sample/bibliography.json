@@ -1,5 +1,25 @@
 {
-  "port": {"publisher": "Autorité portuaire imaginaire", "title": "Registre des escales 2026", "date": "2027-01-05", "page": "3", "url": "https://example.org/registre-escales", "accessed": "2027-01-10"},
-  "acte": {"publisher": "Journal officiel imaginaire", "title": "Arrêté 2021/9 sur le quai nord", "date": "2021-06-15", "page": "1", "url": "https://example.org/arrete-2021-9", "accessed": "2027-01-10"},
-  "rapport": {"publisher": "Port de Brumel", "title": "Rapport annuel 2026", "date": "2026-12-01", "url": "https://example.org/rapport-2026", "accessed": "2027-01-11"}
+  "port": {
+    "publisher": "Autorité portuaire imaginaire",
+    "title": "Registre des escales 2026",
+    "date": "2027-01-05",
+    "page": "3",
+    "url": "https://example.org/registre-escales",
+    "accessed": "2027-01-10"
+  },
+  "acte": {
+    "publisher": "Journal officiel imaginaire",
+    "title": "Arrêté 2021/9 sur le quai nord",
+    "date": "2021-06-15",
+    "page": "1",
+    "url": "https://example.org/arrete-2021-9",
+    "accessed": "2027-01-10"
+  },
+  "rapport": {
+    "publisher": "Port de Brumel",
+    "title": "Rapport annuel 2026",
+    "date": "2026-12-01",
+    "url": "https://example.org/rapport-2026",
+    "accessed": "2027-01-11"
+  }
 }
