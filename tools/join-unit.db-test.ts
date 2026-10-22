@@ -269,7 +269,7 @@ const REFUSALS: readonly Refusal[] = [
   },
   {
     name: 'two modalities',
-    change: { doubted: { modality: 'alleges' } },
+    change: { doubted: { modality: 'denies' } },
     said: /two modalities/u,
   },
 ];
@@ -567,8 +567,20 @@ test('a link that cites in another modality is refused', async () => {
       call,
       'claimed attack — Plant refinery — 2026-05-15',
       waiting.site,
-      'alleges',
+      'denies',
     );
     expect(await refusal(ask, () => join(ask, event, waiting.id))).toMatch(/two modalities/u);
+  });
+});
+
+test('a report joins an assertion, and the citation keeps its modality', async () => {
+  await rolledBack('superuser', async (ask) => {
+    const { waiting, doubted } = await pair(ask, { doubted: { modality: 'attributes' } });
+    await join(ask, doubted, waiting);
+    const kept = await ask(
+      'SELECT modality FROM public.citation WHERE claim_id = $1::uuid ORDER BY doc_id',
+      [waiting],
+    );
+    expect(kept).toStrictEqual([{ modality: 'attributes' }, { modality: 'asserts' }]);
   });
 });

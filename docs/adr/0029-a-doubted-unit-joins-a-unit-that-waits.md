@@ -18,8 +18,9 @@ dispute then makes the new unit a doubt. The reviewer could not decide the pair:
   doubted unit, and the doubted unit is closed. The step is the same kind of act as `add_source`
   (ADR 0027): the documents of one act join another act, and nothing else changes.
 - The two units are new events with the same kind, the same site and the same day in their names.
-  The doubted unit holds one act, or two in the case below. The two units cite their passages in the same modalities, so a
-  denial never joins an assertion. The step refuses words read from an image.
+  The doubted unit holds one act, or two in the case below. Both units deny, or neither does, so a denial never
+  joins an assertion. A report (attributes) joins an assertion: each citation keeps its own
+  modality. The step refuses words read from an image.
 - The waiting unit can also be a pending `occurred_at` relation of an event that the record holds.
   The name of that event is the name of the unit. The relation keeps its type, its ends and its
   dates.

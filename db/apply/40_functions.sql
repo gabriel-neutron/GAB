@@ -2830,7 +2830,8 @@ $$;
 -- both acts. The doubted unit is a doubt, and the waiting unit is no doubt of its own
 -- once the doubted unit is closed: the doubt of a check spreads to every act of one claim, so the
 -- state of the waiting unit is read after the join, and a doubt rolls the whole step back. The
--- two sets of modalities must be equal: a denial never joins an assertion. The waiting unit must
+-- two units both deny, or neither does: a denial never joins an assertion, and a report (attributes)
+-- joins an assertion, because each citation keeps its own modality. The waiting unit must
 -- not cite each document of the doubted unit already. The step takes the lock of the acts of both
 -- units, in the order of their ids, so two reviewers on one pair run one after the other: the
 -- second finds the doubted unit closed and is refused. The rules do not run here: the waiting
@@ -2920,9 +2921,9 @@ BEGIN
     RAISE EXCEPTION 'another act waits with the doubted unit or names it, so it is not joined'
       USING CONSTRAINT = 'join_doubted';
   END IF;
-  IF (SELECT array_agg(DISTINCT c.modality ORDER BY c.modality) FROM public.citation c
+  IF (SELECT coalesce(bool_or(c.modality = 'denies'), false) FROM public.citation c
        WHERE c.claim_id = ANY (ARRAY[d.id, v_link]))
-     IS DISTINCT FROM (SELECT array_agg(DISTINCT c.modality ORDER BY c.modality)
+     IS DISTINCT FROM (SELECT coalesce(bool_or(c.modality = 'denies'), false)
                          FROM public.citation c WHERE c.claim_id = w.id)
      OR EXISTS (SELECT 1 FROM public.citation c
                  WHERE c.claim_id IN (d.id, v_link, w.id) AND c.transcription IS NOT NULL) THEN
