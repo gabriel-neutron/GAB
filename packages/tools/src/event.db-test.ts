@@ -533,3 +533,29 @@ test('the checker receives no day when neither the caller nor the address gives 
   const [asked] = await readByChecker('https://news.example/world/fire-at-the-plant', 6);
   expect(asked?.passages.map((one) => one.publishedOn)).toStrictEqual([null]);
 });
+
+test('the Post date line of a stored post gives the day of "yesterday"', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    const doc = await post(
+      ask,
+      9,
+      OWN_URI,
+      `Post date: 2026-05-16
+
+Yesterday a drone hit the ${SITE}.`,
+    );
+    const act = eventAct(NAME, {
+      attrs: {
+        event_kind: { v: 'claimed attack' },
+        occurred_on: { v: ['2026-05-15'] },
+        occurred_on_precision: { v: 'day' },
+      },
+    });
+    const outcome = await proposed(ask, [
+      item('ev', act, doc, `Yesterday a drone hit the ${SITE}.`, name()),
+    ]);
+    if (!outcome.ok) throw new Error(outcome.refusal);
+    return outcome.output;
+  });
+  expect(read).toMatchObject({ proposals: [{ unstated: [] }] });
+});

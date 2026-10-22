@@ -390,3 +390,85 @@ test('the research role holds the door of the join, and the reviewer of a doubt 
     expect(said).toMatch(/permission denied/u);
   });
 });
+
+// An event of the record, and the occurred_at relation of it that waits for a better source.
+const recorded = async (ask: Ask, type: string, label: string): Promise<string> => {
+  const [act] = z
+    .array(z.object({ id: z.uuid() }))
+    .parse(
+      await as(ask, 'gabriel_app', () =>
+        ask(
+          `SELECT public.propose_change('create_entity', $1::jsonb, ARRAY['manual']::text[]) AS id`,
+          [JSON.stringify({ type, label })],
+        ),
+      ),
+    );
+  const [row] = z.array(z.object({ id: z.uuid() })).parse(
+    await ask(
+      `INSERT INTO public.entities (type, label, sources, promoted_from)
+       VALUES ($1, $2, ARRAY['manual']::doc_id[], $3::uuid) RETURNING id`,
+      [type, label, act?.id],
+    ),
+  );
+  if (row === undefined) throw new Error('the record kept no entity');
+  return row.id;
+};
+
+const waitingRelation = async (ask: Ask, call: string): Promise<string> => {
+  const event = await recorded(ask, 'event', PLANT);
+  const site = await recorded(ask, 'facility', 'Plant');
+  const id = randomUUID();
+  await as(ask, 'gabriel_agent', () =>
+    ask(BATCH, [
+      JSON.stringify([
+        {
+          id,
+          op: 'create_relation',
+          payload: { type: 'occurred_at', src_id: event, dst_id: site, sources: [GENERAL_STAFF] },
+          src: [GENERAL_STAFF],
+          names: [event, site],
+          model_call_id: call,
+          originator: 'The general staff',
+          modality: 'asserts',
+          citations: [
+            { document: GENERAL_STAFF, text_extractor: EXTRACTOR, page: 1, start: 2, end: 13 },
+          ],
+        },
+      ]),
+    ]),
+  );
+  return id;
+};
+
+test('a doubted event joins the occurred_at relation of an event of the record that waits', async () => {
+  await rolledBack('superuser', async (ask) => {
+    const call = await seed(ask);
+    const waiting = await waitingRelation(ask, call);
+    const doubted = await propose(ask, call, {
+      document: AGENCY,
+      originator: 'Reuters',
+      doubt: true,
+    });
+    expect(await ruleOf(ask, waiting)).toBe('weak_sources');
+    const said = await join(ask, doubted, waiting);
+    expect(said).toMatchObject([{ said: { name: PLANT, waiting, documents: 1, passages: 1 } }]);
+    expect(await documentsOf(ask, waiting)).toStrictEqual([AGENCY, GENERAL_STAFF]);
+    expect((await stateOf(ask, doubted)).status).toBe('rejected');
+    // The relation keeps its type and its ends.
+    expect(await queued(ask, waiting)).toBe(true);
+  });
+});
+
+test('a doubted event does not join a waiting relation of another day', async () => {
+  await rolledBack('superuser', async (ask) => {
+    const call = await seed(ask);
+    const waiting = await waitingRelation(ask, call);
+    const doubted = await propose(ask, call, {
+      document: AGENCY,
+      originator: 'Reuters',
+      doubt: true,
+      label: 'claimed attack — Plant — 2026-05-16',
+    });
+    expect(await refusal(ask, () => join(ask, doubted, waiting))).toMatch(/not for the same kind/u);
+  });
+});

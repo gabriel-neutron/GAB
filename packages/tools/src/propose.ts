@@ -164,7 +164,8 @@ const batchAct = z.discriminatedUnion('op', [
       .describe(
         'the id of the relation of the record that gets the cited documents as sources, such as ' +
           'a designated_by relation that cites the Federal Register. Its dates and its type ' +
-          'stay as they are',
+          'stay as they are. With the modality denies, it can be the id of an event of the ' +
+          'record: the denial goes to the occurred_at relation of that event',
       ),
   }),
   z
@@ -306,12 +307,18 @@ interface Cited {
   readonly textExtractor: string;
   /** The day in the path of the address of the document, when it holds one. */
   readonly urlDay: string | null;
+  /** The day of the "Post date" line that opens the stored text of a Telegram post. */
+  readonly postDay: string | null;
   readonly page: number;
   /** The place of the excerpt in the stored page, or null for words read from an image. */
   readonly span: Span | null;
   readonly passage: string;
   readonly context: string;
 }
+
+// The stored text of a Telegram post opens with this line (the tool telegram_channel writes it).
+const postDayOf = (text: string): string | null =>
+  /^Post date: (\d{4}-\d{2}-\d{2})/u.exec(text)?.[1] ?? null;
 
 function refuse(ref: string, reason: string): never {
   throw new ToolRefusal(`item ${ref}: ${reason}`);
@@ -348,6 +355,7 @@ const cite = async (
       fcdoList: page.fcdo_list,
       textExtractor: page.extractor,
       urlDay: dateInUrl(page.uri),
+      postDay: postDayOf(page.text),
       page: given.page,
       span: null,
       passage: given.excerpt,
@@ -371,6 +379,7 @@ const cite = async (
     fcdoList: page.fcdo_list,
     textExtractor: page.extractor,
     urlDay: dateInUrl(page.uri),
+    postDay: postDayOf(page.text),
     page: given.page,
     span,
     passage: pointSlice(page.text, span.start, span.end),
@@ -510,6 +519,42 @@ const resolvedAct = async (
   if (!parsed.success)
     refuse(given.ref, parsed.error.issues.map((issue) => issue.message).join('; '));
   return parsed.data;
+};
+
+const EVENT_SITES = `SELECT r.id::text AS id FROM api.relation r JOIN api.entity e
+    ON r.src_kind = 'entity' AND e.id = r.src_id AND e.type = 'event'
+  WHERE r.type = 'occurred_at' AND e.id = $1 ORDER BY r.id`;
+
+// A denial of an event of the record is a denying source of its occurred_at relation: the event has
+// no source list of its own that a denial could join. The caller names the event, and the act goes
+// to the one relation of the record that places it.
+const eventDenialOnRelation = async (
+  session: Session,
+  given: ProposeItem,
+): Promise<ProposeItem> => {
+  const { act } = given;
+  if (act.op !== 'add_source' || given.modality !== 'denies') return given;
+  if (await present(session, 'relation', act.targetId)) return given;
+  const sites = await rowsOf(session, z.strictObject({ id: z.string() }), EVENT_SITES, [
+    act.targetId,
+  ]);
+  const [site] = sites;
+  if (site === undefined) {
+    if (await present(session, 'entity', act.targetId))
+      refuse(
+        given.ref,
+        `the entity ${act.targetId} has no occurred_at relation of the record, so a denial waits ` +
+          'until the operator accepts that relation',
+      );
+    return given;
+  }
+  if (sites.length > 1)
+    refuse(
+      given.ref,
+      `the event ${act.targetId} has ${String(sites.length)} occurred_at relations, so name the ` +
+        `one that the passage denies: ${sites.map((one) => one.id).join(', ')}`,
+    );
+  return { ...given, act: { ...act, targetId: site.id } };
 };
 
 const SAME_PLACE = `SELECT public.ST_Equals(public.ST_GeomFromGeoJSON(e.geom::text),
@@ -873,19 +918,22 @@ export const proposeOf = (modelCallId: string | null) =>
       checkFailure: z.string().optional(),
     }),
     async run(session, input, reach) {
+      const resolvedItems: ProposeItem[] = [];
+      for (const given of input.items)
+        resolvedItems.push(await eventDenialOnRelation(session, given));
       const minted = new Map<string, Minted>();
-      input.items.forEach((given, index) => {
+      resolvedItems.forEach((given, index) => {
         if (minted.has(given.ref)) refuse(given.ref, 'two items of the batch have this ref');
         minted.set(given.ref, { id: randomUUID(), kind: KIND_OF_OP[given.act.op] ?? null, index });
       });
 
       const created = new Map(
-        input.items.flatMap((given) =>
+        resolvedItems.flatMap((given) =>
           given.act.op === 'create_entity' ? [[given.ref, given.act.type] as const] : [],
         ),
       );
       const prepared: Prepared[] = [];
-      for (const [index, given] of input.items.entries()) {
+      for (const [index, given] of resolvedItems.entries()) {
         const resolved = withCodedJurisdiction(await resolvedAct(session, given, index, minted));
         const eventFault = eventActRefusal(resolved);
         if (eventFault !== null) refuse(given.ref, eventFault);
@@ -897,8 +945,16 @@ export const proposeOf = (modelCallId: string | null) =>
           refuse(given.ref, 'an agent cites the stored text, and never words read from an image');
         const cited: Cited[] = [];
         for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
-        const published = given.published_on ?? input.published_on;
-        if (published !== undefined && published > latestPublishedOn())
+        // The post date of a stored Telegram post is the day of publication, when every cited
+        // document is a post of one day.
+        const postDays = new Set(cited.map((one) => one.postDay));
+        const [onlyPostDay] = postDays;
+        const published =
+          given.published_on ??
+          input.published_on ??
+          (postDays.size === 1 && onlyPostDay !== null ? onlyPostDay : undefined);
+        const asked = given.published_on ?? input.published_on;
+        if (asked !== undefined && asked > latestPublishedOn())
           refuse(given.ref, `published_on ${published} is in the future`);
         const documents = [...new Set(cited.map((one) => one.document))];
         const passages = cited.map((one) => one.passage);
@@ -991,7 +1047,7 @@ export const proposeOf = (modelCallId: string | null) =>
           excerpt: one.passage,
           context: one.context,
           // The day that the caller gave comes first, then the day in the address.
-          publishedOn: published ?? one.urlDay,
+          publishedOn: published ?? one.postDay ?? one.urlDay,
         })),
       }));
       let verdicts: ReadonlyMap<string, CheckVerdict> | null = null;
