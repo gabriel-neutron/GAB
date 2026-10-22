@@ -19,7 +19,9 @@ const row = z.object({
 export const joinUnit = defineTool({
   name: 'join_unit',
   description:
-    'Joins a doubted unit of the review queue to a unit that waits for a better source. Use it ' +
+    'Joins a doubted unit of the review queue to a unit that waits for a better source. The ' +
+    'waiting unit is a new event, or the occurred_at relation of an event of the record: the ' +
+    'relation keeps its type, its ends and its dates, and takes the documents. Use it ' +
     'when a second source states the same event, at the same site on the same day, and the ' +
     'propose tool made a new unit of it. The waiting unit takes the documents and the passages ' +
     'of the doubted unit, and the doubted unit is closed as a duplicate, with a note that names ' +

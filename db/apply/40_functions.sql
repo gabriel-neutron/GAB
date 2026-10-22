@@ -2843,6 +2843,7 @@ DECLARE
   w        public.proposals%ROWTYPE;
   v_dname  text[];
   v_wname  text[];
+  v_wlabel text;
   v_note   text;
   v_docs   int;
   v_copied int;
@@ -2869,11 +2870,20 @@ BEGIN
   IF d.op <> 'create_entity' OR d.payload->>'type' <> 'event' THEN
     RAISE EXCEPTION 'the unit % is no new event', p_doubted USING CONSTRAINT = 'join_doubted';
   END IF;
-  IF w.op <> 'create_entity' OR w.payload->>'type' <> 'event' THEN
+  -- The waiting unit is a new event, or the occurred_at relation of an event of the record: the
+  -- name of that event is the name of the unit.
+  IF w.op = 'create_relation' AND w.payload->>'type' = 'occurred_at'
+     AND coalesce(w.payload->>'src_kind', 'entity') = 'entity' THEN
+    SELECT e.label INTO v_wlabel FROM public.entities e
+     WHERE e.id = (w.payload->>'src_id')::uuid AND e.type = 'event';
+  ELSIF w.op = 'create_entity' AND w.payload->>'type' = 'event' THEN
+    v_wlabel := w.payload->>'label';
+  END IF;
+  IF v_wlabel IS NULL THEN
     RAISE EXCEPTION 'the unit % is no new event', p_waiting USING CONSTRAINT = 'join_waiting';
   END IF;
   v_dname := regexp_match(d.payload->>'label', c_name);
-  v_wname := regexp_match(w.payload->>'label', c_name);
+  v_wname := regexp_match(v_wlabel, c_name);
   IF v_dname IS NULL OR v_wname IS NULL
      OR ARRAY(SELECT public.name_key(x) FROM unnest(v_dname) AS x)
         IS DISTINCT FROM ARRAY(SELECT public.name_key(x) FROM unnest(v_wname) AS x) THEN
@@ -2931,7 +2941,7 @@ BEGIN
                     p_waiting
       USING CONSTRAINT = 'join_waiting';
   END IF;
-  RETURN jsonb_build_object('name', w.payload->>'label', 'doubted', d.id, 'waiting', w.unit_id,
+  RETURN jsonb_build_object('name', v_wlabel, 'doubted', d.id, 'waiting', w.unit_id,
                             'documents', v_docs, 'passages', v_copied);
 END $$;
 

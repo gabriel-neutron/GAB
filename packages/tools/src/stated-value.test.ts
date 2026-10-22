@@ -894,3 +894,16 @@ test('propose refuses an asset kind that is not a word of the closed list', () =
   });
   expect(assetKindRefusal(company)).toBe('only a facility or a port has an asset_kind');
 });
+
+test.each([
+  ['Yesterday a drone hit the plant.', '2025-02-23'],
+  ['Tonight a drone hit the plant.', '2025-02-24'],
+  ['Вчора дрони вразили НПЗ.', '2025-02-23'],
+  ['Сьогодні вночі дрони вразили НПЗ.', '2025-02-24'],
+])('"%s" states the day by the publication day', (passage, day) => {
+  const options = { publishedOn: '2025-02-24' };
+  expect(unstatedValues(relationFrom(day), [passage], options)).toStrictEqual([]);
+  expect(unstatedValues(relationFrom('2025-02-22'), [passage], options)).toHaveLength(1);
+  // With no publication day, a relative word states nothing.
+  expect(unstatedValues(relationFrom(day), [passage])).toHaveLength(1);
+});

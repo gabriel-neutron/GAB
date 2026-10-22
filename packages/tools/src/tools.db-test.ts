@@ -2249,3 +2249,80 @@ test('propose refuses a source whose excerpt names no end of the relation', asyn
   });
   expect(found.rows).toStrictEqual([]);
 });
+
+// An event of the record and, when asked, the occurred_at relation that places it at a site.
+const placedEvent = async (
+  ask: Ask,
+  placed = true,
+): Promise<{ event: string; relation: string }> => {
+  await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+  const signed = z.array(z.object({ target_id: z.uuid() }));
+  const sign = async (op: string, payload: object, names: readonly string[] = []) => {
+    const [row] = signed.parse(
+      await ask(
+        `SELECT target_id FROM public.sign_change('a test', $1, $2::jsonb, ARRAY['manual'],
+           NULL, NULL, $3::uuid[])`,
+        [op, JSON.stringify(payload), names],
+      ),
+    );
+    if (row === undefined) throw new Error('the act was not signed');
+    return row.target_id;
+  };
+  const event = await sign('create_entity', {
+    type: 'event',
+    label: 'claimed attack — Plant — 2025-03-03',
+    sources: ['manual'],
+  });
+  const site = await sign('create_entity', {
+    type: 'facility',
+    label: 'Plant',
+    sources: ['manual'],
+  });
+  const relation = placed
+    ? await sign(
+        'create_relation',
+        { type: 'occurred_at', src_id: event, dst_id: site, sources: ['manual'] },
+        [event, site],
+      )
+    : '';
+  await ask('RESET SESSION AUTHORIZATION');
+  return { event, relation };
+};
+
+const denial = (target: string) => ({
+  ...sourcing(target, 'the Plant refinery'),
+  originator: 'The governor',
+  modality: 'denies',
+});
+
+test('propose denies an event of the record: the denial goes to its occurred_at relation', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const { event, relation } = await placedEvent(ask);
+    const outcome = await proposeOnPage(
+      ask,
+      [denial(event)],
+      'The governor says the Plant refinery was not hit.',
+    );
+    const [target] = z.array(z.object({ target_id: z.string(), modality: z.string() })).parse(
+      await ask(
+        `SELECT p.target_id::text AS target_id, c.modality FROM public.proposals p
+             JOIN public.citation c ON c.claim_id = p.id WHERE p.src::text[] @> ARRAY[$1::text]`,
+        [DOC],
+      ),
+    );
+    return { outcome, target, relation };
+  });
+  expect(batchOf(found.outcome).proposals).toMatchObject([{ ref: 'source', written: true }]);
+  expect(found.target).toStrictEqual({ target_id: found.relation, modality: 'denies' });
+});
+
+test('propose refuses the denial of an event that has no occurred_at relation of the record', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const { event } = await placedEvent(ask, false);
+    return proposeOnPage(ask, [denial(event)], 'The governor says the Plant refinery was not hit.');
+  });
+  expect(found).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('has no occurred_at relation of the record') as string,
+  });
+});

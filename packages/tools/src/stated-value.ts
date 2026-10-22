@@ -104,6 +104,13 @@ const NIGHT_OF =
 const DATELINE =
   /^\s*(?:[A-Z][A-Z .'/-]+,\s+)?(\p{Lu}\p{Ll}{2,8})\.?\s+(\d{1,2})\s+\((?:Reuters|AP|AFP)\)/gmu;
 const NIGHT_WORD = /\b(?:overnight|(?<!(?:day|last|tomorrow)\s+)night(?:time)?)\b/iu;
+// A word that names a day by its distance from the publication day: "yesterday", "tonight".
+// shortcut: no "on Monday", "the day before yesterday" or a night of two days; add them when a
+// stored excerpt needs them.
+const RELATIVE_DAYS: readonly (readonly [RegExp, number])[] = [
+  [/(?<!\p{L})(?:yesterday|вчора|учора|вчера)(?!\p{L})/iu, -1],
+  [/(?<!\p{L})(?:today|tonight|сьогодні|сегодня)(?!\p{L})/iu, 0],
+];
 const NUMERIC_DAY = /(?<![\d.,/-])(\d{1,4})([./-])(\d{1,2})\2(\d{1,4})(?![\d.,/-]?\d)/gu;
 
 // Origin: decided. A day with dots, 05.03.2024, is day, month and year in each country that
@@ -225,6 +232,11 @@ const daysIn = (
       const year = month === null ? null : yearBefore(day, month, publishedOn);
       if (month !== null && year !== null) found.add(dayText(year, month, day));
     };
+    for (const [pattern, back] of RELATIVE_DAYS)
+      if (pattern.test(text)) {
+        const date = new Date(Date.parse(publishedOn) + back * 86_400_000);
+        found.add(dayText(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate()));
+      }
     for (const [, word = '', day] of text.matchAll(MONTH_DAY_NO_YEAR)) add(Number(day), word);
     for (const [, day, word = ''] of text.matchAll(DAY_MONTH_NO_YEAR)) add(Number(day), word);
   }
