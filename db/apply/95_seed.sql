@@ -85,6 +85,10 @@ INSERT INTO document_provider (id, name, licence) VALUES
   -- Only the 2016 layer of EOX: the service states CC BY 4.0 for it, and CC BY-NC-SA from 2018.
   ('eox_s2cloudless_2016', 'EOX Sentinel-2 cloudless 2016', 'cc-by-4.0'),
   ('osm',                 'OSM',                        'odbl'),
+  -- The World Bank publishes its commodity price data under CC BY 4.0. Bruegel is `restricted`
+  -- until its terms of reuse are read.
+  ('world_bank',          'World Bank',                 'cc-by-4.0'),
+  ('bruegel',             'Bruegel',                    'restricted'),
   ('own',                 'own',                        'own')
 ON CONFLICT (id) DO UPDATE SET
   name    = EXCLUDED.name,
