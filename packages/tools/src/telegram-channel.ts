@@ -10,6 +10,13 @@ import { answerOf, UpstreamFault, webFromReach } from './web-access.ts';
 // page, so it cannot give more.
 const PAGE_POSTS = 20;
 
+// The stored text opens with the post date, so a reader of the text sees the day and the year.
+// The same text is in the bytes, so a post that was stored with no date comes back as a new
+// document and the old document stays as it was.
+const datedText = (post: Post): string => `Post date: ${post.post_date}
+
+${post.text}`.trim();
+
 // The key order is fixed by the literal, so a post gives the same bytes and the same hash each
 // time it is read.
 const recordOf = (post: Post): Uint8Array =>
@@ -18,7 +25,7 @@ const recordOf = (post: Post): Uint8Array =>
       handle: post.handle,
       message_id: post.message_id,
       post_date: post.post_date,
-      text: post.text,
+      text: datedText(post),
       media: post.media,
     }),
   );
@@ -143,7 +150,7 @@ export const telegramChannel = defineTool({
         mime: 'application/json',
         uri: url,
         title: `Telegram @${post.handle}, post ${post.message_id}`,
-        pages: [post.text],
+        pages: [datedText(post)],
         day,
       });
       stored.push({

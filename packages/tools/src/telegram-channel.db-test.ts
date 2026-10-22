@@ -118,7 +118,9 @@ test('a read of the newest posts stores each post once, and a second read return
         uri: `https://t.me/${HANDLE}/2042`,
         mime: 'application/json',
         retrieved_at: FETCH_DAY.toISOString().slice(0, 10),
-        text: photo?.text,
+        text: `Post date: 2026-10-01T12:00:00Z
+
+${photo?.text ?? ''}`,
       },
     ]);
 
