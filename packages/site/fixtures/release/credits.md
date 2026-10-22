@@ -36,8 +36,9 @@ EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016), under th
 Commons Attribution 4.0 International licence, https://creativecommons.org/licenses/by/4.0/.
 The image shows each site as it was in 2016.
 
-## GLEIF
+## EU Official Journal (EUR-Lex)
 
-Legal entity identifiers and names of legal entities come from the Global Legal Entity
-Identifier Foundation (GLEIF), https://www.gleif.org, under the CC0 1.0 licence. The release
-holds derived facts and citations.
+Facts about EU sanctions cite acts of the Official Journal of the European Union, EUR-Lex,
+https://eur-lex.europa.eu, reused under Commission Decision 2011/833/EU. The release holds
+derived facts and citations, and does not hold the acts. The European Union does not
+endorse GAB or this release.

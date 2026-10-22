@@ -177,18 +177,23 @@ test('a provider with no credit line stops the release', () => {
 });
 
 test('the providers of the documents that the claims cite give the credits', () => {
-  const claim = {
-    sources: ['osm_doc'],
-    passages: [{ document: 'gem_doc' }],
-  } as unknown as ReleaseRecord['claims'][number];
-  const record = {
-    claims: [claim],
+  const [claim] = RECORD.claims;
+  if (claim === undefined) throw new Error('The record holds no claim.');
+  const record: ReleaseRecord = {
+    ...RECORD,
+    claims: [
+      {
+        ...claim,
+        sources: ['a'],
+        passages: [{ document: 'b', page: 1, excerpt: 'x', modality: 'text', transcribed: false }],
+      },
+    ],
     documents: new Map([
-      ['osm_doc', { provider: 'ofac_sdn' }],
-      ['gem_doc', { provider: null }],
-      ['other', { provider: 'gleif' }],
+      ['a', { ...GEM, id: 'a', provider: 'ofac_sdn' }],
+      ['b', { ...GEM, id: 'b', provider: null }],
+      ['c', { ...GEM, id: 'c', provider: 'gleif' }],
     ]),
-  } as unknown as ReleaseRecord;
+  };
   expect([...claimProviders(record)]).toStrictEqual(['ofac_sdn']);
 });
 

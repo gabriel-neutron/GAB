@@ -423,7 +423,7 @@ const recordOf = (natoPair: boolean, withPort: boolean): ReleaseRecord => ({
         uri: 'https://eur-lex.europa.eu/eli/reg_impl/2025/0000/oj',
         retrieved_at: '2026-09-30',
         licence: 'eu-reuse',
-        provider: 'gleif',
+        provider: 'eu_eurlex',
         doc_type: 'other',
       },
     ],

@@ -182,8 +182,8 @@
     },
     {
       "path": "alignment-matrix.csv",
-      "bytes": 4036,
-      "sha256": "e24f2beb5adee9125855704503f0b8e5aa5349fd39d20fa59b75971de5f37b84"
+      "bytes": 4457,
+      "sha256": "5388f0c5fb6f7f559a33342b0fcff415483ccfbb3cf9e6c49b742b41515e80ee"
     },
     {
       "path": "critical-nodes.csv",
@@ -202,8 +202,8 @@
     },
     {
       "path": "credits.md",
-      "bytes": 1897,
-      "sha256": "d55e11ccb21343bf7d8db9968074d0fe7e708dd2562ca4c0c06444ad6eab0ecd"
+      "bytes": 2002,
+      "sha256": "b45928658eeefb5be8170d7e22464cde48ddefa0c23e73011cbf2a9e5a2e8add"
     },
     {
       "path": "release-notes.md",
