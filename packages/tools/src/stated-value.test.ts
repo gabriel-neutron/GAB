@@ -907,3 +907,17 @@ test.each([
   // With no publication day, a relative word states nothing.
   expect(unstatedValues(relationFrom(day), [passage])).toHaveLength(1);
 });
+
+test('a relative word states no day when the passage writes a day', () => {
+  const options = { publishedOn: '2025-02-24' };
+  const passage = 'Today the ministry said the strike was on 3 February 2025.';
+  expect(unstatedValues(relationFrom('2025-02-24'), [passage], options)).toHaveLength(1);
+});
+
+test('"yesterday" crosses the end of a month and of a year', () => {
+  expect(
+    unstatedValues(relationFrom('2024-12-31'), ['Yesterday a drone hit it.'], {
+      publishedOn: '2025-01-01',
+    }),
+  ).toStrictEqual([]);
+});

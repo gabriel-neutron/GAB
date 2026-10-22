@@ -945,13 +945,16 @@ export const proposeOf = (modelCallId: string | null) =>
           refuse(given.ref, 'an agent cites the stored text, and never words read from an image');
         const cited: Cited[] = [];
         for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
-        // The post date of a stored Telegram post is the day of publication of the document.
+        // The post date of a stored Telegram post is the day of publication, when every cited
+        // document is a post of one day.
+        const postDays = new Set(cited.map((one) => one.postDay));
+        const [onlyPostDay] = postDays;
         const published =
           given.published_on ??
           input.published_on ??
-          cited.find((one) => one.postDay !== null)?.postDay ??
-          undefined;
-        if (published !== undefined && published > latestPublishedOn())
+          (postDays.size === 1 && onlyPostDay !== null ? onlyPostDay : undefined);
+        const asked = given.published_on ?? input.published_on;
+        if (asked !== undefined && asked > latestPublishedOn())
           refuse(given.ref, `published_on ${published} is in the future`);
         const documents = [...new Set(cited.map((one) => one.document))];
         const passages = cited.map((one) => one.passage);
@@ -1044,7 +1047,7 @@ export const proposeOf = (modelCallId: string | null) =>
           excerpt: one.passage,
           context: one.context,
           // The day that the caller gave comes first, then the day in the address.
-          publishedOn: published ?? one.urlDay,
+          publishedOn: published ?? one.postDay ?? one.urlDay,
         })),
       }));
       let verdicts: ReadonlyMap<string, CheckVerdict> | null = null;

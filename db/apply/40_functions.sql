@@ -2880,7 +2880,8 @@ BEGIN
     v_wlabel := w.payload->>'label';
   END IF;
   IF v_wlabel IS NULL THEN
-    RAISE EXCEPTION 'the unit % is no new event', p_waiting USING CONSTRAINT = 'join_waiting';
+    RAISE EXCEPTION 'the unit % is no new event and no occurred_at relation of an event of the '
+                    'record', p_waiting USING CONSTRAINT = 'join_waiting';
   END IF;
   v_dname := regexp_match(d.payload->>'label', c_name);
   v_wname := regexp_match(v_wlabel, c_name);

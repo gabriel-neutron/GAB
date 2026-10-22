@@ -232,13 +232,16 @@ const daysIn = (
       const year = month === null ? null : yearBefore(day, month, publishedOn);
       if (month !== null && year !== null) found.add(dayText(year, month, day));
     };
-    for (const [pattern, back] of RELATIVE_DAYS)
-      if (pattern.test(text)) {
-        const date = new Date(Date.parse(publishedOn) + back * 86_400_000);
-        found.add(dayText(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate()));
-      }
     for (const [, word = '', day] of text.matchAll(MONTH_DAY_NO_YEAR)) add(Number(day), word);
     for (const [, day, word = ''] of text.matchAll(DAY_MONTH_NO_YEAR)) add(Number(day), word);
+    // A relative word counts only when the passage writes no day: with a written day, the
+    // word may speak of another time ("today it said last week").
+    if (found.size === 0)
+      for (const [pattern, back] of RELATIVE_DAYS)
+        if (pattern.test(text)) {
+          const date = new Date(Date.parse(publishedOn) + back * 86_400_000);
+          found.add(dayText(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate()));
+        }
   }
   for (const [, first = '', mark = '', second = '', third = ''] of text.matchAll(NUMERIC_DAY))
     for (const day of numericDays(first, mark, second, third, dayFirst)) found.add(day);
