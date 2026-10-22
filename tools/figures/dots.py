@@ -49,10 +49,12 @@ def build(data, meta, out_dir, grey=False):
         ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: st.num(v, 6)))
         ax.xaxis.set_minor_formatter(NullFormatter())
         lo = min(r["valeur"] for r in rows)
-        span = vmax / lo
+        span = max(vmax / lo, 2)
         ax.set_xlim(lo / span ** 0.05, vmax * span ** (0.05 + st.label_room(chars)))
     else:
-        ax.set_xlim(0, vmax / (1 - st.label_room(chars)))
+        lo = 0 if zero else min(r["valeur"] for r in rows)
+        low = lo if zero else lo - (vmax - lo or abs(lo) or 1) * 0.05
+        ax.set_xlim(low, low + (vmax - low) / (1 - st.label_room(chars)))
     if len(groups) > 1:
         ax.legend(handles=[Line2D([], [], marker=m.marker, color=m.color, linestyle="", label=g)
                            for g, m in zip(groups, marks)],

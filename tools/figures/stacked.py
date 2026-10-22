@@ -26,7 +26,9 @@ def build(data, meta, out_dir, grey=False):
     upper = meta.get("upper", {})
     for p, per_bar in upper.items():
         for b, ub in per_bar.items():
-            if (p, b) not in val or ub < val[(p, b)]:
+            if (p, b) not in val:
+                raise st.StyleError(f"the high bound names no part or bar: {p}, {b}")
+            if ub < val[(p, b)]:
                 raise st.StyleError(f"the high bound of {p} in {b} is below its value")
     fig = st.new_fig(meta.get("height_mm", 34 + 12 * len(bars)))
     ax = fig.add_subplot()
@@ -38,10 +40,12 @@ def build(data, meta, out_dir, grey=False):
         shown = False
         for i, b in enumerate(bars):
             v = val[(p, b)]
-            ax.barh(i, v, left=left[b], height=0.6, color=color, hatch=hatch, edgecolor=st.WHITE, linewidth=2)
+            ink = st.WHITE if st.lightness(color) < 0.55 else st.INK
+            # the hatch takes the ink of the part; a second outline keeps the white gap
+            ax.barh(i, v, left=left[b], height=0.6, color=color, hatch=hatch, edgecolor=ink, linewidth=0)
+            ax.barh(i, v, left=left[b], height=0.6, fill=False, edgecolor=st.WHITE, linewidth=2)
             if v >= THIN_PART:
                 shown = True
-                ink = st.WHITE if st.lightness(color) < 0.55 else st.INK
                 ax.text(left[b] + v / 2, i, st.num(v), ha="center", va="center", color=ink, fontsize=st.TEXT_PT)
             ub = upper.get(p, {}).get(b)
             if ub is not None:
@@ -49,7 +53,7 @@ def build(data, meta, out_dir, grey=False):
                 reach = max(reach, left[b] + ub)
             left[b] += v
         name = p if shown else f"{p} ({' / '.join(st.num_label(val[(p, b)]) for b in bars)})"
-        handles.append(Patch(facecolor=color, hatch=hatch, edgecolor=st.WHITE, label=name))
+        handles.append(Patch(facecolor=color, hatch=hatch, edgecolor=st.WHITE if st.lightness(color) < 0.55 else st.INK, label=name, linewidth=0))
     if upper:
         handles.append(Line2D([], [], color=st.INK, lw=1, marker="|", markersize=6, label=st.word("high")))
     ax.legend(handles=handles, loc="lower left", bbox_to_anchor=(0, 1.0), ncol=4, fontsize=st.TEXT_PT,

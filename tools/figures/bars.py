@@ -4,7 +4,7 @@ Meta keys: highlight (categories whose value is written; the top bar by default)
 (write every value), label_floor (a value under it prints as "<0.1"; 0.1 by default).
 
 Set overlap (UpSet style): one bar per combination of sets, the category named "A + B", the
-value the size of the combination. A combination of one regime takes its hue.
+value the size of the combination. The `regime` column gives the hue, as for any bar.
 """
 import style as st
 from matplotlib.patches import Patch
@@ -18,6 +18,8 @@ def build(data, meta, out_dir, grey=False):
         raise st.StyleError(f"unknown regime: {unknown[0]}")
     st.check_marks([st.REGIMES[r] for r in regimes])
     high = {r["serie"] for r in rows} if meta.get("label_all") else set(meta.get("highlight", [rows[-1]["serie"]]))
+    if not high & {r["serie"] for r in rows}:
+        raise st.StyleError("highlight names no category of the data")
     floor = meta.get("label_floor", 0.1)
 
     def label(v):

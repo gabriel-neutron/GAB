@@ -200,3 +200,21 @@ def test_cli_flags(tmp_path):
     (tmp_path / "d.caption.json").write_text(json.dumps(CAPTION))
     assert figures.main(["bars", str(d), "--out", str(tmp_path)]) == 1
     assert figures.main(["bars", str(d), "--out", str(tmp_path), "--allow-unstored", "--locale", "fr"]) == 0
+
+
+# review fixes
+def test_dots_honours_a_axis_that_does_not_start_at_zero(tmp_path, monkeypatch):
+    seen = caught(monkeypatch)
+    make(tmp_path, "dots", csv_rows("A,a,50", "B,a,60"), {"zero": False, "note": "does not start at zero."})
+    assert seen[0].axes[0].get_xlim()[0] > 0
+
+
+def test_dots_log_with_one_value_and_bars_with_a_wrong_highlight(tmp_path):
+    assert make(tmp_path, "dots", csv_rows("A,a,5"), {"log": True, "note": "ratio scale."})[0].exists()
+    with pytest.raises(st.StyleError, match="highlight"):
+        make(tmp_path, "bars", csv_rows("A,x,1", "B,x,2"), {"highlight": ["Z"]})
+
+
+def test_stacked_names_a_wrong_upper_key(tmp_path):
+    with pytest.raises(st.StyleError, match="names no part"):
+        make(tmp_path, "stacked", stacked_text(4, False), {"upper": {"Z": {"2025": 40}}})
