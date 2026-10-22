@@ -160,9 +160,10 @@ test('a post with a photo and no text is stored', async () => {
     const { posts } = await read(ask, { channel: HANDLE, limit: 1 }, reach);
     expect(posts[0]).toMatchObject({ status: 'stored', text: '', media: ['photo'] });
     expect(store.puts).toHaveLength(1);
-    expect(JSON.parse(Buffer.from(store.puts[0]?.bytes ?? []).toString('utf8')).text).toMatch(
-      /^Post date: \S+Z$/u,
-    );
+    const stored = JSON.parse(Buffer.from(store.puts[0]?.bytes ?? []).toString('utf8')) as {
+      text: string;
+    };
+    expect(stored.text).toMatch(/^Post date: \S+Z$/u);
   });
 });
 

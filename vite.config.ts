@@ -19,6 +19,8 @@ const envText = (): string | undefined => {
   }
 };
 
+const reportDir = process.env['REPORT_DIR'];
+
 export default defineConfig({
   plugins: [
     // External constraint: TanStack Router requires this plugin before the React plugin. The
@@ -29,8 +31,11 @@ export default defineConfig({
     // Departure: the release is the one input that the build takes from the environment, because
     // a release is a folder of the operator and not a file of the repository.
     releaseFolder(process.env['RELEASE_DIR']),
+    // An empty REPORT_DIR also takes the default, so the operator is not left with the root folder.
     reportFolder(
-      process.env['REPORT_DIR'] || path.resolve(import.meta.dirname, 'packages/site/report'),
+      reportDir === undefined || reportDir === ''
+        ? path.resolve(import.meta.dirname, 'packages/site/report')
+        : reportDir,
     ),
     maplibreWorker(),
   ],
