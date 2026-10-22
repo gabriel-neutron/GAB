@@ -37,7 +37,7 @@ Tableau 1. Les instruments de contrôle du port, dates portées par l'acte. Sour
 
 Un chiffre est Non établi lorsqu'aucune source stockée ne le porte. L'auteur écrit « établi » seulement avec deux sources.
 
-![Figure 2 (a). Deux vues du même quai : tonnage](figures/plate-a.svg)
+![Figure 2 (a). Deux vues du même quai : tonnage](figures/plate-c.svg)
 
 ![Figure 2 (b). Deux vues du même quai : quai](figures/plate-b.svg)
 

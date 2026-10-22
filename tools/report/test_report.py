@@ -38,11 +38,12 @@ def page_of(pages, needle):
 
 def test_every_footnote_sits_at_the_foot_of_the_page_of_its_call(tmp_path):
     pages, html = build(tmp_path, source())
-    for body, note in (("la moitié ne dépose", "Registre du port de Brumel"), ("quai nord reste fermé", "Arrêté 2021/9"),
-                       ("1 450 en 2025", "Rapport annuel du port")):
+    for body, note in (("la moitié ne dépose", "p. 3 ; doc_0123456789ab"), ("quai nord reste fermé", "doc_abcdef012345"),
+                       ("1 450 en 2025", "Rapport annuel du port, 2026")):
         p = page_of(pages, body)
-        assert note in pages[p] and pages[p].index(note) > pages[p].index(body)
-        assert note in html
+        # a real foot note comes after the last body text of its page, not just after its call
+        assert "Encadré B1" in pages[p] and pages[p].index(note) > pages[p].index("Encadré B1")
+    assert 'id="fnref-2-2"' in html and html.count('class="back"') == 5
 
 
 def test_a_footnote_with_no_definition_stops_the_build(tmp_path):
@@ -53,7 +54,7 @@ def test_a_footnote_with_no_definition_stops_the_build(tmp_path):
 @pytest.mark.parametrize("filler", range(0, 36))
 def test_no_figure_or_table_caption_is_split_from_its_content(tmp_path, filler):
     pages, _ = build(tmp_path, source(filler))
-    for mark, caption in (("MARK-FIG-A", "Figure 1."), ("MARK-FIG-B", "Figure 2.")):
+    for mark, caption in (("MARK-FIG-A", "Figure 1."), ("MARK-FIG-C", "Figure 2."), ("MARK-FIG-B", "Figure 2.")):
         assert page_of(pages, mark) == page_of(pages, caption)
     assert page_of(pages, "Tableau 1.") == page_of(pages, "Arrêté 2020/1")
 
@@ -65,7 +66,7 @@ def test_every_marker_is_on_the_open_points_page_in_a_draft(tmp_path):
     for marker in ("[À CONFIRMER: mesure ADMIRALTY]", "[LIEN JEU DE DONNÉES]", "[À STOCKER: série mensuelle des escales]",
                    report.RESERVED):
         assert marker in listed
-    assert html.count('class="open"') >= 8
+    assert html.count('class="open"') == 8
     assert page_of(pages, "Points ouverts") == len(pages) - 1
 
 
@@ -80,7 +81,7 @@ def test_title_page_funding_byline_and_running_header(tmp_path):
     pages, html = build(tmp_path, source())
     assert "Auteur Un, Auteure Deux" in pages[0] and "version 0.1" in pages[0]
     assert report.FUNDING in pages[1] and report.FUNDING in html
-    assert "Rapport d'essai sur un port imaginaire" in pages[2] and "1. Résumé" in pages[2]
+    assert "Rapport d’essai sur un port imaginaire" in pages[2] and "1. Résumé" in pages[2]
     assert "FNF logo" not in html and html.count("<img") == 3
 
 
@@ -89,3 +90,11 @@ def test_french_typography_and_confidence_marks(tmp_path):
     assert "\u202f;" in html and "\u00a0:" in html and "1\u202f200" in html and "35,5\u202f%" in html
     for word in report.CONFIDENCE:
         assert f"</span> {word}</span>" in html
+
+
+def test_text_before_the_first_numbered_section_is_kept_and_counted(tmp_path):
+    text = source().replace("## 1. Résumé", "Un avant-propos [À STOCKER: x].\n\n## 1. Résumé", 1)
+    pages, _ = build(tmp_path, text)
+    assert "Un avant-propos" in " ".join(pages) and "[À STOCKER: x]" in pages[-1]
+    with pytest.raises(report.ReportError, match="open marker"):
+        build(tmp_path, source(marker_free=True).replace("subtitle:", "subtitle: [À VÉRIFIER] ", 1), draft=False)

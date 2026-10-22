@@ -24,6 +24,7 @@ table { border-collapse: collapse; width: 100%; }
 th { text-align: left; text-transform: uppercase; letter-spacing: .06em; color: var(--label); border-bottom: 1px solid var(--input); vertical-align: bottom; }
 td { border-bottom: 1px solid var(--border); vertical-align: top; }
 td.num { text-align: right; }
+.plates { display: block; }
 .cover, .verso { display: none; }
 ol.notes { padding-left: 1.5em; color: var(--muted-foreground); }
 .back { margin-left: .4em; }

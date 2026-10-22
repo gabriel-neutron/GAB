@@ -50,8 +50,11 @@ def site_tokens():
     """The light-theme tokens of the site stylesheet, as hex colours."""
     sys.path.insert(0, str(HERE.parent / "figures"))
     from style import oklch
-    root = re.search(r"^:root\s*\{(.*?)^\}", SITE_CSS.read_text(encoding="utf-8"), re.S | re.M).group(1)
-    found = dict(re.findall(r"^\s*--([a-z-]+):\s*(oklch\([^)]*\))", root, re.M))
+    block = re.search(r"^:root\s*\{(.*?)^\}", SITE_CSS.read_text(encoding="utf-8"), re.S | re.M)
+    found = dict(re.findall(r"^\s*--([a-z-]+):\s*(oklch\([^)]*\))", block.group(1), re.M)) if block else {}
+    missing = [k for k in TOKENS if k not in found]
+    if missing:
+        raise ReportError(f"the site stylesheet has no oklch token for: {', '.join(missing)}")
     return {k: oklch(found[k]) for k in TOKENS}
 
 
@@ -66,22 +69,25 @@ def front_matter(text):
 def head_meta(blocks):
     """The title page fields from the blocks before the first numbered section."""
     meta, i = {}, next((i for i, b in enumerate(blocks) if re.match(r"##\s+\d", b)), 0)
+    kept = []
     for b in blocks[:i]:
+        if not (b.startswith("#") or re.match(r"(Auteurs?|Authors?|Date|Version)\s*:", b, re.I) or re.fullmatch(r"\*[^*]+\*", b)):
+            kept.append(b)
         if b.startswith("# "):
             meta["title"] = b[2:].strip()
         elif b.startswith("## "):
             meta.setdefault("subtitle", b[3:].strip())
         for key, value in re.findall(r"^(Auteurs?|Authors?|Date|Version)\s*:\s*(.+)$", b, re.M | re.I):
             meta[{"auteurs": "author", "authors": "author", "auteur": "author"}.get(key.lower(), key.lower())] = value.strip()
-    return meta, blocks[i:]
+    return meta, kept + blocks[i:]
 
 
 def french(text):
     """French typography of one text node: no break before ; ! ? : » % or inside 1 000."""
-    text = re.sub(r"(?<=\S) +([;!?»%])", THIN + r"\1", text)
-    text = re.sub(r"(?<=\S) +:", NBSP + ":", text)
+    text = re.sub(r" +([;!?»%])", THIN + r"\1", text)
+    text = re.sub(r" +:", NBSP + ":", text)
     text = re.sub(r"« +", "«" + THIN, text)
-    text = re.sub(r"(?<=\d) (?=\d{3}\b)", THIN, text)
+    text = re.sub(r"(?<!\d)(\d{1,3}) (?=\d{3}\b)", r"\1" + THIN, text)
     return re.sub(r"(?<=\w)'(?=\w)", "’", text)
 
 
@@ -97,7 +103,7 @@ class Doc:
     def inline(self, text):
         return re.sub(r"^<p>|</p>$", "", self.md(text))
 
-    def dress(self, fragment):
+    def dress(self, fragment, marks=True):
         """Typography, open markers, confidence marks and identifiers, in the text nodes only."""
         pattern = re.compile(rf"(?P<m>{OPEN_MARKER})|(?P<c>\b(?:Non établi|Établi|Probable|Indicatif)\b)"
                              r"|(?P<d>\bdoc_[0-9a-f]{12}\b)")
@@ -107,6 +113,8 @@ class Doc:
                 n = len(self.open) + 1
                 self.open.append((n, m["m"], self.section))
                 return f'<mark class="open" id="op-{n}">{m["m"]}</mark>' if self.draft else m["m"]
+            if m["c"] and not marks:
+                return m["c"]
             if m["c"]:
                 return f'<span class="cw"><span class="pips" aria-hidden="true">{CONFIDENCE[m["c"]]}</span> {m["c"]}</span>'
             return f'<code class="id">{m["d"]}</code>'
@@ -151,7 +159,7 @@ class Doc:
 
     def table(self, block):
         def cell(m):
-            plain = re.sub(r"<[^>]*>", "", m["body"]).strip()
+            plain = re.sub(r"@@[^@]*@@", "", re.sub(r"<[^>]*>", "", m["body"])).strip()
             numeric = re.fullmatch(r"[\d\s.,%  –-]+|\d{4}-\d{2}-\d{2}", plain)
             return f'<td class="num mono">{m["body"]}</td>' if numeric else f'<td>{m["body"]}</td>'
         out = re.sub(r'<td(?: [^>]*)?>(?P<body>.*?)</td>', cell, self.text(block), flags=re.S)
@@ -165,7 +173,7 @@ class Doc:
             i += 1
             if re.fullmatch(r"!\[[^\]]*\]\([^)]+\)", b):
                 plates.append(self.image(b))
-            elif re.match(r"\**(Figure|Tableau)\s+\S+?\.", b):
+            elif re.match(r"\**(Figure|Tableau)\s+\S+?\.(?=\s|\*|$)", b):
                 if plates:
                     out.append(f'<figure><div class="plates">{"".join(plates)}</div>{self.caption(b)}</figure>')
                     plates = []
@@ -185,7 +193,7 @@ class Doc:
     def block(self, b):
         if m := re.match(r"(#{3,6})\s+(?:(\d+(?:\.\d+)*\.?)\s+)?(.*)", b):
             level, num, title = len(m[1]), m[2], m[3]
-            return f'<h{level}>{f"<span class=num>{num}</span> " if num else ""}{self.dress(self.inline(title))}</h{level}>'
+            return f'<h{level}>{f"<span class=num>{num}</span> " if num else ""}{self.dress(self.inline(title), False)}</h{level}>'
         if b.startswith("|"):
             return self.table(b)
         if b.startswith(">"):
@@ -197,19 +205,19 @@ class Doc:
 
     def sections(self, blocks):
         """Split at the second-level headings; return a list of (title, html, notes, reserved)."""
-        groups = []
+        groups = [[None, None, []]]
         for b in blocks:
             if m := re.match(r"##\s+(?:(\d+)\.?\s+)?(.*)", b):
                 groups.append([m[1], m[2], []])
-            elif groups:
+            else:
                 groups[-1][2].append(b)
         out = []
         for num, title, body in groups:
-            if title == NOTES_HEADING:
+            if title == NOTES_HEADING or (title is None and not body):
                 continue
-            self.section = f"{num}. {title}" if num else title
+            self.section = f"{num}. {title}" if num else (title or "")
             self.section_notes.append([])
-            heading = f'<h2>{f"<span class=num>{num}.</span> " if num else ""}{self.dress(self.inline(title))}</h2>'
+            heading = "" if title is None else f'<h2>{f"<span class=num>{num}.</span> " if num else ""}{self.dress(self.inline(title), False)}</h2>'
             inner = self.blocks(body)
             out.append((title, heading + inner, self.section_notes[-1], RESERVED in "\n".join(body)))
         return out
@@ -243,7 +251,7 @@ def open_points(doc):
 
 
 def page(meta, doc, sections, mode, css):
-    esc = lambda key: html.escape(meta.get(key, ""))
+    esc = lambda key: html.escape(french(meta.get(key, "")))
     byline = " · ".join(x for x in (esc("author"), "version " + esc("version") if meta.get("version") else "", esc("date")) if x)
     flag = '<p class="draft-flag">Brouillon</p>' if doc.draft else ""
     return f"""<!doctype html>
@@ -273,8 +281,9 @@ def build(source, figures, out, draft=False, name=None):
     unused = set(notes) - set(doc.order)
     if unused:
         print(f"warning: footnotes defined and never cited: {', '.join(sorted(unused))}", file=sys.stderr)
-    if doc.open and not draft:
-        raise ReportError(f"{len(doc.open)} open marker(s) in a final build; first: {doc.open[0][1]}")
+    raw = re.findall(r"(?<!\^)\[[A-ZÀ-Ý][A-ZÀ-Ý ]{3,}\b[^\]]*\]", source.read_text(encoding="utf-8"))
+    if (doc.open or raw) and not draft:
+        raise ReportError(f"open marker(s) in a final build; first: {(doc.open and doc.open[0][1]) or raw[0]}")
     tokens = site_tokens()
     css = ":root{" + ";".join(f"--{k}:{v}" for k, v in tokens.items()) + "}\n" + (HERE / "report.css").read_text(encoding="utf-8")
     out.mkdir(parents=True, exist_ok=True)
@@ -298,6 +307,8 @@ def main(argv=None):
         build(a.input, a.figures, a.out, a.draft, a.name)
     except (ReportError, FileNotFoundError) as e:
         sys.exit(f"error: {e}")
+    except (ImportError, OSError) as e:
+        sys.exit(f"error: WeasyPrint is not usable ({e.__class__.__name__}); see the install line in the header of this file")
 
 
 if __name__ == "__main__":

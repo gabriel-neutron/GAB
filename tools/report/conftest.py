@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -11,6 +12,8 @@ def pytest_collection_modifyitems(config, items):
     try:
         import weasyprint  # noqa: F401
     except (ImportError, OSError) as e:
+        if os.environ.get("CI"):
+            raise
         skip = pytest.mark.skip(reason=f"WeasyPrint is not usable: {e.__class__.__name__}")
         for item in items:
             item.add_marker(skip)
