@@ -211,6 +211,11 @@ def need_sources(items, what):
             raise StyleError(f"{what} has no source: {it.get('id') or it.get('label') or it.get('date')}")
 
 
+def renderer(fig):
+    """The renderer of a drawn figure; matplotlib 3.11 moved it from the canvas to the figure."""
+    return fig.canvas.get_renderer() if hasattr(fig.canvas, "get_renderer") else fig._get_renderer()
+
+
 def new_fig(height_mm):
     return plt.figure(figsize=(WIDTH_MM * MM, height_mm * MM), layout="constrained")
 

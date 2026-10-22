@@ -31,6 +31,24 @@ ol.notes { padding-left: 1.5em; color: var(--muted-foreground); }
 .funding { border-top: 1px solid var(--border); margin-top: 2em; }
 .openpoints li { margin-bottom: .4em; }
 .openpoints .where { color: var(--label); }
+.badge { font-family: var(--mono); font-size: .75em; white-space: nowrap; border: .5pt solid currentColor; border-radius: 1.5pt; padding: 0 .3em; margin-left: .2em; font-style: normal; font-weight: 700; }
+.badge svg { vertical-align: -.1em; }
+.badge .bl { margin-left: .2em; }
+a.ref { font-family: var(--mono); font-size: .85em; }
+sup.refs { font-family: var(--mono); font-size: .7em; }
+.toc ol, .badge-legend ul { list-style: none; padding: 0; margin: 0 0 1em; }
+.toc li { margin: 0 0 .5em; }
+.badge-legend { border-top: 1px solid var(--border); padding-top: 3mm; margin-top: 8mm; }
+.badge-legend .lt { font-family: var(--mono); font-size: .8em; text-transform: uppercase; letter-spacing: .05em; color: var(--label); margin: 0 0 2mm; }
+.badge-legend li { margin: 0 0 1.5mm; }
+ol.biblio { padding-left: 2.2em; font-size: .9em; }
+ol.biblio li { margin-bottom: 2mm; }
+ol.biblio .url { font-family: var(--mono); font-size: .8em; overflow-wrap: anywhere; }
+figure.panels .plates { display: flex; gap: 4mm; align-items: flex-end; }
+figure.panels .plates img { flex: 1 1 0; min-width: 0; width: 100%; }
+.funding, .funding-text { hyphens: manual; }
+.keyfigures, .annex, .toc { break-before: page; break-after: page; }
+.annex { break-after: auto; }
 .draft-flag { font-family: var(--mono); text-transform: uppercase; letter-spacing: .1em; }
 
 @media screen {
@@ -86,6 +104,7 @@ ol.notes { padding-left: 1.5em; color: var(--muted-foreground); }
   .fn::footnote-call { content: counter(footnote); font: 7pt var(--mono); vertical-align: super; color: var(--foreground); }
   .fn::footnote-marker { content: counter(footnote) ". "; font: 7pt var(--mono); }
   sup.again { font: 7pt var(--mono); }
+  .toc li a::after { content: leader(".") target-counter(attr(href), page); font-family: var(--mono); }
   .reserved { break-before: page; }
   .reserved + section { break-before: page; }
   .funding { margin-top: 8mm; padding-top: 3mm; }
