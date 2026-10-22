@@ -4,7 +4,9 @@
         [--locale fr] [--allow-unstored]
     python tools/figures/figures.py all MANIFEST.json
 
-KIND is line, bars, dots, spread, dumbbell, stacked, table, badge, inference, chain or plate.
+KIND is line, bars, dots, spread, dumbbell, stacked, table, badge, inference, chain, plate, flow, map,
+timeline, step, tiles, dotmatrix, heatgrid or multiples. The caption file may hold size: third, half or full
+(a page fraction); a title of more than 8 words warns.
 The locale is en (default) or fr. A document that is not doc_ and 12 hex characters is refused,
 unless --allow-unstored: then a warning prints and the caption source says "non stocké". The caption
 file defaults to the data file with the suffix .caption.json. A manifest is a list of
@@ -18,8 +20,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 import style as st  # noqa: E402
 
-KINDS = ("line", "bars", "dots", "spread", "dumbbell", "stacked", "table", "badge", "inference", "chain", "plate")
-NEEDS_CAPTION = ("line", "bars", "dots", "spread", "dumbbell", "stacked", "table", "chain", "plate")
+KINDS = ("line", "bars", "dots", "spread", "dumbbell", "stacked", "table", "badge", "inference", "chain", "plate",
+         "flow", "map", "timeline", "step", "tiles", "dotmatrix", "heatgrid", "multiples")
+NEEDS_CAPTION = tuple(k for k in KINDS if k not in ("badge", "inference"))
 
 
 def make(kind, data, caption=None, out="figures-out", grey=False, locale="en", allow_unstored=False):

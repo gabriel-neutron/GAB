@@ -115,11 +115,18 @@ REGIMES = {
 WORDS = {
     "en": {"Figure": "Figure", "Table": "Table", "source": "Source:", "note": "Note:",
            "multi": "Two or more", "US": "US", "view": "View in the dataset", "high": "high bound", "min": "min", "max": "max", "median": "median",
-           "zero": "does not start at zero", "ratio": "ratio scale", "dec": ".", "thou": ","},
+           "zero": "does not start at zero", "ratio": "ratio scale", "dec": ".", "thou": ",",
+           "active": "Active", "stopped": "Stopped", "exempted": "Exempted", "approx": "Approximate location",
+           "basemap": "Base map: Natural Earth", "full": "Condition met", "half": "Condition partly met",
+           "empty": "Condition not met", "undocumented": "Not documented"},
     "fr": {"Figure": "Figure", "Table": "Tableau", "source": "Source :", "note": "Note :",
            "multi": "Deux séries ou plus", "US": "États-Unis", "view": "Voir dans le jeu de données",
            "high": "borne haute", "min": "min", "max": "max", "median": "médiane", "zero": "ne commence pas à zéro", "ratio": "échelle de rapport",
-           "dec": ",", "thou": " "},
+           "dec": ",", "thou": " ",
+           "active": "Actif", "stopped": "Arrêté", "exempted": "Exempté", "approx": "Localisation approximative",
+           "basemap": "Fond de carte : Natural Earth", "full": "Condition remplie",
+           "half": "Condition remplie en partie", "empty": "Condition non remplie",
+           "undocumented": "Non documenté"},
 }
 UNSTORED = "non stocké"
 DOC_ID = re.compile(r"doc_[0-9a-f]{12}")
@@ -179,6 +186,27 @@ register_fonts()
 MONO = ["JetBrains Mono", "DejaVu Sans Mono"]
 _have = {f.name for f in font_manager.fontManager.ttflist}
 MONO_FACE = next(f for f in MONO if f in _have or f == MONO[-1])
+
+
+# Height of a figure by size class, for the page of 160 mm text width: a third, a half or a whole page.
+SIZES = {"third": 80, "half": 120, "full": 240}
+TITLE_WORDS = 8
+
+
+def size_height(meta, default_mm):
+    """The height of the size class named in the caption file; the content height without a class."""
+    if "size" not in meta:
+        return default_mm
+    if meta["size"] not in SIZES:
+        raise StyleError(f"unknown size class: {meta['size']}")
+    return SIZES[meta["size"]]
+
+
+def need_sources(items, what):
+    """A mark with no source key does not go in: no arrow, line or event without a source."""
+    for it in items:
+        if not str(it.get("source", "")).strip():
+            raise StyleError(f"{what} has no source: {it.get('id') or it.get('label') or it.get('date')}")
 
 
 def new_fig(height_mm):
@@ -274,6 +302,8 @@ def caption_html(meta, kind="Figure"):
     miss = [k for k in CAPTION_FIELDS if not str(meta.get(k, "")).strip()]
     if miss:
         raise StyleError(f"the caption lacks: {', '.join(miss)}")
+    if len(str(meta["title"]).split()) > TITLE_WORDS:
+        warnings.warn(f"the title has more than {TITLE_WORDS} words: {meta['title']}", stacklevel=2)
     e = html.escape
     unit = f" ({e(meta['unit'])})" if meta.get("unit") else ""
     source = meta["source"]
