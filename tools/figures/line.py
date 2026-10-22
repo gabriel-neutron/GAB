@@ -25,10 +25,10 @@ def build(data, meta, out_dir, grey=False):
         ys = [pts[periods[i]] for i in xs]
         dashed = s in mirror
         ax.plot(xs, ys, color=m.color, linestyle="--" if dashed else "-", marker=m.marker,
-                markersize=4, linewidth=1.2, markerfacecolor="white" if dashed else m.color,
+                markersize=st.MARKER, linewidth=st.LINE_W, markerfacecolor="white" if dashed else m.color,
                 markeredgecolor=m.color, markevery=[0, len(xs) - 1])
         # start value hollow, end value filled
-        ax.plot(xs[0], ys[0], marker=m.marker, markersize=4, markerfacecolor="white",
+        ax.plot(xs[0], ys[0], marker=m.marker, markersize=st.MARKER, markerfacecolor="white",
                 markeredgecolor=m.color, linestyle="")
         label = f"{s} {st.num(ys[-1])}"
         st.end_label(ax, xs[-1], ys[-1], label, m.color)

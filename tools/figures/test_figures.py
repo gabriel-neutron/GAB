@@ -59,7 +59,7 @@ def _write(tmp_path, name, text):
 def test_dumbbell_and_stacked(tmp_path):
     d = _write(tmp_path, "db.csv", rows("A,2020,5", "A,2025,9", "B,2020,7", "B,2025,3"))
     assert figures.make("dumbbell", d, out=tmp_path)[0].exists()
-    s = _write(tmp_path, "st.csv", rows("X,2025,60", "Y,2025,30", "Z,2025,3", "X,2026,50", "Y,2026,45", "Z,2026,1"))
+    s = _write(tmp_path, "st.csv", rows("X,2025,60", "Y,2025,37", "Z,2025,3", "X,2026,50", "Y,2026,45", "Z,2026,5"))
     assert figures.make("stacked", s, out=tmp_path)[0].exists()
 
 

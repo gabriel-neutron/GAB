@@ -1,11 +1,11 @@
 """Stacked share bars: serie = part, periode = bar, valeur = share. Five parts at most.
 
 Parts take ordered greys, light to dark, with a white gap. Each part is labelled in the bar
-where it is thickest; a part under 4 % is labelled at the right end of that bar.
+where it is thickest; a part under 6 % is labelled at the right end of that bar.
 """
 import style as st
 
-THIN_PART = 4
+THIN_PART = 6
 
 
 def build(data, meta, out_dir, grey=False):
@@ -14,6 +14,11 @@ def build(data, meta, out_dir, grey=False):
     if len(parts) > len(st.GREY_STEPS):
         raise st.StyleError(f"a stacked bar holds {len(st.GREY_STEPS)} parts at most")
     val = {(r["serie"], r["periode"]): r["valeur"] for r in rows}
+    if len(val) != len(parts) * len(bars):
+        raise st.StyleError("each part needs a value in each bar")
+    for b in bars:
+        if abs(sum(val[(p, b)] for p in parts) - 100) > 0.5:
+            raise st.StyleError(f"the parts of {b} do not sum to 100")
     fig = st.new_fig(meta.get("height_mm", 30 + 12 * len(bars)))
     ax = fig.add_subplot()
     st.style_axes(ax, meta.get("unit", ""), value_axis="x")

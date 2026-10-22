@@ -33,9 +33,11 @@ def build(data, meta, out_dir, grey=False):
         words(e["pair"])
         if e["kind"] not in ("fact", "assessment"):
             raise st.StyleError(f"unknown kind: {e['kind']}")
+        if e["from"] not in pos or e["to"] not in pos:
+            raise st.StyleError(f"edge names an unknown node: {e['from']} -> {e['to']}")
         (x1, y1), (x2, y2) = pos[e["from"]], pos[e["to"]]
         ax.annotate("", (x2 - BOX_W / 2, y2), xytext=(x1 + BOX_W / 2, y1), arrowprops=dict(
-            arrowstyle="-|>", color=st.SECOND, lw=1, mutation_scale=8, shrinkA=0, shrinkB=0,
+            arrowstyle="-|>", color=st.SECOND, lw=1, mutation_scale=st.ARROW, shrinkA=0, shrinkB=0,
             linestyle="-" if e["kind"] == "fact" else (0, (4, 3))))
         ax.text((x1 + x2) / 2, (y1 + y2) / 2 + 0.08, f"{e['date']}  {e['pair']}", ha="center",
                 va="bottom", fontsize=st.NOTE_PT, family=st.MONO_FACE, color=st.INK)

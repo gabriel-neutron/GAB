@@ -29,14 +29,14 @@ def build(data, meta, out_dir, grey=False):
         ax.text(0, -0.09, info["scene"], transform=ax.transAxes, va="top", fontsize=st.NOTE_PT, family=st.MONO_FACE)
         ax.text(0, -0.15, info["bands"], transform=ax.transAxes, va="top", fontsize=st.NOTE_PT)
         for m in d.get("marks", []):
-            for lw, color in ((3, "#000000"), (1.2, st.WHITE)):  # dark halo, thin white outline
+            for lw, color in ((3, st.HALO), (1.2, st.WHITE)):  # dark halo, thin white outline
                 ax.add_patch(Rectangle((m["x"], m["y"]), m["w"], m["h"], fill=False, edgecolor=color,
                                        linewidth=lw))
         if i == 1:  # one scale bar and one north arrow, on the last plate
             length = d["scale_bar_m"] / d["pixel_m"]
             ax.plot([w * 0.05, w * 0.05 + length], [h * 0.94] * 2, color=st.WHITE, linewidth=2.5,
                     solid_capstyle="butt")
-            ax.text(w * 0.05, h * 0.9, f"{d['scale_bar_m']:,} m", color=st.WHITE, fontsize=st.NOTE_PT)
+            ax.text(w * 0.05, h * 0.86, f"{d['scale_bar_m']:,} m", color=st.WHITE, fontsize=st.NOTE_PT)
             ax.annotate("N", (w * 0.93, h * 0.08), xytext=(w * 0.93, h * 0.22), color=st.WHITE, ha="center",
                         fontsize=st.NOTE_PT, arrowprops=dict(arrowstyle="-|>", color=st.WHITE, lw=1))
     return st.save(fig, out_dir, meta["stem"], meta, grey)

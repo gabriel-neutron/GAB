@@ -30,6 +30,8 @@ def build(data, meta, out_dir, grey=False):
     head, body = rows[0], rows[1:]
     if not body:
         raise st.StyleError("the table has no row")
+    if any(len(r) != len(head) for r in body):
+        raise st.StyleError("a row has a different number of cells than the header")
     e = html.escape
     numeric = [any(r[i] for r in body) and all(NUMBER.match(r[i]) for r in body if r[i])
                for i in range(len(head))]

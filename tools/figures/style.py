@@ -1,12 +1,13 @@
-"""The shared style of the report figures (ticket 745).
+"""The shared style of the report figures.
 
 Every colour, font and size of a figure comes from this file. A figure script sets none.
-The tokens are the light-theme oklch values of the site stylesheet (`src/index.css`).
+The tokens are the light-theme oklch values of the site stylesheet.
 Fonts: the files in `fonts/` are registered when they exist. Else the face falls back to
 the DejaVu face that ships with matplotlib.
 """
 import csv
 import html
+import warnings
 import json
 import math
 import re
@@ -24,6 +25,8 @@ WIDTH_MM = 160
 MM = 1 / 25.4
 THIN = " "
 TITLE_PT, TEXT_PT, NOTE_PT = 9, 8, 7.5
+LINE_W, MARKER, ARROW = 1.2, 4, 8
+HALO = "#000000"
 # Two grey marks must differ by this much in OKLab lightness to stay apart in grey print.
 MIN_GREY_STEP = 0.12
 CHROMA_LIMIT = 0.03
@@ -126,6 +129,8 @@ def register_fonts():
     for f in (HERE / "fonts").glob("*.[to]tf"):
         font_manager.fontManager.addfont(str(f))
     have = {f.name for f in font_manager.fontManager.ttflist}
+    if "Roboto Condensed" not in have:
+        warnings.warn("Roboto Condensed is not installed: text is measured with DejaVu Sans", stacklevel=2)
     plt.rcParams.update({
         "font.family": "Roboto Condensed" if "Roboto Condensed" in have else "DejaVu Sans",
         "font.size": TEXT_PT, "svg.fonttype": "none", "axes.edgecolor": AXIS,
@@ -190,6 +195,12 @@ def read_data(path):
             r["valeur"] = float(r["valeur"])
         except (KeyError, ValueError) as e:
             raise StyleError(f"line {i}: the value is not a number") from e
+    seen = set()
+    for r in rows:
+        key = (r["serie"], r["periode"])
+        if key in seen:
+            raise StyleError(f"duplicate row: {key}")
+        seen.add(key)
     return rows
 
 
