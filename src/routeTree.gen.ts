@@ -19,7 +19,6 @@ import { Route as MapRouteImport } from './routes/map'
 import { Route as MethodRouteImport } from './routes/method'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SearchRouteImport } from './routes/search'
-import { Route as V1RouteImport } from './routes/v1'
 import { Route as ClaimSplatRouteImport } from './routes/claim.$'
 import { Route as EntityIdRouteImport } from './routes/entity.$id'
 import { Route as RelationSplatRouteImport } from './routes/relation.$'
@@ -75,11 +74,6 @@ const SearchRoute = SearchRouteImport.update({
   path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
-const V1Route = V1RouteImport.update({
-  id: '/v1',
-  path: '/v1',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ClaimSplatRoute = ClaimSplatRouteImport.update({
   id: '/claim/$',
   path: '/claim/$',
@@ -112,7 +106,6 @@ export interface FileRoutesByFullPath {
   '/method': typeof MethodRoute
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
-  '/v1': typeof V1Route
   '/claim/$': typeof ClaimSplatRoute
   '/entity/$id': typeof EntityIdRoute
   '/relation/$': typeof RelationSplatRoute
@@ -129,7 +122,6 @@ export interface FileRoutesByTo {
   '/method': typeof MethodRoute
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
-  '/v1': typeof V1Route
   '/claim/$': typeof ClaimSplatRoute
   '/entity/$id': typeof EntityIdRoute
   '/relation/$': typeof RelationSplatRoute
@@ -147,7 +139,6 @@ export interface FileRoutesById {
   '/method': typeof MethodRoute
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
-  '/v1': typeof V1Route
   '/claim/$': typeof ClaimSplatRoute
   '/entity/$id': typeof EntityIdRoute
   '/relation/$': typeof RelationSplatRoute
@@ -166,7 +157,6 @@ export interface FileRouteTypes {
     | '/method'
     | '/review'
     | '/search'
-    | '/v1'
     | '/claim/$'
     | '/entity/$id'
     | '/relation/$'
@@ -183,7 +173,6 @@ export interface FileRouteTypes {
     | '/method'
     | '/review'
     | '/search'
-    | '/v1'
     | '/claim/$'
     | '/entity/$id'
     | '/relation/$'
@@ -200,7 +189,6 @@ export interface FileRouteTypes {
     | '/method'
     | '/review'
     | '/search'
-    | '/v1'
     | '/claim/$'
     | '/entity/$id'
     | '/relation/$'
@@ -218,7 +206,6 @@ export interface RootRouteChildren {
   MethodRoute: typeof MethodRoute
   ReviewRoute: typeof ReviewRoute
   SearchRoute: typeof SearchRoute
-  V1Route: typeof V1Route
   ClaimSplatRoute: typeof ClaimSplatRoute
   EntityIdRoute: typeof EntityIdRoute
   RelationSplatRoute: typeof RelationSplatRoute
@@ -297,13 +284,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/v1': {
-      id: '/v1'
-      path: '/v1'
-      fullPath: '/v1'
-      preLoaderRoute: typeof V1RouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/claim/$': {
       id: '/claim/$'
       path: '/claim/$'
@@ -346,7 +326,6 @@ const rootRouteChildren: RootRouteChildren = {
   MethodRoute: MethodRoute,
   ReviewRoute: ReviewRoute,
   SearchRoute: SearchRoute,
-  V1Route: V1Route,
   ClaimSplatRoute: ClaimSplatRoute,
   EntityIdRoute: EntityIdRoute,
   RelationSplatRoute: RelationSplatRoute,

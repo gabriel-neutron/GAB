@@ -39,7 +39,7 @@ const SHELL_TITLE = /<title>[^<]*<\/title>/u;
 const TITLE_SUFFIX = ' · GAB dataset';
 
 // The pages that need a script and hold no permanent text: the shell opens them as it is.
-const SCRIPT_PAGES = ['graph', 'search', 'review'] as const;
+const SCRIPT_PAGES = ['graph', 'search'] as const;
 
 const fileManifest = z.object({
   files: z.array(z.object({ path: z.string().regex(/^[\w-][\w.-]*$/u) })),
@@ -128,7 +128,6 @@ const pagesOf = (release: SiteRelease): readonly Page[] => {
     { folder: 'exports', kind: 'text' },
     { folder: 'glossary', kind: 'text' },
     { folder: 'help', kind: 'text' },
-    { folder: 'v1', kind: 'text' },
     ...SCRIPT_PAGES.map((folder) => ({ folder, kind: 'script' as const })),
   ];
   for (const entity of release.entities)
@@ -174,6 +173,7 @@ const mergedPage = (base: string, survivor: NonNullable<Page['survivor']>) => {
 interface RenderedPage {
   readonly html: string;
   readonly title: string;
+  readonly description: string | null;
 }
 
 interface Renderer {
@@ -328,7 +328,13 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
         text = text
           .replace(SHELL_TITLE, () => `<title>${escapeHtml(one.title)}</title>`)
           .replace('</head>', () =>
-            page.sendsTo === undefined ? '</head>' : `${refreshTo(base, page.sendsTo)}</head>`,
+            [
+              one.description === null
+                ? ''
+                : `<meta name="description" content="${escapeHtml(one.description)}" />`,
+              page.sendsTo === undefined ? '' : refreshTo(base, page.sendsTo),
+              '</head>',
+            ].join(''),
           )
           .replace(SHELL_ROOT, () => `<div id="root">${one.html}</div>`);
       }

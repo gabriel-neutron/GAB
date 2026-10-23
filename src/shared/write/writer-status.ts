@@ -24,7 +24,15 @@ const setStatus = (next: WriterStatus): void => {
   });
 };
 
+// A built site with no read service address is the public site of a release (ADR 0028): it has no
+// writer, and a request to the host could only answer 404 and log an error in the console.
+const isPublicSite = (): boolean => {
+  const held: unknown = import.meta.env['VITE_API_URL'];
+  return !import.meta.env.DEV && (typeof held !== 'string' || held.trim() === '');
+};
+
 const ask = async (): Promise<boolean> => {
+  if (isPublicSite()) return false;
   try {
     const reply = await fetch(ADDRESS);
     return reply.ok && answer.safeParse(await reply.json()).success;

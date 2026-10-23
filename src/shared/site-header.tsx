@@ -55,13 +55,15 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
           GAB dataset
         </Link>
       </div>
-      {/* A navigation wider than the screen scrolls in its own row, and never the page. */}
+      {/* A navigation wider than the screen scrolls in its own row, and never the page. On a
+          narrow screen its right edge fades out, which tells the reader that more links follow.
+          shortcut: the fade stays at the end of the scroll; read the scroll when it matters. */}
       <nav
         aria-label="Pages of the site"
-        className="order-1 -mx-2 flex h-9 basis-full items-stretch overflow-x-auto border-t border-border px-1 sm:order-none sm:mx-0 sm:mr-auto sm:h-10 sm:basis-auto sm:border-t-0 sm:px-0"
+        className="order-1 -mx-2 flex h-9 basis-full [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] items-stretch overflow-x-auto border-t border-border px-1 sm:order-none sm:[mask-image:none] sm:mx-0 sm:mr-auto sm:h-10 sm:basis-auto sm:border-t-0 sm:px-0"
       >
         <Link to="/" activeOptions={{ exact: true }} className={PAGE_LINK}>
-          Critical nodes
+          Overview
         </Link>
         <Link
           key={`map${address}`}

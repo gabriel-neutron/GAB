@@ -13,7 +13,11 @@ export function NatoPairMark({ rating }: NatoPairMarkProps) {
   if (!rating.shown) return null;
   if (rating.pair === null)
     return (
-      <span className="text-muted-foreground" data-nato-pair="">
+      <span
+        className="text-muted-foreground"
+        data-nato-pair=""
+        title="No full rating is known for this claim: the author of its source or its credibility is not rated."
+      >
         Not rated
       </span>
     );

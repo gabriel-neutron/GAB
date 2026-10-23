@@ -15,6 +15,8 @@ export type EntityRecordProps =
       readonly mark: (sources: readonly SourceRef[]) => ReactNode;
       /** The address of the claim page of one key, or null where the release holds no such claim. */
       readonly claimHref?: (key: string) => string | null;
+      /** False on a site of a release: a reader sees the readable name and no stored key. */
+      readonly showKey?: boolean;
     }
   | {
       readonly mode: 'writing';
@@ -22,6 +24,7 @@ export type EntityRecordProps =
       readonly mark: (sources: readonly SourceRef[]) => ReactNode;
       readonly claimHref?: (key: string) => string | null;
       readonly onEdit: (key: string, typed: TypedValue) => void;
+      readonly showKey?: boolean;
     };
 
 // Each cell is `grow min-w-0`. At 1200 px the claims flow about 2.6 to a line; at the
@@ -54,10 +57,13 @@ export function EntityRecord(props: EntityRecordProps) {
             title={cell.help === null ? cell.label : `${cell.label}. ${cell.help}`}
           >
             <span className="w-full min-w-0 text-xs break-words text-label">{cell.label}</span>
-            {/* The stored key, in a secondary place, for a reader who looks for the raw word. */}
-            <span className="w-full min-w-0 font-mono break-all text-small/4 text-muted-foreground">
-              {cell.key}
-            </span>
+            {/* The stored key, in a secondary place, for the analyst who looks for the raw word.
+                A reader of a release sees the readable name only. */}
+            {props.showKey === false ? null : (
+              <span className="w-full min-w-0 font-mono break-all text-small/4 text-muted-foreground">
+                {cell.key}
+              </span>
+            )}
           </span>
           <span className="min-w-0 flex-1">
             {onEdit !== null ? (

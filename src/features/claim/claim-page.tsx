@@ -1,11 +1,15 @@
+import { Link } from '@tanstack/react-router';
+
 import { attributeName } from '@gab/release/attribute-name';
 import { claimText } from '@gab/release/claim-text';
+import { valueWords } from '@gab/release/value-elements';
 import { releaseDay } from '@gab/release/release-day';
 import { permanentAddress } from '@gab/release/site-paths';
 import { pairRating, type SiteRelease } from '@gab/release/site-release';
 import { relationWords } from '@gab/proposal/relation-types';
 
 import { EmptyState } from '@/shared/page/empty-state';
+import { LabelBadge } from '@/shared/page/label-badge';
 import { KeyValue, type KeyValueEntry } from '@/shared/page/key-value';
 import { NatoPairMark } from '@/shared/page/nato-pair-mark';
 import { PageHeader } from '@/shared/page/page-header';
@@ -23,6 +27,8 @@ export interface ClaimPageProps {
   /** The address of the page of one claim. */
   readonly claimHref: (id: string) => string;
 }
+
+const NOT_RECORDED = 'not recorded';
 
 type Claim = NonNullable<ReturnType<SiteRelease['claimById']['get']>>;
 
@@ -45,8 +51,8 @@ const factsOf = (
       { key: 'From', value: linkTo(entityHref(relation.fromId), relation.fromLabel) },
       { key: 'Relation', value: relationWords(relation.type, false) },
       { key: 'To', value: linkTo(entityHref(relation.toId), relation.toLabel) },
-      { key: 'Valid from', value: relation.validFrom, figure: true },
-      { key: 'Valid to', value: relation.validTo, figure: true },
+      { key: 'Valid from', value: relation.validFrom ?? NOT_RECORDED, figure: true },
+      { key: 'Valid to', value: relation.validTo ?? NOT_RECORDED, figure: true },
     ];
   }
   return [
@@ -58,7 +64,7 @@ const factsOf = (
       ),
     },
     { key: 'Key', value: attributeName(claim.attribute) },
-    { key: 'Value', value: claim.value },
+    { key: 'Value', value: valueWords(claim.value) },
   ];
 };
 
@@ -101,9 +107,21 @@ export function ClaimPage({ release, claimId, entityHref, claimHref }: ClaimPage
         entries={[
           ...factsOf(claim, entityHref, claimHref),
           ...(rating.shown ? [{ key: 'Rating', value: <NatoPairMark rating={rating} /> }] : []),
-          { key: 'Decided by', value: claim.originLabel },
+          { key: 'Decided by', value: <LabelBadge label={claim.originLabel} /> },
         ]}
       />
+      {rating.shown ? (
+        <p className="max-w-prose text-xs/5 text-muted-foreground">
+          A rating is a letter and a digit. The letter, from A (reliable) to F (cannot be judged),
+          rates the author of the source. The digit, from 1 (confirmed by independent sources) to 6
+          (cannot be judged), rates the credibility of the fact. "Not rated" means that the letter
+          or the digit is not known for this claim. See{' '}
+          <Link to="/method" className={READING_LINK}>
+            the method
+          </Link>
+          .
+        </p>
+      ) : null}
       <details className="text-xs/5">
         <summary className="cursor-pointer text-label">Licence and permanent address</summary>
         <div className="pt-1">

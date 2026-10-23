@@ -15,6 +15,8 @@ export interface RenderedPage {
   readonly html: string;
   /** The title of the document. */
   readonly title: string;
+  /** The description of the page, or null when no route sets one. */
+  readonly description: string | null;
 }
 
 const isPreloadable = (value: unknown): value is { preload: () => Promise<unknown> } =>
@@ -51,10 +53,20 @@ export async function renderPage(address: string): Promise<RenderedPage> {
   let title = 'GAB dataset';
   for (const match of router.state.matches)
     for (const tag of match.meta ?? []) if (typeof tag?.title === 'string') title = tag.title;
+  let description: string | null = null;
+  for (const match of router.state.matches)
+    for (const tag of match.meta ?? [])
+      if (tag?.name === 'description' && typeof tag.content === 'string') description = tag.content;
   const html = renderToString(<RouterProvider router={router} />);
   // A boundary that waits for something gives its notice in place of its text.
   if (html.includes('<!--$?-->') || html.includes('<!--$!-->'))
     throw new Error(`The page ${address} did not render in full.`);
   // `HeadContent` writes the title where it stands, and the document has its own title element.
-  return { html: html.replace(/<title>[^<]*<\/title>/u, ''), title };
+  return {
+    html: html
+      .replace(/<title>[^<]*<\/title>/u, '')
+      .replace(/<meta name="description"[^>]*>/gu, ''),
+    title,
+    description,
+  };
 }

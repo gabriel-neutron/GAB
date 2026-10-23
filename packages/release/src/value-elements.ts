@@ -13,3 +13,6 @@ export const elementsOf = (value: string): readonly string[] => {
   }
   return [value];
 };
+
+/** A value as a reader reads it: the elements of a list in one line, never its JSON text. */
+export const valueWords = (value: string): string => elementsOf(value).join(', ');
