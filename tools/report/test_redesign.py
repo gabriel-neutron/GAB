@@ -226,8 +226,11 @@ Tableau 1. Les contrôles. Source : voir les notes.
 def test_footnotes_without_a_bibliography_print_at_the_foot_and_no_bibliography_page(tmp_path):
     pages, html = build(tmp_path, NO_BIB)
     assert "Bibliographie" not in html and not any("Bibliographie" in p for p in pages)
-    p = page_of(pages, "Un fait")
-    assert pages[p].index("Rapport annuel") > pages[p].index("Trois chiffres")
-    for note in ("Port de Brumel, 2026, p. 4", "Port de Brumel, 2026. ", "Autorité, 2025"):
-        assert note in " ".join(pages)
+    body_end = "Quai"  # the last text of the body: the table row
+    for note in ("Rapport annuel", "Port de Brumel, 2026, p. 4", "Port de Brumel, 2026.", "Autorité, 2025"):
+        p = page_of(pages, note)
+        assert p == page_of(pages, "Un fait"), note  # on the page of its call
+        assert pages[p].rfind(note) > pages[p].index(body_end), note  # after the body, at the foot
     assert re.findall(r'id="fnref-(\d+)-1"', html) == ["1", "2", "3", "4"]
+    # the PDF counter runs 1 to 4 on the one page
+    assert all(f"{n}." in pages[0] + pages[1] + pages[2] for n in (1, 2, 3, 4))
