@@ -38,12 +38,15 @@ test('a provider of an official list decides the type', () => {
   expect(documentType({ uri: null, title: 'x', provider: 'eu_eurlex' })).toBe('legal_act');
 });
 
-test('each type is one of the five', () => {
+test('each type is one of the eight', () => {
   expect(DOCUMENT_TYPES).toStrictEqual([
     'legal_act',
     'register_entry',
     'press_release',
     'report',
+    'telegram_post',
+    'ngo_publication',
+    'news_article',
     'other',
   ]);
 });
@@ -53,4 +56,67 @@ test('the host of an address has no www, and a bad address has none', () => {
   expect(hostOf('https://Sub.Example.org:8080/a')).toBe('sub.example.org');
   expect(hostOf('not an address')).toBeNull();
   expect(hostOf(null)).toBeNull();
+});
+
+// The hosts that the sources of the claims use: the channels and the previews of Telegram, the
+// NGO and think-tank sites, and the news sites. At most 5% of them may be `other`.
+const SOURCE_HOSTS: readonly (readonly [string, string])[] = [
+  ['t.me', 'telegram_post'],
+  ['telegram.me', 'telegram_post'],
+  ['tgstat.ru', 'telegram_post'],
+  ['bruegel.org', 'ngo_publication'],
+  ['globalenergymonitor.org', 'ngo_publication'],
+  ['globalfishingwatch.org', 'ngo_publication'],
+  ['amnesty.org', 'ngo_publication'],
+  ['hrw.org', 'ngo_publication'],
+  ['transparency.org', 'ngo_publication'],
+  ['globalwitness.org', 'ngo_publication'],
+  ['c4ads.org', 'ngo_publication'],
+  ['energyandcleanair.org', 'ngo_publication'],
+  ['kse.ua', 'ngo_publication'],
+  ['reuters.com', 'news_article'],
+  ['bloomberg.com', 'news_article'],
+  ['ft.com', 'news_article'],
+  ['bbc.com', 'news_article'],
+  ['kyivindependent.com', 'news_article'],
+  ['themoscowtimes.com', 'news_article'],
+  ['meduza.io', 'news_article'],
+  ['kommersant.ru', 'news_article'],
+  ['rbc.ru', 'news_article'],
+  ['interfax.ru', 'news_article'],
+  ['tass.ru', 'news_article'],
+  ['lloydslist.com', 'news_article'],
+  ['tradewindsnews.com', 'news_article'],
+  ['splash247.com', 'news_article'],
+  ['theguardian.com', 'news_article'],
+  ['politico.eu', 'news_article'],
+];
+
+test.each(SOURCE_HOSTS)('the host %s is %s', (host, type) => {
+  expect(documentType({ uri: `https://www.${host}/a/b`, title: 'A page', provider: null })).toBe(
+    type,
+  );
+});
+
+test('a sub-domain of a news host is a news article', () => {
+  const uri = 'https://sub.reuters.com/world/x';
+  expect(documentType({ uri, title: 'A page', provider: null })).toBe('news_article');
+});
+
+test('a Telegram address of a post is a telegram post', () => {
+  expect(documentType({ uri: 'https://t.me/s/channel/123', title: 'x', provider: null })).toBe(
+    'telegram_post',
+  );
+});
+
+test('a report on a news host stays a report', () => {
+  const uri = 'https://www.reuters.com/reports/2025';
+  expect(documentType({ uri, title: 'Overview', provider: null })).toBe('report');
+});
+
+test('at most 5% of the hosts of the sources are other', () => {
+  const other = SOURCE_HOSTS.filter(
+    ([host]) => documentType({ uri: `https://${host}/`, title: '', provider: null }) === 'other',
+  );
+  expect(other.length / SOURCE_HOSTS.length).toBeLessThanOrEqual(0.05);
 });
