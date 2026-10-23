@@ -7324,7 +7324,8 @@ $$;
 -- A CITATION BELONGS TO AN ACT, AND NOT TO ONE VALUE OF THE ACT. So a value keeps the passages of
 -- its act in a document that hold the value, compared in lower case on the letters and digits
 -- alone. When no passage of that document holds it, the value keeps each passage of the act in
--- that document. A relation keeps each passage of its act in its documents.
+-- that document. A relation keeps each passage of its act, and of each accepted act that added a
+-- source to it, in its documents.
 CREATE FUNCTION release_claims()
 RETURNS TABLE (claim_id text, subject_kind text, subject_id uuid, attribute text, value jsonb,
                origin_label text, sources text[], act_id uuid, passages jsonb)
@@ -7387,6 +7388,14 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
      WHERE r.id IN (SELECT x.id FROM rel x)
   ), kept AS (
     SELECT c.*,
+           -- The claim of a relation also reads the accepted acts that added a source to it.
+           CASE WHEN c.subject_kind = 'relation' AND c.attribute IS NULL
+                THEN ARRAY[c.act] || ARRAY(SELECT u.id FROM public.proposals u
+                                            WHERE u.status = 'accepted' AND u.op = 'update_relation'
+                                              AND u.target_kind = 'relation'
+                                              AND u.target_id = c.subject_id
+                                              AND u.payload ? 'add_source')
+                ELSE ARRAY[c.act] END AS acts,
            ARRAY(SELECT s.id FROM jsonb_array_elements_text(
                                     CASE jsonb_typeof(c.src) WHEN 'array' THEN c.src
                                          ELSE '[]'::jsonb END) AS s(id)
@@ -7397,7 +7406,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
            END AS words
       FROM claim c
   ), passage AS (
-    SELECT p.* FROM public.cited_passages(ARRAY(SELECT k.act FROM kept k
+    SELECT p.* FROM public.cited_passages(ARRAY(SELECT DISTINCT a FROM kept k, unnest(k.acts) AS a
                                                  WHERE cardinality(k.public_sources) > 0)) p
   ), matched AS (
     SELECT k.claim_id, p.doc_id, p.page, p.cited, p.modality, p.transcribed,
@@ -7405,7 +7414,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
              ' ' || btrim(lower(regexp_replace(p.cited, '[^[:alnum:]]+', ' ', 'g'))) || ' ',
              ' ' || k.words || ' ') > 0, false) AS holds
       FROM kept k
-      JOIN passage p ON p.claim_id = k.act AND p.doc_id = ANY (k.public_sources)
+      JOIN passage p ON p.claim_id = ANY (k.acts) AND p.doc_id = ANY (k.public_sources)
   ), chosen AS (
     SELECT m.*, bool_or(m.holds) OVER (PARTITION BY m.claim_id, m.doc_id) AS some_hold
       FROM matched m
