@@ -98,10 +98,20 @@ describe.each([
     }
   });
 
-  test('the removed pages have no folder', () => {
+  test('a removed page sends the reader to the page that holds its content', () => {
     const { page } = site();
-    for (const folder of ['search', 'downloads', 'method', 'exports', 'glossary', 'help'])
-      expect(() => page(`${folder}/index.html`)).toThrow();
+    for (const [folder, to] of [
+      ['search', 'data'],
+      ['downloads', 'data'],
+      ['method', 'data'],
+      ['glossary', 'data'],
+      ['help', 'data'],
+      ['exports', 'report'],
+    ] as const) {
+      const html = page(`${folder}/index.html`);
+      expect(html).toContain(`<meta http-equiv="refresh" content="0; url=/${to}/">`);
+      expect(html).toContain(`href="/${to}/"`);
+    }
   });
 
   test('the footer of a page gives the version of the release', () => {
