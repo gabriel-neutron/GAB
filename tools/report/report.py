@@ -16,6 +16,8 @@ Colours and fonts come from the `:root` block of `src/index.css`. The PDF engine
 it puts real footnotes at the foot of the page, which a browser print cannot do. It needs the
 Pango library (Debian: `apt-get install libpango-1.0-0 libpangoft2-1.0-0`).
 
+A figure whose image alt text starts with `side: ` floats right at about 81 mm and the text goes on beside it; a float that moves to the next page goes back into the flow at full width. `--theme-css PATH` reads a CSS file after the report CSS.
+
 Redesign layout. The front matter keys `layout: redesign` and `bibliography: FILE` (a JSON file next to
 the input) switch on: numbered references, a cover with the date and the working-version line, a table of contents (parts, figure list) after the cover, the badge line, an
 annex section type, side-by-side panels and the funding sentence once at the end.
@@ -554,6 +556,11 @@ MAX_NOTE_LAG = 1  # pages a note may stand after its call before the build warns
 PARAGRAPH = re.compile(r"<(p|ol)>.*?</\1>", re.S)  # a list is text that a figure may pass; shortcut: a nested list is cut at its first end tag, upgrade if the report nests lists
 
 
+def is_side(fragment):
+    """A figure tag or class string that carries the `side` class: it floats, so it never waits or leaves a blank."""
+    return bool(re.match(r'(<figure class=")?fig side\b', fragment))
+
+
 def delayed(page_html, delays):
     """The page with figure k moved after the next delays[k] paragraphs that follow it.
 
@@ -561,7 +568,7 @@ def delayed(page_html, delays):
     text always follows it."""
     figs = list(FIGURE.finditer(page_html))
     for k in sorted(delays, reverse=True):
-        if "side" in figs[k].group(0)[:40]:
+        if is_side(figs[k].group(0)):
             continue
         m, after, taken = figs[k], figs[k].end(), []
         for _ in range(delays[k]):
@@ -608,7 +615,7 @@ def holes(pdf):
     ordinal, found, prev = 0, [], None
     for page in pdf.pages:
         blocks, foot, height = blocks_of_page(page._page_box)
-        if prev and blocks and blocks[0][0] == "figure" and "side" not in blocks[0][1]:
+        if prev and blocks and blocks[0][0] == "figure" and not is_side(blocks[0][1]):
             before, before_foot = prev
             same_section = before and blocks[0][4] == before[-1][4]
             if same_section and before_foot - max(b[3] for b in before) > FIG_HOLE * height:
@@ -623,7 +630,7 @@ def pushed_floats(pdf):
     ordinal, found = 0, []
     for page in pdf.pages:
         blocks = blocks_of_page(page._page_box)[0]
-        if blocks and blocks[0][0] == "figure" and "side" in blocks[0][1]:
+        if blocks and blocks[0][0] == "figure" and is_side(blocks[0][1]):  # shortcut: a float that opens a page by chance is judged pushed too; a float after a heading is missed
             found.append(ordinal)
         ordinal += sum(1 for b in blocks if b[0] == "figure")
     return found
@@ -635,7 +642,7 @@ def unfloated(page_html, plain):
 
     def fix(m):
         seen.append(1)
-        return m.group(0).replace('class="fig side', 'class="fig', 1) if len(seen) - 1 in plain else m.group(0)
+        return m.group(0).replace(' side"', '"', 1) if len(seen) - 1 in plain else m.group(0)
     return FIGURE.sub(fix, page_html)
 
 

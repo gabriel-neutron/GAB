@@ -542,7 +542,8 @@ figure.panels .plates img {
     margin: calc(1 * var(--u)) 0 calc(3 * var(--u)) 5mm;
   }
   figure.side img {
-    width: 100% !important;
+    width: 100%;
+    height: auto;
   }
   .reserved {
     break-before: page;

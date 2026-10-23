@@ -478,3 +478,35 @@ def test_the_heading_levels_differ_in_size_and_a_section_has_a_rule():
     assert size("section") >= 1.3 * size("body") and size("sub") > size("body")
     assert re.search(r"h2 \{[^}]*border-bottom", css) and not re.search(r"h3 \{[^}]*border-bottom", css)
 
+
+def test_delayed_leaves_a_side_figure_in_place_and_still_moves_a_plain_figure():
+    html = '<p>a</p><figure class="fig side" id="fig-1">1</figure><p>b</p><p>c</p><p>d</p><figure class="fig" id="fig-2">2</figure><p>e</p><p>f</p>'
+    assert report.delayed(html, {0: 2}) == html
+    assert report.delayed(html, {1: 1}) == html.replace('<figure class="fig" id="fig-2">2</figure><p>e</p>', '<p>e</p><figure class="fig" id="fig-2">2</figure>')
+    assert report.is_side('<figure class="fig side" id="fig-1">') and report.is_side("fig side") and not report.is_side('<figure class="fig" id="side-1">')
+    assert report.unfloated(html, {0}).count("fig side") == 0 and report.unfloated(html, {1}) == html
+
+
+def test_a_side_figure_after_plain_figures_goes_back_into_the_flow_by_its_own_ordinal(tmp_path):
+    from weasyprint import HTML
+    tall = tmp_path / "tall.svg"
+    tall.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="230pt" height="640pt" viewBox="0 0 230 640"><rect width="230" height="640" fill="#999"/></svg>', encoding="utf-8")
+    plain = '<figure class="fig" id="fig-1"><img src="' + (SAMPLE / "figures" / "plate-b.svg").as_uri() + '"><p class="caption">Figure 1. Plain.</p></figure>'
+    for n in range(1, 30):
+        page_html = side_html(4, tall, before=n).replace("<figure class=\"fig side\"", plain + '<figure class="fig side"', 1)
+        pushed = report.pushed_floats(HTML(string=page_html).render())
+        if pushed:
+            break
+    else:
+        pytest.fail("no filler length pushes the float to the next page")
+    assert pushed == [1] and report.unfloated(page_html, set(pushed)).count('class="fig side') == 0
+    assert report.unfloated(page_html, set(pushed)).count('class="fig"') == 2
+
+
+def test_a_note_in_a_side_caption_is_on_the_page_of_its_call(tmp_path):
+    text = ("---\ntitle: T\nlayout: redesign\n---\n\n## 1. Section\n\nTexte de la figure 1.\n\n![side: Figure 1](figures/plate-b.svg)\n\n"
+            "Figure 1. Un titre. Source : Port, 2026[^c].\n\n" + "\n\n".join("Un paragraphe de suite. " + "mot " * 50 for _ in range(4)) + "\n\nFin.\n\n[^c]: Autorité portuaire, 2026.\n")
+    pages, html = build(tmp_path, text)
+    assert 'class="fig side"' in html
+    assert [i for i, p in enumerate(pages) if "Autorité portuaire" in p] == [page_of(pages, "Figure 1.")]
+
