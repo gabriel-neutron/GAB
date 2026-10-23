@@ -22,11 +22,11 @@ const namesSet = (text: string): Set<string> =>
 
 const read = (...parts: string[]): string => readFileSync(path.join(ROOT, ...parts), 'utf8');
 
-const server = z.object({
-  type: z.literal('stdio'),
-  command: z.string(),
-  args: z.array(z.string()),
-});
+// The file of the root also names remote servers of the documentation, which have a URL.
+const server = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('stdio'), command: z.string(), args: z.array(z.string()) }),
+  z.object({ type: z.literal('http'), url: z.string() }),
+]);
 
 const claudeFile = z.object({ mcpServers: z.record(z.string(), server) });
 
@@ -44,6 +44,7 @@ const gabServerOf = (folder: string): readonly string[] => {
   const { mcpServers } = claudeFile.parse(JSON.parse(read(folder, '.mcp.json')));
   const gab = mcpServers['gab'];
   if (gab === undefined) throw new Error(`${folder}/.mcp.json names no gab server`);
+  if (gab.type !== 'stdio') throw new Error(`${folder}/.mcp.json gab server is not stdio`);
   expect(gab.command).toBe('node');
   return gab.args;
 };

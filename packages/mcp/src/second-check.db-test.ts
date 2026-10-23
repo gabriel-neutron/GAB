@@ -482,7 +482,7 @@ test('an answer of a bad shape asks no second question, and the batch waits', as
 
   expect(router.checks()).toBe(1);
   expect(run.output.checkFailure).toBe(
-    'the checker failed: the model gave an answer the boundary refuses',
+    'the checker failed: the model gave an answer the boundary refuses (the answer is not JSON text)',
   );
   expect(run.acts[0]).toMatchObject(NO_CHECK);
 });
