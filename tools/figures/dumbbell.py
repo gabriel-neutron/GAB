@@ -13,7 +13,7 @@ def build(data, meta, out_dir, grey=False):
         raise st.StyleError("each category needs a value in both periods")
     st.require_axis_note(meta, True, False)
     cats.sort(key=lambda c: val[(c, periods[1])])
-    fig = st.new_fig(meta.get("height_mm", 16 + 7 * len(cats)))
+    fig = st.new_fig(st.size_height(meta, 16 + 7 * len(cats)))
     ax = fig.add_subplot()
     st.style_axes(ax, meta.get("unit", ""), value_axis="x")
     for i, c in enumerate(cats):

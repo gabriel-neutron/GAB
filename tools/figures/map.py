@@ -64,7 +64,7 @@ def build(data, meta, out_dir, grey=False):
     if bx and not (bx[0] <= lon0 and bx[1] <= lat0 and lon1 <= bx[2] and lat1 <= bx[3]):
         raise st.StyleError(f"the map lies outside the base map: {bx}")
     mid = (lat0 + lat1) / 2
-    fig = st.new_fig(st.size_height(meta, 12 + st.WIDTH_MM * (lat1 - lat0) / ((lon1 - lon0) * math.cos(math.radians(mid)))))
+    fig = st.new_fig(st.size_height(meta, 12 + (st.PAIR_WIDTH_MM if meta.get("size") == "pair" else st.WIDTH_MM) * (lat1 - lat0) / ((lon1 - lon0) * math.cos(math.radians(mid)))))
     ax = fig.add_subplot()
     ax.add_collection(PolyCollection(base["polygons"], facecolors=st.BAND, edgecolors=st.AXIS, linewidths=0.4))
     ax.set_xlim(lon0, lon1)

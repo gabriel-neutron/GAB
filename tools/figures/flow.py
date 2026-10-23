@@ -4,7 +4,8 @@ Data file (JSON): rows (names of the layers, top to bottom), cols (number of col
 nodes [{id, label, col, row, state}], edges [{from, to, source, state, label?}].
 A node state is "solid", "dashed" or "hatched" (hatched: not documented). An edge state is "solid"
 or "dashed". An edge needs a source key, and no edge may touch a hatched node: the report
-draws no arrow where it has no source. Col and row may be fractions. No hue is used.
+draws no arrow where it has no source. The key prints on the arrow; the caption key `edge_keys: false` keeps it
+off the figure when the caption holds the sources. Col and row may be fractions. No hue is used.
 """
 import textwrap
 
@@ -53,9 +54,10 @@ def build(data, meta, out_dir, grey=False):
         ax.annotate("", b, xytext=a, arrowprops=dict(
             arrowstyle="-|>", color=st.SECOND, lw=1, mutation_scale=st.ARROW, shrinkA=0, shrinkB=0,
             linestyle="-" if e.get("state", "solid") == "solid" else (0, (4, 3))))
-        # the source key sits on the arrow: no arrow without its source in view
-        ax.text((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, " ".join(filter(None, (e.get("label"), e["source"]))), ha="center", va="bottom",
-                    fontsize=st.NOTE_PT, color=st.LABEL)
+        # the source key sits on the arrow unless the caption holds it: no arrow without its source
+        text = " ".join(filter(None, (e.get("label"), e["source"] if meta.get("edge_keys", True) else None)))
+        if text:
+            ax.text((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, text, ha="center", va="bottom", fontsize=st.NOTE_PT, color=st.LABEL)
     for n in d["nodes"]:
         x, y, state = n["col"], -n["row"], n.get("state", "solid")
         ax.add_patch(Rectangle((x - bw / 2, y - bh / 2), bw, bh, facecolor=st.WHITE if state != "hatched" else st.BAND,

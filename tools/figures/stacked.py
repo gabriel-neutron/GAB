@@ -30,7 +30,7 @@ def build(data, meta, out_dir, grey=False):
                 raise st.StyleError(f"the high bound names no part or bar: {p}, {b}")
             if ub < val[(p, b)]:
                 raise st.StyleError(f"the high bound of {p} in {b} is below its value")
-    fig = st.new_fig(meta.get("height_mm", 34 + 12 * len(bars)))
+    fig = st.new_fig(st.size_height(meta, 34 + 12 * len(bars)))
     ax = fig.add_subplot()
     st.style_axes(ax, meta.get("unit", ""), value_axis="x")
     left = {b: 0.0 for b in bars}

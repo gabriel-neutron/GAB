@@ -17,7 +17,7 @@ def build(data, meta, out_dir, grey=False):
     if imgs["before"].shape[:2] != imgs["after"].shape[:2]:
         raise st.StyleError("the two images must have the same size")
     h, w = imgs["before"].shape[:2]
-    fig = st.new_fig(meta.get("height_mm", 20 + 70 * h / w))
+    fig = st.new_fig(st.size_height(meta, 20 + 70 * h / w))
     for i, k in enumerate(("before", "after")):
         ax = fig.add_subplot(1, 2, i + 1)
         ax.imshow(imgs[k], cmap="gray" if imgs[k].ndim == 2 else None)

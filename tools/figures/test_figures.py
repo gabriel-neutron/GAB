@@ -111,3 +111,33 @@ def test_manifest_makes_all(tmp_path):
     m.write_text(json.dumps([{"kind": "line", "data": "line.csv"}, {"kind": "bars", "data": "bars.csv"}]))
     assert figures.main(["all", str(m), "--out", str(tmp_path / "o")]) == 0
     assert (tmp_path / "o" / "line.svg").exists() and (tmp_path / "o" / "bars.png").exists()
+
+
+def _size_of(svg):
+    head = re.search(r"<svg[^>]*>", svg.read_text(encoding="utf-8")).group(0)
+    return [float(re.search(rf' {a}="([\d.]+)pt"', head).group(1)) / 72 * 25.4 for a in ("width", "height")]
+
+
+@pytest.mark.parametrize("size,w,h", [("third", 160, 70), ("half", 160, 110), ("full", 160, 210), ("pair", 78, 80)])
+def test_size_class_sets_the_page_size_of_every_kind(tmp_path, size, w, h):
+    cap = json.loads((FIX / "bars.caption.json").read_text()) | {"size": size}
+    (tmp_path / "c.json").write_text(json.dumps(cap))
+    svg = figures.make("bars", FIX / "bars.csv", tmp_path / "c.json", tmp_path)[0]
+    assert _size_of(svg) == pytest.approx([w, h], abs=0.3)
+
+
+def test_a_width_of_one_figure_does_not_leak_to_the_next(tmp_path):
+    cap = json.loads((FIX / "bars.caption.json").read_text())
+    (tmp_path / "p.json").write_text(json.dumps(cap | {"size": "pair"}))
+    figures.make("bars", FIX / "bars.csv", tmp_path / "p.json", tmp_path / "a")
+    svg = figures.make("bars", FIX / "bars.csv", FIX / "bars.caption.json", tmp_path / "b")[0]
+    assert _size_of(svg)[0] == pytest.approx(160, abs=0.3)
+
+
+def test_height_mm_overrides_the_class_and_an_unknown_class_stops(tmp_path):
+    cap = json.loads((FIX / "bars.caption.json").read_text())
+    (tmp_path / "c.json").write_text(json.dumps(cap | {"size": "half", "height_mm": 55}))
+    assert _size_of(figures.make("bars", FIX / "bars.csv", tmp_path / "c.json", tmp_path)[0])[1] == pytest.approx(55, abs=0.3)
+    (tmp_path / "d.json").write_text(json.dumps(cap | {"size": "huge"}))
+    with pytest.raises(st.StyleError, match="unknown size class"):
+        figures.make("bars", FIX / "bars.csv", tmp_path / "d.json", tmp_path)

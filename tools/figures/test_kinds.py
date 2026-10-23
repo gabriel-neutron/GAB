@@ -218,3 +218,9 @@ def test_dots_log_with_one_value_and_bars_with_a_wrong_highlight(tmp_path):
 def test_stacked_names_a_wrong_upper_key(tmp_path):
     with pytest.raises(st.StyleError, match="names no part"):
         make(tmp_path, "stacked", stacked_text(4, False), {"upper": {"Z": {"2025": 40}}})
+
+
+def test_dots_label_max_writes_only_the_larger_value_of_each_category(tmp_path):
+    text = csv_rows("A,value,81", "A,quantity,63", "B,value,33", "B,quantity,47")
+    svg = make(tmp_path, "dots", text, {"labels": "max", "note": "Synthetic."})[0].read_text(encoding="utf-8")
+    assert ">81<" in svg and ">47<" in svg and ">63<" not in svg and ">33<" not in svg

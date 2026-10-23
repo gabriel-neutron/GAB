@@ -106,13 +106,12 @@ def test_contents_follow_the_cover_and_the_key_figures_page_follows_the_contents
     assert re.search(r"Annexe B\..*?\.{5,}\s*\d+", toc)
 
 
-def test_annexes_start_a_page_after_the_bibliography(tmp_path):
+def test_the_bibliography_follows_the_annexes(tmp_path):
     pages, _ = build(tmp_path)
     bibliography = page_of(pages, "consulté le")
-    a, b = (page_of(pages, f"Annexe {x}. ") for x in "AB")
     ann_a = [i for i, t in enumerate(pages) if "Un tableau long viendrait ici" in t][0]
     ann_b = [i for i, t in enumerate(pages) if "Une note de méthode longue" in t][0]
-    assert bibliography < ann_a < ann_b
+    assert ann_a < ann_b < bibliography
 
 
 def test_the_funding_sentence_prints_once_at_the_end(tmp_path):
@@ -175,3 +174,23 @@ def test_a_bad_bibliography_file_stops_the_build_with_a_clear_error(tmp_path):
 def test_the_funding_and_a_short_identifier_check(tmp_path):
     with pytest.raises(report.ReportError, match="document identifier"):
         build(tmp_path, sample("Le registre ne couvre", "Voir doc_abc. Le registre ne couvre"))
+
+
+def test_a_figure_prints_at_its_own_width_and_two_wide_figures_stack(tmp_path):
+    wide = "![a](figures/plate-a.svg)\n\n![a](figures/plate-a.svg)\n\n**Figure 9.** Deux vues larges. Source : [@port].\n\n"
+    text = (SAMPLE / "redesign.md").read_text(encoding="utf-8").replace("## 2.", wide + "## 2.", 1)
+    _, html = build(tmp_path, text)
+    assert html.count('class="fig panels"') == 1  # the narrow pair of the sample only
+    assert "--w:160.0mm" in html and "--w:78.0mm" in html
+
+
+def test_natural_mm_reads_pt_then_the_viewbox_in_mm(tmp_path):
+    (tmp_path / "pt.svg").write_text('<svg width="453.543307pt" height="10pt" viewBox="0 0 453.5 10">', encoding="utf-8")
+    (tmp_path / "mm.svg").write_text('<svg viewBox="0 0 80 134" width="960" height="1608">', encoding="utf-8")
+    (tmp_path / "big.svg").write_text('<svg viewBox="0 0 453 170" width="453">', encoding="utf-8")
+    assert report.natural_mm(tmp_path / "pt.svg") == pytest.approx(160, abs=0.01)
+    assert report.natural_mm(tmp_path / "mm.svg") == 80
+    assert report.natural_mm(tmp_path / "big.svg") == report.PAGE_MM
+    assert report.natural_mm(tmp_path / "none.svg") == report.PAGE_MM
+    (tmp_path / "broken.svg").write_text("not an svg", encoding="utf-8")
+    assert report.natural_mm(tmp_path / "broken.svg") == report.PAGE_MM

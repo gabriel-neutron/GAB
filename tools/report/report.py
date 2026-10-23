@@ -66,11 +66,27 @@ BADGES = {
     "Non établi": ("N", RING + ' stroke-dasharray="1.6 1.4"/>', "aucune source stockée ne le porte"),
 }
 TOKENS = ("background", "foreground", "muted", "muted-foreground", "label", "border", "input")
+PAGE_MM, GUTTER_MM = 160, 4  # width of the text block of the A4 page; gap between two side-by-side figures
 NBSP, THIN = " ", " "
 
 
 class ReportError(ValueError):
     """The input breaks a rule of the report."""
+
+
+def natural_mm(svg):
+    """Width in mm of a figure drawn at its printed size. The figure tool writes pt; a handmade figure has a viewBox in mm."""
+    if not svg.exists():
+        return PAGE_MM
+    found = re.search(r"<svg[^>]*>", svg.read_text(encoding="utf-8"))
+    if not found:
+        return PAGE_MM
+    head = found.group(0)
+    width = re.search(r'\swidth="([\d.]+)pt"', head)
+    if width:
+        return float(width.group(1)) * 25.4 / 72
+    box = re.search(r'viewBox="[\d.]+ [\d.]+ ([\d.]+) [\d.]+"', head)
+    return min(float(box.group(1)), PAGE_MM) if box else PAGE_MM
 
 
 def site_tokens():
@@ -210,12 +226,14 @@ class Doc:
         return re.sub(r"@@BADGE:(?P<level>[^@]+)@@", self.badge, out)
 
     def image(self, block):
+        """The img tag and the width of the figure in mm."""
         alt, path = re.fullmatch(r"!\[([^\]]*)\]\(([^)]+)\)", block).groups()
         stem = Path(path).stem
         for ext, mime in ((".svg", "image/svg+xml"), (".png", "image/png")):
             if (self.figures / (stem + ext)).exists():
                 data = base64.b64encode((self.figures / (stem + ext)).read_bytes()).decode()
-                return f'<img alt="{html.escape(alt)}" src="data:{mime};base64,{data}">'
+                mm = natural_mm(self.figures / (stem + ".svg"))
+                return (f'<img alt="{html.escape(alt)}" style="--w:{mm:.1f}mm" src="data:{mime};base64,{data}">', mm)
         raise ReportError(f"figure file not found: {stem}.svg or {stem}.png in {self.figures}")
 
     def caption(self, block):
@@ -246,8 +264,8 @@ class Doc:
                 plates.append(self.image(b))
             elif re.match(r"\**(Figure|Tableau)\s+\S+?\.(?=\s|\*|$)", b):
                 if plates:
-                    side = " panels" if self.redesign and len(plates) > 1 else ""
-                    out.append(f'<figure class="fig{side}"><div class="plates">{"".join(plates)}</div>{self.caption(b)}</figure>')
+                    side = " panels" if self.redesign and len(plates) > 1 and sum(mm for _, mm in plates) <= PAGE_MM + GUTTER_MM else ""
+                    out.append(f'<figure class="fig{side}"><div class="plates">{"".join(h for h, _ in plates)}</div>{self.caption(b)}</figure>')
                     plates = []
                 elif i < len(blocks) and blocks[i].startswith("|"):
                     out.append(f'<div class="tablebox">{self.caption(b)}{self.table(blocks[i])}</div>')
@@ -334,13 +352,13 @@ def bibliography_section(doc):
 
 
 def arrange(sections, doc):
-    """The order of the redesign: sections, bibliography, annexes, then the funding sentence once."""
+    """The order of the redesign: sections, annexes, bibliography, then the funding sentence once."""
     funding = [x for x in sections if x[0] == FUNDING_HEADING]
     rest = [x for x in sections if x[0] != FUNDING_HEADING]
     main, annex = [x for x in rest if x[4] != "annex"], [x for x in rest if x[4] == "annex"]
     bib = [bibliography_section(doc)] if doc.refs else []
     end = funding or [(FUNDING_HEADING, f"<h2>{FUNDING_HEADING}</h2><p>{FUNDING}</p>", [], False, "", FUNDING_HEADING)]
-    return main + bib + annex + end
+    return main + annex + bib + end
 
 
 def contents(sections, doc):

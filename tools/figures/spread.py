@@ -35,7 +35,7 @@ def build(data, meta, out_dir, grey=False):
     st.require_axis_note(meta, zero, False)
     stats = {g: summary([r for r in rows if r["serie"] == g]) for g in st.order(rows, "serie")}
     groups = sorted(stats, key=lambda g: stats[g][0][2])
-    fig = st.new_fig(meta.get("height_mm", 22 + 9 * len(groups)))
+    fig = st.new_fig(st.size_height(meta, 22 + 9 * len(groups)))
     ax = fig.add_subplot()
     st.style_axes(ax, meta.get("unit", ""), value_axis="x")
     for i, g in enumerate(groups):
