@@ -191,7 +191,9 @@ def test_natural_mm_reads_pt_then_the_viewbox_in_mm(tmp_path):
     assert report.natural_mm(tmp_path / "pt.svg") == pytest.approx(160, abs=0.01)
     assert report.natural_mm(tmp_path / "mm.svg") == 80
     assert report.natural_mm(tmp_path / "big.svg") == report.PAGE_MM
+    (tmp_path / "none.svg").write_text("<svg>", encoding="utf-8")
     assert report.natural_mm(tmp_path / "none.svg") == report.PAGE_MM
+    assert report.aspect_of(tmp_path / "none") == 1.0
     (tmp_path / "broken.svg").write_text("not an svg", encoding="utf-8")
     assert report.natural_mm(tmp_path / "broken.svg") == report.PAGE_MM
 
