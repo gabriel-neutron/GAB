@@ -51,6 +51,7 @@ from pathlib import Path
 import markdown
 
 HERE = Path(__file__).parent
+SITE_CSS = HERE.parents[1] / "src" / "index.css"
 FUNDING = ("This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. "
            "The author(s) are solely responsible for the content and conclusions presented.")
 NOTES_HEADING = "Sources par note"
