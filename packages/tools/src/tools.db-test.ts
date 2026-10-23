@@ -2374,3 +2374,41 @@ test('read_duplicate_identifiers flags two entities with one INN, and not a thir
     expect(mine[0]?.entities.map((one) => one.id).sort()).toStrictEqual([a, b].sort());
   });
 });
+
+// ------------------------------------------------------ read_event_pairs ---
+
+test('read_event_pairs flags a Latin and a Cyrillic event of one site and day', async () => {
+  await rolledBack('superuser', async (ask) => {
+    const made = z.array(z.object({ id: z.uuid() }));
+    const plant = async (label: string): Promise<string> => {
+      await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+      const [act] = made.parse(
+        await ask(`SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::text[]) AS id`, [
+          'create_entity',
+          JSON.stringify({ type: 'event', label }),
+        ]),
+      );
+      await ask('RESET SESSION AUTHORIZATION');
+      const [row] = made.parse(
+        await ask(
+          `INSERT INTO public.entities (type, label, attrs, sources, promoted_from)
+           VALUES ('event', $1, '{}'::jsonb, ARRAY['manual']::doc_id[], $2) RETURNING id`,
+          [label, act?.id],
+        ),
+      );
+      if (row === undefined) throw new Error('no entity came back');
+      return row.id;
+    };
+    const a = await plant('fire — Volgograd — 2031-01-02');
+    const b = await plant('fire — Волгоград — 2031-01-02');
+    await plant('fire — Волгоград — 2031-01-03');
+    const found = z
+      .object({
+        pairs: z.array(z.object({ day: z.string(), events: z.array(z.object({ id: z.uuid() })) })),
+      })
+      .parse(await output(ask, 'read_event_pairs', {}));
+    const mine = found.pairs.filter((pair) => pair.day === '2031-01-02');
+    expect(mine).toHaveLength(1);
+    expect(mine[0]?.events.map((one) => one.id).sort()).toStrictEqual([a, b].sort());
+  });
+});

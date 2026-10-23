@@ -1,4 +1,4 @@
-import { readName } from './transliteration-key.ts';
+import { readName } from '@gab/text/transliteration-key';
 
 /** One name of an entity of the record: its label, or one of its other names. */
 export interface EntityName {

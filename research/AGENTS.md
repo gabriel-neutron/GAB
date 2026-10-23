@@ -21,6 +21,8 @@ session: each proposal waits in the review queue, and the operator decides it th
   `list_proposals`, `list_entities` (the entities of one type in pages, with the count of those that
   hold a key and of those that do not), `read_duplicate_identifiers` (the entities that share an
   INN, an OGRN, an IMO number or a LEI; it flags, and you send each group to a reviewer).
+  `read_event_pairs` (the events with one kind, one day and one site in two scripts; it flags, and
+  you send each group to a reviewer).
 - Read the documents: `find_document`, `document_text`, `file_schema_sample` (the header and the
   first rows of a stored CSV table), `job_status`.
 - Find leads on the web: `web_search`, `news_search`.

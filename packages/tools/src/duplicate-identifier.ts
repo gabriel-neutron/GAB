@@ -14,11 +14,7 @@ export interface EntityIdentifiers {
 export interface DuplicateGroup {
   readonly key: (typeof UNIQUE_KEYS)[number];
   readonly value: string;
-  readonly entities: readonly {
-    readonly id: string;
-    readonly label: string;
-    readonly type: string;
-  }[];
+  readonly entities: { readonly id: string; readonly label: string; readonly type: string }[];
 }
 
 const valuesOf = (held: unknown): string[] =>
