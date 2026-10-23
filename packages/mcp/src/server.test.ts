@@ -95,6 +95,7 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "list_vocabulary: read",
       "list_entities: read",
       "read_duplicate_identifiers: read",
+      "read_event_pairs: read",
       "list_proposals: read",
       "find_document: read",
       "document_text: read",
