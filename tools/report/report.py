@@ -558,7 +558,7 @@ PARAGRAPH = re.compile(r"<(p|ol)>.*?</\1>", re.S)  # a list is text that a figur
 
 
 def is_side(fragment):
-    """A figure tag or class string that carries the `side` class: it floats, so it never waits or leaves a blank."""
+    """A figure tag or class string that carries the `side` class."""
     return bool(re.match(r'(<figure class=")?fig side\b', fragment))
 
 
@@ -569,8 +569,6 @@ def delayed(page_html, delays):
     text always follows it."""
     figs = list(FIGURE.finditer(page_html))
     for k in sorted(delays, reverse=True):
-        if is_side(figs[k].group(0)):
-            continue
         m, after, taken = figs[k], figs[k].end(), []
         for _ in range(delays[k]):
             p = PARAGRAPH.match(page_html, after)
@@ -616,7 +614,7 @@ def holes(pdf):
     ordinal, found, prev = 0, [], None
     for page in pdf.pages:
         blocks, foot, height = blocks_of_page(page._page_box)
-        if prev and blocks and blocks[0][0] == "figure" and not is_side(blocks[0][1]):
+        if prev and blocks and blocks[0][0] == "figure":
             before, before_foot = prev
             same_section = before and blocks[0][4] == before[-1][4]
             if same_section and before_foot - max(b[3] for b in before) > FIG_HOLE * height:
@@ -633,7 +631,7 @@ def pushed_floats(pdf):
     ordinal, found = 0, []
     for page in pdf.pages:
         blocks = blocks_of_page(page._page_box)[0]
-        text_end = max((b[3] for b in blocks[1:]), default=0)
+        text_end = max((b[3] for b in blocks[1:] if b[0] in ("p", "ol")), default=0)
         if blocks and blocks[0][0] == "figure" and is_side(blocks[0][1]) and text_end < blocks[0][3] - HANG_MM * 96 / 25.4:  # shortcut: a float after a heading is missed
             found.append(ordinal)
         ordinal += sum(1 for b in blocks if b[0] == "figure")
