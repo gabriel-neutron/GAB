@@ -307,6 +307,10 @@ class Doc:
                 return (html.escape(alt), f"data:{mime};base64,{data}", mm, aspect_of(self.figures / (stem + ext)))
         raise ReportError(f"figure file not found: {stem}.svg or {stem}.png in {self.figures}")
 
+    def anchor(self):
+        """The id that the figure list links to: the caption just listed."""
+        return f' id="fig-{len(self.listed)}"' if self.redesign else ""
+
     def caption(self, block):
         raw = block.replace("**", "")
         label, rest = re.match(r"((?:Figure|Tableau)\s+\S+?\.)\s*(.*)$", raw, re.S).groups()
@@ -372,14 +376,15 @@ class Doc:
                 if plates:
                     side, row = self.plates_html(plates)
                     cap = self.caption(b)
-                    out.append(f'<figure class="fig{" panels" if side else ""}" id="fig-{len(self.listed)}">{row}{cap}</figure>')
+                    out.append(f'<figure class="fig{" panels" if side else ""}"{self.anchor()}>{row}{cap}</figure>')
                     plates = []
                 elif i < len(blocks) and blocks[i].startswith("|"):
                     cap = self.caption(b)
-                    out.append(f'<div class="tablebox" id="fig-{len(self.listed)}">{cap}{self.table(blocks[i])}</div>')
+                    out.append(f'<div class="tablebox"{self.anchor()}>{cap}{self.table(blocks[i])}</div>')
                     i += 1
                 else:
-                    out.append(self.caption(b))
+                    cap = self.caption(b)
+                    out.append(f"<div{self.anchor()}>{cap}</div>" if self.redesign else cap)
             else:
                 if plates:
                     raise ReportError("a figure has no caption")
@@ -636,6 +641,8 @@ def reflow(page_html, base_url):
         fresh |= low
         for k in moves:
             delays[k] = delays.get(k, 0) + 1
+    else:
+        print(f"warning: the layout did not settle in {MAX_PASSES} passes: a blank or a late heading may remain", file=sys.stderr)
     for n, page in enumerate(pdf.pages, 1):
         blocks, foot, height = blocks_of_page(page._page_box)
         blank = (foot - max((b[3] for b in blocks), default=foot)) / height
