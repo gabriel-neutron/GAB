@@ -128,3 +128,10 @@ def test_a_panel_title_with_its_own_letter_gives_the_letter_once():
     fig, ax = plt.subplots()
     st.panel_title(ax, "b. Other goods", letter="A")
     assert sorted(t.get_text() for t in ax.texts) == ["B", "Other goods"]
+
+
+def test_a_capital_initial_is_not_a_panel_prefix():
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    st.panel_title(ax, "U. S. exports", letter="A")
+    assert sorted(t.get_text() for t in ax.texts) == ["A", "U. S. exports"]
