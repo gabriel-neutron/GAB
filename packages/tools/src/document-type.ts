@@ -7,6 +7,9 @@ export const DOCUMENT_TYPES = [
   'register_entry',
   'press_release',
   'report',
+  'official_publication',
+  'reference',
+  'company_publication',
   'telegram_post',
   'ngo_publication',
   'news_article',
@@ -46,13 +49,21 @@ interface Rule {
 const RULES: readonly Rule[] = [
   {
     type: 'legal_act',
-    host: /^(?:eur-lex\.europa\.eu|publications\.europa\.eu|legislation\.gov\.uk|federalregister\.gov|pravo\.gov\.ru|publication\.pravo\.gov\.ru|laws-lois\.justice\.gc\.ca)$/u,
+    host: /^(?:eur-lex\.europa\.eu|publications\.europa\.eu|legislation\.gov\.uk|federalregister\.gov|pravo\.gov\.ru|publication\.pravo\.gov\.ru|laws-lois\.justice\.gc\.ca|govinfo\.gov)$/u,
     title:
       /^(?:(?:council|commission)(?: implementing| delegated)? (?:regulation|decision|directive)|executive order|regulation \(|directive \(|the [^.]{0,80}(?:order|regulations) \d{4})\b/iu,
   },
   {
     type: 'register_entry',
-    host: /(?:^|\.)(?:opencorporates\.com|gleif\.org|company-information\.service\.gov\.uk|egrul\.nalog\.ru|sanctionslistservice\.ofac\.treas\.gov|opensanctions\.org)$/u,
+    host: /(?:^|\.)(?:opencorporates\.com|gleif\.org|company-information\.service\.gov\.uk|egrul\.nalog\.ru|sanctionslistservice\.ofac\.treas\.gov|sanctionssearch\.ofac\.treas\.gov|ofac\.treasury\.gov|sanctionslist\.fcdo\.gov\.uk|search-uk-sanctions-list\.service\.gov\.uk|opensanctions\.org)$/u,
+  },
+  {
+    type: 'reference',
+    host: /(?:^|\.)(?:wikipedia\.org|wikidata\.org|gem\.wiki|openstreetmap\.org)$/u,
+  },
+  {
+    type: 'company_publication',
+    host: /(?:^|\.)(?:rosneft\.com|rosneft\.de|lukoil\.com|tupras\.com\.tr|cpc-online\.ru|mero\.cz)$/u,
   },
   {
     type: 'telegram_post',
@@ -64,7 +75,7 @@ const RULES: readonly Rule[] = [
   },
   {
     type: 'news_article',
-    host: /(?:^|\.)(?:reuters\.com|bloomberg\.com|ft\.com|bbc\.com|bbc\.co\.uk|kyivindependent\.com|themoscowtimes\.com|meduza\.io|kommersant\.ru|rbc\.ru|interfax\.ru|tass\.ru|lloydslist\.com|tradewindsnews\.com|splash247\.com|theguardian\.com|politico\.eu|nytimes\.com|wsj\.com|ukrinform\.net|ria\.ru|kyivpost\.com|sputnikglobe\.com|pravda\.com\.ua)$/u,
+    host: /(?:^|\.)(?:reuters\.com|bloomberg\.com|ft\.com|bbc\.com|bbc\.co\.uk|kyivindependent\.com|themoscowtimes\.com|meduza\.io|kommersant\.ru|rbc\.ru|interfax\.ru|tass\.ru|lloydslist\.com|tradewindsnews\.com|splash247\.com|theguardian\.com|politico\.eu|nytimes\.com|wsj\.com|ukrinform\.net|ria\.ru|kyivpost\.com|sputnikglobe\.com|pravda\.com\.ua|ukrinform\.ua|gcaptain\.com|economictimes\.indiatimes\.com)$/u,
   },
   {
     type: 'press_release',
@@ -76,6 +87,10 @@ const RULES: readonly Rule[] = [
     address: /\/reports?(?:\/|$|\?|-)/iu,
     title: /\b(?:report|annual review|white paper)\b/iu,
   },
+  {
+    type: 'official_publication',
+    host: /(?:^|\.)(?:gov\.uk|treasury\.gov|state\.gov|kremlin\.ru|gur\.gov\.ua)$/u,
+  },
 ];
 
 const matches = (rule: Rule, host: string | null, address: string, title: string): boolean =>
@@ -83,11 +98,18 @@ const matches = (rule: Rule, host: string | null, address: string, title: string
   rule.address?.test(address) === true ||
   rule.title?.test(title) === true;
 
+// An archive keeps the page of another host: the address of that page follows in the path.
+const ARCHIVE_HOST = /^(?:web\.archive\.org|archive\.ph|archive\.is)$/u;
+const KEPT_ADDRESS = /\/(https?:\/\/.+)$/u;
+
 /** The type of a document. */
 export const documentType = (facts: DocumentFacts): DocumentType => {
   const byProvider = facts.provider === null ? undefined : PROVIDER_TYPES[facts.provider];
   if (byProvider !== undefined) return byProvider;
   const host = hostOf(facts.uri);
+  const kept =
+    host !== null && ARCHIVE_HOST.test(host) ? KEPT_ADDRESS.exec(facts.uri ?? '')?.[1] : undefined;
+  if (kept !== undefined) return documentType({ ...facts, uri: kept });
   const address = URL.parse(facts.uri ?? '')?.pathname ?? '';
   return RULES.find((rule) => matches(rule, host, address, facts.title))?.type ?? 'other';
 };

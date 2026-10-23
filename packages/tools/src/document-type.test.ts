@@ -38,12 +38,15 @@ test('a provider of an official list decides the type', () => {
   expect(documentType({ uri: null, title: 'x', provider: 'eu_eurlex' })).toBe('legal_act');
 });
 
-test('each type is one of the eight', () => {
+test('each type is one of the eleven', () => {
   expect(DOCUMENT_TYPES).toStrictEqual([
     'legal_act',
     'register_entry',
     'press_release',
     'report',
+    'official_publication',
+    'reference',
+    'company_publication',
     'telegram_post',
     'ngo_publication',
     'news_article',
@@ -139,4 +142,56 @@ test('at most 5% of the hosts of the sources are other', () => {
     ([host]) => documentType({ uri: `https://${host}/`, title: '', provider: null }) === 'other',
   );
   expect(other.length / SOURCE_HOSTS.length).toBeLessThanOrEqual(0.05);
+});
+
+// The hosts that were `other` on the release of 23 October 2026, with the number of claim rows of
+// each. A host that no rule can type stays `other`, and the weighted share of those rows has a limit.
+const COUNTED_HOSTS: readonly (readonly [string, number, string])[] = [
+  ['sanctionslist.fcdo.gov.uk', 1153, 'register_entry'],
+  ['govinfo.gov', 919, 'legal_act'],
+  ['ofac.treasury.gov', 871, 'register_entry'],
+  ['assets.publishing.service.gov.uk', 336, 'official_publication'],
+  ['sanctionssearch.ofac.treas.gov', 281, 'register_entry'],
+  ['search-uk-sanctions-list.service.gov.uk', 206, 'register_entry'],
+  ['en.wikipedia.org', 111, 'reference'],
+  ['gov.uk', 110, 'official_publication'],
+  ['war-sanctions.gur.gov.ua', 106, 'official_publication'],
+  ['gem.wiki', 102, 'reference'],
+  ['ukrinform.ua', 92, 'news_article'],
+  ['ru.wikipedia.org', 90, 'reference'],
+  ['api.openstreetmap.org', 83, 'reference'],
+  ['web.archive.org', 79, 'other'],
+  ['treasury.gov', 77, 'official_publication'],
+  ['kremlin.ru', 38, 'official_publication'],
+  ['gcaptain.com', 31, 'news_article'],
+  ['icra.in', 31, 'other'],
+  ['nominatim.openstreetmap.org', 30, 'reference'],
+  ['rosneft.de', 30, 'company_publication'],
+  ['mero.cz', 29, 'company_publication'],
+  ['kyivpost.com', 27, 'news_article'],
+  ['cpc-online.ru', 24, 'company_publication'],
+  ['rosneft.com', 24, 'company_publication'],
+  ['2021-2025.state.gov', 24, 'official_publication'],
+  ['economictimes.indiatimes.com', 23, 'news_article'],
+  ['lukoil.com', 23, 'company_publication'],
+  ['tupras.com.tr', 21, 'company_publication'],
+];
+
+test.each(COUNTED_HOSTS)('the host %s (%i rows) is %s', (host, _rows, type) => {
+  expect(documentType({ uri: `https://${host}/a`, title: 'A page', provider: null })).toBe(type);
+});
+
+test('the rows of the counted hosts are at most 5% other', () => {
+  const total = COUNTED_HOSTS.reduce((sum, [, rows]) => sum + rows, 0);
+  const other = COUNTED_HOSTS.filter(
+    ([host]) => documentType({ uri: `https://${host}/`, title: '', provider: null }) === 'other',
+  ).reduce((sum, [, rows]) => sum + rows, 0);
+  expect(other / total).toBeLessThanOrEqual(0.05);
+});
+
+test('an archived page has the type of the page that it keeps', () => {
+  const uri = 'https://web.archive.org/web/20250101000000/https://www.reuters.com/world/x';
+  expect(documentType({ uri, title: 'A page', provider: null })).toBe('news_article');
+  const none = 'https://web.archive.org/web/20250101000000/';
+  expect(documentType({ uri: none, title: 'A page', provider: null })).toBe('other');
 });
