@@ -75,7 +75,7 @@ def test_phia_scale_is_complete_and_label_checked():
 
 def test_a_narrow_figure_wraps_legend_and_labels():
     assert st.legend_cols(["a", "b", "c"]) == 3
-    assert st.legend_cols(["a", "b", "c", "d", "e"], 4) == 4  # a 160 mm figure keeps its fixed columns
+    assert st.legend_cols(["a", "b", "c", "d", "e"], 4) == 4  # a full-width figure keeps its fixed columns
     assert st.fit_label("UE après OFAC, autre date OFAC") == "UE après OFAC, autre date OFAC"
     st._width["mm"] = st.PAIR_WIDTH_MM
     try:

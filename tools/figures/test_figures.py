@@ -118,7 +118,7 @@ def _size_of(svg):
     return [float(re.search(rf' {a}="([\d.]+)pt"', head).group(1)) / 72 * 25.4 for a in ("width", "height")]
 
 
-@pytest.mark.parametrize("size,w,h", [("third", 160, 70), ("half", 160, 110), ("full", 160, 210), ("pair", 78, 80)])
+@pytest.mark.parametrize("size,w,h", [("third", 166, 70), ("half", 166, 110), ("full", 166, 210), ("pair", 81, 80)])
 def test_size_class_sets_the_page_size_of_every_kind(tmp_path, size, w, h):
     cap = json.loads((FIX / "bars.caption.json").read_text()) | {"size": size}
     (tmp_path / "c.json").write_text(json.dumps(cap))
@@ -131,7 +131,7 @@ def test_a_width_of_one_figure_does_not_leak_to_the_next(tmp_path):
     (tmp_path / "p.json").write_text(json.dumps(cap | {"size": "pair"}))
     figures.make("bars", FIX / "bars.csv", tmp_path / "p.json", tmp_path / "a")
     svg = figures.make("bars", FIX / "bars.csv", FIX / "bars.caption.json", tmp_path / "b")[0]
-    assert _size_of(svg)[0] == pytest.approx(160, abs=0.3)
+    assert _size_of(svg)[0] == pytest.approx(166, abs=0.3)
 
 
 def test_height_mm_overrides_the_class_and_an_unknown_class_stops(tmp_path):
