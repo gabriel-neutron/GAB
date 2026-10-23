@@ -91,6 +91,10 @@ export const releaseCommand: SubCommand = async (args) => {
       console.error(`The volume table, line ${String(one.line)}: ${one.why}. The row is left out.`);
     for (const one of written.volumesUnjoined)
       console.error(`The volume table, line ${String(one.line)}: ${one.why}.`);
+    if (written.gazetteOnly.length > 0)
+      console.error(
+        `These designations cite only the Federal Register, GovInfo or the Canada Gazette, so they count in no regime until they have the SDN or UK list line: ${written.gazetteOnly.join(', ')}.`,
+      );
     return 0;
   } catch (fault) {
     if (!(
