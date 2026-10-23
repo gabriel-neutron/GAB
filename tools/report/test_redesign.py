@@ -181,7 +181,7 @@ def test_a_figure_prints_at_its_own_width_and_two_wide_figures_stack(tmp_path):
     text = (SAMPLE / "redesign.md").read_text(encoding="utf-8").replace("## 2.", wide + "## 2.", 1)
     _, html = build(tmp_path, text)
     assert html.count('class="fig panels"') == 1  # the narrow pair of the sample only
-    assert "--w:160.0mm" in html and "--w:78.0mm" in html
+    assert f"--w:{report.PAGE_MM:.1f}mm" in html
 
 
 def test_natural_mm_reads_pt_then_the_viewbox_in_mm(tmp_path):
@@ -234,3 +234,55 @@ def test_footnotes_without_a_bibliography_print_at_the_foot_and_no_bibliography_
     assert re.findall(r'id="fnref-(\d+)-1"', html) == ["1", "2", "3", "4"]
     # the PDF counter runs 1 to 4 on the one page
     assert all(f"{n}." in pages[0] + pages[1] + pages[2] for n in (1, 2, 3, 4))
+
+
+def test_a_caption_keeps_the_title_and_the_mark_and_drops_the_source_line(tmp_path):
+    text = sample("mètres carrés). Source : [@port].", "mètres carrés). Source : Port, 2026[^c]. Note : axe tronqué.").replace(
+        "Le registre ne couvre qu'un port.", "Le registre ne couvre qu'un port.\n\n[^c]: Autorité portuaire, 2026.")
+    pages, html = build(tmp_path, text)
+    caption = re.search(r'<p class="caption"><strong>Figure 2\..*?</p>', html, re.S)[0]
+    assert "Source" not in caption and "Port, 2026" not in caption
+    assert "tonnes" in caption and "mètres carrés" in caption and "axe tronqué" in caption
+    assert '<sup class="refs"><a class="ref" href="#ref-1">1</a></sup>' in re.search(r'<p class="caption"><strong>Figure 1\..*?</p>', html, re.S)[0]
+
+
+def test_figure_and_table_numbers_must_rise_in_order_of_appearance(tmp_path):
+    with pytest.raises(report.ReportError, match="Figure 1 comes after Figure 2"):
+        build(tmp_path, sample("Tableau 1.", "![a](figures/plate-a.svg)\n\n**Figure 1.** Trop tard.\n\nTableau 1."))
+
+
+def test_a_section_must_not_start_with_a_figure(tmp_path):
+    text = sample("## 2. Limites\n\n", "## 2. Limites\n\n![a](figures/plate-a.svg)\n\n**Figure 3.** Trop tôt.\n\n")
+    with pytest.raises(report.ReportError, match="starts with a figure"):
+        build(tmp_path, text)
+
+
+def test_a_long_title_and_a_figure_no_text_calls_get_a_warning(tmp_path, capsys):
+    build(tmp_path, sample("Deux vues du même quai sur les mêmes axes (tonnes ; mètres carrés)",
+                           "Deux vues du même quai sur les mêmes axes de mesure du port (tonnes)"))
+    err = capsys.readouterr().err
+    assert "figure 2 has 13 words" in err.replace("the title of ", "")
+    assert "figure 2 is not called" in err
+    build(tmp_path, sample("La cause reste ouverte.", "La cause reste ouverte (figure 2)."))
+    assert "figure 2 is not called" not in capsys.readouterr().err
+
+
+def test_a_side_by_side_pair_has_one_height(tmp_path):
+    _, html = build(tmp_path)
+    widths = [float(w) for w in re.findall(r'--w:([\d.]+)mm', re.search(r'<figure class="fig panels">.*?</figure>', html, re.S)[0])]
+    aspects = [report.aspect_of(SAMPLE / "figures" / n) for n in ("plate-c", "plate-b")]
+    assert len(widths) == 2 and widths[0] / aspects[0] == pytest.approx(widths[1] / aspects[1], abs=0.2)
+    assert sum(widths) + report.GUTTER_MM <= report.PAGE_MM
+
+
+def test_the_text_block_is_at_least_265_mm_high(tmp_path):
+    from weasyprint import HTML
+    build(tmp_path)
+    assert HTML(tmp_path / "out" / "r.html").render().pages[1]._page_box.height * 25.4 / 96 >= 265
+
+
+def test_the_cover_holds_the_title_the_subtitle_and_the_byline_and_no_draft_flag(tmp_path):
+    _, html = build(tmp_path, draft=True)
+    cover = html.split("</header>")[0]
+    assert "Brouillon" not in cover and "draft-flag" not in cover
+    assert "Rapport d’essai" in cover and "Auteur Un" in cover

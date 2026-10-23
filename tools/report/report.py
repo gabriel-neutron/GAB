@@ -28,7 +28,12 @@ annex section type, side-by-side panels and the funding sentence once at the end
 - A claim badge is `{{Établi}}`, `{{Probable}}`, `{{Indicatif}}` or `{{Non établi}}`, after a material
   claim. It is a symbol plus a letter, so it reads in grey print. Its legend prints once, after the contents.
 - A section titled "Chiffres clés" is a page of its own. A section titled "Annexe A. …" is an annex.
-- Two images before one caption stand side by side.
+- Two images before one caption stand side by side, at one height, when their natural widths fit the text block.
+- A caption of the redesign holds the title, the unit and the footnote marks of its source line; the text of
+  the source line does not print (the page foot carries it). A "Note :" part stays. A title of more than 8 words
+  gets a warning. Figure numbers and table numbers must rise in order of appearance (the build stops
+  otherwise). A section that is not an annex or the key figures must not start with a figure or a table. A figure that
+  no earlier text calls gets a warning.
 
 With --draft, an open marker shows in a highlight and the last page lists it. Without it, an open
 marker stops the build: the final build carries none.
@@ -68,7 +73,8 @@ BADGES = {
     "Non établi": ("N", RING + ' stroke-dasharray="1.6 1.4"/>', "aucune source stockée ne le porte"),
 }
 TOKENS = ("background", "foreground", "muted", "muted-foreground", "label", "border", "input")
-PAGE_MM, GUTTER_MM = 160, 4  # width of the text block of the A4 page; gap between two side-by-side figures
+PAGE_MM, GUTTER_MM = 166, 4  # width of the text block of the A4 page; gap between two side-by-side figures
+TITLE_WORDS = 8  # longest short title of a figure or a table before the build warns
 NBSP, THIN = " ", " "
 
 
@@ -89,6 +95,23 @@ def natural_mm(svg):
         return float(width.group(1)) * 25.4 / 72
     box = re.search(r'viewBox="[\d.]+ [\d.]+ ([\d.]+) [\d.]+"', head)
     return min(float(box.group(1)), PAGE_MM) if box else PAGE_MM
+
+
+def aspect_of(path):
+    """Width over height of a figure file (SVG first, else the PNG header)."""
+    svg = path.with_suffix(".svg")
+    if svg.exists():
+        head = re.search(r"<svg[^>]*>", svg.read_text(encoding="utf-8"))
+        head = head.group(0) if head else ""
+        w, h = (re.search(rf'\s{k}="([\d.]+)(?:pt)?"', head) for k in ("width", "height"))
+        if w and h:
+            return float(w[1]) / float(h[1])
+        box = re.search(r'viewBox="[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"', head)
+        if box:
+            return float(box[1]) / float(box[2])
+    png = path.with_suffix(".png")
+    data = png.read_bytes()[:24] if png.exists() else b""
+    return int.from_bytes(data[16:20], "big") / int.from_bytes(data[20:24], "big") if data[12:16] == b"IHDR" else 1.0
 
 
 def site_tokens():
@@ -149,6 +172,7 @@ class Doc:
         self.refs, self.badges_used, self.in_table = {}, False, False
         self.order, self.note_html, self.uses = {}, {}, {}
         self.section_notes, self.open, self.section = [], [], ""
+        self.last_number, self.prose = {}, []
 
     def md(self, text):
         return markdown.markdown(text, extensions=["tables"])
@@ -228,21 +252,53 @@ class Doc:
         return re.sub(r"@@BADGE:(?P<level>[^@]+)@@", self.badge, out)
 
     def image(self, block):
-        """The img tag and the width of the figure in mm."""
+        """The image as (alt, data URI, width in mm, width over height)."""
         alt, path = re.fullmatch(r"!\[([^\]]*)\]\(([^)]+)\)", block).groups()
         stem = Path(path).stem
         for ext, mime in ((".svg", "image/svg+xml"), (".png", "image/png")):
             if (self.figures / (stem + ext)).exists():
                 data = base64.b64encode((self.figures / (stem + ext)).read_bytes()).decode()
                 mm = natural_mm(self.figures / (stem + ".svg"))
-                return (f'<img alt="{html.escape(alt)}" style="--w:{mm:.1f}mm" src="data:{mime};base64,{data}">', mm)
+                return (html.escape(alt), f"data:{mime};base64,{data}", mm, aspect_of(self.figures / (stem + ext)))
         raise ReportError(f"figure file not found: {stem}.svg or {stem}.png in {self.figures}")
 
     def caption(self, block):
         raw = block.replace("**", "")
         label, rest = re.match(r"((?:Figure|Tableau)\s+\S+?\.)\s*(.*)$", raw, re.S).groups()
         title, tail = (re.split(r"\s(?=Sources?\s?:)", rest, maxsplit=1) + [""])[:2]
-        return self.text(f"**{label} {title}** {tail}").replace("<p>", '<p class="caption">', 1)
+        if not self.redesign:
+            return self.text(f"**{label} {title}** {tail}").replace("<p>", '<p class="caption">', 1)
+        self.check_caption(label, title)
+        source, _, note = tail.partition("Note :")
+        marks = re.findall(r"\[\^[^\]]+\]|\[@[^\]]+\]", source)
+        self.in_table = True  # a reference prints as a superscript number, as in a table
+        try:
+            out = self.text(f"**{label} {title}**" + "<sup>,</sup>".join(marks) + (f" Note : {note.strip()}" if note.strip() else ""))
+        finally:
+            self.in_table = False
+        return out.replace("<p>", '<p class="caption">', 1)
+
+    def check_caption(self, label, title):
+        """Numbers rise in order of appearance; a long title and a figure no text calls get a warning."""
+        kind, number = label.rstrip(".").split()
+        if number.isdigit():
+            if int(number) <= self.last_number.get(kind, 0):
+                raise ReportError(f"{kind} {number} comes after {kind} {self.last_number[kind]}: numbers must rise in order of appearance")
+            self.last_number[kind] = int(number)
+            if kind == "Figure" and not re.search(rf"\bfigure {number}\b", " ".join(self.prose), re.I):
+                print(f"warning: figure {number} is not called by any earlier text", file=sys.stderr)
+        short = re.sub(r"\s*\((?:[^()]|\([^()]*\))*\)\.?\s*$", "", title)
+        if len(short.split()) > TITLE_WORDS:
+            print(f"warning: the title of {kind.lower()} {number} has {len(short.split())} words (more than {TITLE_WORDS}): {short}", file=sys.stderr)
+
+    def plates_html(self, plates):
+        """The figure tag: one image at its own width, or a row at one height when the natural widths fit."""
+        side = self.redesign and len(plates) > 1 and sum(p[2] for p in plates) <= PAGE_MM + GUTTER_MM
+        if side:
+            height = min(min(p[2] / p[3] for p in plates), (PAGE_MM - GUTTER_MM * (len(plates) - 1)) / sum(p[3] for p in plates))
+            plates = [(a, u, height * r, r) for a, u, _, r in plates]
+        imgs = "".join(f'<img alt="{a}" style="--w:{mm:.1f}mm" src="{u}">' for a, u, mm, _ in plates)
+        return side, f'<div class="plates">{imgs}</div>'
 
     def table(self, block):
         def cell(m):
@@ -266,8 +322,8 @@ class Doc:
                 plates.append(self.image(b))
             elif re.match(r"\**(Figure|Tableau)\s+\S+?\.(?=\s|\*|$)", b):
                 if plates:
-                    side = " panels" if self.redesign and len(plates) > 1 and sum(mm for _, mm in plates) <= PAGE_MM + GUTTER_MM else ""
-                    out.append(f'<figure class="fig{side}"><div class="plates">{"".join(h for h, _ in plates)}</div>{self.caption(b)}</figure>')
+                    side, row = self.plates_html(plates)
+                    out.append(f'<figure class="fig{" panels" if side else ""}">{row}{self.caption(b)}</figure>')
                     plates = []
                 elif i < len(blocks) and blocks[i].startswith("|"):
                     out.append(f'<div class="tablebox">{self.caption(b)}{self.table(blocks[i])}</div>')
@@ -277,6 +333,7 @@ class Doc:
             else:
                 if plates:
                     raise ReportError("a figure has no caption")
+                self.prose.append(b)
                 out.append(self.block(b))
         if plates:
             raise ReportError("a figure has no caption")
@@ -314,6 +371,8 @@ class Doc:
             self.section = f"{num}. {title}" if num else (title or "")
             self.section_notes.append([])
             heading = "" if title is None else f'<h2>{f"<span class=num>{num}.</span> " if num else ""}{self.dress(self.inline(title), False)}</h2>'
+            if self.redesign and body and title not in (KEY_FIGURES, None) and not re.match(r"Annexe\b", title) and re.match(r"!\[|(?:\*\*)?(?:Figure|Tableau)\s+\S+?\.", body[0]):
+                raise ReportError(f"section {title!r} starts with a figure or a table: start with text")
             inner = self.blocks(body)
             kind = "annex" if self.redesign and re.match(r"Annexe\b", title or "") else (
                 "keyfigures" if self.redesign and title == KEY_FIGURES else "")
@@ -386,11 +445,10 @@ def open_points(doc):
 def page(meta, doc, sections, mode, css):
     esc = lambda key: html.escape(french(meta.get(key, "")))
     byline = " · ".join(x for x in (esc("author"), "version " + esc("version") if meta.get("version") else "", esc("date")) if x)
-    flag = '<p class="draft-flag">Brouillon</p>' if doc.draft else ""
     return f"""<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc("title")}</title><style>{css}</style></head><body>
-<header class="cover"><h1>{esc("title")}</h1><p class="sub">{esc("subtitle")}</p>{flag}<p class="byline">{byline}</p></header>
+<header class="cover"><h1>{esc("title")}</h1><p class="sub">{esc("subtitle")}</p><p class="byline">{byline}</p></header>
 {"" if doc.redesign else f'<div class="verso"><p class="funding-text">{FUNDING}</p></div>'}
 {contents(sections, doc) if doc.redesign else ""}<main>{finish(sections, doc, mode)}</main>{open_points(doc)}
 </body></html>"""
