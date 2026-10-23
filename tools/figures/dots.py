@@ -2,7 +2,7 @@
 
 Meta keys: log (log axis: the note must say the ratio scale), zero (a linear axis starts at zero; the
 default), label_floor (a value under it prints as "<0.1"), unit_column (write the `unite` of each
-category in a column at the right).
+category in a column at the right), labels ("max": write only the larger value of each category).
 """
 import style as st
 from matplotlib.lines import Line2D
@@ -33,6 +33,8 @@ def build(data, meta, out_dir, grey=False):
         m = marks[groups.index(r["periode"])]
         i = cats.index(r["serie"])
         ax.plot(r["valeur"], i, m.marker, color=m.color, markersize=st.MARKER + 1)
+        if meta.get("labels") == "max" and r["valeur"] < top[r["serie"]]:
+            continue
         ax.annotate(st.num_label(r["valeur"], floor), (r["valeur"], i), xytext=(6, 0), textcoords="offset points",
                     va="center", fontsize=st.TEXT_PT)
     if meta.get("unit_column"):
