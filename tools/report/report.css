@@ -8,7 +8,8 @@
      kept in ratio at print: body 10 pt, so section = 10 x 16/14 and the floor `small` = 10 x 11/14. */
   --body: 10pt;
   --section: 11.5pt;
-  --small: 8pt; /* caption, footnote, table, header and footer: nothing on the page is smaller */
+  --small: 8pt; /* caption, table, header and footer: nothing on the page is smaller, but the notes */
+  --note: 7.5pt; /* the foot note: a smaller line keeps a note on the page of its call (8 pt let it slip by 2 or 3 pages) */
   --u: 1.25mm; /* the grid unit: the 4 px grid of the site at print scale */
   --caps: 0.06em; /* the site tracking for a small uppercase header */
 }
@@ -497,8 +498,8 @@ figure.panels .plates img {
   }
   .fn {
     float: footnote;
-    font-size: var(--small);
-    line-height: 10pt;
+    font-size: var(--note);
+    line-height: 8.5pt;
     font-weight: 400;
     overflow-wrap: anywhere;
     break-inside: avoid;

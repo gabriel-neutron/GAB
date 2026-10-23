@@ -547,6 +547,7 @@ FIGURE = re.compile(r'<figure class="fig.*?</figure>', re.S)
 # share of a page left blank before a warning; share left blank above a figure before it waits; share of the page
 # below which a section may not start; reflow passes; paragraphs a figure may wait
 HOLE, FIG_HOLE, LOW_START, MAX_PASSES, MAX_DELAY = 0.33, 0.15, 2 / 3, 8, 4
+MAX_NOTE_LAG = 1  # pages a note may stand after its call before the build warns
 PARAGRAPH = re.compile(r"<(p|ol)>.*?</\1>", re.S)  # a list is text that a figure may pass; shortcut: a nested list is cut at its first end tag, upgrade if the report nests lists
 
 
@@ -622,6 +623,27 @@ def low_starts(pdf):
     return found
 
 
+def note_lag(pdf):
+    """For each note in order, the pages between its call and its text at the page foot (0: the same page).
+
+    The k-th call and the k-th note area entry belong together: first citations are numbered in order of print.
+    Private box names of WeasyPrint, as in `blocks_of_page`."""
+    calls, feet = [], []
+
+    def walk(b, n, in_area=False):
+        tag = getattr(b, "element_tag", None)
+        if type(b).__name__ == "TextBox" and tag == "span::footnote-call":
+            calls.append(n)
+        elif type(b).__name__ == "BlockBox" and in_area and tag == "span":
+            feet.append(n)
+        for c in getattr(b, "children", []) or []:
+            walk(c, n, in_area or type(b).__name__ == "FootnoteAreaBox")
+
+    for n, page in enumerate(pdf.pages, 1):
+        walk(page._page_box, n)
+    return [f - c for c, f in zip(calls, feet)]
+
+
 def reflow(page_html, base_url):
     """Render the PDF. A figure that opens a page after a blank of more than FIG_HOLE waits one paragraph more; a
     section whose heading falls in the last third of a page starts a new page; repeat until nothing moves."""
@@ -643,6 +665,9 @@ def reflow(page_html, base_url):
             delays[k] = delays.get(k, 0) + 1
     else:
         print(f"warning: the layout did not settle in {MAX_PASSES} passes: a blank or a late heading may remain", file=sys.stderr)
+    lag = note_lag(pdf)
+    if lag and max(lag) > MAX_NOTE_LAG:
+        print(f"warning: note {lag.index(max(lag)) + 1} is {max(lag)} pages after its call ({sum(1 for x in lag if x > MAX_NOTE_LAG)} notes more than {MAX_NOTE_LAG} page late)", file=sys.stderr)
     for n, page in enumerate(pdf.pages, 1):
         blocks, foot, height = blocks_of_page(page._page_box)
         blank = (foot - max((b[3] for b in blocks), default=foot)) / height
