@@ -64,36 +64,63 @@ export function ExportsPage({ text, release, figures, links }: ExportsPageProps)
   };
 
   return (
-    <ReadingPage>
-      <PageHeader
-        title={text.title}
-        detail={
-          release === null ? undefined : `From the release of ${releaseDay(release.manifest.date)}`
-        }
-      />
-      <p className="max-w-prose text-muted-foreground">
-        This page is the French text of the report on the exports of Russia. The figures and the
-        tables are in English.
-      </p>
-      {text.blocks.map((block) => (
-        <div
-          key={block.id}
-          lang="fr"
-          className={block.kind === 'box' ? 'border border-border p-3' : undefined}
-          data-block={block.kind}
-        >
-          <PageSection title={block.title} id={block.id}>
-            {block.paragraphs.map((parts, place) =>
-              paragraph(parts, `${block.id}${String(place)}`),
-            )}
-            {block.attach === undefined ? null : <div lang="en">{attachment(block.attach)}</div>}
-          </PageSection>
-        </div>
-      ))}
-      <div lang="fr">
-        <PageSection title={text.limits.title} id="limites">
-          {paragraph(text.limits.paragraph, 'limits')}
-        </PageSection>
+    <ReadingPage wide>
+      <div className="publication-layout">
+        <aside className="publication-outline">
+          <nav aria-label="Chapitres du rapport">
+            {text.blocks.map((block) => (
+              <a key={block.id} href={`#${block.id}`}>
+                {block.title}
+              </a>
+            ))}
+            <a href="#limites">{text.limits.title}</a>
+          </nav>
+          <a href="/nodes">Nœuds critiques ↗</a>
+        </aside>
+        <article className="publication-document">
+          <PageHeader
+            title={text.title}
+            detail={
+              release === null
+                ? undefined
+                : `From the release of ${releaseDay(release.manifest.date)}`
+            }
+          />
+          {text.blocks.map((block) => (
+            <div
+              key={block.id}
+              lang="fr"
+              className={block.kind === 'box' ? 'border border-border p-3' : undefined}
+              data-block={block.kind}
+            >
+              <PageSection title={block.title} id={block.id}>
+                <div
+                  className={
+                    block.attach === 'budget' || block.attach === 'ledger'
+                      ? 'publication-evidence-row'
+                      : 'publication-block'
+                  }
+                >
+                  <div className="publication-copy">
+                    {block.paragraphs.map((parts, place) =>
+                      paragraph(parts, `${block.id}${String(place)}`),
+                    )}
+                  </div>
+                  {block.attach === undefined ? null : (
+                    <div lang="en" className="publication-figure">
+                      {attachment(block.attach)}
+                    </div>
+                  )}
+                </div>
+              </PageSection>
+            </div>
+          ))}
+          <div lang="fr">
+            <PageSection title={text.limits.title} id="limites">
+              {paragraph(text.limits.paragraph, 'limits')}
+            </PageSection>
+          </div>
+        </article>
       </div>
     </ReadingPage>
   );

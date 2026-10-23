@@ -28,7 +28,7 @@ type Story = StoryObj<typeof meta>;
 
 export const SaysSoWhenTheSiteHoldsNoRelease: Story = {
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole('heading', { name: 'Map' })).toBeVisible();
+    await expect(canvas.getByRole('heading', { name: 'Carte' })).toBeVisible();
     await expect(canvas.getByText(/holds no release/u)).toBeVisible();
   },
 };

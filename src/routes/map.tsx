@@ -32,7 +32,6 @@ export const Route = createFileRoute('/map')({
   search: { middlewares: [stripSearchParams({ entity: '' })] },
 
   loader: async () => {
-    // The record is read first, so the footer knows whether the service answers.
     await loadCorpus().catch(() => undefined);
     try {
       const release = await loadRelease();

@@ -1,4 +1,4 @@
-// What the footer says about the release when the application reads its files: the day of the
+// What a page says about the release when the application reads its files: the day of the
 // version and the two contact links. It is null while the service answers, because the record is
 // then the live one and no page names a version.
 

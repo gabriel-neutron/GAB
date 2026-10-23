@@ -33,9 +33,9 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-export const SaysToSelectAPointWhenNothingIsSelected: Story = {
+export const DrawsNoCardWhenNothingIsSelected: Story = {
   play: async ({ canvas }) => {
-    await expect(canvas.getByText('Select a point on the map.')).toBeVisible();
+    await expect(canvas.queryByRole('region', { name: 'Card of the selected entity' })).toBeNull();
   },
 };
 
@@ -148,7 +148,7 @@ export const AKeyOpensTheCardWithTheFocusOnItsHeading: Story = {
     await expect(canvas.getByRole('heading', { name: 'Test field' })).toHaveFocus();
     await userEvent.keyboard('{Escape}');
     await expect(args.store.get().panel).toStrictEqual({ kind: 'none' });
-    await expect(canvas.getByRole('region', { name: 'Card of the selected entity' })).toHaveFocus();
+    await expect(canvas.queryByRole('region', { name: 'Card of the selected entity' })).toBeNull();
   },
 };
 

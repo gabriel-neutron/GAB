@@ -17,7 +17,6 @@ const rowsOf = (name: string, text: string | null) =>
 // leaves its figure out with one sentence. A file that cannot be read stops the build.
 export const Route = createFileRoute('/exports')({
   loader: async () => {
-    // The record is read first, so the footer knows whether the service answers.
     await loadCorpus().catch(() => undefined);
     const [release, files] = await Promise.all([loadReleaseOrNull(), loadReportFiles()]);
     return {

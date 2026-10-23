@@ -60,7 +60,7 @@ type Story = StoryObj<typeof meta>;
 
 export const StatesWhatTheRecordCoversAndWhatAnAbsenceMeans: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Method' });
+    await canvas.findByRole('heading', { name: 'À propos' });
     await expect(
       await canvas.findByRole('heading', { name: 'What the record covers' }),
     ).toBeVisible();
@@ -71,7 +71,7 @@ export const StatesWhatTheRecordCoversAndWhatAnAbsenceMeans: Story = {
 
 export const GivesTheDisclaimerAndEachSectionOfTheMethod: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Method' });
+    await canvas.findByRole('heading', { name: 'À propos' });
     for (const title of [
       'About this data and the labels',
       'The rating method',
@@ -88,7 +88,7 @@ export const GivesTheDisclaimerAndEachSectionOfTheMethod: Story = {
 
 export const LinksToTheGlossary: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Method' });
+    await canvas.findByRole('heading', { name: 'À propos' });
     await expect(await canvas.findByRole('link', { name: 'glossary' })).toHaveAttribute(
       'href',
       '/glossary',
@@ -98,7 +98,7 @@ export const LinksToTheGlossary: Story = {
 
 export const GivesTheDateRulesOfTheRelease: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Method' });
+    await canvas.findByRole('heading', { name: 'À propos' });
     await expect(canvas.getByText(/Date rules of this release/u)).toBeVisible();
   },
 };
@@ -106,14 +106,14 @@ export const GivesTheDateRulesOfTheRelease: Story = {
 export const SaysWhenTheReleaseGivesNoDateRules: Story = {
   args: { manifest: { ...MANIFEST, dateRules: null } },
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Method' });
+    await canvas.findByRole('heading', { name: 'À propos' });
     await expect(canvas.getByText(/This release does not give its date rules/u)).toBeVisible();
   },
 };
 
 export const CountsTheMergeCandidatesOfTheRelease: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Method' });
+    await canvas.findByRole('heading', { name: 'À propos' });
     await expect(
       canvas.getByText('Candidates at this release: 3 waiting, 2 confirmed, 1 refused.'),
     ).toBeVisible();
@@ -122,7 +122,7 @@ export const CountsTheMergeCandidatesOfTheRelease: Story = {
 
 export const ExplainsTheNatoPairOnlyWhenTheReleaseShowsIt: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Method' });
+    await canvas.findByRole('heading', { name: 'À propos' });
     await expect(
       canvas.getByText('This release does not show the rating of a claim.'),
     ).toBeVisible();
@@ -133,7 +133,7 @@ export const ExplainsTheNatoPairOnlyWhenTheReleaseShowsIt: Story = {
 export const ExplainsTheNatoPairWhenTheReleaseShowsIt: Story = {
   args: { manifest: { ...MANIFEST, showNatoPair: true } },
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Method' });
+    await canvas.findByRole('heading', { name: 'À propos' });
     await expect(canvas.getByText(/STANAG 2511/u)).toBeVisible();
   },
 };
@@ -141,7 +141,7 @@ export const ExplainsTheNatoPairWhenTheReleaseShowsIt: Story = {
 export const SaysSoWhenTheSiteHoldsNoRelease: Story = {
   args: { manifest: null },
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Method' });
+    await canvas.findByRole('heading', { name: 'À propos' });
     await expect(canvas.getByText(/holds no release/u)).toBeVisible();
   },
 };

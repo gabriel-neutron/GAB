@@ -1,9 +1,9 @@
-import { PageHeader } from '@/shared/page/page-header';
 import { ReadingPage } from '@/shared/page/reading-page';
-import { releaseDay } from '@gab/release/release-day';
 
+import { EntityList } from './entity-list';
 import { FirstVisitCard } from './first-visit-card';
 import { Globe } from './globe';
+import { MapLegend } from './map-legend';
 import type { GlobeData } from './globe-data';
 import { ReadingNotes } from './reading-notes';
 import { TypeCountList } from './type-count-list';
@@ -21,9 +21,6 @@ export interface GlobePageProps {
   readonly onCloseFirstVisit: (() => void) | null;
 }
 
-const count = (n: number, one: string, many: string): string =>
-  `${String(n)} ${n === 1 ? one : many}`;
-
 /** The map page: the globe of the entities of the release that have a position, with the chain of
  * the hydrocarbons from the well to the exit from Russian control. */
 export function GlobePage({
@@ -36,7 +33,7 @@ export function GlobePage({
   if (data === null)
     return (
       <ReadingPage>
-        <PageHeader title="Map" />
+        <h1 className="sr-only">Carte</h1>
         <p className="text-muted-foreground">
           This site holds no release, and the map comes from a release.
         </p>
@@ -44,23 +41,26 @@ export function GlobePage({
     );
   const { counts } = data;
   return (
-    <ReadingPage>
-      <PageHeader title="Map" detail={`From the release of ${releaseDay(data.date)}`} />
-      {onCloseFirstVisit === null ? null : <FirstVisitCard onClose={onCloseFirstVisit} />}
-      <p className="max-w-prose">
-        {count(counts.entities, 'entity of this release has', 'entities of this release have')}{' '}
-        their own position, and {count(counts.arcs, 'physical link joins', 'physical links join')}{' '}
-        two of them. A card gives the accepted facts first. A fact that is still in review carries
-        the words “In review”: it is a proposal, not a fact.
-      </p>
-      <TypeCountList counts={counts.byType} />
+    <div className="workspace-page">
+      <h1 className="sr-only">Carte</h1>
       {entity !== '' && data.cards[entity] === undefined ? (
         <p role="status" className="text-candidate">
           The entity of the address has no position in this release, so the map does not show it.
         </p>
       ) : null}
-      <ReadingNotes data={data} />
       <Globe data={data} entity={entity} entityHref={entityHref} onSelect={onSelect} />
-    </ReadingPage>
+      <details className="workspace-disclosure">
+        <summary className="cursor-pointer text-label">
+          Légende, lieux et repères de lecture · {counts.entities} lieux · {counts.arcs} liaisons
+        </summary>
+        <div className="flex flex-col gap-3 pt-3">
+          {onCloseFirstVisit === null ? null : <FirstVisitCard onClose={onCloseFirstVisit} />}
+          <MapLegend />
+          <TypeCountList counts={counts.byType} />
+          <ReadingNotes data={data} />
+          <EntityList data={data} entityHref={entityHref} />
+        </div>
+      </details>
+    </div>
   );
 }

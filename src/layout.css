@@ -1,0 +1,205 @@
+/* Page composition uses the existing theme and controls. */
+.site-navigation-main {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  align-items: stretch;
+  gap: 24px;
+  padding-inline: 24px;
+  min-height: 52px;
+}
+.site-wordmark {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+.site-primary-links {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-right: auto;
+}
+.site-navigation-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.site-context-filter {
+  width: 190px;
+}
+.publication-layout {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+}
+.publication-outline {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 24px 16px 0;
+  border-right: 1px solid var(--border);
+}
+.publication-outline nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 24px;
+}
+.publication-outline nav a {
+  display: block;
+  padding: 8px 0;
+  font-size: var(--text-small);
+  color: var(--muted-foreground);
+}
+.publication-outline nav a:hover {
+  color: var(--foreground);
+}
+.publication-document {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-width: 0;
+  max-width: 1120px;
+}
+.publication-evidence-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+.publication-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.publication-figure {
+  min-width: 0;
+}
+.publication-evidence-row > .publication-figure {
+  position: sticky;
+  top: 16px;
+}
+.publication-block {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+@media (max-width: 1100px) {
+  .publication-evidence-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .publication-evidence-row > .publication-figure {
+    position: static;
+  }
+}
+@media (max-width: 900px) {
+  .site-navigation-main {
+    flex-wrap: wrap;
+    gap: 0 16px;
+    padding-inline: 16px;
+  }
+  .site-wordmark {
+    min-height: 48px;
+    margin-right: auto;
+  }
+  .site-navigation-actions {
+    min-height: 48px;
+  }
+  .site-primary-links {
+    order: 3;
+    width: 100%;
+    min-height: 44px;
+    gap: 0;
+    overflow-x: auto;
+  }
+  .site-primary-links > a {
+    justify-content: center;
+    flex: 1 0 auto;
+  }
+  .publication-layout {
+    grid-template-columns: 170px minmax(0, 1fr);
+    gap: 24px;
+  }
+}
+@media (max-width: 600px) {
+  .site-primary-links > a {
+    font-size: var(--text-small);
+    padding-inline: 8px;
+  }
+  .site-context-filter {
+    width: 140px;
+  }
+  .publication-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .publication-outline {
+    position: static;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 0 0 12px;
+  }
+  .publication-outline nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0 16px;
+    margin: 0;
+  }
+  .publication-outline nav a {
+    padding-block: 6px;
+  }
+  .publication-document {
+    gap: 24px;
+  }
+  .site-navigation-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+/* Work surfaces use the frame below the header, without a reading-page wrapper. */
+.workspace-page,
+.graph-workspace,
+.globe-workspace {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  min-width: 0;
+}
+.graph-workspace,
+.globe-workspace {
+  flex: 1;
+}
+.graph-surface {
+  position: relative;
+}
+.globe-surface {
+  grid-template-rows: minmax(0, 1fr);
+}
+.workspace-disclosure {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+}
+.workspace-disclosure > summary {
+  cursor: pointer;
+  padding: 6px 12px;
+  font-size: var(--text-small);
+  color: var(--muted-foreground);
+}
+.workspace-disclosure > :not(summary) {
+  max-height: 35vh;
+  overflow-y: auto;
+}
+.workspace-notes {
+  padding: 8px 12px;
+}
+.globe-surface:not(:has([aria-label='Card of the selected entity']:not(.hidden))) {
+  grid-template-columns: minmax(0, 1fr);
+}

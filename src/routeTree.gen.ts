@@ -17,6 +17,7 @@ import { Route as GraphRouteImport } from './routes/graph'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as MethodRouteImport } from './routes/method'
+import { Route as NodesRouteImport } from './routes/nodes'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as ClaimSplatRouteImport } from './routes/claim.$'
@@ -64,6 +65,11 @@ const MethodRoute = MethodRouteImport.update({
   path: '/method',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NodesRoute = NodesRouteImport.update({
+  id: '/nodes',
+  path: '/nodes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReviewRoute = ReviewRouteImport.update({
   id: '/review',
   path: '/review',
@@ -104,6 +110,7 @@ export interface FileRoutesByFullPath {
   '/help': typeof HelpRoute
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
+  '/nodes': typeof NodesRoute
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
   '/claim/$': typeof ClaimSplatRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByTo {
   '/help': typeof HelpRoute
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
+  '/nodes': typeof NodesRoute
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
   '/claim/$': typeof ClaimSplatRoute
@@ -137,6 +145,7 @@ export interface FileRoutesById {
   '/help': typeof HelpRoute
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
+  '/nodes': typeof NodesRoute
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
   '/claim/$': typeof ClaimSplatRoute
@@ -155,6 +164,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/map'
     | '/method'
+    | '/nodes'
     | '/review'
     | '/search'
     | '/claim/$'
@@ -171,6 +181,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/map'
     | '/method'
+    | '/nodes'
     | '/review'
     | '/search'
     | '/claim/$'
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/map'
     | '/method'
+    | '/nodes'
     | '/review'
     | '/search'
     | '/claim/$'
@@ -204,6 +216,7 @@ export interface RootRouteChildren {
   HelpRoute: typeof HelpRoute
   MapRoute: typeof MapRoute
   MethodRoute: typeof MethodRoute
+  NodesRoute: typeof NodesRoute
   ReviewRoute: typeof ReviewRoute
   SearchRoute: typeof SearchRoute
   ClaimSplatRoute: typeof ClaimSplatRoute
@@ -270,6 +283,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MethodRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/nodes': {
+      id: '/nodes'
+      path: '/nodes'
+      fullPath: '/nodes'
+      preLoaderRoute: typeof NodesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/review': {
       id: '/review'
       path: '/review'
@@ -324,6 +344,7 @@ const rootRouteChildren: RootRouteChildren = {
   HelpRoute: HelpRoute,
   MapRoute: MapRoute,
   MethodRoute: MethodRoute,
+  NodesRoute: NodesRoute,
   ReviewRoute: ReviewRoute,
   SearchRoute: SearchRoute,
   ClaimSplatRoute: ClaimSplatRoute,

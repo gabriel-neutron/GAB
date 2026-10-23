@@ -126,6 +126,7 @@ const pagesOf = (release: SiteRelease): readonly Page[] => {
     { folder: 'downloads', kind: 'text' },
     { folder: 'method', kind: 'text' },
     { folder: 'exports', kind: 'text' },
+    { folder: 'nodes', kind: 'text' },
     { folder: 'glossary', kind: 'text' },
     { folder: 'help', kind: 'text' },
     ...SCRIPT_PAGES.map((folder) => ({ folder, kind: 'script' as const })),

@@ -1,3 +1,4 @@
+import { canvasTheme, observeCanvasTheme } from '@/shared/canvas-theme';
 // The one file that touches the map library. The panels drive the globe through the store, and
 // this file is the view of the store that draws on the canvas.
 
@@ -21,17 +22,30 @@ import { selectedEntity } from './selected-entity';
 import { ARC_LAYERS, type ArcLayer } from './arc-layers';
 import { frameOf, highlightOf, pickHit, type Under } from './globe-view';
 
-// External constraint: the library parses no oklch colour and no CSS custom property, so the
-// ground, the land and the marks are hex. The globe is a dark island in a light page, in both
-// themes, so there is one set and no observer of the theme class.
-const GROUND = '#0b1220';
+// MapLibre takes hex colours rather than CSS theme tokens.
+const MAP_PALETTES = {
+  light: {
+    ground: '#f5f7f8',
+    land: '#e0e5e7',
+    coast: '#a0aaaf',
+    selected: '#20282d',
+    sky: '#f5f7f8',
+    horizon: '#e0e5e7',
+  },
+  dark: {
+    ground: '#070f10',
+    land: '#182226',
+    coast: '#445155',
+    selected: '#f0f3f4',
+    sky: '#070f10',
+    horizon: '#182226',
+  },
+} as const;
+const LAND = MAP_PALETTES.dark.land;
 const MARK = '#4aa8ff';
 const IN_REVIEW = '#9aa3ad';
-const LAND = '#1c2a3d';
-const COAST = '#3b4f6b';
 // The head of the pulse that runs along a link.
 const PULSE = '#ffffff';
-const SELECTED = '#ffffff';
 // Origin of the number: at this opacity a dimmed point stays visible on the dark land, and a
 // point put forward reads at once.
 const DIMMED = 0.35;
@@ -123,15 +137,16 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
     return null;
   }
 
+  const palette = MAP_PALETTES[canvasTheme()];
   const style: StyleSpecification = {
     version: 8,
     projection: { type: 'globe' },
     // A change of paint is a state change and not a fade of 300 ms, which is the default.
     transition: { duration: store.get().moving ? CHANGE_MS : 0, delay: 0 },
     sky: {
-      'sky-color': '#0b1a33',
-      'horizon-color': '#1d3b66',
-      'fog-color': GROUND,
+      'sky-color': palette.sky,
+      'horizon-color': palette.horizon,
+      'fog-color': palette.ground,
       'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 7, 0],
     },
     // The basemap is a file of the bundle: the outlines of the countries, Natural Earth (public
@@ -144,13 +159,13 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
       exits: { type: 'geojson', data: data.exits },
     },
     layers: [
-      { id: 'ground', type: 'background', paint: { 'background-color': GROUND } },
-      { id: 'land', type: 'fill', source: 'countries', paint: { 'fill-color': LAND } },
+      { id: 'ground', type: 'background', paint: { 'background-color': palette.ground } },
+      { id: 'land', type: 'fill', source: 'countries', paint: { 'fill-color': palette.land } },
       {
         id: 'coast',
         type: 'line',
         source: 'countries',
-        paint: { 'line-color': COAST, 'line-width': 0.6 },
+        paint: { 'line-color': palette.coast, 'line-width': 0.6 },
       },
       {
         id: 'areas',
@@ -168,7 +183,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
         type: 'line',
         source: 'entities',
         filter: ['==', ['get', 'id'], ''],
-        paint: { 'line-color': SELECTED, 'line-width': 6, 'line-opacity': 0.5 },
+        paint: { 'line-color': palette.selected, 'line-width': 6, 'line-opacity': 0.5 },
       },
       {
         id: 'lines',
@@ -214,7 +229,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
         paint: {
           'circle-color': ['coalesce', ['get', 'colour'], MARK],
           'circle-radius': 6,
-          'circle-stroke-color': GROUND,
+          'circle-stroke-color': palette.ground,
           'circle-stroke-width': 1.5,
         },
       },
@@ -226,7 +241,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
         paint: {
           'circle-opacity': 0,
           'circle-radius': 10,
-          'circle-stroke-color': SELECTED,
+          'circle-stroke-color': palette.selected,
           'circle-stroke-width': 2,
         },
       },
@@ -262,6 +277,25 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
     if (loaded) work();
     else queue.push(work);
   };
+
+  const paintTheme = (): void => {
+    const next = MAP_PALETTES[canvasTheme()];
+    map.setPaintProperty('ground', 'background-color', next.ground);
+    map.setPaintProperty('land', 'fill-color', next.land);
+    map.setPaintProperty('coast', 'line-color', next.coast);
+    map.setPaintProperty('points', 'circle-stroke-color', next.ground);
+    for (const layer of ARC_LAYERS)
+      if (layer.colour === 'land') map.setPaintProperty(layer.id, 'line-color', next.land);
+    map.setPaintProperty('selected-line', 'line-color', next.selected);
+    map.setPaintProperty('selected-point', 'circle-stroke-color', next.selected);
+    map.setSky({
+      'sky-color': next.sky,
+      'horizon-color': next.horizon,
+      'fog-color': next.ground,
+      'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 7, 0],
+    });
+  };
+  const stopTheme = observeCanvasTheme(() => whenLoaded(paintTheme));
 
   map.addControl(new ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left');
 
@@ -441,6 +475,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
 
   map.on('load', () => {
     loaded = true;
+    paintTheme();
     for (const work of queue.splice(0)) work();
     // Seed from the state of this moment, then follow it: a selection restored from the address is
     // drawn here, and the subscription below missed nothing.
@@ -514,6 +549,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
       reduced.removeEventListener('change', onReduced);
       container.removeEventListener('keydown', onKey);
       observer.disconnect();
+      stopTheme();
       if (frameRequest !== 0) cancelAnimationFrame(frameRequest);
       for (const one of reviewLabels) one.marker.remove();
       for (const marker of exportLabels) marker.remove();

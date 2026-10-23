@@ -9,7 +9,6 @@ import { loadReleaseOrNull } from '@/shared/read/release-record';
 // whether the read service answers or not. A site with no release files shows one sentence.
 export const Route = createFileRoute('/vessel/$imo')({
   loader: async () => {
-    // The record is read first, so the footer knows whether the service answers.
     await loadCorpus().catch(() => undefined);
     return loadReleaseOrNull();
   },

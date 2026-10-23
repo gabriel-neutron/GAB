@@ -1,3 +1,4 @@
+import { canvasTheme, observeCanvasTheme } from '@/shared/canvas-theme';
 import Sigma from 'sigma';
 import type { Coordinates, EdgeDisplayData, NodeDisplayData } from 'sigma/types';
 
@@ -186,10 +187,6 @@ const NO_OP = (): void => {
   // A destroyed handle registers no listener, so it has nothing to remove.
 };
 
-// The page draws the canvas as a dark island in a light page, so the ground is the dark one in
-// each theme of the site.
-const GROUND: GraphGround = 'dark';
-
 // A state change of the camera takes at most this long. Origin: the 120 ms limit of the motion
 // rule. A reader who asks for no motion gets a jump.
 const MOTION_MS = 120;
@@ -219,6 +216,7 @@ export function mountGraph(
   types: TypeVocabulary,
 ): GraphController {
   mounted.get(canvas)?.destroy();
+  let ground: GraphGround = canvasTheme();
 
   // **The positions are read one time.** A filter never moves a position, and an entity the
   // layout run did not place must stand in one place while the canvas lives. So nothing below
@@ -230,7 +228,7 @@ export function mountGraph(
   // for one frame. The three settings below take at least 1 ms, and a call that must jump sets the
   // state itself.
   const settingMs = Math.max(1, motionOf());
-  const model = buildGraphModel(corpus, positions, types, GROUND, placement.unplaced);
+  const model = buildGraphModel(corpus, positions, types, ground, placement.unplaced);
   const wordsOf = relationWording(corpus.relationTypes);
 
   const stored = readGraphWorkspace();
@@ -303,7 +301,7 @@ export function mountGraph(
   const dimOf = (colour: string): string => {
     const held = dimCache.get(colour);
     if (held !== undefined) return held;
-    const made = dimmedColour(colour, GROUND_HUE[GROUND], DIM_ALPHA[GROUND]);
+    const made = dimmedColour(colour, GROUND_HUE[ground], DIM_ALPHA[ground]);
     dimCache.set(colour, made);
     return made;
   };
@@ -1139,6 +1137,14 @@ export function mountGraph(
 
   // Each member does nothing after `destroy`: a call into a killed Sigma throws, and a write to
   // the workspace from a dead adapter keeps that value for each later open.
+  const stopTheme = observeCanvasTheme((next) => {
+    ground = next;
+    dimCache.clear();
+    model.setGround(next);
+    sigma.refresh();
+    publish();
+  });
+
   const controller: GraphController = {
     get model() {
       return model;
@@ -1270,6 +1276,7 @@ export function mountGraph(
       }
       destroyed = true;
       sizeObserver.disconnect();
+      stopTheme();
       camera.off('updated', onCameraUpdated);
       sigma.off('afterRender', drawOverlay);
       listeners.clear();

@@ -86,9 +86,7 @@ interface GraphPageProps {
   readonly card: ReactNode;
 }
 
-/** The graph as a dark island in the light page: the types and the lists beside the canvas, and
- * the card of the selection on the other side. Under the island, the notes that correct the
- * picture. */
+/** The graph fills the work area. Its lists and selection share the site theme. */
 export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   const { corpus, types, layout } = record;
   const canvas = useRef<HTMLDivElement | null>(null);
@@ -313,13 +311,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   }, []);
 
   return (
-    <>
-      {snapshot === null || snapshot.view.mode === 'start' ? null : (
-        <ShownLine
-          entities={snapshot.view.counts.entities}
-          relations={snapshot.view.counts.relations}
-        />
-      )}
+    <div className="graph-workspace">
       <div
         // The drawer is absolute inside this island, so it is the positioned ancestor on a phone.
         // The key is read here, and not on the drawer, because focus may stay on the Types button.
@@ -327,11 +319,13 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
           if (event.key === 'Escape') setDrawerOpen(false);
         }}
         className={cn(
-          'dark grid border border-border bg-background text-foreground max-md:relative',
-          'lg:grid-cols-[auto_minmax(0,1fr)_20rem]',
+          'graph-surface grid min-h-0 flex-1 bg-background text-foreground',
+          selection === null
+            ? 'md:grid-cols-[auto_minmax(0,1fr)]'
+            : 'md:grid-cols-[auto_minmax(0,1fr)_20rem]',
         )}
       >
-        <div className={cn('relative h-96 min-w-0 lg:col-start-2 lg:row-start-1 lg:h-128')}>
+        <div className={cn('graph-canvas relative min-h-0 min-w-0 md:col-start-2 md:row-start-1')}>
           <GraphCanvas canvas={canvas} overlay={overlay} />
           {snapshot === null ? null : snapshot.view.mode === 'start' ? (
             <StartPanel named={named} onChoose={reach} onShowWholeGraph={showWholeGraph} />
@@ -388,10 +382,9 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
             returnPanelFocus(narrow ? typesButton.current : event.currentTarget);
           }}
           className={cn(
-            'max-h-96 min-h-0 min-w-0 overflow-y-auto overscroll-contain border-t border-border',
-            'lg:col-start-3 lg:row-start-1 lg:max-h-128 lg:border-t-0 lg:border-l',
+            'min-h-0 min-w-0 overflow-y-auto overscroll-contain border-border md:col-start-3 md:row-start-1 md:border-l',
             PHONE_SHEET,
-            selection === null ? 'max-md:hidden' : null,
+            selection === null ? 'hidden' : null,
           )}
         >
           {selection === null ? null : (
@@ -407,8 +400,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
             the grid puts it first on a wide screen. */}
         <div
           className={cn(
-            'max-h-96 min-h-0 overflow-hidden border-t border-border',
-            'lg:col-start-1 lg:row-start-1 lg:max-h-128 lg:border-t-0 lg:border-r',
+            'min-h-0 overflow-hidden border-border md:col-start-1 md:row-start-1 md:border-r',
             'max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-20 max-md:w-72',
             'max-md:max-h-none max-md:max-w-[85%] max-md:border-t-0 max-md:border-r',
             'max-md:bg-background',
@@ -432,39 +424,45 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
                   />
                 );
               }}
-              className={cn('h-full max-h-96 bg-background max-md:max-h-none lg:max-h-128')}
+              className={cn('h-full bg-background')}
             />
           )}
         </div>
-
-        {snapshot === null || snapshot.view.mode === 'start' ? null : (
-          <div className={cn('border-t border-border lg:col-span-3 lg:row-start-2')}>
-            <RelationLegend legend={legend} onSwitch={switchRelationType} />
-          </div>
-        )}
       </div>
 
       {snapshot === null ? null : (
-        <>
-          <TextViewList view={textView} onOpenEntity={openEntity} onOpenRelation={openRelation} />
-          <MarkerRemainder
-            drawn={snapshot.view.markersDrawn}
-            remainder={snapshot.view.markersOverCap}
-          />
-          <FocusNote
-            drawn={snapshot.view.focusDrawn}
-            unnamed={snapshot.view.focusUnnamed}
-            unnamedRelations={snapshot.view.focusUnnamedRelations}
-          />
-          {snapshot.view.mode === 'whole' ? (
-            <UnplacedCount
-              unplaced={snapshot.view.unplaced}
-              shown={snapshot.view.showUnplaced}
-              onSwitch={switchUnplaced}
+        <details className="workspace-disclosure">
+          <summary>Relations, filtres et vue textuelle</summary>
+          <div className="workspace-notes">
+            {snapshot.view.mode === 'start' ? null : (
+              <>
+                <ShownLine
+                  entities={snapshot.view.counts.entities}
+                  relations={snapshot.view.counts.relations}
+                />
+                <RelationLegend legend={legend} onSwitch={switchRelationType} />
+              </>
+            )}
+            <TextViewList view={textView} onOpenEntity={openEntity} onOpenRelation={openRelation} />
+            <MarkerRemainder
+              drawn={snapshot.view.markersDrawn}
+              remainder={snapshot.view.markersOverCap}
             />
-          ) : null}
-        </>
+            <FocusNote
+              drawn={snapshot.view.focusDrawn}
+              unnamed={snapshot.view.focusUnnamed}
+              unnamedRelations={snapshot.view.focusUnnamedRelations}
+            />
+            {snapshot.view.mode === 'whole' ? (
+              <UnplacedCount
+                unplaced={snapshot.view.unplaced}
+                shown={snapshot.view.showUnplaced}
+                onSwitch={switchUnplaced}
+              />
+            ) : null}
+          </div>
+        </details>
       )}
-    </>
+    </div>
   );
 }

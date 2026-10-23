@@ -1,10 +1,8 @@
 import { Link } from '@tanstack/react-router';
-import { releaseDay } from '@gab/release/release-day';
 import type { SiteManifest } from '@gab/release/site-manifest';
 
 import { CoverageStatement } from '@/shared/page/coverage-statement';
 import { DisclaimerText } from '@/shared/page/disclaimer-text';
-import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
 import { READING_LINK } from '@/shared/page/reading-link';
 import { ReadingPage } from '@/shared/page/reading-page';
@@ -24,7 +22,7 @@ export function MethodPage({ manifest }: MethodPageProps) {
   if (manifest === null)
     return (
       <ReadingPage>
-        <PageHeader title="Method" />
+        <h1 className="sr-only">À propos</h1>
         <p className="text-muted-foreground">
           This site holds no release, and the method page comes with a release.
         </p>
@@ -32,8 +30,7 @@ export function MethodPage({ manifest }: MethodPageProps) {
     );
   return (
     <ReadingPage>
-      <PageHeader title="Method" detail={`From the release of ${releaseDay(manifest.date)}`} />
-
+      <h1 className="sr-only">À propos</h1>
       {manifest.coverage === null ? null : (
         <PageSection title="What the record covers">
           <CoverageStatement

@@ -11,9 +11,6 @@ interface RelationLegendProps {
   readonly onSwitch: (type: string, on: boolean) => void;
 }
 
-// The canvas is always on the dark ground, so the legend draws the dark hue of each family.
-const GROUND = 'dark';
-
 const CONTROL = cn(
   'flex min-h-6 w-full items-center gap-1.5 border border-transparent px-1 text-left',
   'transition-colors duration-100 hover:bg-muted',
@@ -55,7 +52,12 @@ export function RelationLegend({ legend, onSwitch }: RelationLegendProps) {
       {legend.map((family) => (
         <div key={family.key} data-family={family.key} className={cn('min-w-0')}>
           <div className={cn('flex min-h-6 items-center gap-1.5 px-1')}>
-            <Line pattern={family.look.dash} colour={family.look.hue[GROUND]} />
+            <span className="dark:hidden">
+              <Line pattern={family.look.dash} colour={family.look.hue.light} />
+            </span>
+            <span className="hidden dark:inline">
+              <Line pattern={family.look.dash} colour={family.look.hue.dark} />
+            </span>
             <span className={cn('min-w-0 flex-1 break-words text-foreground')}>
               {family.look.label}
             </span>

@@ -85,8 +85,9 @@ describe.each([
   test('the pages of the site have their text, and a title, outside any script', () => {
     const { page } = site();
     const expected: readonly (readonly [string, string, string])[] = [
-      ['index.html', 'The labels', 'GAB dataset: release overview'],
-      ['map/index.html', 'physical link', 'Map · GAB dataset'],
+      ['index.html', 'Les exportations russes', 'Rapport · GAB'],
+      ['nodes/index.html', 'The labels', 'GAB dataset: release overview'],
+      ['map/index.html', 'Périmètre et repères de lecture', 'Map · GAB dataset'],
       ['downloads/index.html', 'SHA-256 checksum', 'Downloads · GAB dataset'],
       ['method/index.html', 'About this data', 'Method · GAB dataset'],
       ['exports/index.html', 'Les exportations russes', 'Exports · GAB dataset'],
@@ -101,10 +102,10 @@ describe.each([
     }
   });
 
-  test('the footer of a page gives the version of the release', () => {
+  test('the report gives the version of the release', () => {
     const { release, page } = site();
     const [year, month, day] = release.manifest.date.split('-');
-    expect(textOf(page('index.html'))).toContain(`Version of ${day}/${month}/${year}`);
+    expect(textOf(page('index.html'))).toContain(`From the release of ${day}/${month}/${year}`);
   });
 
   test('a merged entity opens a short page that links the survivor and sends the browser there', () => {
