@@ -2326,3 +2326,29 @@ test('propose refuses the denial of an event that has no occurred_at relation of
     refusal: expect.stringContaining('has no occurred_at relation of the record') as string,
   });
 });
+
+// ------------------------------------------------ read_duplicate_identifiers ---
+
+test('read_duplicate_identifiers returns only groups of two or more entities, and changes nothing', async () => {
+  await rolledBack('research', async (ask) => {
+    const [made] = z
+      .array(z.object({ n: z.number() }))
+      .parse(await ask(`SELECT count(*)::int AS n FROM api.entity`));
+    const groups = z
+      .object({
+        groups: z.array(
+          z.object({
+            key: z.string(),
+            value: z.string(),
+            entities: z.array(z.object({ id: z.uuid() })),
+          }),
+        ),
+      })
+      .parse(await output(ask, 'read_duplicate_identifiers', {}));
+    for (const group of groups.groups) expect(group.entities.length).toBeGreaterThan(1);
+    const [after] = z
+      .array(z.object({ n: z.number() }))
+      .parse(await ask(`SELECT count(*)::int AS n FROM api.entity`));
+    expect(after?.n).toBe(made?.n);
+  });
+});
