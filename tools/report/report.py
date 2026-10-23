@@ -477,6 +477,79 @@ def load_bibliography(source, meta):
     return bib
 
 
+FIGURE = re.compile(r'<figure class="fig.*?</figure>', re.S)
+HOLE, MAX_PASSES, MAX_DELAY = 0.33, 8, 4  # share of a page left blank above a figure; reflow passes; paragraphs a figure may wait
+
+
+def delayed(page_html, delays):
+    """The page with figure k moved after the next delays[k] paragraphs that follow it."""
+    figs = list(FIGURE.finditer(page_html))
+    for k in sorted(delays, reverse=True):
+        m, after, moved = figs[k], figs[k].end(), ""
+        for _ in range(delays[k]):
+            p = re.compile(r"<p>.*?</p>", re.S).match(page_html, after)
+            if not p:
+                break
+            moved, after = moved + p.group(0), p.end()
+        page_html = page_html[: m.start()] + moved + m.group(0) + page_html[after:]
+    return page_html
+
+
+def blocks_of_page(page_box):
+    """The text blocks of one page in order, as (tag, class, top, bottom, section), and the foot of the free area."""
+    found = []
+
+    def walk(b, section):
+        tag = getattr(b, "element_tag", None)
+        if tag == "section":
+            section = b.element.get("id")
+        if tag in ("p", "figure", "h2", "h3", "table", "aside", "div", "nav", "ol"):
+            found.append((tag, b.element.get("class") or "", b.position_y, b.position_y + b.margin_height(), section))
+            return
+        for c in getattr(b, "children", []) or []:
+            walk(c, section)
+
+    foot = page_box.content_box_y() + page_box.height
+    for c in page_box.children:
+        if type(c).__name__ == "FootnoteAreaBox":
+            foot = c.position_y
+        elif type(c).__name__ == "BlockBox":
+            walk(c, None)
+    return found, foot, page_box.height
+
+
+def holes(pdf):
+    """Figures that open a page while the page before leaves a blank of more than HOLE of a page: their ordinals."""
+    ordinal, found, prev = 0, [], None
+    for page in pdf.pages:
+        blocks, foot, height = blocks_of_page(page._page_box)
+        figs = [b for b in blocks if b[0] == "figure"]
+        if prev and blocks and blocks[0][0] == "figure" and prev[0] and blocks[0][4] is prev[0][-1][4]                 and prev[1] - max(b[3] for b in prev[0]) > HOLE * height:
+            found.append(ordinal)
+        ordinal += len(figs)
+        prev = (blocks, foot)
+    return found
+
+
+def reflow(page_html, base_url):
+    """Render the PDF; a figure that opens a page after a big blank waits one paragraph more, until no big blank remains."""
+    from weasyprint import HTML
+    delays, pdf = {}, None
+    for _ in range(MAX_PASSES):
+        pdf = HTML(string=delayed(page_html, delays), base_url=base_url).render()
+        moves = [k for k in holes(pdf) if delays.get(k, 0) < MAX_DELAY]
+        if not moves:
+            break
+        for k in moves:
+            delays[k] = delays.get(k, 0) + 1
+    for n, page in enumerate(pdf.pages, 1):
+        blocks, foot, height = blocks_of_page(page._page_box)
+        blank = (foot - max((b[3] for b in blocks), default=foot)) / height
+        if n > 1 and blank > HOLE:
+            print(f"warning: page {n} is {blank:.0%} blank; its last block is {blocks[-1][0]} {blocks[-1][1]}".strip(), file=sys.stderr)
+    return pdf
+
+
 def build(source, figures, out, draft=False, name=None):
     """Write OUT/NAME.html and OUT/NAME.pdf; return the PDF page count."""
     from weasyprint import HTML
@@ -511,7 +584,7 @@ def build(source, figures, out, draft=False, name=None):
     if redesign and (leak := DOC_ID.search(page_html)):
         raise ReportError(f"a document identifier would print: {leak[0]}")
     (out / f"{name}.html").write_text(page_html, encoding="utf-8")
-    pdf = HTML(string=page(meta, doc, sections, "pdf", css), base_url=str(out)).render()
+    pdf = reflow(page(meta, doc, sections, "pdf", css), str(out)) if redesign else HTML(string=page(meta, doc, sections, "pdf", css), base_url=str(out)).render()
     pdf.write_pdf(out / f"{name}.pdf")
     print(f"{name}: {len(pdf.pages)} pages, {len(doc.order)} notes, {len(doc.open)} open markers")
     return len(pdf.pages)
