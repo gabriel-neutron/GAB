@@ -519,6 +519,25 @@ BEGIN
   END IF;
 END $$;
 
+-- A SOURCE ACT CAN ALSO ADD A PAGE: A DOCUMENT THAT THE RELATION CITES ALREADY, WITH A PASSAGE THAT NO
+-- ACCEPTED ACT OF THE RELATION HOLDS YET. The relation and its sources stay as they are, and the
+-- citation row is the whole change. p_cites holds the passages of the act (document, text_extractor,
+-- page, start, end). p_self is the act itself, once it is written, so that it never counts as held.
+CREATE OR REPLACE FUNCTION relation_adds_citation(p_target uuid, p_cites jsonb, p_self uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT EXISTS (SELECT 1 FROM public.relations r, jsonb_array_elements(p_cites) AS c
+                  WHERE r.id = p_target AND c->>'document' = ANY (r.sources::text[]))
+     AND NOT EXISTS (
+       SELECT 1 FROM jsonb_array_elements(p_cites) AS c
+        WHERE EXISTS (
+          SELECT 1 FROM public.citation h JOIN public.proposals q ON q.id = h.claim_id
+           WHERE q.status = 'accepted' AND q.target_id = p_target AND q.id IS DISTINCT FROM p_self
+             AND h.doc_id = c->>'document' AND h.text_extractor = c->>'text_extractor'
+             AND h.page = (c->>'page')::int AND h.start IS NOT DISTINCT FROM (c->>'start')::int
+             AND h."end" IS NOT DISTINCT FROM (c->>'end')::int));
+$$;
+
 -- A TYPE CHANGE GOES ONLY ON A designated_by RELATION, AND ONLY WHEN NO OPEN restricted_by RELATION
 -- LINKS THE SAME TWO ENDS. The batch door reads it so that an act that can never apply does not
 -- wait in the queue, and the promotion reads it again under the row lock, because another act can
@@ -1114,8 +1133,11 @@ BEGIN
                                        'the act names a target of the wrong kind');
       END IF;
       BEGIN
-        PERFORM public.check_relation_add_source(
-          v_target, ARRAY(SELECT jsonb_array_elements_text(v_item->'src')));
+        IF NOT public.relation_adds_citation(
+                 v_target, coalesce(v_item->'citations', '[]'::jsonb), NULL) THEN
+          PERFORM public.check_relation_add_source(
+            v_target, ARRAY(SELECT jsonb_array_elements_text(v_item->'src')));
+        END IF;
       EXCEPTION WHEN raise_exception OR check_violation THEN
         GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_said = MESSAGE_TEXT,
                                 v_hint = PG_EXCEPTION_HINT;
@@ -1984,7 +2006,14 @@ BEGIN
 
   ELSIF p.op = 'update_relation' AND p.payload ? 'add_source' THEN
     PERFORM 1 FROM public.relations r WHERE r.id = p.target_id FOR UPDATE;
-    PERFORM public.check_relation_add_source(p.target_id, p.src::text[]);
+    IF NOT public.relation_adds_citation(
+             p.target_id,
+             (SELECT coalesce(jsonb_agg(jsonb_build_object('document', c.doc_id,
+                'text_extractor', c.text_extractor, 'page', c.page, 'start', c.start,
+                'end', c."end")), '[]'::jsonb) FROM public.citation c WHERE c.claim_id = p.id),
+             p.id) THEN
+      PERFORM public.check_relation_add_source(p.target_id, p.src::text[]);
+    END IF;
     SELECT jsonb_build_object('sources', to_jsonb(r.sources)) INTO v_prior
       FROM public.relations r WHERE r.id = p.target_id;
     UPDATE public.relations r
