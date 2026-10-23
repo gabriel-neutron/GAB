@@ -59,7 +59,8 @@ def build(data, meta, out_dir, grey=False):
 
     placed = assign(0, [])
     if placed is None:
-        raise st.StyleError("no free level for the labels: shorten a label or drop an event")
+        longest = max(events, key=lambda e: len(e["label"]))["label"]
+        raise st.StyleError(f"no free level for the labels: shorten a label (the longest is {longest!r}) or drop an event")
     used = [p[1] for p in placed]
     sides = [p[2] for p in placed]
     fig = st.new_fig(st.size_height(meta, 24 + 8 * (max(used, default=0) + 1) + 7 * len(bands)))
@@ -82,9 +83,12 @@ def build(data, meta, out_dir, grey=False):
         y = -0.9 - k * 0.45
         ax.fill_between([day(b["from"]), day(b["to"])], y - 0.35, y, facecolor=fill, hatch=hatch,
                         edgecolor=st.SECOND, linewidth=0.5)
-        # a band narrower than its label keeps the label to its right, so the hatch stays visible
-        wide = (day(b["to"]) - day(b["from"])).days >= (len(b["label"]) + 1) * 1.5 / st.WIDTH_MM * span
-        ax.text(day(b["from"]) if wide else day(b["to"]), y - 0.17, " " + b["label"], ha="left", va="center",
-                fontsize=st.NOTE_PT, color=st.INK, clip_on=True,
+        # a band narrower than its label keeps the label beside it, so the hatch stays visible: to its right, or to
+        # its left when the right edge is too near
+        label_days = (len(b["label"]) + 1) * 1.5 / st.WIDTH_MM * span
+        wide = (day(b["to"]) - day(b["from"])).days >= label_days
+        left = not wide and (end - day(b["to"])).days < label_days
+        ax.text(day(b["from"]) if wide else day(b["to"]) if not left else day(b["from"]), y - 0.17, " " + b["label"] + " " * left,
+                ha="right" if left else "left", va="center", fontsize=st.NOTE_PT, color=st.INK, clip_on=True,
                 bbox=dict(facecolor=st.WHITE, edgecolor="none", pad=0.8) if wide else None)
     return st.save(fig, out_dir, meta["stem"], meta, grey)
