@@ -98,6 +98,12 @@ describe.each([
     }
   });
 
+  test('the removed pages have no folder', () => {
+    const { page } = site();
+    for (const folder of ['search', 'downloads', 'method', 'exports', 'glossary', 'help'])
+      expect(() => page(`${folder}/index.html`)).toThrow();
+  });
+
   test('the footer of a page gives the version of the release', () => {
     const { release, page } = site();
     const [year, month, day] = release.manifest.date.split('-');

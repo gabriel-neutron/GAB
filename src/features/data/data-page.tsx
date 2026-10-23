@@ -166,7 +166,9 @@ export function DataPage({ release, fileHref }: DataPageProps) {
               className={SELECT}
               value={dataset}
               onChange={(event) => {
-                setDataset(event.target.value as Dataset);
+                const chosen = DATASETS.find(({ key }) => key === event.target.value);
+                if (chosen === undefined) return;
+                setDataset(chosen.key);
                 setFilter(NO_FILTER);
               }}
             >
@@ -208,6 +210,7 @@ export function DataPage({ release, fileHref }: DataPageProps) {
             type="button"
             variant="outline"
             disabled={rows.length === 0}
+            aria-describedby="data-count"
             onClick={() => {
               save(
                 `gab-${dataset}-${manifest.date}.csv`,
@@ -217,7 +220,7 @@ export function DataPage({ release, fileHref }: DataPageProps) {
           >
             Download these rows (CSV)
           </Button>
-          <p aria-live="polite" className="text-small/4 text-label">
+          <p id="data-count" aria-live="polite" className="text-small/4 text-label">
             {`${String(rows.length)} of ${String(table.rows.length)} rows.`}
             {rows.length > PREVIEW ? ` The table shows the first ${String(PREVIEW)}.` : ''}
           </p>

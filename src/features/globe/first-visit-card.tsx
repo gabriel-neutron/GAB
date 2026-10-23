@@ -41,7 +41,7 @@ export function FirstVisitCard({ onClose }: FirstVisitCardProps) {
           <Link to="/data" className={READING_LINK}>
             Data
           </Link>{' '}
-          says how the facts are checked, and gives the files.
+          gives the files, and says who decided each fact.
         </li>
       </ul>
       <div>
