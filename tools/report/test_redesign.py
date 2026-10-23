@@ -308,6 +308,8 @@ def test_delayed_moves_a_figure_after_the_next_paragraphs_and_stops_at_a_heading
     assert report.delayed(html, {0: 1}) == '<p>a</p><p>b</p><figure class="fig"><p class="caption">c</p></figure><p>c</p><h2>x</h2><p>d</p>'
     # the figure never ends its section: it stops before the last paragraph
     assert report.delayed(html, {0: 3}) == '<p>a</p><p>b</p><figure class="fig"><p class="caption">c</p></figure><p>c</p><h2>x</h2><p>d</p>'
+    lst = '<p>a</p><figure class="fig">1</figure><ol><li>x</li></ol><p>b</p>'
+    assert report.delayed(lst, {0: 1}) == '<p>a</p><ol><li>x</li></ol><figure class="fig">1</figure><p>b</p>'
     # nor does it land before another figure
     two = '<p>a</p><figure class="fig">1</figure><p>b</p><figure class="fig">2</figure><p>c</p>'
     assert report.delayed(two, {0: 2}) == two
@@ -396,3 +398,8 @@ def test_a_section_never_starts_in_the_last_third_of_a_page(tmp_path):
     fixed = report.reflow(page_html, str(tmp_path))
     assert report.low_starts(fixed) == []
 
+
+
+def test_the_conclusion_section_is_kept_on_one_page(tmp_path):
+    _, html = build(tmp_path, "---\ntitle: T\nlayout: redesign\n---\n\n## 1. Introduction\n\nTexte.\n\n## 2. Conclusion\n\nFin.\n")
+    assert '<section id="s1" class="conclusion">' in html
