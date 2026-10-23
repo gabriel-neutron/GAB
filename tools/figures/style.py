@@ -2,8 +2,7 @@
 
 Every colour, font and size of a figure comes from this file. A figure script sets none.
 The colours are the light-theme tokens of the site stylesheet, read by `tokens.py`.
-Fonts: the files in `fonts/` are registered when they exist. Else the face falls back to
-the DejaVu face that ships with matplotlib.
+Fonts: the files in `fonts/` are registered.
 """
 import csv
 import html
@@ -120,16 +119,15 @@ WORDS = {
            "half": "Condition remplie en partie", "empty": "Condition non remplie",
            "undocumented": "Non documenté"},
 }
-UNSTORED = "non stocké"
 DOC_ID = re.compile(r"doc_[0-9a-f]{12}")
-# Run options set by `configure`; `unstored` turns true when a row has no stored document.
-OPTIONS = {"locale": "en", "allow_unstored": False, "unstored": False}
+# The run option set by `configure`.
+OPTIONS = {"locale": "en"}
 
 
-def configure(locale="en", allow_unstored=False):
+def configure(locale="en"):
     if locale not in WORDS:
         raise StyleError(f"unknown locale: {locale}")
-    OPTIONS.update(locale=locale, allow_unstored=allow_unstored, unstored=False)
+    OPTIONS["locale"] = locale
 
 
 def word(key):
@@ -160,25 +158,20 @@ def check_marks(marks):
 def register_fonts():
     for f in (HERE / "fonts").glob("*.[to]tf"):
         font_manager.fontManager.addfont(str(f))
-    have = {f.name for f in font_manager.fontManager.ttflist}
-    face = next(f for f in tk.FONTS["serif"] if f in have or f == tk.FONTS["serif"][-1])
-    if face != tk.FONTS["serif"][0]:
-        warnings.warn(f"{tk.FONTS['serif'][0]} is not installed: text is measured with {face}", stacklevel=2)
     plt.rcParams.update({
-        "font.family": face,
+        "font.family": tk.FONTS["serif"][0],
         "font.size": TEXT_PT, "svg.fonttype": "none", "axes.edgecolor": AXIS,
         "text.color": INK, "axes.labelcolor": LABEL, "xtick.color": LABEL, "ytick.color": LABEL,
         "axes.facecolor": "none", "figure.facecolor": "none", "savefig.facecolor": "none",
         "axes.linewidth": LINE_W * 0.6, "grid.color": GRID, "grid.linewidth": 0.5,
         "legend.frameon": False, "hatch.linewidth": 0.6, "hatch.color": INK,
     })
-    return have
 
 
-_have = register_fonts()
-# The mono face of the site; DejaVu Sans Mono is the fallback.
+register_fonts()
+# The mono face of the site, then the CSS stack of the HTML figures.
 MONO = tk.FONTS["mono"]
-MONO_FACE = next(f for f in MONO if f in _have or f == MONO[-1])
+MONO_FACE = MONO[0]
 
 
 # Size classes for the page of 166 mm text width and 250 mm text height. A figure and its caption stay on one page:
@@ -331,8 +324,7 @@ def pct(v, places=1):
 def read_data(path):
     """Read one data file of the report: columns as in packages/site/report/*.csv.
 
-    The document is `doc_` plus 12 hex characters. With the option allow_unstored, any other
-    value passes with a warning and the caption source says "non stocké".
+    The document is `doc_` plus 12 hex characters; any other value is refused.
     """
     with open(path, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
@@ -340,12 +332,7 @@ def read_data(path):
         raise StyleError("the data file is empty")
     for i, r in enumerate(rows, 2):
         if not DOC_ID.fullmatch(str(r.get("document", ""))):
-            if not OPTIONS["allow_unstored"]:
-                raise StyleError(f"line {i}: the value has no doc_ identifier (doc_ and 12 hex characters)")
-            if not OPTIONS["unstored"]:
-                print(f"warning: line {i}: the document is not stored; the caption says '{UNSTORED}'",
-                      file=sys.stderr)
-            OPTIONS["unstored"] = True
+            raise StyleError(f"line {i}: the value has no doc_ identifier (doc_ and 12 hex characters)")
         try:
             r["valeur"] = float(r["valeur"])
         except (KeyError, ValueError) as e:
@@ -380,8 +367,6 @@ def caption_html(meta, kind="Figure"):
     e = html.escape
     unit = f" ({e(meta['unit'])})" if meta.get("unit") else ""
     source = meta["source"]
-    if OPTIONS["unstored"]:
-        source = f"{source.rstrip('.')} ({UNSTORED})."
     out = (f'<p class="caption"><strong>{word(kind)} {e(str(meta["number"]))}. {e(meta["title"])}{unit}.'
            f'</strong> {word("source")} {e(source)} {word("note")} {e(meta["note"])}</p>\n')
     if meta.get("address"):

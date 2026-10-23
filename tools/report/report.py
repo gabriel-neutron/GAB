@@ -9,7 +9,7 @@ The input is French Markdown. The title page comes from a front matter block (`-
 title, a `##` subtitle, the lines `Auteur : …`, `Date : …`, `Version : …`). A footnote is `[^n]`
 with its definition `[^n]: text` anywhere in the file. A figure is an image block, then its
 caption paragraph ("Figure n. …"); a table caption comes before the table. A figure file is
-found by the stem of its image path, in DIR, as SVG first and PNG second. A block quote is an
+found by the stem of its image path, in DIR, as SVG. A block quote is an
 assessment block of the authors: its first bold run is its label. Fenced code is not supported.
 
 Colours and fonts come from the `:root` block of `src/index.css`. The PDF engine is WeasyPrint:
@@ -95,8 +95,6 @@ class ReportError(ValueError):
 
 def natural_mm(svg):
     """Width in mm of a figure drawn at its printed size. The figure tool writes pt; a handmade figure has a viewBox in mm."""
-    if not svg.exists():
-        return PAGE_MM
     found = re.search(r"<svg[^>]*>", svg.read_text(encoding="utf-8"))
     if not found:
         return PAGE_MM
@@ -109,26 +107,20 @@ def natural_mm(svg):
 
 
 def aspect_of(path):
-    """Width over height of a figure file (SVG first, else the PNG header)."""
-    svg = path.with_suffix(".svg")
-    if svg.exists():
-        head = re.search(r"<svg[^>]*>", svg.read_text(encoding="utf-8"))
-        head = head.group(0) if head else ""
-        w, h = (re.search(rf'\s{k}="([\d.]+)(?:pt)?"', head) for k in ("width", "height"))
-        if w and h:
-            return float(w[1]) / float(h[1])
-        box = re.search(r'viewBox="[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"', head)
-        if box:
-            return float(box[1]) / float(box[2])
-    png = path.with_suffix(".png")
-    data = png.read_bytes()[:24] if png.exists() else b""
-    return int.from_bytes(data[16:20], "big") / int.from_bytes(data[20:24], "big") if data[12:16] == b"IHDR" else 1.0
+    """Width over height of a figure file, from the width and height or the viewBox of its SVG (1 if it has none)."""
+    head = re.search(r"<svg[^>]*>", path.with_suffix(".svg").read_text(encoding="utf-8"))
+    head = head.group(0) if head else ""
+    w, h = (re.search(rf'\s{k}="([\d.]+)(?:pt)?"', head) for k in ("width", "height"))
+    if w and h:
+        return float(w[1]) / float(h[1])
+    box = re.search(r'viewBox="[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"', head)
+    return float(box[1]) / float(box[2]) if box else 1.0
 
 
 def site_tokens():
     """The light-theme tokens of the site stylesheet, as hex colours."""
     sys.path.insert(0, str(HERE.parent / "figures"))
-    from style import oklch
+    from tokens import oklch
     css = SITE_CSS.read_text(encoding="utf-8")
     out = {}
     for selector, names, prefix in ((":root", TOKENS, ""), (r"\.dark", DARK_TOKENS, "dark-")):
@@ -321,12 +313,11 @@ class Doc:
         """The image as (alt, data URI, width in mm, width over height)."""
         alt, path = re.fullmatch(r"!\[([^\]]*)\]\(([^)]+)\)", block).groups()
         stem = Path(path).stem
-        for ext, mime in ((".svg", "image/svg+xml"), (".png", "image/png")):
-            if (self.figures / (stem + ext)).exists():
-                data = base64.b64encode((self.figures / (stem + ext)).read_bytes()).decode()
-                mm = natural_mm(self.figures / (stem + ".svg"))
-                return (html.escape(alt), f"data:{mime};base64,{data}", mm, aspect_of(self.figures / (stem + ext)))
-        raise ReportError(f"figure file not found: {stem}.svg or {stem}.png in {self.figures}")
+        svg = self.figures / (stem + ".svg")
+        if not svg.exists():
+            raise ReportError(f"figure file not found: {stem}.svg in {self.figures}")
+        data = base64.b64encode(svg.read_bytes()).decode()
+        return (html.escape(alt), f"data:image/svg+xml;base64,{data}", natural_mm(svg), aspect_of(svg))
 
     def anchor(self):
         """The id that the figure list links to: the caption just listed."""

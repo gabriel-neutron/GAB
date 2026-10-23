@@ -17,7 +17,7 @@ Le port de Brumel reçoit 1 200 navires par an ; la moitié ne dépose aucune d�
 
 Le registre du port compte 1 200 escales en 2026, contre 1 450 en 2025.[^c] Une partie des données est Indicatif seulement [À STOCKER: série mensuelle des escales].[^b]
 
-![Figure 1. Escales annuelles du port de Brumel](figures/plate-a.png)
+![Figure 1. Escales annuelles du port de Brumel](figures/plate-a.svg)
 
 **Figure 1.** Escales annuelles du port de Brumel, 2020-2026 (nombre de navires). Source : registre du port, doc_0123456789ab. Note : le graphique montre les escales commerciales ; la série ne commence pas à zéro.
 

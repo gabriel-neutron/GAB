@@ -196,20 +196,15 @@ def test_read_data_refuses_a_bad_document(tmp_path, doc):
         make(tmp_path, "bars", csv_rows("A,x,3", doc=doc))
 
 
-def test_allow_unstored_warns_and_marks_the_caption(tmp_path, capsys):
-    out = make(tmp_path, "bars", csv_rows("A,x,3", doc="non stocké"), allow_unstored=True)
-    assert "warning" in capsys.readouterr().err
-    assert "non stocké" in out[2].read_text(encoding="utf-8")
-    # the next run is strict again and its caption is clean
-    assert "non stocké" not in make(tmp_path, "bars", csv_rows("A,x,3"))[2].read_text(encoding="utf-8")
-
-
 def test_cli_flags(tmp_path):
     d = tmp_path / "d.csv"
     d.write_text(csv_rows("A,x,3", doc="none"), encoding="utf-8")
     (tmp_path / "d.caption.json").write_text(json.dumps(CAPTION))
     assert figures.main(["bars", str(d), "--out", str(tmp_path)]) == 1
-    assert figures.main(["bars", str(d), "--out", str(tmp_path), "--allow-unstored", "--locale", "fr"]) == 0
+    assert figures.main(["bars", str(d), "--out", str(tmp_path), "--locale", "fr"]) == 1
+    d.write_text(csv_rows("A,x,3"), encoding="utf-8")
+    assert figures.main(["bars", str(d), "--out", str(tmp_path), "--locale", "fr"]) == 0
+    assert "Source :" in (tmp_path / "d.caption.html").read_text(encoding="utf-8")
 
 
 # review fixes

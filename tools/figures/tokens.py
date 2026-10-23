@@ -1,15 +1,13 @@
 """The design tokens of the figures, read from the site stylesheet (`src/index.css`).
 
 Standard library only: the figure tool (`style.py`) and the hand-made scripts import it.
-Set FIGURE_TOKENS to the path of another stylesheet to read a different one.
 A token is a light-theme `oklch(...)` value of `:root`; `hex(name)` converts it.
 """
 import math
-import os
 import re
 from pathlib import Path
 
-CSS = Path(os.environ.get("FIGURE_TOKENS") or Path(__file__).resolve().parents[2] / "src" / "index.css")
+CSS = Path(__file__).resolve().parents[2] / "src" / "index.css"
 
 # Fonts of the Dossier style. The site has no serif face: Source Serif 4 (SIL OFL) is the body face.
 FONTS = {"serif": ["Source Serif 4", "DejaVu Serif"], "mono": ["JetBrains Mono", "DejaVu Sans Mono"]}
