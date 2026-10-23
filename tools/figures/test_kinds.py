@@ -202,6 +202,9 @@ def test_cli_flags(tmp_path):
     (tmp_path / "d.caption.json").write_text(json.dumps(CAPTION))
     assert figures.main(["bars", str(d), "--out", str(tmp_path)]) == 1
     assert figures.main(["bars", str(d), "--out", str(tmp_path), "--locale", "fr"]) == 1
+    d.write_text(csv_rows("A,x,3"), encoding="utf-8")
+    assert figures.main(["bars", str(d), "--out", str(tmp_path), "--locale", "fr"]) == 0
+    assert "Source :" in (tmp_path / "d.caption.html").read_text(encoding="utf-8")
 
 
 # review fixes
