@@ -199,7 +199,7 @@ TITLE_WORDS = 8
 def size_height(meta, default_mm):
     """The height of a figure: `height_mm` of the caption file, else the size class, else the content height.
 
-    A class smaller than the content prints a warning: the figure is drawn at the class height."""
+    A class smaller than the content is refused; `height_mm` is the explicit way to squeeze a figure."""
     _width["mm"] = PAIR_WIDTH_MM if meta.get("size") == "pair" else WIDTH_MM
     if "height_mm" in meta:
         return meta["height_mm"]
@@ -208,7 +208,7 @@ def size_height(meta, default_mm):
     if meta["size"] not in SIZES:
         raise StyleError(f"unknown size class: {meta['size']}")
     if SIZES[meta["size"]] < default_mm:
-        print(f"warning: size class {meta['size']} is smaller than the content height {default_mm:.0f} mm", file=sys.stderr)
+        raise StyleError(f"size class {meta['size']} is too small for the content: {default_mm:.0f} mm needed; set height_mm to squeeze it")
     return SIZES[meta["size"]]
 
 

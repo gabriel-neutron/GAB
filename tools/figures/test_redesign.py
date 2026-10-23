@@ -39,6 +39,12 @@ def test_flow(tmp_path, monkeypatch):
     run(tmp_path, monkeypatch, "flow", FLOW)
 
 
+def test_flow_keeps_the_source_key_off_the_arrow_when_the_caption_holds_it(tmp_path):
+    shown = make(tmp_path, "flow", FLOW)[0].read_text(encoding="utf-8")
+    hidden = make(tmp_path, "flow", FLOW, {"edge_keys": False})[0].read_text(encoding="utf-8")
+    assert "[2]" in shown and "[2]" not in hidden
+
+
 def test_flow_refuses_an_arrow_without_source_or_into_a_hatched_node(tmp_path):
     bad = json.loads(json.dumps(FLOW))
     bad["edges"][0].pop("source")
@@ -207,10 +213,10 @@ def test_multiples_refuse_one_panel(tmp_path):
 
 
 # size classes, and the title of a message
-@pytest.mark.parametrize("size,mm", [("third", 80), ("half", 120), ("full", 240)])
+@pytest.mark.parametrize("size,mm", [("third", 70), ("half", 110), ("full", 210)])
 def test_size_class_sets_the_height(tmp_path, monkeypatch, size, mm):
     seen = caught(monkeypatch)
-    make(tmp_path, "tiles", TILES, {"size": size})
+    make(tmp_path, "tiles", {"tiles": TILES["tiles"][:3]}, {"size": size})
     assert seen[0].get_figheight() * 25.4 == pytest.approx(mm)
 
 
@@ -229,6 +235,7 @@ def test_size_class_smaller_than_the_content_is_refused(tmp_path):
     many = {"tiles": TILES["tiles"] * 2}
     with pytest.raises(st.StyleError, match="too small"):
         make(tmp_path, "tiles", many, {"size": "third"})
+    make(tmp_path, "tiles", many, {"size": "third", "height_mm": 60})  # an explicit height squeezes the figure
 
 
 def test_map_scale_bar_has_the_true_length(tmp_path, monkeypatch):
