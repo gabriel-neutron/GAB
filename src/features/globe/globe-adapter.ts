@@ -2,7 +2,7 @@ import { canvasTheme, observeCanvasTheme } from '@/shared/canvas-theme';
 // The one file that touches the map library. The panels drive the globe through the store, and
 // this file is the view of the store that draws on the canvas.
 
-import { PRODUCTS, type ProductKey } from '@gab/proposal/chain-product';
+import { PRODUCTS } from '@gab/proposal/chain-product';
 import { positions } from '@gab/proposal/geometry-positions';
 import countriesUrl from '@gab/proposal/countries.json?url';
 import {
@@ -20,6 +20,13 @@ import type { GlobeData } from './globe-data';
 import type { GlobeState, GlobeStore, Target } from './globe-store';
 import { selectedEntity } from './selected-entity';
 import { ARC_LAYERS, type ArcLayer } from './arc-layers';
+import {
+  createChainAnimation,
+  drawLayers,
+  flowLayer,
+  flowLayers,
+  revealed,
+} from './chain-animation';
 import { frameOf, highlightOf, pickHit, type Under } from './globe-view';
 
 // MapLibre takes hex colours rather than CSS theme tokens.
@@ -44,8 +51,6 @@ const MAP_PALETTES = {
 const LAND = MAP_PALETTES.dark.land;
 const MARK = '#4aa8ff';
 const IN_REVIEW = '#9aa3ad';
-// The head of the pulse that runs along a link.
-const PULSE = '#ffffff';
 // Origin of the number: at this opacity a dimmed point stays visible on the dark land, and a
 // point put forward reads at once.
 const DIMMED = 0.35;
@@ -58,8 +63,6 @@ const LINE_BOX = 5;
 const ENTITY_ZOOM = 4;
 const SPIN_STEP = 6;
 const SPIN_MS = 2000;
-// The pulse runs along a link in this time, then waits for a short time.
-const PULSE_MS = 2600;
 
 const ARC_COLOURS: Readonly<Record<ArcLayer['colour'], string | ExpressionSpecification>> = {
   product: ['coalesce', ['get', 'colour'], MARK],
@@ -75,31 +78,6 @@ const GROUPS: readonly (readonly string[])[] = [
   ARC_LAYERS.map((one) => one.id),
 ];
 const ARC_IDS: ReadonlySet<string> = new Set(ARC_LAYERS.map((one) => one.id));
-
-const pulseLayer = (key: ProductKey): string => `pulse-${key}`;
-
-/** A gradient along a line, with a bright head at `progress` (0 to 1) and a short tail behind it. */
-const pulseAt = (progress: number): ExpressionSpecification => {
-  // Origin of the numbers: an interpolation needs its inputs in strictly ascending order, so the
-  // head stays between 0.13 and 0.97, with a tail of 0.12 and a front of 0.02.
-  const head = 0.13 + 0.84 * Math.min(Math.max(progress, 0), 1);
-  const clear = 'rgba(0,0,0,0)';
-  return [
-    'interpolate',
-    ['linear'],
-    ['line-progress'],
-    0,
-    clear,
-    head - 0.12,
-    clear,
-    head,
-    PULSE,
-    head + 0.02,
-    clear,
-    1,
-    clear,
-  ];
-};
 
 const forward = (ids: ReadonlySet<string> | null): ExpressionSpecification | number =>
   ids === null ? 1 : ['case', ['in', ['get', 'id'], ['literal', [...ids]]], 1, DIMMED];
@@ -153,10 +131,11 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
     // domain). The globe sends no request to a tile server.
     sources: {
       countries: { type: 'geojson', data: countriesUrl },
-      entities: { type: 'geojson', data: data.entities },
+      // The animation sets a feature state by identifier.
+      entities: { type: 'geojson', data: data.entities, promoteId: 'id' },
       // The pulse reads the progress along each line.
-      arcs: { type: 'geojson', data: data.arcs, lineMetrics: true },
-      exits: { type: 'geojson', data: data.exits },
+      arcs: { type: 'geojson', data: data.arcs, lineMetrics: true, promoteId: 'id' },
+      exits: { type: 'geojson', data: data.exits, promoteId: 'id' },
     },
     layers: [
       { id: 'ground', type: 'background', paint: { 'background-color': palette.ground } },
@@ -205,22 +184,11 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
           ...(one.dash === null ? {} : { 'line-dasharray': one.dash }),
         },
       })),
-      // A pulse runs along each link that is a flow of the record. A gradient reads no property of
-      // the feature, so each product has its own layer. A link in review is not a fact, and a
-      // capacity is not a flow, so neither carries a pulse.
-      ...PRODUCTS.map((one): LineLayerSpecification => ({
-        id: pulseLayer(one.key),
-        type: 'line',
-        source: 'arcs',
-        filter: [
-          'all',
-          ['==', ['get', 'product'], one.key],
-          ['!=', ['get', 'style'], 'in review'],
-          ['!=', ['get', 'style'], 'capacity'],
-        ],
-        layout: { 'line-cap': 'round', visibility: 'none' },
-        paint: { 'line-width': 3, 'line-blur': 1, 'line-gradient': pulseAt(0.5) },
-      })),
+      // A draw-on and a flow run along the links of a step. A gradient reads no property of the
+      // feature, so each product has its own layer. A link in review is not a fact, and a capacity
+      // is not a flow, so neither carries a flow.
+      ...drawLayers(),
+      ...flowLayers('none'),
       {
         id: 'points',
         type: 'circle',
@@ -228,7 +196,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
         filter: ['==', ['geometry-type'], 'Point'],
         paint: {
           'circle-color': ['coalesce', ['get', 'colour'], MARK],
-          'circle-radius': 6,
+          'circle-radius': revealed(6),
           'circle-stroke-color': palette.ground,
           'circle-stroke-width': 1.5,
         },
@@ -252,7 +220,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
         paint: {
           // A ring with no fill, so the asset under an exit point stays in view.
           'circle-opacity': 0,
-          'circle-radius': 10,
+          'circle-radius': revealed(10),
           'circle-stroke-color': ['case', ['get', 'inReview'], IN_REVIEW, ['get', 'colour']],
           'circle-stroke-width': 2.5,
         },
@@ -350,15 +318,15 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
     const entity = selectedEntity(state);
     const highlight = highlightOf(data, { entity, step: state.step, product: state.product });
     const assets = forward(highlight?.assets ?? null);
-    map.setPaintProperty('points', 'circle-opacity', assets);
-    map.setPaintProperty('points', 'circle-stroke-opacity', assets);
-    map.setPaintProperty('lines', 'line-opacity', assets);
-    map.setPaintProperty('areas', 'fill-opacity', [
-      '*',
-      0.3,
-      assets,
-    ] satisfies ExpressionSpecification);
-    map.setPaintProperty('exits', 'circle-stroke-opacity', forward(highlight?.exits ?? null));
+    map.setPaintProperty('points', 'circle-opacity', revealed(assets));
+    map.setPaintProperty('points', 'circle-stroke-opacity', revealed(assets));
+    map.setPaintProperty('lines', 'line-opacity', revealed(assets));
+    map.setPaintProperty('areas', 'fill-opacity', revealed(0.3, assets));
+    map.setPaintProperty(
+      'exits',
+      'circle-stroke-opacity',
+      revealed(forward(highlight?.exits ?? null)),
+    );
     const selection: FilterSpecification = ['==', ['get', 'id'], entity ?? ''];
     map.setFilter('selected-point', ['all', ['==', ['geometry-type'], 'Point'], selection]);
     map.setFilter('selected-line', ['all', ['!=', ['geometry-type'], 'Point'], selection]);
@@ -367,21 +335,15 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
     const arcs = forward(highlight?.arcs ?? null);
     for (const one of ARC_LAYERS) {
       map.setFilter(one.id, ['all', ['==', ['get', 'style'], one.style], arcFilter]);
-      map.setPaintProperty(
-        one.id,
-        'line-opacity',
-        typeof arcs === 'number'
-          ? one.opacity * arcs
-          : (['*', one.opacity, arcs] satisfies ExpressionSpecification),
-      );
+      map.setPaintProperty(one.id, 'line-opacity', revealed(one.opacity, arcs));
     }
     for (const one of PRODUCTS) {
       map.setLayoutProperty(
-        pulseLayer(one.key),
+        flowLayer(one.key),
         'visibility',
         state.moving && (state.product === 'all' || state.product === one.key) ? 'visible' : 'none',
       );
-      map.setPaintProperty(pulseLayer(one.key), 'line-opacity', arcs);
+      map.setPaintProperty(flowLayer(one.key), 'line-opacity', revealed(arcs));
     }
     for (const one of reviewLabels)
       if (state.product === 'all' || one.product === state.product) one.marker.addTo(map);
@@ -427,31 +389,12 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
   };
   reduced.addEventListener('change', onReduced);
 
-  // The pulse runs along each link in 2.6 seconds. It stops with the motion.
-  const start = performance.now();
-  let frameRequest = 0;
-  const pulse = (now: number): void => {
-    frameRequest = 0;
-    if (destroyed || !store.get().moving) return;
-    const progress = (((now - start) / PULSE_MS) % 1) * 1.15;
-    for (const one of PRODUCTS)
-      map.setPaintProperty(pulseLayer(one.key), 'line-gradient', pulseAt(Math.min(progress, 1)));
-    frameRequest = requestAnimationFrame(pulse);
-  };
+  const animation = createChainAnimation(map, data);
 
   // What the previous state looked like, so a change moves the camera once.
   let seen: GlobeState = store.get();
   // A click on the globe selects what the reader sees, so the camera stays where it is.
   let selectedByClick = false;
-  const frameStep = (state: GlobeState): void => {
-    const step = data.steps.find((one) => one.key === state.step);
-    const framed =
-      step === undefined
-        ? null
-        : frameOf(data.places, [...step.assets, ...step.arcs, ...step.exits]);
-    if (framed !== null)
-      map.fitBounds(framed, { padding: 60, maxZoom: 5, duration: state.moving ? CHANGE_MS : 0 });
-  };
   const follow = (): void => {
     const state = store.get();
     const before = seen;
@@ -466,7 +409,12 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
     whenLoaded(() => {
       if (destroyed) return;
       draw(state);
-      if (state.step !== before.step) frameStep(state);
+      if (state.step !== before.step || state.moving !== before.moving)
+        animation.show(state.step, {
+          moving: state.moving,
+          camera: state.step !== null || selectedEntity(state) === null,
+        });
+      animation.flow(state.moving);
       const entity = selectedEntity(state);
       if (entity !== null && entity !== selectedEntity(before) && !selectedByClick)
         centreOn(entity);
@@ -488,9 +436,9 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
       centreOn(entity);
     } else if (state.step !== null) {
       stopSpin();
-      frameStep(state);
+      animation.show(state.step, { moving: state.moving, camera: true });
     } else spin();
-    if (state.moving) frameRequest = requestAnimationFrame(pulse);
+    animation.flow(state.moving);
   });
   const unsubscribe = store.subscribe(follow);
 
@@ -550,7 +498,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
       container.removeEventListener('keydown', onKey);
       observer.disconnect();
       stopTheme();
-      if (frameRequest !== 0) cancelAnimationFrame(frameRequest);
+      animation.destroy();
       for (const one of reviewLabels) one.marker.remove();
       for (const marker of exportLabels) marker.remove();
       map.remove();
