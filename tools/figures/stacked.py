@@ -56,9 +56,9 @@ def build(data, meta, out_dir, grey=False):
         handles.append(Patch(facecolor=color, hatch=hatch, edgecolor=st.WHITE if st.lightness(color) < 0.55 else st.INK, label=name, linewidth=0))
     if upper:
         handles.append(Line2D([], [], color=st.INK, lw=1, marker="|", markersize=6, label=st.word("high")))
-    ax.legend(handles=handles, loc="lower left", bbox_to_anchor=(0, 1.0), ncol=st.legend_cols([h.get_label() for h in handles]), fontsize=st.TEXT_PT,
+    ax.legend(handles=handles, loc="lower left", bbox_to_anchor=(0, 1.0), ncol=st.legend_cols([h.get_label() for h in handles], 4), fontsize=st.TEXT_PT,
               borderaxespad=0, columnspacing=1.2)
-    ax.set_yticks(range(len(bars)), bars)
+    ax.set_yticks(range(len(bars)), [st.fit_label(b) for b in bars])
     ax.invert_yaxis()
     ax.set_xlim(0, max(max(left.values()), reach) * 1.06)
     return st.save(fig, out_dir, meta["stem"], meta, grey)

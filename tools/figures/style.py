@@ -204,14 +204,15 @@ def scale():
 
 def fit_label(text):
     """A category label of a narrow figure wraps at 16 characters."""
-    return textwrap.fill(text, 16) if scale() > 1.5 else text
+    return textwrap.fill(text, 16, break_long_words=False) if scale() > 1.5 else text
 
 
-def legend_cols(labels):
-    """Legend columns: a narrow figure uses as many columns as fit in 72 mm (about 1.5 mm a character, 8 mm for a key)."""
+def legend_cols(labels, default=None):
+    """Legend columns. A 160 mm figure keeps `default` (one column for each label if none).
+    A narrow figure uses as many columns as fit in 40 mm (1.75 mm a character, 10 mm for a key)."""
     n = len(labels)
     if scale() <= 1.5:
-        return n
+        return default or n
     for c in range(n, 1, -1):
         per = -(-n // c)
         cols = [labels[i:i + per] for i in range(0, n, per)]
@@ -265,9 +266,9 @@ def style_axes(ax, unit="", value_axis="y"):
     ax.tick_params(axis=cat, length=2, width=0.5)
     if unit and scale() > 1.5 and value_axis == "x":
         # narrow: the legend takes the width above the bars, so the unit goes under the axis
-        ax.set_xlabel(textwrap.fill(unit, 38), loc="left", color=LABEL, fontsize=TEXT_PT)
+        ax.set_xlabel(textwrap.fill(unit, 38, break_long_words=False), loc="left", color=LABEL, fontsize=TEXT_PT)
     elif unit and scale() > 1.5:
-        ax.text(0, 1.03, textwrap.fill(unit, 38), transform=ax.transAxes, ha="left", va="bottom", color=LABEL, fontsize=TEXT_PT)
+        ax.text(0, 1.03, textwrap.fill(unit, 38, break_long_words=False), transform=ax.transAxes, ha="left", va="bottom", color=LABEL, fontsize=TEXT_PT)
     elif unit:
         # horizontal bars carry their legend at the left, so the unit goes to the right end
         right = value_axis == "x"
@@ -277,7 +278,7 @@ def style_axes(ax, unit="", value_axis="y"):
 
 def panel_title(ax, text):
     if scale() > 1.5:
-        text = textwrap.fill(text, 34)
+        text = textwrap.fill(text, 34, break_long_words=False)
     ax.set_title(text, loc="left", fontsize=TITLE_PT, fontweight="bold", color=INK)
 
 
@@ -408,7 +409,7 @@ def end_labels(fig, groups):
     """Write the end labels; `groups` is [(ax, [(x, y, text, color)])]. Close labels move apart
     and a leader line joins each moved label to its point. Call after the layout is set."""
     fig.canvas.draw()
-    gap = TEXT_PT * 1.25 * max(t.count(chr(10)) + 1 for _, items in groups for _, _, t, _ in items) * fig.dpi / 72
+    gap = TEXT_PT * 1.25 * max((t.count(chr(10)) + 1 for _, items in groups for _, _, t, _ in items), default=1) * fig.dpi / 72
     for ax, items in groups:
         ys = [ax.transData.transform((x, y))[1] for x, y, _, _ in items]
         for (x, y, text, color), y0, y1 in zip(items, ys, spread(ys, gap)):
