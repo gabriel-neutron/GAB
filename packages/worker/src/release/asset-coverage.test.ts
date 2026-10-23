@@ -166,7 +166,8 @@ test.each([
   ['eu_eurlex', 'Commission Decision 2011/833/EU'],
   ['eu_fsf', 'Financial Sanctions Files'],
   ['gleif', 'Global Legal Entity'],
-  ['gfw', 'Global Fishing Watch'],
+  ['gfw', 'NonCommercial 4.0 International'],
+  ['gfw', 'citations from it'],
   ['datalastic', 'Datalastic'],
 ])('the credits name the provider %s that a claim cites', (provider, words) => {
   expect(releaseCredits(HEADING, new Set()).text).not.toContain(words);

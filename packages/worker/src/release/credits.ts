@@ -50,9 +50,9 @@ const CREDITS = [
 
 // The credit of each provider that a claim of a release can cite. An empty list is a provider that
 // the sections above already credit. A provider that is not here stops the release: a missing
-// credit breaks the licence. A provider of internal tier is not here on purpose, because its
-// documents never reach a release. GFW (CC BY-NC 4.0) and Datalastic (derived facts only) are here
-// because a row of a release can cite them.
+// credit breaks the licence. GFW (CC BY-NC 4.0) and Datalastic (derived facts only) are here because
+// a claim of a release can cite their documents, although the tier of those documents is internal:
+// the credit names the source of a derived fact, and it does not publish the document.
 const PROVIDER_CREDITS: ReadonlyMap<string, readonly string[]> = new Map([
   ['eox_s2cloudless_2016', []],
   ['gem', []],
@@ -101,7 +101,9 @@ const PROVIDER_CREDITS: ReadonlyMap<string, readonly string[]> = new Map([
       '',
       'Some facts about vessels come from Global Fishing Watch, https://globalfishingwatch.org,',
       'under the Creative Commons Attribution-NonCommercial 4.0 International licence,',
-      'https://creativecommons.org/licenses/by-nc/4.0/. These rows are for non-commercial use only.',
+      'https://creativecommons.org/licenses/by-nc/4.0/. GAB changed the data: it read the facts and the',
+      'citations from it. The facts and citations about Global Fishing Watch are for non-commercial',
+      'use only.',
     ],
   ],
   [
