@@ -14,9 +14,15 @@ import { searchByDocument } from '@/features/search/document-search';
 
 import { searchByName } from '@/features/search/name-search';
 
+import { rowsOf } from '@/features/search/entity-rows';
+
+import { EntityTable } from '@/features/search/entity-table';
+
 import { SearchPage } from '@/features/search/search-page';
 
 import { keepLastQuery, readLastQuery } from '@/features/search/workspace';
+
+import { PageSection } from '@/shared/page/page-section';
 
 import { CoverageStatement } from '@/shared/page/coverage-statement';
 
@@ -82,6 +88,8 @@ function SearchRoute() {
     [corpus, stated],
   );
 
+  const rows = useMemo(() => rowsOf(corpus.entities), [corpus]);
+
   const name = useMemo(() => searchByName(corpus.entities, query), [corpus, query]);
 
   const attribute = useMemo(() => searchByAttributeValue(corpus.entities, query), [corpus, query]);
@@ -126,6 +134,10 @@ function SearchRoute() {
 
         hrefOf={pageOf}
       />
+
+      <PageSection title="All entities">
+        <EntityTable rows={rows} hrefOf={pageOf} />
+      </PageSection>
 
       <Link to="/downloads" className="text-small underline underline-offset-4">
         Télécharger les données
