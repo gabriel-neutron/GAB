@@ -367,20 +367,18 @@ def test_an_image_with_no_caption_stops_the_build_and_not_the_placement_check():
     assert report.placement(["![a](f.svg)"]) == [("fig", 0)]
 
 
-def test_the_cover_has_the_title_the_author_the_date_and_the_working_version_line_and_no_funding(tmp_path):
+def test_the_cover_has_the_title_the_subtitle_and_the_author_only(tmp_path):
     _, html = build(tmp_path, draft=True)
     cover = html.split("</header>")[0]
-    assert 'class="author">Auteur Un, Auteure Deux<' in cover and 'class="date">1er janvier 2027<' in cover
-    assert "Version de travail" in cover and "FNF" not in cover and report.FUNDING not in cover
-    _, final = build(tmp_path, draft=False)
-    assert "Version de travail" not in final.split("</header>")[0]
+    assert 'class="author">Auteur Un, Auteure Deux<' in cover and "Rapport d’essai" in cover
+    assert "Version de travail" not in cover and "1er janvier 2027" not in cover and "FNF" not in cover
 
 
 def test_the_contents_page_has_a_line_per_part_a_figure_list_and_fits_one_page(tmp_path):
     pages, html = build(tmp_path)
     toc = html.split('<nav class="toc">')[1].split("</nav>")[0]
     assert toc.count("<li><a href=\"#s") >= 4 and 'class="lof"' in toc and 'href="#fig-2"' in toc
-    assert page_of(pages, "LISTE DES FIGURES") == page_of(pages, "Sommaire") == 1
+    assert page_of(pages, "Liste des figures") == page_of(pages, "Sommaire") == 1
     assert "Introduction" not in pages[2]
 
 
@@ -414,3 +412,69 @@ def test_a_note_far_from_its_call_gets_a_warning_and_a_short_set_of_notes_does_n
     assert "pages after its call" not in capsys.readouterr().err
     build(tmp_path, doc(40, 25))
     assert "pages after its call" in capsys.readouterr().err
+
+
+def figures_and_text(page_html):
+    """The first side figure of a render as (x, top, bottom), and (right edge, top) of every text run of the paragraphs."""
+    from weasyprint import HTML
+    fig, runs = [], []
+
+    def walk(b, in_p=False):
+        tag = getattr(b, "element_tag", None)
+        if tag == "figure" and "side" in (b.element.get("class") or ""):
+            fig.append((b.position_x, b.margin_width(), b.position_y, b.position_y + b.margin_height()))
+            return
+        if type(b).__name__ == "TextBox" and in_p:
+            runs.append((b.position_x + b.width, b.position_y))
+        for c in getattr(b, "children", []) or []:
+            walk(c, in_p or tag == "p")
+    for page in HTML(string=page_html).render().pages:
+        walk(page._page_box)
+    return fig[0], runs
+
+
+def side_html(n_paras, image=None, before=1):
+    css = (Path(report.__file__).parent / "report.css").read_text(encoding="utf-8")
+    para = "<p>" + "mot " * 60 + "</p>"
+    fig = '<figure class="fig side"><img src="' + (image or SAMPLE / "figures" / "plate-b.svg").as_uri() + '"><p class="caption">Figure 1. Un titre.</p></figure>'
+    return f"<style>{css}</style><section id='s0' class=''>{para * before}{fig}{para * n_paras}</section>"
+
+
+def test_a_side_figure_floats_right_at_81_mm_and_the_text_goes_on_at_its_left():
+    mm = 96 / 25.4
+    (x, width, top, bottom), runs = figures_and_text(side_html(4))
+    beside = [r for r in runs if top <= r[1] < bottom]
+    assert width / mm == pytest.approx(81 + 5, abs=1) and x / mm > 80
+    assert beside and all(right <= x for right, _ in beside)
+
+
+def test_a_floated_figure_that_moves_to_the_next_page_goes_back_into_the_flow(tmp_path):
+    from weasyprint import HTML
+    tall = tmp_path / "tall.svg"
+    tall.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="230pt" height="640pt" viewBox="0 0 230 640"><rect width="230" height="640" fill="#999"/></svg>', encoding="utf-8")
+    for n in range(1, 30):
+        page_html = side_html(4, tall, before=n)
+        if report.pushed_floats(HTML(string=page_html).render()):
+            break
+    else:
+        pytest.fail("no filler length pushes the float to the next page")
+    fixed = report.reflow(page_html, str(tmp_path))
+    assert report.pushed_floats(fixed) == []
+    assert report.unfloated(page_html, {0}).count('class="fig side') == 0
+
+
+def test_the_theme_file_is_read_after_the_report_css(tmp_path):
+    theme = tmp_path / "theme.css"
+    theme.write_text(":root{--section:30pt}", encoding="utf-8")
+    src = tmp_path / "in.md"
+    src.write_text("---\ntitle: T\nlayout: redesign\n---\n\n## 1. A\n\nTexte.\n", encoding="utf-8")
+    report.build(src, SAMPLE / "figures", tmp_path / "out", name="r", theme_css=theme)
+    assert (tmp_path / "out" / "r.html").read_text(encoding="utf-8").rstrip().count("--section:30pt") == 1
+
+
+def test_the_heading_levels_differ_in_size_and_a_section_has_a_rule():
+    css = (Path(report.__file__).parent / "report.css").read_text(encoding="utf-8")
+    size = lambda token: float(re.search(rf"--{token}:\s*([\d.]+)pt", css)[1])
+    assert size("section") >= 1.3 * size("body") and size("sub") > size("body")
+    assert re.search(r"h2 \{[^}]*border-bottom", css) and not re.search(r"h3 \{[^}]*border-bottom", css)
+

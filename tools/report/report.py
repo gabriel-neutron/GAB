@@ -74,6 +74,7 @@ BADGES = {
 }
 TOKENS = ("background", "foreground", "muted", "muted-foreground", "label", "border", "input")
 PAGE_MM, GUTTER_MM = 166, 4  # width of the text block of the A4 page; gap between two side-by-side figures
+SIDE_ALT = "side: "  # alt text that makes a figure float right beside the text (about 81 mm wide)
 TITLE_WORDS = 8  # longest short title of a figure or a table before the build warns
 NBSP, THIN = " ", " "
 
@@ -374,9 +375,12 @@ class Doc:
                 plates.append(self.image(b))
             elif re.match(r"\**(Figure|Tableau)\s+\S+?\.(?=\s|\*|$)", b):
                 if plates:
+                    floated = len(plates) == 1 and plates[0][0].startswith(SIDE_ALT)
+                    if floated:
+                        plates = [(plates[0][0][len(SIDE_ALT):], *plates[0][1:])]
                     side, row = self.plates_html(plates)
                     cap = self.caption(b)
-                    out.append(f'<figure class="fig{" panels" if side else ""}"{self.anchor()}>{row}{cap}</figure>')
+                    out.append(f'<figure class="fig{" panels" if side else ""}{" side" if floated else ""}"{self.anchor()}>{row}{cap}</figure>')
                     plates = []
                 elif i < len(blocks) and blocks[i].startswith("|"):
                     cap = self.caption(b)
@@ -507,9 +511,8 @@ def open_points(doc):
 def page(meta, doc, sections, mode, css):
     esc = lambda key: html.escape(french(meta.get(key, "")))
     byline = " · ".join(x for x in (esc("author"), "version " + esc("version") if meta.get("version") else "", esc("date")) if x)
-    status = '<p class="status">Version de travail</p>' if doc.draft else ""
     cover = (f'<header class="cover"><div class="head"><h1>{esc("title")}</h1><p class="sub">{esc("subtitle")}</p></div><div class="meta">'
-             f'<p class="author">{esc("author")}</p><p class="date">{esc("date")}</p>{status}</div></header>') if doc.redesign else (
+             f'<p class="author">{esc("author")}</p></div></header>') if doc.redesign else (
         f'<header class="cover"><h1>{esc("title")}</h1><p class="sub">{esc("subtitle")}</p><p class="byline">{byline}</p></header>')
     return f"""<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -558,6 +561,8 @@ def delayed(page_html, delays):
     text always follows it."""
     figs = list(FIGURE.finditer(page_html))
     for k in sorted(delays, reverse=True):
+        if "side" in figs[k].group(0)[:40]:
+            continue
         m, after, taken = figs[k], figs[k].end(), []
         for _ in range(delays[k]):
             p = PARAGRAPH.match(page_html, after)
@@ -603,7 +608,7 @@ def holes(pdf):
     ordinal, found, prev = 0, [], None
     for page in pdf.pages:
         blocks, foot, height = blocks_of_page(page._page_box)
-        if prev and blocks and blocks[0][0] == "figure":
+        if prev and blocks and blocks[0][0] == "figure" and "side" not in blocks[0][1]:
             before, before_foot = prev
             same_section = before and blocks[0][4] == before[-1][4]
             if same_section and before_foot - max(b[3] for b in before) > FIG_HOLE * height:
@@ -611,6 +616,27 @@ def holes(pdf):
         ordinal += sum(1 for b in blocks if b[0] == "figure")
         prev = (blocks, foot)
     return found
+
+
+def pushed_floats(pdf):
+    """Ordinals of the floated figures that open a page: the float did not fit beside its text and moved on."""
+    ordinal, found = 0, []
+    for page in pdf.pages:
+        blocks = blocks_of_page(page._page_box)[0]
+        if blocks and blocks[0][0] == "figure" and "side" in blocks[0][1]:
+            found.append(ordinal)
+        ordinal += sum(1 for b in blocks if b[0] == "figure")
+    return found
+
+
+def unfloated(page_html, plain):
+    """The page with the floated figures of the given ordinals set back in the flow, at full width."""
+    seen = []
+
+    def fix(m):
+        seen.append(1)
+        return m.group(0).replace('class="fig side', 'class="fig', 1) if len(seen) - 1 in plain else m.group(0)
+    return FIGURE.sub(fix, page_html)
 
 
 def low_starts(pdf):
@@ -648,19 +674,21 @@ def reflow(page_html, base_url):
     """Render the PDF. A figure that opens a page after a blank of more than FIG_HOLE waits one paragraph more; a
     section whose heading falls in the last third of a page starts a new page; repeat until nothing moves."""
     from weasyprint import HTML
-    delays, fresh, pdf = {}, set(), None
+    delays, fresh, plain, pdf = {}, set(), set(), None
     for _ in range(MAX_PASSES):
-        text = delayed(page_html, delays)
+        text = unfloated(delayed(page_html, delays), plain)
         for sid in fresh:
             text = text.replace(f'<section id="{sid}" class="', f'<section id="{sid}" class="newpage ', 1)
         pdf = HTML(string=text, base_url=base_url).render()
         low = set(low_starts(pdf)) - fresh
+        pushed = set(pushed_floats(pdf)) - plain
         # a figure with no paragraph after it cannot move: it must not cost another pass
         moves = [k for k in holes(pdf) if delays.get(k, 0) < MAX_DELAY and k < len(FIGURE.findall(page_html))
                  and delayed(page_html, {**delays, k: delays.get(k, 0) + 1}) != delayed(page_html, delays)]
-        if not moves and not low:
+        if not moves and not low and not pushed:
             break
         fresh |= low
+        plain |= pushed
         for k in moves:
             delays[k] = delays.get(k, 0) + 1
     else:
@@ -676,8 +704,8 @@ def reflow(page_html, base_url):
     return pdf
 
 
-def build(source, figures, out, draft=False, name=None):
-    """Write OUT/NAME.html and OUT/NAME.pdf; return the PDF page count."""
+def build(source, figures, out, draft=False, name=None, theme_css=None):
+    """Write OUT/NAME.html and OUT/NAME.pdf; return the PDF page count. A theme file is CSS read after the report CSS."""
     from weasyprint import HTML
     source, out = Path(source), Path(out)
     text = source.read_text(encoding="utf-8")
@@ -703,7 +731,7 @@ def build(source, figures, out, draft=False, name=None):
     if (doc.open or raw) and not draft:
         raise ReportError(f"open marker(s) in a final build; first: {(doc.open and doc.open[0][1]) or raw[0]}")
     tokens = site_tokens()
-    css = ":root{" + ";".join(f"--{k}:{v}" for k, v in tokens.items()) + "}\n" + (HERE / "report.css").read_text(encoding="utf-8")
+    css = ":root{" + ";".join(f"--{k}:{v}" for k, v in tokens.items()) + "}\n" + (HERE / "report.css").read_text(encoding="utf-8") + (Path(theme_css).read_text(encoding="utf-8") if theme_css else "")
     out.mkdir(parents=True, exist_ok=True)
     name = name or source.stem
     page_html = page(meta, doc, sections, "html", css)
@@ -723,9 +751,10 @@ def main(argv=None):
     p.add_argument("--out", required=True)
     p.add_argument("--draft", action="store_true")
     p.add_argument("--name")
+    p.add_argument("--theme-css", help="a CSS file read after the report CSS: it may reset the tokens of :root")
     a = p.parse_args(argv)
     try:
-        build(a.input, a.figures, a.out, a.draft, a.name)
+        build(a.input, a.figures, a.out, a.draft, a.name, a.theme_css)
     except (ReportError, FileNotFoundError) as e:
         sys.exit(f"error: {e}")
     except (ImportError, OSError) as e:

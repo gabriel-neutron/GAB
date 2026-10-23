@@ -7,7 +7,8 @@
   /* The page design system. The site scale 11/14/16/20 px is
      kept in ratio at print: body 10 pt, so section = 10 x 16/14 and the floor `small` = 10 x 11/14. */
   --body: 10pt;
-  --section: 11.5pt;
+  --section: 14pt; /* h2: a rule under it, so a section and a subsection differ at a glance */
+  --sub: 10.5pt; /* h3 */
   --small: 8pt; /* caption, table, header and footer: nothing on the page is smaller, but the notes */
   --note: 7.5pt; /* the foot note: a smaller line keeps a note on the page of its call (8 pt let it slip by 2 or 3 pages) */
   --u: 1.25mm; /* the grid unit: the 4 px grid of the site at print scale */
@@ -177,23 +178,20 @@ sup.refs {
   padding-left: 6mm;
   color: var(--muted-foreground);
 }
-.toc ol ol li {
+.toc ol ol li,
+.toc ol.lof li {
   font-size: var(--small);
   line-height: 11pt;
 }
 .toc .toc-h {
-  margin: 6mm 0 2mm;
-  padding-top: 3mm;
-  border-top: 0.5pt solid var(--input);
-  font: 700 var(--small) var(--sans);
-  text-transform: uppercase;
-  letter-spacing: var(--caps);
-  color: var(--label);
+  margin: 4mm 0 0;
+  padding: 1.5mm 0;
+  border-top: 0.5pt solid var(--border);
+  font: 700 var(--body) var(--sans);
 }
 .toc ol.lof {
-  font-size: var(--small);
-  line-height: 11.5pt;
   margin: 0;
+  color: var(--muted-foreground);
 }
 .toc ol.lof li {
   margin: 0;
@@ -434,14 +432,21 @@ figure.panels .plates img {
   }
   h2 {
     font-size: var(--section);
-    line-height: 16pt;
-    margin: calc(6 * var(--u)) 0 calc(2 * var(--u));
+    line-height: 17pt;
+    margin: calc(8 * var(--u)) 0 calc(3 * var(--u));
+    padding-bottom: calc(1.5 * var(--u));
+    border-bottom: 0.6pt solid var(--foreground);
     break-after: avoid;
     string-set: section content();
   }
+  h2 .num,
+  h3 .num {
+    color: var(--label);
+  }
   h3 {
-    font-size: var(--body);
-    margin: calc(4 * var(--u)) 0 calc(1.5 * var(--u));
+    font-size: var(--sub);
+    line-height: 13pt;
+    margin: calc(5 * var(--u)) 0 calc(1.5 * var(--u));
     break-after: avoid;
   }
   p {
@@ -519,12 +524,8 @@ figure.panels .plates img {
     font: 7pt var(--mono);
   }
   .toc li a::after {
-    content: leader(' ') target-counter(attr(href), page);
+    content: leader('.') target-counter(attr(href), page);
     font-family: var(--mono);
-    color: var(--foreground);
-  }
-  .toc ol ol li a::after {
-    color: var(--muted-foreground);
   }
   .toc ol.parts > li > a {
     font-weight: 700;
@@ -534,6 +535,14 @@ figure.panels .plates img {
   }
   .conclusion {
     break-inside: avoid; /* a conclusion that fits one page stays whole */
+  }
+  figure.side {
+    float: right;
+    width: 81mm; /* half the text block: the text goes on at its left */
+    margin: calc(1 * var(--u)) 0 calc(3 * var(--u)) 5mm;
+  }
+  figure.side img {
+    width: 100% !important;
   }
   .reserved {
     break-before: page;
