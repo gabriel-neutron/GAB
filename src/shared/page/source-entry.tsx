@@ -56,7 +56,6 @@ export function SourceEntry({ source }: SourceEntryProps) {
           entries={[
             { key: 'Address', value: <SourceAddress address={source.address} /> },
             { key: 'Read on', value: source.readOn, figure: true },
-            { key: 'Document', value: source.documentId, figure: true },
           ]}
         />
       </div>

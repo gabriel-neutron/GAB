@@ -32,6 +32,7 @@ import { Relations } from './relations';
 import { Rename } from './rename';
 import { SaveBar } from './save-bar';
 import { saveClaims, saveSaid, type SaveState } from './save';
+import { LabelBadge } from '@/shared/page/label-badge';
 import { UnitOrigin } from './unit-origin';
 import { VesselIds } from './vessel-ids';
 import {
@@ -256,12 +257,12 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
             ...(facts.label === null
               ? []
               : [
-                  { key: 'Origin', value: facts.label.origin },
+                  { key: 'Origin', value: <LabelBadge label={facts.label.origin} /> },
                   { key: 'Licence', value: facts.label.licence },
                 ]),
             ...(facts.location === null
               ? []
-              : [{ key: 'Position found by', value: facts.location }]),
+              : [{ key: 'How the place was found', value: facts.location }]),
             ...(facts.address === null
               ? []
               : [{ key: 'Permanent address', value: facts.address, figure: true as const }]),
@@ -300,7 +301,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
         <EntityRecord
           {...(writing
             ? { mode: 'writing', cells, mark, onEdit, claimHref: claimOfKey }
-            : { mode: 'reading', cells, mark, claimHref: claimOfKey })}
+            : { mode: 'reading', cells, mark, claimHref: claimOfKey, showKey: writerOnline })}
         />
         {writing ? <NewClaim rows={dossier.rows} busy={busy} onMint={onMint} /> : null}
       </PageSection>
@@ -349,7 +350,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
                   </a>
                 ),
               },
-              { key: 'label', header: 'Label', cell: (line) => line.origin },
+              { key: 'label', header: 'Label', cell: (line) => <LabelBadge label={line.origin} /> },
               { key: 'licence', header: 'Licence', cell: (line) => line.licence },
               ...(pairShown
                 ? [

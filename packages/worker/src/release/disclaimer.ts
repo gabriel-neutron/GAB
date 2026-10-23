@@ -1,3 +1,5 @@
+import { withReferenceLabel } from '@gab/release/reference-label';
+
 import type { ReleaseManifest } from './release-manifest.ts';
 
 // External constraint: the disclaimer of the operator holds two placeholders, and its words are
@@ -13,7 +15,7 @@ export const releaseDisclaimer = (
 ): string => {
   if (!disclaimer.includes(REPORT) || !disclaimer.includes(REPLY))
     throw new Error('the disclaimer of the dataset has no place for the two contact addresses');
-  return disclaimer
+  return withReferenceLabel(disclaimer)
     .replace(REPORT, `Report an error: ${contacts.reportError}`)
     .replace(REPLY, `Right of reply: ${contacts.rightOfReply}`);
 };

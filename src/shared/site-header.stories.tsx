@@ -34,7 +34,7 @@ export const WithNoWriterNoPageThatWritesIsListed: Story = {
   play: async ({ canvas }) => {
     const nav = await canvas.findByRole('navigation', { name: 'Pages of the site' });
     await expect(nav).toBeVisible();
-    await expect(canvas.getByRole('link', { name: 'Critical nodes' })).toBeVisible();
+    await expect(canvas.getByRole('link', { name: 'Overview' })).toBeVisible();
     await expect(canvas.getByRole('link', { name: 'Search' })).toBeVisible();
     await expect(canvas.queryByRole('link', { name: 'Review' })).toBeNull();
   },

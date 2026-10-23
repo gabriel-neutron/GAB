@@ -229,7 +229,7 @@ export const EveryClaimCarriesAMarkToItsSource: Story = {
     }
 
     await expect(marked).toBe(cells.length - 1);
-    await expect(canvas.getByText(/No source recorded/)).toBeInTheDocument();
+    await expect(canvas.getByText(/No source document is listed/)).toBeInTheDocument();
   },
 };
 

@@ -21,11 +21,13 @@ export function SiteFooter({ note, readAt }: SiteFooterProps) {
   return (
     <footer className="flex shrink-0 flex-wrap items-baseline gap-x-4 gap-y-1 border-t border-border px-2 py-1.5 text-small/4 text-label">
       <p>Record read at {readTimeText(readAt)}</p>
-      <p>The counts follow the record and change after each review.</p>
+      <p className="hidden sm:block">The counts follow the record and change after each review.</p>
       {note === null ? null : (
         <>
           <p>Version of {releaseDay(note.date)}</p>
-          <p>The dataset is under CC-BY 4.0. Each row gives its own licence.</p>
+          <p className="hidden sm:block">
+            The dataset is under CC-BY 4.0. Each row gives its own licence.
+          </p>
           <a className={LINK} href={note.reportError}>
             Report an error
           </a>

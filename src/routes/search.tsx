@@ -15,6 +15,8 @@ import { PageSection } from '@/shared/page/page-section';
 import { ReadingPage } from '@/shared/page/reading-page';
 import { loadCorpus, refreshCorpus } from '@/shared/read/corpus';
 import { loadProviders } from '@/shared/read/providers';
+import { readMode } from '@/shared/read/read-mode';
+import { loadReleaseOrNull } from '@/shared/read/release-record';
 import { useReleaseNote } from '@/shared/read/release-note';
 import { useWriterOnline } from '@/shared/write/writer-status';
 import { coverageOf } from '@gab/release/coverage';
@@ -25,25 +27,32 @@ const pageOf = (entityId: string): string => entityHref(entityId, null);
 export const Route = createFileRoute('/search')({
   loader: async () => {
     const [corpus, providers] = await Promise.all([loadCorpus(), loadProviders()]);
-    return { corpus, providers };
+    // The files of a release describe only the documents that a claim cites, and the release
+    // counts every document of the record. The page states the count of the release.
+    const stated =
+      readMode() === 'release'
+        ? ((await loadReleaseOrNull().catch(() => null))?.manifest.coverage ?? null)
+        : null;
+    return { corpus, providers, stated };
   },
   component: SearchRoute,
   head: () => ({ meta: [{ title: 'Search · GAB dataset' }] }),
 });
 
 function SearchRoute() {
-  const { corpus, providers } = Route.useLoaderData();
+  const { corpus, providers, stated } = Route.useLoaderData();
   const router = useRouter();
   const writerOnline = useWriterOnline();
   const releaseNote = useReleaseNote();
   const [query, setQuery] = useState(readLastQuery);
   const coverage = useMemo(
     () =>
+      stated ??
       coverageOf(
         corpus.entities.map((one) => one.type),
         corpus.documents.length,
       ),
-    [corpus],
+    [corpus, stated],
   );
   const name = useMemo(() => searchByName(corpus.entities, query), [corpus, query]);
   const attribute = useMemo(() => searchByAttributeValue(corpus.entities, query), [corpus, query]);

@@ -7,6 +7,7 @@ const answer = (body: string, ok = true): Response =>
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 test('the writer that says it is online turns the status online', async () => {
@@ -42,4 +43,14 @@ test('the first probe is read once, and a recheck reads again', async () => {
   expect(fetcher).not.toHaveBeenCalled();
   await recheckWriter();
   expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+test('a built site that has no read service asks no writer', async () => {
+  vi.stubEnv('DEV', false);
+  vi.stubEnv('VITE_API_URL', '');
+  const fetcher = vi.fn();
+  vi.stubGlobal('fetch', fetcher);
+  expect(await recheckWriter()).toBe(false);
+  expect(fetcher).not.toHaveBeenCalled();
+  expect(writerStatus()).toBe('offline');
 });

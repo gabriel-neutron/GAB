@@ -22,7 +22,16 @@ export const Route = createRootRoute({
   errorComponent: RootError,
 
   // The router uses the deepest title a route sets. This one applies where no route sets one.
-  head: () => ({ meta: [{ title: 'GAB dataset' }] }),
+  head: () => ({
+    meta: [
+      { title: 'GAB dataset' },
+      {
+        name: 'description',
+        content:
+          'GAB dataset: entities, relations and claims, each with a label that tells who decided it and the documents that state it.',
+      },
+    ],
+  }),
 });
 
 // Departure: only these screens read the header filter. The search page has a field of its own,
@@ -40,6 +49,13 @@ function RootLayout() {
           document. Without it, a title is computed and never applied. */}
       <HeadContent />
       <ScreenQueryProvider path={path}>
+        {/* The link shows at the first Tab, so a keyboard reader skips the navigation. */}
+        <a
+          href="#main"
+          className="sr-only z-50 bg-background px-2 py-1 text-body/5 focus:not-sr-only focus:absolute focus:top-0 focus:left-0"
+        >
+          Skip to the content
+        </a>
         <div className="relative flex h-svh flex-col overflow-hidden">
           <SiteHeader
             writerOnline={writerOnline}
@@ -53,7 +69,7 @@ function RootLayout() {
           />
           {/* External constraint: `min-h-0` lets this row hold a scroll of its own. Without it,
               the row grows to its content and pushes the window. */}
-          <main className="min-h-0 flex-1">
+          <main id="main" tabIndex={-1} className="min-h-0 flex-1 outline-none">
             <Outlet />
           </main>
           {readAt === null ? null : <SiteFooter note={releaseNote} readAt={readAt} />}

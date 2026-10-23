@@ -8,7 +8,7 @@
     "ofac": "recent_actions_notice",
     "uk": "date_designated"
   },
-  "disclaimer": "**About this data.** A machine reads public documents and proposes each claim. Each claim cites the documents that state it, and each claim carries a label that tells who decided it.\n\n- **Proposed — not checked:** a candidate. No rule and no person checked it. It is not evidence.\n- **Accepted by rule … — no person read it:** the claim passed a named rule on its cited sources. No person read it. Nobody has measured the accuracy of the rules yet.\n- **Accepted by an AI reviewer — no person read it:** an AI checked the claim. No person read it.\n- **Validated manually by the operator:** the operator read the sources and accepted the claim.\n\nA claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.\n\nReport an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.",
+  "disclaimer": "**About this data.** A machine reads public documents and proposes each claim. Each claim cites the documents that state it, and each claim carries a label that tells who decided it.\n\n- **Proposed — not checked:** a candidate. No rule and no person checked it. It is not evidence.\n- **Accepted by rule … — no person read it:** the claim passed a named rule on its cited sources. No person read it. Nobody has measured the accuracy of the rules yet.\n- **Accepted by an AI reviewer — no person read it:** an AI checked the claim. No person read it.\n- **Validated manually by the operator:** the operator read the sources and accepted the claim.\n- **Reference dataset … — GAB did not check it:** the claim comes from a published dataset, as GEM, that the operator approved as a whole. No person read the claim, and GAB did not check it. This is not a check by the operator.\n\nA claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.\n\nReport an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.",
   "contacts": {
     "reportError": "https://example.org/report-an-error",
     "rightOfReply": "mailto:reply@example.org"
@@ -162,43 +162,43 @@
   "files": [
     {
       "path": "entities.csv",
-      "bytes": 2998,
-      "sha256": "745bc898d7dd9281e8ad22f22ee32a33e468877daaa7b94c30ee66791a2c536e"
+      "bytes": 3233,
+      "sha256": "c2743081fcda77e60226ca736d0ac4575ad15c70c5ad2901b6ab4b7021b52cac"
     },
     {
       "path": "relations.csv",
-      "bytes": 3985,
-      "sha256": "dc53b6dd4e6b488b2a3ddf4da597d5798a42fa6fef1f8180168960caea738962"
+      "bytes": 4220,
+      "sha256": "cf90444a1cb8d3328d17f1bcf145d3344dadd9cb4d874f4dd630c1fb9cd00498"
     },
     {
       "path": "claims.csv",
-      "bytes": 9913,
-      "sha256": "eabb9e52b5f48ee8a7a2d6ed111a90f44d63e20f426086c61f8c22d4318b1b27"
+      "bytes": 10148,
+      "sha256": "7c119a7c4957d69af844cc8af939362ccf648578d5a0b7778d4fc08636fc1a9c"
     },
     {
       "path": "merges.csv",
-      "bytes": 1331,
-      "sha256": "51a93818377802bd320e39880cd007dc43ed26fad0eb602cb5f5e80f1ef9a854"
+      "bytes": 1566,
+      "sha256": "659f16ca9609b7efe03c4ffbe8ffedcb896511e2251ab1a95639530abbe3fe0e"
     },
     {
       "path": "alignment-matrix.csv",
-      "bytes": 4457,
-      "sha256": "5388f0c5fb6f7f559a33342b0fcff415483ccfbb3cf9e6c49b742b41515e80ee"
+      "bytes": 4692,
+      "sha256": "77a8f7fd7c8e2246cf56adaf0a4cb2a98c326fba818877c160ee6dda015bece5"
     },
     {
       "path": "critical-nodes.csv",
-      "bytes": 3103,
-      "sha256": "05a06d545da0ba9338e76dc175679fb5311e65cb73cb9fbe7ad069b538fb7ad8"
+      "bytes": 3338,
+      "sha256": "e3bf01eb3498c6c0257ca96b9b0675fba0f4acf086f78479250729b1f315e551"
     },
     {
       "path": "asset-links.csv",
-      "bytes": 1121,
-      "sha256": "e4e59ce82e667c1a2081897903a78c82e9255e414fbcbb7ac8e03b2b4cccc3b8"
+      "bytes": 1356,
+      "sha256": "35b6a59c160f47234659d12dadb8599f69d168114fda40e2e8fa94b5e1e595c5"
     },
     {
       "path": "volumes.csv",
-      "bytes": 3920,
-      "sha256": "42de1d92f554379e7e56feed87388f35cf896d955cf1c61950c2aa2a75af0a33"
+      "bytes": 4155,
+      "sha256": "487760d2ee421c43b130554d13ace96468277d388d0148f8bffcca1d08ca17a4"
     },
     {
       "path": "credits.md",
@@ -207,23 +207,23 @@
     },
     {
       "path": "release-notes.md",
-      "bytes": 2078,
-      "sha256": "e5dd4d31d083e980aad8e1b1b9fbca4467c8ddcb9ce9a471e19f2851b8ada424"
+      "bytes": 2310,
+      "sha256": "66786afc260a37cee936daed0e038a3f9bc69947ef9bf99b9271ba33654f57e8"
     },
     {
       "path": "entities.geojson",
-      "bytes": 2870,
-      "sha256": "a527b1ac18ea92a2f1f247323d9a2ba478606b81c3364dd210007e15d0f899be"
+      "bytes": 3103,
+      "sha256": "49760ccdf3e70f69cc9f7e952bfad8fa07702e14e1bb0cbcc30353487e90dd8d"
     },
     {
       "path": "dataset.jsonld",
-      "bytes": 26741,
-      "sha256": "b8c9e029378ff12cbec0bbff338efa5213773773057c4fcf89ae41f454f5645b"
+      "bytes": 26974,
+      "sha256": "78d93580029624cb7036196a4a6b81f1e54031f3a446eeb6867ae90663b3b23d"
     },
     {
       "path": "changelog.csv",
-      "bytes": 3961,
-      "sha256": "04b6e8b5da4875dccb9353e2078132a742156119d5d512708039dd1dbef49bba"
+      "bytes": 4196,
+      "sha256": "b645a32610abfa819affba84c65e725cd89fc156bde8b121ff28286db7843760"
     }
   ]
 }

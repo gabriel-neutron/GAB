@@ -413,7 +413,7 @@ export const TheReleaseSaysHowItFoundThePlace: Story = {
     },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText('Position found by')).toBeVisible();
+    await expect(canvas.getByText('How the place was found')).toBeVisible();
     await expect(canvas.getByText('coordinates that the source writes')).toBeVisible();
   },
 };
