@@ -60,5 +60,5 @@ def build(data, meta, out_dir, grey=False):
     if len(groups) > 1:
         ax.legend(handles=[Line2D([], [], marker=m.marker, color=m.color, linestyle="", label=g)
                            for g, m in zip(groups, marks)],
-                  loc="lower left", bbox_to_anchor=(0, 1.0), ncol=len(groups), fontsize=st.TEXT_PT, borderaxespad=0)
+                  loc="lower left", bbox_to_anchor=(0, 1.0), ncol=st.legend_cols(list(groups)), fontsize=st.TEXT_PT, borderaxespad=0)
     return st.save(fig, out_dir, meta["stem"], meta, grey)

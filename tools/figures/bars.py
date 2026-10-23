@@ -35,12 +35,12 @@ def build(data, meta, out_dir, grey=False):
         if r["serie"] in high:
             ax.annotate(label(r["valeur"]), (r["valeur"], i), xytext=(3, 0), textcoords="offset points",
                         va="center", fontsize=st.TEXT_PT, color=st.INK)
-    ax.set_yticks(range(len(rows)), [r["serie"] for r in rows])
+    ax.set_yticks(range(len(rows)), [st.fit_label(r["serie"]) for r in rows])
     chars = max(len(label(r["valeur"])) for r in rows if r["serie"] in high)
     ax.set_xlim(0, max(r["valeur"] for r in rows) / (1 - st.label_room(chars)))
     if regimes:
         ax.legend(handles=[Patch(facecolor=st.REGIMES[r].color, hatch=st.REGIMES[r].hatch,
                                  edgecolor=st.WHITE, label=st.regime_label(r)) for r in regimes],
-                  loc="lower left", bbox_to_anchor=(0, 1.0), ncol=len(regimes), fontsize=st.TEXT_PT,
+                  loc="lower left", bbox_to_anchor=(0, 1.0), ncol=st.legend_cols([st.regime_label(r) for r in regimes]), fontsize=st.TEXT_PT,
                   borderaxespad=0)
     return st.save(fig, out_dir, meta["stem"], meta, grey)
