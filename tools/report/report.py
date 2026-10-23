@@ -16,7 +16,7 @@ Colours and fonts come from the `:root` block of `src/index.css`. The PDF engine
 it puts real footnotes at the foot of the page, which a browser print cannot do. It needs the
 Pango library (Debian: `apt-get install libpango-1.0-0 libpangoft2-1.0-0`).
 
-A figure whose image alt text starts with `side: ` floats right at about 81 mm and the text goes on beside it; a float that moves to the next page goes back into the flow at full width. `--theme-css PATH` reads a CSS file after the report CSS.
+A figure whose image alt text starts with `side: ` floats right at about 81 mm and the text goes on beside it; a float that moves to the next page goes back into the flow at full width. `--theme base` drops the Dossier theme (dossier.css, the default). `--theme-css PATH` reads a CSS file after the report CSS. A paragraph that begins with `{pull}` is a pull quote.
 
 Redesign layout. The front matter keys `layout: redesign` and `bibliography: FILE` (a JSON file next to
 the input) switch on: numbered references, a cover with the date and the working-version line, a table of contents (parts, figure list) after the cover, the badge line, an
@@ -50,9 +50,6 @@ from pathlib import Path
 
 import markdown
 
-sys.path.insert(0, str(Path(__file__).parents[1] / "figures"))
-import tokens  # noqa: E402
-
 HERE = Path(__file__).parent
 FUNDING = ("This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. "
            "The author(s) are solely responsible for the content and conclusions presented.")
@@ -76,10 +73,18 @@ BADGES = {
     "Indicatif": ("I", RING + "/>", "un indice, ou une source faible"),
     "Non établi": ("N", RING + ' stroke-dasharray="1.6 1.4"/>', "aucune source stockée ne le porte"),
 }
-TOKENS = ("background", "foreground", "muted", "muted-foreground", "label", "border", "input")
+TOKENS = ("background", "foreground", "muted", "muted-foreground", "label", "border", "input", "primary", "candidate", "added", "dissent")
+DARK_TOKENS = ("background", "foreground", "muted-foreground", "label", "border", "primary")  # the cover page takes the dark theme of the site
+FONTS = {  # file in tools/figures/fonts/ -> (family, weight, style): Source Serif 4 (SIL OFL 1.1) is the serif the site lacks; JetBrains Mono is the site mono
+    "SourceSerif4-Regular": ("Source Serif 4", 400, "normal"), "SourceSerif4-It": ("Source Serif 4", 400, "italic"),
+    "SourceSerif4-Semibold": ("Source Serif 4", 600, "normal"), "SourceSerif4-Bold": ("Source Serif 4", 700, "normal"),
+    "JetBrainsMono-Regular": ("JetBrains Mono", 400, "normal"), "JetBrainsMono-Bold": ("JetBrains Mono", 700, "normal"),
+}
+THEMES = ("dossier", "base")  # dossier.css is read after report.css; base is report.css alone
 PAGE_MM, GUTTER_MM = 166, 4  # width of the text block of the A4 page; gap between two side-by-side figures
 SIDE_ALT = "side: "  # alt text that makes a figure float right beside the text (about 81 mm wide)
 TITLE_WORDS = 8  # longest short title of a figure or a table before the build warns
+PULL = "{pull}"  # a paragraph that begins with this marker is a pull quote
 NBSP, THIN = " ", " "
 
 
@@ -113,10 +118,24 @@ def aspect_of(path):
 
 def site_tokens():
     """The light-theme tokens of the site stylesheet, as hex colours."""
-    missing = [k for k in TOKENS if k not in tokens.RAW]
-    if missing:
-        raise ReportError(f"the site stylesheet has no oklch token for: {', '.join(missing)}")
-    return {k: tokens.hex(k) for k in TOKENS}
+    sys.path.insert(0, str(HERE.parent / "figures"))
+    from tokens import oklch
+    css = SITE_CSS.read_text(encoding="utf-8")
+    out = {}
+    for selector, names, prefix in ((":root", TOKENS, ""), (r"\.dark", DARK_TOKENS, "dark-")):
+        block = re.search(rf"^{selector}\s*\{{(.*?)^\}}", css, re.S | re.M)
+        found = dict(re.findall(r"^\s*--([a-z-]+):\s*(oklch\([^)]*\))", block.group(1), re.M)) if block else {}
+        missing = [k for k in names if k not in found]
+        if missing:
+            raise ReportError(f"the site stylesheet has no oklch token for: {', '.join(missing)}")
+        out.update({prefix + k: oklch(found[k]) for k in names})
+    return out
+
+
+def font_faces():
+    """The @font-face rules of the files of the figure fonts, by file URI. The files are those of the figure tool, with their licences."""
+    return "".join(f"@font-face{{font-family:'{f}';font-weight:{w};font-style:{s};src:url('{(HERE.parent / 'figures' / 'fonts' / (n + '.ttf')).as_uri()}')}}\n"
+                   for n, (f, w, s) in FONTS.items())
 
 
 def front_matter(text):
@@ -320,6 +339,9 @@ class Doc:
             out = self.text(f"**{label} {title}**" + "<sup>,</sup>".join(marks) + (f" Note : {note.strip()}" if note.strip() else ""))
         finally:
             self.in_table = False
+        if note.strip():  # the note of a figure sits on its own line under the caption
+            out, hit = re.subn(r"\s(Note[   ]:)", r' <span class="note">\1', out, count=1)
+            out = out.replace("</p>", "</span></p>", 1) if hit else out
         return out.replace("<p>", '<p class="caption">', 1)
 
     def check_caption(self, label, title):
@@ -398,6 +420,8 @@ class Doc:
             return f'<h{level}{anchor}>{f"<span class=num>{num}</span> " if num else ""}{self.dress(self.inline(title), False)}</h{level}>'
         if b.startswith("|"):
             return self.table(b)
+        if b.startswith(PULL):  # the thesis, set as a pull quote
+            return self.text(b[len(PULL):].lstrip()).replace("<p>", '<p class="pull">', 1)
         if b.startswith(">"):
             inner = "\n".join(re.sub(r"^>\s?", "", line) for line in b.splitlines())
             return f'<aside class="assessment">{self.text(inner)}</aside>'
@@ -702,8 +726,8 @@ def reflow(page_html, base_url):
     return pdf
 
 
-def build(source, figures, out, draft=False, name=None, theme_css=None):
-    """Write OUT/NAME.html and OUT/NAME.pdf; return the PDF page count. A theme file is CSS read after the report CSS."""
+def build(source, figures, out, draft=False, name=None, theme_css=None, theme="dossier"):
+    """Write OUT/NAME.html and OUT/NAME.pdf; return the PDF page count. THEME is dossier or base; a theme file is CSS read after both."""
     from weasyprint import HTML
     source, out = Path(source), Path(out)
     text = source.read_text(encoding="utf-8")
@@ -729,7 +753,7 @@ def build(source, figures, out, draft=False, name=None, theme_css=None):
     if (doc.open or raw) and not draft:
         raise ReportError(f"open marker(s) in a final build; first: {(doc.open and doc.open[0][1]) or raw[0]}")
     tokens = site_tokens()
-    css = ":root{" + ";".join(f"--{k}:{v}" for k, v in tokens.items()) + "}\n" + (HERE / "report.css").read_text(encoding="utf-8") + (Path(theme_css).read_text(encoding="utf-8") if theme_css else "")
+    css = ":root{" + ";".join(f"--{k}:{v}" for k, v in tokens.items()) + "}\n" + font_faces() + (HERE / "report.css").read_text(encoding="utf-8") + ((HERE / "dossier.css").read_text(encoding="utf-8") if theme == "dossier" else "") + (Path(theme_css).read_text(encoding="utf-8") if theme_css else "")
     out.mkdir(parents=True, exist_ok=True)
     name = name or source.stem
     page_html = page(meta, doc, sections, "html", css)
@@ -749,10 +773,11 @@ def main(argv=None):
     p.add_argument("--out", required=True)
     p.add_argument("--draft", action="store_true")
     p.add_argument("--name")
+    p.add_argument("--theme", choices=THEMES, default="dossier", help="dossier (default) or base")
     p.add_argument("--theme-css", help="a CSS file read after the report CSS: it may reset the tokens of :root")
     a = p.parse_args(argv)
     try:
-        build(a.input, a.figures, a.out, a.draft, a.name, a.theme_css)
+        build(a.input, a.figures, a.out, a.draft, a.name, a.theme_css, a.theme)
     except (ReportError, FileNotFoundError) as e:
         sys.exit(f"error: {e}")
     except (ImportError, OSError) as e:
