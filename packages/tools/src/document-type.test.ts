@@ -75,6 +75,7 @@ const SOURCE_HOSTS: readonly (readonly [string, string])[] = [
   ['transparency.org', 'ngo_publication'],
   ['globalwitness.org', 'ngo_publication'],
   ['c4ads.org', 'ngo_publication'],
+  ['bellingcat.com', 'ngo_publication'],
   ['energyandcleanair.org', 'ngo_publication'],
   ['kse.ua', 'ngo_publication'],
   ['reuters.com', 'news_article'],
@@ -194,4 +195,16 @@ test('an archived page has the type of the page that it keeps', () => {
   expect(documentType({ uri, title: 'A page', provider: null })).toBe('news_article');
   const none = 'https://web.archive.org/web/20250101000000/';
   expect(documentType({ uri: none, title: 'A page', provider: null })).toBe('other');
+});
+
+test('a headline that names an executive order on a news host is a news article', () => {
+  const uri = 'https://www.reuters.com/world/x';
+  expect(documentType({ uri, title: 'Executive order bans X', provider: null })).toBe(
+    'news_article',
+  );
+});
+
+test('a reference page titled as an executive order is a reference', () => {
+  const uri = 'https://en.wikipedia.org/wiki/Executive_Order_14024';
+  expect(documentType({ uri, title: 'Executive order 14024', provider: null })).toBe('reference');
 });

@@ -50,8 +50,6 @@ const RULES: readonly Rule[] = [
   {
     type: 'legal_act',
     host: /^(?:eur-lex\.europa\.eu|publications\.europa\.eu|legislation\.gov\.uk|federalregister\.gov|pravo\.gov\.ru|publication\.pravo\.gov\.ru|laws-lois\.justice\.gc\.ca|govinfo\.gov)$/u,
-    title:
-      /^(?:(?:council|commission)(?: implementing| delegated)? (?:regulation|decision|directive)|executive order|regulation \(|directive \(|the [^.]{0,80}(?:order|regulations) \d{4})\b/iu,
   },
   {
     type: 'register_entry',
@@ -71,11 +69,16 @@ const RULES: readonly Rule[] = [
   },
   {
     type: 'ngo_publication',
-    host: /(?:^|\.)(?:bruegel\.org|globalenergymonitor\.org|globalfishingwatch\.org|amnesty\.org|hrw\.org|transparency\.org|globalwitness\.org|c4ads\.org|energyandcleanair\.org|kse\.ua|csis\.org|rusi\.org|acleddata\.com)$/u,
+    host: /(?:^|\.)(?:bruegel\.org|globalenergymonitor\.org|globalfishingwatch\.org|amnesty\.org|hrw\.org|transparency\.org|globalwitness\.org|c4ads\.org|bellingcat\.com|energyandcleanair\.org|kse\.ua|csis\.org|rusi\.org|acleddata\.com)$/u,
   },
   {
     type: 'news_article',
     host: /(?:^|\.)(?:reuters\.com|bloomberg\.com|ft\.com|bbc\.com|bbc\.co\.uk|kyivindependent\.com|themoscowtimes\.com|meduza\.io|kommersant\.ru|rbc\.ru|interfax\.ru|tass\.ru|lloydslist\.com|tradewindsnews\.com|splash247\.com|theguardian\.com|politico\.eu|nytimes\.com|wsj\.com|ukrinform\.net|ria\.ru|kyivpost\.com|sputnikglobe\.com|pravda\.com\.ua|ukrinform\.ua|gcaptain\.com|economictimes\.indiatimes\.com)$/u,
+  },
+  {
+    type: 'legal_act',
+    title:
+      /^(?:(?:council|commission)(?: implementing| delegated)? (?:regulation|decision|directive)|executive order|regulation \(|directive \(|the [^.]{0,80}(?:order|regulations) \d{4})\b/iu,
   },
   {
     type: 'press_release',
