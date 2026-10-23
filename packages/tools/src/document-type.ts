@@ -7,6 +7,9 @@ export const DOCUMENT_TYPES = [
   'register_entry',
   'press_release',
   'report',
+  'telegram_post',
+  'ngo_publication',
+  'news_article',
   'other',
 ] as const;
 
@@ -60,6 +63,18 @@ const RULES: readonly Rule[] = [
     type: 'report',
     address: /\/reports?(?:\/|$|\?|-)/iu,
     title: /\b(?:report|annual review|white paper)\b/iu,
+  },
+  {
+    type: 'telegram_post',
+    host: /(?:^|\.)(?:t\.me|telegram\.me|telegram\.org|tgstat\.ru)$/u,
+  },
+  {
+    type: 'ngo_publication',
+    host: /(?:^|\.)(?:bruegel\.org|globalenergymonitor\.org|globalfishingwatch\.org|amnesty\.org|hrw\.org|transparency\.org|globalwitness\.org|c4ads\.org|energyandcleanair\.org|kse\.ua|bellingcat\.com)$/u,
+  },
+  {
+    type: 'news_article',
+    host: /(?:^|\.)(?:reuters\.com|bloomberg\.com|ft\.com|bbc\.com|bbc\.co\.uk|kyivindependent\.com|themoscowtimes\.com|meduza\.io|kommersant\.ru|rbc\.ru|interfax\.ru|tass\.ru|lloydslist\.com|tradewindsnews\.com|splash247\.com|theguardian\.com|politico\.eu|nytimes\.com|wsj\.com|ukrinform\.net|pravda\.com\.ua)$/u,
   },
 ];
 

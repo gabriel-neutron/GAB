@@ -46,7 +46,16 @@ export const row = {
     // A static release holds no type for a source, and it reads as `other`.
     doc_type: z
       .enum(
-        ['legal_act', 'register_entry', 'press_release', 'report', 'other'],
+        [
+          'legal_act',
+          'register_entry',
+          'press_release',
+          'report',
+          'telegram_post',
+          'ngo_publication',
+          'news_article',
+          'other',
+        ],
         stated('document.doc_type'),
       )
       .default('other'),

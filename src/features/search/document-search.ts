@@ -17,6 +17,9 @@ const TYPE_WORDS: Readonly<Record<DocumentType, string>> = {
   register_entry: 'Register entry',
   press_release: 'Press release',
   report: 'Report',
+  telegram_post: 'Telegram post',
+  ngo_publication: 'NGO publication',
+  news_article: 'News article',
   other: 'Other',
 };
 
