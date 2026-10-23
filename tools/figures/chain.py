@@ -22,7 +22,7 @@ def build(data, meta, out_dir, grey=False):
         pos[n["id"]] = (cols.index(n["column"]), -rowcount[n["column"]])
         rowcount[n["column"]] += 1
     rows = max(rowcount.values())
-    fig = st.new_fig(meta.get("height_mm", 24 + 24 * rows))
+    fig = st.new_fig(st.size_height(meta, 24 + 24 * rows))
     ax = fig.add_subplot()
     ax.set_xlim(-0.5, len(cols) - 0.5)
     ax.set_ylim(-rows + 0.5, 0.9)

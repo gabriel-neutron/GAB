@@ -191,9 +191,8 @@ figure.panels .plates {
   align-items: flex-end;
 }
 figure.panels .plates img {
-  flex: 1 1 0;
+  flex: 0 1 auto;
   min-width: 0;
-  width: 100%;
 }
 .funding,
 .funding-text {
@@ -201,11 +200,13 @@ figure.panels .plates img {
 }
 .keyfigures,
 .annex,
+.bibliography,
 .toc {
   break-before: page;
   break-after: page;
 }
-.annex {
+.annex,
+.bibliography {
   break-after: auto;
 }
 .draft-flag {
@@ -391,7 +392,9 @@ figure.panels .plates img {
     break-inside: avoid;
   }
   figure img {
-    width: 100%;
+    width: var(--w, 100%);
+    max-width: 100%;
+    max-height: 205mm;
     display: block;
     margin-bottom: 2mm;
   }

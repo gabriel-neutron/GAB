@@ -25,7 +25,7 @@ def build(data, meta, out_dir, grey=False):
     def label(v):
         return st.num_label(v, floor)
 
-    fig = st.new_fig(meta.get("height_mm", 14 + 7 * len(rows)))
+    fig = st.new_fig(st.size_height(meta, 14 + 7 * len(rows)))
     ax = fig.add_subplot()
     st.style_axes(ax, meta.get("unit", ""), value_axis="x")
     for i, r in enumerate(rows):

@@ -147,7 +147,8 @@ TILES = {"tiles": [{"value": 35.8, "unit": "%", "label": "Part du pétrole et du
 
 def test_tiles_write_the_number_in_the_locale(tmp_path, monkeypatch):
     svg = run(tmp_path, monkeypatch, "tiles", TILES)[0].read_text(encoding="utf-8")
-    assert "35,8" in svg and "431/596" in svg and "[1]" in svg
+    assert "35,8" in svg and "431/596" in svg
+    assert "[1]" not in svg  # the source key is in the caption, not under the tile
 
 
 def test_tiles_refuse_a_tile_without_source(tmp_path):

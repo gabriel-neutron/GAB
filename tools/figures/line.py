@@ -15,7 +15,7 @@ def build(data, meta, out_dir, grey=False):
     zero, ratio = bool(meta.get("zero")), meta.get("ratio")
     st.require_axis_note(meta, zero, bool(ratio))
     mirror = set(meta.get("mirror", []))
-    fig = st.new_fig(meta.get("height_mm", 80 if len(panels) == 1 else 20 + 62 * len(panels)))
+    fig = st.new_fig(st.size_height(meta, 80 if len(panels) == 1 else 20 + 62 * len(panels)))
     axes = fig.subplots(len(panels), 1, squeeze=False)[:, 0]
     groups, longest = [], 0
     for ax, panel in zip(axes, panels):

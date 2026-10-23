@@ -23,7 +23,7 @@ def build(data, meta, out_dir, grey=False):
     top = {c: max(r["valeur"] for r in rows if r["serie"] == c) for c in cats}
     cats.sort(key=top.get)
     floor = meta.get("label_floor", 0.1)
-    fig = st.new_fig(meta.get("height_mm", 16 + 7 * len(cats)))
+    fig = st.new_fig(st.size_height(meta, 16 + 7 * len(cats)))
     ax = fig.add_subplot()
     st.style_axes(ax, meta.get("unit", ""), value_axis="x")
     unit_of = {}

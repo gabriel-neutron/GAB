@@ -188,19 +188,27 @@ _have = {f.name for f in font_manager.fontManager.ttflist}
 MONO_FACE = next(f for f in MONO if f in _have or f == MONO[-1])
 
 
-# Height of a figure by size class, for the page of 160 mm text width: a third, a half or a whole page.
-SIZES = {"third": 80, "half": 120, "full": 240}
+# Size classes for the page of 160 mm text width and 250 mm text height. A figure and its caption stay on one page:
+# the heights leave room for a caption of 20 mm. Class "pair" is 78 mm wide: two stand side by side at 1:1.
+SIZES = {"third": 70, "half": 110, "full": 210, "pair": 80}
+PAIR_WIDTH_MM = 78
+_width = {"mm": WIDTH_MM}
 TITLE_WORDS = 8
 
 
 def size_height(meta, default_mm):
-    """The height of the size class named in the caption file; the content height without a class."""
+    """The height of a figure: `height_mm` of the caption file, else the size class, else the content height.
+
+    A class smaller than the content prints a warning: the figure is drawn at the class height."""
+    _width["mm"] = PAIR_WIDTH_MM if meta.get("size") == "pair" else WIDTH_MM
+    if "height_mm" in meta:
+        return meta["height_mm"]
     if "size" not in meta:
         return default_mm
     if meta["size"] not in SIZES:
         raise StyleError(f"unknown size class: {meta['size']}")
     if SIZES[meta["size"]] < default_mm:
-        raise StyleError(f"size class {meta['size']} is too small for the content: {default_mm:.0f} mm needed")
+        print(f"warning: size class {meta['size']} is smaller than the content height {default_mm:.0f} mm", file=sys.stderr)
     return SIZES[meta["size"]]
 
 
@@ -217,7 +225,7 @@ def renderer(fig):
 
 
 def new_fig(height_mm):
-    return plt.figure(figsize=(WIDTH_MM * MM, height_mm * MM), layout="constrained")
+    return plt.figure(figsize=(_width["mm"] * MM, height_mm * MM), layout="constrained")
 
 
 def style_axes(ax, unit="", value_axis="y"):
