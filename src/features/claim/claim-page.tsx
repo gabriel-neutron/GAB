@@ -1,5 +1,3 @@
-import { Link } from '@tanstack/react-router';
-
 import { attributeName } from '@gab/release/attribute-name';
 import { claimText } from '@gab/release/claim-text';
 import { valueWords } from '@gab/release/value-elements';
@@ -115,11 +113,7 @@ export function ClaimPage({ release, claimId, entityHref, claimHref }: ClaimPage
           A rating is a letter and a digit. The letter, from A (reliable) to F (cannot be judged),
           rates the author of the source. The digit, from 1 (confirmed by independent sources) to 6
           (cannot be judged), rates the credibility of the fact. "Not rated" means that the letter
-          or the digit is not known for this claim. See{' '}
-          <Link to="/method" className={READING_LINK}>
-            the method
-          </Link>
-          .
+          or the digit is not known for this claim. The method page explains the rating.
         </p>
       ) : null}
       <details className="text-xs/5">
