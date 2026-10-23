@@ -286,3 +286,38 @@ def test_the_cover_holds_the_title_the_subtitle_and_the_byline_and_no_draft_flag
     cover = html.split("</header>")[0]
     assert "Brouillon" not in cover and "draft-flag" not in cover
     assert "Rapport d’essai" in cover and "Auteur Un" in cover
+
+
+def test_a_figure_that_opens_a_page_after_a_big_blank_waits_for_the_next_paragraph(tmp_path):
+    (tmp_path / "figs").mkdir()
+    (tmp_path / "figs" / "tall.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="400pt" height="620pt" viewBox="0 0 400 620"><rect width="400" height="620" fill="#999"/></svg>', encoding="utf-8")
+    filler = "\n\n".join(f"Paragraphe de remplissage {i} " + "mot " * 60 for i in range(6))
+    text = (f"---\ntitle: T\nlayout: redesign\n---\n\n## 1. Section\n\n{filler}\n\nAVANT la figure 1.\n\n![tall](figures/tall.svg)\n\n"
+            "Figure 1. Une figure haute.\n\nSUITE après la figure.\n\nFIN du texte.\n")
+    src = tmp_path / "in.md"
+    src.write_text(text, encoding="utf-8")
+    report.build(src, tmp_path / "figs", tmp_path / "out", name="r")
+    pages = [" ".join(p.extract_text().split()) for p in PdfReader(tmp_path / "out" / "r.pdf").pages]
+    assert page_of(pages, "SUITE après") == page_of(pages, "AVANT la figure") < page_of(pages, "Figure 1.")
+
+
+def test_delayed_moves_a_figure_after_the_next_paragraphs_and_stops_at_a_heading():
+    html = '<p>a</p><figure class="fig"><p class="caption">c</p></figure><p>b</p><p>c</p><h2>x</h2><p>d</p>'
+    assert report.delayed(html, {0: 1}) == '<p>a</p><p>b</p><figure class="fig"><p class="caption">c</p></figure><p>c</p><h2>x</h2><p>d</p>'
+    assert report.delayed(html, {0: 3}) == '<p>a</p><p>b</p><p>c</p><figure class="fig"><p class="caption">c</p></figure><h2>x</h2><p>d</p>'
+
+
+def test_a_pair_of_81_mm_figures_stands_side_by_side_in_the_166_mm_block(tmp_path):
+    assert report.PAGE_MM == 166
+    svg = '<svg xmlns="http://www.w3.org/2000/svg" width="{w}pt" height="{h}pt" viewBox="0 0 {w} {h}"><rect width="{w}" height="{h}" fill="#999"/></svg>'
+    mm = 72 / 25.4
+    (tmp_path / "figs").mkdir()
+    for n in "ab":
+        (tmp_path / "figs" / f"p{n}.svg").write_text(svg.format(w=81 * mm, h=80 * mm), encoding="utf-8")
+    text = ("---\ntitle: T\nlayout: redesign\n---\n\n## 1. Section\n\nTexte de la figure 1.\n\n![a](figures/pa.svg)\n\n![b](figures/pb.svg)\n\n"
+            "Figure 1. Une paire.\n\nFin.\n")
+    src = tmp_path / "in.md"
+    src.write_text(text, encoding="utf-8")
+    report.build(src, tmp_path / "figs", tmp_path / "out", name="r")
+    html = (tmp_path / "out" / "r.html").read_text(encoding="utf-8")
+    assert 'class="fig panels"' in html and html.count("--w:81.0mm") == 2
