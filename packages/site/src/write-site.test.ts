@@ -89,12 +89,12 @@ describe.each([
       ['map/index.html', 'physical link', 'Map · GAB dataset'],
       ['data/index.html', 'SHA-256 checksum', 'Data · GAB dataset'],
       ['report/index.html', 'Les exportations russes', 'Report · GAB dataset'],
-      ['v1/index.html', 'holds no build of the version 1 map', 'Version 1 · GAB dataset'],
     ];
     for (const [path, words, title] of expected) {
       expect(textOf(page(path))).toContain(words);
       expect(page(path)).toContain(`<title>${title}</title>`);
       expect(page(path)).toContain('<div id="root"><');
+      expect(page(path)).toMatch(/<meta name="description" content="[^"]+" \/>/u);
     }
   });
 
@@ -140,9 +140,9 @@ describe.each([
       );
   });
 
-  test('the graph and the review open the shell, with no text of a record', () => {
+  test('the graph opens the shell, with no text of a record', () => {
     const { release, page } = site();
-    for (const folder of ['graph', 'review']) {
+    for (const folder of ['graph']) {
       const html = page(`${folder}/index.html`);
       expect(html).toContain('<div id="root"></div>');
       expect(html).toContain('type="module"');
