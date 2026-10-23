@@ -531,6 +531,9 @@ figure.panels .plates img {
   .newpage {
     break-before: page;
   }
+  .conclusion {
+    break-inside: avoid; /* the conclusion is one page */
+  }
   .reserved {
     break-before: page;
   }

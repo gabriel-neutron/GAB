@@ -451,7 +451,7 @@ def finish(sections, doc, mode):
             items = "".join(f'<li id="fn-{k}">{doc.note_html[k]} ' + "".join(
                 f'<a class="back" href="#fnref-{k}-{n}">↩</a>' for n in range(1, doc.uses[k] + 1)) + "</li>" for k in notes)
             body += f'<ol class="notes" start="{notes[0]}">{items}</ol>'
-        cls = " ".join(c for c, on in (("reserved", reserved), ("funding", title == FUNDING_HEADING), (kind, kind)) if on)
+        cls = " ".join(c for c, on in (("reserved", reserved), ("funding", title == FUNDING_HEADING), ("conclusion", bool(re.match(r"Conclusion", title or ""))), (kind, kind)) if on)
         out.append(f'<section id="s{i}" class="{cls}">{body}</section>')
     return "".join(out)
 
@@ -547,7 +547,7 @@ FIGURE = re.compile(r'<figure class="fig.*?</figure>', re.S)
 # share of a page left blank before a warning; share left blank above a figure before it waits; share of the page
 # below which a section may not start; reflow passes; paragraphs a figure may wait
 HOLE, FIG_HOLE, LOW_START, MAX_PASSES, MAX_DELAY = 0.33, 0.15, 2 / 3, 8, 4
-PARAGRAPH = re.compile(r"<p>.*?</p>", re.S)
+PARAGRAPH = re.compile(r"<(p|ol)>.*?</\1>", re.S)  # a list is text that a figure may pass
 
 
 def delayed(page_html, delays):
