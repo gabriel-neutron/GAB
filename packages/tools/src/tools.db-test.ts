@@ -2204,6 +2204,84 @@ test('propose adds a source to a relation when its excerpt names the act', async
   expect(found.rows[0]?.payload).toStrictEqual({ add_source: true });
 });
 
+const LISTING = 'A treasury lists A bank under its list.';
+
+// The relation cites the document already: an operator signed the first source act.
+const citedRelation = async (ask: Ask): Promise<string> => {
+  const held = await designatedRelation(ask);
+  await asResearch(ask, () => withDocument(ask, [LISTING]));
+  await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+  await ask(
+    `SELECT public.sign_change('a test', 'update_relation', '{"add_source": true}'::jsonb,
+       ARRAY[$1], 'relation', $2::uuid, '{}'::uuid[])`,
+    [DOC, held],
+  );
+  await ask('RESET SESSION AUTHORIZATION');
+  return held;
+};
+
+const citationsOf = async (ask: Ask, held: string): Promise<number> =>
+  z.array(z.object({ n: z.coerce.number() })).parse(
+    await ask(
+      `SELECT count(*) AS n FROM public.citation c JOIN public.proposals p ON p.id = c.claim_id
+          WHERE p.target_id = $1 AND p.status = 'pending'`,
+      [held],
+    ),
+  )[0]?.n ?? 0;
+
+test('propose adds a citation to a document that the relation cites already, once', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await citedRelation(ask);
+    const first = await proposeAgain(ask, [sourcing(held, 'A treasury lists A bank')]);
+    const again = await proposeAgain(ask, [sourcing(held, 'A treasury lists A bank')]);
+    const sources = await ask('SELECT sources::text[] AS s FROM public.relations WHERE id = $1', [
+      held,
+    ]);
+    return { first, again, sources, rows: await citationsOf(ask, held) };
+  });
+  expect(batchOf(found.first).proposals).toMatchObject([{ written: true }]);
+  expect(batchOf(found.again).proposals).toMatchObject([{ written: false }]);
+  expect(found.rows).toBe(1);
+  expect(found.sources).toStrictEqual([{ s: ['manual', DOC] }]);
+});
+
+test('propose refuses a citation whose excerpt the page does not hold, on a cited document', async () => {
+  const outcome = await rolledBack('superuser', async (ask) => {
+    const held = await citedRelation(ask);
+    return proposeAgain(ask, [sourcing(held, 'A treasury bans A bank')]);
+  });
+  expect(outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringMatching(/^item source: .*does not hold the excerpt/u) as string,
+  });
+});
+
+test('propose refuses a citation that a promoted act of the relation holds already', async () => {
+  const outcome = await rolledBack('superuser', async (ask) => {
+    const held = await citedRelation(ask);
+    const first = batchOf(await proposeAgain(ask, [sourcing(held, 'A treasury lists A bank')]));
+    // An act is never decided by the transaction that proposed it, so the test dates it back.
+    await ask('ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only');
+    await ask("UPDATE public.proposals SET xact = '1'::xid8 WHERE id = $1::uuid", [
+      first.proposals[0]?.proposalId,
+    ]);
+    await ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only');
+    const [unit] = z
+      .array(z.object({ unit_id: z.uuid() }))
+      .parse(
+        await ask('SELECT unit_id FROM public.proposals WHERE id = $1::uuid', [
+          first.proposals[0]?.proposalId,
+        ]),
+      );
+    await ask("SELECT public.promote_unit($1::uuid, 'a test')", [unit?.unit_id]);
+    return proposeAgain(ask, [sourcing(held, 'A treasury lists A bank')]);
+  });
+  expect(outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('adds no source') as string,
+  });
+});
+
 test('propose adds a source to a relation when its excerpt holds a Cyrillic name of the far end', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const held = await designatedRelation(ask);

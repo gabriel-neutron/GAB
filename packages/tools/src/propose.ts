@@ -861,8 +861,9 @@ export const proposeOf = (modelCallId: string | null) =>
       'record that has none (update_relation with validFrom, when a dated page states it), and one ' +
       'more cited source for a relation of the record (add_source: the cited documents join the ' +
       'sources of the relation, and its dates and its type stay; an excerpt must name the vessel ' +
-      'by its IMO number or the act, and a relation that cites these documents already is ' +
-      'refused), and the ' +
+      'by its IMO number or the act; a document that the relation cites already is allowed ' +
+      'when the page and the excerpt are new: the act then adds a citation only, and a ' +
+      'passage that a promoted act holds already is refused), and the ' +
       'place of an entity of the record (update_entity with geom, when a page states its ' +
       'coordinates; every geom needs geomMethod, the closed list of the methods that found the ' +
       'place, and the tool refuses a geom with no method; the tool refuses the place that the entity has already, and a place that ' +
