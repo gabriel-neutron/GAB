@@ -78,7 +78,7 @@ def build(data, meta, out_dir, grey=False):
     for p in pts:
         m = STATUS[p["status"]]
         ax.plot(p["lon"], p["lat"], marker=m.marker, markersize=st.MARKER + 2, color=m.color,
-                markerfacecolor=st.WHITE if p["status"] == "stopped" else m.color, markeredgewidth=1, linestyle="")
+                markerfacecolor=st.PAPER if p["status"] == "stopped" else m.color, markeredgewidth=1, linestyle="")
         if p.get("approx"):
             ax.plot(p["lon"], p["lat"], marker="o", markersize=st.MARKER + 9, markerfacecolor="none",
                     markeredgecolor=st.SECOND, markeredgewidth=0.8, linestyle="")
@@ -91,7 +91,7 @@ def build(data, meta, out_dir, grey=False):
             color=st.LABEL)
     used = list(dict.fromkeys(i["status"] for i in pts + lns))
     handles = [Line2D([], [], color=STATUS[s].color, linestyle=STATUS[s].linestyle, marker=STATUS[s].marker,
-                      markerfacecolor=st.WHITE if s == "stopped" else STATUS[s].color, linewidth=1.6, markersize=5,
+                      markerfacecolor=st.PAPER if s == "stopped" else STATUS[s].color, linewidth=1.6, markersize=5,
                       label=st.word(s)) for s in used]
     if any(p.get("approx") for p in pts):
         handles.append(Line2D([], [], linestyle="", marker="o", markersize=9, markerfacecolor="none",

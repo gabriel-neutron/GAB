@@ -40,10 +40,10 @@ def build(data, meta, out_dir, grey=False):
         shown = False
         for i, b in enumerate(bars):
             v = val[(p, b)]
-            ink = st.WHITE if st.lightness(color) < 0.55 else st.INK
+            ink = st.PAPER if st.lightness(color) < 0.55 else st.INK
             # the hatch takes the ink of the part; a second outline keeps the white gap
             ax.barh(i, v, left=left[b], height=0.6, color=color, hatch=hatch, edgecolor=ink, linewidth=0)
-            ax.barh(i, v, left=left[b], height=0.6, fill=False, edgecolor=st.WHITE, linewidth=2)
+            ax.barh(i, v, left=left[b], height=0.6, fill=False, edgecolor=st.PAPER, linewidth=2)
             if v >= THIN_PART * st.scale():
                 shown = True
                 ax.text(left[b] + v / 2, i, st.num(v), ha="center", va="center", color=ink, fontsize=st.TEXT_PT)
@@ -53,7 +53,7 @@ def build(data, meta, out_dir, grey=False):
                 reach = max(reach, left[b] + ub)
             left[b] += v
         name = p if shown else f"{p} ({' / '.join(st.num_label(val[(p, b)]) for b in bars)})"
-        handles.append(Patch(facecolor=color, hatch=hatch, edgecolor=st.WHITE if st.lightness(color) < 0.55 else st.INK, label=name, linewidth=0))
+        handles.append(Patch(facecolor=color, hatch=hatch, edgecolor=st.PAPER if st.lightness(color) < 0.55 else st.INK, label=name, linewidth=0))
     if upper:
         handles.append(Line2D([], [], color=st.INK, lw=1, marker="|", markersize=6, label=st.word("high")))
     ax.legend(handles=handles, loc="lower left", bbox_to_anchor=(0, 1.0), ncol=st.legend_cols([h.get_label() for h in handles], 4), fontsize=st.TEXT_PT,

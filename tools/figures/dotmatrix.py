@@ -17,10 +17,10 @@ def draw(ax, x, y, mark):
     if mark == "full":
         ax.add_patch(Circle((x, y), R, facecolor=st.INK, **ring))
     elif mark == "half":
-        ax.add_patch(Circle((x, y), R, facecolor=st.WHITE, **ring))
+        ax.add_patch(Circle((x, y), R, facecolor=st.PAPER, **ring))
         ax.add_patch(Wedge((x, y), R, 90, 270, facecolor=st.INK, edgecolor=st.INK, linewidth=1))
     else:
-        ax.add_patch(Circle((x, y), R, facecolor=st.WHITE, **ring))
+        ax.add_patch(Circle((x, y), R, facecolor=st.PAPER, **ring))
 
 
 def build(data, meta, out_dir, grey=False):
@@ -36,7 +36,7 @@ def build(data, meta, out_dir, grey=False):
     ax.set_ylim(-len(rows) - 2.0, 1.2)
     ax.axis("off")
     for j, c in enumerate(conds):
-        ax.text(j, 0.75, c, ha="center", va="bottom", fontsize=st.TITLE_PT, fontweight="bold")
+        ax.text(j, 0.75, c, ha="center", va="bottom", fontsize=st.TITLE_PT, fontweight=st.SEMIBOLD)
     for i, r in enumerate(rows):
         ax.text(-0.6, -i, r["label"], ha="right", va="center", fontsize=st.TEXT_PT)
         ax.axhline(-i - 0.5, color=st.GRID, linewidth=0.5, zorder=0)

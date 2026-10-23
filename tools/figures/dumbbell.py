@@ -20,14 +20,14 @@ def build(data, meta, out_dir, grey=False):
         a, b = val[(c, periods[0])], val[(c, periods[1])]
         ax.annotate("", (b, i), xytext=(a, i), arrowprops=dict(arrowstyle="-|>", color=st.SECOND,
                     lw=1, shrinkA=3, shrinkB=3, mutation_scale=st.ARROW))
-        ax.plot(a, i, "o", markersize=st.MARKER + 1, markerfacecolor="white", markeredgecolor=st.INK)
+        ax.plot(a, i, "o", markersize=st.MARKER + 1, markerfacecolor=st.PAPER, markeredgecolor=st.INK, markeredgewidth=st.LINE_W)
         ax.plot(b, i, "o", markersize=st.MARKER + 1, color=st.INK)
         ax.annotate(st.num(b), (b, i), xytext=(6, 0), textcoords="offset points", va="center",
                     ha="left" if b >= a else "right", fontsize=st.TEXT_PT)
     ax.set_yticks(range(len(cats)), cats)
     ax.set_ylim(-0.6, len(cats) - 0.4)
     ax.set_xlim(0, max(val.values()) / (1 - st.label_room(max(len(st.num(v)) for v in val.values()) + 1)))
-    ax.plot([], [], "o", markerfacecolor="white", markeredgecolor=st.INK, label=periods[0])
+    ax.plot([], [], "o", markerfacecolor=st.PAPER, markeredgecolor=st.INK, markeredgewidth=st.LINE_W, label=periods[0])
     ax.plot([], [], "o", color=st.INK, label=periods[1])
     ax.legend(loc="lower left", bbox_to_anchor=(0, 1.0), ncol=2, fontsize=st.TEXT_PT, borderaxespad=0)
     return st.save(fig, out_dir, meta["stem"], meta, grey)
