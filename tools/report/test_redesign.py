@@ -403,3 +403,14 @@ def test_a_section_never_starts_in_the_last_third_of_a_page(tmp_path):
 def test_the_conclusion_section_is_kept_on_one_page(tmp_path):
     _, html = build(tmp_path, "---\ntitle: T\nlayout: redesign\n---\n\n## 1. Introduction\n\nTexte.\n\n## 2. Conclusion\n\nFin.\n")
     assert '<section id="s1" class="conclusion">' in html
+
+
+def test_a_note_far_from_its_call_gets_a_warning_and_a_short_set_of_notes_does_not(tmp_path, capsys):
+    def doc(n, size):
+        paras = "\n\n".join(f"Un paragraphe de texte {i}. " + "mot " * 40 + f"[^n{i}]" for i in range(n))
+        notes = "\n".join(f"[^n{i}]: " + "Source très longue " * size for i in range(n))
+        return f"---\ntitle: T\nlayout: redesign\n---\n\n## 1. Section\n\n{paras}\n\nFin.\n\n{notes}\n"
+    build(tmp_path, doc(4, 3))
+    assert "pages after its call" not in capsys.readouterr().err
+    build(tmp_path, doc(40, 25))
+    assert "pages after its call" in capsys.readouterr().err
