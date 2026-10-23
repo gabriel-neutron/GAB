@@ -408,15 +408,15 @@ figure.panels .plates img {
   .cover .meta {
     border-top: 0.5pt solid var(--border);
     padding-top: 4mm;
-    font: 9pt/14pt var(--mono);
+    font: var(--sub)/14pt var(--sans);
     color: var(--label);
   }
   .cover .meta p {
     margin: 0;
   }
   .cover .meta .author {
-    font-size: 11pt;
     color: var(--foreground);
+    font-weight: 700;
   }
   .cover .byline {
     font: 9pt var(--mono);
@@ -427,7 +427,7 @@ figure.panels .plates img {
     flex-direction: column;
     justify-content: flex-end;
     height: 230mm;
-    font-size: 8.5pt;
+    font-size: var(--small);
     color: var(--muted-foreground);
   }
   h2 {
@@ -563,10 +563,10 @@ figure.panels .plates img {
   }
   .openpoints .pg::after {
     content: 'p. ' target-counter(attr(href), page) ' · ';
-    font: 8pt var(--mono);
+    font: var(--small) var(--mono);
   }
   .openpoints li {
-    font-size: 9pt;
+    font-size: var(--small);
     margin-bottom: 2mm;
   }
 }
