@@ -198,6 +198,7 @@ export function DataPage({ release, fileHref }: DataPageProps) {
           <Field label="Contains">
             <Input
               type="search"
+              className="text-foreground"
               value={filter.text}
               onChange={(event) => {
                 setFilter({ ...filter, text: event.target.value });
