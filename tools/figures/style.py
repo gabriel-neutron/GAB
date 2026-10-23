@@ -24,7 +24,7 @@ from matplotlib import font_manager  # noqa: E402
 from matplotlib.ticker import FuncFormatter  # noqa: E402
 
 HERE = Path(__file__).parent
-WIDTH_MM = 160
+WIDTH_MM = 166
 MM = 1 / 25.4
 THIN = " "
 TITLE_PT, TEXT_PT, NOTE_PT = 9, 8, 7.5
@@ -189,16 +189,16 @@ _have = {f.name for f in font_manager.fontManager.ttflist}
 MONO_FACE = next(f for f in MONO if f in _have or f == MONO[-1])
 
 
-# Size classes for the page of 160 mm text width and 250 mm text height. A figure and its caption stay on one page:
-# the heights leave room for a caption of 20 mm. Class "pair" is 78 mm wide: two stand side by side at 1:1.
+# Size classes for the page of 166 mm text width and 250 mm text height. A figure and its caption stay on one page:
+# the heights leave room for a caption of 20 mm. Class "pair" is 81 mm wide: two stand side by side at 1:1.
 SIZES = {"third": 70, "half": 110, "full": 210, "pair": 80}
-PAIR_WIDTH_MM = 78
+PAIR_WIDTH_MM = 81
 _width = {"mm": WIDTH_MM}
 TITLE_WORDS = 8
 
 
 def scale():
-    """How many times narrower than the text block the figure is (1 for 160 mm, about 2 for a pair)."""
+    """How many times narrower than the text block the figure is (1 for the full width, about 2 for a pair)."""
     return WIDTH_MM / _width["mm"]
 
 
@@ -208,7 +208,7 @@ def fit_label(text):
 
 
 def legend_cols(labels, default=None):
-    """Legend columns. A 160 mm figure keeps `default` (one column for each label if none).
+    """Legend columns. A full-width figure keeps `default` (one column for each label if none).
     A narrow figure uses as many columns as fit in 40 mm (1.75 mm a character, 10 mm for a key)."""
     n = len(labels)
     if scale() <= 1.5:
