@@ -87,17 +87,30 @@ describe.each([
     const expected: readonly (readonly [string, string, string])[] = [
       ['index.html', 'The labels', 'GAB dataset: release overview'],
       ['map/index.html', 'physical link', 'Map · GAB dataset'],
-      ['downloads/index.html', 'SHA-256 checksum', 'Downloads · GAB dataset'],
-      ['method/index.html', 'About this data', 'Method · GAB dataset'],
-      ['exports/index.html', 'Les exportations russes', 'Exports · GAB dataset'],
-      ['glossary/index.html', 'point of view of the project', 'Glossary · GAB dataset'],
-      ['help/index.html', 'How the facts are checked', 'Help · GAB dataset'],
+      ['data/index.html', 'SHA-256 checksum', 'Data · GAB dataset'],
+      ['report/index.html', 'Les exportations russes', 'Report · GAB dataset'],
     ];
     for (const [path, words, title] of expected) {
       expect(textOf(page(path))).toContain(words);
       expect(page(path)).toContain(`<title>${title}</title>`);
       expect(page(path)).toContain('<div id="root"><');
       expect(page(path)).toMatch(/<meta name="description" content="[^"]+" \/>/u);
+    }
+  });
+
+  test('a removed page sends the reader to the page that holds its content', () => {
+    const { page } = site();
+    for (const [folder, to] of [
+      ['search', 'data'],
+      ['downloads', 'data'],
+      ['method', 'data'],
+      ['glossary', 'data'],
+      ['help', 'data'],
+      ['exports', 'report'],
+    ] as const) {
+      const html = page(`${folder}/index.html`);
+      expect(html).toContain(`<meta http-equiv="refresh" content="0; url=/${to}/">`);
+      expect(html).toContain(`href="/${to}/"`);
     }
   });
 
@@ -127,9 +140,9 @@ describe.each([
       );
   });
 
-  test('the graph and the search open the shell, with no text of a record', () => {
+  test('the graph opens the shell, with no text of a record', () => {
     const { release, page } = site();
-    for (const folder of ['graph', 'search']) {
+    for (const folder of ['graph']) {
       const html = page(`${folder}/index.html`);
       expect(html).toContain('<div id="root"></div>');
       expect(html).toContain('type="module"');
@@ -189,13 +202,13 @@ describe('a page that cannot be rendered', () => {
   );
 
   test(
-    'the exports page holds its figures in the HTML when the report folder gives their files',
+    'the report page holds its figures in the HTML when the report folder gives their files',
     async () => {
       const files = filesOf(join(FIXTURES, 'release'));
       const report = filesOf(join(FIXTURES, 'report'));
-      const page = { folder: 'exports', kind: 'text' } as const;
+      const page = { folder: 'report', kind: 'text' } as const;
       const rendered = await renderPages(files, [page], '/', report);
-      const text = textOf(rendered.get('exports')?.html ?? '');
+      const text = textOf(rendered.get('report')?.html ?? '');
       expect(text).toContain('Figure 2.');
       expect(text).toContain('Seller One');
       expect(text).not.toContain('is not on this site');

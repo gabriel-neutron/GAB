@@ -39,7 +39,18 @@ const SHELL_TITLE = /<title>[^<]*<\/title>/u;
 const TITLE_SUFFIX = ' · GAB dataset';
 
 // The pages that need a script and hold no permanent text: the shell opens them as it is.
-const SCRIPT_PAGES = ['graph', 'search'] as const;
+const SCRIPT_PAGES = ['graph'] as const;
+
+// The pages that an earlier release had, with the page that holds their content now. A link or a
+// bookmark to one of them still opens a page.
+const MOVED: readonly (readonly [folder: string, to: string, label: string])[] = [
+  ['downloads', 'data', 'Data'],
+  ['method', 'data', 'Data'],
+  ['glossary', 'data', 'Data'],
+  ['help', 'data', 'Data'],
+  ['search', 'data', 'Data'],
+  ['exports', 'report', 'Report'],
+];
 
 const fileManifest = z.object({
   files: z.array(z.object({ path: z.string().regex(/^[\w-][\w.-]*$/u) })),
@@ -107,8 +118,9 @@ const escapeHtml = (text: string): string =>
 interface Page {
   readonly folder: string;
   /** `text`: the application renders it. `script`: the shell opens it as it is. `merged`: a short
-   * page that sends the reader to the entity that survived a merge. */
-  readonly kind: 'text' | 'script' | 'merged';
+   * page that sends the reader to the entity that survived a merge. `moved`: a short page at the
+   * address of a page that the site no longer has, which sends the reader to its successor. */
+  readonly kind: 'text' | 'script' | 'merged' | 'moved';
   readonly survivor?: { readonly folder: string; readonly label: string };
   /** The folder that the document sends the browser to, as the page of a relation does to its
    * claim. A reader with no script follows it too. */
@@ -123,11 +135,13 @@ const pagesOf = (release: SiteRelease): readonly Page[] => {
   const pages: Page[] = [
     { folder: '', kind: 'text' },
     { folder: 'map', kind: 'text' },
-    { folder: 'downloads', kind: 'text' },
-    { folder: 'method', kind: 'text' },
-    { folder: 'exports', kind: 'text' },
-    { folder: 'glossary', kind: 'text' },
-    { folder: 'help', kind: 'text' },
+    { folder: 'data', kind: 'text' },
+    { folder: 'report', kind: 'text' },
+    ...MOVED.map(([folder, to, label]) => ({
+      folder,
+      kind: 'moved' as const,
+      survivor: { folder: to, label },
+    })),
     ...SCRIPT_PAGES.map((folder) => ({ folder, kind: 'script' as const })),
   ];
   for (const entity of release.entities)
@@ -159,6 +173,16 @@ const pagesOf = (release: SiteRelease): readonly Page[] => {
  * document also sends the browser there, and the script of the application does the same. */
 const refreshTo = (base: string, folder: string): string =>
   `<meta http-equiv="refresh" content="0; url=${escapeHtml(`${base}${folder}/`)}">`;
+
+const movedPage = (base: string, survivor: NonNullable<Page['survivor']>) => {
+  const target = escapeHtml(`${base}${survivor.folder}/`);
+  return {
+    head: refreshTo(base, survivor.folder),
+    html:
+      '<main><h1>This page has moved</h1><p>The content of this page is now on the page ' +
+      `<a href="${target}">${escapeHtml(survivor.label)}</a>.</p></main>`,
+  };
+};
 
 const mergedPage = (base: string, survivor: NonNullable<Page['survivor']>) => {
   const target = escapeHtml(`${base}${survivor.folder}/`);
@@ -296,6 +320,21 @@ const renderWithServer = async (
   }
 };
 
+// External constraint: on Windows a scanner or an indexer can hold a file of a folder with
+// thousands of files, and the rename then fails with EPERM or EBUSY for a few seconds.
+const renameWithRetry = async (from: string, to: string): Promise<void> => {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await rename(from, to);
+      return;
+    } catch (cause) {
+      const code = cause instanceof Error && 'code' in cause ? cause.code : undefined;
+      if (attempt === 30 || (code !== 'EPERM' && code !== 'EBUSY')) throw cause;
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+};
+
 const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promise<void> => {
   if (await exists(siteFolder))
     throw new SiteFolderExists(
@@ -316,7 +355,13 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
     const rendered = await renderPages(files, pages, base, report);
     for (const page of pages) {
       let text = shell;
-      if (page.kind === 'merged' && page.survivor !== undefined) {
+      if (page.kind === 'moved' && page.survivor !== undefined) {
+        const moved = movedPage(base, page.survivor);
+        text = text
+          .replace(SHELL_TITLE, () => `<title>Page moved${TITLE_SUFFIX}</title>`)
+          .replace('</head>', () => `${moved.head}</head>`)
+          .replace(SHELL_ROOT, () => `<div id="root">${moved.html}</div>`);
+      } else if (page.kind === 'merged' && page.survivor !== undefined) {
         const merged = mergedPage(base, page.survivor);
         text = text
           .replace(SHELL_TITLE, () => `<title>Merged entity${TITLE_SUFFIX}</title>`)
@@ -342,7 +387,7 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
       await mkdir(dirname(file), { recursive: true });
       await writeFile(file, text);
     }
-    await rename(partial, siteFolder);
+    await renameWithRetry(partial, siteFolder);
   } catch (fault) {
     await rm(partial, { recursive: true, force: true });
     throw fault;

@@ -5,11 +5,6 @@ export interface UnitOriginProps {
   readonly sourceDay: string | null;
 }
 
-const AFFILIATION_HREF = '/glossary#hostile';
-
-const LINK =
-  'text-primary underline underline-offset-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50';
-
 /** What the record knows about the position, the affiliation and the date of a unit. A part that
  * the record does not hold is absent, and the whole part is absent when it holds none. */
 export function UnitOrigin({
@@ -34,10 +29,7 @@ export function UnitOrigin({
       )}
       {affiliation === null ? null : (
         <p data-affiliation="">
-          {`Affiliation: ${affiliation}. This is the point of view of the project, not a legal finding. `}
-          <a href={AFFILIATION_HREF} className={LINK}>
-            Definition
-          </a>
+          {`Affiliation: ${affiliation}. This is the point of view of the project, not a legal finding.`}
         </p>
       )}
       {sourceDay === null ? null : (

@@ -14,6 +14,7 @@ import { ModeToggle } from '@/shared/mode-toggle';
 import { ScreenQueryField, ScreenQueryProvider } from '@/shared/screen-query';
 import { SiteFooter } from '@/shared/site-footer';
 import { SiteHeader } from '@/shared/site-header';
+import { SiteSearch } from '@/shared/site-search';
 import { ThemeProvider, useTheme } from '@/shared/theme-provider';
 import { recheckWriter, useWriterOnline } from '@/shared/write/writer-status';
 
@@ -34,10 +35,6 @@ export const Route = createRootRoute({
   }),
 });
 
-// Departure: only these screens read the header filter. The search page has a field of its own,
-// and a screen that reads no filter shows no field.
-const FILTERED_SCREENS: ReadonlySet<string> = new Set(['/graph']);
-
 function RootLayout() {
   const path = useLocation({ select: (location) => location.pathname });
   const writerOnline = useWriterOnline();
@@ -56,10 +53,12 @@ function RootLayout() {
         >
           Skip to the content
         </a>
+        {/* The field of the header searches the names. The graph offers its own names. */}
+        {path === '/graph' ? null : <SiteSearch />}
         <div className="relative flex h-svh flex-col overflow-hidden">
           <SiteHeader
             writerOnline={writerOnline}
-            filter={FILTERED_SCREENS.has(path) ? <ScreenQueryField /> : null}
+            filter={<ScreenQueryField />}
             actions={
               <>
                 {writerOnline ? <NewEntityControl /> : null}

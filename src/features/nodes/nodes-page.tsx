@@ -185,11 +185,11 @@ export function NodesPage({ release, entityHref, vesselHref, claimHref }: NodesP
           the map
         </Link>{' '}
         or{' '}
-        <Link to="/search" className={READING_LINK}>
-          the search
+        <Link to="/data" className={READING_LINK}>
+          the data
         </Link>
         , or{' '}
-        <Link to="/downloads" className={READING_LINK}>
+        <Link to="/data" className={READING_LINK}>
           download the files
         </Link>
         .

@@ -4,6 +4,7 @@ import type { SiteRelease } from '@gab/release/site-release';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
 import { ReadingPage } from '@/shared/page/reading-page';
+import { Button } from '@/shared/ui/button';
 
 import { BudgetShareFigure } from './budget-share-figure';
 import { CriticalityMatrix } from './criticality-matrix';
@@ -69,6 +70,20 @@ export function ExportsPage({ text, release, figures, links }: ExportsPageProps)
         title={text.title}
         detail={
           release === null ? undefined : `From the release of ${releaseDay(release.manifest.date)}`
+        }
+        actions={
+          // The page prints as it reads, so the browser makes the PDF.
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="print:hidden"
+            onClick={() => {
+              window.print();
+            }}
+          >
+            Print or save as PDF
+          </Button>
         }
       />
       <p className="max-w-prose text-muted-foreground">

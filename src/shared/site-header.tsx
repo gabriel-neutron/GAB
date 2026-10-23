@@ -83,23 +83,11 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
         >
           Graph
         </Link>
-        <Link to="/search" className={PAGE_LINK}>
-          Search
+        <Link to="/report" className={PAGE_LINK}>
+          Report
         </Link>
-        <Link to="/downloads" className={PAGE_LINK}>
-          Downloads
-        </Link>
-        <Link to="/exports" className={PAGE_LINK}>
-          Exports
-        </Link>
-        <Link to="/method" className={PAGE_LINK}>
-          Method
-        </Link>
-        <Link to="/glossary" className={PAGE_LINK}>
-          Glossary
-        </Link>
-        <Link to="/help" className={PAGE_LINK}>
-          Help
+        <Link to="/data" className={PAGE_LINK}>
+          Data
         </Link>
         {writerOnline ? (
           <Link

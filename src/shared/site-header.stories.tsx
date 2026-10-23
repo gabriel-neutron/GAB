@@ -14,7 +14,7 @@ const inRouter = (props: SiteHeaderProps) => (
   <RouterProvider
     router={createRouter({
       routeTree: createRootRoute({ component: () => <SiteHeader {...props} /> }),
-      history: createMemoryHistory({ initialEntries: ['/search'] }),
+      history: createMemoryHistory({ initialEntries: ['/data'] }),
     })}
   />
 );
@@ -35,7 +35,7 @@ export const WithNoWriterNoPageThatWritesIsListed: Story = {
     const nav = await canvas.findByRole('navigation', { name: 'Pages of the site' });
     await expect(nav).toBeVisible();
     await expect(canvas.getByRole('link', { name: 'Overview' })).toBeVisible();
-    await expect(canvas.getByRole('link', { name: 'Search' })).toBeVisible();
+    await expect(canvas.getByRole('link', { name: 'Data' })).toBeVisible();
     await expect(canvas.queryByRole('link', { name: 'Review' })).toBeNull();
   },
 };
@@ -58,7 +58,7 @@ export const TheNameOfTheDatasetOpensTheFirstPage: Story = {
 
 export const TheOpenPageIsMarked: Story = {
   play: async ({ canvas }) => {
-    await expect(await canvas.findByRole('link', { name: 'Search' })).toHaveAttribute(
+    await expect(await canvas.findByRole('link', { name: 'Data' })).toHaveAttribute(
       'data-status',
       'active',
     );
