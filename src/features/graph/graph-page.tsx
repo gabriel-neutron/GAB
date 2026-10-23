@@ -10,7 +10,6 @@ import {
 } from 'react';
 
 import type { Corpus, EntityPosition, TypeVocabulary } from '@/shared/read/model';
-import { relationWording } from '@/shared/relation-words';
 import { cn } from '@/shared/lib/utils';
 import { useNarrowScreen } from '@/shared/narrow-screen';
 import { askPanelFocus, landOnPanel, returnPanelFocus } from '@/shared/panel-focus';
@@ -20,23 +19,12 @@ import { useScreenQuery } from '@/shared/screen-query';
 
 import { mountGraph, type GraphController, type GraphView } from './controller';
 import { FocusBar } from './focus-bar';
-import { FocusNote } from './focus-note';
-import { MarkerRemainder } from './marker-remainder';
 import type { GraphModel } from './model';
-import type { RelationFilterState } from './relation-filter';
-import { RelationLegend } from './relation-legend';
-import { deriveLegend } from './relation-legend-rows';
-import { hiddenRelationsAfterSwitch } from './relation-filter';
 import { deriveRailRows } from './rail-rows';
 import { stepAfterTypeOpen, stepShowingWholeList, type RailStep } from './rail-step';
 import { IndexRows } from './row';
 import type { GraphSelection } from './selection';
-import { ShownLine } from './shown-line';
-import { StartPanel } from './start-panel';
-import { TextViewList } from './text-list';
-import { deriveTextView } from './text-view';
 import { everyTypeShown, hiddenAfterSwitch, isShown, type FilterState } from './type-filter';
-import { UnplacedCount } from './unplaced-count';
 import { DEFAULT_GRAPH_WORKSPACE } from './workspace';
 
 interface GraphSnapshot {
@@ -99,8 +87,6 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   // list would make a new function at each filter change, and `GraphCanvas` is memoised on props.
   const filterNow = useRef<FilterState | null>(null);
 
-  const relationFilterNow = useRef<RelationFilterState>({ hiddenRelationTypes: [] });
-
   const [step, setStep] = useState<RailStep>({ openTypes: [], wholeList: [] });
 
   // Departure: on a phone the rail is a drawer over the canvas, closed at the start. The drawer
@@ -128,7 +114,6 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     controller.current = handle;
     const unsubscribe = handle.subscribe((view) => {
       filterNow.current = view.filter;
-      relationFilterNow.current = view.relationFilter;
       setSnapshot({ view, model: handle.model });
     });
     // It calls the listener at once with the selection this mount restored from the address, so
@@ -183,43 +168,6 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   // Departure: the filter narrows the rail and never the canvas, so the controller holds none of
   // it. `GraphCanvas` is memoised on two refs, so a new filter does not render the live element.
   const query = useScreenQuery({ named, choose: reach });
-
-  const wordsOf = useMemo(() => relationWording(corpus.relationTypes), [corpus.relationTypes]);
-  const hiddenRelationTypes = snapshot?.view.relationFilter.hiddenRelationTypes ?? null;
-  const legend = useMemo(
-    () =>
-      counts === null || hiddenRelationTypes === null
-        ? []
-        : deriveLegend(counts.byRelationType, new Set(hiddenRelationTypes), wordsOf),
-    [counts, hiddenRelationTypes, wordsOf],
-  );
-
-  const textView = useMemo(
-    () =>
-      model === null || filter === null || hiddenRelationTypes === null
-        ? null
-        : deriveTextView(
-            model.graph,
-            selection,
-            {
-              hiddenTypes: new Set(filter.hiddenTypes),
-              showUnplaced,
-              hiddenRelationTypes: new Set(hiddenRelationTypes),
-            },
-            wordsOf,
-          ),
-    [model, filter, selection, showUnplaced, hiddenRelationTypes, wordsOf],
-  );
-
-  const openEntity = useCallback((id: string) => {
-    askPanelFocus();
-    controller.current?.focusOn(id);
-  }, []);
-
-  const openRelation = useCallback((id: string) => {
-    askPanelFocus();
-    controller.current?.openRelation(id);
-  }, []);
 
   const rows = useMemo(
     () =>
@@ -294,18 +242,6 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     controller.current?.expand();
   }, []);
 
-  const switchRelationType = useCallback((type: string, on: boolean) => {
-    const handle = controller.current;
-    if (handle === null) return;
-    handle.setRelationFilter({
-      hiddenRelationTypes: hiddenRelationsAfterSwitch(relationFilterNow.current, type, on),
-    });
-  }, []);
-
-  const switchUnplaced = useCallback((show: boolean) => {
-    controller.current?.setShowUnplaced(show);
-  }, []);
-
   const openUnit = useCallback((unit: string, open: boolean) => {
     controller.current?.setUnitOpen(unit, open);
   }, []);
@@ -327,9 +263,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
       >
         <div className={cn('graph-canvas relative min-h-0 min-w-0 md:col-start-2 md:row-start-1')}>
           <GraphCanvas canvas={canvas} overlay={overlay} />
-          {snapshot === null ? null : snapshot.view.mode === 'start' ? (
-            <StartPanel named={named} onChoose={reach} onShowWholeGraph={showWholeGraph} />
-          ) : snapshot.view.mode === 'focus' ? (
+          {snapshot?.view.mode === 'focus' ? (
             <FocusBar
               hops={snapshot.view.hops}
               expandable={snapshot.view.expandable}
@@ -354,22 +288,6 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
           >
             Types
           </button>
-          <div className={cn('absolute top-2 right-2')}>
-            {snapshot?.view.mode !== 'whole' ? null : (
-              <button
-                type="button"
-                onClick={showWholeGraph}
-                className={cn(
-                  'h-6 border border-input bg-background px-2 text-xs text-foreground',
-                  'transition-colors duration-100 hover:bg-muted',
-                  'outline-none focus-visible:border-ring focus-visible:ring-3',
-                  'focus-visible:ring-ring/50',
-                )}
-              >
-                Show the whole graph
-              </button>
-            )}
-          </div>
         </div>
 
         <div
@@ -429,40 +347,6 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
           )}
         </div>
       </div>
-
-      {snapshot === null ? null : (
-        <details className="workspace-disclosure">
-          <summary>Relations, filtres et vue textuelle</summary>
-          <div className="workspace-notes">
-            {snapshot.view.mode === 'start' ? null : (
-              <>
-                <ShownLine
-                  entities={snapshot.view.counts.entities}
-                  relations={snapshot.view.counts.relations}
-                />
-                <RelationLegend legend={legend} onSwitch={switchRelationType} />
-              </>
-            )}
-            <TextViewList view={textView} onOpenEntity={openEntity} onOpenRelation={openRelation} />
-            <MarkerRemainder
-              drawn={snapshot.view.markersDrawn}
-              remainder={snapshot.view.markersOverCap}
-            />
-            <FocusNote
-              drawn={snapshot.view.focusDrawn}
-              unnamed={snapshot.view.focusUnnamed}
-              unnamedRelations={snapshot.view.focusUnnamedRelations}
-            />
-            {snapshot.view.mode === 'whole' ? (
-              <UnplacedCount
-                unplaced={snapshot.view.unplaced}
-                shown={snapshot.view.showUnplaced}
-                onSwitch={switchUnplaced}
-              />
-            ) : null}
-          </div>
-        </details>
-      )}
     </div>
   );
 }
