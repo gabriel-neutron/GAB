@@ -22,6 +22,7 @@
     "./event-lane": "./src/event-lane.ts",
     "./file-words": "./src/file-words.ts",
     "./map-features": "./src/map-features.ts",
+    "./reference-label": "./src/reference-label.ts",
     "./release-day": "./src/release-day.ts",
     "./report-files": "./src/report-files.ts",
     "./safe-href": "./src/safe-href.ts",

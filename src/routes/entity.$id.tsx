@@ -16,6 +16,7 @@ import type { DocId } from '@/shared/read/model';
 import { readMode } from '@/shared/read/read-mode';
 import { loadReleaseOrNull } from '@/shared/read/release-record';
 import { loadEntityTypes } from '@/shared/read/vocabulary';
+import { typeLabel } from '@/shared/type-label';
 
 export interface EntitySearch {
   /** The document the reader arrived at. `null` is the normal arrival. */
@@ -90,9 +91,21 @@ export const Route = createFileRoute('/entity/$id')({
   component: EntityRoute,
   notFoundComponent: EntityNotFound,
 
-  // The identifier is in the title. Four routes that all report the name of the dataset tell a screen reader
-  // nothing, and an entity page is the one route where the name changes on every visit.
-  head: ({ params }) => ({ meta: [{ title: `Entity ${params.id} · GAB dataset` }] }),
+  // The name of the entity is in the title. Four routes that all report the name of the dataset
+  // tell a screen reader nothing, and an entity page is the one route where the name changes on
+  // every visit. An entity that is absent keeps its identifier.
+  head: ({ params, loaderData }) => ({
+    meta: [
+      { title: `${loaderData?.label ?? `Entity ${params.id}`} · GAB dataset` },
+      {
+        name: 'description',
+        content:
+          loaderData === undefined
+            ? 'An entity of the GAB dataset, with its claims, relations and sources.'
+            : `${loaderData.label}, ${typeLabel(loaderData.type).toLowerCase()}: its claims, relations and the documents that state them, in the GAB dataset.`,
+      },
+    ],
+  }),
 });
 
 function EntityRoute() {

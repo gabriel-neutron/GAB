@@ -41,7 +41,7 @@ export const GivesTheKindTheWordsTheActorAndTheDocumentOfAnEvent: Story = {
 export const ASiteWithNoStoredEventReadsAtLeastZeroAndSaysSo: Story = {
   args: { events: eventsOf(QUIET_SITE) },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText('At least 0 claimed and stored strikes.')).toBeVisible();
+    await expect(canvas.getByText('No claimed strike is stored for this site.')).toBeVisible();
     await expect(canvas.getByText('The release holds no event for this site.')).toBeVisible();
   },
 };

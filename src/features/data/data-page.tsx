@@ -237,7 +237,9 @@ export function DataPage({ release, fileHref }: DataPageProps) {
         <p className="max-w-prose">
           Each file is under CC-BY 4.0, and each row of a file gives its own licence. Each file
           holds the disclaimer of the dataset, and each row its label. The file manifest gives the
-          SHA-256 checksum of each file, so you can check a copy.
+          SHA-256 checksum of each file, so you can check a copy. Each CSV file starts with lines
+          that begin with "#": the version, the date and the disclaimer. A program that reads a CSV
+          file must skip those lines.
         </p>
         <DataTable
           name="Files of the release"

@@ -16,7 +16,7 @@ export const Route = createFileRoute('/')({
     try {
       const release = await loadRelease();
       return {
-        date: release.manifest.date,
+        manifest: release.manifest,
         nodes: release.criticalNodes,
         claims: Object.fromEntries(
           release.claims.map((claim) => [
@@ -32,7 +32,21 @@ export const Route = createFileRoute('/')({
     }
   },
   component: NodesRoute,
-  head: () => ({ meta: [{ title: 'Critical nodes · GAB dataset' }] }),
+  head: ({ loaderData }) => {
+    const coverage = loaderData?.manifest.coverage ?? null;
+    return {
+      meta: [
+        { title: 'GAB dataset: release overview' },
+        {
+          name: 'description',
+          content:
+            coverage === null
+              ? 'Overview of a release of the GAB dataset: the labels of its claims and its critical nodes.'
+              : `Release ${loaderData?.manifest.version ?? ''} of the GAB dataset: ${String(coverage.entities)} entities and ${String(coverage.sources)} sources, the labels of its claims and its critical nodes.`,
+        },
+      ],
+    };
+  },
 });
 
 function NodesRoute() {

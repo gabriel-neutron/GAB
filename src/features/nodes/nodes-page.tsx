@@ -1,7 +1,11 @@
+import { Link } from '@tanstack/react-router';
+import type { SiteManifest } from '@gab/release/site-manifest';
 import type { CriticalNode, NodeCondition, PairRating } from '@gab/release/site-release';
 
 import { DataTable, type DataColumn } from '@/shared/page/data-table';
 import { ClaimLink } from '@/shared/page/claim-link';
+import { CoverageStatement } from '@/shared/page/coverage-statement';
+import { DisclaimerText } from '@/shared/page/disclaimer-text';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
 import { READING_LINK } from '@/shared/page/reading-link';
@@ -19,8 +23,8 @@ export interface TickClaim {
 export interface NodesPageProps {
   /** Null when the site holds no release: the table comes from a release and from nothing else. */
   readonly release: {
-    /** The day of the release, YYYY-MM-DD. */
-    readonly date: string;
+    /** The manifest of the release: its day, its counts and the words of its labels. */
+    readonly manifest: SiteManifest;
     readonly nodes: readonly CriticalNode[];
     /** What each claim of a tick says, and its ADMIRALTY rating, by claim identifier. */
     readonly claims: Readonly<Record<string, TickClaim>>;
@@ -145,15 +149,19 @@ const columnsOf = (
   { key: 'bypass', header: 'Bypass pattern', cell: (node) => node.bypassPattern },
 ];
 
-/** The critical nodes table of a release, on the reading scale: the retained nodes first, then
- * the other candidates. Each condition gives its word and the claims of its tick. */
+const PROSE = 'max-w-prose';
+
+/** The front page of a release: what it holds, the meaning of each label, and the critical nodes
+ * table, on the reading scale: the retained nodes first, then the other candidates. Each
+ * condition gives its word and the claims of its tick. A release with no candidate node still
+ * gives the counts and the labels, because those are what a reader needs first. */
 export function NodesPage({ release, entityHref, vesselHref, claimHref }: NodesPageProps) {
   if (release === null)
     return (
       <ReadingPage>
-        <PageHeader title="Critical nodes" />
+        <PageHeader title="GAB dataset" />
         <p className="text-muted-foreground">
-          This site holds no release, and the critical nodes table comes from a release.
+          This site holds no release, and the front page comes from a release.
         </p>
       </ReadingPage>
     );
@@ -162,37 +170,67 @@ export function NodesPage({ release, entityHref, vesselHref, claimHref }: NodesP
     { entityHref, vesselHref, imoOf: release.imoOf, claimHref },
     release.claims,
   );
+  const { manifest } = release;
   return (
     <ReadingPage>
-      <PageHeader
-        title="Critical nodes"
-        detail={`From the release of ${releaseDay(release.date)}`}
-      />
-      <p className="max-w-prose">
-        A node is retained when two of the three conditions have a public source: sanctions,
-        production or throughput in 2024-2026, and bypass routing.
+      <PageHeader title="GAB dataset" detail={`From the release of ${releaseDay(manifest.date)}`} />
+      <p className={PROSE}>
+        Each claim of this release cites the documents that state it, and carries a label that tells
+        who decided it. A claim tells what its sources say, and a source can be wrong.{' '}
+        <Link to="/graph" search={{ entity: '', relation: '' }} className={READING_LINK}>
+          Open the graph
+        </Link>
+        ,{' '}
+        <Link to="/map" search={{ entity: '' }} className={READING_LINK}>
+          the map
+        </Link>{' '}
+        or{' '}
+        <Link to="/data" className={READING_LINK}>
+          the data
+        </Link>
+        , or{' '}
+        <Link to="/data" className={READING_LINK}>
+          download the files
+        </Link>
+        .
       </p>
-      <p>{summary}</p>
-      {retained.length === 0 ? null : (
-        <PageSection title="Retained nodes">
+
+      {manifest.coverage === null ? null : (
+        <PageSection title="What this release holds">
+          <CoverageStatement
+            coverage={manifest.coverage}
+            release={{ version: manifest.version, date: manifest.date }}
+          />
+        </PageSection>
+      )}
+
+      <PageSection title="The labels">
+        <DisclaimerText markdown={manifest.disclaimer} />
+      </PageSection>
+
+      <PageSection title="Critical nodes">
+        <p className={PROSE}>
+          A node is retained when two of the three conditions have a public source: sanctions,
+          production or throughput in 2024-2026, and bypass routing.
+        </p>
+        <p>{summary}</p>
+        {retained.length === 0 ? null : (
           <DataTable
             name="Retained nodes"
             columns={columns}
             rows={retained.map((row) => ({ id: row.id, row }))}
             empty=""
           />
-        </PageSection>
-      )}
-      {others.length === 0 ? null : (
-        <PageSection title="Other candidate nodes">
+        )}
+        {others.length === 0 ? null : (
           <DataTable
             name="Other candidate nodes"
             columns={columns}
             rows={others.map((row) => ({ id: row.id, row }))}
             empty=""
           />
-        </PageSection>
-      )}
+        )}
+      </PageSection>
     </ReadingPage>
   );
 }

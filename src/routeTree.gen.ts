@@ -15,7 +15,6 @@ import { Route as GraphRouteImport } from './routes/graph'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as ReportRouteImport } from './routes/report'
 import { Route as ReviewRouteImport } from './routes/review'
-import { Route as V1RouteImport } from './routes/v1'
 import { Route as ClaimSplatRouteImport } from './routes/claim.$'
 import { Route as EntityIdRouteImport } from './routes/entity.$id'
 import { Route as RelationSplatRouteImport } from './routes/relation.$'
@@ -51,11 +50,6 @@ const ReviewRoute = ReviewRouteImport.update({
   path: '/review',
   getParentRoute: () => rootRouteImport,
 } as any)
-const V1Route = V1RouteImport.update({
-  id: '/v1',
-  path: '/v1',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ClaimSplatRoute = ClaimSplatRouteImport.update({
   id: '/claim/$',
   path: '/claim/$',
@@ -84,7 +78,6 @@ export interface FileRoutesByFullPath {
   '/map': typeof MapRoute
   '/report': typeof ReportRoute
   '/review': typeof ReviewRoute
-  '/v1': typeof V1Route
   '/claim/$': typeof ClaimSplatRoute
   '/entity/$id': typeof EntityIdRoute
   '/relation/$': typeof RelationSplatRoute
@@ -97,7 +90,6 @@ export interface FileRoutesByTo {
   '/map': typeof MapRoute
   '/report': typeof ReportRoute
   '/review': typeof ReviewRoute
-  '/v1': typeof V1Route
   '/claim/$': typeof ClaimSplatRoute
   '/entity/$id': typeof EntityIdRoute
   '/relation/$': typeof RelationSplatRoute
@@ -111,7 +103,6 @@ export interface FileRoutesById {
   '/map': typeof MapRoute
   '/report': typeof ReportRoute
   '/review': typeof ReviewRoute
-  '/v1': typeof V1Route
   '/claim/$': typeof ClaimSplatRoute
   '/entity/$id': typeof EntityIdRoute
   '/relation/$': typeof RelationSplatRoute
@@ -126,7 +117,6 @@ export interface FileRouteTypes {
     | '/map'
     | '/report'
     | '/review'
-    | '/v1'
     | '/claim/$'
     | '/entity/$id'
     | '/relation/$'
@@ -139,7 +129,6 @@ export interface FileRouteTypes {
     | '/map'
     | '/report'
     | '/review'
-    | '/v1'
     | '/claim/$'
     | '/entity/$id'
     | '/relation/$'
@@ -152,7 +141,6 @@ export interface FileRouteTypes {
     | '/map'
     | '/report'
     | '/review'
-    | '/v1'
     | '/claim/$'
     | '/entity/$id'
     | '/relation/$'
@@ -166,7 +154,6 @@ export interface RootRouteChildren {
   MapRoute: typeof MapRoute
   ReportRoute: typeof ReportRoute
   ReviewRoute: typeof ReviewRoute
-  V1Route: typeof V1Route
   ClaimSplatRoute: typeof ClaimSplatRoute
   EntityIdRoute: typeof EntityIdRoute
   RelationSplatRoute: typeof RelationSplatRoute
@@ -217,13 +204,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/v1': {
-      id: '/v1'
-      path: '/v1'
-      fullPath: '/v1'
-      preLoaderRoute: typeof V1RouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/claim/$': {
       id: '/claim/$'
       path: '/claim/$'
@@ -262,7 +242,6 @@ const rootRouteChildren: RootRouteChildren = {
   MapRoute: MapRoute,
   ReportRoute: ReportRoute,
   ReviewRoute: ReviewRoute,
-  V1Route: V1Route,
   ClaimSplatRoute: ClaimSplatRoute,
   EntityIdRoute: EntityIdRoute,
   RelationSplatRoute: RelationSplatRoute,

@@ -32,7 +32,7 @@ def build(data, meta, out_dir, grey=False):
     for r in rows:
         m = marks[groups.index(r["periode"])]
         i = cats.index(r["serie"])
-        ax.plot(r["valeur"], i, m.marker, color=m.color, markersize=st.MARKER + 1)
+        ax.plot(r["valeur"], i, m.marker, color=m.color, markersize=st.MARKER + 1, markerfacecolor=st.PAPER, markeredgewidth=st.LINE_W)
         if meta.get("labels") == "max" and r["valeur"] < top[r["serie"]]:
             continue
         ax.annotate(st.num_label(r["valeur"], floor), (r["valeur"], i), xytext=(6, 0), textcoords="offset points",
@@ -58,7 +58,7 @@ def build(data, meta, out_dir, grey=False):
         low = lo if zero else lo - (vmax - lo or abs(lo) or 1) * 0.05
         ax.set_xlim(low, low + (vmax - low) / (1 - st.label_room(chars)))
     if len(groups) > 1:
-        ax.legend(handles=[Line2D([], [], marker=m.marker, color=m.color, linestyle="", label=g)
+        ax.legend(handles=[Line2D([], [], marker=m.marker, color=m.color, markerfacecolor=st.PAPER, linestyle="", label=g)
                            for g, m in zip(groups, marks)],
                   loc="lower left", bbox_to_anchor=(0, 1.0), ncol=st.legend_cols(list(groups)), fontsize=st.TEXT_PT, borderaxespad=0)
     return st.save(fig, out_dir, meta["stem"], meta, grey)

@@ -24,7 +24,7 @@ def build(data, meta, out_dir, grey=False):
         ax.axis("off")
         info = d[k]
         ax.set_title(f"{k.capitalize()} · {info['date_utc']} UTC", loc="left", fontsize=st.TITLE_PT,
-                     fontweight="bold")
+                     fontweight=st.SEMIBOLD)
         ax.text(0, -0.03, info["sensor"], transform=ax.transAxes, va="top", fontsize=st.NOTE_PT)
         ax.text(0, -0.09, info["scene"], transform=ax.transAxes, va="top", fontsize=st.NOTE_PT, family=st.MONO_FACE)
         ax.text(0, -0.15, info["bands"], transform=ax.transAxes, va="top", fontsize=st.NOTE_PT)

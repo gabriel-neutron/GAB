@@ -106,7 +106,9 @@ export function corpusFromRelease(
       label: one.label,
       geom: placed?.geometry ?? null,
       attrs: attributesOf(claims),
-      sources: cited(claims),
+      // The documents of the row of the entity come first. A document that no claim describes
+      // has no title in the release, so it is not a source that the page can show.
+      sources: unique([...one.documentIds.filter((id) => documents.has(id)), ...cited(claims)]),
       promoted_from: '',
     };
   });

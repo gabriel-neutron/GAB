@@ -90,5 +90,5 @@ def build(data, meta, out_dir, grey=False):
         left = not wide and (end - day(b["to"])).days < label_days
         ax.text(day(b["from"]) if wide else day(b["to"]) if not left else day(b["from"]), y - 0.17, " " + b["label"] + " " * left,
                 ha="right" if left else "left", va="center", fontsize=st.NOTE_PT, color=st.INK, clip_on=True,
-                bbox=dict(facecolor=st.WHITE, edgecolor="none", pad=0.8) if wide else None)
+                bbox=dict(facecolor=st.PAPER, edgecolor="none", pad=0.8) if wide else None)
     return st.save(fig, out_dir, meta["stem"], meta, grey)

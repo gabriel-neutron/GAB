@@ -168,14 +168,12 @@ pnpm worker release --manifest <manifest> --out <folder> --previous <previous re
 1. Put the content of `gab-site-<date>` at the root of a static host. Each page is a folder with
    an `index.html`. A static host serves `/map/` as it stands and normally sends `/map` to
    `/map/`. The reader needs no rewrite rule and no script for the text of a page.
-2. A page at a permanent address (the critical nodes, the map, the downloads, the method, an
+2. A page at a permanent address (the overview, the map, the downloads, the method, an
    entity, a vessel, a claim, a relation) holds its text in the HTML. It opens with no script, and
-   the script of the application then takes over. The graph, the search and the review need the
-   script. The review says that it is not available when no write service answers.
+   the script of the application then takes over. The graph and the search need the script. The
+   site holds no review page.
 3. The map needs an `http` or `https` address (MapLibre). To look at the site locally, run
    `python -m http.server 8000` in the site folder.
-4. The address `/v1/` gives a short page that links the critical nodes. The site holds no build of
-   the version 1 map.
 
 ## Measure the speed of the site
 

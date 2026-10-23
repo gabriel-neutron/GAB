@@ -191,7 +191,9 @@ def test_natural_mm_reads_pt_then_the_viewbox_in_mm(tmp_path):
     assert report.natural_mm(tmp_path / "pt.svg") == pytest.approx(160, abs=0.01)
     assert report.natural_mm(tmp_path / "mm.svg") == 80
     assert report.natural_mm(tmp_path / "big.svg") == report.PAGE_MM
+    (tmp_path / "none.svg").write_text("<svg>", encoding="utf-8")
     assert report.natural_mm(tmp_path / "none.svg") == report.PAGE_MM
+    assert report.aspect_of(tmp_path / "none") == 1.0
     (tmp_path / "broken.svg").write_text("not an svg", encoding="utf-8")
     assert report.natural_mm(tmp_path / "broken.svg") == report.PAGE_MM
 
@@ -294,13 +296,13 @@ def test_a_figure_that_opens_a_page_after_a_big_blank_waits_for_the_next_paragra
     (tmp_path / "figs").mkdir()
     (tmp_path / "figs" / "tall.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="400pt" height="620pt" viewBox="0 0 400 620"><rect width="400" height="620" fill="#999"/></svg>', encoding="utf-8")
     filler = "\n\n".join(f"Paragraphe de remplissage {i} " + "mot " * 60 for i in range(6))
-    text = (f"---\ntitle: T\nlayout: redesign\n---\n\n## 1. Section\n\n{filler}\n\nAVANT la figure 1.\n\n![tall](figures/tall.svg)\n\n"
+    text = (f"---\ntitle: T\nlayout: redesign\n---\n\n## 1. Section\n\n{filler}\n\nAvant la figure 1.\n\n![tall](figures/tall.svg)\n\n"
             "Figure 1. Une figure haute.\n\nSUITE après la figure.\n\nFIN du texte.\n")
     src = tmp_path / "in.md"
     src.write_text(text, encoding="utf-8")
     report.build(src, tmp_path / "figs", tmp_path / "out", name="r")
     pages = [" ".join(p.extract_text().split()) for p in PdfReader(tmp_path / "out" / "r.pdf").pages]
-    assert page_of(pages, "SUITE après") == page_of(pages, "AVANT la figure") < page_of(pages, "Figure 1.")
+    assert page_of(pages, "SUITE après") == page_of(pages, "Avant la figure") < page_of(pages, "Figure 1.")
 
 
 def test_delayed_moves_a_figure_after_the_next_paragraphs_and_stops_at_a_heading():
@@ -479,12 +481,26 @@ def test_the_heading_levels_differ_in_size_and_a_section_has_a_rule():
     assert re.search(r"h2 \{[^}]*border-bottom", css) and not re.search(r"h3 \{[^}]*border-bottom", css)
 
 
-def test_delayed_leaves_a_side_figure_in_place_and_still_moves_a_plain_figure():
+def test_delayed_moves_a_side_figure_like_a_plain_one_and_unfloated_counts_by_ordinal():
     html = '<p>a</p><figure class="fig side" id="fig-1">1</figure><p>b</p><p>c</p><p>d</p><figure class="fig" id="fig-2">2</figure><p>e</p><p>f</p>'
-    assert report.delayed(html, {0: 2}) == html
+    assert report.delayed(html, {0: 1}).startswith('<p>a</p><p>b</p><figure class="fig side" id="fig-1">1</figure><p>c</p>')
     assert report.delayed(html, {1: 1}) == html.replace('<figure class="fig" id="fig-2">2</figure><p>e</p>', '<p>e</p><figure class="fig" id="fig-2">2</figure>')
     assert report.is_side('<figure class="fig side" id="fig-1">') and report.is_side("fig side") and not report.is_side('<figure class="fig" id="side-1">')
     assert report.unfloated(html, {0}).count("fig side") == 0 and report.unfloated(html, {1}) == html
+
+
+def test_a_pushed_side_figure_with_text_beside_it_stays_floated(tmp_path):
+    from weasyprint import HTML
+    tall = tmp_path / "tall.svg"
+    tall.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="230pt" height="640pt" viewBox="0 0 230 640"><rect width="230" height="640" fill="#999"/></svg>', encoding="utf-8")
+    for n in range(1, 30):
+        pdf = HTML(string=side_html(40, tall, before=n)).render()
+        opens = [i for i, page in enumerate(pdf.pages) if i and (b := report.blocks_of_page(page._page_box)[0]) and b[0][0] == "figure"]
+        if opens:
+            break
+    else:
+        pytest.fail("no filler length moves the float to a later page")
+    assert report.pushed_floats(pdf) == []
 
 
 def test_a_side_figure_after_plain_figures_goes_back_into_the_flow_by_its_own_ordinal(tmp_path):
@@ -510,3 +526,22 @@ def test_a_note_in_a_side_caption_is_on_the_page_of_its_call(tmp_path):
     assert 'class="fig side"' in html
     assert [i for i, p in enumerate(pages) if "Autorité portuaire" in p] == [page_of(pages, "Figure 1.")]
 
+
+
+def test_dossier_is_the_default_theme_and_base_drops_it(tmp_path):
+    src = tmp_path / "in.md"
+    src.write_text("---\ntitle: T\nlayout: redesign\n---\n\n## 1. A\n\n{pull} La thèse.\n\nTexte.\n", encoding="utf-8")
+    for theme, has in (("dossier", True), ("base", False)):
+        report.build(src, SAMPLE / "figures", tmp_path / theme, name="r", theme=theme)
+        page = (tmp_path / theme / "r.html").read_text(encoding="utf-8")
+        assert ("--serif:" in page) is has
+        assert '<p class="pull">La thèse.</p>' in page
+        assert "{pull}" not in page
+    assert re.search(r"--dark-background:#[0-9a-f]{6}", page) and "--primary:#006da6" in page
+
+
+def test_the_note_of_a_caption_has_its_own_span(tmp_path):
+    text = ("---\ntitle: T\nlayout: redesign\n---\n\n## 1. A\n\nTexte de la figure 1.\n\n![x](figures/plate-a.svg)\n\n"
+            "Figure 1. Un titre court. Source : X. Note : une note.\n\nSuite.\n")
+    _, page = build(tmp_path, text)
+    assert re.search(r'<span class="note">Note[   ]: une note\.</span></p>', page)

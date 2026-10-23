@@ -89,7 +89,9 @@ export function EventLane({ events }: EventLaneProps) {
   return (
     <PageSection title="Events">
       <p>
-        At least {String(strikes)} claimed and stored {strikes === 1 ? 'strike' : 'strikes'}.
+        {strikes === 0
+          ? 'No claimed strike is stored for this site.'
+          : `At least ${String(strikes)} claimed and stored ${strikes === 1 ? 'strike' : 'strikes'}.`}
       </p>
       <p className="max-w-prose text-muted-foreground">
         The count holds only the strikes that a party claimed and that this registry stored from the

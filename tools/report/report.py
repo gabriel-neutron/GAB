@@ -9,14 +9,14 @@ The input is French Markdown. The title page comes from a front matter block (`-
 title, a `##` subtitle, the lines `Auteur : …`, `Date : …`, `Version : …`). A footnote is `[^n]`
 with its definition `[^n]: text` anywhere in the file. A figure is an image block, then its
 caption paragraph ("Figure n. …"); a table caption comes before the table. A figure file is
-found by the stem of its image path, in DIR, as SVG first and PNG second. A block quote is an
+found by the stem of its image path, in DIR, as SVG. A block quote is an
 assessment block of the authors: its first bold run is its label. Fenced code is not supported.
 
 Colours and fonts come from the `:root` block of `src/index.css`. The PDF engine is WeasyPrint:
 it puts real footnotes at the foot of the page, which a browser print cannot do. It needs the
 Pango library (Debian: `apt-get install libpango-1.0-0 libpangoft2-1.0-0`).
 
-A figure whose image alt text starts with `side: ` floats right at about 81 mm and the text goes on beside it; a float that moves to the next page goes back into the flow at full width. `--theme-css PATH` reads a CSS file after the report CSS.
+A figure whose image alt text starts with `side: ` floats right at about 81 mm and the text goes on beside it; a float that moves to the next page goes back into the flow at full width. `--theme base` drops the Dossier theme (dossier.css, the default). `--theme-css PATH` reads a CSS file after the report CSS. A paragraph that begins with `{pull}` is a pull quote.
 
 Redesign layout. The front matter keys `layout: redesign` and `bibliography: FILE` (a JSON file next to
 the input) switch on: numbered references, a cover with the date and the working-version line, a table of contents (parts, figure list) after the cover, the badge line, an
@@ -74,10 +74,18 @@ BADGES = {
     "Indicatif": ("I", RING + "/>", "un indice, ou une source faible"),
     "Non établi": ("N", RING + ' stroke-dasharray="1.6 1.4"/>', "aucune source stockée ne le porte"),
 }
-TOKENS = ("background", "foreground", "muted", "muted-foreground", "label", "border", "input")
+TOKENS = ("background", "foreground", "muted", "muted-foreground", "label", "border", "input", "primary", "candidate", "added", "dissent")
+DARK_TOKENS = ("background", "foreground", "muted-foreground", "label", "border", "primary")  # the cover page takes the dark theme of the site
+FONTS = {  # file in tools/figures/fonts/ -> (family, weight, style): Source Serif 4 (SIL OFL 1.1) is the serif the site lacks; JetBrains Mono is the site mono
+    "SourceSerif4-Regular": ("Source Serif 4", 400, "normal"), "SourceSerif4-It": ("Source Serif 4", 400, "italic"),
+    "SourceSerif4-Semibold": ("Source Serif 4", 600, "normal"), "SourceSerif4-Bold": ("Source Serif 4", 700, "normal"),
+    "JetBrainsMono-Regular": ("JetBrains Mono", 400, "normal"), "JetBrainsMono-Bold": ("JetBrains Mono", 700, "normal"),
+}
+THEMES = ("dossier", "base")  # dossier.css is read after report.css; base is report.css alone
 PAGE_MM, GUTTER_MM = 166, 4  # width of the text block of the A4 page; gap between two side-by-side figures
 SIDE_ALT = "side: "  # alt text that makes a figure float right beside the text (about 81 mm wide)
 TITLE_WORDS = 8  # longest short title of a figure or a table before the build warns
+PULL = "{pull}"  # a paragraph that begins with this marker is a pull quote
 NBSP, THIN = " ", " "
 
 
@@ -87,8 +95,6 @@ class ReportError(ValueError):
 
 def natural_mm(svg):
     """Width in mm of a figure drawn at its printed size. The figure tool writes pt; a handmade figure has a viewBox in mm."""
-    if not svg.exists():
-        return PAGE_MM
     found = re.search(r"<svg[^>]*>", svg.read_text(encoding="utf-8"))
     if not found:
         return PAGE_MM
@@ -101,32 +107,36 @@ def natural_mm(svg):
 
 
 def aspect_of(path):
-    """Width over height of a figure file (SVG first, else the PNG header)."""
-    svg = path.with_suffix(".svg")
-    if svg.exists():
-        head = re.search(r"<svg[^>]*>", svg.read_text(encoding="utf-8"))
-        head = head.group(0) if head else ""
-        w, h = (re.search(rf'\s{k}="([\d.]+)(?:pt)?"', head) for k in ("width", "height"))
-        if w and h:
-            return float(w[1]) / float(h[1])
-        box = re.search(r'viewBox="[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"', head)
-        if box:
-            return float(box[1]) / float(box[2])
-    png = path.with_suffix(".png")
-    data = png.read_bytes()[:24] if png.exists() else b""
-    return int.from_bytes(data[16:20], "big") / int.from_bytes(data[20:24], "big") if data[12:16] == b"IHDR" else 1.0
+    """Width over height of a figure file, from the width and height or the viewBox of its SVG (1 if it has none)."""
+    head = re.search(r"<svg[^>]*>", path.with_suffix(".svg").read_text(encoding="utf-8"))
+    head = head.group(0) if head else ""
+    w, h = (re.search(rf'\s{k}="([\d.]+)(?:pt)?"', head) for k in ("width", "height"))
+    if w and h:
+        return float(w[1]) / float(h[1])
+    box = re.search(r'viewBox="[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"', head)
+    return float(box[1]) / float(box[2]) if box else 1.0
 
 
 def site_tokens():
     """The light-theme tokens of the site stylesheet, as hex colours."""
     sys.path.insert(0, str(HERE.parent / "figures"))
-    from style import oklch
-    block = re.search(r"^:root\s*\{(.*?)^\}", SITE_CSS.read_text(encoding="utf-8"), re.S | re.M)
-    found = dict(re.findall(r"^\s*--([a-z-]+):\s*(oklch\([^)]*\))", block.group(1), re.M)) if block else {}
-    missing = [k for k in TOKENS if k not in found]
-    if missing:
-        raise ReportError(f"the site stylesheet has no oklch token for: {', '.join(missing)}")
-    return {k: oklch(found[k]) for k in TOKENS}
+    from tokens import oklch
+    css = SITE_CSS.read_text(encoding="utf-8")
+    out = {}
+    for selector, names, prefix in ((":root", TOKENS, ""), (r"\.dark", DARK_TOKENS, "dark-")):
+        block = re.search(rf"^{selector}\s*\{{(.*?)^\}}", css, re.S | re.M)
+        found = dict(re.findall(r"^\s*--([a-z-]+):\s*(oklch\([^)]*\))", block.group(1), re.M)) if block else {}
+        missing = [k for k in names if k not in found]
+        if missing:
+            raise ReportError(f"the site stylesheet has no oklch token for: {', '.join(missing)}")
+        out.update({prefix + k: oklch(found[k]) for k in names})
+    return out
+
+
+def font_faces():
+    """The @font-face rules of the files of the figure fonts, by file URI. The files are those of the figure tool, with their licences."""
+    return "".join(f"@font-face{{font-family:'{f}';font-weight:{w};font-style:{s};src:url('{(HERE.parent / 'figures' / 'fonts' / (n + '.ttf')).as_uri()}')}}\n"
+                   for n, (f, w, s) in FONTS.items())
 
 
 def front_matter(text):
@@ -303,12 +313,11 @@ class Doc:
         """The image as (alt, data URI, width in mm, width over height)."""
         alt, path = re.fullmatch(r"!\[([^\]]*)\]\(([^)]+)\)", block).groups()
         stem = Path(path).stem
-        for ext, mime in ((".svg", "image/svg+xml"), (".png", "image/png")):
-            if (self.figures / (stem + ext)).exists():
-                data = base64.b64encode((self.figures / (stem + ext)).read_bytes()).decode()
-                mm = natural_mm(self.figures / (stem + ".svg"))
-                return (html.escape(alt), f"data:{mime};base64,{data}", mm, aspect_of(self.figures / (stem + ext)))
-        raise ReportError(f"figure file not found: {stem}.svg or {stem}.png in {self.figures}")
+        svg = self.figures / (stem + ".svg")
+        if not svg.exists():
+            raise ReportError(f"figure file not found: {stem}.svg in {self.figures}")
+        data = base64.b64encode(svg.read_bytes()).decode()
+        return (html.escape(alt), f"data:image/svg+xml;base64,{data}", natural_mm(svg), aspect_of(svg))
 
     def anchor(self):
         """The id that the figure list links to: the caption just listed."""
@@ -331,6 +340,9 @@ class Doc:
             out = self.text(f"**{label} {title}**" + "<sup>,</sup>".join(marks) + (f" Note : {note.strip()}" if note.strip() else ""))
         finally:
             self.in_table = False
+        if note.strip():  # the note of a figure sits on its own line under the caption
+            out, hit = re.subn(r"\s(Note[   ]:)", r' <span class="note">\1', out, count=1)
+            out = out.replace("</p>", "</span></p>", 1) if hit else out
         return out.replace("<p>", '<p class="caption">', 1)
 
     def check_caption(self, label, title):
@@ -409,6 +421,8 @@ class Doc:
             return f'<h{level}{anchor}>{f"<span class=num>{num}</span> " if num else ""}{self.dress(self.inline(title), False)}</h{level}>'
         if b.startswith("|"):
             return self.table(b)
+        if b.startswith(PULL):  # the thesis, set as a pull quote
+            return self.text(b[len(PULL):].lstrip()).replace("<p>", '<p class="pull">', 1)
         if b.startswith(">"):
             inner = "\n".join(re.sub(r"^>\s?", "", line) for line in b.splitlines())
             return f'<aside class="assessment">{self.text(inner)}</aside>'
@@ -552,12 +566,13 @@ FIGURE = re.compile(r'<figure class="fig.*?</figure>', re.S)
 # share of a page left blank before a warning; share left blank above a figure before it waits; share of the page
 # below which a section may not start; reflow passes; paragraphs a figure may wait
 HOLE, FIG_HOLE, LOW_START, MAX_PASSES, MAX_DELAY = 0.33, 0.15, 2 / 3, 8, 4
+HANG_MM = 20  # a floated figure may hang this far below the text beside it
 MAX_NOTE_LAG = 1  # pages a note may stand after its call before the build warns
 PARAGRAPH = re.compile(r"<(p|ol)>.*?</\1>", re.S)  # a list is text that a figure may pass; shortcut: a nested list is cut at its first end tag, upgrade if the report nests lists
 
 
 def is_side(fragment):
-    """A figure tag or class string that carries the `side` class: it floats, so it never waits or leaves a blank."""
+    """A figure tag or class string that carries the `side` class."""
     return bool(re.match(r'(<figure class=")?fig side\b', fragment))
 
 
@@ -568,8 +583,6 @@ def delayed(page_html, delays):
     text always follows it."""
     figs = list(FIGURE.finditer(page_html))
     for k in sorted(delays, reverse=True):
-        if is_side(figs[k].group(0)):
-            continue
         m, after, taken = figs[k], figs[k].end(), []
         for _ in range(delays[k]):
             p = PARAGRAPH.match(page_html, after)
@@ -615,7 +628,7 @@ def holes(pdf):
     ordinal, found, prev = 0, [], None
     for page in pdf.pages:
         blocks, foot, height = blocks_of_page(page._page_box)
-        if prev and blocks and blocks[0][0] == "figure" and not is_side(blocks[0][1]):
+        if prev and blocks and blocks[0][0] == "figure":
             before, before_foot = prev
             same_section = before and blocks[0][4] == before[-1][4]
             if same_section and before_foot - max(b[3] for b in before) > FIG_HOLE * height:
@@ -626,11 +639,14 @@ def holes(pdf):
 
 
 def pushed_floats(pdf):
-    """Ordinals of the floated figures that open a page: the float did not fit beside its text and moved on."""
+    """Ordinals of the floated figures that open a page and hang there with too little text beside them (more than
+    HANG_MM of the float stands without text): they go back into the flow. A float that moves to the next page with
+    enough text to run beside it stays."""
     ordinal, found = 0, []
     for page in pdf.pages:
         blocks = blocks_of_page(page._page_box)[0]
-        if blocks and blocks[0][0] == "figure" and is_side(blocks[0][1]):  # shortcut: a float that opens a page by chance is judged pushed too; a float after a heading is missed
+        text_end = max((b[3] for b in blocks[1:] if b[0] in ("p", "ol")), default=0)
+        if blocks and blocks[0][0] == "figure" and is_side(blocks[0][1]) and text_end < blocks[0][3] - HANG_MM * 96 / 25.4:  # shortcut: a float after a heading is missed
             found.append(ordinal)
         ordinal += sum(1 for b in blocks if b[0] == "figure")
     return found
@@ -711,8 +727,8 @@ def reflow(page_html, base_url):
     return pdf
 
 
-def build(source, figures, out, draft=False, name=None, theme_css=None):
-    """Write OUT/NAME.html and OUT/NAME.pdf; return the PDF page count. A theme file is CSS read after the report CSS."""
+def build(source, figures, out, draft=False, name=None, theme_css=None, theme="dossier"):
+    """Write OUT/NAME.html and OUT/NAME.pdf; return the PDF page count. THEME is dossier or base; a theme file is CSS read after both."""
     from weasyprint import HTML
     source, out = Path(source), Path(out)
     text = source.read_text(encoding="utf-8")
@@ -738,7 +754,7 @@ def build(source, figures, out, draft=False, name=None, theme_css=None):
     if (doc.open or raw) and not draft:
         raise ReportError(f"open marker(s) in a final build; first: {(doc.open and doc.open[0][1]) or raw[0]}")
     tokens = site_tokens()
-    css = ":root{" + ";".join(f"--{k}:{v}" for k, v in tokens.items()) + "}\n" + (HERE / "report.css").read_text(encoding="utf-8") + (Path(theme_css).read_text(encoding="utf-8") if theme_css else "")
+    css = ":root{" + ";".join(f"--{k}:{v}" for k, v in tokens.items()) + "}\n" + font_faces() + (HERE / "report.css").read_text(encoding="utf-8") + ((HERE / "dossier.css").read_text(encoding="utf-8") if theme == "dossier" else "") + (Path(theme_css).read_text(encoding="utf-8") if theme_css else "")
     out.mkdir(parents=True, exist_ok=True)
     name = name or source.stem
     page_html = page(meta, doc, sections, "html", css)
@@ -758,10 +774,11 @@ def main(argv=None):
     p.add_argument("--out", required=True)
     p.add_argument("--draft", action="store_true")
     p.add_argument("--name")
+    p.add_argument("--theme", choices=THEMES, default="dossier", help="dossier (default) or base")
     p.add_argument("--theme-css", help="a CSS file read after the report CSS: it may reset the tokens of :root")
     a = p.parse_args(argv)
     try:
-        build(a.input, a.figures, a.out, a.draft, a.name, a.theme_css)
+        build(a.input, a.figures, a.out, a.draft, a.name, a.theme_css, a.theme)
     except (ReportError, FileNotFoundError) as e:
         sys.exit(f"error: {e}")
     except (ImportError, OSError) as e:

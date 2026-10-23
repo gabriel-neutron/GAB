@@ -86,6 +86,10 @@ export function ExportsPage({ text, release, figures, links }: ExportsPageProps)
           </Button>
         }
       />
+      <p className="max-w-prose text-muted-foreground">
+        This page is the French text of the report on the exports of Russia. The figures and the
+        tables are in English.
+      </p>
       {text.blocks.map((block) => (
         <div
           key={block.id}

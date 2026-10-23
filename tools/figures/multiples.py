@@ -19,12 +19,12 @@ def build(data, meta, out_dir, grey=False):
     fig = st.new_fig(st.size_height(meta, 14 + 42 * nrows))
     axes = fig.subplots(nrows, ncols, sharex=True, sharey=True, squeeze=False)
     top = max(y for p in panels for s in p["series"] for _, y in s["points"])
-    for ax, p in zip(axes.flat, panels):
+    for k, (ax, p) in enumerate(zip(axes.flat, panels)):
         st.style_axes(ax, "")
-        st.panel_title(ax, p["title"])
+        st.panel_title(ax, p["title"], letter=st.panel_letter(k))
         for s, m in zip(p["series"], st.SERIES):
             ax.plot(*zip(*s["points"]), color=m.color, marker=m.marker, markersize=st.MARKER - 1,
-                    linewidth=st.LINE_W, label=s["name"])
+                    linewidth=st.LINE_W, label=s["name"], markerfacecolor=st.PAPER, markeredgewidth=st.LINE_W)
         if len(p["series"]) > 1:
             ax.legend(fontsize=st.NOTE_PT, loc="upper left")
     for ax in list(axes.flat)[len(panels):]:
