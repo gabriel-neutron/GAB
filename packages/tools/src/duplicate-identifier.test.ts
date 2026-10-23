@@ -34,11 +34,27 @@ test('does not flag two vessels with one name and two IMO numbers', () => {
   ).toEqual([]);
 });
 
-test('does not flag one value on two types', () => {
-  expect(
-    duplicateIdentifiers([
-      entity('a', 'X', 'company', { tax_id: { v: '1' } }),
-      entity('b', 'X', 'bank', { tax_id: { v: '1' } }),
-    ]),
-  ).toEqual([]);
+test('flags one INN on two entity types', () => {
+  const groups = duplicateIdentifiers([
+    entity('a', 'X', 'company', { tax_id: { v: '1' } }),
+    entity('b', 'X', 'state_body', { tax_id: { v: '1' } }),
+  ]);
+  expect(groups).toHaveLength(1);
+});
+
+test('flags a same IMO and a same LEI, spelled with spaces or in lower case', () => {
+  const groups = duplicateIdentifiers([
+    entity('a', 'A', 'vessel', { imo: { v: '9074729' } }),
+    entity('b', 'B', 'vessel', { imo: { v: [9074729] } }),
+    entity('c', 'C', 'bank', { lei: { v: '5493001KJTIIGC8Y1R12' } }),
+    entity('d', 'D', 'bank', { lei: { v: '5493001kjtiigc8y1r12' } }),
+    entity('e', 'E', 'company', { tax_id: { v: '7706 107510' } }),
+    entity('f', 'F', 'company', { tax_id: { v: '7706107510' } }),
+  ]);
+  expect(groups.map((group) => group.key)).toEqual(['imo', 'lei', 'tax_id']);
+});
+
+test('does not flag an entity listed twice', () => {
+  const same = entity('a', 'A', 'company', { tax_id: { v: '1' } });
+  expect(duplicateIdentifiers([same, same])).toEqual([]);
 });
