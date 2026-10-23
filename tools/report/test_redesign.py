@@ -91,9 +91,9 @@ def test_badge_has_four_levels_with_a_letter_and_one_legend_after_the_contents(t
         assert f'<span class="badge" title="{level}"><svg' in in_text and f'<span class="bl">{letter}</span>' in in_text
     # the word is plain text in the redesign: no pips, no small caps
     assert 'class="pips"' not in html
-    assert html.count('class="badge-legend"') == 1
-    legend = [i for i, p in enumerate(pages) if "lecture du badge" in p.lower()]
-    assert legend == [1]
+    # the contents carry one line on the badges, no legend block
+    assert 'class="badge-legend"' not in html and html.count('class="badge-line"') == 1
+    assert [i for i, p in enumerate(pages) if "Badges de confiance" in p] == [1]
 
 
 def test_contents_follow_the_cover_and_the_key_figures_page_follows_the_contents(tmp_path):
@@ -103,7 +103,7 @@ def test_contents_follow_the_cover_and_the_key_figures_page_follows_the_contents
     assert page_of(pages, "Le port de Brumel reçoit") == 3 and "Introduction" not in pages[2]
     # the contents list a page number for each section
     toc = pages[1]
-    assert re.search(r"Annexe B\..*?\.{5,}\s*\d+", toc)
+    assert re.search(r"Annexe B\.[^\d]*\d+", toc)
 
 
 def test_the_bibliography_follows_the_annexes(tmp_path):
@@ -242,10 +242,10 @@ def test_a_caption_keeps_the_title_and_the_mark_and_drops_the_source_line(tmp_pa
     text = sample("mètres carrés). Source : [@port].", "mètres carrés). Source : Port, 2026[^c]. Note : axe tronqué.").replace(
         "Le registre ne couvre qu'un port.", "Le registre ne couvre qu'un port.\n\n[^c]: Autorité portuaire, 2026.")
     pages, html = build(tmp_path, text)
-    caption = re.search(r'<p class="caption"><strong>Figure 2\..*?</p>', html, re.S)[0]
+    caption = re.search(r'<p class="caption"><strong>Figure <span class="fnum">2\.</span>.*?</p>', html, re.S)[0]
     assert "Source" not in caption and "Port, 2026" not in caption
     assert "tonnes" in caption and "mètres carrés" in caption and "axe tronqué" in caption
-    assert '<sup class="refs"><a class="ref" href="#ref-1">1</a></sup>' in re.search(r'<p class="caption"><strong>Figure 1\..*?</p>', html, re.S)[0]
+    assert '<sup class="refs"><a class="ref" href="#ref-1">1</a></sup>' in re.search(r'<p class="caption"><strong>Figure <span class="fnum">1\.</span>.*?</p>', html, re.S)[0]
 
 
 def test_figure_and_table_numbers_must_rise_in_order_of_appearance(tmp_path):
@@ -271,7 +271,7 @@ def test_a_long_title_and_a_figure_no_text_calls_get_a_warning(tmp_path, capsys)
 
 def test_a_side_by_side_pair_has_one_height(tmp_path):
     _, html = build(tmp_path)
-    widths = [float(w) for w in re.findall(r'--w:([\d.]+)mm', re.search(r'<figure class="fig panels">.*?</figure>', html, re.S)[0])]
+    widths = [float(w) for w in re.findall(r'--w:([\d.]+)mm', re.search(r'<figure class="fig panels"[^>]*>.*?</figure>', html, re.S)[0])]
     aspects = [report.aspect_of(SAMPLE / "figures" / n) for n in ("plate-c", "plate-b")]
     assert len(widths) == 2 and widths[0] / aspects[0] == pytest.approx(widths[1] / aspects[1], abs=0.2)
     assert sum(widths) + report.GUTTER_MM <= report.PAGE_MM
@@ -306,7 +306,11 @@ def test_a_figure_that_opens_a_page_after_a_big_blank_waits_for_the_next_paragra
 def test_delayed_moves_a_figure_after_the_next_paragraphs_and_stops_at_a_heading():
     html = '<p>a</p><figure class="fig"><p class="caption">c</p></figure><p>b</p><p>c</p><h2>x</h2><p>d</p>'
     assert report.delayed(html, {0: 1}) == '<p>a</p><p>b</p><figure class="fig"><p class="caption">c</p></figure><p>c</p><h2>x</h2><p>d</p>'
-    assert report.delayed(html, {0: 3}) == '<p>a</p><p>b</p><p>c</p><figure class="fig"><p class="caption">c</p></figure><h2>x</h2><p>d</p>'
+    # the figure never ends its section: it stops before the last paragraph
+    assert report.delayed(html, {0: 3}) == '<p>a</p><p>b</p><figure class="fig"><p class="caption">c</p></figure><p>c</p><h2>x</h2><p>d</p>'
+    # nor does it land before another figure
+    two = '<p>a</p><figure class="fig">1</figure><p>b</p><figure class="fig">2</figure><p>c</p>'
+    assert report.delayed(two, {0: 2}) == two
 
 
 def test_a_pair_of_81_mm_figures_stands_side_by_side_in_the_166_mm_block(tmp_path):
@@ -359,3 +363,36 @@ def test_an_image_with_no_caption_stops_the_build_and_not_the_placement_check():
     with pytest.raises(report.ReportError, match="ends with a figure"):
         report.check_placement("X", ["Du texte.", "![a](f.svg)"])
     assert report.placement(["![a](f.svg)"]) == [("fig", 0)]
+
+
+def test_the_cover_has_the_title_the_author_the_date_and_the_working_version_line_and_no_funding(tmp_path):
+    _, html = build(tmp_path, draft=True)
+    cover = html.split("</header>")[0]
+    assert 'class="author">Auteur Un, Auteure Deux<' in cover and 'class="date">1er janvier 2027<' in cover
+    assert "Version de travail" in cover and "FNF" not in cover and report.FUNDING not in cover
+    _, final = build(tmp_path, draft=False)
+    assert "Version de travail" not in final.split("</header>")[0]
+
+
+def test_the_contents_page_has_a_line_per_part_a_figure_list_and_fits_one_page(tmp_path):
+    pages, html = build(tmp_path)
+    toc = html.split('<nav class="toc">')[1].split("</nav>")[0]
+    assert toc.count("<li><a href=\"#s") >= 4 and 'class="lof"' in toc and 'href="#fig-2"' in toc
+    assert page_of(pages, "LISTE DES FIGURES") == page_of(pages, "Sommaire") == 1
+    assert "Introduction" not in pages[2]
+
+
+def test_a_section_never_starts_in_the_last_third_of_a_page(tmp_path):
+    from weasyprint import HTML
+    css = (Path(report.__file__).parent / "report.css").read_text(encoding="utf-8")
+    para = "<p>" + "mot " * 60 + "</p>"
+    for n in range(8, 30):
+        page_html = (f'<style>{css}</style><section id="s0" class=""><h2>Un</h2>{para * n}</section>'
+                     f'<section id="s1" class=""><h2>Deux</h2>{para * 2}</section>')
+        if report.low_starts(HTML(string=page_html).render()):
+            break
+    else:
+        pytest.fail("no filler length puts the second heading low on the page")
+    fixed = report.reflow(page_html, str(tmp_path))
+    assert report.low_starts(fixed) == []
+

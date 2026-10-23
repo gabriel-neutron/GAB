@@ -17,7 +17,7 @@ it puts real footnotes at the foot of the page, which a browser print cannot do.
 Pango library (Debian: `apt-get install libpango-1.0-0 libpangoft2-1.0-0`).
 
 Redesign layout. The front matter keys `layout: redesign` and `bibliography: FILE` (a JSON file next to
-the input) switch on: numbered references, a table of contents after the cover, the badge legend, an
+the input) switch on: numbered references, a cover with the date and the working-version line, a table of contents (parts, figure list) after the cover, the badge line, an
 annex section type, side-by-side panels and the funding sentence once at the end.
 - A reference is `[@key]` or `[@key1; @key2]`. It prints as `[n]`, numbered by first use, linked to the
   entry of the bibliography; in a table it prints as a superscript number. The bibliography file is a JSON
@@ -26,7 +26,7 @@ annex section type, side-by-side panels and the funding sentence once at the end
 - The bibliography is optional. Without the `bibliography:` key, the report has no bibliography section and
   a source is a normal footnote `[^label]`, at the foot of the page, numbered in one sequence for the whole report.
 - A claim badge is `{{Établi}}`, `{{Probable}}`, `{{Indicatif}}` or `{{Non établi}}`, after a material
-  claim. It is a symbol plus a letter, so it reads in grey print. Its legend prints once, after the contents.
+  claim. It is a symbol plus a letter, so it reads in grey print. Its names print as one line at the foot of the contents.
 - A section titled "Chiffres clés" is a page of its own. A section titled "Annexe A. …" is an annex.
 - Two images before one caption stand side by side, at one height, when their natural widths fit the text block.
 - A caption of the redesign holds the title, the unit and the footnote marks of its source line; the text of
@@ -217,6 +217,7 @@ class Doc:
         self.order, self.note_html, self.uses = {}, {}, {}
         self.section_notes, self.open, self.section = [], [], ""
         self.last_number, self.prose = {}, []
+        self.listed, self.heads = [], 0  # (label, short title, anchor) of each figure; count of h3 anchors
 
     def md(self, text):
         return markdown.markdown(text, extensions=["tables"])
@@ -313,6 +314,9 @@ class Doc:
         if not self.redesign:
             return self.text(f"**{label} {title}** {tail}").replace("<p>", '<p class="caption">', 1)
         self.check_caption(label, title)
+        short = re.sub(r"\s*\((?:[^()]|\([^()]*\))*\)\.?\s*$", "", title).rstrip(". ")
+        self.listed.append((label.rstrip("."), short, f"fig-{len(self.listed) + 1}"))
+        label = re.sub(r"^(\w+)\s+(\S+?)\.$", r'\1 <span class="fnum">\2.</span>', label)
         source, _, note = tail.partition("Note :")
         marks = re.findall(r"\[\^[^\]]+\]|\[@[^\]]+\]", source)
         self.in_table = True  # a reference prints as a superscript number, as in a table
@@ -367,10 +371,12 @@ class Doc:
             elif re.match(r"\**(Figure|Tableau)\s+\S+?\.(?=\s|\*|$)", b):
                 if plates:
                     side, row = self.plates_html(plates)
-                    out.append(f'<figure class="fig{" panels" if side else ""}">{row}{self.caption(b)}</figure>')
+                    cap = self.caption(b)
+                    out.append(f'<figure class="fig{" panels" if side else ""}" id="fig-{len(self.listed)}">{row}{cap}</figure>')
                     plates = []
                 elif i < len(blocks) and blocks[i].startswith("|"):
-                    out.append(f'<div class="tablebox">{self.caption(b)}{self.table(blocks[i])}</div>')
+                    cap = self.caption(b)
+                    out.append(f'<div class="tablebox" id="fig-{len(self.listed)}">{cap}{self.table(blocks[i])}</div>')
                     i += 1
                 else:
                     out.append(self.caption(b))
@@ -387,7 +393,9 @@ class Doc:
         if m := re.match(r"(#{3,6})\s+(?:(\d+(?:\.\d+)*\.?)\s+)?(.*)", b):
             level, num, title = len(m[1]), m[2], m[3]
             self.refuse_marks(title)
-            return f'<h{level}>{f"<span class=num>{num}</span> " if num else ""}{self.dress(self.inline(title), False)}</h{level}>'
+            self.heads += level == 3
+            anchor = f' id="h{self.heads}"' if level == 3 else ""
+            return f'<h{level}{anchor}>{f"<span class=num>{num}</span> " if num else ""}{self.dress(self.inline(title), False)}</h{level}>'
         if b.startswith("|"):
             return self.table(b)
         if b.startswith(">"):
@@ -467,15 +475,20 @@ def arrange(sections, doc):
 
 
 def contents(sections, doc):
-    """The table of contents and the badge legend: one page after the cover."""
-    items = "".join(f'<li><a href="#s{i}">{doc.dress(html.escape(label), False)}</a></li>'
-                    for i, (title, _, _, _, _, label) in enumerate(sections) if title)
-    legend = ""
+    """The contents page after the cover: a line and a page number for each part, the figure list, one line on the badges."""
+    items = ""
+    for i, (title, body, _, _, _, label) in enumerate(sections):
+        if not title:
+            continue
+        subs = "".join(f'<li><a href="#{a}">{doc.dress(re.sub(r"<[^>]*>", "", t), False)}</a></li>'
+                       for a, t in re.findall(r'<h3 id="(h\d+)">(.*?)</h3>', body))
+        items += f'<li><a href="#s{i}">{doc.dress(html.escape(label), False)}</a>{f"<ol>{subs}</ol>" if subs else ""}</li>'
+    figures = "".join(f'<li><a href="#{a}"><span class="fl">{l.split()[0]} <span class="fnum">{l.split()[1]}</span></span>{doc.dress(html.escape(t), False)}</a></li>' for l, t, a in doc.listed)
+    lof = f'<p class="toc-h">Liste des figures</p><ol class="lof">{figures}</ol>' if figures else ""
+    line = ""
     if doc.badges_used:
-        rows = "".join(f"<li>{badge_html(level)} <strong>{level}</strong> : {text}</li>"
-                       for level, (_, _, text) in BADGES.items())
-        legend = f'<aside class="badge-legend"><p class="lt">Lecture du badge</p><ul>{rows}</ul></aside>'
-    return f'<nav class="toc"><h2>{TOC_HEADING}</h2><ol>{items}</ol>{legend}</nav>'
+        line = '<p class="badge-line">Badges de confiance : ' + " · ".join(f"{badge_html(k)} {k}" for k in BADGES) + "</p>"
+    return f'<nav class="toc"><h2>{TOC_HEADING}</h2><ol class="parts">{items}</ol>{lof}{line}</nav>'
 
 
 def open_points(doc):
@@ -489,10 +502,14 @@ def open_points(doc):
 def page(meta, doc, sections, mode, css):
     esc = lambda key: html.escape(french(meta.get(key, "")))
     byline = " · ".join(x for x in (esc("author"), "version " + esc("version") if meta.get("version") else "", esc("date")) if x)
+    status = '<p class="status">Version de travail</p>' if doc.draft else ""
+    cover = (f'<header class="cover"><div class="head"><h1>{esc("title")}</h1><p class="sub">{esc("subtitle")}</p></div><div class="meta">'
+             f'<p class="author">{esc("author")}</p><p class="date">{esc("date")}</p>{status}</div></header>') if doc.redesign else (
+        f'<header class="cover"><h1>{esc("title")}</h1><p class="sub">{esc("subtitle")}</p><p class="byline">{byline}</p></header>')
     return f"""<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc("title")}</title><style>{css}</style></head><body>
-<header class="cover"><h1>{esc("title")}</h1><p class="sub">{esc("subtitle")}</p><p class="byline">{byline}</p></header>
+{cover}
 {"" if doc.redesign else f'<div class="verso"><p class="funding-text">{FUNDING}</p></div>'}
 {contents(sections, doc) if doc.redesign else ""}<main>{finish(sections, doc, mode)}</main>{open_points(doc)}
 </body></html>"""
@@ -522,19 +539,29 @@ def load_bibliography(source, meta):
 
 
 FIGURE = re.compile(r'<figure class="fig.*?</figure>', re.S)
-HOLE, MAX_PASSES, MAX_DELAY = 0.33, 8, 4  # share of a page left blank above a figure; reflow passes; paragraphs a figure may wait
+# share of a page left blank before a warning; share left blank above a figure before it waits; share of the page
+# below which a section may not start; reflow passes; paragraphs a figure may wait
+HOLE, FIG_HOLE, LOW_START, MAX_PASSES, MAX_DELAY = 0.33, 0.15, 2 / 3, 8, 4
+PARAGRAPH = re.compile(r"<p>.*?</p>", re.S)
 
 
 def delayed(page_html, delays):
-    """The page with figure k moved after the next delays[k] paragraphs that follow it."""
+    """The page with figure k moved after the next delays[k] paragraphs that follow it.
+
+    A figure never moves past the last paragraph of its section, and never lands before another figure:
+    text always follows it."""
     figs = list(FIGURE.finditer(page_html))
     for k in sorted(delays, reverse=True):
-        m, after, moved = figs[k], figs[k].end(), ""
+        m, after, taken = figs[k], figs[k].end(), []
         for _ in range(delays[k]):
-            p = re.compile(r"<p>.*?</p>", re.S).match(page_html, after)
+            p = PARAGRAPH.match(page_html, after)
             if not p:
                 break
-            moved, after = moved + p.group(0), p.end()
+            taken.append(p)
+            after = p.end()
+        while taken and not PARAGRAPH.match(page_html, after):
+            after = taken.pop().start()
+        moved = "".join(p.group(0) for p in taken)
         page_html = page_html[: m.start()] + moved + m.group(0) + page_html[after:]
     return page_html
 
@@ -566,31 +593,47 @@ def blocks_of_page(page_box):
 
 
 def holes(pdf):
-    """Figures that open a page while the page before leaves a blank of more than HOLE of a page: their ordinals."""
+    """Figures that open a page while the page before leaves a blank of more than FIG_HOLE of a page: their ordinals."""
     ordinal, found, prev = 0, [], None
     for page in pdf.pages:
         blocks, foot, height = blocks_of_page(page._page_box)
         if prev and blocks and blocks[0][0] == "figure":
             before, before_foot = prev
             same_section = before and blocks[0][4] == before[-1][4]
-            if same_section and before_foot - max(b[3] for b in before) > HOLE * height:
+            if same_section and before_foot - max(b[3] for b in before) > FIG_HOLE * height:
                 found.append(ordinal)
         ordinal += sum(1 for b in blocks if b[0] == "figure")
         prev = (blocks, foot)
     return found
 
 
+def low_starts(pdf):
+    """Ids of the sections whose heading sits in the last third of a page."""
+    found = []
+    for page in pdf.pages:
+        blocks, foot, height = blocks_of_page(page._page_box)
+        top = page._page_box.content_box_y()
+        found += [b[4] for b in blocks if b[0] == "h2" and b[4] and (b[2] - top) / height > LOW_START]
+    return found
+
+
 def reflow(page_html, base_url):
-    """Render the PDF; a figure that opens a page after a big blank waits one paragraph more, until no big blank remains."""
+    """Render the PDF. A figure that opens a page after a blank of more than FIG_HOLE waits one paragraph more; a
+    section whose heading falls in the last third of a page starts a new page; repeat until nothing moves."""
     from weasyprint import HTML
-    delays, pdf = {}, None
+    delays, fresh, pdf = {}, set(), None
     for _ in range(MAX_PASSES):
-        pdf = HTML(string=delayed(page_html, delays), base_url=base_url).render()
+        text = delayed(page_html, delays)
+        for sid in fresh:
+            text = text.replace(f'<section id="{sid}" class="', f'<section id="{sid}" class="newpage ', 1)
+        pdf = HTML(string=text, base_url=base_url).render()
+        low = set(low_starts(pdf)) - fresh
         # a figure with no paragraph after it cannot move: it must not cost another pass
         moves = [k for k in holes(pdf) if delays.get(k, 0) < MAX_DELAY and k < len(FIGURE.findall(page_html))
                  and delayed(page_html, {**delays, k: delays.get(k, 0) + 1}) != delayed(page_html, delays)]
-        if not moves:
+        if not moves and not low:
             break
+        fresh |= low
         for k in moves:
             delays[k] = delays.get(k, 0) + 1
     for n, page in enumerate(pdf.pages, 1):

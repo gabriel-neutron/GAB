@@ -87,6 +87,13 @@ mark.open {
 .caption strong {
   color: var(--foreground);
 }
+.fnum {
+  font-family: var(--mono);
+  letter-spacing: 0.04em;
+}
+.caption .fnum {
+  margin-right: 0.35em;
+}
 table {
   border-collapse: collapse;
   width: 100%;
@@ -155,30 +162,49 @@ sup.refs {
   font-family: var(--mono);
   font-size: 0.7em;
 }
-.toc ol,
-.badge-legend ul {
+.toc ol {
   list-style: none;
   padding: 0;
   margin: 0 0 1em;
 }
-.toc li {
-  margin: 0 0 0.5em;
+.toc ol.parts > li {
+  border-top: 0.5pt solid var(--border);
+  padding: 1.5mm 0;
 }
-.badge-legend {
-  border-top: 1px solid var(--border);
+.toc ol ol {
+  margin: 0.5mm 0 0;
+  padding-left: 6mm;
+  color: var(--muted-foreground);
+}
+.toc ol ol li {
+  font-size: var(--small);
+  line-height: 11pt;
+}
+.toc .toc-h {
+  margin: 6mm 0 2mm;
   padding-top: 3mm;
-  margin-top: 8mm;
-}
-.badge-legend .lt {
-  font-family: var(--mono);
-  font-size: 0.8em;
+  border-top: 0.5pt solid var(--input);
+  font: 700 var(--small) var(--sans);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--caps);
   color: var(--label);
-  margin: 0 0 2mm;
 }
-.badge-legend li {
-  margin: 0 0 1.5mm;
+.toc ol.lof {
+  font-size: var(--small);
+  line-height: 11.5pt;
+  margin: 0;
+}
+.toc ol.lof li {
+  margin: 0;
+}
+.toc .fl {
+  display: inline-block;
+  width: 17mm;
+}
+.toc .badge-line {
+  margin: 4mm 0 0;
+  font-size: var(--small);
+  color: var(--muted-foreground);
 }
 ol.biblio {
   padding-left: 2.2em;
@@ -280,11 +306,13 @@ figure.panels .plates img {
     line-height: 28px;
   }
   .cover .sub,
-  .cover .byline {
+  .cover .byline,
+  .cover .meta p {
     margin: 4px 0 0;
     color: var(--muted-foreground);
   }
-  .cover .byline {
+  .cover .byline,
+  .cover .meta p {
     font-family: var(--mono);
     font-size: 12px;
   }
@@ -360,16 +388,36 @@ figure.panels .plates img {
     page: cover;
     break-after: page;
   }
+  .cover {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 225mm;
+  }
   .cover h1 {
-    font-size: 22pt;
-    line-height: 27pt;
+    font-size: 34pt;
+    line-height: 38pt;
     string-set: report-title content();
-    margin-top: 60mm;
+    margin-top: 55mm;
   }
   .cover .sub {
-    font-size: 13pt;
-    line-height: 18pt;
-    margin: 6mm 0 0;
+    font-size: 14pt;
+    line-height: 19pt;
+    margin: 8mm 0 0;
+    color: var(--muted-foreground);
+  }
+  .cover .meta {
+    border-top: 0.5pt solid var(--border);
+    padding-top: 4mm;
+    font: 9pt/14pt var(--mono);
+    color: var(--label);
+  }
+  .cover .meta p {
+    margin: 0;
+  }
+  .cover .meta .author {
+    font-size: 11pt;
+    color: var(--foreground);
   }
   .cover .byline {
     font: 9pt var(--mono);
@@ -403,6 +451,8 @@ figure.panels .plates img {
   figure {
     margin: calc(4 * var(--u)) 0;
     break-inside: avoid;
+    border-top: 0.5pt solid var(--border);
+    padding-top: calc(2 * var(--u));
   }
   figure img {
     width: var(--w, 100%);
@@ -442,7 +492,6 @@ figure.panels .plates img {
     padding: 1mm 1.5mm;
     overflow-wrap: anywhere;
   }
-  .assessment,
   .box {
     break-inside: avoid;
   }
@@ -469,8 +518,18 @@ figure.panels .plates img {
     font: 7pt var(--mono);
   }
   .toc li a::after {
-    content: leader('.') target-counter(attr(href), page);
+    content: leader(' ') target-counter(attr(href), page);
     font-family: var(--mono);
+    color: var(--foreground);
+  }
+  .toc ol ol li a::after {
+    color: var(--muted-foreground);
+  }
+  .toc ol.parts > li > a {
+    font-weight: 700;
+  }
+  .newpage {
+    break-before: page;
   }
   .reserved {
     break-before: page;
