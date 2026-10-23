@@ -1,5 +1,10 @@
 # Start a research session on Windows
 
+Git tracks only the shared setup in this folder: this README, the agent instructions, the MCP
+configuration, the environment example, and the shared Claude configuration, skills and workflows
+under `.claude`. Local settings and worktrees stay ignored. All other research files stay local.
+Keep credentials in the ignored `.env` file. Never add them to the environment example.
+
 Run these five lines in PowerShell, from the root of the repository. Docker Desktop must run, and
 the stack must have its `infra/.env` and its database (`infra/README.md`).
 
