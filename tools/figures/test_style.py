@@ -121,3 +121,10 @@ def test_a_figure_holds_26_panels_at_most():
     assert st.panel_letter(25) == "Z"
     with pytest.raises(st.StyleError):
         st.panel_letter(26)
+
+
+def test_a_panel_title_with_its_own_letter_gives_the_letter_once():
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    st.panel_title(ax, "b. Other goods", letter="A")
+    assert sorted(t.get_text() for t in ax.texts) == ["B", "Other goods"]
