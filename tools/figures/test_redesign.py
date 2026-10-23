@@ -119,6 +119,20 @@ def test_timeline(tmp_path, monkeypatch):
     run(tmp_path, monkeypatch, "timeline", TIMELINE)
 
 
+def test_timeline_labels_do_not_overlap_nor_cross_a_stem(tmp_path, monkeypatch):
+    data = {"start": "2014-01-01", "end": "2026-12-31", "events": [
+        {"date": d, "label": lab, "source": "[1]"} for d, lab in (
+            ("2022-02-23", "1er paquet"), ("2022-06-03", "6e : brut interdit"), ("2022-12-05", "Plafond 60 $"),
+            ("2025-07-18", "Plafond 47,6 $"), ("2025-10-23", "19e : GNL interdit"), ("2026-02-01", "Plafond 44,1 $"))],
+        "bands": []}
+    seen = caught(monkeypatch)
+    make(tmp_path, "timeline", data)
+    fig = seen[0]
+    r = st.renderer(fig)
+    boxes = [t.get_window_extent(r) for t in fig.axes[0].texts]
+    assert not any(a.overlaps(b) for i, a in enumerate(boxes) for b in boxes[i + 1:])
+
+
 def test_timeline_refuses_an_event_without_source_or_out_of_range(tmp_path):
     bad = json.loads(json.dumps(TIMELINE))
     bad["events"][0].pop("source")
