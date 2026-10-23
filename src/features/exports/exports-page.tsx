@@ -67,7 +67,7 @@ export function ExportsPage({ text, release, figures, links }: ExportsPageProps)
     <ReadingPage wide>
       <div className="publication-layout">
         <aside className="publication-outline">
-          <nav aria-label="Chapitres du rapport">
+          <nav aria-label="Chapters of the report">
             {text.blocks.map((block) => (
               <a key={block.id} href={`#${block.id}`}>
                 {block.title}
@@ -75,7 +75,7 @@ export function ExportsPage({ text, release, figures, links }: ExportsPageProps)
             ))}
             <a href="#limites">{text.limits.title}</a>
           </nav>
-          <a href="/nodes">Nœuds critiques ↗</a>
+          <a href="/nodes">Critical nodes ↗</a>
         </aside>
         <article className="publication-document">
           <PageHeader
@@ -89,7 +89,6 @@ export function ExportsPage({ text, release, figures, links }: ExportsPageProps)
           {text.blocks.map((block) => (
             <div
               key={block.id}
-              lang="fr"
               className={block.kind === 'box' ? 'border border-border p-3' : undefined}
               data-block={block.kind}
             >
@@ -107,15 +106,13 @@ export function ExportsPage({ text, release, figures, links }: ExportsPageProps)
                     )}
                   </div>
                   {block.attach === undefined ? null : (
-                    <div lang="en" className="publication-figure">
-                      {attachment(block.attach)}
-                    </div>
+                    <div className="publication-figure">{attachment(block.attach)}</div>
                   )}
                 </div>
               </PageSection>
             </div>
           ))}
-          <div lang="fr">
+          <div>
             <PageSection title={text.limits.title} id="limites">
               {paragraph(text.limits.paragraph, 'limits')}
             </PageSection>

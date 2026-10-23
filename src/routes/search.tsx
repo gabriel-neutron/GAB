@@ -116,7 +116,7 @@ function SearchRoute() {
 
   return (
     <ReadingPage>
-      <h1 className="sr-only">Données</h1>
+      <h1 className="sr-only">Data</h1>
       {actions === undefined ? null : (
         <div className="flex flex-wrap justify-end gap-2">{actions}</div>
       )}
@@ -140,11 +140,11 @@ function SearchRoute() {
       </PageSection>
 
       <Link to="/downloads" className="text-small underline underline-offset-4">
-        Télécharger les données
+        Download the data
       </Link>
 
       <details className="border-t border-border pt-2">
-        <summary className="cursor-pointer text-label">Périmètre des données</summary>
+        <summary className="cursor-pointer text-label">Scope of the data</summary>
 
         <div className="pt-3">
           <CoverageStatement

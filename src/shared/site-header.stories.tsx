@@ -34,8 +34,8 @@ export const WithNoWriterNoPageThatWritesIsListed: Story = {
   play: async ({ canvas }) => {
     const nav = await canvas.findByRole('navigation', { name: 'Pages of the site' });
     await expect(nav).toBeVisible();
-    await expect(within(nav).getByRole('link', { name: /^Rapport$/ })).toBeVisible();
-    await expect(canvas.getByRole('link', { name: 'Données' })).toBeVisible();
+    await expect(within(nav).getByRole('link', { name: /^Report$/ })).toBeVisible();
+    await expect(canvas.getByRole('link', { name: 'Data' })).toBeVisible();
     await expect(canvas.queryByRole('link', { name: 'Review' })).toBeNull();
   },
 };
@@ -58,7 +58,7 @@ export const TheNameOfTheDatasetOpensTheFirstPage: Story = {
 
 export const TheOpenPageIsMarked: Story = {
   play: async ({ canvas }) => {
-    await expect(await canvas.findByRole('link', { name: 'Données' })).toHaveAttribute(
+    await expect(await canvas.findByRole('link', { name: 'Data' })).toHaveAttribute(
       'data-status',
       'active',
     );

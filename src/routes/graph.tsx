@@ -97,7 +97,7 @@ function GraphRoute() {
 
   return (
     <div className="workspace-page">
-      <h1 className="sr-only">Graphe</h1>
+      <h1 className="sr-only">Graph</h1>
       <GraphPage record={record} onSelect={setSelection} card={card} />
     </div>
   );

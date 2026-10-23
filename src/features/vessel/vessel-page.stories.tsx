@@ -122,7 +122,7 @@ export const TheVesselFinderLinkIsExternalAndSaysItIsNotASource: Story = {
     );
     await expect(link).toHaveAttribute('target', '_blank');
     await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-    await expect(canvas.getByText(/pas une source GAB/u)).toBeVisible();
+    await expect(canvas.getByText(/not a GAB source/u)).toBeVisible();
   },
 };
 

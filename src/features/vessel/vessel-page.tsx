@@ -218,18 +218,18 @@ export function VesselPage({ release, imo, entityHref, claimHref }: VesselPagePr
               claimHref={claimHref}
             />
           ))}
-          <p lang="fr" className="flex flex-col gap-0.5 border-t border-border pt-3">
+          <p className="flex flex-col gap-0.5 border-t border-border pt-3">
             <a
               className={READING_LINK}
               href={vesselFinderUrl(imo)}
               target="_blank"
               rel="noopener noreferrer"
             >
-              Position AIS déclarée (VesselFinder)
+              Reported AIS position (VesselFinder)
             </a>
             <span className="text-muted-foreground">
-              Visualiseur externe, pas une source GAB. Position déclarée par le navire, peut être
-              coupée ou falsifiée.
+              External viewer, not a GAB source. The vessel reports the position. It can be cut or
+              false.
             </span>
           </p>
         </>

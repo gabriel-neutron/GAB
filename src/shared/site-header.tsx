@@ -67,7 +67,7 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
           data-section-active={section === 'report'}
           className={PAGE_LINK}
         >
-          Rapport
+          Report
         </Link>
         <Link
           key={`map${address}`}
@@ -76,7 +76,7 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
           activeOptions={{ includeSearch: false }}
           className={PAGE_LINK}
         >
-          Carte
+          Map
         </Link>
         <Link
           key={`graph${address}`}
@@ -85,13 +85,13 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
           activeOptions={{ includeSearch: false }}
           className={PAGE_LINK}
         >
-          Graphe
+          Graph
         </Link>
         <Link to="/search" data-section-active={section === 'data'} className={PAGE_LINK}>
-          Données
+          Data
         </Link>
         <Link to="/method" data-section-active={section === 'about'} className={PAGE_LINK}>
-          À propos
+          About
         </Link>
       </nav>
       <div className="site-navigation-actions">

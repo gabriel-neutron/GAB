@@ -11,28 +11,28 @@ const CLAIM = '0a1f0000-0000-4000-8000-000000000012';
 
 // The text of the stories is made for the test.
 const TEXT: ExportsText = {
-  title: 'Les exportations russes',
+  title: 'Russian exports',
   blocks: [
     {
       id: 'recettes',
       kind: 'section',
-      title: 'Ce que paient les exportations',
-      paragraphs: [['Un paragraphe de test.']],
+      title: 'What the exports pay',
+      paragraphs: [['A test paragraph.']],
       attach: 'budget',
     },
     {
       id: 'registre',
       kind: 'section',
-      title: 'Le registre des revenus',
+      title: 'The revenue ledger',
       paragraphs: [
         [
-          'Le navire ',
+          'The vessel ',
           { entity: VESSEL, label: 'Severnaya Volna' },
-          ' figure sur la liste : ',
-          { claim: CLAIM, text: 'la désignation' },
-          '. La société ',
-          { entity: 'absent-entity', label: 'Société hors publication' },
-          ' n’a pas de page.',
+          ' is on the list: ',
+          { claim: CLAIM, text: 'the designation' },
+          '. The company ',
+          { entity: 'absent-entity', label: 'Company outside the release' },
+          ' has no page.',
         ],
       ],
       attach: 'ledger',
@@ -40,30 +40,30 @@ const TEXT: ExportsText = {
     {
       id: 'ecart-de-prix',
       kind: 'box',
-      title: 'Le test de l’écart de prix',
-      paragraphs: [['Un encadré de test.']],
+      title: 'The price gap test',
+      paragraphs: [['A test box.']],
     },
     {
       id: 'vendeurs',
       kind: 'section',
-      title: 'Les vendeurs de première vente',
-      paragraphs: [['Un paragraphe de test.']],
+      title: 'The first-sale sellers',
+      paragraphs: [['A test paragraph.']],
       attach: 'sellers',
     },
     {
       id: 'matrice',
       kind: 'section',
-      title: 'La matrice de criticité',
-      paragraphs: [['Un paragraphe de test.']],
+      title: 'The criticality matrix',
+      paragraphs: [['A test paragraph.']],
       attach: 'matrix',
     },
   ],
-  limits: { title: 'Limites', paragraph: ['Un paragraphe de limites.'] },
+  limits: { title: 'Limits', paragraph: ['A limits paragraph.'] },
   captions: {
-    budget: 'Part du budget',
-    ledger: 'Registre des revenus',
-    sellers: 'Vendeurs',
-    matrix: 'Navires désignés',
+    budget: 'Budget share',
+    ledger: 'Revenue ledger',
+    sellers: 'Sellers',
+    matrix: 'Designated vessels',
   },
 };
 
@@ -93,14 +93,14 @@ type Story = StoryObj<typeof meta>;
 
 export const GivesEachKeptSectionTheBoxAndTheLimits: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Les exportations russes' });
+    await canvas.findByRole('heading', { name: 'Russian exports' });
     for (const title of [
-      'Ce que paient les exportations',
-      'Le registre des revenus',
-      'Le test de l’écart de prix',
-      'Les vendeurs de première vente',
-      'La matrice de criticité',
-      'Limites',
+      'What the exports pay',
+      'The revenue ledger',
+      'The price gap test',
+      'The first-sale sellers',
+      'The criticality matrix',
+      'Limits',
     ])
       await expect(canvas.getByRole('heading', { name: title })).toBeVisible();
   },
@@ -108,10 +108,10 @@ export const GivesEachKeptSectionTheBoxAndTheLimits: Story = {
 
 export const LinksACitedVesselAndClaimToTheirPages: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Les exportations russes' });
+    await canvas.findByRole('heading', { name: 'Russian exports' });
     const [vessel] = canvas.getAllByRole('link', { name: 'Severnaya Volna' });
     await expect(vessel).toHaveAttribute('href', `/entity/${VESSEL}`);
-    await expect(canvas.getByRole('link', { name: 'la désignation' })).toHaveAttribute(
+    await expect(canvas.getByRole('link', { name: 'the designation' })).toHaveAttribute(
       'href',
       `/claim/${CLAIM}`,
     );
@@ -120,38 +120,38 @@ export const LinksACitedVesselAndClaimToTheirPages: Story = {
 
 export const GivesTheAdmiraltyPairOfAClaimWhenTheReleaseHasIt: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Les exportations russes' });
+    await canvas.findByRole('heading', { name: 'Russian exports' });
     await expect(canvas.getAllByRole('img', { name: /^Admiralty A1/u }).length).toBeGreaterThan(0);
   },
 };
 
 export const LeavesAMentionThatTheReleaseDoesNotHoldAsText: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Les exportations russes' });
-    await expect(canvas.getByText(/Société hors publication/u)).toBeVisible();
-    await expect(canvas.queryByRole('link', { name: 'Société hors publication' })).toBeNull();
+    await canvas.findByRole('heading', { name: 'Russian exports' });
+    await expect(canvas.getByText(/Company outside the release/u)).toBeVisible();
+    await expect(canvas.queryByRole('link', { name: 'Company outside the release' })).toBeNull();
   },
 };
 
 export const DrawsTheLedgerByClassAndLinksEachValueToItsDocument: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Les exportations russes' });
+    await canvas.findByRole('heading', { name: 'Russian exports' });
     await expect(canvas.getByRole('heading', { name: '2025' })).toBeVisible();
     await expect(canvas.getByRole('heading', { name: '2026-S1' })).toBeVisible();
-    await expect(canvas.getAllByText('Classe A')).toHaveLength(2);
+    await expect(canvas.getAllByText('Class A')).toHaveLength(2);
     await expect(
       canvas.getAllByRole('link', {
         name: /^Council Implementing Regulation \(EU\) 2025\/0000, p\. 4, Cell B5$/u,
       }),
     ).toHaveLength(2);
-    await expect(canvas.getByText(/^Figure 2\. Registre des revenus \(%\)\.$/u)).toBeVisible();
+    await expect(canvas.getByText(/^Figure 2\. Revenue ledger \(%\)\.$/u)).toBeVisible();
   },
 };
 
 export const LeavesAnAbsentSellerValueBlankAndLinksTheOthers: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Les exportations russes' });
-    const table = canvas.getByRole('table', { name: 'Vendeurs' });
+    await canvas.findByRole('heading', { name: 'Russian exports' });
+    const table = canvas.getByRole('table', { name: 'Sellers' });
     const lines = table.querySelectorAll('tbody tr');
     await expect(lines).toHaveLength(3);
     // Seller Three has no value in 2023: the cell is blank and not a zero or a dash.
@@ -163,18 +163,18 @@ export const LeavesAnAbsentSellerValueBlankAndLinksTheOthers: Story = {
 
 export const DrawsTheBudgetShareAndListsItsValuesWithTheirDocuments: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Les exportations russes' });
-    await expect(canvas.getByRole('img', { name: /^Part du budget/u })).toBeVisible();
+    await canvas.findByRole('heading', { name: 'Russian exports' });
+    await expect(canvas.getByRole('img', { name: /^Budget share/u })).toBeVisible();
     await userEvent.click(canvas.getByText('Values and documents'));
-    const table = canvas.getByRole('table', { name: 'Part du budget, values' });
+    const table = canvas.getByRole('table', { name: 'Budget share, values' });
     await expect(table.querySelectorAll('tbody tr')).toHaveLength(12);
   },
 };
 
 export const GivesTheMatrixWithMarksDatesAndTheActLink: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Les exportations russes' });
-    const table = canvas.getByRole('table', { name: 'Navires désignés' });
+    await canvas.findByRole('heading', { name: 'Russian exports' });
+    const table = canvas.getByRole('table', { name: 'Designated vessels' });
     await expect(table.querySelectorAll('tbody tr')).toHaveLength(2);
     await expect(canvas.getByRole('link', { name: 'IMO 9000001' })).toHaveAttribute(
       'href',
@@ -192,7 +192,7 @@ export const GivesTheMatrixWithMarksDatesAndTheActLink: Story = {
 
 export const CountsTheMarksOfTheMatrixInItsLegend: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Les exportations russes' });
+    await canvas.findByRole('heading', { name: 'Russian exports' });
     await expect(
       canvas.getByText(
         '2 vessel numbers. Listed by OFAC or the UK and not by the EU: 1. Listed by the EU and not by OFAC: 1.',
@@ -207,7 +207,7 @@ export const CountsTheMarksOfTheMatrixInItsLegend: Story = {
 export const SaysSoWhenAFigureFileIsNotOnTheSite: Story = {
   args: { figures: { budget: null, ledger: null, sellers: null } },
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Les exportations russes' });
+    await canvas.findByRole('heading', { name: 'Russian exports' });
     for (const number of ['1', '2', '3'])
       await expect(
         canvas.getByText(`The data file of figure ${number} is not on this site.`),
@@ -218,7 +218,7 @@ export const SaysSoWhenAFigureFileIsNotOnTheSite: Story = {
 export const SaysSoWhenTheSiteHoldsNoRelease: Story = {
   args: { release: null },
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Les exportations russes' });
+    await canvas.findByRole('heading', { name: 'Russian exports' });
     await expect(
       canvas.getByText('This site holds no release, and the matrix comes from a release.'),
     ).toBeVisible();
@@ -229,7 +229,7 @@ export const SaysSoWhenTheSiteHoldsNoRelease: Story = {
 export const GivesNoLegendWhenTheReleaseHoldsNoMatrixRow: Story = {
   args: { release: { ...EXPORTS_RELEASE, alignment: [] } },
   play: async ({ canvas, canvasElement }) => {
-    await canvas.findByRole('heading', { name: 'Les exportations russes' });
+    await canvas.findByRole('heading', { name: 'Russian exports' });
     await expect(canvas.getByText('This release holds no alignment matrix.')).toBeVisible();
     await expect(canvasElement.querySelector('[data-matrix-legend]')).toBeNull();
   },
@@ -237,7 +237,7 @@ export const GivesNoLegendWhenTheReleaseHoldsNoMatrixRow: Story = {
 
 export const SaysWhenAListingClaimIsNotInTheRelease: Story = {
   play: async ({ canvas }) => {
-    await canvas.findByRole('heading', { name: 'Les exportations russes' });
+    await canvas.findByRole('heading', { name: 'Russian exports' });
     await expect(canvas.getByText('2024-01-10 (no claim page)')).toBeVisible();
   },
 };
