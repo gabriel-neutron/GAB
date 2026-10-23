@@ -23,6 +23,8 @@ annex section type, side-by-side panels and the funding sentence once at the end
   entry of the bibliography; in a table it prints as a superscript number. The bibliography file is a JSON
   object: key -> {publisher, title, date, url, accessed, page?}. An unknown key, a missing field or a
   `doc_` identifier in the output stops the build.
+- The bibliography is optional. Without the `bibliography:` key, the report has no bibliography section and
+  a source is a normal footnote `[^label]`, at the foot of the page, numbered in one sequence for the whole report.
 - A claim badge is `{{Établi}}`, `{{Probable}}`, `{{Indicatif}}` or `{{Non établi}}`, after a material
   claim. It is a symbol plus a letter, so it reads in grey print. Its legend prints once, after the contents.
 - A section titled "Chiffres clés" is a page of its own. A section titled "Annexe A. …" is an annex.
