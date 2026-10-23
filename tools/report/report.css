@@ -394,7 +394,7 @@ figure.panels .plates img {
   figure img {
     width: var(--w, 100%);
     max-width: 100%;
-    max-height: 205mm;
+    max-height: 212mm;
     display: block;
     margin-bottom: 2mm;
   }

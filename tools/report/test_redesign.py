@@ -192,3 +192,5 @@ def test_natural_mm_reads_pt_then_the_viewbox_in_mm(tmp_path):
     assert report.natural_mm(tmp_path / "mm.svg") == 80
     assert report.natural_mm(tmp_path / "big.svg") == report.PAGE_MM
     assert report.natural_mm(tmp_path / "none.svg") == report.PAGE_MM
+    (tmp_path / "broken.svg").write_text("not an svg", encoding="utf-8")
+    assert report.natural_mm(tmp_path / "broken.svg") == report.PAGE_MM

@@ -78,7 +78,10 @@ def natural_mm(svg):
     """Width in mm of a figure drawn at its printed size. The figure tool writes pt; a handmade figure has a viewBox in mm."""
     if not svg.exists():
         return PAGE_MM
-    head = re.search(r"<svg[^>]*>", svg.read_text(encoding="utf-8")).group(0)
+    found = re.search(r"<svg[^>]*>", svg.read_text(encoding="utf-8"))
+    if not found:
+        return PAGE_MM
+    head = found.group(0)
     width = re.search(r'\swidth="([\d.]+)pt"', head)
     if width:
         return float(width.group(1)) * 25.4 / 72
