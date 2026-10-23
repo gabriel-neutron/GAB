@@ -2,8 +2,7 @@
 
 Every colour, font and size of a figure comes from this file. A figure script sets none.
 The colours are the light-theme tokens of the site stylesheet, read by `tokens.py`.
-Fonts: the files in `fonts/` are registered when they exist. Else the face falls back to
-the DejaVu face that ships with matplotlib.
+Fonts: the files in `fonts/` are registered.
 """
 import csv
 import html
@@ -159,25 +158,20 @@ def check_marks(marks):
 def register_fonts():
     for f in (HERE / "fonts").glob("*.[to]tf"):
         font_manager.fontManager.addfont(str(f))
-    have = {f.name for f in font_manager.fontManager.ttflist}
-    face = next(f for f in tk.FONTS["serif"] if f in have or f == tk.FONTS["serif"][-1])
-    if face != tk.FONTS["serif"][0]:
-        warnings.warn(f"{tk.FONTS['serif'][0]} is not installed: text is measured with {face}", stacklevel=2)
     plt.rcParams.update({
-        "font.family": face,
+        "font.family": tk.FONTS["serif"][0],
         "font.size": TEXT_PT, "svg.fonttype": "none", "axes.edgecolor": AXIS,
         "text.color": INK, "axes.labelcolor": LABEL, "xtick.color": LABEL, "ytick.color": LABEL,
         "axes.facecolor": "none", "figure.facecolor": "none", "savefig.facecolor": "none",
         "axes.linewidth": LINE_W * 0.6, "grid.color": GRID, "grid.linewidth": 0.5,
         "legend.frameon": False, "hatch.linewidth": 0.6, "hatch.color": INK,
     })
-    return have
 
 
-_have = register_fonts()
-# The mono face of the site; DejaVu Sans Mono is the fallback.
+register_fonts()
+# The mono face of the site, then the CSS stack of the HTML figures.
 MONO = tk.FONTS["mono"]
-MONO_FACE = next(f for f in MONO if f in _have or f == MONO[-1])
+MONO_FACE = MONO[0]
 
 
 # Size classes for the page of 166 mm text width and 250 mm text height. A figure and its caption stay on one page:
