@@ -90,6 +90,19 @@ const SOURCE_HOSTS: readonly (readonly [string, string])[] = [
   ['splash247.com', 'news_article'],
   ['theguardian.com', 'news_article'],
   ['politico.eu', 'news_article'],
+  ['bbc.co.uk', 'news_article'],
+  ['nytimes.com', 'news_article'],
+  ['wsj.com', 'news_article'],
+  ['ukrinform.net', 'news_article'],
+  ['pravda.com.ua', 'news_article'],
+  ['ria.ru', 'news_article'],
+  ['kyivpost.com', 'news_article'],
+  ['sputnikglobe.com', 'news_article'],
+  ['csis.org', 'ngo_publication'],
+  ['rusi.org', 'ngo_publication'],
+  ['acleddata.com', 'ngo_publication'],
+  ['reddit.com', 'other'],
+  ['example.org', 'other'],
 ];
 
 test.each(SOURCE_HOSTS)('the host %s is %s', (host, type) => {
@@ -109,9 +122,16 @@ test('a Telegram address of a post is a telegram post', () => {
   );
 });
 
-test('a report on a news host stays a report', () => {
-  const uri = 'https://www.reuters.com/reports/2025';
-  expect(documentType({ uri, title: 'Overview', provider: null })).toBe('report');
+test('a news headline with the word report is a news article', () => {
+  const uri = 'https://www.reuters.com/world/x';
+  expect(documentType({ uri, title: 'Report says the cap fails', provider: null })).toBe(
+    'news_article',
+  );
+});
+
+test('a Telegram page with press release in the title is a telegram post', () => {
+  const uri = 'https://t.me/s/channel/1';
+  expect(documentType({ uri, title: 'Press release', provider: null })).toBe('telegram_post');
 });
 
 test('at most 5% of the hosts of the sources are other', () => {
