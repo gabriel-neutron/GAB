@@ -86,3 +86,22 @@ def test_a_narrow_figure_wraps_legend_and_labels():
         assert st.label_room(10) == pytest.approx(0.015 * st.scale() * 10 + 0.02)
     finally:
         st._width["mm"] = st.WIDTH_MM
+
+
+def test_the_colours_are_site_tokens():
+    import tokens
+    assert st.INK == tokens.hex("foreground") and st.ACCENT == tokens.hex("primary")
+    assert st.REGIMES["EU"].color == st.ACCENT
+
+
+def test_a_missing_token_is_named():
+    import tokens
+    with pytest.raises(KeyError, match="no-such-token"):
+        tokens.hex("no-such-token")
+
+
+def test_the_style_fonts_are_bundled():
+    from pathlib import Path
+    names = {f.name for f in (Path(st.HERE) / "fonts").glob("*.ttf")}
+    assert {"SourceSerif4-Regular.ttf", "SourceSerif4-It.ttf", "JetBrainsMono-Regular.ttf"} <= names
+    assert st.MONO_FACE == "JetBrains Mono"

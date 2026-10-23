@@ -31,7 +31,7 @@ def build(data, meta, out_dir, grey=False):
         v = t["value"]
         v = st.num(v, t.get("places", 1)) if isinstance(v, (int, float)) else v
         ax.plot([x + 0.04, x + 0.94], [at(y, 1)] * 2, color=st.AXIS, linewidth=0.8)
-        ax.text(x + 0.04, at(y, 3.5), v, fontsize=value_pt, fontfamily=st.MONO_FACE, fontweight="bold", color=st.INK, va="top")
+        ax.text(x + 0.04, at(y, 3.5), v, fontsize=value_pt, fontfamily=st.MONO_FACE, fontweight=st.SEMIBOLD, color=st.INK, va="top")
         ax.text(x + 0.04, at(y, 4 + value_pt * 0.3528 * 1.15), t.get("unit", ""), fontsize=st.TEXT_PT, color=st.LABEL, va="top")
         ax.text(x + 0.04, at(y, 9.5 + value_pt * 0.3528 * 1.15), textwrap.fill(t["label"], 30), fontsize=st.TEXT_PT, color=st.INK, va="top")
     return st.save(fig, out_dir, meta["stem"], meta, grey)

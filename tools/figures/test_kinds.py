@@ -100,7 +100,17 @@ def test_line_two_panels_share_one_caption(tmp_path, monkeypatch):
     text = csv_rows("S,2020,1,u,P1", "S,2021,2,u,P1", "S,2020,5,v,P2", "S,2021,3,v,P2", extra="panel")
     out = make(tmp_path, "line", text, {"note": "does not start at zero."})
     assert len(seen[0].axes) == 2 and len(out) == 3
-    assert [a.get_title(loc="left") for a in seen[0].axes] == ["P1 (u)", "P2 (v)"]
+    texts = [t.get_text() for a in seen[0].axes for t in a.texts]
+    assert {"A", "B", "P1 (u)", "P2 (v)"} <= set(texts)
+
+
+def test_line_annotation_writes_a_numbered_disc_and_its_note(tmp_path, monkeypatch):
+    seen = caught(monkeypatch)
+    text = csv_rows("S,2020,1,u", "S,2021,2,u")
+    out = make(tmp_path, "line", text, {"note": "does not start at zero.",
+                                        "annotations": [{"n": 1, "text": "The peak.", "serie": "S", "periode": "2021"}]})
+    assert "1" in [t.get_text() for t in seen[0].axes[0].texts]
+    assert "The peak." in out[0].read_text(encoding="utf-8")
 
 
 # 4. spread

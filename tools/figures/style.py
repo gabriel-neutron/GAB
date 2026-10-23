@@ -1,7 +1,7 @@
-"""The shared style of the report figures.
+"""The shared style of the report figures (Dossier style).
 
 Every colour, font and size of a figure comes from this file. A figure script sets none.
-The tokens are the light-theme oklch values of the site stylesheet.
+The colours are the light-theme tokens of the site stylesheet, read by `tokens.py`.
 Fonts: the files in `fonts/` are registered when they exist. Else the face falls back to
 the DejaVu face that ships with matplotlib.
 """
@@ -21,14 +21,21 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib import font_manager  # noqa: E402
+from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.ticker import FuncFormatter  # noqa: E402
 
 HERE = Path(__file__).parent
+sys.path.insert(0, str(HERE))
+import tokens as tk  # noqa: E402
+from tokens import oklch  # noqa: E402,F401  (kept here: figure scripts and tests import it from style)
+
 WIDTH_MM = 166
 MM = 1 / 25.4
-THIN = " "
+THIN = " "
+# Dossier style: thin lines, hollow marks, serif text in the body face. Sizes in points at print (7 pt is the floor).
 TITLE_PT, TEXT_PT, NOTE_PT = 9, 8, 7.5
-LINE_W, MARKER, ARROW = 1.2, 4, 8
+LINE_W, MARKER, ARROW = 0.8, 4, 8
+SEMIBOLD = "semibold"  # weight 600 of Source Serif 4
 HALO = "#000000"
 # Two grey marks must differ by this much in OKLab lightness to stay apart in grey print.
 MIN_GREY_STEP = 0.12
@@ -37,23 +44,6 @@ CHROMA_LIMIT = 0.03
 
 class StyleError(ValueError):
     """A figure breaks a rule of the style."""
-
-
-def _oklab_to_hex(L, a, b):
-    l_ = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3
-    m_ = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3
-    s_ = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3
-    lin = (4.0767416621 * l_ - 3.3077115913 * m_ + 0.2309699292 * s_,
-           -1.2684380046 * l_ + 2.6097574011 * m_ - 0.3413193965 * s_,
-           -0.0041960863 * l_ - 0.7034186147 * m_ + 1.7076147010 * s_)
-    gam = [12.92 * c if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055 for c in lin]
-    return "#" + "".join(f"{round(min(1, max(0, c)) * 255):02x}" for c in gam)
-
-
-def oklch(token):
-    """Convert 'oklch(L C H)' to a hex colour."""
-    L, C, H = (float(x) for x in re.findall(r"[\d.]+", token)[:3])
-    return _oklab_to_hex(L, C * math.cos(math.radians(H)), C * math.sin(math.radians(H)))
 
 
 def _oklab(hexcolor):
@@ -75,20 +65,21 @@ def chroma(hexcolor):
     return math.hypot(*_oklab(hexcolor)[1:])
 
 
-# Light theme of the site; "context" and "grid" are the two greys the ticket places between tokens.
-INK = oklch("oklch(0.2 0.01 230)")
-SECOND = oklch("oklch(0.4 0.01 230)")
-LABEL = oklch("oklch(0.5 0.01 230)")
-CONTEXT = oklch("oklch(0.68 0.008 230)")
-AXIS = oklch("oklch(0.86 0.006 230)")
-GRID = oklch("oklch(0.91 0.005 230)")
-BAND = oklch("oklch(0.945 0.004 230)")
-INPUT = oklch("oklch(0.62 0.008 230)")
+# Roles of the site tokens in a figure (docs of the stylesheet: foreground is ink, label the third text step, input a strong thin rule).
+INK = tk.hex("foreground")
+SECOND = tk.hex("muted-foreground")
+LABEL = tk.hex("label")
+CONTEXT = tk.hex("input")
+AXIS = tk.hex("input")
+GRID = tk.hex("border")
+BAND = tk.hex("muted")
+INPUT = tk.hex("input")
+ACCENT = tk.hex("primary")
+PAPER = tk.hex("card")  # the ground of a figure; also the colour of a hollow mark and of the gap between parts
 WHITE = "#ffffff"
-# Parts of a stacked bar, light to dark.
-GREY_STEPS = [oklch(f"oklch({v} 0.006 230)") for v in (0.88, 0.74, 0.6, 0.45, 0.3)]
-# Eight parts at most: parts six to eight reuse a grey with a hatch as the second mark.
-PART_FILLS = [(g, "") for g in GREY_STEPS] + [(GREY_STEPS[i], "///") for i in (3, 1, 4)]
+# Parts of a stacked bar, light to dark: four greys of the site. Eight parts at most: parts five to eight reuse a grey with a hatch.
+GREY_STEPS = [tk.hex(t) for t in ("border", "input", "muted-foreground", "foreground")]
+PART_FILLS = [(g, "") for g in GREY_STEPS] + [(GREY_STEPS[i], "///") for i in (0, 1, 2, 3)]
 
 
 @dataclass(frozen=True)
@@ -102,13 +93,13 @@ class Mark:
     label: str = ""
 
 
-# Series of a line chart: three greys and three marker shapes. Dashed is kept for mirror data.
+# Series of a line chart: three greys and three marker shapes, all hollow. Dashed is kept for mirror data.
 SERIES = [Mark("ink", INK, "o"), Mark("second", SECOND, "s"), Mark("context", CONTEXT, "^")]
 # EU is the solid fill; its second mark is the fill itself next to the hatched others.
 REGIMES = {
-    "EU": Mark("EU", oklch("oklch(0.42 0.11 255)"), label="EU"),
-    "UK": Mark("UK", oklch("oklch(0.62 0.12 70)"), hatch="///", label="UK"),
-    "US": Mark("US", oklch("oklch(0.80 0.06 200)"), hatch="\\\\\\", label="US"),
+    "EU": Mark("EU", ACCENT, label="EU"),
+    "UK": Mark("UK", tk.hex("entity-5"), hatch="///", label="UK"),
+    "US": Mark("US", tk.hex("entity-2"), hatch="\\\\\\", label="US"),
     "multi": Mark("multi", SECOND, hatch="xxx", label="Two or more"),
 }
 
@@ -170,22 +161,23 @@ def register_fonts():
     for f in (HERE / "fonts").glob("*.[to]tf"):
         font_manager.fontManager.addfont(str(f))
     have = {f.name for f in font_manager.fontManager.ttflist}
-    if "Roboto Condensed" not in have:
-        warnings.warn("Roboto Condensed is not installed: text is measured with DejaVu Sans", stacklevel=2)
+    face = next(f for f in tk.FONTS["serif"] if f in have or f == tk.FONTS["serif"][-1])
+    if face != tk.FONTS["serif"][0]:
+        warnings.warn(f"{tk.FONTS['serif'][0]} is not installed: text is measured with {face}", stacklevel=2)
     plt.rcParams.update({
-        "font.family": "Roboto Condensed" if "Roboto Condensed" in have else "DejaVu Sans",
+        "font.family": face,
         "font.size": TEXT_PT, "svg.fonttype": "none", "axes.edgecolor": AXIS,
         "text.color": INK, "axes.labelcolor": LABEL, "xtick.color": LABEL, "ytick.color": LABEL,
         "axes.facecolor": "none", "figure.facecolor": "none", "savefig.facecolor": "none",
-        "axes.linewidth": 0.5, "grid.color": GRID, "grid.linewidth": 0.5,
-        "legend.frameon": False, "hatch.linewidth": 0.6,
+        "axes.linewidth": LINE_W * 0.6, "grid.color": GRID, "grid.linewidth": 0.5,
+        "legend.frameon": False, "hatch.linewidth": 0.6, "hatch.color": INK,
     })
+    return have
 
 
-register_fonts()
+_have = register_fonts()
 # The mono face of the site; DejaVu Sans Mono is the fallback.
-MONO = ["JetBrains Mono", "DejaVu Sans Mono"]
-_have = {f.name for f in font_manager.fontManager.ttflist}
+MONO = tk.FONTS["mono"]
 MONO_FACE = next(f for f in MONO if f in _have or f == MONO[-1])
 
 
@@ -264,22 +256,46 @@ def style_axes(ax, unit="", value_axis="y"):
     ax.tick_params(axis=val, length=0)
     (ax.yaxis if val == "y" else ax.xaxis).set_major_formatter(FuncFormatter(lambda v, _: num(v, 6)))
     ax.tick_params(axis=cat, length=2, width=0.5)
+    ax.spines["bottom" if cat == "x" else "left"].set_linewidth(LINE_W)
     if unit and scale() > 1.5 and value_axis == "x":
         # narrow: the legend takes the width above the bars, so the unit goes under the axis
-        ax.set_xlabel(textwrap.fill(unit, 38, break_long_words=False), loc="left", color=LABEL, fontsize=TEXT_PT)
+        ax.set_xlabel(textwrap.fill(unit, 38, break_long_words=False), loc="left", color=LABEL, fontsize=TEXT_PT, fontstyle="italic")
     elif unit and scale() > 1.5:
-        ax.text(0, 1.03, textwrap.fill(unit, 38, break_long_words=False), transform=ax.transAxes, ha="left", va="bottom", color=LABEL, fontsize=TEXT_PT)
+        ax.text(0, 1.03, textwrap.fill(unit, 38, break_long_words=False), transform=ax.transAxes, ha="left", va="bottom", color=LABEL, fontsize=TEXT_PT, fontstyle="italic")
     elif unit:
         # horizontal bars carry their legend at the left, so the unit goes to the right end
         right = value_axis == "x"
         ax.text(1 if right else 0, 1.03, unit, transform=ax.transAxes, ha="right" if right else "left",
-                va="bottom", color=LABEL, fontsize=TEXT_PT)
+                va="bottom", color=LABEL, fontsize=TEXT_PT, fontstyle="italic")
 
 
-def panel_title(ax, text):
+def panel_title(ax, text, letter=None):
+    """The title of a panel. With a letter, a small accent square holds it, left of the title."""
     if scale() > 1.5:
         text = textwrap.fill(text, 34, break_long_words=False)
-    ax.set_title(text, loc="left", fontsize=TITLE_PT, fontweight="bold", color=INK)
+    if not letter:
+        ax.set_title(text, loc="left", fontsize=TITLE_PT, fontweight=SEMIBOLD, color=INK)
+        return
+    ax.annotate(letter, (0, 1), xycoords="axes fraction", xytext=(0, 5), textcoords="offset points", ha="left", va="bottom",
+                fontsize=NOTE_PT, fontweight="bold", color=ACCENT, annotation_clip=False,
+                bbox=dict(boxstyle="square,pad=0.25", facecolor="none", edgecolor=ACCENT, linewidth=0.8))
+    ax.annotate(text, (0, 1), xycoords="axes fraction", xytext=(16, 4), textcoords="offset points", ha="left", va="bottom",
+                fontsize=TITLE_PT, fontweight=SEMIBOLD, color=INK, annotation_clip=False)
+
+
+def note_mark(ax, x, y, n, dx=10, dy=8):
+    """A numbered annotation: an accent disc with the number, beside the point (x, y). The note goes under the figure."""
+    ax.annotate(str(n), (x, y), xytext=(dx, dy), textcoords="offset points", ha="center", va="center", fontsize=NOTE_PT,
+                fontweight="bold", color=PAPER, annotation_clip=False,
+                bbox=dict(boxstyle="circle,pad=0.25", facecolor=ACCENT, edgecolor="none"))
+
+
+def notes_below(fig, meta):
+    """Write the notes of the numbered annotations under the figure (meta key `annotations`: [{n, text}])."""
+    items = meta.get("annotations") or []
+    if items:
+        fig.supxlabel(chr(10).join(f"{a['n']}  {a['text']}" for a in items), x=0, ha="left", fontsize=NOTE_PT, fontstyle="italic",
+                      color=LABEL)
 
 
 def num(v, places=1):
@@ -367,8 +383,11 @@ def save(fig, out_dir, stem, meta, grey=False):
     """Write the SVG (text kept as text), the PNG and the caption of one figure."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
+    notes_below(fig, meta)
+    # the rule above a figure: the ink rule of the Dossier style
+    fig.add_artist(Line2D([0, 1], [1, 1], transform=fig.transFigure, color=INK, linewidth=1.2, solid_capstyle="butt", clip_on=False))
     fig.savefig(out / f"{stem}.svg", transparent=True)
-    fig.savefig(out / f"{stem}.png", dpi=200, transparent=False, facecolor=WHITE)
+    fig.savefig(out / f"{stem}.png", dpi=200, transparent=False, facecolor=PAPER)
     (out / f"{stem}.caption.html").write_text(caption_html(meta), encoding="utf-8")
     if grey:
         from PIL import Image
@@ -414,7 +433,8 @@ def end_labels(fig, groups):
         ys = [ax.transData.transform((x, y))[1] for x, y, _, _ in items]
         for (x, y, text, color), y0, y1 in zip(items, ys, spread(ys, gap)):
             dy = (y1 - y0) * 72 / fig.dpi
-            ax.annotate(text, (x, y), xytext=(8, dy), textcoords="offset points", va="center", color=color,
+            # a light mark colour would print the text below 4.5:1: the text takes the second ink
+            ax.annotate(text, (x, y), xytext=(8, dy), textcoords="offset points", va="center", color=color if lightness(color) < 0.55 else SECOND,
                         fontsize=TEXT_PT, annotation_clip=False,
                         arrowprops=dict(arrowstyle="-", color=color, lw=0.5, shrinkA=0, shrinkB=2)
                         if abs(dy) > 0.5 else None)

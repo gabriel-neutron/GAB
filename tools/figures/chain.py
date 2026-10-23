@@ -28,7 +28,7 @@ def build(data, meta, out_dir, grey=False):
     ax.set_ylim(-rows + 0.5, 0.9)
     ax.axis("off")
     for i, c in enumerate(cols):
-        ax.text(i, 0.65, c, ha="center", va="bottom", fontsize=st.TITLE_PT, fontweight="bold")
+        ax.text(i, 0.65, c, ha="center", va="bottom", fontsize=st.TITLE_PT, fontweight=st.SEMIBOLD)
     for e in d["edges"]:
         words(e["pair"])
         if e["kind"] not in ("fact", "assessment"):
@@ -51,5 +51,5 @@ def build(data, meta, out_dir, grey=False):
         if n.get("designated"):
             m = st.REGIMES[n["designated"]]
             ax.add_patch(Rectangle((x - BOX_W / 2, y + BOX_H / 2 - 0.05), BOX_W, 0.05, facecolor=m.color,
-                                   hatch=m.hatch, edgecolor=st.WHITE, linewidth=0))
+                                   hatch=m.hatch, edgecolor=st.PAPER, linewidth=0))
     return st.save(fig, out_dir, meta["stem"], meta, grey)

@@ -32,11 +32,11 @@ def build(data, meta, out_dir, grey=False):
     for i, r in enumerate(cells):
         for j, c in enumerate(r):
             if c is None:
-                ax.fill_between([j, j + 1], i, i + 1, facecolor=st.WHITE, edgecolor=st.AXIS, hatch="///", linewidth=0)
+                ax.fill_between([j, j + 1], i, i + 1, facecolor=st.PAPER, edgecolor=st.AXIS, hatch="///", linewidth=0)
                 continue
-            ax.fill_between([j, j + 1], i, i + 1, facecolor=STEPS[c], edgecolor=st.WHITE, linewidth=1.5)
+            ax.fill_between([j, j + 1], i, i + 1, facecolor=STEPS[c], edgecolor=st.PAPER, linewidth=1.5)
             ax.text(j + 0.5, i + 0.5, str(c), ha="center", va="center", fontsize=st.TEXT_PT,
-                    color=st.WHITE if c >= 4 else st.INK)
+                    color=st.PAPER if c >= 4 else st.INK)
     ax.set_xlabel("   ".join(f"{k} = {n}" for k, n in enumerate(levels)), fontsize=st.NOTE_PT, color=st.LABEL,
                   loc="left")
     return st.save(fig, out_dir, meta["stem"], meta, grey)

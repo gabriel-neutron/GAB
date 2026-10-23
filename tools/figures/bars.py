@@ -31,7 +31,7 @@ def build(data, meta, out_dir, grey=False):
     for i, r in enumerate(rows):
         m = st.REGIMES[r["regime"]] if r.get("regime") else None
         ax.barh(i, r["valeur"], height=0.62, color=m.color if m else st.INK, hatch=m.hatch if m else "",
-                edgecolor=st.WHITE, linewidth=0)
+                edgecolor=st.PAPER, linewidth=0)
         if r["serie"] in high:
             ax.annotate(label(r["valeur"]), (r["valeur"], i), xytext=(3, 0), textcoords="offset points",
                         va="center", fontsize=st.TEXT_PT, color=st.INK)
@@ -40,7 +40,7 @@ def build(data, meta, out_dir, grey=False):
     ax.set_xlim(0, max(r["valeur"] for r in rows) / (1 - st.label_room(chars)))
     if regimes:
         ax.legend(handles=[Patch(facecolor=st.REGIMES[r].color, hatch=st.REGIMES[r].hatch,
-                                 edgecolor=st.WHITE, label=st.regime_label(r)) for r in regimes],
+                                 edgecolor=st.PAPER, label=st.regime_label(r)) for r in regimes],
                   loc="lower left", bbox_to_anchor=(0, 1.0), ncol=st.legend_cols([st.regime_label(r) for r in regimes]), fontsize=st.TEXT_PT,
                   borderaxespad=0)
     return st.save(fig, out_dir, meta["stem"], meta, grey)

@@ -42,7 +42,7 @@ def build(data, meta, out_dir, grey=False):
     bw, bh = 0.84, 0.62
     chars = max(8, int(st.WIDTH_MM / (cols + left) * bw / 1.7))
     for i, name in enumerate(rows):
-        ax.text(-left - 0.45, -i, textwrap.fill(name, 12), ha="left", va="center", fontsize=st.TEXT_PT, fontweight="bold",
+        ax.text(-left - 0.45, -i, textwrap.fill(name, 12), ha="left", va="center", fontsize=st.TEXT_PT, fontweight=st.SEMIBOLD,
                 color=st.LABEL)
     for e in d["edges"]:
         (x1, y1), (x2, y2) = [(nodes[k]["col"], -nodes[k]["row"]) for k in (e["from"], e["to"])]
@@ -60,7 +60,7 @@ def build(data, meta, out_dir, grey=False):
             ax.text((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, text, ha="center", va="bottom", fontsize=st.NOTE_PT, color=st.LABEL)
     for n in d["nodes"]:
         x, y, state = n["col"], -n["row"], n.get("state", "solid")
-        ax.add_patch(Rectangle((x - bw / 2, y - bh / 2), bw, bh, facecolor=st.WHITE if state != "hatched" else st.BAND,
+        ax.add_patch(Rectangle((x - bw / 2, y - bh / 2), bw, bh, facecolor=st.PAPER if state != "hatched" else st.BAND,
                                edgecolor=st.INK if state == "solid" else st.SECOND, linewidth=0.8,
                                linestyle="-" if state != "dashed" else (0, (4, 3)),
                                hatch="///" if state == "hatched" else None))
