@@ -35,11 +35,8 @@ import { describeDrawing, deriveTextView } from './text-view';
 import { isShown, type FilterState } from './type-filter';
 import { patchGraphWorkspace, readGraphWorkspace } from './workspace';
 
-/**
- * What the canvas draws. `start` draws nothing and waits for a choice, `focus` draws one entity and
- * its neighbours, and `whole` draws every entity.
- */
-export type GraphMode = 'start' | 'focus' | 'whole';
+/** What the canvas draws. `focus` draws one entity and its neighbours, and `whole` draws every entity. */
+export type GraphMode = 'focus' | 'whole';
 
 export interface GraphView {
   readonly mode: GraphMode;
@@ -243,9 +240,8 @@ export function mountGraph(
   let hops = stored.hops;
   let showUnplaced = stored.showUnplaced;
 
-  // The canvas opens on a choice and draws nothing. A focus replaces it, and the whole picture is
-  // one step further, so the reader always meets a small picture first.
-  let mode: GraphMode = 'start';
+  // The canvas opens on the whole picture, so the reader meets a drawn graph at once.
+  let mode: GraphMode = 'whole';
   let focusCentre: string | null = null;
   let expanded: string[] = [];
   let drawnNodes: ReadonlySet<string> = new Set();
@@ -872,12 +868,12 @@ export function mountGraph(
   };
 
   // A focus draws the nodes that pass the filter. A centre that the filter puts out leaves
-  // nothing to draw around, so the reader meets the choice again. Nothing is drawn then, and a
-  // selection that is not drawn is a lie on the screen.
+  // nothing to draw around, so the canvas returns to the whole picture. A selection that is not
+  // drawn is a lie on the screen.
   const redrawFocus = (): void => {
     if (mode !== 'focus') return;
     if (focusCentre !== null && !nodeConsidered(focusCentre)) {
-      mode = 'start';
+      mode = 'whole';
       focusCentre = null;
       expanded = [];
       selection = null;
@@ -979,7 +975,7 @@ export function mountGraph(
     writeSelectionAddress(selection);
   }
   // An entity in the address opens as a focus on it, and a relation opens the whole picture,
-  // because a relation has no centre. Nothing in the address opens the choice.
+  // because a relation has no centre. Nothing in the address opens the whole picture.
   if (selection?.kind === 'entity') {
     mode = 'focus';
     focusCentre = selection.id;
