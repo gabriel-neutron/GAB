@@ -270,7 +270,11 @@ def style_axes(ax, unit="", value_axis="y"):
 
 
 def panel_title(ax, text, letter=None):
-    """The title of a panel. With a letter, a small accent square holds it, left of the title."""
+    """The title of a panel. With a letter, a small accent square holds it, left of the title.
+    A title that starts with its own letter ("b. Other goods") gives that letter and loses the prefix."""
+    m = re.match(r"([a-zA-Z])\.\s+(.*)", text, re.S)
+    if m:
+        letter, text = m.group(1).upper(), m.group(2)
     if scale() > 1.5:
         text = textwrap.fill(text, 34, break_long_words=False)
     if not letter:
