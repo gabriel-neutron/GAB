@@ -103,7 +103,7 @@ def test_contents_follow_the_cover_and_the_key_figures_page_follows_the_contents
     assert page_of(pages, "Le port de Brumel reçoit") == 3 and "Introduction" not in pages[2]
     # the contents list a page number for each section
     toc = pages[1]
-    assert re.search(r"Annexe B.[^d]*d+ ", toc)
+    assert re.search(r"Annexe B\.[^\d]*\d+ ", toc)
 
 
 def test_the_bibliography_follows_the_annexes(tmp_path):
