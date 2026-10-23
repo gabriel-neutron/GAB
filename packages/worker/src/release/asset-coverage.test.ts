@@ -166,13 +166,16 @@ test.each([
   ['eu_eurlex', 'Commission Decision 2011/833/EU'],
   ['eu_fsf', 'Financial Sanctions Files'],
   ['gleif', 'Global Legal Entity'],
+  ['gfw', 'NonCommercial 4.0 International'],
+  ['gfw', 'citations from it'],
+  ['datalastic', 'Datalastic'],
 ])('the credits name the provider %s that a claim cites', (provider, words) => {
   expect(releaseCredits(HEADING, new Set()).text).not.toContain(words);
   expect(releaseCredits(HEADING, new Set([provider])).text).toContain(words);
 });
 
 test('a provider with no credit line stops the release', () => {
-  expect(() => releaseCredits(HEADING, new Set(['gfw']))).toThrow(CreditFault);
+  expect(() => releaseCredits(HEADING, new Set(['unlisted_provider']))).toThrow(CreditFault);
   expect(() => releaseCredits(HEADING, new Set(['osm', 'own']))).not.toThrow();
 });
 
