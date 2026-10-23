@@ -479,12 +479,26 @@ def test_the_heading_levels_differ_in_size_and_a_section_has_a_rule():
     assert re.search(r"h2 \{[^}]*border-bottom", css) and not re.search(r"h3 \{[^}]*border-bottom", css)
 
 
-def test_delayed_leaves_a_side_figure_in_place_and_still_moves_a_plain_figure():
+def test_delayed_moves_a_side_figure_like_a_plain_one_and_unfloated_counts_by_ordinal():
     html = '<p>a</p><figure class="fig side" id="fig-1">1</figure><p>b</p><p>c</p><p>d</p><figure class="fig" id="fig-2">2</figure><p>e</p><p>f</p>'
-    assert report.delayed(html, {0: 2}) == html
+    assert report.delayed(html, {0: 1}).startswith('<p>a</p><p>b</p><figure class="fig side" id="fig-1">1</figure><p>c</p>')
     assert report.delayed(html, {1: 1}) == html.replace('<figure class="fig" id="fig-2">2</figure><p>e</p>', '<p>e</p><figure class="fig" id="fig-2">2</figure>')
     assert report.is_side('<figure class="fig side" id="fig-1">') and report.is_side("fig side") and not report.is_side('<figure class="fig" id="side-1">')
     assert report.unfloated(html, {0}).count("fig side") == 0 and report.unfloated(html, {1}) == html
+
+
+def test_a_pushed_side_figure_with_text_beside_it_stays_floated(tmp_path):
+    from weasyprint import HTML
+    tall = tmp_path / "tall.svg"
+    tall.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="230pt" height="640pt" viewBox="0 0 230 640"><rect width="230" height="640" fill="#999"/></svg>', encoding="utf-8")
+    for n in range(1, 30):
+        pdf = HTML(string=side_html(40, tall, before=n)).render()
+        opens = [i for i, page in enumerate(pdf.pages) if i and (b := report.blocks_of_page(page._page_box)[0]) and b[0][0] == "figure"]
+        if opens:
+            break
+    else:
+        pytest.fail("no filler length moves the float to a later page")
+    assert report.pushed_floats(pdf) == []
 
 
 def test_a_side_figure_after_plain_figures_goes_back_into_the_flow_by_its_own_ordinal(tmp_path):
