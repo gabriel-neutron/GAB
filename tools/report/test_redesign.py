@@ -353,3 +353,9 @@ def test_the_page_number_is_at_the_bottom_right_and_the_header_is_wider_than_the
     assert top and min(b.position_x for b in top) * mm == pytest.approx(12, abs=0.5)
     right = next(b for b in page.children if getattr(b, "at_keyword", "") == "@bottom-right")
     assert (right.position_x + right.margin_width()) * mm == pytest.approx(210 - 12, abs=0.5)  # the right edge of the header
+
+
+def test_an_image_with_no_caption_stops_the_build_and_not_the_placement_check():
+    with pytest.raises(report.ReportError, match="ends with a figure"):
+        report.check_placement("X", ["Du texte.", "![a](f.svg)"])
+    assert report.placement(["![a](f.svg)"]) == [("fig", 0)]

@@ -4,7 +4,7 @@
 :root {
   --sans: 'Roboto Condensed', ui-sans-serif, system-ui, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', 'DejaVu Sans Mono', monospace;
-  /* The page design system (docs: the private PAGE-DESIGN-SYSTEM note). The site scale 11/14/16/20 px is
+  /* The page design system. The site scale 11/14/16/20 px is
      kept in ratio at print: body 10 pt, so section = 10 x 16/14 and the floor `small` = 10 x 11/14. */
   --body: 10pt;
   --section: 11.5pt;

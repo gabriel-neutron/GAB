@@ -32,7 +32,7 @@ annex section type, side-by-side panels and the funding sentence once at the end
 - A caption of the redesign holds the title, the unit and the footnote marks of its source line; the text of
   the source line does not print (the page foot carries it). A "Note :" part stays. A title of more than 8 words
   gets a warning. Figure numbers and table numbers must rise in order of appearance (the build stops
-  otherwise). A section that is not an annex or the key figures must not start or end with a figure or a table (error with the section name); two figures or tables with fewer than 5 lines of text between them get a warning. A figure that
+  otherwise). A section that is not an annex or the key figures must not start or end with a figure or a table: the build stops and names the section. Two figures or tables with fewer than 5 lines of text between them get a warning. A figure that
   no earlier text calls gets a warning.
 
 With --draft, an open marker shows in a highlight and the last page lists it. Without it, an open
@@ -175,12 +175,16 @@ def placement(body):
     while i < len(body):
         b, i = body[i], i + 1
         if re.fullmatch(r"!\[[^\]]*\]\([^)]+\)", b):
+            if not plates:
+                out.append(("fig", 0))
             plates = True
+            # an image with no caption still counts: the build stops later with "a figure has no caption"
         elif FIG_START.match(b):
             if not plates and i < len(body) and body[i].startswith("|"):
                 i += 1
+            if not plates:
+                out.append(("fig", 0))
             plates = False
-            out.append(("fig", 0))
         elif b.startswith("|"):
             out.append(("fig", 0))
         else:
