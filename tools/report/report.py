@@ -32,7 +32,7 @@ annex section type, side-by-side panels and the funding sentence once at the end
 - A caption of the redesign holds the title, the unit and the footnote marks of its source line; the text of
   the source line does not print (the page foot carries it). A "Note :" part stays. A title of more than 8 words
   gets a warning. Figure numbers and table numbers must rise in order of appearance (the build stops
-  otherwise). A section that is not an annex or the key figures must not start with a figure or a table. A figure that
+  otherwise). A section that is not an annex or the key figures must not start or end with a figure or a table: the build stops and names the section. Two figures or tables with fewer than 5 lines of text between them get a warning. A figure that
   no earlier text calls gets a warning.
 
 With --draft, an open marker shows in a highlight and the last page lists it. Without it, an open
@@ -163,6 +163,50 @@ def badge_html(level):
     letter, shape, _ = BADGES[level]
     return (f'<span class="badge" title="{level}"><svg viewBox="0 0 10 10" width="9" height="9" '
             f'aria-hidden="true">{shape}</svg><span class="bl">{letter}</span></span>')
+
+
+FIG_START = re.compile(r"\**(Figure|Tableau)\s+\S+?\.(?=\s|\*|$)")
+LINE_CHARS, GAP_LINES = 95, 5  # characters of a printed line of the text block; lines of text that keep two figures apart
+
+
+def placement(body):
+    """The blocks of a section as ('fig' | 'text', lines of text). A figure is its images and caption; a table is its caption and rows."""
+    out, i, plates = [], 0, False
+    while i < len(body):
+        b, i = body[i], i + 1
+        if re.fullmatch(r"!\[[^\]]*\]\([^)]+\)", b):
+            if not plates:
+                out.append(("fig", 0))
+            plates = True
+            # an image with no caption still counts: the build stops later with "a figure has no caption"
+        elif FIG_START.match(b):
+            if not plates and i < len(body) and body[i].startswith("|"):
+                i += 1
+            if not plates:
+                out.append(("fig", 0))
+            plates = False
+        elif b.startswith("|"):
+            out.append(("fig", 0))
+        else:
+            out.append(("text", 1 if b.startswith("#") else -(-len(b) // LINE_CHARS)))
+    return out
+
+
+def check_placement(title, body):
+    """A figure or a table never opens or closes a section (error); two within GAP_LINES lines of text get a warning."""
+    items = placement(body)
+    if items[0][0] == "fig":
+        raise ReportError(f"section {title!r} starts with a figure or a table: start with text")
+    if items[-1][0] == "fig":
+        raise ReportError(f"section {title!r} ends with a figure or a table: end with text")
+    gap = None
+    for kind, lines in items:
+        if kind == "fig":
+            if gap is not None and gap < GAP_LINES:
+                print(f"warning: section {title!r}: two figures or tables are {gap} lines of text apart (fewer than {GAP_LINES}): they look related", file=sys.stderr)
+            gap = 0
+        elif gap is not None:
+            gap += lines
 
 
 class Doc:
@@ -371,8 +415,8 @@ class Doc:
             self.section = f"{num}. {title}" if num else (title or "")
             self.section_notes.append([])
             heading = "" if title is None else f'<h2>{f"<span class=num>{num}.</span> " if num else ""}{self.dress(self.inline(title), False)}</h2>'
-            if self.redesign and body and title not in (KEY_FIGURES, None) and not re.match(r"Annexe\b", title) and re.match(r"!\[|(?:\*\*)?(?:Figure|Tableau)\s+\S+?\.", body[0]):
-                raise ReportError(f"section {title!r} starts with a figure or a table: start with text")
+            if self.redesign and body and title not in (KEY_FIGURES, None) and not re.match(r"Annexe\b", title):
+                check_placement(title, body)
             inner = self.blocks(body)
             kind = "annex" if self.redesign and re.match(r"Annexe\b", title or "") else (
                 "keyfigures" if self.redesign and title == KEY_FIGURES else "")

@@ -177,7 +177,7 @@ def test_the_funding_and_a_short_identifier_check(tmp_path):
 
 
 def test_a_figure_prints_at_its_own_width_and_two_wide_figures_stack(tmp_path):
-    wide = "![a](figures/plate-a.svg)\n\n![a](figures/plate-a.svg)\n\n**Figure 9.** Deux vues larges. Source : [@port].\n\n"
+    wide = "![a](figures/plate-a.svg)\n\n![a](figures/plate-a.svg)\n\n**Figure 9.** Deux vues larges. Source : [@port].\n\nUn dernier mot du texte.\n\n"
     text = (SAMPLE / "redesign.md").read_text(encoding="utf-8").replace("## 2.", wide + "## 2.", 1)
     _, html = build(tmp_path, text)
     assert html.count('class="fig panels"') == 1  # the narrow pair of the sample only
@@ -215,6 +215,8 @@ Tableau 1. Les contrôles. Source : voir les notes.
 | Contrôle | Source |
 |---|---|
 | Quai | [^d] |
+
+Fin du texte.
 
 [^a]: Port de Brumel, « Rapport annuel », 2026, p. 3, https://example.org/a (consulté le 1er janvier 2027).
 [^b]: Port de Brumel, 2026, p. 4.
@@ -321,3 +323,39 @@ def test_a_pair_of_81_mm_figures_stands_side_by_side_in_the_166_mm_block(tmp_pat
     report.build(src, tmp_path / "figs", tmp_path / "out", name="r")
     html = (tmp_path / "out" / "r.html").read_text(encoding="utf-8")
     assert 'class="fig panels"' in html and html.count("--w:81.0mm") == 2
+
+
+def test_a_section_must_not_end_with_a_figure_or_a_table(tmp_path):
+    text = sample("## 2. Limites\n\nLe registre ne couvre qu'un port.", "## 2. Limites\n\nLe registre ne couvre qu'un port.\n\n![a](figures/plate-a.svg)\n\n**Figure 3.** Trop tard.")
+    with pytest.raises(report.ReportError, match=r"section 'Limites' ends with a figure"):
+        build(tmp_path, text)
+    text = sample("## 2. Limites\n\nLe registre ne couvre qu'un port.", "## 2. Limites\n\nLe registre ne couvre qu'un port.\n\nTableau 2. Fin.\n\n| A |\n|---|\n| 1 |")
+    with pytest.raises(report.ReportError, match=r"section 'Limites' ends with a figure"):
+        build(tmp_path, text)
+
+
+def test_two_figures_with_few_lines_of_text_between_them_get_a_warning(tmp_path, capsys):
+    build(tmp_path)
+    assert "two figures or tables are 0 lines" in capsys.readouterr().err  # Figure 2 and Tableau 1 touch
+    far = sample("Tableau 1. Les instruments", "Un long texte. " * 40 + "\n\nTableau 1. Les instruments")
+    build(tmp_path, far)
+    assert "lines of text apart" not in capsys.readouterr().err
+
+
+def test_the_page_number_is_at_the_bottom_right_and_the_header_is_wider_than_the_text(tmp_path):
+    from weasyprint import HTML
+    build(tmp_path)
+    page = HTML(tmp_path / "out" / "r.html").render().pages[2]._page_box
+    mm = 25.4 / 96
+    boxes = {type(b).__name__: b for b in page.children}
+    assert page.border_width() * mm == pytest.approx(186, abs=0.5) and page.width * mm == pytest.approx(166, abs=0.5)
+    top = [b for b in page.children if getattr(b, "at_keyword", "") in ("@top-left", "@top-right")]
+    assert top and min(b.position_x for b in top) * mm == pytest.approx(12, abs=0.5)
+    right = next(b for b in page.children if getattr(b, "at_keyword", "") == "@bottom-right")
+    assert (right.position_x + right.margin_width()) * mm == pytest.approx(210 - 12, abs=0.5)  # the right edge of the header
+
+
+def test_an_image_with_no_caption_stops_the_build_and_not_the_placement_check():
+    with pytest.raises(report.ReportError, match="ends with a figure"):
+        report.check_placement("X", ["Du texte.", "![a](f.svg)"])
+    assert report.placement(["![a](f.svg)"]) == [("fig", 0)]
