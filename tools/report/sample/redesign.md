@@ -33,6 +33,8 @@ Tableau 1. Les instruments de contrôle du port. Source : [@acte].
 | Arrêté 2020/1 [@acte] | 2020-03-01 | 1 200 [@port] |
 | Arrêté 2021/9 | 2021-06-15 | 35,5 % [@rapport] |
 
+Les deux arrêtés ne couvrent pas les navires de pêche.
+
 ## 2. Limites
 
 Le registre ne couvre qu'un port.

@@ -4,6 +4,13 @@
 :root {
   --sans: 'Roboto Condensed', ui-sans-serif, system-ui, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', 'DejaVu Sans Mono', monospace;
+  /* The page design system (docs: the private PAGE-DESIGN-SYSTEM note). The site scale 11/14/16/20 px is
+     kept in ratio at print: body 10 pt, so section = 10 x 16/14 and the floor `small` = 10 x 11/14. */
+  --body: 10pt;
+  --section: 11.5pt;
+  --small: 8pt; /* caption, footnote, table, header and footer: nothing on the page is smaller */
+  --u: 1.25mm; /* the grid unit: the 4 px grid of the site at print scale */
+  --caps: 0.06em; /* the site tracking for a small uppercase header */
 }
 html {
   font-family: var(--sans);
@@ -289,22 +296,36 @@ figure.panels .plates img {
 @media print {
   @page {
     size: A4;
-    margin: 15mm 22mm 11mm 22mm; /* text block 166 x 271 mm; the page number sits in the header */
+    /* The text block is 166 x 271 mm. The page padding keeps it there, and the margin boxes of the
+       header and the footer span the border box, 10 mm wider than the text on each side. */
+    margin: 15mm 12mm 11mm 12mm;
+    padding: 0 10mm;
     @top-left {
       content: string(report-title);
-      font: 8pt var(--sans);
+      font: var(--small) var(--sans);
       color: var(--label);
       width: 50%;
       white-space: nowrap;
       hyphens: manual;
+      border-bottom: 0.5pt solid var(--border);
+      padding-bottom: 1.5mm;
     }
     @top-right {
-      content: string(section) '  ·  ' counter(page);
-      font: 8pt var(--sans);
+      content: string(section);
+      font: var(--small) var(--sans);
       color: var(--label);
       text-align: right;
       width: 50%;
       white-space: nowrap;
+      border-bottom: 0.5pt solid var(--border);
+      padding-bottom: 1.5mm;
+    }
+    @bottom-right {
+      content: counter(page);
+      font: var(--small) var(--mono);
+      color: var(--label);
+      text-align: right;
+      vertical-align: bottom;
     }
     @footnote {
       border-top: 0.5pt solid var(--input);
@@ -314,19 +335,20 @@ figure.panels .plates img {
   }
   @page cover {
     margin: 30mm 25mm;
+    padding: 0;
     @top-left {
       content: none;
     }
     @top-right {
       content: none;
     }
-    @bottom-center {
+    @bottom-right {
       content: none;
     }
   }
   body {
     background: #fff;
-    font-size: 10pt;
+    font-size: var(--body);
     line-height: 14.5pt;
   }
   a {
@@ -362,24 +384,24 @@ figure.panels .plates img {
     color: var(--muted-foreground);
   }
   h2 {
-    font-size: 13pt;
-    line-height: 17pt;
-    margin: 8mm 0 3mm;
+    font-size: var(--section);
+    line-height: 16pt;
+    margin: calc(6 * var(--u)) 0 calc(2 * var(--u));
     break-after: avoid;
     string-set: section content();
   }
   h3 {
-    font-size: 10.5pt;
-    margin: 5mm 0 2mm;
+    font-size: var(--body);
+    margin: calc(4 * var(--u)) 0 calc(1.5 * var(--u));
     break-after: avoid;
   }
   p {
-    margin: 0 0 2.5mm;
+    margin: 0 0 calc(2 * var(--u));
     orphans: 2;
     widows: 2;
   }
   figure {
-    margin: 5mm 0;
+    margin: calc(4 * var(--u)) 0;
     break-inside: avoid;
   }
   figure img {
@@ -390,17 +412,17 @@ figure.panels .plates img {
     margin-bottom: 2mm;
   }
   .caption {
-    font-size: 8pt;
-    line-height: 11pt;
+    font-size: var(--small);
+    line-height: 10.5pt;
   }
   .tablebox .caption {
     break-after: avoid;
     margin-bottom: 1.5mm;
   }
   table {
-    font-size: 7.5pt;
-    line-height: 10pt;
-    margin-bottom: 4mm;
+    font-size: var(--small);
+    line-height: 10.5pt;
+    margin-bottom: calc(3 * var(--u));
   }
   thead {
     display: table-header-group;
@@ -409,8 +431,12 @@ figure.panels .plates img {
     break-inside: avoid;
   }
   th {
-    font-size: 6.5pt;
+    font-size: var(--small);
+    letter-spacing: var(--caps);
     padding: 1mm 1.5mm;
+  }
+  tbody tr:nth-child(even) {
+    background: var(--muted);
   }
   td {
     padding: 1mm 1.5mm;
@@ -422,8 +448,8 @@ figure.panels .plates img {
   }
   .fn {
     float: footnote;
-    font-size: 7.2pt;
-    line-height: 8.8pt;
+    font-size: var(--small);
+    line-height: 10pt;
     font-weight: 400;
     overflow-wrap: anywhere;
     break-inside: avoid;
