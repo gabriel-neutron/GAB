@@ -287,7 +287,7 @@ class Doc:
             self.last_number[kind] = int(number)
             if kind == "Figure" and not re.search(rf"\bfigure {number}\b", " ".join(self.prose), re.I):
                 print(f"warning: figure {number} is not called by any earlier text", file=sys.stderr)
-        short = re.sub(r"\s*\([^)]*\)\.?\s*$", "", title)
+        short = re.sub(r"\s*\((?:[^()]|\([^()]*\))*\)\.?\s*$", "", title)
         if len(short.split()) > TITLE_WORDS:
             print(f"warning: the title of {kind.lower()} {number} has {len(short.split())} words (more than {TITLE_WORDS}): {short}", file=sys.stderr)
 
@@ -445,11 +445,10 @@ def open_points(doc):
 def page(meta, doc, sections, mode, css):
     esc = lambda key: html.escape(french(meta.get(key, "")))
     byline = " · ".join(x for x in (esc("author"), "version " + esc("version") if meta.get("version") else "", esc("date")) if x)
-    flag = '<p class="draft-flag">Brouillon</p>' if doc.draft else ""
     return f"""<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc("title")}</title><style>{css}</style></head><body>
-<header class="cover"><h1>{esc("title")}</h1><p class="sub">{esc("subtitle")}</p>{flag}<p class="byline">{byline}</p></header>
+<header class="cover"><h1>{esc("title")}</h1><p class="sub">{esc("subtitle")}</p><p class="byline">{byline}</p></header>
 {"" if doc.redesign else f'<div class="verso"><p class="funding-text">{FUNDING}</p></div>'}
 {contents(sections, doc) if doc.redesign else ""}<main>{finish(sections, doc, mode)}</main>{open_points(doc)}
 </body></html>"""

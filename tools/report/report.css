@@ -210,11 +210,6 @@ figure.panels .plates img {
 .bibliography {
   break-after: auto;
 }
-.draft-flag {
-  font-family: var(--mono);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
 
 @media screen {
   body {
