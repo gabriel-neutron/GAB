@@ -118,6 +118,8 @@ interface MountOptions {
   readonly container: HTMLElement;
   readonly data: GlobeData;
   readonly store: GlobeStore;
+  /** True for the flat map, which is the default. False for the globe of the animated mode. */
+  readonly flat: boolean;
 }
 
 export interface GlobeHandle {
@@ -130,7 +132,7 @@ const mounted = new WeakMap<HTMLElement, GlobeHandle>();
 
 /** Draws the globe in `container` and follows the store. Gives null when the browser cannot draw
  * it, and the store then says so. */
-export function mountGlobe({ container, data, store }: MountOptions): GlobeHandle | null {
+export function mountGlobe({ container, data, store, flat }: MountOptions): GlobeHandle | null {
   mounted.get(container)?.destroy();
   if (!hasWebGL2()) {
     store.setUnavailable();
@@ -140,7 +142,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
   const palette = MAP_PALETTES[canvasTheme()];
   const style: StyleSpecification = {
     version: 8,
-    projection: { type: 'globe' },
+    projection: { type: flat ? 'mercator' : 'globe' },
     // A change of paint is a state change and not a fade of 300 ms, which is the default.
     transition: { duration: store.get().moving ? CHANGE_MS : 0, delay: 0 },
     sky: {
@@ -150,7 +152,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
       'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 7, 0],
     },
     // The basemap is a file of the bundle: the outlines of the countries, Natural Earth (public
-    // domain). The globe sends no request to a tile server.
+    // domain, so it asks for no credit and the map shows none). The globe sends no request to a tile server.
     sources: {
       countries: { type: 'geojson', data: countriesUrl },
       entities: { type: 'geojson', data: data.entities },
@@ -262,7 +264,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
 
   let map: MapLibre;
   try {
-    map = new MapLibre({ container, style, center: [0, 30], zoom: 1 });
+    map = new MapLibre({ container, style, center: [0, 30], zoom: 1, attributionControl: false });
   } catch {
     store.setUnavailable();
     return null;
