@@ -7409,7 +7409,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
     SELECT p.* FROM public.cited_passages(ARRAY(SELECT DISTINCT a FROM kept k, unnest(k.acts) AS a
                                                  WHERE cardinality(k.public_sources) > 0)) p
   ), matched AS (
-    SELECT k.claim_id, p.doc_id, p.page, p.cited, p.modality, p.transcribed,
+    SELECT DISTINCT k.claim_id, p.doc_id, p.page, p.cited, p.modality, p.transcribed,
            coalesce(k.words <> '' AND strpos(
              ' ' || btrim(lower(regexp_replace(p.cited, '[^[:alnum:]]+', ' ', 'g'))) || ' ',
              ' ' || k.words || ' ') > 0, false) AS holds

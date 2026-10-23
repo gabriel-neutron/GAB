@@ -2045,6 +2045,8 @@ test('a relation claim reads the passages of an accepted act that added a source
       [GFW],
     );
     await cite(held.ask, added, GFW, 'flag of Panama');
+    // The same quote, cited again by the added act, shows once.
+    await cite(held.ask, added, SHIPS, 'TEST OWNER LTD owns TEST TANKER');
     const read = async (id: string) =>
       (
         await held
