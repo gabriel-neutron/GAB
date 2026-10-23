@@ -5,6 +5,8 @@ ratio (base of a ratio scale, for a log axis with percentage-change ticks).
 Optional column `panel`: one small multiple for each value, stacked, sharing one caption.
 End labels that come close move apart and get a leader line.
 """
+import textwrap
+
 import style as st
 from matplotlib.ticker import FuncFormatter, NullFormatter
 
@@ -40,9 +42,12 @@ def build(data, meta, out_dir, grey=False):
             # start value hollow, end value filled
             ax.plot(xs[0], ys[0], marker=m.marker, markersize=st.MARKER, markerfacecolor="white",
                     markeredgecolor=m.color, linestyle="")
-            items.append((xs[-1], ys[-1], f"{s} {st.num(ys[-1])}", m.color))
-            longest = max(longest, len(items[-1][2]))
-        ax.set_xticks(range(len(periods)), periods)
+            # a narrow figure writes the name above the value, wrapped, to keep the room for the lines
+            end = f"{textwrap.fill(s, 12, break_long_words=False)}{chr(10)}{st.num(ys[-1])}" if st.scale() > 1.5 else f"{s} {st.num(ys[-1])}"
+            items.append((xs[-1], ys[-1], end, m.color))
+            longest = max(longest, max(len(x) for x in items[-1][2].split(chr(10))))
+        short = st.scale() > 1.5 and all(p.isdigit() and len(p) == 4 for p in periods)
+        ax.set_xticks(range(len(periods)), ["'" + p[2:] for p in periods] if short else periods)
         ax.set_xlim(-0.2, len(periods) - 1 + 0.2)
         ax.margins(y=0.08)
         if ratio:
@@ -53,6 +58,6 @@ def build(data, meta, out_dir, grey=False):
             ax.set_ylim(bottom=0)
         groups.append((ax, items))
     # room on the right for the longest end label
-    fig.get_layout_engine().set(rect=(0, 0, 1 - min(0.4, 0.011 * longest + 0.04), 1))
+    fig.get_layout_engine().set(rect=(0, 0, 1 - min(0.4 if st.scale() <= 1.5 else 0.5, 0.011 * st.scale() * longest + 0.04), 1))
     st.end_labels(fig, groups)
     return st.save(fig, out_dir, meta["stem"], meta, grey)

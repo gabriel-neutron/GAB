@@ -48,7 +48,7 @@ def build(data, meta, out_dir, grey=False):
         ax.annotate(f"{st.word('median')} {st.num(med)}", (hi, i), xytext=(6, 0), textcoords="offset points", va="center",
                     fontsize=st.TEXT_PT)
     top = max(stats[g][0][4] for g in groups)
-    ax.set_yticks(range(len(groups)), groups)
+    ax.set_yticks(range(len(groups)), [st.fit_label(g) for g in groups])
     ax.set_ylim(-0.7, len(groups) - 0.3)
     low = 0 if zero else min(stats[g][0][0] for g in groups)
     ax.set_xlim(low if zero else low - (top - low) * 0.03, low + (top - low) / (1 - st.label_room(len(st.word("median")) + 5)))
@@ -56,5 +56,5 @@ def build(data, meta, out_dir, grey=False):
                        Patch(facecolor=st.CONTEXT, edgecolor=st.SECOND, label="Q1–Q3"),
                        Line2D([], [], marker="|", color=st.INK, markersize=10, markeredgewidth=2,
                               linestyle="", label=st.word("median"))],
-              loc="lower left", bbox_to_anchor=(0, 1.0), ncol=3, fontsize=st.TEXT_PT, borderaxespad=0)
+              loc="lower left", bbox_to_anchor=(0, 1.0), ncol=st.legend_cols([f"{st.word('min')}–{st.word('max')}", "Q1–Q3", st.word("median")]), fontsize=st.TEXT_PT, borderaxespad=0)
     return st.save(fig, out_dir, meta["stem"], meta, grey)

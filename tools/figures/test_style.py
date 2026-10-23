@@ -71,3 +71,18 @@ def test_phia_scale_is_complete_and_label_checked():
     assert label("likely or probably", "moderate").startswith("Assessment")
     with pytest.raises(st.StyleError):
         label("certain", "high")
+
+
+def test_a_narrow_figure_wraps_legend_and_labels():
+    assert st.legend_cols(["a", "b", "c"]) == 3
+    assert st.legend_cols(["a", "b", "c", "d", "e"], 4) == 4  # a 160 mm figure keeps its fixed columns
+    assert st.fit_label("UE après OFAC, autre date OFAC") == "UE après OFAC, autre date OFAC"
+    st._width["mm"] = st.PAIR_WIDTH_MM
+    try:
+        assert st.scale() > 1.5
+        assert st.legend_cols(["Combustibles minéraux", "Autres biens"]) == 1
+        assert st.legend_cols(["UE-27", "Chine", "Inde", "Autres"]) == 2
+        assert "\n" in st.fit_label("UE après OFAC, autre date OFAC")
+        assert st.label_room(10) == pytest.approx(0.015 * st.scale() * 10 + 0.02)
+    finally:
+        st._width["mm"] = st.WIDTH_MM
