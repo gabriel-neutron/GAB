@@ -304,8 +304,7 @@ def test_a_figure_that_opens_a_page_after_a_big_blank_waits_for_the_next_paragra
 def test_delayed_moves_a_figure_after_the_next_paragraphs_and_stops_at_a_heading():
     html = '<p>a</p><figure class="fig"><p class="caption">c</p></figure><p>b</p><p>c</p><h2>x</h2><p>d</p>'
     assert report.delayed(html, {0: 1}) == '<p>a</p><p>b</p><figure class="fig"><p class="caption">c</p></figure><p>c</p><h2>x</h2><p>d</p>'
-    assert report.delayed(html, {0: 3}).count("<h2>x</h2>") == 1
-    assert report.delayed(html, {0: 3}).index("<figure") < report.delayed(html, {0: 3}).index("<h2>")
+    assert report.delayed(html, {0: 3}) == '<p>a</p><p>b</p><p>c</p><figure class="fig"><p class="caption">c</p></figure><h2>x</h2><p>d</p>'
 
 
 def test_a_pair_of_81_mm_figures_stands_side_by_side_in_the_166_mm_block(tmp_path):

@@ -496,7 +496,10 @@ def delayed(page_html, delays):
 
 
 def blocks_of_page(page_box):
-    """The text blocks of one page in order, as (tag, class, top, bottom, section), and the foot of the free area."""
+    """The text blocks of one page in order, as (tag, class, top, bottom, section), and the foot of the free area.
+
+    The box tree is WeasyPrint's private layout (`_page_box`): no public call gives the free space of a page. The
+    tool pins the version in its Docker image; a renamed box makes `holes` find nothing and the tests fail."""
     found = []
 
     def walk(b, section):
@@ -523,10 +526,12 @@ def holes(pdf):
     ordinal, found, prev = 0, [], None
     for page in pdf.pages:
         blocks, foot, height = blocks_of_page(page._page_box)
-        figs = [b for b in blocks if b[0] == "figure"]
-        if prev and blocks and blocks[0][0] == "figure" and prev[0] and blocks[0][4] is prev[0][-1][4]                 and prev[1] - max(b[3] for b in prev[0]) > HOLE * height:
-            found.append(ordinal)
-        ordinal += len(figs)
+        if prev and blocks and blocks[0][0] == "figure":
+            before, before_foot = prev
+            same_section = before and blocks[0][4] == before[-1][4]
+            if same_section and before_foot - max(b[3] for b in before) > HOLE * height:
+                found.append(ordinal)
+        ordinal += sum(1 for b in blocks if b[0] == "figure")
         prev = (blocks, foot)
     return found
 
@@ -537,7 +542,9 @@ def reflow(page_html, base_url):
     delays, pdf = {}, None
     for _ in range(MAX_PASSES):
         pdf = HTML(string=delayed(page_html, delays), base_url=base_url).render()
-        moves = [k for k in holes(pdf) if delays.get(k, 0) < MAX_DELAY]
+        # a figure with no paragraph after it cannot move: it must not cost another pass
+        moves = [k for k in holes(pdf) if delays.get(k, 0) < MAX_DELAY and k < len(FIGURE.findall(page_html))
+                 and delayed(page_html, {**delays, k: delays.get(k, 0) + 1}) != delayed(page_html, delays)]
         if not moves:
             break
         for k in moves:
