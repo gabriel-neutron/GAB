@@ -188,7 +188,8 @@ ol.biblio .url {
 figure.panels .plates {
   display: flex;
   gap: 4mm;
-  align-items: flex-end;
+  justify-content: center;
+  align-items: flex-start;
 }
 figure.panels .plates img {
   flex: 0 1 auto;
@@ -293,7 +294,7 @@ figure.panels .plates img {
 @media print {
   @page {
     size: A4;
-    margin: 22mm 25mm 24mm 25mm;
+    margin: 15mm 22mm 11mm 22mm; /* text block 166 x 271 mm; the page number sits in the header */
     @top-left {
       content: string(report-title);
       font: 8pt var(--sans);
@@ -303,17 +304,12 @@ figure.panels .plates img {
       hyphens: manual;
     }
     @top-right {
-      content: string(section);
+      content: string(section) '  ·  ' counter(page);
       font: 8pt var(--sans);
       color: var(--label);
       text-align: right;
       width: 50%;
       white-space: nowrap;
-    }
-    @bottom-center {
-      content: counter(page);
-      font: 8pt var(--mono);
-      color: var(--foreground);
     }
     @footnote {
       border-top: 0.5pt solid var(--input);
@@ -394,7 +390,7 @@ figure.panels .plates img {
   figure img {
     width: var(--w, 100%);
     max-width: 100%;
-    max-height: 212mm;
+    max-height: 235mm;
     display: block;
     margin-bottom: 2mm;
   }
