@@ -1,6 +1,7 @@
 // Each tool runs against the disposable database as gabriel_research, the role with the narrowest
 // grants. Each gesture runs inside a transaction that rolls back, so the corpus stays as it was.
 
+import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 
 import { expect, test } from 'vitest';
@@ -2324,5 +2325,52 @@ test('propose refuses the denial of an event that has no occurred_at relation of
   expect(found).toMatchObject({
     ok: false,
     refusal: expect.stringContaining('has no occurred_at relation of the record') as string,
+  });
+});
+
+// ------------------------------------------------ read_duplicate_identifiers ---
+
+test('read_duplicate_identifiers flags two entities with one INN, and not a third with another', async () => {
+  await rolledBack('superuser', async (ask) => {
+    const made = z.array(z.object({ id: z.uuid() }));
+    const plant = async (label: string, inn: string): Promise<string> => {
+      await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+      const [act] = made.parse(
+        await ask(`SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::text[]) AS id`, [
+          'create_entity',
+          JSON.stringify({ type: 'company', label }),
+        ]),
+      );
+      await ask('RESET SESSION AUTHORIZATION');
+      const [row] = made.parse(
+        await ask(
+          `INSERT INTO public.entities (type, label, attrs, sources, promoted_from)
+           VALUES ('company', $1, jsonb_build_object('tax_id', jsonb_build_object('v', $2::text, 'src', jsonb_build_array('manual'))),
+                   ARRAY['manual']::doc_id[], $3) RETURNING id`,
+          [label, inn, act?.id],
+        ),
+      );
+      if (row === undefined) throw new Error('no entity came back');
+      return row.id;
+    };
+    const inn = `99${randomUUID().replaceAll('-', '').slice(0, 10)}`.toUpperCase();
+    const a = await plant('Dup A', inn);
+    const b = await plant('Dup B', inn);
+    await plant('Other', `${inn}0`);
+    const found = z
+      .object({
+        groups: z.array(
+          z.object({
+            key: z.string(),
+            value: z.string(),
+            entities: z.array(z.object({ id: z.uuid() })),
+          }),
+        ),
+      })
+      .parse(await output(ask, 'read_duplicate_identifiers', {}));
+    const mine = found.groups.filter((group) => group.value === inn);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]?.key).toBe('tax_id');
+    expect(mine[0]?.entities.map((one) => one.id).sort()).toStrictEqual([a, b].sort());
   });
 });

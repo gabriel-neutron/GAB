@@ -1,7 +1,7 @@
 /** The keys that name one legal or physical thing: an INN (tax_id), an OGRN (registration_number),
  * an IMO number and a LEI. Two entities, of any type, with the same value are one thing recorded
  * twice, or a wrong value. */
-const UNIQUE_KEYS = ['imo', 'tax_id', 'registration_number', 'lei'] as const;
+export const UNIQUE_KEYS = ['imo', 'tax_id', 'registration_number', 'lei'] as const;
 
 export interface EntityIdentifiers {
   readonly id: string;
