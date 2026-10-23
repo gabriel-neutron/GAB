@@ -526,15 +526,16 @@ END $$;
 CREATE OR REPLACE FUNCTION relation_adds_citation(p_target uuid, p_cites jsonb, p_self uuid)
 RETURNS boolean
 LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.relations r, jsonb_array_elements(p_cites) AS c
-     WHERE r.id = p_target AND c->>'document' = ANY (r.sources::text[])
-       AND NOT EXISTS (
-         SELECT 1 FROM public.citation h JOIN public.proposals q ON q.id = h.claim_id
-          WHERE q.status = 'accepted' AND q.target_id = p_target AND q.id IS DISTINCT FROM p_self
-            AND h.doc_id = c->>'document' AND h.text_extractor = c->>'text_extractor'
-            AND h.page = (c->>'page')::int AND h.start IS NOT DISTINCT FROM (c->>'start')::int
-            AND h."end" IS NOT DISTINCT FROM (c->>'end')::int));
+  SELECT EXISTS (SELECT 1 FROM public.relations r, jsonb_array_elements(p_cites) AS c
+                  WHERE r.id = p_target AND c->>'document' = ANY (r.sources::text[]))
+     AND NOT EXISTS (
+       SELECT 1 FROM jsonb_array_elements(p_cites) AS c
+        WHERE EXISTS (
+          SELECT 1 FROM public.citation h JOIN public.proposals q ON q.id = h.claim_id
+           WHERE q.status = 'accepted' AND q.target_id = p_target AND q.id IS DISTINCT FROM p_self
+             AND h.doc_id = c->>'document' AND h.text_extractor = c->>'text_extractor'
+             AND h.page = (c->>'page')::int AND h.start IS NOT DISTINCT FROM (c->>'start')::int
+             AND h."end" IS NOT DISTINCT FROM (c->>'end')::int));
 $$;
 
 -- A TYPE CHANGE GOES ONLY ON A designated_by RELATION, AND ONLY WHEN NO OPEN restricted_by RELATION
