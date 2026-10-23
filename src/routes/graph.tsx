@@ -59,9 +59,6 @@ export const Route = createFileRoute('/graph')({
   head: () => ({ meta: [{ title: 'Graph · GAB dataset' }] }),
 });
 
-const count = (n: number, one: string, many: string): string =>
-  `${String(n)} ${n === 1 ? one : many}`;
-
 function GraphRoute() {
   const record = Route.useLoaderData();
   const releaseNote = useReleaseNote();
@@ -112,13 +109,6 @@ function GraphRoute() {
       ) : (
         <PageHeader title="Graph" detail={`From the release of ${releaseDay(releaseNote.date)}`} />
       )}
-      <p className="max-w-prose">
-        {count(corpus.entities.length, 'entity is', 'entities are')} drawn as a node, and{' '}
-        {count(corpus.relations.length, 'relation joins', 'relations join')} two of them with a
-        line. The graph opens on a choice of an entity, and then draws that entity with its
-        neighbours. Select a node, a line or a name in the list to read its record. The types switch
-        off what they hold, and the field in the header narrows the lists.
-      </p>
       <GraphPage record={record} onSelect={setSelection} card={card} />
     </ReadingPage>
   );

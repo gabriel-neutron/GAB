@@ -15,7 +15,7 @@ const rowsOf = (name: string, text: string | null) =>
 // The matrix and the links come from the release, and the figures from the data files of the
 // report, so the page reads both whether the read service answers or not. A file that is absent
 // leaves its figure out with one sentence. A file that cannot be read stops the build.
-export const Route = createFileRoute('/exports')({
+export const Route = createFileRoute('/report')({
   loader: async () => {
     // The record is read first, so the footer knows whether the service answers.
     await loadCorpus().catch(() => undefined);
@@ -30,7 +30,7 @@ export const Route = createFileRoute('/exports')({
     };
   },
   component: ExportsRoute,
-  head: () => ({ meta: [{ title: 'Exports · GAB dataset' }] }),
+  head: () => ({ meta: [{ title: 'Report · GAB dataset' }] }),
 });
 
 function ExportsRoute() {

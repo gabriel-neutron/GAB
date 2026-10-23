@@ -33,7 +33,7 @@ type Story = StoryObj<typeof meta>;
 export const GivesTheScopeAndThreeWaysToStart: Story = {
   play: async ({ canvas }) => {
     await expect(await canvas.findByText(/sourced facts about the Russian/u)).toBeVisible();
-    await expect(canvas.getByRole('link', { name: 'Search' })).toHaveAttribute('href', '/search');
+    await expect(canvas.getByText(/field of the header/u)).toBeVisible();
     await expect(canvas.getByText(/Use this map/u)).toBeVisible();
     await expect(canvas.getByRole('link', { name: 'Open the graph' })).toHaveAttribute(
       'href',
@@ -42,13 +42,12 @@ export const GivesTheScopeAndThreeWaysToStart: Story = {
   },
 };
 
-export const PointsToTheGlossaryAndTheHelpPage: Story = {
+export const PointsToTheDataPage: Story = {
   play: async ({ canvas }) => {
-    await expect(await canvas.findByRole('link', { name: 'glossary' })).toHaveAttribute(
+    await expect(await canvas.findByRole('link', { name: 'Data' })).toHaveAttribute(
       'href',
-      '/glossary',
+      '/data',
     );
-    await expect(canvas.getByRole('link', { name: 'help page' })).toHaveAttribute('href', '/help');
   },
 };
 

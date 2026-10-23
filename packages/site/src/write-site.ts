@@ -39,7 +39,7 @@ const SHELL_TITLE = /<title>[^<]*<\/title>/u;
 const TITLE_SUFFIX = ' · GAB dataset';
 
 // The pages that need a script and hold no permanent text: the shell opens them as it is.
-const SCRIPT_PAGES = ['graph', 'search', 'review'] as const;
+const SCRIPT_PAGES = ['graph', 'review'] as const;
 
 const fileManifest = z.object({
   files: z.array(z.object({ path: z.string().regex(/^[\w-][\w.-]*$/u) })),
@@ -123,11 +123,8 @@ const pagesOf = (release: SiteRelease): readonly Page[] => {
   const pages: Page[] = [
     { folder: '', kind: 'text' },
     { folder: 'map', kind: 'text' },
-    { folder: 'downloads', kind: 'text' },
-    { folder: 'method', kind: 'text' },
-    { folder: 'exports', kind: 'text' },
-    { folder: 'glossary', kind: 'text' },
-    { folder: 'help', kind: 'text' },
+    { folder: 'data', kind: 'text' },
+    { folder: 'report', kind: 'text' },
     { folder: 'v1', kind: 'text' },
     ...SCRIPT_PAGES.map((folder) => ({ folder, kind: 'script' as const })),
   ];

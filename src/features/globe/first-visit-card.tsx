@@ -29,12 +29,7 @@ export function FirstVisitCard({ onClose }: FirstVisitCardProps) {
         fact cites a document. A fact in review is a proposal, and the page marks it as one.
       </p>
       <ul className="flex flex-col gap-1">
-        <li>
-          <Link to="/search" className={READING_LINK}>
-            Search
-          </Link>{' '}
-          for a name, a value or a document.
-        </li>
+        <li>Search for a name in the field of the header.</li>
         <li>Use this map to see where the assets are and how the chain joins them.</li>
         <li>
           <Link to="/graph" search={{ entity: '', relation: '' }} className={READING_LINK}>
@@ -42,18 +37,13 @@ export function FirstVisitCard({ onClose }: FirstVisitCardProps) {
           </Link>{' '}
           to follow the relations of one entity.
         </li>
+        <li>
+          <Link to="/data" className={READING_LINK}>
+            Data
+          </Link>{' '}
+          says how the facts are checked, and gives the files.
+        </li>
       </ul>
-      <p>
-        A word that you do not know is in the{' '}
-        <Link to="/glossary" className={READING_LINK}>
-          glossary
-        </Link>
-        . The{' '}
-        <Link to="/help" className={READING_LINK}>
-          help page
-        </Link>{' '}
-        says how the facts are checked.
-      </p>
       <div>
         <Button type="button" variant="outline" size="sm" onClick={close}>
           Close this card

@@ -192,7 +192,7 @@ For `pnpm dev` or `pnpm build`, set `RELEASE_DIR` to a release folder. The build
 DD/MM/YYYY", and the footer gives the two contact links of the release. The release command does
 the same build for the public site, and then renders each page that has a permanent address.
 
-The exports page of the report also reads three data files in long format. They are public and sit
+The report page also reads three data files in long format. They are public and sit
 in the repository, in the folder of the site package. The build copies them to `report/` beside the
 application. Set `REPORT_DIR` to another folder to build with other values. A file that holds a
 value that is not a number stops the build.
