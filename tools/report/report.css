@@ -431,9 +431,11 @@ figure.panels .plates img {
   }
   .fn {
     float: footnote;
-    font-size: 8pt;
-    line-height: 11pt;
+    font-size: 7.2pt;
+    line-height: 8.8pt;
     font-weight: 400;
+    overflow-wrap: anywhere;
+    break-inside: avoid;
     color: var(--muted-foreground);
   }
   .fn::footnote-call {

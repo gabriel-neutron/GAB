@@ -194,3 +194,40 @@ def test_natural_mm_reads_pt_then_the_viewbox_in_mm(tmp_path):
     assert report.natural_mm(tmp_path / "none.svg") == report.PAGE_MM
     (tmp_path / "broken.svg").write_text("not an svg", encoding="utf-8")
     assert report.natural_mm(tmp_path / "broken.svg") == report.PAGE_MM
+
+
+NO_BIB = """---
+title: Essai
+subtitle: Notes sans bibliographie
+layout: redesign
+---
+
+## 1. Texte
+
+Un fait [^a]. Un autre fait [^b].
+
+![Figure 1. Trois chiffres](figures/plate-a.svg)
+
+**Figure 1.** Trois chiffres. Source : Port, 2026[^c].
+
+Tableau 1. Les contrôles. Source : voir les notes.
+
+| Contrôle | Source |
+|---|---|
+| Quai | [^d] |
+
+[^a]: Port de Brumel, « Rapport annuel », 2026, p. 3, https://example.org/a (consulté le 1er janvier 2027).
+[^b]: Port de Brumel, 2026, p. 4.
+[^c]: Port de Brumel, 2026.
+[^d]: Autorité, 2025.
+"""
+
+
+def test_footnotes_without_a_bibliography_print_at_the_foot_and_no_bibliography_page(tmp_path):
+    pages, html = build(tmp_path, NO_BIB)
+    assert "Bibliographie" not in html and not any("Bibliographie" in p for p in pages)
+    p = page_of(pages, "Un fait")
+    assert pages[p].index("Rapport annuel") > pages[p].index("Trois chiffres")
+    for note in ("Port de Brumel, 2026, p. 4", "Port de Brumel, 2026. ", "Autorité, 2025"):
+        assert note in " ".join(pages)
+    assert re.findall(r'id="fnref-(\d+)-1"', html) == ["1", "2", "3", "4"]
