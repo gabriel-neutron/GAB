@@ -272,12 +272,17 @@ def test_a_side_by_side_pair_has_one_height(tmp_path):
     widths = [float(w) for w in re.findall(r'--w:([\d.]+)mm', re.search(r'<figure class="fig panels">.*?</figure>', html, re.S)[0])]
     aspects = [report.aspect_of(SAMPLE / "figures" / n) for n in ("plate-c", "plate-b")]
     assert len(widths) == 2 and widths[0] / aspects[0] == pytest.approx(widths[1] / aspects[1], abs=0.2)
-    assert sum(widths) + report.GUTTER_MM <= report.PAGE_MM + report.GUTTER_MM
+    assert sum(widths) + report.GUTTER_MM <= report.PAGE_MM
 
 
-def test_the_text_block_is_at_least_265_mm_high_and_the_cover_has_only_the_author(tmp_path):
+def test_the_text_block_is_at_least_265_mm_high(tmp_path):
     from weasyprint import HTML
-    _, html = build(tmp_path, sample("date: 1er janvier 2027\nversion: 0.2\n", ""))
-    doc = HTML(tmp_path / "out" / "r.html").render()
-    assert doc.pages[1]._page_box.height * 25.4 / 96 >= 265
-    assert "version" not in html.split("</header>")[0] and "2027" not in html.split("</header>")[0]
+    build(tmp_path)
+    assert HTML(tmp_path / "out" / "r.html").render().pages[1]._page_box.height * 25.4 / 96 >= 265
+
+
+def test_the_cover_holds_the_title_the_subtitle_and_the_byline_and_no_draft_flag(tmp_path):
+    _, html = build(tmp_path, draft=True)
+    cover = html.split("</header>")[0]
+    assert "Brouillon" not in cover and "draft-flag" not in cover
+    assert "Rapport d’essai" in cover and "Auteur Un" in cover

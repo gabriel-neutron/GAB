@@ -32,7 +32,7 @@ annex section type, side-by-side panels and the funding sentence once at the end
 - A caption of the redesign holds the title, the unit and the footnote marks of its source line; the text of
   the source line does not print (the page foot carries it). A "Note :" part stays. A title of more than 8 words
   gets a warning. Figure numbers and table numbers must rise in order of appearance (the build stops
-  otherwise). A section that is not an annex or the key figures must not start with a figure. A figure that
+  otherwise). A section that is not an annex or the key figures must not start with a figure or a table. A figure that
   no earlier text calls gets a warning.
 
 With --draft, an open marker shows in a highlight and the last page lists it. Without it, an open
