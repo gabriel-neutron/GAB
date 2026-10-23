@@ -18,7 +18,9 @@ const isGazette = (uri: string | null | undefined): boolean => {
 /** The identifiers of the `designated_by` and `restricted_by` relations whose every source is a
  * page of the Federal Register, GovInfo or the Canada Gazette. A relation with no source is not
  * listed. */
-export const gazetteOnlyDesignations = (record: ReleaseRecord): string[] =>
+export const gazetteOnlyDesignations = (
+  record: Pick<ReleaseRecord, 'relations' | 'documents'>,
+): string[] =>
   record.relations
     .filter(
       (one) =>

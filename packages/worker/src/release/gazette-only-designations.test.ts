@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 
 import { gazetteOnlyDesignations } from './gazette-only-designations.ts';
-import type { ReleaseDocument, ReleaseRecord, ReleaseRelation } from './release-record.ts';
+import type { ReleaseDocument, ReleaseRelation } from './release-record.ts';
 
 const doc = (id: string, uri: string): [string, ReleaseDocument] => [
   id,
@@ -19,16 +19,15 @@ const relation = (n: number, type: string, sources: string[]): ReleaseRelation =
   sources,
 });
 
-const recordOf = (relations: ReleaseRelation[]): ReleaseRecord =>
-  ({
-    relations,
-    documents: new Map([
-      doc('fr', 'https://www.federalregister.gov/d/2024-1'),
-      doc('gov', 'https://www.govinfo.gov/content/pkg/x'),
-      doc('cg', 'https://gazette.gc.ca/rp-pr/p2/2024/x.html'),
-      doc('sdn', 'https://sanctionslistservice.ofac.treas.gov/x'),
-    ]),
-  }) as unknown as ReleaseRecord;
+const recordOf = (relations: ReleaseRelation[]) => ({
+  relations,
+  documents: new Map([
+    doc('fr', 'https://www.federalregister.gov/d/2024-1'),
+    doc('gov', 'https://www.govinfo.gov/content/pkg/x'),
+    doc('cg', 'https://gazette.gc.ca/rp-pr/p2/2024/x.html'),
+    doc('sdn', 'https://sanctionslistservice.ofac.treas.gov/x'),
+  ]),
+});
 
 test('a designation that cites only the Federal Register is listed', () => {
   const one = relation(1, 'designated_by', ['fr']);

@@ -29,7 +29,7 @@ export interface WrittenRelease {
   /** The rows of the volume table that join no link because a label names more than one entity,
    * with the reason. */
   readonly volumesUnjoined: readonly VolumeRejection[];
-  /** The relations of a designation that cite only the Federal Register or the Canada Gazette. */
+  /** The relations of a designation that cite only the Federal Register, GovInfo or the Canada Gazette. */
   readonly gazetteOnly: readonly string[];
 }
 
