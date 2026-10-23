@@ -350,7 +350,8 @@ class Doc:
         finally:
             self.in_table = False
         if note.strip():  # the note of a figure sits on its own line under the caption
-            out = out.replace(" Note :", ' <span class="note">Note :', 1).replace("</p>", "</span></p>", 1)
+            out, hit = re.subn(r"\s(Note[   ]:)", r' <span class="note">\1', out, count=1)
+            out = out.replace("</p>", "</span></p>", 1) if hit else out
         return out.replace("<p>", '<p class="caption">', 1)
 
     def check_caption(self, label, title):

@@ -539,5 +539,7 @@ def test_dossier_is_the_default_theme_and_base_drops_it(tmp_path):
 
 
 def test_the_note_of_a_caption_has_its_own_span(tmp_path):
-    _, page = build(tmp_path)
-    assert re.search(r'<span class="note">Note :', page) or "Note :" not in (SAMPLE / "redesign.md").read_text(encoding="utf-8")
+    text = ("---\ntitle: T\nlayout: redesign\n---\n\n## 1. A\n\nTexte de la figure 1.\n\n![x](figures/plate-a.svg)\n\n"
+            "Figure 1. Un titre court. Source : X. Note : une note.\n\nSuite.\n")
+    _, page = build(tmp_path, text)
+    assert re.search(r'<span class="note">Note[   ]: une note\.</span></p>', page)
