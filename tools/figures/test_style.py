@@ -105,3 +105,19 @@ def test_the_style_fonts_are_bundled():
     names = {f.name for f in (Path(st.HERE) / "fonts").glob("*.ttf")}
     assert {"SourceSerif4-Regular.ttf", "SourceSerif4-It.ttf", "JetBrainsMono-Regular.ttf"} <= names
     assert st.MONO_FACE == "JetBrains Mono"
+
+
+def test_an_annotation_that_names_no_point_is_refused(tmp_path):
+    import figures
+    (tmp_path / "d.csv").write_text("serie,periode,valeur,unite,document\nS,2020,1,u,doc_0123456789ab\nS,2021,2,u,doc_0123456789ab\n", encoding="utf-8")
+    cap = {"number": 1, "title": "T", "source": "S", "note": "does not start at zero.",
+           "annotations": [{"n": 1, "text": "x", "serie": "S", "periode": "1999"}]}
+    (tmp_path / "d.caption.json").write_text(__import__("json").dumps(cap), encoding="utf-8")
+    with pytest.raises(st.StyleError, match="names no point"):
+        figures.make("line", tmp_path / "d.csv", out=tmp_path)
+
+
+def test_a_figure_holds_26_panels_at_most():
+    assert st.panel_letter(25) == "Z"
+    with pytest.raises(st.StyleError):
+        st.panel_letter(26)

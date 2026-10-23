@@ -35,7 +35,7 @@ THIN = " "
 # Dossier style: thin lines, hollow marks, serif text in the body face. Sizes in points at print (7 pt is the floor).
 TITLE_PT, TEXT_PT, NOTE_PT = 9, 8, 7.5
 LINE_W, MARKER, ARROW = 0.8, 4, 8
-SEMIBOLD = "semibold"  # weight 600 of Source Serif 4
+SEMIBOLD = "semibold"  # weight 600 of Source Serif 4; JetBrains Mono has no semibold file, so it uses bold
 HALO = "#000000"
 # Two grey marks must differ by this much in OKLab lightness to stay apart in grey print.
 MIN_GREY_STEP = 0.12
@@ -65,7 +65,7 @@ def chroma(hexcolor):
     return math.hypot(*_oklab(hexcolor)[1:])
 
 
-# Roles of the site tokens in a figure (docs of the stylesheet: foreground is ink, label the third text step, input a strong thin rule).
+# Role of each site token in a figure: ink for text, three text steps, a strong thin rule for axes and context marks, a light rule for the grid.
 INK = tk.hex("foreground")
 SECOND = tk.hex("muted-foreground")
 LABEL = tk.hex("label")
@@ -281,6 +281,12 @@ def panel_title(ax, text, letter=None):
                 bbox=dict(boxstyle="square,pad=0.25", facecolor="none", edgecolor=ACCENT, linewidth=0.8))
     ax.annotate(text, (0, 1), xycoords="axes fraction", xytext=(16, 4), textcoords="offset points", ha="left", va="bottom",
                 fontsize=TITLE_PT, fontweight=SEMIBOLD, color=INK, annotation_clip=False)
+
+
+def panel_letter(k):
+    if k > 25:
+        raise StyleError("a figure holds 26 panels at most")
+    return chr(65 + k)
 
 
 def note_mark(ax, x, y, n, dx=10, dy=8):

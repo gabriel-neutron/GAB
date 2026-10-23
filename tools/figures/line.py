@@ -29,7 +29,7 @@ def build(data, meta, out_dir, grey=False):
         unit = (sub[0].get("unite") if panel else "") or meta.get("unit", "")
         st.style_axes(ax, "" if panel else unit)
         if panel:
-            st.panel_title(ax, f"{panel} ({unit})" if unit else panel, letter=chr(65 + k))
+            st.panel_title(ax, f"{panel} ({unit})" if unit else panel, letter=st.panel_letter(k))
         items = []
         for s, m in zip(series, marks):
             pts = {r["periode"]: r["valeur"] for r in sub if r["serie"] == s}
@@ -55,7 +55,9 @@ def build(data, meta, out_dir, grey=False):
         groups.append((ax, items))
         for a in meta.get("annotations", []):
             if a.get("panel", "") == panel:
-                y = next(r["valeur"] for r in sub if r["serie"] == a["serie"] and r["periode"] == a["periode"])
+                y = next((r["valeur"] for r in sub if r["serie"] == a["serie"] and r["periode"] == a["periode"]), None)
+                if y is None:
+                    raise st.StyleError(f"annotation {a['n']} names no point: {a['serie']}, {a['periode']}")
                 st.note_mark(ax, periods.index(a["periode"]), y, a["n"], *a.get("offset", (10, 8)))
     st.end_labels(fig, groups)
     return st.save(fig, out_dir, meta["stem"], meta, grey)

@@ -21,7 +21,7 @@ def build(data, meta, out_dir, grey=False):
     top = max(y for p in panels for s in p["series"] for _, y in s["points"])
     for k, (ax, p) in enumerate(zip(axes.flat, panels)):
         st.style_axes(ax, "")
-        st.panel_title(ax, p["title"], letter=chr(65 + k))
+        st.panel_title(ax, p["title"], letter=st.panel_letter(k))
         for s, m in zip(p["series"], st.SERIES):
             ax.plot(*zip(*s["points"]), color=m.color, marker=m.marker, markersize=st.MARKER - 1,
                     linewidth=st.LINE_W, label=s["name"], markerfacecolor=st.PAPER, markeredgewidth=st.LINE_W)

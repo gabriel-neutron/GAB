@@ -12,9 +12,7 @@ from pathlib import Path
 CSS = Path(os.environ.get("FIGURE_TOKENS") or Path(__file__).resolve().parents[2] / "src" / "index.css")
 
 # Fonts of the Dossier style. The site has no serif face: Source Serif 4 (SIL OFL) is the body face.
-FONTS = {"serif": ["Source Serif 4", "DejaVu Serif"], "mono": ["JetBrains Mono", "DejaVu Sans Mono"],
-         "structure": ["Roboto Condensed", "DejaVu Sans"]}
-WEIGHTS = {"regular": 400, "semibold": 600, "bold": 700}
+FONTS = {"serif": ["Source Serif 4", "DejaVu Serif"], "mono": ["JetBrains Mono", "DejaVu Sans Mono"]}
 
 
 def _oklab_to_hex(L, a, b):
