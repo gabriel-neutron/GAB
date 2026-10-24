@@ -897,16 +897,17 @@ export function mountMap({
   const map = new MapLibreMap(options);
 
   // MapLibre credits each source that a visible layer uses, so the hidden ground credits nothing.
-  // It is compact by choice of the operator: the full credit opens from the button, and the
-  // imagery panel states it whole.
+  // It is compact by choice of the operator: the full credit opens from the button. The satellite
+  // panel states the imagery credit whole. The plan credit stands behind the button only.
   map.addControl(new AttributionControl({ compact: true }), creditCorner);
   // MapLibre opens a compact credit at the first frame. The button stays and the text folds.
-  map.once('idle', () => {
+  const foldCredit = (): void => {
     map
       .getContainer()
       .querySelector('.maplibregl-ctrl-attrib')
       ?.classList.remove('maplibregl-compact-show');
-  });
+  };
+  map.once('idle', foldCredit);
 
   // The pixel offset needs a live map to turn into a point, because it reads the current zoom.
   // `project` and `unproject` carry the current bearing and pitch too, so the circle stays a
@@ -1780,6 +1781,7 @@ export function mountMap({
       for (const listener of pendingMoveEnds) map.off('moveend', listener);
       pendingMoveEnds.clear();
       // The same rule applies to a box zoom whose fit is not complete.
+      map.off('idle', foldCredit);
       for (const listener of pendingIdles) map.off('idle', listener);
       pendingIdles.clear();
       selectListeners.clear();
