@@ -788,6 +788,44 @@ test('the documents of a geometry are the public documents of each act that gave
   ]);
 });
 
+test('a clearing act leaves the release with no place, and an old clearing act breaks no later read', async () => {
+  const rows = await inTransaction(async (held) => {
+    await record(held);
+    const place = async (geom: unknown, day: string, src: string[]) =>
+      decidedAct(
+        held,
+        'update_entity',
+        { geom },
+        { kind: 'entity', id: VESSEL },
+        'validated manually by the operator',
+        day,
+        src,
+      );
+    const point = { type: 'Point', coordinates: [32.5, 46.6] };
+    const read = async () =>
+      (
+        await held
+          .as('gabriel_app')
+          .query(
+            'SELECT geom, geom_sources, geom_method FROM public.release_entities() WHERE id = $1',
+            [VESSEL],
+          )
+      ).rows;
+    await place(point, '2026-10-09', [GFW]);
+    await place(null, '2026-10-10', [SHIPS]);
+    await held.ask('UPDATE public.entities SET geom = NULL WHERE id = $1', [VESSEL]);
+    const cleared = await read();
+    await place(point, '2026-10-11', [TWO]);
+    await held.ask(
+      'UPDATE public.entities SET geom = ST_SetSRID(ST_MakePoint(32.5, 46.6), 4326) WHERE id = $1',
+      [VESSEL],
+    );
+    return { cleared, placedAgain: await read() };
+  });
+  expect(rows.cleared).toStrictEqual([{ geom: null, geom_sources: [], geom_method: null }]);
+  expect(rows.placedAgain).toMatchObject([{ geom_sources: [GFW, TWO] }]);
+});
+
 test('the release reads the method of geolocation of each place, and none for an entity with no place', async () => {
   const rows = await inTransaction(async (held) => {
     await record(held);
@@ -1990,4 +2028,64 @@ test('the lane of events reads what a real release holds: the precision, the den
   });
   expect(event?.denials.map((one) => one.source.documentId)).toStrictEqual([DENIAL]);
   expect(event?.documents.map((one) => one.documentId)).toContain(POST);
+});
+
+test('a relation claim reads the passages of an accepted act that added a source, with one row for the document', async () => {
+  const rows = await inTransaction(async (held) => {
+    const { owns } = await record(held);
+    const second = await relation(held, 'owns', OWNER, SECOND, [SHIPS, GFW]);
+    await cite(held.ask, second.act, SHIPS, 'TEST OWNER LTD owns TEST TANKER');
+    const added = await decidedAct(
+      held,
+      'update_relation',
+      { add_source: true },
+      { kind: 'relation', id: second.id },
+      'validated manually by the operator',
+      '2026-10-09',
+      [GFW],
+    );
+    await cite(held.ask, added, GFW, 'flag of Panama');
+    // The same quote, cited again by the added act, shows once.
+    await cite(held.ask, added, SHIPS, 'TEST OWNER LTD owns TEST TANKER');
+    const read = async (id: string) =>
+      (
+        await held
+          .as('gabriel_app')
+          .query('SELECT passages FROM public.release_claims() WHERE claim_id = $1', [id])
+      ).rows;
+    return { added: await read(second.id), plain: await read(owns.id) };
+  });
+  expect(rows.added).toStrictEqual([
+    {
+      passages: [
+        {
+          document: GFW,
+          page: 1,
+          excerpt: 'flag of Panama',
+          modality: 'asserts',
+          transcribed: false,
+        },
+        {
+          document: SHIPS,
+          page: 1,
+          excerpt: 'TEST OWNER LTD owns TEST TANKER',
+          modality: 'asserts',
+          transcribed: false,
+        },
+      ],
+    },
+  ]);
+  expect(rows.plain).toStrictEqual([
+    {
+      passages: [
+        {
+          document: SHIPS,
+          page: 1,
+          excerpt: 'TEST OWNER LTD owns TEST TANKER',
+          modality: 'asserts',
+          transcribed: false,
+        },
+      ],
+    },
+  ]);
 });

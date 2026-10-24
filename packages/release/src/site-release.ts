@@ -1,3 +1,4 @@
+import { ids, readAlignmentRows, type AlignmentRow } from './alignment-rows.ts';
 import { readReleaseRows } from './release-table.ts';
 import { SiteReleaseFault } from './site-release-fault.ts';
 import { claimPage, entityPage, relationPage, SitePathFault, vesselPage } from './site-paths.ts';
@@ -42,6 +43,9 @@ export interface SiteEntity {
   /** How a source found the place, a word of the closed list of the methods. Null for an entity
    * with no place, and for a release before the column. */
   readonly geolocationMethod: string | null;
+  /** The documents that back the name and the type of the entity. An older release has no such
+   * column, and the list is then empty. */
+  readonly documentIds: readonly string[];
 }
 
 export interface SiteRelation {
@@ -149,6 +153,8 @@ export interface SiteRelease {
   readonly criticalNodes: readonly CriticalNode[];
   /** The volumes of each physical link, in the order of the volumes table. */
   readonly volumesOfRelation: ReadonlyMap<string, readonly SiteVolume[]>;
+  /** The rows of the alignment matrix. A release written before the matrix has none. */
+  readonly alignment: readonly AlignmentRow[];
   /** The GeoJSON file of the release, as the release wrote it. */
   readonly geojson: string;
 }
@@ -189,8 +195,6 @@ const amountOf = (path: string, text: string): number => {
   return amount;
 };
 
-const ids = (text: string): readonly string[] => text.split(' ').filter((one) => one !== '');
-
 /** Reads one release from its files: the file manifest and each file that it lists. A file that
  * the manifest lists and that is missing, or a file that does not have its columns, stops the
  * read. */
@@ -224,6 +228,9 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
       licence: cell(row, 'licence'),
       // An older release has no such column, and its cell reads as empty.
       geolocationMethod: orNull(row['geolocation_method']),
+      documentIds: cell(row, 'document_ids')
+        .split(' ')
+        .filter((id) => id !== ''),
     }),
   );
 
@@ -477,6 +484,9 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
     aliases,
     criticalNodes,
     volumesOfRelation,
+    alignment: files.has('alignment-matrix.csv')
+      ? readAlignmentRows(fileOf('alignment-matrix.csv'))
+      : [],
     geojson: fileOf('entities.geojson'),
   };
 };

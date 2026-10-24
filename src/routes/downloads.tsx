@@ -10,7 +10,6 @@ const fileHref = (path: string): string => `${import.meta.env.BASE_URL}release/$
 
 export const Route = createFileRoute('/downloads')({
   loader: async () => {
-    // The record is read first, so the footer knows whether the service answers.
     await loadCorpus().catch(() => undefined);
     return (await loadReleaseOrNull())?.manifest ?? null;
   },

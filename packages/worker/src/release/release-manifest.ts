@@ -94,5 +94,11 @@ export const readReleaseManifest = (text: string, now: Date): ReleaseManifest =>
     throw new ReleaseManifestFault(`The release manifest is refused. ${said(read.error)}.`);
   const { version, date, showNatoPair, ...rest } = read.data;
   const released = date ?? now.toISOString().slice(0, 10);
+  // A version is the day of the release or a number such as 1.0. Any other text, such as a dry-run
+  // tag, would reach the title of each file of the release.
+  if (version !== undefined && version !== released && !/^\d+(\.\d+)+$/u.test(version))
+    throw new ReleaseManifestFault(
+      `The release manifest is refused. version: give the day of the release (${released}) or a number such as 1.0, not ${version}.`,
+    );
   return { version: version ?? released, date: released, showNatoPair, ...rest };
 };

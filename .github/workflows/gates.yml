@@ -25,6 +25,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
 
+# Each job only reads the repository, so the token gets the read permission and no other.
+permissions:
+  contents: read
+
 concurrency:
   group: gates-${{ github.ref }}
   cancel-in-progress: true

@@ -21,6 +21,8 @@ import { newsSearch } from './news-search.ts';
 import { promoteCleanProposals } from './promote-clean-proposals.ts';
 import { promoteUnit } from './promote-unit.ts';
 import { propose } from './propose.ts';
+import { readDuplicateIdentifiers } from './read-duplicate-identifiers.ts';
+import { readEventPairs } from './read-event-pairs.ts';
 import { readDecided } from './read-decided.ts';
 import { readDoubts } from './read-doubts.ts';
 import { readEntity } from './read-entity.ts';
@@ -50,6 +52,8 @@ export const CATALOGUE = [
   neighbourhood,
   listVocabulary,
   listEntities,
+  readDuplicateIdentifiers,
+  readEventPairs,
   listProposals,
   findDocument,
   documentText,

@@ -22,7 +22,7 @@ export function groupNodes(nodes: readonly CriticalNode[]): NodeGroups {
     others,
     summary:
       nodes.length === 0
-        ? 'This release has no candidate node.'
+        ? 'This release has no candidate node: the operator has not ticked a condition yet.'
         : `${String(nodes.length)} candidate nodes, ${String(retained.length)} retained.`,
   };
 }

@@ -1,0 +1,11 @@
+serie,periode,valeur,unite,document,page,extrait_ou_cellule,note
+Class A,2025,30,%,eu_act,4,Cell B5,Invented value for a test.
+Class B,2025,25,%,eu_act,4,Cell B6,Invented value for a test.
+Class C,2025,20,%,eu_act,5,Cell B7,Invented value for a test.
+Class D,2025,0,%,eu_act,5,Cell B8,Invented value for a test.
+Class E,2025,25,%,eu_act,5,Cell B9,Invented value for a test.
+Class A,2026-S1,28,%,eu_act,4,Cell B5,Invented value for a test.
+Class B,2026-S1,27,%,eu_act,4,Cell B6,Invented value for a test.
+Class C,2026-S1,22,%,eu_act,5,Cell B7,Invented value for a test.
+Class D,2026-S1,0,%,eu_act,5,Cell B8,Invented value for a test.
+Class E,2026-S1,23,%,eu_act,5,Cell B9,Invented value for a test.

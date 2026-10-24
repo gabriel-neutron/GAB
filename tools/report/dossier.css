@@ -1,0 +1,231 @@
+/* The Dossier theme: serif text, condensed structure, one accent, a dark cover. It is read after
+   report.css. Every colour is a token of the site (the :root block that report.py writes in front
+   of this file, and the dark theme as --dark-*). The site has no serif face: Source Serif 4 (SIL OFL)
+   is the one face added. */
+
+:root {
+  --serif: 'Source Serif 4', 'DejaVu Serif', serif;
+  --accent: var(--primary);
+}
+html {
+  font-family: var(--serif);
+  font-variant-ligatures: none; /* a search or a copy of the PDF finds "figure", not a ligature glyph */
+}
+code.id,
+ol.biblio .url {
+  font-family: var(--mono);
+}
+
+@media print {
+  @page {
+    @top-left {
+      font: italic var(--small) var(--serif);
+      border-bottom: 0.5pt solid var(--foreground);
+    }
+    @top-right {
+      font: var(--small) var(--sans);
+      letter-spacing: var(--caps);
+      border-bottom: 0.5pt solid var(--foreground);
+    }
+    @bottom-right {
+      font: 700 var(--small) var(--mono);
+      color: var(--accent);
+    }
+  }
+  @page cover {
+    background: var(--dark-background);
+  }
+  body {
+    background: transparent;
+  }
+  .caption,
+  td,
+  th,
+  .toc ol ol li,
+  .toc ol.lof {
+    font-family: var(--serif);
+  }
+
+  /* cover: the dark theme of the site, an accent bar, a serif title */
+  .cover {
+    color: var(--dark-foreground);
+  }
+  .cover::before {
+    content: '';
+    display: block;
+    width: 22mm;
+    height: 3mm;
+    background: var(--dark-primary);
+  }
+  .cover .head::before {
+    content: 'Rapport de recherche';
+    display: block;
+    font: 700 9pt var(--sans);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dark-primary);
+    margin-bottom: 6mm;
+  }
+  .cover h1 {
+    font: 600 36pt/40pt var(--serif);
+    margin-top: 44mm;
+    color: var(--dark-foreground);
+  }
+  .cover .sub {
+    font: italic 400 14pt/19pt var(--serif);
+    color: var(--dark-muted-foreground);
+    margin-top: 8mm;
+  }
+  .cover .meta {
+    border-top: 0.5pt solid var(--dark-label);
+    color: var(--dark-muted-foreground);
+    font: 9pt/14pt var(--sans);
+    letter-spacing: var(--caps);
+    text-transform: uppercase;
+  }
+  .cover .meta .author {
+    color: var(--dark-foreground);
+    font: 700 11pt var(--sans);
+  }
+
+  /* section: black rule and a large accent number; subsection: serif in accent; sub-subsection: small caps */
+  h2 {
+    font: 700 18pt/21pt var(--sans);
+    margin: 11mm 0 4mm;
+    padding: 3mm 0 0;
+    border-top: 1.6pt solid var(--foreground);
+    border-bottom: 0;
+    display: flow-root;
+  }
+  h2 .num {
+    float: left;
+    font: 600 34pt/32pt var(--serif);
+    color: var(--accent);
+    margin: 0.5mm 3.5mm 0 0;
+  }
+  h3 {
+    font: 600 12.5pt/15pt var(--serif);
+    color: var(--accent);
+    margin: 6.5mm 0 1.5mm;
+  }
+  h3 .num {
+    color: var(--accent);
+  }
+  h4 {
+    font: 700 8.5pt/12pt var(--sans);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 4mm 0 0;
+    break-after: avoid;
+  }
+
+  /* the thesis: a paragraph that begins with the pull marker */
+  p.pull {
+    font: italic 400 12.5pt/17.5pt var(--serif);
+    border-left: 2pt solid var(--accent);
+    padding: 1mm 0 1mm 5mm;
+    margin: 5mm 0 5mm 4mm;
+  }
+
+  /* contents and list of figures: one family */
+  .toc h2,
+  .toc .toc-h {
+    font: 700 18pt/21pt var(--sans);
+    border: 0;
+    border-top: 1.6pt solid var(--foreground);
+    padding: 3mm 0 0;
+    margin: 0 0 4mm;
+  }
+  .toc .toc-h {
+    margin-top: 12mm;
+  }
+  .toc ol.parts > li,
+  .toc ol.lof li {
+    padding: 1.3mm 0;
+    font: 9.5pt/12pt var(--serif);
+  }
+  .toc ol.lof li {
+    border-top: 0.5pt solid var(--border);
+    font-size: var(--small);
+    line-height: 11pt;
+    padding: 0.8mm 0;
+  }
+  .toc ol.parts > li > a {
+    font: 700 9.5pt var(--sans);
+  }
+  .toc .fl {
+    width: 17mm;
+    font: 700 7.5pt var(--sans);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .toc .fl .fnum {
+    letter-spacing: 0;
+  }
+  .toc li a::after {
+    font-family: var(--mono);
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  /* figures and captions: a heavy black rule above, the caption in italic serif, the note on its own line */
+  figure {
+    border-top: 1.2pt solid var(--foreground);
+  }
+  .caption {
+    font: italic var(--small)/10.5pt var(--serif);
+  }
+  .caption strong {
+    font-style: normal;
+  }
+  .caption .fnum {
+    font: 700 var(--small) var(--mono);
+    color: var(--accent);
+  }
+  .caption .note {
+    display: block;
+    margin-top: 1mm;
+    font-style: normal;
+    color: var(--muted-foreground);
+  }
+
+  /* tables: rules only */
+  th {
+    font: 700 var(--small) var(--sans);
+    color: var(--foreground);
+    border-top: 1.2pt solid var(--foreground);
+    border-bottom: 0.6pt solid var(--foreground);
+  }
+  tbody tr:nth-child(even) {
+    background: transparent;
+  }
+  td {
+    border-bottom: 0.4pt solid var(--border);
+  }
+  ol li::marker {
+    color: var(--accent);
+    font: 700 var(--body) var(--sans);
+  }
+
+  /* a tile: a black rule and an accent point */
+  .box {
+    border: 0;
+    border-top: 1.2pt solid var(--foreground);
+    background: var(--muted);
+    position: relative;
+    padding: 3mm;
+  }
+  .box::before {
+    content: '';
+    position: absolute;
+    top: 2.2mm;
+    right: 3mm;
+    width: 2mm;
+    height: 2mm;
+    background: var(--accent);
+  }
+  .assessment {
+    border-left: 1.2pt solid var(--accent);
+  }
+}

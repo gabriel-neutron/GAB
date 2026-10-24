@@ -36,7 +36,7 @@ type Graph = MultiDirectedGraph<NodeAttrs, EdgeAttrs>;
 
 /**
  * The selected element and the elements next to it, as a list. An entity lists its neighbours
- * through the relations that the switches keep, drawn or not: a focus draws a part of them. A relation lists its two ends.
+ * through the relations that the switches keep. A relation lists its two ends.
  */
 export function deriveTextView(
   graph: Graph,

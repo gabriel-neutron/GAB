@@ -10,33 +10,21 @@ import {
 } from 'react';
 
 import type { Corpus, EntityPosition, TypeVocabulary } from '@/shared/read/model';
-import { relationWording } from '@/shared/relation-words';
 import { cn } from '@/shared/lib/utils';
 import { useNarrowScreen } from '@/shared/narrow-screen';
-import { askPanelFocus, landOnPanel, returnPanelFocus } from '@/shared/panel-focus';
-import { PHONE_SHEET, SheetClose } from '@/shared/phone-sheet';
+import { askPanelFocus } from '@/shared/panel-focus';
 import { Rail, type RailAct } from '@/shared/rail';
 import { useScreenQuery } from '@/shared/screen-query';
+import { SelectionPanel } from '@/shared/selection-panel';
 
 import { mountGraph, type GraphController, type GraphView } from './controller';
-import { FocusBar } from './focus-bar';
-import { FocusNote } from './focus-note';
-import { MarkerRemainder } from './marker-remainder';
+import { MarkerMeter } from './marker-meter';
 import type { GraphModel } from './model';
-import type { RelationFilterState } from './relation-filter';
-import { RelationLegend } from './relation-legend';
-import { deriveLegend } from './relation-legend-rows';
-import { hiddenRelationsAfterSwitch } from './relation-filter';
 import { deriveRailRows } from './rail-rows';
 import { stepAfterTypeOpen, stepShowingWholeList, type RailStep } from './rail-step';
 import { IndexRows } from './row';
 import type { GraphSelection } from './selection';
-import { ShownLine } from './shown-line';
-import { StartPanel } from './start-panel';
-import { TextViewList } from './text-list';
-import { deriveTextView } from './text-view';
 import { everyTypeShown, hiddenAfterSwitch, isShown, type FilterState } from './type-filter';
-import { UnplacedCount } from './unplaced-count';
 import { DEFAULT_GRAPH_WORKSPACE } from './workspace';
 
 interface GraphSnapshot {
@@ -86,9 +74,7 @@ interface GraphPageProps {
   readonly card: ReactNode;
 }
 
-/** The graph as a dark island in the light page: the types and the lists beside the canvas, and
- * the card of the selection on the other side. Under the island, the notes that correct the
- * picture. */
+/** The graph fills the work area. Its lists and selection share the site theme. */
 export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   const { corpus, types, layout } = record;
   const canvas = useRef<HTMLDivElement | null>(null);
@@ -100,8 +86,6 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   // A ref, not a second store: the value lives on the view. A `useCallback` with the filter in its
   // list would make a new function at each filter change, and `GraphCanvas` is memoised on props.
   const filterNow = useRef<FilterState | null>(null);
-
-  const relationFilterNow = useRef<RelationFilterState>({ hiddenRelationTypes: [] });
 
   const [step, setStep] = useState<RailStep>({ openTypes: [], wholeList: [] });
 
@@ -130,7 +114,6 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     controller.current = handle;
     const unsubscribe = handle.subscribe((view) => {
       filterNow.current = view.filter;
-      relationFilterNow.current = view.relationFilter;
       setSnapshot({ view, model: handle.model });
     });
     // It calls the listener at once with the selection this mount restored from the address, so
@@ -164,7 +147,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     askPanelFocus();
     const handle = controller.current;
     if (handle === null) return;
-    handle.focusOn(id);
+    handle.select(id);
   }, []);
 
   // Departure: the controller drops a selection the filter excludes, so the header offers none.
@@ -182,46 +165,8 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     return shown.sort((one, two) => two.degree - one.degree || one.label.localeCompare(two.label));
   }, [model, filter, showUnplaced]);
 
-  // Departure: the filter narrows the rail and never the canvas, so the controller holds none of
-  // it. `GraphCanvas` is memoised on two refs, so a new filter does not render the live element.
+  // `GraphCanvas` is memoised on two refs, so a new filter does not render the live element.
   const query = useScreenQuery({ named, choose: reach });
-
-  const wordsOf = useMemo(() => relationWording(corpus.relationTypes), [corpus.relationTypes]);
-  const hiddenRelationTypes = snapshot?.view.relationFilter.hiddenRelationTypes ?? null;
-  const legend = useMemo(
-    () =>
-      counts === null || hiddenRelationTypes === null
-        ? []
-        : deriveLegend(counts.byRelationType, new Set(hiddenRelationTypes), wordsOf),
-    [counts, hiddenRelationTypes, wordsOf],
-  );
-
-  const textView = useMemo(
-    () =>
-      model === null || filter === null || hiddenRelationTypes === null
-        ? null
-        : deriveTextView(
-            model.graph,
-            selection,
-            {
-              hiddenTypes: new Set(filter.hiddenTypes),
-              showUnplaced,
-              hiddenRelationTypes: new Set(hiddenRelationTypes),
-            },
-            wordsOf,
-          ),
-    [model, filter, selection, showUnplaced, hiddenRelationTypes, wordsOf],
-  );
-
-  const openEntity = useCallback((id: string) => {
-    askPanelFocus();
-    controller.current?.focusOn(id);
-  }, []);
-
-  const openRelation = useCallback((id: string) => {
-    askPanelFocus();
-    controller.current?.openRelation(id);
-  }, []);
 
   const rows = useMemo(
     () =>
@@ -284,42 +229,12 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     setStep((held) => stepShowingWholeList(held, type));
   }, []);
 
-  const showWholeGraph = useCallback(() => {
-    controller.current?.showWholeGraph();
-  }, []);
-
-  const setHops = useCallback((hops: 1 | 2) => {
-    controller.current?.setHops(hops);
-  }, []);
-
-  const expand = useCallback(() => {
-    controller.current?.expand();
-  }, []);
-
-  const switchRelationType = useCallback((type: string, on: boolean) => {
-    const handle = controller.current;
-    if (handle === null) return;
-    handle.setRelationFilter({
-      hiddenRelationTypes: hiddenRelationsAfterSwitch(relationFilterNow.current, type, on),
-    });
-  }, []);
-
-  const switchUnplaced = useCallback((show: boolean) => {
-    controller.current?.setShowUnplaced(show);
-  }, []);
-
   const openUnit = useCallback((unit: string, open: boolean) => {
     controller.current?.setUnitOpen(unit, open);
   }, []);
 
   return (
-    <>
-      {snapshot === null || snapshot.view.mode === 'start' ? null : (
-        <ShownLine
-          entities={snapshot.view.counts.entities}
-          relations={snapshot.view.counts.relations}
-        />
-      )}
+    <div className="graph-workspace">
       <div
         // The drawer is absolute inside this island, so it is the positioned ancestor on a phone.
         // The key is read here, and not on the drawer, because focus may stay on the Types button.
@@ -327,23 +242,17 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
           if (event.key === 'Escape') setDrawerOpen(false);
         }}
         className={cn(
-          'dark grid border border-border bg-background text-foreground max-md:relative',
-          'lg:grid-cols-[auto_minmax(0,1fr)_20rem]',
+          'graph-surface grid min-h-0 flex-1 bg-background text-foreground',
+          selection === null
+            ? 'md:grid-cols-[auto_minmax(0,1fr)]'
+            : 'md:grid-cols-[auto_minmax(0,1fr)_20rem]',
         )}
       >
-        <div className={cn('relative h-96 min-w-0 lg:col-start-2 lg:row-start-1 lg:h-128')}>
+        <div className={cn('graph-canvas relative min-h-0 min-w-0 md:col-start-2 md:row-start-1')}>
           <GraphCanvas canvas={canvas} overlay={overlay} />
-          {snapshot === null ? null : snapshot.view.mode === 'start' ? (
-            <StartPanel named={named} onChoose={reach} onShowWholeGraph={showWholeGraph} />
-          ) : snapshot.view.mode === 'focus' ? (
-            <FocusBar
-              hops={snapshot.view.hops}
-              expandable={snapshot.view.expandable}
-              onHops={setHops}
-              onExpand={expand}
-              onBack={showWholeGraph}
-            />
-          ) : null}
+          {snapshot === null ? null : (
+            <MarkerMeter drawn={snapshot.view.markersDrawn} hidden={snapshot.view.markersOverCap} />
+          )}
           <button
             ref={typesButton}
             type="button"
@@ -360,55 +269,22 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
           >
             Types
           </button>
-          <div className={cn('absolute top-2 right-2')}>
-            {snapshot?.view.mode !== 'whole' ? null : (
-              <button
-                type="button"
-                onClick={showWholeGraph}
-                className={cn(
-                  'h-6 border border-input bg-background px-2 text-xs text-foreground',
-                  'transition-colors duration-100 hover:bg-muted',
-                  'outline-none focus-visible:border-ring focus-visible:ring-3',
-                  'focus-visible:ring-ring/50',
-                )}
-              >
-                Show the whole graph
-              </button>
-            )}
-          </div>
         </div>
 
-        <div
-          role="region"
-          aria-label="Card of the selection"
-          onKeyDown={(event) => {
-            if (event.key !== 'Escape' || event.defaultPrevented || selection === null) return;
-            clearSelection();
-            event.currentTarget.tabIndex = -1;
-            returnPanelFocus(narrow ? typesButton.current : event.currentTarget);
-          }}
-          className={cn(
-            'max-h-96 min-h-0 min-w-0 overflow-y-auto overscroll-contain border-t border-border',
-            'lg:col-start-3 lg:row-start-1 lg:max-h-128 lg:border-t-0 lg:border-l',
-            PHONE_SHEET,
-            selection === null ? 'max-md:hidden' : null,
-          )}
+        <SelectionPanel
+          shown={selection === null ? null : `${selection.kind}:${selection.id}`}
+          onClose={clearSelection}
+          fallback={narrow ? typesButton : undefined}
+          className="md:col-start-3 md:row-start-1 md:border-l"
         >
-          {selection === null ? null : (
-            <SheetClose onClose={clearSelection} fallback={narrow ? typesButton : undefined} />
-          )}
           {card}
-          {selection === null ? null : (
-            <span key={`${selection.kind}:${selection.id}`} ref={landOnPanel} hidden />
-          )}
-        </div>
+        </SelectionPanel>
 
         {/* The rail is last in the order of the keys and of the screen when the island stacks, and
             the grid puts it first on a wide screen. */}
         <div
           className={cn(
-            'max-h-96 min-h-0 overflow-hidden border-t border-border',
-            'lg:col-start-1 lg:row-start-1 lg:max-h-128 lg:border-t-0 lg:border-r',
+            'min-h-0 overflow-hidden border-border md:col-start-1 md:row-start-1 md:border-r',
             'max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-20 max-md:w-72',
             'max-md:max-h-none max-md:max-w-[85%] max-md:border-t-0 max-md:border-r',
             'max-md:bg-background',
@@ -432,39 +308,11 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
                   />
                 );
               }}
-              className={cn('h-full max-h-96 bg-background max-md:max-h-none lg:max-h-128')}
+              className={cn('h-full bg-background')}
             />
           )}
         </div>
-
-        {snapshot === null || snapshot.view.mode === 'start' ? null : (
-          <div className={cn('border-t border-border lg:col-span-3 lg:row-start-2')}>
-            <RelationLegend legend={legend} onSwitch={switchRelationType} />
-          </div>
-        )}
       </div>
-
-      {snapshot === null ? null : (
-        <>
-          <TextViewList view={textView} onOpenEntity={openEntity} onOpenRelation={openRelation} />
-          <MarkerRemainder
-            drawn={snapshot.view.markersDrawn}
-            remainder={snapshot.view.markersOverCap}
-          />
-          <FocusNote
-            drawn={snapshot.view.focusDrawn}
-            unnamed={snapshot.view.focusUnnamed}
-            unnamedRelations={snapshot.view.focusUnnamedRelations}
-          />
-          {snapshot.view.mode === 'whole' ? (
-            <UnplacedCount
-              unplaced={snapshot.view.unplaced}
-              shown={snapshot.view.showUnplaced}
-              onSwitch={switchUnplaced}
-            />
-          ) : null}
-        </>
-      )}
-    </>
+    </div>
   );
 }

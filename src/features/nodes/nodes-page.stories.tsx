@@ -1,7 +1,16 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect } from 'storybook/test';
 
+import { coverageOf } from '@gab/release/coverage';
+import { withReferenceLabel } from '@gab/release/reference-label';
+import type { SiteManifest } from '@gab/release/site-manifest';
 import type { CriticalNode } from '@gab/release/site-release';
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router';
 
 import { NodesPage } from './nodes-page';
 
@@ -25,11 +34,38 @@ const NODES = [
   node({ id: 'n2', label: 'Novorossiysk jetty', retained: false, sourcedTicks: 1 }),
 ];
 
+const COUNTS = { added: 0, changed: 0, removed: 0, merged: 0, unmerged: 0 };
+
+const MANIFEST: SiteManifest = {
+  version: '1.0',
+  date: '2026-11-08',
+  showNatoPair: true,
+  dateRules: { eu: 'entry_into_force', ofac: 'recent_actions_notice', uk: 'date_designated' },
+  disclaimer: withReferenceLabel(
+    '**About this data.** A machine reads public documents and proposes each claim.\n\n- **Proposed — not checked:** a candidate.\n\nReport an error: https://example.org/report-an-error.',
+  ),
+  contacts: {
+    reportError: 'https://example.org/report-an-error',
+    rightOfReply: 'mailto:reply@example.org',
+  },
+  iriBase: 'https://gab.example.org/',
+  changelog: {
+    path: 'changelog.csv',
+    previous: null,
+    entities: COUNTS,
+    relations: COUNTS,
+    claims: COUNTS,
+  },
+  nameCandidates: { proposed: 0, confirmed: 0, refused: 0 },
+  coverage: coverageOf(['facility', 'facility', 'company'], 2),
+  files: [],
+};
+
 const meta = {
   component: NodesPage,
   args: {
     release: {
-      date: '2026-11-08',
+      manifest: MANIFEST,
       nodes: NODES,
       claims: {
         'claim-1': {
@@ -48,9 +84,15 @@ const meta = {
     claimHref: (id: string) => `/claim/${id}`,
   },
   parameters: { layout: 'fullscreen' },
+  // The links to the graph and the map need a router, so the story gives the page a root route.
   render: (args) => (
     <div className="h-svh">
-      <NodesPage {...args} />
+      <RouterProvider
+        router={createRouter({
+          routeTree: createRootRoute({ component: () => <NodesPage {...args} /> }),
+          history: createMemoryHistory({ initialEntries: ['/'] }),
+        })}
+      />
     </div>
   ),
 } satisfies Meta<typeof NodesPage>;
@@ -103,5 +145,21 @@ export const SaysSoWhenTheSiteHoldsNoRelease: Story = {
   args: { release: null },
   play: async ({ canvas }) => {
     await expect(canvas.getByText(/holds no release/u)).toBeVisible();
+  },
+};
+
+export const GivesTheCountsAndEveryLabelEvenWithNoNode: Story = {
+  args: {
+    release: {
+      manifest: MANIFEST,
+      nodes: [],
+      claims: {},
+      imoOf: {},
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByText(/holds 3 entities and cites 2 sources/u)).toBeVisible();
+    await expect(canvas.getByText(/This release has no candidate node/u)).toBeVisible();
+    await expect(canvas.getByText(/Reference dataset …/u)).toBeVisible();
   },
 };

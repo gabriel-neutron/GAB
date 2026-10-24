@@ -32,6 +32,8 @@ const WORDS: Readonly<Record<FaultKind, string>> = {
   approximate_position: 'approximate position',
   note: 'note',
   same_name: 'same name',
+  coarse_point: 'coarse point',
+  repeated_point: 'repeated point',
 };
 
 // Departure: two exports, one job. The mark on a line, the choice of the fault filter and the

@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import { ClaimPage } from '@/features/claim/claim-page';
 import { claimHref, entityHref } from '@/features/detail/address';
+import { claimText } from '@gab/release/claim-text';
 import { loadCorpus } from '@/shared/read/corpus';
 import { loadReleaseOrNull } from '@/shared/read/release-record';
 
@@ -9,12 +10,23 @@ import { loadReleaseOrNull } from '@/shared/read/release-record';
 // read service answers or not. The identifier is the path, so it can hold a `/`.
 export const Route = createFileRoute('/claim/$')({
   loader: async () => {
-    // The record is read first, so the footer knows whether the service answers.
     await loadCorpus().catch(() => undefined);
     return loadReleaseOrNull();
   },
   component: ClaimRoute,
-  head: ({ params }) => ({ meta: [{ title: `Claim ${params._splat ?? ''} · GAB dataset` }] }),
+  head: ({ params, loaderData }) => {
+    const claim = loaderData?.claimById.get(params._splat ?? '');
+    const text = claim === undefined ? 'Claim' : claimText(claim);
+    return {
+      meta: [
+        { title: `${text} · GAB dataset` },
+        {
+          name: 'description',
+          content: `${text}. The label that tells who decided this claim, and the documents that state it.`,
+        },
+      ],
+    };
+  },
 });
 
 function ClaimRoute() {

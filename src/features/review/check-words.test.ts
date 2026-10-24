@@ -77,3 +77,25 @@ describe('the check of each act', () => {
     expect(checkLines([relation])[0]?.name).toBe('MV Example owned_by an element');
   });
 });
+
+describe('the name of a place act', () => {
+  it('words a clearing of a place as a clearing', () => {
+    const place: UnitAct = {
+      id: 'p1',
+      kind: 'place',
+      clearing: true,
+      target: {
+        id: 'e1',
+        name: 'Port of Primorsk',
+        state: 'record',
+        group: null,
+        rejectedOn: null,
+      },
+      attributes: [],
+      disputed: false,
+      endRejected: false,
+      check: null,
+    };
+    expect(checkLines([place])[0]?.name).toBe('clearing of the place of Port of Primorsk');
+  });
+});

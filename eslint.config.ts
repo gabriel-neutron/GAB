@@ -7,7 +7,16 @@ import tseslint from 'typescript-eslint';
 
 // The workspace packages that run in Node: each one holds a secret, reaches the database, or
 // writes files. The browser imports none of them.
-const NODE_PACKAGES = ['writer', 'model', 'store', 'worker', 'tools', 'mcp', 'site'] as const;
+const NODE_PACKAGES = [
+  'writer',
+  'model',
+  'store',
+  'worker',
+  'tools',
+  'mcp',
+  'site',
+  'text',
+] as const;
 
 const CANVAS =
   'No story mounts a live canvas: a browser drops the oldest WebGL context after about sixteen. Story the panels';

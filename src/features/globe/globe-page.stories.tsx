@@ -10,9 +10,10 @@ const meta = {
   args: {
     data: null,
     entity: '',
-    entityHref: (id: string) => `/entity/${id}`,
+    cardOf: () => null,
     onSelect: fn(),
-    onCloseFirstVisit: null,
+    mode: 'map',
+    onMode: fn(),
   },
   parameters: { layout: 'fullscreen' },
   render: (args) => (

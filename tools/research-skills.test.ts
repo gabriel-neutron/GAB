@@ -127,6 +127,15 @@ test('the Claude Code settings allow each tool of the server, except the ones th
     'Read(//**/infra/.env)',
     'Edit(//**/infra/.env)',
     'Bash(*infra*.env*)',
+    'Read(//**/research/.env)',
+    'Edit(//**/research/.env)',
+    'Bash(*research/.env)',
+    'Bash(*research/.env *)',
+    'Bash(* .env)',
+    'Bash(* .env *)',
+    'mcp__playwright__browser_run_code_unsafe',
+    'mcp__playwright__browser_evaluate',
+    'mcp__playwright__browser_file_upload',
   ]);
 });
 

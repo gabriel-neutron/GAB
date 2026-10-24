@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 
 import { assetCoverageLines } from './asset-coverage.ts';
 import { assetLinks } from './asset-links.ts';
-import { releaseCredits } from './credits.ts';
+import { claimProviders, CreditFault, releaseCredits } from './credits.ts';
 import { osmLink } from './osm-link.ts';
 import { assertNoOsmGeometry } from './osm-geometry.ts';
 import { releaseFiles } from './release-files.ts';
@@ -143,16 +143,61 @@ test('the link file gives the link, the version and the own point of each asset 
 });
 
 test('the credits name GEM, the World Bank and NASA FIRMS with the words of their licences', () => {
-  const { text } = releaseCredits({
-    version: '1',
-    date: '2026-10-13',
-    title: 'GAB',
-    disclaimer: '',
-  });
+  const { text } = releaseCredits(
+    {
+      version: '1',
+      date: '2026-10-13',
+      title: 'GAB',
+      disclaimer: '',
+    },
+    new Set(),
+  );
   expect(text).toContain('Creative Commons Attribution 4.0 International');
   expect(text).toContain('https://creativecommons.org/licenses/by/4.0/');
   expect(text).toContain('World Bank');
   expect(text).toContain('Fire Information for Resource');
+});
+
+const HEADING = { version: '1', date: '2026-10-13', title: 'GAB', disclaimer: '' };
+
+test.each([
+  ['ofac_sdn', 'Specially Designated Nationals'],
+  ['uk_sanctions_list', 'Open Government Licence v3.0'],
+  ['eu_eurlex', 'Commission Decision 2011/833/EU'],
+  ['eu_fsf', 'Financial Sanctions Files'],
+  ['gleif', 'Global Legal Entity'],
+  ['gfw', 'NonCommercial 4.0 International'],
+  ['gfw', 'citations from it'],
+  ['datalastic', 'Datalastic'],
+])('the credits name the provider %s that a claim cites', (provider, words) => {
+  expect(releaseCredits(HEADING, new Set()).text).not.toContain(words);
+  expect(releaseCredits(HEADING, new Set([provider])).text).toContain(words);
+});
+
+test('a provider with no credit line stops the release', () => {
+  expect(() => releaseCredits(HEADING, new Set(['unlisted_provider']))).toThrow(CreditFault);
+  expect(() => releaseCredits(HEADING, new Set(['osm', 'own']))).not.toThrow();
+});
+
+test('the providers of the documents that the claims cite give the credits', () => {
+  const [claim] = RECORD.claims;
+  if (claim === undefined) throw new Error('The record holds no claim.');
+  const record: ReleaseRecord = {
+    ...RECORD,
+    claims: [
+      {
+        ...claim,
+        sources: ['a'],
+        passages: [{ document: 'b', page: 1, excerpt: 'x', modality: 'text', transcribed: false }],
+      },
+    ],
+    documents: new Map([
+      ['a', { ...GEM, id: 'a', provider: 'ofac_sdn' }],
+      ['b', { ...GEM, id: 'b', provider: null }],
+      ['c', { ...GEM, id: 'c', provider: 'gleif' }],
+    ]),
+  };
+  expect([...claimProviders(record)]).toStrictEqual(['ofac_sdn']);
 });
 
 test('a geometry that cites an OpenStreetMap document stops the release', () => {

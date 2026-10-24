@@ -258,6 +258,7 @@ it('reads a place of the new entity of the unit as a place that comes with it', 
       id: 'place-1',
       entity: 'Port of Primorsk',
       joined: true,
+      clearing: false,
       attributes: [{ key: 'position', values: ['43.1, 131.9'] }],
       disputed: false,
     },
@@ -265,9 +266,53 @@ it('reads a place of the new entity of the unit as a place that comes with it', 
       id: 'place-2',
       entity: 'Port of Primorsk',
       joined: false,
+      clearing: false,
       attributes: [{ key: 'position', values: ['43.1, 131.9'] }],
       disputed: false,
     },
   ]);
   expect(changes.others).toStrictEqual([]);
+});
+
+it('reads an act with geom null as the clearing of a place, and the page still reads', () => {
+  const army = UNIT_ANSWER.units.find((held) => held.unit === SAMPLE_UNITS.army);
+  if (army === undefined) throw new Error('the sample holds no army');
+  const read = unitPageOf(
+    {
+      ...UNIT_ANSWER,
+      units: [
+        {
+          ...army,
+          acts: [
+            ...army.acts,
+            {
+              id: 'clear-1',
+              op: 'update_entity',
+              payload: { geom: null },
+              targetId: 'e2',
+              dissent: false,
+              endRejected: false,
+              check: null,
+              target: { name: 'Port of Primorsk', state: 'record', group: null },
+              src: null,
+              dst: null,
+            },
+          ],
+        },
+      ],
+    },
+    null,
+  );
+  const held = read?.units[0];
+  if (held === undefined) throw new Error('the read holds no unit');
+  expect(unitChanges(held, WORDS).places).toStrictEqual([
+    {
+      id: 'clear-1',
+      entity: 'Port of Primorsk',
+      joined: false,
+      clearing: true,
+      attributes: [{ key: 'position', values: ['cleared'] }],
+      disputed: false,
+    },
+  ]);
 });

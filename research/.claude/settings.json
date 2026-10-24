@@ -16,6 +16,8 @@
       "mcp__gab__list_proposals",
       "mcp__gab__list_vocabulary",
       "mcp__gab__list_entities",
+      "mcp__gab__read_duplicate_identifiers",
+      "mcp__gab__read_event_pairs",
       "mcp__gab__neighbourhood",
       "mcp__gab__news_search",
       "mcp__gab__ofac_sdn",
@@ -54,7 +56,16 @@
     "deny": [
       "Read(//**/infra/.env)",
       "Edit(//**/infra/.env)",
-      "Bash(*infra*.env*)"
+      "Bash(*infra*.env*)",
+      "Read(//**/research/.env)",
+      "Edit(//**/research/.env)",
+      "Bash(*research/.env)",
+      "Bash(*research/.env *)",
+      "Bash(* .env)",
+      "Bash(* .env *)",
+      "mcp__playwright__browser_run_code_unsafe",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_file_upload"
     ]
   }
 }

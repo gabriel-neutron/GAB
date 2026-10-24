@@ -18,7 +18,7 @@ import { join } from 'node:path';
 
 import { UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
 import { endOcr } from '@gab/text';
-import { zipOf } from '@gab/text/xlsx-fixture';
+import { workbookOf, zipOf } from '@gab/text/xlsx-fixture';
 import { afterAll, expect, test } from 'vitest';
 import { z } from 'zod';
 
@@ -71,6 +71,22 @@ const BULK = [
   ['logo.bin', 'No reader takes this.'],
 ] as const;
 writeFileSync(join(inbox, 'bulk.zip'), zipOf(BULK));
+// A public workbook of two sheets, and an office document that is no workbook.
+const SHEETS = {
+  Prices: [
+    ['Month', 'Price'],
+    ['2026M01', `1.5 ${RUN}`],
+  ],
+  Notes: [['Note'], ['Second sheet']],
+};
+writeFileSync(join(inbox, 'pink-sheet.xlsx'), workbookOf(SHEETS));
+writeFileSync(
+  join(inbox, 'letter.docx'),
+  zipOf([
+    ['[Content_Types].xml', '<Types/>'],
+    ['word/document.xml', '<w:document/>'],
+  ]),
+);
 writeFileSync(join(inbox, 'hostile.zip'), zipOf([['../outside.txt', `Run ${RUN}.`]]));
 writeFileSync(join(inbox, 'big.html'), Buffer.alloc(UPLOAD_FILE_BYTES + 1, 0x20));
 const IMAGES = join(import.meta.dirname, '../../text/fixtures');
@@ -540,5 +556,105 @@ test('a page that names the charset of its origin is read as the UTF-8 that the 
       ),
     );
     expect(held?.text).toContain('Компания владеет');
+  });
+});
+
+test('a workbook of the inbox is stored with its exact bytes, one CSV page for each sheet, and its provider', async () => {
+  const store = memoryStore();
+  const url = `https://www.worldbank.org/en/research/commodity-markets/${RUN}.xlsx`;
+  await rolledBack('research', async (ask) => {
+    const input = { file: 'pink-sheet.xlsx', url, provider: 'world_bank' };
+    const first = await callTool(storeSavedFile, sessionOf(ask), input, reachOf(store));
+    expect(first).toMatchObject({ ok: true, output: { status: 'stored', pages: 2 } });
+    const second = await callTool(storeSavedFile, sessionOf(ask), input, reachOf(store));
+    expect(second).toMatchObject({ ok: true, output: { status: 'known' } });
+
+    const [held] = z
+      .array(
+        z.object({
+          mime: z.string(),
+          provider_id: z.string(),
+          day: z.string(),
+          sha256: z.string(),
+        }),
+      )
+      .parse(
+        await ask(
+          `SELECT mime, provider_id, retrieved_at::text AS day, sha256
+           FROM public.documents WHERE uri = $1`,
+          [url],
+        ),
+      );
+    expect(held?.mime).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    expect(held?.provider_id).toBe('world_bank');
+    expect(held?.day).toBe(new Date().toISOString().slice(0, 10));
+    expect(held?.sha256).toBe(
+      createHash('sha256')
+        .update(readFileSync(join(inbox, 'pink-sheet.xlsx')))
+        .digest('hex'),
+    );
+    const [licence] = z
+      .array(z.object({ licence: z.string() }))
+      .parse(
+        await ask('SELECT licence FROM public.document_provider WHERE id = $1', ['world_bank']),
+      );
+    expect(licence?.licence).toBe('cc-by-4.0');
+  });
+});
+
+test('a workbook given as a ZIP type is read as a workbook, and an office document is refused', async () => {
+  await rolledBack('research', async (ask) => {
+    const bytes = readFileSync(join(inbox, 'pink-sheet.xlsx'));
+    const url = `https://www.bruegel.org/dataset/${RUN}`;
+    const sent = {
+      content: bytes.toString('base64'),
+      type: 'application/zip',
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+      url,
+      provider: 'bruegel',
+    };
+    const done = await callTool(storeSavedFile, sessionOf(ask), sent, reachOf());
+    expect(done).toMatchObject({ ok: true, output: { status: 'stored', pages: 2 } });
+    expect(done).not.toHaveProperty('output.files');
+
+    const refused = await callTool(
+      storeSavedFile,
+      sessionOf(ask),
+      { file: 'letter.docx', url: `https://www.bruegel.org/doc/${RUN}` },
+      reachOf(),
+    );
+    expect(refused).toMatchObject({ ok: false });
+  });
+});
+
+test('a provider that does not own the address is refused, and nothing is stored', async () => {
+  await rolledBack('research', async (ask) => {
+    const url = `https://example.com/leak-${RUN}.xlsx`;
+    const refused = await callTool(
+      storeSavedFile,
+      sessionOf(ask),
+      { file: 'pink-sheet.xlsx', url, provider: 'world_bank' },
+      reachOf(),
+    );
+    expect(refused).toMatchObject({ ok: false });
+    expect(await ask('SELECT 1 FROM public.documents WHERE uri = $1', [url])).toHaveLength(0);
+  });
+});
+
+test('a workbook sent as base64 with the XLSX type is stored', async () => {
+  await rolledBack('research', async (ask) => {
+    const bytes = readFileSync(join(inbox, 'pink-sheet.xlsx'));
+    const done = await callTool(
+      storeSavedFile,
+      sessionOf(ask),
+      {
+        content: bytes.toString('base64'),
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        sha256: createHash('sha256').update(bytes).digest('hex'),
+        url: `https://www.worldbank.org/data/${RUN}-b64.xlsx`,
+      },
+      reachOf(),
+    );
+    expect(done).toMatchObject({ ok: true, output: { status: 'stored', pages: 2 } });
   });
 });

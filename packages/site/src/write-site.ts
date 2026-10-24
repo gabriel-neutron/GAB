@@ -1,9 +1,10 @@
-import { access, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
 import { build, createServer } from 'vite';
 import { z } from 'zod';
 
+import { REPORT_FILES } from '@gab/release/report-files';
 import { claimPage, entityPage, relationPage, vesselPage } from '@gab/release/site-paths';
 import { readSiteRelease, type SiteRelease } from '@gab/release/site-release';
 import { SiteReleaseFault } from '@gab/release/site-release-fault';
@@ -38,7 +39,7 @@ const SHELL_TITLE = /<title>[^<]*<\/title>/u;
 const TITLE_SUFFIX = ' · GAB dataset';
 
 // The pages that need a script and hold no permanent text: the shell opens them as it is.
-const SCRIPT_PAGES = ['graph', 'search', 'review'] as const;
+const SCRIPT_PAGES = ['graph', 'search'] as const;
 
 const fileManifest = z.object({
   files: z.array(z.object({ path: z.string().regex(/^[\w-][\w.-]*$/u) })),
@@ -71,6 +72,29 @@ const readReleaseFolder = async (folder: string): Promise<ReadonlyMap<string, st
   return files;
 };
 
+/** The data files of the report. They are public and sit in the repository; `REPORT_DIR` names
+ * another folder for a build that tests other values. */
+const readReportFolder = async (): Promise<ReadonlyMap<string, string>> => {
+  const named = process.env['REPORT_DIR'];
+  const folder =
+    named === undefined || named === '' ? resolve(import.meta.dirname, '../report') : named;
+  const names = await readdir(folder, { withFileTypes: true }).catch(() => {
+    throw new SiteReleaseFault(`The report folder ${folder} cannot be read.`);
+  });
+  const present = new Set(names.filter((one) => one.isFile()).map((one) => one.name));
+  // Only the named files are public. Any other file of the folder stays on the machine.
+  for (const name of Object.values(REPORT_FILES))
+    if (!present.has(name))
+      throw new SiteReleaseFault(`The report folder ${folder} holds no file ${name}.`);
+  return new Map(
+    await Promise.all(
+      Object.values(REPORT_FILES).map(
+        async (name) => [name, await readFile(join(folder, name), 'utf8')] as const,
+      ),
+    ),
+  );
+};
+
 const escapeHtml = (text: string): string =>
   text
     .replaceAll('&', '&amp;')
@@ -101,9 +125,10 @@ const pagesOf = (release: SiteRelease): readonly Page[] => {
     { folder: 'map', kind: 'text' },
     { folder: 'downloads', kind: 'text' },
     { folder: 'method', kind: 'text' },
+    { folder: 'exports', kind: 'text' },
+    { folder: 'nodes', kind: 'text' },
     { folder: 'glossary', kind: 'text' },
     { folder: 'help', kind: 'text' },
-    { folder: 'v1', kind: 'text' },
     ...SCRIPT_PAGES.map((folder) => ({ folder, kind: 'script' as const })),
   ];
   for (const entity of release.entities)
@@ -149,6 +174,7 @@ const mergedPage = (base: string, survivor: NonNullable<Page['survivor']>) => {
 interface RenderedPage {
   readonly html: string;
   readonly title: string;
+  readonly description: string | null;
 }
 
 interface Renderer {
@@ -167,16 +193,26 @@ const isRenderer = (value: unknown): value is Renderer =>
 const NO_HOST = 'http://release.invalid/';
 
 const releaseFetch =
-  (files: ReadonlyMap<string, string>, base: string): typeof fetch =>
+  (
+    files: ReadonlyMap<string, string>,
+    report: ReadonlyMap<string, string>,
+    base: string,
+  ): typeof fetch =>
   (input) => {
     const address = new URL(
       typeof input === 'string' || input instanceof URL ? input : input.url,
       NO_HOST,
     );
     const prefix = `${base}release/`;
-    if (address.origin !== new URL(NO_HOST).origin || !address.pathname.startsWith(prefix))
+    const reportPrefix = `${base}report/`;
+    if (address.origin !== new URL(NO_HOST).origin)
       return Promise.reject(new TypeError('The render at the release has no network.'));
-    const text = files.get(decodeURIComponent(address.pathname.slice(prefix.length)));
+    const [place, held] = address.pathname.startsWith(reportPrefix)
+      ? ([reportPrefix, report] as const)
+      : ([prefix, files] as const);
+    if (!address.pathname.startsWith(place))
+      return Promise.reject(new TypeError('The render at the release has no network.'));
+    const text = held.get(decodeURIComponent(address.pathname.slice(place.length)));
     return Promise.resolve(
       text === undefined ? new Response(null, { status: 404 }) : new Response(text),
     );
@@ -224,13 +260,15 @@ export const renderPages = (
   files: ReadonlyMap<string, string>,
   pages: readonly Page[],
   base: string,
+  report: ReadonlyMap<string, string> = new Map(),
 ): Promise<ReadonlyMap<string, RenderedPage>> =>
-  withBuildEnvironment(undefined, () => renderWithServer(files, pages, base));
+  withBuildEnvironment(undefined, () => renderWithServer(files, pages, base, report));
 
 const renderWithServer = async (
   files: ReadonlyMap<string, string>,
   pages: readonly Page[],
   base: string,
+  report: ReadonlyMap<string, string>,
 ): Promise<ReadonlyMap<string, RenderedPage>> => {
   const server = await createServer({
     root: REPOSITORY,
@@ -244,7 +282,7 @@ const renderWithServer = async (
     optimizeDeps: { noDiscovery: true },
   });
   const fetchHeld = globalThis.fetch;
-  globalThis.fetch = releaseFetch(files, base);
+  globalThis.fetch = releaseFetch(files, report, base);
   try {
     const renderer: unknown = await server.ssrLoadModule(PRERENDER);
     if (!isRenderer(renderer)) throw new Error('the render of the pages did not load');
@@ -259,6 +297,21 @@ const renderWithServer = async (
   }
 };
 
+// External constraint: on Windows a scanner or an indexer can hold a file of a folder with
+// thousands of files, and the rename then fails with EPERM or EBUSY for a few seconds.
+const renameWithRetry = async (from: string, to: string): Promise<void> => {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await rename(from, to);
+      return;
+    } catch (cause) {
+      const code = cause instanceof Error && 'code' in cause ? cause.code : undefined;
+      if (attempt === 30 || (code !== 'EPERM' && code !== 'EBUSY')) throw cause;
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+};
+
 const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promise<void> => {
   if (await exists(siteFolder))
     throw new SiteFolderExists(
@@ -266,6 +319,7 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
     );
   const base = baseOfSite();
   const files = await readReleaseFolder(releaseFolder);
+  const report = await readReportFolder();
   const pages = pagesOf(readSiteRelease(files));
 
   await mkdir(dirname(siteFolder), { recursive: true });
@@ -275,7 +329,7 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
     const shell = await readFile(join(partial, 'index.html'), 'utf8');
     if (!shell.includes(SHELL_ROOT) || !SHELL_TITLE.test(shell))
       throw new Error('the shell of the application has an unexpected form');
-    const rendered = await renderPages(files, pages, base);
+    const rendered = await renderPages(files, pages, base, report);
     for (const page of pages) {
       let text = shell;
       if (page.kind === 'merged' && page.survivor !== undefined) {
@@ -290,7 +344,13 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
         text = text
           .replace(SHELL_TITLE, () => `<title>${escapeHtml(one.title)}</title>`)
           .replace('</head>', () =>
-            page.sendsTo === undefined ? '</head>' : `${refreshTo(base, page.sendsTo)}</head>`,
+            [
+              one.description === null
+                ? ''
+                : `<meta name="description" content="${escapeHtml(one.description)}" />`,
+              page.sendsTo === undefined ? '' : refreshTo(base, page.sendsTo),
+              '</head>',
+            ].join(''),
           )
           .replace(SHELL_ROOT, () => `<div id="root">${one.html}</div>`);
       }
@@ -298,7 +358,7 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
       await mkdir(dirname(file), { recursive: true });
       await writeFile(file, text);
     }
-    await rename(partial, siteFolder);
+    await renameWithRetry(partial, siteFolder);
   } catch (fault) {
     await rm(partial, { recursive: true, force: true });
     throw fault;

@@ -36,15 +36,3 @@ export const rowsOfCsv = (text: string): readonly Record<string, string>[] => {
     Object.fromEntries(names.map((name, index) => [name, (cells[index] ?? '').trim()])),
   );
 };
-
-const NEEDS_QUOTES = /[;"\r\n]/;
-
-const cellOf = (value: string): string =>
-  NEEDS_QUOTES.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
-
-// The inverse of rowsOfCsv: the header line and one line for each row, each ended by a line feed.
-export const csvOfRows = (
-  header: readonly string[],
-  rows: readonly (readonly string[])[],
-): string =>
-  [header, ...rows].map((cells) => `${cells.map((cell) => cellOf(cell)).join(';')}\n`).join('');

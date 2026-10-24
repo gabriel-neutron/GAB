@@ -1,4 +1,8 @@
-import { GEOLOCATION_WORDS, isGeolocationMethod } from '@gab/proposal/geolocation-method';
+import {
+  GEOLOCATION_WORDS,
+  isGeolocationMethod,
+  NOT_STATED,
+} from '@gab/proposal/geolocation-method';
 import { claimText } from '@gab/release/claim-text';
 import { eventsAt, type SiteEvent } from '@gab/release/event-lane';
 import { permanentAddress } from '@gab/release/site-paths';
@@ -60,10 +64,12 @@ function addressOf(base: string, id: string): string | null {
   }
 }
 
-const methodWords = (method: string | null | undefined): string | null =>
-  method !== null && method !== undefined && isGeolocationMethod(method)
-    ? GEOLOCATION_WORDS[method]
-    : null;
+const methodWords = (method: string | null | undefined): string | null => {
+  if (method === null || method === undefined || !isGeolocationMethod(method)) return null;
+  return method === NOT_STATED
+    ? 'no source says how the place was found'
+    : GEOLOCATION_WORDS[method];
+};
 
 /** The facts that the release holds about `entityId`. The events come from the release only, so a
  * page that reads the live record asks for none: the two would mix two dates. */

@@ -23,6 +23,14 @@ const RELATION_ENDS: ReadonlyMap<
 // The name is "kind — site — day". The site may hold a dash, so the kind is the text before the
 // first separator and the day is the text after the last one.
 const NAME = /^(.+?) — (.+) — (\d{4}-\d{2}(?:-\d{2})?)$/u;
+
+/** The kind, the site and the day of an event name, or null when the name does not fit. */
+export const parseEventName = (
+  label: string,
+): { readonly kind: string; readonly site: string; readonly day: string } | null => {
+  const [, kind, site, day] = NAME.exec(label) ?? [];
+  return kind === undefined || site === undefined || day === undefined ? null : { kind, site, day };
+};
 const MONTH = /^\d{4}-\d{2}$/u;
 
 const asTexts = (value: unknown): string[] | null => {

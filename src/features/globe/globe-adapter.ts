@@ -1,7 +1,8 @@
+import { canvasTheme, observeCanvasTheme } from '@/shared/canvas-theme';
 // The one file that touches the map library. The panels drive the globe through the store, and
 // this file is the view of the store that draws on the canvas.
 
-import { PRODUCTS, type ProductKey } from '@gab/proposal/chain-product';
+import { PRODUCTS } from '@gab/proposal/chain-product';
 import { positions } from '@gab/proposal/geometry-positions';
 import countriesUrl from '@gab/proposal/countries.json?url';
 import {
@@ -19,19 +20,39 @@ import type { GlobeData } from './globe-data';
 import type { GlobeState, GlobeStore, Target } from './globe-store';
 import { selectedEntity } from './selected-entity';
 import { ARC_LAYERS, type ArcLayer } from './arc-layers';
+import {
+  createChainAnimation,
+  drawLayers,
+  flowLayer,
+  flowLayers,
+  revealed,
+} from './chain-animation';
 import { frameOf, highlightOf, pickHit, type Under } from './globe-view';
 
-// External constraint: the library parses no oklch colour and no CSS custom property, so the
-// ground, the land and the marks are hex. The globe is a dark island in a light page, in both
-// themes, so there is one set and no observer of the theme class.
-const GROUND = '#0b1220';
+// MapLibre takes hex colours rather than CSS theme tokens.
+const MAP_PALETTES = {
+  light: {
+    ground: '#f5f7f8',
+    land: '#e0e5e7',
+    coast: '#a0aaaf',
+    selected: '#20282d',
+    link: '#6f797e',
+    sky: '#f5f7f8',
+    horizon: '#e0e5e7',
+  },
+  dark: {
+    ground: '#070f10',
+    land: '#182226',
+    coast: '#445155',
+    selected: '#f0f3f4',
+    link: '#76838a',
+    sky: '#070f10',
+    horizon: '#182226',
+  },
+} as const;
+const LAND = MAP_PALETTES.dark.land;
 const MARK = '#4aa8ff';
 const IN_REVIEW = '#9aa3ad';
-const LAND = '#1c2a3d';
-const COAST = '#3b4f6b';
-// The head of the pulse that runs along a link.
-const PULSE = '#ffffff';
-const SELECTED = '#ffffff';
 // Origin of the number: at this opacity a dimmed point stays visible on the dark land, and a
 // point put forward reads at once.
 const DIMMED = 0.35;
@@ -44,8 +65,6 @@ const LINE_BOX = 5;
 const ENTITY_ZOOM = 4;
 const SPIN_STEP = 6;
 const SPIN_MS = 2000;
-// The pulse runs along a link in this time, then waits for a short time.
-const PULSE_MS = 2600;
 
 const ARC_COLOURS: Readonly<Record<ArcLayer['colour'], string | ExpressionSpecification>> = {
   product: ['coalesce', ['get', 'colour'], MARK],
@@ -61,31 +80,6 @@ const GROUPS: readonly (readonly string[])[] = [
   ARC_LAYERS.map((one) => one.id),
 ];
 const ARC_IDS: ReadonlySet<string> = new Set(ARC_LAYERS.map((one) => one.id));
-
-const pulseLayer = (key: ProductKey): string => `pulse-${key}`;
-
-/** A gradient along a line, with a bright head at `progress` (0 to 1) and a short tail behind it. */
-const pulseAt = (progress: number): ExpressionSpecification => {
-  // Origin of the numbers: an interpolation needs its inputs in strictly ascending order, so the
-  // head stays between 0.13 and 0.97, with a tail of 0.12 and a front of 0.02.
-  const head = 0.13 + 0.84 * Math.min(Math.max(progress, 0), 1);
-  const clear = 'rgba(0,0,0,0)';
-  return [
-    'interpolate',
-    ['linear'],
-    ['line-progress'],
-    0,
-    clear,
-    head - 0.12,
-    clear,
-    head,
-    PULSE,
-    head + 0.02,
-    clear,
-    1,
-    clear,
-  ];
-};
 
 const forward = (ids: ReadonlySet<string> | null): ExpressionSpecification | number =>
   ids === null ? 1 : ['case', ['in', ['get', 'id'], ['literal', [...ids]]], 1, DIMMED];
@@ -104,6 +98,8 @@ interface MountOptions {
   readonly container: HTMLElement;
   readonly data: GlobeData;
   readonly store: GlobeStore;
+  /** True for the flat map, which is the default. False for the globe of the animated mode. */
+  readonly flat: boolean;
 }
 
 export interface GlobeHandle {
@@ -116,41 +112,43 @@ const mounted = new WeakMap<HTMLElement, GlobeHandle>();
 
 /** Draws the globe in `container` and follows the store. Gives null when the browser cannot draw
  * it, and the store then says so. */
-export function mountGlobe({ container, data, store }: MountOptions): GlobeHandle | null {
+export function mountGlobe({ container, data, store, flat }: MountOptions): GlobeHandle | null {
   mounted.get(container)?.destroy();
   if (!hasWebGL2()) {
     store.setUnavailable();
     return null;
   }
 
+  const palette = MAP_PALETTES[canvasTheme()];
   const style: StyleSpecification = {
     version: 8,
-    projection: { type: 'globe' },
+    projection: { type: flat ? 'mercator' : 'globe' },
     // A change of paint is a state change and not a fade of 300 ms, which is the default.
     transition: { duration: store.get().moving ? CHANGE_MS : 0, delay: 0 },
     sky: {
-      'sky-color': '#0b1a33',
-      'horizon-color': '#1d3b66',
-      'fog-color': GROUND,
+      'sky-color': palette.sky,
+      'horizon-color': palette.horizon,
+      'fog-color': palette.ground,
       'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 7, 0],
     },
     // The basemap is a file of the bundle: the outlines of the countries, Natural Earth (public
-    // domain). The globe sends no request to a tile server.
+    // domain, so it asks for no credit and the map shows none). The globe sends no request to a tile server.
     sources: {
       countries: { type: 'geojson', data: countriesUrl },
-      entities: { type: 'geojson', data: data.entities },
-      // The pulse reads the progress along each line.
-      arcs: { type: 'geojson', data: data.arcs, lineMetrics: true },
-      exits: { type: 'geojson', data: data.exits },
+      // The animation sets a feature state by identifier.
+      entities: { type: 'geojson', data: data.entities, promoteId: 'id' },
+      // The flow reads the progress along each line.
+      arcs: { type: 'geojson', data: data.arcs, lineMetrics: true, promoteId: 'id' },
+      exits: { type: 'geojson', data: data.exits, promoteId: 'id' },
     },
     layers: [
-      { id: 'ground', type: 'background', paint: { 'background-color': GROUND } },
-      { id: 'land', type: 'fill', source: 'countries', paint: { 'fill-color': LAND } },
+      { id: 'ground', type: 'background', paint: { 'background-color': palette.ground } },
+      { id: 'land', type: 'fill', source: 'countries', paint: { 'fill-color': palette.land } },
       {
         id: 'coast',
         type: 'line',
         source: 'countries',
-        paint: { 'line-color': COAST, 'line-width': 0.6 },
+        paint: { 'line-color': palette.coast, 'line-width': 0.6 },
       },
       {
         id: 'areas',
@@ -168,7 +166,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
         type: 'line',
         source: 'entities',
         filter: ['==', ['get', 'id'], ''],
-        paint: { 'line-color': SELECTED, 'line-width': 6, 'line-opacity': 0.5 },
+        paint: { 'line-color': palette.selected, 'line-width': 6, 'line-opacity': 0.5 },
       },
       {
         id: 'lines',
@@ -190,22 +188,11 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
           ...(one.dash === null ? {} : { 'line-dasharray': one.dash }),
         },
       })),
-      // A pulse runs along each link that is a flow of the record. A gradient reads no property of
-      // the feature, so each product has its own layer. A link in review is not a fact, and a
-      // capacity is not a flow, so neither carries a pulse.
-      ...PRODUCTS.map((one): LineLayerSpecification => ({
-        id: pulseLayer(one.key),
-        type: 'line',
-        source: 'arcs',
-        filter: [
-          'all',
-          ['==', ['get', 'product'], one.key],
-          ['!=', ['get', 'style'], 'in review'],
-          ['!=', ['get', 'style'], 'capacity'],
-        ],
-        layout: { 'line-cap': 'round', visibility: 'none' },
-        paint: { 'line-width': 3, 'line-blur': 1, 'line-gradient': pulseAt(0.5) },
-      })),
+      // A draw-on and a flow run along the links of a step. A gradient reads no property of the
+      // feature, so each product has its own layer. A link in review is not a fact, and a capacity
+      // is not a flow, so neither carries a flow.
+      ...drawLayers(),
+      ...flowLayers('none'),
       {
         id: 'points',
         type: 'circle',
@@ -213,8 +200,8 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
         filter: ['==', ['geometry-type'], 'Point'],
         paint: {
           'circle-color': ['coalesce', ['get', 'colour'], MARK],
-          'circle-radius': 6,
-          'circle-stroke-color': GROUND,
+          'circle-radius': revealed(6),
+          'circle-stroke-color': palette.ground,
           'circle-stroke-width': 1.5,
         },
       },
@@ -226,7 +213,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
         paint: {
           'circle-opacity': 0,
           'circle-radius': 10,
-          'circle-stroke-color': SELECTED,
+          'circle-stroke-color': palette.selected,
           'circle-stroke-width': 2,
         },
       },
@@ -237,7 +224,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
         paint: {
           // A ring with no fill, so the asset under an exit point stays in view.
           'circle-opacity': 0,
-          'circle-radius': 10,
+          'circle-radius': revealed(10),
           'circle-stroke-color': ['case', ['get', 'inReview'], IN_REVIEW, ['get', 'colour']],
           'circle-stroke-width': 2.5,
         },
@@ -247,7 +234,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
 
   let map: MapLibre;
   try {
-    map = new MapLibre({ container, style, center: [0, 30], zoom: 1 });
+    map = new MapLibre({ container, style, center: [0, 30], zoom: 1, attributionControl: false });
   } catch {
     store.setUnavailable();
     return null;
@@ -262,6 +249,34 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
     if (loaded) work();
     else queue.push(work);
   };
+
+  // Departure: with every product shown, a link is one neutral grey, so the hue of a point is the
+  // one colour on the map. A product chip gives the links of that product their colour.
+  const paintLinks = (product: GlobeState['product']): void => {
+    const colour = product === 'all' ? MAP_PALETTES[canvasTheme()].link : ARC_COLOURS.product;
+    for (const layer of ARC_LAYERS)
+      if (layer.colour === 'product') map.setPaintProperty(layer.id, 'line-color', colour);
+  };
+
+  const paintTheme = (): void => {
+    const next = MAP_PALETTES[canvasTheme()];
+    paintLinks(store.get().product);
+    map.setPaintProperty('ground', 'background-color', next.ground);
+    map.setPaintProperty('land', 'fill-color', next.land);
+    map.setPaintProperty('coast', 'line-color', next.coast);
+    map.setPaintProperty('points', 'circle-stroke-color', next.ground);
+    for (const layer of ARC_LAYERS)
+      if (layer.colour === 'land') map.setPaintProperty(layer.id, 'line-color', next.land);
+    map.setPaintProperty('selected-line', 'line-color', next.selected);
+    map.setPaintProperty('selected-point', 'circle-stroke-color', next.selected);
+    map.setSky({
+      'sky-color': next.sky,
+      'horizon-color': next.horizon,
+      'fog-color': next.ground,
+      'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 7, 0],
+    });
+  };
+  const stopTheme = observeCanvasTheme(() => whenLoaded(paintTheme));
 
   map.addControl(new ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left');
 
@@ -312,42 +327,58 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
     });
   };
 
+  // The ids of the points of the types the rail switched off. A new list comes only from a switch.
+  let hiddenFor: GlobeState['hiddenTypes'] | null = null;
+  const hideTypes = (types: GlobeState['hiddenTypes']): void => {
+    if (types === hiddenFor) return;
+    hiddenFor = types;
+    const off = new Set(types);
+    const ids = data.entities.features
+      .filter((one) => off.has(data.cards[one.id]?.type ?? ''))
+      .map((one) => one.id);
+    const shown: FilterSpecification = ['!', ['in', ['get', 'id'], ['literal', ids]]];
+    map.setFilter('points', ['all', ['==', ['geometry-type'], 'Point'], shown]);
+    map.setFilter('lines', ['all', ['==', ['geometry-type'], 'LineString'], shown]);
+    map.setFilter('areas', ['all', ['==', ['geometry-type'], 'Polygon'], shown]);
+  };
+
   const draw = (state: GlobeState): void => {
+    hideTypes(state.hiddenTypes);
     const entity = selectedEntity(state);
-    const highlight = highlightOf(data, { entity, step: state.step, product: state.product });
+    const highlight = highlightOf(data, {
+      entity,
+      stage: state.stage,
+      step: state.step,
+      product: state.product,
+    });
     const assets = forward(highlight?.assets ?? null);
-    map.setPaintProperty('points', 'circle-opacity', assets);
-    map.setPaintProperty('points', 'circle-stroke-opacity', assets);
-    map.setPaintProperty('lines', 'line-opacity', assets);
-    map.setPaintProperty('areas', 'fill-opacity', [
-      '*',
-      0.3,
-      assets,
-    ] satisfies ExpressionSpecification);
-    map.setPaintProperty('exits', 'circle-stroke-opacity', forward(highlight?.exits ?? null));
+    map.setPaintProperty('points', 'circle-opacity', revealed(assets));
+    map.setPaintProperty('points', 'circle-stroke-opacity', revealed(assets));
+    map.setPaintProperty('lines', 'line-opacity', revealed(assets));
+    map.setPaintProperty('areas', 'fill-opacity', revealed(0.3, assets));
+    map.setPaintProperty(
+      'exits',
+      'circle-stroke-opacity',
+      revealed(forward(highlight?.exits ?? null)),
+    );
     const selection: FilterSpecification = ['==', ['get', 'id'], entity ?? ''];
     map.setFilter('selected-point', ['all', ['==', ['geometry-type'], 'Point'], selection]);
     map.setFilter('selected-line', ['all', ['!=', ['geometry-type'], 'Point'], selection]);
     const arcFilter: FilterSpecification =
       state.product === 'all' ? ['boolean', true] : ['==', ['get', 'product'], state.product];
     const arcs = forward(highlight?.arcs ?? null);
+    paintLinks(state.product);
     for (const one of ARC_LAYERS) {
       map.setFilter(one.id, ['all', ['==', ['get', 'style'], one.style], arcFilter]);
-      map.setPaintProperty(
-        one.id,
-        'line-opacity',
-        typeof arcs === 'number'
-          ? one.opacity * arcs
-          : (['*', one.opacity, arcs] satisfies ExpressionSpecification),
-      );
+      map.setPaintProperty(one.id, 'line-opacity', revealed(one.opacity, arcs));
     }
     for (const one of PRODUCTS) {
       map.setLayoutProperty(
-        pulseLayer(one.key),
+        flowLayer(one.key),
         'visibility',
         state.moving && (state.product === 'all' || state.product === one.key) ? 'visible' : 'none',
       );
-      map.setPaintProperty(pulseLayer(one.key), 'line-opacity', arcs);
+      map.setPaintProperty(flowLayer(one.key), 'line-opacity', revealed(arcs));
     }
     for (const one of reviewLabels)
       if (state.product === 'all' || one.product === state.product) one.marker.addTo(map);
@@ -393,31 +424,12 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
   };
   reduced.addEventListener('change', onReduced);
 
-  // The pulse runs along each link in 2.6 seconds. It stops with the motion.
-  const start = performance.now();
-  let frameRequest = 0;
-  const pulse = (now: number): void => {
-    frameRequest = 0;
-    if (destroyed || !store.get().moving) return;
-    const progress = (((now - start) / PULSE_MS) % 1) * 1.15;
-    for (const one of PRODUCTS)
-      map.setPaintProperty(pulseLayer(one.key), 'line-gradient', pulseAt(Math.min(progress, 1)));
-    frameRequest = requestAnimationFrame(pulse);
-  };
+  const animation = createChainAnimation(map, data);
 
   // What the previous state looked like, so a change moves the camera once.
   let seen: GlobeState = store.get();
   // A click on the globe selects what the reader sees, so the camera stays where it is.
   let selectedByClick = false;
-  const frameStep = (state: GlobeState): void => {
-    const step = data.steps.find((one) => one.key === state.step);
-    const framed =
-      step === undefined
-        ? null
-        : frameOf(data.places, [...step.assets, ...step.arcs, ...step.exits]);
-    if (framed !== null)
-      map.fitBounds(framed, { padding: 60, maxZoom: 5, duration: state.moving ? CHANGE_MS : 0 });
-  };
   const follow = (): void => {
     const state = store.get();
     const before = seen;
@@ -426,13 +438,19 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
       !state.moving ||
       state.panel !== before.panel ||
       state.step !== before.step ||
-      state.product !== before.product
+      state.product !== before.product ||
+      state.hiddenTypes !== before.hiddenTypes
     )
       stopSpin();
     whenLoaded(() => {
       if (destroyed) return;
       draw(state);
-      if (state.step !== before.step) frameStep(state);
+      if (state.step !== before.step || state.moving !== before.moving)
+        animation.show(state.step, {
+          moving: state.moving,
+          camera: state.step !== null || selectedEntity(state) === null,
+        });
+      animation.flow(state.moving);
       const entity = selectedEntity(state);
       if (entity !== null && entity !== selectedEntity(before) && !selectedByClick)
         centreOn(entity);
@@ -441,6 +459,7 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
 
   map.on('load', () => {
     loaded = true;
+    paintTheme();
     for (const work of queue.splice(0)) work();
     // Seed from the state of this moment, then follow it: a selection restored from the address is
     // drawn here, and the subscription below missed nothing.
@@ -453,9 +472,9 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
       centreOn(entity);
     } else if (state.step !== null) {
       stopSpin();
-      frameStep(state);
+      animation.show(state.step, { moving: state.moving, camera: true });
     } else spin();
-    if (state.moving) frameRequest = requestAnimationFrame(pulse);
+    animation.flow(state.moving);
   });
   const unsubscribe = store.subscribe(follow);
 
@@ -514,7 +533,8 @@ export function mountGlobe({ container, data, store }: MountOptions): GlobeHandl
       reduced.removeEventListener('change', onReduced);
       container.removeEventListener('keydown', onKey);
       observer.disconnect();
-      if (frameRequest !== 0) cancelAnimationFrame(frameRequest);
+      stopTheme();
+      animation.destroy();
       for (const one of reviewLabels) one.marker.remove();
       for (const marker of exportLabels) marker.remove();
       map.remove();

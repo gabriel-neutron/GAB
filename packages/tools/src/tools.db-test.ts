@@ -1,6 +1,7 @@
 // Each tool runs against the disposable database as gabriel_research, the role with the narrowest
 // grants. Each gesture runs inside a transaction that rolls back, so the corpus stays as it was.
 
+import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 
 import { expect, test } from 'vitest';
@@ -1818,6 +1819,29 @@ test('propose refuses the place that an entity of the record has already', async
   });
 });
 
+test.each([
+  ['an entity with a place', true, {}, { ok: true }],
+  ['a method beside it', true, { geomMethod: 'osm_object' }, { ok: false }],
+  [
+    'an entity with no place',
+    false,
+    {},
+    { ok: false, refusal: expect.stringContaining('has no place to clear') as string },
+  ],
+])('propose clears the place with geom null: %s', async (_case, placed, more, expected) => {
+  const outcome = await rolledBack('superuser', async (ask) => {
+    const [bare, moved] = await placedPair(ask);
+    return proposeOnPage(ask, [
+      item(
+        'clear',
+        { op: 'update_entity', targetId: placed ? moved : bare, geom: null, ...more },
+        'left Sikka',
+      ),
+    ]);
+  });
+  expect(outcome).toMatchObject(expected);
+});
+
 test('propose refuses a place on an entity that does not exist', async () => {
   const outcome = await rolledBack('superuser', async (ask) =>
     proposeOnPage(ask, [
@@ -1927,6 +1951,34 @@ test('a place of a new entity that waits joins its unit, and is written after th
     { id: found.placed, unit_id: found.vessel, status: 'accepted' },
   ]);
   expect(found.entity).toStrictEqual({ same: true });
+});
+
+test('propose refuses a clear of the place of a new entity that waits with no place', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const [vessel] = batchOf(
+      await proposeOnPage(
+        ask,
+        [NAYARA],
+        `${PAGE_ONE}
+${LOCODE}`,
+      ),
+    ).proposals;
+    if (vessel === undefined) throw new Error('propose wrote no entity');
+    const outcome = await proposeAgain(ask, [
+      item(
+        'clear',
+        { op: 'update_entity', targetId: vessel.proposalId, geom: null },
+        '5940N 02819E',
+      ),
+    ]);
+    return { vessel: vessel.proposalId, outcome };
+  });
+  expect(found.outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining(
+      `the new entity ${found.vessel} has no place to clear`,
+    ) as string,
+  });
 });
 
 test('a rejection of the new entity rejects its place as "end rejected"', async () => {
@@ -2152,6 +2204,84 @@ test('propose adds a source to a relation when its excerpt names the act', async
   expect(found.rows[0]?.payload).toStrictEqual({ add_source: true });
 });
 
+const LISTING = 'A treasury lists A bank under its list.';
+
+// The relation cites the document already: an operator signed the first source act.
+const citedRelation = async (ask: Ask): Promise<string> => {
+  const held = await designatedRelation(ask);
+  await asResearch(ask, () => withDocument(ask, [LISTING]));
+  await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+  await ask(
+    `SELECT public.sign_change('a test', 'update_relation', '{"add_source": true}'::jsonb,
+       ARRAY[$1], 'relation', $2::uuid, '{}'::uuid[])`,
+    [DOC, held],
+  );
+  await ask('RESET SESSION AUTHORIZATION');
+  return held;
+};
+
+const citationsOf = async (ask: Ask, held: string): Promise<number> =>
+  z.array(z.object({ n: z.coerce.number() })).parse(
+    await ask(
+      `SELECT count(*) AS n FROM public.citation c JOIN public.proposals p ON p.id = c.claim_id
+          WHERE p.target_id = $1 AND p.status = 'pending'`,
+      [held],
+    ),
+  )[0]?.n ?? 0;
+
+test('propose adds a citation to a document that the relation cites already, once', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await citedRelation(ask);
+    const first = await proposeAgain(ask, [sourcing(held, 'A treasury lists A bank')]);
+    const again = await proposeAgain(ask, [sourcing(held, 'A treasury lists A bank')]);
+    const sources = await ask('SELECT sources::text[] AS s FROM public.relations WHERE id = $1', [
+      held,
+    ]);
+    return { first, again, sources, rows: await citationsOf(ask, held) };
+  });
+  expect(batchOf(found.first).proposals).toMatchObject([{ written: true }]);
+  expect(batchOf(found.again).proposals).toMatchObject([{ written: false }]);
+  expect(found.rows).toBe(1);
+  expect(found.sources).toStrictEqual([{ s: ['manual', DOC] }]);
+});
+
+test('propose refuses a citation whose excerpt the page does not hold, on a cited document', async () => {
+  const outcome = await rolledBack('superuser', async (ask) => {
+    const held = await citedRelation(ask);
+    return proposeAgain(ask, [sourcing(held, 'A treasury bans A bank')]);
+  });
+  expect(outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringMatching(/^item source: .*does not hold the excerpt/u) as string,
+  });
+});
+
+test('propose refuses a citation that a promoted act of the relation holds already', async () => {
+  const outcome = await rolledBack('superuser', async (ask) => {
+    const held = await citedRelation(ask);
+    const first = batchOf(await proposeAgain(ask, [sourcing(held, 'A treasury lists A bank')]));
+    // An act is never decided by the transaction that proposed it, so the test dates it back.
+    await ask('ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only');
+    await ask("UPDATE public.proposals SET xact = '1'::xid8 WHERE id = $1::uuid", [
+      first.proposals[0]?.proposalId,
+    ]);
+    await ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only');
+    const [unit] = z
+      .array(z.object({ unit_id: z.uuid() }))
+      .parse(
+        await ask('SELECT unit_id FROM public.proposals WHERE id = $1::uuid', [
+          first.proposals[0]?.proposalId,
+        ]),
+      );
+    await ask("SELECT public.promote_unit($1::uuid, 'a test')", [unit?.unit_id]);
+    return proposeAgain(ask, [sourcing(held, 'A treasury lists A bank')]);
+  });
+  expect(outcome).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('adds no source') as string,
+  });
+});
+
 test('propose adds a source to a relation when its excerpt holds a Cyrillic name of the far end', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const held = await designatedRelation(ask);
@@ -2197,4 +2327,166 @@ test('propose refuses a source whose excerpt names no end of the relation', asyn
     ) as string,
   });
   expect(found.rows).toStrictEqual([]);
+});
+
+// An event of the record and, when asked, the occurred_at relation that places it at a site.
+const placedEvent = async (
+  ask: Ask,
+  placed = true,
+): Promise<{ event: string; relation: string }> => {
+  await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+  const signed = z.array(z.object({ target_id: z.uuid() }));
+  const sign = async (op: string, payload: object, names: readonly string[] = []) => {
+    const [row] = signed.parse(
+      await ask(
+        `SELECT target_id FROM public.sign_change('a test', $1, $2::jsonb, ARRAY['manual'],
+           NULL, NULL, $3::uuid[])`,
+        [op, JSON.stringify(payload), names],
+      ),
+    );
+    if (row === undefined) throw new Error('the act was not signed');
+    return row.target_id;
+  };
+  const event = await sign('create_entity', {
+    type: 'event',
+    label: 'claimed attack — Plant — 2025-03-03',
+    sources: ['manual'],
+  });
+  const site = await sign('create_entity', {
+    type: 'facility',
+    label: 'Plant',
+    sources: ['manual'],
+  });
+  const relation = placed
+    ? await sign(
+        'create_relation',
+        { type: 'occurred_at', src_id: event, dst_id: site, sources: ['manual'] },
+        [event, site],
+      )
+    : '';
+  await ask('RESET SESSION AUTHORIZATION');
+  return { event, relation };
+};
+
+const denial = (target: string) => ({
+  ...sourcing(target, 'the Plant refinery'),
+  originator: 'The governor',
+  modality: 'denies',
+});
+
+test('propose denies an event of the record: the denial goes to its occurred_at relation', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const { event, relation } = await placedEvent(ask);
+    const outcome = await proposeOnPage(
+      ask,
+      [denial(event)],
+      'The governor says the Plant refinery was not hit.',
+    );
+    const [target] = z.array(z.object({ target_id: z.string(), modality: z.string() })).parse(
+      await ask(
+        `SELECT p.target_id::text AS target_id, c.modality FROM public.proposals p
+             JOIN public.citation c ON c.claim_id = p.id WHERE p.src::text[] @> ARRAY[$1::text]`,
+        [DOC],
+      ),
+    );
+    return { outcome, target, relation };
+  });
+  expect(batchOf(found.outcome).proposals).toMatchObject([{ ref: 'source', written: true }]);
+  expect(found.target).toStrictEqual({ target_id: found.relation, modality: 'denies' });
+});
+
+test('propose refuses the denial of an event that has no occurred_at relation of the record', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const { event } = await placedEvent(ask, false);
+    return proposeOnPage(ask, [denial(event)], 'The governor says the Plant refinery was not hit.');
+  });
+  expect(found).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('has no occurred_at relation of the record') as string,
+  });
+});
+
+// ------------------------------------------------ read_duplicate_identifiers ---
+
+test('read_duplicate_identifiers flags two entities with one INN, and not a third with another', async () => {
+  await rolledBack('superuser', async (ask) => {
+    const made = z.array(z.object({ id: z.uuid() }));
+    const plant = async (label: string, inn: string): Promise<string> => {
+      await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+      const [act] = made.parse(
+        await ask(`SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::text[]) AS id`, [
+          'create_entity',
+          JSON.stringify({ type: 'company', label }),
+        ]),
+      );
+      await ask('RESET SESSION AUTHORIZATION');
+      const [row] = made.parse(
+        await ask(
+          `INSERT INTO public.entities (type, label, attrs, sources, promoted_from)
+           VALUES ('company', $1, jsonb_build_object('tax_id', jsonb_build_object('v', $2::text, 'src', jsonb_build_array('manual'))),
+                   ARRAY['manual']::doc_id[], $3) RETURNING id`,
+          [label, inn, act?.id],
+        ),
+      );
+      if (row === undefined) throw new Error('no entity came back');
+      return row.id;
+    };
+    const inn = `99${randomUUID().replaceAll('-', '').slice(0, 10)}`.toUpperCase();
+    const a = await plant('Dup A', inn);
+    const b = await plant('Dup B', inn);
+    await plant('Other', `${inn}0`);
+    const found = z
+      .object({
+        groups: z.array(
+          z.object({
+            key: z.string(),
+            value: z.string(),
+            entities: z.array(z.object({ id: z.uuid() })),
+          }),
+        ),
+      })
+      .parse(await output(ask, 'read_duplicate_identifiers', {}));
+    const mine = found.groups.filter((group) => group.value === inn);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]?.key).toBe('tax_id');
+    expect(mine[0]?.entities.map((one) => one.id).sort()).toStrictEqual([a, b].sort());
+  });
+});
+
+// ------------------------------------------------------ read_event_pairs ---
+
+test('read_event_pairs flags a Latin and a Cyrillic event of one site and day', async () => {
+  await rolledBack('superuser', async (ask) => {
+    const made = z.array(z.object({ id: z.uuid() }));
+    const plant = async (label: string): Promise<string> => {
+      await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+      const [act] = made.parse(
+        await ask(`SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::text[]) AS id`, [
+          'create_entity',
+          JSON.stringify({ type: 'event', label }),
+        ]),
+      );
+      await ask('RESET SESSION AUTHORIZATION');
+      const [row] = made.parse(
+        await ask(
+          `INSERT INTO public.entities (type, label, attrs, sources, promoted_from)
+           VALUES ('event', $1, '{}'::jsonb, ARRAY['manual']::doc_id[], $2) RETURNING id`,
+          [label, act?.id],
+        ),
+      );
+      if (row === undefined) throw new Error('no entity came back');
+      return row.id;
+    };
+    const a = await plant('fire — Volgograd — 2031-01-02');
+    const b = await plant('fire — Волгоград — 2031-01-02');
+    await plant('fire — Волгоград — 2031-01-03');
+    const found = z
+      .object({
+        pairs: z.array(z.object({ day: z.string(), events: z.array(z.object({ id: z.uuid() })) })),
+      })
+      .parse(await output(ask, 'read_event_pairs', {}));
+    const mine = found.pairs.filter((pair) => pair.day === '2031-01-02');
+    expect(mine).toHaveLength(1);
+    expect(mine[0]?.events.map((one) => one.id).sort()).toStrictEqual([a, b].sort());
+  });
 });

@@ -6,6 +6,7 @@
 # - **Accepted by rule … — no person read it:** the claim passed a named rule on its cited sources. No person read it. Nobody has measured the accuracy of the rules yet.
 # - **Accepted by an AI reviewer — no person read it:** an AI checked the claim. No person read it.
 # - **Validated manually by the operator:** the operator read the sources and accepted the claim.
+# - **Reference dataset … — GAB did not check it:** the claim comes from a published dataset, as GEM, that the operator approved as a whole. No person read the claim, and GAB did not check it. This is not a check by the operator.
 #
 # A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.
 #
@@ -15,10 +16,20 @@
 # One row for each IMO number of a public vessel that a public designation of at least one regime lists. The join is on the IMO number only, never on a name. imo_check_digit_ok tells if the check digit of the number is right.
 # A designation belongs to a regime by the provider of its official file: EU EUR-Lex for the EU, the OFAC SDN list for OFAC, the UK Sanctions List for the UK.
 # Date rules of this release. EU: the date of entry into force. OFAC: the date of the Recent Actions notice. UK: the date designated.
+# Measure of each regime. EU: port and service ban (Council Regulation (EU) No 833/2014, Annex XLII). OFAC: blocking under a Russia programme. UK: asset freeze (Russia (Sanctions) (EU Exit) Regulations 2019, UK Sanctions List row). The day gaps compare different measures.
+# The matrix gives the listing date, not the current status. The release tracks no OFAC removal and no UK removal.
+# The type of date is different for each regime. EU: the entry into force of the act. OFAC: the date of the action. UK: the date designated.
 # The date of a listing is the start date of its designation, as the writer proposed it from the source (date_from designation_start). The release does not check the date against the rule.
 # Under the EU rule, a designation with no start date takes the entry into force of the act that designates, when that value cites a document of the designation (date_from act_entry_into_force). Else the listing has no date (date_from none), and its gaps are empty.
 # When a regime lists one IMO number more than once, the row gives the first listing with a date. ended_on is the end date of that listing. The marks count each listing, ended or not.
 # days_eu_after_ofac is the EU date minus the OFAC date, in days. days_eu_after_uk and days_uk_after_ofac read the same way.
-# Designations of a vessel with an IMO number that cite no official file of a regime, and count in no regime: 1.
+# Designations of a vessel with an IMO number that cite no official file of a regime, and count in no regime: 0.
 # Designations that cite the official files of more than one regime, and count in no regime: 0.
+# Rows with an EU listing and no OFAC listing: 1. EU date before 1 February 2025: 0. EU date on 1 February 2025 or later: 1. No EU date: 0.
+# No row has an OFAC date.
+# Rows with an OFAC date before 2022: 0.
+# Mean of days_eu_after_ofac: no row.
+# Mean of days_uk_after_ofac: no row.
+# ofac_or_uk_not_eu is a floor: 0 rows among the vessels in the record. A vessel that the record does not hold has no row.
 imo,imo_check_digit_ok,vessel_ids,vessel_labels,imo_claim_ids,eu_listed_on,eu_date_from,eu_date_claim_id,eu_ended_on,eu_act_id,eu_act_label,eu_document_ids,eu_claim_id,ofac_listed_on,ofac_date_from,ofac_date_claim_id,ofac_ended_on,ofac_act_id,ofac_act_label,ofac_document_ids,ofac_claim_id,uk_listed_on,uk_date_from,uk_date_claim_id,uk_ended_on,uk_act_id,uk_act_label,uk_document_ids,uk_claim_id,days_eu_after_ofac,days_eu_after_uk,days_uk_after_ofac,ofac_or_uk_not_eu,eu_not_ofac
+9000001,false,0a1f0000-0000-4000-8000-000000000001 0a1f0000-0000-4000-8000-000000000009,"[""Severnaya Volna"",""Northern Wave""]",0a1f0000-0000-4000-8000-000000000001/imo 0a1f0000-0000-4000-8000-000000000009/imo,2025-05-20,designation_start,0a1f0000-0000-4000-8000-000000000012,,0a1f0000-0000-4000-8000-000000000003,Council of the European Union,eu_act,0a1f0000-0000-4000-8000-000000000012,,,,,,,,,,,,,,,,,,,,false,true

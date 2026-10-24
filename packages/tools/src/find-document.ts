@@ -40,7 +40,8 @@ export const findDocument = defineTool({
   description:
     'Finds the stored documents whose address or title holds the text you give. An exact ' +
     'address comes first. Call it before fetch_document, so you do not fetch a page that ' +
-    'Gabriel already holds. "type" is legal_act, register_entry, press_release, report or other, ' +
+    'Gabriel already holds. "type" is legal_act, register_entry, press_release, report, official_publication, ' +
+    'reference, company_publication, telegram_post, ngo_publication, news_article or other, ' +
     'and "host" is the host of the address. "textPages" is the number of pages of stored text, and null means ' +
     'that the document has no text to read or to cite. "archive" names the zip archive that ' +
     'held a file, and the path of the file in it.',

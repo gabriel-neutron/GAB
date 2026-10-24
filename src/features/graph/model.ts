@@ -81,6 +81,7 @@ export const GROUND_HUE: Readonly<Record<GraphGround, string>> = Object.freeze({
 });
 
 export interface GraphModel {
+  readonly setGround: (ground: GraphGround) => void;
   readonly graph: MultiDirectedGraph<NodeAttrs, EdgeAttrs>;
   readonly pendingByTarget: ReadonlyMap<string, readonly Proposal[]>;
   // The hue of each type. A node is the wrong source: an isolate wears grey, so a type whose only
@@ -170,7 +171,7 @@ export function buildGraphModel(
   // Sigma draws nothing for either.
   const sizeSpan = Math.log1p(structure.largestDegree);
 
-  const hueOfType = typeHues(types, ground);
+  const hueOfType = new Map(typeHues(types, ground));
 
   const graph = new MultiDirectedGraph<NodeAttrs, EdgeAttrs>();
   for (const entity of corpus.entities) {
@@ -220,6 +221,20 @@ export function buildGraphModel(
   }
 
   return {
+    setGround: (next) => {
+      hueOfType.clear();
+      for (const [key, hue] of typeHues(types, next)) hueOfType.set(key, hue);
+      graph.forEachNode((id, attrs) => {
+        graph.setNodeAttribute(
+          id,
+          'color',
+          hueOfNode(attrs, GRAPH_PALETTES[next], hueOfType, next),
+        );
+      });
+      graph.forEachEdge((id, attrs) => {
+        graph.setEdgeAttribute(id, 'color', lookOf(attrs.type).hue[next]);
+      });
+    },
     graph,
     pendingByTarget,
     hueOfType,

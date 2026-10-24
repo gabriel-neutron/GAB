@@ -580,8 +580,19 @@ test.each([
   ['69о03\'11" с.ш., 58о09\'07.5" в.д.', 58.15208, 69.05306],
   // The compact degrees, minutes and seconds of a port register.
   ['RUVAR-0001 690311N 0580907E', 58.15194, 69.05306],
+  // The nautical form: degrees and minutes with a hyphen, and the hemisphere letter after them.
+  ['Position 60-20.02N 028-07.50E', 28.125, 60.33367],
+  ['Position 60-20,02 N, 28-07-30 E', 28.125, 60.33367],
 ])('the passage %j states the point', (passage, lon, lat) => {
   expect(unstatedValues(placeAt(lon, lat), [passage])).toStrictEqual([]);
+});
+
+test('a hyphen range with no hemisphere letter is no nautical position', () => {
+  expect(unstatedValues(placeAt(28, 60), ['Berths 60-20 and 28-07 are free.']).length).toBe(2);
+});
+
+test('minutes of 60 or more are no nautical position', () => {
+  expect(unstatedValues(placeAt(28, 60), ['Position 60-99N 28-75E']).length).toBe(2);
 });
 
 test.each(['60 of 20 berths, 28 of 42 tanks', 'el 60º aniversario, 28o año', '5o, 60o, 28о.'])(
@@ -623,6 +634,42 @@ test('a point that the passage does not state is unstated, coordinate by coordin
       (one) => one.name,
     ),
   ).toStrictEqual(['geom.longitude', 'geom.latitude']);
+});
+
+test.each([
+  ['59.6667 N, 28.1301 E', 28.1301, 59.6667],
+  ['59.6667 S, 28.1301 W', -28.1301, -59.6667],
+  ['59.6667 N, 28.1301 W', -28.1301, 59.6667],
+  ['59°40′ S, 28°19′ E', 28.3167, -59.6667],
+  ['RU  ULU  5940S 02819W', -28.3167, -59.6667],
+  ['0580907W 690311N', -58.15194, 69.05306],
+])('the passage %j states the point with its hemispheres', (passage, lon, lat) => {
+  expect(unstatedValues(placeAt(lon, lat), [passage])).toStrictEqual([]);
+});
+
+test.each([
+  ['a wrong hemisphere in latitude', 28.1301, -59.6667, ['geom.latitude']],
+  ['a wrong hemisphere in longitude', -28.1301, 59.6667, ['geom.longitude']],
+  ['a swapped latitude and longitude', 59.6667, 28.1301, ['geom.longitude', 'geom.latitude']],
+])('a lettered coordinate never states %s', (_case, lon, lat, names) => {
+  expect(
+    unstatedValues(placeAt(lon, lat), ['Terminal at 59.6667 N, 28.1301 E']).map((one) => one.name),
+  ).toStrictEqual(names);
+});
+
+test('a compact coordinate with a letter keeps its axis and its hemisphere', () => {
+  const passage = ["RU  ULU  Ust'-Luga  5940N 02819E"];
+  expect(unstatedValues(placeAt(28.3167, -59.6667), passage)).toHaveLength(1);
+  expect(unstatedValues(placeAt(59.6667, 28.3167), passage)).toHaveLength(2);
+});
+
+test('a coordinate with no letter states either axis and either sign', () => {
+  expect(unstatedValues(placeAt(-60.523347, -28.130122), ['x,60.523347,28.130122'])).toStrictEqual(
+    [],
+  );
+  expect(unstatedValues(placeAt(28.130122, 60.523347), ['x,60.523347,28.130122'])).toStrictEqual(
+    [],
+  );
 });
 
 const callOf = (type: string, observedOn?: string | string[]) =>
@@ -893,4 +940,31 @@ test('propose refuses an asset kind that is not a word of the closed list', () =
     attrs: { asset_kind: { v: 'export_terminal' } },
   });
   expect(assetKindRefusal(company)).toBe('only a facility or a port has an asset_kind');
+});
+
+test.each([
+  ['Yesterday a drone hit the plant.', '2025-02-23'],
+  ['Tonight a drone hit the plant.', '2025-02-24'],
+  ['Вчора дрони вразили НПЗ.', '2025-02-23'],
+  ['Сьогодні вночі дрони вразили НПЗ.', '2025-02-24'],
+])('"%s" states the day by the publication day', (passage, day) => {
+  const options = { publishedOn: '2025-02-24' };
+  expect(unstatedValues(relationFrom(day), [passage], options)).toStrictEqual([]);
+  expect(unstatedValues(relationFrom('2025-02-22'), [passage], options)).toHaveLength(1);
+  // With no publication day, a relative word states nothing.
+  expect(unstatedValues(relationFrom(day), [passage])).toHaveLength(1);
+});
+
+test('a relative word states no day when the passage writes a day', () => {
+  const options = { publishedOn: '2025-02-24' };
+  const passage = 'Today the ministry said the strike was on 3 February 2025.';
+  expect(unstatedValues(relationFrom('2025-02-24'), [passage], options)).toHaveLength(1);
+});
+
+test('"yesterday" crosses the end of a month and of a year', () => {
+  expect(
+    unstatedValues(relationFrom('2024-12-31'), ['Yesterday a drone hit it.'], {
+      publishedOn: '2025-01-01',
+    }),
+  ).toStrictEqual([]);
 });

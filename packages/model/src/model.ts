@@ -169,23 +169,35 @@ class Stopped extends Error {
 
 type Step =
   | { readonly done: 'said'; readonly said: Said }
-  | { readonly done: 'stop'; readonly kind: ReasonKind; readonly cause: unknown }
+  | {
+      readonly done: 'stop';
+      readonly kind: ReasonKind;
+      readonly cause: unknown;
+      readonly status?: number;
+    }
   | {
       readonly done: 'again';
       readonly kind: ReasonKind;
       readonly afterMs: number | undefined;
       readonly why: string;
+      readonly status?: number;
     };
 
-const stop = (kind: ReasonKind, cause?: unknown): Step => ({ done: 'stop', kind, cause });
+const stop = (kind: ReasonKind, cause?: unknown, status?: number): Step => ({
+  done: 'stop',
+  kind,
+  cause,
+  ...(status === undefined ? {} : { status }),
+});
 
 // A step that asks again names the kind it becomes when no retry is left. A transport that did
 // not answer and an answer nobody can read are two faults, and they take two sentences.
-const again = (kind: ReasonKind, why: string, afterMs?: number): Step => ({
+const again = (kind: ReasonKind, why: string, afterMs?: number, status?: number): Step => ({
   done: 'again',
   kind,
   afterMs,
   why,
+  ...(status === undefined ? {} : { status }),
 });
 
 type Tried<T> =
@@ -248,6 +260,10 @@ const afterOf = (headers: Readonly<Record<string, string>> | undefined): number 
   return Number.isNaN(at) ? undefined : Math.max(at - Date.now(), 0);
 };
 
+// The status code names no key and no account, so it may reach the reader of the failure.
+const statusOf = (status: number | undefined): string | undefined =>
+  status === undefined ? undefined : `HTTP ${String(status)}`;
+
 const asJson = (text: string): { ok: true; value: unknown } | { ok: false } => {
   try {
     return { ok: true, value: JSON.parse(text) as unknown };
@@ -269,8 +285,9 @@ const fromStatus = (error: APICallError, status: number): Step => {
     return stop(REASON.tooLong, text);
   if (status === TOO_MANY && (word.includes(QUOTA) || said.includes(QUOTA)))
     return stop(REASON.quota, text);
-  if (RETRY_STATUS.has(status)) return again(REASON.network, text, afterOf(error.responseHeaders));
-  return stop(REASON.configuration, text);
+  if (RETRY_STATUS.has(status))
+    return again(REASON.network, text, afterOf(error.responseHeaders), status);
+  return stop(REASON.configuration, text, status);
 };
 
 // A fault that this adapter does not know is a fault of the code, and it is thrown.
@@ -465,6 +482,7 @@ export const openModel = (
   ): Promise<Tried<Said>> => {
     let kind: ReasonKind = REASON.network;
     let why = '';
+    let status: number | undefined;
     const retries = question.oneCall === true ? 0 : NETWORK_RETRIES;
     for (let tried = 0; tried <= retries; tried += 1) {
       const step = await oneStep(question, messages, run);
@@ -472,12 +490,16 @@ export const openModel = (
       if (step.done === 'spent')
         return { ok: false, failure: failureOf(REASON.overCap, run.calls) };
       if (step.done === 'stop')
-        return { ok: false, failure: failureOf(step.kind, run.calls, step.cause) };
+        return {
+          ok: false,
+          failure: failureOf(step.kind, run.calls, step.cause, statusOf(step.status)),
+        };
       kind = step.kind;
       why = step.why;
+      status = step.status;
       if (tried < retries) await sleep(waitOf(step.afterMs, tried));
     }
-    return { ok: false, failure: failureOf(kind, run.calls, why) };
+    return { ok: false, failure: failureOf(kind, run.calls, why, statusOf(status)) };
   };
 
   const attempt = async <T>(

@@ -173,7 +173,7 @@ const batchCause = async (ask: Ask, item: object) => {
   }
 };
 
-test('a machine sends a source for a relation, and the door refuses an act that adds none', async () => {
+test('a machine sends a source for a relation, and the door refuses an act that adds neither a document nor a page', async () => {
   const seen = await rolledBack('superuser', async (ask) => {
     await document(ask);
     const owns = await relation(ask, 'owns');
@@ -194,7 +194,8 @@ test('a machine sends a source for a relation, and the door refuses an act that 
   });
   expect(seen.refused).toMatchObject({
     both: { code: '22023', hint: 'op' },
-    cited: { code: '22023', constraint: 'relation_has_sources', hint: 'targetId' },
+    // A page that no accepted act holds is a new citation, so the door writes it.
+    cited: null,
   });
   expect(seen.written).toStrictEqual([{ written: true }]);
 });

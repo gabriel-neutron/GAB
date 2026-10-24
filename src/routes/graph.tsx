@@ -5,13 +5,9 @@ import { readDossier, readRelation } from '@/features/detail/dossier';
 import { RelationSidebar, Sidebar } from '@/features/detail/sidebar';
 import type { GraphSelection } from '@/features/graph/selection';
 import { GraphPage } from '@/features/graph/graph-page';
-import { PageHeader } from '@/shared/page/page-header';
-import { ReadingPage } from '@/shared/page/reading-page';
 import { loadCorpus } from '@/shared/read/corpus';
 import { loadLayout } from '@/shared/read/layout';
-import { useReleaseNote } from '@/shared/read/release-note';
 import { loadEntityTypes } from '@/shared/read/vocabulary';
-import { releaseDay } from '@gab/release/release-day';
 
 // Departure: the address is the one store of what is examined. A write through the router
 // re-renders this route and destroys the canvas, so the canvas controller writes the address
@@ -59,12 +55,8 @@ export const Route = createFileRoute('/graph')({
   head: () => ({ meta: [{ title: 'Graph · GAB dataset' }] }),
 });
 
-const count = (n: number, one: string, many: string): string =>
-  `${String(n)} ${n === 1 ? one : many}`;
-
 function GraphRoute() {
   const record = Route.useLoaderData();
-  const releaseNote = useReleaseNote();
   const { corpus, types } = record;
 
   // Do not seed this state from `Route.useSearch()`. The canvas is the authority on what it drew,
@@ -103,23 +95,10 @@ function GraphRoute() {
       </p>
     );
 
-  // The words state what the page draws. Where the files of a release are read, the page names
-  // the release. Where the service answers, it names no date and does not call the record live.
   return (
-    <ReadingPage>
-      {releaseNote === null ? (
-        <PageHeader title="Graph" />
-      ) : (
-        <PageHeader title="Graph" detail={`From the release of ${releaseDay(releaseNote.date)}`} />
-      )}
-      <p className="max-w-prose">
-        {count(corpus.entities.length, 'entity is', 'entities are')} drawn as a node, and{' '}
-        {count(corpus.relations.length, 'relation joins', 'relations join')} two of them with a
-        line. The graph opens on a choice of an entity, and then draws that entity with its
-        neighbours. Select a node, a line or a name in the list to read its record. The types switch
-        off what they hold, and the field in the header narrows the lists.
-      </p>
+    <div className="workspace-page">
+      <h1 className="sr-only">Graph</h1>
       <GraphPage record={record} onSelect={setSelection} card={card} />
-    </ReadingPage>
+    </div>
   );
 }

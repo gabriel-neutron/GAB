@@ -6,6 +6,7 @@ import { CriticalNodesSheetFault, readCriticalNodesSheet } from './critical-node
 import { PreviousReleaseFault, readPreviousRelease } from './previous-release.ts';
 import { releaseFiles } from './release-files.ts';
 import type { ReleaseManifest } from './release-manifest.ts';
+import { gazetteOnlyDesignations } from './gazette-only-designations.ts';
 import { readReleaseRecord } from './release-record.ts';
 import {
   readVolumeTable,
@@ -28,6 +29,8 @@ export interface WrittenRelease {
   /** The rows of the volume table that join no link because a label names more than one entity,
    * with the reason. */
   readonly volumesUnjoined: readonly VolumeRejection[];
+  /** The relations of a designation that cite only the Federal Register, GovInfo or the Canada Gazette. */
+  readonly gazetteOnly: readonly string[];
 }
 
 const exists = async (path: string): Promise<boolean> =>
@@ -120,5 +123,6 @@ export const writeRelease = async (
     claims: record.claims.length,
     volumeRejections,
     volumesUnjoined,
+    gazetteOnly: gazetteOnlyDesignations(record),
   };
 };

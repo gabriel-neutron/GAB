@@ -31,6 +31,7 @@
     "db:sql": "node --env-file=infra/.env tools/db-sql.ts",
     "stack:up": "node tools/stack.ts up",
     "stack:down": "node tools/stack.ts down",
+    "report-render": "python tools/report/report.py",
     "retype:relations": "node --env-file=infra/.env tools/retype-relations.ts",
     "load:claims": "node --env-file=infra/.env tools/load-claims.ts",
     "test": "node --env-file-if-exists=infra/.env node_modules/vitest/vitest.mjs run",
@@ -57,6 +58,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-cli": "^1.167.27",
     "@tanstack/router-plugin": "^1.168.29",
+    "@types/geojson": "^7946.0.16",
     "@types/node": "^24.13.3",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.2.18",
@@ -85,6 +87,7 @@
     "yaml": "^2.9.1"
   },
   "dependencies": {
+    "@fontsource/roboto-condensed": "^5.3.0",
     "@gab/proposal": "workspace:*",
     "@gab/release": "workspace:*",
     "@tanstack/react-router": "^1.170.25",
@@ -93,6 +96,7 @@
     "graphology": "^0.26.0",
     "lucide-react": "^1.30.0",
     "maplibre-gl": "^6.2.0",
+    "motion": "^14.6.0",
     "radix-ui": "^1.6.7",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

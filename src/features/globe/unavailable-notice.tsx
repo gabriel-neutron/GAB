@@ -7,8 +7,7 @@ export function UnavailableNotice({ store }: { readonly store: GlobeStore }) {
   if (available) return null;
   return (
     <p role="status" className="absolute inset-0 flex items-center justify-center p-4 text-center">
-      This browser cannot draw the map, because it has no WebGL 2. The list of the entities is below
-      the map.
+      This browser cannot draw the map, because it has no WebGL 2.
     </p>
   );
 }

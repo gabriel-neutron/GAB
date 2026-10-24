@@ -8,11 +8,8 @@ import {
 import { CreateEntityDialog } from '@/features/edit/create-entity-dialog';
 import { ErrorNotice } from '@/shared/error-notice';
 import { refreshCorpus } from '@/shared/read/corpus';
-import { useReadAt } from '@/shared/read/read-time';
-import { useReleaseNote } from '@/shared/read/release-note';
 import { ModeToggle } from '@/shared/mode-toggle';
 import { ScreenQueryField, ScreenQueryProvider } from '@/shared/screen-query';
-import { SiteFooter } from '@/shared/site-footer';
 import { SiteHeader } from '@/shared/site-header';
 import { ThemeProvider, useTheme } from '@/shared/theme-provider';
 import { recheckWriter, useWriterOnline } from '@/shared/write/writer-status';
@@ -22,7 +19,16 @@ export const Route = createRootRoute({
   errorComponent: RootError,
 
   // The router uses the deepest title a route sets. This one applies where no route sets one.
-  head: () => ({ meta: [{ title: 'GAB dataset' }] }),
+  head: () => ({
+    meta: [
+      { title: 'GAB dataset' },
+      {
+        name: 'description',
+        content:
+          'GAB dataset: entities, relations and claims, each with a label that tells who decided it and the documents that state it.',
+      },
+    ],
+  }),
 });
 
 // Departure: only these screens read the header filter. The search page has a field of its own,
@@ -32,14 +38,19 @@ const FILTERED_SCREENS: ReadonlySet<string> = new Set(['/graph']);
 function RootLayout() {
   const path = useLocation({ select: (location) => location.pathname });
   const writerOnline = useWriterOnline();
-  const releaseNote = useReleaseNote();
-  const readAt = useReadAt();
   return (
     <ThemeProvider>
       {/* External constraint: `HeadContent` writes the `head` of a matched route into the
           document. Without it, a title is computed and never applied. */}
       <HeadContent />
       <ScreenQueryProvider path={path}>
+        {/* The link shows at the first Tab, so a keyboard reader skips the navigation. */}
+        <a
+          href="#main"
+          className="sr-only z-50 bg-background px-2 py-1 text-body/5 focus:not-sr-only focus:absolute focus:top-0 focus:left-0"
+        >
+          Skip to the content
+        </a>
         <div className="relative flex h-svh flex-col overflow-hidden">
           <SiteHeader
             writerOnline={writerOnline}
@@ -53,10 +64,9 @@ function RootLayout() {
           />
           {/* External constraint: `min-h-0` lets this row hold a scroll of its own. Without it,
               the row grows to its content and pushes the window. */}
-          <main className="min-h-0 flex-1">
+          <main id="main" tabIndex={-1} className="min-h-0 flex-1 outline-none">
             <Outlet />
           </main>
-          {readAt === null ? null : <SiteFooter note={releaseNote} readAt={readAt} />}
         </div>
       </ScreenQueryProvider>
     </ThemeProvider>

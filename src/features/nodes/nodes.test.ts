@@ -39,7 +39,9 @@ test('the summary counts the candidates and the retained nodes', () => {
 });
 
 test('a release with no node says so', () => {
-  expect(groupNodes([]).summary).toBe('This release has no candidate node.');
+  expect(groupNodes([]).summary).toBe(
+    'This release has no candidate node: the operator has not ticked a condition yet.',
+  );
 });
 
 test('a claim loses the name of its node only at the start, and never to an empty text', () => {

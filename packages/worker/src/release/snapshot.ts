@@ -10,3 +10,19 @@ export const inOneSnapshot = async <T>(db: Queryable, work: () => Promise<T>): P
     await db.query('ROLLBACK');
   }
 };
+
+const TIMEOUT_FORM = /^\d+(ms|s|min|h)$/;
+
+/** The statement timeout of a long read command: the value of `GAB_STATEMENT_TIMEOUT` (a number
+ * and a unit, such as `4h`), or the default of the command. */
+export const statementTimeout = (
+  fallback: string,
+  env: Record<string, string | undefined> = process.env,
+): string => {
+  const given = env['GAB_STATEMENT_TIMEOUT'];
+  if (given === undefined || given === '') return fallback;
+  if (!TIMEOUT_FORM.test(given)) {
+    throw new Error('GAB_STATEMENT_TIMEOUT needs a number and a unit: ms, s, min or h.');
+  }
+  return given;
+};

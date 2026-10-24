@@ -3,7 +3,7 @@ import { strikeCount } from '@gab/release/event-lane';
 import { EmptyState } from '@/shared/page/empty-state';
 import { PageSection } from '@/shared/page/page-section';
 import { READING_LINK } from '@/shared/page/reading-link';
-import { safeHref } from '@/shared/page/safe-href';
+import { safeHref } from '@gab/release/safe-href';
 
 import { entityHref } from './address';
 import type { EventLine } from './release-facts';
@@ -89,7 +89,9 @@ export function EventLane({ events }: EventLaneProps) {
   return (
     <PageSection title="Events">
       <p>
-        At least {String(strikes)} claimed and stored {strikes === 1 ? 'strike' : 'strikes'}.
+        {strikes === 0
+          ? 'No claimed strike is stored for this site.'
+          : `At least ${String(strikes)} claimed and stored ${strikes === 1 ? 'strike' : 'strikes'}.`}
       </p>
       <p className="max-w-prose text-muted-foreground">
         The count holds only the strikes that a party claimed and that this registry stored from the

@@ -111,11 +111,19 @@ misread a number, so the text can miss a fact that the image shows clearly.
   for the operator.
 - Each `geom`, in a new entity and in a change of place, needs `geomMethod`: how the source found
   the place. The tool refuses a geom with no method. The list is closed: "register_address" (the
-  address of a register entry), "osm_object" (an OpenStreetMap object), "operator_statement" (the
+  address of a register entry), "operator_statement" (the
   operator of the site states it), "satellite_match" (a match with satellite imagery),
   "photo_video_match" (a match with a photo or a video), "source_coordinates" (the source writes
   the coordinates) and "not_stated" (the source does not say). Give "not_stated" only when the
   source really does not say. The release shows the share of places with "not_stated".
+- Never cite an OpenStreetMap document (an object page, a Nominatim lookup, an Overpass answer) in
+  an act that carries a `geom`, and never give "osm_object" as the method of a new act. The
+  OpenStreetMap geometry is ODbL, and the release stops on it. Cite an OSM document only for the
+  attributes "osm_id" and "osm_version", in an act with no `geom`. When no other source states the
+  place, propose no `geom`.
+- To clear a place that has no good source, propose an act "update_entity" with `"geom": null` and no
+  `geomMethod`. Cite the document that shows why the old source is not good. The old place stays in
+  the history, and the entity shows no place until another act gives one.
 
 ## A sanctions status
 

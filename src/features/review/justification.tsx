@@ -1,3 +1,5 @@
+import { safeHref } from '@gab/release/safe-href';
+
 import { cn } from '@/shared/lib/utils';
 import { proposerWords } from '@/shared/proposer-words';
 
@@ -231,37 +233,35 @@ export function Justification({ unit }: JustificationProps) {
       <div className="space-y-2">
         <h3 className={HEADING}>Source</h3>
         {unit.documents.length === 0 ? <p>No document is cited.</p> : null}
-        {unit.documents.map((document) => (
-          <div
-            key={document.id}
-            data-document={document.id}
-            className="space-y-1 border border-border p-2"
-          >
-            <p className="font-medium break-words">
-              {document.uri === null ? (
-                documentName(document)
+        {unit.documents.map((document) => {
+          // An address comes from an untrusted page. A refused address leaves the name as text.
+          const href = document.uri === null ? null : safeHref(document.uri);
+          return (
+            <div
+              key={document.id}
+              data-document={document.id}
+              className="space-y-1 border border-border p-2"
+            >
+              <p className="font-medium break-words">
+                {href === null ? (
+                  documentName(document)
+                ) : (
+                  <a href={href} title={href} target="_blank" rel="noreferrer" className={LINK}>
+                    {documentName(document)}
+                  </a>
+                )}
+              </p>
+              {isImageType(document.mime) ? (
+                <div className="flex items-start gap-2">
+                  <CitedImage document={document.id} title={documentName(document)} />
+                  <div className="min-w-0 flex-1 space-y-1">{passagesOf(document)}</div>
+                </div>
               ) : (
-                <a
-                  href={document.uri}
-                  title={document.uri}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={LINK}
-                >
-                  {documentName(document)}
-                </a>
+                passagesOf(document)
               )}
-            </p>
-            {isImageType(document.mime) ? (
-              <div className="flex items-start gap-2">
-                <CitedImage document={document.id} title={documentName(document)} />
-                <div className="min-w-0 flex-1 space-y-1">{passagesOf(document)}</div>
-              </div>
-            ) : (
-              passagesOf(document)
-            )}
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
     </section>
   );

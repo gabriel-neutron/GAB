@@ -35,7 +35,9 @@ const placeOf = (request: {
 }): Record<string, unknown> =>
   request.geom === undefined
     ? {}
-    : { geom: request.geom, [GEOLOCATION_KEY]: request.geomMethod ?? NOT_STATED };
+    : request.geom === null
+      ? { geom: null }
+      : { geom: request.geom, [GEOLOCATION_KEY]: request.geomMethod ?? NOT_STATED };
 
 /** The act of the operator, in the words of the record. */
 export const proposalAct = (request: WriteRequest): ProposalAct => {

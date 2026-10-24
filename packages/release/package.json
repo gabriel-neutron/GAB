@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./accepted": "./src/accepted.ts",
+    "./alignment-rows": "./src/alignment-rows.ts",
     "./arc-line": "./src/arc-line.ts",
     "./arc-volume": "./src/arc-volume.ts",
     "./asset-sanctions": "./src/asset-sanctions.ts",
@@ -21,7 +22,9 @@
     "./event-lane": "./src/event-lane.ts",
     "./file-words": "./src/file-words.ts",
     "./map-features": "./src/map-features.ts",
+    "./reference-label": "./src/reference-label.ts",
     "./release-day": "./src/release-day.ts",
+    "./report-files": "./src/report-files.ts",
     "./safe-href": "./src/safe-href.ts",
     "./site-manifest": "./src/site-manifest.ts",
     "./site-paths": "./src/site-paths.ts",

@@ -41,13 +41,13 @@ async function readFromService(): Promise<Corpus> {
 
 // The service does not answer: the files of the release give the same shapes. The release has no
 // pending act, because the review is a part that writes, and it is hidden.
-// The footer names the version only here: with the service up, the record is the live one.
+// The page names the version only here: with the service up, the record is the live one.
 let generation = 0;
 
 async function readFromRelease(): Promise<Corpus> {
   const own = generation;
   const [release, relationTypes] = await Promise.all([loadRelease(), loadRelationTypes()]);
-  // A load that ends after a forget must not show the footer: the service may be back.
+  // A load that ends after a forget must not show the release note: the service may be back.
   if (own === generation)
     setReleaseNote({
       version: release.manifest.version,

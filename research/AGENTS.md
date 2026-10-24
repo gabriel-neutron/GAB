@@ -19,7 +19,10 @@ session: each proposal waits in the review queue, and the operator decides it th
 
 - Read the record: `search_graph`, `read_entity`, `neighbourhood`, `list_vocabulary`,
   `list_proposals`, `list_entities` (the entities of one type in pages, with the count of those that
-  hold a key and of those that do not).
+  hold a key and of those that do not), `read_duplicate_identifiers` (the entities that share an
+  INN, an OGRN, an IMO number or a LEI; it flags, and you send each group to a reviewer).
+  `read_event_pairs` (the events with one kind, one day and one site in two scripts; it flags, and
+  you send each group to a reviewer).
 - Read the documents: `find_document`, `document_text`, `file_schema_sample` (the header and the
   first rows of a stored CSV table), `job_status`.
 - Find leads on the web: `web_search`, `news_search`.
@@ -47,7 +50,15 @@ session: each proposal waits in the review queue, and the operator decides it th
   written permission to republish. The operator accepts the risk: cite a Comtrade figure with the
   source "UN Comtrade".
 - The licences of OpenCorporates and OCCRP Aleph do not fit the open dataset. Use them only as a
-  lead, or cite a fact from them.
+  lead, or cite a fact from them. Never use a leak collection of Aleph (see the rule on leaked data).
+- Never cite leaked, hacked or stolen data. The contract of the report forbids unlawfully obtained
+  data. A page is a leak when it holds the leaked data, or when its publisher calls its own data
+  leaked, hacked or stolen. Examples: the leak collections of Aleph, Offshore Leaks, WikiLeaks and
+  DDoSecrets. Stop when you find a leak. Do not store it. A published article of a news outlet is
+  not a leak, also when it reports on leaked data. Cite the article. Do not cite a page that hosts
+  or copies the leaked file. A lead from such an article is allowed. Do not follow a link from a
+  leak to a page of its original owner. If a fact has no other source, do not propose it. When you
+  are not sure, ask the skill `expert-panel`.
 - Cite an entry of the OFAC SDN list: `ofac_sdn` stores the whole official file once, as a public
   document with its hash and its date of publication, and gives the line of one entry by its
   ent_num. Cite that line on the page that the answer gives (`entry.page`). Never store one entry
@@ -114,6 +125,8 @@ session: each proposal waits in the review queue, and the operator decides it th
   key, and `vessel_events` needs a free token. When one is not set, the tool says so, and the
   other tools work. OpenSanctions is a repeater: fetch the official entry that the tool names with
   `fetch_document`, and cite that. Events that are matched by an MMSI alone are a lead.
+  When an IMO number or an MMSI names more than one identity, `vessel_events` refuses and
+  describes each one: choose one and give its `vesselIds`.
 - **An AI reviewer with a new context decides a doubt.** The rules of the database decide each
   unit from its sources, and a unit with a doubt goes to a reviewer. The agent that proposed a
   unit never decides it. It starts a new reviewer subagent, which follows the skill

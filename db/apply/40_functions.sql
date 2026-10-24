@@ -519,6 +519,25 @@ BEGIN
   END IF;
 END $$;
 
+-- A SOURCE ACT CAN ALSO ADD A PAGE: A DOCUMENT THAT THE RELATION CITES ALREADY, WITH A PASSAGE THAT NO
+-- ACCEPTED ACT OF THE RELATION HOLDS YET. The relation and its sources stay as they are, and the
+-- citation row is the whole change. p_cites holds the passages of the act (document, text_extractor,
+-- page, start, end). p_self is the act itself, once it is written, so that it never counts as held.
+CREATE OR REPLACE FUNCTION relation_adds_citation(p_target uuid, p_cites jsonb, p_self uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT EXISTS (SELECT 1 FROM public.relations r, jsonb_array_elements(p_cites) AS c
+                  WHERE r.id = p_target AND c->>'document' = ANY (r.sources::text[]))
+     AND NOT EXISTS (
+       SELECT 1 FROM jsonb_array_elements(p_cites) AS c
+        WHERE EXISTS (
+          SELECT 1 FROM public.citation h JOIN public.proposals q ON q.id = h.claim_id
+           WHERE q.status = 'accepted' AND q.target_id = p_target AND q.id IS DISTINCT FROM p_self
+             AND h.doc_id = c->>'document' AND h.text_extractor = c->>'text_extractor'
+             AND h.page = (c->>'page')::int AND h.start IS NOT DISTINCT FROM (c->>'start')::int
+             AND h."end" IS NOT DISTINCT FROM (c->>'end')::int));
+$$;
+
 -- A TYPE CHANGE GOES ONLY ON A designated_by RELATION, AND ONLY WHEN NO OPEN restricted_by RELATION
 -- LINKS THE SAME TWO ENDS. The batch door reads it so that an act that can never apply does not
 -- wait in the queue, and the promotion reads it again under the row lock, because another act can
@@ -699,6 +718,8 @@ BEGIN
     ('proposals_geom_method', 'geomMethod',
      'a geometry needs a method of geolocation: register_address, osm_object, '
      'operator_statement, satellite_match, photo_video_match, source_coordinates or not_stated'),
+    ('proposals_geom_clear_method', 'geomMethod',
+     'an act that clears the geometry (geom null) has no method of geolocation'),
     ('entities_geom_method_closed', 'geomMethod',
      'the method of geolocation is register_address, osm_object, operator_statement, '
      'satellite_match, photo_video_match, source_coordinates or not_stated'),
@@ -1112,8 +1133,11 @@ BEGIN
                                        'the act names a target of the wrong kind');
       END IF;
       BEGIN
-        PERFORM public.check_relation_add_source(
-          v_target, ARRAY(SELECT jsonb_array_elements_text(v_item->'src')));
+        IF NOT public.relation_adds_citation(
+                 v_target, coalesce(v_item->'citations', '[]'::jsonb), NULL) THEN
+          PERFORM public.check_relation_add_source(
+            v_target, ARRAY(SELECT jsonb_array_elements_text(v_item->'src')));
+        END IF;
       EXCEPTION WHEN raise_exception OR check_violation THEN
         GET STACKED DIAGNOSTICS v_rule = CONSTRAINT_NAME, v_said = MESSAGE_TEXT,
                                 v_hint = PG_EXCEPTION_HINT;
@@ -1160,14 +1184,23 @@ BEGIN
     -- A MACHINE GIVES A PLACE WITH THE METHOD THAT FOUND IT. The shape of the act allows the key
     -- and checks its words, and it cannot require the key: an act written before the key waits in
     -- the queue. So the door of a machine requires it.
-    IF v_payload::jsonb ? 'geom'
+    -- AN ACT THAT CLEARS THE PLACE (geom null) HAS NO PLACE TO DESCRIBE, so it carries no method
+    -- and no shape to check.
+    IF v_item->>'op' = 'update_entity' AND jsonb_typeof(v_payload::jsonb->'geom') = 'null' THEN
+      IF v_payload::jsonb ? 'geom_method' THEN
+        PERFORM public.raise_item_rule(v_no, 'proposals_geom_clear_method', '23514',
+                                       'an act that clears the geometry has no method');
+      END IF;
+    ELSIF v_payload::jsonb ? 'geom'
        AND NOT coalesce(v_payload::jsonb->>'geom_method' IN (
                           'register_address','osm_object','operator_statement','satellite_match',
                           'photo_video_match','source_coordinates','not_stated'), false) THEN
       PERFORM public.raise_item_rule(v_no, 'proposals_geom_method', '23514',
                                      'a geometry needs a method of geolocation');
     END IF;
-    IF v_payload::jsonb ? 'geom' THEN
+    IF v_payload::jsonb ? 'geom'
+       AND NOT (v_item->>'op' = 'update_entity'
+                AND jsonb_typeof(v_payload::jsonb->'geom') = 'null') THEN
       BEGIN
         v_valid := public.ST_IsValid(public.ST_GeomFromGeoJSON(v_payload::jsonb->'geom'));
       EXCEPTION WHEN OTHERS THEN
@@ -1239,7 +1272,18 @@ BEGIN
     -- THE SAME PLACE ON A NEW ENTITY THAT WAITS. The change joins the unit of that entity, and the
     -- promotion refuses an act that changes nothing, so the whole unit could never be written. An
     -- exact retry keeps its act.
-    IF v_join IS NULL AND v_item->>'op' = 'update_entity' AND v_payload::jsonb ? 'geom' THEN
+    -- A CLEAR OF A NEW ENTITY THAT HAS NO PLACE. The change joins the unit of that entity, and the
+    -- promotion refuses an act that changes nothing, so the whole unit could never be written.
+    IF v_join IS NULL AND v_item->>'op' = 'update_entity'
+       AND jsonb_typeof(v_payload::jsonb->'geom') = 'null'
+       AND EXISTS (SELECT 1 FROM public.proposals o
+                    WHERE o.id = v_target AND o.status = 'pending' AND o.op = 'create_entity'
+                      AND NOT o.payload ? 'geom') THEN
+      RAISE EXCEPTION 'item %: the new entity % has no place to clear', v_no, v_target
+        USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'act_changes_something';
+    END IF;
+    IF v_join IS NULL AND v_item->>'op' = 'update_entity'
+       AND jsonb_typeof(v_payload::jsonb->'geom') = 'object' THEN
       -- Two batches that give one place at the same time wait for each other here.
       PERFORM pg_advisory_xact_lock(hashtextextended('entity_place:' || v_target::text, 0));
       SELECT CASE WHEN w.op = 'create_entity'
@@ -1256,7 +1300,7 @@ BEGIN
                                     v_payload::jsonb, v_src, session_user::text, v_passages)))
          AND EXISTS (SELECT 1 FROM public.proposals o
                       WHERE o.id = v_target AND o.status = 'pending' AND o.op = 'create_entity')
-         AND public.ST_Equals(public.ST_GeomFromGeoJSON(w.payload->'geom'),
+         AND public.ST_Equals(public.ST_GeomFromGeoJSON(nullif(w.payload->'geom', 'null'::jsonb)),
                               public.ST_GeomFromGeoJSON(v_payload::jsonb->'geom'))
        ORDER BY w.op <> 'create_entity', w.id
        LIMIT 1;
@@ -1962,7 +2006,14 @@ BEGIN
 
   ELSIF p.op = 'update_relation' AND p.payload ? 'add_source' THEN
     PERFORM 1 FROM public.relations r WHERE r.id = p.target_id FOR UPDATE;
-    PERFORM public.check_relation_add_source(p.target_id, p.src::text[]);
+    IF NOT public.relation_adds_citation(
+             p.target_id,
+             (SELECT coalesce(jsonb_agg(jsonb_build_object('document', c.doc_id,
+                'text_extractor', c.text_extractor, 'page', c.page, 'start', c.start,
+                'end', c."end")), '[]'::jsonb) FROM public.citation c WHERE c.claim_id = p.id),
+             p.id) THEN
+      PERFORM public.check_relation_add_source(p.target_id, p.src::text[]);
+    END IF;
     SELECT jsonb_build_object('sources', to_jsonb(r.sources)) INTO v_prior
       FROM public.relations r WHERE r.id = p.target_id;
     UPDATE public.relations r
@@ -2083,14 +2134,16 @@ BEGIN
                                 THEN coalesce(v_type, 'unknown') ELSE e.type END,
            proposed_type = CASE WHEN NOT p.payload ? 'type' THEN e.proposed_type
                                 WHEN v_type IS NULL THEN p.payload->>'type' END,
+           -- A geom of JSON null clears the place: the parse of a null gives NULL.
            geom          = CASE WHEN p.payload ? 'geom'
-                                THEN public.ST_SetSRID(public.ST_GeomFromGeoJSON(p.payload->'geom'),
-                                                       4326)
+                                THEN public.ST_SetSRID(public.ST_GeomFromGeoJSON(
+                                       nullif(p.payload->'geom', 'null'::jsonb)), 4326)
                                 ELSE e.geom END,
            -- The method belongs to the place: a new place brings the method that found it. The
            -- same place with `not_stated` keeps the method it holds, so a repeat of a place with
            -- no method never takes a stated method away.
            geom_method   = CASE WHEN NOT p.payload ? 'geom' THEN e.geom_method
+                                WHEN jsonb_typeof(p.payload->'geom') = 'null' THEN 'not_stated'
                                 WHEN coalesce(p.payload->>'geom_method', 'not_stated') = 'not_stated'
                                  AND public.ST_Equals(e.geom, public.ST_SetSRID(
                                        public.ST_GeomFromGeoJSON(p.payload->'geom'), 4326))
@@ -2107,9 +2160,11 @@ BEGIN
             CASE WHEN NOT p.payload ? 'type' THEN e.proposed_type
                  WHEN v_type IS NULL THEN p.payload->>'type' END,
             CASE WHEN p.payload ? 'geom'
-                 THEN public.ST_SetSRID(public.ST_GeomFromGeoJSON(p.payload->'geom'), 4326)::text
+                 THEN public.ST_SetSRID(public.ST_GeomFromGeoJSON(
+                        nullif(p.payload->'geom', 'null'::jsonb)), 4326)::text
                  ELSE e.geom::text END,
             CASE WHEN NOT p.payload ? 'geom' THEN e.geom_method
+                 WHEN jsonb_typeof(p.payload->'geom') = 'null' THEN 'not_stated'
                  WHEN coalesce(p.payload->>'geom_method', 'not_stated') = 'not_stated'
                   AND public.ST_Equals(e.geom, public.ST_SetSRID(
                         public.ST_GeomFromGeoJSON(p.payload->'geom'), 4326))
@@ -2798,7 +2853,10 @@ $$;
 -- takes copies of the passages, as merge_waiting_act does, and the promotion reads them.
 --
 -- Both units are events, with the same kind, site and day in their names, and the doubted unit
--- holds one act only. The doubted unit is a doubt, and the waiting unit is no doubt of its own
+-- holds one act only. The one exception: a waiting occurred_at relation of a recorded event takes a
+-- doubted unit of two acts, the event and its occurred_at link to the site where the relation ends.
+-- The names then match by kind and day, the site is matched through the link, and the step closes
+-- both acts. The doubted unit is a doubt, and the waiting unit is no doubt of its own
 -- once the doubted unit is closed: the doubt of a check spreads to every act of one claim, so the
 -- state of the waiting unit is read after the join, and a doubt rolls the whole step back. The
 -- two sets of modalities must be equal: a denial never joins an assertion. The waiting unit must
@@ -2817,6 +2875,8 @@ DECLARE
   w        public.proposals%ROWTYPE;
   v_dname  text[];
   v_wname  text[];
+  v_wlabel text;
+  v_link   uuid;
   v_note   text;
   v_docs   int;
   v_copied int;
@@ -2843,14 +2903,37 @@ BEGIN
   IF d.op <> 'create_entity' OR d.payload->>'type' <> 'event' THEN
     RAISE EXCEPTION 'the unit % is no new event', p_doubted USING CONSTRAINT = 'join_doubted';
   END IF;
-  IF w.op <> 'create_entity' OR w.payload->>'type' <> 'event' THEN
-    RAISE EXCEPTION 'the unit % is no new event', p_waiting USING CONSTRAINT = 'join_waiting';
+  -- The waiting unit is a new event, or the occurred_at relation of an event of the record: the
+  -- name of that event is the name of the unit.
+  IF w.op = 'create_relation' AND w.payload->>'type' = 'occurred_at'
+     AND coalesce(w.payload->>'src_kind', 'entity') = 'entity' THEN
+    SELECT e.label INTO v_wlabel FROM public.entities e
+     WHERE e.id = (w.payload->>'src_id')::uuid AND e.type = 'event';
+  ELSIF w.op = 'create_entity' AND w.payload->>'type' = 'event' THEN
+    v_wlabel := w.payload->>'label';
+  END IF;
+  IF v_wlabel IS NULL THEN
+    RAISE EXCEPTION 'the unit % is no new event and no occurred_at relation of an event of the '
+                    'record', p_waiting USING CONSTRAINT = 'join_waiting';
   END IF;
   v_dname := regexp_match(d.payload->>'label', c_name);
-  v_wname := regexp_match(w.payload->>'label', c_name);
+  v_wname := regexp_match(v_wlabel, c_name);
+  -- A waiting relation is for the site that it ends at, and the record may write the name of that
+  -- site otherwise than the doubted event does. So the doubted unit holds its own occurred_at link
+  -- to the same site, and the names are compared by their kind and their day.
+  IF w.op = 'create_relation' THEN
+    SELECT l.id INTO v_link FROM public.proposals l
+     WHERE l.status = 'pending' AND l.unit_id = d.unit_id AND l.id <> d.id
+       AND l.op = 'create_relation' AND l.payload->>'type' = 'occurred_at'
+       AND l.payload->>'src_id' = d.id::text
+       AND coalesce(l.payload->>'dst_kind', 'entity') = coalesce(w.payload->>'dst_kind', 'entity')
+       AND l.payload->>'dst_id' = w.payload->>'dst_id';
+  END IF;
   IF v_dname IS NULL OR v_wname IS NULL
-     OR ARRAY(SELECT public.name_key(x) FROM unnest(v_dname) AS x)
-        IS DISTINCT FROM ARRAY(SELECT public.name_key(x) FROM unnest(v_wname) AS x) THEN
+     OR ARRAY(SELECT public.name_key(x) FROM unnest(
+          CASE WHEN v_link IS NULL THEN v_dname ELSE ARRAY[v_dname[1], v_dname[3]] END) AS x)
+        IS DISTINCT FROM ARRAY(SELECT public.name_key(x) FROM unnest(
+          CASE WHEN v_link IS NULL THEN v_wname ELSE ARRAY[v_wname[1], v_wname[3]] END) AS x) THEN
     RAISE EXCEPTION 'the two units are not for the same kind of event, at the same site, on the '
                     'same day'
       USING CONSTRAINT = 'join_same_event';
@@ -2860,18 +2943,18 @@ BEGIN
   END IF;
   v_cause := coalesce(public.unit_doubt_cause(p_doubted), 'a fault of the check');
   IF EXISTS (SELECT 1 FROM public.proposals n
-              WHERE n.status = 'pending' AND n.id <> d.id
+              WHERE n.status = 'pending' AND n.id <> d.id AND n.id IS DISTINCT FROM v_link
                 AND (n.unit_id = d.unit_id OR d.id = ANY (n.names) OR d.id = n.target_id
                      OR d.id::text IN (n.payload->>'src_id', n.payload->>'dst_id'))) THEN
     RAISE EXCEPTION 'another act waits with the doubted unit or names it, so it is not joined'
       USING CONSTRAINT = 'join_doubted';
   END IF;
   IF (SELECT array_agg(DISTINCT c.modality ORDER BY c.modality) FROM public.citation c
-       WHERE c.claim_id = d.id)
+       WHERE c.claim_id = ANY (ARRAY[d.id, v_link]))
      IS DISTINCT FROM (SELECT array_agg(DISTINCT c.modality ORDER BY c.modality)
                          FROM public.citation c WHERE c.claim_id = w.id)
      OR EXISTS (SELECT 1 FROM public.citation c
-                 WHERE c.claim_id IN (d.id, w.id) AND c.transcription IS NOT NULL) THEN
+                 WHERE c.claim_id IN (d.id, v_link, w.id) AND c.transcription IS NOT NULL) THEN
     RAISE EXCEPTION 'the two units cite their passages in two modalities, or one cites words read '
                     'from an image'
       USING CONSTRAINT = 'join_modality';
@@ -2898,14 +2981,14 @@ BEGIN
      SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
          decided_as = 'unit', reject_reason = 'duplicate', reject_note = v_note,
          decision_origin = p_origin, decision_reason = p_why
-   WHERE id = d.id;
+   WHERE id IN (d.id, v_link);
   v_rule := public.unit_rule(w.unit_id);
   IF v_rule IS DISTINCT FROM 'weak_sources' THEN
     RAISE EXCEPTION 'the unit % is a doubt of its own, or it is no unit that waits for a source',
                     p_waiting
       USING CONSTRAINT = 'join_waiting';
   END IF;
-  RETURN jsonb_build_object('name', w.payload->>'label', 'doubted', d.id, 'waiting', w.unit_id,
+  RETURN jsonb_build_object('name', v_wlabel, 'doubted', d.id, 'waiting', w.unit_id,
                             'documents', v_docs, 'passages', v_copied);
 END $$;
 
@@ -4136,7 +4219,8 @@ $$;
 --                claim that the operator rejected before (the newest rejection gives the day, and
 --                the key of its reason and its note, which stay private to the operator); a value
 --                that an import broke; an entity whose link to a rejected parent the operator
---                rejected, so that it has no parent now.
+--                rejected, so that it has no parent now; a point of a reference dataset in whole
+--                degrees, or the same as the point of another site of the record.
 --   information  The unit stays clean: sources from the parent (a decision of the operator for the
 --                v1 import), an approximate position, a note, the same name under another parent.
 --
@@ -4511,7 +4595,7 @@ BEGIN
            'The record holds another geometry than the ' ||
            CASE WHEN public.act_reference_dataset(a.id) IS NOT NULL
                 THEN 'reference dataset gives' ELSE 'loaded row gives' END ||
-           public.place_gap_said(e.geom, public.ST_GeomFromGeoJSON(a.payload->'geom'),
+           public.place_gap_said(e.geom, public.ST_GeomFromGeoJSON(nullif(a.payload->'geom', 'null'::jsonb)),
                                  e.attrs->'point_role'->>'v', a.payload->'attrs'->'point_role'->>'v')
       FROM acts a
       JOIN public.entities e ON e.id = a.target_id
@@ -4519,42 +4603,83 @@ BEGIN
        AND (a.found_by IS NOT NULL OR public.act_reference_dataset(a.id) IS NOT NULL
             OR a.author_role <> 'gabriel_app')
        AND NOT public.ST_Equals(e.geom,
-             public.ST_SetSRID(public.ST_GeomFromGeoJSON(a.payload->'geom'), 4326))
+             public.ST_SetSRID(public.ST_GeomFromGeoJSON(nullif(a.payload->'geom', 'null'::jsonb)), 4326))
     UNION ALL
     -- A change of place that joined a new entity which gives a place of its own. The change is
     -- written after the entity and replaces that place, so the operator compares the two (S3).
     SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
            'The new entity gives another geometry than this change of place' ||
            public.place_gap_said(public.ST_GeomFromGeoJSON(n.payload->'geom'),
-                                 public.ST_GeomFromGeoJSON(a.payload->'geom'),
+                                 public.ST_GeomFromGeoJSON(nullif(a.payload->'geom', 'null'::jsonb)),
                                  n.payload->'attrs'->'point_role'->>'v', a.payload->'attrs'->'point_role'->>'v')
       FROM acts a
       JOIN acts n ON n.id = a.target_id AND n.op = 'create_entity' AND n.payload ? 'geom'
      WHERE a.op = 'update_entity' AND a.payload ? 'geom'
        AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(n.payload->'geom'),
-                                public.ST_GeomFromGeoJSON(a.payload->'geom'))
+                                public.ST_GeomFromGeoJSON(nullif(a.payload->'geom', 'null'::jsonb)))
     UNION ALL
     -- Two changes of place of one entity in one unit. The promotion writes both, and the last one
     -- replaces the other, so the operator compares them (S3).
     SELECT a.unit_id, 'not_clean', 'record_disagrees', a.id,
            'Another change of place of the unit gives another geometry' ||
-           coalesce((SELECT public.place_gap_said(public.ST_GeomFromGeoJSON(o.payload->'geom'),
-                                                  public.ST_GeomFromGeoJSON(a.payload->'geom'),
+           coalesce((SELECT public.place_gap_said(public.ST_GeomFromGeoJSON(nullif(o.payload->'geom', 'null'::jsonb)),
+                                                  public.ST_GeomFromGeoJSON(nullif(a.payload->'geom', 'null'::jsonb)),
                                                   o.payload->'attrs'->'point_role'->>'v',
                                                   a.payload->'attrs'->'point_role'->>'v')
                        FROM acts o
                       WHERE o.id <> a.id AND o.op = 'update_entity' AND o.payload ? 'geom'
                         AND o.target_id = a.target_id
-                        AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(o.payload->'geom'),
-                                                 public.ST_GeomFromGeoJSON(a.payload->'geom'))
+                        AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(nullif(o.payload->'geom', 'null'::jsonb)),
+                                                 public.ST_GeomFromGeoJSON(nullif(a.payload->'geom', 'null'::jsonb)))
                       ORDER BY o.id LIMIT 1), '')
       FROM acts a
      WHERE a.op = 'update_entity' AND a.payload ? 'geom'
        AND EXISTS (SELECT 1 FROM acts o
                     WHERE o.id <> a.id AND o.op = 'update_entity' AND o.payload ? 'geom'
                       AND o.target_id = a.target_id
-                      AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(o.payload->'geom'),
-                                               public.ST_GeomFromGeoJSON(a.payload->'geom')))
+                      AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(nullif(o.payload->'geom', 'null'::jsonb)),
+                                               public.ST_GeomFromGeoJSON(nullif(a.payload->'geom', 'null'::jsonb))))
+    UNION ALL
+    -- A point of a reference dataset in whole degrees (both ordinates are integers) is a coarse
+    -- point: the file rounds a place that it does not know. A rule that accepts the row would
+    -- put the entity on the wrong place, so the operator decides it.
+    SELECT a.unit_id, 'not_clean', 'coarse_point', a.id,
+           'The point of the reference dataset is in whole degrees, so it is coarse'
+      FROM acts a
+     WHERE CASE WHEN a.op IN ('create_entity', 'update_entity')
+                 AND a.payload#>>'{geom,type}' = 'Point'
+                 AND jsonb_typeof(a.payload#>'{geom,coordinates,0}') = 'number'
+                 AND jsonb_typeof(a.payload#>'{geom,coordinates,1}') = 'number'
+                THEN (a.payload#>>'{geom,coordinates,0}')::numeric % 1 = 0
+                 AND (a.payload#>>'{geom,coordinates,1}')::numeric % 1 = 0
+                 AND public.act_reference_dataset(a.id) IS NOT NULL
+                ELSE false END
+    UNION ALL
+    -- A point of a reference dataset that is the point of another site (a facility or a port) of
+    -- the record. Two sites do not share one point: the file repeats a point, or it gives the
+    -- point of a town for a site that it cannot place.
+    SELECT a.unit_id, 'not_clean', 'repeated_point', a.id,
+           'The point of the reference dataset is the point of ' ||
+           coalesce(public.element_name(o.id), o.id::text) || ', another site'
+      FROM acts a
+      CROSS JOIN LATERAL (SELECT e.id FROM public.entities e
+                           WHERE e.type IN ('facility', 'port')
+                             AND e.id IS DISTINCT FROM coalesce(a.target_id, a.id)
+                             AND public.ST_GeometryType(e.geom) = 'ST_Point'
+                             AND public.ST_Equals(e.geom,
+                                   CASE WHEN a.op IN ('create_entity', 'update_entity')
+                                         AND a.payload#>>'{geom,type}' = 'Point'
+                                         AND jsonb_typeof(a.payload#>'{geom,coordinates,0}') = 'number'
+                                         AND jsonb_typeof(a.payload#>'{geom,coordinates,1}') = 'number'
+                                        THEN public.ST_SetSRID(public.ST_MakePoint(
+                                               (a.payload#>>'{geom,coordinates,0}')::float8,
+                                               (a.payload#>>'{geom,coordinates,1}')::float8), 4326)
+                                   END)
+                           ORDER BY e.id LIMIT 1) AS o
+     WHERE CASE WHEN a.op IN ('create_entity', 'update_entity')
+                 AND a.payload#>>'{geom,type}' = 'Point'
+                THEN public.act_reference_dataset(a.id) IS NOT NULL
+                ELSE false END
     -- --------------------------------------------------------------------------- information --
     UNION ALL
     SELECT DISTINCT i.unit_id, 'information', 'sources_from_parent', NULL::uuid,
@@ -7195,7 +7320,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
                              AND u.target_id = x.id)
                             OR (u.op = 'create_entity' AND u.id = x.promoted_from))
                        AND public.ST_Equals(x.geom, public.ST_SetSRID(
-                             public.ST_GeomFromGeoJSON(u.payload->'geom'), 4326))) AS g
+                             public.ST_GeomFromGeoJSON(nullif(u.payload->'geom', 'null'::jsonb)), 4326))) AS g
                   CROSS JOIN LATERAL unnest(g.docs) AS a(src)
                  WHERE x.id = e.id),
                e.sources::text[])) AS s(id)
@@ -7241,7 +7366,8 @@ $$;
 -- A CITATION BELONGS TO AN ACT, AND NOT TO ONE VALUE OF THE ACT. So a value keeps the passages of
 -- its act in a document that hold the value, compared in lower case on the letters and digits
 -- alone. When no passage of that document holds it, the value keeps each passage of the act in
--- that document. A relation keeps each passage of its act in its documents.
+-- that document. A relation keeps each passage of its act, and of each accepted act that added a
+-- source to it, in its documents.
 CREATE FUNCTION release_claims()
 RETURNS TABLE (claim_id text, subject_kind text, subject_id uuid, attribute text, value jsonb,
                origin_label text, sources text[], act_id uuid, passages jsonb)
@@ -7304,6 +7430,14 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
      WHERE r.id IN (SELECT x.id FROM rel x)
   ), kept AS (
     SELECT c.*,
+           -- The claim of a relation also reads the accepted acts that added a source to it.
+           CASE WHEN c.subject_kind = 'relation' AND c.attribute IS NULL
+                THEN ARRAY[c.act] || ARRAY(SELECT u.id FROM public.proposals u
+                                            WHERE u.status = 'accepted' AND u.op = 'update_relation'
+                                              AND u.target_kind = 'relation'
+                                              AND u.target_id = c.subject_id
+                                              AND u.payload ? 'add_source')
+                ELSE ARRAY[c.act] END AS acts,
            ARRAY(SELECT s.id FROM jsonb_array_elements_text(
                                     CASE jsonb_typeof(c.src) WHEN 'array' THEN c.src
                                          ELSE '[]'::jsonb END) AS s(id)
@@ -7314,15 +7448,15 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
            END AS words
       FROM claim c
   ), passage AS (
-    SELECT p.* FROM public.cited_passages(ARRAY(SELECT k.act FROM kept k
+    SELECT p.* FROM public.cited_passages(ARRAY(SELECT DISTINCT a FROM kept k, unnest(k.acts) AS a
                                                  WHERE cardinality(k.public_sources) > 0)) p
   ), matched AS (
-    SELECT k.claim_id, p.doc_id, p.page, p.cited, p.modality, p.transcribed,
+    SELECT DISTINCT k.claim_id, p.doc_id, p.page, p.cited, p.modality, p.transcribed,
            coalesce(k.words <> '' AND strpos(
              ' ' || btrim(lower(regexp_replace(p.cited, '[^[:alnum:]]+', ' ', 'g'))) || ' ',
              ' ' || k.words || ' ') > 0, false) AS holds
       FROM kept k
-      JOIN passage p ON p.claim_id = k.act AND p.doc_id = ANY (k.public_sources)
+      JOIN passage p ON p.claim_id = ANY (k.acts) AND p.doc_id = ANY (k.public_sources)
   ), chosen AS (
     SELECT m.*, bool_or(m.holds) OVER (PARTITION BY m.claim_id, m.doc_id) AS some_hold
       FROM matched m

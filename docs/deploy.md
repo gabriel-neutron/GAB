@@ -23,7 +23,7 @@ Run `pnpm writer` and the worker on the operator's machine with the same `infra/
   characters of A-Z, a-z, 0-9, `-`, `_`). Make one with
   `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`. If a write
   answers that the request has no key, start `pnpm dev` again.
-- **One runner:** run one `pnpm worker run` at a time. At its start it puts back each running job.
+- **One runner:** run one `pnpm worker run` at a time. A second one refuses to start: a lock of the database allows one. The lock needs a direct connection to the database. Do not use a transaction-mode pooler for the runner. At its start the runner puts back each running job.
   After a lost database connection it waits, retries and requeues the job in hand.
 - **Ingest:** `pnpm worker ingest` needs `--uri`, the address where the file comes from (PU1), one
   file for each run. For a bought file, also give `--cost-eur`, or `--provider` of a provider that
@@ -92,7 +92,10 @@ each decision is final). The Names page of the review page does the same.
 - `name-candidates`: finds merge candidates across a Latin and a Cyrillic spelling. Run it before a
   release, then decide each pair in the "Two scripts" tab.
 - `gem-duplicates`: report. It lists pairs of one entity with a GEM unit key and one without it, near
-  and with a similar name. It writes nothing. Merge a true pair by hand with `merge_entities`.
+  and with a similar name. It writes nothing. Merge a true pair with `merge-entities`.
+- `merge-entities <duplicate> <survivor>`: the operator merges one entity into another through the
+  door `merge_entities` (ADR 0014). The act is in the ledger and the merge can be undone. The door
+  refuses two entities of two types, and a duplicate that an act in the waiting lane names.
 - `nato-coverage`, `asset-coverage`, `asset-sanctions`: reports. They write nothing.
 - `activity-report <flare document> <text set> [--operators <document>]`: report. It gives
   each field, LNG plant and refinery an activity mark from the flare table, the stored FIRMS answers
@@ -165,14 +168,12 @@ pnpm worker release --manifest <manifest> --out <folder> --previous <previous re
 1. Put the content of `gab-site-<date>` at the root of a static host. Each page is a folder with
    an `index.html`. A static host serves `/map/` as it stands and normally sends `/map` to
    `/map/`. The reader needs no rewrite rule and no script for the text of a page.
-2. A page at a permanent address (the critical nodes, the map, the downloads, the method, an
+2. A page at a permanent address (the overview, the map, the downloads, the method, an
    entity, a vessel, a claim, a relation) holds its text in the HTML. It opens with no script, and
-   the script of the application then takes over. The graph, the search and the review need the
-   script. The review says that it is not available when no write service answers.
+   the script of the application then takes over. The graph and the search need the script. The
+   site holds no review page.
 3. The map needs an `http` or `https` address (MapLibre). To look at the site locally, run
    `python -m http.server 8000` in the site folder.
-4. The address `/v1/` gives a short page that links the critical nodes. The site holds no build of
-   the version 1 map.
 
 ## Measure the speed of the site
 
@@ -188,6 +189,11 @@ For `pnpm dev` or `pnpm build`, set `RELEASE_DIR` to a release folder. The build
 `release/` beside the application. With no read service, each page then says "Version of
 DD/MM/YYYY", and the footer gives the two contact links of the release. The release command does
 the same build for the public site, and then renders each page that has a permanent address.
+
+The exports page of the report also reads three data files in long format. They are public and sit
+in the repository, in the folder of the site package. The build copies them to `report/` beside the
+application. Set `REPORT_DIR` to another folder to build with other values. A file that holds a
+value that is not a number stops the build.
 
 ## Public writes
 

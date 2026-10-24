@@ -434,3 +434,99 @@ test('a designation that cites a notice counts in the regime of the official fil
     rows.map((row) => [row['imo'], row['ofac_listed_on'], row['ofac_document_ids']]),
   ).toStrictEqual([['9074729', '2024-02-23', 'doc_sdn']]);
 });
+
+test('the note says what the matrix measures, with counts that the data gives', () => {
+  const ships = Array.from({ length: 9 }, (_, at) => id(100 + at));
+  const [a, b, c, d, e, f, g, h, i] = ships as [
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+  ];
+  const imos = [
+    '9123456',
+    '9234567',
+    '9345678',
+    '9456789',
+    '9567890',
+    '9678901',
+    '9789012',
+    '9890123',
+    '9901234',
+  ];
+  const { file } = matrixOf(
+    recordOf(
+      [...ships.map((ship, at) => entity(ship, 'vessel', `SHIP ${String(at)}`)), ...ACTS],
+      ships.map((ship, at) => value(ship, 'imo', imos[at])),
+      [
+        // The EU alone: after the cut, before the cut, and with no date.
+        designation(20, a, EU_ACT, ['doc_eu'], '2025-03-01'),
+        designation(21, b, EU_ACT, ['doc_eu'], '2024-11-01'),
+        designation(22, c, EU_ACT, ['doc_eu'], null),
+        // The EU and OFAC. Three OFAC rows share the action of 10 January 2025.
+        designation(23, d, EU_ACT, ['doc_eu'], '2025-06-01'),
+        designation(24, d, OFAC_LIST, ['doc_sdn'], '2025-01-10'),
+        designation(25, e, EU_ACT, ['doc_eu'], '2025-02-10'),
+        designation(26, e, OFAC_LIST, ['doc_sdn'], '2025-01-10'),
+        designation(27, f, EU_ACT, ['doc_eu'], '2024-06-24'),
+        designation(28, f, OFAC_LIST, ['doc_sdn'], '2024-02-23'),
+        // OFAC alone, before 2022.
+        designation(29, g, OFAC_LIST, ['doc_sdn'], '2021-05-01'),
+        // OFAC and the UK, with no EU.
+        designation(30, h, OFAC_LIST, ['doc_sdn'], '2025-01-10'),
+        designation(31, h, UK_LIST, ['doc_uk'], '2024-05-09'),
+        designation(32, i, OFAC_LIST, ['doc_sdn'], '2024-02-23'),
+        designation(33, i, UK_LIST, ['doc_uk'], '2024-03-01'),
+      ],
+    ),
+  );
+  const note = file.text
+    .split('\r\n')
+    .filter((line) => line.startsWith('#'))
+    .join('\n');
+  // The measure of each regime, and the warning on the gaps.
+  expect(note).toContain(
+    'EU: port and service ban (Council Regulation (EU) No 833/2014, Annex XLII).',
+  );
+  expect(note).toContain('OFAC: blocking under a Russia programme.');
+  expect(note).toContain(
+    'UK: asset freeze (Russia (Sanctions) (EU Exit) Regulations 2019, UK Sanctions List row).',
+  );
+  expect(note).toContain('The day gaps compare different measures.');
+  expect(note).toContain('The matrix gives the listing date, not the current status.');
+  expect(note).toContain('The release tracks no OFAC removal and no UK removal.');
+  expect(note).toContain(
+    'The type of date is different for each regime. EU: the entry into force of the act. OFAC: the date of the action. UK: the date designated.',
+  );
+  expect(note).toContain('The release does not check the date against the rule.');
+  // Counts from the data.
+  expect(note).toContain(
+    'Rows with an EU listing and no OFAC listing: 3. EU date before 1 February 2025: 1. EU date on 1 February 2025 or later: 1. No EU date: 1.',
+  );
+  expect(note).toContain(
+    'The OFAC date with the most rows is 2025-01-10: 3 of the 6 rows with an OFAC date.',
+  );
+  expect(note).toContain('Rows with an OFAC date before 2022: 1.');
+  expect(note).toContain(
+    'Mean of days_eu_after_ofac: 98.3 days for 3 rows; 122.0 days for 1 row without the rows of that day.',
+  );
+  expect(note).toContain(
+    'Mean of days_uk_after_ofac: -119.5 days for 2 rows; 7.0 days for 1 row without the rows of that day.',
+  );
+  expect(note).toContain(
+    'ofac_or_uk_not_eu is a floor: 3 rows among the vessels in the record. A vessel that the record does not hold has no row.',
+  );
+});
+
+test('the note gives no mean and no common date when no row has an OFAC date', () => {
+  const { file } = shipWith(VALID_IMO, [designation(20, SHIP, EU_ACT, ['doc_eu'], '2024-06-24')]);
+  expect(file.text).toContain('No row has an OFAC date.');
+  expect(file.text).toContain('Mean of days_eu_after_ofac: no row.');
+  expect(file.text).toContain('Mean of days_uk_after_ofac: no row.');
+  expect(file.text).toContain('Rows with an OFAC date before 2022: 0.');
+});

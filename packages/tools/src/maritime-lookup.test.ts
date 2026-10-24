@@ -325,6 +325,67 @@ test('an IMO number that the registry info does not hold is refused', async () =
   }
 });
 
+test('two identities of one IMO number are described so that a reader can choose', async () => {
+  const web = gfwWeb(
+    [
+      [
+        {
+          id: 'aaaaaaaa-1',
+          ssvid: MMSI,
+          shipname: 'ALPHA',
+          flag: 'PAN',
+          vesselType: 'carrier',
+          transmissionDateFrom: '2020-01-01T00:00:00Z',
+          transmissionDateTo: '2021-01-01T00:00:00Z',
+        },
+        {
+          id: 'aaaaaaaa-3',
+          ssvid: MMSI,
+          shipname: 'OLD NAME',
+          transmissionDateFrom: '2019-06-01T00:00:00Z',
+          transmissionDateTo: '2020-06-01T00:00:00Z',
+        },
+      ],
+      [{ id: 'bbbbbbbb-2', ssvid: '273000001', shipname: 'BETA', flag: 'RUS' }],
+    ],
+    [[{ imo: IMO }], [{ imo: IMO }]],
+  );
+  const { session, reach } = setup(web);
+  const refusal = refusalOf(
+    await callTool(toolNamed('vessel_events'), session, { imo: IMO, ...RANGE }, reach),
+  );
+  expect(refusal).toContain('names 2 vessel identities');
+  expect(refusal).toContain(
+    JSON.stringify({
+      vesselIds: ['aaaaaaaa-1', 'aaaaaaaa-3'],
+      name: 'ALPHA',
+      mmsi: MMSI,
+      flag: 'PAN',
+      vesselType: 'carrier',
+      firstSeen: '2019-06-01T00:00:00Z',
+      lastSeen: '2021-01-01T00:00:00Z',
+      imo: IMO,
+    }),
+  );
+  expect(refusal).toContain('"name":"BETA","mmsi":"273000001","flag":"RUS"');
+  expect(web.asked).toHaveLength(1);
+});
+
+test('the answer of one identity gives its details', async () => {
+  const web = gfwWeb([[{ id: VESSEL, ssvid: MMSI, shipname: 'ALPHA' }]], [[{ imo: IMO }]]);
+  const { session, reach } = setup(web);
+  const outcome = await callTool(
+    toolNamed('vessel_events'),
+    session,
+    { imo: IMO, ...RANGE },
+    reach,
+  );
+  expect(outcome).toMatchObject({
+    ok: true,
+    output: { identities: [{ vesselIds: [VESSEL], name: 'ALPHA', mmsi: MMSI, imo: IMO }] },
+  });
+});
+
 test('an IMO number that two registry entries hold is refused, and the events are not read', async () => {
   const web = gfwWeb(
     [[{ id: 'aaaaaaaa-1', ssvid: MMSI }], [{ id: 'bbbbbbbb-2', ssvid: MMSI }]],

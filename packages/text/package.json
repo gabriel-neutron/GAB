@@ -9,6 +9,7 @@
     "./zip": "./src/zip.ts",
     "./archive": "./src/archive.ts",
     "./geojson": "./src/geojson.ts",
+    "./transliteration-key": "./src/transliteration-key.ts",
     "./xlsx-fixture": "./src/xlsx-fixture.ts",
     "./archive-fixture": "./src/archive-fixture.ts"
   },

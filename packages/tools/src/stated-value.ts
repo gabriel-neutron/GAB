@@ -104,6 +104,13 @@ const NIGHT_OF =
 const DATELINE =
   /^\s*(?:[A-Z][A-Z .'/-]+,\s+)?(\p{Lu}\p{Ll}{2,8})\.?\s+(\d{1,2})\s+\((?:Reuters|AP|AFP)\)/gmu;
 const NIGHT_WORD = /\b(?:overnight|(?<!(?:day|last|tomorrow)\s+)night(?:time)?)\b/iu;
+// A word that names a day by its distance from the publication day: "yesterday", "tonight".
+// shortcut: no "on Monday", "the day before yesterday" or a night of two days; add them when a
+// stored excerpt needs them.
+const RELATIVE_DAYS: readonly (readonly [RegExp, number])[] = [
+  [/(?<!\p{L})(?:yesterday|вчора|учора|вчера)(?!\p{L})/iu, -1],
+  [/(?<!\p{L})(?:today|tonight|сьогодні|сегодня)(?!\p{L})/iu, 0],
+];
 const NUMERIC_DAY = /(?<![\d.,/-])(\d{1,4})([./-])(\d{1,2})\2(\d{1,4})(?![\d.,/-]?\d)/gu;
 
 // Origin: decided. A day with dots, 05.03.2024, is day, month and year in each country that
@@ -227,6 +234,14 @@ const daysIn = (
     };
     for (const [, word = '', day] of text.matchAll(MONTH_DAY_NO_YEAR)) add(Number(day), word);
     for (const [, day, word = ''] of text.matchAll(DAY_MONTH_NO_YEAR)) add(Number(day), word);
+    // A relative word counts only when the passage writes no day: with a written day, the
+    // word may speak of another time ("today it said last week").
+    if (found.size === 0)
+      for (const [pattern, back] of RELATIVE_DAYS)
+        if (pattern.test(text)) {
+          const date = new Date(Date.parse(publishedOn) + back * 86_400_000);
+          found.add(dayText(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate()));
+        }
   }
   for (const [, first = '', mark = '', second = '', third = ''] of text.matchAll(NUMERIC_DAY))
     for (const day of numericDays(first, mark, second, third, dayFirst)) found.add(day);
@@ -490,32 +505,70 @@ const degreesOf = (degrees = '0', minutes = '0', seconds = '0'): number =>
   Number(minutes.replace(',', '.')) / 60 +
   Number(seconds.replace(',', '.')) / 3600;
 
-// Each coordinate that a text writes, as a degree with no sign: a decimal degree (59.6667), the
-// degrees, minutes and seconds of UN/LOCODE and of a port register (5940N, 0580907E), and degrees,
-// minutes and seconds with signs (59°40′, 60°20,02′, 69°03′11″).
-// shortcut: the hemisphere is not read, so 59.6 S states 59.6 N; read the letter when a source
-// south of the equator or west of Greenwich is cited.
-const coordinatesIn = (text: string): number[] => [
+// A coordinate that a text writes. A letter N, S, E or W after it gives the axis and the sign:
+// N and S are the latitude, E and W are the longitude, and S and W are negative. A coordinate with
+// no letter has no axis, and it states either axis with either sign.
+interface Coordinate {
+  degrees: number;
+  axis?: 'latitude' | 'longitude';
+  negative?: boolean;
+}
+
+const HEMISPHERES: Record<string, Pick<Coordinate, 'axis' | 'negative'>> = {
+  N: { axis: 'latitude', negative: false },
+  S: { axis: 'latitude', negative: true },
+  E: { axis: 'longitude', negative: false },
+  W: { axis: 'longitude', negative: true },
+};
+
+// A coordinate from its degree and its letter, if the text writes one.
+const coordinateOf = (degrees: number, letter?: string): Coordinate => ({
+  degrees,
+  ...(letter === undefined ? {} : HEMISPHERES[letter]),
+});
+
+// The letter that can follow a decimal degree or a degree sign form (59.6667 N, 59°40′ N).
+const LETTER = String.raw`(?:\s?([NSEW])\b)?`;
+
+// Each coordinate that a text writes: a decimal degree (59.6667), the degrees, minutes and seconds
+// of UN/LOCODE and of a port register (5940N, 0580907E), and degrees, minutes and seconds with
+// signs (59°40′, 60°20,02′, 69°03′11″), and the nautical form (60-20.02N). A Latin letter after a coordinate gives its hemisphere.
+// shortcut: a Cyrillic letter (с.ш., в.д.) is not read, so such a coordinate has no axis and no
+// sign; read it when a source south of the equator or west of Greenwich is cited in Russian.
+const coordinatesIn = (text: string): Coordinate[] => [
   // A decimal point can follow a CSV comma (Oblast,60.5233,28.1301), but a decimal comma cannot.
   // shortcut: a thousands comma (1,059.40) also gives 59.4; refuse it when a cited price or
   // tonnage states a false coordinate.
-  ...Array.from(text.matchAll(/(?<![\d.])(\d{1,3})\.(\d+)/gu), (one) =>
-    Number(`${one[1] ?? ''}.${one[2] ?? ''}`),
+  ...Array.from(
+    text.matchAll(new RegExp(String.raw`(?<![\d.])(\d{1,3})\.(\d+)${LETTER}`, 'gu')),
+    (one) => coordinateOf(Number(`${one[1] ?? ''}.${one[2] ?? ''}`), one[3]),
   ),
-  ...Array.from(text.matchAll(/(?<![\d.,])(\d{1,3}),(\d+)/gu), (one) =>
-    Number(`${one[1] ?? ''}.${one[2] ?? ''}`),
+  ...Array.from(
+    text.matchAll(new RegExp(String.raw`(?<![\d.,])(\d{1,3}),(\d+)${LETTER}`, 'gu')),
+    (one) => coordinateOf(Number(`${one[1] ?? ''}.${one[2] ?? ''}`), one[3]),
   ),
-  ...Array.from(text.matchAll(/(?<!\d)(\d{2,3})(\d{2})(\d{2})?\s?[NSEW]\b/gu), (one) =>
-    degreesOf(one[1], one[2], one[3]),
+  ...Array.from(text.matchAll(/(?<!\d)(\d{2,3})(\d{2})(\d{2})?\s?([NSEW])\b/gu), (one) =>
+    coordinateOf(degreesOf(one[1], one[2], one[3]), one[4]),
+  ),
+  // The nautical form has hyphens and then the hemisphere letter (60-20.02N, 028-07-30E).
+  // The letter is required, so a range such as "60-20" states no point. Minutes stay under 60.
+  ...Array.from(
+    text.matchAll(
+      /(?<![\d.,-])(\d{1,3})-([0-5]?\d(?:[.,]\d+)?)(?:-([0-5]?\d(?:[.,]\d+)?))?\s?([NSEW])\b/gu,
+    ),
+    (one) => coordinateOf(degreesOf(one[1], one[2], one[3]), one[4]),
   ),
   // A Russian page can write a Cyrillic or a Latin letter o in place of the degree sign (60о20′).
   // A letter o, and an ordinal sign º, are a degree sign only when minutes with a sign follow
   // them, so "60 of" and "28º aniversario" state no degree.
   ...Array.from(
     text.matchAll(
-      /(?<!\d)(\d{1,3})(?:\s*°|(?:\s*[º˚]|[оo])(?=\s*\d{1,2}(?:[.,]\d+)?\s*['′’´]))\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*['′’´](?:\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:["″”]|''|′′))?)?/gu,
+      new RegExp(
+        String.raw`(?<!\d)(\d{1,3})(?:\s*°|(?:\s*[º˚]|[оo])(?=\s*\d{1,2}(?:[.,]\d+)?\s*['′’´]))\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*['′’´](?:\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:["″”]|''|′′))?)?${LETTER}`,
+        'gu',
+      ),
     ),
-    (one) => degreesOf(one[1], one[2], one[3]),
+    (one) => coordinateOf(degreesOf(one[1], one[2], one[3]), one[4]),
   ),
 ];
 
@@ -523,7 +576,11 @@ const coordinatesIn = (text: string): number[] => [
 // of a point. Code reads no other shape in a text, so another shape is unstated, and the operator
 // compares it with the page.
 const placeValues = (act: WriteRequest): ActValue[] => {
-  if ((act.op !== 'update_entity' && act.op !== 'create_entity') || act.geom === undefined)
+  if (
+    (act.op !== 'update_entity' && act.op !== 'create_entity') ||
+    act.geom === undefined ||
+    act.geom === null
+  )
     return [];
   if (act.geom.type !== 'Point') return [{ name: 'geom', value: act.geom.type }];
   const [lon = Number.NaN, lat = Number.NaN] = act.geom.coordinates;
@@ -533,9 +590,18 @@ const placeValues = (act: WriteRequest): ActValue[] => {
   ];
 };
 
-const statesCoordinate = (value: Scalar, coordinates: readonly number[]): boolean =>
-  typeof value === 'number' &&
-  coordinates.some((one) => Math.abs(one - Math.abs(value)) <= COORDINATE_TOLERANCE);
+const statesCoordinate = (named: ActValue, coordinates: readonly Coordinate[]): boolean => {
+  const { value } = named;
+  if (typeof value !== 'number') return false;
+  const axis = named.name === 'geom.latitude' ? 'latitude' : 'longitude';
+  return coordinates.some((one) => {
+    if (one.axis === undefined)
+      return Math.abs(one.degrees - Math.abs(value)) <= COORDINATE_TOLERANCE;
+    if (one.axis !== axis) return false;
+    const signed = one.negative === true ? -one.degrees : one.degrees;
+    return Math.abs(signed - value) <= COORDINATE_TOLERANCE;
+  });
+};
 
 /** The values of an act that no cited passage states, in any form of that value. */
 export const unstatedValues = (
@@ -552,7 +618,7 @@ export const unstatedValues = (
       if (code !== null && statesJurisdiction(code, text)) return false;
       return !stated(named.value, text, { ...options, nightEvent: isNightEvent(act) });
     }),
-    ...placeValues(act).filter((named) => !statesCoordinate(named.value, coordinates)),
+    ...placeValues(act).filter((named) => !statesCoordinate(named, coordinates)),
   ];
 };
 

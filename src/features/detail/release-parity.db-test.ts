@@ -22,7 +22,7 @@ const ROOT = join(import.meta.dirname, '../../..');
 // The release command, as the operator runs it. It reads the test database, because the test
 // run names it in the environment, and it writes the site beside the release.
 const MANIFEST = {
-  version: '0.1-test',
+  version: '1.0',
   date: '2026-11-08',
   contacts: {
     reportError: 'https://example.org/report-an-error',

@@ -102,3 +102,16 @@ test.each([
     expect(() => read({ contacts: CONTACTS, iriBase })).toThrow(/iriBase/u);
   },
 );
+
+test.each(['dry-2026-11-08', '2026-11-09', 'dry', '1'])(
+  'a version that is not the day of the release or a number (%s) is refused',
+  (version) => {
+    expect(() => read({ contacts: CONTACTS, version, date: '2026-11-08' })).toThrow(
+      ReleaseManifestFault,
+    );
+  },
+);
+
+test('the day of the release is a version', () => {
+  expect(read({ contacts: CONTACTS, version: '2026-11-08' }).version).toBe('2026-11-08');
+});

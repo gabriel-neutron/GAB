@@ -71,6 +71,8 @@ export interface PlaceChange {
   readonly id: string;
   readonly entity: string;
   readonly joined: boolean;
+  /** True when the act clears the place. */
+  readonly clearing: boolean;
   readonly attributes: readonly Attribute[];
   readonly disputed: boolean;
 }
@@ -168,6 +170,7 @@ export function unitChanges(unit: Unit, words: UnitWords): UnitChanges {
             id: act.id,
             entity: nameOf(act.target),
             joined: entity !== null && act.target.id === entity.id,
+            clearing: act.clearing,
             attributes: act.attributes,
             disputed: act.disputed,
           },

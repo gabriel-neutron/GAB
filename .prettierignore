@@ -21,3 +21,6 @@ src/routeTree.gen.ts
 packages/text/fixtures/windows-1251.html
 # The release code writes the fixture of the release, and a test compares each byte.
 packages/site/fixtures
+
+# Natural Earth basemap: one minified line of generated coordinates, too large to format sensibly.
+tools/figures/data/basemap.json

@@ -32,13 +32,13 @@ const MARK =
 /**
  * Departure: one sentence serves a claim and a row-level list, so it names the rule of neither.
  * The words report a fault in the data, never a dash and never a blank. */
-const NO_SOURCE = 'No source recorded: this list must cite at least one document.';
+const NO_SOURCE = 'No source document is listed for this entry in this release.';
 
 // The sentence wraps and never holds its width. Set to `shrink-0`, it measured 308 px inside a
 // 275 px claim and painted over the value of the claim beside it, so a fault in the data hid a
 // value that was sound.
 function NoSource() {
-  return <span className="min-w-0 text-small/4 text-dissent">{NO_SOURCE}</span>;
+  return <span className="min-w-0 text-small/4 text-muted-foreground">{NO_SOURCE}</span>;
 }
 
 const WAY_OUT = 'Open the full page at this source, in a new tab';

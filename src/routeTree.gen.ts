@@ -11,14 +11,15 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DownloadsRouteImport } from './routes/downloads'
+import { Route as ExportsRouteImport } from './routes/exports'
 import { Route as GlossaryRouteImport } from './routes/glossary'
 import { Route as GraphRouteImport } from './routes/graph'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as MethodRouteImport } from './routes/method'
+import { Route as NodesRouteImport } from './routes/nodes'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SearchRouteImport } from './routes/search'
-import { Route as V1RouteImport } from './routes/v1'
 import { Route as ClaimSplatRouteImport } from './routes/claim.$'
 import { Route as EntityIdRouteImport } from './routes/entity.$id'
 import { Route as RelationSplatRouteImport } from './routes/relation.$'
@@ -32,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
 const DownloadsRoute = DownloadsRouteImport.update({
   id: '/downloads',
   path: '/downloads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExportsRoute = ExportsRouteImport.update({
+  id: '/exports',
+  path: '/exports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GlossaryRoute = GlossaryRouteImport.update({
@@ -59,6 +65,11 @@ const MethodRoute = MethodRouteImport.update({
   path: '/method',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NodesRoute = NodesRouteImport.update({
+  id: '/nodes',
+  path: '/nodes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReviewRoute = ReviewRouteImport.update({
   id: '/review',
   path: '/review',
@@ -67,11 +78,6 @@ const ReviewRoute = ReviewRouteImport.update({
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const V1Route = V1RouteImport.update({
-  id: '/v1',
-  path: '/v1',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClaimSplatRoute = ClaimSplatRouteImport.update({
@@ -98,14 +104,15 @@ const VesselImoRoute = VesselImoRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/downloads': typeof DownloadsRoute
+  '/exports': typeof ExportsRoute
   '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
   '/help': typeof HelpRoute
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
+  '/nodes': typeof NodesRoute
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
-  '/v1': typeof V1Route
   '/claim/$': typeof ClaimSplatRoute
   '/entity/$id': typeof EntityIdRoute
   '/relation/$': typeof RelationSplatRoute
@@ -114,14 +121,15 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/downloads': typeof DownloadsRoute
+  '/exports': typeof ExportsRoute
   '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
   '/help': typeof HelpRoute
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
+  '/nodes': typeof NodesRoute
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
-  '/v1': typeof V1Route
   '/claim/$': typeof ClaimSplatRoute
   '/entity/$id': typeof EntityIdRoute
   '/relation/$': typeof RelationSplatRoute
@@ -131,14 +139,15 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/downloads': typeof DownloadsRoute
+  '/exports': typeof ExportsRoute
   '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
   '/help': typeof HelpRoute
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
+  '/nodes': typeof NodesRoute
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
-  '/v1': typeof V1Route
   '/claim/$': typeof ClaimSplatRoute
   '/entity/$id': typeof EntityIdRoute
   '/relation/$': typeof RelationSplatRoute
@@ -149,14 +158,15 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/downloads'
+    | '/exports'
     | '/glossary'
     | '/graph'
     | '/help'
     | '/map'
     | '/method'
+    | '/nodes'
     | '/review'
     | '/search'
-    | '/v1'
     | '/claim/$'
     | '/entity/$id'
     | '/relation/$'
@@ -165,14 +175,15 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/downloads'
+    | '/exports'
     | '/glossary'
     | '/graph'
     | '/help'
     | '/map'
     | '/method'
+    | '/nodes'
     | '/review'
     | '/search'
-    | '/v1'
     | '/claim/$'
     | '/entity/$id'
     | '/relation/$'
@@ -181,14 +192,15 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/downloads'
+    | '/exports'
     | '/glossary'
     | '/graph'
     | '/help'
     | '/map'
     | '/method'
+    | '/nodes'
     | '/review'
     | '/search'
-    | '/v1'
     | '/claim/$'
     | '/entity/$id'
     | '/relation/$'
@@ -198,14 +210,15 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DownloadsRoute: typeof DownloadsRoute
+  ExportsRoute: typeof ExportsRoute
   GlossaryRoute: typeof GlossaryRoute
   GraphRoute: typeof GraphRoute
   HelpRoute: typeof HelpRoute
   MapRoute: typeof MapRoute
   MethodRoute: typeof MethodRoute
+  NodesRoute: typeof NodesRoute
   ReviewRoute: typeof ReviewRoute
   SearchRoute: typeof SearchRoute
-  V1Route: typeof V1Route
   ClaimSplatRoute: typeof ClaimSplatRoute
   EntityIdRoute: typeof EntityIdRoute
   RelationSplatRoute: typeof RelationSplatRoute
@@ -226,6 +239,13 @@ declare module '@tanstack/react-router' {
       path: '/downloads'
       fullPath: '/downloads'
       preLoaderRoute: typeof DownloadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/exports': {
+      id: '/exports'
+      path: '/exports'
+      fullPath: '/exports'
+      preLoaderRoute: typeof ExportsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/glossary': {
@@ -263,6 +283,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MethodRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/nodes': {
+      id: '/nodes'
+      path: '/nodes'
+      fullPath: '/nodes'
+      preLoaderRoute: typeof NodesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/review': {
       id: '/review'
       path: '/review'
@@ -275,13 +302,6 @@ declare module '@tanstack/react-router' {
       path: '/search'
       fullPath: '/search'
       preLoaderRoute: typeof SearchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/v1': {
-      id: '/v1'
-      path: '/v1'
-      fullPath: '/v1'
-      preLoaderRoute: typeof V1RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/claim/$': {
@@ -318,14 +338,15 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DownloadsRoute: DownloadsRoute,
+  ExportsRoute: ExportsRoute,
   GlossaryRoute: GlossaryRoute,
   GraphRoute: GraphRoute,
   HelpRoute: HelpRoute,
   MapRoute: MapRoute,
   MethodRoute: MethodRoute,
+  NodesRoute: NodesRoute,
   ReviewRoute: ReviewRoute,
   SearchRoute: SearchRoute,
-  V1Route: V1Route,
   ClaimSplatRoute: ClaimSplatRoute,
   EntityIdRoute: EntityIdRoute,
   RelationSplatRoute: RelationSplatRoute,

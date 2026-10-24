@@ -1,131 +1,169 @@
 import { Link } from '@tanstack/react-router';
-import { releaseDay } from '@gab/release/release-day';
 import type { SiteManifest } from '@gab/release/site-manifest';
 
-import { CoverageStatement } from '@/shared/page/coverage-statement';
 import { DisclaimerText } from '@/shared/page/disclaimer-text';
+import { KeyValue, type KeyValueEntry } from '@/shared/page/key-value';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
 import { READING_LINK } from '@/shared/page/reading-link';
 import { ReadingPage } from '@/shared/page/reading-page';
-import { SanctionsRules } from '@/shared/page/sanctions-rules';
+import { safeHref } from '@gab/release/safe-href';
+import { typeLabel } from '@/shared/type-label';
 
 export interface MethodPageProps {
-  /** Null when the site holds no release: the method text carries the disclaimer of a release. */
+  /** Null when the site holds no release: the page carries the data of a release. */
   readonly manifest: SiteManifest | null;
 }
 
 const PROSE = 'max-w-prose';
 
-/** The method page: the disclaimer with the meaning of each label, the licences, the rule of the
- * critical nodes, the merge candidates across two scripts, the permanent addresses and the rating
- * method. The NATO pair is explained only when the release shows it. */
+const SECTIONS = [
+  { id: 'dataset', title: 'What the dataset is' },
+  { id: 'labels', title: 'What the labels mean' },
+  { id: 'errors', title: 'Report an error' },
+  { id: 'licence', title: 'Licence and citation' },
+] as const;
+
+const LICENCES = [
+  { name: 'CC-BY 4.0', meaning: 'Reuse it and give credit.' },
+  { name: 'CC-BY-NC 4.0', meaning: 'Reuse it and give credit. Do not use it for commercial work.' },
+  {
+    name: 'derived fact; source under the provider licence, not redistributed',
+    meaning: 'GAB read a fact in a source. The release does not give the source data again.',
+  },
+] as const;
+
+function Contact({ address }: { readonly address: string }) {
+  const href = safeHref(address);
+  const shown = address.replace(/^mailto:/u, '');
+  return href === null ? (
+    <span className="break-all">{shown}</span>
+  ) : (
+    <a href={href} className={`${READING_LINK} break-all`}>
+      {shown}
+    </a>
+  );
+}
+
+/** The About page: what the dataset is, what its labels mean, how to report an error, and the
+ * licence with the way to cite it. Every count, date and address comes from the release. */
 export function MethodPage({ manifest }: MethodPageProps) {
   if (manifest === null)
     return (
       <ReadingPage>
-        <PageHeader title="Method" />
+        <PageHeader title="About" />
         <p className="text-muted-foreground">
-          This site holds no release, and the method page comes with a release.
+          This site holds no release, and the About page comes with a release.
         </p>
       </ReadingPage>
     );
+  const { coverage } = manifest;
+  const facts: KeyValueEntry[] = [
+    { key: 'Release', value: manifest.version, figure: true },
+    { key: 'Date', value: manifest.date, figure: true },
+    ...(coverage === null
+      ? []
+      : ([
+          { key: 'Entities', value: String(coverage.entities), figure: true },
+          { key: 'Sources', value: String(coverage.sources), figure: true },
+        ] satisfies KeyValueEntry[])),
+  ];
   return (
     <ReadingPage>
-      <PageHeader title="Method" detail={`From the release of ${releaseDay(manifest.date)}`} />
+      <PageHeader
+        title="About"
+        detail="What this dataset holds, what its labels mean, and how to use and cite it."
+      />
+      <div className="grid gap-x-8 gap-y-4 lg:grid-cols-[12rem_minmax(0,1fr)]">
+        <nav aria-label="On this page" className="lg:sticky lg:top-4 lg:self-start">
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 lg:flex-col">
+            {SECTIONS.filter((one) => one.id !== 'dataset' || coverage !== null).map((one) => (
+              <li key={one.id}>
+                <a href={`#${one.id}`} className={READING_LINK}>
+                  {one.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="flex min-w-0 flex-col gap-6">
+          <div className="border-b border-border pb-4">
+            <KeyValue entries={facts} />
+          </div>
 
-      {manifest.coverage === null ? null : (
-        <PageSection title="What the record covers">
-          <CoverageStatement
-            coverage={manifest.coverage}
-            release={{ version: manifest.version, date: manifest.date }}
-          />
-        </PageSection>
-      )}
+          {coverage === null ? null : (
+            <PageSection id="dataset" title="What the dataset is">
+              <div className={`${PROSE} flex flex-col gap-2`}>
+                <p>{coverage.scope.covers}</p>
+                <p>{coverage.scope.excludes}</p>
+                <p className="font-semibold">{coverage.scope.absence}</p>
+                {coverage.byType.length === 0 ? null : (
+                  <p className="text-label">
+                    By type:{' '}
+                    {coverage.byType.map((one) => `${one.count} ${typeLabel(one.type)}`).join(', ')}
+                    .
+                  </p>
+                )}
+              </div>
+            </PageSection>
+          )}
 
-      <PageSection title="About this data and the labels">
-        <DisclaimerText markdown={manifest.disclaimer} />
-      </PageSection>
+          <PageSection id="labels" title="What the labels mean">
+            <DisclaimerText markdown={manifest.disclaimer} withoutContacts />
+            <p className={PROSE}>
+              The{' '}
+              <Link to="/glossary" className={READING_LINK}>
+                glossary
+              </Link>{' '}
+              explains the other terms and the types of relation.
+            </p>
+          </PageSection>
 
-      <PageSection title="Glossary">
-        <p className={PROSE}>
-          The{' '}
-          <Link to="/glossary" className={READING_LINK}>
-            glossary
-          </Link>{' '}
-          gives the meaning of each term that a reader can mistake, and of each type of relation.
-        </p>
-      </PageSection>
+          <PageSection id="errors" title="Report an error">
+            <p className={PROSE}>
+              Use the first address for a mistake in the data. If the record names you, use the
+              second address to reply.
+            </p>
+            <KeyValue
+              entries={[
+                {
+                  key: 'Report an error',
+                  value: <Contact address={manifest.contacts.reportError} />,
+                },
+                {
+                  key: 'Right of reply',
+                  value: <Contact address={manifest.contacts.rightOfReply} />,
+                },
+              ]}
+            />
+          </PageSection>
 
-      <PageSection title="The rating method">
-        <p className={PROSE}>
-          GAB rates each source and each fact apart. Each author of a source gets a rating of its
-          reliability, from its record and from a reference set of authors that experts wrote. Each
-          fact gets a rating of its credibility, from the number of independent authors that give it
-          and from the conflicts between its sources. The rules accept a claim only from strong
-          sources, and a claim that the rules cannot decide waits for the operator.
-        </p>
-        {manifest.showNatoPair ? (
-          <p className={PROSE} data-nato-pair="">
-            This release shows the NATO pair of each claim (STANAG 2511). The letter, from A
-            (reliable) to F (cannot be judged), is the best rating among the authors whose sources
-            support the fact. It rates the author, never the fact. The digit, from 1 (confirmed by
-            independent sources) to 6 (cannot be judged), rates the credibility of the fact. It
-            never reads a letter. A claim with no digit or with no known author shows no pair.
-          </p>
-        ) : (
-          <p className={PROSE}>This release does not show the rating of a claim.</p>
-        )}
-      </PageSection>
-
-      <PageSection title="Licences">
-        <p className={PROSE}>
-          The dataset is under CC-BY 4.0. Each row takes the most permissive licence of its public
-          documents: CC-BY 4.0, CC-BY-NC 4.0, or "derived fact; source under the provider licence,
-          not redistributed". A row with the last text gives a fact that GAB read in a source, and
-          the release does not give the source data again.
-        </p>
-      </PageSection>
-
-      <PageSection title="Sanctions on the map">
-        <div className={`${PROSE} flex flex-col gap-2`}>
-          <SanctionsRules manifest={manifest} />
+          <PageSection id="licence" title="Licence and citation">
+            <p className={PROSE}>
+              The dataset is under CC-BY 4.0. Each row shows its own licence. The row takes the most
+              open licence of its public documents:
+            </p>
+            <ul className={`${PROSE} flex list-disc flex-col gap-1 pl-4`}>
+              {LICENCES.map((one) => (
+                <li key={one.name}>
+                  <strong>{one.name}.</strong> {one.meaning}
+                </li>
+              ))}
+            </ul>
+            <p className={PROSE}>To cite the dataset, use this line:</p>
+            <p
+              className={`${PROSE} border-l-2 border-border pl-3 font-mono break-words`}
+              data-citation=""
+            >
+              GAB dataset, release {manifest.version}, {manifest.date}. {manifest.iriBase}
+            </p>
+            <p className={PROSE}>
+              Each entity and each claim has a permanent address under that base, the same
+              identifier as in the linked data file.
+            </p>
+          </PageSection>
         </div>
-      </PageSection>
-
-      <PageSection title="The critical nodes">
-        <p className={PROSE}>
-          A node is retained when two conditions of three have a sourced tick. Condition (a) comes
-          from the public designations of the node itself. The operator ticks conditions (b) and (c)
-          with the claims that support each tick, and the release refuses a tick that cites a claim
-          that is not public. The release does not check that a claim supports its condition: that
-          is the judgement of the operator. A tick with no public claim shows "not sourced", and it
-          does not count, because it gives the reader nothing to check.
-        </p>
-      </PageSection>
-
-      <PageSection title="One name in two scripts">
-        <p className={PROSE}>
-          A company or a place can have a Latin and a Cyrillic spelling. GAB transliterates each
-          Russian name with the table of ICAO Doc 9303, folds the common variants of a few letters
-          and drops the legal form. Two entities of one type with the same result are a merge
-          candidate, and the operator confirms or refuses each candidate. No model proposes a
-          candidate.
-        </p>
-        <p className={PROSE} data-name-candidates="">
-          Candidates at this release: {manifest.nameCandidates.proposed} waiting,{' '}
-          {manifest.nameCandidates.confirmed} confirmed, {manifest.nameCandidates.refused} refused.
-        </p>
-      </PageSection>
-
-      <PageSection title="Permanent addresses">
-        <p className={PROSE}>
-          Each entity and each claim has a permanent address under{' '}
-          <span className="font-mono break-all">{manifest.iriBase}</span>, the same identifier as in
-          the linked data file. The address of an entity that a merge absorbed opens the entity that
-          replaces it.
-        </p>
-      </PageSection>
+      </div>
     </ReadingPage>
   );
 }
