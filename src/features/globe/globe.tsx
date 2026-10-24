@@ -54,7 +54,7 @@ export function Globe({ data, entity, entityHref, onSelect }: GlobeProps) {
             <ProductFilter store={store} />
             <button
               type="button"
-              className={cn(CONTROL, 'absolute top-2 right-2')}
+              className={cn(CONTROL, 'absolute right-2 bottom-2')}
               aria-pressed={animated}
               onClick={() => {
                 setAnimated(!animated);
