@@ -625,6 +625,42 @@ test('a point that the passage does not state is unstated, coordinate by coordin
   ).toStrictEqual(['geom.longitude', 'geom.latitude']);
 });
 
+test.each([
+  ['59.6667 N, 28.1301 E', 28.1301, 59.6667],
+  ['59.6667 S, 28.1301 W', -28.1301, -59.6667],
+  ['59.6667 N, 28.1301 W', -28.1301, 59.6667],
+  ['59°40′ S, 28°19′ E', 28.3167, -59.6667],
+  ['RU  ULU  5940S 02819W', -28.3167, -59.6667],
+  ['0580907W 690311N', -58.15194, 69.05306],
+])('the passage %j states the point with its hemispheres', (passage, lon, lat) => {
+  expect(unstatedValues(placeAt(lon, lat), [passage])).toStrictEqual([]);
+});
+
+test.each([
+  ['a wrong hemisphere in latitude', 28.1301, -59.6667, ['geom.latitude']],
+  ['a wrong hemisphere in longitude', -28.1301, 59.6667, ['geom.longitude']],
+  ['a swapped latitude and longitude', 59.6667, 28.1301, ['geom.longitude', 'geom.latitude']],
+])('a lettered coordinate never states %s', (_case, lon, lat, names) => {
+  expect(
+    unstatedValues(placeAt(lon, lat), ['Terminal at 59.6667 N, 28.1301 E']).map((one) => one.name),
+  ).toStrictEqual(names);
+});
+
+test('a compact coordinate with a letter keeps its axis and its hemisphere', () => {
+  const passage = ["RU  ULU  Ust'-Luga  5940N 02819E"];
+  expect(unstatedValues(placeAt(28.3167, -59.6667), passage)).toHaveLength(1);
+  expect(unstatedValues(placeAt(59.6667, 28.3167), passage)).toHaveLength(2);
+});
+
+test('a coordinate with no letter states either axis and either sign', () => {
+  expect(unstatedValues(placeAt(-60.523347, -28.130122), ['x,60.523347,28.130122'])).toStrictEqual(
+    [],
+  );
+  expect(unstatedValues(placeAt(28.130122, 60.523347), ['x,60.523347,28.130122'])).toStrictEqual(
+    [],
+  );
+});
+
 const callOf = (type: string, observedOn?: string | string[]) =>
   writeRequest.parse({
     op: 'create_relation',
