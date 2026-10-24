@@ -1,6 +1,6 @@
 import { ReadingPage } from '@/shared/page/reading-page';
 
-import { Globe } from './globe';
+import { Globe, type MapMode } from './globe';
 import type { GlobeData } from './globe-data';
 
 export interface GlobePageProps {
@@ -12,11 +12,13 @@ export interface GlobePageProps {
   readonly entityHref: (id: string) => string;
   /** This function must be the same function at each render of the caller. */
   readonly onSelect: (id: string | null) => void;
+  readonly mode: MapMode;
+  readonly onMode: (mode: MapMode) => void;
 }
 
 /** The map page: the globe of the entities of the release that have a position, with the chain of
  * the hydrocarbons from the well to the exit from Russian control. */
-export function GlobePage({ data, entity, entityHref, onSelect }: GlobePageProps) {
+export function GlobePage({ data, entity, entityHref, onSelect, mode, onMode }: GlobePageProps) {
   if (data === null)
     return (
       <ReadingPage>
@@ -34,7 +36,17 @@ export function GlobePage({ data, entity, entityHref, onSelect }: GlobePageProps
           The entity of the address has no position in this release, so the map does not show it.
         </p>
       ) : null}
-      <Globe data={data} entity={entity} entityHref={entityHref} onSelect={onSelect} />
+      {/* A new globe for each mode: the store, the camera and the chain of one mode never reach
+          the other. The selection goes through the address, so it stays. */}
+      <Globe
+        key={mode}
+        data={data}
+        entity={entity}
+        entityHref={entityHref}
+        onSelect={onSelect}
+        mode={mode}
+        onMode={onMode}
+      />
     </div>
   );
 }

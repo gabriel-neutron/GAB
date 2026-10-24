@@ -1,14 +1,17 @@
 import { chainOf, productChain, type Highlight } from '@gab/proposal/chain-highlight';
 import type { ProductKey } from '@gab/proposal/chain-product';
+import type { StageKey } from '@gab/proposal/chain-stage';
 import type { ChainStep } from '@gab/proposal/chain-steps';
 import type { Position } from '@gab/proposal/geometry-positions';
 
 import type { GlobeData } from './globe-data';
 
-/** What the reader asked of the chain. An asset puts its chain forward, else a step puts its
- * assets and its links forward, else the product chain does. */
+/** What the reader asked of the chain. An asset puts its chain forward, else a stage of the legend
+ * puts its points forward, else a step puts its assets and its links forward, else the product
+ * chain does. */
 export interface Asked {
   readonly entity: string | null;
+  readonly stage: StageKey | 'none' | null;
   readonly step: string | null;
   readonly product: ProductKey | 'all';
 }
@@ -19,10 +22,20 @@ const stepSets = (step: ChainStep): Highlight => ({
   exits: new Set(step.exits),
 });
 
+// A stage is a set of points. The links between them are not a stage, so they all dim.
+const stageSets = (data: GlobeData, stage: StageKey | 'none'): Highlight => ({
+  assets: new Set(
+    [...data.stages].filter(([, key]) => (key ?? 'none') === stage).map(([id]) => id),
+  ),
+  arcs: new Set(),
+  exits: new Set(stage === 'exit' ? Object.keys(data.exitInfo) : []),
+});
+
 /** The assets, the links and the exit points that the globe puts forward, or null when it puts
  * none forward. The globe dims each other one. */
 export const highlightOf = (data: GlobeData, asked: Asked): Highlight | null => {
   if (asked.entity !== null) return chainOf(data.links, asked.entity);
+  if (asked.stage !== null) return stageSets(data, asked.stage);
   const step = data.steps.find((one) => one.key === asked.step);
   if (step !== undefined) return stepSets(step);
   return asked.product === 'all' ? null : productChain(data.links, asked.product);

@@ -1,4 +1,5 @@
 import type { ProductKey } from '@gab/proposal/chain-product';
+import type { StageKey } from '@gab/proposal/chain-stage';
 
 /** What a card can be about: an entity, a physical link, or an exit point. */
 export interface Target {
@@ -20,6 +21,8 @@ export type Panel =
 export interface GlobeState {
   readonly panel: Panel;
   readonly product: ProductKey | 'all';
+  /** The stage the reader put forward in the legend, or null. */
+  readonly stage: StageKey | 'none' | null;
   /** The key of the step in view, or null. */
   readonly step: string | null;
   /** The chain goes to the next step by itself. */
@@ -37,6 +40,8 @@ export interface GlobeStore {
   readonly choose: (choices: readonly Choice[]) => void;
   readonly setProduct: (product: ProductKey | 'all') => void;
   readonly setStep: (key: string | null) => void;
+  /** A stage of the legend, or null for every stage. It ends the step in view. */
+  readonly setStage: (stage: StageKey | 'none' | null) => void;
   /** One press of "Next step": the step after the one in view, and the first after the last. */
   readonly next: () => void;
   readonly togglePlay: () => void;
@@ -69,6 +74,7 @@ export function createGlobeStore({ steps, still, entity }: GlobeStoreOptions): G
         ? { kind: 'none' }
         : { kind: 'target', target: { kind: 'entity', id: entity } },
     product: 'all',
+    stage: null,
     step: null,
     playing: false,
     moving: !still,
@@ -91,7 +97,7 @@ export function createGlobeStore({ steps, still, entity }: GlobeStoreOptions): G
   };
   const advance = (): void => {
     const here = state.step === null ? -1 : steps.indexOf(state.step);
-    set({ panel: { kind: 'none' }, step: steps[here + 1] ?? steps[0] ?? null });
+    set({ panel: { kind: 'none' }, stage: null, step: steps[here + 1] ?? steps[0] ?? null });
   };
 
   return {
@@ -107,7 +113,7 @@ export function createGlobeStore({ steps, still, entity }: GlobeStoreOptions): G
       set(
         target === null
           ? { panel: { kind: 'none' } }
-          : { panel: { kind: 'target', target }, step: null },
+          : { panel: { kind: 'target', target }, step: null, stage: null },
       );
     },
     choose: (choices) => {
@@ -120,7 +126,11 @@ export function createGlobeStore({ steps, still, entity }: GlobeStoreOptions): G
     },
     setStep: (key) => {
       stopPlay();
-      set({ step: key, panel: { kind: 'none' } });
+      set({ step: key, stage: null, panel: { kind: 'none' } });
+    },
+    setStage: (stage) => {
+      stopPlay();
+      set({ stage, step: null, panel: { kind: 'none' } });
     },
     next: () => {
       stopPlay();

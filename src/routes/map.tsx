@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 
 import { entityHref } from '@/features/detail/address';
 import { globeData, type GlobeData } from '@/features/globe/globe-data';
+import type { MapMode } from '@/features/globe/globe';
 import { GlobePage } from '@/features/globe/globe-page';
 import { loadCorpus } from '@/shared/read/corpus';
 import { ReleaseAbsent } from '@/shared/read/release-files';
@@ -12,6 +13,8 @@ import type { SiteRelease } from '@gab/release/site-release';
 export interface MapSearch {
   /** The entity the reader selected. An empty string is the normal state of the map. */
   readonly entity: string;
+  /** Absent for the flat map, which is the normal state, so a link to an entity names no mode. */
+  readonly view?: 'globe';
 }
 
 // The globe is drawn from the release files, whether the read service answers or not, because the
@@ -24,7 +27,10 @@ export const Route = createFileRoute('/map')({
   // address carries (`relation`) is dropped here.
   validateSearch: (search: Record<string, unknown>): MapSearch => {
     const entity = search['entity'];
-    return { entity: typeof entity === 'string' ? entity : '' };
+    return {
+      entity: typeof entity === 'string' ? entity : '',
+      ...(search['view'] === 'globe' ? { view: 'globe' as const } : {}),
+    };
   },
 
   // An empty key never reaches the address bar.
@@ -48,7 +54,7 @@ export const Route = createFileRoute('/map')({
 });
 
 function MapRoute() {
-  const { entity } = Route.useSearch();
+  const { entity, view } = Route.useSearch();
   const navigate = Route.useNavigate();
   const data = Route.useLoaderData();
 
@@ -57,7 +63,17 @@ function MapRoute() {
   // the memoised canvas.
   const handleSelect = useCallback(
     (id: string | null) => {
-      void navigate({ search: { entity: id ?? '' }, replace: true });
+      void navigate({ search: (held) => ({ ...held, entity: id ?? '' }), replace: true });
+    },
+    [navigate],
+  );
+
+  // A change of mode is a step the back button undoes.
+  const handleMode = useCallback(
+    (mode: MapMode) => {
+      void navigate({
+        search: (held) => ({ entity: held.entity, ...(mode === 'globe' ? { view: mode } : {}) }),
+      });
     },
     [navigate],
   );
@@ -68,6 +84,8 @@ function MapRoute() {
       entity={entity}
       entityHref={(id) => entityHref(id, null)}
       onSelect={handleSelect}
+      mode={view ?? 'map'}
+      onMode={handleMode}
     />
   );
 }

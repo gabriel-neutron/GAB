@@ -12,6 +12,8 @@ const meta = {
     entity: '',
     entityHref: (id: string) => `/entity/${id}`,
     onSelect: fn(),
+    mode: 'map',
+    onMode: fn(),
   },
   parameters: { layout: 'fullscreen' },
   render: (args) => (
