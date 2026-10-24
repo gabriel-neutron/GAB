@@ -1,9 +1,11 @@
 import { cn } from '@/shared/lib/utils';
+import { matchParts } from '@/shared/match-span';
 import type { ScreenMatches } from '@/shared/screen-matches';
 
 interface MatchListProps {
   readonly id: string;
   readonly matches: ScreenMatches;
+  readonly query: string;
   readonly active: number | null;
   readonly onChoose: (id: string) => void;
 }
@@ -11,7 +13,7 @@ interface MatchListProps {
 export const matchOptionId = (listId: string, index: number): string =>
   `${listId}-${String(index)}`;
 
-export function MatchList({ id, matches, active, onChoose }: MatchListProps) {
+export function MatchList({ id, matches, query, active, onChoose }: MatchListProps) {
   return (
     <div
       className={cn(
@@ -39,7 +41,17 @@ export function MatchList({ id, matches, active, onChoose }: MatchListProps) {
               index === active ? 'bg-accent text-accent-foreground' : 'hover:bg-muted',
             )}
           >
-            {match.label}
+            <span>
+              {matchParts(match.label, query).map((part, at) =>
+                part.matched ? (
+                  <mark key={at} className="rounded-sm bg-primary/20 px-0 text-inherit">
+                    {part.text}
+                  </mark>
+                ) : (
+                  part.text
+                ),
+              )}
+            </span>
           </li>
         ))}
       </ul>

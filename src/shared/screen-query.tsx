@@ -179,7 +179,13 @@ export function ScreenQueryField() {
         className="h-7 w-full sm:w-48"
       />
       {listed === null ? null : (
-        <MatchList id={listId} matches={listed} active={activeRow} onChoose={choose} />
+        <MatchList
+          id={listId}
+          matches={listed}
+          query={context.query}
+          active={activeRow}
+          onChoose={choose}
+        />
       )}
     </div>
   );

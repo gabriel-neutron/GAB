@@ -120,7 +120,7 @@ export function CriticalityMatrix({ release, title, links }: CriticalityMatrixPr
           </p>
           <p>
             {counts.ended === 0
-              ? 'This release tracks no end date. The table shows the status on the day of the release, and a removal is not shown.'
+              ? 'This release records no end date for a listing. The table shows the status on the day of the release, and a removal is not shown.'
               : `${String(counts.ended)} vessel numbers have a listing with an end date.`}
           </p>
         </div>
