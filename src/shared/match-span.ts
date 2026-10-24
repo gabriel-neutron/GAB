@@ -5,23 +5,8 @@ export interface MatchPart {
   readonly matched: boolean;
 }
 
-// Departure: `folded` works on a whole text, and a highlight needs the place of the match in the
-// original text. So the name is folded one character at a time, and each folded character keeps
-// the index of the character that it came from.
-function foldedWithOrigin(name: string): { readonly text: string; readonly origin: number[] } {
-  let text = '';
-  const origin: number[] = [];
-  let index = 0;
-  for (const char of name) {
-    const piece = /\s/u.test(char) ? ' ' : folded(char);
-    for (const unit of piece) {
-      text += unit;
-      origin.push(index);
-    }
-    index += char.length;
-  }
-  return { text, origin };
-}
+const MARK = /^\p{M}$/u;
+const SPACE = /^\s$/u;
 
 /** Splits a name into the text before, in and after the first match of the query. The match
  * ignores case and accents, as the filter does. A name with no match is one unmarked part. */
@@ -29,15 +14,35 @@ export function matchParts(name: string, query: string): readonly MatchPart[] {
   const needle = folded(query);
   const whole: readonly MatchPart[] = [{ text: name, matched: false }];
   if (needle === '') return whole;
-  const { text, origin } = foldedWithOrigin(name);
-  const at = text.indexOf(needle);
-  if (at === -1) return whole;
-  const from = origin[at] ?? 0;
-  const last = origin[at + needle.length - 1] ?? name.length - 1;
-  const to = last + String.fromCodePoint(name.codePointAt(last) ?? 0).length;
-  return [
-    { text: name.slice(0, from), matched: false },
-    { text: name.slice(from, to), matched: true },
-    { text: name.slice(to), matched: false },
-  ].filter((part) => part.text !== '');
+  // Departure: `folded` works on a whole text, so a match is a slice of the name whose own fold
+  // equals the query. A fold per character would differ from the fold of the text (a run of
+  // spaces, a final sigma), and the row would hold the filter with no mark.
+  const points = Array.from(name);
+  const at: number[] = [];
+  let offset = 0;
+  for (const point of points) {
+    at.push(offset);
+    offset += point.length;
+  }
+  at.push(offset);
+  for (let start = 0; start < points.length; start += 1) {
+    const first = points[start] ?? '';
+    if (SPACE.test(first) || MARK.test(first)) continue;
+    for (let end = start + 1; end <= points.length; end += 1) {
+      const slice = name.slice(at[start], at[end]);
+      const seen = folded(slice);
+      if (seen.length > needle.length) break;
+      if (seen !== needle) continue;
+      let last = end;
+      while (last < points.length && MARK.test(points[last] ?? '')) last += 1;
+      const from = at[start] ?? 0;
+      const to = at[last] ?? name.length;
+      return [
+        { text: name.slice(0, from), matched: false },
+        { text: name.slice(from, to), matched: true },
+        { text: name.slice(to), matched: false },
+      ].filter((part) => part.text !== '');
+    }
+  }
+  return whole;
 }

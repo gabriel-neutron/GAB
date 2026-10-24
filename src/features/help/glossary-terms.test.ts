@@ -14,11 +14,9 @@ describe('the glossary', () => {
   });
 
   it('refuses a relation type with no definition', () => {
-    for (const type of SEEDED_RELATION_TYPES) {
-      expect({ key: type.key, defined: type.definition.trim() !== '' }).toEqual({
-        key: type.key,
-        defined: true,
-      });
-    }
+    const undefinedKeys = SEEDED_RELATION_TYPES.filter((type) => type.definition.trim() === '').map(
+      (type) => type.key,
+    );
+    expect(undefinedKeys).toEqual([]);
   });
 });
