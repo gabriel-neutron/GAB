@@ -35,18 +35,37 @@ The skeptic added one change that the panel accepted: with every product shown, 
 neutral grey. A product chip gives the links of that product their colour. So in the first view,
 hue means the stage and nothing else.
 
+## The rules of the operator
+
+- **The map mode is the graph on a map.** It is the default of the Map tab. It draws every entity
+  that has a position, with the rail of the types at the left and the card of the selection at the
+  right, as the graph does. The globe mode is the second mode: the animated globe that explains the
+  chain step by step.
+- **One card for the two pages.** The card of an entity and of a relation on the map is the card of
+  the graph. No page builds a second card. A point that is not a record of the corpus, such as an
+  exit point, keeps a small card of its own.
+- **A selection on the graph keeps every node.** A click on a node puts its neighbours forward and
+  never removes the other nodes. The graph has no focus view that draws one node and its
+  neighbours alone.
+
 ## What the pages do now
 
-- **One card of the selection.** The map and the graph use one shared panel. It is a column on a
-  wide screen and a sheet at the bottom of a phone. It closes with its button or with Escape, and
-  it gives the focus back to the control that opened it.
-- **Two modes of the map.** "Map" shows each point, flat and still. "Globe" plays the chain. The
-  address holds the mode, so the back button undoes a change, and a link can open the globe. Each
-  mode starts a new globe, so no state goes from one mode to the other. The selected entity is in
-  the address, so it stays. Each mode has one legend: the stage strip for the map, the steps of the
-  chain for the globe.
-- **The stage strip.** It replaces the old legend. An exit point is a ring and not an entity, so the
-  strip counts the rings in the exit stage. "No stage" stands apart, because it is not a step.
+- **The selection panel.** The map and the graph use one shared panel. It is a column on a wide
+  screen and a sheet at the bottom of a phone. It closes with its button or with Escape, and it
+  gives the focus back to the control that opened it.
+- **The rail of the map.** It is the rail of the graph: one row for each entity type, with a count,
+  a switch that hides the points of the type, and the list of the names. A name selects its point.
+  On a phone, the rail is a drawer, as on the graph.
+- **Two modes of the map.** The address holds the mode, so the back button undoes a change, and a
+  link can open the globe. Each mode starts a new globe, so no state goes from one mode to the
+  other. The selected entity is in the address, so it stays. Each mode has one legend: the stage
+  strip for the map, the steps of the chain for the globe.
+- **The stage strip.** It is the legend of the colours of the map. An exit point is a ring and not
+  an entity, so the strip counts the rings in the exit stage. "No stage" stands apart, because it is
+  not a step.
+- **The selection on the graph.** The selected node has a ring. Its direct neighbours are in full
+  colour, larger, and named. The neighbours at two steps are fainter. Each other node stays
+  on the canvas, dimmed. The camera moves to the node and its direct neighbours.
 - **The marker meter.** When the cap cuts markers, a small bar on the graph shows the part that is
   drawn and the number that is not. It has the shape and the colour of a marker, so it needs no
   legend. It is absent when the cap cuts nothing.

@@ -17,8 +17,6 @@ export interface GraphWorkspace {
   readonly railOpen: boolean;
   /** The width of the open rail, in pixels. The rail clamps it where it draws it. */
   readonly railWidth: number;
-  /** How far the focus reaches from the selected entity: one hop or two. */
-  readonly hops: 1 | 2;
   /** Whether the canvas draws the entities that stand on the ring with no place. */
   readonly showUnplaced: boolean;
   /** The relation types that are switched OFF, on the same rule as `hiddenTypes`. */
@@ -30,7 +28,6 @@ export const DEFAULT_GRAPH_WORKSPACE: GraphWorkspace = {
   hiddenTypes: [],
   railOpen: true,
   railWidth: 256,
-  hops: 1,
   showUnplaced: true,
   hiddenRelationTypes: [],
 };
@@ -62,14 +59,17 @@ const DECLARED_KEYS: Readonly<Record<keyof GraphWorkspace, true>> = {
   hiddenTypes: true,
   railOpen: true,
   railWidth: true,
-  hops: true,
   showUnplaced: true,
   hiddenRelationTypes: true,
 };
 
+// A record saved while the graph had a focus holds `hops`. The guard accepts the key, and the read
+// drops it, so the camera and the filters of that reader are kept.
+const READ_KEYS: Readonly<Record<string, true>> = { ...DECLARED_KEYS, hops: true };
+
 // The cost of the strict guard here is one camera position and one set of filters, one time.
 const isWorkspace = (value: unknown): value is StoredWorkspace => {
-  if (!holdsOnlyDeclaredKeys(value, DECLARED_KEYS)) return false;
+  if (!holdsOnlyDeclaredKeys(value, READ_KEYS)) return false;
   const w = value;
   const hidden = w['hiddenTypes'];
   return (
@@ -79,7 +79,6 @@ const isWorkspace = (value: unknown): value is StoredWorkspace => {
     typeof w['railOpen'] === 'boolean' &&
     typeof w['railWidth'] === 'number' &&
     Number.isFinite(w['railWidth']) &&
-    (w['hops'] === 1 || w['hops'] === 2) &&
     (w['showUnplaced'] === undefined || typeof w['showUnplaced'] === 'boolean') &&
     (w['hiddenRelationTypes'] === undefined ||
       (Array.isArray(w['hiddenRelationTypes']) &&
@@ -90,7 +89,10 @@ const isWorkspace = (value: unknown): value is StoredWorkspace => {
 export function readGraphWorkspace(): GraphWorkspace {
   const stored = readWorkspace<StoredWorkspace>(FEATURE, isWorkspace, DEFAULT_GRAPH_WORKSPACE);
   return {
-    ...stored,
+    camera: stored.camera,
+    hiddenTypes: stored.hiddenTypes,
+    railOpen: stored.railOpen,
+    railWidth: stored.railWidth,
     showUnplaced: stored.showUnplaced ?? DEFAULT_GRAPH_WORKSPACE.showUnplaced,
     hiddenRelationTypes: stored.hiddenRelationTypes ?? DEFAULT_GRAPH_WORKSPACE.hiddenRelationTypes,
   };

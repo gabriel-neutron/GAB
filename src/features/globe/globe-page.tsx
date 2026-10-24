@@ -1,24 +1,27 @@
+import type { ReactNode } from 'react';
+
 import { ReadingPage } from '@/shared/page/reading-page';
 
 import { Globe, type MapMode } from './globe';
 import type { GlobeData } from './globe-data';
+import type { Target } from './globe-store';
 
 export interface GlobePageProps {
   /** Null when the site holds no release: the map comes from a release and from nothing else. */
   readonly data: GlobeData | null;
   /** The entity of the address, or an empty string. */
   readonly entity: string;
-  /** The address of the page of one entity. */
-  readonly entityHref: (id: string) => string;
+  /** The card of one target, beside the map. */
+  readonly cardOf: (target: Target) => ReactNode;
   /** This function must be the same function at each render of the caller. */
   readonly onSelect: (id: string | null) => void;
   readonly mode: MapMode;
   readonly onMode: (mode: MapMode) => void;
 }
 
-/** The map page: the globe of the entities of the release that have a position, with the chain of
- * the hydrocarbons from the well to the exit from Russian control. */
-export function GlobePage({ data, entity, entityHref, onSelect, mode, onMode }: GlobePageProps) {
+/** The map page: every entity of the release that has a position, and the chain of the
+ * hydrocarbons from the well to the exit from Russian control on a globe. */
+export function GlobePage({ data, entity, cardOf, onSelect, mode, onMode }: GlobePageProps) {
   if (data === null)
     return (
       <ReadingPage>
@@ -42,7 +45,7 @@ export function GlobePage({ data, entity, entityHref, onSelect, mode, onMode }: 
         key={mode}
         data={data}
         entity={entity}
-        entityHref={entityHref}
+        cardOf={cardOf}
         onSelect={onSelect}
         mode={mode}
         onMode={onMode}

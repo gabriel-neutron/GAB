@@ -10,7 +10,7 @@ const meta = {
   args: {
     data: null,
     entity: '',
-    entityHref: (id: string) => `/entity/${id}`,
+    cardOf: () => null,
     onSelect: fn(),
     mode: 'map',
     onMode: fn(),
