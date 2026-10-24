@@ -2,12 +2,13 @@
 
 ## Report a vulnerability
 
-Do not open a public issue for a security problem.
+Do not open a public issue for a security problem. The same private report also receives a
+report under the code of conduct.
 
 Use the private report of GitHub: open the **Security** tab of the repository, then **Report a
 vulnerability**. Give the steps to reproduce the problem and its effect.
 
-The maintainer answers as soon as possible. When the fix is ready, we publish an advisory, with your name
+When the fix is ready, we publish an advisory, with your name
 if you agree.
 
 ## Supported versions

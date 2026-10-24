@@ -6,7 +6,6 @@
 
 [![gates](https://github.com/gabriel-neutron/GAB/actions/workflows/gates.yml/badge.svg?branch=staging)](https://github.com/gabriel-neutron/GAB/actions/workflows/gates.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Node 24](https://img.shields.io/badge/node-24-339933.svg)](.nvmrc)
 
 [Quick start](#quick-start) · [How it works](#how-it-works) · [Documentation](docs/README.md) ·
 [Contributing](CONTRIBUTING.md)
@@ -54,14 +53,14 @@ are in [`docs/decisions.md`](docs/decisions.md).
 
 ### Requirements
 
-- Node 24 and pnpm (run `corepack enable`)
+- Node, at the version in `.nvmrc`, and pnpm (run `corepack enable`)
 - Docker, for the full stack only
 - An [OpenRouter](https://openrouter.ai) key, for the AI jobs only. This key is paid.
 
 ### Look at the interface with no backend
 
 The interface can read a release folder in place of a server. The repository holds a sample
-release.
+release. This mode needs no Docker and no `infra/.env`.
 
 ```bash
 pnpm install
@@ -74,8 +73,8 @@ PowerShell, set the variable first:
 
 ### Run the full stack
 
-1. Copy `infra/.env.example` to `infra/.env` and set the values. `docs/deploy.md` tells how to make
-   the operator key.
+1. Copy `infra/.env.example` to `infra/.env` and set the values. The raw store keys and the
+   operator key are necessary. `infra/README.md` and `docs/deploy.md` tell how to set them.
 2. Start the services: `docker compose -f infra/docker-compose.yml up -d`.
 3. Build the database: `pnpm db:migrate`, then `pnpm db:apply`.
 4. Start the writer (`pnpm writer`) and the interface (`pnpm dev`).

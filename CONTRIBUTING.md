@@ -23,15 +23,15 @@ Do not put a local path, a token or private data in an issue: the repository is 
    (`infra/README.md`).
 5. Open a pull request into `staging`. The `main` branch receives only the releases.
 
-The CI runs the checks on each pull request. A pull request that changes only documents runs no job.
+The CI runs the checks on each pull request.
 
 ## Style
 
 - **Commits and pull request titles** use Conventional Commits: `type(scope): a lower case
   sentence`. `docs/agents/commit.md` gives the full rule.
 - **Text** (documents, comments, commit bodies) uses Simplified Technical English (ASD-STE100):
-  short sentences, one instruction in each sentence, the active voice. Plain, short English is
-  sufficient for a first pull request. The maintainer can edit the words.
+  short sentences, one instruction in each sentence, the active voice. For a first pull request,
+  plain and short English is sufficient. The maintainer can edit the words.
 - **Documents** tell the reason and the general view. The code holds the details.
   `docs/authoring.md` gives the rules.
 

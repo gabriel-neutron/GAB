@@ -17,10 +17,9 @@ Infer the repo from `git remote -v` — `gh` does this automatically when run in
 ## Identity — read this before any write
 
 This machine has two GitHub accounts. Every write to this repository must act as
-**`gabriel-neutron`**, never as the other account. Never write the name of the other account.
-The repository is public, and a comment or a
-commit made under the wrong account cannot be retracted from a public history or from
-anyone's notification mail.
+**`gabriel-neutron`**. Never use the other account, and never write its name. The repository is
+public, and a comment or a commit made under the wrong account cannot be retracted from a public
+history or from anyone's notification mail.
 
 A `GH_TOKEN` in `.claude/settings.local.json` (gitignored) pins the identity. It overrides
 `gh`'s stored login unconditionally. Confirm it before any write:
