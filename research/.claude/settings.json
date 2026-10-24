@@ -62,7 +62,10 @@
       "Bash(*research/.env)",
       "Bash(*research/.env *)",
       "Bash(* .env)",
-      "Bash(* .env *)"
+      "Bash(* .env *)",
+      "mcp__playwright__browser_run_code_unsafe",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_file_upload"
     ]
   }
 }
