@@ -36,6 +36,13 @@ describe('the shape feature of an entity', () => {
     });
   });
 
+  it('carries the hue of the stage with the shape', () => {
+    expect(shapeFeatureOf({ ...base, route: ROUTE }, true, '#e0c341')?.properties).toStrictEqual({
+      entityType: 'facility',
+      stageColour: '#e0c341',
+    });
+  });
+
   it('draws nothing for a point, or for a type with no hue', () => {
     expect(shapeFeatureOf(base, true)).toBeNull();
     expect(shapeFeatureOf({ ...base, route: ROUTE }, false)).toBeNull();

@@ -2,9 +2,18 @@
 // address back. A two-way binding between a router and a live canvas is a loop, so this file
 // calls no router hook and reads no `localStorage`.
 
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type RefObject,
+} from 'react';
 
 import { cn } from '@/shared/lib/utils';
+import { railWidthWithin } from '@/shared/rail-width';
 import { useNarrowScreen } from '@/shared/narrow-screen';
 import type { RailRows } from '@/shared/rail';
 import type { Corpus, TypeVocabulary } from '@/shared/read/model';
@@ -120,8 +129,17 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation, mapRef }: M
     >
       {mapReady ? (
         <div
+          // The rail takes the whole width of its parent below `lg`, so the parent states the
+          // width there, and the rail states its own from `lg`, where a drag changes it, and a long name never widens the rail. A closed rail is one narrow column.
+          style={
+            {
+              '--rail-slot': railFrame.open
+                ? `${String(railWidthWithin(railFrame.width))}px`
+                : '2.75rem',
+            } as CSSProperties
+          }
           className={cn(
-            'min-h-0 shrink-0',
+            'min-h-0 shrink-0 md:max-lg:w-(--rail-slot) md:max-lg:overflow-hidden',
             'max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-20 max-md:w-72',
             'max-md:max-w-[85%] max-md:border-r max-md:border-border max-md:bg-background',
             drawerOpen ? null : 'max-md:hidden',

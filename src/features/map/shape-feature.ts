@@ -10,16 +10,28 @@ export interface ShapeFeature {
     | { readonly type: 'Polygon'; readonly coordinates: readonly Ring[] }
     | { readonly type: 'MultiPolygon'; readonly coordinates: Area }
     | { readonly type: 'MultiLineString'; readonly coordinates: readonly Ring[] };
-  readonly properties: { readonly entityType: string };
+  readonly properties: {
+    readonly entityType: string;
+    /** The hue of the stage of the asset, which the Chain mode draws. Absent with no stage. */
+    readonly stageColour?: string;
+  };
 }
 
 /** The feature that draws the shape of an entity, or null for an entity that a point locates or
- * whose type has no hue. The outline layer of the type draws a route as it draws the edge of an
+ * whose type has no hue. The stage hue goes with the shape, so the Chain mode draws a route or an
+ * area in the colour of the point of the same asset. The outline layer of the type draws a route as it draws the edge of an
  * area, and the fill layer draws nothing for a route. */
-export function shapeFeatureOf(entity: GeoEntity, hasHue: boolean): ShapeFeature | null {
+export function shapeFeatureOf(
+  entity: GeoEntity,
+  hasHue: boolean,
+  stageColour?: string,
+): ShapeFeature | null {
   if (!hasHue) return null;
   const { area, route } = entity;
-  const properties = { entityType: entity.type };
+  const properties = {
+    entityType: entity.type,
+    ...(stageColour === undefined ? {} : { stageColour }),
+  };
   if (route !== null)
     return {
       type: 'Feature',
