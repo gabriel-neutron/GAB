@@ -23,7 +23,7 @@ Run `pnpm writer` and the worker on the operator's machine with the same `infra/
   characters of A-Z, a-z, 0-9, `-`, `_`). Make one with
   `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`. If a write
   answers that the request has no key, start `pnpm dev` again.
-- **One runner:** run one `pnpm worker run` at a time. A second one refuses to start: a lock of the database allows one. At its start the runner puts back each running job.
+- **One runner:** run one `pnpm worker run` at a time. A second one refuses to start: a lock of the database allows one. The lock needs a direct connection to the database. Do not use a transaction-mode pooler for the runner. At its start the runner puts back each running job.
   After a lost database connection it waits, retries and requeues the job in hand.
 - **Ingest:** `pnpm worker ingest` needs `--uri`, the address where the file comes from (PU1), one
   file for each run. For a bought file, also give `--cost-eur`, or `--provider` of a provider that

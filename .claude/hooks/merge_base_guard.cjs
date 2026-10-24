@@ -42,6 +42,8 @@ function hasApiMerge(cmd) {
     if (!m) continue;
     const words = (m[1].match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map(unquote);
     if (words.some((w) => /\/merge\/?(\?.*)?$/.test(w))) return true;
+    // The GraphQL form of a merge names a mutation, not a path.
+    if (/mergePullRequest|enablePullRequestAutoMerge/.test(m[1])) return true;
   }
   return false;
 }

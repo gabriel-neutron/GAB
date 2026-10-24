@@ -75,7 +75,10 @@ const scripted = (
       },
     });
   const count = (word: string): number => seen.filter((text) => text.includes(word)).length;
-  return { db, lock, stop, count, seen, released };
+  const takeAway = (): void => {
+    held = true;
+  };
+  return { db, lock, stop, count, seen, released, takeAway };
 };
 
 const agentOf = (run: (context: AgentContext) => Promise<AgentResult>): RunnerAgent => ({
@@ -200,7 +203,8 @@ describe('the runner and the lock that keeps one runner alive', () => {
   it('starts as usual when the lock is free', async () => {
     const { fake, ended } = await drive([() => EMPTY]);
     await expect(ended).resolves.toBeUndefined();
-    expect(fake.count('pg_try_advisory_lock')).toBe(1);
+    // One try at the start, and one before the step.
+    expect(fake.count('pg_try_advisory_lock')).toBe(2);
     expect(fake.seen.findIndex((text) => text.includes('pg_try_advisory_lock'))).toBeLessThan(
       fake.seen.findIndex((text) => text.includes('requeue_running_jobs')),
     );
@@ -231,12 +235,34 @@ describe('the runner and the lock that keeps one runner alive', () => {
       () => EMPTY,
     ]);
     await expect(ended).resolves.toBeUndefined();
-    expect(fake.count('pg_try_advisory_lock')).toBe(2);
+    // One try at the start, one before the first step, and one after the lost connection.
+    expect(fake.count('pg_try_advisory_lock')).toBe(3);
     const at = (word: string): number[] =>
       fake.seen.flatMap((text, index) => (text.includes(word) ? [index] : []));
-    const [, secondLock] = at('pg_try_advisory_lock');
+    const secondLock = at('pg_try_advisory_lock').at(-1);
     const [, secondRequeue] = at('requeue_running_jobs');
     expect(secondLock).toBeLessThan(secondRequeue ?? -1);
     expect(fake.released).toHaveLength(1);
+  });
+
+  it('stops when the lock was lost with no sign and another runner holds it', async () => {
+    const holder: { take?: () => void } = {};
+    const fake = scripted([
+      () => {
+        holder.take?.();
+        return EMPTY;
+      },
+      () => EMPTY,
+    ]);
+    holder.take = fake.takeAway;
+    const runner = await openRunner({
+      db: fake.db,
+      lock: fake.lock,
+      agents: [agentOf(() => Promise.resolve({ refusals: [] }))],
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    });
+    await expect(runner.run(fake.stop.signal)).rejects.toThrow('Another runner took the lock');
+    expect(fake.count('claim_job')).toBe(1);
   });
 });

@@ -30,9 +30,10 @@ const COMPLETE = `SELECT public.complete_job($1::uuid, $2::int, $3::int, $4::tex
 const MS = 1000;
 
 // The key of the advisory lock that lets one runner live. REQUEUE puts back each running row of the
-// role, so a second runner would take the live job of the first. The number is fixed and spells
-// "GABRUN" in hexadecimal. No other code of the database uses it.
-const RUNNER_LOCK_KEY = '0x47414252554E';
+// role, so a second runner would take the live job of the first. The number is fixed: it is
+// 0x47414252554E, which spells "GABRUN" in ASCII. It is written in decimal because the text input
+// of a bigint reads hexadecimal only from PostgreSQL 16. No other code of the database uses it.
+const RUNNER_LOCK_KEY = '78345611138382';
 
 // External constraint: a pool reports a lost connection with a code of Node, a state of the server
 // (class 08, or a shutdown), or the sentence of pg. The sleep of the computer, a restart of the
@@ -181,6 +182,15 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
     seat = fresh;
   };
 
+  // The connection of the lock can end with no sign (an idle limit, a restart of the server). The
+  // same session asks for the lock again before each step: it answers yes while the session holds
+  // it, and it takes the lock again in a new session. A no means that another runner holds it.
+  const keepLock = async (): Promise<void> => {
+    if (seat === undefined) return;
+    const { locked } = lockRow.parse((await seat.query(TRY_LOCK, [RUNNER_LOCK_KEY])).rows[0]);
+    if (!locked) throw new Error('Another runner took the lock, so this runner stops.');
+  };
+
   await takeLock();
   let settings;
   try {
@@ -306,7 +316,7 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
             await takeLock();
             await db.query(REQUEUE);
             lost = false;
-          }
+          } else await keepLock();
           await step();
         } catch (error) {
           if (!isConnectionFault(error)) throw error;

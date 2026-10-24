@@ -90,6 +90,7 @@ describe('the API merge', () => {
     'gh api --method PUT /repos/example/repo/pulls/12/merge -f merge_method=merge',
     'gh api repos/example/repo/pulls/12/merge -X PUT',
     'gh api "repos/example/repo/pulls/12/merge"',
+    "gh api graphql -f query='mutation { mergePullRequest(input: {}) { clientMutationId } }'",
   ])('%s', (command) => {
     expect(guard.decide(command, baseIs('staging')).allow).toBe(false);
   });
