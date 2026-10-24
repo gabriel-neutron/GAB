@@ -556,9 +556,8 @@ export function mountGraph(
       if (litNodes.has(node)) return { ...data };
       // A focus draws its own nodes and nothing else, so the rest stays out of the picture.
       if (mode !== 'whole') return { ...data, hidden: true, label: null };
-      // A filter dims. **It never hides.** So `hidden` stays false for a node the filter puts
-      // out, it keeps its position, and only the paint changes. The label goes, because an
-      // element that is out of consideration does not name itself.
+      // A type that the filter puts out leaves the picture. A selection only dims the rest.
+      if (!passesFilter(data)) return { ...data, hidden: true, label: null };
       return { ...data, color: dimOf(data.color), label: null };
     },
 
@@ -574,6 +573,14 @@ export function mountGraph(
       }
       if (litEdges.has(edge)) return { ...data };
       if (mode !== 'whole') return { ...data, hidden: true, label: null };
+      // A line whose end the filter puts out has nothing to join.
+      if (
+        model.graph
+          .extremities(edge)
+          .some((end) => !passesFilter(model.graph.getNodeAttributes(end)))
+      ) {
+        return { ...data, hidden: true, label: null };
+      }
       return { ...data, color: dimOf(data.color), label: null };
     },
   });
@@ -1049,8 +1056,7 @@ export function mountGraph(
     fitFocus();
   };
 
-  // The picking layer of Sigma answers with a dimmed node as well, because a filter dims and
-  // never hides, so the guard is here.
+  // The picking layer of Sigma answers with a dimmed node as well, so the guard is here.
   sigma.on('clickNode', ({ node }) => {
     if (destroyed || !nodeConsidered(node)) return;
     const next: GraphSelection = { kind: 'entity', id: node };
