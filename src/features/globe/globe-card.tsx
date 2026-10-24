@@ -1,6 +1,5 @@
-import { cn } from '@/shared/lib/utils';
-import { askPanelFocus, landOnPanel, returnPanelFocus } from '@/shared/panel-focus';
-import { PHONE_SHEET, SheetClose } from '@/shared/phone-sheet';
+import { askPanelFocus } from '@/shared/panel-focus';
+import { SelectionPanel } from '@/shared/selection-panel';
 import type { Card } from '@gab/release/chain-card';
 
 import { AssetCard } from './asset-card';
@@ -50,37 +49,26 @@ export function GlobeCard({ store, data, entityHref }: GlobeCardProps) {
   const { panel, available } = useGlobeState(store);
   if (!available) return null;
   return (
-    <div
-      role="region"
-      aria-label="Card of the selected entity"
-      className={cn(
-        'min-h-0 overflow-y-auto border-t border-border lg:border-t-0 lg:border-l',
-        PHONE_SHEET,
-        panel.kind === 'none' ? 'hidden' : null,
-      )}
-      onKeyDown={(event) => {
-        if (event.key !== 'Escape' || event.defaultPrevented || panel.kind === 'none') return;
+    <SelectionPanel
+      shown={
+        panel.kind === 'none'
+          ? null
+          : panel.kind === 'target'
+            ? `${panel.target.kind}:${panel.target.id}`
+            : `choice:${String(panel.choices.length)}`
+      }
+      onClose={() => {
         store.select(null);
-        event.currentTarget.tabIndex = -1;
-        returnPanelFocus(event.currentTarget);
       }}
+      className="border-t lg:border-t-0 lg:border-l"
     >
-      {panel.kind === 'none' ? null : (
-        <SheetClose
-          onClose={() => {
-            store.select(null);
-          }}
-        />
-      )}
       <div className="p-2">
-        {panel.kind === 'none' ? <p>Select a point on the map.</p> : null}
         {panel.kind === 'target' ? (
           <TargetCard target={panel.target} data={data} entityHref={entityHref} />
         ) : null}
         {panel.kind === 'choice' ? (
           <div className="flex flex-col gap-1">
             <h2 className="font-medium">{panel.choices.length} points under the click</h2>
-            <p>Select one for its card.</p>
             <ul className="flex flex-col">
               {panel.choices.map((one) => (
                 <li key={`${one.target.kind}:${one.target.id}`}>
@@ -101,17 +89,6 @@ export function GlobeCard({ store, data, entityHref }: GlobeCardProps) {
           </div>
         ) : null}
       </div>
-      {panel.kind === 'none' ? null : (
-        <span
-          key={
-            panel.kind === 'target'
-              ? `${panel.target.kind}:${panel.target.id}`
-              : `choice:${String(panel.choices.length)}`
-          }
-          ref={landOnPanel}
-          hidden
-        />
-      )}
-    </div>
+    </SelectionPanel>
   );
 }

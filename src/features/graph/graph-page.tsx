@@ -12,13 +12,14 @@ import {
 import type { Corpus, EntityPosition, TypeVocabulary } from '@/shared/read/model';
 import { cn } from '@/shared/lib/utils';
 import { useNarrowScreen } from '@/shared/narrow-screen';
-import { askPanelFocus, landOnPanel, returnPanelFocus } from '@/shared/panel-focus';
-import { PHONE_SHEET, SheetClose } from '@/shared/phone-sheet';
+import { askPanelFocus } from '@/shared/panel-focus';
 import { Rail, type RailAct } from '@/shared/rail';
 import { useScreenQuery } from '@/shared/screen-query';
+import { SelectionPanel } from '@/shared/selection-panel';
 
 import { mountGraph, type GraphController, type GraphView } from './controller';
 import { FocusBar } from './focus-bar';
+import { MarkerMeter } from './marker-meter';
 import type { GraphModel } from './model';
 import { deriveRailRows } from './rail-rows';
 import { stepAfterTypeOpen, stepShowingWholeList, type RailStep } from './rail-step';
@@ -271,6 +272,9 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
               onBack={showWholeGraph}
             />
           ) : null}
+          {snapshot === null ? null : (
+            <MarkerMeter drawn={snapshot.view.markersDrawn} hidden={snapshot.view.markersOverCap} />
+          )}
           <button
             ref={typesButton}
             type="button"
@@ -289,29 +293,14 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
           </button>
         </div>
 
-        <div
-          role="region"
-          aria-label="Card of the selection"
-          onKeyDown={(event) => {
-            if (event.key !== 'Escape' || event.defaultPrevented || selection === null) return;
-            clearSelection();
-            event.currentTarget.tabIndex = -1;
-            returnPanelFocus(narrow ? typesButton.current : event.currentTarget);
-          }}
-          className={cn(
-            'min-h-0 min-w-0 overflow-y-auto overscroll-contain border-border md:col-start-3 md:row-start-1 md:border-l',
-            PHONE_SHEET,
-            selection === null ? 'hidden' : null,
-          )}
+        <SelectionPanel
+          shown={selection === null ? null : `${selection.kind}:${selection.id}`}
+          onClose={clearSelection}
+          fallback={narrow ? typesButton : undefined}
+          className="md:col-start-3 md:row-start-1 md:border-l"
         >
-          {selection === null ? null : (
-            <SheetClose onClose={clearSelection} fallback={narrow ? typesButton : undefined} />
-          )}
           {card}
-          {selection === null ? null : (
-            <span key={`${selection.kind}:${selection.id}`} ref={landOnPanel} hidden />
-          )}
-        </div>
+        </SelectionPanel>
 
         {/* The rail is last in the order of the keys and of the screen when the island stacks, and
             the grid puts it first on a wide screen. */}

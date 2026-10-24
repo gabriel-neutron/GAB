@@ -35,7 +35,7 @@ type Story = StoryObj<typeof meta>;
 
 export const DrawsNoCardWhenNothingIsSelected: Story = {
   play: async ({ canvas }) => {
-    await expect(canvas.queryByRole('region', { name: 'Card of the selected entity' })).toBeNull();
+    await expect(canvas.queryByRole('region', { name: 'Card of the selection' })).toBeNull();
   },
 };
 
@@ -148,7 +148,7 @@ export const AKeyOpensTheCardWithTheFocusOnItsHeading: Story = {
     await expect(canvas.getByRole('heading', { name: 'Test field' })).toHaveFocus();
     await userEvent.keyboard('{Escape}');
     await expect(args.store.get().panel).toStrictEqual({ kind: 'none' });
-    await expect(canvas.queryByRole('region', { name: 'Card of the selected entity' })).toBeNull();
+    await expect(canvas.queryByRole('region', { name: 'Card of the selection' })).toBeNull();
   },
 };
 

@@ -7,7 +7,7 @@ import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
 import { READING_LINK } from '@/shared/page/reading-link';
 import { ReadingPage } from '@/shared/page/reading-page';
-import { safeHref } from '@/shared/page/safe-href';
+import { safeHref } from '@gab/release/safe-href';
 import { typeLabel } from '@/shared/type-label';
 
 export interface MethodPageProps {

@@ -36,6 +36,7 @@ const MAP_PALETTES = {
     land: '#e0e5e7',
     coast: '#a0aaaf',
     selected: '#20282d',
+    link: '#7d878c',
     sky: '#f5f7f8',
     horizon: '#e0e5e7',
   },
@@ -44,6 +45,7 @@ const MAP_PALETTES = {
     land: '#182226',
     coast: '#445155',
     selected: '#f0f3f4',
+    link: '#76838a',
     sky: '#070f10',
     horizon: '#182226',
   },
@@ -248,8 +250,17 @@ export function mountGlobe({ container, data, store, flat }: MountOptions): Glob
     else queue.push(work);
   };
 
+  // Departure: with every product shown, a link is one neutral grey, so the hue of a point is the
+  // one colour on the map. A product chip gives the links of that product their colour.
+  const paintLinks = (product: GlobeState['product']): void => {
+    const colour = product === 'all' ? MAP_PALETTES[canvasTheme()].link : ARC_COLOURS.product;
+    for (const layer of ARC_LAYERS)
+      if (layer.colour === 'product') map.setPaintProperty(layer.id, 'line-color', colour);
+  };
+
   const paintTheme = (): void => {
     const next = MAP_PALETTES[canvasTheme()];
+    paintLinks(store.get().product);
     map.setPaintProperty('ground', 'background-color', next.ground);
     map.setPaintProperty('land', 'fill-color', next.land);
     map.setPaintProperty('coast', 'line-color', next.coast);
@@ -318,7 +329,12 @@ export function mountGlobe({ container, data, store, flat }: MountOptions): Glob
 
   const draw = (state: GlobeState): void => {
     const entity = selectedEntity(state);
-    const highlight = highlightOf(data, { entity, step: state.step, product: state.product });
+    const highlight = highlightOf(data, {
+      entity,
+      stage: state.stage,
+      step: state.step,
+      product: state.product,
+    });
     const assets = forward(highlight?.assets ?? null);
     map.setPaintProperty('points', 'circle-opacity', revealed(assets));
     map.setPaintProperty('points', 'circle-stroke-opacity', revealed(assets));
@@ -335,6 +351,7 @@ export function mountGlobe({ container, data, store, flat }: MountOptions): Glob
     const arcFilter: FilterSpecification =
       state.product === 'all' ? ['boolean', true] : ['==', ['get', 'product'], state.product];
     const arcs = forward(highlight?.arcs ?? null);
+    paintLinks(state.product);
     for (const one of ARC_LAYERS) {
       map.setFilter(one.id, ['all', ['==', ['get', 'style'], one.style], arcFilter]);
       map.setPaintProperty(one.id, 'line-opacity', revealed(one.opacity, arcs));

@@ -183,6 +183,6 @@
 .globe-surface {
   grid-template-rows: minmax(0, 1fr);
 }
-.globe-surface:not(:has([aria-label='Card of the selected entity']:not(.hidden))) {
+.globe-surface:not(:has([aria-label='Card of the selection']:not(.hidden))) {
   grid-template-columns: minmax(0, 1fr);
 }
