@@ -1,78 +1,117 @@
+<div align="center">
+
 # Gabriel
 
-An OSINT data-fusion environment built as a personal investigation instrument. It lets a
-single analyst ingest documents, extract and correlate information, and build a graph of
-entities and relations in which **every claim carries its source**.
+**An open-source investigation graph in which every claim carries its source.**
 
-Machine output never becomes evidence on its own. Agents write freely into a **candidate
-layer**; only an explicit act of promotion by the analyst moves anything into the
-**evidentiary layer** that feeds reports, datasets, and public maps.
+[![gates](https://github.com/gabriel-neutron/GAB/actions/workflows/gates.yml/badge.svg?branch=staging)](https://github.com/gabriel-neutron/GAB/actions/workflows/gates.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node 24](https://img.shields.io/badge/node-24-339933.svg)](.nvmrc)
 
-**Status: MVP shipped.** The core screens, the worker, and the database gate all pass. Open
-work items stay tracked as issues.
+[Quick start](#quick-start) · [How it works](#how-it-works) · [Documentation](docs/README.md) ·
+[Contributing](CONTRIBUTING.md)
 
-## Shape
+</div>
 
-TypeScript end to end. PostgreSQL/PostGIS is the only GOLD datastore; SeaweedFS, an S3 server, holds the
-raw files as they arrived. They stay unchanged by convention: the store does not prevent an
-overwrite, because it has no versioning and no object lock. The frontend is React with Vite and
-TanStack Router, the component kit is shadcn, and the map library is MapLibre. The build decisions live in the ADR register in
-[`docs/README.md`](docs/README.md). Open questions live as
-[issues](https://github.com/gabriel-neutron/GAB/issues).
+Gabriel is an OSINT (open-source intelligence) workbench for one analyst. You add documents. AI
+agents read them and propose people, companies, vessels, places and the relations between them.
+Gabriel checks each proposal against its source, and you decide what becomes evidence. The result
+is a graph and a map that you can publish, where each fact links to the passage that states it.
 
-The types of the database are generated from the live schema. `pnpm db:drift` regenerates them
-from the test database and fails on a difference. CI runs it, and the database tests, on each pull
-request.
+The repository is named `GAB`. The product is named Gabriel.
 
-Documentation starts at [`docs/README.md`](docs/README.md).
+## Features
 
-## Start the MCP server
+- **A source on each claim.** The database refuses a fact that has no source. A reader can go from
+  each node, link and value to the passage of the document that states it.
+- **Two layers.** The AI writes only proposals. A proposal becomes evidence only by a named rule or
+  by the analyst.
+- **Review by exception.** Automatic checks accept the strong proposals and stop the weak ones. The
+  analyst sees only the doubts.
+- **Graph and map.** Explore the entities as a network or on a map, with the source of each item.
+- **Static releases.** A release is a dated folder of open files and a static site. Any static host
+  can serve it, with no server.
+- **An agent toolbox.** An MCP server gives a research AI the tools to search, read sources and
+  propose facts.
 
-The MCP server `gab` gives the research tools to the AI agent. Its client starts it over stdio. You do
-not start it by hand for normal work.
+## How it works
 
-Before you start it:
-
-1. Install the dependencies: `pnpm install`. Node 24 is required.
-2. Start the database stack from the root of the repository:
-
-   ```bash
-   docker compose -f infra/docker-compose.yml up -d
-   ```
-
-3. Copy `research/.env.example` to `research/.env`, and set the values.
-
-To start it, open a Claude Code session in the research folder. The file `research/.mcp.json` starts
-the server. Check that it runs:
-
-```bash
-cd research
-claude mcp list
+```mermaid
+flowchart LR
+    DOC["Documents"] --> AI["AI extraction"]
+    AI --> CAND["Candidate layer<br/>(proposals)"]
+    CAND --> CHECK["Automatic checks"]
+    CHECK -->|"strong"| EV["Evidentiary layer"]
+    CHECK -->|"doubt"| OP["Analyst decides"]
+    OP --> EV
+    EV --> REL["Release:<br/>map, graph, open data"]
 ```
 
-`gab` must show as connected.
+The technical overview is in [`docs/spec.md`](docs/spec.md). The product rules and their reasons
+are in [`docs/decisions.md`](docs/decisions.md).
 
-To run the server alone, from the root of the repository:
+## Quick start
+
+### Requirements
+
+- Node 24 and pnpm (run `corepack enable`)
+- Docker, for the full stack only
+- An [OpenRouter](https://openrouter.ai) key, for the AI jobs only. This key is paid.
+
+### Look at the interface with no backend
+
+The interface can read a release folder in place of a server. The repository holds a sample
+release.
 
 ```bash
-npm run mcp
+pnpm install
+RELEASE_DIR=packages/site/fixtures/release pnpm dev
 ```
 
-You can also run the file directly:
+Open the address that Vite shows, then the Map, Graph or Data tab. The sample release is small. In
+PowerShell, set the variable first:
+`$env:RELEASE_DIR="packages/site/fixtures/release"`.
 
-```bash
-node packages/mcp/src/main.ts
-```
+### Run the full stack
 
-The server then waits for a client on stdin, so it shows no prompt. Stop it with Ctrl+C.
+1. Copy `infra/.env.example` to `infra/.env` and set the values. `docs/deploy.md` tells how to make
+   the operator key.
+2. Start the services: `docker compose -f infra/docker-compose.yml up -d`.
+3. Build the database: `pnpm db:migrate`, then `pnpm db:apply`.
+4. Start the writer (`pnpm writer`) and the interface (`pnpm dev`).
 
-If the server does not start, it prints the cause on stderr:
+[`infra/README.md`](infra/README.md) tells what each service does. [`docs/deploy.md`](docs/deploy.md)
+tells how to run the worker, write a release and publish the site.
 
-- The database does not answer: start the stack (step 2).
-- The password is wrong: set `GAB_RESEARCH_DATABASE_URL` with the value of
-  `GABRIEL_RESEARCH_PASSWORD` in `infra/.env`.
-- The database name is wrong: name the database `gabriel`.
+### Connect a research AI
+
+The MCP server `gab` gives the research tools to an MCP client such as Claude Code. Its setup is in
+[`research/README.md`](research/README.md).
+
+## Project layout
+
+| Folder | Content |
+|---|---|
+| `src/` | The web interface (React, TanStack Router, MapLibre) |
+| `packages/` | The writer, the worker, the MCP server, the tools and the static site |
+| `db/` | The database schema and its rules (PostgreSQL, PostGIS) |
+| `infra/` | The local services (Docker Compose) |
+| `tools/` | The command-line scripts and the database tests |
+| `research/` | The shared setup of a research session with an AI agent |
+| `docs/` | The product rules, the technical overview and the decision records |
+
+## Development
+
+| Command | Purpose |
+|---|---|
+| `pnpm check` | Type check, lint and format check |
+| `pnpm test:fast` | The tests that need no service |
+| `pnpm test` | The full suite. It needs the stack. |
+| `pnpm storybook` | The components in isolation |
+
+The project uses AI coding agents. Their shared rules are in `CLAUDE.md`, `.claude/` and
+`docs/agents/`. You do not need an agent to contribute. Read [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+The code is under the [MIT License](LICENSE).

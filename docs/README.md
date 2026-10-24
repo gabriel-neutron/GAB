@@ -1,5 +1,7 @@
 # Documentation map
 
+New to the project? Start with the [README](../README.md) and [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+
 Read a document only when its row matches your task. The code is the source of truth for every
 detail. Find a decision record with `ls docs/adr`; open one only when a file or a document cites it.
 

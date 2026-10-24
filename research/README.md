@@ -30,3 +30,15 @@ client starts it: `OPENROUTER_API_KEY`, the `CHECKER_` values, `RESEARCH_CHECK_T
 `GABRIEL_CHECKER_PASSWORD`. Never put these values in `research/.env`. When
 one is absent, the server starts. Each proposal then waits with no check, and the answer of
 `propose` names the value.
+
+## Run the server alone
+
+From the root of the repository, run `pnpm mcp`. The server then waits for a client on stdin, so it
+shows no prompt. Stop it with Ctrl+C.
+
+If the server does not start, it prints the cause on stderr:
+
+- The database does not answer: start the stack.
+- The password is wrong: set `GAB_RESEARCH_DATABASE_URL` with the value of
+  `GABRIEL_RESEARCH_PASSWORD` in `infra/.env`.
+- The database name is wrong: name the database `gabriel`.

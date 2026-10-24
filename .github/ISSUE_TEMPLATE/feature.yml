@@ -1,0 +1,16 @@
+name: Feature request
+description: Propose a new capability.
+labels: [needs-triage]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: The need
+      description: What must the analyst do, and why can they not do it now?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: The proposal
+      description: How could Gabriel do it? Read the scope in docs/prd.md first.

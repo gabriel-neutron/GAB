@@ -17,7 +17,8 @@ Infer the repo from `git remote -v` — `gh` does this automatically when run in
 ## Identity — read this before any write
 
 This machine has two GitHub accounts. Every write to this repository must act as
-**`gabriel-neutron`**, never as `Rovis91`. The repository is public, and a comment or a
+**`gabriel-neutron`**, never as the other account. Never write the name of the other account.
+The repository is public, and a comment or a
 commit made under the wrong account cannot be retracted from a public history or from
 anyone's notification mail.
 
@@ -83,5 +84,5 @@ logged in, but every call fails."
 
 **Repair.** Mint a new fine-grained PAT for `gabriel-neutron/GAB`, with Contents and Issues
 read-write. Replace the value in `.claude/settings.local.json`. **Do not run `gh auth
-login` or `gh auth switch`** — those commands restore the machine-wide account, which is
-`Rovis91`.
+login` or `gh auth switch`** — those commands restore the machine-wide account, which is the
+other account.

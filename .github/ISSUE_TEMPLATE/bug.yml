@@ -1,0 +1,34 @@
+name: Bug report
+description: Something does not work as the documents say.
+labels: [needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: The repository is public. Do not put a local path, a token or private data in this form.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run ...
+        2. Open ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit or release
+      description: The output of `git rev-parse --short HEAD`, or the date of the release.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Remove each local path before you paste.
+      render: text
