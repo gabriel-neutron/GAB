@@ -30,7 +30,7 @@ const PATH = 'alignment-matrix.csv';
 
 const REGIME_COLUMNS = ['listed_on', 'ended_on', 'act_id', 'act_label', 'claim_id'] as const;
 
-const ids = (text: string): readonly string[] => text.split(' ').filter((one) => one !== '');
+export const ids = (text: string): readonly string[] => text.split(' ').filter((one) => one !== '');
 
 const labelsOf = (text: string): readonly string[] => {
   let json: unknown;
