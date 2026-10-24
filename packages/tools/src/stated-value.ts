@@ -550,11 +550,11 @@ const coordinatesIn = (text: string): Coordinate[] => [
   ...Array.from(text.matchAll(/(?<!\d)(\d{2,3})(\d{2})(\d{2})?\s?([NSEW])\b/gu), (one) =>
     coordinateOf(degreesOf(one[1], one[2], one[3]), one[4]),
   ),
-  // The nautical form: degrees, minutes and seconds with hyphens, then the hemisphere letter
-  // (60-20.02N, 028-07-30E). The letter is required, so a range such as "60-20" states no point.
+  // The nautical form has hyphens and then the hemisphere letter (60-20.02N, 028-07-30E).
+  // The letter is required, so a range such as "60-20" states no point. Minutes stay under 60.
   ...Array.from(
     text.matchAll(
-      /(?<![\d.,-])(\d{1,3})-(\d{1,2}(?:[.,]\d+)?)(?:-(\d{1,2}(?:[.,]\d+)?))?\s?([NSEW])\b/gu,
+      /(?<![\d.,-])(\d{1,3})-([0-5]?\d(?:[.,]\d+)?)(?:-([0-5]?\d(?:[.,]\d+)?))?\s?([NSEW])\b/gu,
     ),
     (one) => coordinateOf(degreesOf(one[1], one[2], one[3]), one[4]),
   ),

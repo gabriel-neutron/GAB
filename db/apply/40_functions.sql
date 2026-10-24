@@ -4646,13 +4646,13 @@ BEGIN
     SELECT a.unit_id, 'not_clean', 'coarse_point', a.id,
            'The point of the reference dataset is in whole degrees, so it is coarse'
       FROM acts a
-     WHERE a.op IN ('create_entity', 'update_entity')
-       AND public.act_reference_dataset(a.id) IS NOT NULL
-       AND CASE WHEN a.payload#>>'{geom,type}' = 'Point'
+     WHERE CASE WHEN a.op IN ('create_entity', 'update_entity')
+                 AND a.payload#>>'{geom,type}' = 'Point'
                  AND jsonb_typeof(a.payload#>'{geom,coordinates,0}') = 'number'
                  AND jsonb_typeof(a.payload#>'{geom,coordinates,1}') = 'number'
                 THEN (a.payload#>>'{geom,coordinates,0}')::numeric % 1 = 0
                  AND (a.payload#>>'{geom,coordinates,1}')::numeric % 1 = 0
+                 AND public.act_reference_dataset(a.id) IS NOT NULL
                 ELSE false END
     UNION ALL
     -- A point of a reference dataset that is the point of another site (a facility or a port) of
@@ -4667,12 +4667,19 @@ BEGIN
                              AND e.id IS DISTINCT FROM coalesce(a.target_id, a.id)
                              AND public.ST_GeometryType(e.geom) = 'ST_Point'
                              AND public.ST_Equals(e.geom,
-                                   public.ST_SetSRID(public.ST_GeomFromGeoJSON(a.payload->'geom'),
-                                                     4326))
+                                   CASE WHEN a.op IN ('create_entity', 'update_entity')
+                                         AND a.payload#>>'{geom,type}' = 'Point'
+                                         AND jsonb_typeof(a.payload#>'{geom,coordinates,0}') = 'number'
+                                         AND jsonb_typeof(a.payload#>'{geom,coordinates,1}') = 'number'
+                                        THEN public.ST_SetSRID(public.ST_MakePoint(
+                                               (a.payload#>>'{geom,coordinates,0}')::float8,
+                                               (a.payload#>>'{geom,coordinates,1}')::float8), 4326)
+                                   END)
                            ORDER BY e.id LIMIT 1) AS o
-     WHERE a.op IN ('create_entity', 'update_entity')
-       AND a.payload#>>'{geom,type}' = 'Point'
-       AND public.act_reference_dataset(a.id) IS NOT NULL
+     WHERE CASE WHEN a.op IN ('create_entity', 'update_entity')
+                 AND a.payload#>>'{geom,type}' = 'Point'
+                THEN public.act_reference_dataset(a.id) IS NOT NULL
+                ELSE false END
     -- --------------------------------------------------------------------------- information --
     UNION ALL
     SELECT DISTINCT i.unit_id, 'information', 'sources_from_parent', NULL::uuid,

@@ -60,7 +60,7 @@ export const layoutRefresher = (deps: RefresherDeps): (() => Promise<void>) => {
     if (last === null) return true;
     if (at - last.at >= LAYOUT_MAX_AGE_MS) return true;
     if (!sameRelations(basis, last.basis)) return true;
-    return basis.entities - last.placed >= LAYOUT_NEW_ENTITIES;
+    return Math.abs(basis.entities - last.placed) >= LAYOUT_NEW_ENTITIES;
   };
 
   return async () => {

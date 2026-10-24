@@ -591,6 +591,10 @@ test('a hyphen range with no hemisphere letter is no nautical position', () => {
   expect(unstatedValues(placeAt(28, 60), ['Berths 60-20 and 28-07 are free.']).length).toBe(2);
 });
 
+test('minutes of 60 or more are no nautical position', () => {
+  expect(unstatedValues(placeAt(28, 60), ['Position 60-99N 28-75E']).length).toBe(2);
+});
+
 test.each(['60 of 20 berths, 28 of 42 tanks', 'el 60º aniversario, 28o año', '5o, 60o, 28о.'])(
   'a letter o or an ordinal sign with no minutes after it is no degree sign: %j',
   (passage) => {
