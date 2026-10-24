@@ -23,6 +23,9 @@ const DECIDED_ROW = {
   batch_id: null,
 };
 
+const ID = DECIDED_ROW.id;
+
+// The stub answers like the read API: it keeps the rows that match each filter of the request.
 let acceptedRows: readonly unknown[] = [DECIDED_ROW];
 
 const listed = (body: unknown): Response =>
@@ -30,8 +33,11 @@ const listed = (body: unknown): Response =>
 
 const stub = vi.fn((input: URL): Promise<Response> => {
   const status = input.searchParams.get('status');
-  if (status === 'eq.accepted') return Promise.resolve(listed(acceptedRows));
-  return Promise.resolve(listed([]));
+  const id = input.searchParams.get('id');
+  if (status !== 'eq.accepted' || id === null) return Promise.resolve(listed([]));
+  const wanted = id.replace(/^eq\./u, '');
+  const kept = acceptedRows.filter((row) => (row as { id: string }).id === wanted);
+  return Promise.resolve(listed(kept));
 });
 
 const asked = (): readonly string[] =>
@@ -48,12 +54,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('the history reads the promoted acts, and no pending act and no rejected act', async () => {
+test('the read asks for the one accepted act that the entity names, and no other', async () => {
   const { loadDecidedActs } = await import('./decided-acts');
 
-  const read = await loadDecidedActs();
+  const read = await loadDecidedActs(ID);
 
-  expect(asked()).toStrictEqual(['/proposal?status=eq.accepted']);
+  expect(asked()).toStrictEqual([`/proposal?id=eq.${ID}&status=eq.accepted`]);
   expect(
     read.map((held) =>
       'unreadable' in held ? [held.id] : [held.act.id, held.verdict, held.decidedBy],
@@ -73,7 +79,7 @@ test('an act that gives only the start date of a relation is read, as an end-dat
   acceptedRows = [START_ROW];
   const { loadDecidedActs } = await import('./decided-acts');
 
-  const read = await loadDecidedActs();
+  const read = await loadDecidedActs(START_ROW.id);
 
   expect(read).toHaveLength(1);
   expect(read[0]).toMatchObject({
@@ -86,25 +92,44 @@ test('a decided act that arrives without its hour gives one marked line and no f
   acceptedRows = [DECIDED_ROW, { ...DECIDED_ROW, id: 'bad', decided_at: null }];
   const { loadDecidedActs } = await import('./decided-acts');
 
-  const read = await loadDecidedActs();
+  const read = await loadDecidedActs('bad');
 
-  expect(read.map((held) => ('unreadable' in held ? 'unread' : 'read'))).toStrictEqual([
-    'read',
-    'unread',
+  expect(read).toStrictEqual([{ unreadable: true, id: 'bad' }]);
+});
+
+test('an act that the record does not hold gives no line', async () => {
+  const { loadDecidedActs } = await import('./decided-acts');
+
+  expect(await loadDecidedActs('absent')).toStrictEqual([]);
+});
+
+test('the held answer is per act, so two entities never share one result', async () => {
+  const OTHER = { ...DECIDED_ROW, id: '27e80431-1df2-4b32-ab9c-16f3cab6d2c7' };
+  acceptedRows = [DECIDED_ROW, OTHER];
+  const { loadDecidedActs } = await import('./decided-acts');
+
+  const first = await loadDecidedActs(ID);
+  const second = await loadDecidedActs(OTHER.id);
+  await loadDecidedActs(ID);
+
+  expect(first.map((held) => ('unreadable' in held ? '' : held.act.id))).toStrictEqual([ID]);
+  expect(second.map((held) => ('unreadable' in held ? '' : held.act.id))).toStrictEqual([OTHER.id]);
+  expect(asked()).toStrictEqual([
+    `/proposal?id=eq.${ID}&status=eq.accepted`,
+    `/proposal?id=eq.${OTHER.id}&status=eq.accepted`,
   ]);
-  expect(read[1]).toStrictEqual({ unreadable: true, id: 'bad' });
 });
 
 test('a refresh of the corpus forgets the history, so a later decision reaches it', async () => {
   const { loadDecidedActs } = await import('./decided-acts');
   const { refreshCorpus } = await import('./corpus');
 
-  await loadDecidedActs();
-  await loadDecidedActs();
+  await loadDecidedActs(ID);
+  await loadDecidedActs(ID);
   expect(asked()).toHaveLength(1);
 
   await refreshCorpus(async () => {
-    await loadDecidedActs();
+    await loadDecidedActs(ID);
   });
   expect(asked()).toHaveLength(2);
 });

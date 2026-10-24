@@ -281,7 +281,7 @@ test('a service that comes back is read again after a refresh', async () => {
 test('with the service down, the history of decided acts is empty and does not fail', async () => {
   serviceDown = true;
   const { loadDecidedActs } = await import('./decided-acts');
-  expect(await loadDecidedActs()).toStrictEqual([]);
+  expect(await loadDecidedActs('any-act')).toStrictEqual([]);
 });
 
 test('the time of the read is set by a read, kept by a held answer and changed by a refresh', async () => {
