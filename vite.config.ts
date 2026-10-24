@@ -49,9 +49,10 @@ export default defineConfig({
   // writer admits the new origin. The proxy adds no key: any local process can reach it, so the
   // browser of the operator holds the key and the writer checks it.
   server: {
-    // The research workspace holds more than 100,000 files, and the application reads none of them.
-    watch: { ignored: ['**/research/**'] },
     open: openWithKey(envText(), process.env['npm_lifecycle_event']),
+    // Departure: `.private/` holds thousands of built pages of the earlier releases. Watched, each
+    // one costs a file watch, and each page change sends a reload to the browser.
+    watch: { ignored: ['**/.private/**', '**/dist/**', '**/research/**'] },
     proxy: { '/write': 'http://127.0.0.1:5177', '/private': 'http://127.0.0.1:5177' },
   },
 
@@ -61,7 +62,8 @@ export default defineConfig({
   // External constraint: pre-bundled by esbuild, the tile worker of `maplibre-gl` never starts.
   // The raster basemap draws, each vector layer stays empty, `isStyleLoaded()` never turns true,
   // and nothing is logged. Excluding the package from the pre-bundling repairs it.
-  // Departure: the scan of the dependencies takes every html file of the repository as an entry,
-  // and the folder research holds saved web pages. One entry keeps the start of the server short.
+  // Departure: the dependency scan takes each `.html` file of the repository as an entry by
+  // default. `.private/` holds more than 20,000, and the first request of a cold start waited
+  // more than a minute for the scan. The application has one entry.
   optimizeDeps: { exclude: ['maplibre-gl'], entries: ['index.html'] },
 });
