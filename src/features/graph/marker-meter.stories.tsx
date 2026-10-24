@@ -22,9 +22,9 @@ type Story = StoryObj<typeof meta>;
 /** The meter shows how many markers the cap leaves out. */
 export const ShowsTheMarkersTheCapLeavesOut: Story = {
   play: async ({ canvas }) => {
-    await expect(
-      canvas.getByRole('img', { name: 'Markers: 1000 drawn, 312 not drawn' }),
-    ).toBeVisible();
+    await expect(canvas.getByRole('status')).toHaveTextContent(
+      'Markers: 1000 drawn, 312 not drawn',
+    );
     await expect(canvas.getByText('+312')).toBeVisible();
   },
 };
@@ -33,6 +33,6 @@ export const ShowsTheMarkersTheCapLeavesOut: Story = {
 export const IsAbsentUnderTheCap: Story = {
   args: { drawn: 40, hidden: 0 },
   play: async ({ canvas }) => {
-    await expect(canvas.queryByRole('img')).toBeNull();
+    await expect(canvas.queryByRole('status')).toBeNull();
   },
 };

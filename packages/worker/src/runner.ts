@@ -16,6 +16,7 @@ import {
   type RunnerAgent,
 } from './agents.ts';
 import { claimJob, type ClaimedJob } from './claim.ts';
+import { layoutRefresher } from './layout-refresh.ts';
 import type { Queryable } from './queryable.ts';
 import type { ModelConfig } from './reader-config.ts';
 
@@ -289,9 +290,15 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
     return { did: status, job: job.id };
   };
 
+  // The worker holds the role that may store a layout, so an idle step keeps the layout fresh.
+  const refreshLayout = layoutRefresher({ db, now: deps.now });
+
   const once = async (): Promise<Step> => {
     const job = await claimJob(db);
-    if (job === null) return { did: 'idle' };
+    if (job === null) {
+      await refreshLayout();
+      return { did: 'idle' };
+    }
 
     const agent = byKind.get(job.kind);
     if (agent === undefined) return fail(job, `no agent is registered for the kind ${job.kind}`);

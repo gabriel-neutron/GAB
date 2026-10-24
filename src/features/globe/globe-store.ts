@@ -21,6 +21,8 @@ export type Panel =
 export interface GlobeState {
   readonly panel: Panel;
   readonly product: ProductKey | 'all';
+  /** The entity types the reader switched off in the rail. The map draws none of their points. */
+  readonly hiddenTypes: readonly string[];
   /** The stage the reader put forward in the legend, or null. */
   readonly stage: StageKey | 'none' | null;
   /** The key of the step in view, or null. */
@@ -40,6 +42,9 @@ export interface GlobeStore {
   readonly choose: (choices: readonly Choice[]) => void;
   readonly setProduct: (product: ProductKey | 'all') => void;
   readonly setStep: (key: string | null) => void;
+  /** Draws or hides the points of one entity type. */
+  readonly setTypeShown: (type: string, on: boolean) => void;
+  readonly showEveryType: () => void;
   /** A stage of the legend, or null for every stage. It ends the step in view. */
   readonly setStage: (stage: StageKey | 'none' | null) => void;
   /** One press of "Next step": the step after the one in view, and the first after the last. */
@@ -74,6 +79,7 @@ export function createGlobeStore({ steps, still, entity }: GlobeStoreOptions): G
         ? { kind: 'none' }
         : { kind: 'target', target: { kind: 'entity', id: entity } },
     product: 'all',
+    hiddenTypes: [],
     stage: null,
     step: null,
     playing: false,
@@ -122,11 +128,18 @@ export function createGlobeStore({ steps, still, entity }: GlobeStoreOptions): G
     },
     setProduct: (product) => {
       stopPlay();
-      set({ product, panel: { kind: 'none' } });
+      set({ product, stage: null, panel: { kind: 'none' } });
     },
     setStep: (key) => {
       stopPlay();
       set({ step: key, stage: null, panel: { kind: 'none' } });
+    },
+    setTypeShown: (type, on) => {
+      const others = state.hiddenTypes.filter((one) => one !== type);
+      set({ hiddenTypes: on ? others : [...others, type] });
+    },
+    showEveryType: () => {
+      set({ hiddenTypes: [] });
     },
     setStage: (stage) => {
       stopPlay();

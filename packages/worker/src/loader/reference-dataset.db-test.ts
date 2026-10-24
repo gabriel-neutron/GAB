@@ -54,7 +54,7 @@ const WORKBOOK = workbookOf({
     ['Alpha field', 'Russia', 'oil', 'operating', 'exact', 61.25, 73.5],
     ['Beta field', 'Norway', 'oil', 'operating', 'exact', 60.5, 5.25],
     ['Gamma field', 'Russia', 'gas', 'operating', 'approximate', 55, 37.5],
-    ['Known field', 'Russia', 'oil', 'operating', 'exact', 62, 74],
+    ['Known field', 'Russia', 'oil', 'operating', 'exact', 62.5, 74.5],
   ],
 });
 
@@ -188,8 +188,12 @@ const fromAnEarlierTransaction = async (held: Held, id: string): Promise<void> =
   await held.ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only');
 };
 
-const mappedWorkbook = async (held: Held, draft: unknown = DRAFT): Promise<string> => {
-  await storeWorkbook(held);
+const mappedWorkbook = async (
+  held: Held,
+  draft: unknown = DRAFT,
+  book: Uint8Array = WORKBOOK,
+): Promise<string> => {
+  await storeWorkbook(held, book);
   const job = await held.asApp(() =>
     held.idOf("SELECT public.enqueue_job($1, 'map_structured', $2) AS id", [BOOK, SET_NAME]),
   );
@@ -571,7 +575,7 @@ test('a row sets a missing geometry, a different point is a doubt that writes no
       [SHEET]: [
         ['Unit name', 'Country/Area', 'OSM id', 'Latitude', 'Longitude'],
         ['Iota field', 'Russia', 'n20', 61.5, 73.25],
-        ['Kappa field', 'Russia', 'n21', 11, 21],
+        ['Kappa field', 'Russia', 'n21', 11.5, 21.5],
         ['Lambda field', 'Russia', 'n22', 12, 22],
       ],
     });
@@ -640,7 +644,7 @@ test('a row sets a missing geometry, a different point is a doubt that writes no
     ).toStrictEqual([
       {
         kind: 'record_disagrees',
-        said: 'The record holds another geometry than the reference dataset gives, 155620 m apart',
+        said: 'The record holds another geometry than the reference dataset gives, 233336 m apart',
       },
     ]);
     // The same point writes no act.
@@ -654,7 +658,7 @@ test('a row sets a missing geometry, a different point is a doubt that writes no
     );
     await fromAnEarlierTransaction(held, unit);
     await held.asApp(() => held.ask("SELECT public.promote_unit($1::uuid, 'a test')", [unit]));
-    expect(await placeOf(moved)).toStrictEqual([{ lon: 21, lat: 11, sources: [BOOK] }]);
+    expect(await placeOf(moved)).toStrictEqual([{ lon: 21.5, lat: 11.5, sources: [BOOK] }]);
     expect(await actOf(moved)).toStrictEqual([
       {
         status: 'accepted',
@@ -662,6 +666,64 @@ test('a row sets a missing geometry, a different point is a doubt that writes no
         rule: null,
         prior: { type: 'Point', coordinates: [20, 10] },
       },
+    ]);
+  });
+});
+
+test('a point in whole degrees, and a point of another site, are doubts that the operator decides', async () => {
+  await inTransaction(async (held) => {
+    const act = await held.asApp(() =>
+      held.idOf(
+        `SELECT public.propose_change('create_entity', $1::jsonb, ARRAY['manual']::text[]) AS id`,
+        [
+          JSON.stringify({
+            type: 'facility',
+            label: 'Held site',
+            geom: { type: 'Point', coordinates: [80.5, 64.5] },
+          }),
+        ],
+      ),
+    );
+    await fromAnEarlierTransaction(held, act);
+    await held.asApp(() => held.ask("SELECT public.promote_unit($1::uuid, 'a test')", [act]));
+
+    const book = workbookOf({
+      [SHEET]: [
+        [...HEADER],
+        ['Coarse field', 'Russia', 'oil', 'operating', 'exact', 62, 74],
+        ['Half field', 'Russia', 'oil', 'operating', 'exact', 62, 74.5],
+        ['Same as held field', 'Russia', 'oil', 'operating', 'exact', 64.5, 80.5],
+        ['Alone field', 'Russia', 'oil', 'operating', 'exact', 65.25, 81.75],
+      ],
+    });
+    const load = await mappedWorkbook(held, DRAFT, book);
+    await approve(held);
+    await runLoad(held, load);
+
+    const stateOf = async () =>
+      held.ask(
+        `SELECT p.payload->>'label' AS label, p.status, public.unit_rule(p.unit_id) AS rule,
+                (SELECT f.faults->0->>'kind' FROM public.unit_faults(ARRAY[p.unit_id]) f) AS fault
+           FROM public.proposals p
+          WHERE p.op = 'create_entity' AND p.author_role = 'gabriel_agent'
+            AND $1 = ANY (p.src::text[])
+          ORDER BY p.payload->>'label'`,
+        [BOOK],
+      );
+    expect(await stateOf()).toStrictEqual([
+      { label: 'Alone field', status: 'accepted', rule: null, fault: null },
+      { label: 'Coarse field', status: 'pending', rule: 'doubt', fault: 'coarse_point' },
+      { label: 'Half field', status: 'accepted', rule: null, fault: null },
+      { label: 'Same as held field', status: 'pending', rule: 'doubt', fault: 'repeated_point' },
+    ]);
+    expect(
+      await held.ask(
+        `SELECT f.faults->0->>'said' AS said
+           FROM public.unit_faults(ARRAY(SELECT p.unit_id FROM public.proposals p
+                                          WHERE p.payload->>'label' = 'Same as held field')) f`,
+      ),
+    ).toStrictEqual([
+      { said: 'The point of the reference dataset is the point of Held site, another site' },
     ]);
   });
 });
@@ -1422,13 +1484,21 @@ const HC_BOOK = workbookOf({
   ],
   Assets: [
     ['Project ID', 'Unit name', 'Operator ID', 'Latitude', 'Longitude'],
-    ['P0001', 'Segment A', 'E200001', 61, 73],
-    ['P0002', 'Segment B', 'E200099', 62, 74],
+    ['P0001', 'Segment A', 'E200001', 61.5, 73.5],
+    ['P0002', 'Segment B', 'E200099', 62.5, 74.5],
   ],
   LNG: [
     ['Terminal ID', 'Terminal', 'Owners', 'Capacity', 'Group share', 'Latitude', 'Longitude'],
-    ['L0001', 'Yamal LNG', 'Novatek [E200002] 60%; New Gas Co [E200555] 40%', 16.5, 75.5, 71, 72],
-    ['L0002', 'Names LNG', 'Novatek 60%; Shell 40%', 5, 10, 51, 143],
+    [
+      'L0001',
+      'Yamal LNG',
+      'Novatek [E200002] 60%; New Gas Co [E200555] 40%',
+      16.5,
+      75.5,
+      71.5,
+      72.5,
+    ],
+    ['L0002', 'Names LNG', 'Novatek 60%; Shell 40%', 5, 10, 51.5, 143.5],
   ],
   Owners: [
     ['Project ID', 'Owner ID', 'Share'],

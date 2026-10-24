@@ -9,7 +9,7 @@ import type { ArcInfo, ExitInfo } from './globe-data';
 export function ArcCard({ arc }: { readonly arc: ArcInfo }) {
   const product = PRODUCTS.find((one) => one.key === arc.product)?.label ?? '';
   return (
-    <article className="flex flex-col gap-1" aria-label={`Card of the link ${arc.label}`}>
+    <article className="flex flex-col gap-1 p-2" aria-label={`Card of the link ${arc.label}`}>
       <h2 className="font-medium">{arc.label}</h2>
       <p>Physical link, {product.toLowerCase()}.</p>
       {arc.inReview ? (
@@ -41,7 +41,10 @@ export function ArcCard({ arc }: { readonly arc: ArcInfo }) {
 
 export function ExitCard({ exit }: { readonly exit: ExitInfo }) {
   return (
-    <article className="flex flex-col gap-1" aria-label={`Card of the exit point ${exit.label}`}>
+    <article
+      className="flex flex-col gap-1 p-2"
+      aria-label={`Card of the exit point ${exit.label}`}
+    >
       <h2 className="font-medium">{exit.label}</h2>
       {exit.inReview ? (
         <p className="text-candidate">
