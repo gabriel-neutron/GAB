@@ -16,7 +16,7 @@ were in the two canvases, where an automatic WCAG check cannot look:
 - The colours of the products were near the colours of the stages, so the reader could not tell a
   link from a point by its colour.
 - The flat map and the animated globe shared one switch, and a change of mode kept a part of the
-  old state.
+  old state. The site now has one map, with one Chain switch (see the rules below).
 - The map and the graph each built their own card of the selection.
 - The graph left markers out with no sign to the reader.
 
@@ -37,10 +37,11 @@ hue means the stage and nothing else.
 
 ## The rules of the operator
 
-- **The map mode is the graph on a map.** It is the default of the Map tab. It draws every entity
-  that has a position, with the rail of the types at the left and the card of the selection at the
-  right, as the graph does. The globe mode is the second mode: the animated globe that explains the
-  chain step by step.
+- **The map is the graph on a map.** It draws every entity that has a position, with the rail of
+  the types at the left and the card of the selection at the right, as the graph does. The Chain
+  mode of the same map colours each point by its stage and draws the links. The globe is a
+  projection of the same map, and no second map exists. The ground is the plan or the satellite,
+  with a date for the satellite.
 - **One card for the two pages.** The card of an entity and of a relation on the map is the card of
   the graph. No page builds a second card. A point that is not a record of the corpus, such as an
   exit point, keeps a small card of its own.
@@ -56,13 +57,9 @@ hue means the stage and nothing else.
 - **The rail of the map.** It is the rail of the graph: one row for each entity type, with a count,
   a switch that hides the points of the type, and the list of the names. A name selects its point.
   On a phone, the rail is a drawer, as on the graph.
-- **Two modes of the map.** The address holds the mode, so the back button undoes a change, and a
-  link can open the globe. Each mode starts a new globe, so no state goes from one mode to the
-  other. The selected entity is in the address, so it stays. Each mode has one legend: the stage
-  strip for the map, the steps of the chain for the globe.
-- **The stage strip.** It is the legend of the colours of the map. An exit point is a ring and not
-  an entity, so the strip counts the rings in the exit stage. "No stage" stands apart, because it is
-  not a step.
+- **One map, one legend.** The selected entity and the selected relation are in the address, so
+  the back button keeps them. The chain strip is the one legend of the stages: the six steps of
+  the chain, each with its colour and its count.
 - **The selection on the graph.** The selected node has a ring. Its direct neighbours are in full
   colour, larger, and named. The neighbours at two steps are fainter. Each other node stays
   on the canvas, dimmed. The camera moves to the node and its direct neighbours.

@@ -34,6 +34,7 @@ const addressBar = (): { readonly pathname: string; readonly search: string } =>
   typeof window === 'undefined' ? { pathname: '', search: '' } : window.location;
 const TO_MAP = () => ({
   entity: carriedSelection(addressBar().pathname, addressBar().search, '/map').entity,
+  relation: '',
 });
 const ABOUT = ['/method', '/glossary', '/help'];
 const DATA = ['/search', '/downloads', '/entity/', '/relation/', '/claim/'];
@@ -52,7 +53,7 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
     ? 'about'
     : DATA.some((prefix) => path.startsWith(prefix))
       ? 'data'
-      : path === '/map' || path === '/atlas' || path === '/graph'
+      : path === '/map' || path === '/graph'
         ? 'none'
         : 'report';
   return (
@@ -77,9 +78,6 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
           className={PAGE_LINK}
         >
           Map
-        </Link>
-        <Link to="/atlas" search={{ entity: '', relation: '' }} className={PAGE_LINK}>
-          Atlas
         </Link>
         <Link
           key={`graph${address}`}

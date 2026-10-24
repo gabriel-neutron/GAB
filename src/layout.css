@@ -165,22 +165,16 @@
 
 /* Work surfaces use the frame below the header, without a reading-page wrapper. */
 .workspace-page,
-.graph-workspace,
-.globe-workspace {
+.graph-workspace {
   display: flex;
   flex-direction: column;
   min-height: 0;
   height: 100%;
   min-width: 0;
 }
-.graph-workspace,
-.globe-workspace {
+.graph-workspace {
   flex: 1;
 }
 .graph-surface {
   position: relative;
-}
-.globe-surface {
-  position: relative;
-  grid-template-rows: minmax(0, 1fr);
 }

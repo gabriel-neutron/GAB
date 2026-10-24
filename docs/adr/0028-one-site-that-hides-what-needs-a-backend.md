@@ -2,6 +2,7 @@
 
 **Status** Accepted · 18 October 2026
 **Supersedes** ADR 0020.
+**Amended 24 October 2026:** one map, and it sends tile requests for its ground (section "The map").
 
 ## Context
 
@@ -39,6 +40,19 @@ that need a backend show only when the backend answers.
 - **Both services up:** the operator sees every part, as today.
 - The mode comes from the answer of the services only. There is no build flag and no second build.
 
+### The map
+
+- The site has one map, at `/map`: the MapLibre map of every point, with the chain mode, the
+  globe projection and the rail of the types. The address `/atlas` redirects to it. The animated
+  globe of the first version of this ADR is removed.
+- The points, the links and the shapes come from the record of the site. The ground under them is
+  a raster tile layer: the plan (a hosted archive when the build sets one, else the OpenStreetMap
+  tile servers) or the satellite imagery (EOX, NASA GIBS) with a date. So the map sends tile
+  requests to a third host. A tile request names a place and a zoom, and no request carries the
+  record, the selection or an identifier of the reader. A tile that fails leaves the points on
+  an empty ground.
+- This exception is for the ground tiles of the map and for nothing else.
+
 ### The release
 
 - The release command builds the application once, with the files of the release beside it, and
@@ -46,8 +60,9 @@ that need a backend show only when the backend answers.
   at the release, so the text of a page opens with no script, a search engine reads it, and a
   static host with no rewrite rule serves it.
 - The rules of ADR 0020 that are not about two surfaces stay true: the site is a pure function of
-  the files of the release, it holds a copy of each file byte for byte, the basemap is a file of the
-  site, and no page sends a request for data to a third host.
+  the files of the release, it holds a copy of each file byte for byte, and the basemap is a file of
+  the site. No page sends a request for data to a third host, with one exception: the map (see
+  below).
 - The rule of ADR 0020 that the site holds no script except the map script ends. A page at a
   permanent address keeps its text with no script, and the other pages need one.
 
