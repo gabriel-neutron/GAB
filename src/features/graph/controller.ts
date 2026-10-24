@@ -92,10 +92,10 @@ const FIT_MARGIN = 1.6;
 // canvas keeps room above and below the nodes. Origin: invented; the island is 32 rem high and about 44 rem wide.
 const MAX_ASPECT = 1.7;
 
-// A name is a page element, as a marker is, and the cost is the same: linear, in the render loop.
-// Origin: invented, at a tenth of the marker cap. A selection with more neighbours names the most
-// connected.
-const NAME_CAP = 40;
+// A name is a page element, as a marker is. Origin: tuned on a screen. Above about fifteen, the
+// names of a hub cover each other and none can be read, so a hub names its most connected
+// neighbours. A hover still names each node.
+const NAME_CAP = 15;
 
 // The space between a node and its name, beside the radius of the node, in pixels.
 const NAME_OFFSET = 4;
@@ -105,16 +105,16 @@ const NAME_CLASS =
 
 // A neighbour one hop from the selection draws this much larger than its own size. Origin:
 // invented. It must read as larger, and it must not cover the nodes around it.
-const NEAR_SIZE = 1.5;
+const NEAR_SIZE = 1.8;
 
-// The dim keeps this much of the colour. It is measured against the two theme grounds: a
-// dimmed element reads at about 1.9:1 on light and 2.3:1 on dark, against
-// 4.9:1 and 6.7:1 while lit. One value of 0.2 for both grounds made the light theme read empty.
-const DIM_ALPHA: Readonly<Record<GraphGround, number>> = { light: 0.45, dark: 0.4 };
+// The dim keeps this much of the colour. A node out of the two rings of a selection stays on the
+// canvas as a trace, so the rings stand out at a glance. Origin: tuned on a screen against the
+// dense graph, where a dim of 0.45 left the selection hard to find.
+const DIM_ALPHA: Readonly<Record<GraphGround, number>> = { light: 0.15, dark: 0.2 };
 
-// A relation from the first ring to the second keeps half of what the dim takes. Origin: invented.
-// It must read lighter than a relation of the selection, and stronger than a dimmed one.
-const faintAlpha = (ground: GraphGround): number => (1 + DIM_ALPHA[ground]) / 2;
+// The ring at two steps keeps this much of the colour: the dim measured against the two theme
+// grounds, which reads at about 1.9:1 on light and 2.3:1 on dark, against 4.9:1 and 6.7:1 lit.
+const FAINT_ALPHA: Readonly<Record<GraphGround, number>> = { light: 0.45, dark: 0.4 };
 
 // The camera of Sigma reports `updated` on every frame of a pan, and a `localStorage` write on
 // every frame blocks the main thread. So the store is a trailing wait, and `destroy` writes the
@@ -268,7 +268,7 @@ export function mountGraph(
     return made;
   };
   const dimOf = (colour: string): string => mixOf(dimCache, colour, DIM_ALPHA[ground]);
-  const faintOf = (colour: string): string => mixOf(faintCache, colour, faintAlpha(ground));
+  const faintOf = (colour: string): string => mixOf(faintCache, colour, FAINT_ALPHA[ground]);
 
   // The test is on the dim of the filter, and not on the dim of a selection. The two hops of a
   // selection dim as well, and they must not stop a click on a node on the other side.
