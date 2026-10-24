@@ -43,6 +43,12 @@ export function FirstVisitCard({ onClose }: FirstVisitCardProps) {
           </Link>{' '}
           gives the files, and says who decided each fact.
         </li>
+        <li>
+          <Link to="/help" className={READING_LINK}>
+            Help
+          </Link>{' '}
+          says how to read a fact and what each word means.
+        </li>
       </ul>
       <div>
         <Button type="button" variant="outline" size="sm" onClick={close}>

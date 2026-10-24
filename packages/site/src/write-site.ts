@@ -46,8 +46,7 @@ const SCRIPT_PAGES = ['graph'] as const;
 const MOVED: readonly (readonly [folder: string, to: string, label: string])[] = [
   ['downloads', 'data', 'Data'],
   ['method', 'data', 'Data'],
-  ['glossary', 'data', 'Data'],
-  ['help', 'data', 'Data'],
+  ['glossary', 'help', 'Help'],
   ['search', 'data', 'Data'],
   ['exports', 'report', 'Report'],
 ];
@@ -137,6 +136,7 @@ const pagesOf = (release: SiteRelease): readonly Page[] => {
     { folder: 'map', kind: 'text' },
     { folder: 'data', kind: 'text' },
     { folder: 'report', kind: 'text' },
+    { folder: 'help', kind: 'text' },
     ...MOVED.map(([folder, to, label]) => ({
       folder,
       kind: 'moved' as const,

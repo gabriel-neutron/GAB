@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DataRouteImport } from './routes/data'
 import { Route as GraphRouteImport } from './routes/graph'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as ReportRouteImport } from './routes/report'
 import { Route as ReviewRouteImport } from './routes/review'
@@ -33,6 +34,11 @@ const DataRoute = DataRouteImport.update({
 const GraphRoute = GraphRouteImport.update({
   id: '/graph',
   path: '/graph',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MapRoute = MapRouteImport.update({
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/data': typeof DataRoute
   '/graph': typeof GraphRoute
+  '/help': typeof HelpRoute
   '/map': typeof MapRoute
   '/report': typeof ReportRoute
   '/review': typeof ReviewRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/data': typeof DataRoute
   '/graph': typeof GraphRoute
+  '/help': typeof HelpRoute
   '/map': typeof MapRoute
   '/report': typeof ReportRoute
   '/review': typeof ReviewRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/data': typeof DataRoute
   '/graph': typeof GraphRoute
+  '/help': typeof HelpRoute
   '/map': typeof MapRoute
   '/report': typeof ReportRoute
   '/review': typeof ReviewRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/'
     | '/data'
     | '/graph'
+    | '/help'
     | '/map'
     | '/report'
     | '/review'
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/'
     | '/data'
     | '/graph'
+    | '/help'
     | '/map'
     | '/report'
     | '/review'
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/'
     | '/data'
     | '/graph'
+    | '/help'
     | '/map'
     | '/report'
     | '/review'
@@ -151,6 +163,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DataRoute: typeof DataRoute
   GraphRoute: typeof GraphRoute
+  HelpRoute: typeof HelpRoute
   MapRoute: typeof MapRoute
   ReportRoute: typeof ReportRoute
   ReviewRoute: typeof ReviewRoute
@@ -181,6 +194,13 @@ declare module '@tanstack/react-router' {
       path: '/graph'
       fullPath: '/graph'
       preLoaderRoute: typeof GraphRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/map': {
@@ -239,6 +259,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DataRoute: DataRoute,
   GraphRoute: GraphRoute,
+  HelpRoute: HelpRoute,
   MapRoute: MapRoute,
   ReportRoute: ReportRoute,
   ReviewRoute: ReviewRoute,

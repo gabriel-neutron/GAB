@@ -89,6 +89,7 @@ describe.each([
       ['map/index.html', 'physical link', 'Map · GAB dataset'],
       ['data/index.html', 'SHA-256 checksum', 'Data · GAB dataset'],
       ['report/index.html', 'Les exportations russes', 'Report · GAB dataset'],
+      ['help/index.html', 'Relation types', 'Help · GAB dataset'],
     ];
     for (const [path, words, title] of expected) {
       expect(textOf(page(path))).toContain(words);
@@ -104,8 +105,7 @@ describe.each([
       ['search', 'data'],
       ['downloads', 'data'],
       ['method', 'data'],
-      ['glossary', 'data'],
-      ['help', 'data'],
+      ['glossary', 'help'],
       ['exports', 'report'],
     ] as const) {
       const html = page(`${folder}/index.html`);

@@ -51,6 +51,15 @@ export const PointsToTheDataPage: Story = {
   },
 };
 
+export const PointsToTheHelpPage: Story = {
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByRole('link', { name: 'Help' })).toHaveAttribute(
+      'href',
+      '/help',
+    );
+  },
+};
+
 export const TheReaderCanCloseIt: Story = {
   play: async ({ canvas, args }) => {
     await userEvent.click(await canvas.findByRole('button', { name: 'Close this card' }));
