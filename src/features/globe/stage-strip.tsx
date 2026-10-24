@@ -61,9 +61,9 @@ export function StageStrip({ store, rows }: StageStripProps) {
     <div
       role="group"
       aria-label="Stages of the chain"
-      className="flex items-stretch overflow-x-auto border-t border-border"
+      className="flex flex-wrap items-stretch border-t border-border"
     >
-      <ol className="flex items-stretch">
+      <ol className="flex flex-wrap items-stretch">
         {chain.map((one, index) => (
           <Fragment key={one.key}>
             {index === 0 ? null : (

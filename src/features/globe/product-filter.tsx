@@ -16,7 +16,7 @@ export function ProductFilter({ store }: ProductFilterProps) {
     <div
       role="group"
       aria-label="Product chain"
-      className="absolute top-2 left-2 flex max-w-[calc(100%-1rem)] flex-wrap gap-1"
+      className="absolute top-2 left-2 flex max-w-[calc(100%-10rem)] flex-wrap gap-1"
     >
       <button
         type="button"
