@@ -114,6 +114,7 @@ export function ScreenQueryField() {
   const offered = useContext(OfferedContext);
   if (context === undefined) throw new Error('ScreenQueryField must be used within its provider');
   const listId = useId();
+  const helpId = useId();
   const [listing, setListing] = useState<Listing>(CLOSED);
 
   const count = offered?.shown.length ?? 0;
@@ -134,12 +135,13 @@ export function ScreenQueryField() {
         type="search"
         autoComplete="off"
         role="combobox"
-        aria-label="Search a name"
+        aria-label="Search entity names"
+        aria-describedby={helpId}
         aria-autocomplete="list"
         aria-expanded={listed !== null}
         aria-controls={listed === null ? undefined : listId}
         aria-activedescendant={activeRow === null ? undefined : matchOptionId(listId, activeRow)}
-        placeholder="Search a name"
+        placeholder="Search entity names, e.g. Tartus"
         value={context.query}
         onChange={(event) => {
           context.setQuery(event.target.value);
@@ -178,8 +180,18 @@ export function ScreenQueryField() {
         }}
         className="h-7 w-full sm:w-48"
       />
+      <p id={helpId} className="sr-only">
+        Type part of a name. Case and accents do not matter. Documents and attribute values are not
+        searched here.
+      </p>
       {listed === null ? null : (
-        <MatchList id={listId} matches={listed} active={activeRow} onChoose={choose} />
+        <MatchList
+          id={listId}
+          matches={listed}
+          query={context.query}
+          active={activeRow}
+          onChoose={choose}
+        />
       )}
     </div>
   );
