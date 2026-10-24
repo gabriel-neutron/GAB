@@ -54,6 +54,8 @@ export const FAULT_KINDS = [
   'approximate_position',
   'note',
   'same_name',
+  'coarse_point',
+  'repeated_point',
 ] as const;
 
 export type FaultKind = (typeof FAULT_KINDS)[number];

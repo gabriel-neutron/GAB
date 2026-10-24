@@ -110,7 +110,7 @@ export function EntityTable({ rows, hrefOf }: EntityTableProps) {
               setText(event.target.value);
               setShown(PAGE);
             }}
-            className="w-56 rounded-none duration-100"
+            className="w-56 rounded-none text-foreground duration-100"
           />
         </label>
         <label className="flex flex-col gap-1 text-xs/5 text-label">

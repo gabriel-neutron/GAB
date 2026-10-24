@@ -532,7 +532,7 @@ const LETTER = String.raw`(?:\s?([NSEW])\b)?`;
 
 // Each coordinate that a text writes: a decimal degree (59.6667), the degrees, minutes and seconds
 // of UN/LOCODE and of a port register (5940N, 0580907E), and degrees, minutes and seconds with
-// signs (59°40′, 60°20,02′, 69°03′11″). A Latin letter after a coordinate gives its hemisphere.
+// signs (59°40′, 60°20,02′, 69°03′11″), and the nautical form (60-20.02N). A Latin letter after a coordinate gives its hemisphere.
 // shortcut: a Cyrillic letter (с.ш., в.д.) is not read, so such a coordinate has no axis and no
 // sign; read it when a source south of the equator or west of Greenwich is cited in Russian.
 const coordinatesIn = (text: string): Coordinate[] => [
@@ -549,6 +549,14 @@ const coordinatesIn = (text: string): Coordinate[] => [
   ),
   ...Array.from(text.matchAll(/(?<!\d)(\d{2,3})(\d{2})(\d{2})?\s?([NSEW])\b/gu), (one) =>
     coordinateOf(degreesOf(one[1], one[2], one[3]), one[4]),
+  ),
+  // The nautical form has hyphens and then the hemisphere letter (60-20.02N, 028-07-30E).
+  // The letter is required, so a range such as "60-20" states no point. Minutes stay under 60.
+  ...Array.from(
+    text.matchAll(
+      /(?<![\d.,-])(\d{1,3})-([0-5]?\d(?:[.,]\d+)?)(?:-([0-5]?\d(?:[.,]\d+)?))?\s?([NSEW])\b/gu,
+    ),
+    (one) => coordinateOf(degreesOf(one[1], one[2], one[3]), one[4]),
   ),
   // A Russian page can write a Cyrillic or a Latin letter o in place of the degree sign (60о20′).
   // A letter o, and an ordinal sign º, are a degree sign only when minutes with a sign follow
