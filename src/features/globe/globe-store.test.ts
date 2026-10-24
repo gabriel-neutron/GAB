@@ -101,3 +101,25 @@ test('a browser that cannot draw the globe says so', () => {
   store.setUnavailable();
   expect(store.get().available).toBe(false);
 });
+
+test('a stage ends the step and the selection, and each of them ends the stage', () => {
+  const store = make({ entity: 'e1' });
+  store.setStep('pipeline');
+  store.setStage('field');
+  expect(store.get()).toMatchObject({ stage: 'field', step: null, panel: { kind: 'none' } });
+  store.setStep('refinery');
+  expect(store.get().stage).toBeNull();
+  store.setStage('export');
+  store.select({ kind: 'entity', id: 'e2' });
+  expect(store.get().stage).toBeNull();
+  store.setStage('export');
+  store.next();
+  expect(store.get().stage).toBeNull();
+});
+
+test('a product chip ends the stage, so the chain of the product comes forward', () => {
+  const store = make();
+  store.setStage('field');
+  store.setProduct('crude');
+  expect(store.get()).toMatchObject({ stage: null, product: 'crude' });
+});

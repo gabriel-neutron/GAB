@@ -14,8 +14,7 @@ export function MarkerMeter({ drawn, hidden }: MarkerMeterProps) {
   const total = drawn + hidden;
   return (
     <div
-      role="img"
-      aria-label={`Markers: ${String(drawn)} drawn, ${String(hidden)} not drawn`}
+      role="status"
       title={`${String(hidden)} markers not drawn`}
       className={cn(
         'pointer-events-auto absolute right-2 bottom-2 z-10 flex h-6 items-center gap-1.5',
@@ -33,6 +32,7 @@ export function MarkerMeter({ drawn, hidden }: MarkerMeterProps) {
       <span aria-hidden="true" className="font-mono tabular-nums">
         +{hidden}
       </span>
+      <span className="sr-only">{`Markers: ${String(drawn)} drawn, ${String(hidden)} not drawn`}</span>
     </div>
   );
 }
