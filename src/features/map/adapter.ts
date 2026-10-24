@@ -151,6 +151,7 @@ const AREA_FILL_OPACITY = 0.2;
 const AREA_OUTLINE_WIDTH = 2;
 const ROUTE_CASING = '#0b1a1f';
 const ROUTE_CASING_WIDTH = 3.6;
+const ROUTE_CASING_OPACITY = 0.55;
 
 // Two or more entities that share one point draw in a circle around it instead, at this many CSS
 // pixels from the centre — the same unit `icon-size` and `circle-radius` use, so it reads the
@@ -595,7 +596,11 @@ export function mountMap({
         'line-join': 'round',
         'line-cap': 'round',
       },
-      paint: { 'line-color': ROUTE_CASING, 'line-width': ROUTE_CASING_WIDTH, 'line-opacity': 0.55 },
+      paint: {
+        'line-color': ROUTE_CASING,
+        'line-width': ROUTE_CASING_WIDTH,
+        'line-opacity': ROUTE_CASING_OPACITY,
+      },
     },
     {
       id: outlineOfType(facet.type),
@@ -1244,6 +1249,12 @@ export function mountMap({
   // other entity steps back. Out of the mode, the type layers draw as before.
   const paintChainMode = (): void => {
     whenStyleReady(() => {
+      map.setPaintProperty(
+        SELECTION_SHAPE_CORE,
+        'line-color',
+        chainOn ? ['coalesce', ['get', 'stageColour'], ['get', 'colour']] : ['get', 'colour'],
+      );
+      const staged: ['has', string] = ['has', 'stageColour'];
       for (const facet of projection.types) {
         const base: ['==', ['get', string], string] = ['==', ['get', 'entityType'], facet.type];
         map.setFilter(
@@ -1259,12 +1270,6 @@ export function mountMap({
         map.setPaintProperty(haloOfType(facet.type), 'circle-opacity', HALO_OPACITY * back);
         // A route or an area follows its point: the hue of the stage, and a step back when the
         // asset has no stage.
-        const staged: ['has', string] = ['has', 'stageColour'];
-        map.setPaintProperty(
-          SELECTION_SHAPE_CORE,
-          'line-color',
-          chainOn ? ['coalesce', ['get', 'stageColour'], ['get', 'colour']] : ['get', 'colour'],
-        );
         map.setPaintProperty(
           outlineOfType(facet.type),
           'line-color',
@@ -1274,6 +1279,13 @@ export function mountMap({
           outlineOfType(facet.type),
           'line-opacity',
           chainOn ? ['case', staged, 1, CHAIN_DIMMED] : 1,
+        );
+        map.setPaintProperty(
+          casingOfType(facet.type),
+          'line-opacity',
+          chainOn
+            ? ['case', staged, ROUTE_CASING_OPACITY, ROUTE_CASING_OPACITY * CHAIN_DIMMED]
+            : ROUTE_CASING_OPACITY,
         );
         map.setPaintProperty(
           fillOfType(facet.type),

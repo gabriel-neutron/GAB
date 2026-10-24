@@ -33,7 +33,9 @@ const CONTROL = cn(
 export const stepCounts = (step: ChainStep): string => {
   const assets = step.assets.length;
   const links = step.arcs.length;
-  if (assets === 0 && links === 0) return String(step.count);
+  const exits = step.exits.length;
+  if (assets === 0 && links === 0)
+    return exits === 0 ? String(step.count) : `${String(exits)} ${exits === 1 ? 'ring' : 'rings'}`;
   return [
     ...(assets === 0 ? [] : [`${String(assets)} ${assets === 1 ? 'asset' : 'assets'}`]),
     ...(links === 0 ? [] : [`${String(links)} ${links === 1 ? 'link' : 'links'}`]),

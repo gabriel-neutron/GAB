@@ -130,7 +130,7 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation, mapRef }: M
       {mapReady ? (
         <div
           // The rail takes the whole width of its parent below `lg`, so the parent states the
-          // width, and a long name never widens the rail. A closed rail is one narrow column.
+          // width there, and the rail states its own from `lg`, where a drag changes it, and a long name never widens the rail. A closed rail is one narrow column.
           style={
             {
               '--rail-slot': railFrame.open
@@ -139,7 +139,7 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation, mapRef }: M
             } as CSSProperties
           }
           className={cn(
-            'min-h-0 shrink-0 md:w-(--rail-slot) md:overflow-hidden',
+            'min-h-0 shrink-0 md:max-lg:w-(--rail-slot) md:max-lg:overflow-hidden',
             'max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-20 max-md:w-72',
             'max-md:max-w-[85%] max-md:border-r max-md:border-border max-md:bg-background',
             drawerOpen ? null : 'max-md:hidden',
