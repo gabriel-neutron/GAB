@@ -57,7 +57,10 @@ export default defineConfig({
     open: openWithKey(envText(), process.env['npm_lifecycle_event']),
     // Departure: `.private/` holds thousands of built pages of the earlier releases. Watched, each
     // one costs a file watch, and each page change sends a reload to the browser.
-    watch: { ignored: ['**/.private/**', '**/dist/**', '**/research/**'] },
+    // Departure: `.claude/worktrees/` holds a full copy of the repository for each open session.
+    // Watched, its 1,600 folders made the first request of a cold start wait 20 seconds. The
+    // application imports nothing from `.claude/`, so the whole folder is ignored.
+    watch: { ignored: ['**/.private/**', '**/dist/**', '**/research/**', '**/.claude/**'] },
     proxy: { '/write': 'http://127.0.0.1:5177', '/private': 'http://127.0.0.1:5177' },
   },
 
