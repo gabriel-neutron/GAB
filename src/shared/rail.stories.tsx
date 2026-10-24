@@ -46,13 +46,13 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** One icon cannot say "hidden" on the map and "dimmed" on the graph, so words say the state. */
+/** One icon cannot say "hidden" and "shown", so words say the state. */
 export const TheStateIsAnEyeForTheEyeAndWordsForTheReader: Story = {
   args: {
     rows: rows({
       types: [
         row({ type: 'vessel' }),
-        row({ type: 'port', count: 7, on: false, stateWord: 'off, dimmed' }),
+        row({ type: 'port', count: 7, on: false, stateWord: 'off, hidden' }),
       ],
     }),
   },
@@ -63,7 +63,7 @@ export const TheStateIsAnEyeForTheEyeAndWordsForTheReader: Story = {
     await expect(shut).toHaveLength(1);
 
     // The words the caller wrote are what a reader hears, and they are surface-specific.
-    await expect(canvas.getByRole('button', { pressed: false })).toHaveTextContent('off, dimmed');
+    await expect(canvas.getByRole('button', { pressed: false })).toHaveTextContent('off, hidden');
     await expect(canvas.getByRole('button', { pressed: true })).toHaveTextContent('on');
   },
 };
@@ -74,7 +74,7 @@ export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
     rows: rows({
       types: [
         row({ type: 'vessel' }),
-        row({ type: 'port', count: 7, on: false, stateWord: 'off, dimmed' }),
+        row({ type: 'port', count: 7, on: false, stateWord: 'off, hidden' }),
       ],
     }),
   },
@@ -82,7 +82,7 @@ export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
     const off = canvas.getByRole('button', { pressed: false });
     await expect(off).toHaveTextContent('Port');
     await expect(off).toHaveTextContent('7');
-    await expect(off).toHaveTextContent('off, dimmed');
+    await expect(off).toHaveTextContent('off, hidden');
 
     await userEvent.click(off);
     await expect(args.onAct).toHaveBeenCalledWith({ kind: 'switch-type', type: 'port', on: true });

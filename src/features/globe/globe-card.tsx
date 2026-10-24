@@ -54,9 +54,9 @@ export function GlobeCard({ store, data, entityHref }: GlobeCardProps) {
       role="region"
       aria-label="Card of the selected entity"
       className={cn(
-        'max-h-96 overflow-y-auto border-t border-border lg:max-h-128 lg:border-t-0 lg:border-l',
+        'min-h-0 overflow-y-auto border-t border-border lg:border-t-0 lg:border-l',
         PHONE_SHEET,
-        panel.kind === 'none' ? 'max-md:hidden' : null,
+        panel.kind === 'none' ? 'hidden' : null,
       )}
       onKeyDown={(event) => {
         if (event.key !== 'Escape' || event.defaultPrevented || panel.kind === 'none') return;
