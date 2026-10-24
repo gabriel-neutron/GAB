@@ -62,9 +62,25 @@ export const runCommand: SubCommand = async () => {
   pool.on('error', (error) => {
     console.error('an idle database connection failed', error.message);
   });
+  let runner: Awaited<ReturnType<typeof openRunner>> | undefined;
   try {
-    const runner = await openRunner({
+    runner = await openRunner({
       db: pool,
+      // One client of the pool keeps the lock. Release destroys it, so its session ends and the
+      // server drops the lock.
+      lock: async () => {
+        const client = await pool.connect();
+        client.on('error', (error) => {
+          console.error('the lock connection failed', error.message);
+        });
+        return {
+          query: (text, values) => client.query(text, values),
+          release: () => {
+            client.release(true);
+            return Promise.resolve();
+          },
+        };
+      },
       agents,
       sleep: (ms) => sleepFor(ms, undefined, { signal: stop.signal }).catch(() => undefined),
       now: () => performance.now(),
@@ -73,6 +89,7 @@ export const runCommand: SubCommand = async () => {
   } finally {
     // The fetch tool keeps an exiftool process and an OCR thread, and each one holds the event
     // loop open until it ends.
+    await runner?.close();
     await Promise.all([pool.end(), endMetadata(), endOcr()]);
     for (const store of stores) store.client.destroy();
   }

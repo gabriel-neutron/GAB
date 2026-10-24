@@ -20,6 +20,7 @@ import type { Queryable } from './queryable.ts';
 import type { ModelConfig } from './reader-config.ts';
 
 const SETTINGS = 'SELECT empty_wait_seconds FROM public.runner_settings()';
+const TRY_LOCK = 'SELECT pg_try_advisory_lock($1::bigint) AS locked';
 const REQUEUE = 'SELECT public.requeue_running_jobs()';
 const RECORD = `SELECT public.record_model_call($1::text, $2::text, $3::text, $4::text, $5::text,
   $6::int, $7::text, $8::uuid, $9::text, $10::int, $11::int)::text AS id`;
@@ -27,6 +28,11 @@ const FAIL = 'SELECT public.fail_job($1::uuid, $2::text)';
 const COMPLETE = `SELECT public.complete_job($1::uuid, $2::int, $3::int, $4::text, $5::text) AS status`;
 
 const MS = 1000;
+
+// The key of the advisory lock that lets one runner live. REQUEUE puts back each running row of the
+// role, so a second runner would take the live job of the first. The number is fixed and spells
+// "GABRUN" in hexadecimal. No other code of the database uses it.
+const RUNNER_LOCK_KEY = '0x47414252554E';
 
 // External constraint: a pool reports a lost connection with a code of Node, a state of the server
 // (class 08, or a shutdown), or the sentence of pg. The sleep of the computer, a restart of the
@@ -56,6 +62,8 @@ const isConnectionFault = (error: unknown): boolean => {
     return true;
   return error.message.startsWith('Connection terminated');
 };
+
+const lockRow = z.object({ locked: z.boolean() });
 
 const settingsRow = z.object({ empty_wait_seconds: z.number().positive() });
 
@@ -98,8 +106,17 @@ export interface RunnerDeps {
   readonly sleep: (ms: number) => Promise<void>;
   /** The clock in milliseconds, read to time each call of the model. */
   readonly now: () => number;
+  /** Opens the dedicated connection that holds the lock of the one runner. A session lock lives as
+   * long as its connection, so a pool query cannot hold it. The runner calls it again after a lost
+   * connection. Release ends the connection. When it is absent, the runner takes no lock. */
+  readonly lock?: () => Promise<RunnerLock>;
   /** Makes the pinned model of OpenRouter. The default reads the key from the environment. */
   readonly open?: (model: string) => ReturnType<typeof openrouterModel>;
+}
+
+/** A dedicated connection that holds the lock of the one runner. */
+export interface RunnerLock extends Queryable {
+  readonly release: () => Promise<void>;
 }
 
 /** What one step of the runner did. */
@@ -113,6 +130,8 @@ interface Runner {
   readonly step: () => Promise<Step>;
   /** Steps until the signal aborts. */
   readonly run: (signal: AbortSignal) => Promise<void>;
+  /** Gives back the lock. Call it once, when the runner stops. */
+  readonly close: () => Promise<void>;
 }
 
 // The cause of an error that is not a failure of the model goes to the log. The record of the job
@@ -140,8 +159,37 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
     },
   };
 
-  const settings = settingsRow.parse((await db.query(SETTINGS)).rows[0]);
-  await db.query(REQUEUE);
+  // The lock comes first: a runner that does not hold it claims nothing and puts nothing back.
+  let seat: RunnerLock | undefined;
+  const letGo = async (): Promise<void> => {
+    const old = seat;
+    seat = undefined;
+    await old?.release().catch(() => undefined);
+  };
+  const takeLock = async (): Promise<void> => {
+    await letGo();
+    if (deps.lock === undefined) return;
+    const fresh = await deps.lock();
+    try {
+      const { locked } = lockRow.parse((await fresh.query(TRY_LOCK, [RUNNER_LOCK_KEY])).rows[0]);
+      if (!locked)
+        throw new Error('Another runner is running, so this runner stops and claims nothing.');
+    } catch (cause) {
+      await fresh.release().catch(() => undefined);
+      throw cause;
+    }
+    seat = fresh;
+  };
+
+  await takeLock();
+  let settings;
+  try {
+    settings = settingsRow.parse((await db.query(SETTINGS)).rows[0]);
+    await db.query(REQUEUE);
+  } catch (cause) {
+    await letGo();
+    throw cause;
+  }
 
   // Each model is made at the start, so a key that is not set stops the start and claims
   // nothing.
@@ -252,8 +300,10 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
       let lost = false;
       while (!signal.aborted) {
         try {
-          // One worker runs, so each running row of its role is ours: the job in hand goes back.
+          // One worker runs, so each running row of its role is ours: the job in hand goes back. A
+          // lost connection drops the lock, so the runner takes it again first.
           if (lost) {
+            await takeLock();
             await db.query(REQUEUE);
             lost = false;
           }
@@ -266,5 +316,6 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
         }
       }
     },
+    close: letGo,
   };
 };
