@@ -97,7 +97,7 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
       <div className="site-navigation-actions">
         {filter === null ? null : <div className="site-context-filter">{filter}</div>}
         {writerOnline ? (
-          <Link to="/review" search={{ unit: '', view: 'queue', group: '' }}>
+          <Link to="/review" search={{ unit: '', view: 'queue', group: '' }} className={PAGE_LINK}>
             Review
           </Link>
         ) : null}

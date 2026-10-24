@@ -183,23 +183,6 @@
 .globe-surface {
   grid-template-rows: minmax(0, 1fr);
 }
-.workspace-disclosure {
-  flex-shrink: 0;
-  border-top: 1px solid var(--border);
-}
-.workspace-disclosure > summary {
-  cursor: pointer;
-  padding: 6px 12px;
-  font-size: var(--text-small);
-  color: var(--muted-foreground);
-}
-.workspace-disclosure > :not(summary) {
-  max-height: 35vh;
-  overflow-y: auto;
-}
-.workspace-notes {
-  padding: 8px 12px;
-}
 .globe-surface:not(:has([aria-label='Card of the selected entity']:not(.hidden))) {
   grid-template-columns: minmax(0, 1fr);
 }

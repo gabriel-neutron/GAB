@@ -40,6 +40,13 @@ describe('entity rows', () => {
     );
   });
 
+  it('keeps a spreadsheet from running a label as a formula', () => {
+    const risky = [row('x', '=HYPERLINK("a")', 'company', 1, { tonnage: '-5' })];
+    expect(csvOf(risky, ['tonnage'])).toBe(
+      `id,name,type,documents,tonnage\r\nx,"'=HYPERLINK(""a"")",company,1,-5\r\n`,
+    );
+  });
+
   it('names the most common keys and writes JSON', () => {
     expect(commonKeys(rows, 1)).toEqual(['tonnage']);
     expect(JSON.parse(jsonOf(rows.slice(0, 1)))).toEqual([rows[0]]);

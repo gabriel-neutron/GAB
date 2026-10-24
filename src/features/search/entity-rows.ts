@@ -19,7 +19,7 @@ export interface Sort {
 }
 
 /** How many attribute columns the table draws, by how many entities state the key. */
-export const ATTRIBUTE_COLUMNS = 3;
+const ATTRIBUTE_COLUMNS = 3;
 
 const textOf = (value: AttributeValue): string =>
   typeof value === 'boolean'
@@ -55,8 +55,8 @@ export function commonKeys(
     .map(([key]) => key);
 }
 
-/** Keeps the rows whose name or type key holds the text, and whose type is the chosen one. An
- * empty text or a null type keeps all. */
+/** Keeps the rows whose label holds the text, and whose type is the chosen one. An empty text or a
+ * null type keeps all. */
 export function filterRows(
   rows: readonly EntityRow[],
   text: string,
@@ -82,8 +82,9 @@ export function sortRows(rows: readonly EntityRow[], sort: Sort): readonly Entit
     const left = valueOf(a, sort.key);
     const right = valueOf(b, sort.key);
     if (left === null || right === null) return left === right ? 0 : left === null ? 1 : -1;
-    const leftNumber = Number(left);
-    const rightNumber = Number(right);
+    // An empty text is no number: Number('') is 0.
+    const leftNumber = left === '' ? NaN : Number(left);
+    const rightNumber = right === '' ? NaN : Number(right);
     const order =
       Number.isNaN(leftNumber) || Number.isNaN(rightNumber)
         ? String(left).localeCompare(String(right), undefined, { numeric: true })
@@ -92,8 +93,12 @@ export function sortRows(rows: readonly EntityRow[], sort: Sort): readonly Entit
   });
 }
 
-const field = (text: string): string =>
-  /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+// External constraint: a spreadsheet runs a cell that starts with = + - or @ as a formula, and the
+// labels come from public documents. A plain number stays a number.
+const field = (raw: string): string => {
+  const text = /^[=+\-@\t\r]/.test(raw) && !/^-?\d+(\.\d+)?$/.test(raw) ? `'${raw}` : raw;
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+};
 
 /** The rows as CSV text: one line per row, a blank field for an absent value. */
 export function csvOf(rows: readonly EntityRow[], keys: readonly string[]): string {

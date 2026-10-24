@@ -136,7 +136,11 @@ export function EntityTable({ rows, hrefOf }: EntityTableProps) {
           className={ACTION}
           disabled={chosen.length === 0}
           onClick={() => {
-            save(csvOf(chosen, keys), 'selection.csv', 'text/csv;charset=utf-8');
+            save(
+              csvOf(chosen, commonKeys(chosen, Infinity)),
+              'selection.csv',
+              'text/csv;charset=utf-8',
+            );
           }}
         >
           Download selection (CSV)

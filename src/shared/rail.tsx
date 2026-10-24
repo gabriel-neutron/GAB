@@ -317,8 +317,8 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                   {/* Departure: the count carries on the graph the weight a hue carries on the
                       map. */}
                   <span className={cn(FIGURE, 'text-muted-foreground')}>{row.figure}</span>
-                  {/* Departure: one icon cannot say "hidden" on the map and "dimmed" on the
-                      graph, so the glyph is hidden and these words carry the state. */}
+                  {/* Departure: a glyph alone does not say the state of a switch, so the
+                      words carry it. */}
                   <span className="sr-only">{row.stateWord}</span>
                   {row.on ? (
                     <Eye size={14} aria-hidden="true" className="shrink-0 text-label" />

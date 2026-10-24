@@ -165,8 +165,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     return shown.sort((one, two) => two.degree - one.degree || one.label.localeCompare(two.label));
   }, [model, filter, showUnplaced]);
 
-  // Departure: the filter narrows the rail and never the canvas, so the controller holds none of
-  // it. `GraphCanvas` is memoised on two refs, so a new filter does not render the live element.
+  // `GraphCanvas` is memoised on two refs, so a new filter does not render the live element.
   const query = useScreenQuery({ named, choose: reach });
 
   const rows = useMemo(

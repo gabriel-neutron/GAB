@@ -135,7 +135,7 @@ export function mountGlobe({ container, data, store, flat }: MountOptions): Glob
       countries: { type: 'geojson', data: countriesUrl },
       // The animation sets a feature state by identifier.
       entities: { type: 'geojson', data: data.entities, promoteId: 'id' },
-      // The pulse reads the progress along each line.
+      // The flow reads the progress along each line.
       arcs: { type: 'geojson', data: data.arcs, lineMetrics: true, promoteId: 'id' },
       exits: { type: 'geojson', data: data.exits, promoteId: 'id' },
     },
