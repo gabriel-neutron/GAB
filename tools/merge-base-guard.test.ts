@@ -6,10 +6,12 @@ import path from 'node:path';
 
 import { describe, expect, test } from 'vitest';
 
-type Verdict = { allow: boolean };
-type Guard = {
+interface Verdict {
+  allow: boolean;
+}
+interface Guard {
   decide: (command: string, readBase: (selector: string | null) => string | null) => Verdict;
-};
+}
 
 const require = createRequire(import.meta.url);
 const guard = require(
