@@ -56,7 +56,13 @@
     "deny": [
       "Read(//**/infra/.env)",
       "Edit(//**/infra/.env)",
-      "Bash(*infra*.env*)"
+      "Bash(*infra*.env*)",
+      "Read(//**/research/.env)",
+      "Edit(//**/research/.env)",
+      "Bash(*research/.env)",
+      "Bash(*research/.env *)",
+      "Bash(* .env)",
+      "Bash(* .env *)"
     ]
   }
 }
