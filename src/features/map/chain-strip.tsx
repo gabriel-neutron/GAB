@@ -28,6 +28,20 @@ const CONTROL = cn(
   'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
 );
 
+// A step puts assets and physical links forward, and its count is one of the two. The strip says
+// which, so a reader never takes a count of links for a count of assets.
+export const stepCounts = (step: ChainStep): string => {
+  const assets = step.assets.length;
+  const links = step.arcs.length;
+  const exits = step.exits.length;
+  if (assets === 0 && links === 0)
+    return exits === 0 ? String(step.count) : `${String(exits)} ${exits === 1 ? 'ring' : 'rings'}`;
+  return [
+    ...(assets === 0 ? [] : [`${String(assets)} ${assets === 1 ? 'asset' : 'assets'}`]),
+    ...(links === 0 ? [] : [`${String(links)} ${links === 1 ? 'link' : 'links'}`]),
+  ].join(', ');
+};
+
 /** The controls of the chain over the map: the Chain mode, the globe, and in the Chain mode the
  * six steps with their counts and the sentence of the step in view. */
 export function ChainStrip({ steps, state, onAct }: ChainStripProps) {
@@ -85,7 +99,7 @@ export function ChainStrip({ steps, state, onAct }: ChainStripProps) {
                       backgroundColor: STAGES.find((stage) => stage.key === one.stage)?.colour,
                     }}
                   />
-                  {one.label}: <span className="font-mono tabular-nums">{one.count}</span>
+                  {one.label}: <span className="font-mono tabular-nums">{stepCounts(one)}</span>
                 </button>
               </li>
             ))}

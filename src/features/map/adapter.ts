@@ -95,6 +95,12 @@ const casingOfType = (type: string): string => `area-casing-${type}`;
 /** The selected point, alone. So the ring is a change of data, and never a change of style. */
 const SELECTION_SOURCE = 'selection';
 const SELECTION_LAYER = 'selection-ring';
+// The shape of the selected entity, drawn wide: a route or an area is selected by its width and
+// not by its colour alone.
+const SELECTION_SHAPE_SOURCE = 'selection-shape';
+const SELECTION_SHAPE_CASING = 'selection-shape-casing';
+const SELECTION_SHAPE_BAND = 'selection-shape-band';
+const SELECTION_SHAPE_CORE = 'selection-shape-core';
 const layerOfType = (type: string): string => `entity-${type}`;
 /** The halo of one type. It reads the one point source, so it costs no second query. */
 const haloOfType = (type: string): string => `inherited-${type}`;
@@ -145,6 +151,7 @@ const AREA_FILL_OPACITY = 0.2;
 const AREA_OUTLINE_WIDTH = 2;
 const ROUTE_CASING = '#0b1a1f';
 const ROUTE_CASING_WIDTH = 3.6;
+const ROUTE_CASING_OPACITY = 0.55;
 
 // Two or more entities that share one point draw in a circle around it instead, at this many CSS
 // pixels from the centre — the same unit `icon-size` and `circle-radius` use, so it reads the
@@ -479,7 +486,11 @@ export function mountMap({
   const areaFeaturesOf = (entities: readonly GeoEntity[]): AreaCollection => ({
     type: 'FeatureCollection',
     features: entities.flatMap((entity): ShapeFeature[] => {
-      const feature = shapeFeatureOf(entity, colourOfType.has(entity.type));
+      const feature = shapeFeatureOf(
+        entity,
+        colourOfType.has(entity.type),
+        chain.stageColour.get(entity.id),
+      );
       return feature === null ? [] : [feature];
     }),
   });
@@ -585,7 +596,11 @@ export function mountMap({
         'line-join': 'round',
         'line-cap': 'round',
       },
-      paint: { 'line-color': ROUTE_CASING, 'line-width': ROUTE_CASING_WIDTH, 'line-opacity': 0.55 },
+      paint: {
+        'line-color': ROUTE_CASING,
+        'line-width': ROUTE_CASING_WIDTH,
+        'line-opacity': ROUTE_CASING_OPACITY,
+      },
     },
     {
       id: outlineOfType(facet.type),
@@ -596,6 +611,31 @@ export function mountMap({
       paint: { 'line-color': facet.colour, 'line-width': AREA_OUTLINE_WIDTH },
     },
   ]);
+
+  const selectionShapeLayers: LayerSpec[] = [
+    {
+      id: SELECTION_SHAPE_CASING,
+      type: 'line',
+      source: SELECTION_SHAPE_SOURCE,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': ROUTE_CASING, 'line-width': 9, 'line-opacity': 0.9 },
+    },
+    {
+      id: SELECTION_SHAPE_BAND,
+      type: 'line',
+      source: SELECTION_SHAPE_SOURCE,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': '#ffffff', 'line-width': 6 },
+    },
+    {
+      id: SELECTION_SHAPE_CORE,
+      type: 'line',
+      source: SELECTION_SHAPE_SOURCE,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      // The Chain mode paints the stage hue, and the plain map paints the hue of the type.
+      paint: { 'line-color': ['coalesce', ['get', 'colour'], '#000000'], 'line-width': 3 },
+    },
+  ];
 
   const linkLayers: LayerSpec[] = [
     {
@@ -780,6 +820,7 @@ export function mountMap({
       [ENTITY_SOURCE]: { type: 'geojson', data: collect(featuresOf(projection.entities)) },
       [AREA_SOURCE]: { type: 'geojson', data: areaFeaturesOf(projection.entities) },
       [SELECTION_SOURCE]: { type: 'geojson', data: collect([]) },
+      [SELECTION_SHAPE_SOURCE]: { type: 'geojson', data: areaFeaturesOf([]) },
       // The lines belong to a selection, which the address restores below this style. So the
       // first frame carries none, and `paintBaseLinks` fills the two sources through the queue.
       [LINK_SOURCE]: { type: 'geojson', data: collectLines([]) },
@@ -794,6 +835,9 @@ export function mountMap({
       // **The areas are under every line and every point.** An area is ground, and a mark on it
       // must never be covered by it.
       ...areaLayers,
+      // Under every point and above the outline of each type: a black casing, a white band, and
+      // the hue of the asset in the middle.
+      ...selectionShapeLayers,
       // **The lines come before every point.** A relation must never cover what it relates.
       ...linkLayers,
       arrowLayer,
@@ -955,6 +999,20 @@ export function mountMap({
       void source.setData(
         collect(featuresOf(entity === undefined ? [] : [entity], displayPointOf)),
       );
+      const shape = map.getSource(SELECTION_SHAPE_SOURCE);
+      if (!(shape instanceof GeoJSONSource)) return;
+      // An entity that a point locates has no shape, and the collection is then empty.
+      const drawn = entity === undefined ? [] : [entity];
+      void shape.setData({
+        type: 'FeatureCollection',
+        features: areaFeaturesOf(drawn).features.map((one) => ({
+          ...one,
+          properties: {
+            ...one.properties,
+            colour: colourOfType.get(one.properties.entityType) ?? null,
+          },
+        })),
+      });
     });
   };
 
@@ -1199,6 +1257,12 @@ export function mountMap({
   // other entity steps back. Out of the mode, the type layers draw as before.
   const paintChainMode = (): void => {
     whenStyleReady(() => {
+      map.setPaintProperty(
+        SELECTION_SHAPE_CORE,
+        'line-color',
+        chainOn ? ['coalesce', ['get', 'stageColour'], ['get', 'colour']] : ['get', 'colour'],
+      );
+      const staged: ['has', string] = ['has', 'stageColour'];
       for (const facet of projection.types) {
         const base: ['==', ['get', string], string] = ['==', ['get', 'entityType'], facet.type];
         map.setFilter(
@@ -1212,6 +1276,30 @@ export function mountMap({
         map.setPaintProperty(layerOfType(facet.type), 'circle-stroke-opacity', back);
         map.setPaintProperty(symbolOfType(facet.type), 'icon-opacity', back);
         map.setPaintProperty(haloOfType(facet.type), 'circle-opacity', HALO_OPACITY * back);
+        // A route or an area follows its point: the hue of the stage, and a step back when the
+        // asset has no stage.
+        map.setPaintProperty(
+          outlineOfType(facet.type),
+          'line-color',
+          chainOn ? ['coalesce', ['get', 'stageColour'], facet.colour] : facet.colour,
+        );
+        map.setPaintProperty(
+          outlineOfType(facet.type),
+          'line-opacity',
+          chainOn ? ['case', staged, 1, CHAIN_DIMMED] : 1,
+        );
+        map.setPaintProperty(
+          casingOfType(facet.type),
+          'line-opacity',
+          chainOn
+            ? ['case', staged, ROUTE_CASING_OPACITY, ROUTE_CASING_OPACITY * CHAIN_DIMMED]
+            : ROUTE_CASING_OPACITY,
+        );
+        map.setPaintProperty(
+          fillOfType(facet.type),
+          'fill-color',
+          chainOn ? ['coalesce', ['get', 'stageColour'], facet.colour] : facet.colour,
+        );
       }
     });
   };
