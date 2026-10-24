@@ -24,10 +24,10 @@ describe('the selection that a link between the map and the graph carries', () =
     });
   });
 
-  it('drops the relation on a link to the globe, which selects an entity only', () => {
+  it('keeps both keys on a link from the graph to the map', () => {
     expect(carriedSelection('/graph', '?entity=e1&relation=r1', '/map')).toEqual({
       entity: 'e1',
-      relation: '',
+      relation: 'r1',
     });
   });
 

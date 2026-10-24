@@ -21,9 +21,11 @@ export interface RailProps {
   /** Whether the rail is open, and how wide. The caller holds both in the workspace. */
   readonly frame: Pick<RailRows, 'open' | 'width'>;
   readonly onFrameChange: (frame: Pick<RailRows, 'open' | 'width'>) => void;
+  /** A name of the list was chosen, so a drawer over the map can close. */
+  readonly onReach?: () => void;
 }
 
-export function Rail({ projection, map, frame, onFrameChange }: RailProps) {
+export function Rail({ projection, map, frame, onFrameChange, onReach }: RailProps) {
   // The legend is an echo of the adapter, which stays the one truth: it is seeded from the handle
   // and taken from the handle again after each switch. The fallback draws everything on.
   const [legend, setLegend] = useState(() =>
@@ -90,6 +92,7 @@ export function Rail({ projection, map, frame, onFrameChange }: RailProps) {
     if (live === null) return;
     live.select(id);
     live.flyTo(id);
+    onReach?.();
   };
 
   // Departure: the adapter drops a selection of a type it does not draw, so the header offers

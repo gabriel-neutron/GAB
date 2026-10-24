@@ -22,7 +22,7 @@ export function HelpPage() {
             finds a name, a value or the title of a document.
           </li>
           <li>
-            <Link to="/map" search={{ entity: '' }} className={READING_LINK}>
+            <Link to="/map" search={{ entity: '', relation: '' }} className={READING_LINK}>
               The map
             </Link>{' '}
             shows the assets that have a position, and the chain that joins them.

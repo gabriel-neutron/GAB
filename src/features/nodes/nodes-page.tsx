@@ -181,7 +181,7 @@ export function NodesPage({ release, entityHref, vesselHref, claimHref }: NodesP
           Open the graph
         </Link>
         ,{' '}
-        <Link to="/map" search={{ entity: '' }} className={READING_LINK}>
+        <Link to="/map" search={{ entity: '', relation: '' }} className={READING_LINK}>
           the map
         </Link>{' '}
         or{' '}

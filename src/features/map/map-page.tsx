@@ -2,8 +2,10 @@
 // address back. A two-way binding between a router and a live canvas is a loop, so this file
 // calls no router hook and reads no `localStorage`.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
+import { cn } from '@/shared/lib/utils';
+import { useNarrowScreen } from '@/shared/narrow-screen';
 import type { RailRows } from '@/shared/rail';
 import type { Corpus, TypeVocabulary } from '@/shared/read/model';
 
@@ -28,16 +30,22 @@ interface MapPageProps {
   // and it calls this with `null` when it does. This function must be the same function at each
   // render of the caller, for the reason `onSelect` states.
   readonly onChooseRelation: (id: string | null) => void;
+  // The live map, which the caller fills at the mount. The caller closes a selection through it,
+  // so the canvas and the address end the selection together. It must be one ref for the life of
+  // the caller.
+  readonly mapRef: RefObject<MapHandle | null>;
 }
 
 // Two React values sit in an ancestor of the canvas: `mapReady` and `railFrame`. Neither is the
 // instance, the camera, the style or the selection, and the element that carries the canvas is
 // memoised on an empty list. So no render of these two can reach the live element.
-export function MapPage({ corpus, types, onSelect, onChooseRelation }: MapPageProps) {
+export function MapPage({ corpus, types, onSelect, onChooseRelation, mapRef }: MapPageProps) {
   const host = useRef<HTMLDivElement | null>(null);
-  // The rail is a sibling of the canvas, and it drives the map through this ref. The ref itself
-  // never changes, so the rail takes a value that no render can replace.
-  const handle = useRef<MapHandle | null>(null);
+  // Departure: on a phone the rail is a drawer over the canvas, closed at the start, as on the
+  // graph. It dies with the view, and the stored width of the rail is the choice of a wide screen.
+  const narrow = useNarrowScreen();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  if (!narrow && drawerOpen) setDrawerOpen(false);
 
   // A child runs its effect before its parent: a rail mounted at the first render would read a
   // ref that the mount effect had not filled. So the rail renders at the render after the map
@@ -75,7 +83,7 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation }: MapPagePr
     if (container === null) return;
 
     const map = mountMap({ container, projection, chain });
-    handle.current = map;
+    mapRef.current = map;
     setMapReady(true);
     const unsubscribe = map.onSelect(onSelect);
     // `onChooseLink` calls its listener at once with the choice of that moment, as `onSelect`
@@ -89,11 +97,11 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation }: MapPagePr
       stopChoosing();
       map.destroy();
       // A cleanup of an older mount must not drop the handle of a newer mount.
-      if (handle.current !== map) return;
-      handle.current = null;
+      if (mapRef.current !== map) return;
+      mapRef.current = null;
       setMapReady(false);
     };
-  }, [projection, chain, onSelect, onChooseRelation]);
+  }, [projection, chain, onSelect, onChooseRelation, mapRef]);
 
   // No React render is permitted inside the tree that wraps the live element: a render that
   // builds a new element removes the old node, and the WebGL context goes with it. The empty
@@ -104,19 +112,56 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation }: MapPagePr
   // which is `flex-basis: 0` and not `auto`, so the content never decides the size and the
   // `ResizeObserver` of `adapter.ts` reads no size that it wrote itself.
   return (
-    <div className="flex h-full">
+    <div
+      className="relative flex h-full"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') setDrawerOpen(false);
+      }}
+    >
       {mapReady ? (
-        <Rail
-          projection={projection}
-          map={handle}
-          frame={railFrame}
-          onFrameChange={changeRailFrame}
-        />
+        <div
+          className={cn(
+            'min-h-0 shrink-0',
+            'max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-20 max-md:w-72',
+            'max-md:max-w-[85%] max-md:border-r max-md:border-border max-md:bg-background',
+            drawerOpen ? null : 'max-md:hidden',
+          )}
+        >
+          <Rail
+            projection={projection}
+            map={mapRef}
+            frame={narrow ? { ...railFrame, open: true } : railFrame}
+            onFrameChange={
+              narrow
+                ? (next) => {
+                    setDrawerOpen(next.open);
+                  }
+                : changeRailFrame
+            }
+            onReach={() => {
+              setDrawerOpen(false);
+            }}
+          />
+        </div>
       ) : null}
       <div className="relative flex min-w-0 flex-1">
         {canvas}
-        {mapReady ? <GroundControl map={handle} /> : null}
-        {mapReady ? <ChainControl map={handle} steps={chain.steps} /> : null}
+        <button
+          type="button"
+          aria-expanded={drawerOpen}
+          onClick={() => {
+            setDrawerOpen(true);
+          }}
+          className={cn(
+            'absolute bottom-2 left-2 z-10 h-6 border border-input bg-background px-2 text-small/4',
+            'text-foreground transition-colors duration-100 hover:bg-muted md:hidden',
+            'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
+          )}
+        >
+          Types
+        </button>
+        {mapReady ? <GroundControl map={mapRef} /> : null}
+        {mapReady ? <ChainControl map={mapRef} steps={chain.steps} /> : null}
       </div>
     </div>
   );
