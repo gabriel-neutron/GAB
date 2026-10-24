@@ -1489,7 +1489,15 @@ const HC_BOOK = workbookOf({
   ],
   LNG: [
     ['Terminal ID', 'Terminal', 'Owners', 'Capacity', 'Group share', 'Latitude', 'Longitude'],
-    ['L0001', 'Yamal LNG', 'Novatek [E200002] 60%; New Gas Co [E200555] 40%', 16.5, 75.5, 71.5, 72.5],
+    [
+      'L0001',
+      'Yamal LNG',
+      'Novatek [E200002] 60%; New Gas Co [E200555] 40%',
+      16.5,
+      75.5,
+      71.5,
+      72.5,
+    ],
     ['L0002', 'Names LNG', 'Novatek 60%; Shell 40%', 5, 10, 51.5, 143.5],
   ],
   Owners: [
