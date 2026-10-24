@@ -4219,7 +4219,8 @@ $$;
 --                claim that the operator rejected before (the newest rejection gives the day, and
 --                the key of its reason and its note, which stay private to the operator); a value
 --                that an import broke; an entity whose link to a rejected parent the operator
---                rejected, so that it has no parent now.
+--                rejected, so that it has no parent now; a point of a reference dataset in whole
+--                degrees, or the same as the point of another site of the record.
 --   information  The unit stays clean: sources from the parent (a decision of the operator for the
 --                v1 import), an approximate position, a note, the same name under another parent.
 --
@@ -4638,6 +4639,40 @@ BEGIN
                       AND o.target_id = a.target_id
                       AND NOT public.ST_Equals(public.ST_GeomFromGeoJSON(nullif(o.payload->'geom', 'null'::jsonb)),
                                                public.ST_GeomFromGeoJSON(nullif(a.payload->'geom', 'null'::jsonb))))
+    UNION ALL
+    -- A point of a reference dataset in whole degrees (both ordinates are integers) is a coarse
+    -- point: the file rounds a place that it does not know. A rule that accepts the row would
+    -- put the entity on the wrong place, so the operator decides it.
+    SELECT a.unit_id, 'not_clean', 'coarse_point', a.id,
+           'The point of the reference dataset is in whole degrees, so it is coarse'
+      FROM acts a
+     WHERE a.op IN ('create_entity', 'update_entity')
+       AND public.act_reference_dataset(a.id) IS NOT NULL
+       AND CASE WHEN a.payload#>>'{geom,type}' = 'Point'
+                 AND jsonb_typeof(a.payload#>'{geom,coordinates,0}') = 'number'
+                 AND jsonb_typeof(a.payload#>'{geom,coordinates,1}') = 'number'
+                THEN (a.payload#>>'{geom,coordinates,0}')::numeric % 1 = 0
+                 AND (a.payload#>>'{geom,coordinates,1}')::numeric % 1 = 0
+                ELSE false END
+    UNION ALL
+    -- A point of a reference dataset that is the point of another site (a facility or a port) of
+    -- the record. Two sites do not share one point: the file repeats a point, or it gives the
+    -- point of a town for a site that it cannot place.
+    SELECT a.unit_id, 'not_clean', 'repeated_point', a.id,
+           'The point of the reference dataset is the point of ' ||
+           coalesce(public.element_name(o.id), o.id::text) || ', another site'
+      FROM acts a
+      CROSS JOIN LATERAL (SELECT e.id FROM public.entities e
+                           WHERE e.type IN ('facility', 'port')
+                             AND e.id IS DISTINCT FROM coalesce(a.target_id, a.id)
+                             AND public.ST_GeometryType(e.geom) = 'ST_Point'
+                             AND public.ST_Equals(e.geom,
+                                   public.ST_SetSRID(public.ST_GeomFromGeoJSON(a.payload->'geom'),
+                                                     4326))
+                           ORDER BY e.id LIMIT 1) AS o
+     WHERE a.op IN ('create_entity', 'update_entity')
+       AND a.payload#>>'{geom,type}' = 'Point'
+       AND public.act_reference_dataset(a.id) IS NOT NULL
     -- --------------------------------------------------------------------------- information --
     UNION ALL
     SELECT DISTINCT i.unit_id, 'information', 'sources_from_parent', NULL::uuid,
