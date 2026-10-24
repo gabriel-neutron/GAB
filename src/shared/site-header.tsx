@@ -52,7 +52,7 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
     ? 'about'
     : DATA.some((prefix) => path.startsWith(prefix))
       ? 'data'
-      : path === '/map' || path === '/graph'
+      : path === '/map' || path === '/atlas' || path === '/graph'
         ? 'none'
         : 'report';
   return (
@@ -77,6 +77,9 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
           className={PAGE_LINK}
         >
           Map
+        </Link>
+        <Link to="/atlas" search={{ entity: '', relation: '' }} className={PAGE_LINK}>
+          Atlas
         </Link>
         <Link
           key={`graph${address}`}
