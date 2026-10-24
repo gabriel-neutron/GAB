@@ -12,7 +12,7 @@ export interface GraphCamera {
 export interface GraphWorkspace {
   readonly camera: GraphCamera | null;
   // The types that are switched OFF, and never the types that are on. The corpus gains a type
-  // when a document does, and a stored list of the types that are on would dim each new type.
+  // when a document does, and a stored list of the types that are on would hide each new type.
   readonly hiddenTypes: readonly string[];
   readonly railOpen: boolean;
   /** The width of the open rail, in pixels. The rail clamps it where it draws it. */

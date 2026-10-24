@@ -210,10 +210,14 @@ export const ABorrowedPositionNamesItsParent: Story = {
   },
 };
 
-export const TheAffiliationAndTheSourceDayShow: Story = {
+export const TheAffiliationLinksItsDefinitionAndTheSourceDayShows: Story = {
   args: { dossier: readBorrower() },
   play: async ({ canvas }) => {
     await expect(canvas.getByText(/Affiliation: Hostile/)).toHaveTextContent('not a legal finding');
+    await expect(canvas.getByRole('link', { name: 'Definition' })).toHaveAttribute(
+      'href',
+      '/glossary#hostile',
+    );
     await expect(canvas.getByText(/Newest source read on/)).toHaveTextContent('2026-07-30');
   },
 };

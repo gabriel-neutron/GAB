@@ -1,7 +1,6 @@
 import { chainView, type Card } from '@gab/release/chain-card';
 import { chainFlows } from '@gab/release/chain-flows';
 import { chainMapData } from '@gab/release/chain-map-data';
-import { mapFeatures } from '@gab/release/map-features';
 import type { SiteManifest } from '@gab/release/site-manifest';
 import type { SiteRelease } from '@gab/release/site-release';
 import { stagedGeojson } from '@gab/release/staged-geojson';
@@ -13,8 +12,6 @@ import countries from '@gab/proposal/countries.json?raw';
 import { positions, type Position } from '@gab/proposal/geometry-positions';
 import { outsideRussia } from '@gab/proposal/outside-russia';
 import { z } from 'zod';
-
-import { typeCounts, type TypeCount } from './type-counts';
 
 const outside = outsideRussia(countries);
 
@@ -61,20 +58,9 @@ export interface ExitInfo {
   readonly inReview: boolean;
 }
 
-/** One line of the list of the entities. */
-export interface EntityRow {
-  readonly id: string;
-  readonly label: string;
-  readonly type: string;
-  readonly stage: string;
-  readonly geometry: string;
-}
-
 /** The counts that the page says in words. */
 export interface GlobeCounts {
   readonly entities: number;
-  /** Each type of the record: how many entities it holds, and how many the map draws. */
-  readonly byType: readonly TypeCount[];
   readonly arcs: number;
   readonly arcsInReview: number;
   readonly arcsWithVolume: number;
@@ -99,7 +85,6 @@ export interface GlobeData {
   readonly stages: ReadonlyMap<string, StageKey | null>;
   readonly arcInfo: Readonly<Record<string, ArcInfo>>;
   readonly exitInfo: Readonly<Record<string, ExitInfo>>;
-  readonly rows: readonly EntityRow[];
   readonly counts: GlobeCounts;
   /** The positions of each entity, arc and exit point, by identifier. The camera frames them. */
   readonly places: ReadonlyMap<string, readonly Position[]>;
@@ -113,8 +98,6 @@ export function globeData(release: SiteRelease): GlobeData {
   const flows = chainFlows(release, view.stages, outside);
   const mapData = chainMapData(flows);
   const entities = entityCollection.parse(JSON.parse(stagedGeojson(release.geojson, flows.stages)));
-  const stageLabel = (id: string): string =>
-    STAGES.find((one) => one.key === flows.stages.get(id))?.label ?? '';
 
   const arcInfo: Record<string, ArcInfo> = {};
   for (const [index, arc] of flows.arcs.entries()) {
@@ -156,16 +139,8 @@ export function globeData(release: SiteRelease): GlobeData {
     stages: flows.stages,
     arcInfo,
     exitInfo,
-    rows: mapFeatures(release.geojson).map((one) => ({
-      id: one.id,
-      label: one.label,
-      type: one.type,
-      stage: stageLabel(one.id),
-      geometry: one.geometry,
-    })),
     counts: {
       entities: entities.features.length,
-      byType: typeCounts(release.entities, mapFeatures(release.geojson)),
       arcs: flows.arcs.length,
       arcsInReview: flows.arcs.filter((one) => one.inReview).length,
       arcsWithVolume: flows.arcs.filter((one) => one.volume !== null).length,

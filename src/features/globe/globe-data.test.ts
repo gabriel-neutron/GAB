@@ -5,10 +5,10 @@ import { globeData } from './globe-data';
 
 const data = globeData(FIXTURE_RELEASE.chain);
 
-test('each entity with a position is on the list, with its stage and its card', () => {
-  expect(data.rows.map((one) => one.id)).toStrictEqual(data.entities.features.map((one) => one.id));
-  expect(data.rows.find((one) => one.id === CHAIN.FIELD)?.stage).toBe('Fields');
-  expect(Object.keys(data.cards).sort()).toStrictEqual(data.rows.map((one) => one.id).sort());
+test('each entity with a position has a card', () => {
+  expect(Object.keys(data.cards).sort()).toStrictEqual(
+    data.entities.features.map((one) => one.id).sort(),
+  );
 });
 
 test('the staged entity carries the key and the hue of its stage', () => {
@@ -38,7 +38,7 @@ test('the six steps cover the chain, and the counts say what the page says', () 
 });
 
 test('the places hold each entity, link and placed exit point', () => {
-  for (const one of data.rows) expect(data.places.has(one.id)).toBe(true);
+  for (const one of data.entities.features) expect(data.places.has(one.id)).toBe(true);
   for (const one of data.arcs.features) expect(data.places.has(one.properties.id)).toBe(true);
   for (const one of data.exits.features) expect(data.places.has(one.properties.id)).toBe(true);
 });
@@ -46,14 +46,5 @@ test('the places hold each entity, link and placed exit point', () => {
 test('the fixed release gives a globe whose counts follow its files', () => {
   const plain = globeData(FIXTURE_RELEASE.plain);
   expect(plain.counts.arcs).toBe(plain.arcs.features.length);
-  expect(plain.rows.length).toBe(plain.entities.features.length);
   expect(plain.counts.arcs).toBeLessThan(data.counts.arcs);
-});
-
-test('the counts of each type add up to the entities of the release and to those on the map', () => {
-  const { byType } = data.counts;
-  expect(byType.reduce((sum, one) => sum + one.total, 0)).toBe(
-    FIXTURE_RELEASE.chain.entities.length,
-  );
-  expect(byType.reduce((sum, one) => sum + one.onMap, 0)).toBe(data.counts.entities);
 });

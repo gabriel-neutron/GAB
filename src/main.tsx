@@ -13,7 +13,7 @@ if (container === null) throw new Error('The element #root is absent from index.
 void probeWriter();
 
 // The first read of the record starts here too. A read that finds the service down loads the
-// release, which sets the footer on a page that reads no record. A fault shows on the page that
+// release, which sets the release note on a page that reads no record. A fault shows on the page that
 // needs the record, so it is not shown twice.
 loadCorpus().catch(() => undefined);
 
