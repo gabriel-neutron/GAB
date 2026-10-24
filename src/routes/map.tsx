@@ -1,7 +1,6 @@
 import { createFileRoute, stripSearchParams } from '@tanstack/react-router';
-import { useCallback, type ReactNode } from 'react';
+import { useCallback, useMemo, type ReactNode } from 'react';
 
-import { readDossier, readRelation } from '@/features/detail/dossier';
 import { RelationSidebar, Sidebar } from '@/features/detail/sidebar';
 import { ArcCard, ExitCard } from '@/features/globe/link-card';
 import type { Target } from '@/features/globe/globe-store';
@@ -13,6 +12,8 @@ import { loadEntityTypes } from '@/shared/read/vocabulary';
 import { ReleaseAbsent } from '@/shared/read/release-files';
 import { loadRelease } from '@/shared/read/release-record';
 import type { SiteRelease } from '@gab/release/site-release';
+
+import { mapCard, type MapRead } from './-map-card';
 
 export interface MapSearch {
   /** The entity the reader selected. An empty string is the normal state of the map. */
@@ -67,31 +68,14 @@ function MapRoute() {
   const navigate = Route.useNavigate();
   const { data, corpus, types } = Route.useLoaderData();
 
-  // The same panels as the graph: `Sidebar` for an entity and `RelationSidebar` for a link that is
-  // a relation of the record. An exit point is computed by the release and is no record, so it
-  // keeps its own card, and so does a link that the record does not hold.
-  const cardOf = (target: Target): ReactNode => {
-    if (target.kind === 'exit') {
-      const exit = data?.exitInfo[target.id];
-      return exit === undefined ? null : <ExitCard exit={exit} />;
-    }
-    if (target.kind === 'arc') {
-      const relation = corpus === null ? null : readRelation(corpus, target.id);
-      if (relation !== null) return <RelationSidebar relation={relation} showOn="graph" />;
-      const arc = data?.arcInfo[target.id];
-      return arc === undefined ? null : <ArcCard arc={arc} />;
-    }
-    const dossier =
-      corpus === null || types === null ? null : readDossier(corpus, target.id, types, []);
-    return dossier === null ? (
-      <p aria-label="Detail" className="p-2">
-        An entity is selected, and the read holds 0 records for it. The map draws it, and the detail
-        read does not carry it.
-      </p>
-    ) : (
-      <Sidebar dossier={dossier} showOn="graph" />
-    );
-  };
+  // One value for one read, so the card below reads the record again only when the read changes.
+  const read = useMemo(
+    () => (corpus === null || types === null ? null : { corpus, types }),
+    [corpus, types],
+  );
+  const cardOf = (target: Target): ReactNode => (
+    <MapTargetCard target={target} data={data} read={read} />
+  );
 
   // `replace: true`: a walk over twenty points would otherwise need twenty presses of the back
   // button to leave the map. It must be the same function at each render, because it is a prop of
@@ -123,4 +107,43 @@ function MapRoute() {
       onMode={handleMode}
     />
   );
+}
+
+interface MapTargetCardProps {
+  readonly target: Target;
+  readonly data: GlobeData | null;
+  readonly read: MapRead | null;
+}
+
+// The read walks the whole corpus, and the card renders at each change of the map store.
+function MapTargetCard({ target, data, read }: MapTargetCardProps) {
+  const card = useMemo(
+    () => (data === null ? null : mapCard(target, data, read)),
+    [target, data, read],
+  );
+  switch (card?.kind) {
+    case 'entity':
+      return <Sidebar dossier={card.dossier} showOn="graph" />;
+    case 'relation':
+      return <RelationSidebar relation={card.relation} showOn="graph" />;
+    case 'arc':
+      return <ArcCard arc={card.arc} />;
+    case 'exit':
+      return <ExitCard exit={card.exit} />;
+    case 'no-read':
+      return (
+        <p aria-label="Detail" className="p-2">
+          The detail read did not load, so the card of this entity cannot show.
+        </p>
+      );
+    case 'no-record':
+      return (
+        <p aria-label="Detail" className="p-2">
+          An entity is selected, and the read holds 0 records for it. The map draws it, and the
+          detail read does not carry it.
+        </p>
+      );
+    default:
+      return null;
+  }
 }

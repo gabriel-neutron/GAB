@@ -23,7 +23,6 @@ const isWorkspace = (value: unknown): value is MapWorkspace =>
 export const readMapWorkspace = (): MapWorkspace =>
   readWorkspace(FEATURE, isWorkspace, DEFAULT_MAP_WORKSPACE);
 
-/** Two related exports: the read and the write of one stored record. */
 export function patchMapWorkspace(patch: Partial<MapWorkspace>): MapWorkspace {
   const next = { ...readMapWorkspace(), ...patch };
   writeWorkspace(FEATURE, next);

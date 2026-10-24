@@ -105,9 +105,15 @@ export function Globe({ data, entity, cardOf, onSelect, mode, onMode }: GlobePro
         case 'resize-rail':
           setStored(patchMapWorkspace({ railWidth: next.width }));
           return;
-        case 'switch-type':
+        case 'switch-type': {
+          // A point that is off the map is not selected, as on the graph.
+          const chosen = selectedEntity(store.get());
+          if (!next.on && chosen !== null && data.cards[chosen]?.type === next.type) {
+            store.select(null);
+          }
           store.setTypeShown(next.type, next.on);
           return;
+        }
         case 'show-every-type':
           store.showEveryType();
           return;
@@ -120,7 +126,7 @@ export function Globe({ data, entity, cardOf, onSelect, mode, onMode }: GlobePro
           return;
       }
     },
-    [narrow, store],
+    [data, narrow, store],
   );
 
   const reach = (id: string): void => {
@@ -136,7 +142,9 @@ export function Globe({ data, entity, cardOf, onSelect, mode, onMode }: GlobePro
     <div className="globe-workspace">
       <div
         onKeyDown={(event) => {
-          if (event.key === 'Escape') setDrawerOpen(false);
+          if (event.key !== 'Escape' || !drawerOpen) return;
+          setDrawerOpen(false);
+          typesButton.current?.focus();
         }}
         className={cn(
           'globe-surface grid min-h-0 flex-1 bg-background text-foreground',
@@ -170,6 +178,7 @@ export function Globe({ data, entity, cardOf, onSelect, mode, onMode }: GlobePro
                 ref={typesButton}
                 type="button"
                 aria-expanded={drawerOpen}
+                aria-controls="map-rail"
                 onClick={() => {
                   setDrawerOpen(true);
                 }}
@@ -194,6 +203,7 @@ export function Globe({ data, entity, cardOf, onSelect, mode, onMode }: GlobePro
             first on a wide screen, as on the graph. The globe mode has no rail. */}
         {animated ? null : (
           <div
+            id="map-rail"
             className={cn(
               'min-h-0 overflow-hidden border-border md:col-start-1 md:row-start-1 md:border-r',
               'max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-20 max-md:w-72',

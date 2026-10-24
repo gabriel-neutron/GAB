@@ -10,7 +10,9 @@ const base = { hiddenTypes: [], openTypes: [], open: true, width: 256 };
 test('each type of a point has one row, and the rows count every point', () => {
   const { rail } = mapRail(data, base);
   const total = rail.types.reduce((sum, row) => sum + row.count, 0);
-  expect(total).toBe(data.entities.features.filter((one) => one.id in data.cards).length);
+  expect(total).toBe(
+    new Set(data.entities.features.filter((one) => one.id in data.cards).map((one) => one.id)).size,
+  );
   expect(rail.types.every((row) => row.on && !row.open)).toBe(true);
 });
 

@@ -64,7 +64,7 @@ hue means the stage and nothing else.
   an entity, so the strip counts the rings in the exit stage. "No stage" stands apart, because it is
   not a step.
 - **The selection on the graph.** The selected node has a ring. Its direct neighbours are in full
-  colour, larger, and named. The neighbours at two steps are in full colour. Each other node stays
+  colour, larger, and named. The neighbours at two steps are fainter. Each other node stays
   on the canvas, dimmed. The camera moves to the node and its direct neighbours.
 - **The marker meter.** When the cap cuts markers, a small bar on the graph shows the part that is
   drawn and the number that is not. It has the shape and the colour of a marker, so it needs no

@@ -14,7 +14,7 @@ import { foldEveryUnit } from '@/shared/unit-folds';
 
 import { createDashedArrowProgram } from './dashed-edge-program';
 import { FARTHEST_RATIO, NEAREST_RATIO, restorableCamera } from './camera-bounds';
-import { hopDistances } from './hop-distance';
+import { edgeRing, hopDistances } from './hop-distance';
 import {
   buildGraphModel,
   dimmedColour,
@@ -106,6 +106,10 @@ const NAME_CLASS =
 // A neighbour one hop from the selection draws this much larger than its own size. Origin:
 // invented. It must read as larger, and it must not cover the nodes around it.
 const NEAR_SIZE = 1.8;
+
+// A selection never takes the camera nearer than this ratio, so a node with no neighbour keeps
+// the graph around it in view. Origin: invented, a quarter of the whole picture.
+const SELECT_RATIO = 0.25;
 
 // The dim keeps this much of the colour. A node out of the two rings of a selection stays on the
 // canvas as a trace, so the rings stand out at a glance. Origin: tuned on a screen against the
@@ -346,19 +350,16 @@ export function mountGraph(
     for (const node of passes) {
       if (hopOf.size === 0 || hopOf.has(node)) litNodes.add(node);
     }
-    // A relation of the walk joins two nodes one hop apart, or the two ends of a selected
-    // relation. A relation inside one ring is not a step of the walk, so it dims.
     model.graph.forEachEdge((edge, _attrs, source, target) => {
       if (!litNodes.has(source) || !litNodes.has(target) || !typeShown(edge)) return;
       if (hopOf.size === 0) {
         litEdges.add(edge);
         return;
       }
-      const one = hopOf.get(source) ?? 0;
-      const two = hopOf.get(target) ?? 0;
-      if (Math.abs(one - two) !== 1 && one + two !== 0) return;
+      const ring = edgeRing(hopOf.get(source) ?? 0, hopOf.get(target) ?? 0);
+      if (ring === 'dim') return;
       litEdges.add(edge);
-      if (one + two === 3) faintEdges.add(edge);
+      if (ring === 'faint') faintEdges.add(edge);
     });
 
     counts = countShown(model.graph, passes, hiddenRelations);
@@ -658,7 +659,7 @@ export function mountGraph(
   };
 
   /** Fits the camera to the nodes, and never nearer than the bound of the camera. */
-  const fitCamera = (ids: Iterable<string>): void => {
+  const fitCamera = (ids: Iterable<string>, nearest = NEAREST_RATIO): void => {
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
@@ -675,7 +676,7 @@ export function mountGraph(
     // At a ratio of 1 the stored picture fills the shorter side of the canvas, so the longer side
     // shows the ratio times the aspect.
     const needed = Math.max(maxY - minY, (maxX - minX) / aspectNow()) * FIT_MARGIN;
-    const ratio = Math.min(FARTHEST_RATIO, Math.max(NEAREST_RATIO, needed));
+    const ratio = Math.min(FARTHEST_RATIO, Math.max(nearest, needed));
     moveCamera({ x: (minX + maxX) / 2, y: (minY + maxY) / 2, ratio });
   };
 
@@ -790,7 +791,7 @@ export function mountGraph(
       sigma.resize();
       if (fitAtFirstSize) {
         fitAtFirstSize = false;
-        fitCamera(nearOf());
+        fitCamera(nearOf(), SELECT_RATIO);
       }
       sigma.refresh();
     }
@@ -820,7 +821,7 @@ export function mountGraph(
     const next: GraphSelection = { kind: 'entity', id };
     reveal(next);
     settle(next);
-    fitCamera(nearOf());
+    fitCamera(nearOf(), SELECT_RATIO);
   };
 
   // The picking layer of Sigma answers with a dimmed node as well, so the guard is in the call.

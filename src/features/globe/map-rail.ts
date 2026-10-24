@@ -26,9 +26,12 @@ interface MapRail {
  * a count for each type, and the names of each open type. */
 export function mapRail(data: GlobeData, state: MapRailState): MapRail {
   const byType = new Map<string, MapName[]>();
+  // A release can hold two features for one entity, such as a point and an area.
+  const seen = new Set<string>();
   for (const one of data.entities.features) {
     const card = data.cards[one.id];
-    if (card === undefined) continue;
+    if (card === undefined || seen.has(one.id)) continue;
+    seen.add(one.id);
     const held = byType.get(card.type) ?? [];
     held.push({ id: one.id, label: card.label });
     byType.set(card.type, held);
@@ -55,6 +58,8 @@ export function mapRail(data: GlobeData, state: MapRailState): MapRail {
     };
   });
 
+  // shortcut: an open list draws every name of its type. Fold it as the graph does when a type
+  // holds thousands of points.
   const lists = new Map<string, readonly MapName[]>();
   for (const type of state.openTypes) {
     const list = byType.get(type);

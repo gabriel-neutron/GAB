@@ -1,7 +1,7 @@
 import { MultiDirectedGraph } from 'graphology';
 import { describe, expect, it } from 'vitest';
 
-import { hopDistances } from './hop-distance';
+import { edgeRing, hopDistances } from './hop-distance';
 import type { EdgeAttrs, NodeAttrs } from './model';
 
 const node: NodeAttrs = {
@@ -64,5 +64,20 @@ describe('the hop distance of a selection', () => {
 
   it('gives nothing for a seed that is not in the graph', () => {
     expect(hopDistances(graph, ['z'], every, typeOn).size).toBe(0);
+  });
+});
+
+describe('the ring of a relation', () => {
+  it('lights a step from the selection, and fades a step from the first ring to the second', () => {
+    expect(edgeRing(0, 1)).toBe('lit');
+    expect(edgeRing(1, 0)).toBe('lit');
+    expect(edgeRing(1, 2)).toBe('faint');
+    expect(edgeRing(0, 0)).toBe('lit');
+  });
+
+  it('dims a relation inside one ring, or one that skips a ring', () => {
+    expect(edgeRing(1, 1)).toBe('dim');
+    expect(edgeRing(2, 2)).toBe('dim');
+    expect(edgeRing(0, 2)).toBe('dim');
   });
 });

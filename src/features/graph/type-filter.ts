@@ -16,8 +16,8 @@ export function hiddenAfterSwitch(
 }
 
 /** The one rule of what the canvas draws: a node passes unless its type is switched off, or it
- * stands on the ring and the switch for the ring is off. The selection, the focus and the lists
- * all read this rule, so a node that is not drawn is never selected or made a centre. */
+ * stands on the ring and the switch for the ring is off. The selection and the lists both read
+ * this rule, so a node that is not drawn is never selected. */
 export const isShown = (
   node: { readonly entityType: string; readonly unplaced: boolean },
   hiddenTypes: ReadonlySet<string>,

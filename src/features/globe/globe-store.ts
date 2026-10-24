@@ -42,7 +42,7 @@ export interface GlobeStore {
   readonly choose: (choices: readonly Choice[]) => void;
   readonly setProduct: (product: ProductKey | 'all') => void;
   readonly setStep: (key: string | null) => void;
-  /** Draws or hides the points of one entity type. A hidden type ends a selection of its kind. */
+  /** Draws or hides the points of one entity type. */
   readonly setTypeShown: (type: string, on: boolean) => void;
   readonly showEveryType: () => void;
   /** A stage of the legend, or null for every stage. It ends the step in view. */
