@@ -454,6 +454,7 @@ export function mountMap({
       if (colour === undefined) continue;
       const point = at(entity);
       const stageColour = chain.stageColour.get(entity.id);
+      const symbolImage = imageOf(entity);
       features.push({
         type: 'Feature',
         id: entity.fid,
@@ -466,7 +467,7 @@ export function mountMap({
           colour,
           inherited: entity.parentId !== null,
           ...(stageColour === undefined ? {} : { stageColour }),
-          ...(imageOf(entity) === null ? {} : { symbolImage: imageOf(entity) ?? '' }),
+          ...(symbolImage === null ? {} : { symbolImage }),
         },
       });
     }

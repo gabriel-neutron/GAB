@@ -269,7 +269,7 @@ export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
     await document.fonts.ready;
 
     // The rail opens at the width the caller stored.
-    const rail = canvas.getByRole('complementary', { name: 'Layers' });
+    const rail = canvas.getByRole('complementary', { name: 'Types' });
     await expect(Math.round(rail.getBoundingClientRect().width)).toBe(240);
 
     const vessel = canvas.getByRole('button', { name: /^vessel/, pressed: true });
@@ -389,7 +389,7 @@ export const AMapSelectionShowsItsRowOnScreen: Story = {
     const row = canvasElement.querySelector<HTMLElement>(`[data-id="${marked.id}"]`);
     if (row === null) throw new Error('The index draws no row for the selected unit.');
     await expect(row).toHaveAttribute('aria-current', 'true');
-    await expect(onScreen(row, canvas.getByRole('complementary', { name: 'Layers' }))).toBe(true);
+    await expect(onScreen(row, canvas.getByRole('complementary', { name: 'Types' }))).toBe(true);
   },
 };
 
@@ -409,7 +409,7 @@ export const AFoldedGroupOpensForAMapSelection: Story = {
       const row = canvasElement.querySelector<HTMLElement>(`[data-id="${next.id}"]`);
       if (row === null) throw new Error('The index draws no row for the selected unit.');
       await expect(row).toHaveAttribute('aria-current', 'true');
-      await expect(onScreen(row, canvas.getByRole('complementary', { name: 'Layers' }))).toBe(true);
+      await expect(onScreen(row, canvas.getByRole('complementary', { name: 'Types' }))).toBe(true);
     });
   },
 };
@@ -426,7 +426,7 @@ export const AClickInTheRailDoesNotMoveTheList: Story = {
   play: async ({ canvas, canvasElement }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Open the vessel list' }));
 
-    const box = canvas.getByRole('complementary', { name: 'Layers' });
+    const box = canvas.getByRole('complementary', { name: 'Types' });
     const row = rowsIn(canvasElement).find((held) => onScreen(held, box));
     if (row === undefined) throw new Error('The open list draws no row on the screen.');
     const scroller = row.closest('[data-facet]')?.parentElement ?? null;
