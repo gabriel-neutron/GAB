@@ -28,14 +28,10 @@ const PAGE_LINK = cn(
 // the selection is read from the address bar. The router calls each function again at the click.
 // shortcut: the `href` of the graph is computed at render and can name an older selection, which
 // a click with a modifier opens; read the selection from a store of the graph when one exists.
-// The map holds the entity only: a relation of the graph is not carried to it.
 // The render at the release has no address bar, and no selection is carried there.
 const addressBar = (): { readonly pathname: string; readonly search: string } =>
   typeof window === 'undefined' ? { pathname: '', search: '' } : window.location;
-const TO_MAP = () => ({
-  entity: carriedSelection(addressBar().pathname, addressBar().search, '/map').entity,
-  relation: '',
-});
+const TO_MAP = () => carriedSelection(addressBar().pathname, addressBar().search, '/map');
 const ABOUT = ['/method', '/glossary', '/help'];
 const DATA = ['/search', '/downloads', '/entity/', '/relation/', '/claim/'];
 const TO_GRAPH = () => carriedSelection(addressBar().pathname, addressBar().search, '/graph');

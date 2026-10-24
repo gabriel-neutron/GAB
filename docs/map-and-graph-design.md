@@ -43,8 +43,8 @@ hue means the stage and nothing else.
   projection of the same map, and no second map exists. The ground is the plan or the satellite,
   with a date for the satellite.
 - **One card for the two pages.** The card of an entity and of a relation on the map is the card of
-  the graph. No page builds a second card. A point that is not a record of the corpus, such as an
-  exit point, keeps a small card of its own.
+  the graph. No page builds a second card. An exit point is a ring and not a record, so it has
+  no card.
 - **A selection on the graph keeps every node.** A click on a node puts its neighbours forward and
   never removes the other nodes. The graph has no focus view that draws one node and its
   neighbours alone.

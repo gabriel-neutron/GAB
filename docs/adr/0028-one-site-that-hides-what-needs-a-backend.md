@@ -7,7 +7,7 @@
 ## Context
 
 ADR 0020 made two surfaces: a static site that each release writes (the critical nodes table, the
-globe map, a page for each entity and each claim, the downloads, the method) and the application
+map, a page for each entity and each claim, the downloads, the method) and the application
 of the operator (the map, the graph, the search, the review). The two surfaces have two sets of
 pages, two maps and two navigations, and a visitor sees only one of them.
 
@@ -21,7 +21,7 @@ that need a backend show only when the backend answers.
 - An entity identifier that holds a `/` is not a valid entity address for now, because the route
   of an entity takes one segment. The release refuses it.
 - The public site is the application. There is no second set of pages. Each page of the static
-  site becomes a page of the application: the critical nodes table, the globe map with the chain,
+  site becomes a page of the application: the critical nodes table, the map with the chain,
   the downloads, the method, the page of a claim and the page of a vessel.
 - Each permanent address of ADR 0020 stays the same: an entity, a claim and a relation at the path
   of their identifier, a vessel at the path of its IMO number. A citation that a reader made before
@@ -60,9 +60,8 @@ that need a backend show only when the backend answers.
   at the release, so the text of a page opens with no script, a search engine reads it, and a
   static host with no rewrite rule serves it.
 - The rules of ADR 0020 that are not about two surfaces stay true: the site is a pure function of
-  the files of the release, it holds a copy of each file byte for byte, and the basemap is a file of
-  the site. No page sends a request for data to a third host, with one exception: the map (see
-  below).
+  the files of the release, and it holds a copy of each file byte for byte. No page sends a
+  request for data to a third host, with one exception: the map (see above).
 - The rule of ADR 0020 that the site holds no script except the map script ends. A page at a
   permanent address keeps its text with no script, and the other pages need one.
 

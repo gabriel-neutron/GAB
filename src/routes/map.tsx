@@ -145,6 +145,7 @@ function MapRoute() {
   // misses a relation chosen from the list of the panel, which has no call into the canvas.
   const close = useCallback(() => {
     map.current?.select(null);
+    setUnplaced(null);
     void navigate({ search: { entity: '', relation: '' }, replace: true });
   }, [navigate]);
 

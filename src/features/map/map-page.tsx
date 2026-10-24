@@ -131,7 +131,13 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation, mapRef }: M
             projection={projection}
             map={mapRef}
             frame={narrow ? { ...railFrame, open: true } : railFrame}
-            onFrameChange={narrow ? () => undefined : changeRailFrame}
+            onFrameChange={
+              narrow
+                ? (next) => {
+                    setDrawerOpen(next.open);
+                  }
+                : changeRailFrame
+            }
             onReach={() => {
               setDrawerOpen(false);
             }}
