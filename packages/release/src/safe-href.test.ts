@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { safeHref } from './safe-href';
+import { safeHref } from './safe-href.ts';
 
 describe('the link target of a source address', () => {
   it('keeps a web address and a mail address', () => {

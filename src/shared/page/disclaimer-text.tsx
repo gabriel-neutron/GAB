@@ -1,6 +1,6 @@
 import { disclaimerBlocks, type DisclaimerRun } from '@gab/release/disclaimer-blocks';
 import { READING_LINK } from './reading-link';
-import { safeHref } from './safe-href';
+import { safeHref } from '@gab/release/safe-href';
 
 function Runs({ runs }: { readonly runs: readonly DisclaimerRun[] }) {
   return runs.map((run, index) => {

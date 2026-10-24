@@ -3,7 +3,7 @@ import { strikeCount } from '@gab/release/event-lane';
 import { EmptyState } from '@/shared/page/empty-state';
 import { PageSection } from '@/shared/page/page-section';
 import { READING_LINK } from '@/shared/page/reading-link';
-import { safeHref } from '@/shared/page/safe-href';
+import { safeHref } from '@gab/release/safe-href';
 
 import { entityHref } from './address';
 import type { EventLine } from './release-facts';

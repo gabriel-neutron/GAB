@@ -1,6 +1,6 @@
 import type { SiteRelease } from '@gab/release/site-release';
 
-import { safeHref } from '@/shared/page/safe-href';
+import { safeHref } from '@gab/release/safe-href';
 
 import type { FigureRow } from './figure-rows';
 
