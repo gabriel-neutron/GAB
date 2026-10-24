@@ -38,6 +38,7 @@ const scripted = (
   steps: readonly Claim[],
   completing: () => unknown = () => ({ status: 'done' }),
   asking: () => { rows: unknown[] } = () => EMPTY,
+  held = false,
 ) => {
   const stop = new AbortController();
   const seen: string[] = [];
@@ -60,8 +61,24 @@ const scripted = (
       return Promise.resolve(EMPTY);
     },
   };
+  // The dedicated connection of the lock. It answers the try of the lock by the flag `held`.
+  const released: number[] = [];
+  const lock = () =>
+    Promise.resolve({
+      query: (text: string) => {
+        seen.push(text);
+        return Promise.resolve({ rows: [{ locked: !held }] });
+      },
+      release: () => {
+        released.push(seen.length);
+        return Promise.resolve();
+      },
+    });
   const count = (word: string): number => seen.filter((text) => text.includes(word)).length;
-  return { db, stop, count };
+  const takeAway = (): void => {
+    held = true;
+  };
+  return { db, lock, stop, count, seen, released, takeAway };
 };
 
 const agentOf = (run: (context: AgentContext) => Promise<AgentResult>): RunnerAgent => ({
@@ -78,11 +95,13 @@ const drive = async (
   run: (context: AgentContext) => Promise<AgentResult> = () => Promise.resolve({ refusals: [] }),
   completing?: () => unknown,
   asking?: () => { rows: unknown[] },
+  held?: boolean,
 ) => {
-  const fake = scripted(steps, completing, asking);
+  const fake = scripted(steps, completing, asking, held);
   const sleeps: number[] = [];
   const runner = await openRunner({
     db: fake.db,
+    lock: fake.lock,
     agents: [agentOf(run)],
     sleep: (ms) => {
       sleeps.push(ms);
@@ -177,5 +196,73 @@ describe('the runner and a fault of the database connection', () => {
     );
     await expect(ended).resolves.toBeUndefined();
     expect(fake.count('fail_job')).toBe(1);
+  });
+});
+
+describe('the runner and the lock that keeps one runner alive', () => {
+  it('starts as usual when the lock is free', async () => {
+    const { fake, ended } = await drive([() => EMPTY]);
+    await expect(ended).resolves.toBeUndefined();
+    // One try at the start, and one before the step.
+    expect(fake.count('pg_try_advisory_lock')).toBe(2);
+    expect(fake.seen.findIndex((text) => text.includes('pg_try_advisory_lock'))).toBeLessThan(
+      fake.seen.findIndex((text) => text.includes('requeue_running_jobs')),
+    );
+    expect(fake.count('claim_job')).toBe(1);
+  });
+
+  it('refuses to start when another runner holds the lock, and sends no requeue', async () => {
+    const fake = scripted([() => EMPTY], undefined, undefined, true);
+    await expect(
+      openRunner({
+        db: fake.db,
+        lock: fake.lock,
+        agents: [agentOf(() => Promise.resolve({ refusals: [] }))],
+        sleep: () => Promise.resolve(),
+        now: () => 0,
+      }),
+    ).rejects.toThrow('Another runner is running');
+    expect(fake.count('requeue_running_jobs')).toBe(0);
+    expect(fake.count('claim_job')).toBe(0);
+    expect(fake.released).toHaveLength(1);
+  });
+
+  it('takes the lock again before the requeue after a lost connection', async () => {
+    const { fake, ended } = await drive([
+      () => {
+        throw fault('ECONNRESET');
+      },
+      () => EMPTY,
+    ]);
+    await expect(ended).resolves.toBeUndefined();
+    // One try at the start, one before the first step, and one after the lost connection.
+    expect(fake.count('pg_try_advisory_lock')).toBe(3);
+    const at = (word: string): number[] =>
+      fake.seen.flatMap((text, index) => (text.includes(word) ? [index] : []));
+    const secondLock = at('pg_try_advisory_lock').at(-1);
+    const [, secondRequeue] = at('requeue_running_jobs');
+    expect(secondLock).toBeLessThan(secondRequeue ?? -1);
+    expect(fake.released).toHaveLength(1);
+  });
+
+  it('stops when the lock was lost with no sign and another runner holds it', async () => {
+    const holder: { take?: () => void } = {};
+    const fake = scripted([
+      () => {
+        holder.take?.();
+        return EMPTY;
+      },
+      () => EMPTY,
+    ]);
+    holder.take = fake.takeAway;
+    const runner = await openRunner({
+      db: fake.db,
+      lock: fake.lock,
+      agents: [agentOf(() => Promise.resolve({ refusals: [] }))],
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    });
+    await expect(runner.run(fake.stop.signal)).rejects.toThrow('Another runner took the lock');
+    expect(fake.count('claim_job')).toBe(1);
   });
 });

@@ -64,11 +64,10 @@ export const Route = createFileRoute('/entity/$id')({
     // `$id` is an opaque string: no schema is settled, so this file states no form for it. The one
     // exception above is a blank segment, which names no entity under any schema. The read API
     // answers the whole corpus, and the router holds this page back until that answer arrives.
-    const [corpus, types, decided] = await Promise.all([
-      loadCorpus(),
-      loadEntityTypes(),
-      loadDecidedActs(),
-    ]);
+    const [corpus, types] = await Promise.all([loadCorpus(), loadEntityTypes()]);
+    // Only the act that promoted this entity is read, so the entity is found first.
+    const promotedFrom = corpus.entities.find((one) => one.id === params.id)?.promotedFrom;
+    const decided = promotedFrom === undefined ? [] : await loadDecidedActs(promotedFrom);
     const dossier = readDossier(corpus, params.id, types, decided);
     // The release only adds to a live page, so a release that cannot be read costs the page its
     // extra lines and nothing more. In release mode the corpus read has failed already.

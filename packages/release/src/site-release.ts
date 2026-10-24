@@ -1,4 +1,4 @@
-import { readAlignmentRows, type AlignmentRow } from './alignment-rows.ts';
+import { ids, readAlignmentRows, type AlignmentRow } from './alignment-rows.ts';
 import { readReleaseRows } from './release-table.ts';
 import { SiteReleaseFault } from './site-release-fault.ts';
 import { claimPage, entityPage, relationPage, SitePathFault, vesselPage } from './site-paths.ts';
@@ -194,8 +194,6 @@ const amountOf = (path: string, text: string): number => {
     throw new SiteReleaseFault(`${path}: "${text}" is not a number`);
   return amount;
 };
-
-const ids = (text: string): readonly string[] => text.split(' ').filter((one) => one !== '');
 
 /** Reads one release from its files: the file manifest and each file that it lists. A file that
  * the manifest lists and that is missing, or a file that does not have its columns, stops the

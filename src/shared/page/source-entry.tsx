@@ -3,7 +3,7 @@ import { useId } from 'react';
 import { EmptyState } from './empty-state';
 import { KeyValue } from './key-value';
 import { READING_LINK } from './reading-link';
-import { safeHref } from './safe-href';
+import { safeHref } from '@gab/release/safe-href';
 
 export interface SourcePassage {
   readonly page: string;

@@ -1,6 +1,7 @@
-// The acts the record has promoted, read once and held as the corpus is held. The corpus reads
-// the pending acts only, so this is the one read of the history. A corpus refresh forgets it. The
-// public read shows no rejected act, so the history holds the promoted acts only.
+// The accepted act that an entity names as its promotion, read once for each act and held as the
+// corpus is held. The corpus reads the pending acts only. The history of acts only grows, so the
+// read asks for the one act by its identifier and never for the whole history. A corpus refresh
+// forgets every held act. The public read shows no rejected act, so only a promoted act is read.
 
 import { z } from 'zod';
 
@@ -67,14 +68,37 @@ function lineOf(row: unknown): DecidedLine {
   }
 }
 
-async function read(): Promise<readonly DecidedLine[]> {
-  const accepted = await readRows('proposal', { status: 'accepted' });
+// The list holds the one act that the identifier names, or nothing where the record has no such
+// accepted act.
+async function read(actId: string): Promise<readonly DecidedLine[]> {
+  const accepted = await readRows('proposal', { id: actId, status: 'accepted' });
   return accepted.map((row) => lineOf(row));
 }
 
-// A release holds no history of acts, so the page shows the record without a decision line.
-const memory = readOnce(() => readFrom(read, () => Promise.resolve([])));
+function memoryFor(actId: string) {
+  return readOnce(() =>
+    readFrom(
+      () => read(actId),
+      () => Promise.resolve([]),
+    ),
+  );
+}
 
-export const loadDecidedActs = memory.load;
+const held = new Map<string, ReturnType<typeof memoryFor>>();
 
-export const forgetDecidedActs = memory.forget;
+function memoryOf(actId: string): ReturnType<typeof memoryFor> {
+  const own = held.get(actId);
+  if (own !== undefined) return own;
+  // A release holds no history of acts, so the page shows the record without a decision line.
+  const made = memoryFor(actId);
+  held.set(actId, made);
+  return made;
+}
+
+/** The accepted act with this identifier: the `promotedFrom` of an entity. */
+export const loadDecidedActs = (actId: string): Promise<readonly DecidedLine[]> =>
+  memoryOf(actId).load();
+
+export const forgetDecidedActs = (): void => {
+  held.clear();
+};

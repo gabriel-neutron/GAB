@@ -1,4 +1,5 @@
 import { FileX } from 'lucide-react';
+import { safeHref } from '@gab/release/safe-href';
 import { useId, useState } from 'react';
 
 import { ExtractionControl } from '@/shared/extraction-control';
@@ -14,6 +15,9 @@ export interface SourceCardProps {
 
 const LINK = 'min-w-0 text-primary underline underline-offset-2 break-all';
 
+// An address that safeHref refuses is text, so it has no link colour and no underline.
+const TEXT = 'min-w-0 break-all';
+
 const NAME = 'w-16 shrink-0 text-label break-words';
 
 export function SourceCard({ source }: SourceCardProps) {
@@ -21,6 +25,9 @@ export function SourceCard({ source }: SourceCardProps) {
   const [addressOpen, setAddressOpen] = useState<boolean>(false);
   const addressId = useId();
   const panelId = useId();
+  // An address comes from an untrusted page. A refused address stays text.
+  const href = source.uri === null ? null : safeHref(source.uri);
+  const shown = addressOpen ? source.uri : (source.uriShort ?? source.uri);
   const factCount = source.backs.length + source.holdsUp.length;
 
   return (
@@ -49,18 +56,24 @@ export function SourceCard({ source }: SourceCardProps) {
           </span>
         ) : (
           <>
-            <a
-              id={addressId}
-              href={source.uri}
-              aria-label={
-                addressOpen
-                  ? `Open the original document at ${source.uri}`
-                  : `${source.uriShort ?? source.uri}, open the original document`
-              }
-              className={cn(LINK, addressOpen ? 'basis-full' : 'flex-1')}
-            >
-              {addressOpen ? source.uri : (source.uriShort ?? source.uri)}
-            </a>
+            {href === null ? (
+              <span id={addressId} className={cn(TEXT, addressOpen ? 'basis-full' : 'flex-1')}>
+                {shown}
+              </span>
+            ) : (
+              <a
+                id={addressId}
+                href={href}
+                aria-label={
+                  addressOpen
+                    ? `Open the original document at ${source.uri}`
+                    : `${source.uriShort ?? source.uri}, open the original document`
+                }
+                className={cn(LINK, addressOpen ? 'basis-full' : 'flex-1')}
+              >
+                {shown}
+              </a>
+            )}
             {source.uriCut ? (
               <Button
                 type="button"

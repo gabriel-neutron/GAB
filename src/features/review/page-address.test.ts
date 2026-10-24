@@ -22,3 +22,8 @@ it('opens any other document at its address', () => {
 it('gives no address for a document that has none', () => {
   expect(pageAddress({ ...PDF, uri: null, mime: 'text/plain' }, 1)).toBeNull();
 });
+
+it('gives no address for a script address, in a PDF or in any other document', () => {
+  expect(pageAddress({ ...PDF, uri: 'javascript:alert(1)' }, 14)).toBeNull();
+  expect(pageAddress({ ...PDF, uri: 'javascript:alert(1)', mime: 'text/html' }, 3)).toBeNull();
+});

@@ -20,8 +20,9 @@ environment.
 - **The application** can put an object and list the bucket. It cannot read back, delete or change
   a policy. A raw file is evidence, so the application never removes or replaces one. A put of the same bytes on the key of their hash, with the type of the row, restores a lost copy and changes no evidence.
 - **The research role** can only put an object.
-- **The reader** can only read an object. Only the writer holds it, to show a stored image to the
-  operator on the review page. The application account still cannot read back.
+- **The reader** can only read an object. The writer holds it, to show a stored image to the
+  operator on the review page. Two worker commands hold it too, to read a stored file again. The
+  application account still cannot read back.
 - **A test account** has full access to the bucket, for the tests only.
 - **No anonymous access** exists.
 
