@@ -183,6 +183,22 @@ export const AHandlerAddressIsNoLink: Story = {
   },
 };
 
+/** An address of a script is not a link. The card shows it as text. */
+export const AScriptAddressIsShownAsText: Story = {
+  args: {
+    source: {
+      ...REPORT,
+      uri: 'javascript:alert(1)',
+      uriShort: 'javascript:alert(1)',
+      uriCut: false,
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByRole('link')).toBeNull();
+    await expect(canvas.getByText('javascript:alert(1)')).toBeVisible();
+  },
+};
+
 /** A card names the document, and it draws no rating and no word of a score. */
 export const ACardDrawsNoRating: Story = {
   play: async ({ canvas }) => {

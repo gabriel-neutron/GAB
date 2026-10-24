@@ -182,6 +182,29 @@ export const AFileWithNoAddressIsNoLink: Story = {
   },
 };
 
+/** An address of a script is not a link. The name of the document stays, as text. */
+export const AScriptAddressOfADocumentIsShownAsText: Story = {
+  args: {
+    unit: (() => {
+      const disputed = unitOf(SAMPLE_UNITS.disputed);
+      return disputed === null
+        ? null
+        : {
+            ...disputed,
+            documents: disputed.documents.map((document) => ({
+              ...document,
+              uri: 'javascript:alert(1)',
+            })),
+          };
+    })(),
+  },
+  play: async ({ canvas, canvasElement }) => {
+    await expect(canvasElement.querySelector('[data-document]')).not.toBeNull();
+    await expect(canvas.queryByRole('link', { name: /javascript:/u })).toBeNull();
+    await expect(canvasElement.querySelector('[data-document] a[href^="javascript:"]')).toBeNull();
+  },
+};
+
 /** A line of the v1 import is folded: the record of the unit, and in it the lines of the other
  * units around it. */
 export const AV1LineFoldsTheLinesOfOtherUnits: Story = {
