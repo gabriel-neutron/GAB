@@ -5,12 +5,26 @@ import { CHAIN, FIXTURE_RELEASE } from './fixture-release';
 import { GlobeCard } from './globe-card';
 import { globeData } from './globe-data';
 import { createGlobeStore, type GlobeStore, type Target } from './globe-store';
+import { ArcCard, ExitCard } from './link-card';
 
 const data = globeData(FIXTURE_RELEASE.chain);
 
-// The ports of the fixed release: one is a proposal, and it has sanctions.
-const PRIMORSK = '0a1f0000-0000-4000-8000-000000000004';
+// A link of the fixed release that is a proposal.
 const IN_REVIEW_ARC = '0a1f0000-0000-4000-8000-000000000032';
+
+// The route gives the panel of the graph for an entity. A story mounts no record, so a heading
+// with the label stands in its place, and the card of a link and of an exit is the real one.
+const cardOf = (target: Target) => {
+  if (target.kind === 'arc') {
+    const arc = data.arcInfo[target.id];
+    return arc === undefined ? null : <ArcCard arc={arc} />;
+  }
+  if (target.kind === 'exit') {
+    const exit = data.exitInfo[target.id];
+    return exit === undefined ? null : <ExitCard exit={exit} />;
+  }
+  return <h2>{data.cards[target.id]?.label}</h2>;
+};
 
 const storeOn = (target: Target | null): GlobeStore => {
   const store = createGlobeStore({ steps: ['extraction'], still: false, entity: null });
@@ -20,7 +34,7 @@ const storeOn = (target: Target | null): GlobeStore => {
 
 const meta = {
   component: GlobeCard,
-  args: { data, store: storeOn(null), entityHref: (id: string) => `/entity/${id}` },
+  args: { cardOf, store: storeOn(null) },
   parameters: { layout: 'padded' },
   render: (args) => (
     <div className="dark w-80 border border-border bg-background text-foreground">
@@ -39,23 +53,11 @@ export const DrawsNoCardWhenNothingIsSelected: Story = {
   },
 };
 
-export const TheCardOfAnEntityLinksToItsPageAndNamesItsStage: Story = {
+/** The card shows what the route gives for the target. */
+export const TheCardShowsWhatTheRouteGivesForTheTarget: Story = {
   args: { store: storeOn({ kind: 'entity', id: CHAIN.FIELD }) },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole('link', { name: 'Test field' })).toHaveAttribute(
-      'href',
-      `/entity/${CHAIN.FIELD}`,
-    );
-    await expect(canvas.getByText('Facility, Fields')).toBeVisible();
-  },
-};
-
-export const AnEntityInReviewSaysSoInWordsAndShowsItsSanctions: Story = {
-  args: { store: storeOn({ kind: 'entity', id: PRIMORSK }) },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByText(/no rule and no person checked this entity/u)).toBeVisible();
-    await expect(canvas.getByRole('heading', { name: 'Sanctions' })).toBeVisible();
-    await expect(canvas.getByText('EU')).toBeVisible();
+    await expect(canvas.getByRole('heading', { name: 'Test field' })).toBeVisible();
   },
 };
 

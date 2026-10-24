@@ -327,7 +327,23 @@ export function mountGlobe({ container, data, store, flat }: MountOptions): Glob
     });
   };
 
+  // The ids of the points of the types the rail switched off. A new list comes only from a switch.
+  let hiddenFor: GlobeState['hiddenTypes'] | null = null;
+  const hideTypes = (types: GlobeState['hiddenTypes']): void => {
+    if (types === hiddenFor) return;
+    hiddenFor = types;
+    const off = new Set(types);
+    const ids = data.entities.features
+      .filter((one) => off.has(data.cards[one.id]?.type ?? ''))
+      .map((one) => one.id);
+    const shown: FilterSpecification = ['!', ['in', ['get', 'id'], ['literal', ids]]];
+    map.setFilter('points', ['all', ['==', ['geometry-type'], 'Point'], shown]);
+    map.setFilter('lines', ['all', ['==', ['geometry-type'], 'LineString'], shown]);
+    map.setFilter('areas', ['all', ['==', ['geometry-type'], 'Polygon'], shown]);
+  };
+
   const draw = (state: GlobeState): void => {
+    hideTypes(state.hiddenTypes);
     const entity = selectedEntity(state);
     const highlight = highlightOf(data, {
       entity,
@@ -422,7 +438,8 @@ export function mountGlobe({ container, data, store, flat }: MountOptions): Glob
       !state.moving ||
       state.panel !== before.panel ||
       state.step !== before.step ||
-      state.product !== before.product
+      state.product !== before.product ||
+      state.hiddenTypes !== before.hiddenTypes
     )
       stopSpin();
     whenLoaded(() => {

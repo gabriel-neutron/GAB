@@ -181,8 +181,6 @@
   position: relative;
 }
 .globe-surface {
+  position: relative;
   grid-template-rows: minmax(0, 1fr);
-}
-.globe-surface:not(:has([aria-label='Card of the selection']:not(.hidden))) {
-  grid-template-columns: minmax(0, 1fr);
 }

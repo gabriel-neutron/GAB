@@ -18,7 +18,6 @@ import { useScreenQuery } from '@/shared/screen-query';
 import { SelectionPanel } from '@/shared/selection-panel';
 
 import { mountGraph, type GraphController, type GraphView } from './controller';
-import { FocusBar } from './focus-bar';
 import { MarkerMeter } from './marker-meter';
 import type { GraphModel } from './model';
 import { deriveRailRows } from './rail-rows';
@@ -148,7 +147,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     askPanelFocus();
     const handle = controller.current;
     if (handle === null) return;
-    handle.focusOn(id);
+    handle.select(id);
   }, []);
 
   // Departure: the controller drops a selection the filter excludes, so the header offers none.
@@ -230,18 +229,6 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     setStep((held) => stepShowingWholeList(held, type));
   }, []);
 
-  const showWholeGraph = useCallback(() => {
-    controller.current?.showWholeGraph();
-  }, []);
-
-  const setHops = useCallback((hops: 1 | 2) => {
-    controller.current?.setHops(hops);
-  }, []);
-
-  const expand = useCallback(() => {
-    controller.current?.expand();
-  }, []);
-
   const openUnit = useCallback((unit: string, open: boolean) => {
     controller.current?.setUnitOpen(unit, open);
   }, []);
@@ -263,15 +250,6 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
       >
         <div className={cn('graph-canvas relative min-h-0 min-w-0 md:col-start-2 md:row-start-1')}>
           <GraphCanvas canvas={canvas} overlay={overlay} />
-          {snapshot?.view.mode === 'focus' ? (
-            <FocusBar
-              hops={snapshot.view.hops}
-              expandable={snapshot.view.expandable}
-              onHops={setHops}
-              onExpand={expand}
-              onBack={showWholeGraph}
-            />
-          ) : null}
           {snapshot === null ? null : (
             <MarkerMeter drawn={snapshot.view.markersDrawn} hidden={snapshot.view.markersOverCap} />
           )}
