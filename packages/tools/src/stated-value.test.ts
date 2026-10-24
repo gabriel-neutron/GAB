@@ -580,8 +580,15 @@ test.each([
   ['69о03\'11" с.ш., 58о09\'07.5" в.д.', 58.15208, 69.05306],
   // The compact degrees, minutes and seconds of a port register.
   ['RUVAR-0001 690311N 0580907E', 58.15194, 69.05306],
+  // The nautical form: degrees and minutes with a hyphen, and the hemisphere letter after them.
+  ['Position 60-20.02N 028-07.50E', 28.125, 60.33367],
+  ['Position 60-20,02 N, 28-07-30 E', 28.125, 60.33367],
 ])('the passage %j states the point', (passage, lon, lat) => {
   expect(unstatedValues(placeAt(lon, lat), [passage])).toStrictEqual([]);
+});
+
+test('a hyphen range with no hemisphere letter is no nautical position', () => {
+  expect(unstatedValues(placeAt(28, 60), ['Berths 60-20 and 28-07 are free.']).length).toBe(2);
 });
 
 test.each(['60 of 20 berths, 28 of 42 tanks', 'el 60º aniversario, 28o año', '5o, 60o, 28о.'])(
