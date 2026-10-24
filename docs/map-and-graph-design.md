@@ -7,25 +7,18 @@ Read this before you change the map page or the graph page.
 A reader looks, and does not read. Each screen must make sense with its text hidden. Position,
 size, colour, shape and a small chart come first. A word names a thing or confirms it.
 
-## The audit
+## The faults the redesign answers
 
-An audit looked at each page at three widths and in the two themes. The automatic WCAG check
-found no fault on the pages. The faults were in the two canvases, where the check cannot look:
+An audit in October 2026 looked at each page at three widths and in the two themes. The faults
+were in the two canvases, where an automatic WCAG check cannot look:
 
-- **Map.** The legend was a line of dots and words. It did not show the order of the chain, and it
-  did not show how many points each stage holds. The links had the colour of their product, and
-  these colours were near the colours of the stages. So the reader could not tell a line from a
-  point by its colour.
-- **Map.** The animated globe and the flat map shared one page and one switch. A change of mode
-  kept a part of the old state and lost the rest.
-- **Map and graph.** Each page built its own card of the selection: its own close control, its own
-  Escape key and its own phone sheet.
-- **Graph.** The canvas draws a limited number of markers for pending evidence. It did not tell the
-  reader that it left markers out.
-
-The faults that stay open are in issue 914. The largest ones are the colours of the map
-in the light theme, which have too little contrast on the land, and the overview of the graph,
-which shows no structure when the layout gives no position.
+- The legend of the map did not show the order of the chain or the size of each stage.
+- The colours of the products were near the colours of the stages, so the reader could not tell a
+  link from a point by its colour.
+- The flat map and the animated globe shared one switch, and a change of mode kept a part of the
+  old state.
+- The map and the graph each built their own card of the selection.
+- The graph left markers out with no sign to the reader.
 
 ## The decision for the map
 
@@ -49,8 +42,8 @@ hue means the stage and nothing else.
   it gives the focus back to the control that opened it.
 - **Two modes of the map.** "Map" shows each point, flat and still. "Globe" plays the chain. The
   address holds the mode, so the back button undoes a change, and a link can open the globe. Each
-  mode starts a new globe, so no state goes from one mode to the other. The selection is in the
-  address, so it stays. Each mode has one legend: the stage strip for the map, the steps of the
+  mode starts a new globe, so no state goes from one mode to the other. The selected entity is in
+  the address, so it stays. Each mode has one legend: the stage strip for the map, the steps of the
   chain for the globe.
 - **The stage strip.** It replaces the old legend. An exit point is a ring and not an entity, so the
   strip counts the rings in the exit stage. "No stage" stands apart, because it is not a step.

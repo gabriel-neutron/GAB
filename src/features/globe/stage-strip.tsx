@@ -14,7 +14,8 @@ export interface StageStripProps {
 
 const STAGE_BUTTON = cn(
   'flex h-full min-w-28 shrink-0 flex-col justify-center gap-1 px-1.5 py-1 text-left text-small/4',
-  'transition-colors duration-100 hover:bg-muted aria-pressed:bg-muted',
+  'border-b-2 border-transparent transition-colors duration-100 hover:bg-muted',
+  'aria-pressed:border-foreground aria-pressed:bg-muted',
   'outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
 );
 
@@ -47,7 +48,7 @@ export function StageStrip({ store, rows }: StageStripProps) {
         <span className="sr-only">: </span>
       </span>
       <span className="flex items-center gap-1.5">
-        <span aria-hidden="true" className="h-1 flex-1 bg-muted">
+        <span aria-hidden="true" className="h-1 flex-1 bg-border">
           <span
             className="block h-full"
             style={{ width: `${String((one.count / most) * 100)}%`, backgroundColor: one.colour }}

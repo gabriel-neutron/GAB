@@ -122,7 +122,7 @@ export function createGlobeStore({ steps, still, entity }: GlobeStoreOptions): G
     },
     setProduct: (product) => {
       stopPlay();
-      set({ product, panel: { kind: 'none' } });
+      set({ product, stage: null, panel: { kind: 'none' } });
     },
     setStep: (key) => {
       stopPlay();

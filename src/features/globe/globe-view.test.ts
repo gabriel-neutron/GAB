@@ -120,3 +120,15 @@ test('an asset wins over a stage', () => {
   });
   expect(asked?.assets.has(CHAIN.PIPELINE)).toBe(true);
 });
+
+test('the exit stage puts every exit ring forward', () => {
+  const asked = highlightOf(data, { stage: 'exit', entity: null, step: null, product: 'all' });
+  expect([...(asked?.exits ?? [])].sort()).toEqual(Object.keys(data.exitInfo).sort());
+});
+
+test('the stage "none" puts forward the points that have no stage, and only them', () => {
+  const asked = highlightOf(data, { stage: 'none', entity: null, step: null, product: 'all' });
+  const none = [...data.stages].filter(([, key]) => key === null).map(([id]) => id);
+  expect([...(asked?.assets ?? [])].sort()).toEqual(none.sort());
+  expect(asked?.assets.has(CHAIN.FIELD)).toBe(false);
+});

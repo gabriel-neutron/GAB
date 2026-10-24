@@ -55,7 +55,7 @@ export function GlobeCard({ store, data, entityHref }: GlobeCardProps) {
           ? null
           : panel.kind === 'target'
             ? `${panel.target.kind}:${panel.target.id}`
-            : `choice:${String(panel.choices.length)}`
+            : `choice:${panel.choices.map((one) => one.target.id).join(',')}`
       }
       onClose={() => {
         store.select(null);

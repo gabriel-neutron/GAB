@@ -36,7 +36,7 @@ const MAP_PALETTES = {
     land: '#e0e5e7',
     coast: '#a0aaaf',
     selected: '#20282d',
-    link: '#7d878c',
+    link: '#6f797e',
     sky: '#f5f7f8',
     horizon: '#e0e5e7',
   },
