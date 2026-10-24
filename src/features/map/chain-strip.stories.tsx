@@ -5,7 +5,7 @@ import { corpus } from '@/shared/committed-fixture/corpus';
 import { entityTypes } from '@/shared/committed-fixture/entity-types';
 
 import { chainView } from './chain-view';
-import { ChainStrip } from './chain-strip';
+import { ChainStrip, stepCounts } from './chain-strip';
 import { project } from './projection';
 
 const { steps } = chainView(corpus, project(corpus, entityTypes));
@@ -42,7 +42,7 @@ export const TheChainModeGivesTheSixStepsWithTheirCounts: Story = {
   play: async ({ args, canvas }) => {
     const strip = canvas.getByRole('list', { name: 'Steps of the chain' });
     for (const one of steps)
-      await expect(strip).toHaveTextContent(`${one.label}: ${String(one.count)}`);
+      await expect(strip).toHaveTextContent(`${one.label}: ${stepCounts(one)}`);
     await userEvent.click(canvas.getByRole('button', { name: /^Refinery/u }));
     await expect(args.onAct).toHaveBeenCalledWith({ kind: 'show-step', key: 'refinery' });
   },
