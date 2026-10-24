@@ -297,6 +297,21 @@ const renderWithServer = async (
   }
 };
 
+// External constraint: on Windows a scanner or an indexer can hold a file of a folder with
+// thousands of files, and the rename then fails with EPERM or EBUSY for a few seconds.
+const renameWithRetry = async (from: string, to: string): Promise<void> => {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await rename(from, to);
+      return;
+    } catch (cause) {
+      const code = cause instanceof Error && 'code' in cause ? cause.code : undefined;
+      if (attempt === 30 || (code !== 'EPERM' && code !== 'EBUSY')) throw cause;
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+};
+
 const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promise<void> => {
   if (await exists(siteFolder))
     throw new SiteFolderExists(
@@ -343,7 +358,7 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
       await mkdir(dirname(file), { recursive: true });
       await writeFile(file, text);
     }
-    await rename(partial, siteFolder);
+    await renameWithRetry(partial, siteFolder);
   } catch (fault) {
     await rm(partial, { recursive: true, force: true });
     throw fault;

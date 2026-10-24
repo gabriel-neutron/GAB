@@ -1,6 +1,7 @@
 import { releaseDay } from '@gab/release/release-day';
 import type { SiteRelease } from '@gab/release/site-release';
 
+import { Button } from '@/shared/ui/button';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
 import { ReadingPage } from '@/shared/page/reading-page';
@@ -80,6 +81,20 @@ export function ExportsPage({ text, release, figures, links }: ExportsPageProps)
         <article className="publication-document">
           <PageHeader
             title={text.title}
+            actions={
+              // The page prints as it reads, so the browser makes the PDF.
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="print:hidden"
+                onClick={() => {
+                  window.print();
+                }}
+              >
+                Print or save as PDF
+              </Button>
+            }
             detail={
               release === null
                 ? undefined
