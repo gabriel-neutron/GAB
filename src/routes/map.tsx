@@ -1,8 +1,7 @@
 import { createFileRoute, stripSearchParams } from '@tanstack/react-router';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 
 import { entityHref } from '@/features/detail/address';
-import { keepFirstVisitClosed, readFirstVisitClosed } from '@/features/globe/first-visit';
 import { globeData, type GlobeData } from '@/features/globe/globe-data';
 import { GlobePage } from '@/features/globe/globe-page';
 import { loadCorpus } from '@/shared/read/corpus';
@@ -32,7 +31,6 @@ export const Route = createFileRoute('/map')({
   search: { middlewares: [stripSearchParams({ entity: '' })] },
 
   loader: async () => {
-    // The record is read first, so the footer knows whether the service answers.
     await loadCorpus().catch(() => undefined);
     try {
       const release = await loadRelease();
@@ -64,20 +62,12 @@ function MapRoute() {
     [navigate],
   );
 
-  // The answer is stored, so the card does not return after a reload. State holds it for the view.
-  const [firstVisitClosed, setFirstVisitClosed] = useState(readFirstVisitClosed);
-  const handleCloseFirstVisit = useCallback(() => {
-    keepFirstVisitClosed();
-    setFirstVisitClosed(true);
-  }, []);
-
   return (
     <GlobePage
       data={data}
       entity={entity}
       entityHref={(id) => entityHref(id, null)}
       onSelect={handleSelect}
-      onCloseFirstVisit={firstVisitClosed ? null : handleCloseFirstVisit}
     />
   );
 }

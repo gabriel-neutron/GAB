@@ -1,12 +1,15 @@
 import type { ReactNode } from 'react';
 
+import { cn } from '@/shared/lib/utils';
+
 export interface ReadingPageProps {
   readonly children: ReactNode;
+  readonly wide?: boolean;
 }
 
 /** The ground of a public page: one column that scrolls on the reading scale. A work surface
  * (the map, the graph, the review) takes the full frame and does not use it. */
-export function ReadingPage({ children }: ReadingPageProps) {
+export function ReadingPage({ children, wide = false }: ReadingPageProps) {
   // External constraint: the frame holds a fixed height, so the page scrolls inside it and the
   // header stays on the screen.
   return (
@@ -16,7 +19,12 @@ export function ReadingPage({ children }: ReadingPageProps) {
       tabIndex={0}
       className="h-full overflow-y-auto overscroll-contain outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50"
     >
-      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 pt-4 pb-8 text-body">
+      <div
+        className={cn(
+          'mx-auto flex flex-col gap-4 px-4 pt-4 pb-8 text-body',
+          wide ? 'w-full' : 'max-w-5xl',
+        )}
+      >
         {children}
       </div>
     </div>

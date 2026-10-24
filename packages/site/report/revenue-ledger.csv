@@ -1,13 +1,13 @@
 serie,periode,valeur,unite,document,page,extrait_ou_cellule,note
-Classe A1,2025,38.0,%,doc_bbed2abfe670,1,somme classe A1 / total 193.2 Md EUR,Scénario de base du registre.
-Classe A2,2025,19.6,%,doc_bbed2abfe670,1,somme classe A2 / total 193.2 Md EUR,Scénario de base du registre.
-Classe B,2025,25.0,%,doc_bbed2abfe670,1,somme classe B / total 193.2 Md EUR,Scénario de base du registre.
-Classe C,2025,9.2,%,doc_bbed2abfe670,1,somme classe C / total 193.2 Md EUR,Scénario de base du registre.
-Classe D,2025,0.0,%,doc_bbed2abfe670,1,somme classe D / total 193.2 Md EUR,Scénario de base du registre.
-Classe E,2025,8.2,%,doc_bbed2abfe670,1,somme classe E / total 193.2 Md EUR,Scénario de base du registre.
-Classe A1,2026-S1,36.4,%,doc_bbed2abfe670,1,somme classe A1 / total 105.7 Md EUR,Scénario de base du registre.
-Classe A2,2026-S1,4.0,%,doc_bbed2abfe670,1,somme classe A2 / total 105.7 Md EUR,Scénario de base du registre.
-Classe B,2026-S1,7.5,%,doc_bbed2abfe670,1,somme classe B / total 105.7 Md EUR,Scénario de base du registre.
-Classe C,2026-S1,28.4,%,doc_bbed2abfe670,1,somme classe C / total 105.7 Md EUR,Scénario de base du registre.
-Classe D,2026-S1,0.0,%,doc_bbed2abfe670,1,somme classe D / total 105.7 Md EUR,Scénario de base du registre.
-Classe E,2026-S1,23.7,%,doc_bbed2abfe670,1,somme classe E / total 105.7 Md EUR,Scénario de base du registre.
+Class A1,2025,38.0,%,doc_bbed2abfe670,1,sum of class A1 / total 193.2 bn EUR,Base scenario of the ledger.
+Class A2,2025,19.6,%,doc_bbed2abfe670,1,sum of class A2 / total 193.2 bn EUR,Base scenario of the ledger.
+Class B,2025,25.0,%,doc_bbed2abfe670,1,sum of class B / total 193.2 bn EUR,Base scenario of the ledger.
+Class C,2025,9.2,%,doc_bbed2abfe670,1,sum of class C / total 193.2 bn EUR,Base scenario of the ledger.
+Class D,2025,0.0,%,doc_bbed2abfe670,1,sum of class D / total 193.2 bn EUR,Base scenario of the ledger.
+Class E,2025,8.2,%,doc_bbed2abfe670,1,sum of class E / total 193.2 bn EUR,Base scenario of the ledger.
+Class A1,2026-H1,36.4,%,doc_bbed2abfe670,1,sum of class A1 / total 105.7 bn EUR,Base scenario of the ledger.
+Class A2,2026-H1,4.0,%,doc_bbed2abfe670,1,sum of class A2 / total 105.7 bn EUR,Base scenario of the ledger.
+Class B,2026-H1,7.5,%,doc_bbed2abfe670,1,sum of class B / total 105.7 bn EUR,Base scenario of the ledger.
+Class C,2026-H1,28.4,%,doc_bbed2abfe670,1,sum of class C / total 105.7 bn EUR,Base scenario of the ledger.
+Class D,2026-H1,0.0,%,doc_bbed2abfe670,1,sum of class D / total 105.7 bn EUR,Base scenario of the ledger.
+Class E,2026-H1,23.7,%,doc_bbed2abfe670,1,sum of class E / total 105.7 bn EUR,Base scenario of the ledger.

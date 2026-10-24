@@ -5,7 +5,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { expect } from 'storybook/test';
+import { expect, within } from 'storybook/test';
 
 import { SiteHeader, type SiteHeaderProps } from './site-header';
 
@@ -14,7 +14,7 @@ const inRouter = (props: SiteHeaderProps) => (
   <RouterProvider
     router={createRouter({
       routeTree: createRootRoute({ component: () => <SiteHeader {...props} /> }),
-      history: createMemoryHistory({ initialEntries: ['/data'] }),
+      history: createMemoryHistory({ initialEntries: ['/search'] }),
     })}
   />
 );
@@ -34,7 +34,7 @@ export const WithNoWriterNoPageThatWritesIsListed: Story = {
   play: async ({ canvas }) => {
     const nav = await canvas.findByRole('navigation', { name: 'Pages of the site' });
     await expect(nav).toBeVisible();
-    await expect(canvas.getByRole('link', { name: 'Overview' })).toBeVisible();
+    await expect(within(nav).getByRole('link', { name: /^Report$/ })).toBeVisible();
     await expect(canvas.getByRole('link', { name: 'Data' })).toBeVisible();
     await expect(canvas.queryByRole('link', { name: 'Review' })).toBeNull();
   },

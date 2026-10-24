@@ -10,7 +10,6 @@ import { loadReleaseOrNull } from '@/shared/read/release-record';
 // read service answers or not. The identifier is the path, so it can hold a `/`.
 export const Route = createFileRoute('/claim/$')({
   loader: async () => {
-    // The record is read first, so the footer knows whether the service answers.
     await loadCorpus().catch(() => undefined);
     return loadReleaseOrNull();
   },

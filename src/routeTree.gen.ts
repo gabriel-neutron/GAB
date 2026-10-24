@@ -10,12 +10,16 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as DataRouteImport } from './routes/data'
+import { Route as DownloadsRouteImport } from './routes/downloads'
+import { Route as ExportsRouteImport } from './routes/exports'
+import { Route as GlossaryRouteImport } from './routes/glossary'
 import { Route as GraphRouteImport } from './routes/graph'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as MapRouteImport } from './routes/map'
-import { Route as ReportRouteImport } from './routes/report'
+import { Route as MethodRouteImport } from './routes/method'
+import { Route as NodesRouteImport } from './routes/nodes'
 import { Route as ReviewRouteImport } from './routes/review'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as ClaimSplatRouteImport } from './routes/claim.$'
 import { Route as EntityIdRouteImport } from './routes/entity.$id'
 import { Route as RelationSplatRouteImport } from './routes/relation.$'
@@ -26,9 +30,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DataRoute = DataRouteImport.update({
-  id: '/data',
-  path: '/data',
+const DownloadsRoute = DownloadsRouteImport.update({
+  id: '/downloads',
+  path: '/downloads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExportsRoute = ExportsRouteImport.update({
+  id: '/exports',
+  path: '/exports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GlossaryRoute = GlossaryRouteImport.update({
+  id: '/glossary',
+  path: '/glossary',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GraphRoute = GraphRouteImport.update({
@@ -46,14 +60,24 @@ const MapRoute = MapRouteImport.update({
   path: '/map',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ReportRoute = ReportRouteImport.update({
-  id: '/report',
-  path: '/report',
+const MethodRoute = MethodRouteImport.update({
+  id: '/method',
+  path: '/method',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NodesRoute = NodesRouteImport.update({
+  id: '/nodes',
+  path: '/nodes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReviewRoute = ReviewRouteImport.update({
   id: '/review',
   path: '/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClaimSplatRoute = ClaimSplatRouteImport.update({
@@ -79,12 +103,16 @@ const VesselImoRoute = VesselImoRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/data': typeof DataRoute
+  '/downloads': typeof DownloadsRoute
+  '/exports': typeof ExportsRoute
+  '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
   '/help': typeof HelpRoute
   '/map': typeof MapRoute
-  '/report': typeof ReportRoute
+  '/method': typeof MethodRoute
+  '/nodes': typeof NodesRoute
   '/review': typeof ReviewRoute
+  '/search': typeof SearchRoute
   '/claim/$': typeof ClaimSplatRoute
   '/entity/$id': typeof EntityIdRoute
   '/relation/$': typeof RelationSplatRoute
@@ -92,12 +120,16 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/data': typeof DataRoute
+  '/downloads': typeof DownloadsRoute
+  '/exports': typeof ExportsRoute
+  '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
   '/help': typeof HelpRoute
   '/map': typeof MapRoute
-  '/report': typeof ReportRoute
+  '/method': typeof MethodRoute
+  '/nodes': typeof NodesRoute
   '/review': typeof ReviewRoute
+  '/search': typeof SearchRoute
   '/claim/$': typeof ClaimSplatRoute
   '/entity/$id': typeof EntityIdRoute
   '/relation/$': typeof RelationSplatRoute
@@ -106,12 +138,16 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/data': typeof DataRoute
+  '/downloads': typeof DownloadsRoute
+  '/exports': typeof ExportsRoute
+  '/glossary': typeof GlossaryRoute
   '/graph': typeof GraphRoute
   '/help': typeof HelpRoute
   '/map': typeof MapRoute
-  '/report': typeof ReportRoute
+  '/method': typeof MethodRoute
+  '/nodes': typeof NodesRoute
   '/review': typeof ReviewRoute
+  '/search': typeof SearchRoute
   '/claim/$': typeof ClaimSplatRoute
   '/entity/$id': typeof EntityIdRoute
   '/relation/$': typeof RelationSplatRoute
@@ -121,12 +157,16 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/data'
+    | '/downloads'
+    | '/exports'
+    | '/glossary'
     | '/graph'
     | '/help'
     | '/map'
-    | '/report'
+    | '/method'
+    | '/nodes'
     | '/review'
+    | '/search'
     | '/claim/$'
     | '/entity/$id'
     | '/relation/$'
@@ -134,12 +174,16 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/data'
+    | '/downloads'
+    | '/exports'
+    | '/glossary'
     | '/graph'
     | '/help'
     | '/map'
-    | '/report'
+    | '/method'
+    | '/nodes'
     | '/review'
+    | '/search'
     | '/claim/$'
     | '/entity/$id'
     | '/relation/$'
@@ -147,12 +191,16 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/data'
+    | '/downloads'
+    | '/exports'
+    | '/glossary'
     | '/graph'
     | '/help'
     | '/map'
-    | '/report'
+    | '/method'
+    | '/nodes'
     | '/review'
+    | '/search'
     | '/claim/$'
     | '/entity/$id'
     | '/relation/$'
@@ -161,12 +209,16 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DataRoute: typeof DataRoute
+  DownloadsRoute: typeof DownloadsRoute
+  ExportsRoute: typeof ExportsRoute
+  GlossaryRoute: typeof GlossaryRoute
   GraphRoute: typeof GraphRoute
   HelpRoute: typeof HelpRoute
   MapRoute: typeof MapRoute
-  ReportRoute: typeof ReportRoute
+  MethodRoute: typeof MethodRoute
+  NodesRoute: typeof NodesRoute
   ReviewRoute: typeof ReviewRoute
+  SearchRoute: typeof SearchRoute
   ClaimSplatRoute: typeof ClaimSplatRoute
   EntityIdRoute: typeof EntityIdRoute
   RelationSplatRoute: typeof RelationSplatRoute
@@ -182,11 +234,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/data': {
-      id: '/data'
-      path: '/data'
-      fullPath: '/data'
-      preLoaderRoute: typeof DataRouteImport
+    '/downloads': {
+      id: '/downloads'
+      path: '/downloads'
+      fullPath: '/downloads'
+      preLoaderRoute: typeof DownloadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/exports': {
+      id: '/exports'
+      path: '/exports'
+      fullPath: '/exports'
+      preLoaderRoute: typeof ExportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/glossary': {
+      id: '/glossary'
+      path: '/glossary'
+      fullPath: '/glossary'
+      preLoaderRoute: typeof GlossaryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/graph': {
@@ -210,11 +276,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MapRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/report': {
-      id: '/report'
-      path: '/report'
-      fullPath: '/report'
-      preLoaderRoute: typeof ReportRouteImport
+    '/method': {
+      id: '/method'
+      path: '/method'
+      fullPath: '/method'
+      preLoaderRoute: typeof MethodRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nodes': {
+      id: '/nodes'
+      path: '/nodes'
+      fullPath: '/nodes'
+      preLoaderRoute: typeof NodesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/review': {
@@ -222,6 +295,13 @@ declare module '@tanstack/react-router' {
       path: '/review'
       fullPath: '/review'
       preLoaderRoute: typeof ReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/claim/$': {
@@ -257,12 +337,16 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DataRoute: DataRoute,
+  DownloadsRoute: DownloadsRoute,
+  ExportsRoute: ExportsRoute,
+  GlossaryRoute: GlossaryRoute,
   GraphRoute: GraphRoute,
   HelpRoute: HelpRoute,
   MapRoute: MapRoute,
-  ReportRoute: ReportRoute,
+  MethodRoute: MethodRoute,
+  NodesRoute: NodesRoute,
   ReviewRoute: ReviewRoute,
+  SearchRoute: SearchRoute,
   ClaimSplatRoute: ClaimSplatRoute,
   EntityIdRoute: EntityIdRoute,
   RelationSplatRoute: RelationSplatRoute,

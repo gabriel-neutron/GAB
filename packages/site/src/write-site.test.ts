@@ -85,11 +85,14 @@ describe.each([
   test('the pages of the site have their text, and a title, outside any script', () => {
     const { page } = site();
     const expected: readonly (readonly [string, string, string])[] = [
-      ['index.html', 'The labels', 'GAB dataset: release overview'],
-      ['map/index.html', 'physical link', 'Map · GAB dataset'],
-      ['data/index.html', 'SHA-256 checksum', 'Data · GAB dataset'],
-      ['report/index.html', 'Les exportations russes', 'Report · GAB dataset'],
-      ['help/index.html', 'Relation types', 'Help · GAB dataset'],
+      ['index.html', 'Report', 'Report · GAB'],
+      ['nodes/index.html', 'The labels', 'GAB dataset: release overview'],
+      ['map/index.html', 'Map', 'Map · GAB dataset'],
+      ['downloads/index.html', 'SHA-256 checksum', 'Downloads · GAB dataset'],
+      ['method/index.html', 'What the labels mean', 'About · GAB dataset'],
+      ['exports/index.html', 'Russian exports', 'Exports · GAB dataset'],
+      ['glossary/index.html', 'point of view of the project', 'Glossary · GAB dataset'],
+      ['help/index.html', 'How the facts are checked', 'Help · GAB dataset'],
     ];
     for (const [path, words, title] of expected) {
       expect(textOf(page(path))).toContain(words);
@@ -99,25 +102,12 @@ describe.each([
     }
   });
 
-  test('a removed page sends the reader to the page that holds its content', () => {
-    const { page } = site();
-    for (const [folder, to] of [
-      ['search', 'data'],
-      ['downloads', 'data'],
-      ['method', 'data'],
-      ['glossary', 'help'],
-      ['exports', 'report'],
-    ] as const) {
-      const html = page(`${folder}/index.html`);
-      expect(html).toContain(`<meta http-equiv="refresh" content="0; url=/${to}/">`);
-      expect(html).toContain(`href="/${to}/"`);
-    }
-  });
-
-  test('the footer of a page gives the version of the release', () => {
+  test('the report gives the version of the release', () => {
     const { release, page } = site();
     const [year, month, day] = release.manifest.date.split('-');
-    expect(textOf(page('index.html'))).toContain(`Version of ${day}/${month}/${year}`);
+    expect(textOf(page('exports/index.html'))).toContain(
+      `From the release of ${day}/${month}/${year}`,
+    );
   });
 
   test('a merged entity opens a short page that links the survivor and sends the browser there', () => {
@@ -140,9 +130,9 @@ describe.each([
       );
   });
 
-  test('the graph opens the shell, with no text of a record', () => {
+  test('the graph and the search open the shell, with no text of a record', () => {
     const { release, page } = site();
-    for (const folder of ['graph']) {
+    for (const folder of ['graph', 'search']) {
       const html = page(`${folder}/index.html`);
       expect(html).toContain('<div id="root"></div>');
       expect(html).toContain('type="module"');
@@ -202,13 +192,13 @@ describe('a page that cannot be rendered', () => {
   );
 
   test(
-    'the report page holds its figures in the HTML when the report folder gives their files',
+    'the exports page holds its figures in the HTML when the report folder gives their files',
     async () => {
       const files = filesOf(join(FIXTURES, 'release'));
       const report = filesOf(join(FIXTURES, 'report'));
-      const page = { folder: 'report', kind: 'text' } as const;
+      const page = { folder: 'exports', kind: 'text' } as const;
       const rendered = await renderPages(files, [page], '/', report);
-      const text = textOf(rendered.get('report')?.html ?? '');
+      const text = textOf(rendered.get('exports')?.html ?? '');
       expect(text).toContain('Figure 2.');
       expect(text).toContain('Seller One');
       expect(text).not.toContain('is not on this site');

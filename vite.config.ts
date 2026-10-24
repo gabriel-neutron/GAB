@@ -3,7 +3,7 @@ import path from 'node:path';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
 import { openWithKey } from './tools/dev-open.ts';
 import { maplibreWorker } from './tools/maplibre-worker.ts';
@@ -21,6 +21,11 @@ const envText = (): string | undefined => {
 
 const reportDir = process.env['REPORT_DIR'];
 
+// Departure: the file .env of the operator can name the release too, so a plain `pnpm dev` serves
+// the files that the map needs. The shell variable wins.
+const releaseDir =
+  process.env['RELEASE_DIR'] ?? loadEnv('development', import.meta.dirname, '')['RELEASE_DIR'];
+
 export default defineConfig({
   plugins: [
     // External constraint: TanStack Router requires this plugin before the React plugin. The
@@ -30,7 +35,7 @@ export default defineConfig({
     tailwindcss(),
     // Departure: the release is the one input that the build takes from the environment, because
     // a release is a folder of the operator and not a file of the repository.
-    releaseFolder(process.env['RELEASE_DIR']),
+    releaseFolder(releaseDir),
     // An empty REPORT_DIR also takes the default, so the operator is not left with the root folder.
     reportFolder(
       reportDir === undefined || reportDir === ''
