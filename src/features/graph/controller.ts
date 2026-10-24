@@ -981,21 +981,11 @@ export function mountGraph(
     // that the picture and the address never state two different things.
     writeSelectionAddress(selection);
   }
-  // An entity in the address opens as a focus on it, and a relation opens the whole picture,
-  // because a relation has no centre. Nothing in the address opens the whole picture.
-  if (selection?.kind === 'entity') {
-    mode = 'focus';
-    focusCentre = selection.id;
-    arrange();
-  } else if (selection !== null) {
-    mode = 'whole';
-  }
+  // A selection in the address opens the whole picture with that selection lit.
   // The restore does not go through `settle`, so nothing announces it here. `onSelect` seeds
   // every listener with the selection of the moment, and no subscriber can arrive too late.
   recount();
   nameCanvas();
-  // The restored focus takes the place of the stored camera.
-  if (mode === 'focus') fitFocus();
 
   // The first render occurs inside the constructor of Sigma, so this listener never hears that
   // first frame. One refresh, after the listener exists, puts the ring and each marker up.
@@ -1061,7 +1051,13 @@ export function mountGraph(
     if (destroyed || !nodeConsidered(node)) return;
     const next: GraphSelection = { kind: 'entity', id: node };
     // A click inside a focus keeps the focus and moves the camera to the node and its neighbours.
-    // A click anywhere else makes the node the centre of a new focus.
+    // A click on the whole graph keeps the whole graph: the node and its neighbours are lit over
+    // the dimmed rest. Only the focus bar (`focusOn`) opens a focus.
+    if (mode === 'whole') {
+      reveal(next);
+      settle(next);
+      return;
+    }
     if (mode === 'focus' && drawnNodes.has(node)) {
       reveal(next);
       settle(next);

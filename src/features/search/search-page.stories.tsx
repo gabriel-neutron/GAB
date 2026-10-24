@@ -73,11 +73,11 @@ export const TypingIsAnnouncedToTheCaller: Story = {
   },
 };
 
-/** An empty field states what to do and how large the corpus is, and it draws no list. */
-export const AnEmptyFieldAsksForAName: Story = {
+/** An empty field draws no section and no list: the answers wait for a query. */
+export const AnEmptyFieldDrawsNoAnswer: Story = {
   args: answersFor(''),
   play: async ({ canvas }) => {
-    await expect(canvas.getAllByRole('status')[0]).toHaveTextContent('Type a part of a name.');
+    await expect(canvas.queryAllByRole('status')).toHaveLength(0);
     await expect(canvas.queryByRole('table', { name: 'Entity names' })).toBeNull();
   },
 };

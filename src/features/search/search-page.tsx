@@ -162,30 +162,36 @@ export function SearchPage({ query, answers, onQueryChange, hrefOf }: SearchPage
         </p>
       </div>
 
-      <PageSection title="Entity names">
-        <Answer
-          name="Entity names"
-          summary={nameSummaryOf(answers.name)}
-          columns={nameColumns}
-          rows={hitsOf(answers.name, (hit) => hit.entityId)}
-        />
-      </PageSection>
-      <PageSection title="Attribute values">
-        <Answer
-          name="Attribute values"
-          summary={attributeSummaryOf(answers.attribute)}
-          columns={attributeColumns}
-          rows={hitsOf(answers.attribute, (hit) => `${hit.entityId}:${hit.key}`)}
-        />
-      </PageSection>
-      <PageSection title="Documents">
-        <Answer
-          name="Documents"
-          summary={documentSummaryOf(answers.document)}
-          columns={documentColumns}
-          rows={hitsOf(answers.document, (hit) => hit.documentId)}
-        />
-      </PageSection>
+      {answers.name.kind === 'no-query' ? null : (
+        <PageSection title="Entity names">
+          <Answer
+            name="Entity names"
+            summary={nameSummaryOf(answers.name)}
+            columns={nameColumns}
+            rows={hitsOf(answers.name, (hit) => hit.entityId)}
+          />
+        </PageSection>
+      )}
+      {answers.attribute.kind === 'no-query' ? null : (
+        <PageSection title="Attribute values">
+          <Answer
+            name="Attribute values"
+            summary={attributeSummaryOf(answers.attribute)}
+            columns={attributeColumns}
+            rows={hitsOf(answers.attribute, (hit) => `${hit.entityId}:${hit.key}`)}
+          />
+        </PageSection>
+      )}
+      {answers.document.kind === 'no-query' ? null : (
+        <PageSection title="Documents">
+          <Answer
+            name="Documents"
+            summary={documentSummaryOf(answers.document)}
+            columns={documentColumns}
+            rows={hitsOf(answers.document, (hit) => hit.documentId)}
+          />
+        </PageSection>
+      )}
     </>
   );
 }
