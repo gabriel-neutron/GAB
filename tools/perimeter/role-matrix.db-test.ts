@@ -81,6 +81,7 @@ test('the role matrix of the doors', async () => {
       "public.put_document_text": "agent app research",
       "public.put_fetched_document": "agent research",
       "public.put_load_report": "agent",
+      "public.put_observations": "agent",
       "public.rating_context": "agent",
       "public.record_act_check": "agent",
       "public.record_lead_document": "agent",

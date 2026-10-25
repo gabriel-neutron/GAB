@@ -2,15 +2,17 @@ import { expect, test } from 'vitest';
 
 import {
   isLinkTable,
+  isObservationTable,
   mappingDraft,
   splitFaults,
   mappingPayload,
   missingColumns,
   vocabularyFaults,
+  type EntityRows,
   type MappingDraft,
 } from './mapping.ts';
 
-const DRAFT: MappingDraft = {
+const DRAFT: MappingDraft & { rows: EntityRows } = {
   table: 'list.csv',
   modality: 'enacts',
   rows: {
@@ -361,4 +363,70 @@ test('a split of a column with no GEM identifier is a fault', () => {
   // A column that the header lacks is a fault of missingColumns, and no table of rows is no proof.
   expect(splitFaults(draft, ['Name'], [['a']])).toEqual([]);
   expect(splitFaults(draft, header, [])).toHaveLength(1);
+});
+
+const OBSERVATIONS = {
+  table: 'nrg_ti_gasm',
+  modality: 'asserts',
+  publisher: 'Eurostat',
+  rows: {
+    measure: 'imports_natural_gas',
+    value: { column: 'OBS_VALUE' },
+    unit: { column: 'unit' },
+    period: { column: 'TIME_PERIOD', length: 'month' },
+    reporter: { column: 'geo', codes: 'eurostat' },
+    partner: { column: 'partner', codes: 'eurostat' },
+    product: { column: 'siec', system: 'siec' },
+    method: 'imports reported by the importer',
+    licence: 'eu-reuse',
+    flag: 'OBS_FLAG',
+  },
+  relations: [],
+};
+
+test('an observation table parses, and each row is one figure', () => {
+  const read = mappingDraft.safeParse(OBSERVATIONS);
+  expect(read.success).toBe(true);
+  if (!read.success) return;
+  expect(isObservationTable(read.data.rows)).toBe(true);
+  expect(isLinkTable(read.data.rows)).toBe(false);
+  expect(
+    missingColumns(read.data, ['geo', 'TIME_PERIOD', 'OBS_VALUE', 'unit', 'partner', 'siec']),
+  ).toStrictEqual([
+    'the column "OBS_FLAG" is not in the header. Use one of: geo, TIME_PERIOD, OBS_VALUE, unit, ' +
+      'partner, siec',
+  ]);
+});
+
+const REFUSED_OBSERVATIONS: readonly (readonly [string, unknown])[] = [
+  ['a relation of an entity', { ...OBSERVATIONS, relations: [DRAFT.relations[0]] }],
+  [
+    'a licence outside the closed list',
+    { ...OBSERVATIONS, rows: { ...OBSERVATIONS.rows, licence: 'free' } },
+  ],
+  [
+    'a period of a day',
+    {
+      ...OBSERVATIONS,
+      rows: { ...OBSERVATIONS.rows, period: { column: 'TIME_PERIOD', length: 'day' } },
+    },
+  ],
+  [
+    'a code list outside the list',
+    { ...OBSERVATIONS, rows: { ...OBSERVATIONS.rows, reporter: { column: 'geo', codes: 'm49' } } },
+  ],
+  ['no method', { ...OBSERVATIONS, rows: { ...OBSERVATIONS.rows, method: ' ' } }],
+];
+
+test.each(REFUSED_OBSERVATIONS)('an observation table with %s is refused', (_name, draft) => {
+  expect(mappingDraft.safeParse(draft).success).toBe(false);
+});
+
+test('a refused observation table words the issues of its own branch', () => {
+  const read = mappingDraft.safeParse({
+    ...OBSERVATIONS,
+    rows: { ...OBSERVATIONS.rows, licence: 'free' },
+  });
+  expect(read.success).toBe(false);
+  expect(JSON.stringify(read.error?.issues)).toContain('licence');
 });

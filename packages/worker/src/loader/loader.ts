@@ -4,6 +4,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { machineAct } from '@gab/proposal/machine';
 import {
   isLinkTable,
+  isObservationTable,
   mappingPayload,
   type LinkRows,
   type MappingPayload,
@@ -35,6 +36,7 @@ import {
   type NamedEnd,
   type SplitOwner,
 } from './link.ts';
+import { loadObservations } from './observation.ts';
 
 const LOADER_NAME = 'loader';
 const VERSION = 'v1';
@@ -281,6 +283,51 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       throw new JobStop(
         `the header of document ${document} is not the header of mapping ${job.mappingId}`,
       );
+
+    // The report of the load: its counts and one line for each excluded row, stored as one
+    // document.
+    const putReport = async (
+      loaded: number,
+      excluded: number,
+      dropped: number,
+      lines: readonly Line[],
+    ): Promise<void> => {
+      const text = reportOf(
+        {
+          document,
+          mapping: job.mappingId,
+          job: job.id,
+          read: table.rows.length,
+          loaded,
+          excluded,
+          dropped,
+        },
+        lines,
+      );
+      const bytes = new TextEncoder().encode(text);
+      const digest = sha256(bytes);
+      const key = await options.store.put({ key: `raw/${digest}`, bytes, mime: REPORT_MIME });
+      const title =
+        `Load report of ${document} under mapping ${job.mappingId}: ${String(table.rows.length)} ` +
+        `rows read, ${String(loaded)} loaded, ${String(excluded)} excluded, ` +
+        `${String(dropped)} links dropped`;
+      await context.db.query(REPORT, [job.id, title, key, digest, REPORT_MIME]);
+    };
+
+    // A figure is no entity: the door of a figure writes each row, and no act waits (ADR 0030).
+    if (isObservationTable(mapping.rows)) {
+      const done = await loadObservations(context.db, {
+        job: job.id,
+        rows: mapping.rows,
+        header: table.header,
+        records: table.rows,
+        cited: { textSet: page.textSet, page: page.page },
+      });
+      if (done.loaded + done.excluded !== table.rows.length)
+        throw new JobStop('the rows loaded and excluded do not add up to the rows read');
+      await putReport(done.loaded, done.excluded, 0, done.lines);
+      return { refusals: [] };
+    }
 
     const column = new Map(table.header.map((name, index) => [name, index] as const));
     const lines: Line[] = [];
@@ -912,26 +959,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         });
       }
 
-    const text = reportOf(
-      {
-        document,
-        mapping: job.mappingId,
-        job: job.id,
-        read: table.rows.length,
-        loaded,
-        excluded,
-        dropped,
-      },
-      lines,
-    );
-    const bytes = new TextEncoder().encode(text);
-    const digest = sha256(bytes);
-    const key = await options.store.put({ key: `raw/${digest}`, bytes, mime: REPORT_MIME });
-    const title =
-      `Load report of ${document} under mapping ${job.mappingId}: ${String(table.rows.length)} ` +
-      `rows read, ${String(loaded)} loaded, ${String(excluded)} excluded, ` +
-      `${String(dropped)} links dropped`;
-    await context.db.query(REPORT, [job.id, title, key, digest, REPORT_MIME]);
+    await putReport(loaded, excluded, dropped, lines);
     return { refusals: [] };
   };
 

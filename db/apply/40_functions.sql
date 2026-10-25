@@ -5462,6 +5462,145 @@ BEGIN
   RETURN v_id;
 END $$;
 
+-- THE DOOR OF A FIGURE (ADR 0030). The worker writes the rows of a promoted observation mapping
+-- here, and nowhere else. The promotion of the mapping is the promotion of each row, so the door
+-- holds the checks that a decision of the operator would hold:
+--   - the caller holds the running load of the document, under a mapping that the operator
+--     accepted, and the mapping maps observations;
+--   - the measure, the method, the licence and a constant unit are the words of that mapping, so
+--     a caller cannot give a figure a more open licence than the operator promoted;
+--   - the span of the row lies in the page, and the page holds the value and the period as the
+--     file writes them (P9), and the value is that number.
+-- p_rows is a JSON array. The door writes the batch or nothing, and it returns one line for each
+-- row: `written`, `held` when this edition holds the same figure already (a load that runs again),
+-- or `other_value` with the value that this edition holds for the same key.
+CREATE OR REPLACE FUNCTION put_observations(p_job uuid, p_rows jsonb)
+RETURNS TABLE (item int, outcome text, held_value numeric)
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_document text;
+  v_mapping  jsonb;
+  v_mapping_id uuid;
+  v_rows     jsonb;
+  v_row      jsonb;
+  v_no       int := 0;
+  v_text     text;
+  v_page     text;
+  v_length   int;
+  v_bytes    bytea;
+  v_span     text;
+  v_value    numeric;
+  v_held     numeric;
+BEGIN
+  SELECT j.document_id, p.payload, p.id INTO v_document, v_mapping, v_mapping_id
+    FROM public.jobs j
+    JOIN public.proposals p ON p.id = j.mapping
+   WHERE j.id = p_job AND j.kind = 'load_mapped' AND j.status = 'running'
+     AND j.claimed_by = session_user AND p.op = 'map_document' AND p.status = 'accepted';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'job % is no running load of an accepted mapping under this role', p_job
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  v_rows := v_mapping->'rows';
+  IF NOT v_rows ? 'measure' THEN
+    RAISE EXCEPTION 'the mapping of job % maps no observation', p_job
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF coalesce(jsonb_typeof(p_rows), 'absent') <> 'array' THEN
+    RAISE EXCEPTION 'the rows of a load of figures are a JSON array'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  FOR v_row IN SELECT value FROM jsonb_array_elements(p_rows) LOOP
+    v_no := v_no + 1;
+    IF v_row->>'measure' IS DISTINCT FROM v_rows->>'measure'
+       OR v_row->>'method' IS DISTINCT FROM v_rows->>'method'
+       OR v_row->>'licence' IS DISTINCT FROM v_rows->>'licence'
+       OR (v_rows->'unit' ? 'constant'
+           AND v_row->>'unit' IS DISTINCT FROM v_rows->'unit'->>'constant') THEN
+      RAISE EXCEPTION 'row %: the measure, the method, the licence and a constant unit are the '
+                      'words of the promoted mapping', v_no
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    -- A page of a table can hold megabytes, and each row of a batch cites the same page, so the
+    -- door reads the page once for each batch.
+    IF v_page IS DISTINCT FROM (v_row->>'text_extractor') || '|' || (v_row->>'page') THEN
+      SELECT t.text INTO v_text FROM public.document_text t
+       WHERE t.document_id = v_document AND t.extractor = v_row->>'text_extractor'
+         AND t.page = (v_row->>'page')::int;
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'row %: page % of the text % of document % does not exist', v_no,
+          v_row->>'page', v_row->>'text_extractor', v_document
+          USING ERRCODE = 'invalid_parameter_value';
+      END IF;
+      v_page := (v_row->>'text_extractor') || '|' || (v_row->>'page');
+      v_length := char_length(v_text);
+      -- substr counts the code points of a UTF-8 text from its start, so it is slow on a page of
+      -- megabytes. On a page of ASCII text a code point is one byte, and a cut of the bytes is
+      -- the same span.
+      v_bytes := CASE WHEN octet_length(v_text) = v_length THEN convert_to(v_text, 'UTF8') END;
+    END IF;
+    -- char_length counts code points, as the span of a citation does.
+    IF coalesce((v_row->>'start')::int < 0 OR (v_row->>'start')::int >= (v_row->>'end')::int
+                OR (v_row->>'end')::int > v_length, true) THEN
+      RAISE EXCEPTION 'row %: the span % to % lies outside the page', v_no, v_row->>'start',
+        v_row->>'end'
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    v_span := CASE WHEN v_bytes IS NULL
+                   THEN substr(v_text, (v_row->>'start')::int + 1,
+                               (v_row->>'end')::int - (v_row->>'start')::int)
+                   ELSE convert_from(substring(v_bytes FROM (v_row->>'start')::int + 1
+                                                FOR (v_row->>'end')::int
+                                                    - (v_row->>'start')::int), 'UTF8') END;
+    IF coalesce(v_row->>'value_text', '') = '' OR strpos(v_span, v_row->>'value_text') = 0
+       OR coalesce(v_row->>'period_text', '') = '' OR strpos(v_span, v_row->>'period_text') = 0 THEN
+      RAISE EXCEPTION 'row %: the row of the page does not hold the value and the period as the '
+                      'file writes them', v_no
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    IF NOT pg_input_is_valid(v_row->>'value_text', 'numeric')
+       OR (v_row->>'value_text')::numeric IS DISTINCT FROM (v_row->>'value')::numeric THEN
+      RAISE EXCEPTION 'row %: the value is not the number that the file writes', v_no
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
+    v_value := (v_row->>'value')::numeric;
+
+    SELECT o.value INTO v_held FROM public.observation o
+     WHERE o.document_id = v_document AND o.measure = v_row->>'measure'
+       AND o.unit = v_row->>'unit' AND o.period = v_row->>'period'
+       AND o.reporter_system = v_row->>'reporter_system' AND o.reporter = v_row->>'reporter'
+       AND o.partner_system IS NOT DISTINCT FROM v_row->>'partner_system'
+       AND o.partner IS NOT DISTINCT FROM v_row->>'partner'
+       AND o.product_system IS NOT DISTINCT FROM v_row->>'product_system'
+       AND o.product IS NOT DISTINCT FROM v_row->>'product'
+       AND o.method = v_row->>'method'
+       AND o.subject_id IS NOT DISTINCT FROM (v_row->>'subject_id')::uuid;
+    IF FOUND THEN
+      item := v_no;
+      outcome := CASE WHEN v_held = v_value THEN 'held' ELSE 'other_value' END;
+      held_value := v_held;
+      RETURN NEXT;
+      CONTINUE;
+    END IF;
+
+    INSERT INTO public.observation
+      (measure, value, unit, period, method, reporter_system, reporter, partner_system, partner,
+       product_system, product, subject_id, licence, flag, document_id, text_extractor, page,
+       span_start, span_end, mapping_id, job_id)
+    VALUES
+      (v_row->>'measure', v_value, v_row->>'unit', v_row->>'period', v_row->>'method',
+       v_row->>'reporter_system', v_row->>'reporter', v_row->>'partner_system',
+       v_row->>'partner', v_row->>'product_system', v_row->>'product',
+       (v_row->>'subject_id')::uuid, v_row->>'licence', v_row->>'flag', v_document,
+       v_row->>'text_extractor', (v_row->>'page')::int, (v_row->>'start')::int,
+       (v_row->>'end')::int, v_mapping_id, p_job);
+    item := v_no; outcome := 'written'; held_value := NULL;
+    RETURN NEXT;
+  END LOOP;
+END $$;
+
 -- THE REPORT OF A LOAD. Each load stores the rows it excluded, with the reason of each, as one
 -- `report` document. The worker holds no other door that writes a report, and this one is as
 -- narrow as the act: the caller holds a running load, the key is raw/ and the hash of the bytes,

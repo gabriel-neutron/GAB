@@ -13,7 +13,7 @@ import { readMapperConfig, type MapperConfig } from '../reader-config.ts';
 import { promptOf, withinBudget } from '../tool-turn.ts';
 
 const MAPPER_NAME = 'mapper';
-const VERSION = 'v3';
+const VERSION = 'v4';
 
 // The readers that make a text set: the text of a set starts with the version of its reader.
 const TABLE_SETS = [TABLE_READER, LAYER_READER];

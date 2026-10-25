@@ -156,6 +156,70 @@ const links = z.strictObject({
 
 export type LinkEnd = z.infer<typeof linkEnd>;
 
+/** The licence words of a figure: the closed list of the document providers. The public read
+ * shows a figure only when its licence is open (ADR 0030). */
+export const LICENCES = [
+  'public-domain',
+  'eu-reuse',
+  'ogl-v3',
+  'cc0',
+  'cc-by-4.0',
+  'cc-by-nc-4.0',
+  'odbl',
+  'copernicus',
+  'paid-filing',
+  'registration-terms',
+  'restricted',
+  'commercial-no-redistribution',
+  'own',
+] as const;
+
+/** The code lists that a column of a reporter or a partner can hold. The loader turns each one
+ * into a code of the fixed area list: `eurostat` writes EL for Greece and EU27_2020 for the EU. */
+export const AREA_CODES = ['iso3166', 'eurostat'] as const;
+
+/** The length of the period of a figure. A cell gives the ISO form: 2024, 2024-Q1, 2024-03 or
+ * 2024-W05. A month can also be written 202403, as UN Comtrade writes it. */
+export const PERIODS = ['year', 'quarter', 'month', 'week'] as const;
+
+/** The code lists of a product scope: SIEC (energy products), HS (customs) and CHPL. */
+export const PRODUCT_SYSTEMS = ['siec', 'hs', 'chpl'] as const;
+
+const area = z.strictObject({ column, codes: z.enum(AREA_CODES) });
+
+/** An observation table: each row is one aggregated figure, and no row is an entity (ADR 0030).
+ * The mapping gives the words that hold for every row, and the columns of the rest. */
+const observations = z.strictObject({
+  measure: key.max(100).describe('what the figure counts, for example imports_natural_gas'),
+  value: z.strictObject({ column }).describe('the column of the number'),
+  unit: z
+    .union([
+      z.strictObject({ column }),
+      z.strictObject({ constant: z.string().trim().min(1).max(40) }),
+    ])
+    .describe('the column of the unit, or one unit for every row. The unit is part of the key'),
+  period: z.strictObject({ column, length: z.enum(PERIODS) }),
+  reporter: area.describe('the country or the group that reports the figure'),
+  partner: area.optional().describe('the other country or group of a flow'),
+  product: z.strictObject({ column, system: z.enum(PRODUCT_SYSTEMS) }).optional(),
+  subject: linkEnd
+    .optional()
+    .describe('the entity of the record that the figure is about, for example a pipeline'),
+  method: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .describe(
+      'how the source makes the figure, for example "imports reported by the importer" or ' +
+        '"mirror figure reported by the partner"',
+    ),
+  licence: z.enum(LICENCES).describe('the licence of the source of the table'),
+  flag: column.optional().describe('the column of the mark beside a value, such as p'),
+});
+
+export type ObservationRows = z.infer<typeof observations>;
+
 /** The kinds of asset. An asset is an entity of the facility type, and its kind tells a field from
  * a pipeline segment. The list is closed, so a filter and a release can group the assets. */
 export const ASSET_KINDS = [
@@ -243,14 +307,17 @@ const entityRows = z
     },
   );
 
-/** The rows of a table: each row is one entity, or each row is one relation (a relation table). */
-const rows = z.union([entityRows, links], {
-  // The union alone words each failure as "Invalid input". The key `relation_type` tells the
-  // branch that the model meant, so the retry gets the issues of that branch.
+/** The rows of a table: each row is one entity, one relation (a relation table) or one figure
+ * (an observation table). */
+const rows = z.union([entityRows, links, observations], {
+  // The union alone words each failure as "Invalid input". The key `relation_type` or `measure`
+  // tells the branch that the model meant, so the retry gets the issues of that branch.
   error: (issue) => {
     const input: unknown = issue.input;
-    const isLinks = typeof input === 'object' && input !== null && 'relation_type' in input;
-    const issues = issue.errors[isLinks ? 1 : 0] ?? [];
+    const has = (name: string): boolean =>
+      typeof input === 'object' && input !== null && name in input;
+    const branch = has('relation_type') ? 1 : has('measure') ? 2 : 0;
+    const issues = issue.errors[branch] ?? [];
     if (issues.length === 0) return undefined;
     return issues
       .map((one) => (one.path.length === 0 ? one.message : `${one.path.join('.')}: ${one.message}`))
@@ -261,9 +328,13 @@ const rows = z.union([entityRows, links], {
 export type EntityRows = z.infer<typeof entityRows>;
 export type LinkRows = z.infer<typeof links>;
 
+type Rows = EntityRows | LinkRows | ObservationRows;
+
 /** True when each row of the table is one relation, and no row is an entity. */
-export const isLinkTable = (held: EntityRows | LinkRows): held is LinkRows =>
-  'relation_type' in held;
+export const isLinkTable = (held: Rows): held is LinkRows => 'relation_type' in held;
+
+/** True when each row of the table is one figure, and no row is an entity. */
+export const isObservationTable = (held: Rows): held is ObservationRows => 'measure' in held;
 
 const draftFields = {
   table: z.string().trim().min(1).max(200),
@@ -279,13 +350,15 @@ const draftFields = {
   relations: z.array(relation).max(10),
 };
 
-// A relation table holds its one relation in its rows, so it gives no relation of an entity.
+// A relation table holds its one relation in its rows, and a figure is no entity, so neither
+// gives a relation of an entity.
 const linkTableHasNoRelations = (held: {
-  readonly rows: EntityRows | LinkRows;
+  readonly rows: Rows;
   readonly relations: readonly unknown[];
-}): boolean => !isLinkTable(held.rows) || held.relations.length === 0;
+}): boolean =>
+  (!isLinkTable(held.rows) && !isObservationTable(held.rows)) || held.relations.length === 0;
 const NO_RELATIONS = {
-  message: 'a relation table gives its relation in rows, and relations is []',
+  message: 'a relation table and an observation table give no relation, and relations is []',
 };
 
 /** What the model gives for one table. The tool adds the signature of the header. */
@@ -322,6 +395,24 @@ const namedColumns = (mapping: MappingDraft): string[] => {
   const attrColumns = (held: Readonly<Record<string, { readonly column: string }>> = {}) =>
     Object.values(held).map((one) => one.column);
   const { rows: held } = mapping;
+  if (isObservationTable(held))
+    return [
+      ...new Set([
+        held.value.column,
+        ...('column' in held.unit ? [held.unit.column] : []),
+        held.period.column,
+        held.reporter.column,
+        ...(held.partner === undefined ? [] : [held.partner.column]),
+        ...(held.product === undefined ? [] : [held.product.column]),
+        ...(held.subject === undefined
+          ? []
+          : [
+              ...(held.subject.name === undefined ? [] : [held.subject.name]),
+              ...held.subject.lookup.map((one) => one.column),
+            ]),
+        ...(held.flag === undefined ? [] : [held.flag]),
+      ]),
+    ];
   if (isLinkTable(held))
     return [
       ...new Set([
@@ -424,6 +515,13 @@ export const vocabularyFaults = (
         );
   };
   const { rows: held } = mapping;
+  if (isObservationTable(held)) {
+    if (held.subject !== undefined) {
+      type('rows.subject.entity_type', held.subject.entity_type);
+      keys('rows.subject.lookup', held.subject.entity_type, held.subject.lookup);
+    }
+    return faults;
+  }
   if (isLinkTable(held)) {
     relationType('rows.relation_type', held.relation_type);
     for (const [where, end] of [
