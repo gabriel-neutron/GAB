@@ -408,20 +408,26 @@ test('the IMO list holds one number of seven digits on each line', () => {
 });
 
 test('the register keeps the numbers that hold a vessel, and reports the rest', async () => {
+  const types: unknown[] = [];
   const db: Queryable = {
     query: (_sql, params) => {
+      types.push(params?.[1]);
       const shape = String(params?.[0]);
       const held = ['9000001', '9000002'].find((imo) => shape.includes(imo));
-      return Promise.resolve({
-        rows: held === undefined ? [] : [{ id: '0190a5a0-0000-7000-8000-000000000001' }],
-      });
+      const ids =
+        held === '9000002'
+          ? ['0190a5a0-0000-7000-8000-000000000001', '0190a5a0-0000-7000-8000-000000000002']
+          : ['0190a5a0-0000-7000-8000-000000000001'];
+      return Promise.resolve({ rows: held === undefined ? [] : ids.map((id) => ({ id })) });
     },
   };
   expect(await registeredImos(db, ['9000003', '9000002', '9000001', '9000002'])).toStrictEqual({
     held: ['9000001', '9000002'],
     absent: ['9000003'],
-    many: 0,
+    many: 1,
   });
+  // Every lookup is limited to the type vessel, never to every type.
+  expect(new Set(types)).toStrictEqual(new Set(['vessel']));
 });
 
 test('the command reads --imo-in with --columns only', () => {
