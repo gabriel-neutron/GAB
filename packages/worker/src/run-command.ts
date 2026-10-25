@@ -15,7 +15,7 @@ import { mapperAgentOf } from './mapper/mapper.ts';
 import { raterAgentOf } from './rater/rater.ts';
 import { openRunner } from './runner.ts';
 
-/** Takes the queued jobs one at a time until a stop signal. This is the one sub-command that
+/** Takes the queued jobs, at most RUNNER_CONCURRENCY at the same time, until a stop signal. This is the one sub-command that
  * claims a job. */
 export const runCommand: SubCommand = async () => {
   // A stop signal ends the wait at once and the loop after the job in hand. A job that is cut off
@@ -57,7 +57,12 @@ export const runCommand: SubCommand = async () => {
     }),
   ];
 
-  const pool = new Pool({ connectionString: agentAddress() });
+  const concurrency = Number(process.env['RUNNER_CONCURRENCY']);
+  if (!Number.isInteger(concurrency) || concurrency < 1)
+    throw new Error('RUNNER_CONCURRENCY must be a whole number above zero.');
+
+  // One connection keeps the lock and the jobs share the rest, so the pool must hold them all.
+  const pool = new Pool({ connectionString: agentAddress(), max: concurrency + 5 });
   // Without a listener, the error of an idle connection ends the process.
   pool.on('error', (error) => {
     console.error('an idle database connection failed', error.message);
@@ -82,6 +87,7 @@ export const runCommand: SubCommand = async () => {
         };
       },
       agents,
+      concurrency,
       sleep: (ms) => sleepFor(ms, undefined, { signal: stop.signal }).catch(() => undefined),
       now: () => performance.now(),
     });
