@@ -1,5 +1,5 @@
-// The parser of the report claims files, read on the invented fixture. No file of the private data
-// repository is read.
+// The parser of the report claims files, read on the invented fixture. No private file of the
+// operator is read.
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';

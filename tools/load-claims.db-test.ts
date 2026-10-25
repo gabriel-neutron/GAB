@@ -1,7 +1,7 @@
 // The claims load runs through the doors of gabriel_app, inside a transaction that rolls back. The
 // test reads the tables as the superuser, so each door call switches the session user for the
-// length of that one call. Every file of the fixture is invented, and no file of the private data
-// repository is read.
+// length of that one call. Every file of the fixture is invented, and no private file of the
+// operator is read.
 
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';

@@ -38,11 +38,10 @@ message, a file and a log stay public for ever. The edit history of a comment al
 Because of this:
 
 - **Never write a local path.** No Windows home path, no Unix home path, no user name, no machine
-  name. Write the role of the place: "the local GAB checkout", "the operator data folder", "the
-  private data repository".
-- **Never write the content or the location of private data.** The private files are in
-  `gabriel-neutron/GAB-data` (private repository). `.private/` stays in `.gitignore`. A public
-  ticket may name a file by its name in `GAB-data`, never by its path on the PC.
+  name. Write the role of the place: "the local GAB checkout", "the operator data folder".
+- **Never write the content or the location of private data.** The private files stay in
+  the operator data folder, on the PC only. `.private/` stays in `.gitignore`. A public ticket
+  may name a private file by its name, never by its path on the PC.
 - **Never paste raw terminal output without a check.** Test runs, stack traces and `pnpm` logs
   print the working directory. Replace it before posting.
 - **Check before every write.** Before `gh issue create`, `gh issue comment`, `gh pr create`
