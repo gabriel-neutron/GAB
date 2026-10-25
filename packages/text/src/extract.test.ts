@@ -160,8 +160,8 @@ describe('extractText', () => {
       ${row("Manufacturer's headquarters country", '<span><a class="yellow" href="/c?f=223">Exampleland</a></span>')}
       ${row('Manufacturer', '<span><a class="yellow" href="/c?f=1">Example Electronics</a></span>')}
       ${row('Publication date', '<span class="yellow">22.10.2026</span>')}
-      <template><p>Template text</p></template>
-      <script>var hiddenScript = 1;</script>
+      ${row('Hidden code', '<template><p>Template text</p></template><script>var hiddenScript = 1;</script>')}
+      <ul class="d-none d-lg-block"><li><a href="/menu">Menu link label</a></li></ul>
       <div class="mt-3 mb-3">If you have additional information about the origin of this component, you can let us know.
         <div class="text-center"><div class="btn-yellow">Provide additional information</div></div></div>
       </div></div></div></div></section></main>
@@ -169,6 +169,7 @@ describe('extractText', () => {
     const [page] = (await extractText(bytesOf(html), 'text/html')).pages;
     for (const kept of ['Example Electronics', 'Exampleland', '22.10.2026'])
       expect(page).toContain(kept);
+    expect(page).toContain('[Menu link label](/menu)');
     expect(page).not.toContain('Template text');
     expect(page).not.toContain('hiddenScript');
     expect((page ?? '').indexOf('Exampleland')).toBeLessThan(
