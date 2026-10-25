@@ -128,7 +128,7 @@ REVOKE ALL ON FUNCTION enqueue_mapped_load(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_load_report(uuid,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_observations(uuid,jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION area_of(text,text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION table_record(text,boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION table_record(text,boolean,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION uri_host(text)              FROM PUBLIC;
 REVOKE ALL ON FUNCTION requeue_running_jobs()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION requeue_failed_ratings()    FROM PUBLIC;

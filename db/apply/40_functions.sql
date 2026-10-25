@@ -5464,15 +5464,21 @@ END $$;
 
 -- THE FIELDS OF THE FIRST RECORD OF A TABLE TEXT (ADR 0030), with the rules of the table reader of
 -- the worker: a CSV record cuts at a comma, with the quotes of RFC 4180, and a TSV record cuts at a
--- tab and holds no quote. The record ends at the first line break outside a quote. Each field is
--- trimmed, as the loader trims a cell. NULL means a quote that never closes.
-CREATE OR REPLACE FUNCTION table_record(p_text text, p_tab boolean)
+-- tab and holds no quote. A record ends at the first line break outside a quote. Each field is
+-- trimmed of the white space that the loader trims. NULL means a quote that never closes, or,
+-- with p_whole, a text that is more than one record. Without p_whole the text is the start of a
+-- page: a mark of byte order and the empty lines before the first record are no part of it, as
+-- the reader skips them.
+DROP FUNCTION IF EXISTS table_record(text, boolean);
+CREATE OR REPLACE FUNCTION table_record(p_text text, p_tab boolean, p_whole boolean)
 RETURNS text[]
 LANGUAGE plpgsql IMMUTABLE
 SET search_path = pg_catalog, pg_temp AS $$
 DECLARE
-  v_text   text := CASE WHEN left(p_text, 1) = E'﻿' THEN substr(p_text, 2) ELSE p_text END;
-  v_line   text;
+  -- The white space of String.prototype.trim, written out, so the locale changes nothing.
+  c_trim   CONSTANT text := '^[\t\n\v\f\r    -     　﻿]+'
+                            '|[\t\n\v\f\r    -     　﻿]+$';
+  v_text   text := regexp_replace(p_text, '^﻿', '');
   v_fields text[] := '{}';
   v_field  text := '';
   v_quoted boolean := false;
@@ -5480,10 +5486,16 @@ DECLARE
   v_length int;
   v_point  text;
 BEGIN
+  IF NOT p_whole THEN
+    v_text := regexp_replace(v_text, '^[\r\n]+', '');
+  END IF;
   IF p_tab OR strpos(v_text, '"') = 0 THEN
-    v_line := substring(v_text FROM '^[^\r\n]*');
-    RETURN ARRAY(SELECT regexp_replace(f, '^[[:space:] ]+|[[:space:] ]+$', '', 'g')
-                   FROM unnest(string_to_array(v_line, CASE WHEN p_tab THEN E'\t' ELSE ',' END))
+    IF p_whole AND v_text ~ '[\r\n]' THEN
+      RETURN NULL;
+    END IF;
+    RETURN ARRAY(SELECT regexp_replace(f, c_trim, '', 'g')
+                   FROM unnest(string_to_array(substring(v_text FROM '^[^\r\n]*'),
+                                               CASE WHEN p_tab THEN E'\t' ELSE ',' END))
                         WITH ORDINALITY AS u(f, n)
                   ORDER BY n);
   END IF;
@@ -5506,6 +5518,9 @@ BEGIN
       v_fields := v_fields || v_field;
       v_field := '';
     ELSIF v_point IN (E'\r', E'\n') THEN
+      IF p_whole THEN
+        RETURN NULL;
+      END IF;
       EXIT;
     ELSE
       v_field := v_field || v_point;
@@ -5516,7 +5531,7 @@ BEGIN
     RETURN NULL;
   END IF;
   v_fields := v_fields || v_field;
-  RETURN ARRAY(SELECT regexp_replace(f, '^[[:space:] ]+|[[:space:] ]+$', '', 'g')
+  RETURN ARRAY(SELECT regexp_replace(f, c_trim, '', 'g')
                  FROM unnest(v_fields) WITH ORDINALITY AS u(f, n) ORDER BY n);
 END $$;
 
@@ -5546,9 +5561,12 @@ $$;
 -- holds the checks that a decision of the operator would hold, and it reads each value itself:
 --   - the caller holds the running load of the document, under a mapping that the operator
 --     accepted, and the mapping maps observations;
---   - the caller gives only the span of a row (and the subject that its lookup found). The door
---     reads the header and the row from the stored page, with the rules of the table reader, and
---     takes each cell from the column that the mapping names (P9);
+--   - the caller gives only the span of a row (and the subject that its lookup found). The span
+--     is one whole record of the text set that the job reads, from a line start to a line end.
+--     The door reads the header of that page, checks it against the signature of the mapping,
+--     reads the row with the rules of the table reader, and takes each cell from the column that
+--     the mapping names (P9). The subject is the one value that the caller chooses: the door
+--     checks only that the record holds that entity;
 --   - the measure, the method and a constant unit come from the mapping. The licence and the
 --     publisher come from the provider of the document, so neither a caller nor a model gives
 --     them. A document with no provider is `restricted`, and its publisher is the one that the
@@ -5572,6 +5590,8 @@ DECLARE
   v_licence    text;
   v_publisher  text;
   v_tab        boolean;
+  v_set        text;
+  v_mime       text;
   v_row        jsonb;
   v_no         int := 0;
   v_text       text;
@@ -5595,12 +5615,14 @@ DECLARE
   v_subject    uuid;
   v_flag       text;
   v_held       numeric;
+  v_before     text;
+  v_after      text;
 BEGIN
   SELECT j.document_id, p.payload, p.id, coalesce(v.licence, 'restricted'),
          coalesce(v.name, p.payload->>'publisher', p.payload->>'table'),
-         lower(btrim(split_part(coalesce(d.mime, ''), ';', 1))) = 'text/tab-separated-values'
-           AND j.text_set IS NULL
-    INTO v_document, v_mapping, v_mapping_id, v_licence, v_publisher, v_tab
+         coalesce(j.text_set, public.newest_text_extractor(j.document_id)),
+         lower(btrim(split_part(coalesce(d.mime, ''), ';', 1)))
+    INTO v_document, v_mapping, v_mapping_id, v_licence, v_publisher, v_set, v_mime
     FROM public.jobs j
     JOIN public.proposals p ON p.id = j.mapping
     JOIN public.documents d ON d.id = j.document_id
@@ -5624,6 +5646,16 @@ BEGIN
   IF v_document = 'inherited' THEN
     v_licence := 'restricted';
   END IF;
+  -- The words that hold for every row are checked once: a fault in them is a fault of the load.
+  IF coalesce(btrim(v_publisher), '') = '' OR char_length(v_publisher) > 200
+     OR coalesce(btrim(v_rows->>'method'), '') = '' OR char_length(v_rows->>'method') > 200 THEN
+    RAISE EXCEPTION 'the publisher and the method of a figure are 1 to 200 characters'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  -- The format of the reader: the reader of a workbook or a layer writes a CSV, and else the type
+  -- of the document decides.
+  v_tab := v_set NOT LIKE 'xlsx-1|%' AND v_set NOT LIKE 'geojson-1|%'
+           AND v_mime = 'text/tab-separated-values';
 
   FOR v_row IN SELECT value FROM jsonb_array_elements(p_rows) LOOP
     v_no := v_no + 1;
@@ -5635,6 +5667,10 @@ BEGIN
     END IF;
     v_start := (v_row->>'start')::int;
     v_end := (v_row->>'end')::int;
+    IF v_row->>'text_extractor' IS DISTINCT FROM v_set THEN
+      RAISE EXCEPTION 'the rows of job % cite the text set %, which the load reads', p_job, v_set
+        USING ERRCODE = 'invalid_parameter_value';
+    END IF;
     -- A page of a table can hold megabytes, and each row of a batch cites the same page, so the
     -- door reads the page and its header once for each batch.
     IF v_page IS DISTINCT FROM (v_row->>'text_extractor') || '|' || (v_row->>'page') THEN
@@ -5653,10 +5689,16 @@ BEGIN
       -- the same span.
       v_bytes := CASE WHEN octet_length(v_text) = v_length THEN convert_to(v_text, 'UTF8') END;
       -- Origin of the number: decided, not calibrated. A header is far shorter.
-      v_header := public.table_record(left(v_text, 100000), v_tab);
-      IF v_header IS NULL THEN
-        RAISE EXCEPTION 'the header of page % of document % does not read', v_row->>'page',
-          v_document
+      v_header := public.table_record(left(v_text, 100000), v_tab, false);
+      -- The signature of the header is the one that the loader and the mapping compute: the
+      -- SHA-256 of the JSON array of the trimmed names.
+      IF v_header IS NULL OR '' = ANY (v_header)
+         OR encode(sha256(convert_to(
+              (SELECT '[' || string_agg(to_json(h)::text, ',' ORDER BY n) || ']'
+                 FROM unnest(v_header) WITH ORDINALITY AS u(h, n)), 'UTF8')), 'hex')
+            IS DISTINCT FROM v_mapping->>'header_sig' THEN
+        RAISE EXCEPTION 'the header of page % of document % is not the header of the mapping',
+          v_row->>'page', v_document
           USING ERRCODE = 'invalid_parameter_value';
       END IF;
     END IF;
@@ -5665,19 +5707,34 @@ BEGIN
       RAISE EXCEPTION 'row %: the span % to % lies outside the page', v_no, v_start, v_end
         USING ERRCODE = 'data_exception';
     END IF;
+    -- The span starts at the start of a line and ends at the end of a line, so it never cuts a
+    -- field. A page starts with a mark of byte order, which is no part of a record.
+    IF v_bytes IS NULL THEN
+      v_before := CASE WHEN v_start = 0 THEN '' ELSE substr(v_text, v_start, 1) END;
+      v_after := substr(v_text, v_end + 1, 1);
+    ELSE
+      v_before := CASE WHEN v_start = 0 THEN '' ELSE chr(get_byte(v_bytes, v_start - 1)) END;
+      v_after := CASE WHEN v_end = v_length THEN '' ELSE chr(get_byte(v_bytes, v_end)) END;
+    END IF;
+    IF NOT (v_before IN ('', E'\r', E'\n') OR (v_start = 1 AND v_before = E'\ufeff'))
+       OR v_after NOT IN ('', E'\r', E'\n') THEN
+      RAISE EXCEPTION 'row %: the span % to % does not start and end at a line break', v_no,
+        v_start, v_end
+        USING ERRCODE = 'data_exception';
+    END IF;
     v_span := CASE WHEN v_bytes IS NULL THEN substr(v_text, v_start + 1, v_end - v_start)
                    ELSE convert_from(substring(v_bytes FROM v_start + 1 FOR v_end - v_start),
                                      'UTF8') END;
-    v_fields := public.table_record(v_span, v_tab);
-    IF v_fields IS NULL OR cardinality(v_fields) <> cardinality(v_header)
-       OR v_span ~ '[\r\n]' AND strpos(v_span, '"') = 0 THEN
+    v_fields := public.table_record(v_span, v_tab, true);
+    IF v_fields IS NULL OR cardinality(v_fields) <> cardinality(v_header) THEN
       RAISE EXCEPTION 'row %: the span is not one record with the fields of the header', v_no
         USING ERRCODE = 'data_exception';
     END IF;
 
     v_cell := v_fields[array_position(v_header, v_rows->'value'->>'column')];
     -- The number form of the loader: digits, a point and an exponent, and no NaN or Infinity.
-    IF coalesce(v_cell, '') !~ '^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?$' THEN
+    IF coalesce(v_cell, '') !~ '^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?$'
+       OR NOT pg_input_is_valid(v_cell, 'numeric') THEN
       RAISE EXCEPTION 'row %: the value "%" is not a number', v_no, coalesce(v_cell, '')
         USING ERRCODE = 'data_exception';
     END IF;
@@ -5752,7 +5809,9 @@ BEGIN
        AND o.partner IS NOT DISTINCT FROM v_par_code
        AND o.product_system IS NOT DISTINCT FROM v_rows->'product'->>'system'
        AND o.product IS NOT DISTINCT FROM v_product
-       AND o.method = v_rows->>'method' AND o.publisher = v_publisher
+       -- One document is one edition of one publisher, so the publisher is not compared here: a
+       -- provider that a later step gave the document finds the figures of an earlier load.
+       AND o.method = v_rows->>'method'
        AND o.subject_id IS NOT DISTINCT FROM v_subject;
     IF FOUND THEN
       item := v_no;

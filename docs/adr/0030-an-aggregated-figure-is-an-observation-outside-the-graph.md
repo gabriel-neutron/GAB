@@ -31,9 +31,11 @@ The operator decided on #929, after the expert panel (software-architect, osint-
   The loader then writes each row through one door, and no act waits in the queue for each row.
   The door holds the checks that a decision holds, and it reads each value itself: the load is
   the running job of an accepted mapping; the measure, the method and a constant unit come from
-  that mapping; the caller gives only the span of a row. The door reads the header and that row
-  from the stored page with the rules of the table reader, and takes each cell from the column
-  that the mapping names (P9). A fault of one row sends that row to the load report, and a fault
+  that mapping; the caller gives only the span of a row, and the span is one whole record of the
+  text set that the load reads. The door checks the header of the page against the signature of
+  the mapping, reads that row with the rules of the table reader, and takes each cell from the
+  column that the mapping names (P9). The subject entity is the one value that the caller
+  chooses, by the lookup of the mapping, and the door checks only that the record holds it. A fault of one row sends that row to the load report, and a fault
   of the load stops the job.
 - **The mapping has a third kind of table.** Beside an entity table and a relation table, an
   observation table names the column of each part of a figure. The unit is part of the key of a

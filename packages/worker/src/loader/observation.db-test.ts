@@ -330,6 +330,38 @@ test('a quoted field that holds a comma is one field, and the door reads each ce
   });
 });
 
+const recordRow = z.array(z.object({ fields: z.array(z.string()).nullable() }));
+
+// The reader of the door follows the table reader of the worker.
+test.each([
+  ['a CSV row', 'a, b ,c', false, true, ['a', 'b', 'c']],
+  ['a quoted field with a comma and a doubled quote', '"x, ""y""",2', false, true, ['x, "y"', '2']],
+  ['a TSV row keeps a quote and a comma', 'a "b",c\td', true, true, ['a "b",c', 'd']],
+  ['two records as one', 'a,b\r\nc,d', false, true, null],
+  ['two quoted records as one', '"a",b\r\n"c",d', false, true, null],
+  ['a quote that never closes', '"a,b', false, true, null],
+  [
+    'a header after a mark of byte order and empty lines',
+    '﻿\r\n\r\nA,B\r\n1,2',
+    false,
+    false,
+    ['A', 'B'],
+  ],
+  ['a cell with the white space of JavaScript', ' 12.5　,x', false, true, ['12.5', 'x']],
+] as const)('the door reads %s', async (_name, text, tab, whole, fields) => {
+  const client = await pool.connect();
+  try {
+    const { rows } = await client.query('SELECT public.table_record($1, $2, $3) AS fields', [
+      text,
+      tab,
+      whole,
+    ]);
+    expect(recordRow.parse(rows)).toStrictEqual([{ fields }]);
+  } finally {
+    client.release();
+  }
+});
+
 /** The load of the test, claimed by the worker role, so a test can call the door. */
 const runningLoad = async (held: Held): Promise<string> => {
   const { load } = await mappedFile(held);
@@ -377,13 +409,26 @@ test('the door writes a figure once, and a second call with the same row writes 
 
 const REFUSALS: readonly (readonly [string, Record<string, unknown>, RegExp])[] = [
   ['the header as a row', spanOf(0), /value "OBS_VALUE" is not a number/u],
-  ['a part of a row', { end: spanOf(1).end - 4 }, /fields of the header/u],
+  ['a span that cuts the last field', { end: spanOf(1).end - 4 }, /line break/u],
+  ['a span that cuts the first field', { start: spanOf(1).start + 1 }, /line break/u],
   ['two rows as one', { end: spanOf(2).end }, /not one record/u],
   ['a row with no value', spanOf(6), /value "" is not a number/u],
   ['a row with a code outside the list', spanOf(7), /reporter "ZZ"/u],
   ['a span outside the page', { start: 0, end: 1_000_000 }, /outside the page/u],
   ['a page that is no number', { page: 'one' }, /whole numbers/u],
 ];
+
+// A fault of the load is invalid_parameter_value, so the loader stops the job.
+test('the door refuses a text set that the load does not read, as a fault of the load', async () => {
+  await inTransaction(async (held) => {
+    const job = await runningLoad(held);
+    const fault = await faultOf(
+      putAsAgent(held, job, [{ ...GERMAN_ROW, text_extractor: 'another-set' }]),
+    );
+    expect(fault.code).toBe('22023');
+    expect(fault.message).toMatch(/which the load reads/u);
+  });
+});
 
 // A fault of one row is data_exception, so the loader sends the row to the report.
 test.each(REFUSALS)(
