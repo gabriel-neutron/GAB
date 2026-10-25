@@ -5618,8 +5618,8 @@ DECLARE
   v_before     text;
   v_after      text;
   v_quotes     boolean;
-  v_count_at   int;
-  v_count      bigint;
+  v_starts     int[];
+  v_ix         int;
 BEGIN
   SELECT j.document_id, p.payload, p.id, coalesce(v.licence, 'restricted'),
          coalesce(v.name, p.payload->>'publisher', p.payload->>'table'),
@@ -5692,12 +5692,25 @@ BEGIN
       -- megabytes. On a page of ASCII text a code point is one byte, and a cut of the bytes is
       -- the same span.
       v_bytes := CASE WHEN octet_length(v_text) = v_length THEN convert_to(v_text, 'UTF8') END;
-      -- A quoted CSV field can hold a line break, so a line can start inside a record. The count
-      -- of quotes before a record is even, and the door counts them step by step from the last
-      -- row, as the rows of a batch come in the order of the page.
+      -- A quoted CSV field can hold a line break, so a line can start inside a record. On a page
+      -- with a quote, the door finds the start of each record with the rules of the reader: a
+      -- quote opens a field only at its start, a doubled quote is a quote, and the text after a
+      -- closing quote stays in the field. The expression of one record is matched in C, so the
+      -- page is read once for each batch.
       v_quotes := NOT v_tab AND strpos(v_text, '"') > 0;
-      v_count_at := 0;
-      v_count := 0;
+      v_starts := NULL;
+      v_ix := 1;
+      IF v_quotes THEN
+        v_starts := ARRAY(
+          SELECT (sum(char_length(r.m[1])) OVER (ORDER BY r.n) - char_length(r.m[1]))::int
+                 + CASE WHEN left(v_text, 1) = E'\ufeff' THEN 1 ELSE 0 END
+            FROM regexp_matches(
+                   regexp_replace(v_text, '^\ufeff', ''),
+                   '((?:"(?:[^"]|"")*"[^,\r\n]*|[^,\r\n"][^,\r\n]*)?'
+                   '(?:,(?:"(?:[^"]|"")*"[^,\r\n]*|[^,\r\n"][^,\r\n]*)?)*'
+                   '(?:\r\n|\r|\n|$))', 'g') WITH ORDINALITY AS r(m, n)
+           ORDER BY r.n);
+      END IF;
       -- Origin of the number: decided, not calibrated. A header is far shorter.
       v_header := public.table_record(left(v_text, 100000), v_tab, false);
       -- The signature of the header is the one that the loader and the mapping compute: the
@@ -5734,17 +5747,14 @@ BEGIN
         USING ERRCODE = 'data_exception';
     END IF;
     IF v_quotes THEN
-      IF v_start < v_count_at THEN
-        v_count_at := 0;
-        v_count := 0;
+      -- The rows of a batch come in the order of the page, so the door walks the starts once.
+      IF v_ix > cardinality(v_starts) OR v_starts[v_ix] > v_start THEN
+        v_ix := 1;
       END IF;
-      v_span := CASE WHEN v_bytes IS NULL
-                     THEN substr(v_text, v_count_at + 1, v_start - v_count_at)
-                     ELSE convert_from(substring(v_bytes FROM v_count_at + 1
-                                                 FOR v_start - v_count_at), 'UTF8') END;
-      v_count := v_count + char_length(v_span) - char_length(replace(v_span, '"', ''));
-      v_count_at := v_start;
-      IF v_count % 2 = 1 THEN
+      WHILE v_ix <= cardinality(v_starts) AND v_starts[v_ix] < v_start LOOP
+        v_ix := v_ix + 1;
+      END LOOP;
+      IF v_ix > cardinality(v_starts) OR v_starts[v_ix] <> v_start THEN
         RAISE EXCEPTION 'row %: the span % to % starts inside a quoted field', v_no, v_start,
           v_end
           USING ERRCODE = 'data_exception';

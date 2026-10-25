@@ -290,12 +290,15 @@ test('a promoted mapping of a Eurostat table loads each row as a figure that cit
   });
 });
 
-// A CSV with a label in quotes that holds a comma and a doubled quote. The door reads the row with
-// the rules of the table reader, so the label stays one field.
+// A CSV with a label in quotes that holds a comma and a doubled quote, a quote inside a plain field,
+// and text after a closing quote. The door reads each row with the rules of the table reader, so
+// each label stays one field and a stray quote moves no record start.
 const QUOTED =
   [
     'label,partner,unit,geo,TIME_PERIOD,OBS_VALUE,OBS_FLAG,siec',
     '"Gas, natural ""all""",RU,MIO_M3,DE,2023-05,12.5,p,G3000',
+    'Pipe 5" steel,RU,MIO_M3,IT,2023-05,3,,G3000',
+    '"a"b",RU,MIO_M3,NL,2023-05,4,,G3000',
     '"Gas, natural ""all""",RU,MIO_M3,FR,2023-05,7,,G3000',
   ].join('\r\n') + '\r\n';
 
@@ -318,14 +321,18 @@ test('a quoted field that holds a comma is one field, and the door reads each ce
         product: 'G3000',
         flag: 'p',
       },
-      {
-        reporter: 'FR',
+      ...[
+        ['FR', '7'],
+        ['IT', '3'],
+        ['NL', '4'],
+      ].map(([reporter, value]) => ({
+        reporter,
         period: '2023-05',
-        value: '7',
+        value,
         unit: 'MIO_M3',
         product: 'G3000',
         flag: null,
-      },
+      })),
     ]);
   });
 });
