@@ -299,6 +299,7 @@ const QUOTED =
     '"Gas, natural ""all""",RU,MIO_M3,DE,2023-05,12.5,p,G3000',
     'Pipe 5" steel,RU,MIO_M3,IT,2023-05,3,,G3000',
     '"a"b",RU,MIO_M3,NL,2023-05,4,,G3000',
+    '"""Gas"",",RU,MIO_M3,BE,2023-05,5,,G3000',
     '"Gas, natural ""all""",RU,MIO_M3,FR,2023-05,7,,G3000',
   ].join('\r\n') + '\r\n';
 
@@ -313,6 +314,14 @@ test('a quoted field that holds a comma is one field, and the door reads each ce
         [FILE],
       ),
     ).toStrictEqual([
+      {
+        reporter: 'BE',
+        period: '2023-05',
+        value: '5',
+        unit: 'MIO_M3',
+        product: 'G3000',
+        flag: null,
+      },
       {
         reporter: 'DE',
         period: '2023-05',

@@ -5694,8 +5694,8 @@ BEGIN
       v_bytes := CASE WHEN octet_length(v_text) = v_length THEN convert_to(v_text, 'UTF8') END;
       -- A quoted CSV field can hold a line break, so a line can start inside a record. On a page
       -- with a quote, the door finds the start of each record with the rules of the reader: a
-      -- quote opens a field only at its start, a doubled quote is a quote, and the text after a
-      -- closing quote stays in the field. The expression of one record is matched in C, so the
+      -- quote opens a field only at its start, a doubled quote is a quote, a closing quote is
+      -- never the first of a doubled quote, and the text after a closing quote stays in the field. The expression of one record is matched in C, so the
       -- page is read once for each batch.
       v_quotes := NOT v_tab AND strpos(v_text, '"') > 0;
       v_starts := NULL;
@@ -5706,8 +5706,8 @@ BEGIN
                  + CASE WHEN left(v_text, 1) = E'\ufeff' THEN 1 ELSE 0 END
             FROM regexp_matches(
                    regexp_replace(v_text, '^\ufeff', ''),
-                   '((?:"(?:[^"]|"")*"[^,\r\n]*|[^,\r\n"][^,\r\n]*)?'
-                   '(?:,(?:"(?:[^"]|"")*"[^,\r\n]*|[^,\r\n"][^,\r\n]*)?)*'
+                   '((?:"(?:[^"]|"")*"(?!")[^,\r\n]*|[^,\r\n"][^,\r\n]*)?'
+                   '(?:,(?:"(?:[^"]|"")*"(?!")[^,\r\n]*|[^,\r\n"][^,\r\n]*)?)*'
                    '(?:\r\n|\r|\n|$))', 'g') WITH ORDINALITY AS r(m, n)
            ORDER BY r.n);
       END IF;
