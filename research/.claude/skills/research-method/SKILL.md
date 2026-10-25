@@ -53,7 +53,12 @@ JPEG image whose OCR text misses the fact, the skill `cite-claim` says how to ci
 - Your reasoning, a hypothesis, a lead, a summary, a score, a rating.
 - A group or a concept that is not one entity: "European countries", "Russian oil companies",
   "financial sanctions", "the shadow fleet".
-- A figure that belongs to no entity of the layer: a total of trade, a share of exports, a price.
+- A figure that belongs to no entity of the layer, as an entity or an attribute: a total of trade,
+  a share of exports, a price. An aggregated figure enters only as an observation (ADR 0030):
+  store the original file of the source with `fetch_document` (for example the SDMX-CSV file of a
+  Eurostat dataset), and queue its mapping with `enqueue_mapping`. The operator promotes the
+  mapping, and code loads each row. Never store or map a CSV file that you made. Cite a Bruegel
+  table as a document only, and never map it: its licence forbids a change of the figures.
 - The metadata of a source: its authors, their e-mail addresses, the publisher, the journal, the
   institute that paid for it. An author becomes an entity only when the author is the subject.
 - A person, unless a sanctions act designates the person (`designated_by`), or a public filing

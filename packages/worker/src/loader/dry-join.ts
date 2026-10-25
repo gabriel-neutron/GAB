@@ -1,4 +1,10 @@
-import { isLinkTable, mappingPayload, type LinkRows } from '@gab/proposal/mapping';
+import {
+  isLinkTable,
+  isObservationTable,
+  mappingPayload,
+  type LinkRows,
+  type ObservationRows,
+} from '@gab/proposal/mapping';
 import { headerSignature } from '@gab/tools/header-signature';
 import { readTablePage, tableOf } from '@gab/tools/table';
 import type { Session } from '@gab/tools/tool';
@@ -7,6 +13,7 @@ import { z } from 'zod';
 import type { Queryable } from '../queryable.ts';
 import { makeFinder } from './join.ts';
 import { castAll, daysOf, foundWords, makeEndFinder, resolveEnd } from './link.ts';
+import { areasOf, observationOf, subjectFinder } from './observation.ts';
 
 const MAPPING = `SELECT p.payload, p.src[1]::text AS document,
        public.mapping_text_set(p.id) AS text_set
@@ -80,6 +87,55 @@ const linkJoin = async (
   ].join('');
 };
 
+/** The dry run of an observation table: for each row, the figure that the load writes, or the
+ * sentence that sends the row to the report. The checks are the checks of the load, and the door
+ * of a figure is not called. */
+const observationJoin = async (
+  db: Queryable,
+  mappingId: string,
+  document: string,
+  page: { readonly textSet: string; readonly page: number },
+  table: ReturnType<typeof tableOf>,
+  rows: ObservationRows,
+): Promise<string> => {
+  const areas = await areasOf(db, rows, table.header, table.rows);
+  const subjectOf = subjectFinder(db, rows, table.header);
+  const column = new Map(table.header.map((name, index) => [name, index] as const));
+  let figures = 0;
+  const lines: string[] = [];
+  for (const [index, record] of table.rows.entries()) {
+    const cell = (name: string): string => (record.fields[column.get(name) ?? -1] ?? '').trim();
+    const made =
+      record.fields.length === table.header.length
+        ? await observationOf(rows, record, cell, { areas, cited: page, subjectOf })
+        : { refused: 'the row does not hold the fields of the header' };
+    if ('refused' in made) {
+      lines.push(lineText([String(index + 1), '', '', '', '', '', made.refused]));
+      continue;
+    }
+    figures += 1;
+    const { figure } = made;
+    lines.push(
+      lineText([
+        String(index + 1),
+        figure['period'] ?? '',
+        figure['reporter'] ?? '',
+        figure['partner'] ?? '',
+        figure['product'] ?? '',
+        figure['value'] ?? '',
+        'figure',
+      ]),
+    );
+  }
+  return [
+    `# dry run of mapping ${mappingId}; document ${document}; text set ${page.textSet}; ` +
+      `rows ${String(table.rows.length)}; figures ${String(figures)}; ` +
+      `to the report ${String(table.rows.length - figures)}\r\n`,
+    lineText(['row', 'period', 'reporter', 'partner', 'product', 'value', 'outcome']),
+    ...lines,
+  ].join('');
+};
+
 /** The dry join of a mapping: for each row of its table, the key that finds the entity of the
  * row in the record, or the sentence that the row creates one. It reads the record through the
  * same lookup as the load, it calls no model, and it writes nothing. The mapping can wait for its
@@ -100,6 +156,8 @@ export const dryJoin = async (db: Queryable, mappingId: string): Promise<string>
     );
 
   const { rows } = mapping;
+  if (isObservationTable(rows))
+    return observationJoin(db, mappingId, held.document, page, table, rows);
   if (isLinkTable(rows)) return linkJoin(db, mappingId, held.document, page.textSet, table, rows);
 
   const labelAt = table.header.indexOf(rows.label);
