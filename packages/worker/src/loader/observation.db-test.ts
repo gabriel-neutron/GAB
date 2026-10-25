@@ -175,8 +175,9 @@ const mappedFile = async (
   held: Held,
   draft: unknown = DRAFT,
   provider: string | null = 'eurostat',
+  text: string = TEXT,
 ): Promise<{ mapping: string; load: string }> => {
-  await storeFile(held, FILE, TEXT, '2026-10-25');
+  await storeFile(held, FILE, text, '2026-10-25');
   // fetch_document names the provider of a file of the Eurostat API.
   if (provider !== null)
     await held.ask('SELECT public.fill_document_provider($1, $2)', [FILE, provider]);
@@ -289,6 +290,46 @@ test('a promoted mapping of a Eurostat table loads each row as a figure that cit
   });
 });
 
+// A CSV with a label in quotes that holds a comma and a doubled quote. The door reads the row with
+// the rules of the table reader, so the label stays one field.
+const QUOTED =
+  [
+    'label,partner,unit,geo,TIME_PERIOD,OBS_VALUE,OBS_FLAG,siec',
+    '"Gas, natural ""all""",RU,MIO_M3,DE,2023-05,12.5,p,G3000',
+    '"Gas, natural ""all""",RU,MIO_M3,FR,2023-05,7,,G3000',
+  ].join('\r\n') + '\r\n';
+
+test('a quoted field that holds a comma is one field, and the door reads each cell from its column', async () => {
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(held, DRAFT, 'eurostat', QUOTED);
+    await runLoad(held, load);
+    expect(
+      await held.ask(
+        `SELECT reporter, period, value::text AS value, unit, product, flag
+           FROM public.observation WHERE document_id = $1 ORDER BY reporter`,
+        [FILE],
+      ),
+    ).toStrictEqual([
+      {
+        reporter: 'DE',
+        period: '2023-05',
+        value: '12.5',
+        unit: 'MIO_M3',
+        product: 'G3000',
+        flag: 'p',
+      },
+      {
+        reporter: 'FR',
+        period: '2023-05',
+        value: '7',
+        unit: 'MIO_M3',
+        product: 'G3000',
+        flag: null,
+      },
+    ]);
+  });
+});
+
 /** The load of the test, claimed by the worker role, so a test can call the door. */
 const runningLoad = async (held: Held): Promise<string> => {
   const { load } = await mappedFile(held);
@@ -299,26 +340,15 @@ const runningLoad = async (held: Held): Promise<string> => {
   return load;
 };
 
-const GERMAN_ROW = (() => {
-  const start = TEXT.indexOf(
-    'ESTAT:NRG_TI_GASM(1.0),23/10/26 23:00:00,M,G3000,RU,MIO_M3,DE,2022-01',
-  );
-  const end = TEXT.indexOf('\r\n', start);
-  return {
-    value_text: '4771.900',
-    unit_text: 'MIO_M3',
-    period_text: '2022-01',
-    reporter_text: 'DE',
-    partner_text: 'RU',
-    product_text: 'G3000',
-    flag_text: null,
-    subject_id: null,
-    text_extractor: TEXT_SET,
-    page: 1,
-    start,
-    end,
-  };
-})();
+const ROWS = TEXT.split('\r\n');
+
+/** The span of one line of the file, as the loader gives it. */
+const spanOf = (line: number) => {
+  const start = TEXT.indexOf(ROWS[line] ?? '');
+  return { start, end: start + (ROWS[line] ?? '').length };
+};
+
+const GERMAN_ROW = { subject_id: null, text_extractor: TEXT_SET, page: 1, ...spanOf(1) };
 
 // The code and the sentence of a refusal of the door.
 const faultOf = (call: Promise<unknown>): Promise<{ code: string; message: string }> =>
@@ -346,10 +376,11 @@ test('the door writes a figure once, and a second call with the same row writes 
 });
 
 const REFUSALS: readonly (readonly [string, Record<string, unknown>, RegExp])[] = [
-  ['a value that the row does not hold', { value_text: '1' }, /value "1" as one field/u],
-  ['a reporter that the row does not hold', { reporter_text: 'FR' }, /reporter "FR"/u],
-  ['a period that the row does not hold', { period_text: '2019-01' }, /period "2019-01"/u],
-  ['a unit that the row does not hold', { unit_text: 'TJ_GCV' }, /unit "TJ_GCV"/u],
+  ['the header as a row', spanOf(0), /value "OBS_VALUE" is not a number/u],
+  ['a part of a row', { end: spanOf(1).end - 4 }, /fields of the header/u],
+  ['two rows as one', { end: spanOf(2).end }, /not one record/u],
+  ['a row with no value', spanOf(6), /value "" is not a number/u],
+  ['a row with a code outside the list', spanOf(7), /reporter "ZZ"/u],
   ['a span outside the page', { start: 0, end: 1_000_000 }, /outside the page/u],
   ['a page that is no number', { page: 'one' }, /whole numbers/u],
 ];

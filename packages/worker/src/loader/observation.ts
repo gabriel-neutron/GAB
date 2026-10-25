@@ -29,11 +29,12 @@ export const periodOf = (
 // A decimal number, with an optional exponent. A thousands separator is no number.
 const NUMBER = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/u;
 
-/** The texts of one row that the door of a figure reads. */
+/** The span of one row and its subject: the door of a figure reads each cell itself. */
 export type DoorRow = Readonly<Record<string, string | number | null>>;
 
 /** One row as the door of a figure takes it, with the figure that the door makes of it, or the
- * sentence that says why the row is no figure. */
+ * sentence that says why the row is no figure. The checks here word the report and the dry run,
+ * and the door holds the same checks. */
 export type ObservationRow =
   | { readonly row: DoorRow; readonly figure: Readonly<Record<string, string>> }
   | { readonly refused: string };
@@ -137,13 +138,6 @@ export const observationOf = async (
 
   return {
     row: {
-      value_text: valueText,
-      unit_text: 'column' in rows.unit ? unit : null,
-      period_text: periodText,
-      reporter_text: reporter.text,
-      partner_text: partner?.text ?? null,
-      product_text: rows.product === undefined ? null : product,
-      flag_text: flag === '' ? null : flag,
       subject_id: subject,
       text_extractor: context.cited.textSet,
       page: context.cited.page,

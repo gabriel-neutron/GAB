@@ -29,12 +29,12 @@ The operator decided on #929, after the expert panel (software-architect, osint-
 - **This extends P1: the promotion of the mapping is the promotion of each figure.** The mapper
   proposes how the columns of one stored table map, and the operator decides that one proposal.
   The loader then writes each row through one door, and no act waits in the queue for each row.
-  The door holds the checks that a decision holds, and it derives each value itself: the load is
-  the running job of an accepted mapping; the measure, the method, the publisher and a constant
-  unit come from that mapping; the caller gives only the span of the row and the text of each
-  cell, each text must be one field of that row in the stored page (P9), and the door reads the
-  number, the period and the codes from these texts. A fault of one row sends that row to the
-  load report, and a fault of the load stops the job.
+  The door holds the checks that a decision holds, and it reads each value itself: the load is
+  the running job of an accepted mapping; the measure, the method and a constant unit come from
+  that mapping; the caller gives only the span of a row. The door reads the header and that row
+  from the stored page with the rules of the table reader, and takes each cell from the column
+  that the mapping names (P9). A fault of one row sends that row to the load report, and a fault
+  of the load stops the job.
 - **The mapping has a third kind of table.** Beside an entity table and a relation table, an
   observation table names the column of each part of a figure. The unit is part of the key of a
   figure, because one table gives the same flow in two units. The mapping gives the code list of a
@@ -46,9 +46,10 @@ The operator decided on #929, after the expert panel (software-architect, osint-
   state). The list is a fixed reference list in the seed. A country entity would duplicate a
   reference list that the record does not investigate.
 - **A figure carries its licence, and the public read filters on it.** The door takes the licence
-  from the provider of the document, and a document with no provider gives a restricted licence. A
-  model writes the mapping, so the mapping gives no licence: a word that a model made up and the
-  operator missed would publish every row. The fetch tool names the provider of a file that it
+  and the publisher from the provider of the document. A document with no provider gives a
+  restricted licence, and the publisher that the mapping states. A model writes the mapping, so
+  the mapping gives no licence: a word that a model made up and the operator missed would publish
+  every row, and a second spelling of a publisher would keep two editions visible. The fetch tool names the provider of a file that it
   reads at the API of Eurostat, as the official tools do. The open words are the allow-list of the
   document tier. A figure of UN Comtrade is internal, and the report shows it only as an aggregate.
 - **A figure is written once.** No role updates or deletes it. A new edition of a table is a new
@@ -77,4 +78,4 @@ The operator decided on #929, after the expert panel (software-architect, osint-
 25 October 2026, on the test database, with the two Eurostat SDMX-CSV files of the gas and oil
 imports of the partner RU since January 2021: the gas file (10,072 rows) loads 10,040 figures in
 about 5 s, and the 32 rows that Eurostat marks as missing go to the report. The oil file (72,097
-rows) loads every row in about 40 s.
+rows) loads every row in about 37 s.

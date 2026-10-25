@@ -105,16 +105,17 @@ test('the read service refuses the job view, because a job is not public', async
 // Neither is a contract fault, and both empty every surface.
 // The committed fixture holds no figure: a figure needs a promoted mapping and its load job, and
 // the fixture holds no machine act that a promotion accepted and no job but the store of a
-// document. The test of the loader reads that view.
+// document. The view must still answer, with an empty list.
 const NO_FIXTURE_ROWS: ReadonlySet<string> = new Set(['observation']);
 
-for (const view of VIEWS.filter((name) => !NO_FIXTURE_ROWS.has(name)))
+for (const view of VIEWS)
   test(`the ${view} view answers with rows, and not with an empty list`, async () => {
     const answer = await askReadApi(view);
-    expect({ view, status: answer.status, empty: answer.rows.length === 0 }).toStrictEqual({
+    const empty = answer.rows.length === 0;
+    expect({ view, status: answer.status, empty }).toStrictEqual({
       view,
       status: 200,
-      empty: false,
+      empty: NO_FIXTURE_ROWS.has(view) && empty,
     });
   });
 
