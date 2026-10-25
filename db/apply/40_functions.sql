@@ -5462,40 +5462,84 @@ BEGIN
   RETURN v_id;
 END $$;
 
+-- THE CODE OF THE AREA LIST FOR A CELL OF A REPORTER OR A PARTNER (ADR 0030). `iso3166` takes the
+-- cell as it is. `eurostat` takes the code that area_code_source gives, or else the cell. The answer
+-- holds no row when the list holds no such code. The loader asks it for each distinct cell, and the
+-- door of a figure asks it again, so the two give one answer.
+CREATE OR REPLACE FUNCTION area_of(p_codes text, p_cell text)
+RETURNS TABLE (area_system text, area_code text)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH named AS (
+    SELECT s.system, s.code FROM public.area_code_source s
+     WHERE s.codes = p_codes AND s.source_code = p_cell
+  ), wanted AS (
+    SELECT n.system, n.code FROM named n
+    UNION ALL
+    SELECT 'iso3166', p_cell
+     WHERE p_codes IN ('iso3166', 'eurostat') AND p_cell ~ '^[A-Z]{2}$'
+       AND NOT EXISTS (SELECT 1 FROM named)
+  )
+  SELECT a.system, a.code FROM public.area_code a JOIN wanted w USING (system, code)
+$$;
+
 -- THE DOOR OF A FIGURE (ADR 0030). The worker writes the rows of a promoted observation mapping
 -- here, and nowhere else. The promotion of the mapping is the promotion of each row, so the door
--- holds the checks that a decision of the operator would hold:
+-- holds the checks that a decision of the operator would hold, and it derives each value itself:
 --   - the caller holds the running load of the document, under a mapping that the operator
 --     accepted, and the mapping maps observations;
---   - the measure, the method, the licence and a constant unit are the words of that mapping, so
---     a caller cannot give a figure a more open licence than the operator promoted;
---   - the span of the row lies in the page, and the page holds the value and the period as the
---     file writes them (P9), and the value is that number.
+--   - the measure, the method, the publisher and a constant unit come from that mapping, and the
+--     licence comes from the provider of the document, so neither a caller nor a model gives it;
+--   - the caller gives the span of the row and the text of each cell that the mapping reads. Each
+--     text must be one field of the row (P9), and the door reads the number, the period and the
+--     codes from these texts with the rules of the mapping.
 -- p_rows is a JSON array. The door writes the batch or nothing, and it returns one line for each
 -- row: `written`, `held` when this edition holds the same figure already (a load that runs again),
 -- or `other_value` with the value that this edition holds for the same key.
-CREATE OR REPLACE FUNCTION put_observations(p_job uuid, p_rows jsonb)
+-- A FAULT OF THE LOAD (the job, the mapping, the batch) IS invalid_parameter_value. A FAULT OF ONE
+-- ROW IS data_exception, so the loader can send that row to the report and stop on the other kind.
+DROP FUNCTION IF EXISTS put_observations(uuid, jsonb);
+CREATE FUNCTION put_observations(p_job uuid, p_rows jsonb)
 RETURNS TABLE (item int, outcome text, held_value numeric)
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
-  v_document text;
-  v_mapping  jsonb;
+  v_document   text;
+  v_mapping    jsonb;
   v_mapping_id uuid;
-  v_rows     jsonb;
-  v_row      jsonb;
-  v_no       int := 0;
-  v_text     text;
-  v_page     text;
-  v_length   int;
-  v_bytes    bytea;
-  v_span     text;
-  v_value    numeric;
-  v_held     numeric;
+  v_rows       jsonb;
+  v_licence    text;
+  v_publisher  text;
+  v_row        jsonb;
+  v_no         int := 0;
+  v_text       text;
+  v_page       text;
+  v_length     int;
+  v_bytes      bytea;
+  v_span       text;
+  v_fields     text[];
+  v_start      int;
+  v_end        int;
+  v_value      numeric;
+  v_unit       text;
+  v_period     text;
+  v_cell       text;
+  v_rep_sys    text;
+  v_rep_code   text;
+  v_par_sys    text;
+  v_par_code   text;
+  v_product    text;
+  v_subject    uuid;
+  v_flag       text;
+  v_held       numeric;
+  v_need       text;
 BEGIN
-  SELECT j.document_id, p.payload, p.id INTO v_document, v_mapping, v_mapping_id
+  SELECT j.document_id, p.payload, p.id, coalesce(v.licence, 'restricted')
+    INTO v_document, v_mapping, v_mapping_id, v_licence
     FROM public.jobs j
     JOIN public.proposals p ON p.id = j.mapping
+    JOIN public.documents d ON d.id = j.document_id
+    LEFT JOIN public.document_provider v ON v.id = d.provider_id
    WHERE j.id = p_job AND j.kind = 'load_mapped' AND j.status = 'running'
      AND j.claimed_by = session_user AND p.op = 'map_document' AND p.status = 'accepted';
   IF NOT FOUND THEN
@@ -5511,18 +5555,22 @@ BEGIN
     RAISE EXCEPTION 'the rows of a load of figures are a JSON array'
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
+  -- The inherited row says that nothing supports the value, so no provider makes it public.
+  IF v_document = 'inherited' THEN
+    v_licence := 'restricted';
+  END IF;
+  v_publisher := coalesce(v_mapping->>'publisher', v_mapping->>'table');
 
   FOR v_row IN SELECT value FROM jsonb_array_elements(p_rows) LOOP
     v_no := v_no + 1;
-    IF v_row->>'measure' IS DISTINCT FROM v_rows->>'measure'
-       OR v_row->>'method' IS DISTINCT FROM v_rows->>'method'
-       OR v_row->>'licence' IS DISTINCT FROM v_rows->>'licence'
-       OR (v_rows->'unit' ? 'constant'
-           AND v_row->>'unit' IS DISTINCT FROM v_rows->'unit'->>'constant') THEN
-      RAISE EXCEPTION 'row %: the measure, the method, the licence and a constant unit are the '
-                      'words of the promoted mapping', v_no
-        USING ERRCODE = 'invalid_parameter_value';
+    IF NOT (coalesce(pg_input_is_valid(v_row->>'page', 'int'), false)
+            AND coalesce(pg_input_is_valid(v_row->>'start', 'int'), false)
+            AND coalesce(pg_input_is_valid(v_row->>'end', 'int'), false)) THEN
+      RAISE EXCEPTION 'row %: the page, the start and the end are whole numbers', v_no
+        USING ERRCODE = 'data_exception';
     END IF;
+    v_start := (v_row->>'start')::int;
+    v_end := (v_row->>'end')::int;
     -- A page of a table can hold megabytes, and each row of a batch cites the same page, so the
     -- door reads the page once for each batch.
     IF v_page IS DISTINCT FROM (v_row->>'text_extractor') || '|' || (v_row->>'page') THEN
@@ -5532,7 +5580,7 @@ BEGIN
       IF NOT FOUND THEN
         RAISE EXCEPTION 'row %: page % of the text % of document % does not exist', v_no,
           v_row->>'page', v_row->>'text_extractor', v_document
-          USING ERRCODE = 'invalid_parameter_value';
+          USING ERRCODE = 'data_exception';
       END IF;
       v_page := (v_row->>'text_extractor') || '|' || (v_row->>'page');
       v_length := char_length(v_text);
@@ -5542,41 +5590,101 @@ BEGIN
       v_bytes := CASE WHEN octet_length(v_text) = v_length THEN convert_to(v_text, 'UTF8') END;
     END IF;
     -- char_length counts code points, as the span of a citation does.
-    IF coalesce((v_row->>'start')::int < 0 OR (v_row->>'start')::int >= (v_row->>'end')::int
-                OR (v_row->>'end')::int > v_length, true) THEN
-      RAISE EXCEPTION 'row %: the span % to % lies outside the page', v_no, v_row->>'start',
-        v_row->>'end'
-        USING ERRCODE = 'invalid_parameter_value';
+    IF v_start < 0 OR v_start >= v_end OR v_end > v_length THEN
+      RAISE EXCEPTION 'row %: the span % to % lies outside the page', v_no, v_start, v_end
+        USING ERRCODE = 'data_exception';
     END IF;
-    v_span := CASE WHEN v_bytes IS NULL
-                   THEN substr(v_text, (v_row->>'start')::int + 1,
-                               (v_row->>'end')::int - (v_row->>'start')::int)
-                   ELSE convert_from(substring(v_bytes FROM (v_row->>'start')::int + 1
-                                                FOR (v_row->>'end')::int
-                                                    - (v_row->>'start')::int), 'UTF8') END;
-    IF coalesce(v_row->>'value_text', '') = '' OR strpos(v_span, v_row->>'value_text') = 0
-       OR coalesce(v_row->>'period_text', '') = '' OR strpos(v_span, v_row->>'period_text') = 0 THEN
-      RAISE EXCEPTION 'row %: the row of the page does not hold the value and the period as the '
-                      'file writes them', v_no
-        USING ERRCODE = 'invalid_parameter_value';
+    v_span := CASE WHEN v_bytes IS NULL THEN substr(v_text, v_start + 1, v_end - v_start)
+                   ELSE convert_from(substring(v_bytes FROM v_start + 1 FOR v_end - v_start),
+                                     'UTF8') END;
+    -- The fields of the row. A row with a quote mark can hold a separator inside a field, so the
+    -- door then reads each text as one quoted or plain run of the row.
+    v_fields := CASE WHEN strpos(v_span, '"') = 0
+                     THEN regexp_split_to_array(btrim(v_span, E'\r\n'), '[,\t]') END;
+
+    -- Each text that the mapping reads is one field of the row.
+    FOR v_need IN SELECT n FROM unnest(ARRAY['value_text', 'period_text', 'reporter_text']
+                                     || CASE WHEN v_rows->'unit' ? 'column'
+                                             THEN ARRAY['unit_text'] ELSE '{}' END
+                                     || CASE WHEN v_rows ? 'partner'
+                                             THEN ARRAY['partner_text'] ELSE '{}' END
+                                     || CASE WHEN v_rows ? 'product'
+                                             THEN ARRAY['product_text'] ELSE '{}' END
+                                     || CASE WHEN v_rows ? 'flag' AND coalesce(v_row->>'flag_text', '') <> ''
+                                             THEN ARRAY['flag_text'] ELSE '{}' END) AS n LOOP
+      v_cell := v_row->>v_need;
+      IF coalesce(v_cell, '') = ''
+         OR (v_fields IS NOT NULL AND NOT v_cell = ANY (ARRAY(SELECT btrim(f) FROM unnest(v_fields) f)))
+         OR (v_fields IS NULL AND strpos(v_span, v_cell) = 0) THEN
+        RAISE EXCEPTION 'row %: the row of the page does not hold the % "%" as one field', v_no,
+          replace(v_need, '_text', ''), coalesce(v_cell, '')
+          USING ERRCODE = 'data_exception';
+      END IF;
+    END LOOP;
+
+    IF NOT pg_input_is_valid(v_row->>'value_text', 'numeric') THEN
+      RAISE EXCEPTION 'row %: the value "%" is not a number', v_no, v_row->>'value_text'
+        USING ERRCODE = 'data_exception';
     END IF;
-    IF NOT pg_input_is_valid(v_row->>'value_text', 'numeric')
-       OR (v_row->>'value_text')::numeric IS DISTINCT FROM (v_row->>'value')::numeric THEN
-      RAISE EXCEPTION 'row %: the value is not the number that the file writes', v_no
-        USING ERRCODE = 'invalid_parameter_value';
+    v_value := (v_row->>'value_text')::numeric;
+    v_unit := coalesce(v_rows->'unit'->>'constant', v_row->>'unit_text');
+
+    v_cell := v_row->>'period_text';
+    v_period := CASE v_rows->'period'->>'length'
+      WHEN 'year' THEN substring(v_cell FROM '^([0-9]{4})$')
+      WHEN 'quarter' THEN substring(v_cell FROM '^([0-9]{4}-Q[1-4])$')
+      WHEN 'week' THEN substring(v_cell FROM '^([0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3]))$')
+      WHEN 'month' THEN coalesce(substring(v_cell FROM '^([0-9]{4}-(0[1-9]|1[0-2]))$'),
+                                 regexp_replace(substring(v_cell FROM '^([0-9]{4}(0[1-9]|1[0-2]))$'),
+                                                '^([0-9]{4})', '\1-'))
+    END;
+    IF v_period IS NULL THEN
+      RAISE EXCEPTION 'row %: "%" is not a period of one %', v_no, v_cell,
+        v_rows->'period'->>'length'
+        USING ERRCODE = 'data_exception';
     END IF;
-    v_value := (v_row->>'value')::numeric;
+
+    SELECT a.area_system, a.area_code INTO v_rep_sys, v_rep_code
+      FROM public.area_of(v_rows->'reporter'->>'codes', v_row->>'reporter_text') a;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'row %: the reporter "%" is not a code of the area list', v_no,
+        v_row->>'reporter_text'
+        USING ERRCODE = 'data_exception';
+    END IF;
+    v_par_sys := NULL;
+    v_par_code := NULL;
+    IF v_rows ? 'partner' THEN
+      SELECT a.area_system, a.area_code INTO v_par_sys, v_par_code
+        FROM public.area_of(v_rows->'partner'->>'codes', v_row->>'partner_text') a;
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'row %: the partner "%" is not a code of the area list', v_no,
+          v_row->>'partner_text'
+          USING ERRCODE = 'data_exception';
+      END IF;
+    END IF;
+    v_product := CASE WHEN v_rows ? 'product' THEN v_row->>'product_text' END;
+    v_flag := CASE WHEN v_rows ? 'flag' THEN nullif(v_row->>'flag_text', '') END;
+
+    v_subject := NULL;
+    IF v_rows ? 'subject' THEN
+      IF NOT coalesce(pg_input_is_valid(v_row->>'subject_id', 'uuid'), false)
+         OR NOT EXISTS (SELECT 1 FROM public.entities e WHERE e.id = (v_row->>'subject_id')::uuid) THEN
+        RAISE EXCEPTION 'row %: the subject is no entity of the record', v_no
+          USING ERRCODE = 'data_exception';
+      END IF;
+      v_subject := (v_row->>'subject_id')::uuid;
+    END IF;
 
     SELECT o.value INTO v_held FROM public.observation o
-     WHERE o.document_id = v_document AND o.measure = v_row->>'measure'
-       AND o.unit = v_row->>'unit' AND o.period = v_row->>'period'
-       AND o.reporter_system = v_row->>'reporter_system' AND o.reporter = v_row->>'reporter'
-       AND o.partner_system IS NOT DISTINCT FROM v_row->>'partner_system'
-       AND o.partner IS NOT DISTINCT FROM v_row->>'partner'
-       AND o.product_system IS NOT DISTINCT FROM v_row->>'product_system'
-       AND o.product IS NOT DISTINCT FROM v_row->>'product'
-       AND o.method = v_row->>'method'
-       AND o.subject_id IS NOT DISTINCT FROM (v_row->>'subject_id')::uuid;
+     WHERE o.document_id = v_document AND o.measure = v_rows->>'measure'
+       AND o.unit = v_unit AND o.period = v_period
+       AND o.reporter_system = v_rep_sys AND o.reporter = v_rep_code
+       AND o.partner_system IS NOT DISTINCT FROM v_par_sys
+       AND o.partner IS NOT DISTINCT FROM v_par_code
+       AND o.product_system IS NOT DISTINCT FROM v_rows->'product'->>'system'
+       AND o.product IS NOT DISTINCT FROM v_product
+       AND o.method = v_rows->>'method' AND o.publisher = v_publisher
+       AND o.subject_id IS NOT DISTINCT FROM v_subject;
     IF FOUND THEN
       item := v_no;
       outcome := CASE WHEN v_held = v_value THEN 'held' ELSE 'other_value' END;
@@ -5586,19 +5694,20 @@ BEGIN
     END IF;
 
     INSERT INTO public.observation
-      (measure, value, unit, period, method, reporter_system, reporter, partner_system, partner,
-       product_system, product, subject_id, licence, flag, document_id, text_extractor, page,
-       span_start, span_end, mapping_id, job_id)
+      (measure, value, unit, period, method, publisher, reporter_system, reporter,
+       partner_system, partner, product_system, product, subject_id, licence, flag, document_id,
+       text_extractor, page, span_start, span_end, mapping_id, job_id)
     VALUES
-      (v_row->>'measure', v_value, v_row->>'unit', v_row->>'period', v_row->>'method',
-       v_row->>'reporter_system', v_row->>'reporter', v_row->>'partner_system',
-       v_row->>'partner', v_row->>'product_system', v_row->>'product',
-       (v_row->>'subject_id')::uuid, v_row->>'licence', v_row->>'flag', v_document,
-       v_row->>'text_extractor', (v_row->>'page')::int, (v_row->>'start')::int,
-       (v_row->>'end')::int, v_mapping_id, p_job);
+      (v_rows->>'measure', v_value, v_unit, v_period, v_rows->>'method', v_publisher,
+       v_rep_sys, v_rep_code, v_par_sys, v_par_code,
+       v_rows->'product'->>'system', v_product, v_subject, v_licence, v_flag, v_document,
+       v_row->>'text_extractor', (v_row->>'page')::int, v_start, v_end, v_mapping_id, p_job);
     item := v_no; outcome := 'written'; held_value := NULL;
     RETURN NEXT;
   END LOOP;
+EXCEPTION WHEN check_violation OR not_null_violation THEN
+  -- A unit, a product or a mark that the table refuses is a fault of one row.
+  RAISE EXCEPTION 'row %: %', v_no, SQLERRM USING ERRCODE = 'data_exception';
 END $$;
 
 -- THE REPORT OF A LOAD. Each load stores the rows it excluded, with the reason of each, as one

@@ -623,14 +623,15 @@ COMMENT ON VIEW api.area_code IS
 
 -- ADR 0030: AN AGGREGATED FIGURE. The read gives the figure of the newest edition for each key:
 -- a figure of an older edition of the same table is hidden, so a sum never counts a month twice.
--- The newest edition is the document retrieved last, and the identifier breaks a tie.
+-- The newest edition is the document retrieved last, and the identifier breaks a tie. The
+-- publisher is part of the key, so the edition of one publisher never hides another publisher.
 -- THE LICENCE IS THE PUBLIC FILTER. The three roles that run a tool read every figure. Every
 -- other role reads a figure only when its licence is open. The list is the allow-list of
 -- document_tier, so the two rules fail closed in the same way, and a test holds them equal.
 -- A subject that the reader cannot read, for example a person with no public source (PU1), is
 -- not named. A subject that a merge absorbed reads as its survivor (M12).
 CREATE VIEW api.observation AS
-  SELECT o.id, o.measure, o.value, o.unit, o.period, o.method,
+  SELECT o.id, o.measure, o.value, o.unit, o.period, o.method, o.publisher,
          o.reporter_system, o.reporter, o.partner_system, o.partner,
          o.product_system, o.product,
          (SELECT e.id FROM api.entity e
@@ -639,27 +640,26 @@ CREATE VIEW api.observation AS
            AS subject_id,
          o.licence, o.flag, o.document_id, o.page, o.span_start, o.span_end, o.mapping_id,
          o.created_at
-    FROM public.observation o
-    JOIN public.documents d ON d.id = o.document_id
-   WHERE (current_user IN ('gabriel_app', 'gabriel_agent', 'gabriel_research')
+    -- One sort and not a NOT EXISTS for each row: the planner of a fresh load has no statistics,
+    -- and a nested scan of the table for each row took minutes. A window partition treats two
+    -- NULL as the same value, as the key of the table does.
+    FROM (SELECT x.*,
+                 row_number() OVER (
+                   PARTITION BY x.measure, x.unit, x.period, x.reporter_system, x.reporter,
+                                x.partner_system, x.partner, x.product_system, x.product,
+                                x.method, x.publisher, x.subject_id
+                   ORDER BY d.retrieved_at DESC NULLS LAST, d.id DESC) AS edition
+            FROM public.observation x
+            JOIN public.documents d ON d.id = x.document_id) AS o
+   WHERE o.edition = 1
+     AND (current_user IN ('gabriel_app', 'gabriel_agent', 'gabriel_research')
           OR o.licence IN ('public-domain', 'eu-reuse', 'ogl-v3', 'cc0', 'cc-by-4.0',
-                           'copernicus', 'own'))
-     AND NOT EXISTS (
-       SELECT 1 FROM public.observation n
-         JOIN public.documents nd ON nd.id = n.document_id
-        WHERE n.measure = o.measure AND n.reporter = o.reporter AND n.period = o.period
-          AND n.unit = o.unit AND n.reporter_system = o.reporter_system
-          AND n.method = o.method
-          AND n.partner_system IS NOT DISTINCT FROM o.partner_system
-          AND n.partner IS NOT DISTINCT FROM o.partner
-          AND n.product_system IS NOT DISTINCT FROM o.product_system
-          AND n.product IS NOT DISTINCT FROM o.product
-          AND n.subject_id IS NOT DISTINCT FROM o.subject_id
-          AND (nd.retrieved_at, nd.id) > (d.retrieved_at, d.id));
+                           'copernicus', 'own'));
 COMMENT ON VIEW api.observation IS
   'An aggregated figure of a stored table: a measure, its value and unit, a period (a year '
   '2024, a quarter 2024-Q1, a month 2024-03 or a week 2024-W05), the reporter and the partner '
-  '(codes of api.area_code), the product scope, and the method of the source. A mirror figure '
+  '(codes of api.area_code), the product scope, the method and the publisher of the source. A '
+  'mirror figure '
   '(reported by the partner) is not a figure of the reporter. Each figure cites its document, '
   'its page and the span of its row. Only the newest edition of a table gives a figure for each '
   'key. A figure is not an entity: the operator promoted the mapping of its table once. The '

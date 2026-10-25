@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
 
-import { LICENCES } from '@gab/proposal/mapping';
 import type { RawObject } from '@gab/store';
 import { Pool, type PoolClient } from 'pg';
 import { afterAll, expect, test } from 'vitest';
@@ -59,11 +58,27 @@ const DRAFT = {
     partner: { column: 'partner', codes: 'eurostat' },
     product: { column: 'siec', system: 'siec' },
     method: 'imports reported by the importer',
-    licence: 'eu-reuse',
     flag: 'OBS_FLAG',
   },
   relations: [],
 };
+
+// The closed list of licence words of the document providers, which a figure takes.
+const LICENCES = [
+  'public-domain',
+  'eu-reuse',
+  'ogl-v3',
+  'cc0',
+  'cc-by-4.0',
+  'cc-by-nc-4.0',
+  'odbl',
+  'copernicus',
+  'paid-filing',
+  'registration-terms',
+  'restricted',
+  'commercial-no-redistribution',
+  'own',
+] as const;
 
 const answerOf = (draft: unknown): Response => completionOf(JSON.stringify({ mapping: draft }));
 
@@ -159,8 +174,12 @@ const fromAnEarlierTransaction = async (held: Held, id: string): Promise<void> =
 const mappedFile = async (
   held: Held,
   draft: unknown = DRAFT,
+  provider: string | null = 'eurostat',
 ): Promise<{ mapping: string; load: string }> => {
   await storeFile(held, FILE, TEXT, '2026-10-25');
+  // fetch_document names the provider of a file of the Eurostat API.
+  if (provider !== null)
+    await held.ask('SELECT public.fill_document_provider($1, $2)', [FILE, provider]);
   const job = await held.asRole('gabriel_app', () =>
     held.idOf("SELECT public.enqueue_job($1, 'map_structured') AS id", [FILE]),
   );
@@ -286,28 +305,27 @@ const GERMAN_ROW = (() => {
   );
   const end = TEXT.indexOf('\r\n', start);
   return {
-    measure: 'imports_natural_gas',
-    value: '4771.900',
     value_text: '4771.900',
-    unit: 'MIO_M3',
-    period: '2022-01',
+    unit_text: 'MIO_M3',
     period_text: '2022-01',
-    method: 'imports reported by the importer',
-    licence: 'eu-reuse',
-    reporter_system: 'iso3166',
-    reporter: 'DE',
-    partner_system: 'iso3166',
-    partner: 'RU',
-    product_system: 'siec',
-    product: 'G3000',
+    reporter_text: 'DE',
+    partner_text: 'RU',
+    product_text: 'G3000',
+    flag_text: null,
     subject_id: null,
-    flag: null,
     text_extractor: TEXT_SET,
     page: 1,
     start,
     end,
   };
 })();
+
+// The code and the sentence of a refusal of the door.
+const faultOf = (call: Promise<unknown>): Promise<{ code: string; message: string }> =>
+  call.then(
+    () => ({ code: 'none', message: 'the door wrote the rows' }),
+    (cause: unknown) => z.object({ code: z.string(), message: z.string() }).parse(cause),
+  );
 
 const putAsAgent = (held: Held, job: string, rows: unknown[]) =>
   held.asRole('gabriel_agent', () =>
@@ -324,42 +342,51 @@ test('the door writes a figure once, and a second call with the same row writes 
       { item: 1, outcome: 'written' },
     ]);
     expect(await putAsAgent(held, job, [GERMAN_ROW])).toStrictEqual([{ item: 1, outcome: 'held' }]);
-    // The same key with another value in the same edition is a second row of the file.
-    expect(
-      await putAsAgent(held, job, [{ ...GERMAN_ROW, value: '1', value_text: '1' }]),
-    ).toStrictEqual([{ item: 1, outcome: 'other_value' }]);
   });
 });
 
 const REFUSALS: readonly (readonly [string, Record<string, unknown>, RegExp])[] = [
-  [
-    'a licence that the operator did not promote',
-    { licence: 'cc0' },
-    /words of the promoted mapping/u,
-  ],
-  ['another measure', { measure: 'imports_crude_oil' }, /words of the promoted mapping/u],
-  [
-    'a value that the row does not hold',
-    { value: '4771.901', value_text: '4771.901' },
-    /does not hold the value/u,
-  ],
-  ['a value that is not the number of its text', { value: '4771.8' }, /not the number/u],
+  ['a value that the row does not hold', { value_text: '1' }, /value "1" as one field/u],
+  ['a reporter that the row does not hold', { reporter_text: 'FR' }, /reporter "FR"/u],
+  ['a period that the row does not hold', { period_text: '2019-01' }, /period "2019-01"/u],
+  ['a unit that the row does not hold', { unit_text: 'TJ_GCV' }, /unit "TJ_GCV"/u],
   ['a span outside the page', { start: 0, end: 1_000_000 }, /outside the page/u],
+  ['a page that is no number', { page: 'one' }, /whole numbers/u],
 ];
 
-test.each(REFUSALS)('the door refuses %s', async (_name, change, sentence) => {
+// A fault of one row is data_exception, so the loader sends the row to the report.
+test.each(REFUSALS)(
+  'the door refuses %s as a fault of one row',
+  async (_name, change, sentence) => {
+    await inTransaction(async (held) => {
+      const job = await runningLoad(held);
+      const fault = await faultOf(putAsAgent(held, job, [{ ...GERMAN_ROW, ...change }]));
+      expect(fault.code).toBe('22000');
+      expect(fault.message).toMatch(sentence);
+    });
+  },
+);
+
+test('the door takes the licence from the provider of the document, and none gives restricted', async () => {
   await inTransaction(async (held) => {
-    const job = await runningLoad(held);
-    await expect(putAsAgent(held, job, [{ ...GERMAN_ROW, ...change }])).rejects.toThrow(sentence);
+    const { load } = await mappedFile(held, DRAFT, null);
+    await runLoad(held, load);
+    expect(
+      await held.ask(
+        'SELECT DISTINCT licence, publisher FROM public.observation WHERE document_id = $1',
+        [FILE],
+      ),
+    ).toStrictEqual([{ licence: 'restricted', publisher: 'Eurostat' }]);
   });
 });
 
 test('the door refuses a role that does not run the load', async () => {
   await inTransaction(async (held) => {
     const { load } = await mappedFile(held);
-    await expect(putAsAgent(held, load, [GERMAN_ROW])).rejects.toThrow(
-      /no running load of an accepted mapping/u,
-    );
+    // A fault of the load is invalid_parameter_value, so the loader stops the job.
+    const fault = await faultOf(putAsAgent(held, load, [GERMAN_ROW]));
+    expect(fault.code).toBe('22023');
+    expect(fault.message).toMatch(/no running load of an accepted mapping/u);
   });
 });
 
@@ -382,7 +409,7 @@ test('no role writes the table of figures by hand', async () => {
 const readRow = z.object({ period: z.string(), value: z.string(), licence: z.string() });
 
 const PUBLIC_READ = `SELECT period, value::text AS value, licence FROM api.observation
-  WHERE reporter = 'DE' ORDER BY period, licence`;
+  WHERE reporter = 'DE' AND publisher = 'Eurostat' ORDER BY period, licence`;
 
 test('the public read shows the newest edition of a figure, and only under an open licence', async () => {
   await inTransaction(async (held) => {
@@ -393,10 +420,11 @@ test('the public read shows the newest edition of a figure, and only under an op
     await storeFile(held, 'doc_estat_gasm_old', TEXT.replace('4771.900', '4700.000'), '2026-01-05');
     await held.ask(
       `INSERT INTO public.observation
-         (measure, value, unit, period, method, reporter_system, reporter, partner_system, partner,
-          product_system, product, licence, document_id, text_extractor, page, span_start,
-          span_end, mapping_id, job_id)
-       SELECT measure, 4700, unit, period, method, reporter_system, reporter, partner_system,
+         (measure, value, unit, period, method, publisher, reporter_system, reporter,
+          partner_system, partner, product_system, product, licence, document_id, text_extractor,
+          page, span_start, span_end, mapping_id, job_id)
+       SELECT measure, 4700, unit, period, method, publisher, reporter_system, reporter,
+              partner_system,
               partner, product_system, product, licence, 'doc_estat_gasm_old', text_extractor,
               page, span_start, span_end, mapping_id, job_id
          FROM public.observation WHERE document_id = $1 AND reporter = 'DE' AND period = '2022-01'`,
@@ -405,10 +433,11 @@ test('the public read shows the newest edition of a figure, and only under an op
     // A figure under a restricted licence, for example UN Comtrade, is internal.
     await held.ask(
       `INSERT INTO public.observation
-         (measure, value, unit, period, method, reporter_system, reporter, partner_system, partner,
-          product_system, product, licence, document_id, text_extractor, page, span_start,
-          span_end, mapping_id, job_id)
-       SELECT measure, value, unit, '2023-01', method, reporter_system, reporter, partner_system,
+         (measure, value, unit, period, method, publisher, reporter_system, reporter,
+          partner_system, partner, product_system, product, licence, document_id, text_extractor,
+          page, span_start, span_end, mapping_id, job_id)
+       SELECT measure, value, unit, '2023-01', method, publisher, reporter_system, reporter,
+              partner_system,
               partner, product_system, product, 'restricted', document_id, text_extractor,
               page, span_start, span_end, mapping_id, job_id
          FROM public.observation WHERE document_id = $1 AND reporter = 'DE' AND period = '2022-01'`,
@@ -447,9 +476,9 @@ test('a licence word opens a figure exactly when it opens a document, and the li
       ]);
       await held.ask(
         `INSERT INTO public.observation
-           (measure, value, unit, period, method, reporter_system, reporter, licence, document_id,
-            text_extractor, page, span_start, span_end, mapping_id, job_id)
-         SELECT 'licence_probe', 1, 'MIO_M3', $4, 'probe', 'iso3166', 'DE', $1, $2,
+           (measure, value, unit, period, method, publisher, reporter_system, reporter, licence,
+            document_id, text_extractor, page, span_start, span_end, mapping_id, job_id)
+         SELECT 'licence_probe', 1, 'MIO_M3', $4, 'probe', 'probe', 'iso3166', 'DE', $1, $2,
                 text_extractor, page, span_start, span_end, mapping_id, job_id
            FROM public.observation WHERE document_id = $3 LIMIT 1`,
         [licence, document, FILE, String(2000 + index)],

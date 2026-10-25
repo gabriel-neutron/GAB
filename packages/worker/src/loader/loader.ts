@@ -314,7 +314,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       await context.db.query(REPORT, [job.id, title, key, digest, REPORT_MIME]);
     };
 
-    // A figure is no entity: the door of a figure writes each row, and no act waits (ADR 0030).
+    // A figure is no entity: the door of a figure writes each row, and no act waits for a decision.
     if (isObservationTable(mapping.rows)) {
       const done = await loadObservations(context.db, {
         job: job.id,

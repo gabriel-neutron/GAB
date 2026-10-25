@@ -89,6 +89,9 @@ INSERT INTO document_provider (id, name, licence) VALUES
   -- until its terms of reuse are read.
   ('world_bank',          'World Bank',                 'cc-by-4.0'),
   ('bruegel',             'Bruegel',                    'restricted'),
+  -- Eurostat data is reusable under the reuse policy of the European Commission, with the source
+  -- named. fetch_document names this provider only for a file of the Eurostat API.
+  ('eurostat',            'Eurostat',                   'eu-reuse'),
   ('own',                 'own',                        'own')
 ON CONFLICT (id) DO UPDATE SET
   name    = EXCLUDED.name,
@@ -99,8 +102,8 @@ ON CONFLICT (id) DO UPDATE SET
 -- ADR 0030: THE CODES OF A REPORTER AND OF A PARTNER OF A FIGURE. A fixed reference list, and
 -- not entities of the graph. The countries are the codes of ISO 3166-1 alpha-2, with their English
 -- names, and XK for Kosovo, which the EU and Eurostat use. A group is a set of countries that a
--- source reports as one: OTHER is a partner that the source does not state. The loader turns the
--- codes of a source (Eurostat writes EL for Greece) into these codes.
+-- source reports as one: OTHER is a partner that the source does not state. area_code_source
+-- turns the codes of a source (Eurostat writes EL for Greece) into these codes.
 INSERT INTO area_code (system, code, label) VALUES
   ('iso3166', 'AD', 'Andorra'),
   ('iso3166', 'AE', 'United Arab Emirates'),
@@ -359,6 +362,18 @@ INSERT INTO area_code (system, code, label) VALUES
   ('group', 'WORLD', 'All countries of the world'),
   ('group', 'OTHER', 'A partner that the source does not state')
 ON CONFLICT (system, code) DO UPDATE SET label = EXCLUDED.label;
+
+-- The codes of Eurostat that differ from the list. Any other code of two letters is the ISO code.
+INSERT INTO area_code_source (codes, source_code, system, code) VALUES
+  ('eurostat', 'EL', 'iso3166', 'GR'),
+  ('eurostat', 'UK', 'iso3166', 'GB'),
+  ('eurostat', 'EU27_2020', 'group', 'EU27'),
+  ('eurostat', 'EA20', 'group', 'EA20'),
+  ('eurostat', 'EA21', 'group', 'EA21'),
+  ('eurostat', 'EXT_EU27_2020', 'group', 'EXTRA_EU27'),
+  ('eurostat', 'TOTAL', 'group', 'WORLD'),
+  ('eurostat', 'NSP', 'group', 'OTHER')
+ON CONFLICT (codes, source_code) DO UPDATE SET system = EXCLUDED.system, code = EXCLUDED.code;
 
 
 -- ============================================================================ entity_type ===

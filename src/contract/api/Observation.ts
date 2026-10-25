@@ -13,6 +13,8 @@ export default interface Observation {
 
   method: string | null;
 
+  publisher: string | null;
+
   reporter_system: string | null;
 
   reporter: string | null;
@@ -51,6 +53,7 @@ export const observation = z.object({
   unit: z.string().nullable(),
   period: z.string().nullable(),
   method: z.string().nullable(),
+  publisher: z.string().nullable(),
   reporter_system: z.string().nullable(),
   reporter: z.string().nullable(),
   partner_system: z.string().nullable(),

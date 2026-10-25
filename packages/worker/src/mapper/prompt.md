@@ -107,8 +107,6 @@ each entry gives the number of the row and its values. `vocabulary` gives the wo
     - `method`: how the source makes the figure, in a few words, for example `imports reported
       by the importer`. When the reporter is not the country of the flow that you study, the
       figure is a mirror figure: write `mirror figure reported by the partner`.
-    - `licence`: the licence of the source. Use `eu-reuse` for Eurostat. Use `restricted` when
-      you do not know the licence.
     - `flag`: optional, the column of the mark beside a value (`OBS_FLAG` in SDMX-CSV).
     Never map a column of a dataflow name or of an update date.
 17. Do not give an expression, a formula, a confidence or a note.

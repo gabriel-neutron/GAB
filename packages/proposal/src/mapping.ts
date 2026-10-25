@@ -156,26 +156,8 @@ const links = z.strictObject({
 
 export type LinkEnd = z.infer<typeof linkEnd>;
 
-/** The licence words of a figure: the closed list of the document providers. The public read
- * shows a figure only when its licence is open (ADR 0030). */
-export const LICENCES = [
-  'public-domain',
-  'eu-reuse',
-  'ogl-v3',
-  'cc0',
-  'cc-by-4.0',
-  'cc-by-nc-4.0',
-  'odbl',
-  'copernicus',
-  'paid-filing',
-  'registration-terms',
-  'restricted',
-  'commercial-no-redistribution',
-  'own',
-] as const;
-
-/** The code lists that a column of a reporter or a partner can hold. The loader turns each one
- * into a code of the fixed area list: `eurostat` writes EL for Greece and EU27_2020 for the EU. */
+/** The code lists that a column of a reporter or a partner can hold. The database turns each one
+ * into a code of the fixed area list: Eurostat writes its own codes for Greece and for the EU. */
 export const AREA_CODES = ['iso3166', 'eurostat'] as const;
 
 /** The length of the period of a figure. A cell gives the ISO form: 2024, 2024-Q1, 2024-03 or
@@ -187,8 +169,9 @@ export const PRODUCT_SYSTEMS = ['siec', 'hs', 'chpl'] as const;
 
 const area = z.strictObject({ column, codes: z.enum(AREA_CODES) });
 
-/** An observation table: each row is one aggregated figure, and no row is an entity (ADR 0030).
- * The mapping gives the words that hold for every row, and the columns of the rest. */
+/** An observation table: each row is one aggregated figure, and no row is an entity. The mapping
+ * gives the words that hold for every row, and the columns of the rest. The licence of a figure
+ * comes from the provider of its document, and never from a mapping that a model wrote. */
 const observations = z.strictObject({
   measure: key.max(100).describe('what the figure counts, for example imports_natural_gas'),
   value: z.strictObject({ column }).describe('the column of the number'),
@@ -214,7 +197,6 @@ const observations = z.strictObject({
       'how the source makes the figure, for example "imports reported by the importer" or ' +
         '"mirror figure reported by the partner"',
     ),
-  licence: z.enum(LICENCES).describe('the licence of the source of the table'),
   flag: column.optional().describe('the column of the mark beside a value, such as p'),
 });
 

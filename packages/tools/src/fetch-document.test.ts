@@ -9,7 +9,13 @@ import { endOcr } from '@gab/text';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
 import { CATALOGUE } from './catalogue.ts';
-import { addressTitle, endMetadata, jsonErrorOf, MAX_BYTES } from './fetch-document.ts';
+import {
+  addressTitle,
+  endMetadata,
+  fetchedProvider,
+  jsonErrorOf,
+  MAX_BYTES,
+} from './fetch-document.ts';
 import {
   FETCH_DAY,
   FIXTURE_HOST,
@@ -580,4 +586,16 @@ describe('a compressed answer is decoded before its text is read', () => {
 test('a path with a percent sequence that is not UTF-8 stays encoded in the title', () => {
   expect(addressTitle('http://example.org/r%E9port')).toBe('example.org/r%E9port');
   expect(addressTitle('http://example.org/caf%C3%A9')).toBe('example.org/café');
+});
+
+test('a file of the Eurostat API takes the provider of Eurostat, and another address takes none', () => {
+  expect(
+    fetchedProvider(
+      'https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/nrg_ti_gasm/M..RU..?format=SDMX-CSV',
+    ),
+  ).toBe('eurostat');
+  expect(fetchedProvider('https://ec.europa.eu/eurostat/web/main/home')).toBeUndefined();
+  expect(
+    fetchedProvider('https://ec.europa.eu.example.test/eurostat/api/dissemination/'),
+  ).toBeUndefined();
 });

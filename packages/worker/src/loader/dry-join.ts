@@ -13,7 +13,7 @@ import { z } from 'zod';
 import type { Queryable } from '../queryable.ts';
 import { makeFinder } from './join.ts';
 import { castAll, daysOf, foundWords, makeEndFinder, resolveEnd } from './link.ts';
-import { observationOf } from './observation.ts';
+import { areasOf, observationOf, subjectFinder } from './observation.ts';
 
 const MAPPING = `SELECT p.payload, p.src[1]::text AS document,
        public.mapping_text_set(p.id) AS text_set
@@ -87,10 +87,6 @@ const linkJoin = async (
   ].join('');
 };
 
-const AREAS = 'SELECT system, code FROM api.area_code';
-
-const areaRow = z.array(z.object({ system: z.string(), code: z.string() }));
-
 /** The dry run of an observation table: for each row, the figure that the load writes, or the
  * sentence that sends the row to the report. The checks are the checks of the load, and the door
  * of a figure is not called. */
@@ -102,18 +98,9 @@ const observationJoin = async (
   table: ReturnType<typeof tableOf>,
   rows: ObservationRows,
 ): Promise<string> => {
-  const areas = new Set(
-    areaRow.parse((await db.query(AREAS)).rows).map((one) => `${one.system}:${one.code}`),
-  );
-  const findEnd = makeEndFinder(db, table.header);
+  const areas = await areasOf(db, rows, table.header, table.rows);
+  const subjectOf = subjectFinder(db, rows, table.header);
   const column = new Map(table.header.map((name, index) => [name, index] as const));
-  const subjectOf = async (record: (typeof table.rows)[number]) => {
-    if (rows.subject === undefined) return { refused: 'the mapping names no subject' };
-    const found = await findEnd(record, rows.subject);
-    return found.kind === 'one' && found.key !== 'label'
-      ? found.id
-      : { refused: 'the subject is not one entity that an identifier finds' };
-  };
   let figures = 0;
   const lines: string[] = [];
   for (const [index, record] of table.rows.entries()) {
@@ -127,19 +114,15 @@ const observationJoin = async (
       continue;
     }
     figures += 1;
-    const { row } = made;
-    const word = (name: string): string => {
-      const value = row[name];
-      return value === null || value === undefined ? '' : String(value);
-    };
+    const { figure } = made;
     lines.push(
       lineText([
         String(index + 1),
-        word('period'),
-        word('reporter'),
-        word('partner'),
-        word('product'),
-        `${word('value')} ${word('unit')}`,
+        figure['period'] ?? '',
+        figure['reporter'] ?? '',
+        figure['partner'] ?? '',
+        figure['product'] ?? '',
+        figure['value'] ?? '',
         'figure',
       ]),
     );

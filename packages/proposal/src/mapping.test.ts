@@ -378,7 +378,6 @@ const OBSERVATIONS = {
     partner: { column: 'partner', codes: 'eurostat' },
     product: { column: 'siec', system: 'siec' },
     method: 'imports reported by the importer',
-    licence: 'eu-reuse',
     flag: 'OBS_FLAG',
   },
   relations: [],
@@ -401,7 +400,7 @@ test('an observation table parses, and each row is one figure', () => {
 const REFUSED_OBSERVATIONS: readonly (readonly [string, unknown])[] = [
   ['a relation of an entity', { ...OBSERVATIONS, relations: [DRAFT.relations[0]] }],
   [
-    'a licence outside the closed list',
+    'a licence, which the provider of the document gives',
     { ...OBSERVATIONS, rows: { ...OBSERVATIONS.rows, licence: 'free' } },
   ],
   [
@@ -425,8 +424,8 @@ test.each(REFUSED_OBSERVATIONS)('an observation table with %s is refused', (_nam
 test('a refused observation table words the issues of its own branch', () => {
   const read = mappingDraft.safeParse({
     ...OBSERVATIONS,
-    rows: { ...OBSERVATIONS.rows, licence: 'free' },
+    rows: { ...OBSERVATIONS.rows, period: { column: 'TIME_PERIOD', length: 'day' } },
   });
   expect(read.success).toBe(false);
-  expect(JSON.stringify(read.error?.issues)).toContain('licence');
+  expect(JSON.stringify(read.error?.issues)).toContain('period');
 });

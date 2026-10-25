@@ -5,40 +5,6 @@ import { z } from 'zod';
 import type { Queryable } from '../queryable.ts';
 import { makeEndFinder } from './link.ts';
 
-/** One code of the fixed area list (ADR 0030). */
-export interface Area {
-  readonly system: 'iso3166' | 'group';
-  readonly code: string;
-}
-
-// External constraint: Eurostat writes two codes of a country that ISO 3166 writes otherwise, and
-// its own codes for a group of countries.
-const EUROSTAT_COUNTRY = new Map([
-  ['EL', 'GR'],
-  ['UK', 'GB'],
-]);
-const EUROSTAT_GROUP = new Map([
-  ['EU27_2020', 'EU27'],
-  ['EA20', 'EA20'],
-  ['EA21', 'EA21'],
-  ['EXT_EU27_2020', 'EXTRA_EU27'],
-  ['TOTAL', 'WORLD'],
-  ['NSP', 'OTHER'],
-]);
-
-const TWO_LETTERS = /^[A-Z]{2}$/u;
-
-/** The area of a cell in a code list, or null when the list holds no such code. */
-export const areaOf = (text: string, codes: ObservationRows['reporter']['codes']): Area | null => {
-  if (codes === 'eurostat') {
-    const group = EUROSTAT_GROUP.get(text);
-    if (group !== undefined) return { system: 'group', code: group };
-    const country = EUROSTAT_COUNTRY.get(text) ?? text;
-    return TWO_LETTERS.test(country) ? { system: 'iso3166', code: country } : null;
-  }
-  return TWO_LETTERS.test(text) ? { system: 'iso3166', code: text } : null;
-};
-
 const PERIOD_SHAPE: Readonly<Record<ObservationRows['period']['length'], RegExp>> = {
   year: /^\d{4}$/u,
   quarter: /^\d{4}-Q[1-4]$/u,
@@ -49,7 +15,8 @@ const PERIOD_SHAPE: Readonly<Record<ObservationRows['period']['length'], RegExp>
 // UN Comtrade writes a month as six digits.
 const COMPACT_MONTH = /^(\d{4})(0[1-9]|1[0-2])$/u;
 
-/** The period of a cell in its ISO form, or null when the cell is not a period of that length. */
+/** The period of a cell in its ISO form, or null when the cell is not a period of that length.
+ * The door of a figure reads the cell with the same rules. */
 export const periodOf = (
   text: string,
   length: ObservationRows['period']['length'],
@@ -62,25 +29,58 @@ export const periodOf = (
 // A decimal number, with an optional exponent. A thousands separator is no number.
 const NUMBER = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/u;
 
-/** One row as the door of a figure takes it, or the sentence that says why the row is no
- * figure. The value stays text, so the door reads the number that the file writes, digit for
- * digit. */
+/** The texts of one row that the door of a figure reads. */
+export type DoorRow = Readonly<Record<string, string | number | null>>;
+
+/** One row as the door of a figure takes it, with the figure that the door makes of it, or the
+ * sentence that says why the row is no figure. */
 export type ObservationRow =
-  { readonly row: Readonly<Record<string, string | number | null>> } | { readonly refused: string };
+  | { readonly row: DoorRow; readonly figure: Readonly<Record<string, string>> }
+  | { readonly refused: string };
 
 interface Cited {
   readonly textSet: string;
   readonly page: number;
 }
 
-/** The figure of one row under an observation mapping. `areas` holds the keys
- * `system:code` of the fixed area list. */
+/** The code of the area list for each cell of a code list. A cell that the list does not hold
+ * has no entry. */
+export type Areas = ReadonlyMap<string, string>;
+
+const areaKey = (codes: string, cell: string): string => `${codes}:${cell}`;
+
+const AREAS = `SELECT t.cell, a.area_system || ':' || a.area_code AS area
+  FROM unnest($2::text[]) AS t(cell)
+  CROSS JOIN LATERAL public.area_of($1::text, t.cell) AS a`;
+
+const areaRow = z.array(z.object({ cell: z.string(), area: z.string() }));
+
+/** The codes of the area list for the reporter and partner cells of a table. The database holds
+ * the rule, and the door of a figure asks it again. */
+export const areasOf = async (
+  db: Queryable,
+  rows: ObservationRows,
+  header: readonly string[],
+  records: readonly CsvRecord[],
+): Promise<Areas> => {
+  const found = new Map<string, string>();
+  for (const side of [rows.reporter, rows.partner]) {
+    if (side === undefined) continue;
+    const at = header.indexOf(side.column);
+    const cells = [...new Set(records.map((record) => (record.fields[at] ?? '').trim()))];
+    for (const { cell, area } of areaRow.parse((await db.query(AREAS, [side.codes, cells])).rows))
+      found.set(areaKey(side.codes, cell), area);
+  }
+  return found;
+};
+
+/** The figure of one row under an observation mapping. */
 export const observationOf = async (
   rows: ObservationRows,
   record: CsvRecord,
   cell: (name: string) => string,
   context: {
-    readonly areas: ReadonlySet<string>;
+    readonly areas: Areas;
     readonly cited: Cited;
     readonly subjectOf: (record: CsvRecord) => Promise<string | { readonly refused: string }>;
   },
@@ -105,17 +105,17 @@ export const observationOf = async (
   const area = (
     side: 'reporter' | 'partner',
     held: ObservationRows['reporter'],
-  ): Area | { refused: string } => {
+  ): { text: string; area: string } | { refused: string } => {
     const text = cell(held.column);
-    const found = text === '' ? null : areaOf(text, held.codes);
-    if (found === null || !context.areas.has(`${found.system}:${found.code}`))
+    const found = context.areas.get(areaKey(held.codes, text));
+    if (found === undefined)
       return {
         refused:
           text === ''
             ? `the ${side} is empty`
             : `the ${side} "${text}" is not a code of the area list (${held.codes})`,
       };
-    return found;
+    return { text, area: found };
   };
   const reporter = area('reporter', rows.reporter);
   if ('refused' in reporter) return reporter;
@@ -137,33 +137,28 @@ export const observationOf = async (
 
   return {
     row: {
-      measure: rows.measure,
-      value: valueText,
       value_text: valueText,
-      unit,
-      period,
+      unit_text: 'column' in rows.unit ? unit : null,
       period_text: periodText,
-      method: rows.method,
-      licence: rows.licence,
-      reporter_system: reporter.system,
-      reporter: reporter.code,
-      partner_system: partner?.system ?? null,
-      partner: partner?.code ?? null,
-      product_system: rows.product?.system ?? null,
-      product: rows.product === undefined ? null : product,
+      reporter_text: reporter.text,
+      partner_text: partner?.text ?? null,
+      product_text: rows.product === undefined ? null : product,
+      flag_text: flag === '' ? null : flag,
       subject_id: subject,
-      flag: flag === '' ? null : flag,
       text_extractor: context.cited.textSet,
       page: context.cited.page,
       start: record.start,
       end: record.end,
     },
+    figure: {
+      period,
+      reporter: reporter.area,
+      partner: partner?.area ?? '',
+      product,
+      value: `${valueText} ${unit}`,
+    },
   };
 };
-
-const AREAS = 'SELECT system, code FROM api.area_code';
-
-const areaRow = z.array(z.object({ system: z.string(), code: z.string() }));
 
 const PUT =
   'SELECT item, outcome, held_value::text AS held FROM public.put_observations($1::uuid, $2::jsonb)';
@@ -176,8 +171,9 @@ const putRow = z.array(
   }),
 );
 
-// External constraint: a door words its own refusals with this code.
-const DOOR_REFUSED = '22023';
+// External constraint: the door words a fault of one row with this code (data_exception). Any
+// other fault is a fault of the load, and it stops the job.
+const ROW_REFUSED = '22000';
 
 // Origin of the number: decided, not calibrated. One call of the door for each row would take
 // minutes for a table of Eurostat, and a batch of this size is one statement of a few seconds.
@@ -192,25 +188,11 @@ export interface ReportLine {
   readonly reason: string;
 }
 
-/** The load of an observation table: code reads each row under the promoted mapping, and the door
- * writes each figure (ADR 0030). A row that gives no figure goes to the report. */
-export const loadObservations = async (
-  db: Queryable,
-  input: {
-    readonly job: string;
-    readonly rows: ObservationRows;
-    readonly header: readonly string[];
-    readonly records: readonly CsvRecord[];
-    readonly cited: Cited;
-  },
-): Promise<{ loaded: number; excluded: number; lines: ReportLine[] }> => {
-  const { rows, header, records, cited } = input;
-  const areas = new Set(
-    areaRow.parse((await db.query(AREAS)).rows).map((one) => `${one.system}:${one.code}`),
-  );
-  const column = new Map(header.map((name, index) => [name, index] as const));
+/** The subject of a row: the entity that an identifier finds, or the sentence that says why the
+ * row has none. */
+export const subjectFinder = (db: Queryable, rows: ObservationRows, header: readonly string[]) => {
   const findEnd = makeEndFinder(db, header);
-  const subjectOf = async (record: CsvRecord): Promise<string | { refused: string }> => {
+  return async (record: CsvRecord): Promise<string | { refused: string }> => {
     if (rows.subject === undefined) return { refused: 'the mapping names no subject' };
     const found = await findEnd(record, rows.subject);
     if (found.kind === 'one' && found.key !== 'label') return found.id;
@@ -223,11 +205,29 @@ export const loadObservations = async (
             : `the subject finds entity ${found.id} by its name only`,
     };
   };
+};
+
+/** The load of an observation table: code reads each row under the promoted mapping, and the door
+ * writes each figure. A row that gives no figure goes to the report. */
+export const loadObservations = async (
+  db: Queryable,
+  input: {
+    readonly job: string;
+    readonly rows: ObservationRows;
+    readonly header: readonly string[];
+    readonly records: readonly CsvRecord[];
+    readonly cited: Cited;
+  },
+): Promise<{ loaded: number; excluded: number; lines: ReportLine[] }> => {
+  const { rows, header, records, cited } = input;
+  const areas = await areasOf(db, rows, header, records);
+  const column = new Map(header.map((name, index) => [name, index] as const));
+  const subjectOf = subjectFinder(db, rows, header);
 
   const lines: ReportLine[] = [];
   let loaded = 0;
   let excluded = 0;
-  const pending: { readonly at: ReportLine; readonly row: ObservationRow & { row: object } }[] = [];
+  const pending: { readonly at: ReportLine; readonly row: DoorRow }[] = [];
 
   const exclude = (at: ReportLine, reason: string): void => {
     excluded += 1;
@@ -239,10 +239,10 @@ export const loadObservations = async (
     let answer: z.infer<typeof putRow>;
     try {
       answer = putRow.parse(
-        (await db.query(PUT, [input.job, JSON.stringify(batch.map((one) => one.row.row))])).rows,
+        (await db.query(PUT, [input.job, JSON.stringify(batch.map((one) => one.row))])).rows,
       );
     } catch (cause) {
-      const refused = cause instanceof Error && 'code' in cause && cause.code === DOOR_REFUSED;
+      const refused = cause instanceof Error && 'code' in cause && cause.code === ROW_REFUSED;
       if (!refused) throw cause;
       // The door writes a batch or nothing. One row alone finds the row that it refuses.
       if (batch.length > 1) {
@@ -250,7 +250,7 @@ export const loadObservations = async (
         return;
       }
       const [one] = batch;
-      if (one !== undefined) exclude(one.at, cause.message);
+      if (one !== undefined) exclude(one.at, cause.message.replace(/^row 1: /u, ''));
       return;
     }
     for (const { item, outcome, held } of answer) {
@@ -287,7 +287,7 @@ export const loadObservations = async (
       exclude(at, made.refused);
       continue;
     }
-    pending.push({ at, row: made });
+    pending.push({ at, row: made.row });
     if (pending.length >= BATCH) await put(pending.splice(0));
   }
   await put(pending.splice(0));

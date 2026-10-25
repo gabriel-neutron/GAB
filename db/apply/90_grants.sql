@@ -127,6 +127,7 @@ REVOKE ALL ON FUNCTION propose_mapping(text,jsonb,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION enqueue_mapped_load(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_load_report(uuid,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_observations(uuid,jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION area_of(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION uri_host(text)              FROM PUBLIC;
 REVOKE ALL ON FUNCTION requeue_running_jobs()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION requeue_failed_ratings()    FROM PUBLIC;
@@ -311,6 +312,7 @@ GRANT EXECUTE ON FUNCTION enqueue_mapped_load(text,text)   TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION put_load_report(uuid,text,text,text,text) TO gabriel_agent;
 -- The loader writes the figures of a promoted observation mapping (ADR 0030).
 GRANT EXECUTE ON FUNCTION put_observations(uuid,jsonb) TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION area_of(text,text) TO gabriel_agent;
 -- The loader reads the earlier editions of its table, to report each link that the new edition no
 -- longer gives.
 GRANT EXECUTE ON FUNCTION earlier_editions(uuid)   TO gabriel_agent;

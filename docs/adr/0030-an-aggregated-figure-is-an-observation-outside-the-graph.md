@@ -22,32 +22,39 @@ The operator decided on #929, after the expert panel (software-architect, osint-
 ## Decision
 
 - **A figure is no entity and no unit of decision (P11).** A figure has no relation and no name,
-  and an entity per cell (the rejected `unknown` or `state_body` workarounds) would fill the graph
+  and an entity for each cell (the two workarounds that the panel rejected) would fill the graph
   with nodes that a reviewer cannot judge one by one. The database holds the figures in a table of
   their own, with the measure, the value, the unit, the period, the method, the reporter, the
   partner, the product scope, an optional subject entity, the licence and the citation.
 - **This extends P1: the promotion of the mapping is the promotion of each figure.** The mapper
   proposes how the columns of one stored table map, and the operator decides that one proposal.
   The loader then writes each row through one door, and no act waits in the queue for each row.
-  The door holds the checks that a decision holds: the load is the running job of an accepted
-  mapping; the measure, the method, the licence and a constant unit are the words of that
-  mapping, so a caller cannot widen the licence; the span of the row is in the stored page, and
-  it holds the value and the period as the file writes them (P9).
+  The door holds the checks that a decision holds, and it derives each value itself: the load is
+  the running job of an accepted mapping; the measure, the method, the publisher and a constant
+  unit come from that mapping; the caller gives only the span of the row and the text of each
+  cell, each text must be one field of that row in the stored page (P9), and the door reads the
+  number, the period and the codes from these texts. A fault of one row sends that row to the
+  load report, and a fault of the load stops the job.
 - **The mapping has a third kind of table.** Beside an entity table and a relation table, an
   observation table names the column of each part of a figure. The unit is part of the key of a
   figure, because one table gives the same flow in two units. The mapping gives the code list of a
-  reporter column, and the loader turns the codes of the source into the codes of the fixed list
-  (Eurostat writes `EL` for Greece). A code outside the list sends the row to the load report.
+  reporter column, and the database turns the codes of the source into the codes of the fixed
+  list, from a second fixed list of the codes that a source writes in its own way. A code outside
+  the list sends the row to the load report.
 - **The reporter and the partner are codes, not entities.** A country is a code of ISO 3166-1,
   and a group is a code of the same list (the EU, the world, a partner that the source does not
   state). The list is a fixed reference list in the seed. A country entity would duplicate a
   reference list that the record does not investigate.
-- **A figure carries its licence, and the public read filters on it.** The words are the closed
-  list of the document providers, and the open words are the allow-list of the document tier. A
-  figure of UN Comtrade is internal, and the report shows it only as an aggregate.
+- **A figure carries its licence, and the public read filters on it.** The door takes the licence
+  from the provider of the document, and a document with no provider gives a restricted licence. A
+  model writes the mapping, so the mapping gives no licence: a word that a model made up and the
+  operator missed would publish every row. The fetch tool names the provider of a file that it
+  reads at the API of Eurostat, as the official tools do. The open words are the allow-list of the
+  document tier. A figure of UN Comtrade is internal, and the report shows it only as an aggregate.
 - **A figure is written once.** No role updates or deletes it. A new edition of a table is a new
   stored document, and its rows are new figures. The read gives only the figure of the newest
-  edition for each key, so a sum never counts a month twice.
+  edition for each key, so a sum never counts a month twice. The publisher is part of the key, so
+  the edition of one publisher never hides the figure of another.
 - **The subject has no foreign key.** A merge or a delete of an entity is an act of the operator,
   and a figure must not stop it. The read resolves a merged subject through its alias.
 - **The judgement stays out of the loader.** The split of the F7 figures (reduced, bypassed,
@@ -67,7 +74,7 @@ The operator decided on #929, after the expert panel (software-architect, osint-
 
 ## Measured
 
-25 October 2026, on the test database, with the Eurostat SDMX-CSV files of the partner RU since
-January 2021: nrg_ti_gasm (10,072 rows) loads 10,040 figures in about 1 s, and the 32 rows that
-Eurostat marks `m` (missing) go to the report. nrg_ti_oilm (72,097 rows) loads every row in about
-11 s.
+25 October 2026, on the test database, with the two Eurostat SDMX-CSV files of the gas and oil
+imports of the partner RU since January 2021: the gas file (10,072 rows) loads 10,040 figures in
+about 5 s, and the 32 rows that Eurostat marks as missing go to the report. The oil file (72,097
+rows) loads every row in about 40 s.

@@ -14,11 +14,16 @@
 --
 -- THE REPORTER AND THE PARTNER ARE CODES OF A FIXED LIST, NOT ENTITIES. A country of ISO 3166-1 or
 -- a group (the EU, the world, a partner that the source does not state) is a row of `area_code`.
--- db/apply/95_seed.sql writes the list. A code outside the list is refused by the foreign key.
+-- A source can write a code in its own way: `area_code_source` gives the code of the list for
+-- each such code. db/apply/95_seed.sql writes the two lists. A code outside the list is refused.
 --
--- EACH FIGURE CARRIES ITS LICENCE. The words are the closed list of the document providers. The
--- public read shows a figure only when its licence is open: UN Comtrade is internal, and the
--- report shows it only as an aggregate.
+-- EACH FIGURE CARRIES ITS LICENCE, AND THE DOOR TAKES IT FROM THE PROVIDER OF THE DOCUMENT. A
+-- model writes the mapping, so the mapping gives no licence. A document with no provider gives
+-- `restricted`. The public read shows a figure only when its licence is open: UN Comtrade is
+-- internal, and the report shows it only as an aggregate.
+--
+-- THE PUBLISHER IS PART OF THE KEY. Two publishers can give the same measure for the same month,
+-- and a newer edition of one never hides the figure of the other.
 --
 -- THE SUBJECT IS AN ENTITY OF THE RECORD, FOR EXAMPLE A PIPELINE, AND IT HAS NO FOREIGN KEY. A
 -- merge or a delete of an entity is an act of the operator, and a figure must not stop it. The
@@ -35,6 +40,19 @@ CREATE TABLE area_code (
   code    text NOT NULL CONSTRAINT area_code_shape CHECK (code ~ '^[A-Z][A-Z0-9_]{1,19}$'),
   label   text NOT NULL CONSTRAINT area_code_label CHECK (btrim(label, E' \t\n\r\f\v') <> ''),
   PRIMARY KEY (system, code)
+);
+
+-- A code that a source writes, and the code of the list that it names. Eurostat writes EL for
+-- Greece and EU27_2020 for the EU.
+CREATE TABLE area_code_source (
+  codes        text NOT NULL CONSTRAINT area_code_source_codes CHECK (codes IN ('eurostat')),
+  source_code  text NOT NULL
+               CONSTRAINT area_code_source_shape CHECK (source_code ~ '^[A-Z][A-Z0-9_]{1,19}$'),
+  system       text NOT NULL,
+  code         text NOT NULL,
+  PRIMARY KEY (codes, source_code),
+  CONSTRAINT area_code_source_area_fkey FOREIGN KEY (system, code)
+    REFERENCES area_code (system, code) ON UPDATE RESTRICT ON DELETE RESTRICT
 );
 
 CREATE TABLE observation (
@@ -54,16 +72,20 @@ CREATE TABLE observation (
   method          text NOT NULL
                   CONSTRAINT observation_method_named
                   CHECK (btrim(method, E' \t\n\r\f\v') <> '' AND char_length(method) <= 200),
+  publisher       text NOT NULL
+                  CONSTRAINT observation_publisher_named
+                  CHECK (btrim(publisher, E' \t\n\r\f\v') <> '' AND char_length(publisher) <= 200),
   reporter_system text NOT NULL,
   reporter        text NOT NULL,
   partner_system  text,
   partner         text,
   product_system  text
-                  CONSTRAINT observation_product_system CHECK (product_system IN ('siec', 'hs', 'chpl')),
+                  CONSTRAINT observation_product_system CHECK (product_system IS NULL OR product_system IN ('siec', 'hs', 'chpl')),
   product         text
                   CONSTRAINT observation_product_code
-                  CHECK (btrim(product, E' \t\n\r\f\v') = product AND product <> ''
-                         AND char_length(product) <= 40),
+                  CHECK (product IS NULL
+                         OR (btrim(product, E' \t\n\r\f\v') = product AND product <> ''
+                             AND char_length(product) <= 40)),
   subject_id      uuid,
   licence         text NOT NULL
                   CONSTRAINT observation_licence_closed
@@ -74,8 +96,9 @@ CREATE TABLE observation (
   -- The mark that the source writes beside the value, for example `p` for a provisional value.
   flag            text
                   CONSTRAINT observation_flag_named
-                  CHECK (btrim(flag, E' \t\n\r\f\v') = flag AND flag <> ''
-                         AND char_length(flag) <= 20),
+                  CHECK (flag IS NULL
+                         OR (btrim(flag, E' \t\n\r\f\v') = flag AND flag <> ''
+                             AND char_length(flag) <= 20)),
   document_id     doc_id NOT NULL,
   text_extractor  text NOT NULL,
   page            int NOT NULL,
@@ -101,10 +124,10 @@ CREATE TABLE observation (
   -- flow in million cubic metres and in terajoules.
   CONSTRAINT observation_key UNIQUE NULLS NOT DISTINCT
     (document_id, measure, unit, period, reporter_system, reporter, partner_system, partner,
-     product_system, product, method, subject_id)
+     product_system, product, method, publisher, subject_id)
 );
 
 -- The read finds the other editions of a key.
-CREATE INDEX observation_series ON observation (measure, reporter, period);
+CREATE INDEX observation_series ON observation (measure, reporter, period, publisher);
 
 RESET ROLE;
