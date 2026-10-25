@@ -5617,6 +5617,9 @@ DECLARE
   v_held       numeric;
   v_before     text;
   v_after      text;
+  v_quotes     boolean;
+  v_count_at   int;
+  v_count      bigint;
 BEGIN
   SELECT j.document_id, p.payload, p.id, coalesce(v.licence, 'restricted'),
          coalesce(v.name, p.payload->>'publisher', p.payload->>'table'),
@@ -5647,8 +5650,9 @@ BEGIN
     v_licence := 'restricted';
   END IF;
   -- The words that hold for every row are checked once: a fault in them is a fault of the load.
-  IF coalesce(btrim(v_publisher), '') = '' OR char_length(v_publisher) > 200
-     OR coalesce(btrim(v_rows->>'method'), '') = '' OR char_length(v_rows->>'method') > 200 THEN
+  IF coalesce(btrim(v_publisher, E' \t\n\r\f\v'), '') = '' OR char_length(v_publisher) > 200
+     OR coalesce(btrim(v_rows->>'method', E' \t\n\r\f\v'), '') = ''
+     OR char_length(v_rows->>'method') > 200 THEN
     RAISE EXCEPTION 'the publisher and the method of a figure are 1 to 200 characters'
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
@@ -5688,15 +5692,22 @@ BEGIN
       -- megabytes. On a page of ASCII text a code point is one byte, and a cut of the bytes is
       -- the same span.
       v_bytes := CASE WHEN octet_length(v_text) = v_length THEN convert_to(v_text, 'UTF8') END;
+      -- A quoted CSV field can hold a line break, so a line can start inside a record. The count
+      -- of quotes before a record is even, and the door counts them step by step from the last
+      -- row, as the rows of a batch come in the order of the page.
+      v_quotes := NOT v_tab AND strpos(v_text, '"') > 0;
+      v_count_at := 0;
+      v_count := 0;
       -- Origin of the number: decided, not calibrated. A header is far shorter.
       v_header := public.table_record(left(v_text, 100000), v_tab, false);
       -- The signature of the header is the one that the loader and the mapping compute: the
       -- SHA-256 of the JSON array of the trimmed names.
       IF v_header IS NULL OR '' = ANY (v_header)
+         OR cardinality(v_header) = 0
          OR encode(sha256(convert_to(
               (SELECT '[' || string_agg(to_json(h)::text, ',' ORDER BY n) || ']'
                  FROM unnest(v_header) WITH ORDINALITY AS u(h, n)), 'UTF8')), 'hex')
-            IS DISTINCT FROM v_mapping->>'header_sig' THEN
+            IS DISTINCT FROM coalesce(v_mapping->>'header_sig', '') THEN
         RAISE EXCEPTION 'the header of page % of document % is not the header of the mapping',
           v_row->>'page', v_document
           USING ERRCODE = 'invalid_parameter_value';
@@ -5721,6 +5732,23 @@ BEGIN
       RAISE EXCEPTION 'row %: the span % to % does not start and end at a line break', v_no,
         v_start, v_end
         USING ERRCODE = 'data_exception';
+    END IF;
+    IF v_quotes THEN
+      IF v_start < v_count_at THEN
+        v_count_at := 0;
+        v_count := 0;
+      END IF;
+      v_span := CASE WHEN v_bytes IS NULL
+                     THEN substr(v_text, v_count_at + 1, v_start - v_count_at)
+                     ELSE convert_from(substring(v_bytes FROM v_count_at + 1
+                                                 FOR v_start - v_count_at), 'UTF8') END;
+      v_count := v_count + char_length(v_span) - char_length(replace(v_span, '"', ''));
+      v_count_at := v_start;
+      IF v_count % 2 = 1 THEN
+        RAISE EXCEPTION 'row %: the span % to % starts inside a quoted field', v_no, v_start,
+          v_end
+          USING ERRCODE = 'data_exception';
+      END IF;
     END IF;
     v_span := CASE WHEN v_bytes IS NULL THEN substr(v_text, v_start + 1, v_end - v_start)
                    ELSE convert_from(substring(v_bytes FROM v_start + 1 FOR v_end - v_start),

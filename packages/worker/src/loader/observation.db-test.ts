@@ -418,6 +418,34 @@ const REFUSALS: readonly (readonly [string, Record<string, unknown>, RegExp])[] 
   ['a page that is no number', { page: 'one' }, /whole numbers/u],
 ];
 
+// A quoted field can hold a line break, so a line of the page can be a part of a record.
+const BROKEN =
+  [
+    'label,partner,unit,geo,TIME_PERIOD,OBS_VALUE,OBS_FLAG,siec',
+    '"Gas',
+    'x,RU,MIO_M3,FR,2023-06,9,,G3000',
+    'y",RU,MIO_M3,DE,2023-05,12.5,p,G3000',
+  ].join('\r\n') + '\r\n';
+
+test('the door refuses a line inside a quoted field as a row', async () => {
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(held, DRAFT, 'eurostat', BROKEN);
+    const claimed = await held.asRole('gabriel_agent', () =>
+      held.ask('SELECT job_id::text AS id FROM public.claim_job()'),
+    );
+    expect(claimed).toStrictEqual([{ id: load }]);
+    const line = 'x,RU,MIO_M3,FR,2023-06,9,,G3000';
+    const start = BROKEN.indexOf(line);
+    const fault = await faultOf(
+      putAsAgent(held, load, [
+        { subject_id: null, text_extractor: TEXT_SET, page: 1, start, end: start + line.length },
+      ]),
+    );
+    expect(fault.code).toBe('22000');
+    expect(fault.message).toMatch(/inside a quoted field/u);
+  });
+});
+
 // A fault of the load is invalid_parameter_value, so the loader stops the job.
 test('the door refuses a text set that the load does not read, as a fault of the load', async () => {
   await inTransaction(async (held) => {
