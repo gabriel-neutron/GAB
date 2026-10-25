@@ -63,7 +63,7 @@ export const layoutRefresher = (deps: RefresherDeps): (() => Promise<void>) => {
     return Math.abs(basis.entities - last.placed) >= LAYOUT_NEW_ENTITIES;
   };
 
-  return async () => {
+  const attempt = async (): Promise<void> => {
     try {
       const at = deps.now();
       if (triedAt !== null && at - triedAt < LAYOUT_MIN_GAP_MS) return;
@@ -77,4 +77,8 @@ export const layoutRefresher = (deps: RefresherDeps): (() => Promise<void>) => {
       console.error('the layout refresh failed, and the worker goes on', cause);
     }
   };
+
+  // Idle slots of a runner call this together, and they share one attempt.
+  let running: Promise<void> | null = null;
+  return () => (running ??= attempt().finally(() => (running = null)));
 };
