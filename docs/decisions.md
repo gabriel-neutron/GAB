@@ -459,7 +459,7 @@ no person read it", "Validated manually by the operator". It shows no NATO lette
   address, and asks the operator where the file comes from. An older upload with no address is
   not public. An upload stored before this ruling is not public, also with an address, because
   its address can be the page where the file was bought. A public API, such as OpenSanctions, is
-  a public source. A bought file stays not public. The private data repository is not a source.
+  a public source. A bought file stays not public. A private file of the operator is not a source.
 - **Official files (10 October 2026).** An official file that a tool reads at the address of its
   publisher, such as an act of the Official Journal of the EU or the OFAC SDN list, is a public
   document.
