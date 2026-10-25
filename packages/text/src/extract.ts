@@ -352,6 +352,11 @@ const partsAtBreaks = (pieces: readonly Piece[]): Piece[][] => {
 const asBlocks = (document: Page): void => {
   for (const anchor of Array.from(document.querySelectorAll('p a:not([href])')))
     anchor.replaceWith(...Array.from(anchor.childNodes));
+  // Departure: a script shows a block that a class such as Bootstrap "d-none" hides, and its value
+  // is often a link only (the maker and the country on a page of the GUR of Ukraine). Readability
+  // removes a block that is all link text, so the link of such a block is replaced by its content.
+  for (const anchor of Array.from(document.querySelectorAll('.d-none a')))
+    anchor.replaceWith(...Array.from(anchor.childNodes));
   for (const paragraph of Array.from(document.querySelectorAll('p'))) {
     const parts = partsAtBreaks(Array.from(paragraph.childNodes));
     if (parts.length < 2) continue;

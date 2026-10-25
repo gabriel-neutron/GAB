@@ -148,6 +148,34 @@ describe('extractText', () => {
       expect(page).not.toContain(noise);
   });
 
+  test('a block that only a CSS class hides keeps its text, and a script or a template does not', async () => {
+    const row = (label: string, value: string): string =>
+      `<div class="component-value-row js_visibility d-none mb-3"><div>${label}</div>${value}</div>`;
+    const html = `<html><body><main><section><div id="tree-data-info" class="col-12 col-xl-8">
+      <div id="js_visibility" class="components-item p-3 mb-5"><div class="row">
+      <div class="col-12 col-lg-6 mb-3"><div class="slide text-center"><img src="/a.jpg" alt="Photo"></div></div>
+      <div class="col-12 col-lg-6">
+      <div class="component-value-row mb-3"><div>Name and marking</div><div class="yellow">Decoder</div>
+        <div class="font-weight-bold">OS1380<br />TI148</div></div>
+      ${row("Manufacturer's headquarters country", '<span><a class="yellow" href="/c?f=223">Exampleland</a></span>')}
+      ${row('Manufacturer', '<span><a class="yellow" href="/c?f=1">Example Electronics</a></span>')}
+      ${row('Publication date', '<span class="yellow">22.10.2026</span>')}
+      <template><p>Template text</p></template>
+      <script>var hiddenScript = 1;</script>
+      <div class="mt-3 mb-3">If you have additional information about the origin of this component, you can let us know.
+        <div class="text-center"><div class="btn-yellow">Provide additional information</div></div></div>
+      </div></div></div></div></section></main>
+      <footer><div>War and Sanctions</div></footer></body></html>`;
+    const [page] = (await extractText(bytesOf(html), 'text/html')).pages;
+    for (const kept of ['Example Electronics', 'Exampleland', '22.10.2026'])
+      expect(page).toContain(kept);
+    expect(page).not.toContain('Template text');
+    expect(page).not.toContain('hiddenScript');
+    expect((page ?? '').indexOf('Exampleland')).toBeLessThan(
+      (page ?? '').indexOf('Example Electronics'),
+    );
+  });
+
   test('an XHTML act gives its whole text, with each article and each annex', async () => {
     const xhtml = `<?xml version="1.0" encoding="UTF-8"?>
       <html xmlns="http://www.w3.org/1999/xhtml"><head><title>Regulation</title></head><body>
