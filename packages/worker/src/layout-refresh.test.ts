@@ -129,3 +129,9 @@ test('a run that throws is logged and does not throw, and a later step tries aga
   await one.refresh();
   expect(one.runs()).toBe(2);
 });
+
+test('idle steps that run together share one run of the layout', async () => {
+  const { refresh, runs } = setup();
+  await Promise.all([refresh(), refresh(), refresh()]);
+  expect(runs()).toBe(1);
+});

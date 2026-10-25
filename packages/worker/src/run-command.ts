@@ -18,6 +18,10 @@ import { openRunner } from './runner.ts';
 /** Takes the queued jobs, at most RUNNER_CONCURRENCY at the same time, until a stop signal. This is the one sub-command that
  * claims a job. */
 export const runCommand: SubCommand = async () => {
+  const concurrency = Number(process.env['RUNNER_CONCURRENCY']);
+  if (!Number.isInteger(concurrency) || concurrency < 1)
+    throw new Error('RUNNER_CONCURRENCY must be a whole number above zero.');
+
   // A stop signal ends the wait at once and the loop after the job in hand. A job that is cut off
   // by a kill keeps its row running, and the next start of the runner puts it back in the queue.
   const stop = new AbortController();
@@ -57,11 +61,7 @@ export const runCommand: SubCommand = async () => {
     }),
   ];
 
-  const concurrency = Number(process.env['RUNNER_CONCURRENCY']);
-  if (!Number.isInteger(concurrency) || concurrency < 1)
-    throw new Error('RUNNER_CONCURRENCY must be a whole number above zero.');
-
-  // One connection keeps the lock and the jobs share the rest, so the pool must hold them all.
+  // One connection keeps the lock and the jobs share the rest, so the pool holds one more for each slot, and a few spare for the layout refresh.
   const pool = new Pool({ connectionString: agentAddress(), max: concurrency + 5 });
   // Without a listener, the error of an idle connection ends the process.
   pool.on('error', (error) => {
