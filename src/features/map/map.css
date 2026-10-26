@@ -75,3 +75,33 @@
   letter-spacing: -0.24px;
   text-transform: uppercase;
 }
+
+/* The attribution is a plain control: the tokens, no white disc. */
+.maplibregl-ctrl-attrib.maplibregl-compact {
+  min-height: 24px;
+  margin: 0 8px 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: -0.24px;
+  box-shadow: none;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--foreground);
+}
+.maplibregl-ctrl-attrib-button {
+  background-image: none;
+  background-color: transparent;
+}
+.maplibregl-ctrl-attrib-button::after {
+  content: 'i';
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 22px;
+  text-align: center;
+  color: var(--muted-foreground);
+}

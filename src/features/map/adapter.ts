@@ -546,9 +546,9 @@ export function mountMap({
       visibility: hidden.has(facet.type) ? 'none' : 'visible',
       'icon-image': ['get', 'symbolImage'],
       // The raster is four pixels to the unit, and the diamond is 13 units across in it. This
-      // ramp therefore draws that diamond at 10px at zoom 3 and 19px at zoom 14, which is the
+      // ramp therefore draws that diamond at 13px at zoom 3 and 19px at zoom 14, which is the
       // width of the disc of a point at each end of its own ramp.
-      'icon-size': ['interpolate', ['linear'], ['zoom'], 3, 0.2, 14, 0.36],
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 3, 0.25, 14, 0.375],
       // The symbol stands upright on a rotated map: a military mark that turned with the ground
       // would read as another mark.
       'icon-rotation-alignment': 'viewport',

@@ -1,3 +1,4 @@
+import { typeLabel } from '@/shared/type-label';
 import { positionFromWords } from '@/shared/canvas-label';
 import { typeHues, UNDECLARED_HUE, type HueTheme } from '@/shared/entity-hues';
 import { unitHierarchy, type UnitHierarchy } from '@/shared/fold-subordinates';
@@ -67,6 +68,10 @@ export interface GeoLink {
 /** One entity type, as the rail draws it. */
 export interface TypeFacet {
   readonly type: string;
+  /** The words of the type, as the graph reads them. */
+  readonly label: string;
+  /** Every entity of the type in the record. The map draws only the placed ones, `count`. */
+  readonly total: number;
   /** The hue on the dark theme, which the rail swatch reads. */
   readonly colour: string;
   /** The hue of each theme: the canvas repaints with the theme in force. */
@@ -153,17 +158,21 @@ export function railRows(
 ): RailRows {
   const types: readonly RailTypeRow[] = legend.facets.map(({ facet, hidden }) => ({
     type: facet.type,
-    label: facet.type,
+    label: facet.label,
     initial: facet.type.slice(0, 1).toUpperCase(),
     // Departure: the count is the whole type, and a fold of the list does not change it.
     count: facet.count,
-    figure: String(facet.count),
+    // Only the placed entities are drawn, so a type with unplaced ones says what it counts.
+    figure:
+      facet.count === facet.total
+        ? String(facet.count)
+        : `${String(facet.count)} of ${String(facet.total)}`,
     on: !hidden,
     open: openTypes.includes(facet.type),
     stateWord: hidden ? 'off' : 'on',
     // A name that said `on the map` for a type that is off is a false report to a reader who
     // cannot see the opacity of the swatch.
-    name: `${facet.type}, ${facet.count} ${hidden ? 'off' : 'on'} the map`,
+    name: `${facet.label}, ${facet.count === facet.total ? String(facet.count) : `${String(facet.count)} placed of ${String(facet.total)}`} ${hidden ? 'off' : 'on'} the map`,
     colour: facet.colour,
   }));
 
@@ -211,6 +220,8 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
     .sort((a, b) => a.localeCompare(b))
     .map((type) => ({
       type,
+      label: typeLabel(type, declared),
+      total: read.entities.filter((entity) => entity.type === type).length,
       colour: hueOfType.get(type) ?? UNDECLARED_HUE[MAP_GROUND],
       colours: {
         light: lightOfType.get(type) ?? UNDECLARED_HUE.light,
