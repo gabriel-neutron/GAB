@@ -174,6 +174,12 @@ export const groupsOf = (
     .sort((a, b) => a.key.localeCompare(b.key));
 };
 
+// The group holds an act with no originator, so this is a guard and not a path.
+const storedOriginator = (act: Act): string => {
+  if (act.originator === null) throw new Error(`the act ${act.id} has no originator`);
+  return act.originator;
+};
+
 const strip = (attrs: Attrs): Record<string, { v: unknown }> =>
   Object.fromEntries(Object.entries(attrs).map(([key, one]) => [key, { v: one.v }]));
 
@@ -202,7 +208,7 @@ export const batchesOf = (
   const item = (one: Act, act: Item): Item => ({
     ref: refs.get(one.id),
     act,
-    originator: group.pass.includes(one) ? (one.originator ?? ORIGINATOR) : ORIGINATOR,
+    originator: group.pass.includes(one) ? storedOriginator(one) : ORIGINATOR,
     modality: one.cites[0]?.modality,
     evidence: evidenceOf(one),
   });
