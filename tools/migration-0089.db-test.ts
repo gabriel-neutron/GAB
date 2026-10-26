@@ -10,7 +10,13 @@ import { z } from 'zod';
 
 import { rolledBack, type Ask } from './probe.ts';
 
-const MIGRATION = join(import.meta.dirname, '..', 'db', 'migrations', '0089_sts_day_and_order_key.sql');
+const MIGRATION = join(
+  import.meta.dirname,
+  '..',
+  'db',
+  'migrations',
+  '0089_sts_day_and_order_key.sql',
+);
 
 // The rule of 0080: the day enters the key of a port call. The ends keep the stored order.
 const BEFORE_0089 = `
