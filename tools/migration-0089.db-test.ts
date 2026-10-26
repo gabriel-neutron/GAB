@@ -128,7 +128,14 @@ const oldRecord = async (ask: Ask) => {
     src_id: a,
     dst_id: port,
   });
-  return { low, high, first, second, reverse, undatedLow, undatedHigh, loads };
+  // A relation on a dated transfer: its key names the transfer, so it moves with it.
+  const onTransfer = await proposed(ask, 'create_relation', {
+    type: 'restricted_by',
+    src_kind: 'relation',
+    src_id: first,
+    dst_id: port,
+  });
+  return { low, high, first, second, reverse, undatedLow, undatedHigh, loads, onTransfer };
 };
 
 const migrate = async (ask: Ask) => {
@@ -178,6 +185,8 @@ test('the migration moves the dated transfers and no other act of the record', a
     return { record, ids };
   });
   expect(moved.ids).toContain(moved.record.first);
+  expect(moved.ids).toContain(moved.record.reverse);
+  expect(moved.ids).toContain(moved.record.onTransfer);
   expect(moved.ids).not.toContain(moved.record.loads);
   expect(moved.ids).not.toContain(moved.record.undatedLow);
 });
