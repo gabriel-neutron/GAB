@@ -20,7 +20,7 @@ export interface ChangeListProps {
 }
 
 const AIM = cn(
-  'ml-1 text-small/4 text-label underline underline-offset-2 outline-none',
+  'ml-1 text-caption text-label underline decoration-border underline-offset-4 hover:decoration-foreground outline-none',
   'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 hover:text-foreground',
 );
 
@@ -39,7 +39,7 @@ const stateWords = (line: RelationLine): string => {
     : `${line.rejected.name} was rejected on ${line.rejected.on}`;
 };
 
-const HEADING = 'mt-3 text-small/4 tracking-caps text-label uppercase';
+const HEADING = 'mt-3 font-mono text-caption text-label uppercase';
 
 // The help of the key, then the help of each word that the attribute states.
 const helpOf = (attribute: Attribute): string | null => {
@@ -61,7 +61,7 @@ function Attributes({ attributes }: { readonly attributes: readonly Attribute[] 
           <div key={attribute.key} className="contents">
             <dt className="text-label">
               {words.label}:{/* The stored key, in a secondary place. */}
-              <span className="block font-mono text-small/4">{attribute.key}</span>
+              <span className="block font-mono text-caption">{attribute.key}</span>
             </dt>
             <dd className="min-w-0 break-words">
               {/* Each value of a list is its own text, so an address in it is its own link. */}
@@ -72,7 +72,7 @@ function Attributes({ attributes }: { readonly attributes: readonly Attribute[] 
                   <LinkedWords text={value} />
                 </span>
               ))}
-              {help === null ? null : <span className="block text-small/4 text-label">{help}</span>}
+              {help === null ? null : <span className="block text-caption text-label">{help}</span>}
             </dd>
           </div>
         );
@@ -99,16 +99,16 @@ function Relation({ line, alone, aimed, onRelation }: RelationProps) {
       {line.from === null ? null : <span>{line.from} </span>}
       <span className="text-label">{line.word} →</span> <span>{line.other}</span>{' '}
       {line.typeUnknown ? (
-        <span data-type-unknown className="text-small/4 text-dissent">
+        <span data-type-unknown className="text-caption text-dissent">
           (type unknown){' '}
         </span>
       ) : null}
       <span
-        className={cn('text-small/4', line.rejected === null ? 'text-label' : 'text-destructive')}
+        className={cn('text-caption', line.rejected === null ? 'text-label' : 'text-destructive')}
       >
         ({stateWords(line)})
       </span>
-      {line.disputed ? <span className="text-small/4 text-dissent"> disputed</span> : null}
+      {line.disputed ? <span className="text-caption text-dissent"> disputed</span> : null}
       {line.rejected !== null ? (
         <button
           type="button"
@@ -139,7 +139,7 @@ function Relation({ line, alone, aimed, onRelation }: RelationProps) {
 export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) {
   if (unit === null)
     return (
-      <section aria-label="The changes of the unit" className="p-3 text-xs text-label">
+      <section aria-label="The changes of the unit" className="p-3 text-body-sm text-label">
         Choose a unit in the list.
       </section>
     );
@@ -150,9 +150,9 @@ export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) 
   return (
     <section
       aria-label="The changes of the unit"
-      className="min-h-0 overflow-y-auto overscroll-contain p-3 text-xs"
+      className="min-h-0 overflow-y-auto overscroll-contain p-3 text-body-sm"
     >
-      <h2 className="text-sm">{unit.name}</h2>
+      <h2 className="text-heading-sm">{unit.name}</h2>
       {entity === null ? null : (
         <>
           <p className="text-label">
@@ -270,7 +270,7 @@ export function ChangeList({ unit, words, aimed, onRelation }: ChangeListProps) 
           </p>
         </div>
       ))}
-      <p className="mt-3 text-small/4 text-label">
+      <p className="mt-3 text-caption text-label">
         Nothing here is written to the record until the operator decides.
       </p>
     </section>

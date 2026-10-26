@@ -101,7 +101,7 @@ export function DownloadsPage({ manifest, fileHref }: DownloadsPageProps) {
   return (
     <ReadingPage>
       <PageHeader title="Downloads" detail={`From the release of ${releaseDay(manifest.date)}`} />
-      <p className="max-w-prose">
+      <p className="max-w-[64ch]">
         Each file is under CC-BY 4.0, and each row of a file gives its own licence. Each file holds
         the disclaimer of the dataset, and each row its label. The file manifest gives the SHA-256
         checksum of each file, so you can check a copy. Each CSV file starts with lines that begin

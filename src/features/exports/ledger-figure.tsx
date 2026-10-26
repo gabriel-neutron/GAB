@@ -30,7 +30,7 @@ export function LedgerFigure({ number, title, rows, documents }: LedgerFigurePro
           const total = own.reduce((sum, row) => sum + row.value, 0);
           return (
             <div key={period} className="flex flex-col gap-1.5">
-              <h3 className="font-mono font-medium">{period}</h3>
+              <h3 className="font-mono">{period}</h3>
               <div aria-hidden="true" className="flex h-4 w-full border border-border">
                 {own.map((row) => (
                   <span
@@ -43,7 +43,7 @@ export function LedgerFigure({ number, title, rows, documents }: LedgerFigurePro
                   />
                 ))}
               </div>
-              <ul className="flex flex-col gap-0.5 text-xs/5">
+              <ul className="flex flex-col gap-0.5 text-body-sm">
                 {own.map((row) => {
                   const source = sourceOf(row, documents);
                   return (

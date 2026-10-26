@@ -108,7 +108,7 @@ const columnsOf = (
             {node.label}
           </a>
           <p className="font-normal">
-            <span className="inline-block border border-border px-1 text-small/4 text-muted-foreground">
+            <span className="inline-block border border-border px-1 text-caption text-muted-foreground">
               {typeLabel(node.type)}
             </span>
           </p>
@@ -149,7 +149,7 @@ const columnsOf = (
   { key: 'bypass', header: 'Bypass pattern', cell: (node) => node.bypassPattern },
 ];
 
-const PROSE = 'max-w-prose';
+const PROSE = 'max-w-[64ch] text-body';
 
 /** The front page of a release: what it holds, the meaning of each label, and the critical nodes
  * table, on the reading scale: the retained nodes first, then the other candidates. Each
