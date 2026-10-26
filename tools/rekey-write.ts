@@ -69,7 +69,7 @@ export interface Group {
   readonly held: string | null;
 }
 
-const attrsOf = (act: Act): Attrs => {
+export const attrsOf = (act: Act): Attrs => {
   const held = act.payload['attrs'];
   const parsed = z.record(z.string(), z.looseObject({ v: z.unknown() })).safeParse(held);
   return parsed.success ? parsed.data : {};
@@ -534,8 +534,9 @@ export const doorsOf = (writer: Session, decider: Session): Doors => ({
   },
 });
 
-const actRow = z.strictObject({
+export const actRow = z.strictObject({
   id: z.string(),
+  status: z.string(),
   op: z.string(),
   payload: z.record(z.string(), z.unknown()),
   target_id: z.string().nullable(),
@@ -555,8 +556,9 @@ const actRow = z.strictObject({
 
 // Every pending act, with the words of its cited spans. A citation of words read from an image has
 // no span and so no excerpt.
-const READ_ACTS = `SELECT p.id::text AS id, p.op, p.payload, p.target_id::text AS target_id,
-    p.names::text[] AS names, p.originator, p.dissent, coalesce(cs.cites, '[]'::json) AS cites
+export const readActsSql = (where: string): string => `SELECT p.id::text AS id, p.op, p.payload,
+    p.target_id::text AS target_id, p.status, p.names::text[] AS names, p.originator, p.dissent,
+    coalesce(cs.cites, '[]'::json) AS cites
   FROM public.proposals p
   LEFT JOIN LATERAL (
     -- The text of a page goes out once for an act with a drifted key, on its first citation.
@@ -574,8 +576,10 @@ const READ_ACTS = `SELECT p.id::text AS id, p.op, p.payload, p.target_id::text A
                                               AND t.extractor = c.text_extractor
                                               AND t.page = c.page
              WHERE c.claim_id = p.id) x) cs ON true
- WHERE p.status = 'pending'
+ WHERE ${where}
  ORDER BY p.id`;
+
+const READ_ACTS = readActsSql("p.status = 'pending'");
 
 const READ_RECORD = `SELECT id::text AS id, label, type, attrs FROM api.entity
   WHERE attrs ?| $1::text[]`;

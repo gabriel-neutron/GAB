@@ -33,6 +33,7 @@
     "stack:down": "node tools/stack.ts down",
     "report-render": "python tools/report/report.py",
     "rekey:attributes": "node --env-file=infra/.env tools/rekey-attributes.ts",
+    "rekey:history": "node --env-file=infra/.env tools/rekey-history.ts",
     "retype:relations": "node --env-file=infra/.env tools/retype-relations.ts",
     "load:claims": "node --env-file=infra/.env tools/load-claims.ts",
     "test": "node --env-file-if-exists=infra/.env node_modules/vitest/vitest.mjs run",
