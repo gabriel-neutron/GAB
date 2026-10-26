@@ -1657,8 +1657,13 @@ export function mountMap({
       theme = canvasTheme();
       tokens = mapTokens();
       for (const facet of projection.types) colourOfType.set(facet.type, hueOf(facet));
-      for (const [layer, property, value] of planColours(tokens, ground)) {
-        map.setPaintProperty(layer, property as 'fill-color', value);
+      const plan = planColours(tokens, ground);
+      map.setPaintProperty('background', 'background-color', plan.background);
+      for (const id of plan.fills) map.setPaintProperty(id, 'fill-color', tokens.water);
+      for (const id of plan.lines) map.setPaintProperty(id, 'line-color', tokens.boundary);
+      for (const { id, halo } of plan.names) {
+        map.setPaintProperty(id, 'text-color', tokens.label);
+        map.setPaintProperty(id, 'text-halo-color', halo);
       }
       for (const facet of projection.types) {
         map.setPaintProperty(layerOfType(facet.type), 'circle-color', hueOf(facet));

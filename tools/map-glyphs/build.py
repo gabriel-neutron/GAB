@@ -2,6 +2,7 @@
 
 Run `python tools/map-glyphs/build.py` from the repository root. It reads the Geist fonts of
 `@fontsource` (pnpm install first) and writes `public/map-fonts/<stack>/<first>-<last>.pbf`.
+The files hold Latin and Cyrillic only: a name in another script has no glyph and draws no label.
 It needs fonttools, brotli, numpy, scipy and pillow. The files are committed, so a build of the
 application never runs this script.
 """

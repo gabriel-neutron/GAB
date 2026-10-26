@@ -1,6 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { backgroundOf, imageryPaint, PLAN_GROUND_LAYERS, planColours, planLayers } from './basemap';
+import {
+  backgroundOf,
+  glyphsUrl,
+  imageryPaint,
+  PLAN_GROUND_LAYERS,
+  planColours,
+  planLayers,
+} from './basemap';
 import { hasGlyph } from './glyph-image';
 import { familyOfLink, type MapTokens } from './map-tokens';
 
@@ -57,16 +64,29 @@ describe('planLayers', () => {
 
   it('puts the land in the background and takes every colour from the tokens', () => {
     expect(layers[0]).toMatchObject({ id: 'background', paint: { 'background-color': dark.land } });
-    const coloured = planColours(dark, 'plan');
-    expect(coloured.find(([id]) => id === 'plan-water')?.[2]).toBe(dark.water);
-    expect(coloured.every(([, , value]) => value !== light.land && value !== light.water)).toBe(
-      true,
+    expect(planColours(dark, 'plan').background).toBe(dark.land);
+    expect(planColours(light, 'plan').background).toBe(light.land);
+    expect(planColours(dark, 'plan').names.find((one) => one.id === 'plan-sea-name')?.halo).toBe(
+      dark.water,
     );
   });
 
-  it('paints the light theme with the light tokens', () => {
-    const background = planColours(light, 'plan').find(([id]) => id === 'background');
-    expect(background?.[2]).toBe(light.land);
+  it('orders the layers so the imagery can lie after the coast and before the borders', () => {
+    const ids = layers.map((one) => one.id);
+    expect(ids.indexOf('plan-coast')).toBe(ids.indexOf('plan-water') + 1);
+    expect(ids.indexOf('plan-border-internal')).toBe(ids.indexOf('plan-coast') + 1);
+    expect(ids.indexOf('plan-name-city')).toBeGreaterThan(ids.indexOf('plan-border-country'));
+  });
+
+  it('draws no maritime border', () => {
+    for (const one of layers.filter((layer) => layer.id.startsWith('plan-border-'))) {
+      expect(JSON.stringify('filter' in one ? one.filter : null)).toContain('"maritime"');
+    }
+  });
+
+  it('serves the glyph files from this origin', () => {
+    vi.stubGlobal('window', { location: { origin: 'http://localhost' } });
+    expect(glyphsUrl()).toMatch(/\/map-fonts\/\{fontstack\}\/\{range\}\.pbf$/);
   });
 
   it('hides the water and the coast under imagery and puts the water behind it', () => {

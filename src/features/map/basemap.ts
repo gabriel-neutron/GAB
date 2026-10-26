@@ -21,7 +21,7 @@ const hosted = (): string | null => {
 // the same schema replaces it with `VITE_MAP_PLAN_TILES` (a TileJSON address).
 const PLAN_TILEJSON = 'https://tiles.openfreemap.org/planet';
 
-/** The one vector source of the plan. The layers below read only four of its tile layers. */
+/** The one vector source of the plan. The layers below read a few of its tile layers. */
 export const PLAN_SOURCE = 'plan';
 export const planSource = (): { type: 'vector'; url: string; attribution: string } => ({
   type: 'vector',
@@ -87,7 +87,7 @@ const placeLayer = (
   minzoom,
   maxzoom,
   layout: {
-    'text-field': ['coalesce', ['get', 'name_en'], ['get', 'name']],
+    'text-field': ['coalesce', ['get', 'name_en'], ['get', 'name:latin'], ['get', 'name']],
     'text-font': SANS,
     'text-size': LABEL_SIZE,
     'text-max-width': 8,
@@ -100,27 +100,28 @@ const placeLayer = (
   },
 });
 
+type LineFilter = NonNullable<Extract<LayerSpec, { type: 'line' }>['filter']>;
+
 const border = (
   id: string,
-  filter: unknown[],
+  filter: LineFilter,
   tokens: MapTokens,
   dashed: boolean,
   minzoom = 0,
-): LayerSpec =>
-  ({
-    id,
-    type: 'line',
-    source: PLAN_SOURCE,
-    'source-layer': 'boundary',
-    filter,
-    minzoom,
-    layout: { 'line-join': 'round' },
-    paint: {
-      'line-color': tokens.boundary,
-      'line-width': 1,
-      ...(dashed ? { 'line-dasharray': [3, 3] } : {}),
-    },
-  }) as unknown as LayerSpec;
+): LayerSpec => ({
+  id,
+  type: 'line',
+  source: PLAN_SOURCE,
+  'source-layer': 'boundary',
+  filter,
+  minzoom,
+  layout: { 'line-join': 'round' },
+  paint: {
+    'line-color': tokens.boundary,
+    'line-width': 1,
+    ...(dashed ? { 'line-dasharray': [3, 3] } : {}),
+  },
+});
 
 /**
  * The plan, from the bottom: the land (the background), the water, the coast, the borders, then
@@ -162,7 +163,12 @@ export function planLayers(tokens: MapTokens, ground: Ground): LayerSpec[] {
     ),
     border(
       'plan-border-disputed',
-      ['all', ['==', ['get', 'admin_level'], 2], ['==', ['get', 'disputed'], 1]],
+      [
+        'all',
+        ['==', ['get', 'admin_level'], 2],
+        ['==', ['get', 'disputed'], 1],
+        ['!=', ['get', 'maritime'], 1],
+      ],
       tokens,
       true,
     ),
@@ -204,23 +210,23 @@ export function planLayers(tokens: MapTokens, ground: Ground): LayerSpec[] {
   ];
 }
 
-/** The paint properties that hold a colour, for a change of theme or of ground. */
+/** The colours of the plan, by kind of layer, for a change of theme or of ground. */
 export function planColours(
   tokens: MapTokens,
   ground: Ground,
-): readonly (readonly [layer: string, property: string, value: string])[] {
-  return [
-    ['background', 'background-color', backgroundOf(ground, tokens)],
-    ['plan-water', 'fill-color', tokens.water],
-    ['plan-coast', 'line-color', tokens.boundary],
-    ['plan-border-internal', 'line-color', tokens.boundary],
-    ['plan-border-disputed', 'line-color', tokens.boundary],
-    ['plan-border-country', 'line-color', tokens.boundary],
-    ['plan-sea-name', 'text-color', tokens.label],
-    ['plan-sea-name', 'text-halo-color', tokens.water],
-    ...EVERY_PLACE.flatMap((one) => [
-      [nameOfPlace(one), 'text-color', tokens.label] as const,
-      [nameOfPlace(one), 'text-halo-color', tokens.land] as const,
-    ]),
-  ];
+): {
+  readonly background: string;
+  readonly fills: readonly string[];
+  readonly lines: readonly string[];
+  readonly names: readonly { readonly id: string; readonly halo: string }[];
+} {
+  return {
+    background: backgroundOf(ground, tokens),
+    fills: ['plan-water'],
+    lines: ['plan-coast', 'plan-border-internal', 'plan-border-disputed', 'plan-border-country'],
+    names: [
+      { id: 'plan-sea-name', halo: tokens.water },
+      ...EVERY_PLACE.map((one) => ({ id: nameOfPlace(one), halo: tokens.land })),
+    ],
+  };
 }
