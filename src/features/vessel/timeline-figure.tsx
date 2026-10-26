@@ -153,6 +153,13 @@ export function TimelineFigure({ lanes, versionDate }: TimelineFigureProps) {
   );
 }
 
+// The dash patterns are drawn for a 2px line, so a bar of 8px takes them four times as long.
+const dashOf = (family: RelationLineFamily): string | undefined =>
+  FAMILY_DASH[family]
+    ?.split(' ')
+    .map((part) => String(Number(part) * 4))
+    .join(' ');
+
 function IntervalBar({
   start,
   end,
@@ -174,7 +181,15 @@ function IntervalBar({
   return (
     <>
       {knownStart ? (
-        <rect x={start} y={top} width={width} height={BAR} fill={hue} />
+        <line
+          x1={start}
+          x2={start + width}
+          y1={top + BAR / 2}
+          y2={top + BAR / 2}
+          stroke={hue}
+          strokeWidth={BAR}
+          strokeDasharray={dashOf(family)}
+        />
       ) : (
         <rect
           x={start}
@@ -187,15 +202,6 @@ function IntervalBar({
           strokeDasharray="4 3"
         />
       )}
-      <line
-        x1={start}
-        x2={tip}
-        y1={top + BAR + 4}
-        y2={top + BAR + 4}
-        stroke={hue}
-        strokeWidth={2}
-        strokeDasharray={FAMILY_DASH[family]}
-      />
       {open ? (
         <polygon
           points={`${String(tip)},${String(top - 3)} ${String(tip + ARROW)},${String(top + BAR / 2)} ${String(tip)},${String(top + BAR + 3)}`}

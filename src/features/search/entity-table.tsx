@@ -32,7 +32,7 @@ const HEAD = 'h-8 px-1.5 text-left align-bottom font-normal font-mono text-capti
 const CELL = 'px-1.5 py-1.5 align-top break-words min-w-0';
 const FOCUS = 'outline-none focus-visible:ring-3 focus-visible:ring-ring/50';
 const TICK =
-  'size-3.5 shrink-0 appearance-none rounded-sm border border-input bg-muted checked:border-foreground checked:bg-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
+  'block size-3.5 shrink-0 appearance-none rounded-sm border border-input bg-muted checked:border-foreground checked:bg-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
 const ACTION = cn(
   'h-8 border border-input bg-background px-2 text-body-sm disabled:text-label',
   FOCUS,
