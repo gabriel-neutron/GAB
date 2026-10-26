@@ -194,3 +194,14 @@ describe('former_names that holds one text', () => {
     expect(plan(item({ former_names: { v: 'IMO 9074729' } }, 'IMO 9074729')).kind).toBe('hold');
   });
 });
+
+describe('former_names that a split would break', () => {
+  const held = (v: string, page: string) => plan(item({ former_names: { v } }, page)).kind;
+
+  it('holds an IMO number that is glued to its letters, a bracket that a split opens, and a repeat', () => {
+    expect(held('IMO9074729', 'IMO9074729')).toBe('hold');
+    expect(held('Foo (ex Bar / Baz)', 'Foo (ex Bar / Baz)')).toBe('hold');
+    expect(held('Wellington / Wellington', 'Wellington')).toBe('hold');
+    expect(held('Foo (ex Bar)', 'Foo (ex Bar)')).toBe('rekey');
+  });
+});

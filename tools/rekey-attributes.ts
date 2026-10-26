@@ -149,7 +149,7 @@ const hold = (reason: string): Plan => ({ kind: 'hold', reason });
 
 // An empty part, a placeholder, a year, an IMO number or a date is no name.
 const NOT_A_NAME =
-  /^(?:n\/a|none|unknown|-+|\d{4})$|\bIMO\b|^\d{7}$|\d{1,4}[-./]\d{1,2}[-./]\d{1,4}/iu;
+  /^(?:n\/a|none|unknown|-+|\d{4})$|(?<!\p{L})IMO(?!\p{L})|^\d{7}$|\d{1,4}[-./]\d{1,2}[-./]\d{1,4}/iu;
 
 const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 
@@ -159,12 +159,16 @@ const checkedNames = (given: string | readonly unknown[], page: string): string[
   const parts = (typeof given === 'string' ? given.split(' / ') : given).map((one) =>
     typeof one === 'string' ? one.trim() : '',
   );
-  const bad = parts.some(
-    (one) =>
-      one.length < 2 ||
-      NOT_A_NAME.test(one) ||
-      !new RegExp(String.raw`(?<![\p{L}\p{N}])${escaped(one)}(?![\p{L}\p{N}])`, 'u').test(page),
-  );
+  // A name with a bracket that does not close came from a " / " inside a bracket: hold it.
+  const bad =
+    new Set(parts).size !== parts.length ||
+    parts.some(
+      (one) =>
+        one.length < 2 ||
+        one.split('(').length !== one.split(')').length ||
+        NOT_A_NAME.test(one) ||
+        !new RegExp(String.raw`(?<![\p{L}\p{N}])${escaped(one)}(?![\p{L}\p{N}])`, 'u').test(page),
+    );
   return bad ? null : parts;
 };
 
