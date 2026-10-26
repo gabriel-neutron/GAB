@@ -18,7 +18,18 @@ import { canvasTheme, observeCanvasTheme } from '@/shared/canvas-theme';
 import { canvasLabelTransform } from '@/shared/canvas-label';
 import { foldEveryUnit } from '@/shared/unit-folds';
 
-import { EVERY_GROUND, groundPaint, groundSource, type GroundSource } from './basemap';
+import {
+  backgroundOf,
+  glyphsUrl,
+  groundSource,
+  imageryPaint,
+  PLAN_GROUND_LAYERS,
+  PLAN_SOURCE,
+  planColours,
+  planLayers,
+  planSource,
+  type GroundSource,
+} from './basemap';
 import { glyphImage, glyphImageId, glyphPath, hasGlyph } from './glyph-image';
 import { EVERY_FAMILY, FAMILY_DASH, familyOfLink, mapTokens, type LinkFamily } from './map-tokens';
 import './map.css';
@@ -799,15 +810,15 @@ export function mountMap({
     },
   ];
 
-  /** The layer that draws one ground. One ground, one layer, and one name for both. */
-  const groundLayerId = (ground: Ground): string => `ground-${ground}`;
+  /** The imagery ground: one source, one layer, and one name for both. */
+  const IMAGERY_LAYER = 'ground-imagery';
 
   let ground: Ground = stored.ground;
   let imagery: Imagery = stored.imagery;
 
-  // `maxzoom` is the ceiling of the server, and it is measured. The OSM servers answer 200 at
-  // z19 and 400 at z20; the EOX service answers 200 far past its 10 m resolution, because it
-  // upsamples. MapLibre then asks no tile past the ceiling and overzooms the parent itself.
+  // `maxzoom` is the ceiling of the server, and it is measured: the EOX service answers 200 far
+  // past its 10 m resolution, because it upsamples. MapLibre then asks no tile past the ceiling
+  // and overzooms the parent itself.
   const rasterSourceOf = (source: GroundSource): SourceSpec => ({
     type: 'raster',
     tiles: [source.tiles],
@@ -816,26 +827,25 @@ export function mountMap({
     attribution: source.attribution,
   });
 
-  // One ground is drawn and the other waits. The switch is this property and nothing else.
-  const groundLayerOf = (name: Ground): LayerSpec => ({
-    id: groundLayerId(name),
+  // The imagery lies over the water and the coast of the plan, and under its borders and names.
+  const imageryLayerOf = (): LayerSpec => ({
+    id: IMAGERY_LAYER,
     type: 'raster',
-    source: groundLayerId(name),
-    layout: { visibility: name === ground ? 'visible' : 'none' },
-    paint: { ...groundPaint(name, tokens.land) },
+    source: IMAGERY_LAYER,
+    layout: { visibility: ground === 'imagery' ? 'visible' : 'none' },
+    paint: imageryPaint(),
   });
-
-  const groundSources = Object.fromEntries(
-    EVERY_GROUND.map((name) => [groundLayerId(name), rasterSourceOf(groundSource(name, imagery))]),
-  );
-
-  const groundLayers: LayerSpec[] = EVERY_GROUND.map(groundLayerOf);
+  const plan = planLayers(tokens, ground);
+  const planBelowImagery = plan.findIndex((layer) => layer.id === 'plan-coast') + 1;
+  const IMAGERY_BEFORE = 'plan-border-internal';
 
   const style: StyleSpec = {
     version: 8,
+    glyphs: glyphsUrl(),
     projection: { type: globeOn ? 'globe' : 'mercator' },
     sources: {
-      ...groundSources,
+      [PLAN_SOURCE]: planSource(),
+      [IMAGERY_LAYER]: rasterSourceOf(groundSource(imagery)),
       [ENTITY_SOURCE]: { type: 'geojson', data: collect(featuresOf(projection.entities)) },
       [AREA_SOURCE]: { type: 'geojson', data: areaFeaturesOf(projection.entities) },
       [SELECTION_SOURCE]: { type: 'geojson', data: collect([]) },
@@ -850,8 +860,9 @@ export function mountMap({
     },
     // The first layer of this list is at the bottom of the map, and the last layer is at the top.
     layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': tokens.water } },
-      ...groundLayers,
+      ...plan.slice(0, planBelowImagery),
+      imageryLayerOf(),
+      ...plan.slice(planBelowImagery),
       // **The areas are under every line and every point.** An area is ground, and a mark on it
       // must never be covered by it.
       ...areaLayers,
@@ -1646,15 +1657,13 @@ export function mountMap({
       theme = canvasTheme();
       tokens = mapTokens();
       for (const facet of projection.types) colourOfType.set(facet.type, hueOf(facet));
-      map.setPaintProperty('background', 'background-color', tokens.water);
-      for (const name of EVERY_GROUND) {
-        const paint = groundPaint(name, tokens.land);
-        const id = groundLayerId(name);
-        // Each key is a literal, because the paint setter takes a key of its own union.
-        map.setPaintProperty(id, 'raster-saturation', paint['raster-saturation']);
-        map.setPaintProperty(id, 'raster-brightness-min', paint['raster-brightness-min']);
-        map.setPaintProperty(id, 'raster-brightness-max', paint['raster-brightness-max']);
-        map.setPaintProperty(id, 'raster-opacity', paint['raster-opacity']);
+      const plan = planColours(tokens, ground);
+      map.setPaintProperty('background', 'background-color', plan.background);
+      for (const id of plan.fills) map.setPaintProperty(id, 'fill-color', tokens.water);
+      for (const id of plan.lines) map.setPaintProperty(id, 'line-color', tokens.boundary);
+      for (const { id, halo } of plan.names) {
+        map.setPaintProperty(id, 'text-color', tokens.label);
+        map.setPaintProperty(id, 'text-halo-color', halo);
       }
       for (const facet of projection.types) {
         map.setPaintProperty(layerOfType(facet.type), 'circle-color', hueOf(facet));
@@ -1813,13 +1822,11 @@ export function mountMap({
       ground = next;
       patchMapWorkspace({ ground: next });
       whenStyleReady(() => {
-        for (const name of EVERY_GROUND) {
-          map.setLayoutProperty(
-            groundLayerId(name),
-            'visibility',
-            name === next ? 'visible' : 'none',
-          );
+        map.setLayoutProperty(IMAGERY_LAYER, 'visibility', next === 'imagery' ? 'visible' : 'none');
+        for (const id of PLAN_GROUND_LAYERS) {
+          map.setLayoutProperty(id, 'visibility', next === 'plan' ? 'visible' : 'none');
         }
+        map.setPaintProperty('background', 'background-color', backgroundOf(next, tokens));
       });
     },
     get ground() {
@@ -1827,17 +1834,16 @@ export function mountMap({
     },
     // `setTiles` on a raster source resets its attribution from the options it was built with, so
     // a new date would keep the old credit. The source and its layer are rebuilt instead, at the
-    // same place in the stack, so the grounds stay under every area, every line and every point.
+    // same place in the stack, so the imagery stays under the borders and every mark.
     setImagery: (next) => {
       if (destroyed) return;
       imagery = next;
       patchMapWorkspace({ imagery: next });
       whenStyleReady(() => {
-        const id = groundLayerId('imagery');
-        if (map.getLayer(id) !== undefined) map.removeLayer(id);
-        if (map.getSource(id) !== undefined) map.removeSource(id);
-        map.addSource(id, rasterSourceOf(groundSource('imagery', next)));
-        map.addLayer(groundLayerOf('imagery'), areaLayers[0]?.id ?? `${LINK_LAYER}-ownership`);
+        if (map.getLayer(IMAGERY_LAYER) !== undefined) map.removeLayer(IMAGERY_LAYER);
+        if (map.getSource(IMAGERY_LAYER) !== undefined) map.removeSource(IMAGERY_LAYER);
+        map.addSource(IMAGERY_LAYER, rasterSourceOf(groundSource(next)));
+        map.addLayer(imageryLayerOf(), IMAGERY_BEFORE);
       });
     },
     get imagery() {
