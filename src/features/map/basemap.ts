@@ -37,32 +37,40 @@ export function groundSource(ground: Ground, imagery: Imagery): GroundSource {
   return ground === 'plan' ? PLAN : imageryGround(imagery);
 }
 
-// `raster-brightness-min: 1` with `raster-brightness-max: 0` inverts the luminance of one layer,
-// and a half turn of the hue puts the water back to blue. A CSS filter cannot do this, because
-// there is one canvas and the entity points are on it.
-const IMAGERY_DARK = 0.7;
-
 interface GroundPaint {
+  readonly 'raster-saturation': number;
   readonly 'raster-brightness-min': number;
   readonly 'raster-brightness-max': number;
-  readonly 'raster-hue-rotate': number;
+  readonly 'raster-opacity': number;
 }
 
-// The inversion is a property of the ground and not of one date: a plan reads inverted, and any
-// satellite image dims. So the table is by ground, and no imagery states it a second time.
-const INVERTS_IN_DARK: Readonly<Record<Ground, boolean>> = { plan: true, imagery: false };
+// The mean grey of the land of an OpenStreetMap tile, 0 to 1. A plan has no vector layers to
+// recolour, so it is drawn in greyscale and the brightness range puts this land on `map-land`.
+const PLAN_LAND_GREY = 0.94;
+// Imagery is opt in and shown at this opacity over the water, so the markers keep their contrast.
+const IMAGERY_OPACITY = 0.6;
 
-export function groundPaint(ground: Ground, dark: boolean): GroundPaint {
-  if (!dark)
-    return { 'raster-brightness-min': 0, 'raster-brightness-max': 1, 'raster-hue-rotate': 0 };
-  if (!INVERTS_IN_DARK[ground]) {
+const greyOf = (hex: string): number => {
+  const channels = [1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16) / 255);
+  return channels.reduce((sum, one) => sum + one, 0) / 3;
+};
+
+/** Both grounds are greyscale. The plan keeps its land on the `map-land` grey of the theme. */
+export function groundPaint(ground: Ground, land: string): GroundPaint {
+  if (ground === 'imagery') {
     return {
+      'raster-saturation': -1,
       'raster-brightness-min': 0,
-      'raster-brightness-max': IMAGERY_DARK,
-      'raster-hue-rotate': 0,
+      'raster-brightness-max': 1,
+      'raster-opacity': IMAGERY_OPACITY,
     };
   }
-  return { 'raster-brightness-min': 1, 'raster-brightness-max': 0, 'raster-hue-rotate': 180 };
+  return {
+    'raster-saturation': -1,
+    'raster-brightness-min': 0,
+    'raster-brightness-max': Math.min(1, greyOf(land) / PLAN_LAND_GREY),
+    'raster-opacity': 1,
+  };
 }
 
 export const EVERY_GROUND: readonly Ground[] = ['plan', 'imagery'];
