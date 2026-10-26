@@ -115,6 +115,33 @@ export function ScreenQueryField() {
   if (context === undefined) throw new Error('ScreenQueryField must be used within its provider');
   const listId = useId();
   const [listing, setListing] = useState<Listing>(CLOSED);
+  const field = useRef<HTMLInputElement>(null);
+
+  // The `/` hint is a promise: the key focuses the field unless the reader already types in one.
+  useEffect(() => {
+    const focusOnSlash = (event: KeyboardEvent): void => {
+      const target = event.target;
+      const typing =
+        target instanceof HTMLElement &&
+        (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+      if (
+        event.key !== '/' ||
+        event.defaultPrevented ||
+        event.isComposing ||
+        typing ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey
+      )
+        return;
+      event.preventDefault();
+      field.current?.focus();
+    };
+    window.addEventListener('keydown', focusOnSlash);
+    return () => {
+      window.removeEventListener('keydown', focusOnSlash);
+    };
+  }, []);
 
   const count = offered?.shown.length ?? 0;
   const listed = listing.open && offered !== null && count > 0 ? offered : null;
@@ -131,6 +158,7 @@ export function ScreenQueryField() {
   return (
     <div className="relative w-full sm:w-auto">
       <Input
+        ref={field}
         type="search"
         autoComplete="off"
         role="combobox"
@@ -176,8 +204,14 @@ export function ScreenQueryField() {
               return;
           }
         }}
-        className="h-7 w-full sm:w-48"
+        className="w-full pr-8 sm:w-56"
       />
+      <kbd
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded-sm border border-border px-1 py-0.5 font-mono text-small/none text-label"
+      >
+        /
+      </kbd>
       {listed === null ? null : (
         <MatchList
           id={listId}

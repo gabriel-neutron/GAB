@@ -1,7 +1,6 @@
 import { Monitor, Moon, Sun } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import type { Theme } from '@/shared/theme-provider';
 
@@ -36,19 +35,13 @@ export function ModeToggle({ theme, onThemeChange }: ModeToggleProps) {
     <Button
       type="button"
       variant="outline"
-      size="icon-xs"
+      size="icon"
       // No `aria-pressed`. Three states are not a pressed state.
       aria-label={`Theme: ${WORD[theme]}. Change to ${WORD[next]}.`}
       onClick={() => {
         onThemeChange(next);
       }}
-      // The kit writes `transition-all` with no duration, which runs above the 120 ms ceiling and
-      // animates every property. The correction is made at the call site, because a vendored file
-      // is closed.
-      className={cn('transition-colors duration-100')}
     >
-      {/* The kit sizes a glyph at 12 px for this control size. The visual language states 14 px,
-          and a size class at the call site is what the kit's own rule stands aside for. */}
       <Glyph className="size-3.5" aria-hidden="true" />
     </Button>
   );
