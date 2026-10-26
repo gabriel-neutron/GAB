@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./attribute-key": "./src/attribute-key.ts",
     "./catalogue": "./src/catalogue.ts",
     "./challenge-page": "./src/challenge-page.ts",
     "./check-answer": "./src/check-answer.ts",

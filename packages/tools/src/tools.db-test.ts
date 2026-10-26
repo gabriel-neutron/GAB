@@ -2485,6 +2485,51 @@ test('read_duplicate_identifiers flags two entities with one INN, and not a thir
   });
 });
 
+test('read_duplicate_identifiers flags a new entity that waits as a copy of one of the record', async () => {
+  await rolledBack('superuser', async (ask) => {
+    const made = z.array(z.object({ id: z.uuid() }));
+    const inn = `98${randomUUID().replaceAll('-', '').slice(0, 10)}`.toUpperCase();
+    const attrs = { tax_id: { v: inn, src: ['manual'] } };
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+    const [waiting] = made.parse(
+      await ask(`SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::text[]) AS id`, [
+        'create_entity',
+        JSON.stringify({ type: 'company', label: 'Waiting copy', attrs }),
+      ]),
+    );
+    const [origin] = made.parse(
+      await ask(`SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::text[]) AS id`, [
+        'create_entity',
+        JSON.stringify({ type: 'company', label: 'Held' }),
+      ]),
+    );
+    await ask('RESET SESSION AUTHORIZATION');
+    const [row] = made.parse(
+      await ask(
+        `INSERT INTO public.entities (type, label, attrs, sources, promoted_from)
+         VALUES ('company', 'Held', $1::jsonb, ARRAY['manual']::doc_id[], $2) RETURNING id`,
+        [JSON.stringify(attrs), origin?.id],
+      ),
+    );
+    const found = z
+      .object({
+        groups: z.array(
+          z.object({
+            value: z.string(),
+            entities: z.array(z.object({ id: z.uuid(), pending: z.literal(true).optional() })),
+          }),
+        ),
+      })
+      .parse(await output(ask, 'read_duplicate_identifiers', {}));
+    const mine = found.groups.filter((group) => group.value === inn);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]?.entities.filter((one) => one.pending === true).map((one) => one.id)).toEqual([
+      waiting?.id,
+    ]);
+    expect(mine[0]?.entities.some((one) => one.id === row?.id)).toBe(true);
+  });
+});
+
 // ------------------------------------------------------ read_event_pairs ---
 
 test('read_event_pairs flags a Latin and a Cyrillic event of one site and day', async () => {
