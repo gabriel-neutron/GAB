@@ -26,12 +26,15 @@ interface EntityTableProps {
 // select all still reaches every filtered row.
 const PAGE = 100;
 
-const HEAD = 'h-7 px-1.5 text-left align-bottom font-normal text-small/4 tracking-caps uppercase';
+const HEAD = 'h-7 px-1.5 text-left align-bottom font-normal font-mono text-caption uppercase';
 const CELL = 'px-1.5 py-1.5 align-top break-words min-w-0';
 const FOCUS = 'outline-none focus-visible:ring-3 focus-visible:ring-ring/50';
 const TICK =
-  'size-3.5 shrink-0 appearance-none rounded-none border border-input bg-muted checked:border-foreground checked:bg-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
-const ACTION = cn('h-6 border border-input bg-background px-2 text-xs disabled:text-label', FOCUS);
+  'size-3.5 shrink-0 appearance-none rounded-sm border border-input bg-muted checked:border-foreground checked:bg-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
+const ACTION = cn(
+  'h-8 border border-input bg-background px-2 text-body-sm disabled:text-label',
+  FOCUS,
+);
 
 // External constraint: a browser saves a file only from an address, so the text becomes a Blob.
 function save(text: string, name: string, type: string): void {
@@ -100,7 +103,7 @@ export function EntityTable({ rows, hrefOf }: EntityTableProps) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-end gap-2">
-        <label className="flex flex-col gap-1 text-xs/5 text-label">
+        <label className="flex flex-col gap-1 text-body-sm text-label">
           Filter by name
           <Input
             type="search"
@@ -110,10 +113,10 @@ export function EntityTable({ rows, hrefOf }: EntityTableProps) {
               setText(event.target.value);
               setShown(PAGE);
             }}
-            className="w-56 rounded-none text-foreground duration-100"
+            className="w-56 rounded-sm text-foreground duration-100"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs/5 text-label">
+        <label className="flex flex-col gap-1 text-body-sm text-label">
           Type
           <select
             value={type ?? ''}
@@ -121,7 +124,10 @@ export function EntityTable({ rows, hrefOf }: EntityTableProps) {
               setType(event.target.value === '' ? null : event.target.value);
               setShown(PAGE);
             }}
-            className={cn('h-8 rounded-none border border-input bg-background px-2 text-xs', FOCUS)}
+            className={cn(
+              'h-8 rounded-sm border border-input bg-background px-2 text-body-sm',
+              FOCUS,
+            )}
           >
             <option value="">All types</option>
             {types.map((one) => (
@@ -157,7 +163,7 @@ export function EntityTable({ rows, hrefOf }: EntityTableProps) {
         </button>
       </div>
 
-      <p role="status" className="text-label text-xs/5">
+      <p role="status" className="text-label text-body-sm">
         {sorted.length} of {rows.length} {rows.length === 1 ? 'entity' : 'entities'}.{' '}
         {chosen.length} selected.
       </p>
@@ -170,7 +176,7 @@ export function EntityTable({ rows, hrefOf }: EntityTableProps) {
         >
           <table
             aria-label="Entities"
-            className="w-full border-collapse border border-border text-xs/5"
+            className="w-full border-collapse border border-border text-body-sm"
           >
             <thead className="border-b border-input bg-muted text-label">
               <tr>
@@ -192,7 +198,7 @@ export function EntityTable({ rows, hrefOf }: EntityTableProps) {
                   >
                     <button
                       type="button"
-                      className={cn('uppercase tracking-caps', FOCUS)}
+                      className={cn('font-mono text-caption uppercase', FOCUS)}
                       onClick={() => {
                         sortBy(column.key);
                       }}

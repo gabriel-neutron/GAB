@@ -13,11 +13,11 @@ const UNREAD: LeadState = { step: 'idle' };
 // A modal is a true overlay, which is the one place the theme permits a shadow.
 const OVERLAY = 'fixed inset-0 z-50 bg-background/80';
 const PANEL =
-  'fixed top-1/2 left-1/2 z-50 w-96 -translate-x-1/2 -translate-y-1/2 space-y-2 border border-border bg-popover p-2 text-popover-foreground shadow-md';
+  'fixed top-1/2 left-1/2 z-50 w-96 -translate-x-1/2 -translate-y-1/2 space-y-2 border border-border bg-popover p-2 text-popover-foreground ';
 
-const BOX = 'min-h-12 rounded-none px-1.5 py-1 text-xs md:text-xs';
-const CAPTION = 'block text-small/4 tracking-caps text-label uppercase';
-const SENTENCE = 'block min-w-0 text-small/4 text-label';
+const BOX = 'min-h-12 rounded-sm px-1.5 py-1 text-body-sm md:text-body-sm';
+const CAPTION = 'block font-mono text-caption text-label uppercase';
+const SENTENCE = 'block min-w-0 text-caption text-label';
 const LIST = 'max-h-64 divide-y divide-border overflow-y-auto border-y border-border';
 
 const SAYS = 'The leads';
@@ -50,14 +50,14 @@ export function LeadDialog() {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Trigger asChild>
-        <Button type="button" variant="outline" size="xs">
+        <Button type="button" variant="secondary" size="xs">
           Give a lead
         </Button>
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className={OVERLAY} />
         <Dialog.Content className={PANEL}>
-          <Dialog.Title className="text-base">Give a lead</Dialog.Title>
+          <Dialog.Title className="text-heading-sm">Give a lead</Dialog.Title>
           <Dialog.Description className={SENTENCE}>
             The worker searches the web and the news, stores each new page and queues its
             extraction. It proposes nothing. The lead stays private.
@@ -94,7 +94,7 @@ export function LeadDialog() {
             </Button>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="xs"
               disabled={working}
               onClick={() => {
@@ -108,7 +108,7 @@ export function LeadDialog() {
           {screen.lines.length > 0 ? (
             <ul aria-label="Leads" className={LIST}>
               {screen.lines.map((line) => (
-                <li key={line.id} className="space-y-0.5 py-1 text-xs">
+                <li key={line.id} className="space-y-0.5 py-1 text-body-sm">
                   <p className="min-w-0 break-words">{line.lead}</p>
                   <p className={SENTENCE}>{line.state}</p>
                   {line.documents.length > 0 ? (

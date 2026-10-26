@@ -27,7 +27,7 @@ export function GroupRail({ groups, selectedId, onSelect }: GroupRailProps) {
   const clean = groups.reduce((sum, group) => sum + group.clean, 0);
   return (
     <nav aria-label="Groups that wait for a decision" className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 space-y-0.5 border-b border-border px-2 py-1 text-small/4 text-label">
+      <div className="shrink-0 space-y-0.5 border-b border-border px-2 py-1 text-caption text-label">
         <p data-said="totals" className="tabular-nums">
           {counted(groups.length, 'group waits', 'groups wait')}, with{' '}
           {counted(units, 'unit', 'units')}: {String(clean)} clean.
@@ -37,7 +37,7 @@ export function GroupRail({ groups, selectedId, onSelect }: GroupRailProps) {
         )}
       </div>
       {groups.length === 0 ? (
-        <p className="p-2 text-xs text-label">No group waits.</p>
+        <p className="p-2 text-body-sm text-label">No group waits.</p>
       ) : (
         <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {groups.map((group) => {
@@ -60,7 +60,7 @@ export function GroupRail({ groups, selectedId, onSelect }: GroupRailProps) {
                   }}
                   className={cn(
                     CONTROL,
-                    'flex w-full flex-col border-b border-l-2 border-b-border border-l-transparent px-2 py-1 text-left text-xs',
+                    'flex w-full flex-col border-b border-l-2 border-b-border border-l-transparent px-2 py-1 text-left text-body-sm',
                     group.id === selectedId ? 'border-l-primary bg-muted' : null,
                   )}
                 >
@@ -68,19 +68,19 @@ export function GroupRail({ groups, selectedId, onSelect }: GroupRailProps) {
                     {subject}
                   </span>
                   <span
-                    className="w-full min-w-0 truncate text-small/4 text-label"
+                    className="w-full min-w-0 truncate text-caption text-label"
                     title={`${proposerWords(group.proposer)}, ${source}`}
                   >
                     {proposerWords(group.proposer)} · {source}
                   </span>
-                  <span className="w-full min-w-0 text-small/4 text-label tabular-nums">
+                  <span className="w-full min-w-0 text-caption text-label tabular-nums">
                     {group.units === 1 ? '1 unit' : `${String(group.units)} units`} ·{' '}
                     {String(group.clean)} clean
                   </span>
                   {faults === '' ? null : (
                     <span
                       data-faults
-                      className="w-full min-w-0 truncate text-small/4 text-dissent"
+                      className="w-full min-w-0 truncate text-caption text-dissent"
                       title={faults}
                     >
                       {faults}

@@ -117,7 +117,7 @@ export function GroupPanel({ view, document, words, onPromote, onRetry }: GroupP
   // After the last group, the result of its action stays on the screen.
   if (view.state === 'none')
     return (
-      <section aria-label="The group" className="space-y-2 overflow-y-auto p-3 text-xs">
+      <section aria-label="The group" className="space-y-2 overflow-y-auto p-3 text-body-sm">
         {view.action.step === 'done' ? (
           <Results name={view.action.name} results={view.action.results} />
         ) : null}
@@ -125,10 +125,10 @@ export function GroupPanel({ view, document, words, onPromote, onRetry }: GroupP
       </section>
     );
   if (view.state === 'reading')
-    return <p className="p-3 text-xs text-label">Reading the units of the group.</p>;
+    return <p className="p-3 text-body-sm text-label">Reading the units of the group.</p>;
   if (view.state === 'private')
     return (
-      <section aria-label="The group" className="space-y-2 overflow-y-auto p-3 text-xs">
+      <section aria-label="The group" className="space-y-2 overflow-y-auto p-3 text-body-sm">
         {view.action.step === 'done' ? (
           <Results name={view.action.name} results={view.action.results} />
         ) : null}
@@ -146,7 +146,7 @@ export function GroupPanel({ view, document, words, onPromote, onRetry }: GroupP
   return (
     <section
       aria-label="The group"
-      className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-3 text-xs"
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-3 text-body-sm"
     >
       {action.step === 'done' ? (
         <div className="mb-2">
@@ -154,7 +154,7 @@ export function GroupPanel({ view, document, words, onPromote, onRetry }: GroupP
         </div>
       ) : null}
 
-      <h2 className="text-sm">{group.subject ?? 'Group with no subject'}</h2>
+      <h2 className="text-heading-sm">{group.subject ?? 'Group with no subject'}</h2>
       <p className="text-label tabular-nums">
         {group.units.length === 1 ? '1 unit waits' : `${String(group.units.length)} units wait`},{' '}
         {String(clean)} clean

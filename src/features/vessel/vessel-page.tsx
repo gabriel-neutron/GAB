@@ -83,7 +83,7 @@ function Lane({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <h3 className="font-medium">{lane.words}</h3>
+      <h3>{lane.words}</h3>
       <DataTable
         name={lane.words}
         columns={columns}
@@ -191,7 +191,7 @@ export function VesselPage({ release, imo, entityHref, claimHref }: VesselPagePr
         <EmptyState sentence={`The release holds no vessel with the IMO number ${imo}.`} />
       ) : (
         <>
-          <p className="max-w-prose">
+          <p className="max-w-[64ch]">
             The life of the vessel as the claims of this release give it. Each mark links to its
             claim.
             <span className="hidden md:inline">

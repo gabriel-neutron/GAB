@@ -22,12 +22,12 @@ export interface DecidedPageProps {
   readonly onMore: () => void;
 }
 
-const HEAD = 'h-6 px-1.5 text-left align-bottom font-normal text-small/4 tracking-caps uppercase';
+const HEAD = 'h-6 px-1.5 text-left align-bottom font-normal font-mono text-caption uppercase';
 
 const CELL = 'px-1.5 py-1 align-top';
 
 const CONTROL = cn(
-  'h-6 border border-input px-2 text-xs outline-none focus-visible:border-ring',
+  'h-8 border border-input px-2 text-body-sm outline-none focus-visible:border-ring',
   'focus-visible:ring-3 focus-visible:ring-ring/50 transition-colors duration-100 hover:bg-muted',
 );
 
@@ -38,24 +38,24 @@ export function DecidedPage({ view, onMore }: DecidedPageProps) {
   const { rows, unread, why, more } = view;
   return (
     <section aria-label="What was decided" className="flex h-full min-h-0 flex-col gap-2 p-2">
-      <p className="max-w-[60rem] shrink-0 text-xs text-label">
+      <p className="max-w-[60rem] shrink-0 text-body-sm text-label">
         Each act that was promoted or rejected, by a rule or by the operator, the latest decision
         first. A decided act is frozen. The reason and the note of a rejection are private to the
         operator.
       </p>
 
       {unread === 0 ? null : (
-        <p data-said="unread" className="shrink-0 text-xs text-destructive">
+        <p data-said="unread" className="shrink-0 text-body-sm text-destructive">
           {unread === 1 ? '1 decided act' : `${String(unread)} decided acts`} cannot be read by this
           page, and the table does not show {unread === 1 ? 'it' : 'them'}.
         </p>
       )}
 
       {rows.length === 0 ? (
-        <p className="text-xs text-label">No act was decided yet.</p>
+        <p className="text-body-sm text-label">No act was decided yet.</p>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
-          <table className="w-full border-collapse text-xs">
+          <table className="w-full border-collapse text-body-sm">
             <caption className="sr-only">Decided acts, the latest decision first</caption>
             <thead className="text-label">
               <tr>
@@ -105,7 +105,7 @@ export function DecidedPage({ view, onMore }: DecidedPageProps) {
               ))}
             </tbody>
           </table>
-          {why === null ? null : <p className="p-2 text-xs text-destructive">{why}</p>}
+          {why === null ? null : <p className="p-2 text-body-sm text-destructive">{why}</p>}
           {more === 'none' ? null : (
             <div className="p-2">
               <button

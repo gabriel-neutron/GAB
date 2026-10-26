@@ -48,12 +48,12 @@ const WORDS: WriteWords<object, About> = {
 
 const SAYS = 'The decision on a candidate';
 
-const HEAD = 'h-6 px-1.5 text-left align-bottom font-normal text-small/4 tracking-caps uppercase';
+const HEAD = 'h-6 px-1.5 text-left align-bottom font-normal font-mono text-caption uppercase';
 
 const CELL = 'px-1.5 py-1 align-top';
 
 const CONTROL = cn(
-  'h-6 border border-input px-2 text-xs outline-none focus-visible:border-ring',
+  'h-8 border border-input px-2 text-body-sm outline-none focus-visible:border-ring',
   'focus-visible:ring-3 focus-visible:ring-ring/50 transition-colors duration-100 hover:bg-muted',
   'disabled:opacity-50',
 );
@@ -141,13 +141,13 @@ export function NameCandidatesPage({ read }: NameCandidatesPageProps) {
       {said}
 
       {now.candidates.length === 0 ? (
-        <p className="text-xs text-label">
+        <p className="text-body-sm text-label">
           No pair of entities waits: no Latin and Cyrillic names of one type give one key that the
           operator has not decided.
         </p>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
-          <table className="w-full border-collapse text-xs">
+          <table className="w-full border-collapse text-body-sm">
             <caption className="sr-only">
               Pairs of entities of one type whose Latin and Cyrillic names give one transliteration
               key, in the order of the type and the key

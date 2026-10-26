@@ -18,7 +18,7 @@ export interface QueueFilterProps {
 }
 
 const CHOOSER = cn(
-  'h-6 w-full min-w-0 rounded-none border border-input bg-background px-1 text-xs text-foreground',
+  'h-8 w-full min-w-0 rounded-sm border border-input bg-background px-1 text-body-sm text-foreground',
   'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
 );
 
@@ -94,7 +94,7 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
     onChange: (value: string) => void,
   ) => (
     <div className="min-w-0 space-y-0.5">
-      <label htmlFor={id} className="text-small/4 text-label">
+      <label htmlFor={id} className="text-caption text-label">
         {label}
       </label>
       <select
@@ -118,7 +118,7 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
   return (
     <form
       aria-label="Filter the queue"
-      className="shrink-0 space-y-1 border-b border-border p-1 text-xs"
+      className="shrink-0 space-y-1 border-b border-border p-1 text-body-sm"
       onSubmit={(event) => {
         event.preventDefault();
         applyName();
@@ -131,7 +131,7 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
         <Input
           id={`${ids}-name`}
           type="search"
-          className="h-6 min-w-0 flex-1 rounded-none px-1.5 py-0 text-xs md:text-xs"
+          className="h-6 min-w-0 flex-1 rounded-sm px-1.5 py-0 text-body-sm md:text-body-sm"
           placeholder="Search by name"
           value={name}
           onChange={(event) => {
@@ -152,7 +152,7 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
           aria-controls={`${ids}-choices`}
           className={cn(
             CONTROL,
-            'h-6 shrink-0 border border-input px-2 text-xs',
+            'h-8 shrink-0 border border-input px-2 text-body-sm',
             open && 'bg-muted',
           )}
           onClick={() => {
@@ -225,7 +225,7 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
               title={chip.words}
               className={cn(
                 CONTROL,
-                'flex h-5 min-w-0 max-w-full items-center gap-1 border border-border px-1 text-small/4',
+                'flex h-5 min-w-0 max-w-full items-center gap-1 border border-border px-1 text-caption',
               )}
               onClick={() => {
                 on(CLEAR[chip.key]);
@@ -239,7 +239,10 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
           ))}
           <button
             type="button"
-            className={cn(CONTROL, 'h-5 px-1 text-small/4 text-label underline underline-offset-2')}
+            className={cn(
+              CONTROL,
+              'h-5 px-1 text-caption text-label underline decoration-border underline-offset-4 hover:decoration-foreground',
+            )}
             onClick={() => {
               stopPause();
               setName('');

@@ -100,8 +100,8 @@ export function CriticalityMatrix({ release, title, links }: CriticalityMatrixPr
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs/5 text-label">
-        <strong className="font-medium text-foreground">{`Table 1. ${title}.`}</strong>
+      <p className="text-body-sm text-label">
+        <strong className=" text-foreground">{`Table 1. ${title}.`}</strong>
       </p>
       <DataTable
         name={title}
@@ -110,7 +110,7 @@ export function CriticalityMatrix({ release, title, links }: CriticalityMatrixPr
         empty="This release holds no alignment matrix."
       />
       {counts.rows === 0 ? null : (
-        <div className="flex flex-col gap-1 text-xs/5 text-label" data-matrix-legend="">
+        <div className="flex flex-col gap-1 text-body-sm text-label" data-matrix-legend="">
           <p>
             ● is a listing, with the date that the release gives. ○ is no listing in this release,
             and it is not a legal permission. Each date follows the date rule of its regime.
