@@ -1,7 +1,9 @@
 import { keyWords } from '@gab/proposal/key-words';
 import { releaseDay } from '@gab/release/release-day';
 import { timelineAxis } from '@gab/release/timeline-axis';
-import type { MarkTime, TimelineLane } from '@gab/release/vessel-timeline';
+import type { LaneKey, MarkTime, TimelineLane } from '@gab/release/vessel-timeline';
+
+import { FAMILY_DASH, type RelationLineFamily } from '@/shared/relation-line';
 
 export interface TimelineFigureProps {
   readonly lanes: readonly TimelineLane[];
@@ -13,10 +15,24 @@ const WIDTH = 960;
 const PLOT_LEFT = 190;
 const PLOT_RIGHT = 930;
 const AXIS = 28;
-const ROW = 32;
+const ROW = 44;
 const BAR = 8;
 const ARROW = 8;
 const FOOT = 22;
+
+// A lane takes the hue and the dash of the relation family it draws.
+const FAMILY: Readonly<Record<LaneKey, RelationLineFamily>> = {
+  names: 'other',
+  flags: 'other',
+  owners: 'ownership',
+  operators: 'operation',
+  insurers: 'other',
+  designations: 'designation',
+  'port calls': 'transfer',
+};
+
+// A label sits over the gridlines, so it takes a halo of the ground colour.
+const LABEL = { paintOrder: 'stroke', stroke: 'var(--background)', strokeWidth: 4 } as const;
 
 // External constraint: an SVG text does not wrap, so a long name is cut to fit beside the bar.
 const MOST_CHARACTERS = 70;
@@ -85,7 +101,9 @@ export function TimelineFigure({ lanes, versionDate }: TimelineFigureProps) {
       </text>
       {rows.map(({ lane, mark, first }, index) => {
         const top = AXIS + index * ROW;
-        const bar = top + 18;
+        const bar = top + 28;
+        const family = FAMILY[lane.key];
+        const hue = `var(--relation-${family})`;
         const { time } = mark;
         return (
           <g key={mark.key}>
@@ -99,21 +117,22 @@ export function TimelineFigure({ lanes, versionDate }: TimelineFigureProps) {
                   className="stroke-border"
                   strokeWidth={1}
                 />
-                <text x={0} y={top + 14} className="fill-foreground ">
+                <text x={0} y={top + 18} className="fill-foreground" {...LABEL}>
                   {lane.words}
                 </text>
               </>
             ) : null}
-            <text x={PLOT_LEFT} y={top + 13} className="fill-foreground">
+            <text x={PLOT_LEFT} y={top + 18} className="fill-foreground" {...LABEL}>
               {cut(`${mark.words} · ${timeWords(time)}`)}
             </text>
             {time.kind === 'day' ? (
-              <circle cx={x(time.day)} cy={bar + BAR / 2} r={5} className="fill-foreground" />
+              <circle cx={x(time.day)} cy={bar + BAR / 2} r={5} fill={hue} />
             ) : time.kind === 'interval' ? (
               <IntervalBar
                 start={time.from === null ? PLOT_LEFT : x(time.from)}
                 end={time.to === null ? openEnd(time.from) : x(time.to)}
                 top={bar}
+                family={family}
                 knownStart={time.from !== null}
                 open={time.to === null}
               />
@@ -134,32 +153,51 @@ export function TimelineFigure({ lanes, versionDate }: TimelineFigureProps) {
   );
 }
 
+// The dash patterns are drawn for a 2px line, so a bar of 8px takes them four times as long.
+const dashOf = (family: RelationLineFamily): string | undefined =>
+  FAMILY_DASH[family]
+    ?.split(' ')
+    .map((part) => String(Number(part) * 4))
+    .join(' ');
+
 function IntervalBar({
   start,
   end,
   top,
+  family,
   knownStart,
   open,
 }: {
   readonly start: number;
   readonly end: number;
   readonly top: number;
+  readonly family: RelationLineFamily;
   readonly knownStart: boolean;
   readonly open: boolean;
 }) {
   const width = Math.max(end - start, 2);
   const tip = start + width;
+  const hue = `var(--relation-${family})`;
   return (
     <>
       {knownStart ? (
-        <rect x={start} y={top} width={width} height={BAR} className="fill-muted-foreground" />
+        <line
+          x1={start}
+          x2={start + width}
+          y1={top + BAR / 2}
+          y2={top + BAR / 2}
+          stroke={hue}
+          strokeWidth={BAR}
+          strokeDasharray={dashOf(family)}
+        />
       ) : (
         <rect
           x={start}
           y={top}
           width={width}
           height={BAR}
-          className="fill-none stroke-muted-foreground"
+          fill="none"
+          stroke={hue}
           strokeWidth={1}
           strokeDasharray="4 3"
         />
@@ -167,7 +205,7 @@ function IntervalBar({
       {open ? (
         <polygon
           points={`${String(tip)},${String(top - 3)} ${String(tip + ARROW)},${String(top + BAR / 2)} ${String(tip)},${String(top + BAR + 3)}`}
-          className="fill-foreground"
+          fill={hue}
         />
       ) : null}
     </>
