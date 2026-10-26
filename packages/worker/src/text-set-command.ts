@@ -132,7 +132,7 @@ export const textSetCommand: SubCommand = async (args) => {
         `${String(imo.held.length)} IMO numbers of the file are in the register as a vessel, ` +
           `${String(imo.absent.length)} are not, ${String(imo.many)} of them find more than one vessel`,
       );
-    if (imo !== undefined && imo.held.length === 0)
+    if (imo?.held.length === 0)
       throw new Error('No IMO number of the file is in the register: no text set is made.');
     const made = await makeTextSet(
       {
