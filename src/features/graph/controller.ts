@@ -72,6 +72,9 @@ export interface GraphController {
   readonly setRailWidth: (width: number) => void;
   /** Ends the selection, as a click on the ground does. The camera stays. */
   readonly clearSelection: () => void;
+  /** A phone sheet covers this many pixels at the foot of the canvas. The camera keeps the
+   * selection in the part above it. */
+  readonly setBottomInset: (pixels: number) => void;
   /** Zooms the camera one step, in or out. */
   readonly zoom: (direction: 'in' | 'out') => void;
   readonly subscribe: (listener: (view: GraphView) => void) => () => void;
@@ -691,6 +694,9 @@ export function mountGraph(
     else void camera.animate(target, { duration: motionOf() });
   };
 
+  /** How many pixels of the foot of the canvas a sheet covers. */
+  let bottomInset = 0;
+
   /** Fits the camera to the nodes, and never nearer than the bound of the camera. */
   const fitCamera = (ids: Iterable<string>, nearest = NEAREST_RATIO): void => {
     let minX = Infinity;
@@ -708,9 +714,17 @@ export function mountGraph(
     if (minX > maxX) return;
     // At a ratio of 1 the stored picture fills the shorter side of the canvas, so the longer side
     // shows the ratio times the aspect.
-    const needed = Math.max(maxY - minY, (maxX - minX) / aspectNow()) * FIT_MARGIN;
+    const { width, height } = sigma.getDimensions();
+    // On a tall canvas the shorter side is the width, so the height shows more than one ratio.
+    const tall = width > 0 ? Math.max(1, height / width) : 1;
+    // A sheet over the foot of the canvas hides this share of it. The nodes are fitted into the
+    // part above the sheet, and the camera centre moves down by half of the hidden share.
+    const visible = height > 0 ? Math.max(0.25, (height - bottomInset) / height) : 1;
+    const needed =
+      Math.max((maxY - minY) / (visible * tall), (maxX - minX) / aspectNow()) * FIT_MARGIN;
     const ratio = Math.min(FARTHEST_RATIO, Math.max(nearest, needed));
-    moveCamera({ x: (minX + maxX) / 2, y: (minY + maxY) / 2, ratio });
+    const hidden = (1 - visible) * ratio * tall;
+    moveCamera({ x: (minX + maxX) / 2, y: (minY + maxY) / 2 - hidden / 2, ratio });
   };
 
   // Each value that did not change keeps its identity, so a consumer that memoises on `filter` or
@@ -1050,6 +1064,11 @@ export function mountGraph(
     clearSelection: () => {
       if (destroyed) return;
       settle(null);
+    },
+    setBottomInset: (pixels) => {
+      if (destroyed || pixels === bottomInset) return;
+      bottomInset = pixels;
+      if (selection?.kind === 'entity') fitCamera(nearOf(), SELECT_RATIO);
     },
     zoom: (direction) => {
       if (destroyed) return;

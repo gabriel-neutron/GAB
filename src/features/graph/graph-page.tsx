@@ -222,6 +222,28 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     [reach],
   );
 
+  // A phone sheet covers the foot of the canvas. The camera must put the selection above it, so
+  // the page reports how much of the canvas the sheet covers, and reports none when it closes.
+  const island = useRef<HTMLDivElement | null>(null);
+  const selected = selection !== null;
+  useEffect(() => {
+    const handle = controller.current;
+    const sheet = island.current?.querySelector<HTMLElement>('[role="region"]');
+    const area = canvas.current;
+    if (handle === null || !narrow || !selected || !sheet || !area) return;
+    const report = (): void => {
+      const covered = area.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top;
+      handle.setBottomInset(Math.max(0, Math.round(covered)));
+    };
+    report();
+    const observer = new ResizeObserver(report);
+    observer.observe(sheet);
+    return () => {
+      observer.disconnect();
+      handle.setBottomInset(0);
+    };
+  }, [narrow, selected]);
+
   const clearSelection = useCallback(() => {
     controller.current?.clearSelection();
   }, []);
@@ -237,6 +259,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   return (
     <div className="graph-workspace">
       <div
+        ref={island}
         // The drawer is absolute inside this island, so it is the positioned ancestor on a phone.
         // The key is read here, and not on the drawer, because focus may stay on the Types button.
         onKeyDown={(event) => {
