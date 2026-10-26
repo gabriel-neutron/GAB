@@ -7,6 +7,8 @@ export interface EntityIdentifiers {
   readonly id: string;
   readonly label: string;
   readonly type: string;
+  /** The entity is a new entity that waits in the review queue, and not an element of the record. */
+  readonly pending?: boolean;
   /** The attributes of the row: each key holds its value in `v`, alone or in a list. */
   readonly attrs: Readonly<Record<string, { readonly v: unknown }>>;
 }
@@ -29,7 +31,7 @@ const valuesOf = (held: unknown): string[] =>
 export const duplicateIdentifiers = (entities: readonly EntityIdentifiers[]): DuplicateGroup[] => {
   const groups = new Map<
     string,
-    DuplicateGroup & { entities: { id: string; label: string; type: string }[] }
+    DuplicateGroup & { entities: { id: string; label: string; type: string; pending?: true }[] }
   >();
   for (const entity of entities) {
     for (const key of UNIQUE_KEYS) {
@@ -37,7 +39,12 @@ export const duplicateIdentifiers = (entities: readonly EntityIdentifiers[]): Du
         const at = JSON.stringify([key, value]);
         const group = groups.get(at) ?? { key, value, entities: [] };
         if (!group.entities.some((one) => one.id === entity.id)) {
-          group.entities.push({ id: entity.id, label: entity.label, type: entity.type });
+          group.entities.push({
+            id: entity.id,
+            label: entity.label,
+            type: entity.type,
+            ...(entity.pending === true ? { pending: true as const } : {}),
+          });
         }
         groups.set(at, group);
       }
