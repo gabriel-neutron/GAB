@@ -50,6 +50,23 @@ test.each([
 });
 
 test.each([
+  ['OFAC action of 14 August 2025', 'The OFAC action of August 14, 2025 lists it.'],
+  ['OFAC action of August 14, 2025', 'OFAC action of 14 August 2025'],
+  ['OFAC action of 14 August 2025', 'OFAC action of August 14 2025'],
+  ['OFAC action of August 14 2025', 'OFAC action of 14 August, 2025'],
+])('the value %j and the passage %j state the same day', (value, passage) => {
+  expect(unstatedValues(entityWith(value, value), [passage])).toStrictEqual([]);
+});
+
+test('a label with another day is not stated', () => {
+  expect(
+    unstatedValues(entityWith('OFAC action of 14 August 2025', 'OFAC action of 14 August 2025'), [
+      'OFAC action of August 15, 2025',
+    ]),
+  ).toHaveLength(2);
+});
+
+test.each([
   ['Listed on 03/04/2024.', '2024-04-03'],
   ['Listed on 03/04/2024.', '2024-03-04'],
   ['On 12 March 2024 the tanker left.', '2024-03-13'],

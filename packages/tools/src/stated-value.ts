@@ -353,6 +353,24 @@ const statesToken = (value: string, passage: string): boolean => {
   ).test(plainText(passage));
 };
 
+// A written date becomes one word, so "14 August 2025" and "August 14, 2025" are the same words
+// inside a longer value such as "OFAC action of 14 August 2025".
+const withDayWords = (text: string): string => {
+  const word = (match: string, month: string | undefined, day: string, year: string): string => {
+    const number = monthOf(month ?? '');
+    return number === null
+      ? match
+      : `day${dayText(Number(year), number, Number(day)).replaceAll('-', '')}`;
+  };
+  return text
+    .replace(WORD_DAY, (match, day: string, month: string, year: string) =>
+      word(match, month, day, year),
+    )
+    .replace(WORD_MONTH_FIRST, (match, month: string, day: string, year: string) =>
+      word(match, month, day, year),
+    );
+};
+
 const stated = (value: Scalar, passage: string, options: DayOptions): boolean => {
   if (typeof value === 'boolean') {
     const words = wordsOf(passage);
@@ -363,7 +381,8 @@ const stated = (value: Scalar, passage: string, options: DayOptions): boolean =>
       sameNumber(found, value),
     );
   if (DAY.test(value) && daysIn(passage, options).has(value)) return true;
-  if (statesWords(value, passage)) return true;
+  if (statesWords(value, passage) || statesWords(withDayWords(value), withDayWords(passage)))
+    return true;
   if (statesToken(value, passage)) return true;
   const asNumber = readingsOf(value);
   return (
