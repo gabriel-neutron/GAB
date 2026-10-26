@@ -379,7 +379,7 @@ export const ARestoredSelectionOpensItsGroup: Story = {
 };
 
 // The fixture draws five types and two military units, so a rail of 160px puts every row of the
-// index below the fold: the header takes 64px, and the five type rows take 165px more.
+// index below the fold: the header takes about 66px, and the five type rows take 165px more.
 const SHORT: Story['render'] = (args) => (
   <div className="flex h-40">
     <Rail {...args} />
@@ -429,8 +429,8 @@ export const AFoldedGroupOpensForAMapSelection: Story = {
 
 export const AClickInTheRailDoesNotMoveTheList: Story = {
   args: { map: clickedOnly.map },
-  // 384px shows the header, the five type rows and the start of the open list, and the list of
-  // eight vessels runs past the fold, so the list can move and the analyst can click a row.
+  // 384px shows the header, the five type rows and the start of the open list, and the
+  // the vessels run past the fold, so the list can move and the analyst can click a row.
   render: (args) => (
     <div className="flex h-96">
       <Rail {...args} />
