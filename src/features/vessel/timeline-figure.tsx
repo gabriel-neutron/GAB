@@ -52,7 +52,7 @@ export function TimelineFigure({ lanes, versionDate }: TimelineFigureProps) {
   return (
     <svg
       viewBox={`0 0 ${String(WIDTH)} ${String(height)}`}
-      className="hidden w-full text-xs md:block"
+      className="hidden w-full text-body-sm md:block"
       aria-hidden="true"
       data-timeline=""
     >
@@ -99,7 +99,7 @@ export function TimelineFigure({ lanes, versionDate }: TimelineFigureProps) {
                   className="stroke-border"
                   strokeWidth={1}
                 />
-                <text x={0} y={top + 14} className="fill-foreground font-medium">
+                <text x={0} y={top + 14} className="fill-foreground ">
                   {lane.words}
                 </text>
               </>

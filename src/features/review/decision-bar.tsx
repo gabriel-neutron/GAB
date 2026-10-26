@@ -30,7 +30,7 @@ export interface DecisionBarProps {
 }
 
 const CHOOSER =
-  'h-6 min-w-0 rounded-none border border-input bg-background px-1.5 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50';
+  'h-8 min-w-0 rounded-sm border border-input bg-background px-1.5 text-body-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50';
 
 const sentenceOf = (state: DecisionState): string | null => {
   switch (state.step) {
@@ -66,7 +66,7 @@ export function DecisionBar({ said, aimed, state, onAct }: DecisionBarProps) {
   return (
     <section
       aria-label="The decision"
-      className="shrink-0 space-y-2 border-t border-border p-3 text-xs"
+      className="shrink-0 space-y-2 border-t border-border p-3 text-body-sm"
     >
       {aimed ? null : (
         <p
@@ -94,7 +94,7 @@ export function DecisionBar({ said, aimed, state, onAct }: DecisionBarProps) {
           <Button
             type="button"
             size="xs"
-            variant="outline"
+            variant="secondary"
             aria-expanded={rejecting}
             aria-controls={`${ids}-reject`}
             disabled={busy}
@@ -135,7 +135,7 @@ export function DecisionBar({ said, aimed, state, onAct }: DecisionBarProps) {
             </label>
             <Input
               id={`${ids}-note`}
-              className="h-6 min-w-40 flex-1 rounded-none px-1.5 py-0 text-xs md:text-xs"
+              className="h-8 min-w-40 flex-1 rounded-sm px-1.5 py-0 text-body-sm md:text-body-sm"
               placeholder={reason === 'other' ? 'Note: why (required)' : 'Note (optional)'}
               value={note}
               disabled={busy}

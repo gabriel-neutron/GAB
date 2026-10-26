@@ -140,8 +140,8 @@ export function SearchPage({ query, answers, onQueryChange, hrefOf }: SearchPage
 
   return (
     <>
-      <div className="flex max-w-prose flex-col gap-1">
-        <label htmlFor={FIELD_ID} className="text-xs/5 text-label">
+      <div className="flex max-w-[64ch] flex-col gap-1">
+        <label htmlFor={FIELD_ID} className="text-body-sm text-label">
           Search names, values and documents
         </label>
         <Input
@@ -154,9 +154,9 @@ export function SearchPage({ query, answers, onQueryChange, hrefOf }: SearchPage
           onChange={(event) => {
             onQueryChange(event.target.value);
           }}
-          className={cn('rounded-none duration-100')}
+          className={cn('rounded-sm duration-100')}
         />
-        <p id={HELP_ID} className="text-xs/5 text-label">
+        <p id={HELP_ID} className="text-body-sm text-label">
           Example: ledger. The field matches part of an entity name, of an attribute value and of a
           document title. Case and accents do not count. The matched text shows in each row.
         </p>

@@ -171,18 +171,18 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
             <p
               role="status"
               data-said="done"
-              className="shrink-0 border-b border-border px-3 py-1 text-xs text-label"
+              className="shrink-0 border-b border-border px-3 py-1 text-body-sm text-label"
             >
               {view.decision.said}
             </p>
           ) : null}
           {lost?.state === 'gone' ? (
-            <p data-said="gone" className="p-3 text-xs">
+            <p data-said="gone" className="p-3 text-body-sm">
               This unit is not in the queue. It was decided, or the address names no unit. Choose a
               unit in the list.
             </p>
           ) : lost?.state === 'failed' ? (
-            <p data-said="failed" className="p-3 text-xs text-label">
+            <p data-said="failed" className="p-3 text-body-sm text-label">
               {lost.why}
             </p>
           ) : (
