@@ -141,6 +141,35 @@ export const valuesOf = (
   return { proposed, page };
 };
 
+// The types of vessel whose deadweight is often below the gross tonnage: gas carriers, passenger
+// ships and ferries, and vehicle carriers. The words that mark a type of cargo ship, where a
+// deadweight below the gross tonnage is a doubt.
+const TYPE_ALLOWS =
+  /\b(?:LNG|LPG|gas carrier|gas tanker|passenger|ferry|cruise|ro-?ro|car carrier|vehicle carrier|PCTC)\b/giu;
+const TYPE_BLOCKS =
+  /\b(?:crude|oil tanker|product tanker|chemical tanker|tanker|bulk carrier|bulker|general cargo)\b/giu;
+
+/** The words of the stored pages that name a type of vessel, for each list. */
+export const vesselTypes = (
+  pages: readonly Page[],
+): { readonly allows: string[]; readonly blocks: string[] } => {
+  const text = pages.map((one) => one.text).join('\n');
+  const found = (words: RegExp): string[] => [
+    ...new Set([...text.matchAll(words)].map((one) => one[0].toLowerCase())),
+  ];
+  return { allows: found(TYPE_ALLOWS), blocks: found(TYPE_BLOCKS) };
+};
+
+/** A deadweight below the gross tonnage is released when the page writes each of the two values
+ * under its label, equal to the proposed values, and its type of vessel is in the first list and
+ * in no word of the second. The value is a fact of the source; the type tells that it is normal. */
+const pageAllows = (item: Item, dwt: number, gt: number): boolean => {
+  const { page } = valuesOf(item);
+  if (page['capacity_dwt'] !== dwt || page['gross_tonnage_gt'] !== gt) return false;
+  const types = vesselTypes(item.pages ?? []);
+  return types.allows.length > 0 && types.blocks.length === 0;
+};
+
 /** The reasons that a person reads in the dry run. */
 export const SMALLER_HOLD = 'the deadweight is smaller than the gross tonnage';
 export const DUPLICATE_HOLD = 'the entity copies a duplicate identifier';
@@ -253,7 +282,8 @@ export const plan = (item: Item): Plan => {
   const gt = next['gross_tonnage_gt']?.v;
   // shortcut: the check holds each vessel type, and the spec names tankers and bulkers; it only
   // holds more, so keep it until the held count shows that it costs too much.
-  if (typeof dwt === 'number' && typeof gt === 'number' && dwt < gt) return hold(SMALLER_HOLD);
+  if (typeof dwt === 'number' && typeof gt === 'number' && dwt < gt && !pageAllows(item, dwt, gt))
+    return hold(SMALLER_HOLD);
   return {
     kind: 'rekey',
     attrs: next,

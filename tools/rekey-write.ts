@@ -17,6 +17,7 @@ import {
   DUPLICATE_HOLD,
   plan,
   valuesOf,
+  vesselTypes,
   type Attrs,
   type Passage,
   type Plan,
@@ -172,6 +173,10 @@ export const groupsOf = (
           if (new Set(one.cites.map((cite) => cite.modality)).size > 1)
             return 'an act cites two modalities';
           if (copies.has(one.id)) return DUPLICATE_HOLD;
+          if (one.op === 'update_entity' && distinctCount(one) > MAX_EVIDENCE)
+            return 'a place cites more than 10 passages';
+          if (evidenceFor(one, attrs.get(one.id) ?? attrsOf(one), extra.get(one.id) ?? []) === null)
+            return 'the values of an act need more than 10 passages';
           if (acts.some((other) => !ids.has(other.id) && other.names.includes(one.id)))
             return 'an act outside the group names a moved act';
           for (const end of endsOf(one)) {
@@ -181,6 +186,8 @@ export const groupsOf = (
             if (waiting.op !== 'create_entity')
               return 'a relation names a pending act that is no entity';
             if (waiting.originator === null) return 'no originator';
+            if (distinctCount(waiting) > MAX_EVIDENCE)
+              return 'an entity that is kept cites more than 10 passages';
             if (plans.has(end)) return 'a relation names a drifted entity that is not in the group';
             if (copies.has(end)) return DUPLICATE_HOLD;
             pass.set(end, waiting);
@@ -206,10 +213,70 @@ const strip = (attrs: Attrs): Record<string, { v: unknown }> =>
 
 type Item = Record<string, unknown>;
 
-const evidenceOf = (one: Act, more: readonly Passage[] = []): Item[] => [
-  ...one.cites.map(({ document, page, excerpt }) => ({ document, page, excerpt })),
-  ...more.map(({ document, page, excerpt }) => ({ document, page, excerpt })),
+// The propose tool takes 10 passages for an act.
+const MAX_EVIDENCE = 10;
+
+interface Cited {
+  readonly document: string;
+  readonly page: number;
+  readonly excerpt: string;
+}
+
+/** The passages of an act, each one once. A passage that the script found in a stored page comes
+ * last and is kept always. */
+const passagesOf = (one: Act, more: readonly Passage[]): { all: Cited[]; forced: Set<number> } => {
+  const all: Cited[] = [];
+  const forced = new Set<number>();
+  const add = (cited: Cited, force: boolean): void => {
+    const at = all.findIndex(
+      (one) =>
+        one.document === cited.document && one.page === cited.page && one.excerpt === cited.excerpt,
+    );
+    if (at >= 0) {
+      if (force) forced.add(at);
+      return;
+    }
+    all.push(cited);
+    if (force) forced.add(all.length - 1);
+  };
+  for (const cite of one.cites)
+    add({ document: cite.document, page: cite.page, excerpt: cite.excerpt ?? '' }, false);
+  for (const passage of more) add(passage, true);
+  return { all, forced };
+};
+
+/** The number of different passages that an act cites. */
+const distinctCount = (one: Act): number => passagesOf(one, []).all.length;
+
+// The values that the new act keeps: the passage of each one must stay.
+const needs = (one: Act, attrs: Attrs): string[] => [
+  ...Object.values(attrs)
+    .flatMap((held) => (Array.isArray(held.v) ? held.v : [held.v]))
+    .filter((v): v is string | number => typeof v === 'string' || typeof v === 'number')
+    .map(String),
+  ...(typeof one.payload['label'] === 'string' ? [one.payload['label']] : []),
 ];
+
+/** The evidence of the new act: at most 10 passages. When the act cites more, it keeps the passages
+ * that the script found, then for each kept value the first passage that carries it, then the first
+ * of the others. Null when the passages that a value needs are more than 10: nothing that a kept
+ * value needs is dropped. */
+export const evidenceFor = (one: Act, attrs: Attrs, more: readonly Passage[]): Item[] | null => {
+  const { all, forced } = passagesOf(one, more);
+  const chosen = new Set(forced);
+  if (all.length > MAX_EVIDENCE) {
+    for (const value of needs(one, attrs)) {
+      if ([...chosen].some((i) => all[i]?.excerpt.includes(value) === true)) continue;
+      const at = all.findIndex((cited) => cited.excerpt.includes(value));
+      if (at >= 0) chosen.add(at);
+    }
+    if (chosen.size > MAX_EVIDENCE) return null;
+    for (let i = 0; i < all.length && chosen.size < MAX_EVIDENCE; i += 1) chosen.add(i);
+  } else for (let i = 0; i < all.length; i += 1) chosen.add(i);
+  return [...chosen]
+    .sort((a, b) => a - b)
+    .flatMap((i) => (all[i] === undefined ? [] : [{ ...all[i] }]));
+};
 
 /** The first batch of a group, and the places that wait for the second. A relation names a new
  * entity by its ref. A place names it by its id, which is known after the first batch. */
@@ -233,7 +300,9 @@ export const batchesOf = (
     act,
     originator: group.pass.includes(one) ? storedOriginator(one) : ORIGINATOR,
     modality: one.cites[0]?.modality,
-    evidence: evidenceOf(one, group.extra.get(one.id)),
+    evidence:
+      evidenceFor(one, group.attrs.get(one.id) ?? attrsOf(one), group.extra.get(one.id) ?? []) ??
+      [],
   });
   const named = (one: Act): Record<string, unknown> => {
     const attrs = strip(group.attrs.get(one.id) ?? attrsOf(one));
@@ -358,7 +427,7 @@ export const apply = async (group: Group, doors: Doors): Promise<Result> => {
         },
         originator: ORIGINATOR,
         modality: one.cites[0]?.modality,
-        evidence: evidenceOf(one),
+        evidence: evidenceFor(one, {}, []) ?? [],
       },
     ];
   });
@@ -528,18 +597,19 @@ export const checkLines = (group: Group): string[] =>
   group.moved.flatMap((one) => {
     const attrs = attrsOf(one);
     if (!Object.keys(attrs).some((key) => DRIFTED_KEYS.includes(key))) return [];
-    const { proposed, page } = valuesOf({
-      id: one.id,
-      attrs,
-      excerpts: [],
-      pages: one.cites.flatMap((cite) =>
-        typeof cite.pageText !== 'string'
-          ? []
-          : [{ document: cite.document, page: cite.page, text: cite.pageText }],
-      ),
-    });
+    const pages = one.cites.flatMap((cite) =>
+      typeof cite.pageText !== 'string'
+        ? []
+        : [{ document: cite.document, page: cite.page, text: cite.pageText }],
+    );
+    const { proposed, page } = valuesOf({ id: one.id, attrs, excerpts: [], pages });
+    const types = vesselTypes(pages);
+    const words = (list: readonly string[]): string => (list.length === 0 ? '-' : list.join(','));
     const text = (value: unknown): string => (typeof value === 'number' ? String(value) : '-');
     const show = (values: Readonly<Record<string, unknown>>): string =>
       `dwt=${text(values['capacity_dwt'])} gt=${text(values['gross_tonnage_gt'])}`;
-    return [`check\t${one.id}\tproposed ${show(proposed)}\tpage ${show(page)}`];
+    return [
+      `check\t${one.id}\tproposed ${show(proposed)}\tpage ${show(page)}\t` +
+        `type allows=${words(types.allows)} blocks=${words(types.blocks)}`,
+    ];
   });

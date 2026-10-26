@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { groupsOf, type Act } from './rekey-write.ts';
+import { evidenceFor, groupsOf, type Act } from './rekey-write.ts';
 
 const cite = (excerpt: string | null) => ({ document: 'd', page: 1, excerpt, modality: 'asserts' });
 
@@ -90,5 +90,43 @@ describe('groupsOf with a number sent as a text', () => {
     expect(groupsOf([year('a', '2003 г.', 'Built 2003 г.')])[0]?.held).toBe(
       'the text of build_year is not a plain number',
     );
+  });
+});
+
+describe('evidenceFor, at most 10 passages', () => {
+  const many = (n: number, special: Record<number, string> = {}): Act =>
+    act('a', {
+      payload: { type: 'vessel', label: 'a', attrs: { dwt_t: { v: 9000 } } },
+      cites: Array.from({ length: n }, (_, i) => cite(special[i] ?? `Passage ${String(i)}`)),
+    });
+
+  it('keeps every passage when there are 10 or fewer, and drops a repeated passage', () => {
+    expect(evidenceFor(many(10), {}, [])).toHaveLength(10);
+    const repeated = act('a', { cites: [cite('same'), cite('same'), cite('other')] });
+    expect(evidenceFor(repeated, {}, [])?.map((one) => one.excerpt)).toEqual(['same', 'other']);
+  });
+
+  it('keeps the passages that carry the kept values, and fills with the first others', () => {
+    const [group] = groupsOf([many(14, { 12: 'Deadweight 9000 t', 13: 'Wellington' })]);
+    expect(group?.held).toBeNull();
+    const kept = evidenceFor(
+      many(14, { 12: 'Deadweight 9000 t', 13: 'Wellington' }),
+      { capacity_dwt: { v: 9000 }, former_names: { v: ['Wellington'] } },
+      [],
+    );
+    expect(kept).toHaveLength(10);
+    expect(kept?.map((one) => one.excerpt)).toEqual(
+      expect.arrayContaining(['Deadweight 9000 t', 'Wellington']),
+    );
+  });
+
+  it('keeps the passage that the script found, and holds when the values need more than 10', () => {
+    const found = [{ document: 'd', page: 1, excerpt: 'DWT (t)\n9000' }];
+    expect(
+      evidenceFor(many(14), { capacity_dwt: { v: 9000 } }, found)?.map((one) => one.excerpt),
+    ).toContain('DWT (t)\n9000');
+    const needing = Array.from({ length: 11 }, (_, i) => cite(`Name${String(i)}`));
+    const attrs = { former_names: { v: needing.map((one) => one.excerpt ?? '') } };
+    expect(evidenceFor(act('a', { cites: needing }), attrs, [])).toBeNull();
   });
 });

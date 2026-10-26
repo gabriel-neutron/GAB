@@ -257,3 +257,25 @@ describe('a number sent as a text, edge cases of the page', () => {
     expect(run({ build_year: { v: '203' } }, 'Built 203')).toBe('hold');
   });
 });
+
+describe('a deadweight below the gross tonnage', () => {
+  const page = (type: string) =>
+    `Vessel type: ${type}\nGross tonnage (t)\n115 519\nDWT (t)\n88 709\n`;
+  const attrs = { dwt_t: { v: 88709 }, gross_tonnage_t: { v: 115519 } };
+  const run = (text: string, given: Item['attrs'] = attrs) =>
+    plan(paged(given, text, 'NAYARA')).kind;
+
+  it('is released when the page states both values under their labels and the type allows it', () => {
+    expect(run(page('LNG carrier'))).toBe('rekey');
+    expect(run(page('Passenger ship'))).toBe('rekey');
+  });
+
+  it('stays held for a type of cargo ship, an unknown type, or values that the page does not state', () => {
+    expect(run(page('Bulk carrier'))).toBe('hold');
+    expect(run(page('LNG carrier, ex crude tanker'))).toBe('hold');
+    expect(run(page('Unknown'))).toBe('hold');
+    expect(run(page('LNG carrier'), { dwt_t: { v: 88000 }, gross_tonnage_t: { v: 115519 } })).toBe(
+      'hold',
+    );
+  });
+});
