@@ -64,17 +64,16 @@ ${distanceSource(glyph)}
 const vec4 transparent = vec4(0.0, 0.0, 0.0, 0.0);
 
 void main(void) {
-  // The shapes reach 6.5 units of the 14 unit box, so the radius of the node is 6 units and a small
-  // node shows its whole shape.
+  // The box of a glyph is 14 units, and the radius of the node is half of it.
   // The screen is y up and the glyph table is y down, as in an SVG.
-  vec2 p = vec2(v_diffVector.x, -v_diffVector.y) / v_radius * 6.0;
+  vec2 p = vec2(v_diffVector.x, -v_diffVector.y) / v_radius * 7.0;
   float d = glyph(p);
 
   #ifdef PICKING_MODE
   gl_FragColor = d > 0.0 ? transparent : v_color;
   #else
   // One pixel of the screen, in units of the box.
-  float pixel = 2.0 * u_correctionRatio / v_radius * 6.0;
+  float pixel = 2.0 * u_correctionRatio / v_radius * 7.0;
   float aa = pixel * 0.7;
   float stroke = 1.5 * pixel;
   float outer = 1.0 - smoothstep(-aa, aa, d);
