@@ -1,3 +1,4 @@
+import { typeLabel } from '@/shared/type-label';
 import { positionFromWords } from '@/shared/canvas-label';
 import { typeHues, UNDECLARED_HUE, type HueTheme } from '@/shared/entity-hues';
 import { unitHierarchy, type UnitHierarchy } from '@/shared/fold-subordinates';
@@ -67,6 +68,10 @@ export interface GeoLink {
 /** One entity type, as the rail draws it. */
 export interface TypeFacet {
   readonly type: string;
+  /** The words of the type, as the graph reads them. */
+  readonly label: string;
+  /** Every entity of the type in the record. The map draws only the placed ones, `count`. */
+  readonly total: number;
   /** The hue on the dark theme, which the rail swatch reads. */
   readonly colour: string;
   /** The hue of each theme: the canvas repaints with the theme in force. */
@@ -145,6 +150,12 @@ export function railLegend(
 /**
  * The hue is the hex the map parses, so no class can carry it and the swatch holds it inline.
  */
+/** What the map counts: the placed entities, and the whole type when some are unplaced. */
+const placedWords = (facet: TypeFacet): string =>
+  facet.count === facet.total
+    ? String(facet.count)
+    : `${String(facet.count)} placed of ${String(facet.total)}`;
+
 export function railRows(
   legend: RailLegend,
   openTypes: readonly string[],
@@ -153,17 +164,21 @@ export function railRows(
 ): RailRows {
   const types: readonly RailTypeRow[] = legend.facets.map(({ facet, hidden }) => ({
     type: facet.type,
-    label: facet.type,
+    label: facet.label,
     initial: facet.type.slice(0, 1).toUpperCase(),
     // Departure: the count is the whole type, and a fold of the list does not change it.
     count: facet.count,
-    figure: String(facet.count),
+    // Only the placed entities are drawn, so a type with unplaced ones says what it counts.
+    figure:
+      facet.count === facet.total
+        ? String(facet.count)
+        : `${String(facet.count)} of ${String(facet.total)}`,
     on: !hidden,
     open: openTypes.includes(facet.type),
     stateWord: hidden ? 'off' : 'on',
     // A name that said `on the map` for a type that is off is a false report to a reader who
     // cannot see the opacity of the swatch.
-    name: `${facet.type}, ${facet.count} ${hidden ? 'off' : 'on'} the map`,
+    name: `${facet.label}, ${placedWords(facet)} ${hidden ? 'off' : 'on'} the map`,
     colour: facet.colour,
   }));
 
@@ -205,12 +220,16 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
   // The declared hue of each type. This file drops an entity the walk could not place and the
   // graph drops one with no position; a hue read from the declaration is the same on both,
   // because neither canvas is what states it.
+  const totalOfType = new Map<string, number>();
+  for (const { type } of read.entities) totalOfType.set(type, (totalOfType.get(type) ?? 0) + 1);
   const hueOfType = typeHues(declared, MAP_GROUND);
   const lightOfType = typeHues(declared, 'light');
   const types: readonly TypeFacet[] = [...new Set(drawn.map(({ entity }) => entity.type))]
     .sort((a, b) => a.localeCompare(b))
     .map((type) => ({
       type,
+      label: typeLabel(type, declared),
+      total: totalOfType.get(type) ?? 0,
       colour: hueOfType.get(type) ?? UNDECLARED_HUE[MAP_GROUND],
       colours: {
         light: lightOfType.get(type) ?? UNDECLARED_HUE.light,

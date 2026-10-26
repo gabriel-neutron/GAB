@@ -27,6 +27,14 @@ export const FAMILY_DASH: Readonly<Record<LinkFamily, readonly number[]>> = {
   other: [2, 5],
 };
 
+export const FAMILY_LABEL: Readonly<Record<LinkFamily, string>> = {
+  ownership: 'Ownership',
+  designation: 'Designation',
+  operation: 'Operation',
+  transfer: 'Ship-to-ship transfer',
+  other: 'Other relations',
+};
+
 export const EVERY_FAMILY = Object.keys(FAMILY_DASH) as readonly LinkFamily[];
 
 // A choice and not a declaration of the database, as on the graph: a type that is not here reads

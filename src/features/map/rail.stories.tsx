@@ -9,7 +9,7 @@ import { MULTIPOLYGON_ID, POLYGON_ID, areaCorpus } from './area-corpus';
 import { DEFAULT_IMAGERY, type Imagery } from './imagery';
 import type { Ground } from './workspace';
 import { GroundControl } from './ground-control';
-import { entitiesOfType, project, type GeoLink } from './projection';
+import { entitiesOfType, project, type GeoLink, type TypeFacet } from './projection';
 import { Rail } from './rail';
 
 // No story mounts a live canvas: `MapHandle` is a type, so the double below is a plain object.
@@ -156,7 +156,7 @@ function testMap(
   return { map: { current: handle }, flown, switched, unitsOpened, linksSwitched, grounds };
 }
 
-const facetOf = (type: string): { readonly type: string; readonly count: number } => {
+const facetOf = (type: string): TypeFacet => {
   const facet = projection.types.find((candidate) => candidate.type === type);
   if (facet === undefined) throw new Error(`The fixture draws no entity of type ${type}.`);
   return facet;
@@ -172,6 +172,8 @@ const rowsIn = (root: HTMLElement): readonly HTMLElement[] =>
   Array.from(root.querySelectorAll<HTMLElement>('[data-row]'));
 
 const VESSEL = facetOf('vessel');
+/** The row names read the label of the type, and never its key. */
+const named = (type: string): RegExp => new RegExp(`^${facetOf(type).label}`);
 const VESSELS = entitiesOfType(projection, 'vessel');
 const UNITS = entitiesOfType(projection, 'military_unit');
 
@@ -272,12 +274,14 @@ export const ATypeSwitchesOffAndTheCountSaysSo: Story = {
     const rail = canvas.getByRole('complementary', { name: 'Types' });
     await expect(Math.round(rail.getBoundingClientRect().width)).toBe(240);
 
-    const vessel = canvas.getByRole('button', { name: /^vessel/, pressed: true });
+    const vessel = canvas.getByRole('button', { name: named('vessel'), pressed: true });
     await userEvent.click(vessel);
 
-    await expect(canvas.getByRole('button', { name: /^vessel/, pressed: false })).toBeVisible();
+    await expect(
+      canvas.getByRole('button', { name: named('vessel'), pressed: false }),
+    ).toBeVisible();
 
-    await expect(canvas.getByRole('button', { name: /^vessel/ })).toHaveTextContent(
+    await expect(canvas.getByRole('button', { name: named('vessel') })).toHaveTextContent(
       String(VESSEL.count),
     );
   },
@@ -288,7 +292,9 @@ export const AnEntityIsReachedFromTheOpenList: Story = {
   play: async ({ canvas, canvasElement }) => {
     const target = firstOf(VESSELS, 'vessel');
 
-    await userEvent.click(canvas.getByRole('button', { name: 'Open the vessel list' }));
+    await userEvent.click(
+      canvas.getByRole('button', { name: `Open the ${facetOf('vessel').label} list` }),
+    );
     const drawn = rowsIn(canvasElement);
     await expect(drawn).toHaveLength(VESSELS.length);
     await expect(canvasElement.querySelector('input')).toBeNull();
@@ -310,10 +316,14 @@ export const AUnitOpensItsSubordinatesThroughTheOneWriter: Story = {
     const child = UNITS[1];
     if (child === undefined) throw new Error('The fixture draws fewer than two military units.');
 
-    await userEvent.click(canvas.getByRole('button', { name: 'Open the military_unit list' }));
+    await userEvent.click(
+      canvas.getByRole('button', { name: `Open the ${facetOf('military_unit').label} list` }),
+    );
     await expect(rowsIn(canvasElement)).toHaveLength(1);
     const total = String(UNITS.length);
-    await expect(canvas.getByRole('button', { name: /^military_unit/ })).toHaveTextContent(total);
+    await expect(canvas.getByRole('button', { name: named('military_unit') })).toHaveTextContent(
+      total,
+    );
 
     await userEvent.click(
       canvas.getByRole('button', { name: `Open the 1 subordinate of ${parent.label}` }),
@@ -324,7 +334,9 @@ export const AUnitOpensItsSubordinatesThroughTheOneWriter: Story = {
       parent.id,
       child.id,
     ]);
-    await expect(canvas.getByRole('button', { name: /^military_unit/ })).toHaveTextContent(total);
+    await expect(canvas.getByRole('button', { name: named('military_unit') })).toHaveTextContent(
+      total,
+    );
   },
 };
 
@@ -334,17 +346,17 @@ export const TheSwitchGoesThroughTheOneWriter: Story = {
   play: async ({ canvas }) => {
     // `vessel` is the one type the map holds as switched off. Every other type is on, and none of
     // them is named anywhere.
-    await expect(canvas.getByRole('button', { name: /^vessel/ })).toHaveAttribute(
+    await expect(canvas.getByRole('button', { name: named('vessel') })).toHaveAttribute(
       'aria-pressed',
       'false',
     );
     for (const facet of projection.types) {
       if (facet.type === 'vessel') continue;
-      const entry = canvas.getByRole('button', { name: new RegExp(`^${facet.type}`) });
+      const entry = canvas.getByRole('button', { name: new RegExp(`^${facet.label}`) });
       await expect(entry).toHaveAttribute('aria-pressed', 'true');
     }
 
-    await userEvent.click(canvas.getByRole('button', { name: /^facility/ }));
+    await userEvent.click(canvas.getByRole('button', { name: named('facility') }));
     await expect(polarityOnly.switched).toEqual([{ type: 'facility', visible: false }]);
   },
 };
@@ -356,10 +368,9 @@ export const ARestoredSelectionOpensItsGroup: Story = {
     const restored = firstOf(VESSELS, 'vessel');
 
     // The group is already open, so the fold control names the act that closes it.
-    await expect(canvas.getByRole('button', { name: 'Close the vessel list' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    );
+    await expect(
+      canvas.getByRole('button', { name: `Close the ${facetOf('vessel').label} list` }),
+    ).toHaveAttribute('aria-expanded', 'true');
 
     const row = firstOf(rowsIn(canvasElement), 'row of the index');
     await expect(row).toHaveAttribute('aria-current', 'true');
@@ -383,7 +394,7 @@ export const AMapSelectionShowsItsRowOnScreen: Story = {
     if (marked === undefined) throw new Error('The fixture draws fewer than two military units.');
 
     await expect(
-      canvas.getByRole('button', { name: 'Close the military_unit list' }),
+      canvas.getByRole('button', { name: `Close the ${facetOf('military_unit').label} list` }),
     ).toHaveAttribute('aria-expanded', 'true');
 
     const row = canvasElement.querySelector<HTMLElement>(`[data-id="${marked.id}"]`);
@@ -400,7 +411,9 @@ export const AFoldedGroupOpensForAMapSelection: Story = {
     const next = UNITS[1];
     if (next === undefined) throw new Error('The fixture draws fewer than two military units.');
 
-    await userEvent.click(canvas.getByRole('button', { name: 'Close the military_unit list' }));
+    await userEvent.click(
+      canvas.getByRole('button', { name: `Close the ${facetOf('military_unit').label} list` }),
+    );
     await expect(rowsIn(canvasElement)).toHaveLength(0);
 
     foldedOnly.map.current?.select(next.id);
@@ -424,7 +437,9 @@ export const AClickInTheRailDoesNotMoveTheList: Story = {
     </div>
   ),
   play: async ({ canvas, canvasElement }) => {
-    await userEvent.click(canvas.getByRole('button', { name: 'Open the vessel list' }));
+    await userEvent.click(
+      canvas.getByRole('button', { name: `Open the ${facetOf('vessel').label} list` }),
+    );
 
     const box = canvas.getByRole('complementary', { name: 'Types' });
     const row = rowsIn(canvasElement).find((held) => onScreen(held, box));
@@ -452,10 +467,9 @@ const rowOf = (root: HTMLElement, id: string): HTMLElement => {
 export const APolygonEntityIsSelectedAndTheRailShowsItsRow: Story = {
   args: { map: polygonOnly.map },
   play: async ({ canvas, canvasElement }) => {
-    await expect(canvas.getByRole('button', { name: 'Close the facility list' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    );
+    await expect(
+      canvas.getByRole('button', { name: `Close the ${facetOf('facility').label} list` }),
+    ).toHaveAttribute('aria-expanded', 'true');
     const row = rowOf(canvasElement, POLYGON_ID);
     await expect(row).toHaveAttribute('aria-current', 'true');
     await expect(row).toHaveTextContent('Invented mooring area');
@@ -475,7 +489,9 @@ export const APolygonStandsInTheListBesideThePointsOfItsType: Story = {
   args: { map: besidePointsOnly.map },
   play: async ({ canvas, canvasElement }) => {
     const facilities = entitiesOfType(projection, 'facility');
-    await userEvent.click(canvas.getByRole('button', { name: 'Open the facility list' }));
+    await userEvent.click(
+      canvas.getByRole('button', { name: `Open the ${facetOf('facility').label} list` }),
+    );
     await expect(rowsIn(canvasElement)).toHaveLength(facilities.length);
     await expect(projection.byId.get(POLYGON_ID)?.area).not.toBeNull();
     await expect(projection.byId.get(MULTIPOLYGON_ID)?.area).not.toBeNull();
