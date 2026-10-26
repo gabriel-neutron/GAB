@@ -9,6 +9,7 @@ import { callTool, type Session } from '@gab/tools/tool';
 import { propose } from '@gab/tools/propose';
 
 import { rolledBack, type Ask } from './probe.ts';
+import { DRIFTED_KEYS, READ } from './rekey-attributes.ts';
 import { apply, doorsOf, readGroups, type Doors, type Group } from './rekey-write.ts';
 
 const SHA = 'c'.repeat(64);
@@ -16,7 +17,8 @@ const DOC = `doc_${SHA.slice(0, 12)}`;
 const TODAY = new Date().toISOString().slice(0, 10);
 const TEXT =
   'The tanker NAYARA has a deadweight of 115000 t. ACME LLC owns NAYARA. ' +
-  'Rosneft owns NAYARA. NAYARA lies at Sikka. Another list gives a tonnage of 115000 t.';
+  'Rosneft owns NAYARA. NAYARA lies at Sikka. Another list gives a tonnage of 115000 t.\n' +
+  'Gross tonnage (t)\n42 500';
 
 const STORE = 'SELECT public.put_fetched_document($1, $2, $3, $4, $5, $6, $7::date, $8) AS id';
 const WRITE_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3) AS pages';
@@ -59,10 +61,10 @@ const recordEntity = async (ask: Ask): Promise<string> => {
   return row.id;
 };
 
-const NAYARA = (key: string, excerpt = 'a deadweight of 115000 t') =>
+const NAYARA = (key: string, excerpt = 'a deadweight of 115000 t', value = 115000) =>
   item(
     'ship',
-    { op: 'create_entity', type: 'vessel', label: 'NAYARA', attrs: { [key]: { v: 115000 } } },
+    { op: 'create_entity', type: 'vessel', label: 'NAYARA', attrs: { [key]: { v: value } } },
     excerpt,
   );
 
@@ -76,7 +78,12 @@ interface Fixture {
 
 // A drifted vessel, a company of the same batch that is right, a relation between the two (it joins
 // the unit of the company), a relation from the record (it joins the unit of the vessel), and a place.
-const plant = async (ask: Ask, key = 'dwt_t', excerpt?: string): Promise<Fixture> => {
+const plant = async (
+  ask: Ask,
+  key = 'dwt_t',
+  excerpt?: string,
+  value?: number,
+): Promise<Fixture> => {
   await sessionAs(ask, 'gabriel_research').query(STORE, [
     'url',
     'A report of the re-key test',
@@ -94,7 +101,7 @@ const plant = async (ask: Ask, key = 'dwt_t', excerpt?: string): Promise<Fixture
   ]);
   const held = await recordEntity(ask);
   const first = await send(ask, [
-    NAYARA(key, excerpt),
+    NAYARA(key, excerpt, value),
     item('firm', { op: 'create_entity', type: 'company', label: 'ACME LLC' }, 'ACME LLC owns'),
     item(
       'between',
@@ -149,8 +156,8 @@ const stateOf = async (ask: Ask, ids: readonly string[]) =>
     .parse(await ask(STATES, [ids]));
 
 const groupOf = async (ask: Ask, fixture: Fixture): Promise<Group> => {
-  const found = (await readGroups(sessionAs(ask, 'gabriel_app'), UNIQUE_KEYS)).find((one) =>
-    one.moved.some((act) => act.id === fixture.ship),
+  const found = (await readGroups(sessionAs(ask, 'gabriel_app'), UNIQUE_KEYS, DRIFTED_KEYS)).find(
+    (one) => one.moved.some((act) => act.id === fixture.ship),
   );
   if (found === undefined) throw new Error('the queue holds no group of the vessel');
   return found;
@@ -200,7 +207,7 @@ test('a re-key sends the corrected acts, sends again the linked acts, and then r
         .array(z.object({ id: z.string() }))
         .parse(await ask(PENDING_DWT))
         .map((one) => one.id),
-      later: await readGroups(sessionAs(ask, 'gabriel_app'), UNIQUE_KEYS),
+      later: await readGroups(sessionAs(ask, 'gabriel_app'), UNIQUE_KEYS, DRIFTED_KEYS),
     };
   });
   const { fixture, log, result, old } = done;
@@ -251,9 +258,9 @@ test('a second run finds nothing, and a group that was sent already is not sent 
     const afterStop = await total();
     const second = await apply(await groupOf(ask, fixture), real);
     const afterSecond = await total();
-    const third = (await readGroups(sessionAs(ask, 'gabriel_app'), UNIQUE_KEYS)).filter((one) =>
-      one.moved.some((act) => act.id === fixture.ship),
-    );
+    const third = (
+      await readGroups(sessionAs(ask, 'gabriel_app'), UNIQUE_KEYS, DRIFTED_KEYS)
+    ).filter((one) => one.moved.some((act) => act.id === fixture.ship));
     return { afterStop, afterSecond, second, third };
   });
   expect(done.afterSecond).toBe(done.afterStop);
@@ -275,9 +282,28 @@ test('a rejection that fails half way is reported, and a second run ends it', as
   expect(done.old.map((one) => one.status)).toStrictEqual(['rejected', 'rejected']);
 });
 
+test('a poor excerpt is replaced by a passage of the stored page, and the re-key goes on', async () => {
+  const done = await rolledBack('superuser', async (ask) => {
+    const fixture = await plant(ask, 'gross_tonnage_t', 'NAYARA lies at Sikka', 42500);
+    const group = await groupOf(ask, fixture);
+    const result = await apply(group, doorsOfRole(ask));
+    const [fresh] = z.array(z.object({ gt: z.number() })).parse(
+      await ask(
+        `SELECT (payload->'attrs'->'gross_tonnage_gt'->>'v')::int AS gt FROM public.proposals
+            WHERE status = 'pending' AND payload->'attrs' ? 'gross_tonnage_gt'`,
+      ),
+    );
+    return { held: group.held, extra: group.extra.get(fixture.ship), result, fresh };
+  });
+  expect(done.held).toBeNull();
+  expect(done.extra?.map((one) => one.excerpt)).toEqual(['Gross tonnage (t)\n42 500']);
+  expect(done.result.status).toBe('done');
+  expect(done.fresh?.gt).toBe(42500);
+});
+
 test('a group with a number that the page does not label is held, and nothing is sent', async () => {
   const done = await rolledBack('superuser', async (ask) => {
-    const fixture = await plant(ask, 'dwt_t', 'a tonnage of 115000 t');
+    const fixture = await plant(ask, 'dwt_t', 'a tonnage of 115000 t', 777000);
     const group = await groupOf(ask, fixture);
     const log: string[] = [];
     return { group, result: await apply(group, doorsOfRole(ask, log)), log };
@@ -300,4 +326,14 @@ test('a refusal of the door leaves the old acts as they are', async () => {
   });
   expect(done.result).toMatchObject({ status: 'refused', rejected: 0 });
   expect(done.old[0]?.status).toBe('pending');
+});
+
+test('the read of the dry run gives each cited page once', async () => {
+  const rows = await rolledBack('superuser', async (ask) => {
+    const fixture = await plant(ask);
+    const found = await sessionAs(ask, 'gabriel_app').query(READ, [[...DRIFTED_KEYS]]);
+    return found.rows.filter((one) => (one as { id: string }).id === fixture.ship);
+  });
+  expect(rows).toHaveLength(1);
+  expect((rows[0] as { pages: unknown[] }).pages).toHaveLength(1);
 });

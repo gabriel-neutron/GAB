@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { plan, report, type Item } from './rekey-attributes.ts';
+import { plan, report, valuesOf, type Item } from './rekey-attributes.ts';
 
 const item = (attrs: Item['attrs'], ...excerpts: string[]): Item => ({ id: 'a', attrs, excerpts });
 
@@ -80,5 +80,88 @@ describe('report', () => {
     expect(done.held.get('the excerpt does not give the number of dwt_t next to its label')).toBe(
       2,
     );
+  });
+});
+
+// A page as the GUR vessel pages write it: a label, then the number on the next line.
+const GUR = [
+  'Vessel: NAYARA',
+  'IMO: 9074729',
+  'Net tonnage (t)',
+  '4 000',
+  'Gross tonnage (t)',
+  '42 500',
+  'DWT (t)',
+  '115000',
+].join('\n');
+
+const paged = (attrs: Item['attrs'], text = GUR, ...excerpts: string[]): Item => ({
+  id: 'a',
+  attrs,
+  excerpts,
+  pages: [{ document: 'doc_a', page: 1, text }],
+});
+
+describe('plan with the stored page', () => {
+  it('builds the passage from the page when the excerpt is poor and the number is the same', () => {
+    const done = plan(
+      paged({ dwt_t: { v: 115000 }, gross_tonnage_t: { v: 42500 } }, GUR, 'NAYARA'),
+    );
+    expect(done.kind).toBe('rekey');
+    const extra = done.kind === 'rekey' ? (done.extra ?? []) : [];
+    expect(extra.map((one) => one.excerpt)).toEqual([
+      'DWT (t)\n115000',
+      'Gross tonnage (t)\n42 500',
+    ]);
+    // A passage is a verbatim slice of the page.
+    for (const one of extra) expect(GUR).toContain(one.excerpt);
+  });
+
+  it('holds when the page has another number next to the label', () => {
+    expect(plan(paged({ gross_tonnage_t: { v: 4000 } }, GUR, 'NAYARA')).kind).toBe('hold');
+    expect(plan(paged({ dwt_t: { v: 120000 } }, GUR, 'NAYARA')).kind).toBe('hold');
+  });
+
+  it('holds when a word stands between the label and the number', () => {
+    const text = 'Gross tonnage (t)\nNet tonnage (t)\n4000';
+    expect(plan(paged({ gross_tonnage_t: { v: 4000 } }, text, 'x')).kind).toBe('hold');
+  });
+
+  it('uses no page when the excerpt is good', () => {
+    const done = plan(paged({ dwt_t: { v: 115000 } }, GUR, 'DWT 115000 t'));
+    expect(done).toMatchObject({ kind: 'rekey' });
+    expect(done).not.toHaveProperty('extra');
+  });
+});
+
+describe('valuesOf', () => {
+  it('reads the proposed values and the page values, and swaps nothing', () => {
+    expect(valuesOf(paged({ dwt_t: { v: 40000 }, gross_tonnage_t: { v: 115000 } }))).toEqual({
+      proposed: { capacity_dwt: 40000, gross_tonnage_gt: 115000 },
+      page: { capacity_dwt: 115000, gross_tonnage_gt: 42500 },
+    });
+  });
+});
+
+describe('passage of a page, the whole number only', () => {
+  const held = (value: number, text: string) =>
+    plan(paged({ gross_tonnage_t: { v: value } }, text, 'x')).kind;
+
+  it('holds a shorter value against a longer number', () => {
+    expect(held(500, 'Gross tonnage (t)\n500 000')).toBe('hold');
+    expect(held(42500, 'Gross tonnage (t)\n42 500 000')).toBe('hold');
+    expect(held(42500, 'Gross tonnage (t)\n42 500,75')).toBe('hold');
+    expect(held(42500, 'Gross tonnage (t)\n42 500')).toBe('rekey');
+  });
+
+  it('holds a line that gives two quantities, so no value is taken from the other label', () => {
+    expect(held(115000, 'DWT/GT: 115 000 / 42 500')).toBe('hold');
+  });
+
+  it('reads a page value that stops at the end of the line', () => {
+    const text = 'Gross tonnage (t)\n42 500\n2024';
+    expect(valuesOf(paged({ gross_tonnage_t: { v: 1 } }, text)).page).toEqual({
+      gross_tonnage_gt: 42500,
+    });
   });
 });
