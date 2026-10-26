@@ -150,6 +150,12 @@ export function railLegend(
 /**
  * The hue is the hex the map parses, so no class can carry it and the swatch holds it inline.
  */
+/** What the map counts: the placed entities, and the whole type when some are unplaced. */
+const placedWords = (facet: TypeFacet): string =>
+  facet.count === facet.total
+    ? String(facet.count)
+    : `${String(facet.count)} placed of ${String(facet.total)}`;
+
 export function railRows(
   legend: RailLegend,
   openTypes: readonly string[],
@@ -172,7 +178,7 @@ export function railRows(
     stateWord: hidden ? 'off' : 'on',
     // A name that said `on the map` for a type that is off is a false report to a reader who
     // cannot see the opacity of the swatch.
-    name: `${facet.label}, ${facet.count === facet.total ? String(facet.count) : `${String(facet.count)} placed of ${String(facet.total)}`} ${hidden ? 'off' : 'on'} the map`,
+    name: `${facet.label}, ${placedWords(facet)} ${hidden ? 'off' : 'on'} the map`,
     colour: facet.colour,
   }));
 
@@ -214,6 +220,8 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
   // The declared hue of each type. This file drops an entity the walk could not place and the
   // graph drops one with no position; a hue read from the declaration is the same on both,
   // because neither canvas is what states it.
+  const totalOfType = new Map<string, number>();
+  for (const { type } of read.entities) totalOfType.set(type, (totalOfType.get(type) ?? 0) + 1);
   const hueOfType = typeHues(declared, MAP_GROUND);
   const lightOfType = typeHues(declared, 'light');
   const types: readonly TypeFacet[] = [...new Set(drawn.map(({ entity }) => entity.type))]
@@ -221,7 +229,7 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
     .map((type) => ({
       type,
       label: typeLabel(type, declared),
-      total: read.entities.filter((entity) => entity.type === type).length,
+      total: totalOfType.get(type) ?? 0,
       colour: hueOfType.get(type) ?? UNDECLARED_HUE[MAP_GROUND],
       colours: {
         light: lightOfType.get(type) ?? UNDECLARED_HUE.light,

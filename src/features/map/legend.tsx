@@ -12,7 +12,7 @@ export function FamilyLegend({ links }: { readonly links: readonly GeoLink[] }) 
   if (present.length === 0) return null;
   return (
     <ul
-      aria-label="Relation families"
+      aria-label="Relation families, counted for the placed relations"
       className="absolute top-2 left-2 z-10 hidden w-52 flex-col gap-1 rounded-sm border border-border bg-surface p-2 text-data md:flex"
     >
       {present.map((family) => {
