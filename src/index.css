@@ -105,6 +105,8 @@
 /* The lint config quotes a class to refuse it. Tailwind scans every file that git tracks, so
  * without this line the refused class is built into the bundle as a dead rule. */
 @source not '../eslint.config.ts';
+/* The design system reference holds HTML specimens, not app markup. */
+@source not '../design';
 
 @custom-variant dark (&:is(.dark *));
 
