@@ -21,7 +21,7 @@ export function ReadingPage({ children, wide = false }: ReadingPageProps) {
     >
       <div
         className={cn(
-          'mx-auto flex flex-col gap-4 px-4 pt-4 pb-8 text-body',
+          'mx-auto flex flex-col gap-4 px-4 pt-4 pb-8 text-body-sm',
           wide ? 'w-full' : 'max-w-5xl',
         )}
       >

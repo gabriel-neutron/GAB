@@ -149,8 +149,8 @@ export const ThePopoverCarriesOneWayOut: Story = {
   },
 };
 
-/** `document.fonts.ready` is awaited first. The theme declares `Roboto Condensed` and
- * `JetBrains Mono`, and an installed font reflows the text after the measurement. */
+/** `document.fonts.ready` is awaited first. The theme declares `Geist` and
+ * `Geist Mono`, and an installed font reflows the text after the measurement. */
 export const TheSameRecordIsDrawnOneClaimToALine: Story = {
   play: async ({ canvasElement }) => {
     await document.fonts.ready;

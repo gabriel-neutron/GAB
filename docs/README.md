@@ -11,6 +11,7 @@ detail. Find a decision record with `ls docs/adr`; open one only when a file or 
 | `decisions.md` | Operator | A file names a product rule such as M8 or P1, or you need its reason. |
 | `spec.md` | Agent | You need the general view: the parts, who can do what, the rules on every path. |
 | `map-and-graph-design.md` | Agent | You change what the map page or the graph page shows. |
+| `../design/system/README.md` | Agent | You change a colour, a type style, a component look, the graph or map marks, or the report page. It is the design system: read it, then the README of the component. |
 | `accessibility.md` | Agent | You change a story, a colour or a control, or you do the manual accessibility check. |
 | `deploy.md` | Agent | You write and publish a release, or point the writer at a remote database. |
 | `authoring.md` | Agent | You write or change a document. |

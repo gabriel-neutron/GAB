@@ -1,0 +1,22 @@
+<!-- @dsCard group="Report" height=420 subtitle="Neutral context, one signal series, mono annotation" -->
+<style>
+  .rc { padding:24px; }
+  .rc .grid line { stroke:var(--chart-grid); stroke-width:1px; }
+  .rc .tick { font:400 12px var(--font-mono); fill:var(--chart-axis); }
+  .rc .note { font:400 12px var(--font-mono); fill:var(--foreground); text-transform:uppercase; letter-spacing:-0.24px; }
+  .rc .lead { stroke:var(--foreground); stroke-width:1px; }
+</style>
+<figure class="rc" style="margin:0">
+  <figcaption style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+    <span class="gab-caption">Figure 3 · Vessels under EU designation, by quarter</span>
+    <span style="font:400 16px/1.5 var(--font-sans);color:var(--muted-foreground)">Designations tripled after the 14th package.</span>
+  </figcaption>
+  <svg viewBox="0 0 660 300" style="width:100%;max-width:660px;height:auto;display:block" role="img" aria-label="Bar chart of designated vessels per quarter, 2023 to 2025">
+    <g class="grid"><line x1="30" y1="270" x2="640" y2="270"/><line x1="30" y1="200" x2="640" y2="200"/><line x1="30" y1="130" x2="640" y2="130"/><line x1="30" y1="60" x2="640" y2="60"/></g>
+    <text class="tick" x="0" y="274">0</text><text class="tick" x="0" y="204">50</text><text class="tick" x="0" y="134">100</text><text class="tick" x="0" y="64">150</text>
+    <rect x="40" y="253.2" width="30" height="16.799999999999997" style="fill:var(--chart-neutral)"/><rect x="90" y="244.8" width="30" height="25.2" style="fill:var(--chart-neutral)"/><rect x="140" y="239.2" width="30" height="30.799999999999997" style="fill:var(--chart-neutral)"/><rect x="190" y="226.6" width="30" height="43.4" style="fill:var(--chart-neutral)"/><rect x="240" y="208.4" width="30" height="61.599999999999994" style="fill:var(--chart-neutral)"/><rect x="290" y="184.60000000000002" width="30" height="85.39999999999999" style="fill:var(--chart-neutral)"/><rect x="340" y="146.8" width="30" height="123.19999999999999" style="fill:var(--chart-neutral)"/><rect x="390" y="102.0" width="30" height="168.0" style="fill:var(--chart-neutral)"/><rect x="440" y="69.80000000000001" width="30" height="200.2" style="fill:var(--signal)"/><rect x="490" y="46.0" width="30" height="224.0" style="fill:var(--signal)"/><rect x="540" y="30.600000000000023" width="30" height="239.39999999999998" style="fill:var(--signal)"/><rect x="590" y="20.80000000000001" width="30" height="249.2" style="fill:var(--signal)"/>
+    <text class="tick" x="40" y="292">2023 Q1</text><text class="tick" x="240" y="292">2024 Q1</text><text class="tick" x="440" y="292">2025 Q1</text>
+    <line class="lead" x1="455" y1="100" x2="455" y2="30"/><text class="note" x="462" y="34">14th package · 2024-06</text>
+  </svg>
+  <span class="gab-data gab-muted">Source: EUR-Lex, Council Regulations 833/2014 annexes. Counted 2025-10-01.</span>
+</figure>
