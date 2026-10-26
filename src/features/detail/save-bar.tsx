@@ -16,7 +16,7 @@ const SAYS = 'The saving of the claims';
 export function SaveBar({ said, canSave, onSave }: SaveBarProps) {
   return (
     <div className="flex items-center gap-2">
-      <Button type="button" variant="outline" size="sm" disabled={!canSave} onClick={onSave}>
+      <Button type="button" variant="default" disabled={!canSave} onClick={onSave}>
         Save
       </Button>
       <SaidLine said={said} label={SAYS} />

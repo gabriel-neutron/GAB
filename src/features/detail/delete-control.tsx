@@ -11,7 +11,7 @@ interface DeleteControlProps {
 }
 
 const ASKING = 'flex min-w-0 flex-wrap items-center gap-2';
-const QUESTION = 'min-w-0 text-small/4 break-words text-destructive';
+const QUESTION = 'min-w-0 text-body-sm break-words text-destructive';
 
 export function DeleteControl({ name, busy, onDelete }: DeleteControlProps) {
   // The question dies with the view. A confirmation that survived a reload would destroy a row
@@ -23,7 +23,6 @@ export function DeleteControl({ name, busy, onDelete }: DeleteControlProps) {
       <Button
         type="button"
         variant="destructive"
-        size="xs"
         disabled={busy}
         aria-label={`Delete ${name}`}
         onClick={() => {
@@ -41,7 +40,6 @@ export function DeleteControl({ name, busy, onDelete }: DeleteControlProps) {
       <Button
         type="button"
         variant="destructive"
-        size="xs"
         disabled={busy}
         aria-label={`Confirm the deletion of ${name}`}
         onClick={() => {
@@ -53,8 +51,7 @@ export function DeleteControl({ name, busy, onDelete }: DeleteControlProps) {
       </Button>
       <Button
         type="button"
-        variant="outline"
-        size="xs"
+        variant="secondary"
         aria-label={`Keep ${name}`}
         onClick={() => {
           setAsked(false);

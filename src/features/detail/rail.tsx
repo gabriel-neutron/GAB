@@ -28,10 +28,7 @@ export function Rail({ sources, activeSource, selections }: RailProps) {
   }, [activeSource, selections]);
 
   return (
-    <aside
-      aria-label="Sources"
-      className="h-full min-h-0 overflow-y-auto overscroll-contain border-l border-border"
-    >
+    <aside aria-label="Sources" className="h-full min-h-0 overflow-y-auto overscroll-contain">
       <ul>
         {sources.map((source) => (
           <li
@@ -47,8 +44,8 @@ export function Rail({ sources, activeSource, selections }: RailProps) {
             }}
             aria-current={activeSource === source.id ? 'true' : undefined}
             className={cn(
-              'border-l-2 border-l-transparent',
-              activeSource === source.id && 'border-l-foreground bg-muted',
+              'border-b border-l-2 border-b-divider border-l-transparent',
+              activeSource === source.id && 'border-l-foreground bg-surface-secondary',
             )}
           >
             <SourceCard source={source} />
