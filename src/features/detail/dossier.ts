@@ -21,6 +21,7 @@ import { keyWords } from '@gab/proposal/key-words';
 import { typeLabel } from '@/shared/type-label';
 
 import { readClaims, type ClaimRow } from './claims';
+import { familyOf, type RelationFamily } from './family';
 import type { ReleaseFacts } from './release-facts';
 import { vesselIdentity, type VesselIdentity } from './vessel-identity';
 
@@ -95,6 +96,11 @@ export interface RelationLine {
   /** Each other stored attribute of the relation, as "Key: value". Empty where there is none. */
   readonly facts: readonly string[];
   readonly sources: readonly SourceRef[];
+  /** The family of the type, for the line sample and the group of the list. */
+  readonly family: RelationFamily;
+  /** The type key of the entity at the far end, for its glyph. `null` where that end is a
+   * relation or absent from the record. */
+  readonly otherType: string | null;
 }
 
 export interface PendingLine {
@@ -155,6 +161,8 @@ export interface Dossier {
   /** Who promoted the entity into the record, how and on which day. Null when the read of
    * the decided acts does not hold its promotion. */
   readonly decision: string | null;
+  /** The one fact the page is about: a live designation of this entity. */
+  readonly sanctioned: boolean;
   readonly rows: readonly RecordRow[];
   readonly entitySources: readonly SourceRef[];
   readonly sources: readonly SourceCardModel[];
@@ -544,6 +552,13 @@ export function readDossier(
   for (const relation of shown)
     pairCount.set(pairOf(relation), (pairCount.get(pairOf(relation)) ?? 0) + 1);
 
+  const otherEndOf = (relation: Relation): string | null => {
+    const far = fromFarEndOf(relation)
+      ? { kind: relation.srcKind, id: relation.srcId }
+      : { kind: relation.dstKind, id: relation.dstId };
+    return far.kind === 'entity' ? (index.entityById.get(far.id)?.type ?? null) : null;
+  };
+
   const relations: readonly RelationLine[] = shown.map((relation) => {
     const sentence = sentenceOf(relation);
     const fact = factWords(sentence, intervalWords(index, relation));
@@ -559,6 +574,8 @@ export function readDossier(
       share: shareWords(relation.attrs),
       facts: storedFacts(relation),
       sources: refsOf(relation.sources, fact),
+      family: familyOf(relation.type),
+      otherType: otherEndOf(relation),
     };
   });
 
@@ -689,6 +706,10 @@ export function readDossier(
     sourceDay: newestDay(read.documents.filter((one) => claimDocuments.has(one.id))),
     identity: vesselIdentity(entity.type, entity.attrs, openFlagOf(read, entity.id)),
     decision: decisionOf(entity.promotedFrom, decided),
+    sanctioned: direct.some(
+      (relation) =>
+        relation.type === DESIGNATION && relation.srcId === entityId && relation.validTo === null,
+    ),
     rows,
     entitySources,
     sources,

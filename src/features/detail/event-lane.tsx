@@ -1,12 +1,12 @@
 import { strikeCount } from '@gab/release/event-lane';
 
 import { EmptyState } from '@/shared/page/empty-state';
-import { PageSection } from '@/shared/page/page-section';
-import { READING_LINK } from '@/shared/page/reading-link';
 import { safeHref } from '@gab/release/safe-href';
 
 import { entityHref } from './address';
+import { Band } from './band';
 import type { EventLine } from './release-facts';
+import { DATA, GHOST_LINK } from './style';
 
 export interface EventLaneProps {
   readonly events: readonly EventLine[];
@@ -16,7 +16,7 @@ function DocumentName({ source }: { readonly source: EventLine['event']['documen
   const href = source.address === null ? null : safeHref(source.address);
   if (href === null) return <span>{source.title}</span>;
   return (
-    <a className={READING_LINK} href={href} rel="noreferrer">
+    <a className={GHOST_LINK} href={href} rel="noreferrer">
       {source.title}
     </a>
   );
@@ -30,13 +30,13 @@ function EventItem({ line }: { readonly line: EventLine }) {
       ? 'No day stored.'
       : `Stored as ${event.precision ?? 'day'}: ${event.days.join(', ')}.`;
   return (
-    <li className="flex flex-col gap-0.5 border-l border-border pl-3">
+    <li className="flex flex-col gap-1 border-b border-divider py-3 last:border-b-0">
       <p className="flex flex-wrap items-baseline gap-x-2">
-        <span className="font-medium">{event.kind ?? 'Kind not stored'}</span>
+        <span>{event.kind ?? 'Kind not stored'}</span>
         <span>
           {event.written === null ? 'The source gives no words for the day.' : `“${event.written}”`}
         </span>
-        <span className="font-mono tabular-nums">{stored}</span>
+        <span className={`${DATA} text-muted-foreground`}>{stored}</span>
       </p>
       <p>
         {actor === null ? (
@@ -45,7 +45,7 @@ function EventItem({ line }: { readonly line: EventLine }) {
           <>
             Claimed by{' '}
             {actorKnown ? (
-              <a className={READING_LINK} href={entityHref(actor.id, null)}>
+              <a className={GHOST_LINK} href={entityHref(actor.id, null)}>
                 {actor.label}
               </a>
             ) : (
@@ -71,8 +71,10 @@ function EventItem({ line }: { readonly line: EventLine }) {
       ) : (
         event.denials.map(({ claim, source, passage }, index) => (
           <figure key={`${claim.id} ${source.documentId} ${String(index)}`}>
-            <blockquote className="max-w-prose bg-muted px-3 py-2">{passage.excerpt}</blockquote>
-            <figcaption className="text-xs/5 text-muted-foreground">
+            <blockquote className="max-w-prose border-l border-divider pl-3">
+              {passage.excerpt}
+            </blockquote>
+            <figcaption className="text-body-sm text-muted-foreground">
               Counter-statement in <DocumentName source={source} />, page {passage.page}.
             </figcaption>
           </figure>
@@ -87,7 +89,7 @@ function EventItem({ line }: { readonly line: EventLine }) {
 export function EventLane({ events }: EventLaneProps) {
   const strikes = strikeCount(events.map((line) => line.event));
   return (
-    <PageSection title="Events">
+    <Band name="Events">
       <p>
         {strikes === 0
           ? 'No claimed strike is stored for this site.'
@@ -106,6 +108,6 @@ export function EventLane({ events }: EventLaneProps) {
           ))}
         </ul>
       )}
-    </PageSection>
+    </Band>
   );
 }

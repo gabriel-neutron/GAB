@@ -182,18 +182,15 @@ const linesOnThePage = async (root: HTMLElement): Promise<number> => {
   return tops.size;
 };
 
-// The claims flow at about 3.4 to a line, so 100 claims give about 30 lines.
-// The floor is closed too: a ceiling alone passes when all the cells collapse onto one line.
-export const AHundredClaimsReadInAboutThirtyLines: Story = {
+// The record is a two-column list with one claim to a row, so 100 claims give 100 rows.
+export const AHundredClaimsReadOneToARow: Story = {
   parameters: { layout: 'fullscreen' },
   play: async ({ canvasElement }) => {
     const cells = claimCells(canvasElement);
     await expect(cells).toHaveLength(100);
 
     const lines = await linesOnThePage(canvasElement);
-    // The measurement gave 29 lines, and the band is 24 to 33.
-    await expect(lines).toBeGreaterThanOrEqual(24);
-    await expect(lines).toBeLessThanOrEqual(33);
+    await expect(lines).toBe(100);
   },
 };
 

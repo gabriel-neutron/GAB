@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { entityHref } from './address';
 import type { SourceCardModel, SourceRef } from './dossier';
 import { SourceCard } from './source-card';
+import { GHOST_LINK } from './style';
 
 interface SourceMarkProps {
   readonly sources: readonly SourceRef[];
@@ -27,7 +28,7 @@ interface SourceCountProps {
  * 1.3:1 and 1.5:1. The duration is stated: the Tailwind default of 150ms is above the 120ms the
  * theme allows. `h-6` is the 24px of `--control-height`. */
 const MARK =
-  'inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-none border border-input px-1 font-mono text-small/4 text-label transition-colors duration-100 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
+  'inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-sm border border-input px-1 font-mono text-data text-label transition-colors duration-150 outline-none hover:border-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
 /**
  * Departure: one sentence serves a claim and a row-level list, so it names the rule of neither.
@@ -38,7 +39,7 @@ const NO_SOURCE = 'No source document is listed for this entry in this release.'
 // 275 px claim and painted over the value of the claim beside it, so a fault in the data hid a
 // value that was sound.
 function NoSource() {
-  return <span className="min-w-0 text-small/4 text-muted-foreground">{NO_SOURCE}</span>;
+  return <span className="min-w-0 text-body-sm text-muted-foreground">{NO_SOURCE}</span>;
 }
 
 const WAY_OUT = 'Open the full page at this source, in a new tab';
@@ -62,7 +63,7 @@ export function SourceMark({ sources, activeSource, onSelectSource }: SourceMark
           }}
           className={cn(
             MARK,
-            activeSource === source.id && 'border-foreground bg-muted text-foreground',
+            activeSource === source.id && 'border-foreground bg-surface-secondary text-foreground',
           )}
         >
           {source.number}
@@ -96,7 +97,7 @@ export function SourceCount({ sources, cards, entityId }: SourceCountProps) {
           popover that grows past the window puts the way out of its last card off the screen. */}
       <PopoverContent
         aria-label={one ? '1 source document' : `${sources.length} source documents`}
-        className="max-h-96 w-80 overflow-y-auto overscroll-contain p-0"
+        className="max-h-96 w-80 overflow-y-auto overscroll-contain rounded-sm p-0 shadow-none"
         align="end"
       >
         {sources.map((source) => {
@@ -108,7 +109,7 @@ export function SourceCount({ sources, cards, entityId }: SourceCountProps) {
               {card === undefined ? (
                 // A surface that drops evidence in silence is worse than one that says what it
                 // dropped. This states a fault in the derivation, and never a blank.
-                <p className="p-2 text-small/4 text-dissent">
+                <p className="p-3 text-body-sm text-dissent">
                   {`Source ${source.number} carries no card in this dossier.`}
                 </p>
               ) : (
@@ -122,7 +123,7 @@ export function SourceCount({ sources, cards, entityId }: SourceCountProps) {
                   href={entityHref(entityId, source.id)}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="block truncate px-2 py-1.5 text-small/4 text-primary underline underline-offset-2"
+                  className={`${GHOST_LINK} mx-3 mb-3 inline-block text-body-sm`}
                 >
                   {WAY_OUT}
                 </a>

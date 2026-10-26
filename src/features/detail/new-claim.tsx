@@ -34,11 +34,11 @@ export function NewClaim({ rows, busy, onMint }: NewClaimProps) {
   };
 
   return (
-    <section aria-label="New claim about this entity" className="space-y-1 pt-2">
+    <section aria-label="New claim about this entity" className="space-y-2 pt-2">
       <p className={ENTRY_ROW.caption}>New claim about this entity</p>
 
       <div className="flex items-end gap-2">
-        <div className="w-64 space-y-0.5">
+        <div className="w-64 space-y-1">
           <label htmlFor={keyBox} className={ENTRY_ROW.caption}>
             Key
           </label>
@@ -55,7 +55,7 @@ export function NewClaim({ rows, busy, onMint }: NewClaimProps) {
           />
         </div>
 
-        <div className="min-w-0 flex-1 space-y-0.5">
+        <div className="min-w-0 flex-1 space-y-1">
           <label htmlFor={valueBox} className={ENTRY_ROW.caption}>
             Value
           </label>
@@ -70,7 +70,7 @@ export function NewClaim({ rows, busy, onMint }: NewClaimProps) {
           />
         </div>
 
-        <Button type="button" size="xs" disabled={!draft.ready || busy} onClick={onSend}>
+        <Button type="button" variant="secondary" disabled={!draft.ready || busy} onClick={onSend}>
           Add the claim
         </Button>
       </div>
