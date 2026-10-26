@@ -60,6 +60,12 @@ describe('groupsOf', () => {
     expect(groupsOf([copy('a'), copy('b')]).map((one) => one.held)).not.toContain(null);
   });
 
+  it('holds a group with an act that has no originator, and invents none', () => {
+    expect(groupsOf([act('a', { originator: null })])[0]?.held).toBe('no originator');
+    const company = act('b', { payload: { type: 'company', label: 'b' }, originator: null });
+    expect(groupsOf([act('a'), company, link('c', 'b', 'a')])[0]?.held).toBe('no originator');
+  });
+
   it('holds a group when an act outside it names a relation of the group', () => {
     const acts = [act('a'), link('c', 'a', 'z'), act('d', { op: 'create_relation', names: ['c'] })];
     expect(groupsOf(acts)[0]?.held).not.toBeNull();

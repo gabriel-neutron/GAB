@@ -188,6 +188,12 @@ const main = async (): Promise<number> => {
         `group	${one.key}	${String(one.moved.length)} moved	${String(one.pass.length)} kept	` +
           (one.held ?? 'ready'),
       );
+    const reasons = new Map<string, number>();
+    for (const one of groups) {
+      const why = one.held ?? 'ready';
+      reasons.set(why, (reasons.get(why) ?? 0) + 1);
+    }
+    for (const [why, count] of reasons) console.log(`groups	${String(count)}	${why}`);
     if (!write) return 0;
     const doors = doorsOf(writer, pool);
     for (const one of groups.filter((group) => group.held === null).slice(0, limit)) {
