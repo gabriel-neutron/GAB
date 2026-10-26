@@ -28,7 +28,7 @@ const VIEW_WORDS: Readonly<Record<ReviewView, string>> = {
 };
 
 const TAB = cn(
-  'inline-flex h-full items-center border-b-2 border-transparent px-2 text-xs text-label',
+  'inline-flex h-full items-center border-b-2 border-transparent px-2 text-body-sm text-label',
   'outline-none hover:text-foreground focus-visible:border-ring focus-visible:ring-3',
   'focus-visible:ring-ring/50',
 );

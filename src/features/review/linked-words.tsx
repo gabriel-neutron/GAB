@@ -20,7 +20,7 @@ export function LinkedWords({ text }: LinkedWordsProps) {
             title={part.href}
             target="_blank"
             rel="noreferrer"
-            className="text-primary underline underline-offset-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             {part.host}
           </a>

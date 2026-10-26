@@ -13,7 +13,7 @@ export function MarkedText({ text, query }: MarkedTextProps) {
   return (
     <>
       {text.slice(0, range.start)}
-      <mark className="bg-accent font-medium text-accent-foreground underline decoration-2 underline-offset-2">
+      <mark className="bg-accent text-accent-foreground underline underline-offset-2">
         {text.slice(range.start, range.end)}
       </mark>
       {text.slice(range.end)}

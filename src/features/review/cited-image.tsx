@@ -21,7 +21,7 @@ export function CitedImage({ document, title }: CitedImageProps) {
 
   if (image.state === 'failed' || (image.state === 'shown' && image.address === brokenAddress))
     return (
-      <p data-image="failed" className="w-24 shrink-0 text-small/4 text-label">
+      <p data-image="failed" className="w-24 shrink-0 text-caption text-label">
         The stored image did not load.
       </p>
     );
