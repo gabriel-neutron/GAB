@@ -1,7 +1,7 @@
 import { cn } from '@/shared/lib/utils';
 
 // The dash patterns of `design/system/components/RelationLine`, in pixels along the line.
-const FAMILY_DASH = {
+export const FAMILY_DASH = {
   ownership: undefined,
   designation: '12 5',
   operation: '5 4',

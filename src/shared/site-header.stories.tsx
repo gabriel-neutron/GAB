@@ -10,11 +10,11 @@ import { expect, within } from 'storybook/test';
 import { SiteHeader, type SiteHeaderProps } from './site-header';
 
 // The links need a router, so the story gives the header a root route of its own.
-const inRouter = (props: SiteHeaderProps) => (
+const inRouterAt = (path: string) => (props: SiteHeaderProps) => (
   <RouterProvider
     router={createRouter({
       routeTree: createRootRoute({ component: () => <SiteHeader {...props} /> }),
-      history: createMemoryHistory({ initialEntries: ['/search'] }),
+      history: createMemoryHistory({ initialEntries: [path] }),
     })}
   />
 );
@@ -22,7 +22,7 @@ const inRouter = (props: SiteHeaderProps) => (
 const meta = {
   component: SiteHeader,
   args: { writerOnline: false, filter: null, actions: null },
-  render: inRouter,
+  render: inRouterAt('/search'),
   parameters: { layout: 'fullscreen' },
 } satisfies Meta<typeof SiteHeader>;
 
@@ -61,6 +61,31 @@ export const TheOpenPageIsMarked: Story = {
     await expect(await canvas.findByRole('link', { name: 'Data' })).toHaveAttribute(
       'data-status',
       'active',
+    );
+  },
+};
+
+/** A route that no view owns marks no view, and a review marks only itself. */
+export const ARouteNoViewOwnsMarksNone: Story = {
+  render: inRouterAt('/vessel/9876543'),
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByRole('link', { name: 'Report' })).not.toHaveAttribute(
+      'data-section-active',
+      'true',
+    );
+    await expect(canvas.getByRole('link', { name: 'Data' })).not.toHaveAttribute(
+      'data-section-active',
+      'true',
+    );
+  },
+};
+
+export const OnlyTheReportOwnsTheFirstPage: Story = {
+  render: inRouterAt('/'),
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByRole('link', { name: 'Report' })).toHaveAttribute(
+      'data-section-active',
+      'true',
     );
   },
 };
