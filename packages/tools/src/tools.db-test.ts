@@ -1144,6 +1144,38 @@ test('propose updates attributes and keeps the documents the value already held'
   expect(found.batch.proposals[0]?.disputed).toBe(true);
 });
 
+// An operator signed the value with the document and no page, so the record cites the document
+// already. A citation with a page is the only new thing in a second act.
+test('propose adds a citation to a value whose document an accepted act cites already, once', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const [held] = keyed.parse(await ask(KEYED));
+    if (held === undefined) throw new Error('the fixture holds no string attribute');
+    await asResearch(ask, () => withDocument(ask, [PAGE_ONE]));
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+    await ask(
+      `SELECT public.sign_change('a test', 'update_attrs',
+         jsonb_build_object('attrs', jsonb_build_object($1::text,
+           jsonb_build_object('v', $2::text, 'src', jsonb_build_array($3::text)))),
+         ARRAY[$3], 'entity', $4::uuid, '{}'::uuid[])`,
+      [held.key, held.value, DOC, held.id],
+    );
+    await ask('RESET SESSION AUTHORIZATION');
+    const act = item(
+      'cite',
+      {
+        op: 'update_attrs',
+        targetKind: 'entity',
+        targetId: held.id,
+        attrs: { [held.key]: { v: held.value } },
+      },
+      'the tanker NAYARA',
+    );
+    return { first: await proposeAgain(ask, [act]), again: await proposeAgain(ask, [act]) };
+  });
+  expect(batchOf(found.first).proposals).toMatchObject([{ written: true }]);
+  expect(batchOf(found.again).proposals).toMatchObject([{ written: false }]);
+});
+
 test('propose refuses an act that the write contract refuses, and names the item', async () => {
   const outcome = await rolledBack('superuser', async (ask) =>
     proposeOnPage(ask, [

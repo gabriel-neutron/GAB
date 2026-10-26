@@ -89,21 +89,38 @@ test('a claim row gives the modality of its passage and whether the AI read it f
   const [header, row] = claimsText([claim({})])
     .slice(1)
     .split('\r\n');
-  expect(header?.split(',').slice(-5)).toStrictEqual([
+  expect(header?.split(',').slice(-6)).toStrictEqual([
     'page',
     'excerpt',
     'modality',
     'transcribed',
     'document_type',
+    'value_in_excerpt',
   ]);
-  expect(row?.split(',').slice(-5)).toStrictEqual([
+  expect(row?.split(',').slice(-6)).toStrictEqual([
     '2',
     'flag of Panama',
     'asserts',
     'false',
     'other',
+    'yes',
   ]);
 });
+
+const testedAs = (over: Partial<ReleaseClaim>): string | undefined =>
+  claimsText([claim(over)])
+    .slice(1)
+    .split('\r\n')[1]
+    ?.split(',')
+    .at(-1);
+
+test('the column value_in_excerpt says if the value is in the excerpt', () => {
+  expect(testedAs({ value: 'Liberia' })).toBe('no');
+  expect(testedAs({ value: 'panama' })).toBe('yes');
+  expect(testedAs({ passages: [] })).toBe('no_excerpt');
+  expect(testedAs({ value: null })).toBe('not_tested');
+});
+
 
 test('an absent value writes an empty field, and not the word null', () => {
   const [, row] = claimsText([claim({ value: null })])

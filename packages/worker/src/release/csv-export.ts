@@ -1,5 +1,6 @@
 import { relationWords } from '@gab/proposal/relation-types';
 import { shareWords } from '@gab/proposal/share';
+import { findExcerpt } from '@gab/tools/excerpt';
 
 import { csvFile } from './csv-file.ts';
 import { ENTITY_COLUMNS, entityColumns } from './entity-columns.ts';
@@ -53,7 +54,17 @@ const CLAIM_HEADER = [
   'modality',
   'transcribed',
   'document_type',
+  'value_in_excerpt',
 ];
+
+/** The test of a claim row: the value of an attribute claim is in the excerpt of the row. A relation
+ * claim has no value, and a row with no excerpt has nothing to test. */
+const valueInExcerpt = (claim: ReleaseClaim, excerpt: string): string => {
+  const value = valueText(claim.value);
+  if (claim.attribute === null || value === '') return 'not_tested';
+  if (excerpt === '') return 'no_excerpt';
+  return findExcerpt(excerpt.toLowerCase(), value.toLowerCase()) === null ? 'no' : 'yes';
+};
 
 const NATO_HEADER = ['nato_letter', 'nato_digit'];
 
@@ -184,7 +195,7 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
       const type = document.doc_type ?? 'other';
       const cited = claim.passages.filter((one) => one.document === id);
       return cited.length === 0
-        ? [[...head, ...source, '', '', '', '', type, ...nato]]
+        ? [[...head, ...source, '', '', '', '', type, valueInExcerpt(claim, ''), ...nato]]
         : cited.map((one) => [
             ...head,
             ...source,
@@ -193,6 +204,7 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
             one.modality,
             String(one.transcribed),
             type,
+            valueInExcerpt(claim, one.excerpt),
             ...nato,
           ]);
     });

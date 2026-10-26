@@ -11,7 +11,7 @@ export const NOTES_PATH = 'release-notes.md';
 const percent = (paired: number, claims: number): string =>
   `${(claims === 0 ? 0 : (100 * paired) / claims).toFixed(1)}%`;
 
-/** The release notes: the title and the disclaimer of the release, the share of the public places
+/** The release notes: the title and the disclaimer of the release, the count of distinct claims, the share of the public places
  * with no stated method of geolocation, and, when the release shows the NATO pair, the share of the
  * public claims with a full pair, in all and by type. A claim with no full pair is "not rated" in
  * each file. */
@@ -19,11 +19,16 @@ export const releaseNotes = (
   heading: ReleaseHeading,
   natoCoverage: NatoCoverage | null,
   geolocation: GeolocationCoverage,
+  claims: number,
 ): ReleaseFile => {
   const lines = [
     `# ${heading.title}`,
     '',
     heading.disclaimer,
+    '',
+    '## The claims',
+    '',
+    `The release holds ${String(claims)} distinct claims. A row of claims.csv is one citation of a claim, so a claim can have more than one row. The column value_in_excerpt says if the value of an attribute claim is found in the excerpt of its row: "yes", "no", "no_excerpt" or "not_tested" (a claim of a relation has no value).`,
     '',
     '## The method of geolocation of the places',
     '',
