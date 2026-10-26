@@ -231,12 +231,12 @@ export function GroupPanel({ view, document, words, onPromote, onRetry }: GroupP
                 // A depth has no class of its own: each level moves the line by one step.
                 style={{ paddingLeft: `${String(row.depth * 0.75)}rem` }}
               >
-                <span className="min-w-0 truncate" title={row.name}>
+                <span className="min-w-0 break-words" title={row.name}>
                   {row.name}
                 </span>
                 <span className="shrink-0 text-label">{typeWords(row.kind, row.type, words)}</span>
                 {row.under === null ? null : (
-                  <span className="min-w-0 truncate text-label" title={`under ${row.under}`}>
+                  <span className="min-w-0 break-words text-label" title={`under ${row.under}`}>
                     under {row.under}
                   </span>
                 )}

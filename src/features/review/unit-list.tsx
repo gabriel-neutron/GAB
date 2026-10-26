@@ -143,7 +143,7 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
                 )}
               >
                 {/* The name takes the whole first line, so a narrow screen still shows it. */}
-                <span className="w-full min-w-0 truncate" title={unit.name}>
+                <span className="w-full min-w-0 break-words" title={unit.name}>
                   {unit.name}
                 </span>
                 <span
@@ -153,7 +153,7 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
                   <span
                     data-badge="type"
                     title={typeOf(unit, words)}
-                    className={cn(BADGE, 'truncate text-foreground')}
+                    className={cn(BADGE, 'break-words text-foreground')}
                   >
                     {typeOf(unit, words)}
                   </span>

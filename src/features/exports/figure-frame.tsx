@@ -29,7 +29,7 @@ export function FigureFrame({ number, title, rows, documents, children }: Figure
       {children}
       <figcaption className="flex flex-col gap-1 text-body-sm text-label">
         <p>
-          <strong className=" text-foreground">
+          <strong className="font-normal text-foreground">
             {`Figure ${String(number)}. ${title}${units.length === 0 ? '' : ` (${units.join(', ')})`}.`}
           </strong>
         </p>

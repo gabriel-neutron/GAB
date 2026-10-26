@@ -1,7 +1,6 @@
 import { useId, useState } from 'react';
 import { Dialog } from 'radix-ui';
 
-import { cn } from '@/shared/lib/utils';
 import { SaidLine } from '@/shared/said-line';
 import { Button } from '@/shared/ui/button';
 import { Textarea } from '@/shared/ui/textarea';
@@ -114,11 +113,7 @@ export function LeadDialog() {
                   {line.documents.length > 0 ? (
                     <ul aria-label="Stored pages" className="pl-2">
                       {line.documents.map((document) => (
-                        <li
-                          key={document.id}
-                          title={document.title}
-                          className={cn(SENTENCE, 'truncate')}
-                        >
+                        <li key={document.id} title={document.title} className={SENTENCE}>
                           {document.title}
                         </li>
                       ))}

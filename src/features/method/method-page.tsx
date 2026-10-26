@@ -146,7 +146,7 @@ export function MethodPage({ manifest }: MethodPageProps) {
             <ul className={`${PROSE} flex list-disc flex-col gap-1 pl-4`}>
               {LICENCES.map((one) => (
                 <li key={one.name}>
-                  <strong>{one.name}.</strong> {one.meaning}
+                  <strong className="font-normal">{one.name}.</strong> {one.meaning}
                 </li>
               ))}
             </ul>

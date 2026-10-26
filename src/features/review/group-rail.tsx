@@ -64,11 +64,11 @@ export function GroupRail({ groups, selectedId, onSelect }: GroupRailProps) {
                     group.id === selectedId ? 'border-l-primary bg-muted' : null,
                   )}
                 >
-                  <span className="w-full min-w-0 truncate" title={subject}>
+                  <span className="w-full min-w-0 break-words" title={subject}>
                     {subject}
                   </span>
                   <span
-                    className="w-full min-w-0 truncate text-caption text-label"
+                    className="w-full min-w-0 break-words text-caption text-label"
                     title={`${proposerWords(group.proposer)}, ${source}`}
                   >
                     {proposerWords(group.proposer)} · {source}
@@ -80,7 +80,7 @@ export function GroupRail({ groups, selectedId, onSelect }: GroupRailProps) {
                   {faults === '' ? null : (
                     <span
                       data-faults
-                      className="w-full min-w-0 truncate text-caption text-dissent"
+                      className="w-full min-w-0 break-words text-caption text-dissent"
                       title={faults}
                     >
                       {faults}

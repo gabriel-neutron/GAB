@@ -231,7 +231,7 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
                 on(CLEAR[chip.key]);
               }}
             >
-              <span className="truncate">{chip.words}</span>
+              <span className="break-words">{chip.words}</span>
               <span aria-hidden="true" className="text-label">
                 ×
               </span>
