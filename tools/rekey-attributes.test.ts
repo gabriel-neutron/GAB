@@ -165,3 +165,130 @@ describe('passage of a page, the whole number only', () => {
     });
   });
 });
+
+describe('former_names that holds one text', () => {
+  const page = 'Former names\nOcean Unicorn, Wellington, Khalissa, Bai Lu\nФорма: Лазурный';
+  const names = (v: unknown) => plan(item({ former_names: { v } }, page));
+
+  it('splits a text on " / " into a list, and keeps a list as it is', () => {
+    expect(names('Ocean Unicorn / Wellington / Khalissa / Bai Lu')).toMatchObject({
+      kind: 'rekey',
+      attrs: { former_names: { v: ['Ocean Unicorn', 'Wellington', 'Khalissa', 'Bai Lu'] } },
+    });
+    expect(names(['Wellington']).kind).toBe('keep');
+  });
+
+  it('turns one plain name into a list of one, and keeps letters that are not ASCII', () => {
+    expect(names('Wellington')).toMatchObject({ attrs: { former_names: { v: ['Wellington'] } } });
+    expect(names('Лазурный')).toMatchObject({ attrs: { former_names: { v: ['Лазурный'] } } });
+  });
+
+  it('holds an empty part, a name that the excerpt lacks, and a name in another case', () => {
+    expect(names('Wellington / ').kind).toBe('hold');
+    expect(names('Wellington / Nayara').kind).toBe('hold');
+    expect(names('WELLINGTON').kind).toBe('hold');
+  });
+
+  it('does not take a name that contains the letters IMO for an IMO number', () => {
+    expect(plan(item({ former_names: { v: 'Simona' } }, 'ex Simona')).kind).toBe('rekey');
+    expect(plan(item({ former_names: { v: 'IMO 9074729' } }, 'IMO 9074729')).kind).toBe('hold');
+  });
+});
+
+describe('former_names that a split would break', () => {
+  const held = (v: string, page: string) => plan(item({ former_names: { v } }, page)).kind;
+
+  it('holds an IMO number that is glued to its letters, a bracket that a split opens, and a repeat', () => {
+    expect(held('IMO9074729', 'IMO9074729')).toBe('hold');
+    expect(held('Foo (ex Bar / Baz)', 'Foo (ex Bar / Baz)')).toBe('hold');
+    expect(held('Wellington / Wellington', 'Wellington')).toBe('hold');
+    expect(held('Foo (ex Bar)', 'Foo (ex Bar)')).toBe('rekey');
+  });
+});
+
+describe('a plain number that was sent as a text', () => {
+  const run = (attrs: Item['attrs'], page: string) => plan(item(attrs, page));
+
+  it('becomes a number when the excerpt carries the text as written', () => {
+    expect(run({ build_year: { v: '2003' } }, 'Built in 2003.')).toMatchObject({
+      kind: 'rekey',
+      attrs: { build_year: { v: 2003 } },
+    });
+    expect(run({ length_m: { v: '12.50' } }, 'Length 12.50 m')).toMatchObject({
+      attrs: { length_m: { v: 12.5 } },
+    });
+    expect(run({ capacity_dwt: { v: '115000' } }, 'DWT 115000 t')).toMatchObject({
+      attrs: { capacity_dwt: { v: 115000 } },
+    });
+    expect(run({ dwt_t: { v: '115000' } }, 'DWT 115000 t')).toMatchObject({
+      attrs: { capacity_dwt: { v: 115000 } },
+    });
+  });
+
+  it('holds a text that is no plain number, and a number that the excerpt lacks', () => {
+    expect(run({ build_year: { v: '2003 г.' } }, 'Built 2003 г.').kind).toBe('hold');
+    expect(run({ length_m: { v: '12,5' } }, 'Length 12,5 m').kind).toBe('hold');
+    expect(run({ build_year: { v: '2003-2004' } }, 'Built 2003-2004').kind).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Built in 2004').kind).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Order 12003 built').kind).toBe('hold');
+    expect(run({ build_year: { v: '' } }, 'Built').kind).toBe('hold');
+  });
+
+  it('keeps a number as it is', () => {
+    expect(run({ build_year: { v: 2003 } }, 'Built 2003').kind).toBe('keep');
+  });
+});
+
+describe('a number sent as a text, edge cases of the page', () => {
+  const run = (attrs: Item['attrs'], page: string) => plan(item(attrs, page)).kind;
+
+  it('holds a number that the page joins to another token', () => {
+    expect(run({ capacity_dwt: { v: '115' } }, 'DWT 115 000 t')).toBe('hold');
+    expect(run({ capacity_dwt: { v: '000' } }, 'DWT 115 000 t')).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Built 2002-2003')).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Delivered 2003/04')).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Model B2003')).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Built 2003, Length 12 m')).toBe('rekey');
+  });
+
+  it('holds a zero, a leading zero and a year that has not four digits', () => {
+    expect(run({ length_m: { v: '0' } }, 'Length 0')).toBe('hold');
+    expect(run({ length_m: { v: '007' } }, 'Length 007')).toBe('hold');
+    expect(run({ build_year: { v: '203' } }, 'Built 203')).toBe('hold');
+  });
+});
+
+describe('a deadweight below the gross tonnage', () => {
+  const page = (type: string) =>
+    `Vessel type: ${type}\nGross tonnage (t)\n115 519\nDWT (t)\n88 709\n`;
+  const attrs = { dwt_t: { v: 88709 }, gross_tonnage_t: { v: 115519 } };
+  const run = (text: string, given: Item['attrs'] = attrs) =>
+    plan(paged(given, text, 'NAYARA')).kind;
+
+  it('is released when the page states both values under their labels and the type allows it', () => {
+    expect(run(page('LNG carrier'))).toBe('rekey');
+    expect(run(page('Passenger ship'))).toBe('rekey');
+  });
+
+  it('stays held for a type of cargo ship, an unknown type, or values that the page does not state', () => {
+    expect(run(page('Bulk carrier'))).toBe('hold');
+    expect(run(page('LNG carrier, ex crude tanker'))).toBe('hold');
+    expect(run(page('Unknown'))).toBe('hold');
+    expect(run(page('LNG carrier'), { dwt_t: { v: 88000 }, gross_tonnage_t: { v: 115519 } })).toBe(
+      'hold',
+    );
+  });
+});
+
+describe('the type of vessel that releases a deadweight below the gross tonnage', () => {
+  const attrs = { dwt_t: { v: 88709 }, gross_tonnage_t: { v: 115519 } };
+  const run = (type: string) =>
+    plan(paged(attrs, `${type}\nGross tonnage (t)\n115 519\nDWT (t)\n88 709\n`, 'NAYARA')).kind;
+
+  it('releases an LNG tanker and holds a cargo ship with words of a gas carrier or a cruise', () => {
+    expect(run('Type: LNG tanker')).toBe('rekey');
+    expect(run('Container ship, LNG dual-fuel, cruise speed 14 knots')).toBe('hold');
+    expect(run('Type: LNG carrier. Cargo ship 2003')).toBe('hold');
+    expect(run('Ferry Road, a company')).toBe('hold');
+  });
+});

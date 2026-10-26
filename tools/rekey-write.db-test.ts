@@ -9,7 +9,7 @@ import { callTool, type Session } from '@gab/tools/tool';
 import { propose } from '@gab/tools/propose';
 
 import { rolledBack, type Ask } from './probe.ts';
-import { DRIFTED_KEYS, READ } from './rekey-attributes.ts';
+import { DRIFTED_KEYS, READ, TEXT_KEYS } from './rekey-attributes.ts';
 import { apply, doorsOf, readGroups, type Doors, type Group } from './rekey-write.ts';
 
 const SHA = 'c'.repeat(64);
@@ -18,7 +18,7 @@ const TODAY = new Date().toISOString().slice(0, 10);
 const TEXT =
   'The tanker NAYARA has a deadweight of 115000 t. ACME LLC owns NAYARA. ' +
   'Rosneft owns NAYARA. NAYARA lies at Sikka. Another list gives a tonnage of 115000 t.\n' +
-  'Gross tonnage (t)\n42 500';
+  'Gross tonnage (t)\n42 500\nFormer names: Wellington, Khalissa';
 
 const STORE = 'SELECT public.put_fetched_document($1, $2, $3, $4, $5, $6, $7::date, $8) AS id';
 const WRITE_TEXT = 'SELECT public.put_document_text($1, $2::jsonb, $3) AS pages';
@@ -61,7 +61,7 @@ const recordEntity = async (ask: Ask): Promise<string> => {
   return row.id;
 };
 
-const NAYARA = (key: string, excerpt = 'a deadweight of 115000 t', value = 115000) =>
+const NAYARA = (key: string, excerpt = 'a deadweight of 115000 t', value: unknown = 115000) =>
   item(
     'ship',
     { op: 'create_entity', type: 'vessel', label: 'NAYARA', attrs: { [key]: { v: value } } },
@@ -82,7 +82,7 @@ const plant = async (
   ask: Ask,
   key = 'dwt_t',
   excerpt?: string,
-  value?: number,
+  value?: unknown,
 ): Promise<Fixture> => {
   await sessionAs(ask, 'gabriel_research').query(STORE, [
     'url',
@@ -331,9 +331,36 @@ test('a refusal of the door leaves the old acts as they are', async () => {
 test('the read of the dry run gives each cited page once', async () => {
   const rows = await rolledBack('superuser', async (ask) => {
     const fixture = await plant(ask);
-    const found = await sessionAs(ask, 'gabriel_app').query(READ, [[...DRIFTED_KEYS]]);
+    const found = await sessionAs(ask, 'gabriel_app').query(READ, [
+      [...DRIFTED_KEYS],
+      [...TEXT_KEYS],
+    ]);
     return found.rows.filter((one) => (one as { id: string }).id === fixture.ship);
   });
   expect(rows).toHaveLength(1);
   expect((rows[0] as { pages: unknown[] }).pages).toHaveLength(1);
+});
+
+test('a former_names text becomes a list, with the same excerpt and a new act', async () => {
+  const done = await rolledBack('superuser', async (ask) => {
+    const fixture = await plant(
+      ask,
+      'former_names',
+      'Former names: Wellington, Khalissa',
+      'Wellington / Khalissa',
+    );
+    const group = await groupOf(ask, fixture);
+    const result = await apply(group, doorsOfRole(ask));
+    const fresh = z.array(z.object({ names: z.array(z.string()) })).parse(
+      await ask(
+        `SELECT ARRAY(SELECT jsonb_array_elements_text(payload->'attrs'->'former_names'->'v'))
+             AS names FROM public.proposals
+            WHERE status = 'pending' AND jsonb_typeof(payload->'attrs'->'former_names'->'v') = 'array'`,
+      ),
+    );
+    return { held: group.held, result, fresh };
+  });
+  expect(done.held).toBeNull();
+  expect(done.result.status).toBe('done');
+  expect(done.fresh.map((one) => one.names)).toContainEqual(['Wellington', 'Khalissa']);
 });

@@ -141,6 +141,35 @@ export const valuesOf = (
   return { proposed, page };
 };
 
+// The types of vessel whose deadweight is often below the gross tonnage: gas carriers, passenger
+// ships and ferries, and vehicle carriers. The words that mark a type of cargo ship, where a
+// deadweight below the gross tonnage is a doubt.
+const TYPE_ALLOWS =
+  /\b(?:LNG carrier|LNG tanker|LPG carrier|LPG tanker|gas carrier|gas tanker|passenger ship|passenger vessel|passenger ferry|cruise ship|ro-?pax|car carrier|vehicle carrier|PCTC)\b/giu;
+const TYPE_BLOCKS =
+  /\b(?:crude|oil tanker|product tanker|chemical tanker|bulk[- ]?carrier|bulker|bulk|general cargo|cargo ship|cargo vessel|container ?ship|multi-?purpose|heavy[- ]lift|reefer|ore carrier)\b/giu;
+
+/** The words of the stored pages that name a type of vessel, for each list. */
+export const vesselTypes = (
+  pages: readonly Page[],
+): { readonly allows: string[]; readonly blocks: string[] } => {
+  const text = pages.map((one) => one.text).join('\n');
+  const found = (words: RegExp): string[] => [
+    ...new Set([...text.matchAll(words)].map((one) => one[0].toLowerCase())),
+  ];
+  return { allows: found(TYPE_ALLOWS), blocks: found(TYPE_BLOCKS) };
+};
+
+/** A deadweight below the gross tonnage is released when the page writes each of the two values
+ * under its label, equal to the proposed values, and its type of vessel is in the first list and
+ * in no word of the second. The value is a fact of the source; the type tells that it is normal. */
+const pageAllows = (item: Item, dwt: number, gt: number): boolean => {
+  const { page } = valuesOf(item);
+  if (page['capacity_dwt'] !== dwt || page['gross_tonnage_gt'] !== gt) return false;
+  const types = vesselTypes(item.pages ?? []);
+  return types.allows.length > 0 && types.blocks.length === 0;
+};
+
 /** The reasons that a person reads in the dry run. */
 export const SMALLER_HOLD = 'the deadweight is smaller than the gross tonnage';
 export const DUPLICATE_HOLD = 'the entity copies a duplicate identifier';
@@ -148,7 +177,8 @@ export const DUPLICATE_HOLD = 'the entity copies a duplicate identifier';
 const hold = (reason: string): Plan => ({ kind: 'hold', reason });
 
 // An empty part, a placeholder, a year, an IMO number or a date is no name.
-const NOT_A_NAME = /^(?:n\/a|none|unknown|-+|\d{4})$|IMO|^\d{7}$|\d{1,4}[-./]\d{1,2}[-./]\d{1,4}/iu;
+const NOT_A_NAME =
+  /^(?:n\/a|none|unknown|-+|\d{4})$|(?<!\p{L})IMO(?!\p{L})|^\d{7}$|\d{1,4}[-./]\d{1,2}[-./]\d{1,4}/iu;
 
 const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 
@@ -158,17 +188,48 @@ const checkedNames = (given: string | readonly unknown[], page: string): string[
   const parts = (typeof given === 'string' ? given.split(' / ') : given).map((one) =>
     typeof one === 'string' ? one.trim() : '',
   );
-  const bad = parts.some(
-    (one) =>
-      one.length < 2 ||
-      NOT_A_NAME.test(one) ||
-      !new RegExp(String.raw`(?<![\p{L}\p{N}])${escaped(one)}(?![\p{L}\p{N}])`, 'iu').test(page),
-  );
+  // A name with a bracket that does not close came from a " / " inside a bracket: hold it.
+  const bad =
+    new Set(parts).size !== parts.length ||
+    parts.some(
+      (one) =>
+        one.length < 2 ||
+        one.split('(').length !== one.split(')').length ||
+        NOT_A_NAME.test(one) ||
+        !new RegExp(String.raw`(?<![\p{L}\p{N}])${escaped(one)}(?![\p{L}\p{N}])`, 'u').test(page),
+    );
   return bad ? null : parts;
 };
 
+/** The keys whose value is a number in the record. */
+const NUMBER_KEYS: readonly string[] = [
+  'build_year',
+  'length_m',
+  'capacity_dwt',
+  'gross_tonnage_gt',
+];
+
+/** The keys that the plan reads when they hold a text. */
+export const TEXT_KEYS: readonly string[] = ['former_names', ...NUMBER_KEYS];
+
+// No leading zero: "007" would lose its zeros, and a text must keep what it wrote.
+const PLAIN_NUMBER = /^(?:0|[1-9]\d*)(?:\.\d+)?$/u;
+
+/** The text stands in the page as a whole number: no digit, point, comma, hyphen, slash or letter
+ * joins it to another token, and no space joins it to a group of digits (115 in "115 000"). */
+const carries = (text: string, page: string): boolean =>
+  new RegExp(
+    String.raw`(?<![\d.,\-/\p{L}])(?<!\d[ \t])${escaped(text)}(?![\d\-/\p{L}]|[.,]\d|[ \t]\d{3}(?!\d))`,
+    'u',
+  ).test(page);
+
 export const plan = (item: Item): Plan => {
-  const drifted = Object.keys(item.attrs).filter((key) => VARIANTS.has(key));
+  // A key that holds a text where the record holds a list or a number is drifted too: the key is
+  // the right one, the form is not.
+  const drifted = Object.keys(item.attrs).filter(
+    (key) =>
+      VARIANTS.has(key) || (TEXT_KEYS.includes(key) && typeof item.attrs[key]?.v === 'string'),
+  );
   if (drifted.length === 0) return { kind: 'keep' };
   const page = item.excerpts.join('\n');
   const pages = item.pages ?? [];
@@ -178,7 +239,21 @@ export const plan = (item: Item): Plan => {
   for (const [key, held] of Object.entries(item.attrs)) {
     const canonical = VARIANTS.get(key) ?? key;
     let value = held.v;
+    // A plain number that was sent as a text becomes a number. The text itself must stand in the
+    // excerpt. Any other text is held: nothing is guessed (a unit, a separator, a range).
+    let written: string | null = null;
+    if (typeof value === 'string' && NUMBER_KEYS.includes(canonical)) {
+      const text = value.trim();
+      if (!PLAIN_NUMBER.test(text)) return hold(`the text of ${key} is not a plain number`);
+      if (Number(text) === 0) return hold(`the text of ${key} is zero`);
+      if (canonical === 'build_year' && !/^\d{4}$/u.test(text))
+        return hold(`the text of ${key} is not a four-digit year`);
+      written = text;
+      value = Number(text);
+    }
     const label = canonical !== key ? LABEL[canonical] : undefined;
+    if (label === undefined && written !== null && !carries(written, page))
+      return hold(`the excerpt does not carry the number of ${key}`);
     if (label !== undefined) {
       const unclear = hold(`the excerpt does not give the number of ${key} next to its label`);
       if (typeof value !== 'number') return unclear;
@@ -191,7 +266,7 @@ export const plan = (item: Item): Plan => {
     }
     if (
       canonical === 'former_names' &&
-      canonical !== key &&
+      (canonical !== key || typeof value === 'string') &&
       (typeof value === 'string' || Array.isArray(value))
     ) {
       const names = checkedNames(value, page);
@@ -207,7 +282,8 @@ export const plan = (item: Item): Plan => {
   const gt = next['gross_tonnage_gt']?.v;
   // shortcut: the check holds each vessel type, and the spec names tankers and bulkers; it only
   // holds more, so keep it until the held count shows that it costs too much.
-  if (typeof dwt === 'number' && typeof gt === 'number' && dwt < gt) return hold(SMALLER_HOLD);
+  if (typeof dwt === 'number' && typeof gt === 'number' && dwt < gt && !pageAllows(item, dwt, gt))
+    return hold(SMALLER_HOLD);
   return {
     kind: 'rekey',
     attrs: next,
@@ -263,7 +339,10 @@ export const READ = `SELECT p.id::text AS id, p.payload->'attrs' AS attrs,
              WHERE c.claim_id = p.id AND c.start IS NOT NULL) x
       JOIN public.document_text t ON t.document_id = x.doc_id
                                  AND t.extractor = x.text_extractor AND t.page = x.page) pg ON true
- WHERE p.status = 'pending' AND p.payload->'attrs' ?| $1::text[]
+ WHERE p.status = 'pending'
+   AND (p.payload->'attrs' ?| $1::text[]
+        OR EXISTS (SELECT 1 FROM unnest($2::text[]) k(key)
+                    WHERE jsonb_typeof(p.payload->'attrs'->k.key->'v') = 'string'))
  ORDER BY p.id`;
 
 const limitOf = (): number => {
@@ -281,7 +360,7 @@ const main = async (): Promise<number> => {
   // The research role proposes. The dry run never opens it.
   const writer = new Pool({ connectionString: connectionString('research') });
   try {
-    const found = await pool.query(READ, [[...VARIANTS.keys()]]);
+    const found = await pool.query(READ, [[...VARIANTS.keys()], [...TEXT_KEYS]]);
     const { rekey, keep, held } = report(found.rows.map((one) => row.parse(one)));
     console.log(
       `${write ? 'write' : 'dry run'}: ${String(rekey)} to re-key, ${String(keep)} unchanged`,
