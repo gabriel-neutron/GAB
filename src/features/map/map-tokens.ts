@@ -1,8 +1,12 @@
+import { canvasTheme } from '@/shared/canvas-theme';
+
 // MapLibre parses colour strings and never a CSS variable, so the design tokens are read from the
 // document once per theme and handed to the style as hex.
 
 export interface MapTokens {
   readonly water: string;
+  /** The dark edge under a route, an arc or a selection, on both themes. */
+  readonly casing: string;
   readonly land: string;
   readonly boundary: string;
   readonly label: string;
@@ -67,6 +71,8 @@ const read = (name: string): string => {
 export function mapTokens(): MapTokens {
   return {
     water: read('map-water'),
+    // `ring` is near white on Obsidian and near black on Bone, so the dark edge is the water there.
+    casing: canvasTheme() === 'dark' ? read('map-water') : read('ring'),
     land: read('map-land'),
     boundary: read('map-boundary'),
     label: read('map-label'),

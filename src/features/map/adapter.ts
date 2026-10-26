@@ -120,8 +120,8 @@ const ARROW_LAYER = 'link-arrow';
 const ARROW_IMAGE = 'link-arrow-head';
 const arrowImageOf = (family: LinkFamily): string => `${ARROW_IMAGE}:${family}`;
 
-// The dash of a family is in pixels, and `line-dasharray` is in units of the line width, which the
-// zoom ramp keeps near 1.5px.
+// The dash of a family is in pixels at a line of this width. `line-dasharray` is in units of the
+// line width, so a pattern grows with the zoom ramp of the width, and the family stays readable.
 const DASH_UNIT_PX = 1.5;
 // The halo under a point, in pixels.
 const HALO_WIDTH = 2;
@@ -546,7 +546,7 @@ export function mountMap({
       visibility: hidden.has(facet.type) ? 'none' : 'visible',
       'icon-image': ['get', 'symbolImage'],
       // The raster is four pixels to the unit, and the diamond is 13 units across in it. This
-      // ramp therefore draws that diamond at 8px at zoom 3 and 18px at zoom 14, which is the
+      // ramp therefore draws that diamond at 10px at zoom 3 and 19px at zoom 14, which is the
       // width of the disc of a point at each end of its own ramp.
       'icon-size': ['interpolate', ['linear'], ['zoom'], 3, 0.2, 14, 0.36],
       // The symbol stands upright on a rotated map: a military mark that turned with the ground
@@ -593,7 +593,7 @@ export function mountMap({
         'line-cap': 'round',
       },
       paint: {
-        'line-color': tokens.water,
+        'line-color': tokens.casing,
         'line-width': ROUTE_CASING_WIDTH,
         'line-opacity': ROUTE_CASING_OPACITY,
       },
@@ -614,7 +614,7 @@ export function mountMap({
       type: 'line',
       source: SELECTION_SHAPE_SOURCE,
       layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: { 'line-color': tokens.water, 'line-width': 9, 'line-opacity': 0.9 },
+      paint: { 'line-color': tokens.casing, 'line-width': 9, 'line-opacity': 0.9 },
     },
     {
       id: SELECTION_SHAPE_BAND,
@@ -738,7 +738,7 @@ export function mountMap({
       source: CHAIN_ARC_SOURCE,
       layout: { visibility: chainVisibility(), 'line-cap': 'round' },
       paint: {
-        'line-color': tokens.water,
+        'line-color': tokens.casing,
         'line-width': 4,
         'line-opacity': CHAIN_CASING_OPACITY,
       },
@@ -1181,8 +1181,8 @@ export function mountMap({
   // built keeps an empty image. That was measured in the browser and not assumed.
   const imageData = (id: string): ImageData | null => {
     if (id.startsWith(`${ARROW_IMAGE}:`)) {
-      const family = id.slice(ARROW_IMAGE.length + 1);
-      return arrowImage(tokens.family[family as LinkFamily]);
+      const family = EVERY_FAMILY.find((one) => arrowImageOf(one) === id);
+      return family === undefined ? null : arrowImage(tokens.family[family]);
     }
     // A name no entity of this projection produced draws nothing. The image is built here at the
     // first request and kept by the library, so a corpus of one drawing costs one raster.
@@ -1431,7 +1431,7 @@ export function mountMap({
       hoverLabel.hidden = true;
       return;
     }
-    const words = JSON.stringify(card);
+    const words = [card.eyebrow, card.name, ...card.rows.flat()].join('|');
     if (words !== hoverWords) {
       hoverWords = words;
       clearTimeout(hoverTimer);
@@ -1455,7 +1455,9 @@ export function mountMap({
         const count = (projection.linksByEntity.get(entity.id) ?? []).length;
         // The echelon and the domain, for a reader who reads no military symbol; the borrowed
         // position says whose it is. An entity that recorded neither adds no row.
-        const extra = entity.symbol?.words ?? entity.positionFrom;
+        const extra = [entity.symbol?.words ?? null, entity.positionFrom]
+          .filter((one) => one !== null)
+          .join(' · ');
         nameHover(
           {
             type: entity.type,
@@ -1463,7 +1465,7 @@ export function mountMap({
             name: entity.label,
             rows: [
               ['Relations', String(count)],
-              ...(extra === null ? [] : [['Note', extra] as const]),
+              ...(extra === '' ? [] : [['Note', extra] as const]),
             ],
           },
           event.point,
@@ -1659,19 +1661,19 @@ export function mountMap({
         map.setPaintProperty(layerOfType(facet.type), 'circle-stroke-color', tokens.water);
         map.setPaintProperty(haloOfType(facet.type), 'circle-color', hueOf(facet));
         map.setPaintProperty(fillOfType(facet.type), 'fill-color', hueOf(facet));
-        map.setPaintProperty(casingOfType(facet.type), 'line-color', tokens.water);
+        map.setPaintProperty(casingOfType(facet.type), 'line-color', tokens.casing);
         map.setPaintProperty(outlineOfType(facet.type), 'line-color', hueOf(facet));
       }
       for (const family of EVERY_FAMILY) {
         map.setPaintProperty(`${LINK_LAYER}-${family}`, 'line-color', tokens.family[family]);
         map.setPaintProperty(`${ACTIVE_LINK_LAYER}-${family}`, 'line-color', tokens.family[family]);
       }
-      map.setPaintProperty(SELECTION_SHAPE_CASING, 'line-color', tokens.water);
+      map.setPaintProperty(SELECTION_SHAPE_CASING, 'line-color', tokens.casing);
       map.setPaintProperty(SELECTION_SHAPE_BAND, 'line-color', tokens.ring);
       map.setPaintProperty(SELECTION_LAYER, 'circle-color', tokens.ring);
       map.setPaintProperty(SELECTION_LAYER, 'circle-stroke-color', tokens.ring);
-      map.setPaintProperty(CHAIN_CASING_LAYER, 'line-color', tokens.water);
-      map.setPaintProperty(CHAIN_POINT_LAYER, 'circle-stroke-color', tokens.water);
+      map.setPaintProperty(CHAIN_CASING_LAYER, 'line-color', tokens.casing);
+      map.setPaintProperty(CHAIN_POINT_LAYER, 'circle-stroke-color', tokens.casing);
       // The registered rasters hold a colour, so each one is drawn again in place.
       for (const id of [...symbolVariants.keys(), ...EVERY_FAMILY.map(arrowImageOf)]) {
         const image = map.hasImage(id) ? imageData(id) : null;
