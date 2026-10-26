@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -11,14 +11,14 @@ import { Client } from 'pg';
 import { appAddress } from './address.ts';
 import type { SubCommand } from './command.ts';
 import type { Extraction } from './csv-set.ts';
-import { makeTextSet, type TextSetRequest } from './text-set.ts';
+import { imoListOf, makeTextSet, registeredImos, type TextSetRequest } from './text-set.ts';
 
 const USAGE =
   'Usage: pnpm worker text-set <document> (--sheet <name> | --layer <name>) ' +
   '[--where "<column>=<value>"], or pnpm worker text-set <document> --columns "<a>,<b>,..." ' +
-  '[--tag "<column>=<tag>"] [--equals "<column>=<value>"] [--skip <records>] [--extract "<name>=<column>:<pattern>"]. Add --dry-run to count the rows and write nothing. It keeps the rows of one sheet of a stored workbook, of one GeoJSON ' +
+  '[--tag "<column>=<tag>"] [--equals "<column>=<value>"] [--skip <records>] [--extract "<name>=<column>:<pattern>"] [--imo-in <file>]. Add --dry-run to count the rows and write nothing. It keeps the rows of one sheet of a stored workbook, of one GeoJSON ' +
   'layer of a stored zip archive, or of a stored CSV file with no header row (--columns names ' +
-  'the columns by position, --tag keeps the rows whose cell holds that whole tag, --equals keeps the rows whose cell is that value, and it may repeat, --skip drops the first records, such as a title line and the header, --extract adds a column cut from a column by a pattern with one capture group), as a named ' +
+  'the columns by position, --tag keeps the rows whose cell holds that whole tag, --equals keeps the rows whose cell is that value, and it may repeat, --skip drops the first records, such as a title line and the header, --extract adds a column cut from a column by a pattern with one capture group, --imo-in reads a file of IMO numbers, one on each line, and keeps the rows whose column "imo" holds a number that the register holds as a vessel), as a named ' +
   'text set of the document, and it prints the name of the set.';
 
 const pairOf = (text: string, option: string): { column: string; value: string } => {
@@ -39,7 +39,10 @@ const extractionOf = (text: string): Extraction => {
   };
 };
 
-export const requestOf = (args: readonly string[]): TextSetRequest => {
+/** The request of the arguments, and the file of IMO numbers that the request names, if any. */
+export const argsOf = (
+  args: readonly string[],
+): { readonly request: TextSetRequest; readonly imoIn?: string } => {
   const { values, positionals } = parseArgs({
     args: [...args],
     allowPositionals: true,
@@ -53,6 +56,7 @@ export const requestOf = (args: readonly string[]): TextSetRequest => {
       equals: { type: 'string', multiple: true },
       extract: { type: 'string', multiple: true },
       skip: { type: 'string' },
+      'imo-in': { type: 'string' },
     },
   });
   const [document] = positionals;
@@ -69,34 +73,44 @@ export const requestOf = (args: readonly string[]): TextSetRequest => {
       throw new Error('--skip is a count of records.');
     const skip = Number(values.skip ?? 0);
     if (!Number.isInteger(skip) || skip < 0) throw new Error('--skip is a count of records.');
+    if (values['imo-in'] === '') throw new Error('--imo-in is the path of a file.');
     return {
-      document,
-      ...(skip === 0 ? {} : { skip }),
-      columns: columns.split(',').map((name) => name.trim()),
-      ...(tag === undefined ? {} : { tag }),
-      ...(equals.length === 0 ? {} : { equals }),
-      ...(extract.length === 0 ? {} : { extract }),
+      request: {
+        document,
+        ...(skip === 0 ? {} : { skip }),
+        columns: columns.split(',').map((name) => name.trim()),
+        ...(tag === undefined ? {} : { tag }),
+        ...(equals.length === 0 ? {} : { equals }),
+        ...(extract.length === 0 ? {} : { extract }),
+      },
+      ...(values['imo-in'] === undefined ? {} : { imoIn: values['imo-in'] }),
     };
   }
   if (
     values.tag !== undefined ||
     values.equals !== undefined ||
     values.skip !== undefined ||
-    values.extract !== undefined
+    values.extract !== undefined ||
+    values['imo-in'] !== undefined
   )
-    throw new Error('--tag, --equals, --skip and --extract go with --columns.');
+    throw new Error('--tag, --equals, --skip, --extract and --imo-in go with --columns.');
   const filter = values.where === undefined ? undefined : pairOf(values.where, '--where');
   const base = { document, ...(filter === undefined ? {} : { filter }) };
-  return sheet !== undefined && sheet !== '' ? { ...base, sheet } : { ...base, layer: layer ?? '' };
+  return {
+    request:
+      sheet !== undefined && sheet !== '' ? { ...base, sheet } : { ...base, layer: layer ?? '' },
+  };
 };
+
+export const requestOf = (args: readonly string[]): TextSetRequest => argsOf(args).request;
 
 /** Makes the text set of one sheet or one layer. It gives 1 when the set cannot be made, and 2 for
  * a usage fault. */
 export const textSetCommand: SubCommand = async (args) => {
-  let request: TextSetRequest;
+  let parsed: ReturnType<typeof argsOf>;
   const dryRun = args.includes('--dry-run');
   try {
-    request = requestOf(args.filter((arg) => arg !== '--dry-run'));
+    parsed = argsOf(args.filter((arg) => arg !== '--dry-run'));
   } catch (error) {
     console.error(error instanceof Error ? error.message : 'The arguments are not usable.');
     console.error(USAGE);
@@ -108,6 +122,18 @@ export const textSetCommand: SubCommand = async (args) => {
   await client.connect();
   const folder = await mkdtemp(join(tmpdir(), 'gab-text-set-'));
   try {
+    const { request, imoIn } = parsed;
+    const imo =
+      imoIn === undefined
+        ? undefined
+        : await registeredImos(client, imoListOf(await readFile(imoIn, 'utf8')));
+    if (imo !== undefined)
+      console.log(
+        `${String(imo.held.length)} IMO numbers of the file are in the register as a vessel, ` +
+          `${String(imo.absent.length)} are not, ${String(imo.many)} of them find more than one vessel`,
+      );
+    if (imo?.held.length === 0)
+      throw new Error('No IMO number of the file is in the register: no text set is made.');
     const made = await makeTextSet(
       {
         db: client,
@@ -119,7 +145,7 @@ export const textSetCommand: SubCommand = async (args) => {
           return fileSource(path);
         },
       },
-      request,
+      imo === undefined ? request : { ...request, imo: imo.held },
       { dryRun },
     );
     console.log(

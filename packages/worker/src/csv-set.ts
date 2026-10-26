@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { csvOf, MAX_TABLE_CHARS, TABLE_READER, type TableFilter } from '@gab/text/xlsx';
 import { WorkbookFault, type ZipSource } from '@gab/text/zip';
 
@@ -46,13 +48,15 @@ export interface Extraction {
 }
 
 /** The name of a CSV set. The same columns and the same filters give the same name, and the
- * name holds the version of the reader. */
+ * name holds the version of the reader. The IMO numbers are named by their count and a digest, so
+ * a long list keeps the name short, and the same numbers in another order give the same name. */
 export const csvSetName = (
   columns: readonly string[],
   tag?: TableFilter,
   equals: readonly TableFilter[] = [],
   skip = 0,
   extract: readonly Extraction[] = [],
+  imos?: readonly string[],
 ): string =>
   `${TABLE_READER}|csv=${columns.join(',')}` +
   (skip > 0 ? `|skip=${String(skip)}` : '') +
@@ -64,7 +68,14 @@ export const csvSetName = (
   [...equals]
     .sort((a, b) => (a.column < b.column ? -1 : a.column > b.column ? 1 : 0))
     .map((filter) => `|equals=${filter.column}=${filter.value.trim()}`)
-    .join('');
+    .join('') +
+  (imos === undefined ? '' : imoPart(imos));
+
+const imoPart = (imos: readonly string[]): string => {
+  const unique = [...new Set(imos)].sort();
+  const digest = createHash('sha256').update(unique.join(',')).digest('hex').slice(0, 16);
+  return `|imo-in=${String(unique.length)}:${digest}`;
+};
 
 const CHUNK_BYTES = 1024 * 1024;
 
@@ -181,7 +192,8 @@ export async function* csvRecords(
  * the filters keep. The tag filter and each exact-value filter must hold. A cell is compared after
  * its spaces at both ends are cut. A row is padded or cut to the number of names of the file, and
  * each extraction adds a column at the end. A filter may name a new column. The first `skip`
- * records, such as a title line and the header, are dropped before the filters. */
+ * records, such as a title line and the header, are dropped before the filters. The IMO filter
+ * keeps the rows whose cell of the column `imo` is one of the given numbers. */
 export const headlessCsv = async (
   source: ZipSource,
   columns: readonly string[],
@@ -189,6 +201,7 @@ export const headlessCsv = async (
   equals: readonly TableFilter[] = [],
   skip = 0,
   extract: readonly Extraction[] = [],
+  imos?: readonly string[],
 ): Promise<string> => {
   if (!Number.isInteger(skip) || skip < 0) throw new WorkbookFault('skip is a count of records');
   if (columns.length === 0 || columns.some((name) => name.trim() === ''))
@@ -243,6 +256,10 @@ export const headlessCsv = async (
   const at = tag === undefined ? -1 : all.indexOf(tag.column);
   if (tag !== undefined && at === -1)
     throw new WorkbookFault(`the columns hold no column "${tag.column}"`);
+  const imoSet = imos === undefined ? undefined : new Set(imos.map((imo) => imo.trim()));
+  const imoAt = imoSet === undefined ? -1 : all.indexOf('imo');
+  if (imoSet !== undefined && imoAt === -1)
+    throw new WorkbookFault('the IMO filter needs a column "imo"');
 
   const rows: string[][] = [all];
   let chars = 0;
@@ -251,6 +268,12 @@ export const headlessCsv = async (
       tag !== undefined &&
       at < columns.length === base &&
       !tagsOf(row[at] ?? '').includes(tag.value)
+    )
+      return false;
+    if (
+      imoSet !== undefined &&
+      imoAt < columns.length === base &&
+      !imoSet.has((row[imoAt] ?? '').trim())
     )
       return false;
     return !exact.some(
