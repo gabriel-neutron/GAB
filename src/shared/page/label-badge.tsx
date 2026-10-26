@@ -9,7 +9,7 @@ export function LabelBadge({ label }: { readonly label: string }) {
   if (!REFERENCE.test(label)) return label;
   return (
     <span className="inline-block border border-dashed border-foreground px-1">
-      <span className="font-semibold">Reference dataset, not checked by GAB. </span>
+      <span className="font-medium">Reference dataset, not checked by GAB. </span>
       {label}
     </span>
   );

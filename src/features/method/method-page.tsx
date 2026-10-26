@@ -96,7 +96,7 @@ export function MethodPage({ manifest }: MethodPageProps) {
               <div className={`${PROSE} flex flex-col gap-2`}>
                 <p>{coverage.scope.covers}</p>
                 <p>{coverage.scope.excludes}</p>
-                <p className="font-semibold">{coverage.scope.absence}</p>
+                <p className="font-medium">{coverage.scope.absence}</p>
                 {coverage.byType.length === 0 ? null : (
                   <p className="text-label">
                     By type:{' '}

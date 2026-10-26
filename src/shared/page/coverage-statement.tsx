@@ -31,7 +31,7 @@ export function CoverageStatement({ coverage, release }: CoverageStatementProps)
       )}
       <p>{scope.covers}</p>
       <p>{scope.excludes}</p>
-      <p className="font-semibold">{scope.absence}</p>
+      <p className="font-medium">{scope.absence}</p>
     </div>
   );
 }

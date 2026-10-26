@@ -121,17 +121,16 @@ const ARROW_LAYER = 'link-arrow';
 const ARROW_IMAGE = 'link-arrow-head';
 
 // MapLibre parses the style itself, so a CSS custom property never reaches it and the colour must
-// be a hex. Measured against the `--background` theme variable, `#f5f7f8` light and `#070f10`
-// dark, this hue at full opacity gives a ratio of 3.55:1 on light and 5.08:1 on dark.
-const LINK_HUE = '#7b8489';
+// be a hex. Measured against the `--background` theme variable, `#eeeeee` light and `#101010`
+// dark, this hue at full opacity gives a ratio of 3.2:1 on light and 5.1:1 on dark.
+const LINK_HUE = '#8a8380';
 
 // The edge that keeps a point clear of the imagery under it. It is black on every ground, and not
 // a theme token: `--foreground` is near white in the dark theme and would read as a second mark.
 // A CSS custom property never reaches the style parser of MapLibre, so the hex is stated here.
 const POINT_OUTLINE = '#000000';
-// At 0.5 this hue over `#f5f7f8` gives a contrast ratio of 1.76:1, which is close to invisible.
-// At 0.8 it gives 2.63:1 on the light page and 3.64:1 on the dark page, and it stays quieter than
-// the 3.55:1 and 5.08:1 of the bright line.
+// At 0.5 this hue is close to invisible on the light page. At 0.8 it stays visible on both pages
+// and quieter than the bright line.
 const LINK_OPACITY = 0.8;
 const ACTIVE_LINK_OPACITY = 1;
 
@@ -149,7 +148,7 @@ const HIT_BOX = 5;
 // through and the outline carries the hue, so the shape reads on both grounds.
 const AREA_FILL_OPACITY = 0.2;
 const AREA_OUTLINE_WIDTH = 2;
-const ROUTE_CASING = '#0b1a1f';
+const ROUTE_CASING = '#101010';
 const ROUTE_CASING_WIDTH = 3.6;
 const ROUTE_CASING_OPACITY = 0.55;
 
@@ -190,7 +189,7 @@ const pulseOfProduct = (product: string): string => `chain-pulse-${product}`;
 // and the products are light ones, and a dark casing under each arc keeps an arc readable on the
 // light plan ground too.
 const CHAIN_CASING = '#000000';
-const CHAIN_IN_REVIEW = '#9aa3ad';
+const CHAIN_IN_REVIEW = '#b8b3b0';
 const CHAIN_PULSE = '#ffffff';
 const CHAIN_EXIT = STAGES.find((one) => one.key === 'exit')?.colour ?? CHAIN_IN_REVIEW;
 // The casing is a shade under the arc, and never a line of its own.

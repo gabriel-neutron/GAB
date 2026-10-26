@@ -52,11 +52,10 @@ interface GraphPalette {
 /** Which ground the canvas has. The light theme is on `:root`, the dark theme on `.dark`. */
 export type GraphGround = 'light' | 'dark';
 
-// Contrast against `--background` of the same ground, where the minimum is 3:1: `isolate` gives
-// 8.6:1 and 8.7:1, and `unplaced` gives 4.0:1 and 4.1:1. The `--border` hue gives 1.5:1 on the dark ground.
+// `isolate` is the `relation-ownership` token and `unplaced` is the `entity-unknown` token, as hex.
 const GRAPH_PALETTES: Readonly<Record<GraphGround, GraphPalette>> = Object.freeze({
-  light: Object.freeze({ isolate: '#42494c', unplaced: '#767b7e' }),
-  dark: Object.freeze({ isolate: '#a9afb1', unplaced: '#6e7679' }),
+  light: Object.freeze({ isolate: '#5a5552', unplaced: '#6b6562' }),
+  dark: Object.freeze({ isolate: '#b8b3b0', unplaced: '#8a8380' }),
 });
 
 const hexPair = (value: number): string => value.toString(16).padStart(2, '0');
@@ -76,8 +75,8 @@ export const dimmedColour = (colour: string, ground: string, fraction: number): 
 // The colour of the page as hex, copied from the `--background` theme variable. A CSS custom
 // property never reaches the Sigma parser.
 export const GROUND_HUE: Readonly<Record<GraphGround, string>> = Object.freeze({
-  light: '#f7f8f9',
-  dark: '#0b1013',
+  light: '#eeeeee',
+  dark: '#101010',
 });
 
 export interface GraphModel {

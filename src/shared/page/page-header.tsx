@@ -13,7 +13,7 @@ export function PageHeader({ title, detail, actions }: PageHeaderProps) {
   return (
     <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-border pb-3">
       <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="text-heading-sm font-semibold tracking-tight break-words">{title}</h1>
+        <h1 className="text-heading-sm tracking-tight break-words">{title}</h1>
         {detail === undefined ? null : <div className="text-xs/5 text-label">{detail}</div>}
       </div>
       {actions === undefined ? null : (

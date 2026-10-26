@@ -101,7 +101,7 @@ export function CriticalityMatrix({ release, title, links }: CriticalityMatrixPr
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs/5 text-label">
-        <strong className="font-semibold text-foreground">{`Table 1. ${title}.`}</strong>
+        <strong className="font-medium text-foreground">{`Table 1. ${title}.`}</strong>
       </p>
       <DataTable
         name={title}
