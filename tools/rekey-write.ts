@@ -216,18 +216,15 @@ type Item = Record<string, unknown>;
 // The propose tool takes 10 passages for an act.
 const MAX_EVIDENCE = 10;
 
-interface Cited {
-  readonly document: string;
-  readonly page: number;
-  readonly excerpt: string;
-}
-
 /** The passages of an act, each one once. A passage that the script found in a stored page comes
  * last and is kept always. */
-const passagesOf = (one: Act, more: readonly Passage[]): { all: Cited[]; forced: Set<number> } => {
-  const all: Cited[] = [];
+const passagesOf = (
+  one: Act,
+  more: readonly Passage[],
+): { all: Passage[]; forced: Set<number> } => {
+  const all: Passage[] = [];
   const forced = new Set<number>();
-  const add = (cited: Cited, force: boolean): void => {
+  const add = (cited: Passage, force: boolean): void => {
     const at = all.findIndex(
       (one) =>
         one.document === cited.document && one.page === cited.page && one.excerpt === cited.excerpt,
@@ -261,7 +258,7 @@ const needs = (one: Act, attrs: Attrs): string[] => [
  * that the script found, then for each kept value the first passage that carries it, then the first
  * of the others. Null when the passages that a value needs are more than 10: nothing that a kept
  * value needs is dropped. */
-export const evidenceFor = (one: Act, attrs: Attrs, more: readonly Passage[]): Item[] | null => {
+export const evidenceFor = (one: Act, attrs: Attrs, more: readonly Passage[]): Passage[] | null => {
   const { all, forced } = passagesOf(one, more);
   const chosen = new Set(forced);
   if (all.length > MAX_EVIDENCE) {
