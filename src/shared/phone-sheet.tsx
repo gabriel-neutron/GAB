@@ -7,10 +7,10 @@ import { returnPanelFocus } from '@/shared/panel-focus';
 // Two exports, one job: a card that is a column on a wide screen and a bottom sheet on a phone.
 // The class holds the phone half, and the control closes the card at every width. A phone has no
 // column to read the card in, so the card takes the foot of the screen over the map. A true
-// overlay may carry a shadow.
+// overlay carries a hairline edge and no shadow.
 export const PHONE_SHEET = cn(
   'max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-30 max-md:max-h-[60svh]',
-  'max-md:border-t max-md:border-border max-md:bg-background max-md:shadow-md',
+  'max-md:rounded-t-lg max-md:border-t max-md:border-border max-md:bg-surface',
 );
 
 interface SheetCloseProps {
@@ -24,7 +24,7 @@ interface SheetCloseProps {
  * focus back to the control that opened it. */
 export function SheetClose({ onClose, fallback }: SheetCloseProps) {
   return (
-    <div className="sticky top-0 z-10 flex justify-end border-b border-border bg-background p-1">
+    <div className="sticky top-0 z-10 flex justify-end border-b border-divider bg-surface p-2">
       <button
         type="button"
         onClick={(event) => {
@@ -35,9 +35,9 @@ export function SheetClose({ onClose, fallback }: SheetCloseProps) {
           returnPanelFocus(back);
         }}
         className={cn(
-          'flex h-6 items-center gap-1 border border-input bg-background px-1.5 text-small/4',
-          'transition-colors duration-100 hover:bg-muted',
-          'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
+          'flex h-6 items-center gap-1 rounded-sm border border-input px-2 font-mono text-caption uppercase text-label',
+          'transition-colors duration-150 hover:bg-surface-secondary hover:text-foreground',
+          'outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
         )}
       >
         <X size={14} aria-hidden="true" />

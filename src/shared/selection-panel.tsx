@@ -36,7 +36,7 @@ export function SelectionPanel({
         returnPanelFocus(fallback?.current ?? event.currentTarget);
       }}
       className={cn(
-        'min-h-0 min-w-0 overflow-y-auto overscroll-contain border-border',
+        'min-h-0 min-w-0 overflow-y-auto overscroll-contain border-border bg-surface',
         PHONE_SHEET,
         shown === null ? 'hidden' : null,
         className,
