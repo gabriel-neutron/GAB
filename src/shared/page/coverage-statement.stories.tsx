@@ -11,7 +11,7 @@ const meta = {
   args: { coverage, release: null },
   decorators: [
     (Story) => (
-      <div className="p-4 text-body">
+      <div className="p-4 text-body-sm">
         <Story />
       </div>
     ),

@@ -393,17 +393,17 @@ ON CONFLICT (codes, source_code) DO UPDATE SET system = EXCLUDED.system, code = 
 -- same band.
 -- >>> GENERATED entity_type
 INSERT INTO entity_type (key, label, colour_light, colour_dark, ord) VALUES
-  ('vessel',        'Vessel',        '#2971c6', '#70adfb',  10),
-  ('facility',      'Facility',      '#007989', '#00c2d2',  20),
-  ('company',       'Company',       '#007d50', '#53c48e',  30),
-  ('person',        'Person',        '#677000', '#a8b44b',  40),
-  ('military_unit', 'Military unit', '#8254c4', '#b7a0e4',  50),
-  ('port',          'Port',          '#a16100', '#df9b44',  60),
-  ('bank',          'Bank',          '#b53c7f', '#e887b6',  70),
-  ('state_body',    'State body',    '#bb4530', '#fa8c7a',  75),
-  ('legal_act',     'Legal act',     '#8b598e', '#e889ed',  80),
-  ('event',         'Event',         '#5c63c9', '#a3a8f5',  85),
-  ('unknown',       'Unknown',       '#6b7280', '#9ca3af', 900)
+  ('vessel',        'Vessel',        '#1e65aa', '#77b5fb',  10),
+  ('facility',      'Facility',      '#007a69', '#3fcab7',  20),
+  ('company',       'Company',       '#357426', '#87c47a',  30),
+  ('person',        'Person',        '#983f6b', '#eb90b9',  40),
+  ('military_unit', 'Military unit', '#a03f40', '#f4918e',  50),
+  ('port',          'Port',          '#007491', '#3bc4e0',  60),
+  ('bank',          'Bank',          '#825c00', '#d1ac4e',  70),
+  ('state_body',    'State body',    '#5d55a9', '#a9a6fa',  75),
+  ('legal_act',     'Legal act',     '#814893', '#d198e3',  80),
+  ('event',         'Event',         '#b8470d', '#ee6018',  85),
+  ('unknown',       'Unknown',       '#6b6562', '#8a8380', 900)
 ON CONFLICT (key) DO UPDATE SET
   label        = EXCLUDED.label,
   colour_light = EXCLUDED.colour_light,

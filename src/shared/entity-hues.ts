@@ -13,8 +13,8 @@ export const typeHues = (types: TypeVocabulary, theme: HueTheme): ReadonlyMap<st
 
 // The same job: what a canvas paints where the map above holds no hue. NOT A GREY — the seed
 // gives `unknown` a grey and that is a state, so a fault in the same grey would read as that
-// state. These are the two hues of `--dissent`, copied as hex, at 6.7:1 on their own ground.
+// state. These are the two hues of `--dissent`, copied as hex, on their own ground.
 export const UNDECLARED_HUE: Readonly<Record<HueTheme, string>> = Object.freeze({
-  light: '#ac1b18',
-  dark: '#f66e60',
+  light: '#a63a2a',
+  dark: '#ff8f80',
 });

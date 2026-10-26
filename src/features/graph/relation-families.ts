@@ -13,39 +13,38 @@ export interface FamilyLook {
   readonly hue: Readonly<Record<GraphGround, string>>;
 }
 
-// Contrast of each hue against the ground of the same theme, where the minimum is 3:1. The dark
-// set gives 5.5:1 to 9.3:1 on the dark ground, and the light set gives 4.3:1 to 6.1:1 on the light
-// ground. The dash pattern carries the difference alone where the hue cannot be told apart.
+// Each hue is the `relation-*` token of the design system, as hex. The dash pattern carries the
+// difference alone where the hue cannot be told apart.
 export const FAMILIES: readonly FamilyLook[] = [
   {
     key: 'ownership',
     label: 'Ownership',
     dash: [1, 0, 0, 0],
-    hue: { light: '#1f6fb2', dark: '#5aa9e6' },
+    hue: { light: '#5a5552', dark: '#b8b3b0' },
   },
   {
     key: 'designation',
     label: 'Designation',
     dash: [12, 5, 0, 0],
-    hue: { light: '#b45f06', dark: '#f0a04b' },
+    hue: { light: '#b8470d', dark: '#ee6018' },
   },
   {
     key: 'operation',
     label: 'Operation',
     dash: [5, 4, 0, 0],
-    hue: { light: '#0b7a5c', dark: '#4fc9a4' },
+    hue: { light: '#357426', dark: '#a0ca92' },
   },
   {
     key: 'transfer',
     label: 'Ship-to-ship transfer',
     dash: [12, 4, 2, 4],
-    hue: { light: '#7b3fb5', dark: '#c58af0' },
+    hue: { light: '#1e65aa', dark: '#77b5fb' },
   },
   {
     key: 'other',
     label: 'Other relations',
     dash: [2, 5, 0, 0],
-    hue: { light: '#5e6468', dark: '#848a8c' },
+    hue: { light: '#8a8380', dark: '#8a8380' },
   },
 ];
 

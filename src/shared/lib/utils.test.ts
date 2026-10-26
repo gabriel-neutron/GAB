@@ -10,8 +10,10 @@ describe('class names joined for one element', () => {
 
 describe('the reading scale beside a colour', () => {
   it('keeps each size of the reading scale', () => {
-    expect(cn('text-body', 'text-label')).toBe('text-body text-label');
-    expect(cn('text-section', 'text-foreground')).toBe('text-section text-foreground');
-    expect(cn('text-title', 'text-muted-foreground')).toBe('text-title text-muted-foreground');
+    expect(cn('text-body-sm', 'text-label')).toBe('text-body-sm text-label');
+    expect(cn('text-body', 'text-foreground')).toBe('text-body text-foreground');
+    expect(cn('text-heading-sm', 'text-muted-foreground')).toBe(
+      'text-heading-sm text-muted-foreground',
+    );
   });
 });
