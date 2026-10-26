@@ -34,7 +34,7 @@ const WORDS: WriteWords<{ readonly units: number }, About> = {
 
 const SAYS = 'The decision on a name';
 
-const HEAD = 'h-6 px-1.5 text-left align-bottom font-normal font-mono text-caption uppercase';
+const HEAD = 'h-8 px-1.5 text-left align-bottom font-normal font-mono text-caption uppercase';
 
 const CELL = 'px-1.5 py-1 align-top';
 

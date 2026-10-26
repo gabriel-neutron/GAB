@@ -33,7 +33,7 @@ export function LaneBar({ lane, counts, onLane }: LaneBarProps) {
             }}
             className={cn(
               CONTROL,
-              'h-6 flex-1 border px-2 text-body-sm',
+              'h-8 flex-1 border px-2 text-body-sm',
               list.lane === lane ? 'border-primary bg-muted text-foreground' : 'border-input',
             )}
           >

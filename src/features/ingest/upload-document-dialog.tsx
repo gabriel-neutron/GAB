@@ -27,7 +27,7 @@ const OVERLAY = 'fixed inset-0 z-50 bg-background/80';
 const PANEL =
   'fixed top-1/2 left-1/2 z-50 w-96 -translate-x-1/2 -translate-y-1/2 space-y-2 border border-border bg-popover p-2 text-popover-foreground ';
 
-const BOX = 'h-6 rounded-sm px-1.5 py-0 text-body-sm md:text-body-sm';
+const BOX = 'h-8 rounded-sm px-1.5 py-0 text-body-sm md:text-body-sm';
 // The kit has no native select. The `focus-visible` recipe is the kit's own, copied whole.
 const CHOOSER =
   'h-8 w-full min-w-0 rounded-sm border border-input bg-transparent px-1.5 text-body-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50';

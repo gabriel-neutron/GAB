@@ -23,7 +23,7 @@ const OVERLAY = 'fixed inset-0 z-50 bg-background/80';
 const PANEL =
   'fixed top-1/2 left-1/2 z-50 w-96 -translate-x-1/2 -translate-y-1/2 space-y-2 border border-border bg-popover p-2 text-popover-foreground ';
 
-const BOX = 'h-6 rounded-sm px-1.5 py-0 text-body-sm md:text-body-sm';
+const BOX = 'h-8 rounded-sm px-1.5 py-0 text-body-sm md:text-body-sm';
 const CAPTION = 'block font-mono text-caption text-label uppercase';
 const SENTENCE = 'block min-w-0 text-caption text-label';
 

@@ -26,7 +26,7 @@ interface EntityTableProps {
 // select all still reaches every filtered row.
 const PAGE = 100;
 
-const HEAD = 'h-7 px-1.5 text-left align-bottom font-normal font-mono text-caption uppercase';
+const HEAD = 'h-8 px-1.5 text-left align-bottom font-normal font-mono text-caption uppercase';
 const CELL = 'px-1.5 py-1.5 align-top break-words min-w-0';
 const FOCUS = 'outline-none focus-visible:ring-3 focus-visible:ring-ring/50';
 const TICK =

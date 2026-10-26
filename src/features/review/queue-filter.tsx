@@ -131,7 +131,7 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
         <Input
           id={`${ids}-name`}
           type="search"
-          className="h-6 min-w-0 flex-1 rounded-sm px-1.5 py-0 text-body-sm md:text-body-sm"
+          className="h-8 min-w-0 flex-1 rounded-sm px-1.5 py-0 text-body-sm md:text-body-sm"
           placeholder="Search by name"
           value={name}
           onChange={(event) => {

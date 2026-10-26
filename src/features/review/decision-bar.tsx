@@ -135,7 +135,7 @@ export function DecisionBar({ said, aimed, state, onAct }: DecisionBarProps) {
             </label>
             <Input
               id={`${ids}-note`}
-              className="h-6 min-w-40 flex-1 rounded-sm px-1.5 py-0 text-body-sm md:text-body-sm"
+              className="h-8 min-w-40 flex-1 rounded-sm px-1.5 py-0 text-body-sm md:text-body-sm"
               placeholder={reason === 'other' ? 'Note: why (required)' : 'Note (optional)'}
               value={note}
               disabled={busy}
