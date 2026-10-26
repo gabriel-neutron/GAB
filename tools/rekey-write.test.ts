@@ -11,6 +11,7 @@ const act = (id: string, change: Partial<Act> = {}): Act => ({
   targetId: null,
   names: [],
   originator: 'x',
+  dissent: false,
   cites: [cite('Deadweight 9000 t')],
   ...change,
 });

@@ -261,6 +261,20 @@ test('a second run finds nothing, and a group that was sent already is not sent 
   expect(done.third).toHaveLength(0);
 });
 
+test('a rejection that fails half way is reported, and a second run ends it', async () => {
+  const done = await rolledBack('superuser', async (ask) => {
+    const fixture = await plant(ask);
+    const real = doorsOfRole(ask);
+    const stop = () => Promise.reject(new Error('stop'));
+    const first = await apply(await groupOf(ask, fixture), { ...real, rejectUnit: stop });
+    const second = await apply(await groupOf(ask, fixture), real);
+    return { first, second, old: await stateOf(ask, [fixture.ship, fixture.between]) };
+  });
+  expect(done.first).toMatchObject({ status: 'refused', rejected: 2 });
+  expect(done.second.status).toBe('done');
+  expect(done.old.map((one) => one.status)).toStrictEqual(['rejected', 'rejected']);
+});
+
 test('a group with a number that the page does not label is held, and nothing is sent', async () => {
   const done = await rolledBack('superuser', async (ask) => {
     const fixture = await plant(ask, 'dwt_t', 'a tonnage of 115000 t');

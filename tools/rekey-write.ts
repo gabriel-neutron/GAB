@@ -37,6 +37,8 @@ export interface Act {
   readonly targetId: string | null;
   readonly names: readonly string[];
   readonly originator: string;
+  /** The act was disputed already: a value of it was not stated in the excerpt. */
+  readonly dissent: boolean;
   readonly cites: readonly Cite[];
 }
 
@@ -55,7 +57,8 @@ export interface Group {
 
 const attrsOf = (act: Act): Attrs => {
   const held = act.payload['attrs'];
-  return typeof held === 'object' && held !== null ? (held as Attrs) : {};
+  const parsed = z.record(z.string(), z.looseObject({ v: z.unknown() })).safeParse(held);
+  return parsed.success ? parsed.data : {};
 };
 
 const SUPPORTED = new Set(['create_entity', 'create_relation', 'update_entity', 'update_attrs']);
@@ -253,7 +256,7 @@ export interface Doors {
   send(
     items: readonly Item[],
   ): Promise<
-    | { readonly ok: true; readonly proposals: readonly { ref: string; proposalId: string }[] }
+    | { readonly ok: true; readonly proposals: z.output<typeof answer>['proposals'] }
     | { readonly ok: false; readonly refusal: string }
   >;
   /** How many of these acts wait. */
@@ -271,7 +274,14 @@ export interface Result {
 }
 
 const answer = z.object({
-  proposals: z.array(z.object({ ref: z.string(), proposalId: z.uuid() })),
+  proposals: z.array(
+    z.object({
+      ref: z.string(),
+      proposalId: z.uuid(),
+      unstated: z.array(z.string()),
+      droppedBounds: z.array(z.string()),
+    }),
+  ),
 });
 
 /** Sends the corrected acts of one group, and then rejects the old acts. */
@@ -286,10 +296,14 @@ export const apply = async (group: Group, doors: Doors): Promise<Result> => {
   if (group.held !== null) return stays('held', group.held);
   const { first, places, refs } = batchesOf(group);
   const fresh = new Map<string, string>();
+  const weak = new Set<string>();
   const give = async (items: Item[]): Promise<string | null> => {
     const sent = await doors.send(items);
     if (!sent.ok) return sent.refusal;
-    for (const one of sent.proposals) fresh.set(one.ref, one.proposalId);
+    for (const one of sent.proposals) {
+      fresh.set(one.ref, one.proposalId);
+      if (one.unstated.length > 0 || one.droppedBounds.length > 0) weak.add(one.ref);
+    }
     return null;
   };
   const refused = await give(first);
@@ -325,21 +339,40 @@ export const apply = async (group: Group, doors: Doors): Promise<Result> => {
   const ids = [...new Set(fresh.values())];
   if (second.length !== places.length || (await doors.waiting(ids)) !== ids.length)
     return stays('refused', 'a new act does not wait', sent);
-  // An act that the door returns with its old id is a repeat of itself: it stays.
+  // Each moved act has a new act, and an entity that is sent as it is comes back with its own id:
+  // else a rejection would leave no act, or the queue would hold a second copy.
+  if (group.moved.some((one) => newOf(one.id) === undefined))
+    return stays('refused', 'the door returned no new act for a moved act', sent);
+  if (group.pass.some((one) => newOf(one.id) !== one.id))
+    return stays('refused', 'an entity that is right came back as a new copy', sent);
+  // A new act that lost a date or a value that the old act held is weaker: the old act stays.
+  if (group.moved.some((one) => !one.dissent && weak.has(refs.get(one.id) ?? '')))
+    return stays('refused', 'a new act lost a date or a value that no excerpt states', sent);
   const old = group.moved.filter((one) => newOf(one.id) !== one.id);
   const note = (one: Act): string => `re-keyed: replaced by the act ${newOf(one.id) ?? ''}`;
   let rejected = 0;
-  // A relation that joined the unit of an entity is rejected on its own, before the entity.
-  for (const one of old.filter((act) => act.op === 'create_relation')) {
-    await doors.rejectRelation(one.id, note(one));
-    rejected += 1;
-  }
-  // A place goes with the unit of its entity.
-  for (const one of old.filter(
-    (act) => act.op !== 'create_relation' && act.op !== 'update_entity',
-  )) {
-    await doors.rejectUnit(one.id, note(one));
-    rejected += 1;
+  try {
+    // A relation that joined the unit of an entity is rejected on its own, before the entity.
+    for (const one of old.filter((act) => act.op === 'create_relation')) {
+      await doors.rejectRelation(one.id, note(one));
+      rejected += 1;
+    }
+    // A place goes with the unit of its entity.
+    for (const one of old.filter(
+      (act) => act.op !== 'create_relation' && act.op !== 'update_entity',
+    )) {
+      await doors.rejectUnit(one.id, note(one));
+      rejected += 1;
+    }
+  } catch (cause) {
+    // A second run sends the group again (the door writes nothing twice) and ends the rejection.
+    return {
+      key: group.key,
+      status: 'refused',
+      reason: `a rejection failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+      sent,
+      rejected,
+    };
   }
   return { key: group.key, status: 'done', sent, rejected };
 };
@@ -385,6 +418,7 @@ const actRow = z.strictObject({
   target_id: z.string().nullable(),
   names: z.array(z.string()),
   originator: z.string(),
+  dissent: z.boolean(),
   cites: z.array(
     z.object({
       document: z.string(),
@@ -398,7 +432,7 @@ const actRow = z.strictObject({
 // Every pending act, with the words of its cited spans. A citation of words read from an image has
 // no span and so no excerpt.
 const READ_ACTS = `SELECT p.id::text AS id, p.op, p.payload, p.target_id::text AS target_id,
-    p.names::text[] AS names, p.originator, coalesce(cs.cites, '[]'::json) AS cites
+    p.names::text[] AS names, p.originator, p.dissent, coalesce(cs.cites, '[]'::json) AS cites
   FROM public.proposals p
   LEFT JOIN LATERAL (
     SELECT json_agg(json_build_object('document', c.doc_id, 'page', c.page, 'modality', c.modality,
@@ -436,6 +470,7 @@ export const readGroups = async (reader: Session, keys: readonly string[]): Prom
       targetId: one.target_id,
       names: one.names,
       originator: one.originator,
+      dissent: one.dissent,
       cites: one.cites,
     })),
     record,
