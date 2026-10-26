@@ -34,9 +34,9 @@ describe('plan', () => {
   it('holds a list of former names with a placeholder, an IMO number or a part not on the page', () => {
     expect(plan(item({ former_name: { v: ['N/A', 'ALPHA'] } }, 'ALPHA N/A')).kind).toBe('hold');
     expect(plan(item({ former_name: { v: ['ALPHA'] } }, 'ALPHABET')).kind).toBe('hold');
-    expect(plan(item({ former_name: { v: 'IMO 9074729 / ALPHA' } }, 'IMO 9074729 ALPHA')).kind).toBe(
-      'hold',
-    );
+    expect(
+      plan(item({ former_name: { v: 'IMO 9074729 / ALPHA' } }, 'IMO 9074729 ALPHA')).kind,
+    ).toBe('hold');
     expect(plan(item({ former_name: { v: ['ALPHA'] } }, 'ex ALPHA')).kind).toBe('rekey');
   });
 
@@ -77,6 +77,8 @@ describe('report', () => {
     ]);
     expect(done.rekey).toBe(1);
     expect(done.keep).toBe(1);
-    expect(done.held.get('the excerpt does not give the number of dwt_t next to its label')).toBe(2);
+    expect(done.held.get('the excerpt does not give the number of dwt_t next to its label')).toBe(
+      2,
+    );
   });
 });
