@@ -12,7 +12,15 @@ import { propose } from '@gab/tools/propose';
 import { callTool, type Session } from '@gab/tools/tool';
 import { z } from 'zod';
 
-import { plan, type Attrs, type Plan } from './rekey-attributes.ts';
+import {
+  DRIFTED_KEYS,
+  DUPLICATE_HOLD,
+  plan,
+  valuesOf,
+  type Attrs,
+  type Passage,
+  type Plan,
+} from './rekey-attributes.ts';
 
 /** The party that the new acts name as the one who first stated them. */
 export const ORIGINATOR = 'script rekey-attributes';
@@ -27,6 +35,8 @@ export interface Cite {
   /** Null for words read from an image. */
   readonly excerpt: string | null;
   readonly modality: string;
+  /** The stored text of the page, read only for an act with a drifted key. */
+  readonly pageText?: string | null | undefined;
 }
 
 /** One pending act, as the database stores it. */
@@ -52,6 +62,8 @@ export interface Group {
   readonly pass: readonly Act[];
   /** The attributes of the drifted acts, with the canonical keys. */
   readonly attrs: ReadonlyMap<string, Attrs>;
+  /** The passages of the stored pages that a drifted act cites besides its own excerpts. */
+  readonly extra: ReadonlyMap<string, readonly Passage[]>;
   /** Why the group stays as it is, or null. */
   readonly held: string | null;
 }
@@ -85,6 +97,11 @@ export const groupsOf = (
       id: one.id,
       attrs: attrsOf(one),
       excerpts: one.cites.flatMap((cite) => (cite.excerpt === null ? [] : [cite.excerpt])),
+      pages: one.cites.flatMap((cite) =>
+        typeof cite.pageText !== 'string'
+          ? []
+          : [{ document: cite.document, page: cite.page, text: cite.pageText }],
+      ),
     });
     if (decided.kind !== 'keep') plans.set(one.id, decided);
   }
@@ -131,11 +148,15 @@ export const groupsOf = (
       const ids = new Set(moved.map((one) => one.id));
       const pass = new Map<string, Act>();
       const attrs = new Map<string, Attrs>();
+      const extra = new Map<string, readonly Passage[]>();
       const held = ((): string | null => {
         for (const one of moved) {
           const decided = plans.get(one.id);
           if (decided?.kind === 'hold') return decided.reason;
-          if (decided?.kind === 'rekey') attrs.set(one.id, decided.attrs);
+          if (decided?.kind === 'rekey') {
+            attrs.set(one.id, decided.attrs);
+            if (decided.extra !== undefined) extra.set(one.id, decided.extra);
+          }
           if (one.originator === null) return 'no originator';
           if (!SUPPORTED.has(one.op)) return `the act ${one.op} cannot be sent again`;
           if (one.op === 'update_attrs' && one.targetId !== null && byId.has(one.targetId))
@@ -150,7 +171,7 @@ export const groupsOf = (
             return 'a citation has no excerpt, or an excerpt that is too long';
           if (new Set(one.cites.map((cite) => cite.modality)).size > 1)
             return 'an act cites two modalities';
-          if (copies.has(one.id)) return 'the entity copies a duplicate identifier';
+          if (copies.has(one.id)) return DUPLICATE_HOLD;
           if (acts.some((other) => !ids.has(other.id) && other.names.includes(one.id)))
             return 'an act outside the group names a moved act';
           for (const end of endsOf(one)) {
@@ -161,7 +182,7 @@ export const groupsOf = (
               return 'a relation names a pending act that is no entity';
             if (waiting.originator === null) return 'no originator';
             if (plans.has(end)) return 'a relation names a drifted entity that is not in the group';
-            if (copies.has(end)) return 'the entity copies a duplicate identifier';
+            if (copies.has(end)) return DUPLICATE_HOLD;
             pass.set(end, waiting);
           }
         }
@@ -169,7 +190,7 @@ export const groupsOf = (
           ? `the group holds more than ${String(MAX_ITEMS)} acts`
           : null;
       })();
-      return { key: moved[0]?.id ?? '', moved, pass: [...pass.values()], attrs, held };
+      return { key: moved[0]?.id ?? '', moved, pass: [...pass.values()], attrs, extra, held };
     })
     .sort((a, b) => a.key.localeCompare(b.key));
 };
@@ -185,8 +206,10 @@ const strip = (attrs: Attrs): Record<string, { v: unknown }> =>
 
 type Item = Record<string, unknown>;
 
-const evidenceOf = (one: Act): Item[] =>
-  one.cites.map(({ document, page, excerpt }) => ({ document, page, excerpt }));
+const evidenceOf = (one: Act, more: readonly Passage[] = []): Item[] => [
+  ...one.cites.map(({ document, page, excerpt }) => ({ document, page, excerpt })),
+  ...more.map(({ document, page, excerpt }) => ({ document, page, excerpt })),
+];
 
 /** The first batch of a group, and the places that wait for the second. A relation names a new
  * entity by its ref. A place names it by its id, which is known after the first batch. */
@@ -210,7 +233,7 @@ export const batchesOf = (
     act,
     originator: group.pass.includes(one) ? storedOriginator(one) : ORIGINATOR,
     modality: one.cites[0]?.modality,
-    evidence: evidenceOf(one),
+    evidence: evidenceOf(one, group.extra.get(one.id)),
   });
   const named = (one: Act): Record<string, unknown> => {
     const attrs = strip(group.attrs.get(one.id) ?? attrsOf(one));
@@ -434,6 +457,7 @@ const actRow = z.strictObject({
       page: z.number(),
       excerpt: z.string().nullable(),
       modality: z.string(),
+      pageText: z.string().nullable().optional(),
     }),
   ),
 });
@@ -444,14 +468,21 @@ const READ_ACTS = `SELECT p.id::text AS id, p.op, p.payload, p.target_id::text A
     p.names::text[] AS names, p.originator, p.dissent, coalesce(cs.cites, '[]'::json) AS cites
   FROM public.proposals p
   LEFT JOIN LATERAL (
-    SELECT json_agg(json_build_object('document', c.doc_id, 'page', c.page, 'modality', c.modality,
-             'excerpt', CASE WHEN c.start IS NULL THEN NULL
-                             ELSE substr(t.text, c.start + 1, c."end" - c.start) END)
-           ORDER BY c.created_at, c.id) AS cites
-      FROM public.citation c
-      LEFT JOIN public.document_text t ON t.document_id = c.doc_id
-                                      AND t.extractor = c.text_extractor AND t.page = c.page
-     WHERE c.claim_id = p.id) cs ON true
+    -- The text of a page goes out once for an act with a drifted key, on its first citation.
+    SELECT json_agg(json_build_object('document', x.doc_id, 'page', x.page,
+             'modality', x.modality,
+             'excerpt', CASE WHEN x.start IS NULL THEN NULL
+                             ELSE substr(x.text, x.start + 1, x."end" - x.start) END,
+             'pageText', CASE WHEN x.first AND p.payload->'attrs' ?| $1::text[] THEN x.text END)
+           ORDER BY x.created_at, x.id) AS cites
+      FROM (SELECT c.id, c.doc_id, c.page, c.modality, c.start, c."end", c.created_at, t.text,
+                   row_number() OVER (PARTITION BY c.doc_id, c.page
+                                      ORDER BY c.created_at, c.id) = 1 AS first
+              FROM public.citation c
+              LEFT JOIN public.document_text t ON t.document_id = c.doc_id
+                                              AND t.extractor = c.text_extractor
+                                              AND t.page = c.page
+             WHERE c.claim_id = p.id) x) cs ON true
  WHERE p.status = 'pending'
  ORDER BY p.id`;
 
@@ -466,8 +497,12 @@ const recordRow = z.object({
 });
 
 /** The groups of the pending queue. `keys` are the unique identifier keys of the record. */
-export const readGroups = async (reader: Session, keys: readonly string[]): Promise<Group[]> => {
-  const acts = (await reader.query(READ_ACTS, [])).rows.map((one) => actRow.parse(one));
+export const readGroups = async (
+  reader: Session,
+  keys: readonly string[],
+  drifted: readonly string[],
+): Promise<Group[]> => {
+  const acts = (await reader.query(READ_ACTS, [[...drifted]])).rows.map((one) => actRow.parse(one));
   const record = (await reader.query(READ_RECORD, [[...keys]])).rows.map((one) =>
     recordRow.parse(one),
   );
@@ -485,3 +520,26 @@ export const readGroups = async (reader: Session, keys: readonly string[]): Prom
     record,
   );
 };
+
+/** For a group held because a deadweight is smaller than a gross tonnage: for each drifted act,
+ * the two values it proposes and the two numbers that its stored page writes after the labels. A
+ * person reads them. The script swaps nothing. */
+export const checkLines = (group: Group): string[] =>
+  group.moved.flatMap((one) => {
+    const attrs = attrsOf(one);
+    if (!Object.keys(attrs).some((key) => DRIFTED_KEYS.includes(key))) return [];
+    const { proposed, page } = valuesOf({
+      id: one.id,
+      attrs,
+      excerpts: [],
+      pages: one.cites.flatMap((cite) =>
+        typeof cite.pageText !== 'string'
+          ? []
+          : [{ document: cite.document, page: cite.page, text: cite.pageText }],
+      ),
+    });
+    const text = (value: unknown): string => (typeof value === 'number' ? String(value) : '-');
+    const show = (values: Readonly<Record<string, unknown>>): string =>
+      `dwt=${text(values['capacity_dwt'])} gt=${text(values['gross_tonnage_gt'])}`;
+    return [`check\t${one.id}\tproposed ${show(proposed)}\tpage ${show(page)}`];
+  });
