@@ -205,3 +205,36 @@ describe('former_names that a split would break', () => {
     expect(held('Foo (ex Bar)', 'Foo (ex Bar)')).toBe('rekey');
   });
 });
+
+describe('a plain number that was sent as a text', () => {
+  const run = (attrs: Item['attrs'], page: string) => plan(item(attrs, page));
+
+  it('becomes a number when the excerpt carries the text as written', () => {
+    expect(run({ build_year: { v: '2003' } }, 'Built in 2003.')).toMatchObject({
+      kind: 'rekey',
+      attrs: { build_year: { v: 2003 } },
+    });
+    expect(run({ length_m: { v: '12.50' } }, 'Length 12.50 m')).toMatchObject({
+      attrs: { length_m: { v: 12.5 } },
+    });
+    expect(run({ capacity_dwt: { v: '115000' } }, 'DWT 115000 t')).toMatchObject({
+      attrs: { capacity_dwt: { v: 115000 } },
+    });
+    expect(run({ dwt_t: { v: '115000' } }, 'DWT 115000 t')).toMatchObject({
+      attrs: { capacity_dwt: { v: 115000 } },
+    });
+  });
+
+  it('holds a text that is no plain number, and a number that the excerpt lacks', () => {
+    expect(run({ build_year: { v: '2003 г.' } }, 'Built 2003 г.').kind).toBe('hold');
+    expect(run({ length_m: { v: '12,5' } }, 'Length 12,5 m').kind).toBe('hold');
+    expect(run({ build_year: { v: '2003-2004' } }, 'Built 2003-2004').kind).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Built in 2004').kind).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Order 12003 built').kind).toBe('hold');
+    expect(run({ build_year: { v: '' } }, 'Built').kind).toBe('hold');
+  });
+
+  it('keeps a number as it is', () => {
+    expect(run({ build_year: { v: 2003 } }, 'Built 2003').kind).toBe('keep');
+  });
+});

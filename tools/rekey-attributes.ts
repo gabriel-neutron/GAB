@@ -172,11 +172,29 @@ const checkedNames = (given: string | readonly unknown[], page: string): string[
   return bad ? null : parts;
 };
 
+/** The keys whose value is a number in the record. */
+const NUMBER_KEYS: readonly string[] = [
+  'build_year',
+  'length_m',
+  'capacity_dwt',
+  'gross_tonnage_gt',
+];
+
+/** The keys that the plan reads when they hold a text. */
+export const TEXT_KEYS: readonly string[] = ['former_names', ...NUMBER_KEYS];
+
+const PLAIN_NUMBER = /^\d+(?:\.\d+)?$/u;
+
+/** The text stands in the page as a whole number: no digit, point or comma joins it to another. */
+const carries = (text: string, page: string): boolean =>
+  new RegExp(String.raw`(?<![\d.,])${escaped(text)}(?!\d|[.,]\d)`, 'u').test(page);
+
 export const plan = (item: Item): Plan => {
-  // A former_names that holds one text is a drifted key too: the key is the right one, the form is not.
+  // A key that holds a text where the record holds a list or a number is drifted too: the key is
+  // the right one, the form is not.
   const drifted = Object.keys(item.attrs).filter(
     (key) =>
-      VARIANTS.has(key) || (key === 'former_names' && typeof item.attrs[key]?.v === 'string'),
+      VARIANTS.has(key) || (TEXT_KEYS.includes(key) && typeof item.attrs[key]?.v === 'string'),
   );
   if (drifted.length === 0) return { kind: 'keep' };
   const page = item.excerpts.join('\n');
@@ -187,7 +205,18 @@ export const plan = (item: Item): Plan => {
   for (const [key, held] of Object.entries(item.attrs)) {
     const canonical = VARIANTS.get(key) ?? key;
     let value = held.v;
+    // A plain number that was sent as a text becomes a number. The text itself must stand in the
+    // excerpt. Any other text is held: nothing is guessed (a unit, a separator, a range).
+    let written: string | null = null;
+    if (typeof value === 'string' && NUMBER_KEYS.includes(canonical)) {
+      const text = value.trim();
+      if (!PLAIN_NUMBER.test(text)) return hold(`the text of ${key} is not a plain number`);
+      written = text;
+      value = Number(text);
+    }
     const label = canonical !== key ? LABEL[canonical] : undefined;
+    if (label === undefined && written !== null && !carries(written, page))
+      return hold(`the excerpt does not carry the number of ${key}`);
     if (label !== undefined) {
       const unclear = hold(`the excerpt does not give the number of ${key} next to its label`);
       if (typeof value !== 'number') return unclear;
@@ -274,7 +303,8 @@ export const READ = `SELECT p.id::text AS id, p.payload->'attrs' AS attrs,
                                  AND t.extractor = x.text_extractor AND t.page = x.page) pg ON true
  WHERE p.status = 'pending'
    AND (p.payload->'attrs' ?| $1::text[]
-        OR jsonb_typeof(p.payload->'attrs'->'former_names'->'v') = 'string')
+        OR EXISTS (SELECT 1 FROM unnest($2::text[]) k(key)
+                    WHERE jsonb_typeof(p.payload->'attrs'->k.key->'v') = 'string'))
  ORDER BY p.id`;
 
 const limitOf = (): number => {
@@ -292,7 +322,7 @@ const main = async (): Promise<number> => {
   // The research role proposes. The dry run never opens it.
   const writer = new Pool({ connectionString: connectionString('research') });
   try {
-    const found = await pool.query(READ, [[...VARIANTS.keys()]]);
+    const found = await pool.query(READ, [[...VARIANTS.keys()], [...TEXT_KEYS]]);
     const { rekey, keep, held } = report(found.rows.map((one) => row.parse(one)));
     console.log(
       `${write ? 'write' : 'dry run'}: ${String(rekey)} to re-key, ${String(keep)} unchanged`,

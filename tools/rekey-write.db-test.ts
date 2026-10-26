@@ -9,7 +9,7 @@ import { callTool, type Session } from '@gab/tools/tool';
 import { propose } from '@gab/tools/propose';
 
 import { rolledBack, type Ask } from './probe.ts';
-import { DRIFTED_KEYS, READ } from './rekey-attributes.ts';
+import { DRIFTED_KEYS, READ, TEXT_KEYS } from './rekey-attributes.ts';
 import { apply, doorsOf, readGroups, type Doors, type Group } from './rekey-write.ts';
 
 const SHA = 'c'.repeat(64);
@@ -331,7 +331,10 @@ test('a refusal of the door leaves the old acts as they are', async () => {
 test('the read of the dry run gives each cited page once', async () => {
   const rows = await rolledBack('superuser', async (ask) => {
     const fixture = await plant(ask);
-    const found = await sessionAs(ask, 'gabriel_app').query(READ, [[...DRIFTED_KEYS]]);
+    const found = await sessionAs(ask, 'gabriel_app').query(READ, [
+      [...DRIFTED_KEYS],
+      [...TEXT_KEYS],
+    ]);
     return found.rows.filter((one) => (one as { id: string }).id === fixture.ship);
   });
   expect(rows).toHaveLength(1);
