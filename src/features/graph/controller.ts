@@ -2,23 +2,21 @@ import { canvasTheme, observeCanvasTheme } from '@/shared/canvas-theme';
 import Sigma from 'sigma';
 import type { Coordinates, EdgeDisplayData, NodeDisplayData } from 'sigma/types';
 
-import {
-  CANVAS_LABEL_CLASS,
-  canvasLabelTransform,
-  entityLines,
-  relationLines,
-} from '@/shared/canvas-label';
+import { canvasLabelTransform } from '@/shared/canvas-label';
 import type { Corpus, EntityPosition, TypeVocabulary } from '@/shared/read/model';
 import { relationWording } from '@/shared/relation-words';
 import { foldEveryUnit } from '@/shared/unit-folds';
 
 import { createDashedArrowProgram } from './dashed-edge-program';
+import { glyphSvg } from './glyph-svg';
+import { GLYPHS } from './glyphs';
+import { createGlyphProgram, setGround } from './glyph-node-program';
 import { FARTHEST_RATIO, NEAREST_RATIO, restorableCamera } from './camera-bounds';
 import { edgeRing, hopDistances } from './hop-distance';
 import {
   buildGraphModel,
   dimmedColour,
-  GROUND_HUE,
+  groundHue,
   type EdgeAttrs,
   type GraphGround,
   type GraphModel,
@@ -26,7 +24,7 @@ import {
   type NodePosition,
 } from './model';
 import { graphPositions } from './positions';
-import { FAMILIES } from './relation-families';
+import { FAMILIES, lookOf } from './relation-families';
 import { type RelationFilterState } from './relation-filter';
 import { readSelectionAddress, writeSelectionAddress, type GraphSelection } from './selection';
 import { countShown, type ShownCounts } from './shown-counts';
@@ -74,6 +72,8 @@ export interface GraphController {
   readonly setRailWidth: (width: number) => void;
   /** Ends the selection, as a click on the ground does. The camera stays. */
   readonly clearSelection: () => void;
+  /** Zooms the camera one step, in or out. */
+  readonly zoom: (direction: 'in' | 'out') => void;
   readonly subscribe: (listener: (view: GraphView) => void) => () => void;
   /** The selection alone. A fold of the rail publishes a view and calls no listener of this. */
   readonly onSelect: (listener: (selection: GraphSelection | null) => void) => () => void;
@@ -100,25 +100,21 @@ const NAME_CAP = 15;
 // The space between a node and its name, beside the radius of the node, in pixels.
 const NAME_OFFSET = 4;
 
-const NAME_CLASS =
-  'pointer-events-none absolute top-0 left-0 max-w-48 truncate bg-background px-1 text-xs text-foreground';
-
-// A neighbour one hop from the selection draws this much larger than its own size. Origin:
-// invented. It must read as larger, and it must not cover the nodes around it.
-const NEAR_SIZE = 1.8;
+// The selection is named at 14px in `foreground`, and a one-hop neighbour at 12px in
+// `muted-foreground`.
+const NAME_CLASS = 'pointer-events-none absolute top-0 left-0 max-w-48 truncate px-1 ';
+const SELECTED_NAME = `${NAME_CLASS} text-body-sm text-foreground`;
+const NEIGHBOUR_NAME = `${NAME_CLASS} text-caption text-muted-foreground`;
 
 // A selection never takes the camera nearer than this ratio, so a node with no neighbour keeps
 // the graph around it in view. Origin: invented, a quarter of the whole picture.
 const SELECT_RATIO = 0.25;
 
-// The dim keeps this much of the colour. A node out of the two rings of a selection stays on the
-// canvas as a trace, so the rings stand out at a glance. Origin: tuned on a screen against the
-// dense graph, where a dim of 0.45 left the selection hard to find.
-const DIM_ALPHA: Readonly<Record<GraphGround, number>> = { light: 0.15, dark: 0.2 };
-
-// The ring at two steps keeps this much of the colour: the dim measured against the two theme
-// grounds, which reads at about 1.9:1 on light and 2.3:1 on dark, against 4.9:1 and 6.7:1 lit.
-const FAINT_ALPHA: Readonly<Record<GraphGround, number>> = { light: 0.45, dark: 0.4 };
+// The dim keeps this much of the colour, from the design system: a node outside the selection and
+// its first ring keeps 30%, a relation 25%. The colour is mixed with the ground and the hue never
+// changes. The mix is opaque, because the relations are drawn under the nodes.
+const DIM_NODE = 0.3;
+const DIM_EDGE = 0.25;
 
 // The camera of Sigma reports `updated` on every frame of a pan, and a `localStorage` write on
 // every frame blocks the main thread. So the store is a trailing wait, and `destroy` writes the
@@ -138,17 +134,23 @@ const LAYER_CLASS = 'pointer-events-none absolute inset-0 overflow-hidden';
 const MARKER_CLASS =
   'pointer-events-none absolute top-0 left-0 size-2 rounded-none border border-background bg-candidate';
 
+// The hover card of the design system: `surface`, a 1px `border`, `radius-sm`, the hairline.
+const CARD_CLASS = [
+  'pointer-events-none absolute top-0 left-0 z-10 flex w-70 flex-col gap-1 rounded-sm',
+  'border border-border bg-surface p-2 text-foreground shadow-hairline',
+].join(' ');
+const CARD_DELAY_MS = 120;
+
 // A fixed offset, and not a fraction of the radius: a hub of two thousand relations would push
 // its badge far out into the picture, and a leaf would keep the badge on top of itself.
 const MARKER_OFFSET = 7;
 
 // The ring is never drawn with the `highlighted` flag of Sigma: that flag makes the library draw
 // its own hover card, in colours that no token of this repository reaches.
-const RING_CLASS =
-  'pointer-events-none absolute top-0 left-0 rounded-full border-2 border-foreground';
+const RING_CLASS = 'pointer-events-none absolute top-0 left-0 rounded-full border-2 border-ring';
 
-/** How much larger the ring is than the node it names, in pixels of diameter. */
-const RING_MARGIN = 6;
+/** How much larger the ring is than the node it names, in pixels of diameter: 6px outside. */
+const RING_MARGIN = 12;
 
 /** The diameter of the ring that names a selected relation, in pixels. A relation has no radius. */
 const RING_ON_RELATION = 12;
@@ -259,20 +261,32 @@ export function mountGraph(
 
   // The hover is not on the view and it never publishes: a hover changes as fast as the pointer
   // moves, and a publish on each one would run every subscriber of this handle at that rate.
-  let hovered: { readonly id: string; readonly lines: readonly string[] } | null = null;
+  interface HoverCard {
+    readonly id: string;
+    /** The type of an entity, for the glyph, or `null` for a relation. */
+    readonly type: string | null;
+    readonly eyebrow: string;
+    readonly name: string;
+    /** Two rows at most: a key and its value. */
+    readonly rows: readonly (readonly [string, string])[];
+  }
+  let hovered: HoverCard | null = null;
 
   // A reducer runs for each element on each frame, so a dimmed colour is computed one time.
   const dimCache = new Map<string, string>();
-  const faintCache = new Map<string, string>();
+  const dimEdgeCache = new Map<string, string>();
+  // The page colour as hex, read from the token of the theme in force.
+  let groundColour = groundHue(ground);
+  setGround(groundColour);
   const mixOf = (cache: Map<string, string>, colour: string, alpha: number): string => {
     const held = cache.get(colour);
     if (held !== undefined) return held;
-    const made = dimmedColour(colour, GROUND_HUE[ground], alpha);
+    const made = dimmedColour(colour, groundColour, alpha);
     cache.set(colour, made);
     return made;
   };
-  const dimOf = (colour: string): string => mixOf(dimCache, colour, DIM_ALPHA[ground]);
-  const faintOf = (colour: string): string => mixOf(faintCache, colour, FAINT_ALPHA[ground]);
+  const dimOf = (colour: string): string => mixOf(dimCache, colour, DIM_NODE);
+  const dimEdgeOf = (colour: string): string => mixOf(dimEdgeCache, colour, DIM_EDGE);
 
   // The test is on the dim of the filter, and not on the dim of a selection. The two hops of a
   // selection dim as well, and they must not stop a click on a node on the other side.
@@ -326,10 +340,11 @@ export function mountGraph(
           one.localeCompare(two),
       )
       .slice(0, NAME_CAP);
-    sizeLabelPool(names, shownNames.length, NAME_CLASS);
+    sizeLabelPool(names, shownNames.length, NEIGHBOUR_NAME);
     shownNames.forEach((node, index) => {
       const element = names[index];
       if (element === undefined) return;
+      element.className = hopOf.get(node) === 0 ? SELECTED_NAME : NEIGHBOUR_NAME;
       const label = model.graph.getNodeAttribute(node, 'label');
       element.textContent = label;
       element.title = label;
@@ -407,6 +422,12 @@ export function mountGraph(
     // Sigma reads the edge program from the `type` of an edge, and this default reaches every
     // edge that states none, so no edge datum and no reducer below changes.
     defaultEdgeType: 'other',
+    // One node program for each glyph, and the `type` of a node names it. The shape carries the
+    // type of the entity, and the hue confirms it.
+    defaultNodeType: 'unknown',
+    nodeProgramClasses: Object.fromEntries(
+      Object.keys(GLYPHS).map((key) => [key, createGlyphProgram(key)]),
+    ),
     // One program for each family, and the `type` of an edge names it. The programs differ by
     // the dash pattern alone, so the difference of the families also works without colour.
     edgeProgramClasses: Object.fromEntries(
@@ -420,7 +441,7 @@ export function mountGraph(
 
     // Departure: at 10 the band was 10px, and on a corpus of three thousand entities the edges
     // and their arrows covered the nodes. A relation is also reachable from its two nodes.
-    minEdgeThickness: 2,
+    minEdgeThickness: 1,
 
     // The workspace carries `x`, `y` and `ratio`, and no angle. A rotation that the store
     // cannot carry would be lost at the reload, and the analyst would meet a picture that is not
@@ -444,9 +465,9 @@ export function mountGraph(
       if (litNodes.has(node)) {
         const hop = hopOf.get(node);
         // The ring at two steps can hold most of the graph, through a legal act that lists
-        // hundreds of entities. So it takes the faint colour, and the direct neighbours stand out.
-        if (hop === 2) return { ...data, color: faintOf(data.color), zIndex: 1 };
-        if (hop === 1) return { ...data, size: data.size * NEAR_SIZE, zIndex: 2 };
+        // hundreds of entities. So it dims as the rest does, and the direct neighbours stand out.
+        if (hop === 2) return { ...data, color: dimOf(data.color), zIndex: 1 };
+        if (hop === 1) return { ...data, zIndex: 2 };
         return { ...data, zIndex: hop === 0 ? 3 : 0 };
       }
       // A type that the filter puts out leaves the picture. A selection only dims the rest.
@@ -464,8 +485,15 @@ export function mountGraph(
       ) {
         return { ...data, hidden: true, label: null };
       }
-      if (faintEdges.has(edge)) return { ...data, color: faintOf(data.color) };
-      if (litEdges.has(edge)) return { ...data };
+      if (faintEdges.has(edge)) return { ...data, color: dimEdgeOf(data.color) };
+      // 2px where the edge touches the selection, 1px at rest.
+      if (litEdges.has(edge)) {
+        const touches =
+          (selection?.kind === 'relation' && selection.id === edge) ||
+          hopOf.get(model.graph.source(edge)) === 0 ||
+          hopOf.get(model.graph.target(edge)) === 0;
+        return { ...data, size: touches && hopOf.size > 0 ? 2 : 1 };
+      }
       // A line whose end the filter puts out has nothing to join.
       if (
         model.graph
@@ -474,7 +502,7 @@ export function mountGraph(
       ) {
         return { ...data, hidden: true, label: null };
       }
-      return { ...data, color: dimOf(data.color), label: null };
+      return { ...data, color: dimEdgeOf(data.color), label: null };
     },
   });
 
@@ -496,7 +524,7 @@ export function mountGraph(
   layer.append(ring);
 
   const hoverLabel = document.createElement('div');
-  hoverLabel.className = CANVAS_LABEL_CLASS;
+  hoverLabel.className = CARD_CLASS;
   hoverLabel.hidden = true;
   layer.append(hoverLabel);
   overlay.append(layer);
@@ -624,7 +652,10 @@ export function mountGraph(
           y < -OVERLAY_MARGIN ||
           x > width + OVERLAY_MARGIN ||
           y > height + OVERLAY_MARGIN;
-        hoverLabel.style.transform = canvasLabelTransform(x, y);
+        // The card is 280px wide and stays inside the canvas, or its values are cut off.
+        const half = hoverLabel.offsetWidth / 2;
+        const inside = Math.min(Math.max(x, half + 8), Math.max(width - half - 8, half + 8));
+        hoverLabel.style.transform = canvasLabelTransform(inside, y);
       }
     }
 
@@ -843,54 +874,99 @@ export function mountGraph(
     settle(null);
   });
 
-  // A relation has no name of its own, so it is named by its type and its two ends.
-  const nameHover = (next: { id: string; lines: readonly string[] } | null): void => {
-    if (destroyed) return;
-    hovered = next;
-    // One element per line, so each one truncates on its own — a relation takes three.
-    hoverLabel.replaceChildren(
-      ...(next?.lines ?? []).map((line) => {
-        const row = document.createElement('span');
-        row.textContent = line;
-        return row;
-      }),
-    );
-    if (next === null) hoverLabel.hidden = true;
-    // The label is placed on the next frame, with the ring and the markers, so one loop owns
-    // every element over this canvas.
-    sigma.refresh();
+  // The card opens after 120ms of hover and closes at once. A click opens the detail panel.
+  let cardTimer: number | null = null;
+  const stopCardTimer = (): void => {
+    if (cardTimer !== null) window.clearTimeout(cardTimer);
+    cardTimer = null;
   };
 
-  // **The name carries the count of relations.** This canvas sizes a node by its degree,
-  // and a size alone is unreadable to a reader who cannot compare two discs. The words the hue
-  // owes a reader live in the rail; the words the radius owes one live here.
-  const nodeLines = (node: string): readonly string[] => {
-    const lines = entityLines(
-      model.graph.getNodeAttribute(node, 'label'),
-      model.graph.getNodeAttribute(node, 'degree'),
-    );
+  const fillCard = (card: HoverCard): void => {
+    const eyebrow = document.createElement('div');
+    eyebrow.className = 'flex items-center gap-1.5 text-caption tracking-caps text-label uppercase';
+    if (card.type !== null) {
+      eyebrow.append(glyphSvg(card.type, model.hueOfType.get(card.type) ?? 'currentColor'));
+    }
+    const eyebrowText = document.createElement('span');
+    eyebrowText.className = 'truncate';
+    eyebrowText.textContent = card.eyebrow;
+    eyebrow.append(eyebrowText);
+    const name = document.createElement('div');
+    name.className = 'truncate text-body-sm';
+    name.textContent = card.name;
+    const rows = card.rows.map(([key, value]) => {
+      const row = document.createElement('div');
+      row.className = 'flex justify-between gap-2 text-data';
+      const keyElement = document.createElement('span');
+      keyElement.className = 'text-muted-foreground';
+      keyElement.textContent = key;
+      const valueElement = document.createElement('span');
+      valueElement.className = 'truncate font-mono';
+      valueElement.textContent = value;
+      row.append(keyElement, valueElement);
+      return row;
+    });
+    hoverLabel.replaceChildren(eyebrow, name, ...rows);
+  };
+
+  const nameHover = (next: HoverCard | null): void => {
+    if (destroyed) return;
+    stopCardTimer();
+    hovered = null;
+    hoverLabel.hidden = true;
+    if (next === null) return;
+    cardTimer = window.setTimeout(() => {
+      cardTimer = null;
+      if (destroyed) return;
+      fillCard(next);
+      hovered = next;
+      // The card is placed on the next frame, with the ring and the markers, so one loop owns
+      // every element over this canvas.
+      sigma.refresh();
+    }, CARD_DELAY_MS);
+  };
+
+  // The count of relations states what the size alone cannot: a reader cannot compare two discs.
+  const nodeCard = (node: string): HoverCard => {
+    const attrs = model.graph.getNodeAttributes(node);
     const subordinates = hierarchy.subordinatesOf(node).length;
-    if (subordinates === 0) return lines;
-    return [...lines, subordinates === 1 ? '1 subordinate' : `${subordinates} subordinates`];
+    return {
+      id: node,
+      type: attrs.type,
+      eyebrow: model.labelOfType(attrs.entityType),
+      name: attrs.label,
+      rows: [
+        ['Relations', String(attrs.degree)],
+        ...(subordinates === 0 ? [] : [['Subordinates', String(subordinates)] as const]),
+      ],
+    };
   };
 
   sigma.on('enterNode', ({ node }) => {
     if (!nodeConsidered(node)) return;
-    nameHover({ id: node, lines: nodeLines(node) });
+    nameHover(nodeCard(node));
   });
   sigma.on('leaveNode', ({ node }) => {
-    if (hovered?.id === node) nameHover(null);
+    if (hovered?.id === node || cardTimer !== null) nameHover(null);
   });
 
+  // A relation has no name of its own, so it is named by its type and its two ends.
   sigma.on('enterEdge', ({ edge }) => {
     if (!edgeConsidered(edge)) return;
     const from = model.graph.getNodeAttribute(model.graph.source(edge), 'label');
     const to = model.graph.getNodeAttribute(model.graph.target(edge), 'label');
     const type = model.graph.getEdgeAttribute(edge, 'relationType');
-    nameHover({ id: edge, lines: relationLines(from, wordsOf(type).label, to) });
+    const family = model.graph.getEdgeAttribute(edge, 'type');
+    nameHover({
+      id: edge,
+      type: null,
+      eyebrow: wordsOf(type).label,
+      name: `${from} → ${to}`,
+      rows: [['Family', lookOf(family).label]],
+    });
   });
   sigma.on('leaveEdge', ({ edge }) => {
-    if (hovered?.id === edge) nameHover(null);
+    if (hovered?.id === edge || cardTimer !== null) nameHover(null);
   });
 
   // Each member does nothing after `destroy`: a call into a killed Sigma throws, and a write to
@@ -898,7 +974,9 @@ export function mountGraph(
   const stopTheme = observeCanvasTheme((next) => {
     ground = next;
     dimCache.clear();
-    faintCache.clear();
+    dimEdgeCache.clear();
+    groundColour = groundHue(next);
+    setGround(groundColour);
     model.setGround(next);
     sigma.refresh();
     publish();
@@ -969,6 +1047,16 @@ export function mountGraph(
       if (destroyed) return;
       settle(null);
     },
+    zoom: (direction) => {
+      if (destroyed) return;
+      const state = camera.getState();
+      const ratio = state.ratio * (direction === 'in' ? 0.5 : 2);
+      moveCamera({
+        x: state.x,
+        y: state.y,
+        ratio: Math.min(FARTHEST_RATIO, Math.max(NEAREST_RATIO, ratio)),
+      });
+    },
     subscribe: (listener) => {
       if (destroyed) return NO_OP;
       listeners.add(listener);
@@ -995,6 +1083,7 @@ export function mountGraph(
         storeCamera();
       }
       destroyed = true;
+      stopCardTimer();
       sizeObserver.disconnect();
       stopTheme();
       camera.off('updated', onCameraUpdated);

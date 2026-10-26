@@ -17,7 +17,7 @@ export function MarkerMeter({ drawn, hidden }: MarkerMeterProps) {
       role="status"
       title={`${String(hidden)} markers not drawn`}
       className={cn(
-        'pointer-events-auto absolute right-2 bottom-2 z-10 flex h-6 items-center gap-1.5',
+        'pointer-events-auto absolute right-2 bottom-20 z-10 flex h-6 items-center gap-1.5',
         'border border-border bg-background px-1.5 text-small/4',
       )}
     >

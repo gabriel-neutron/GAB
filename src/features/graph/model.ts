@@ -9,6 +9,7 @@ import { unitHierarchy, type UnitHierarchy } from '@/shared/fold-subordinates';
 import { typeLabel } from '@/shared/type-label';
 import type { Corpus, Proposal, Relation, TypeVocabulary } from '@/shared/read/model';
 
+import { GLYPHS } from './glyphs';
 import { familyOf, lookOf, type RelationFamily } from './relation-families';
 import { analyseStructure, topologyOf } from './structure';
 
@@ -25,6 +26,10 @@ export interface NodeAttrs {
   readonly color: string;
   readonly label: string;
   readonly entityType: string;
+  /** The key of the node program, which is the glyph of the type. Sigma reads it by this name. */
+  readonly type: string;
+  /** A candidate draws hollow, and promoted evidence draws filled. */
+  readonly candidate: boolean;
   readonly degree: number;
   readonly isolate: boolean;
   /** The layout run gave it no place, and it stands on the ring. */
@@ -53,9 +58,14 @@ interface GraphPalette {
 export type GraphGround = 'light' | 'dark';
 
 // `isolate` is the `relation-ownership` token and `unplaced` is the `entity-unknown` token, as hex.
-const GRAPH_PALETTES: Readonly<Record<GraphGround, GraphPalette>> = Object.freeze({
+const PALETTE_FALLBACK: Readonly<Record<GraphGround, GraphPalette>> = Object.freeze({
   light: Object.freeze({ isolate: '#5a5552', unplaced: '#6b6562' }),
   dark: Object.freeze({ isolate: '#b8b3b0', unplaced: '#8a8380' }),
+});
+
+const paletteOf = (ground: GraphGround): GraphPalette => ({
+  isolate: tokenHex('--relation-ownership', PALETTE_FALLBACK[ground].isolate),
+  unplaced: tokenHex('--entity-unknown', PALETTE_FALLBACK[ground].unplaced),
 });
 
 const hexPair = (value: number): string => value.toString(16).padStart(2, '0');
@@ -72,12 +82,36 @@ export const dimmedColour = (colour: string, ground: string, fraction: number): 
   return `#${hexPair(mix(16))}${hexPair(mix(8))}${hexPair(mix(0))}`;
 };
 
-// The colour of the page as hex, copied from the `--background` theme variable. A CSS custom
-// property never reaches the Sigma parser.
-export const GROUND_HUE: Readonly<Record<GraphGround, string>> = Object.freeze({
+// The fallback of the page colour, the `--background` token as hex, for a page with no style.
+const GROUND_FALLBACK: Readonly<Record<GraphGround, string>> = Object.freeze({
   light: '#eeeeee',
   dark: '#101010',
 });
+
+const rgbHex = /^rgba?\((\d+),\s*(\d+),\s*(\d+)/;
+
+/** The token as hex, resolved on the page now. Sigma parses hex alone and a CSS custom property
+ * never reaches it. The page must wear the theme that `fallback` names, or the fallback stands. */
+export function tokenHex(token: string, fallback: string): string {
+  // A model built outside a page (a unit test) has no style to read.
+  if (typeof document === 'undefined') return fallback;
+  const probe = document.createElement('i');
+  probe.style.color = `var(${token})`;
+  document.body.append(probe);
+  const resolved = getComputedStyle(probe).color;
+  probe.remove();
+  const match = rgbHex.exec(resolved);
+  if (match === null) return fallback;
+  return `#${[match[1], match[2], match[3]].map((part) => hexPair(Number(part))).join('')}`;
+}
+
+/** The colour of the page, as it is in the theme now. */
+export const groundHue = (ground: GraphGround): string =>
+  tokenHex('--background', GROUND_FALLBACK[ground]);
+
+/** The hue of a family, from its `--relation-*` token. */
+export const familyHue = (family: RelationFamily, ground: GraphGround): string =>
+  tokenHex(`--relation-${family}`, lookOf(family).hue[ground]);
 
 export interface GraphModel {
   readonly setGround: (ground: GraphGround) => void;
@@ -92,13 +126,13 @@ export interface GraphModel {
   readonly hierarchy: UnitHierarchy;
 }
 
-// The radius of a node of degree 0, in the units Sigma scales to pixels. At 1.6, a corpus of
-// twenty-seven entities drew one pale pixel, which a person cannot find or click.
+// The radius of a node of degree 0, in the units Sigma scales to pixels. The glyph box is twice
+// the radius, so the floor is the 8px of the design system. At 1.6, a corpus of twenty-seven
+// entities drew one pale pixel, which a person cannot find or click.
 const SIZE_FLOOR = 4;
 
-// The floor plus this range is the top radius, so the largest hub is about three times the radius
-// of an isolate and about nine times its area.
-const SIZE_RANGE = 9;
+// The floor plus this range is the top radius: the largest hub is a box of 28px.
+const SIZE_RANGE = 10;
 
 const isDrawable = (relation: Relation, drawn: ReadonlySet<string>): boolean =>
   relation.srcKind === 'entity' &&
@@ -139,7 +173,7 @@ export function buildGraphModel(
   ground: GraphGround,
   unplaced: ReadonlySet<string>,
 ): GraphModel {
-  const palette = GRAPH_PALETTES[ground];
+  const palette = paletteOf(ground);
   const drawn = new Set<string>();
   for (const entity of corpus.entities) {
     if (!positions.has(entity.id)) continue;
@@ -193,6 +227,9 @@ export function buildGraphModel(
       ),
       label: entity.label,
       entityType: entity.type,
+      type: entity.type in GLYPHS ? entity.type : 'unknown',
+      // The corpus holds promoted evidence only, and a proposal is not an entity of the graph.
+      candidate: false,
       degree,
       isolate,
       unplaced: unplacedNode,
@@ -202,7 +239,7 @@ export function buildGraphModel(
   for (const relation of edges) {
     graph.addDirectedEdgeWithKey(relation.id, relation.srcId, relation.dstId, {
       size: 1,
-      color: lookOf(familyOf(relation.type)).hue[ground],
+      color: familyHue(familyOf(relation.type), ground),
       type: familyOf(relation.type),
       relationType: relation.type,
       validFrom: relation.validFrom,
@@ -224,14 +261,10 @@ export function buildGraphModel(
       hueOfType.clear();
       for (const [key, hue] of typeHues(types, next)) hueOfType.set(key, hue);
       graph.forEachNode((id, attrs) => {
-        graph.setNodeAttribute(
-          id,
-          'color',
-          hueOfNode(attrs, GRAPH_PALETTES[next], hueOfType, next),
-        );
+        graph.setNodeAttribute(id, 'color', hueOfNode(attrs, paletteOf(next), hueOfType, next));
       });
       graph.forEachEdge((id, attrs) => {
-        graph.setEdgeAttribute(id, 'color', lookOf(attrs.type).hue[next]);
+        graph.setEdgeAttribute(id, 'color', familyHue(attrs.type, next));
       });
     },
     graph,
