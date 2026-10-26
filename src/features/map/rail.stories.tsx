@@ -430,7 +430,7 @@ export const AFoldedGroupOpensForAMapSelection: Story = {
 export const AClickInTheRailDoesNotMoveTheList: Story = {
   args: { map: clickedOnly.map },
   // 384px shows the header, the five type rows and the start of the open list, and the
-  // the vessels run past the fold, so the list can move and the analyst can click a row.
+  // vessels run past the fold, so the list can move and the analyst can click a row.
   render: (args) => (
     <div className="flex h-96">
       <Rail {...args} />
