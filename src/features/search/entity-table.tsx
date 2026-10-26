@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 import { READING_LINK } from '@/shared/page/reading-link';
+import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { keyWords } from '@gab/proposal/key-words';
 import { typeLabel } from '@/shared/type-label';
 
@@ -54,6 +56,7 @@ export function EntityTable({ rows, hrefOf }: EntityTableProps) {
   const [sort, setSort] = useState<Sort>({ key: 'label', direction: 'ascending' });
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [shown, setShown] = useState(PAGE);
+  const [typeOpen, setTypeOpen] = useState(false);
 
   const keys = useMemo(() => commonKeys(rows), [rows]);
   const types = useMemo(() => [...new Set(rows.map((row) => row.type))].sort(), [rows]);
@@ -116,27 +119,41 @@ export function EntityTable({ rows, hrefOf }: EntityTableProps) {
             className="w-56 rounded-sm text-foreground duration-100"
           />
         </label>
-        <label className="flex flex-col gap-1 text-body-sm text-label">
+        <div className="flex flex-col gap-1 text-body-sm text-label">
           Type
-          <select
-            value={type ?? ''}
-            onChange={(event) => {
-              setType(event.target.value === '' ? null : event.target.value);
-              setShown(PAGE);
-            }}
-            className={cn(
-              'h-8 rounded-sm border border-input bg-background px-2 text-body-sm',
-              FOCUS,
-            )}
-          >
-            <option value="">All types</option>
-            {types.map((one) => (
-              <option key={one} value={one}>
-                {typeLabel(one)}
-              </option>
-            ))}
-          </select>
-        </label>
+          <Popover open={typeOpen} onOpenChange={setTypeOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="secondary"
+                aria-label="Type"
+                className="justify-between"
+              >
+                {type === null ? 'All types' : typeLabel(type)}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="flex w-56 flex-col gap-0 p-1">
+              {[null, ...types].map((one) => (
+                <button
+                  key={one ?? 'all'}
+                  type="button"
+                  aria-pressed={one === type}
+                  className={cn(
+                    'h-8 w-full rounded-sm px-2 text-left text-foreground hover:bg-muted aria-pressed:bg-muted',
+                    FOCUS,
+                  )}
+                  onClick={() => {
+                    setType(one);
+                    setShown(PAGE);
+                    setTypeOpen(false);
+                  }}
+                >
+                  {one === null ? 'All types' : typeLabel(one)}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        </div>
         <button
           type="button"
           className={ACTION}
@@ -180,7 +197,7 @@ export function EntityTable({ rows, hrefOf }: EntityTableProps) {
           >
             <thead className="border-b border-input bg-muted text-label">
               <tr>
-                <th scope="col" className={cn(HEAD, 'w-6')}>
+                <th scope="col" className={cn(HEAD, 'w-6 align-middle')}>
                   <input
                     type="checkbox"
                     aria-label="Select all filtered entities"
@@ -217,7 +234,7 @@ export function EntityTable({ rows, hrefOf }: EntityTableProps) {
             <tbody>
               {sorted.slice(0, shown).map((row) => (
                 <tr key={row.id} className="border-b border-border">
-                  <td className={CELL}>
+                  <td className={cn(CELL, 'align-middle')}>
                     <input
                       type="checkbox"
                       aria-label={`Select ${row.label}`}

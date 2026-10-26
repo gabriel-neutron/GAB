@@ -109,7 +109,9 @@ export function MethodPage({ manifest }: MethodPageProps) {
           )}
 
           <PageSection id="labels" title="What the labels mean">
-            <DisclaimerText markdown={manifest.disclaimer} withoutContacts />
+            <div className="[&_strong]:font-normal">
+              <DisclaimerText markdown={manifest.disclaimer} withoutContacts />
+            </div>
             <p className={PROSE}>
               The{' '}
               <Link to="/glossary" className={READING_LINK}>
