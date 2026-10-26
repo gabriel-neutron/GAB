@@ -161,7 +161,7 @@ export function Rail({ projection, map, frame, onFrameChange, onReach }: RailPro
         );
       }}
       // One hairline separates two surfaces, and `border` is that token. The rail states the width.
-      className={cn('shrink-0 border-r border-border bg-background')}
+      className={cn('h-full shrink-0 border-r border-border bg-background')}
     />
   );
 }

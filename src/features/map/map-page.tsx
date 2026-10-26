@@ -23,6 +23,7 @@ import { ChainControl } from './chain-control';
 import { chainView } from './chain-view';
 import { project } from './projection';
 import { GroundControl } from './ground-control';
+import { FamilyLegend } from './legend';
 import { Rail } from './rail';
 import { patchMapWorkspace, readMapWorkspace } from './workspace';
 
@@ -179,6 +180,7 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation, mapRef }: M
           Types
         </button>
         {mapReady ? <GroundControl map={mapRef} /> : null}
+        <FamilyLegend links={projection.links} />
         {mapReady ? <ChainControl map={mapRef} steps={chain.steps} /> : null}
       </div>
     </div>
