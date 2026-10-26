@@ -19,7 +19,7 @@ const CONTROL = cn(
 export function LaneBar({ lane, counts, onLane }: LaneBarProps) {
   return (
     <div className="shrink-0 space-y-1 border-b border-border p-1">
-      <p data-said="rules" className="px-1 text-small/4 text-label">
+      <p data-said="rules" className="px-1 text-caption text-label">
         {laneSummary(counts)}
       </p>
       <nav aria-label="Lists of the queue" className="flex gap-1">
@@ -33,7 +33,7 @@ export function LaneBar({ lane, counts, onLane }: LaneBarProps) {
             }}
             className={cn(
               CONTROL,
-              'h-6 flex-1 border px-2 text-xs',
+              'h-8 flex-1 border px-2 text-body-sm',
               list.lane === lane ? 'border-primary bg-muted text-foreground' : 'border-input',
             )}
           >
