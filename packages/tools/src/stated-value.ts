@@ -649,7 +649,7 @@ const DAY_KEY_TYPES: readonly string[] = [...PORT_CALL_TYPES, 'sts_with'];
 
 // The day of a port call or a transfer, when the act is one that gives one.
 const callDayOf = (act: WriteRequest): { readonly v: unknown } | undefined =>
-  act.op === 'create_relation' && DAY_KEY_TYPES.includes(act.type ?? '')
+  act.op === 'create_relation' && DAY_KEY_TYPES.includes(act.type)
     ? act.attrs?.['observed_on']
     : undefined;
 
