@@ -36,15 +36,17 @@ export function EntityRecord(props: EntityRecordProps) {
         <div
           key={cell.key}
           data-claim=""
-          className="grid grid-cols-[minmax(5rem,7rem)_minmax(0,1fr)] gap-x-4 gap-y-1 border-b border-divider py-2 first:pt-0 last:border-b-0"
+          className="grid grid-cols-[minmax(6rem,8rem)_minmax(0,1fr)] gap-x-4 gap-y-1 border-b border-divider py-2 first:pt-0 last:border-b-0"
         >
           <span title={cell.help === null ? cell.label : `${cell.label}. ${cell.help}`}>
             <span className={`block min-w-0 break-words ${CAPTION}`}>{cell.label}</span>
             {/* The stored key, in a secondary place, for the analyst who looks for the raw word.
                 A reader of a release sees the readable name only. */}
             {props.showKey === false ? null : (
-              <span className={`block min-w-0 break-all ${DATA} text-muted-foreground`}>
-                {cell.key}
+              <span className={`block min-w-0 break-words ${DATA} text-muted-foreground`}>
+                {cell.key
+                  .split('_')
+                  .flatMap((part, at) => (at === 0 ? [part] : ['_', <wbr key={at} />, part]))}
               </span>
             )}
           </span>

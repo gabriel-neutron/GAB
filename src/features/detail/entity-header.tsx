@@ -32,9 +32,7 @@ export function EntityHeader({ dossier, actions, children }: EntityHeaderProps) 
             <span className={`${DATA} text-foreground normal-case`}>{`IMO ${identifier}`}</span>
           )}
         </p>
-        <h1 className="min-w-0 text-heading-sm break-words" title={dossier.label}>
-          {dossier.label}
-        </h1>
+        <h1 className="min-w-0 text-heading-sm break-words">{dossier.label}</h1>
       </div>
       {dossier.sanctioned || candidate ? (
         <p className="flex flex-wrap items-center gap-2">

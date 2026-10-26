@@ -44,9 +44,8 @@ export function Rail({ sources, activeSource, selections }: RailProps) {
             }}
             aria-current={activeSource === source.id ? 'true' : undefined}
             className={cn(
-              'border-b border-divider shadow-[inset_2px_0_0_transparent]',
-              activeSource === source.id &&
-                'bg-surface-secondary shadow-[inset_2px_0_0_var(--ring)]',
+              'border-b border-l-2 border-b-divider border-l-transparent',
+              activeSource === source.id && 'border-l-foreground bg-surface-secondary',
             )}
           >
             <SourceCard source={source} />

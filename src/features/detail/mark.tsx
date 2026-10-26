@@ -25,8 +25,7 @@ interface SourceCountProps {
 }
 
 /** `border-input` measures 3.4:1 light and 3.2:1 dark on a control edge; `border-border` gives
- * 1.3:1 and 1.5:1. The duration is stated: the Tailwind default of 150ms is above the 120ms the
- * theme allows. `h-6` is the 24px of `--control-height`. */
+ * 1.3:1 and 1.5:1. The mark is a 24px inline mark in a row, smaller than a 32px control. */
 const MARK =
   'inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-sm border border-input px-1 font-mono text-data text-label transition-colors duration-150 outline-none hover:border-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 

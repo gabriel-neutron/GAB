@@ -21,22 +21,18 @@ export type FieldProps =
       readonly onEdit: (typed: TypedValue) => void;
     };
 
-// The geometry both arms share. The kit gives `transition-colors` no duration, and the Tailwind
-// default is 150ms, so 100ms is stated here.
+// The geometry both arms share, with the 150ms of the design system stated.
 const SURFACE = 'w-full duration-150';
 const BOX = cn(SURFACE, ENTRY_ROW.box);
 
 // A text box removes each line break from its value, so a note takes a textarea. One line of
-// `text-xs` is 16 px, and `py-1` adds 8 px, so one line stands at the 24 px of the other boxes.
+// `text-body-sm` is 20 px, and `py-1.5` adds 12 px, so one line stands at the 32 px of the other
+// boxes.
 const NOTE = cn(SURFACE, ENTRY_ROW.box, 'h-auto min-h-8 resize-none py-1.5');
 
 // A story reads no colour and no class, so a read-only control states in a word that it takes no
 // edit and that the fade of the kit is beaten.
 const UNFADED = 'unfaded';
-
-// The box carries no edge at rest, so a hover states the edge before the analyst reaches it. The
-// `focus-visible` recipe is the kit's own, copied whole: `ring` alone paints `currentcolor`.
-const WRITING = '';
 
 // The figures are not right-aligned. Alignment is for a column of figures, and the cells flow
 // about 2.6 to a line, so a right edge would land at a different place on each cell, far from the
@@ -52,7 +48,7 @@ const TICK =
 const TICK_WRITING =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
-const SENTENCE = 'block text-body-sm text-label';
+const SENTENCE = 'block text-body-sm text-muted-foreground';
 
 // A value that nobody edits is text in the page, so it reaches a reader with no script and a
 // search engine. A disabled control would keep it in an attribute, out of the text of the page.
@@ -118,7 +114,7 @@ function WritingField({
         aria-invalid={invalid}
         aria-describedby={describedBy}
         title={value.text}
-        className={cn(NOTE, WRITING)}
+        className={NOTE}
       />
     );
   }
@@ -137,11 +133,7 @@ function WritingField({
       aria-invalid={invalid}
       aria-describedby={describedBy}
       title={value.text}
-      className={cn(
-        BOX,
-        WRITING,
-        value.control === 'number' || value.control === 'date' ? FIGURES : '',
-      )}
+      className={cn(BOX, value.control === 'number' || value.control === 'date' ? FIGURES : '')}
     />
   );
 }

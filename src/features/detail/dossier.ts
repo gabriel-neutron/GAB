@@ -708,7 +708,10 @@ export function readDossier(
     decision: decisionOf(entity.promotedFrom, decided),
     sanctioned: direct.some(
       (relation) =>
-        relation.type === DESIGNATION && relation.srcId === entityId && relation.validTo === null,
+        relation.type === DESIGNATION &&
+        relation.srcKind === 'entity' &&
+        relation.srcId === entityId &&
+        relation.validTo === null,
     ),
     rows,
     entitySources,
