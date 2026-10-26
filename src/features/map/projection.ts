@@ -67,7 +67,10 @@ export interface GeoLink {
 /** One entity type, as the rail draws it. */
 export interface TypeFacet {
   readonly type: string;
+  /** The hue on the dark theme, which the rail swatch reads. */
   readonly colour: string;
+  /** The hue of each theme: the canvas repaints with the theme in force. */
+  readonly colours: Readonly<Record<HueTheme, string>>;
   readonly count: number;
 }
 
@@ -89,7 +92,7 @@ export interface Projection {
   readonly hierarchy: UnitHierarchy;
 }
 
-// A point sits on dark imagery, so this surface takes the declared dark hue on the two themes.
+// The rail swatch has one hue, and it sits on the dark chrome.
 const MAP_GROUND: HueTheme = 'dark';
 
 /** One entity, and the row `api.full_map` gave it. The narrowing has to survive the `map` below,
@@ -203,11 +206,16 @@ export function project(read: Corpus, declared: TypeVocabulary): Projection {
   // graph drops one with no position; a hue read from the declaration is the same on both,
   // because neither canvas is what states it.
   const hueOfType = typeHues(declared, MAP_GROUND);
+  const lightOfType = typeHues(declared, 'light');
   const types: readonly TypeFacet[] = [...new Set(drawn.map(({ entity }) => entity.type))]
     .sort((a, b) => a.localeCompare(b))
     .map((type) => ({
       type,
       colour: hueOfType.get(type) ?? UNDECLARED_HUE[MAP_GROUND],
+      colours: {
+        light: lightOfType.get(type) ?? UNDECLARED_HUE.light,
+        dark: hueOfType.get(type) ?? UNDECLARED_HUE.dark,
+      },
       count: drawn.filter(({ entity }) => entity.type === type).length,
     }));
 
