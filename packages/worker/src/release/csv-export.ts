@@ -86,10 +86,11 @@ const valueText = (value: unknown): string =>
       : JSON.stringify(value);
 
 /** The four CSV files of a release. Each file starts with the preamble, and each row carries
- * its label, and each row of the data its licence. The claims file has one row for each claim and
- * each cited passage of a public document, and one row for a public document with no cited
- * passage. When the release shows the NATO pair, each claim row also gives its letter and its
- * digit. The log of the merges gives the entity that each absorbed identifier resolves to. */
+ * its label, and each row of the data its licence. The claims file has one row for each citation
+ * of a claim (a claim has more than one row when it has more than one cited passage of a public
+ * document), and one row for a public document with no cited passage. Each claim row also gives
+ * the column value_in_excerpt and, when the release shows the NATO pair, its letter and its digit.
+ * The log of the merges gives the entity that each absorbed identifier resolves to. */
 export const csvExport = (record: ReleaseRecord, preamble: string): readonly ReleaseFile[] => {
   const lookup = releaseLookup(record);
   const { documentOf, licenceOf, labelOf, relationOf, daysOf } = lookup;

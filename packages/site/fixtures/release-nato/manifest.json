@@ -207,8 +207,8 @@
     },
     {
       "path": "release-notes.md",
-      "bytes": 2635,
-      "sha256": "3385f2f94e0ad8a8f30cff1817718d62a94284d327b886371fd9570895f8c7b8"
+      "bytes": 2720,
+      "sha256": "8811207735cbd70b60500774499738f3d44e59c69c9372ae08fdcc2f90632a02"
     },
     {
       "path": "entities.geojson",

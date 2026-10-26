@@ -121,7 +121,6 @@ test('the column value_in_excerpt says if the value is in the excerpt', () => {
   expect(testedAs({ value: null })).toBe('not_tested');
 });
 
-
 test('an absent value writes an empty field, and not the word null', () => {
   const [, row] = claimsText([claim({ value: null })])
     .slice(1)

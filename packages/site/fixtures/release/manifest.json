@@ -145,8 +145,8 @@
     },
     {
       "path": "release-notes.md",
-      "bytes": 1966,
-      "sha256": "dfa6844a0fa6e9505b6f5201c6ca9fd2756d1f5adfb98375746ae1dcc5185d11"
+      "bytes": 2051,
+      "sha256": "6ef2fcd1a911804be791435553056507263b37a594e196612cb7701c635ca588"
     },
     {
       "path": "entities.geojson",
