@@ -37,7 +37,7 @@ export function SheetClose({ onClose, fallback }: SheetCloseProps) {
         className={cn(
           'flex h-6 items-center gap-1 rounded-sm border border-input px-2 font-mono text-caption uppercase text-label',
           'transition-colors duration-150 hover:bg-surface-secondary hover:text-foreground',
-          'outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+          'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring',
         )}
       >
         <X size={14} aria-hidden="true" />

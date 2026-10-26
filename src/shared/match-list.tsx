@@ -39,7 +39,7 @@ export function MatchList({ id, matches, query, active, onChoose }: MatchListPro
             className={cn(
               'flex min-h-8 cursor-pointer items-center px-3 py-0.5 break-words transition-colors duration-150',
               index === active
-                ? 'bg-surface-secondary shadow-[inset_2px_0_0_var(--ring)]'
+                ? 'bg-surface-secondary outline-2 -outline-offset-2 outline-ring'
                 : 'hover:bg-surface-secondary',
             )}
           >

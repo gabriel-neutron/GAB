@@ -124,7 +124,16 @@ export function ScreenQueryField() {
       const typing =
         target instanceof HTMLElement &&
         (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
-      if (event.key !== '/' || typing || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (
+        event.key !== '/' ||
+        event.defaultPrevented ||
+        event.isComposing ||
+        typing ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey
+      )
+        return;
       event.preventDefault();
       field.current?.focus();
     };

@@ -15,7 +15,7 @@ const SHAPES = {
 
 type ShapedType = keyof typeof SHAPES;
 
-const isShaped = (type: string): type is ShapedType => type in SHAPES;
+const isShaped = (type: string): type is ShapedType => Object.hasOwn(SHAPES, type);
 
 /** A vocabulary key (`state_body`) or a token name (`state-body`) reads the same. */
 const normal = (type: string): string => type.replaceAll('_', '-');

@@ -17,7 +17,7 @@ const INDENT_PX = 12;
 const CONTROL = cn(
   'pointer-events-auto flex size-6 shrink-0 items-center justify-center border border-transparent',
   'rounded-sm transition-colors duration-150 hover:bg-surface-secondary',
-  'outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+  'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring',
 );
 
 // Departure: a line with no subordinate keeps an empty cell of the same width, so each name of

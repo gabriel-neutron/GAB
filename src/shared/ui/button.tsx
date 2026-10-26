@@ -5,14 +5,16 @@ import { Slot } from 'radix-ui';
 import { cn } from '@/shared/lib/utils';
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-sm border border-transparent text-body-sm whitespace-nowrap transition-colors duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] outline-none select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:bg-surface-secondary disabled:text-muted-foreground aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-sm border border-transparent text-body-sm whitespace-nowrap transition-colors duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] outline-none select-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:text-muted-foreground aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/85',
+        default:
+          'bg-primary text-primary-foreground hover:bg-primary/85 disabled:bg-surface-secondary',
         outline:
           'border-input bg-transparent text-foreground hover:bg-surface-secondary aria-expanded:bg-surface-secondary',
-        secondary: 'bg-surface-secondary text-foreground hover:bg-border aria-expanded:bg-border',
+        secondary:
+          'disabled:bg-surface-secondary bg-surface-secondary text-foreground hover:bg-border aria-expanded:bg-border',
         ghost: 'text-foreground hover:bg-surface-secondary aria-expanded:bg-surface-secondary',
         destructive:
           'border-destructive bg-transparent text-destructive hover:bg-surface-secondary',

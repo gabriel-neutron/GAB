@@ -85,9 +85,9 @@ const listId = (type: string): string => `rail-index-${type}`;
 // External constraint: `ring` alone paints at rest in `currentcolor`, and a border ring paints
 // nothing without a width. `pointer-events-auto` gives a drag on the graph rail back.
 const CONTROL = cn(
-  'pointer-events-auto flex min-h-8 items-center rounded-none text-left',
+  'pointer-events-auto flex min-h-8 items-center rounded-none text-left text-foreground',
   'transition-colors duration-150 hover:bg-surface-secondary',
-  'outline-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring',
+  'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-[-2px] focus-visible:outline-ring',
 );
 
 /** External constraint: proportional digits jump as a digit is added, and these do not. */
@@ -370,7 +370,15 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                 ) : (
                   <Mark type={row.type} colour={row.colour} />
                 )}
-                <span className={cn(FIGURE, 'min-w-0 truncate text-small/4')}>{row.count}</span>
+                <span
+                  className={cn(
+                    FIGURE,
+                    'min-w-0 truncate text-small/4',
+                    row.on ? null : 'text-muted-foreground line-through',
+                  )}
+                >
+                  {row.count}
+                </span>
               </button>
             )}
 

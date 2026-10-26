@@ -19,7 +19,7 @@ export interface SiteHeaderProps {
 const PAGE_LINK = cn(
   'inline-flex h-8 shrink-0 items-center self-center rounded-sm px-3 text-body-sm',
   'text-muted-foreground transition-colors duration-150 outline-none hover:text-foreground',
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+  'focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring',
   'data-[status=active]:bg-surface-secondary data-[status=active]:text-foreground',
   'data-[section-active=true]:bg-surface-secondary data-[section-active=true]:text-foreground',
 );
