@@ -47,7 +47,7 @@ function RootLayout() {
         {/* The link shows at the first Tab, so a keyboard reader skips the navigation. */}
         <a
           href="#main"
-          className="sr-only z-50 bg-background px-2 py-1 text-body/5 focus:not-sr-only focus:absolute focus:top-0 focus:left-0"
+          className="sr-only z-50 bg-background px-2 py-1 text-body-sm/5 focus:not-sr-only focus:absolute focus:top-0 focus:left-0"
         >
           Skip to the content
         </a>

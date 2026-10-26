@@ -85,7 +85,31 @@ each entry gives the number of the row and its values. `vocabulary` gives the wo
     `Data Year` gives `production_oil_2023`), and `years`, `{"column": "<column>", "from": 2020,
     "to": 2024}`, to keep only these years. Give the unit as a second attribute with the same
     `key_by` and the cast `text`.
-16. Do not give an expression, a formula, a confidence or a note.
+16. An observation table is a table where each row is one aggregated figure: a volume, a value or
+    a count for a period, a reporter and often a partner, for example the monthly gas imports of
+    each EU country from Russia (Eurostat) or a trade flow between two countries. A figure is no
+    entity, so a row creates no entity. For an observation table, `rows` has these keys, and
+    `relations` is `[]`:
+    - `measure`: what the figure counts, in lower case words joined by an underscore, for
+      example `imports_natural_gas` or `imports_crude_oil`.
+    - `value`: `{"column": "<column>"}`, the column of the number (`OBS_VALUE` in SDMX-CSV).
+    - `unit`: `{"column": "<column>"}` when a column gives the unit, or `{"constant": "<unit>"}`.
+    - `period`: `{"column": "<column>", "length": "month"}`. The length is `year`, `quarter`,
+      `month` or `week`, as the cells state it (`TIME_PERIOD` in SDMX-CSV).
+    - `reporter`: `{"column": "<column>", "codes": "eurostat"}`, the country that reports the
+      figure (`geo` in Eurostat). `codes` is `eurostat` for a table of Eurostat, and `iso3166`
+      for two-letter ISO country codes.
+    - `partner`: optional, the other country of a flow, as `reporter` (`partner` in Eurostat).
+    - `product`: optional, `{"column": "<column>", "system": "siec"}`. The system is `siec` (the
+      energy products of Eurostat, column `siec`), `hs` (customs codes) or `chpl`.
+    - `subject`: optional, the entity of the record that the figure is about, for example a
+      pipeline: an `entity_type` and a `lookup` by an identifier, as an end in rule 12.
+    - `method`: how the source makes the figure, in a few words, for example `imports reported
+      by the importer`. When the reporter is not the country of the flow that you study, the
+      figure is a mirror figure: write `mirror figure reported by the partner`.
+    - `flag`: optional, the column of the mark beside a value (`OBS_FLAG` in SDMX-CSV).
+    Never map a column of a dataflow name or of an update date.
+17. Do not give an expression, a formula, a confidence or a note.
 
 ## The answer
 

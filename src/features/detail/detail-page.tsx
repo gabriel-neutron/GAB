@@ -7,19 +7,18 @@ import type { DocId } from '@/shared/read/model';
 import { DataTable } from '@/shared/page/data-table';
 import { KeyValue } from '@/shared/page/key-value';
 import { NatoPairMark } from '@/shared/page/nato-pair-mark';
-import { PageHeader } from '@/shared/page/page-header';
-import { PageSection } from '@/shared/page/page-section';
-import { READING_LINK } from '@/shared/page/reading-link';
 import { ReadingPage } from '@/shared/page/reading-page';
 import { SaidLine } from '@/shared/said-line';
 import { useWriterOnline } from '@/shared/write/writer-status';
 
 import { claimHref, surfaceHref, vesselHref } from './address';
+import { Band } from './band';
 import type { TypedValue } from './claims';
 import { DeleteControl } from './delete-control';
 import { draftsAfterSave, pendingEdit, recordCells, typedInto, type Drafts } from './draft';
 import type { Dossier, SourceRef } from './dossier';
 import { EditSwitch, type DetailView } from './edit-switch';
+import { EntityHeader } from './entity-header';
 import { EventLane } from './event-lane';
 import type { ClaimLine } from './release-facts';
 import { SourceMark } from './mark';
@@ -32,6 +31,7 @@ import { Relations } from './relations';
 import { Rename } from './rename';
 import { SaveBar } from './save-bar';
 import { saveClaims, saveSaid, type SaveState } from './save';
+import { CAPTION, DATA, GHOST_LINK } from './style';
 import { LabelBadge } from '@/shared/page/label-badge';
 import { UnitOrigin } from './unit-origin';
 import { VesselIds } from './vessel-ids';
@@ -173,14 +173,6 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
   const events = facts?.events ?? null;
   const detail = (
     <>
-      <p className="flex flex-wrap items-baseline gap-x-2">
-        <span>{dossier.typeName}</span>
-        {/* The extracted word is kept where it was not a live type, and it is drawn, or the
-            entry the analyst wrote is lost to every reader of the record. */}
-        {dossier.proposedType === null ? null : (
-          <span>{`proposed as ${dossier.proposedType}`}</span>
-        )}
-      </p>
       {dossier.identity === null ? null : <VesselIds identity={dossier.identity} />}
       {/* The words say what the entity IS and not what a reader may do with it: this position was
           borrowed, from which parents, and on which affiliation and date the record stands. */}
@@ -191,31 +183,34 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
         sourceDay={dossier.sourceDay}
       />
       {/* Each public claim says who decided it. */}
-      {dossier.decision === null ? null : <p data-decision="">{dossier.decision}</p>}
+      {dossier.decision === null ? null : (
+        <p data-decision="" className="text-body-sm text-muted-foreground">
+          {dossier.decision}
+        </p>
+      )}
       {/* A double click stops at each hyphen of the value, so one click selects all of it. */}
-      <p data-identifier="">
-        Identifier{' '}
-        <code className="font-mono break-all text-foreground select-all">{dossier.entityId}</code>
+      <p data-identifier="" className="flex flex-wrap items-baseline gap-x-2">
+        <span className={CAPTION}>Identifier</span>{' '}
+        <code className={`${DATA} break-all text-foreground select-all`}>{dossier.entityId}</code>
       </p>
     </>
   );
 
   return (
     <ReadingPage>
-      <PageHeader
-        title={dossier.label}
-        detail={detail}
+      <EntityHeader
+        dossier={dossier}
         actions={
-          <>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {/* The map link is drawn only where the map draws the entity. A link that opens a
                   surface which then selects nothing states a position the record does not
                   hold. */}
-            <nav aria-label="This entity on a canvas" className="flex gap-3">
-              <a href={surfaceHref('graph', dossier.entityId)} className={READING_LINK}>
+            <nav aria-label="This entity on a canvas" className="flex gap-4">
+              <a href={surfaceHref('graph', dossier.entityId)} className={GHOST_LINK}>
                 Show on the graph
               </a>
               {dossier.drawnOnMap ? (
-                <a href={surfaceHref('map', dossier.entityId)} className={READING_LINK}>
+                <a href={surfaceHref('map', dossier.entityId)} className={GHOST_LINK}>
                   Show on the map
                 </a>
               ) : null}
@@ -230,9 +225,11 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
                 }}
               />
             ) : null}
-          </>
+          </div>
         }
-      />
+      >
+        {detail}
+      </EntityHeader>
 
       {facts === null ||
       (facts.imo === null &&
@@ -248,7 +245,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
                   {
                     key: 'Timeline',
                     value: (
-                      <a className={READING_LINK} href={vesselHref(facts.imo)}>
+                      <a className={GHOST_LINK} href={vesselHref(facts.imo)}>
                         {`IMO ${facts.imo}`}
                       </a>
                     ),
@@ -280,7 +277,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
       )}
 
       {writing ? (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4 border-t border-divider pt-4">
           <Rename
             entityId={dossier.entityId}
             stored={{ label: dossier.label, type: dossier.type }}
@@ -295,7 +292,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
 
       {/* The control that mints a key is a control of the record, so it stands inside that
             part and never between two parts. */}
-      <PageSection title="Record">
+      <Band name="Record">
         {/* EntityRecord stays one element at one position across a mode switch, so React
               re-renders it in place instead of tearing down and remounting every field. */}
         <EntityRecord
@@ -304,11 +301,11 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
             : { mode: 'reading', cells, mark, claimHref: claimOfKey, showKey: writerOnline })}
         />
         {writing ? <NewClaim rows={dossier.rows} busy={busy} onMint={onMint} /> : null}
-      </PageSection>
+      </Band>
 
       {/* The form that makes a relation is a control of the relations, so it stands inside
             that part and never between two parts. */}
-      <PageSection title="Relations">
+      <Band name="Relations">
         <Relations
           relations={dossier.relations}
           mark={mark}
@@ -333,10 +330,10 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
             onCreate={sendStructure}
           />
         ) : null}
-      </PageSection>
+      </Band>
 
       {facts === null || facts.claims.length === 0 ? null : (
-        <PageSection title="Claims of the release">
+        <Band name="Claims of the release">
           <DataTable
             name="Claims of the release"
             empty="The release holds no claim about this entity."
@@ -345,7 +342,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
                 key: 'claim',
                 header: 'Claim',
                 cell: (line) => (
-                  <a className={READING_LINK} href={claimHref(line.id)}>
+                  <a className={GHOST_LINK} href={claimHref(line.id)}>
                     {line.text}
                   </a>
                 ),
@@ -364,30 +361,30 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
             ]}
             rows={facts.claims.map((line) => ({ id: line.id, row: line }))}
           />
-        </PageSection>
+        </Band>
       )}
 
       {events === null ? null : <EventLane events={events} />}
 
       {/* A proposal is a part of the review. A site with no write service draws none. */}
       {writerOnline ? (
-        <PageSection title="Pending proposals">
+        <Band name="Pending proposals">
           <Pending proposals={dossier.pending} mark={mark} />
-        </PageSection>
+        </Band>
       ) : null}
 
       {/* S2 at row level: this list backs the name, the type and the map location (geom),
             not one claim. "Position" already names the borrowed canvas position (see above),
             so this text says "location" instead. */}
-      <PageSection title="Sources of the name, the type and the map location">
-        <p className="text-xs/5 text-label">
+      <Band name="Sources of the name, the type and the map location">
+        <p className="text-body-sm text-muted-foreground">
           These documents back the name, the type and the map location of this entity. A claim above
           carries its own mark for the document that backs its value.
         </p>
         {mark(dossier.entitySources)}
-      </PageSection>
+      </Band>
 
-      <PageSection title="Source documents">
+      <Band name="Source documents">
         {/* Departure: the rail follows `activeSource` on its own, and its mount run is the
               arrival case. `arrivedAtSource` reaches it through the state above and by no other
               path: two writers of one scroll position fight each other. */}
@@ -400,7 +397,7 @@ export function DetailPage({ dossier, arrivedAtSource, onSaved, onDeleted }: Det
             selections={selection.count}
           />
         </div>
-      </PageSection>
+      </Band>
     </ReadingPage>
   );
 }

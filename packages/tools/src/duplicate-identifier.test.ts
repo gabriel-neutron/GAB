@@ -58,3 +58,14 @@ test('does not flag an entity listed twice', () => {
   const same = entity('a', 'A', 'company', { tax_id: { v: '1' } });
   expect(duplicateIdentifiers([same, same])).toEqual([]);
 });
+
+test('flags a new entity that waits as a copy of an element of the record, and marks it', () => {
+  const groups = duplicateIdentifiers([
+    entity('a', 'ALPHA', 'company', { tax_id: { v: '7706107510' } }),
+    { ...entity('b', 'ALPHA', 'company', { tax_id: { v: '7706107510' } }), pending: true },
+  ]);
+  expect(groups[0]?.entities).toEqual([
+    { id: 'a', label: 'ALPHA', type: 'company' },
+    { id: 'b', label: 'ALPHA', type: 'company', pending: true },
+  ]);
+});

@@ -659,6 +659,28 @@ test('a designation whose sources hold no retrieval date shows no check date', (
   expect(interval).not.toMatch(/checked/);
 });
 
+test('a live designation of the entity makes it sanctioned, and a closed one does not', () => {
+  expect(readDossier(DESIGNATION_READ, VESSEL.id, [], [])?.sanctioned).toBe(true);
+
+  const closed: Corpus = {
+    ...DESIGNATION_READ,
+    relations: [{ ...DESIGNATED, validTo: '2025-01-01' }],
+  };
+  expect(readDossier(closed, VESSEL.id, [], [])?.sanctioned).toBe(false);
+  // The issuer is not the designated party.
+  expect(readDossier(DESIGNATION_READ, ISSUER.id, [], [])?.sanctioned).toBe(false);
+});
+
+test('a relation line carries its family and the type of the far end', () => {
+  const line = readDossier(DESIGNATION_READ, VESSEL.id, [], [])?.relations[0];
+
+  expect(line?.family).toBe('designation');
+  expect(line?.otherType).toBe('authority');
+  expect(readDossier(DESIGNATION_READ, ISSUER.id, [], [])?.relations[0]?.otherType).toBe(
+    VESSEL.type,
+  );
+});
+
 test('no line says that a relation is still in force', () => {
   const words = readRelation(DESIGNATION_READ, DESIGNATED.id)?.interval ?? '';
 

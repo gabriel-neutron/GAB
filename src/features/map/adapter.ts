@@ -1,0 +1,1910 @@
+import { PRODUCTS } from '@gab/proposal/chain-product';
+import { STAGES } from '@gab/proposal/chain-stage';
+import { shareWords } from '@gab/proposal/share';
+import {
+  AttributionControl,
+  ScaleControl,
+  GeoJSONSource,
+  Map as MapLibreMap,
+  type MapMouseEvent,
+  type MapMovementEvent,
+  type MapOptions,
+  type Subscription,
+} from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+
+import { arrowImage } from '@/shared/canvas-arrow';
+import { canvasTheme, observeCanvasTheme } from '@/shared/canvas-theme';
+import { canvasLabelTransform } from '@/shared/canvas-label';
+import { foldEveryUnit } from '@/shared/unit-folds';
+
+import {
+  backgroundOf,
+  glyphsUrl,
+  groundSource,
+  imageryPaint,
+  PLAN_GROUND_LAYERS,
+  PLAN_SOURCE,
+  planColours,
+  planLayers,
+  planSource,
+  type GroundSource,
+} from './basemap';
+import { glyphImage, glyphImageId, glyphPath, hasGlyph } from './glyph-image';
+import { EVERY_FAMILY, FAMILY_DASH, familyOfLink, mapTokens, type LinkFamily } from './map-tokens';
+import './map.css';
+import type { ChainView } from './chain-view';
+import type { Imagery } from './imagery';
+import type { NatoSymbol } from './nato-symbol';
+import type { GeoEntity, GeoLink, Projection, TypeFacet } from './projection';
+import { shapeFeatureOf, type ShapeFeature } from './shape-feature';
+import { relationsInReach } from './reach';
+import { spreadOffsetPx, spreadSlots } from './spread';
+import { unitSymbolImage, unitSymbolImageId } from './unit-symbol-image';
+import { patchMapWorkspace, readMapWorkspace, type Ground } from './workspace';
+
+// `maplibre-gl` 6 exports neither `StyleSpecification` nor `LayerSpecification`. So this file
+// takes the two shapes from the option that carries them.
+type StyleSpec = Exclude<MapOptions['style'], string | undefined>;
+type LayerSpec = StyleSpec['layers'][number];
+type SourceSpec = StyleSpec['sources'][string];
+
+interface MountMapOptions {
+  // The content of this element must not decide its size. This file writes the canvas size with
+  // `map.resize()`, and a container that sizes to its canvas makes a loop with the observer.
+  readonly container: HTMLElement;
+  readonly projection: Projection;
+  /** The chain of the same corpus. The Chain mode draws it. */
+  readonly chain: ChainView;
+  readonly creditCorner?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+}
+
+export interface MapHandle {
+  /** The identity of the selected entity, or `null`. Read it to start a control. */
+  readonly selected: string | null;
+  /** An identifier that finds no drawn entity clears the selection. That is not a fault. */
+  readonly select: (id: string | null) => void;
+  /** Calls the listener immediately with the current selection. Gives the unsubscribe. */
+  readonly onSelect: (listener: (id: string | null) => void) => () => void;
+  readonly flyTo: (id: string) => void;
+  readonly setTypeVisible: (type: string, visible: boolean) => void;
+  readonly isTypeVisible: (type: string) => boolean;
+  // Departure: a closed unit folds its subordinates out of the rail list and never off the map.
+  // The open units die with the map, so each open lists the tops of the chain of command first.
+  readonly setUnitOpen: (unit: string, open: boolean) => void;
+  readonly openUnits: ReadonlySet<string>;
+  readonly setLinksVisible: (visible: boolean) => void;
+  readonly linksVisible: boolean;
+  readonly chosenLink: GeoLink | null;
+  /** Calls the listener immediately with the chosen relation. Gives the unsubscribe. */
+  readonly onChooseLink: (listener: (link: GeoLink | null) => void) => () => void;
+  readonly setGround: (ground: Ground) => void;
+  readonly ground: Ground;
+  /** Changes the source or the date of the imagery ground. The plan ground is untouched. */
+  readonly setImagery: (imagery: Imagery) => void;
+  readonly imagery: Imagery;
+  /** The Chain mode: each asset in the colour of its stage, and the physical links as arcs. */
+  readonly setChain: (on: boolean) => void;
+  readonly chain: boolean;
+  /** The globe projection, or the flat one. */
+  readonly setGlobe: (on: boolean) => void;
+  readonly globe: boolean;
+  /** Puts the assets or the links of one step of the chain forward, and moves the camera to
+   * them. `null` puts the whole chain forward again. */
+  readonly showStep: (key: string | null) => void;
+  readonly destroy: () => void;
+}
+
+/** The one source of points. A panel of thirty types must not make thirty queries. */
+const ENTITY_SOURCE = 'entities';
+/** The areas of every polygon entity. One source, and a fill and an outline for each type. */
+const AREA_SOURCE = 'areas';
+const fillOfType = (type: string): string => `area-fill-${type}`;
+const outlineOfType = (type: string): string => `area-outline-${type}`;
+const casingOfType = (type: string): string => `area-casing-${type}`;
+/** The selected point, alone. So the ring is a change of data, and never a change of style. */
+const SELECTION_SOURCE = 'selection';
+const SELECTION_LAYER = 'selection-ring';
+// The shape of the selected entity, drawn wide: a route or an area is selected by its width and
+// not by its colour alone.
+const SELECTION_SHAPE_SOURCE = 'selection-shape';
+const SELECTION_SHAPE_CASING = 'selection-shape-casing';
+const SELECTION_SHAPE_BAND = 'selection-shape-band';
+const SELECTION_SHAPE_CORE = 'selection-shape-core';
+const layerOfType = (type: string): string => `entity-${type}`;
+/** The halo of one type. It reads the one point source, so it costs no second query. */
+const haloOfType = (type: string): string => `inherited-${type}`;
+/** The military marks of one type. It reads the same source, under the same rule. */
+const symbolOfType = (type: string): string => `symbol-${type}`;
+
+/** Every relation that can be drawn. One source, and one layer over it. */
+const LINK_SOURCE = 'links';
+const LINK_LAYER = 'links-line';
+const ACTIVE_LINK_SOURCE = 'links-active';
+const ACTIVE_LINK_LAYER = 'links-active-line';
+
+// MapLibre places a symbol along a line from the start of that line, and no expression reads
+// where a line ends or which way it runs. So the end point and the bearing are computed here,
+// and the layer turns the image by that bearing.
+const ARROW_SOURCE = 'link-arrows';
+const ARROW_LAYER = 'link-arrow';
+const ARROW_IMAGE = 'link-arrow-head';
+const arrowImageOf = (family: LinkFamily): string => `${ARROW_IMAGE}:${family}`;
+
+// The dash of a family is in pixels at a line of this width. `line-dasharray` is in units of the
+// line width, so a pattern grows with the zoom ramp of the width, and the family stays readable.
+const DASH_UNIT_PX = 1.5;
+// The halo under a point, in pixels.
+const HALO_WIDTH = 2;
+
+/** `60.12 N · 27.48 E`. */
+const coordinateWords = (lat: number, lon: number): string =>
+  `${Math.abs(lat).toFixed(2)} ${lat < 0 ? 'S' : 'N'} · ${Math.abs(lon).toFixed(2)} ${lon < 0 ? 'W' : 'E'}`;
+
+// At 0.5 this hue is close to invisible on the light page. At 0.8 it stays visible on both pages
+// and quieter than the bright line.
+const LINK_OPACITY = 0.8;
+const ACTIVE_LINK_OPACITY = 1;
+
+// The mark of a borrowed position, and **it adds ink where a fade would remove it**. Opacity
+// already says `type off` in the rail and `outside the neighbourhood` in the graph, so this is a
+// second disc UNDER the point and the point keeps its colour, its outline and its radius.
+const HALO_OPACITY = 0.3;
+
+// The hit box, in pixels on each side of the pointer. A line of one pixel is otherwise
+// unclickable. A point is a disc of 3px at zoom 3, so a bare point query gives the narrower
+// tolerance and a click 4px from the centre returns the line under it. Points take this box too.
+const HIT_BOX = 5;
+
+// The faint fill of an area, and the width of its outline. Invented: the fill lets imagery show
+// through and the outline carries the hue, so the shape reads on both grounds.
+const AREA_FILL_OPACITY = 0.2;
+const AREA_OUTLINE_WIDTH = 2;
+const ROUTE_CASING_WIDTH = 3.6;
+const ROUTE_CASING_OPACITY = 0.55;
+
+// Two or more entities that share one point draw in a circle around it instead, at this many CSS
+// pixels from the centre — the same unit `icon-size` and `circle-radius` use, so it reads the
+// same on every screen regardless of resolution.
+const SPREAD_RADIUS_PX = 44;
+// Below this zoom the units that share a point are not spread into a circle. Origin: invented.
+const SPREAD_MIN_ZOOM = 7;
+
+/** The padding of a fit, in pixels. It is six steps of the 4px grid the theme defines. */
+const FIT_PADDING = 24;
+
+// The highest zoom a fit can reach. Bounds of zero width give an infinite zoom that the library
+// clamps to 22, which shows one street. 14 is an invented number, and it is the top of the two
+// radius ramps of this file, so a point at this zoom already has its full size.
+const FIT_MAX_ZOOM = 14;
+
+// How near a selection from the rail is approached. A point has its full size at the ceiling
+// above, so this is not the mark: it is the ground around it, where a berth becomes readable.
+// It is invented, and the satellite ground is one step past its own resolution here.
+const REACH_ZOOM = 15;
+
+// A `ResizeObserver` box is never negative, so no delivery can carry this value. The seed of the
+// observer below takes it, and the first delivery therefore always resizes the canvas.
+const NO_SIZE = -1;
+
+/** The arcs of the physical links of the chain, and the exit points. The pulse reads the progress
+ * along each line, so the source of the arcs keeps its line metrics. */
+const CHAIN_ARC_SOURCE = 'chain-arcs';
+const CHAIN_EXIT_SOURCE = 'chain-exits';
+const CHAIN_CASING_LAYER = 'chain-arcs-casing';
+const CHAIN_POINT_LAYER = 'chain-points';
+const CHAIN_EXIT_LAYER = 'chain-exits-ring';
+const pulseOfProduct = (product: string): string => `chain-pulse-${product}`;
+
+// MapLibre parses no CSS custom property, so the hues of the chain are hex. The hues of the stages
+// and the products are light ones, and a dark casing under each arc keeps an arc readable on the
+// light plan ground too.
+const CHAIN_IN_REVIEW = '#b8b3b0';
+const CHAIN_PULSE = '#ffffff';
+const CHAIN_EXIT = STAGES.find((one) => one.key === 'exit')?.colour ?? CHAIN_IN_REVIEW;
+// The casing is a shade under the arc, and never a line of its own.
+const CHAIN_CASING_OPACITY = 0.5;
+// Origin of the number: at this opacity an asset or an arc out of the step stays visible on each
+// ground, and an asset of the step reads at once.
+const CHAIN_DIMMED = 0.3;
+
+/** The arcs of the chain, one layer for each style. A link in review is never drawn as a fact. */
+const CHAIN_ARC_LAYERS = [
+  { id: 'chain-arcs-solid', style: 'solid', dash: null },
+  { id: 'chain-arcs-dashed', style: 'dashed', dash: [3, 2] },
+  { id: 'chain-arcs-review', style: 'in review', dash: [0.5, 1.5] },
+] as const;
+
+/** A gradient along a line, with a bright head at `progress` (0 to 1) and a short tail. */
+type Pulse = [
+  'interpolate',
+  ['linear'],
+  ['line-progress'],
+  number,
+  string,
+  number,
+  string,
+  number,
+  string,
+  number,
+  string,
+  number,
+  string,
+];
+
+const pulseAt = (progress: number): Pulse => {
+  // Origin of the numbers: an interpolation needs its inputs in strictly ascending order, so the
+  // head stays between 0.13 and 0.97, with a tail of 0.12 and a front of 0.02.
+  const head = 0.13 + 0.84 * Math.min(Math.max(progress, 0), 1);
+  const clear = 'rgba(0,0,0,0)';
+  return [
+    'interpolate',
+    ['linear'],
+    ['line-progress'],
+    0,
+    clear,
+    head - 0.12,
+    clear,
+    head,
+    CHAIN_PULSE,
+    head + 0.02,
+    clear,
+    1,
+    clear,
+  ];
+};
+
+/** The unsubscribe that a destroyed handle gives. */
+const NO_OP = (): void => {
+  // A destroyed handle registers no listener, so it has nothing to remove.
+};
+
+// `id` is the `fid` of the projection, because MapLibre needs a number for a feature identifier.
+// The identity of the row stays `id`.
+interface PointFeature {
+  readonly type: 'Feature';
+  readonly id: number;
+  readonly geometry: { readonly type: 'Point'; readonly coordinates: readonly number[] };
+  readonly properties: {
+    readonly entityType: string;
+    /** The identity of the row, which a step of the chain puts forward. */
+    readonly entityId: string;
+    readonly colour: string;
+    /** The hue of the stage of the asset, which the Chain mode draws. Absent with no stage. */
+    readonly stageColour?: string;
+    // The halo layer filters on this. One source and one property, and not a second source: a
+    // panel of thirty types must not make sixty queries, and two sources of one point would
+    // drift the day one of the two was written and the other was not.
+    readonly inherited: boolean;
+    // The image of the military marks. **The key is absent for an entity that draws none**, and
+    // the two layers filter on `has`: a value that stood for an absence would be a second way to
+    // say nothing, and the style parser compares no null.
+    readonly symbolImage?: string;
+  };
+}
+
+interface PointCollection {
+  readonly type: 'FeatureCollection';
+  readonly features: readonly PointFeature[];
+}
+
+const collect = (features: readonly PointFeature[]): PointCollection => ({
+  type: 'FeatureCollection',
+  features,
+});
+
+interface AreaCollection {
+  readonly type: 'FeatureCollection';
+  readonly features: readonly ShapeFeature[];
+}
+
+// `id` is the `fid` of the projection, because MapLibre needs a number for a feature identifier.
+// Nothing reads a property of a line, so the record is empty.
+interface LineFeature {
+  readonly type: 'Feature';
+  readonly id: number;
+  readonly geometry: {
+    readonly type: 'LineString';
+    readonly coordinates: readonly (readonly number[])[];
+  };
+  readonly properties: { readonly family: LinkFamily };
+}
+
+interface LineCollection {
+  readonly type: 'FeatureCollection';
+  readonly features: readonly LineFeature[];
+}
+
+// A line that runs to a point which no layer draws states a place the map shows nowhere.
+const isDrawnLink = (link: GeoLink, draws: (entity: GeoEntity) => boolean): boolean =>
+  draws(link.from) && draws(link.to);
+
+const drawnLinks = (
+  links: readonly GeoLink[],
+  draws: (entity: GeoEntity) => boolean,
+): readonly GeoLink[] => links.filter((link) => isDrawnLink(link, draws));
+
+/** Where one entity draws. Every caller of `collectLines`, `collectArrows` and `featuresOf` takes
+ * one of these, and never `entity.lon`/`entity.lat` directly: an entity in a spread circle draws
+ * away from its own coordinate, and a line to it must run to the same point the mark stands on. */
+type DisplayPointOf = (entity: GeoEntity) => { readonly lon: number; readonly lat: number };
+
+/** The point before any circle spreads it apart. Callers built before the map exists — the first
+ * frame of the style — take this, because the spread needs a live map to convert pixels to it. */
+const ownPoint: DisplayPointOf = (entity) => ({ lon: entity.lon, lat: entity.lat });
+
+const collectLines = (
+  links: readonly GeoLink[],
+  at: DisplayPointOf = ownPoint,
+): LineCollection => ({
+  type: 'FeatureCollection',
+  features: links.map((link) => {
+    const from = at(link.from);
+    const to = at(link.to);
+    return {
+      type: 'Feature',
+      id: link.fid,
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [from.lon, from.lat],
+          [to.lon, to.lat],
+        ],
+      },
+      properties: { family: familyOfLink(link.type) },
+    };
+  }),
+});
+
+// The bearing is the plane angle, and not the great-circle one. The great-circle bearing is the
+// angle a vessel would steer, and not the angle of the straight line this map draws. At a high
+// latitude the two differ by degrees, and the head would then point off its own line.
+interface ArrowFeature {
+  readonly type: 'Feature';
+  readonly id: number;
+  readonly geometry: {
+    readonly type: 'Point';
+    readonly coordinates: readonly [number, number];
+  };
+  readonly properties: { readonly bearing: number; readonly family: LinkFamily };
+}
+
+interface ArrowCollection {
+  readonly type: 'FeatureCollection';
+  readonly features: readonly ArrowFeature[];
+}
+
+const collectArrows = (
+  links: readonly GeoLink[],
+  at: DisplayPointOf = ownPoint,
+): ArrowCollection => ({
+  type: 'FeatureCollection',
+  features: links.map((link) => {
+    const from = at(link.from);
+    const to = at(link.to);
+    return {
+      type: 'Feature',
+      id: link.fid,
+      geometry: { type: 'Point', coordinates: [to.lon, to.lat] },
+      properties: {
+        bearing: (Math.atan2(to.lon - from.lon, to.lat - from.lat) * 180) / Math.PI,
+        family: familyOfLink(link.type),
+      },
+    };
+  }),
+});
+
+// `unknown` is the window before the style loads, where the library can answer no query. A caller
+// that reads that silence as `ground` removes a selection the analyst kept. `link` is not `ground`
+// either: the analyst aimed at a relation, so the selection stays.
+type Hit =
+  | { readonly kind: 'entity'; readonly entity: GeoEntity }
+  | { readonly kind: 'link'; readonly link: GeoLink }
+  | { readonly kind: 'ground' }
+  | { readonly kind: 'unknown' };
+
+// Two instances on one element make the browser remove the older WebGL context, and the map then
+// looks empty without being empty. So a second mount destroys the first. React 19 StrictMode runs
+// setup, cleanup, setup, and never a second setup before the cleanup of the first.
+const mounted = new WeakMap<HTMLElement, MapHandle>();
+
+export function mountMap({
+  container,
+  projection,
+  chain,
+  creditCorner = 'bottom-right',
+}: MountMapOptions): MapHandle {
+  mounted.get(container)?.destroy();
+
+  const stored = readMapWorkspace();
+  const hidden = new Set<string>(stored.hiddenTypes);
+  const folds = foldEveryUnit(projection.hierarchy);
+  const draws = (entity: GeoEntity): boolean => !hidden.has(entity.type);
+  // Departure: a selection opens the path down to its entity, so the rail list shows its row.
+  const reveal = (entity: GeoEntity): void => {
+    if (draws(entity)) folds.reveal(entity.id);
+  };
+  // The store holds the state that is switched off, so `linksHidden` says the relations are
+  // hidden and never that they are drawn. The two switches of this surface keep one polarity.
+  let linksHidden = stored.linksHidden;
+  // The tokens and the hues of the theme in force. A theme change rewrites both, and the paint of
+  // every layer follows without a new style, so the camera stays where it is.
+  let theme = canvasTheme();
+  let tokens = mapTokens();
+  const hueOf = (facet: TypeFacet): string => facet.colours[theme];
+  const colourOfType = new Map(projection.types.map((facet) => [facet.type, hueOf(facet)]));
+
+  // One raster per drawing, and never one per unit. The resolver below reads this record, so an
+  // image can only be asked for by a name that an entity of this projection produced.
+  const symbolVariants = new Map<
+    string,
+    { readonly symbol: NatoSymbol; readonly type: string } | { readonly type: string }
+  >();
+  // A unit draws its military marks, and any other entity with a shape draws that shape.
+  const imageOf = (entity: GeoEntity): string | null => {
+    if (entity.symbol !== null) return unitSymbolImageId(entity.type, entity.symbol);
+    return hasGlyph(entity.type) ? glyphImageId(entity.type) : null;
+  };
+  for (const entity of projection.entities) {
+    const id = imageOf(entity);
+    if (id === null || !colourOfType.has(entity.type)) continue;
+    symbolVariants.set(
+      id,
+      entity.symbol !== null ? { symbol: entity.symbol, type: entity.type } : { type: entity.type },
+    );
+  }
+
+  // The circle each entity shares its point with. Zoom-independent: the map that turns a slot
+  // into a pixel offset does not exist yet at this line, so this much is computed once, here.
+  const slots = spreadSlots(projection.entities);
+
+  // MapLibre reads the style with its own parser, so a CSS custom property never reaches it and
+  // `projection.ts` holds the hex copy. An entity of a type with no facet is drawn nowhere.
+  const featuresOf = (
+    entities: readonly GeoEntity[],
+    at: DisplayPointOf = ownPoint,
+  ): PointFeature[] => {
+    const features: PointFeature[] = [];
+    for (const entity of entities) {
+      const colour = colourOfType.get(entity.type);
+      if (colour === undefined) continue;
+      const point = at(entity);
+      const stageColour = chain.stageColour.get(entity.id);
+      const symbolImage = imageOf(entity);
+      features.push({
+        type: 'Feature',
+        id: entity.fid,
+        geometry: { type: 'Point', coordinates: [point.lon, point.lat] },
+        // The ancestor identity is the test, and never the words. A label that no row supplies
+        // must not remove the halo from a position that was still borrowed.
+        properties: {
+          entityType: entity.type,
+          entityId: entity.id,
+          colour,
+          inherited: entity.parentId !== null,
+          ...(stageColour === undefined ? {} : { stageColour }),
+          ...(symbolImage === null ? {} : { symbolImage }),
+        },
+      });
+    }
+    return features;
+  };
+
+  // An entity that a polygon locates keeps its one point above, and its shape draws here. The type
+  // of an entity that has no hue draws nothing, as for a point.
+  const areaFeaturesOf = (entities: readonly GeoEntity[]): AreaCollection => ({
+    type: 'FeatureCollection',
+    features: entities.flatMap((entity): ShapeFeature[] => {
+      const feature = shapeFeatureOf(
+        entity,
+        colourOfType.has(entity.type),
+        chain.stageColour.get(entity.id),
+      );
+      return feature === null ? [] : [feature];
+    }),
+  });
+
+  // **A point that draws its military marks draws no disc under them.** The two filters are
+  // complementary over one property, so one entity is one mark and the map states its kind once.
+  const pointLayers: LayerSpec[] = projection.types.map((facet) => ({
+    id: layerOfType(facet.type),
+    type: 'circle',
+    source: ENTITY_SOURCE,
+    filter: ['all', ['==', ['get', 'entityType'], facet.type], ['!', ['has', 'symbolImage']]],
+    // `setLayoutProperty` only marks the source, and the new parse is asynchronous. In the window
+    // between the switch and the answer of the worker, the old tile still holds the points and
+    // `queryRenderedFeatures` returns them. So the hit test has a second guard against `hidden`.
+    layout: { visibility: hidden.has(facet.type) ? 'none' : 'visible' },
+    paint: {
+      'circle-color': hueOf(facet),
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 14, 7],
+      // **The halo is on every point, and no state removes it.** It is the `map-water` token.
+      'circle-stroke-color': tokens.water,
+      'circle-stroke-width': HALO_WIDTH,
+    },
+  }));
+
+  // One halo layer per type, exactly beside the point layer of that type: the two carry the same
+  // filter and the same visibility, so a type that switches off takes its haloes with its points
+  // and no second truth about what is drawn can appear.
+  const haloLayers: LayerSpec[] = projection.types.map((facet) => ({
+    id: haloOfType(facet.type),
+    type: 'circle',
+    source: ENTITY_SOURCE,
+    filter: ['all', ['==', ['get', 'entityType'], facet.type], ['==', ['get', 'inherited'], true]],
+    layout: { visibility: hidden.has(facet.type) ? 'none' : 'visible' },
+    paint: {
+      'circle-color': hueOf(facet),
+      'circle-opacity': HALO_OPACITY,
+      // Twice the radius of the point at each stop of its ramp, so the point stands inside the
+      // halo at every zoom and the halo never becomes a mark of its own.
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 6, 14, 14],
+      // No stroke. A stroke would read as a second outline beside the black one of the point,
+      // and the point is what the analyst clicks.
+      'circle-stroke-width': 0,
+    },
+  }));
+
+  // One symbol layer per type, beside the point layer of that type and under the same rule as the
+  // halo: one filter, one visibility. A unit draws here and the disc layer drops it, so the two
+  // can never draw one entity twice or leave it undrawn.
+  const symbolLayers: LayerSpec[] = projection.types.map((facet) => ({
+    id: symbolOfType(facet.type),
+    type: 'symbol',
+    source: ENTITY_SOURCE,
+    filter: ['all', ['==', ['get', 'entityType'], facet.type], ['has', 'symbolImage']],
+    layout: {
+      visibility: hidden.has(facet.type) ? 'none' : 'visible',
+      'icon-image': ['get', 'symbolImage'],
+      // The raster is four pixels to the unit, and the diamond is 13 units across in it. This
+      // ramp therefore draws that diamond at 13px at zoom 3 and 19px at zoom 14, which is the
+      // width of the disc of a point at each end of its own ramp.
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 3, 0.25, 14, 0.375],
+      // The symbol stands upright on a rotated map: a military mark that turned with the ground
+      // would read as another mark.
+      'icon-rotation-alignment': 'viewport',
+      // The collision machinery is off. MapLibre drops a symbol that meets another one, and a
+      // dropped symbol is a unit the map shows nowhere.
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+    },
+  }));
+
+  // One fill and one outline for each type, over the one source of areas. The fill is faint, so the
+  // ground stays readable under it, and the outline carries the hue at full strength.
+  const areaLayers: LayerSpec[] = projection.types.flatMap((facet): LayerSpec[] => [
+    {
+      id: fillOfType(facet.type),
+      type: 'fill',
+      source: AREA_SOURCE,
+      // MapLibre fills a line as if it were a closed ring, so a pipeline would draw a wedge
+      // between its two ends. Only an area is filled.
+      filter: [
+        'all',
+        ['==', ['get', 'entityType'], facet.type],
+        ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
+      ],
+      layout: { visibility: hidden.has(facet.type) ? 'none' : 'visible' },
+      paint: { 'fill-color': hueOf(facet), 'fill-opacity': AREA_FILL_OPACITY },
+    },
+    // A route (a pipeline) is a line in the hue of its type, and that hue is lost on the blue of
+    // the imagery. A thin dark casing under it keeps the line apart from the ground, with no pale band.
+    {
+      id: casingOfType(facet.type),
+      type: 'line',
+      source: AREA_SOURCE,
+      filter: [
+        'all',
+        ['==', ['get', 'entityType'], facet.type],
+        ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]],
+      ],
+      layout: {
+        visibility: hidden.has(facet.type) ? 'none' : 'visible',
+        'line-join': 'round',
+        'line-cap': 'round',
+      },
+      paint: {
+        'line-color': tokens.casing,
+        'line-width': ROUTE_CASING_WIDTH,
+        'line-opacity': ROUTE_CASING_OPACITY,
+      },
+    },
+    {
+      id: outlineOfType(facet.type),
+      type: 'line',
+      source: AREA_SOURCE,
+      filter: ['==', ['get', 'entityType'], facet.type],
+      layout: { visibility: hidden.has(facet.type) ? 'none' : 'visible', 'line-join': 'round' },
+      paint: { 'line-color': hueOf(facet), 'line-width': AREA_OUTLINE_WIDTH },
+    },
+  ]);
+
+  const selectionShapeLayers: LayerSpec[] = [
+    {
+      id: SELECTION_SHAPE_CASING,
+      type: 'line',
+      source: SELECTION_SHAPE_SOURCE,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': tokens.casing, 'line-width': 9, 'line-opacity': 0.9 },
+    },
+    {
+      id: SELECTION_SHAPE_BAND,
+      type: 'line',
+      source: SELECTION_SHAPE_SOURCE,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': tokens.ring, 'line-width': 6 },
+    },
+    {
+      id: SELECTION_SHAPE_CORE,
+      type: 'line',
+      source: SELECTION_SHAPE_SOURCE,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      // The Chain mode paints the stage hue, and the plain map paints the hue of the type.
+      paint: { 'line-color': ['coalesce', ['get', 'colour'], tokens.ring], 'line-width': 3 },
+    },
+  ];
+
+  // One layer per family: a dash pattern is not data driven in MapLibre. The pattern carries the
+  // family alone where the hues are hard to tell apart.
+  const linkLayerOf = (
+    id: string,
+    source: string,
+    family: LinkFamily,
+    opacity: number,
+    width: number | unknown[],
+  ): LayerSpec =>
+    ({
+      id,
+      type: 'line',
+      source,
+      filter: ['==', ['get', 'family'], family],
+      // The relations are hidden with `visibility`, like a type. A hidden layer returns nothing
+      // from `queryRenderedFeatures` after the worker parses the tile again, and `linkAt` guards
+      // the window before that answer.
+      layout: { visibility: linksHidden ? 'none' : 'visible', 'line-cap': 'butt' },
+      paint: {
+        'line-color': tokens.family[family],
+        'line-opacity': opacity,
+        'line-width': width,
+        ...(family === 'ownership'
+          ? {}
+          : { 'line-dasharray': FAMILY_DASH[family].map((one) => one / DASH_UNIT_PX) }),
+      },
+    }) as LayerSpec;
+  const baseLinkLayers = EVERY_FAMILY.map((family) =>
+    linkLayerOf(`${LINK_LAYER}-${family}`, LINK_SOURCE, family, LINK_OPACITY, [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      2,
+      1,
+      8,
+      1.4,
+      14,
+      2.2,
+    ]),
+  );
+  const activeLinkLayers = EVERY_FAMILY.map((family) =>
+    linkLayerOf(`${ACTIVE_LINK_LAYER}-${family}`, ACTIVE_LINK_SOURCE, family, ACTIVE_LINK_OPACITY, [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      2,
+      1.4,
+      8,
+      2.4,
+      14,
+      3.5,
+    ]),
+  );
+  const linkLayers: LayerSpec[] = [...baseLinkLayers, ...activeLinkLayers];
+
+  // The heads are above the lines and below every point: a relation must never cover the thing it
+  // relates. The collision machinery is off, because MapLibre drops a symbol that meets another
+  // one, and a dropped head reads as a relation with no direction.
+  const arrowLayer: LayerSpec = {
+    id: ARROW_LAYER,
+    type: 'symbol',
+    source: ARROW_SOURCE,
+    layout: {
+      visibility: linksHidden ? 'none' : 'visible',
+      'icon-image': ['concat', ARROW_IMAGE, ':', ['get', 'family']],
+      // The head follows the zoom with the width of the line it belongs to, at the same rate.
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 2, 0.22, 8, 0.34, 14, 0.48],
+      // The image points north, so the bearing on the feature is the whole of the rotation.
+      'icon-rotate': ['get', 'bearing'],
+      'icon-rotation-alignment': 'map',
+      // The head stands back from the point it names, along its own axis: a mark on the centre
+      // covers the thing it marks. The step is in the units of the image, so it follows
+      // `icon-size` and never the length of the relation.
+      'icon-offset': [0, 14],
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+    },
+    paint: { 'icon-opacity': LINK_OPACITY },
+  };
+
+  // The reader asks for reduced motion: no pulse and no camera flight.
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let chainOn = stored.chain;
+  let globeOn = stored.globe;
+  const chainVisibility = (): 'visible' | 'none' => (chainOn ? 'visible' : 'none');
+
+  // An asset of the chain keeps its type filter: a point of a type that is switched off is drawn
+  // nowhere, in the Chain mode too.
+  const chainPointFilter = (): [
+    'all',
+    ['has', string],
+    ['!', ['in', ['get', string], ['literal', string[]]]],
+  ] => [
+    'all',
+    ['has', 'stageColour'],
+    ['!', ['in', ['get', 'entityType'], ['literal', [...hidden]]]],
+  ];
+
+  const chainArcLayers: LayerSpec[] = [
+    {
+      id: CHAIN_CASING_LAYER,
+      type: 'line',
+      source: CHAIN_ARC_SOURCE,
+      layout: { visibility: chainVisibility(), 'line-cap': 'round' },
+      paint: {
+        'line-color': tokens.casing,
+        'line-width': 4,
+        'line-opacity': CHAIN_CASING_OPACITY,
+      },
+    },
+    ...CHAIN_ARC_LAYERS.map((one): LayerSpec => ({
+      id: one.id,
+      type: 'line',
+      source: CHAIN_ARC_SOURCE,
+      filter: ['==', ['get', 'style'], one.style],
+      layout: {
+        visibility: chainVisibility(),
+        'line-cap': one.dash === null ? 'round' : 'butt',
+      },
+      paint: {
+        'line-color': one.style === 'in review' ? CHAIN_IN_REVIEW : ['get', 'colour'],
+        'line-width': 2,
+        ...(one.dash === null ? {} : { 'line-dasharray': [...one.dash] }),
+      },
+    })),
+    // A pulse runs along each link that is a fact. A gradient reads no property of the feature,
+    // so each product has its own layer.
+    ...PRODUCTS.map((one): LayerSpec => ({
+      id: pulseOfProduct(one.key),
+      type: 'line',
+      source: CHAIN_ARC_SOURCE,
+      filter: ['all', ['==', ['get', 'product'], one.key], ['!=', ['get', 'style'], 'in review']],
+      layout: { visibility: chainOn && !still ? 'visible' : 'none', 'line-cap': 'round' },
+      paint: { 'line-width': 3, 'line-blur': 1, 'line-gradient': pulseAt(0.5) },
+    })),
+  ];
+
+  const chainMarkLayers: LayerSpec[] = [
+    {
+      id: CHAIN_POINT_LAYER,
+      type: 'circle',
+      source: ENTITY_SOURCE,
+      filter: chainPointFilter(),
+      layout: { visibility: chainVisibility() },
+      paint: {
+        'circle-color': ['get', 'stageColour'],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3.5, 14, 7.5],
+        'circle-stroke-color': tokens.water,
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 3, 1, 14, 1.6],
+      },
+    },
+    {
+      id: CHAIN_EXIT_LAYER,
+      type: 'circle',
+      source: CHAIN_EXIT_SOURCE,
+      layout: { visibility: chainVisibility() },
+      paint: {
+        // A ring with no fill, so the asset under an exit point stays in view.
+        'circle-opacity': 0,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 8, 14, 16],
+        'circle-stroke-color': ['case', ['get', 'inReview'], CHAIN_IN_REVIEW, CHAIN_EXIT],
+        'circle-stroke-width': 2,
+      },
+    },
+  ];
+
+  /** The imagery ground: one source, one layer, and one name for both. */
+  const IMAGERY_LAYER = 'ground-imagery';
+
+  let ground: Ground = stored.ground;
+  let imagery: Imagery = stored.imagery;
+
+  // `maxzoom` is the ceiling of the server, and it is measured: the EOX service answers 200 far
+  // past its 10 m resolution, because it upsamples. MapLibre then asks no tile past the ceiling
+  // and overzooms the parent itself.
+  const rasterSourceOf = (source: GroundSource): SourceSpec => ({
+    type: 'raster',
+    tiles: [source.tiles],
+    tileSize: source.tileSize,
+    maxzoom: source.maxZoom,
+    attribution: source.attribution,
+  });
+
+  // The imagery lies over the water and the coast of the plan, and under its borders and names.
+  const imageryLayerOf = (): LayerSpec => ({
+    id: IMAGERY_LAYER,
+    type: 'raster',
+    source: IMAGERY_LAYER,
+    layout: { visibility: ground === 'imagery' ? 'visible' : 'none' },
+    paint: imageryPaint(),
+  });
+  const plan = planLayers(tokens, ground);
+  const planBelowImagery = plan.findIndex((layer) => layer.id === 'plan-coast') + 1;
+  const IMAGERY_BEFORE = 'plan-border-internal';
+
+  const style: StyleSpec = {
+    version: 8,
+    glyphs: glyphsUrl(),
+    projection: { type: globeOn ? 'globe' : 'mercator' },
+    sources: {
+      [PLAN_SOURCE]: planSource(),
+      [IMAGERY_LAYER]: rasterSourceOf(groundSource(imagery)),
+      [ENTITY_SOURCE]: { type: 'geojson', data: collect(featuresOf(projection.entities)) },
+      [AREA_SOURCE]: { type: 'geojson', data: areaFeaturesOf(projection.entities) },
+      [SELECTION_SOURCE]: { type: 'geojson', data: collect([]) },
+      [SELECTION_SHAPE_SOURCE]: { type: 'geojson', data: areaFeaturesOf([]) },
+      // The lines belong to a selection, which the address restores below this style. So the
+      // first frame carries none, and `paintBaseLinks` fills the two sources through the queue.
+      [LINK_SOURCE]: { type: 'geojson', data: collectLines([]) },
+      [ACTIVE_LINK_SOURCE]: { type: 'geojson', data: collectLines([]) },
+      [ARROW_SOURCE]: { type: 'geojson', data: collectArrows([]) },
+      [CHAIN_ARC_SOURCE]: { type: 'geojson', data: chain.arcs, lineMetrics: true },
+      [CHAIN_EXIT_SOURCE]: { type: 'geojson', data: chain.exits },
+    },
+    // The first layer of this list is at the bottom of the map, and the last layer is at the top.
+    layers: [
+      ...plan.slice(0, planBelowImagery),
+      imageryLayerOf(),
+      ...plan.slice(planBelowImagery),
+      // **The areas are under every line and every point.** An area is ground, and a mark on it
+      // must never be covered by it.
+      ...areaLayers,
+      // Under every point and above the outline of each type: a black casing, a white band, and
+      // the hue of the asset in the middle.
+      ...selectionShapeLayers,
+      // **The lines come before every point.** A relation must never cover what it relates.
+      ...linkLayers,
+      arrowLayer,
+      // The arcs of the chain are lines too, so they stand under every point.
+      ...chainArcLayers,
+      // **The haloes are under every point.** A halo over a point would dim the mark it belongs
+      // to, and it would cover a neighbouring point that stands inside its radius.
+      ...haloLayers,
+      ...pointLayers,
+      // In the Chain mode, the disc of the stage covers the disc of the type of the same asset.
+      ...chainMarkLayers,
+      // The marks stand above every disc. They are the mark of the unit itself, and a disc of a
+      // neighbouring type that covered one would hide what that unit is.
+      ...symbolLayers,
+      {
+        // **The ring is above each point layer.** One slot cannot do two jobs. A point that
+        // stands near the selected point covers a ring below the points. This occurs at the low
+        // zoom that the rule is about.
+        id: SELECTION_LAYER,
+        type: 'circle',
+        source: SELECTION_SOURCE,
+        paint: {
+          // The ring has no fill, and its size follows the zoom. A disc of one size reads as a
+          // grey area at low zoom, and it covers each point near it. The fill colour is stated,
+          // because a colour that nobody states takes the value of the parser.
+          'circle-color': tokens.ring,
+          'circle-opacity': 0,
+          'circle-stroke-color': tokens.ring,
+          'circle-stroke-width': 2,
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 9, 14, 16],
+        },
+      },
+    ],
+  };
+
+  const camera = stored.camera;
+  const bounds = projection.bounds;
+  const base: MapOptions = {
+    container,
+    style,
+    // The control is added below, with its corner, so the default one is switched off here.
+    attributionControl: false,
+  };
+  const options: MapOptions =
+    camera !== null
+      ? { ...base, center: [camera.lon, camera.lat], zoom: camera.zoom }
+      : bounds !== null
+        ? {
+            ...base,
+            bounds: [bounds[0], bounds[1], bounds[2], bounds[3]],
+            fitBoundsOptions: { padding: FIT_PADDING, maxZoom: FIT_MAX_ZOOM },
+          }
+        : // Nothing can be drawn. So the map shows the world, which states no place that the data
+          // does not contain.
+          { ...base, center: [0, 0], zoom: 0 };
+
+  const map = new MapLibreMap(options);
+
+  // MapLibre credits each source that a visible layer uses, so the hidden ground credits nothing.
+  // It is compact by choice of the operator: the full credit opens from the button. The satellite
+  // panel states the imagery credit whole. The plan credit stands behind the button only.
+  map.addControl(new AttributionControl({ compact: true }), creditCorner);
+  // MapLibre opens a compact credit at the first frame. The button stays and the text folds.
+  const foldCredit = (): void => {
+    map
+      .getContainer()
+      .querySelector('.maplibregl-ctrl-attrib')
+      ?.classList.remove('maplibregl-compact-show');
+  };
+  map.once('idle', foldCredit);
+  map.addControl(new ScaleControl({ maxWidth: 96, unit: 'metric' }), 'bottom-left');
+  // The cursor coordinates, bottom right, in `data`: `60.12 N · 27.48 E`.
+  const coords = document.createElement('div');
+  coords.className = 'gab-map-coords';
+  container.append(coords);
+
+  // The pixel offset needs a live map to turn into a point, because it reads the current zoom.
+  // `project` and `unproject` carry the current bearing and pitch too, so the circle stays a
+  // circle on the screen even where a gesture turns or tilts the ground under it.
+  const displayPointOf: DisplayPointOf = (entity) => {
+    const slot = slots.get(entity.id);
+    // Far out, a circle of units is a huge ring around one point. The units stay on their shared
+    // point until the reader is close enough to read the ring.
+    if (slot === undefined || map.getZoom() < SPREAD_MIN_ZOOM) {
+      return { lon: entity.lon, lat: entity.lat };
+    }
+    const anchor = map.project([entity.lon, entity.lat]);
+    const { dx, dy } = spreadOffsetPx(slot, SPREAD_RADIUS_PX);
+    const moved = map.unproject([anchor.x + dx, anchor.y + dy]);
+    return { lon: moved.lng, lat: moved.lat };
+  };
+
+  let destroyed = false;
+  let styleReady = false;
+  const queued: (() => void)[] = [];
+  const subscriptions: Subscription[] = [];
+
+  // `setLayoutProperty` throws while the style loads, and `getSource` returns nothing in the same
+  // window with no fault reported. The analyst can click a control there, so one queue covers both.
+  const whenStyleReady = (work: () => void): void => {
+    if (destroyed) return;
+    if (styleReady) work();
+    else queued.push(work);
+  };
+
+  // Each task runs in its own `try`. An error that leaves this function goes into the event
+  // dispatcher of MapLibre, which stops the rest of the load. The list is emptied into a local
+  // list first, so a task that asks for more work runs it at once and never re-enters this loop.
+  const drain = (): void => {
+    const tasks = queued.splice(0);
+    for (const work of tasks) {
+      try {
+        work();
+      } catch (error) {
+        console.error('The map could not run a task that waited for the style.', error);
+      }
+    }
+  };
+
+  const selectListeners = new Set<(id: string | null) => void>();
+
+  // This file reads the address here, at the mount, and never again. It never writes the address:
+  // the route owns the navigation.
+  const address = new URLSearchParams(window.location.search);
+  // An empty value is not an identifier. The router writes `entity=` for the empty selection,
+  // which is the normal state of a map.
+  const wanted = address.get('entity') === '' ? null : address.get('entity');
+  const restored = wanted === null ? null : (projection.byId.get(wanted) ?? null);
+  if (restored !== null) reveal(restored);
+  // An old identifier gives no selection, and it shows no fault on the screen. The map draws no
+  // selected point of a type that is switched off. A mark on such a point shows a point that the
+  // map does not draw. Such a selection is dropped as well.
+  let selected: string | null = restored === null || !draws(restored) ? null : restored.id;
+
+  // The chosen relation is dropped under the same rules as a selected point: a panel that names a
+  // relation which this canvas draws nowhere is a lie on the screen. The route then corrects the
+  // address, because `onChooseLink` announces what this file accepted.
+  const wantedLink = address.get('relation') === '' ? null : address.get('relation');
+  const restoredLink =
+    wantedLink === null ? null : (projection.links.find((link) => link.id === wantedLink) ?? null);
+  let chosenLink: GeoLink | null =
+    restoredLink !== null && !linksHidden && isDrawnLink(restoredLink, draws) ? restoredLink : null;
+  const chooseLinkListeners = new Set<(link: GeoLink | null) => void>();
+
+  // The circle needs the current zoom, so the entity source is static at no point past the first
+  // frame: this repaints every drawn point at its live position, in the circle or off it.
+  const paintEntities = (): void => {
+    whenStyleReady(() => {
+      const source = map.getSource(ENTITY_SOURCE);
+      if (!(source instanceof GeoJSONSource)) return;
+      void source.setData(collect(featuresOf(projection.entities, displayPointOf)));
+    });
+  };
+
+  const paintSelection = (): void => {
+    whenStyleReady(() => {
+      const source = map.getSource(SELECTION_SOURCE);
+      // The test on the class gives the type that declares `setData`. The queue above already made
+      // the source available, so this test is a narrowing and not a second guard.
+      if (!(source instanceof GeoJSONSource)) return;
+      const entity = selected === null ? undefined : projection.byId.get(selected);
+      // `setData` returns a promise, and `void` drops it. The data is here already, so the
+      // promise carries no fetch that can fail. A rejection can only come from a map that the
+      // analyst closed while the parser worked, and that is not a fault to report.
+      void source.setData(
+        collect(featuresOf(entity === undefined ? [] : [entity], displayPointOf)),
+      );
+      const shape = map.getSource(SELECTION_SHAPE_SOURCE);
+      if (!(shape instanceof GeoJSONSource)) return;
+      // An entity that a point locates has no shape, and the collection is then empty.
+      const drawn = entity === undefined ? [] : [entity];
+      void shape.setData({
+        type: 'FeatureCollection',
+        features: areaFeaturesOf(drawn).features.map((one) => ({
+          ...one,
+          properties: {
+            ...one.properties,
+            colour: colourOfType.get(one.properties.entityType) ?? null,
+          },
+        })),
+      });
+    });
+  };
+
+  const paintBaseLinks = (): void => {
+    whenStyleReady(() => {
+      const source = map.getSource(LINK_SOURCE);
+      // The test on the class gives the type that declares `setData`, exactly as above.
+      if (!(source instanceof GeoJSONSource)) return;
+      const drawn = drawnLinks(relationsInReach(projection, selected), draws);
+      void source.setData(collectLines(drawn, displayPointOf));
+      // The heads follow the same list, in the same queue, so a line and its head can never
+      // disagree about which relations are drawn.
+      const heads = map.getSource(ARROW_SOURCE);
+      if (heads instanceof GeoJSONSource) void heads.setData(collectArrows(drawn, displayPointOf));
+    });
+  };
+
+  // A relation whose endpoint is not drawn is not bright either. A line at full opacity that runs
+  // to a point which no layer draws states a place the map shows nowhere. So each change of the
+  // visibility of a type calls this function again.
+  const paintActiveLinks = (): void => {
+    whenStyleReady(() => {
+      const source = map.getSource(ACTIVE_LINK_SOURCE);
+      if (!(source instanceof GeoJSONSource)) return;
+      const mine = selected === null ? [] : (projection.linksByEntity.get(selected) ?? []);
+      // The chosen relation joins the bright set. It can touch no selected entity, and it is
+      // then the one bright line. `mine` can hold it already, and a repeated feature identifier
+      // is a fault of the source, so the test keeps one copy.
+      const bright =
+        chosenLink === null || mine.includes(chosenLink) ? mine : [...mine, chosenLink];
+      void source.setData(collectLines(drawnLinks(bright, draws), displayPointOf));
+    });
+  };
+
+  const setChosenLink = (next: GeoLink | null): void => {
+    if (destroyed || next === chosenLink) return;
+    chosenLink = next;
+    paintActiveLinks();
+    // Each listener reads the value of this call, for the reason `setSelected` states below.
+    for (const listener of chooseLinkListeners) listener(next);
+  };
+
+  // The selection that comes from the address is drawn at the load, through the same queue.
+  paintEntities();
+  paintSelection();
+  paintBaseLinks();
+  paintActiveLinks();
+
+  // A zoom changes how many pixels one degree covers, so a circle held at a fixed pixel radius
+  // moves every point it spreads apart. `zoomend` fires once a gesture or a `flyTo` settles, and
+  // not on every frame of it, which a `setData` on every frame would cost.
+  subscriptions.push(
+    map.on('zoomend', () => {
+      paintEntities();
+      paintBaseLinks();
+      paintActiveLinks();
+      paintSelection();
+    }),
+  );
+
+  const setSelected = (next: string | null): void => {
+    if (destroyed || next === selected) return;
+    selected = next;
+    // **A new selection ends the choice of a relation.** The bright set then answers one
+    // question, which is "what does this one touch". One paint draws both changes.
+    const droppedLink = chosenLink;
+    chosenLink = null;
+    paintSelection();
+    paintBaseLinks();
+    paintActiveLinks();
+    if (droppedLink !== null) for (const listener of chooseLinkListeners) listener(null);
+    // Each listener reads the value of this call, and never the live variable. A listener can
+    // call `select` again, and that call changes the variable in the middle of the loop. The
+    // listeners after it would then read a value that depends on their place in the set.
+    for (const listener of selectListeners) listener(next);
+  };
+
+  // The identifiers of the layers that draw an entity, taken from the layers themselves. One list,
+  // one truth. The symbol layers are in it because a unit is clicked on its marks: it draws no
+  // disc, so a hit test over the discs alone would make every unit unclickable.
+  const pointLayerIds = [
+    ...pointLayers.map((layer) => layer.id),
+    CHAIN_POINT_LAYER,
+    ...symbolLayers.map((layer) => layer.id),
+  ];
+
+  /** The same rule for the lines. Both line layers are clickable, and the brighter one too. */
+  const linkLayerIds = linkLayers.map((layer) => layer.id);
+
+  /** Only the fills answer a click: a click on the area selects it, and its outline is no more. */
+  const fillLayerIds = projection.types.map((facet) => fillOfType(facet.type));
+
+  // `fid` is a position in an array and not an identity: it is valid against the one `Projection`
+  // that made it. A point of a hidden type gives `ground`, because the old tile still answers
+  // until the worker parses it again. Points are asked first, then lines, then areas.
+  const hitAt = (point: MapMouseEvent['point']): Hit => {
+    if (!styleReady) return { kind: 'unknown' };
+    // **One box, for the points and for the lines** — see `HIT_BOX`. A point that is asked with a
+    // bare point loses a click that the line beside it takes, at each zoom where the disc is
+    // narrower than the box.
+    const box: [[number, number], [number, number]] = [
+      [point.x - HIT_BOX, point.y - HIT_BOX],
+      [point.x + HIT_BOX, point.y + HIT_BOX],
+    ];
+    for (const feature of map.queryRenderedFeatures(box, { layers: pointLayerIds })) {
+      const fid = feature.id;
+      if (typeof fid !== 'number') continue;
+      const entity = projection.byFid.get(fid);
+      if (entity !== undefined && draws(entity)) return { kind: 'entity', entity };
+    }
+    // **A relation that is switched off is not asked.** It is the same window as the guard above:
+    // the layer is marked hidden, and the old tile still answers until the worker parses it again.
+    // The two paths therefore hold one rule.
+    if (!linksHidden) {
+      // **A line needs a hit box of about five pixels on each side.** A line of one pixel is
+      // otherwise unclickable. The box above is that box, and the points already used it.
+      for (const feature of map.queryRenderedFeatures(box, { layers: linkLayerIds })) {
+        const fid = feature.id;
+        if (typeof fid !== 'number') continue;
+        const link = projection.byLinkFid.get(fid);
+        // A relation whose endpoint is not drawn gives the result `ground`. It is the same window
+        // as the guard on the points: the source is marked, and the old tile still answers until
+        // the worker parses it again.
+        if (link !== undefined && isDrawnLink(link, draws)) return { kind: 'link', link };
+      }
+    }
+    // **An area is asked last, and with the bare point.** A mark and a line that stand on it win,
+    // and a click beside an area must not select it.
+    for (const feature of map.queryRenderedFeatures(point, { layers: fillLayerIds })) {
+      const fid = feature.id;
+      if (typeof fid !== 'number') continue;
+      const entity = projection.byFid.get(fid);
+      if (entity !== undefined && draws(entity)) return { kind: 'entity', entity };
+    }
+    return { kind: 'ground' };
+  };
+
+  // This style holds no sprite and no glyph server, so the image the style names must come from
+  // here. `styleimagemissing` is not the path in `maplibre-gl` 6: it fires, and the layer that was
+  // built keeps an empty image. That was measured in the browser and not assumed.
+  const imageData = (id: string): ImageData | null => {
+    if (id.startsWith(`${ARROW_IMAGE}:`)) {
+      const family = EVERY_FAMILY.find((one) => arrowImageOf(one) === id);
+      return family === undefined ? null : arrowImage(tokens.family[family]);
+    }
+    // A name no entity of this projection produced draws nothing. The image is built here at the
+    // first request and kept by the library, so a corpus of one drawing costs one raster.
+    const variant = symbolVariants.get(id);
+    const colour = variant === undefined ? undefined : colourOfType.get(variant.type);
+    if (variant === undefined || colour === undefined) return null;
+    return 'symbol' in variant
+      ? unitSymbolImage(variant.symbol, colour, tokens.water)
+      : glyphImage(variant.type, colour, tokens.water);
+  };
+  map.setMissingStyleImageResolver((id) => {
+    if (map.hasImage(id)) return;
+    const image = imageData(id);
+    if (image !== null) map.addImage(id, image);
+  });
+
+  subscriptions.push(
+    map.on('load', () => {
+      styleReady = true;
+      drain();
+    }),
+  );
+
+  // The pulse runs along each link in 2.6 seconds, then waits for a short time. It runs only in
+  // the Chain mode, and never under reduced motion.
+  // The wait leaves the style clean for a short time, so an `idle` listener can still fire.
+  let pulseFrame = 0;
+  const pulse = (now: number): void => {
+    if (destroyed || !chainOn) {
+      pulseFrame = 0;
+      return;
+    }
+    const progress = ((now / 2600) % 1) * 1.15;
+    if (styleReady && progress <= 1)
+      for (const one of PRODUCTS)
+        map.setPaintProperty(pulseOfProduct(one.key), 'line-gradient', pulseAt(progress));
+    pulseFrame = requestAnimationFrame(pulse);
+  };
+  const startPulse = (): void => {
+    if (!still && chainOn && pulseFrame === 0) pulseFrame = requestAnimationFrame(pulse);
+  };
+  startPulse();
+
+  const placesOfStep = new Map<string, readonly (readonly [number, number])[]>([
+    ...projection.entities.map(
+      (entity) => [entity.id, [[entity.lon, entity.lat] as const]] as const,
+    ),
+    ...chain.flows.arcs.map((arc) => [arc.id, arc.path] as const),
+    ...chain.flows.exits.flatMap((exit) =>
+      exit.position === null ? [] : [[exit.id, [exit.position]] as const],
+    ),
+  ]);
+
+  const forward = (
+    ids: ReadonlySet<string> | null,
+    property: string,
+    base = 1,
+  ): number | ['case', ['in', ['get', string], ['literal', string[]]], number, number] =>
+    ids === null
+      ? base
+      : ['case', ['in', ['get', property], ['literal', [...ids]]], base, base * CHAIN_DIMMED];
+
+  const paintStep = (key: string | null): void => {
+    const step = key === null ? undefined : chain.steps.find((one) => one.key === key);
+    whenStyleReady(() => {
+      const assets = step === undefined ? null : new Set(step.assets);
+      const arcs = step === undefined ? null : new Set(step.arcs);
+      const exits = step === undefined ? null : new Set(step.exits);
+      map.setPaintProperty(CHAIN_POINT_LAYER, 'circle-opacity', forward(assets, 'entityId'));
+      map.setPaintProperty(CHAIN_POINT_LAYER, 'circle-stroke-opacity', forward(assets, 'entityId'));
+      map.setPaintProperty(
+        CHAIN_CASING_LAYER,
+        'line-opacity',
+        forward(arcs, 'id', CHAIN_CASING_OPACITY),
+      );
+      for (const id of [
+        ...CHAIN_ARC_LAYERS.map((one) => one.id),
+        ...PRODUCTS.map((one) => pulseOfProduct(one.key)),
+      ])
+        map.setPaintProperty(id, 'line-opacity', forward(arcs, 'id'));
+      map.setPaintProperty(CHAIN_EXIT_LAYER, 'circle-stroke-opacity', forward(exits, 'id'));
+    });
+    if (step === undefined) return;
+    const all = [...step.assets, ...step.arcs, ...step.exits].flatMap(
+      (id) => placesOfStep.get(id) ?? [],
+    );
+    if (all.length === 0) return;
+    cameraIsAnalystChoice = true;
+    map.fitBounds(
+      [
+        [Math.min(...all.map(([lon]) => lon)), Math.min(...all.map(([, lat]) => lat))],
+        [Math.max(...all.map(([lon]) => lon)), Math.max(...all.map(([, lat]) => lat))],
+      ],
+      { padding: FIT_PADDING * 2, maxZoom: 6, duration: still ? 0 : 2000 },
+    );
+    storeCameraAfterMove();
+  };
+
+  // In the Chain mode, an asset with a stage draws one disc, in the colour of its stage, and each
+  // other entity steps back. Out of the mode, the type layers draw as before.
+  const paintChainMode = (): void => {
+    whenStyleReady(() => {
+      map.setPaintProperty(
+        SELECTION_SHAPE_CORE,
+        'line-color',
+        chainOn ? ['coalesce', ['get', 'stageColour'], ['get', 'colour']] : ['get', 'colour'],
+      );
+      const staged: ['has', string] = ['has', 'stageColour'];
+      for (const facet of projection.types) {
+        const base: ['==', ['get', string], string] = ['==', ['get', 'entityType'], facet.type];
+        map.setFilter(
+          layerOfType(facet.type),
+          chainOn
+            ? ['all', base, ['!', ['has', 'symbolImage']], ['!', ['has', 'stageColour']]]
+            : ['all', base, ['!', ['has', 'symbolImage']]],
+        );
+        const back = chainOn ? CHAIN_DIMMED : 1;
+        map.setPaintProperty(layerOfType(facet.type), 'circle-opacity', back);
+        map.setPaintProperty(layerOfType(facet.type), 'circle-stroke-opacity', back);
+        map.setPaintProperty(symbolOfType(facet.type), 'icon-opacity', back);
+        map.setPaintProperty(haloOfType(facet.type), 'circle-opacity', HALO_OPACITY * back);
+        // A route or an area follows its point: the hue of the stage, and a step back when the
+        // asset has no stage.
+        map.setPaintProperty(
+          outlineOfType(facet.type),
+          'line-color',
+          chainOn ? ['coalesce', ['get', 'stageColour'], hueOf(facet)] : hueOf(facet),
+        );
+        map.setPaintProperty(
+          outlineOfType(facet.type),
+          'line-opacity',
+          chainOn ? ['case', staged, 1, CHAIN_DIMMED] : 1,
+        );
+        map.setPaintProperty(
+          casingOfType(facet.type),
+          'line-opacity',
+          chainOn
+            ? ['case', staged, ROUTE_CASING_OPACITY, ROUTE_CASING_OPACITY * CHAIN_DIMMED]
+            : ROUTE_CASING_OPACITY,
+        );
+        map.setPaintProperty(
+          fillOfType(facet.type),
+          'fill-color',
+          chainOn ? ['coalesce', ['get', 'stageColour'], hueOf(facet)] : hueOf(facet),
+        );
+      }
+    });
+  };
+  // The arcs, the pulse, the asset discs and the exit rings of the chain follow the mode, the type
+  // filter and the switch of the relation lines. An arc to a point that no layer draws states a
+  // place the map shows nowhere.
+  const paintChainLayers = (): void => {
+    whenStyleReady(() => {
+      const off: ['literal', string[]] = ['literal', [...hidden]];
+      type Off = ['!', ['in', ['get', string], ['literal', string[]]]];
+      const ends: ['all', Off, Off] = [
+        'all',
+        ['!', ['in', ['get', 'fromType'], off]],
+        ['!', ['in', ['get', 'toType'], off]],
+      ];
+      const arcsShown = chainOn && !linksHidden;
+      map.setLayoutProperty(CHAIN_CASING_LAYER, 'visibility', arcsShown ? 'visible' : 'none');
+      map.setFilter(CHAIN_CASING_LAYER, ends);
+      for (const one of CHAIN_ARC_LAYERS) {
+        map.setLayoutProperty(one.id, 'visibility', arcsShown ? 'visible' : 'none');
+        map.setFilter(one.id, ['all', ['==', ['get', 'style'], one.style], ends]);
+      }
+      for (const one of PRODUCTS) {
+        const id = pulseOfProduct(one.key);
+        map.setLayoutProperty(id, 'visibility', arcsShown && !still ? 'visible' : 'none');
+        map.setFilter(id, [
+          'all',
+          ['==', ['get', 'product'], one.key],
+          ['!=', ['get', 'style'], 'in review'],
+          ends,
+        ]);
+      }
+      map.setLayoutProperty(CHAIN_POINT_LAYER, 'visibility', chainVisibility());
+      map.setFilter(CHAIN_POINT_LAYER, chainPointFilter());
+      map.setLayoutProperty(CHAIN_EXIT_LAYER, 'visibility', chainVisibility());
+      map.setFilter(CHAIN_EXIT_LAYER, ['!', ['in', ['get', 'assetType'], off]]);
+    });
+  };
+  paintChainLayers();
+  paintChainMode();
+
+  // True when the camera is the choice of the analyst, so the adapter must not frame the corpus
+  // over it. `workspace.ts` keeps `camera` at `null` until a camera is stored, so a camera stored
+  // for a move that the analyst did not make would remove the first frame from each later open.
+  let cameraIsAnalystChoice = false;
+
+  // The label is a child of the container and not of the canvas. MapLibre owns the canvas element
+  // and replaces it on a context loss, so an element inside it would go with it.
+  const hoverLabel = document.createElement('div');
+  hoverLabel.className = 'gab-map-card';
+  hoverLabel.hidden = true;
+  container.append(hoverLabel);
+
+  /** What the card says now, so that a move over one feature writes the DOM one time. */
+  let hoverWords: string | null = null;
+  // The card opens after 120ms of hover and closes at once.
+  let hoverTimer = 0;
+
+  interface Card {
+    readonly type: string | null;
+    readonly eyebrow: string;
+    readonly name: string;
+    /** Two rows at most: key in `muted-foreground`, value in `data`. */
+    readonly rows: readonly (readonly [string, string])[];
+  }
+
+  const cardNodes = (card: Card): Node[] => {
+    const head = document.createElement('span');
+    head.className = 'gab-map-card-head';
+    if (card.type !== null && hasGlyph(card.type)) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '-7 -7 14 14');
+      svg.setAttribute('aria-hidden', 'true');
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', glyphPath(card.type));
+      path.setAttribute('fill', colourOfType.get(card.type) ?? 'currentColor');
+      svg.append(path);
+      head.append(svg);
+    }
+    head.append(card.eyebrow);
+    const name = document.createElement('span');
+    name.textContent = card.name;
+    const rows = card.rows.slice(0, 2).map(([key, value]) => {
+      const row = document.createElement('span');
+      row.className = 'gab-map-card-row';
+      const label = document.createElement('span');
+      label.textContent = key;
+      const data = document.createElement('span');
+      data.className = 'gab-map-card-data';
+      data.textContent = value;
+      row.append(label, data);
+      return row;
+    });
+    return [head, name, ...rows];
+  };
+
+  const nameHover = (card: Card | null, point: { x: number; y: number } | null): void => {
+    if (card === null || point === null) {
+      clearTimeout(hoverTimer);
+      hoverWords = null;
+      hoverLabel.hidden = true;
+      return;
+    }
+    const words = [card.eyebrow, card.name, ...card.rows.flat()].join('|');
+    if (words !== hoverWords) {
+      hoverWords = words;
+      clearTimeout(hoverTimer);
+      hoverLabel.hidden = true;
+      hoverLabel.replaceChildren(...cardNodes(card));
+      hoverTimer = window.setTimeout(() => {
+        hoverLabel.hidden = false;
+      }, 120);
+    }
+    // The card follows the pointer here, and the graph anchors it to the node. A map has no
+    // node radius to stand clear of, and a point under the pointer is the thing being named.
+    hoverLabel.style.transform = canvasLabelTransform(point.x, point.y);
+  };
+
+  subscriptions.push(
+    map.on('mousemove', (event) => {
+      const hit = hitAt(event.point);
+      coords.textContent = coordinateWords(event.lngLat.lat, event.lngLat.lng);
+      if (hit.kind === 'entity') {
+        const { entity } = hit;
+        const count = (projection.linksByEntity.get(entity.id) ?? []).length;
+        // The echelon and the domain, for a reader who reads no military symbol; the borrowed
+        // position says whose it is. An entity that recorded neither adds no row.
+        const extra = [entity.symbol?.words ?? null, entity.positionFrom]
+          .filter((one) => one !== null)
+          .join(' · ');
+        nameHover(
+          {
+            type: entity.type,
+            eyebrow: entity.type.replaceAll('_', ' '),
+            name: entity.label,
+            rows: [
+              ['Relations', String(count)],
+              ...(extra === '' ? [] : [['Note', extra] as const]),
+            ],
+          },
+          event.point,
+        );
+        return;
+      }
+      if (hit.kind === 'link') {
+        // The share of an ownership link, and the mark of a share that GEM estimated.
+        const share = shareWords(hit.link.attrs);
+        nameHover(
+          {
+            type: null,
+            eyebrow: share === null ? 'relation' : `relation · ${share}`,
+            name: hit.link.typeWords,
+            rows: [
+              ['From', hit.link.from.label],
+              ['To', hit.link.to.label],
+            ],
+          },
+          event.point,
+        );
+        return;
+      }
+      nameHover(null, null);
+    }),
+  );
+
+  // A pointer that leaves the canvas names nothing. Without this the label stays where the
+  // pointer left the map.
+  subscriptions.push(
+    map.on('mouseout', () => {
+      nameHover(null, null);
+    }),
+  );
+
+  // **One `click` handler, and it asks what is under the pointer.** Two handlers make the result
+  // depend on the order in which they run.
+  subscriptions.push(
+    map.on('click', (event) => {
+      const hit = hitAt(event.point);
+      // The style is not loaded, so the library can say nothing about this point. A click in
+      // that window changes no selection. The selection from the address stays.
+      if (hit.kind === 'unknown') return;
+      // The selection stays. A line that cleared it would take away the bright lines of the
+      // entity under the pointer.
+      if (hit.kind === 'link') {
+        setChosenLink(hit.link);
+        return;
+      }
+      // A click on a point or on the ground ends the choice. `setSelected` does the same, and it
+      // does nothing where the selection does not change — a click on the ground with no
+      // selection, for one.
+      setChosenLink(null);
+      const next = hit.kind === 'entity' ? hit.entity.id : null;
+      // A selection changes the width of the container, because the sidebar of the route is a
+      // flex sibling of the map. Without this flag the observer below frames the corpus again,
+      // and it throws away the frame that the analyst reads.
+      if (next !== selected) cameraIsAnalystChoice = true;
+      if (hit.kind === 'entity') reveal(hit.entity);
+      setSelected(next);
+    }),
+  );
+
+  // Each writer of the workspace patches. A writer that knows one part of the record only would
+  // remove the field of another writer.
+  const storeCamera = (): void => {
+    if (destroyed) return;
+    const centre = map.getCenter();
+    patchMapWorkspace({ camera: { lon: centre.lng, lat: centre.lat, zoom: map.getZoom() } });
+  };
+
+  // A `moveend` of a gesture carries `originalEvent`, and a `moveend` of the program carries none.
+  // `jumpTo`, `easeTo`, `flyTo` and `fitBounds` fire with the data of the caller, which is nothing
+  // here. This also keeps `resize` out: `Map.resize` fires `moveend` from the observer of MapLibre.
+  subscriptions.push(
+    map.on('moveend', (event: MapMovementEvent) => {
+      if (event.originalEvent === undefined) return;
+      cameraIsAnalystChoice = true;
+      storeCamera();
+    }),
+  );
+
+  // A gesture arms the flag at its first frame, and not at its end. `map.resize()` calls `stop()`
+  // while `Camera._moving` is false, a drag never sets that field, and the handler manager fires
+  // no `moveend` for the drag that it kills. A flag armed on `moveend` could therefore never arm.
+  subscriptions.push(
+    map.on('movestart', (event: MapMovementEvent) => {
+      if (event.originalEvent === undefined) return;
+      cameraIsAnalystChoice = true;
+    }),
+  );
+
+  // A move that the program starts carries no `originalEvent`, so the handler above stores nothing
+  // for it. `flyTo` from the rail stores its camera at its own call site. `destroy` removes each
+  // listener that is still waiting.
+  const pendingMoveEnds = new Set<() => void>();
+
+  // The library begins an animation with `stop()`, which fires the `moveend` of an animation that
+  // is not complete. This listener is added after the call, so that event does not reach it. An
+  // animation that ends inside the call stores at once: `flyTo` jumps under reduced motion.
+  const storeCameraAfterMove = (): void => {
+    if (!map.isMoving()) {
+      storeCamera();
+      return;
+    }
+    const listener = (): void => {
+      pendingMoveEnds.delete(listener);
+      storeCamera();
+    };
+    pendingMoveEnds.add(listener);
+    map.once('moveend', listener);
+  };
+
+  // A box zoom arms the flag at its start. The gesture changes no camera until it ends, so
+  // `movestart` cannot reach it. `BoxZoomHandler` only draws a `<div>` while the analyst drags,
+  // and a `map.resize()` in that window resets each handler, so `boxzoomend` never fires.
+  subscriptions.push(
+    map.on('boxzoomstart', () => {
+      cameraIsAnalystChoice = true;
+    }),
+  );
+
+  /** The `idle` listeners of a box zoom whose fit is not complete. `destroy` removes each one. */
+  const pendingIdles = new Set<() => void>();
+
+  // Box zoom is the one gesture with no `originalEvent`: `BoxZoomHandler.mouseupWindow` ends it
+  // with `fitScreenCoordinates`, which gives no event data. The library fires `boxzoomend` before
+  // the fit, so the store waits for `idle`. `moveend` is not safe: the fit stops an earlier ease.
+  subscriptions.push(
+    map.on('boxzoomend', () => {
+      cameraIsAnalystChoice = true;
+      const listener = (): void => {
+        pendingIdles.delete(listener);
+        storeCamera();
+      };
+      pendingIdles.add(listener);
+      map.once('idle', listener);
+    }),
+  );
+
+  // `duration: 0` makes the frame immediate. `fitBounds` with no `duration` and no `linear`
+  // becomes a `flyTo`, which is a curved animation that each delivery of the observer starts
+  // again. It does not avoid `stop()`: `flyTo` calls `stop()` before it reads `duration`.
+  const correctCorpusFrame = (): void => {
+    if (bounds === null) return;
+    map.fitBounds([bounds[0], bounds[1], bounds[2], bounds[3]], {
+      padding: FIT_PADDING,
+      maxZoom: FIT_MAX_ZOOM,
+      duration: 0,
+    });
+  };
+
+  // MapLibre measures the container one time, in the constructor, and the observer of the library
+  // drops its first delivery. A container that becomes stable between the two keeps the canvas of
+  // the constructor. `map.resize()` runs before the fit, because that observer is throttled 50ms.
+  const framesCorpusOnOpen = camera === null && bounds !== null;
+  let usedWidth = NO_SIZE;
+  let usedHeight = NO_SIZE;
+  const observer = new ResizeObserver((entries) => {
+    if (destroyed || cameraIsAnalystChoice) return;
+    for (const entry of entries) {
+      const width = Math.round(entry.contentRect.width);
+      const height = Math.round(entry.contentRect.height);
+      if (width === usedWidth && height === usedHeight) continue;
+      usedWidth = width;
+      usedHeight = height;
+      map.resize();
+      if (framesCorpusOnOpen) correctCorpusFrame();
+    }
+  });
+  observer.observe(container);
+
+  // A theme change reads the tokens again and repaints the layers that hold a colour. It runs
+  // through the queue, because `setPaintProperty` needs a loaded style, and it never touches the
+  // camera. The theme is read from the class on `documentElement` and never from React.
+  const paintTheme = (): void => {
+    whenStyleReady(() => {
+      theme = canvasTheme();
+      tokens = mapTokens();
+      for (const facet of projection.types) colourOfType.set(facet.type, hueOf(facet));
+      const plan = planColours(tokens, ground);
+      map.setPaintProperty('background', 'background-color', plan.background);
+      for (const id of plan.fills) map.setPaintProperty(id, 'fill-color', tokens.water);
+      for (const id of plan.lines) map.setPaintProperty(id, 'line-color', tokens.boundary);
+      for (const { id, halo } of plan.names) {
+        map.setPaintProperty(id, 'text-color', tokens.label);
+        map.setPaintProperty(id, 'text-halo-color', halo);
+      }
+      for (const facet of projection.types) {
+        map.setPaintProperty(layerOfType(facet.type), 'circle-color', hueOf(facet));
+        map.setPaintProperty(layerOfType(facet.type), 'circle-stroke-color', tokens.water);
+        map.setPaintProperty(haloOfType(facet.type), 'circle-color', hueOf(facet));
+        map.setPaintProperty(fillOfType(facet.type), 'fill-color', hueOf(facet));
+        map.setPaintProperty(casingOfType(facet.type), 'line-color', tokens.casing);
+        map.setPaintProperty(outlineOfType(facet.type), 'line-color', hueOf(facet));
+      }
+      for (const family of EVERY_FAMILY) {
+        map.setPaintProperty(`${LINK_LAYER}-${family}`, 'line-color', tokens.family[family]);
+        map.setPaintProperty(`${ACTIVE_LINK_LAYER}-${family}`, 'line-color', tokens.family[family]);
+      }
+      map.setPaintProperty(SELECTION_SHAPE_CASING, 'line-color', tokens.casing);
+      map.setPaintProperty(SELECTION_SHAPE_BAND, 'line-color', tokens.ring);
+      map.setPaintProperty(SELECTION_LAYER, 'circle-color', tokens.ring);
+      map.setPaintProperty(SELECTION_LAYER, 'circle-stroke-color', tokens.ring);
+      map.setPaintProperty(CHAIN_CASING_LAYER, 'line-color', tokens.casing);
+      map.setPaintProperty(CHAIN_POINT_LAYER, 'circle-stroke-color', tokens.casing);
+      // The registered rasters hold a colour, so each one is drawn again in place.
+      for (const id of [...symbolVariants.keys(), ...EVERY_FAMILY.map(arrowImageOf)]) {
+        const image = map.hasImage(id) ? imageData(id) : null;
+        if (image !== null) map.updateImage(id, image);
+      }
+      paintChainMode();
+      paintSelection();
+    });
+  };
+  const stopTheme = observeCanvasTheme(paintTheme);
+
+  // Departure: a switch that takes a point away drops the selection of it and each relation to it.
+  // Both line sets are painted at each switch, so a type that comes back brings its lines back
+  // with it.
+  const dropUndrawn = (): void => {
+    const entity = selected === null ? undefined : projection.byId.get(selected);
+    if (entity !== undefined && !draws(entity)) setSelected(null);
+    if (chosenLink !== null && !isDrawnLink(chosenLink, draws)) setChosenLink(null);
+    paintBaseLinks();
+    paintActiveLinks();
+  };
+
+  const handle: MapHandle = {
+    get selected() {
+      return destroyed ? null : selected;
+    },
+    select: (id) => {
+      if (destroyed) return;
+      const entity = id === null ? undefined : projection.byId.get(id);
+      if (entity !== undefined) reveal(entity);
+      setSelected(entity === undefined || !draws(entity) ? null : entity.id);
+    },
+    onSelect: (listener) => {
+      if (destroyed) return NO_OP;
+      selectListeners.add(listener);
+      // **A component that subscribes after the map is built has already missed the restore.**
+      // The listener is called here with the current selection. So no caller must remember to
+      // read `selected` first.
+      listener(selected);
+      return () => selectListeners.delete(listener);
+    },
+    flyTo: (id) => {
+      if (destroyed) return;
+      const entity = projection.byId.get(id);
+      // **The camera refuses what `select` refuses.** An entity of a type that is switched off is
+      // drawn nowhere, so a flight to it takes the analyst to an empty place and the selection
+      // that the same act asked for is dropped by `select`. The two members hold one rule.
+      if (entity === undefined || !draws(entity)) return;
+      // The rail calls this, so the analyst made this move. This line arms the flag before the
+      // camera call, so the observer interrupts this animation with no correction of the size.
+      cameraIsAnalystChoice = true;
+      // The approach only ever moves nearer. An analyst who is already reading one berth keeps
+      // that scale, because a selection that pulled the camera back would undo their work.
+      map.flyTo({
+        center: [entity.lon, entity.lat],
+        zoom: Math.max(map.getZoom(), REACH_ZOOM),
+      });
+      // The animation carries no gesture of its own, so it stores its camera here.
+      storeCameraAfterMove();
+    },
+    setTypeVisible: (type, visible) => {
+      if (destroyed) return;
+      // A type with no layer has no switch. `setLayoutProperty` throws an error on a layer that
+      // is absent.
+      if (!colourOfType.has(type)) return;
+      if (visible) hidden.delete(type);
+      else hidden.add(type);
+      patchMapWorkspace({ hiddenTypes: [...hidden] });
+      whenStyleReady(() => {
+        // The halo and the marks of a type switch with the points of that type. A halo left
+        // behind is a coloured disc with no mark inside it, and a symbol left behind is a unit at
+        // a position the map draws nowhere.
+        for (const id of [
+          layerOfType(type),
+          haloOfType(type),
+          symbolOfType(type),
+          fillOfType(type),
+          casingOfType(type),
+          outlineOfType(type),
+        ]) {
+          map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+        }
+      });
+      paintChainLayers();
+      dropUndrawn();
+    },
+    // A destroyed handle draws no type.
+    isTypeVisible: (type) => !destroyed && !hidden.has(type),
+    setUnitOpen: (unit, open) => {
+      if (destroyed) return;
+      const entity = projection.byId.get(unit);
+      if (entity === undefined || !draws(entity)) return;
+      folds.setOpen(unit, open);
+    },
+    // A destroyed handle opens no unit.
+    get openUnits() {
+      return destroyed ? new Set<string>() : folds.open;
+    },
+    // The switch drops no selection. A relation is not an entity, so a hidden line leaves no
+    // marked point undrawn.
+    setLinksVisible: (visible) => {
+      if (destroyed) return;
+      linksHidden = !visible;
+      patchMapWorkspace({ linksHidden });
+      whenStyleReady(() => {
+        // The heads go with the lines. They are not in `linkLayerIds`, because that list is the
+        // hit test as well: a click must find the line, and a head has no identity of its own.
+        for (const id of [...linkLayerIds, ARROW_LAYER]) {
+          map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+        }
+      });
+      // The arcs of the chain are relations too, so the same switch hides them.
+      paintChainLayers();
+      // A switch that hides each line ends the choice. The rail must name no relation that the
+      // map draws nowhere.
+      if (!visible) setChosenLink(null);
+    },
+    // A destroyed handle draws no relation.
+    get linksVisible() {
+      return !destroyed && !linksHidden;
+    },
+    // A destroyed handle holds no choice.
+    get chosenLink() {
+      return destroyed ? null : chosenLink;
+    },
+    onChooseLink: (listener) => {
+      if (destroyed) return NO_OP;
+      chooseLinkListeners.add(listener);
+      // The same rule as `onSelect`: a caller that subscribes late has missed nothing.
+      listener(chosenLink);
+      return () => chooseLinkListeners.delete(listener);
+    },
+    // Both grounds are in the style, so this shows one and hides the other, and every source, the
+    // selection and the filter survive it. MapLibre then drops the credit of the hidden ground.
+    setGround: (next) => {
+      if (destroyed) return;
+      ground = next;
+      patchMapWorkspace({ ground: next });
+      whenStyleReady(() => {
+        map.setLayoutProperty(IMAGERY_LAYER, 'visibility', next === 'imagery' ? 'visible' : 'none');
+        for (const id of PLAN_GROUND_LAYERS) {
+          map.setLayoutProperty(id, 'visibility', next === 'plan' ? 'visible' : 'none');
+        }
+        map.setPaintProperty('background', 'background-color', backgroundOf(next, tokens));
+      });
+    },
+    get ground() {
+      return ground;
+    },
+    // `setTiles` on a raster source resets its attribution from the options it was built with, so
+    // a new date would keep the old credit. The source and its layer are rebuilt instead, at the
+    // same place in the stack, so the imagery stays under the borders and every mark.
+    setImagery: (next) => {
+      if (destroyed) return;
+      imagery = next;
+      patchMapWorkspace({ imagery: next });
+      whenStyleReady(() => {
+        if (map.getLayer(IMAGERY_LAYER) !== undefined) map.removeLayer(IMAGERY_LAYER);
+        if (map.getSource(IMAGERY_LAYER) !== undefined) map.removeSource(IMAGERY_LAYER);
+        map.addSource(IMAGERY_LAYER, rasterSourceOf(groundSource(next)));
+        map.addLayer(imageryLayerOf(), IMAGERY_BEFORE);
+      });
+    },
+    get imagery() {
+      return imagery;
+    },
+    setChain: (on) => {
+      if (destroyed) return;
+      chainOn = on;
+      patchMapWorkspace({ chain: on });
+      paintChainLayers();
+      paintChainMode();
+      startPulse();
+      if (!on) paintStep(null);
+    },
+    get chain() {
+      return !destroyed && chainOn;
+    },
+    setGlobe: (on) => {
+      if (destroyed) return;
+      globeOn = on;
+      patchMapWorkspace({ globe: on });
+      whenStyleReady(() => {
+        map.setProjection({ type: on ? 'globe' : 'mercator' });
+      });
+    },
+    get globe() {
+      return !destroyed && globeOn;
+    },
+    showStep: (key) => {
+      if (destroyed) return;
+      paintStep(key);
+    },
+    destroy: () => {
+      if (destroyed) return;
+      destroyed = true;
+      cancelAnimationFrame(pulseFrame);
+      stopTheme();
+      observer.disconnect();
+      for (const subscription of subscriptions) subscription.unsubscribe();
+      // A camera animation of the rail that is not complete has a listener that waits for one
+      // `moveend`. `map.remove()` alone leaves it registered on a dead map.
+      for (const listener of pendingMoveEnds) map.off('moveend', listener);
+      pendingMoveEnds.clear();
+      // The same rule applies to a box zoom whose fit is not complete.
+      map.off('idle', foldCredit);
+      for (const listener of pendingIdles) map.off('idle', listener);
+      pendingIdles.clear();
+      selectListeners.clear();
+      chooseLinkListeners.clear();
+      // A task that waits for a style which never loads stays in the closure. The list is emptied.
+      queued.length = 0;
+      // The hover label is a child of the container and not of the canvas, so `map.remove()` does
+      // not take it: this file appended it, and this file removes it.
+      hoverLabel.remove();
+      coords.remove();
+      clearTimeout(hoverTimer);
+      if (mounted.get(container) === handle) mounted.delete(container);
+      map.remove();
+    },
+  };
+
+  mounted.set(container, handle);
+  return handle;
+}

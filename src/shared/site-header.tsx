@@ -17,24 +17,21 @@ export interface SiteHeaderProps {
 // `activeProps` class list: two colour utilities in one list are resolved by the order of the
 // stylesheet, and a variant is resolved by the cascade, which is the order this file states.
 const PAGE_LINK = cn(
-  'inline-flex h-full shrink-0 items-center border-b-2 border-transparent px-2 text-body/5',
-  'text-muted-foreground transition-colors duration-100 outline-none hover:text-foreground',
-  'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset',
-  'data-[status=active]:border-primary data-[status=active]:text-foreground',
-  'data-[section-active=true]:border-primary data-[section-active=true]:text-foreground',
+  'inline-flex h-8 shrink-0 items-center self-center rounded-sm px-3 text-body-sm',
+  'text-muted-foreground transition-colors duration-150 outline-none hover:text-foreground',
+  'focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring',
+  'data-[status=active]:bg-surface-secondary data-[status=active]:text-foreground',
+  'data-[section-active=true]:bg-surface-secondary data-[section-active=true]:text-foreground',
 );
 
 // The graph writes its selection with `history.replaceState`, which the router never sees, so
 // the selection is read from the address bar. The router calls each function again at the click.
 // shortcut: the `href` of the graph is computed at render and can name an older selection, which
 // a click with a modifier opens; read the selection from a store of the graph when one exists.
-// The map holds the entity only: a relation of the graph is not carried to it.
 // The render at the release has no address bar, and no selection is carried there.
 const addressBar = (): { readonly pathname: string; readonly search: string } =>
   typeof window === 'undefined' ? { pathname: '', search: '' } : window.location;
-const TO_MAP = () => ({
-  entity: carriedSelection(addressBar().pathname, addressBar().search, '/map').entity,
-});
+const TO_MAP = () => carriedSelection(addressBar().pathname, addressBar().search, '/map');
 const ABOUT = ['/method', '/glossary', '/help'];
 const DATA = ['/search', '/downloads', '/entity/', '/relation/', '/claim/'];
 const TO_GRAPH = () => carriedSelection(addressBar().pathname, addressBar().search, '/graph');
@@ -54,11 +51,13 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
       ? 'data'
       : path === '/map' || path === '/graph'
         ? 'none'
-        : 'report';
+        : path === '/'
+          ? 'report'
+          : 'none';
   return (
     <header className="site-navigation-main">
-      <Link to="/" className="site-wordmark">
-        GAB dataset
+      <Link to="/" aria-label="GAB dataset" className="site-wordmark">
+        GAB
       </Link>
       <nav aria-label="Pages of the site" className="site-primary-links">
         <Link

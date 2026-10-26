@@ -641,12 +641,15 @@ export const withoutBounds = <
 /** The name of a value of an act that code removes when no passage states it. */
 export type DroppedName = BoundName | 'observed_on';
 
-/** The relation types of a port call. The claim key of a relation holds the same list. */
+/** The relation types of a port call. */
 export const PORT_CALL_TYPES = ['berthed_at', 'loads_at', 'discharges_at'] as const;
 
-// The day of a port call, when the act is a port call that gives one.
+// The types whose claim key holds the day: the port calls and the ship-to-ship transfer.
+const DAY_KEY_TYPES: readonly string[] = [...PORT_CALL_TYPES, 'sts_with'];
+
+// The day of a port call or a transfer, when the act is one that gives one.
 const callDayOf = (act: WriteRequest): { readonly v: unknown } | undefined =>
-  act.op === 'create_relation' && PORT_CALL_TYPES.some((type) => type === act.type)
+  act.op === 'create_relation' && DAY_KEY_TYPES.includes(act.type)
     ? act.attrs?.['observed_on']
     : undefined;
 

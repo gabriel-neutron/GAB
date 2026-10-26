@@ -116,6 +116,7 @@ a file → one ingestion door (P6) → raw store + document record + text
                 structured file → a mapping proposal; after promotion, code loads the rows
 every unit → the decision rules (S3) → accepted, rejected, waits, or the review queue
 the queue  → the operator promotes or rejects (P1) → entities and relations
+a table of figures → its promoted mapping → code writes each figure, with no act per row (ADR 0030)
 ```
 
 - **Transactions:** a promotion writes the target and marks the proposal accepted in one

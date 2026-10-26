@@ -1,0 +1,54 @@
+<!-- @dsCard group="Canvas" height=470 subtitle="Basemap, markers, track, transfer, event" -->
+<style>
+  .mc { position:relative; height:440px; border:1px solid var(--divider); overflow:hidden; background:var(--map-water); }
+  .mc > svg { width:100%; height:100%; display:block; }
+  .mc .land { fill:var(--map-land); stroke:var(--map-boundary); stroke-width:1px; }
+  .mc .border { fill:none; stroke:var(--map-boundary); stroke-width:1px; stroke-dasharray:3 3; }
+  .mc .place { font:400 12px var(--font-sans); fill:var(--map-label); }
+  .mc .sea { font:400 12px var(--font-mono); fill:var(--map-label); letter-spacing:2px; text-transform:uppercase; }
+  .mc .track { fill:none; stroke:var(--entity-vessel); stroke-width:1.5px; opacity:.6; }
+  .mc .sts { fill:none; stroke-width:2px; }
+  .mc .ring { fill:none; stroke:var(--ring); stroke-width:2px; }
+  .mc .pulse { fill:none; stroke:var(--signal); stroke-width:1px; }
+  .mc .halo { fill:var(--map-water); }
+  .mc .chips { position:absolute; top:12px; left:12px; display:flex; gap:6px; }
+  .mc .chip { height:28px; padding:0 10px; display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface); font-size:12px; color:var(--foreground); }
+  .mc .chip[aria-pressed=false] { color:var(--muted-foreground); background:transparent; }
+  .mc .scale { position:absolute; left:12px; bottom:12px; display:flex; flex-direction:column; gap:4px; }
+  .mc .scale i { display:block; width:96px; height:4px; border:1px solid var(--label); border-top:0; }
+  .mc .coord { position:absolute; right:12px; bottom:12px; }
+</style>
+<div class="mc">
+  <svg viewBox="0 0 700 420" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Gulf of Finland with tracks and markers">
+    <path class="land" d="M0,0 H700 V70 C620,85 560,60 500,90 C440,120 380,95 320,110 C250,128 200,105 140,125 C90,140 40,130 0,150Z"/>
+    <path class="land" d="M0,300 C80,280 150,310 230,290 C310,270 360,300 430,285 C520,265 600,300 700,280 V420 H0Z"/>
+    <path class="land" d="M600,140 C630,130 670,150 700,140 V250 C670,240 640,250 610,230 C590,210 585,160 600,140Z"/>
+    <path class="border" d="M560,62 C575,120 590,170 605,232"/>
+    <text class="place" x="40" y="112">Helsinki</text>
+    <text class="place" x="80" y="330">Tallinn</text>
+    <text class="place" x="630" y="236">Russia</text>
+    <text class="sea" x="250" y="210">Gulf of Finland</text>
+    <path class="track" d="M60,230 C160,215 260,200 360,190 C430,182 500,175 560,168"/>
+    <path class="track" d="M80,260 C180,250 280,232 380,215"/>
+    <path class="sts r-transfer" d="M380,215 L360,190"/>
+    <g class="g-vessel " transform="translate(380,215) scale(1.077)"><path d="M0,-6 L6,5 L-6,5Z"/></g>
+    <g class="g-vessel " transform="translate(360,190) scale(1.077)"><path d="M0,-6 L6,5 L-6,5Z"/></g>
+    <circle class="ring" cx="360" cy="190" r="13"/>
+    <circle class="halo" cx="606" cy="150" r="9"/>
+    <g class="g-port " transform="translate(606,150) scale(1.231)"><path d="M-5.5,-5.5 H-2 V-2.5 H2 V-5.5 H5.5 V5.5 H-5.5Z"/></g>
+    <text class="place" x="620" y="150" style="fill:var(--foreground)">Primorsk</text>
+    <g class="g-facility " transform="translate(650,175) scale(1.077)"><path d="M-5,-5 H5 V5 H-5Z"/></g>
+    <g class="g-military-unit " transform="translate(540,330) scale(1.231)"><path d="M0,-6.5 L6.5,0 L0,6.5 L-6.5,0Z"/></g>
+    <circle class="pulse" cx="660" cy="105" r="14"/>
+    <g class="g-event " transform="translate(660,105) scale(1.231)"><path d="M0,-6.5 L1.8,-1.8 L6.5,0 L1.8,1.8 L0,6.5 L-1.8,1.8 L-6.5,0 L-1.8,-1.8Z"/></g>
+    <text class="place" x="378" y="186" style="fill:var(--foreground)">NS Champion</text>
+  </svg>
+  <div class="chips">
+    <span class="chip" aria-pressed="true"><svg class="gab-glyph g-vessel" style="width:14px;height:14px" viewBox="-7 -7 14 14" aria-hidden="true"><path d="M0,-6 L6,5 L-6,5Z"/></svg>Vessels 42</span>
+    <span class="chip" aria-pressed="true"><svg class="gab-glyph g-port" style="width:14px;height:14px" viewBox="-7 -7 14 14" aria-hidden="true"><path d="M-5.5,-5.5 H-2 V-2.5 H2 V-5.5 H5.5 V5.5 H-5.5Z"/></svg>Ports 6</span>
+    <span class="chip" aria-pressed="false"><svg class="gab-glyph g-event" style="width:14px;height:14px" viewBox="-7 -7 14 14" aria-hidden="true"><path d="M0,-6.5 L1.8,-1.8 L6.5,0 L1.8,1.8 L0,6.5 L-1.8,1.8 L-6.5,0 L-1.8,-1.8Z"/></svg>Events 3</span>
+    <span class="chip" aria-pressed="false">Imagery</span>
+  </div>
+  <div class="scale"><span class="gab-caption">50 km</span><i></i></div>
+  <div class="coord gab-data gab-muted">60.12 N · 27.48 E · z7</div>
+</div>

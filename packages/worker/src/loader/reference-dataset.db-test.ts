@@ -732,7 +732,8 @@ test('a forged act with the model call of the mapping is not accepted on a docum
   await inTransaction(async (held) => {
     await mappedWorkbook(held);
     const call = await held.idOf(
-      "SELECT model_call_id::text AS id FROM public.proposals WHERE op = 'map_document'",
+      "SELECT model_call_id::text AS id FROM public.proposals WHERE op = 'map_document' AND $1 = ANY (src::text[])",
+      [BOOK],
     );
     // A second edition is approved, but no load of the mapping ever ran on it.
     const other = 'doc_gem_forged';

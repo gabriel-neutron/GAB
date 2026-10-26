@@ -20,6 +20,7 @@ const SEEDED = [
   { id: 'equasis', licence: 'registration-terms' },
   { id: 'eu_eurlex', licence: 'eu-reuse' },
   { id: 'eu_fsf', licence: 'eu-reuse' },
+  { id: 'eurostat', licence: 'eu-reuse' },
   { id: 'gfw', licence: 'cc-by-nc-4.0' },
   { id: 'gleif', licence: 'cc0' },
   { id: 'hk_icris', licence: 'paid-filing' },

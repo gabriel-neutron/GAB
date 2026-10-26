@@ -1,0 +1,107 @@
+/* Chrome of the map canvas, in the tokens of the design system. */
+.gab-map-card {
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  display: flex;
+  width: 280px;
+  max-width: calc(100% - 16px);
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--card, var(--background));
+  color: var(--foreground);
+  font-size: 14px;
+  letter-spacing: -0.1px;
+}
+.gab-map-card[hidden] {
+  display: none;
+}
+.gab-map-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--label);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: -0.24px;
+  text-transform: uppercase;
+}
+.gab-map-card-head svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.gab-map-card-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.gab-map-card-data {
+  min-width: 0;
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.gab-map-coords {
+  pointer-events: none;
+  position: absolute;
+  right: 40px;
+  bottom: 8px;
+  z-index: 2;
+  color: var(--map-label);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.gab-map-coords:empty {
+  display: none;
+}
+.maplibregl-ctrl-scale {
+  margin: 0 0 8px 8px;
+  border: 1px solid var(--map-label);
+  border-top: 0;
+  background: transparent;
+  color: var(--map-label);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: -0.24px;
+  text-transform: uppercase;
+}
+
+/* The attribution is a plain control: the tokens, no white disc. */
+.maplibregl-ctrl-attrib.maplibregl-compact {
+  min-height: 24px;
+  margin: 0 8px 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: -0.24px;
+  box-shadow: none;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--foreground);
+}
+.maplibregl-ctrl-attrib-button {
+  background-image: none;
+  background-color: transparent;
+}
+.maplibregl-ctrl-attrib-button::after {
+  content: 'i';
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 22px;
+  text-align: center;
+  color: var(--muted-foreground);
+}

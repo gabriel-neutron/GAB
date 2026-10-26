@@ -105,7 +105,8 @@ export const TheTopShowsTheNameAndTheTypeOnly: Story = {
   play: async ({ canvas }) => {
     const heading = canvas.getByRole('heading', { level: 1 });
     await expect(heading).toHaveTextContent(DOSSIER.label);
-    await expect(heading).toHaveTextContent(DOSSIER.typeName);
+    // The type stands in the eyebrow over the name, with its glyph.
+    await expect(canvas.getByText(DOSSIER.typeName, { selector: 'p > span' })).toBeVisible();
 
     await expect(canvas.queryByText(DOSSIER.entityId)).toBeNull();
     // The coordinate of this entity in the committed corpus.
@@ -149,8 +150,8 @@ export const ThePopoverCarriesOneWayOut: Story = {
   },
 };
 
-/** `document.fonts.ready` is awaited first. The theme declares `Roboto Condensed` and
- * `JetBrains Mono`, and an installed font reflows the text after the measurement. */
+/** `document.fonts.ready` is awaited first. The theme declares `Geist` and
+ * `Geist Mono`, and an installed font reflows the text after the measurement. */
 export const TheSameRecordIsDrawnOneClaimToALine: Story = {
   play: async ({ canvasElement }) => {
     await document.fonts.ready;

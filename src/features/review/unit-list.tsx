@@ -41,7 +41,7 @@ const CONTROL = cn(
   'transition-colors duration-100 hover:bg-muted',
 );
 
-const BADGE = 'min-w-0 border border-border px-1 text-small/4';
+const BADGE = 'min-w-0 border border-border px-1 text-caption';
 
 const typeOf = (unit: Unit, words: UnitWords): string => {
   if (unit.type === null) return 'change';
@@ -69,7 +69,7 @@ function Marks({ unit }: { readonly unit: Unit }) {
   if (marks.length === 0) return null;
   return (
     <span
-      className="w-full min-w-0 text-small/4"
+      className="w-full min-w-0 text-caption"
       title={unit.faults.map((fault) => fault.said).join('\n')}
     >
       {unit.state === 'clean' ? null : (
@@ -105,7 +105,7 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
   const sentence = queueWords({ read: units.length, before, matched, total, filtered, lane });
   return (
     <nav aria-label="Units that wait for a decision" className="flex min-h-0 flex-1 flex-col">
-      <p className="shrink-0 border-b border-border px-2 py-1 text-small/4 text-label">
+      <p className="shrink-0 border-b border-border px-2 py-1 text-caption text-label">
         {sentence.count}
       </p>
       {before === 0 ? null : (
@@ -115,13 +115,15 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
             onClick={() => {
               onAct({ kind: 'start' });
             }}
-            className={cn(CONTROL, 'h-6 w-full border border-input px-2 text-xs')}
+            className={cn(CONTROL, 'h-8 w-full border border-input px-2 text-body-sm')}
           >
             Read from the first unit
           </button>
         </div>
       )}
-      {sentence.empty === null ? null : <p className="p-2 text-xs text-label">{sentence.empty}</p>}
+      {sentence.empty === null ? null : (
+        <p className="p-2 text-body-sm text-label">{sentence.empty}</p>
+      )}
       {units.length === 0 ? null : (
         <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {units.map((unit) => (
@@ -136,12 +138,12 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
                 }}
                 className={cn(
                   CONTROL,
-                  'flex w-full flex-col border-b border-l-2 border-b-border border-l-transparent px-2 py-1 text-left text-xs',
+                  'flex w-full flex-col border-b border-l-2 border-b-border border-l-transparent px-2 py-1 text-left text-body-sm',
                   unit.id === selectedId ? 'border-l-primary bg-muted' : null,
                 )}
               >
                 {/* The name takes the whole first line, so a narrow screen still shows it. */}
-                <span className="w-full min-w-0 truncate" title={unit.name}>
+                <span className="w-full min-w-0 break-words" title={unit.name}>
                   {unit.name}
                 </span>
                 <span
@@ -151,7 +153,7 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
                   <span
                     data-badge="type"
                     title={typeOf(unit, words)}
-                    className={cn(BADGE, 'truncate text-foreground')}
+                    className={cn(BADGE, 'break-words text-foreground')}
                   >
                     {typeOf(unit, words)}
                   </span>
@@ -161,7 +163,7 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
                   <span className="sr-only">{groupOf(unit)}</span>
                 </span>
                 {unit.said === '' ? null : (
-                  <span data-said={unit.lane} className="w-full min-w-0 text-small/4 break-words">
+                  <span data-said={unit.lane} className="w-full min-w-0 text-caption break-words">
                     <span className="text-label">{SAID_LABEL[unit.lane]}: </span>
                     {unit.said}
                   </span>
@@ -178,7 +180,7 @@ export function UnitList({ queue, selectedId, words, onAct }: UnitListProps) {
                 onClick={() => {
                   onAct({ kind: 'more' });
                 }}
-                className={cn(CONTROL, 'h-6 w-full border border-input px-2 text-xs')}
+                className={cn(CONTROL, 'h-8 w-full border border-input px-2 text-body-sm')}
               >
                 {more === 'reading' ? 'Reading the next units' : 'Read the next units'}
               </button>

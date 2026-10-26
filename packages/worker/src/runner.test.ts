@@ -199,6 +199,62 @@ describe('the runner and a fault of the database connection', () => {
   });
 });
 
+describe('the runner and its concurrency', () => {
+  const open = (concurrency: number, steps: readonly Claim[], run: RunnerAgent['run']) => {
+    const fake = scripted(steps);
+    return openRunner({
+      db: fake.db,
+      lock: fake.lock,
+      agents: [agentOf(run)],
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+      concurrency,
+    }).then((runner) => ({ fake, ended: runner.run(fake.stop.signal) }));
+  };
+
+  it('works on N jobs at the same time, and not on more', async () => {
+    let live = 0;
+    let most = 0;
+    const gate = Promise.withResolvers<undefined>();
+    const { ended } = await open(
+      3,
+      [job, job, job, job, () => EMPTY, () => EMPTY, () => EMPTY],
+      async () => {
+        live += 1;
+        most = Math.max(most, live);
+        if (live === 3) gate.resolve(undefined);
+        await gate.promise;
+        await new Promise((resolve) => setImmediate(resolve));
+        live -= 1;
+        return { refusals: [] };
+      },
+    );
+    await expect(ended).resolves.toBeUndefined();
+    expect(most).toBe(3);
+  });
+
+  it('does not stop the other jobs when one job fails', async () => {
+    let calls = 0;
+    const { fake, ended } = await open(
+      3,
+      [job, job, job, () => EMPTY, () => EMPTY, () => EMPTY],
+      () => {
+        calls += 1;
+        return calls === 1 ? Promise.reject(new Error('a bug')) : Promise.resolve({ refusals: [] });
+      },
+    );
+    await expect(ended).resolves.toBeUndefined();
+    expect(fake.count('fail_job')).toBe(1);
+    expect(fake.count('complete_job')).toBe(2);
+  });
+
+  it('refuses a concurrency that is not a whole number above zero', async () => {
+    await expect(open(0, [], () => Promise.resolve({ refusals: [] }))).rejects.toThrow(
+      'concurrency',
+    );
+  });
+});
+
 describe('the runner and the lock that keeps one runner alive', () => {
   it('starts as usual when the lock is free', async () => {
     const { fake, ended } = await drive([() => EMPTY]);

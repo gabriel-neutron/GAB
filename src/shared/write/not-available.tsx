@@ -11,7 +11,7 @@ export function NotAvailable() {
       <p>This part is not available here.</p>
       <div>
         <Button asChild variant="outline">
-          <Link to="/map" search={{ entity: '' }}>
+          <Link to="/map" search={{ entity: '', relation: '' }}>
             Go to the map
           </Link>
         </Button>

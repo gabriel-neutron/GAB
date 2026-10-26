@@ -15,7 +15,7 @@ export const enqueueMapping = defineTool({
     'Queues the mapping of one stored table (a CSV, TSV or SDMX-CSV file, or a named text set ' +
     'of a workbook or a GeoJSON layer), and returns the job id. The back-end ' +
     'AI reads the header and a sample of the rows and proposes how the columns map to the ' +
-    'record. The operator promotes the mapping, and then code loads the rows. The job runs ' +
+    'record: an entity, a relation or an aggregated figure for each row. The operator promotes the mapping, and then code loads the rows. The job runs ' +
     'later: call job_status with the same document to see where it stands, then list_proposals ' +
     'to see the mapping. It does not extract claims: use enqueue_extract for that.',
   input: z.strictObject({ document: documentId, textSet: z.string().min(1).optional() }),

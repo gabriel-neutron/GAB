@@ -1,7 +1,8 @@
 # ADR 0005 — Cartographic library and tile path
 
 **Status** Accepted · 10 August 2026 · **Amended 17 August and 13 October 2026**
-**Narrowed 18 October 2026** by ADR 0028: the map of the application is the globe of the release. It draws the outlines of the countries from a file of the bundle, and it sends no request to a tile server. The plan ground, the imagery and the tile path below no longer apply. The choice of `maplibre-gl`, with no wrapper, stays.
+**Narrowed 18 October 2026** by ADR 0028: the map of the application is the globe of the release. It draws the outlines of the countries from a file of the bundle, and it sends no request to a tile server. The plan ground, the imagery and the tile path below applied again on 24 October 2026 (ADR 0028, section "The map"): the one map of the site has the plan and satellite grounds again, and its tile requests are the bounded exception that ADR names. The choice of `maplibre-gl`, with no wrapper, stays.
+**Amended 26 October 2026**: the plan ground is a vector map (see "The plan ground"). The raster plan of the OpenStreetMap Foundation is gone.
 **Replaces** an earlier entry of `decisions.md` that deferred the cartographic library and the tile path.
 
 Two operator constraints control this decision: no paid third-party service, and the region of work
@@ -15,9 +16,12 @@ editing from the scope. We use `maplibre-gl` directly, with no wrapper (ADR 0004
 
 ## The plan ground
 
-The application must work with no configuration. Thus the plan ground reads a hosted tile address
-from configuration first. When there is no address, it uses the OpenStreetMap Foundation tile
-servers.
+The plan is a quiet vector map: water, land, coast, country and region borders, and the names of
+countries, cities and seas. It has no road, rail, building, relief or point-of-interest layer
+(`design/system/components/MapCanvas/README.md`). The application must work with no configuration.
+Thus the plan reads a hosted tile address from configuration first. When there is no address, it
+uses the free OpenFreeMap tiles (OpenMapTiles schema, no key). The names use Geist glyph files that
+the application serves itself (`tools/map-glyphs`).
 
 A hosted archive is an optimisation, not a condition to run. When we host one, it is a PMTiles
 archive in the S3 store (ADR 0007), in a second, public bucket. The raw bucket stays private, so
@@ -30,7 +34,7 @@ archive is served, the store must prove that it supports range requests and enti
 
 | Layer | Source | Obligation |
 |---|---|---|
-| Plan | A hosted archive, or the OpenStreetMap Foundation tile servers | ODbL attribution |
+| Plan | A hosted archive, or the OpenFreeMap tiles | ODbL attribution |
 | Satellite | EOX Sentinel-2 cloudless: no key, global, uniform over Russia | CC BY-NC-SA attribution |
 | Dated overlay | NASA GIBS: no key, public domain in practice | The published acknowledgement |
 
@@ -85,8 +89,8 @@ from its style, because a mix of the two is the most frequent fault in tools of 
 
 ## Cost
 
-- The OpenStreetMap tile policy permits casual, low-volume use only. It is not a tile service for
-  an application. A public deployment must have a hosted plan ground first. The static site of a
+- OpenFreeMap is a free service with no guarantee. A public deployment must have a hosted plan
+  ground first. The static site of a
   release has no plan ground (ADR 0020).
 - A hosted archive must be refreshed: a job reads the entity geometries and writes the archive
   again.

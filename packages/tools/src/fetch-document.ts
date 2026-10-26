@@ -42,6 +42,13 @@ import { CHALLENGE_PAGE, isHtml, SHORT_PAGE, unreadablePage } from './unreadable
 // megabytes, and a slow server answers inside twenty seconds or it is a server to read later.
 export const MAX_BYTES = 20 * 1024 * 1024;
 const TIMEOUT_MS = 20_000;
+// External constraint: the dissemination API of Eurostat. A file read at this address is a file of
+// Eurostat, so it takes the provider and the licence of Eurostat.
+const EUROSTAT_API = 'https://ec.europa.eu/eurostat/api/dissemination/';
+
+/** The provider of a file that the tool reads at the address of its publisher, or nothing. */
+export const fetchedProvider = (url: string): 'eurostat' | undefined =>
+  url.startsWith(EUROSTAT_API) ? 'eurostat' : undefined;
 const MAX_REDIRECTS = 5;
 
 // A page that a script draws gives its shell and almost no text. Under this count of characters the
@@ -627,6 +634,7 @@ export const fetchDocument = defineTool({
     // They are the record of what the server gave, and the render is a copy that the browser made
     // from them. The page as a whole is not empty: its text is in the render, which is cited.
     const metadata = await metadataOf(got.bytes, mime);
+    const provider = fetchedProvider(got.url);
     const plain =
       known ??
       (await storeAnswer(session, reach.store, {
@@ -637,6 +645,7 @@ export const fetchDocument = defineTool({
         title: titleOf(mime, type, got.bytes, metadata, got.url),
         pages,
         day,
+        ...(provider === undefined ? {} : { provider }),
       }));
 
     let rendered: { id: string; status: 'known' | 'stored'; title: string } | null = null;

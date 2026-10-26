@@ -17,6 +17,11 @@ export const relationLines = (
   to: string,
 ): readonly [string, string, string] => [from, `↓ ${typeWords}`, to];
 
+// The one wording of a borrowed position, for the hover label and the map index row. The detail
+// panel words it in full. An entity drawn at the point of its parent is NOT at that point, and the
+// halo says only that a position is borrowed. These words say whose it is.
+export const positionFromWords = (parentLabel: string): string => `position from ${parentLabel}`;
+
 // The count is the words the size owes a reader: the graph sizes a node by degree, and a size
 // alone cannot be read by anyone who cannot compare two discs. The map draws one radius, so the
 // count states what the picture never draws. A bare figure under a name reads as a year.

@@ -15,7 +15,7 @@ export const carriedSelection = (
   const params = new URLSearchParams(search);
   const entity = params.get('entity') ?? '';
   const relation = params.get('relation') ?? '';
-  // The globe selects an entity and no relation, so a link to it carries the entity only.
-  if (to === '/map') return { entity, relation: '' };
+  // The map holds both keys, so a link to it carries both.
+  if (to === '/map') return { entity, relation };
   return { entity: relation === '' || pathname === to ? entity : '', relation };
 };

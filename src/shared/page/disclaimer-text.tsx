@@ -5,7 +5,12 @@ import { safeHref } from '@gab/release/safe-href';
 function Runs({ runs }: { readonly runs: readonly DisclaimerRun[] }) {
   return runs.map((run, index) => {
     const key = `${String(index)} ${run.text}`;
-    if (run.kind === 'strong') return <strong key={key}>{run.text}</strong>;
+    if (run.kind === 'strong')
+      return (
+        <strong key={key} className="font-normal">
+          {run.text}
+        </strong>
+      );
     const href = run.kind === 'link' ? safeHref(run.text) : null;
     if (href !== null)
       return (

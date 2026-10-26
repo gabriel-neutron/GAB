@@ -2,129 +2,117 @@
  * Gabriel — the visual language
  * ==========================================================================================
  *
- * **The theme lived in `src/theme.css` and nothing imported it.** A colour utility is built from
- * a `--color-*` name in an `@theme` block, so `text-label`, `text-candidate` and `text-dissent`
- * emitted no rule at all, in silence, and every element kept the colour it inherited. `--radius`
- * stayed at `0.625rem`, so every part of the kit was round. The theme was recorded as adopted,
- * and the repository disagreed with it.
+ * The values come from the design system reference. This file holds them under the names the
+ * code reads. A new value is added to the reference first, and then here.
  *
- * The palette and the base rules are one file. One stylesheet, and no second palette that can
- * win by source order. An `@import` is the wrong tool for this: it is only valid before another
- * rule, so an imported palette lands first and the block below it wins.
- *
- * The shape follows shadcn: `:root` holds the light theme, `.dark` holds the dark theme, and
- * every token uses a shadcn name where one exists.
+ * One stylesheet holds the palette and the base rules, so no second palette can win by source
+ * order. The shape follows shadcn: `:root` holds the light theme (Bone), `.dark` holds the dark
+ * theme (Obsidian), and every token keeps its shadcn name where one exists. A colour utility is
+ * built from a `--color-*` name in an `@theme` block, so a token with no such name emits no rule.
  *
  * ------------------------------------------------------------------------------------------
  * The rules this theme holds
  * ------------------------------------------------------------------------------------------
  *
- * DENSITY
- *   - Everything sits on a 4px grid. One control height, one row height, no exception.
- *   - Padding is small and constant: 8px in a panel, 6px in a cell.
- *   - One border level per surface. No panel inside a panel inside a card.
- *   - Data and labels take more than half of the pixels.
- *
- * SHAPE
- *   - The radius is 0. One value, everywhere. A large radius is the strongest sign of a
- *     generated design.
- *   - A 1px hairline separates two surfaces. A shadow is only for a true overlay.
- *   - No gradient, no blur, no glass, no glow.
+ * GROUND
+ *   - The dark theme is the default. The canvas is near black and never pure black. The light
+ *     theme is a warm grey and never pure white.
+ *   - Depth is contrast. There is one raised level, `surface`. A panel does not sit in a panel.
+ *   - No shadow, no gradient, no blur, no glow. The one shadow is a 1px ring on a popover.
  *
  * COLOUR
- *   - A hue means "look at this". The normal state is grey. The evidentiary layer, which is
- *     the promoted and sourced data, therefore carries no hue at all.
- *   - No violet, no indigo, no purple in the chrome.
- *   - The page is never pure white and never pure black.
- *   - Two hues at rest, at most. The entity hues belong to the map and to the graph. They
- *     never enter the chrome.
+ *   - Chrome is neutral. A hue means data: an entity type, a relation family, a state.
+ *   - The primary action is neutral too. It is never a chromatic fill.
+ *   - Signal is for live and unverified data. Dissent is lighter than signal, so the two never
+ *     rely on hue alone. A hue is never the only mark: a word or a glyph goes with it.
+ *   - Measure a colour on its own ground before it enters this file. The light theme is not a
+ *     mirror of the dark one, because a light ground gives a hue less room.
+ *   - Sigma and MapLibre read a colour string and not a class. The entity and relation hues
+ *     are therefore also declared as hex in code, from the same tokens.
+ *
+ * SHAPE
+ *   - Three radii. A control takes the small one, a card takes the large one, and the largest
+ *     panel takes the widest one. A graph frame and a map frame take none.
+ *   - A 1px hairline separates two surfaces. `border` is decoration. `input` is the edge of
+ *     a control and holds 3:1.
  *
  * TYPE
- *   - One text face, one monospace. Every identifier, coordinate, count, date, code and hash
- *     is monospace.
- *   - Figures are tabular and align right. A column of numbers must line up.
- *   - Three text sizes and one heading size on a working screen. A public page reads on the
- *     reading scale: a body, a section title and a page title. No display text anywhere.
- *   - Sentence case. Uppercase only for a small table header, with tracking.
- *   - A name or a value in a panel or a search row wraps. It is never cut, and no tooltip is
- *     needed to read it. A very long web address has a short form and a Show more control.
+ *   - One text face and one monospace face. Text is regular weight with negative tracking on
+ *     large sizes. Medium weight is for a dense label only, and never for a heading.
+ *   - A mono caption is uppercase. The transform is set on the element, because a size token
+ *     cannot carry it.
+ *   - Every identifier, coordinate, count and date is monospace. A figure is tabular and
+ *     aligns right.
+ *   - A name or a value in a panel wraps. It is never cut.
+ *
+ * SPACE
+ *   - The grid is 4px with an 8px base. A control and a row are 32px.
  *
  * BEHAVIOUR
  *   - Nothing animates except a state change, and that lasts less than 120ms.
- *   - No emoji, no illustration, no round avatar, no large centred icon with a friendly line.
- *   - Keyboard first. A visible shortcut hint is part of the style, not a help page.
- *   - An icon is a 14px line. It is never the only label on a destructive or unclear action.
- *
- * ------------------------------------------------------------------------------------------
- * The contrast ladder, measured
- * ------------------------------------------------------------------------------------------
- *
- * Each ratio is WCAG 2 contrast against its own ground, computed from the oklch values in this
- * file. Text needs 4.5:1. A control that a person must see needs 3:1.
- *
- *                        light      dark
- *   foreground           16.8       16.3
- *   muted-foreground      8.6        8.7
- *   label                 5.6        5.6
- *   label on muted        5.1        5.2
- *   input (the edge)      3.4        3.2
- *   primary               5.3        9.2
- *   primary-foreground    5.5        9.2     (on the primary fill)
- *   candidate             5.1       11.0
- *   candidate on muted    4.7       10.4
- *   added                 5.3        8.9
- *   added on muted        4.8        8.4     (muted is the ground of a selected rail row)
- *   dissent               6.7        6.7
- *   dissent on muted      6.1        6.3
- *   entity-1 … entity-6   4.6–5.0    7.9–8.9
- *
- * This is what the ladder is for: a disabled shadcn input drew the value at about 3.3:1, below
- * the 4.5:1 this file requires. A read-only surface says "not
- * editable" with a flat fill, and keeps the data at full contrast.
- *
- * Two warnings, both learned the hard way:
- *
- * - **Measure a colour before it enters this file.** A first draft failed on one token: the
- *   label sat at 2.6:1 while it carried every table header, every unit label and the whole
- *   footer. It looked acceptable and it was not.
- * - **Never make one theme by inverting the lightness of the other.** A hue that holds 8:1 on
- *   the dark ground holds 4:1 on the light one. Every value below is measured on its own
- *   ground. The light theme is therefore not a mirror: the hues are darker and the chroma is
- *   lower, because a light ground gives a colour far less room.
- *
- * **The two webfonts are not installed.** Until a `@fontsource` package is added, each stack
- * falls back to the fonts of the operating system. The stacks are kept, because the theme was
- * chosen with them and the fallback is the intended interim state.
+ *   - No emoji, no illustration, no round avatar.
  * ========================================================================================== */
 
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
+@import '@fontsource/geist/400.css';
+@import '@fontsource/geist/500.css';
+@import '@fontsource/geist-mono/400.css';
 @import './layout.css';
 
 /* The lint config quotes a class to refuse it. Tailwind scans every file that git tracks, so
  * without this line the refused class is built into the bundle as a dead rule. */
 @source not '../eslint.config.ts';
+/* The design system reference holds HTML specimens, not app markup. */
+@source not '../design';
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: 'Roboto Condensed', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', monospace;
+  --font-sans: Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-heading: var(--font-sans);
 
   /* The tokens shadcn does not ship. Without a `--color-*` name here, a class that names one of
      them emits no rule at all and the element keeps the colour it inherited. */
+  --color-surface: var(--surface);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-figure: var(--figure);
+  --color-on-figure: var(--on-figure);
+  --color-divider: var(--divider);
+  --color-signal: var(--signal);
+  --color-positive: var(--positive);
   --color-label: var(--label);
   --color-candidate: var(--candidate);
   --color-added: var(--added);
   --color-dissent: var(--dissent);
-  --color-entity-1: var(--entity-1);
-  --color-entity-2: var(--entity-2);
-  --color-entity-3: var(--entity-3);
-  --color-entity-4: var(--entity-4);
-  --color-entity-5: var(--entity-5);
-  --color-entity-6: var(--entity-6);
+
+  --color-entity-vessel: var(--entity-vessel);
+  --color-entity-port: var(--entity-port);
+  --color-entity-facility: var(--entity-facility);
+  --color-entity-company: var(--entity-company);
+  --color-entity-bank: var(--entity-bank);
+  --color-entity-person: var(--entity-person);
+  --color-entity-state-body: var(--entity-state-body);
+  --color-entity-legal-act: var(--entity-legal-act);
+  --color-entity-military-unit: var(--entity-military-unit);
+  --color-entity-event: var(--entity-event);
+  --color-entity-unknown: var(--entity-unknown);
+
+  --color-relation-ownership: var(--relation-ownership);
+  --color-relation-designation: var(--relation-designation);
+  --color-relation-operation: var(--relation-operation);
+  --color-relation-transfer: var(--relation-transfer);
+  --color-relation-other: var(--relation-other);
+
+  --color-chart-neutral: var(--chart-neutral);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-axis: var(--chart-axis);
+  --color-map-water: var(--map-water);
+  --color-map-land: var(--map-land);
+  --color-map-boundary: var(--map-boundary);
+  --color-map-label: var(--map-label);
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -158,22 +146,21 @@
   --color-foreground: var(--foreground);
   --color-background: var(--background);
 
-  /* Every radius below is a multiple of `--radius`, so a single 0 flattens the scale. */
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* Three radii. The shadcn scale maps onto them: a control reads the small one, a card reads
+     the large one, and the widest panel reads the largest. */
+  --radius-sm: 3px;
+  --radius-md: 3px;
+  --radius-lg: 10px;
+  --radius-xl: 10px;
+  --radius-2xl: 20px;
+  --radius-3xl: 20px;
+  --radius-4xl: 20px;
 }
 
 /* --------------------------------------------------------------- the scale a class reads --- */
 
 /* A namespace is what makes a utility. Tailwind builds `text-*` from a `--text-*` name and
- * `tracking-*` from a `--tracking-*` name, and from no other name. These two values sat in
- * `:root` below, one of them under `--size-small`, so no class carried either and 48 places
- * wrote the length again by hand.
+ * `tracking-*` from a `--tracking-*` name, and from no other name.
  *
  * This block is **not** `inline`. An inline theme writes the literal value into each rule and
  * emits no custom property at all, and `var(--text-small)` would then resolve to nothing. */
@@ -181,130 +168,141 @@
   --text-small: 11px; /* the floor of the text ladder. Nothing is smaller */
   --tracking-caps: 0.06em; /* a small uppercase table header only */
 
-  /* The reading scale. A public page is read and cited, not worked on, so its prose is 14px and
-     it has a page title and a section title. A table and a screen of the operator keep the dense
-     scale. The values are the ones the first public pages were measured at. */
-  --text-body: 14px;
-  --text-body--line-height: 24px;
-  --text-section: 16px;
-  --text-section--line-height: 24px;
-  --text-title: 20px;
-  --text-title--line-height: 28px;
+  /* Report scale. */
+  --text-display: 72px;
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -2.88px;
+  --text-heading-lg: 44px;
+  --text-heading-lg--line-height: 1.12;
+  --text-heading-lg--letter-spacing: -1.1px;
+  --text-heading: 36px;
+  --text-heading--line-height: 1.1;
+  --text-heading--letter-spacing: -1.12px;
+
+  /* Interface scale. */
+  --text-heading-sm: 24px;
+  --text-heading-sm--line-height: 1.15;
+  --text-heading-sm--letter-spacing: -0.6px;
+  --text-body: 16px;
+  --text-body--line-height: 1.5;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 1.43;
+
+  /* Instrument scale. Use with `font-mono`. A caption is also `uppercase`. */
+  --text-caption: 12px;
+  --text-caption--line-height: 1;
+  --text-caption--letter-spacing: -0.24px;
+  --text-data: 12px;
+  --text-data--line-height: 1.33;
+  --text-data-lg: 14px;
+  --text-data-lg--line-height: 1.2;
+  --text-data-lg--letter-spacing: -0.28px;
+}
+
+/* ------------------------------------------------------------------------------- aliases --- */
+
+/* A name that points at another token. It is declared on both selectors so that it resolves again
+   on the element that holds `.dark`. A `var()` in a custom property resolves where it is
+   declared, so an alias on `:root` alone would keep the light value inside a nested `.dark`. */
+:root,
+.dark {
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface);
+  --popover-foreground: var(--foreground);
+  --muted: var(--surface-secondary);
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--foreground);
+  --accent: var(--surface-secondary);
+  --accent-foreground: var(--foreground);
+
+  --candidate: var(--signal);
+  --added: var(--positive);
+  --destructive: var(--dissent);
+
+  /* The shadcn chart tokens take the first five entity hues. */
+  --chart-1: var(--entity-vessel);
+  --chart-2: var(--entity-port);
+  --chart-3: var(--entity-facility);
+  --chart-4: var(--entity-company);
+  --chart-5: var(--entity-bank);
+
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--surface-secondary);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 }
 
 /* ------------------------------------------------------------------------------- light --- */
 
 :root {
   /* `color-scheme` decides the paint of every native control: the scrollbar, the caret, the
-     focus ring, a date picker. Without it the browser draws a light scrollbar on a dark page.
-     It is one line, and it is the cheapest correction in the whole theme. */
+     focus ring, a date picker. Without it the browser draws a light scrollbar on a dark page. */
   color-scheme: light;
 
-  /* One hue, 230, at a very low chroma. The page is never pure white. */
-  --background: oklch(0.975 0.003 230);
-  --foreground: oklch(0.2 0.01 230);
+  /* Bone. */
+  --background: #eeeeee;
+  --foreground: #101010;
+  --surface: #fafafa;
+  --surface-secondary: #e2dfdc;
+  --figure: #101010;
+  --on-figure: #eeeeee;
 
-  /* A raised surface: a dialog, a popover, a card. It is lighter than the page, not darker. */
-  --card: oklch(0.995 0.002 230);
-  --card-foreground: oklch(0.2 0.01 230);
-  --popover: oklch(0.995 0.002 230);
-  --popover-foreground: oklch(0.2 0.01 230);
+  /* `--muted` is the fill of a hovered or selected row and of a read-only control. */
+  --muted-foreground: #4d4947;
+  --label: #645f5c;
 
-  /* `--muted` is the fill of every second row of a table, and the flat fill of a read-only
-     control. `--muted-foreground` is the second step of the text ladder: a secondary value, a
-     file name, a source. */
-  --muted: oklch(0.945 0.004 230);
-  --muted-foreground: oklch(0.4 0.01 230);
+  --divider: #dcd8d5;
+  --border: #cfcac7;
+  --input: #8a8380;
 
-  /* The third step. A column header, a unit label, a relation name. It is the floor for text,
-     so nothing on the page is quieter than this. */
-  --label: oklch(0.5 0.01 230);
+  /* The action is neutral. `--accent` below is the background of a hover state. */
+  --primary: #101010;
+  --primary-foreground: #fafafa;
+  --ring: #101010;
 
-  /* Two borders, not one. `--border` is decoration: it separates two rows and two panes, and
-     it stays quiet. `--input` is a control edge — a button, a field, a table head — and it
-     holds 3:1, because a person must see it. One token for both makes one of the two wrong. */
-  --border: oklch(0.86 0.006 230);
-  --input: oklch(0.62 0.008 230);
+  --signal: #b8470d;
+  --positive: #357426;
+  --dissent: #a63a2a;
 
-  /* The action. `--primary` fills the one button that commits the step, and it marks the
-     selected row. Note that shadcn's `--accent` below is **not** a brand accent: it is the
-     background of a hover state.
+  --entity-vessel: #1e65aa;
+  --entity-port: #007491;
+  --entity-facility: #007a69;
+  --entity-company: #357426;
+  --entity-bank: #825c00;
+  --entity-person: #983f6b;
+  --entity-state-body: #5d55a9;
+  --entity-legal-act: #814893;
+  --entity-military-unit: #a03f40;
+  --entity-event: #b8470d;
+  --entity-unknown: #6b6562;
 
-     **The action is cool and the data is warm.** The first draft made the action orange, which
-     put it beside the amber candidate and the red-orange dissent — three warm hues at rest,
-     and one colour that meant both "press this" and "look at this". The two are now separate
-     families: a cool hue is always an instruction to the operator, and a warm hue is always a
-     statement about the data. */
-  --primary: oklch(0.5 0.14 235);
-  --primary-foreground: oklch(0.99 0.003 230);
-  --ring: oklch(0.5 0.14 235);
+  --relation-ownership: #5a5552;
+  --relation-designation: #b8470d;
+  --relation-operation: #357426;
+  --relation-transfer: #1e65aa;
+  --relation-other: #8a8380;
 
-  --secondary: oklch(0.93 0.005 230);
-  --secondary-foreground: oklch(0.2 0.01 230);
-  --accent: oklch(0.93 0.005 230);
-  --accent-foreground: oklch(0.2 0.01 230);
+  --chart-neutral: #c9c4c1;
+  --chart-grid: #dcd8d5;
+  --chart-axis: #6b6562;
 
-  /* The two states of the data. `--candidate` marks the machine layer, which is not promoted.
-     `--dissent` marks a disagreement between agents, which is what sends a proposal to the
-     review queue. The evidentiary layer takes no hue at all.
+  --map-water: #f7f6f5;
+  --map-land: #e6e3e0;
+  --map-boundary: #b9b4b1;
+  --map-label: #5a5552;
 
-     A hue is never the only mark. PU1 asks for labelling that no control can hide, and a
-     colour is hidden from a reader who cannot see it, so a candidate is marked in words too.
+  --shadow-hairline: 0 0 0 1px #dcd8d5;
 
-     On this ground the candidate hue moves from 82 to 90. A dark amber loses its identity on
-     paper and drifts towards the dissent red, and it does not on the dark ground. */
-  --candidate: oklch(0.52 0.13 90);
-
-  /* The third state of a change on the review surface: an addition. An addition, a modification
-     and a deletion are three states, and two hues cannot tell three states apart.
-     Measured, and in the ladder above: 5.3 on this ground, and 4.8 on the muted one. */
-  --added: oklch(0.5 0.12 155);
-  --dissent: oklch(0.48 0.18 28);
-
-  /* An action that destroys data and a disagreement between agents both mean "stop and look",
-     so they share a value. They keep two names, because they are two ideas and one of them
-     may move later. */
-  --destructive: oklch(0.48 0.18 28);
-
-  /* For the graph and the map only, and never for the chrome. Sigma and MapLibre read a
-     colour string and not a class, so these must stay readable from JavaScript. They may sit
-     near a semantic hue above, because the two never appear on one surface. */
-  --entity-1: oklch(0.55 0.15 255);
-  --entity-2: oklch(0.51 0.13 205);
-  --entity-3: oklch(0.52 0.12 160);
-  --entity-4: oklch(0.52 0.13 115);
-  --entity-5: oklch(0.55 0.13 70);
-  --entity-6: oklch(0.55 0.17 350);
-
-  /* shadcn ships five chart tokens and they are five greys by default. A chart of a category
-     and a graph of a category must agree, so they take the first five entity hues. */
-  --chart-1: oklch(0.55 0.15 255);
-  --chart-2: oklch(0.51 0.13 205);
-  --chart-3: oklch(0.52 0.12 160);
-  --chart-4: oklch(0.52 0.13 115);
-  --chart-5: oklch(0.55 0.13 70);
-
-  --sidebar: oklch(0.995 0.002 230);
-  --sidebar-foreground: oklch(0.2 0.01 230);
-  --sidebar-primary: oklch(0.5 0.14 235);
-  --sidebar-primary-foreground: oklch(0.99 0.003 230);
-  --sidebar-accent: oklch(0.93 0.005 230);
-  --sidebar-accent-foreground: oklch(0.2 0.01 230);
-  --sidebar-border: oklch(0.86 0.006 230);
-  --sidebar-ring: oklch(0.5 0.14 235);
-
-  /* The radius is 0. One value, everywhere. */
-  --radius: 0px;
-
-  /* The rest of the density scale. No utility reads these, so they stay plain custom properties:
-     a component writes `h-6` and not a class built from `--control-height`. The two values that
-     a class does read are in the `@theme` block above, because a utility is built from a name
-     and from nothing else. The sizes are in px on purpose: the theme was chosen and measured at
-     these exact sizes. A move to a rem scale is a separate change, and it needs a fresh look. */
+  /* The rest of the density scale. No utility reads these, so they stay plain custom properties. */
   --size-heading: 16px;
   --size-base: 12px;
-  --row-height: 24px; /* a table row, a queue row */
-  --control-height: 24px; /* a button, an input       */
+  --row-height: 32px; /* a table row, a queue row */
+  --control-height: 32px; /* a button, an input       */
   --pad: 8px; /* inside a panel           */
   --pad-cell: 6px; /* inside a cell            */
 }
@@ -314,59 +312,57 @@
 .dark {
   color-scheme: dark;
 
-  /* One hue, 215, at a very low chroma. A pure grey looks dead beside a colour map, and a cast
-     any stronger competes with the data. The page is never pure black. */
-  --background: oklch(0.16 0.012 215);
-  --foreground: oklch(0.94 0.008 215);
+  /* Obsidian. The names that hold one value in both themes are not repeated. */
+  --background: #101010;
+  --foreground: #eeeeee;
+  --surface: #1d1a18;
+  --surface-secondary: #1f1d1c;
+  --figure: #eeeeee;
+  --on-figure: #101010;
 
-  --card: oklch(0.2 0.012 215);
-  --card-foreground: oklch(0.94 0.008 215);
-  --popover: oklch(0.2 0.012 215);
-  --popover-foreground: oklch(0.94 0.008 215);
+  --muted-foreground: #8a8380;
+  --label: #b8b3b0;
 
-  --muted: oklch(0.195 0.012 215);
-  --muted-foreground: oklch(0.75 0.008 215);
+  --divider: #1d1a18;
+  --border: #3d3a39;
+  --input: #6b6562;
 
-  --label: oklch(0.63 0.008 215);
+  --primary: #fafafa;
+  --primary-foreground: #101010;
+  --ring: #fafafa;
 
-  --border: oklch(0.32 0.012 215);
-  --input: oklch(0.5 0.008 215);
+  --signal: #ee6018;
+  --positive: #a0ca92;
+  --dissent: #ff8f80;
 
-  --primary: oklch(0.76 0.14 235);
-  --primary-foreground: oklch(0.16 0.012 215);
-  --ring: oklch(0.76 0.14 235);
+  --entity-vessel: #77b5fb;
+  --entity-port: #3bc4e0;
+  --entity-facility: #3fcab7;
+  --entity-company: #87c47a;
+  --entity-bank: #d1ac4e;
+  --entity-person: #eb90b9;
+  --entity-state-body: #a9a6fa;
+  --entity-legal-act: #d198e3;
+  --entity-military-unit: #f4918e;
+  --entity-event: #ee6018;
+  --entity-unknown: #8a8380;
 
-  --secondary: oklch(0.24 0.012 215);
-  --secondary-foreground: oklch(0.94 0.008 215);
-  --accent: oklch(0.24 0.012 215);
-  --accent-foreground: oklch(0.94 0.008 215);
+  --relation-ownership: #b8b3b0;
+  --relation-designation: #ee6018;
+  --relation-operation: #a0ca92;
+  --relation-transfer: #77b5fb;
+  --relation-other: #8a8380;
 
-  --candidate: oklch(0.82 0.13 82);
-  --added: oklch(0.74 0.13 155);
-  --dissent: oklch(0.7 0.17 28);
-  --destructive: oklch(0.7 0.17 28);
+  --chart-neutral: #4d4947;
+  --chart-grid: #1d1a18;
+  --chart-axis: #8a8380;
 
-  --entity-1: oklch(0.74 0.13 255);
-  --entity-2: oklch(0.74 0.13 205);
-  --entity-3: oklch(0.74 0.13 160);
-  --entity-4: oklch(0.74 0.13 115);
-  --entity-5: oklch(0.74 0.13 70);
-  --entity-6: oklch(0.74 0.13 350);
+  --map-water: #0b0b0b;
+  --map-land: #181716;
+  --map-boundary: #3d3a39;
+  --map-label: #8a8380;
 
-  --chart-1: oklch(0.74 0.13 255);
-  --chart-2: oklch(0.74 0.13 205);
-  --chart-3: oklch(0.74 0.13 160);
-  --chart-4: oklch(0.74 0.13 115);
-  --chart-5: oklch(0.74 0.13 70);
-
-  --sidebar: oklch(0.2 0.012 215);
-  --sidebar-foreground: oklch(0.94 0.008 215);
-  --sidebar-primary: oklch(0.76 0.14 235);
-  --sidebar-primary-foreground: oklch(0.16 0.012 215);
-  --sidebar-accent: oklch(0.24 0.012 215);
-  --sidebar-accent-foreground: oklch(0.94 0.008 215);
-  --sidebar-border: oklch(0.32 0.012 215);
-  --sidebar-ring: oklch(0.76 0.14 235);
+  --shadow-hairline: 0 0 0 1px #1d1a18;
 }
 
 @layer base {
@@ -386,11 +382,11 @@
  *
  * `color-scheme` above stops the browser from painting a light bar on a dark page. That is not
  * enough on its own: the native bar keeps a round thumb and two arrow buttons, and both
- * contradict a square and dense language.
+ * contradict a flat and dense language.
  *
  * The bar stays visible at rest. It is not hidden until the pointer moves, because in a queue
  * of thirty proposals the thumb is the only report of how much work is left. For that reason
- * the thumb takes `--label` at 5.6:1 and not `--input` at 3.2:1.
+ * the thumb takes `--label` and not `--input`.
  *
  * Chromium and WebKit read the rules below. Firefox reads none of them, so the two standard
  * properties follow, guarded. The guard is not optional: Chromium honours `scrollbar-width`

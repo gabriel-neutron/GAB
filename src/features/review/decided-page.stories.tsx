@@ -172,7 +172,7 @@ export const APrivateHistorySaysWhy: Story = {
 };
 
 // Origin of a number: the `--label` token of the dark theme.
-const DARK_LABEL = 'oklch(0.63 0.008 215)';
+const DARK_LABEL = 'rgb(184, 179, 176)';
 
 export const TheHistoryHoldsInTheDarkTheme: Story = {
   render: (args) => (

@@ -27,21 +27,21 @@ export const seededVocabulary: {
   retiredWhenSeeded: false,
 
   entityTypes: [
-    entityType('vessel', 'Vessel', '#2971c6', '#70adfb', 10),
-    entityType('facility', 'Facility', '#007989', '#00c2d2', 20),
-    entityType('company', 'Company', '#007d50', '#53c48e', 30),
-    entityType('person', 'Person', '#677000', '#a8b44b', 40),
-    entityType('military_unit', 'Military unit', '#8254c4', '#b7a0e4', 50),
-    entityType('port', 'Port', '#a16100', '#df9b44', 60),
-    entityType('bank', 'Bank', '#b53c7f', '#e887b6', 70),
+    entityType('vessel', 'Vessel', '#1e65aa', '#77b5fb', 10),
+    entityType('facility', 'Facility', '#007a69', '#3fcab7', 20),
+    entityType('company', 'Company', '#357426', '#87c47a', 30),
+    entityType('person', 'Person', '#983f6b', '#eb90b9', 40),
+    entityType('military_unit', 'Military unit', '#a03f40', '#f4918e', 50),
+    entityType('port', 'Port', '#007491', '#3bc4e0', 60),
+    entityType('bank', 'Bank', '#825c00', '#d1ac4e', 70),
     // A ministry, an agency, a regulator or a council of a state or of a union of states. A central
     // bank stays `bank`.
-    entityType('state_body', 'State body', '#bb4530', '#fa8c7a', 75),
-    entityType('legal_act', 'Legal act', '#8b598e', '#e889ed', 80),
+    entityType('state_body', 'State body', '#5d55a9', '#a9a6fa', 75),
+    entityType('legal_act', 'Legal act', '#814893', '#d198e3', 80),
     // A dated claim by a party about a site: a claimed strike, a fire, a stoppage. It is not an
-    // observed fact, and it has no position. Indigo, 4.8:1 on the light page and 8.8:1 on the dark.
-    entityType('event', 'Event', '#5c63c9', '#a3a8f5', 85),
+    // observed fact, and it has no position. It shares the signal hue on purpose: a claim is live.
+    entityType('event', 'Event', '#b8470d', '#ee6018', 85),
     // `unknown` takes the grey and sorts last: a grey says that no type was recognised.
-    entityType('unknown', 'Unknown', '#6b7280', '#9ca3af', 900),
+    entityType('unknown', 'Unknown', '#6b6562', '#8a8380', 900),
   ],
 };

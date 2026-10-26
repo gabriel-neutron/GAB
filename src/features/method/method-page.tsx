@@ -15,7 +15,7 @@ export interface MethodPageProps {
   readonly manifest: SiteManifest | null;
 }
 
-const PROSE = 'max-w-prose';
+const PROSE = 'max-w-[64ch] text-body';
 
 const SECTIONS = [
   { id: 'dataset', title: 'What the dataset is' },
@@ -96,7 +96,7 @@ export function MethodPage({ manifest }: MethodPageProps) {
               <div className={`${PROSE} flex flex-col gap-2`}>
                 <p>{coverage.scope.covers}</p>
                 <p>{coverage.scope.excludes}</p>
-                <p className="font-semibold">{coverage.scope.absence}</p>
+                <p className="">{coverage.scope.absence}</p>
                 {coverage.byType.length === 0 ? null : (
                   <p className="text-label">
                     By type:{' '}
@@ -146,7 +146,7 @@ export function MethodPage({ manifest }: MethodPageProps) {
             <ul className={`${PROSE} flex list-disc flex-col gap-1 pl-4`}>
               {LICENCES.map((one) => (
                 <li key={one.name}>
-                  <strong>{one.name}.</strong> {one.meaning}
+                  <strong className="font-normal">{one.name}.</strong> {one.meaning}
                 </li>
               ))}
             </ul>

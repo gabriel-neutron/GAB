@@ -1,14 +1,7 @@
 // Departure: the map and the graph draw different rows, so each caller passes its own list in.
 // This control derives nothing, reads no `localStorage`, and holds only the width of a live drag.
 
-import {
-  ChevronDown,
-  ChevronRight,
-  Eye,
-  EyeOff,
-  PanelLeftClose,
-  PanelLeftOpen,
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import {
   useRef,
   useState,
@@ -18,6 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { EntityGlyph } from '@/shared/entity-glyph';
 import { cn } from '@/shared/lib/utils';
 import { RAIL_WIDTH, railWidthWithin } from '@/shared/rail-width';
 
@@ -91,28 +85,42 @@ const listId = (type: string): string => `rail-index-${type}`;
 // External constraint: `ring` alone paints at rest in `currentcolor`, and a border ring paints
 // nothing without a width. `pointer-events-auto` gives a drag on the graph rail back.
 const CONTROL = cn(
-  'pointer-events-auto flex min-h-6 items-center border border-transparent text-left',
-  'transition-colors duration-100 hover:bg-muted',
-  'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
+  'pointer-events-auto flex min-h-8 items-center rounded-none text-left text-foreground',
+  'transition-colors duration-150 hover:bg-surface-secondary',
+  'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-[-2px] focus-visible:outline-ring',
 );
 
 /** External constraint: proportional digits jump as a digit is added, and these do not. */
-const FIGURE = 'shrink-0 font-mono tabular-nums';
+const FIGURE = 'shrink-0 font-mono text-data tabular-nums';
 
-interface SwatchProps {
+const CAPTION = 'font-mono text-caption uppercase text-label';
+
+interface MarkProps {
+  readonly type: string;
+  /** Departure: an off row keeps its mark at full colour, so the reader still sees what they hid. */
   readonly colour: string;
-  readonly on: boolean;
 }
 
-// Departure: the hue is never the only mark, so words beside this swatch carry the state. Where
-// the hue is not the encoding, the caller sends `null` and the initial takes this place.
-function Swatch({ colour, on }: SwatchProps) {
+// Departure: the hue is never the only mark, so the shape of the type and words beside it carry
+// the state. `colour` is kept for the callers that pass it; the glyph reads the `entity-*` token.
+function Mark({ type }: MarkProps) {
+  return <EntityGlyph type={type} />;
+}
+
+// The 14px box of the design system. Decoration: the state is the `aria-pressed` of the button.
+function Toggle({ on }: { readonly on: boolean }) {
   return (
     <span
       aria-hidden="true"
-      style={{ backgroundColor: colour }}
-      className={cn('size-2 shrink-0', on ? null : 'opacity-40')}
-    />
+      className={cn(
+        'grid size-3.5 shrink-0 place-items-center rounded-sm border',
+        on ? 'border-foreground bg-foreground' : 'border-input',
+      )}
+    >
+      {on ? (
+        <span className="mb-px h-[3px] w-1.5 -rotate-45 border-b-[1.5px] border-l-[1.5px] border-background" />
+      ) : null}
+    </span>
   );
 }
 
@@ -182,8 +190,8 @@ function ResizeEdge({ width, onDrag, onAct }: ResizeEdgeProps) {
       className={cn(
         'pointer-events-auto absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize touch-none',
         'max-lg:hidden',
-        'transition-colors duration-100 hover:bg-ring/50',
-        'outline-none focus-visible:bg-ring/50',
+        'transition-colors duration-150 hover:bg-ring',
+        'outline-none focus-visible:bg-ring',
       )}
     />
   );
@@ -206,14 +214,14 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
       // its width, so both callers clamp the stored width in one place.
       style={open ? style : undefined}
       className={cn(
-        'relative flex flex-col text-xs',
+        'relative flex flex-col text-body-sm',
         open ? 'w-full lg:w-(--rail-width)' : 'w-11',
         className,
       )}
     >
       {open ? <ResizeEdge width={width} onDrag={setDragged} onAct={onAct} /> : null}
-      <div className="flex h-6 shrink-0 items-center gap-1 px-1.5">
-        {open ? <span className="min-w-0 flex-1 truncate text-label">Types</span> : null}
+      <div className="flex h-8 shrink-0 items-center gap-2 border-b border-divider px-3">
+        {open ? <span className={cn(CAPTION, 'min-w-0 flex-1')}>Types</span> : null}
         {/* External constraint: an icon-only control has no name without `aria-label`. The
             label says the act, and `aria-expanded` says the state. */}
         <button
@@ -223,7 +231,7 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
           onClick={() => {
             onAct({ kind: 'open-rail', open: !open });
           }}
-          className={cn(CONTROL, 'shrink-0 justify-center px-1')}
+          className={cn(CONTROL, 'size-6 min-h-6 shrink-0 justify-center rounded-sm')}
         >
           {open ? (
             <PanelLeftClose size={14} aria-hidden="true" />
@@ -246,31 +254,38 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
           }}
           className={cn(
             CONTROL,
-            'shrink-0 border-b border-b-border',
-            open ? 'gap-1.5 px-1.5' : 'justify-center px-1',
+            'shrink-0 border-b border-divider',
+            open ? 'gap-2 px-3' : 'justify-center px-1',
           )}
         >
-          {open ? <span className="min-w-0 flex-1 py-0.5 break-words">{links.label}</span> : null}
-          {links.on ? (
-            <Eye size={14} aria-hidden="true" className="shrink-0 text-label" />
-          ) : (
-            <EyeOff size={14} aria-hidden="true" className="shrink-0 text-label" />
-          )}
+          <Toggle on={links.on} />
+          {open ? (
+            <span
+              className={cn(
+                'min-w-0 flex-1 py-0.5 break-words',
+                links.on ? null : 'text-muted-foreground',
+              )}
+            >
+              {links.label}
+            </span>
+          ) : null}
         </button>
       )}
 
       {/* Departure: the filter is stored, so a screen with every type off survives a reload.
           So the control that can exclude everything carries the way back to the default. */}
       {open && rows.everyTypeOff ? (
-        <div className="flex shrink-0 flex-col gap-1 border-b border-border p-2">
-          <p className="text-label">Every type is off. The surface draws none of the corpus.</p>
+        <div className="flex shrink-0 flex-col gap-2 border-b border-divider p-3">
+          <p className="text-muted-foreground">
+            Every type is off. The surface draws none of the corpus.
+          </p>
           <button
             type="button"
             data-every-type-off=""
             onClick={() => {
               onAct({ kind: 'show-every-type' });
             }}
-            className={cn(CONTROL, 'w-full justify-center border-input')}
+            className={cn(CONTROL, 'w-full justify-center rounded-sm border border-input')}
           >
             Switch every type on
           </button>
@@ -283,7 +298,7 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
         {rows.types.map((row) => (
           <div key={row.type} data-facet={row.type}>
             {open ? (
-              <div className="flex h-6 items-center gap-1 px-1.5">
+              <div className="flex min-h-8 items-center gap-1 border-b border-divider pr-3 pl-1">
                 {/* External constraint: `aria-controls` must name an element in the tree, so
                     the chevron names its region only while that region is drawn: it is open and its type is on. */}
                 <button
@@ -296,7 +311,7 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                   onClick={() => {
                     onAct({ kind: 'open-type', type: row.type, open: !row.open });
                   }}
-                  className={cn(CONTROL, 'size-6 shrink-0 justify-center')}
+                  className={cn(CONTROL, 'size-6 min-h-6 shrink-0 justify-center rounded-sm')}
                 >
                   {row.open ? (
                     <ChevronDown size={14} aria-hidden="true" />
@@ -310,21 +325,24 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                   onClick={() => {
                     onAct({ kind: 'switch-type', type: row.type, on: !row.on });
                   }}
-                  className={cn(CONTROL, 'min-w-0 flex-1 gap-1.5')}
+                  className={cn(CONTROL, 'min-w-0 flex-1 gap-2 px-1')}
                 >
-                  {row.colour === null ? null : <Swatch colour={row.colour} on={row.on} />}
-                  <span className="min-w-0 flex-1 py-0.5 break-words">{row.label}</span>
+                  <Toggle on={row.on} />
+                  {row.colour === null ? null : <Mark type={row.type} colour={row.colour} />}
+                  <span
+                    className={cn(
+                      'min-w-0 flex-1 py-0.5 break-words',
+                      row.on ? null : 'text-muted-foreground',
+                    )}
+                  >
+                    {row.label}
+                  </span>
                   {/* Departure: the count carries on the graph the weight a hue carries on the
                       map. */}
                   <span className={cn(FIGURE, 'text-muted-foreground')}>{row.figure}</span>
                   {/* Departure: a glyph alone does not say the state of a switch, so the
                       words carry it. */}
                   <span className="sr-only">{row.stateWord}</span>
-                  {row.on ? (
-                    <Eye size={14} aria-hidden="true" className="shrink-0 text-label" />
-                  ) : (
-                    <EyeOff size={14} aria-hidden="true" className="shrink-0 text-label" />
-                  )}
                 </button>
               </div>
             ) : (
@@ -350,16 +368,24 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                     className="before:content-[attr(data-initial)]"
                   />
                 ) : (
-                  <Swatch colour={row.colour} on={row.on} />
+                  <Mark type={row.type} colour={row.colour} />
                 )}
-                <span className={cn(FIGURE, 'min-w-0 truncate text-small/4')}>{row.count}</span>
+                <span
+                  className={cn(
+                    FIGURE,
+                    'min-w-0 truncate text-small/4',
+                    row.on ? null : 'text-muted-foreground line-through',
+                  )}
+                >
+                  {row.count}
+                </span>
               </button>
             )}
 
             {/* Departure: a type that is switched off has no index, because the surface draws
                 none of it. */}
             {open && row.open && row.on ? (
-              <div id={listId(row.type)} className="px-1.5 pb-1">
+              <div id={listId(row.type)} className="px-3 pb-2">
                 {index(row.type)}
               </div>
             ) : null}

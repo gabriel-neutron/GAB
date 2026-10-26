@@ -1144,6 +1144,38 @@ test('propose updates attributes and keeps the documents the value already held'
   expect(found.batch.proposals[0]?.disputed).toBe(true);
 });
 
+// An operator signed the value with the document and no page, so the record cites the document
+// already. A citation with a page is the only new thing in a second act.
+test('propose adds a citation to a value whose document an accepted act cites already, once', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const [held] = keyed.parse(await ask(KEYED));
+    if (held === undefined) throw new Error('the fixture holds no string attribute');
+    await asResearch(ask, () => withDocument(ask, [PAGE_ONE]));
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+    await ask(
+      `SELECT public.sign_change('a test', 'update_attrs',
+         jsonb_build_object('attrs', jsonb_build_object($1::text,
+           jsonb_build_object('v', $2::text, 'src', jsonb_build_array($3::text)))),
+         ARRAY[$3], 'entity', $4::uuid, '{}'::uuid[])`,
+      [held.key, held.value, DOC, held.id],
+    );
+    await ask('RESET SESSION AUTHORIZATION');
+    const act = item(
+      'cite',
+      {
+        op: 'update_attrs',
+        targetKind: 'entity',
+        targetId: held.id,
+        attrs: { [held.key]: { v: held.value } },
+      },
+      'the tanker NAYARA',
+    );
+    return { first: await proposeAgain(ask, [act]), again: await proposeAgain(ask, [act]) };
+  });
+  expect(batchOf(found.first).proposals).toMatchObject([{ written: true }]);
+  expect(batchOf(found.again).proposals).toMatchObject([{ written: false }]);
+});
+
 test('propose refuses an act that the write contract refuses, and names the item', async () => {
   const outcome = await rolledBack('superuser', async (ask) =>
     proposeOnPage(ask, [
@@ -2450,6 +2482,85 @@ test('read_duplicate_identifiers flags two entities with one INN, and not a thir
     expect(mine).toHaveLength(1);
     expect(mine[0]?.key).toBe('tax_id');
     expect(mine[0]?.entities.map((one) => one.id).sort()).toStrictEqual([a, b].sort());
+  });
+});
+
+test('read_duplicate_identifiers flags a new entity that waits as a copy of one of the record', async () => {
+  await rolledBack('superuser', async (ask) => {
+    const made = z.array(z.object({ id: z.uuid() }));
+    const inn = `98${randomUUID().replaceAll('-', '').slice(0, 10)}`.toUpperCase();
+    const attrs = { tax_id: { v: inn, src: ['manual'] } };
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+    const [waiting] = made.parse(
+      await ask(`SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::text[]) AS id`, [
+        'create_entity',
+        JSON.stringify({ type: 'company', label: 'Waiting copy', attrs }),
+      ]),
+    );
+    const [origin] = made.parse(
+      await ask(`SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::text[]) AS id`, [
+        'create_entity',
+        JSON.stringify({ type: 'company', label: 'Held' }),
+      ]),
+    );
+    await ask('RESET SESSION AUTHORIZATION');
+    const [row] = made.parse(
+      await ask(
+        `INSERT INTO public.entities (type, label, attrs, sources, promoted_from)
+         VALUES ('company', 'Held', $1::jsonb, ARRAY['manual']::doc_id[], $2) RETURNING id`,
+        [JSON.stringify(attrs), origin?.id],
+      ),
+    );
+    const found = z
+      .object({
+        groups: z.array(
+          z.object({
+            value: z.string(),
+            entities: z.array(z.object({ id: z.uuid(), pending: z.literal(true).optional() })),
+          }),
+        ),
+      })
+      .parse(await output(ask, 'read_duplicate_identifiers', {}));
+    const mine = found.groups.filter((group) => group.value === inn);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]?.entities.filter((one) => one.pending === true).map((one) => one.id)).toEqual([
+      waiting?.id,
+    ]);
+    expect(mine[0]?.entities.some((one) => one.id === row?.id)).toBe(true);
+  });
+});
+
+// A role that reads the api views sees no act about a person that cites no public document (PU1).
+// The tool reads the new entities through api.proposal, so the rule holds for it too. A company
+// copy beside the person copies shows that the tool still lists what the reader may see.
+test('read_duplicate_identifiers does not list a pending act about a person', async () => {
+  await rolledBack('superuser', async (ask) => {
+    const made = z.array(z.object({ id: z.uuid() }));
+    const value = () => `97${randomUUID().replaceAll('-', '').slice(0, 10)}`.toUpperCase();
+    const copies = { person: value(), company: value() };
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+    for (const [type, inn] of Object.entries(copies))
+      for (const label of ['Copy A', 'Copy B'])
+        expect(
+          made.parse(
+            await ask(
+              `SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::text[]) AS id`,
+              [
+                'create_entity',
+                JSON.stringify({ type, label, attrs: { tax_id: { v: inn, src: ['manual'] } } }),
+              ],
+            ),
+          ),
+        ).toHaveLength(1);
+    await ask('RESET SESSION AUTHORIZATION');
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_read');
+    const found = z
+      .object({ groups: z.array(z.object({ value: z.string() })) })
+      .parse(await output(ask, 'read_duplicate_identifiers', {}));
+    await ask('RESET SESSION AUTHORIZATION');
+    const listed = found.groups.map((group) => group.value);
+    expect(listed).toContain(copies.company);
+    expect(listed).not.toContain(copies.person);
   });
 });
 

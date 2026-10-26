@@ -5,7 +5,7 @@ import { PageSection } from '@/shared/page/page-section';
 import { READING_LINK } from '@/shared/page/reading-link';
 import { ReadingPage } from '@/shared/page/reading-page';
 
-const PROSE = 'max-w-prose';
+const PROSE = 'max-w-[64ch] text-body';
 
 /** The help page: how to start, where the words are defined, and how a fact is checked. */
 export function HelpPage() {
@@ -22,7 +22,7 @@ export function HelpPage() {
             finds a name, a value or the title of a document.
           </li>
           <li>
-            <Link to="/map" search={{ entity: '' }} className={READING_LINK}>
+            <Link to="/map" search={{ entity: '', relation: '' }} className={READING_LINK}>
               The map
             </Link>{' '}
             shows the assets that have a position, and the chain that joins them.

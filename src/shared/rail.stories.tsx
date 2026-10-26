@@ -15,7 +15,7 @@ const row = (over: Partial<RailTypeRow> & { readonly type: string }): RailTypeRo
   open: false,
   stateWord: 'on',
   name: `${over.type}, ${String(over.count ?? 12)} on the map`,
-  colour: null,
+  colour: 'token',
   ...over,
 });
 
@@ -46,8 +46,8 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** One icon cannot say "hidden" and "shown", so words say the state. */
-export const TheStateIsAnEyeForTheEyeAndWordsForTheReader: Story = {
+/** A toggle box cannot say "hidden" and "shown" to a reader, so words say the state. */
+export const TheStateIsAToggleForTheEyeAndWordsForTheReader: Story = {
   args: {
     rows: rows({
       types: [
@@ -56,12 +56,7 @@ export const TheStateIsAnEyeForTheEyeAndWordsForTheReader: Story = {
       ],
     }),
   },
-  play: async ({ canvas, canvasElement }) => {
-    const eyes = canvasElement.querySelectorAll('svg[aria-hidden="true"].lucide-eye');
-    const shut = canvasElement.querySelectorAll('svg[aria-hidden="true"].lucide-eye-off');
-    await expect(eyes).toHaveLength(1);
-    await expect(shut).toHaveLength(1);
-
+  play: async ({ canvas }) => {
     // The words the caller wrote are what a reader hears, and they are surface-specific.
     await expect(canvas.getByRole('button', { pressed: false })).toHaveTextContent('off, hidden');
     await expect(canvas.getByRole('button', { pressed: true })).toHaveTextContent('on');

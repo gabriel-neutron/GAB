@@ -114,6 +114,9 @@ export interface RunnerDeps {
   readonly lock?: () => Promise<RunnerLock>;
   /** Makes the pinned model of OpenRouter. The default reads the key from the environment. */
   readonly open?: (model: string) => ReturnType<typeof openrouterModel>;
+  /** The most jobs that `run` works on at the same time, under the one lock. A job keeps its own
+   * token budget. When it is absent, `run` works on one job at a time. */
+  readonly concurrency?: number;
 }
 
 /** A dedicated connection that holds the lock of the one runner. */
@@ -145,6 +148,11 @@ const UNKNOWN_FAULT = 'the agent stopped with an error, and nothing more is know
 export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
   if (deps.agents.length === 0)
     throw new Error('The runner has no agent to run, so it claims nothing.');
+  if (
+    deps.concurrency !== undefined &&
+    !(Number.isInteger(deps.concurrency) && deps.concurrency > 0)
+  )
+    throw new Error('The concurrency of the runner must be a whole number above zero.');
 
   // The runner marks each error that a query of the database throws. A code of Node alone does not
   // show the origin: the store of the files refuses a connection with the same code. Only a marked
@@ -311,20 +319,45 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
     return done;
   };
 
+  // One slot takes one job at a time. The caller checked the lock before the first step.
+  const slot = async (signal: AbortSignal): Promise<void> => {
+    for (let first = true; !signal.aborted; first = false) {
+      if (!first) await keepLock();
+      await step();
+    }
+  };
+
+  // The slots run together. An error in one slot stops the others after the job in hand, and the
+  // first error goes up, so the recovery below never puts back a job that a slot still runs.
+  const slots = async (signal: AbortSignal): Promise<void> => {
+    const halt = new AbortController();
+    const stopped = AbortSignal.any([signal, halt.signal]);
+    const ends = await Promise.allSettled(
+      Array.from({ length: deps.concurrency ?? 1 }, () =>
+        slot(stopped).catch((error: unknown) => {
+          halt.abort();
+          throw error;
+        }),
+      ),
+    );
+    const bad = ends.find((end) => end.status === 'rejected');
+    if (bad !== undefined) throw bad.reason;
+  };
+
   return {
     step,
     run: async (signal) => {
       let lost = false;
       while (!signal.aborted) {
         try {
-          // One worker runs, so each running row of its role is ours: the job in hand goes back. A
-          // lost connection drops the lock, so the runner takes it again first.
+          // Each running row of the role is ours, and no slot runs at this point: the job in hand
+          // goes back. A lost connection drops the lock, so the runner takes it again first.
           if (lost) {
             await takeLock();
             await db.query(REQUEUE);
             lost = false;
           } else await keepLock();
-          await step();
+          await slots(signal);
         } catch (error) {
           if (!isConnectionFault(error)) throw error;
           lost = true;

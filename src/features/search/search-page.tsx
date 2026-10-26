@@ -140,8 +140,8 @@ export function SearchPage({ query, answers, onQueryChange, hrefOf }: SearchPage
 
   return (
     <>
-      <div className="flex max-w-prose flex-col gap-1">
-        <label htmlFor={FIELD_ID} className="text-xs/5 text-label">
+      <div className="flex max-w-[64ch] flex-col gap-1">
+        <label htmlFor={FIELD_ID} className="text-body-sm text-label">
           Search names, values and documents
         </label>
         <Input
@@ -154,38 +154,44 @@ export function SearchPage({ query, answers, onQueryChange, hrefOf }: SearchPage
           onChange={(event) => {
             onQueryChange(event.target.value);
           }}
-          className={cn('rounded-none duration-100')}
+          className={cn('rounded-sm duration-100')}
         />
-        <p id={HELP_ID} className="text-xs/5 text-label">
+        <p id={HELP_ID} className="text-body-sm text-label">
           Example: ledger. The field matches part of an entity name, of an attribute value and of a
           document title. Case and accents do not count. The matched text shows in each row.
         </p>
       </div>
 
-      <PageSection title="Entity names">
-        <Answer
-          name="Entity names"
-          summary={nameSummaryOf(answers.name)}
-          columns={nameColumns}
-          rows={hitsOf(answers.name, (hit) => hit.entityId)}
-        />
-      </PageSection>
-      <PageSection title="Attribute values">
-        <Answer
-          name="Attribute values"
-          summary={attributeSummaryOf(answers.attribute)}
-          columns={attributeColumns}
-          rows={hitsOf(answers.attribute, (hit) => `${hit.entityId}:${hit.key}`)}
-        />
-      </PageSection>
-      <PageSection title="Documents">
-        <Answer
-          name="Documents"
-          summary={documentSummaryOf(answers.document)}
-          columns={documentColumns}
-          rows={hitsOf(answers.document, (hit) => hit.documentId)}
-        />
-      </PageSection>
+      {answers.name.kind === 'no-query' ? null : (
+        <PageSection title="Entity names">
+          <Answer
+            name="Entity names"
+            summary={nameSummaryOf(answers.name)}
+            columns={nameColumns}
+            rows={hitsOf(answers.name, (hit) => hit.entityId)}
+          />
+        </PageSection>
+      )}
+      {answers.attribute.kind === 'no-query' ? null : (
+        <PageSection title="Attribute values">
+          <Answer
+            name="Attribute values"
+            summary={attributeSummaryOf(answers.attribute)}
+            columns={attributeColumns}
+            rows={hitsOf(answers.attribute, (hit) => `${hit.entityId}:${hit.key}`)}
+          />
+        </PageSection>
+      )}
+      {answers.document.kind === 'no-query' ? null : (
+        <PageSection title="Documents">
+          <Answer
+            name="Documents"
+            summary={documentSummaryOf(answers.document)}
+            columns={documentColumns}
+            rows={hitsOf(answers.document, (hit) => hit.documentId)}
+          />
+        </PageSection>
+      )}
     </>
   );
 }

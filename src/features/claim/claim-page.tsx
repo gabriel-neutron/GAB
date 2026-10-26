@@ -109,14 +109,14 @@ export function ClaimPage({ release, claimId, entityHref, claimHref }: ClaimPage
         ]}
       />
       {rating.shown ? (
-        <p className="max-w-prose text-xs/5 text-muted-foreground">
+        <p className="max-w-[64ch] text-body-sm text-muted-foreground">
           A rating is a letter and a digit. The letter, from A (reliable) to F (cannot be judged),
           rates the author of the source. The digit, from 1 (confirmed by independent sources) to 6
           (cannot be judged), rates the credibility of the fact. "Not rated" means that the letter
           or the digit is not known for this claim. The method page explains the rating.
         </p>
       ) : null}
-      <details className="text-xs/5">
+      <details className="text-body-sm">
         <summary className="cursor-pointer text-label">Licence and permanent address</summary>
         <div className="pt-1">
           <KeyValue

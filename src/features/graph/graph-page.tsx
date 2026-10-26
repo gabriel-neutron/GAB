@@ -18,6 +18,7 @@ import { useScreenQuery } from '@/shared/screen-query';
 import { SelectionPanel } from '@/shared/selection-panel';
 
 import { mountGraph, type GraphController, type GraphView } from './controller';
+import { Legend, StatusBar, ZoomButtons } from './canvas-chrome';
 import { MarkerMeter } from './marker-meter';
 import type { GraphModel } from './model';
 import { deriveRailRows } from './rail-rows';
@@ -221,6 +222,28 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     [reach],
   );
 
+  // A phone sheet covers the foot of the canvas. The camera must put the selection above it, so
+  // the page reports how much of the canvas the sheet covers, and reports none when it closes.
+  const island = useRef<HTMLDivElement | null>(null);
+  const selected = selection !== null;
+  useEffect(() => {
+    const handle = controller.current;
+    const sheet = island.current?.querySelector<HTMLElement>('[role="region"]');
+    const area = canvas.current;
+    if (handle === null || !narrow || !selected || !sheet || !area) return;
+    const report = (): void => {
+      const covered = area.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top;
+      handle.setBottomInset(Math.max(0, Math.round(covered)));
+    };
+    report();
+    const observer = new ResizeObserver(report);
+    observer.observe(sheet);
+    return () => {
+      observer.disconnect();
+      handle.setBottomInset(0);
+    };
+  }, [narrow, selected]);
+
   const clearSelection = useCallback(() => {
     controller.current?.clearSelection();
   }, []);
@@ -236,6 +259,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   return (
     <div className="graph-workspace">
       <div
+        ref={island}
         // The drawer is absolute inside this island, so it is the positioned ancestor on a phone.
         // The key is read here, and not on the drawer, because focus may stay on the Types button.
         onKeyDown={(event) => {
@@ -251,7 +275,23 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
         <div className={cn('graph-canvas relative min-h-0 min-w-0 md:col-start-2 md:row-start-1')}>
           <GraphCanvas canvas={canvas} overlay={overlay} />
           {snapshot === null ? null : (
-            <MarkerMeter drawn={snapshot.view.markersDrawn} hidden={snapshot.view.markersOverCap} />
+            <>
+              <StatusBar counts={snapshot.view.counts} />
+              <Legend
+                counts={snapshot.view.counts}
+                hueOfType={snapshot.model.hueOfType}
+                labelOfType={snapshot.model.labelOfType}
+              />
+              <ZoomButtons
+                onZoom={(direction) => {
+                  controller.current?.zoom(direction);
+                }}
+              />
+              <MarkerMeter
+                drawn={snapshot.view.markersDrawn}
+                hidden={snapshot.view.markersOverCap}
+              />
+            </>
           )}
           <button
             ref={typesButton}
@@ -261,7 +301,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
               setDrawerOpen(true);
             }}
             className={cn(
-              'absolute bottom-2 left-2 z-10 h-6 border border-input bg-background px-2 text-small/4',
+              'absolute bottom-2 left-2 z-10 h-6 rounded-sm border border-input bg-background px-2 text-small/4',
               'text-foreground transition-colors duration-100 hover:bg-muted md:hidden',
               'outline-none focus-visible:border-ring focus-visible:ring-3',
               'focus-visible:ring-ring/50',

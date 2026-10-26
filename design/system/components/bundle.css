@@ -1,0 +1,207 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400&display=swap');
+
+/* GAB component styles. Every value reads a token from tokens.css. */
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.43;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- type helpers ---------- */
+.gab-caption {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: -0.24px;
+  text-transform: uppercase;
+  color: var(--label);
+}
+.gab-data {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.33;
+  font-variant-numeric: tabular-nums;
+}
+.gab-muted { color: var(--muted-foreground); }
+
+/* ---------- buttons ---------- */
+.gab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  height: var(--control-height);
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font: 400 14px/1 var(--font-sans);
+  cursor: pointer;
+  transition: background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.gab-btn:focus-visible, .gab-link:focus-visible, .gab-row:focus-visible, .gab-toggle:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.gab-btn--primary { background: var(--primary); color: var(--primary-foreground); }
+.gab-btn--secondary { background: var(--surface-secondary); color: var(--foreground); }
+.gab-btn--secondary:hover { background: var(--border); }
+.gab-btn--destructive { background: transparent; color: var(--destructive); box-shadow: inset 0 0 0 1px var(--destructive); }
+.gab-btn[disabled] { color: var(--muted-foreground); background: var(--surface-secondary); cursor: not-allowed; }
+.gab-btn--icon { width: var(--control-height); padding: 0; justify-content: center; }
+
+.gab-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  padding: 0 0 2px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-0);
+  color: var(--foreground);
+  font: 400 14px/1.43 var(--font-sans);
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.gab-link:hover { border-color: var(--foreground); }
+
+.gab-kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--label);
+}
+
+/* ---------- tags and pulse ---------- */
+.gab-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: -0.24px;
+  text-transform: uppercase;
+  color: var(--label);
+  white-space: nowrap;
+}
+.gab-tag--candidate { color: var(--candidate); border-color: var(--candidate); border-style: dashed; }
+.gab-tag--added { color: var(--added); border-color: var(--added); }
+.gab-tag--dissent { color: var(--dissent); border-color: var(--dissent); }
+.gab-tag--figure { background: var(--figure); color: var(--on-figure); border-color: var(--figure); }
+.gab-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--signal);
+  flex: none;
+}
+.gab-pulse--positive { background: var(--positive); }
+
+/* ---------- glyphs and lines ---------- */
+.gab-glyph { width: var(--glyph-size); height: var(--glyph-size); flex: none; overflow: visible; }
+.g-vessel { fill: var(--entity-vessel); stroke: var(--entity-vessel); }
+.g-port { fill: var(--entity-port); stroke: var(--entity-port); }
+.g-facility { fill: var(--entity-facility); stroke: var(--entity-facility); }
+.g-company { fill: var(--entity-company); stroke: var(--entity-company); }
+.g-bank { fill: var(--entity-bank); stroke: var(--entity-bank); }
+.g-person { fill: var(--entity-person); stroke: var(--entity-person); }
+.g-state-body { fill: var(--entity-state-body); stroke: var(--entity-state-body); }
+.g-legal-act { fill: var(--entity-legal-act); stroke: var(--entity-legal-act); }
+.g-military-unit { fill: var(--entity-military-unit); stroke: var(--entity-military-unit); }
+.g-event { fill: var(--entity-event); stroke: var(--entity-event); }
+.g-unknown { fill: none; stroke: var(--entity-unknown); stroke-dasharray: 2 2; }
+.gab-glyph path, .gab-glyph circle { stroke-width: 0; }
+/* A candidate is the same glyph, hollow: fill means evidence, outline means machine. */
+.is-candidate path, .is-candidate circle { fill: none; stroke-width: 1.5px; }
+
+/* The same glyphs scaled on a canvas: no stroke when filled, a fixed 1.5px edge when candidate. */
+svg g[class*='g-'] path, svg g[class*='g-'] circle { stroke-width: 0; }
+svg g.cand path, svg g.cand circle { fill: none; stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+
+.r-ownership { stroke: var(--relation-ownership); }
+.r-designation { stroke: var(--relation-designation); stroke-dasharray: 12 5; }
+.r-operation { stroke: var(--relation-operation); stroke-dasharray: 5 4; }
+.r-transfer { stroke: var(--relation-transfer); stroke-dasharray: 12 4 2 4; }
+.r-other { stroke: var(--relation-other); stroke-dasharray: 2 5; }
+.gab-line { width: 32px; height: 8px; flex: none; }
+.gab-line line { stroke-width: 2px; fill: none; }
+
+/* ---------- surfaces ---------- */
+.gab-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-0);
+  color: var(--foreground);
+}
+.gab-card {
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-24);
+}
+.gab-figure {
+  background: var(--figure);
+  color: var(--on-figure);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-24);
+}
+.gab-figure .gab-caption { color: var(--on-figure); }
+
+/* ---------- rows ---------- */
+.gab-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  min-height: var(--row-height);
+  padding: 0 var(--spacing-12);
+  border-bottom: 1px solid var(--divider);
+  font-size: 14px;
+  color: var(--foreground);
+  background: transparent;
+  transition: background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.gab-row:hover { background: var(--surface-secondary); }
+.gab-row[aria-selected='true'] { background: var(--surface-secondary); box-shadow: inset 2px 0 0 var(--ring); }
+.gab-row[aria-disabled='true'] { color: var(--muted-foreground); }
+.gab-row .gab-count { margin-left: auto; font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted-foreground); }
+
+.gab-toggle {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.gab-toggle[aria-checked='true'] { background: var(--foreground); border-color: var(--foreground); }
+.gab-toggle[aria-checked='true']::after { content: ''; width: 6px; height: 3px; border: solid var(--background); border-width: 0 0 1.5px 1.5px; transform: rotate(-45deg) translate(0, -1px); }
+
+.gab-input {
+  height: var(--control-height);
+  padding: 0 var(--spacing-12);
+  background: transparent;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+  font: 400 14px/1 var(--font-sans);
+}
+.gab-input::placeholder { color: var(--muted-foreground); }
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

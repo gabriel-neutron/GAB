@@ -9,6 +9,7 @@ import type { ProposalAct } from '@gab/proposal/payload';
 import { writeRequest, type WriteRequest } from '@gab/proposal/request';
 import { z } from 'zod';
 
+import { KEY_ADVICE, keyWarnings } from './attribute-key.ts';
 import { plainText } from './check-answer.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
 import { findExcerpt, MAX_TOLERANT_UNITS, pointSlice, type Span } from './excerpt.ts';
@@ -60,7 +61,8 @@ const END =
 const ATTRIBUTES =
   'write each attribute as {"key": {"v": value}}, for example {"imo": {"v": "9074729"}}; a ' +
   'value is a text, a number, true or false, or a flat list of them; a key is lower case words ' +
-  'joined by one underscore, with the unit in the key, as capacity_dwt';
+  'joined by one underscore, with the unit in the key, as capacity_dwt. Use these keys for these ' +
+  `quantities: ${KEY_ADVICE}. former_names is a flat list of names`;
 
 // The closed list of the methods, in the words of a reader. A place with no method is refused.
 const GEOLOCATION =
@@ -847,6 +849,8 @@ const outcome = z.strictObject({
   unstated: z.array(z.string()),
   // The bounds of a relation that no cited passage states. Code did not propose them.
   droppedBounds: z.array(z.enum(['validFrom', 'validTo', 'observed_on'])),
+  // A key that is a known variant of another key. The act is written as it stands.
+  keyWarnings: z.array(z.string()),
 });
 
 /** The propose tool. A back-end agent gives the model call of each batch, which is known to its
@@ -911,7 +915,8 @@ export const proposeOf = (modelCallId: string | null) =>
       'call (berthed_at, loads_at, discharges_at) takes the day of the call as the attribute ' +
       'observed_on, written as 2026-01-31, only when an excerpt states that exact day; two calls ' +
       'on two days are two facts. A day that no excerpt states, or a value that is not one day, ' +
-      'is not proposed, and droppedBounds names it.',
+      'is not proposed, and droppedBounds names it. A ship-to-ship transfer (sts_with) takes the ' +
+      'day in the same way.',
     input: z.strictObject({ items: proposeItems, published_on: publishedOn.optional() }),
     output: z.strictObject({
       proposals: z.array(outcome),
@@ -1141,6 +1146,11 @@ export const proposeOf = (modelCallId: string | null) =>
             disputed: reasonOf(one) !== null,
             unstated: [...new Set(unstated.map((one) => one.name))],
             droppedBounds: dropped,
+            keyWarnings: keyWarnings(
+              'attrs' in given.act && given.act.attrs !== undefined
+                ? Object.keys(given.act.attrs)
+                : [],
+            ),
           };
         }),
         ...(failure === null ? {} : { checkFailure: failure }),

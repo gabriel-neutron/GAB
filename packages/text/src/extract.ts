@@ -349,8 +349,21 @@ const partsAtBreaks = (pieces: readonly Piece[]): Piece[][] => {
 // Each part between such breaks becomes a copy of the "p" element with its attributes, next to the
 // others, so the block that holds all the sections gets the best score, and a hidden paragraph
 // stays hidden.
+const HIDDEN_BY_SCRIPT =
+  ['sm', 'md', 'lg', 'xl'].reduce(
+    (selector, size) => `${selector}:not([class*="d-${size}-"])`,
+    '.d-none',
+  ) + ' a';
+
 const asBlocks = (document: Page): void => {
   for (const anchor of Array.from(document.querySelectorAll('p a:not([href])')))
+    anchor.replaceWith(...Array.from(anchor.childNodes));
+  // Departure: a script shows a block that the Bootstrap class "d-none" hides, and its value is
+  // often a link only (the maker and the country on a page of the GUR of Ukraine). Readability
+  // removes a block that is all link text, so the link of such a block is replaced by its content.
+  // A block with a responsive class, such as "d-none d-lg-block", is a menu of the frame of a site,
+  // and its links stay.
+  for (const anchor of Array.from(document.querySelectorAll(HIDDEN_BY_SCRIPT)))
     anchor.replaceWith(...Array.from(anchor.childNodes));
   for (const paragraph of Array.from(document.querySelectorAll('p'))) {
     const parts = partsAtBreaks(Array.from(paragraph.childNodes));

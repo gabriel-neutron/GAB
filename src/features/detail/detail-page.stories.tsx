@@ -18,7 +18,13 @@ import { SITE } from '@gab/release/event-fixture';
 import { DetailPage } from './detail-page';
 import { EVENTS_RELEASE } from './fixture-release';
 import { releaseFactsOf } from './release-facts';
-import { readDossier, type Dossier, type RelationLine, type SourceCardModel } from './dossier';
+import {
+  readDossier,
+  type Dossier,
+  type PendingLine,
+  type RelationLine,
+  type SourceCardModel,
+} from './dossier';
 import type { DecidedAct } from '@/shared/read/decided-acts';
 import { holdWriter } from '@/shared/write/hold-writer.story-support';
 
@@ -32,6 +38,14 @@ const read = (): Dossier => {
 };
 
 const DOSSIER = read();
+
+const PENDING_LINE: PendingLine = {
+  id: 'pending-1',
+  summary: 'Changes an attribute: Flag',
+  dissent: false,
+  origin: 'Extraction',
+  sources: [],
+};
 
 const firstCard = (): SourceCardModel => {
   const held = DOSSIER.sources[0];
@@ -449,6 +463,15 @@ export const ASiteOfTheReleaseDrawsItsEvents: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole('heading', { level: 2, name: 'Events' })).toBeVisible();
+  },
+};
+
+/** The one fact the page is about is the only bright tag, and a machine fact is dashed. */
+export const ASanctionedVesselWithAPendingActDrawsBothTags: Story = {
+  args: { dossier: { ...DOSSIER, sanctioned: true, pending: [PENDING_LINE] } },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Sanctioned')).toBeVisible();
+    await expect(canvas.getByText('Candidate 1')).toBeVisible();
   },
 };
 

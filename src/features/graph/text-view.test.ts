@@ -8,6 +8,8 @@ const node = (label: string, entityType = 'company', unplaced = false): NodeAttr
   x: 0,
   y: 0,
   size: 1,
+  type: 'unknown',
+  candidate: false,
   color: '#000000',
   label,
   entityType,

@@ -3,8 +3,9 @@ The repository is public: never write a local path, a user name or private data 
 Docs map: docs/README.md. Read docs/authoring.md before you write a document. The code is the source of truth: a document never copies a name, a count or a command output.
 Develop on the VPS (infra/vps/README.md). In a worktree, run `pnpm stack:up` before a database test and `pnpm stack:down` at the end, also in a subagent (infra/README.md).
 Use the Matt Pocock skills (`/to-spec`, `/to-tickets`, `/implement-spec`). Fix a small detail in the current work with no ticket.
-Decide each technical detail yourself. Send each other question to the skill `expert-panel` and act on its verdict. Only a critical question goes to the operator.
+Do each action yourself when you can: never ask the operator to run a command, and never say you "cannot" before you try. Decide each technical detail yourself. Send each question about the direction of the project, a method, a source or a technical choice to the skill `expert-panel` and act on its verdict.
 Do each step that git can undo without asking: fix, test, commit, push, open the PR, review it with a separate agent (add `visual-qa` when the diff changes the user interface), apply the findings, merge into `staging`.
-Ask before a merge into `main`, a loss that git cannot undo, a GitHub write outside the task, or a cost.
-End each message with one line: **Done.**, **Next:** a step for the operator or a new session, **New session:** the prompt, or **Your decision:** one critical question with the panel verdict and a recommendation. Offer no optional extra work.
+Ask the operator only in two cases: (1) you are blocked and only the operator can unblock you (a CAPTCHA, a sign-in to an external account, a secret that only the operator holds); (2) the panel does not agree. Also ask before a merge into `main`, a loss that git cannot undo, a GitHub write outside the task, or a cost.
+When the permission system refuses a command, do not stop: use another tool or command that does the same job. If none exists, report the refused command in one line.
+End each message with one line: **Done.**, **Next:** a step for the operator or a new session, **New session:** the prompt, or **Your decision:** one question with the panel verdict and a recommendation (case 1 or 2 above only). Offer no optional extra work.
 Agent skills: issue tracker docs/agents/issue-tracker.md, triage labels docs/agents/triage-labels.md, domain docs (single-context) docs/agents/domain.md.

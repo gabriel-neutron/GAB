@@ -12,6 +12,10 @@ A claim tells what its sources say. A source can be wrong. GAB gives no personal
 
 Report an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.
 
+## The claims
+
+The release holds 20 distinct claims. A row of claims.csv is one citation of a claim, so a claim can have more than one row. The column value_in_excerpt says if the value of an attribute claim is found in the excerpt of its row (a text test: a short value can be found in a passage that does not state the claim): "yes", "no", "no_excerpt" or "not_tested" (a claim of a relation has no value).
+
 ## The method of geolocation of the places
 
 1 of 3 places (33.3%) have no stated method of geolocation. Each place of the files has a method, or "not_stated", in the column geolocation_method of entities.csv and in the properties of entities.geojson.
