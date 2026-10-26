@@ -18,31 +18,57 @@ import { z } from 'zod';
 import { CANONICAL_KEYS } from '@gab/tools/attribute-key';
 import { UNIQUE_KEYS } from '@gab/tools/duplicate-identifier';
 import { connectionString } from './db-runtime.ts';
-import { apply, doorsOf, readGroups } from './rekey-write.ts';
+import { apply, checkLines, doorsOf, readGroups } from './rekey-write.ts';
 
 export type Attrs = Readonly<Record<string, { readonly v: unknown }>>;
 
-/** One pending act with attributes, and the excerpts that it cites. */
+/** The stored text of one page that an act cites. */
+export interface Page {
+  readonly document: string;
+  readonly page: number;
+  readonly text: string;
+}
+
+/** Words of a stored page, copied as they stand, that an act can cite. */
+export interface Passage {
+  readonly document: string;
+  readonly page: number;
+  readonly excerpt: string;
+}
+
+/** One pending act with attributes, and the excerpts that it cites. The pages are the stored text
+ * of the cited pages: an excerpt that lacks the label and the number is replaced by a passage of
+ * the page that has both. */
 export interface Item {
   readonly id: string;
   readonly attrs: Attrs;
   readonly excerpts: readonly string[];
+  readonly pages?: readonly Page[];
 }
 
 export type Plan =
   | { readonly kind: 'keep' }
-  | { readonly kind: 'rekey'; readonly attrs: Attrs; readonly renamed: readonly string[] }
+  | {
+      readonly kind: 'rekey';
+      readonly attrs: Attrs;
+      readonly renamed: readonly string[];
+      /** The passages of the pages that the new act cites besides the old excerpts. */
+      readonly extra?: readonly Passage[];
+    }
   | { readonly kind: 'hold'; readonly reason: string };
 
 const VARIANTS = new Map(
   Object.entries(CANONICAL_KEYS).flatMap(([key, list]) => list.map((one) => [one, key] as const)),
 );
 
+/** The keys that the plan renames. */
+export const DRIFTED_KEYS: readonly string[] = [...VARIANTS.keys()];
+
 // The label of the quantity in the page. A bare "tonnage", NT and displacement are no label. A
 // Cyrillic word has no word boundary in JavaScript, so it stands without one.
 const LABEL: Readonly<Record<string, string>> = {
   capacity_dwt: String.raw`\bDWT\b|\bdwt\b|[Dd]ead[Ww]eight|[Дд]едвейт`,
-  gross_tonnage_gt: String.raw`\bGT\b|[Gg]ross\s+(?:[Tt]onnage|[Tt]ons?)|[Вв]аловая\s+вместимость`,
+  gross_tonnage_gt: String.raw`\bGT\b|[Gg]ross\s{1,5}(?:[Tt]onnage|[Tt]ons?)|[Вв]аловая\s+вместимость`,
 };
 
 const SEPARATORS = /(?<=\d)[\s,.](?=\d{3}(?!\d))/gu;
@@ -60,6 +86,64 @@ const labelled = (label: string, value: number, page: string): boolean => {
     'u',
   ).test(squeezed(page));
 };
+
+// The number as a page writes it: the digits, with a space, a comma or a point between the groups.
+const numberPattern = (value: number): string =>
+  String(value)
+    .replace(/\B(?=(?:\d{3})+(?!\d))/gu, ' ')
+    .split(' ')
+    .join(String.raw`[ \t,.]?`);
+
+// The label, then a unit and signs and no letter (a line pair such as "Gross tonnage (t)" and the
+// next line). A line break may stand between them; it never stands inside a number.
+const opening = (label: string): string =>
+  String.raw`(?:${label})[^\p{L}\d]{0,12}(?:t|tons?|tonnes)?[^\p{L}\d]{0,12}`;
+
+/** A passage of a page that opens with the label and ends with the number. The number is the whole
+ * number: more digits, a decimal tail or a slash after it (a line such as "DWT/GT: 115 000 / 42
+ * 500") make no passage. Null when no page has such a passage. */
+export const passageOf = (label: string, value: number, pages: readonly Page[]): Passage | null => {
+  const found = new RegExp(
+    String.raw`${opening(label)}(?<!\d)${numberPattern(value)}(?![ \t,.]?\d)(?!\s*/)`,
+    'u',
+  );
+  for (const one of pages) {
+    const excerpt = found.exec(one.text)?.[0];
+    if (excerpt !== undefined) return { document: one.document, page: one.page, excerpt };
+  }
+  return null;
+};
+
+/** The deadweight and the gross tonnage that an act proposes, and the first number that the stored
+ * page writes after each label. It only reads: it swaps nothing. */
+export const valuesOf = (
+  item: Item,
+): {
+  readonly proposed: Readonly<Record<string, unknown>>;
+  readonly page: Record<string, number>;
+} => {
+  const proposed: Record<string, unknown> = {};
+  for (const [key, held] of Object.entries(item.attrs)) {
+    const canonical = VARIANTS.get(key) ?? key;
+    if (canonical in LABEL) proposed[canonical] = held.v;
+  }
+  const page: Record<string, number> = {};
+  for (const [canonical, label] of Object.entries(LABEL)) {
+    const found = new RegExp(String.raw`${opening(label)}(\d(?:[ \t,.]?\d)*)`, 'u');
+    for (const one of item.pages ?? []) {
+      const digits = found.exec(one.text)?.[1]?.replace(/[ \t,.]/gu, '');
+      if (digits !== undefined) {
+        page[canonical] = Number(digits);
+        break;
+      }
+    }
+  }
+  return { proposed, page };
+};
+
+/** The reasons that a person reads in the dry run. */
+export const SMALLER_HOLD = 'the deadweight is smaller than the gross tonnage';
+export const DUPLICATE_HOLD = 'the entity copies a duplicate identifier';
 
 const hold = (reason: string): Plan => ({ kind: 'hold', reason });
 
@@ -87,15 +171,23 @@ export const plan = (item: Item): Plan => {
   const drifted = Object.keys(item.attrs).filter((key) => VARIANTS.has(key));
   if (drifted.length === 0) return { kind: 'keep' };
   const page = item.excerpts.join('\n');
-  if (page === '') return hold('no stored excerpt');
+  const pages = item.pages ?? [];
+  if (page === '' && pages.length === 0) return hold('no stored excerpt');
   const next: Record<string, { v: unknown }> = {};
+  const extra: Passage[] = [];
   for (const [key, held] of Object.entries(item.attrs)) {
     const canonical = VARIANTS.get(key) ?? key;
     let value = held.v;
     const label = canonical !== key ? LABEL[canonical] : undefined;
     if (label !== undefined) {
-      if (typeof value !== 'number' || !labelled(label, value, page))
-        return hold(`the excerpt does not give the number of ${key} next to its label`);
+      const unclear = hold(`the excerpt does not give the number of ${key} next to its label`);
+      if (typeof value !== 'number') return unclear;
+      if (!labelled(label, value, page)) {
+        // The excerpt is poor: the stored page may hold the label and the same number.
+        const passage = passageOf(label, value, pages);
+        if (passage === null) return unclear;
+        extra.push(passage);
+      }
     }
     if (
       canonical === 'former_names' &&
@@ -115,9 +207,13 @@ export const plan = (item: Item): Plan => {
   const gt = next['gross_tonnage_gt']?.v;
   // shortcut: the check holds each vessel type, and the spec names tankers and bulkers; it only
   // holds more, so keep it until the held count shows that it costs too much.
-  if (typeof dwt === 'number' && typeof gt === 'number' && dwt < gt)
-    return hold('the deadweight is smaller than the gross tonnage');
-  return { kind: 'rekey', attrs: next, renamed: drifted };
+  if (typeof dwt === 'number' && typeof gt === 'number' && dwt < gt) return hold(SMALLER_HOLD);
+  return {
+    kind: 'rekey',
+    attrs: next,
+    renamed: drifted,
+    ...(extra.length === 0 ? {} : { extra }),
+  };
 };
 
 export interface Report {
@@ -143,13 +239,14 @@ const row = z.strictObject({
   id: z.string(),
   attrs: z.record(z.string(), z.looseObject({ v: z.unknown() })),
   excerpts: z.array(z.string()),
+  pages: z.array(z.object({ document: z.string(), page: z.number(), text: z.string() })),
 });
 
 // The pending acts that hold a drifted key, with the words of their cited spans. A citation of
 // words read from an image has no span, so such an item has no excerpt and it is held. The read
-// takes the raw payload with no privacy view: the dry run prints counts only.
+// takes the raw payload with no privacy view: the dry run prints counts, ids and tonnages only.
 export const READ = `SELECT p.id::text AS id, p.payload->'attrs' AS attrs,
-    coalesce(cs.excerpts, '[]'::json) AS excerpts
+    coalesce(cs.excerpts, '[]'::json) AS excerpts, coalesce(pg.pages, '[]'::jsonb) AS pages
   FROM public.proposals p
   LEFT JOIN LATERAL (
     SELECT json_agg(substr(t.text, c.start + 1, c."end" - c.start) ORDER BY c.created_at, c.id)
@@ -158,6 +255,14 @@ export const READ = `SELECT p.id::text AS id, p.payload->'attrs' AS attrs,
       JOIN public.document_text t ON t.document_id = c.doc_id
                                  AND t.extractor = c.text_extractor AND t.page = c.page
      WHERE c.claim_id = p.id AND c.start IS NOT NULL) cs ON true
+  LEFT JOIN LATERAL (
+    -- Each cited page once, whatever the number of citations on it.
+    SELECT jsonb_agg(jsonb_build_object('document', x.doc_id, 'page', x.page, 'text', t.text))
+             AS pages
+      FROM (SELECT DISTINCT c.doc_id, c.page, c.text_extractor FROM public.citation c
+             WHERE c.claim_id = p.id AND c.start IS NOT NULL) x
+      JOIN public.document_text t ON t.document_id = x.doc_id
+                                 AND t.extractor = x.text_extractor AND t.page = x.page) pg ON true
  WHERE p.status = 'pending' AND p.payload->'attrs' ?| $1::text[]
  ORDER BY p.id`;
 
@@ -182,7 +287,13 @@ const main = async (): Promise<number> => {
       `${write ? 'write' : 'dry run'}: ${String(rekey)} to re-key, ${String(keep)} unchanged`,
     );
     for (const [reason, count] of held) console.log(`held	${String(count)}	${reason}`);
-    const groups = await readGroups(pool, UNIQUE_KEYS);
+    const groups = await readGroups(pool, UNIQUE_KEYS, DRIFTED_KEYS);
+    // Lists for a person: the acts that the script does not touch.
+    for (const one of groups) {
+      if (one.held === SMALLER_HOLD) for (const line of checkLines(one)) console.log(line);
+      if (one.held === DUPLICATE_HOLD)
+        console.log(`duplicate	${one.key}	${one.moved.map((act) => act.id).join(' ')}`);
+    }
     for (const one of groups)
       console.log(
         `group	${one.key}	${String(one.moved.length)} moved	${String(one.pass.length)} kept	` +
