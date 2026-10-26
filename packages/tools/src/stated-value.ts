@@ -280,6 +280,11 @@ const readingsOf = (written: string): number[] => {
   return [Number(`${whole}.${fraction}`)].filter(Number.isFinite);
 };
 
+// Two passages are two texts. One line break between them would join a number that ends a passage
+// to a number that starts the next one ("59172" and "243.8" would read as one number), and two
+// line breaks never join.
+const joinPassages = (passages: readonly string[]): string => passages.join('\n\n');
+
 const numbersIn = (text: string): number[] =>
   [...text.matchAll(NUMBER)].flatMap(([written]) => readingsOf(written));
 
@@ -493,7 +498,7 @@ export const daysFromPublication = (
   dayFirst = false,
 ): string[] => {
   if (publishedOn === undefined) return [];
-  const text = passages.join('\n');
+  const text = joinPassages(passages);
   const nightEvent = isNightEvent(act);
   const alone = daysIn(text, { dayFirst, nightEvent });
   const deduced = daysIn(text, { publishedOn, dayFirst, nightEvent });
@@ -628,7 +633,7 @@ export const unstatedValues = (
   passages: readonly string[],
   options: StatedOptions = {},
 ): ActValue[] => {
-  const text = passages.join('\n');
+  const text = joinPassages(passages);
   const coordinates = coordinatesIn(text);
   return [
     ...valuesOf(act).filter((named) => {
@@ -687,7 +692,7 @@ export const unstatedCallDay = (
   const [, year = '', month = '', date = ''] = parts;
   return !(
     isRealDay(Number(year), Number(month), Number(date)) &&
-    daysIn(passages.join('\n'), options).has(day)
+    daysIn(joinPassages(passages), options).has(day)
   );
 };
 
@@ -707,7 +712,7 @@ export const withoutCallDay = <
 /** A passage names a provision when it names a directive, an annex or an article by its number.
  * A type change of a relation rests on that provision. */
 export const namesProvision = (passages: readonly string[]): boolean =>
-  /\b(directive\s+\d+|annex\s+(?:[ivxlc]+|\d+)\b|articles?\s+\d+)/i.test(passages.join('\n'));
+  /\b(directive\s+\d+|annex\s+(?:[ivxlc]+|\d+)\b|articles?\s+\d+)/i.test(joinPassages(passages));
 
 /** The two bounds of a relation. Each one is a day that a cited passage states, or it is not
  * proposed: a bound that no passage states is removed from the act, and `dropped` names it. The
@@ -719,7 +724,7 @@ export const statedBounds = (
   passages: readonly string[],
   options: StatedOptions = {},
 ): { readonly act: WriteRequest; readonly dropped: BoundName[] } => {
-  const text = passages.join('\n');
+  const text = joinPassages(passages);
   if (act.op !== 'create_relation' && act.op !== 'update_relation') return { act, dropped: [] };
   const dropped = (['validFrom', 'validTo'] as const).filter((name) => {
     const day = act[name];

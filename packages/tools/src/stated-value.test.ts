@@ -985,3 +985,7 @@ test('"yesterday" crosses the end of a month and of a year', () => {
     }),
   ).toStrictEqual([]);
 });
+
+test('a number that ends a passage never joins the number that starts the next passage', () => {
+  expect(unstatedValues(entityWith('Si He', 243.8), ['Si He 59172', '243.8'])).toStrictEqual([]);
+});
