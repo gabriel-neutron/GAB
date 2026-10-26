@@ -68,7 +68,7 @@ export const DRIFTED_KEYS: readonly string[] = [...VARIANTS.keys()];
 // Cyrillic word has no word boundary in JavaScript, so it stands without one.
 const LABEL: Readonly<Record<string, string>> = {
   capacity_dwt: String.raw`\bDWT\b|\bdwt\b|[Dd]ead[Ww]eight|[Дд]едвейт`,
-  gross_tonnage_gt: String.raw`\bGT\b|[Gg]ross\s+(?:[Tt]onnage|[Tt]ons?)|[Вв]аловая\s+вместимость`,
+  gross_tonnage_gt: String.raw`\bGT\b|[Gg]ross\s{1,5}(?:[Tt]onnage|[Tt]ons?)|[Вв]аловая\s+вместимость`,
 };
 
 const SEPARATORS = /(?<=\d)[\s,.](?=\d{3}(?!\d))/gu;
@@ -92,15 +92,19 @@ const numberPattern = (value: number): string =>
   String(value)
     .replace(/\B(?=(?:\d{3})+(?!\d))/gu, ' ')
     .split(' ')
-    .join(String.raw`[\s,.]?`);
+    .join(String.raw`[ \t,.]?`);
 
-/** A passage of a page that opens with the label and ends with the number, with only a unit and
- * signs between them (a line pair such as "Gross tonnage (t)" and the next line). Null when no page
- * has such a passage. */
+// The label, then a unit and signs and no letter (a line pair such as "Gross tonnage (t)" and the
+// next line). A line break may stand between them; it never stands inside a number.
+const opening = (label: string): string =>
+  String.raw`(?:${label})[^\p{L}\d]{0,12}(?:t|tons?|tonnes)?[^\p{L}\d]{0,12}`;
+
+/** A passage of a page that opens with the label and ends with the number. The number is the whole
+ * number: more digits, a decimal tail or a slash after it (a line such as "DWT/GT: 115 000 / 42
+ * 500") make no passage. Null when no page has such a passage. */
 export const passageOf = (label: string, value: number, pages: readonly Page[]): Passage | null => {
-  const sign = String.raw`[^\p{L}\d]{0,12}`;
   const found = new RegExp(
-    String.raw`(?:${label})${sign}(?:t|tons?|tonnes)?${sign}(?<!\d)${numberPattern(value)}(?!\d)`,
+    String.raw`${opening(label)}(?<!\d)${numberPattern(value)}(?![ \t,.]?\d)(?!\s*/)`,
     'u',
   );
   for (const one of pages) {
@@ -125,13 +129,9 @@ export const valuesOf = (
   }
   const page: Record<string, number> = {};
   for (const [canonical, label] of Object.entries(LABEL)) {
-    const sign = String.raw`[^\p{L}\d]{0,12}`;
-    const found = new RegExp(
-      String.raw`(?:${label})${sign}(?:t|tons?|tonnes)?${sign}(\d(?:[\s,.]?\d)*)`,
-      'u',
-    );
+    const found = new RegExp(String.raw`${opening(label)}(\d(?:[ \t,.]?\d)*)`, 'u');
     for (const one of item.pages ?? []) {
-      const digits = found.exec(one.text)?.[1]?.replace(/[\s,.]/gu, '');
+      const digits = found.exec(one.text)?.[1]?.replace(/[ \t,.]/gu, '');
       if (digits !== undefined) {
         page[canonical] = Number(digits);
         break;
@@ -140,6 +140,10 @@ export const valuesOf = (
   }
   return { proposed, page };
 };
+
+/** The reasons that a person reads in the dry run. */
+export const SMALLER_HOLD = 'the deadweight is smaller than the gross tonnage';
+export const DUPLICATE_HOLD = 'the entity copies a duplicate identifier';
 
 const hold = (reason: string): Plan => ({ kind: 'hold', reason });
 
@@ -203,8 +207,7 @@ export const plan = (item: Item): Plan => {
   const gt = next['gross_tonnage_gt']?.v;
   // shortcut: the check holds each vessel type, and the spec names tankers and bulkers; it only
   // holds more, so keep it until the held count shows that it costs too much.
-  if (typeof dwt === 'number' && typeof gt === 'number' && dwt < gt)
-    return hold('the deadweight is smaller than the gross tonnage');
+  if (typeof dwt === 'number' && typeof gt === 'number' && dwt < gt) return hold(SMALLER_HOLD);
   return {
     kind: 'rekey',
     attrs: next,
@@ -241,19 +244,25 @@ const row = z.strictObject({
 
 // The pending acts that hold a drifted key, with the words of their cited spans. A citation of
 // words read from an image has no span, so such an item has no excerpt and it is held. The read
-// takes the raw payload with no privacy view: the dry run prints counts only.
+// takes the raw payload with no privacy view: the dry run prints counts, ids and tonnages only.
 export const READ = `SELECT p.id::text AS id, p.payload->'attrs' AS attrs,
-    coalesce(cs.excerpts, '[]'::json) AS excerpts, coalesce(cs.pages, '[]'::jsonb) AS pages
+    coalesce(cs.excerpts, '[]'::json) AS excerpts, coalesce(pg.pages, '[]'::jsonb) AS pages
   FROM public.proposals p
   LEFT JOIN LATERAL (
     SELECT json_agg(substr(t.text, c.start + 1, c."end" - c.start) ORDER BY c.created_at, c.id)
-             AS excerpts,
-           jsonb_agg(DISTINCT jsonb_build_object('document', c.doc_id, 'page', c.page,
-                                                 'text', t.text)) AS pages
+             AS excerpts
       FROM public.citation c
       JOIN public.document_text t ON t.document_id = c.doc_id
                                  AND t.extractor = c.text_extractor AND t.page = c.page
      WHERE c.claim_id = p.id AND c.start IS NOT NULL) cs ON true
+  LEFT JOIN LATERAL (
+    -- Each cited page once, whatever the number of citations on it.
+    SELECT jsonb_agg(jsonb_build_object('document', x.doc_id, 'page', x.page, 'text', t.text))
+             AS pages
+      FROM (SELECT DISTINCT c.doc_id, c.page, c.text_extractor FROM public.citation c
+             WHERE c.claim_id = p.id AND c.start IS NOT NULL) x
+      JOIN public.document_text t ON t.document_id = x.doc_id
+                                 AND t.extractor = x.text_extractor AND t.page = x.page) pg ON true
  WHERE p.status = 'pending' AND p.payload->'attrs' ?| $1::text[]
  ORDER BY p.id`;
 
@@ -281,9 +290,8 @@ const main = async (): Promise<number> => {
     const groups = await readGroups(pool, UNIQUE_KEYS, DRIFTED_KEYS);
     // Lists for a person: the acts that the script does not touch.
     for (const one of groups) {
-      if (one.held === 'the deadweight is smaller than the gross tonnage')
-        for (const line of checkLines(one)) console.log(line);
-      if (one.held === 'the entity copies a duplicate identifier')
+      if (one.held === SMALLER_HOLD) for (const line of checkLines(one)) console.log(line);
+      if (one.held === DUPLICATE_HOLD)
         console.log(`duplicate	${one.key}	${one.moved.map((act) => act.id).join(' ')}`);
     }
     for (const one of groups)

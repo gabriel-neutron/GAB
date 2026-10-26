@@ -142,3 +142,26 @@ describe('valuesOf', () => {
     });
   });
 });
+
+describe('passage of a page, the whole number only', () => {
+  const held = (value: number, text: string) =>
+    plan(paged({ gross_tonnage_t: { v: value } }, text, 'x')).kind;
+
+  it('holds a shorter value against a longer number', () => {
+    expect(held(500, 'Gross tonnage (t)\n500 000')).toBe('hold');
+    expect(held(42500, 'Gross tonnage (t)\n42 500 000')).toBe('hold');
+    expect(held(42500, 'Gross tonnage (t)\n42 500,75')).toBe('hold');
+    expect(held(42500, 'Gross tonnage (t)\n42 500')).toBe('rekey');
+  });
+
+  it('holds a line that gives two quantities, so no value is taken from the other label', () => {
+    expect(held(115000, 'DWT/GT: 115 000 / 42 500')).toBe('hold');
+  });
+
+  it('reads a page value that stops at the end of the line', () => {
+    const text = 'Gross tonnage (t)\n42 500\n2024';
+    expect(valuesOf(paged({ gross_tonnage_t: { v: 1 } }, text)).page).toEqual({
+      gross_tonnage_gt: 42500,
+    });
+  });
+});

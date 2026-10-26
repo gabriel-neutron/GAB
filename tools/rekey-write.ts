@@ -14,6 +14,7 @@ import { z } from 'zod';
 
 import {
   DRIFTED_KEYS,
+  DUPLICATE_HOLD,
   plan,
   valuesOf,
   type Attrs,
@@ -170,7 +171,7 @@ export const groupsOf = (
             return 'a citation has no excerpt, or an excerpt that is too long';
           if (new Set(one.cites.map((cite) => cite.modality)).size > 1)
             return 'an act cites two modalities';
-          if (copies.has(one.id)) return 'the entity copies a duplicate identifier';
+          if (copies.has(one.id)) return DUPLICATE_HOLD;
           if (acts.some((other) => !ids.has(other.id) && other.names.includes(one.id)))
             return 'an act outside the group names a moved act';
           for (const end of endsOf(one)) {
@@ -181,7 +182,7 @@ export const groupsOf = (
               return 'a relation names a pending act that is no entity';
             if (waiting.originator === null) return 'no originator';
             if (plans.has(end)) return 'a relation names a drifted entity that is not in the group';
-            if (copies.has(end)) return 'the entity copies a duplicate identifier';
+            if (copies.has(end)) return DUPLICATE_HOLD;
             pass.set(end, waiting);
           }
         }
@@ -467,15 +468,21 @@ const READ_ACTS = `SELECT p.id::text AS id, p.op, p.payload, p.target_id::text A
     p.names::text[] AS names, p.originator, p.dissent, coalesce(cs.cites, '[]'::json) AS cites
   FROM public.proposals p
   LEFT JOIN LATERAL (
-    SELECT json_agg(json_build_object('document', c.doc_id, 'page', c.page, 'modality', c.modality,
-             'excerpt', CASE WHEN c.start IS NULL THEN NULL
-                             ELSE substr(t.text, c.start + 1, c."end" - c.start) END,
-             'pageText', CASE WHEN p.payload->'attrs' ?| $1::text[] THEN t.text END)
-           ORDER BY c.created_at, c.id) AS cites
-      FROM public.citation c
-      LEFT JOIN public.document_text t ON t.document_id = c.doc_id
-                                      AND t.extractor = c.text_extractor AND t.page = c.page
-     WHERE c.claim_id = p.id) cs ON true
+    -- The text of a page goes out once for an act with a drifted key, on its first citation.
+    SELECT json_agg(json_build_object('document', x.doc_id, 'page', x.page,
+             'modality', x.modality,
+             'excerpt', CASE WHEN x.start IS NULL THEN NULL
+                             ELSE substr(x.text, x.start + 1, x."end" - x.start) END,
+             'pageText', CASE WHEN x.first AND p.payload->'attrs' ?| $1::text[] THEN x.text END)
+           ORDER BY x.created_at, x.id) AS cites
+      FROM (SELECT c.id, c.doc_id, c.page, c.modality, c.start, c."end", c.created_at, t.text,
+                   row_number() OVER (PARTITION BY c.doc_id, c.page
+                                      ORDER BY c.created_at, c.id) = 1 AS first
+              FROM public.citation c
+              LEFT JOIN public.document_text t ON t.document_id = c.doc_id
+                                              AND t.extractor = c.text_extractor
+                                              AND t.page = c.page
+             WHERE c.claim_id = p.id) x) cs ON true
  WHERE p.status = 'pending'
  ORDER BY p.id`;
 
