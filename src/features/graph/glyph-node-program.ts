@@ -65,7 +65,8 @@ const vec4 transparent = vec4(0.0, 0.0, 0.0, 0.0);
 
 void main(void) {
   // The box of a glyph is 14 units, and the radius of the node is half of it.
-  vec2 p = v_diffVector / v_radius * 7.0;
+  // The screen is y up and the glyph table is y down, as in an SVG.
+  vec2 p = vec2(v_diffVector.x, -v_diffVector.y) / v_radius * 7.0;
   float d = glyph(p);
 
   #ifdef PICKING_MODE

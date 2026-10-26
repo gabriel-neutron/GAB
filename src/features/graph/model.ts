@@ -10,7 +10,7 @@ import { typeLabel } from '@/shared/type-label';
 import type { Corpus, Proposal, Relation, TypeVocabulary } from '@/shared/read/model';
 
 import { GLYPHS } from './glyphs';
-import { familyOf, lookOf, type RelationFamily } from './relation-families';
+import { FAMILIES, familyOf, type RelationFamily } from './relation-families';
 import { analyseStructure, topologyOf } from './structure';
 
 export interface NodePosition {
@@ -109,9 +109,12 @@ export function tokenHex(token: string, fallback: string): string {
 export const groundHue = (ground: GraphGround): string =>
   tokenHex('--background', GROUND_FALLBACK[ground]);
 
-/** The hue of a family, from its `--relation-*` token. */
-export const familyHue = (family: RelationFamily, ground: GraphGround): string =>
-  tokenHex(`--relation-${family}`, lookOf(family).hue[ground]);
+/** The hue of each family, from its `--relation-*` token. One read for the whole graph: each read
+ * forces a style recalculation. */
+const familyHues = (ground: GraphGround): ReadonlyMap<RelationFamily, string> =>
+  new Map(
+    FAMILIES.map(({ key, hue }) => [key, tokenHex(`--relation-${key}`, hue[ground])] as const),
+  );
 
 export interface GraphModel {
   readonly setGround: (ground: GraphGround) => void;
@@ -174,6 +177,7 @@ export function buildGraphModel(
   unplaced: ReadonlySet<string>,
 ): GraphModel {
   const palette = paletteOf(ground);
+  const familyHueOf = familyHues(ground);
   const drawn = new Set<string>();
   for (const entity of corpus.entities) {
     if (!positions.has(entity.id)) continue;
@@ -239,7 +243,7 @@ export function buildGraphModel(
   for (const relation of edges) {
     graph.addDirectedEdgeWithKey(relation.id, relation.srcId, relation.dstId, {
       size: 1,
-      color: familyHue(familyOf(relation.type), ground),
+      color: familyHueOf.get(familyOf(relation.type)) ?? '#8a8380',
       type: familyOf(relation.type),
       relationType: relation.type,
       validFrom: relation.validFrom,
@@ -260,11 +264,13 @@ export function buildGraphModel(
     setGround: (next) => {
       hueOfType.clear();
       for (const [key, hue] of typeHues(types, next)) hueOfType.set(key, hue);
+      const nextPalette = paletteOf(next);
+      const nextFamilyHues = familyHues(next);
       graph.forEachNode((id, attrs) => {
-        graph.setNodeAttribute(id, 'color', hueOfNode(attrs, paletteOf(next), hueOfType, next));
+        graph.setNodeAttribute(id, 'color', hueOfNode(attrs, nextPalette, hueOfType, next));
       });
       graph.forEachEdge((id, attrs) => {
-        graph.setEdgeAttribute(id, 'color', familyHue(attrs.type, next));
+        graph.setEdgeAttribute(id, 'color', nextFamilyHues.get(attrs.type) ?? '#8a8380');
       });
     },
     graph,

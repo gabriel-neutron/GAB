@@ -102,7 +102,7 @@ const NAME_OFFSET = 4;
 
 // The selection is named at 14px in `foreground`, and a one-hop neighbour at 12px in
 // `muted-foreground`.
-const NAME_CLASS = 'pointer-events-none absolute top-0 left-0 max-w-48 truncate px-1 ';
+const NAME_CLASS = 'pointer-events-none absolute top-0 left-0 max-w-48 truncate bg-background px-1';
 const SELECTED_NAME = `${NAME_CLASS} text-body-sm text-foreground`;
 const NEIGHBOUR_NAME = `${NAME_CLASS} text-caption text-muted-foreground`;
 
@@ -271,6 +271,8 @@ export function mountGraph(
     readonly rows: readonly (readonly [string, string])[];
   }
   let hovered: HoverCard | null = null;
+  // Measured once when the card opens: a read of the width on each frame forces a layout.
+  let cardHalfWidth = 0;
 
   // A reducer runs for each element on each frame, so a dimmed colour is computed one time.
   const dimCache = new Map<string, string>();
@@ -653,7 +655,7 @@ export function mountGraph(
           x > width + OVERLAY_MARGIN ||
           y > height + OVERLAY_MARGIN;
         // The card is 280px wide and stays inside the canvas, or its values are cut off.
-        const half = hoverLabel.offsetWidth / 2;
+        const half = cardHalfWidth;
         const inside = Math.min(Math.max(x, half + 8), Math.max(width - half - 8, half + 8));
         hoverLabel.style.transform = canvasLabelTransform(inside, y);
       }
@@ -919,6 +921,8 @@ export function mountGraph(
       cardTimer = null;
       if (destroyed) return;
       fillCard(next);
+      hoverLabel.hidden = false;
+      cardHalfWidth = hoverLabel.offsetWidth / 2;
       hovered = next;
       // The card is placed on the next frame, with the ring and the markers, so one loop owns
       // every element over this canvas.
