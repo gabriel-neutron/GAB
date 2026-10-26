@@ -10,8 +10,12 @@ const COMMANDS = {
   'asset-sanctions': async () =>
     (await import('./release/asset-sanctions-command.ts')).assetSanctionsCommand,
   'author-names': async () => (await import('./author-names-command.ts')).authorNamesCommand,
+  'delete-relation': async () =>
+    (await import('./delete-relation-command.ts')).deleteRelationCommand,
   'document-labels': async () =>
     (await import('./document-labels-command.ts')).documentLabelsCommand,
+  'delete-relation': async () =>
+    (await import('./delete-relation-command.ts')).deleteRelationCommand,
   'dry-join': async () => (await import('./dry-join-command.ts')).dryJoinCommand,
   'firms-sweep': async () => (await import('./firms-sweep-command.ts')).firmsSweepCommand,
   'gem-duplicates': async () => (await import('./gem-duplicates-command.ts')).gemDuplicatesCommand,
