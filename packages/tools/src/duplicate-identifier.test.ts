@@ -69,3 +69,13 @@ test('flags a new entity that waits as a copy of an element of the record, and m
     { id: 'b', label: 'ALPHA', type: 'company', pending: true },
   ]);
 });
+
+test('flags two companies with the same IMO company number', () => {
+  const groups = duplicateIdentifiers([
+    entity('a', 'ACME SHIPPING', 'company', { imo_company_number: { v: '1234567' } }),
+    entity('b', 'ACME SHIPPING LTD', 'company', { imo_company_number: { v: ['1234567'] } }),
+  ]);
+  expect(groups.map((group) => [group.key, group.entities.map((one) => one.id)])).toEqual([
+    ['imo_company_number', ['a', 'b']],
+  ]);
+});
