@@ -15,7 +15,7 @@ const WIDTH = 960;
 const PLOT_LEFT = 190;
 const PLOT_RIGHT = 930;
 const AXIS = 28;
-const ROW = 40;
+const ROW = 44;
 const BAR = 8;
 const ARROW = 8;
 const FOOT = 22;
@@ -101,7 +101,7 @@ export function TimelineFigure({ lanes, versionDate }: TimelineFigureProps) {
       </text>
       {rows.map(({ lane, mark, first }, index) => {
         const top = AXIS + index * ROW;
-        const bar = top + 26;
+        const bar = top + 28;
         const family = FAMILY[lane.key];
         const hue = `var(--relation-${family})`;
         const { time } = mark;
@@ -174,15 +174,7 @@ function IntervalBar({
   return (
     <>
       {knownStart ? (
-        <line
-          x1={start}
-          x2={start + width}
-          y1={top + BAR / 2}
-          y2={top + BAR / 2}
-          stroke={hue}
-          strokeWidth={BAR}
-          strokeDasharray={FAMILY_DASH[family]}
-        />
+        <rect x={start} y={top} width={width} height={BAR} fill={hue} />
       ) : (
         <rect
           x={start}
@@ -195,6 +187,15 @@ function IntervalBar({
           strokeDasharray="4 3"
         />
       )}
+      <line
+        x1={start}
+        x2={tip}
+        y1={top + BAR + 4}
+        y2={top + BAR + 4}
+        stroke={hue}
+        strokeWidth={2}
+        strokeDasharray={FAMILY_DASH[family]}
+      />
       {open ? (
         <polygon
           points={`${String(tip)},${String(top - 3)} ${String(tip + ARROW)},${String(top + BAR / 2)} ${String(tip)},${String(top + BAR + 3)}`}

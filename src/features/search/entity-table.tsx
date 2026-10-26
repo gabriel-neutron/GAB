@@ -126,7 +126,7 @@ export function EntityTable({ rows, hrefOf }: EntityTableProps) {
               <Button
                 type="button"
                 variant="secondary"
-                aria-label="Type"
+
                 className="justify-between"
               >
                 {type === null ? 'All types' : typeLabel(type)}

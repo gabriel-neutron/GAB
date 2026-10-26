@@ -13,7 +13,8 @@ const isHeld = (value: unknown): value is Readonly<Record<string, unknown>> =>
 
 /** An address that carries `?q=` fills the field, and the kept query fills it otherwise. */
 export function readLastQuery(): string {
-  const asked = new URLSearchParams(window.location.search).get('q');
+  const asked =
+    typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('q');
   if (asked !== null && asked !== '') return asked;
   const held = readWorkspace(FEATURE, isHeld, {})['query'];
   return typeof held === 'string' ? held : '';
