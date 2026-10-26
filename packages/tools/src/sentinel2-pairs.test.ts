@@ -51,11 +51,13 @@ const setup = (scenes: Scenes = FULL, options: { token?: number; tokenLife?: num
         ? bytes(JSON.stringify({ access_token: TOKEN, expires_in: options.tokenLife ?? 600 }))
         : bytes('{}', options.token);
     if (path.endsWith('/catalog/1.0.0/search'))
-      return bytes(
-        JSON.stringify({
-          features: scenes.scenes.map(([id, datetime]) => ({ id, properties: { datetime } })),
-        }),
-      );
+      return asked.headers['accept'] !== 'application/geo+json'
+        ? bytes('{}', 406)
+        : bytes(
+            JSON.stringify({
+              features: scenes.scenes.map(([id, datetime]) => ({ id, properties: { datetime } })),
+            }),
+          );
     if (path.endsWith('/statistics'))
       return bytes(
         JSON.stringify({
@@ -250,7 +252,7 @@ test('the client leaves in the body of the token request and never in an address
   ).toHaveLength(4);
 });
 
-test('the catalogue search asks for GeoJSON, the only type that the service accepts', async () => {
+test('the catalogue search asks for GeoJSON', async () => {
   const { session, reach, web } = setup();
   await callTool(tool, session, { strikes: [STRIKE] }, reach);
   const searches = web.posted.filter((asked) =>
