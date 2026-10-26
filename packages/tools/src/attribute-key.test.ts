@@ -10,5 +10,5 @@ test('a variant of a known key gets a warning that names the key to write', () =
 });
 
 test('a canonical key and an unrelated key get no warning', () => {
-  expect(keyWarnings(['capacity_dwt', 'former_names', 'revenue_usd'])).toEqual([]);
+  expect(keyWarnings(['capacity_dwt', 'former_names', 'revenue_usd', 'grt'])).toEqual([]);
 });

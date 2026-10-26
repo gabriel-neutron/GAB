@@ -1,6 +1,5 @@
 /** The keys that a quantity of a vessel should have, and the keys that a model wrote for the same
- * quantity (decisions.md M11 keeps the key free). The list names a key. It never refuses one, and
- * it never rewrites one. */
+ * quantity. A key stays free: the list names a key, and it never refuses or rewrites one. */
 export const CANONICAL_KEYS: Readonly<Record<string, readonly string[]>> = {
   capacity_dwt: [
     'deadweight_t',

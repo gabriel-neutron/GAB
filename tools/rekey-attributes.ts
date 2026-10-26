@@ -9,6 +9,7 @@ import { argv } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { Pool } from 'pg';
+import { z } from 'zod';
 
 import { CANONICAL_KEYS } from '@gab/tools/attribute-key';
 import { connectionString } from './db-runtime.ts';
@@ -31,26 +32,47 @@ const VARIANTS = new Map(
   Object.entries(CANONICAL_KEYS).flatMap(([key, list]) => list.map((one) => [one, key] as const)),
 );
 
-// The label of the quantity in the page. A bare "tonnage", NT and displacement are no label.
-const LABEL: Readonly<Record<string, RegExp>> = {
-  capacity_dwt: /\bdwt\b|\bdeadweight\b|дедвейт/iu,
-  gross_tonnage_gt: /\bGT\b|\bgross\s+(?:tonnage|tons?)\b|валов/iu,
+// The label of the quantity in the page. A bare "tonnage", NT and displacement are no label. A
+// Cyrillic word has no word boundary in JavaScript, so it stands without one.
+const LABEL: Readonly<Record<string, string>> = {
+  capacity_dwt: String.raw`\bDWT\b|\bdwt\b|[Dd]ead[Ww]eight|[Дд]едвейт`,
+  gross_tonnage_gt: String.raw`\bGT\b|[Gg]ross\s+(?:[Tt]onnage|[Tt]ons?)|[Вв]аловая\s+вместимость`,
 };
 
 const SEPARATORS = /(?<=\d)[\s,.](?=\d{3}(?!\d))/gu;
 
-/** The numbers that the text writes, without the separators of the thousands. */
-const numbersIn = (text: string): string[] => text.replace(SEPARATORS, '').match(/\d+/gu) ?? [];
+/** The page, with the separators of the thousands taken out of each number. */
+const squeezed = (text: string): string => text.replace(SEPARATORS, '');
+
+/** The label stands in front of the number with no digit between them, or the number stands in
+ * front of the label with only a unit between them. A number that belongs to another label does
+ * not count. */
+const labelled = (label: string, value: number, page: string): boolean => {
+  const number = String.raw`(?<!\d)${String(value)}(?!\d)`;
+  return new RegExp(
+    String.raw`(?:${label})\D{0,25}${number}|${number}\s?(?:t|tons?|tonnes)?\s?(?:${label})`,
+    'u',
+  ).test(squeezed(page));
+};
 
 const hold = (reason: string): Plan => ({ kind: 'hold', reason });
 
-const NOT_A_NAME = /^(?:n\/a|none|-+)$|^\d{7}$|\d{4}-\d{2}-\d{2}/iu;
+// An empty part, a placeholder, a year, an IMO number or a date is no name.
+const NOT_A_NAME = /^(?:n\/a|none|unknown|-+|\d{4})$|IMO|^\d{7}$|\d{1,4}[-./]\d{1,2}[-./]\d{1,4}/iu;
 
-/** The names of a text that lists them with " / ", or null when a part cannot be a name. */
-const splitNames = (text: string, page: string): string[] | null => {
-  const parts = text.split(' / ').map((one) => one.trim());
+const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+
+/** Each name of a text that lists them with " / ", or of a list. Null when a name is no name, or
+ * when the page does not write it as a whole word. */
+const checkedNames = (given: string | readonly unknown[], page: string): string[] | null => {
+  const parts = (typeof given === 'string' ? given.split(' / ') : given).map((one) =>
+    typeof one === 'string' ? one.trim() : '',
+  );
   const bad = parts.some(
-    (one) => one === '' || NOT_A_NAME.test(one) || !page.toLowerCase().includes(one.toLowerCase()),
+    (one) =>
+      one.length < 2 ||
+      NOT_A_NAME.test(one) ||
+      !new RegExp(String.raw`(?<![\p{L}\p{N}])${escaped(one)}(?![\p{L}\p{N}])`, 'iu').test(page),
   );
   return bad ? null : parts;
 };
@@ -60,20 +82,22 @@ export const plan = (item: Item): Plan => {
   if (drifted.length === 0) return { kind: 'keep' };
   const page = item.excerpts.join('\n');
   if (page === '') return hold('no stored excerpt');
-  const numbers = new Set(numbersIn(page));
   const next: Record<string, { v: unknown }> = {};
   for (const [key, held] of Object.entries(item.attrs)) {
     const canonical = VARIANTS.get(key) ?? key;
     let value = held.v;
     const label = canonical !== key ? LABEL[canonical] : undefined;
     if (label !== undefined) {
-      if (!label.test(page)) return hold(`the excerpt has no label for ${canonical}`);
-      if (typeof value !== 'number' || !numbers.has(String(value)))
-        return hold(`the number of ${key} is not in the excerpt`);
+      if (typeof value !== 'number' || !labelled(label, value, page))
+        return hold(`the excerpt does not give the number of ${key} next to its label`);
     }
-    if (canonical === 'former_names' && typeof value === 'string') {
-      const names = splitNames(value, page);
-      if (names === null) return hold('a part of the former names cannot be split or checked');
+    if (
+      canonical === 'former_names' &&
+      canonical !== key &&
+      (typeof value === 'string' || Array.isArray(value))
+    ) {
+      const names = checkedNames(value, page);
+      if (names === null) return hold('a former name cannot be split or checked');
       value = names;
     }
     const earlier = next[canonical];
@@ -83,6 +107,8 @@ export const plan = (item: Item): Plan => {
   }
   const dwt = next['capacity_dwt']?.v;
   const gt = next['gross_tonnage_gt']?.v;
+  // shortcut: the check holds each vessel type, and the spec names tankers and bulkers; it only
+  // holds more, so keep it until the held count shows that it costs too much.
   if (typeof dwt === 'number' && typeof gt === 'number' && dwt < gt)
     return hold('the deadweight is smaller than the gross tonnage');
   return { kind: 'rekey', attrs: next, renamed: drifted };
@@ -107,8 +133,15 @@ export const report = (items: readonly Item[]): Report => {
   return { rekey, keep, held };
 };
 
+const row = z.strictObject({
+  id: z.string(),
+  attrs: z.record(z.string(), z.looseObject({ v: z.unknown() })),
+  excerpts: z.array(z.string()),
+});
+
 // The pending acts that hold a drifted key, with the words of their cited spans. A citation of
-// words read from an image has no span, so such an item has no excerpt and it is held.
+// words read from an image has no span, so such an item has no excerpt and it is held. The read
+// takes the raw payload with no privacy view: the dry run prints counts only.
 export const READ = `SELECT p.id::text AS id, p.payload->'attrs' AS attrs,
     coalesce(cs.excerpts, '[]'::json) AS excerpts
   FROM public.proposals p
@@ -125,8 +158,8 @@ export const READ = `SELECT p.id::text AS id, p.payload->'attrs' AS attrs,
 const main = async (): Promise<number> => {
   const pool = new Pool({ connectionString: connectionString('app'), statement_timeout: 300_000 });
   try {
-    const { rows } = await pool.query<Item>(READ, [[...VARIANTS.keys()]]);
-    const { rekey, keep, held } = report(rows);
+    const found = await pool.query(READ, [[...VARIANTS.keys()]]);
+    const { rekey, keep, held } = report(found.rows.map((one) => row.parse(one)));
     console.log(`dry run: ${String(rekey)} to re-key, ${String(keep)} unchanged`);
     for (const [reason, count] of held) console.log(`held\t${String(count)}\t${reason}`);
     return 0;
