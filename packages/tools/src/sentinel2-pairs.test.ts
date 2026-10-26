@@ -250,6 +250,16 @@ test('the client leaves in the body of the token request and never in an address
   ).toHaveLength(4);
 });
 
+test('the catalogue search asks for GeoJSON, the only type that the service accepts', async () => {
+  const { session, reach, web } = setup();
+  await callTool(tool, session, { strikes: [STRIKE] }, reach);
+  const searches = web.posted.filter((asked) =>
+    asked.url.pathname.endsWith('/catalog/1.0.0/search'),
+  );
+  expect(searches.length).toBeGreaterThan(0);
+  for (const asked of searches) expect(asked.headers['accept']).toBe('application/geo+json');
+});
+
 test('the token is read again when it is about to end', async () => {
   const { session, reach, web } = setup(FULL, { tokenLife: 90 });
   await callTool(
