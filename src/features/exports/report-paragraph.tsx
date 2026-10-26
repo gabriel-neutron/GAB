@@ -17,7 +17,7 @@ export interface ReportParagraphProps {
  * mention that the release does not hold stays text, so the link never leads to nothing. */
 export function ReportParagraph({ parts, release, links }: ReportParagraphProps) {
   return (
-    <p className="max-w-prose">
+    <p className="max-w-[64ch]">
       {parts.map((part, place) => {
         if (typeof part === 'string') return part;
         if ('entity' in part)

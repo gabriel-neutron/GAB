@@ -85,7 +85,7 @@ export function ExportsPage({ text, release, figures, links }: ExportsPageProps)
               // The page prints as it reads, so the browser makes the PDF.
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 className="print:hidden"
                 onClick={() => {
