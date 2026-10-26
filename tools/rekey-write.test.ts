@@ -71,3 +71,24 @@ describe('groupsOf', () => {
     expect(groupsOf(acts)[0]?.held).not.toBeNull();
   });
 });
+
+describe('groupsOf with a number sent as a text', () => {
+  const year = (id: string, v: string, excerpt: string) =>
+    act(id, {
+      payload: { type: 'vessel', label: id, attrs: { build_year: { v } } },
+      cites: [cite(excerpt)],
+    });
+
+  it('moves the act with the entities and relations that name it', () => {
+    const [group] = groupsOf([year('a', '2003', 'Built 2003'), link('c', 'z', 'a')]);
+    expect(group?.held).toBeNull();
+    expect(group?.moved.map((one) => one.id)).toEqual(['a', 'c']);
+    expect(group?.attrs.get('a')).toEqual({ build_year: { v: 2003 } });
+  });
+
+  it('holds the group when the text is no plain number', () => {
+    expect(groupsOf([year('a', '2003 г.', 'Built 2003 г.')])[0]?.held).toBe(
+      'the text of build_year is not a plain number',
+    );
+  });
+});

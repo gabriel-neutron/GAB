@@ -238,3 +238,22 @@ describe('a plain number that was sent as a text', () => {
     expect(run({ build_year: { v: 2003 } }, 'Built 2003').kind).toBe('keep');
   });
 });
+
+describe('a number sent as a text, edge cases of the page', () => {
+  const run = (attrs: Item['attrs'], page: string) => plan(item(attrs, page)).kind;
+
+  it('holds a number that the page joins to another token', () => {
+    expect(run({ capacity_dwt: { v: '115' } }, 'DWT 115 000 t')).toBe('hold');
+    expect(run({ capacity_dwt: { v: '000' } }, 'DWT 115 000 t')).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Built 2002-2003')).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Delivered 2003/04')).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Model B2003')).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Built 2003, Length 12 m')).toBe('rekey');
+  });
+
+  it('holds a zero, a leading zero and a year that has not four digits', () => {
+    expect(run({ length_m: { v: '0' } }, 'Length 0')).toBe('hold');
+    expect(run({ length_m: { v: '007' } }, 'Length 007')).toBe('hold');
+    expect(run({ build_year: { v: '203' } }, 'Built 203')).toBe('hold');
+  });
+});

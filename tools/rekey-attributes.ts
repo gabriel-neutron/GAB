@@ -183,11 +183,16 @@ const NUMBER_KEYS: readonly string[] = [
 /** The keys that the plan reads when they hold a text. */
 export const TEXT_KEYS: readonly string[] = ['former_names', ...NUMBER_KEYS];
 
-const PLAIN_NUMBER = /^\d+(?:\.\d+)?$/u;
+// No leading zero: "007" would lose its zeros, and a text must keep what it wrote.
+const PLAIN_NUMBER = /^(?:0|[1-9]\d*)(?:\.\d+)?$/u;
 
-/** The text stands in the page as a whole number: no digit, point or comma joins it to another. */
+/** The text stands in the page as a whole number: no digit, point, comma, hyphen, slash or letter
+ * joins it to another token, and no space joins it to a group of digits (115 in "115 000"). */
 const carries = (text: string, page: string): boolean =>
-  new RegExp(String.raw`(?<![\d.,])${escaped(text)}(?!\d|[.,]\d)`, 'u').test(page);
+  new RegExp(
+    String.raw`(?<![\d.,\-/\p{L}])(?<!\d[ \t])${escaped(text)}(?![\d\-/\p{L}]|[.,]\d|[ \t]\d{3}(?!\d))`,
+    'u',
+  ).test(page);
 
 export const plan = (item: Item): Plan => {
   // A key that holds a text where the record holds a list or a number is drifted too: the key is
@@ -211,6 +216,9 @@ export const plan = (item: Item): Plan => {
     if (typeof value === 'string' && NUMBER_KEYS.includes(canonical)) {
       const text = value.trim();
       if (!PLAIN_NUMBER.test(text)) return hold(`the text of ${key} is not a plain number`);
+      if (Number(text) === 0) return hold(`the text of ${key} is zero`);
+      if (canonical === 'build_year' && !/^\d{4}$/u.test(text))
+        return hold(`the text of ${key} is not a four-digit year`);
       written = text;
       value = Number(text);
     }
