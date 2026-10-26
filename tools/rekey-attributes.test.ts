@@ -279,3 +279,16 @@ describe('a deadweight below the gross tonnage', () => {
     );
   });
 });
+
+describe('the type of vessel that releases a deadweight below the gross tonnage', () => {
+  const attrs = { dwt_t: { v: 88709 }, gross_tonnage_t: { v: 115519 } };
+  const run = (type: string) =>
+    plan(paged(attrs, `${type}\nGross tonnage (t)\n115 519\nDWT (t)\n88 709\n`, 'NAYARA')).kind;
+
+  it('releases an LNG tanker and holds a cargo ship with words of a gas carrier or a cruise', () => {
+    expect(run('Type: LNG tanker')).toBe('rekey');
+    expect(run('Container ship, LNG dual-fuel, cruise speed 14 knots')).toBe('hold');
+    expect(run('Type: LNG carrier. Cargo ship 2003')).toBe('hold');
+    expect(run('Ferry Road, a company')).toBe('hold');
+  });
+});

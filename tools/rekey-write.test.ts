@@ -130,3 +130,19 @@ describe('evidenceFor, at most 10 passages', () => {
     expect(evidenceFor(act('a', { cites: needing }), attrs, [])).toBeNull();
   });
 });
+
+describe('evidenceFor, whole values only', () => {
+  const crowd = (...special: string[]): Act =>
+    act('a', {
+      cites: [...special, ...Array.from({ length: 12 }, (_, i) => `Other ${String(i)}`)].map(cite),
+    });
+
+  it('does not take a number inside a longer number for the value', () => {
+    const kept = evidenceFor(crowd('gross 19000', 'dwt 9000'), { capacity_dwt: { v: 9000 } }, []);
+    expect(kept?.map((one) => one.excerpt)).toContain('dwt 9000');
+  });
+
+  it('is null when a kept value stands in no passage as written', () => {
+    expect(evidenceFor(crowd('dwt 9,000'), { capacity_dwt: { v: 9000 } }, [])).toBeNull();
+  });
+});

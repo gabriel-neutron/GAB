@@ -246,13 +246,28 @@ const passagesOf = (
 const distinctCount = (one: Act): number => passagesOf(one, []).all.length;
 
 // The values that the new act keeps: the passage of each one must stay.
-const needs = (one: Act, attrs: Attrs): string[] => [
-  ...Object.values(attrs)
-    .flatMap((held) => (Array.isArray(held.v) ? held.v : [held.v]))
+const listOf = (value: unknown): unknown[] => {
+  const list = z.array(z.unknown()).safeParse(value);
+  return list.success ? list.data : [value];
+};
+
+// A value of under 3 characters is in too many passages to tell one from another: it weighs nothing.
+const needs = (one: Act, attrs: Attrs): string[] =>
+  [
+    ...Object.values(attrs).flatMap((held) => listOf(held.v)),
+    ...(typeof one.payload['label'] === 'string' ? [one.payload['label']] : []),
+  ]
     .filter((v): v is string | number => typeof v === 'string' || typeof v === 'number')
-    .map(String),
-  ...(typeof one.payload['label'] === 'string' ? [one.payload['label']] : []),
-];
+    .map(String)
+    .filter((text) => text.length >= 3);
+
+/** The passage carries the value as a whole token: a number is not a part of a longer number, and
+ * a name is not a part of a longer word. */
+const carriesValue = (excerpt: string, value: string): boolean =>
+  new RegExp(
+    String.raw`(?<![\p{L}\p{N}.,])${value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}(?![\p{L}\p{N}]|[.,]\p{N})`,
+    'u',
+  ).test(excerpt);
 
 /** The evidence of the new act: at most 10 passages. When the act cites more, it keeps the passages
  * that the script found, then for each kept value the first passage that carries it, then the first
@@ -263,9 +278,11 @@ export const evidenceFor = (one: Act, attrs: Attrs, more: readonly Passage[]): P
   const chosen = new Set(forced);
   if (all.length > MAX_EVIDENCE) {
     for (const value of needs(one, attrs)) {
-      if ([...chosen].some((i) => all[i]?.excerpt.includes(value) === true)) continue;
-      const at = all.findIndex((cited) => cited.excerpt.includes(value));
-      if (at >= 0) chosen.add(at);
+      if ([...chosen].some((i) => carriesValue(all[i]?.excerpt ?? '', value))) continue;
+      const at = all.findIndex((cited) => carriesValue(cited.excerpt, value));
+      // A value that no passage carries as written cannot be placed: the act is held, not cut.
+      if (at < 0) return null;
+      chosen.add(at);
     }
     if (chosen.size > MAX_EVIDENCE) return null;
     for (let i = 0; i < all.length && chosen.size < MAX_EVIDENCE; i += 1) chosen.add(i);
@@ -273,6 +290,12 @@ export const evidenceFor = (one: Act, attrs: Attrs, more: readonly Passage[]): P
   return [...chosen]
     .sort((a, b) => a - b)
     .flatMap((i) => (all[i] === undefined ? [] : [{ ...all[i] }]));
+};
+
+// The group holds an act whose values need more than 10 passages, so this is a guard and not a path.
+const required = (act: Act, evidence: Passage[] | null): Passage[] => {
+  if (evidence === null) throw new Error(`the act ${act.id} needs more than 10 passages`);
+  return evidence;
 };
 
 /** The first batch of a group, and the places that wait for the second. A relation names a new
@@ -297,9 +320,10 @@ export const batchesOf = (
     act,
     originator: group.pass.includes(one) ? storedOriginator(one) : ORIGINATOR,
     modality: one.cites[0]?.modality,
-    evidence:
-      evidenceFor(one, group.attrs.get(one.id) ?? attrsOf(one), group.extra.get(one.id) ?? []) ??
-      [],
+    evidence: required(
+      one,
+      evidenceFor(one, group.attrs.get(one.id) ?? attrsOf(one), group.extra.get(one.id) ?? []),
+    ),
   });
   const named = (one: Act): Record<string, unknown> => {
     const attrs = strip(group.attrs.get(one.id) ?? attrsOf(one));
@@ -424,7 +448,8 @@ export const apply = async (group: Group, doors: Doors): Promise<Result> => {
         },
         originator: ORIGINATOR,
         modality: one.cites[0]?.modality,
-        evidence: evidenceFor(one, {}, []) ?? [],
+        // A place with more than 10 passages is held in groupsOf, so nothing is cut here.
+        evidence: required(one, evidenceFor(one, {}, [])),
       },
     ];
   });

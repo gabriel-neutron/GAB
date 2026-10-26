@@ -145,9 +145,9 @@ export const valuesOf = (
 // ships and ferries, and vehicle carriers. The words that mark a type of cargo ship, where a
 // deadweight below the gross tonnage is a doubt.
 const TYPE_ALLOWS =
-  /\b(?:LNG|LPG|gas carrier|gas tanker|passenger|ferry|cruise|ro-?ro|car carrier|vehicle carrier|PCTC)\b/giu;
+  /\b(?:LNG carrier|LNG tanker|LPG carrier|LPG tanker|gas carrier|gas tanker|passenger ship|passenger vessel|passenger ferry|cruise ship|ro-?pax|car carrier|vehicle carrier|PCTC)\b/giu;
 const TYPE_BLOCKS =
-  /\b(?:crude|oil tanker|product tanker|chemical tanker|tanker|bulk carrier|bulker|general cargo)\b/giu;
+  /\b(?:crude|oil tanker|product tanker|chemical tanker|bulk[- ]?carrier|bulker|bulk|general cargo|cargo ship|cargo vessel|container ?ship|multi-?purpose|heavy[- ]lift|reefer|ore carrier)\b/giu;
 
 /** The words of the stored pages that name a type of vessel, for each list. */
 export const vesselTypes = (
