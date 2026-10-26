@@ -51,7 +51,9 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
       ? 'data'
       : path === '/map' || path === '/graph'
         ? 'none'
-        : 'report';
+        : path === '/'
+          ? 'report'
+          : 'none';
   return (
     <header className="site-navigation-main">
       <Link to="/" aria-label="GAB dataset" className="site-wordmark">
