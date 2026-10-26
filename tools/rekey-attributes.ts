@@ -148,7 +148,8 @@ export const DUPLICATE_HOLD = 'the entity copies a duplicate identifier';
 const hold = (reason: string): Plan => ({ kind: 'hold', reason });
 
 // An empty part, a placeholder, a year, an IMO number or a date is no name.
-const NOT_A_NAME = /^(?:n\/a|none|unknown|-+|\d{4})$|IMO|^\d{7}$|\d{1,4}[-./]\d{1,2}[-./]\d{1,4}/iu;
+const NOT_A_NAME =
+  /^(?:n\/a|none|unknown|-+|\d{4})$|\bIMO\b|^\d{7}$|\d{1,4}[-./]\d{1,2}[-./]\d{1,4}/iu;
 
 const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 
@@ -162,13 +163,17 @@ const checkedNames = (given: string | readonly unknown[], page: string): string[
     (one) =>
       one.length < 2 ||
       NOT_A_NAME.test(one) ||
-      !new RegExp(String.raw`(?<![\p{L}\p{N}])${escaped(one)}(?![\p{L}\p{N}])`, 'iu').test(page),
+      !new RegExp(String.raw`(?<![\p{L}\p{N}])${escaped(one)}(?![\p{L}\p{N}])`, 'u').test(page),
   );
   return bad ? null : parts;
 };
 
 export const plan = (item: Item): Plan => {
-  const drifted = Object.keys(item.attrs).filter((key) => VARIANTS.has(key));
+  // A former_names that holds one text is a drifted key too: the key is the right one, the form is not.
+  const drifted = Object.keys(item.attrs).filter(
+    (key) =>
+      VARIANTS.has(key) || (key === 'former_names' && typeof item.attrs[key]?.v === 'string'),
+  );
   if (drifted.length === 0) return { kind: 'keep' };
   const page = item.excerpts.join('\n');
   const pages = item.pages ?? [];
@@ -191,7 +196,7 @@ export const plan = (item: Item): Plan => {
     }
     if (
       canonical === 'former_names' &&
-      canonical !== key &&
+      (canonical !== key || typeof value === 'string') &&
       (typeof value === 'string' || Array.isArray(value))
     ) {
       const names = checkedNames(value, page);
@@ -263,7 +268,9 @@ export const READ = `SELECT p.id::text AS id, p.payload->'attrs' AS attrs,
              WHERE c.claim_id = p.id AND c.start IS NOT NULL) x
       JOIN public.document_text t ON t.document_id = x.doc_id
                                  AND t.extractor = x.text_extractor AND t.page = x.page) pg ON true
- WHERE p.status = 'pending' AND p.payload->'attrs' ?| $1::text[]
+ WHERE p.status = 'pending'
+   AND (p.payload->'attrs' ?| $1::text[]
+        OR jsonb_typeof(p.payload->'attrs'->'former_names'->'v') = 'string')
  ORDER BY p.id`;
 
 const limitOf = (): number => {

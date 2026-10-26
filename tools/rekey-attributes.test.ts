@@ -165,3 +165,32 @@ describe('passage of a page, the whole number only', () => {
     });
   });
 });
+
+describe('former_names that holds one text', () => {
+  const page = 'Former names\nOcean Unicorn, Wellington, Khalissa, Bai Lu\nФорма: Лазурный';
+  const names = (v: unknown) => plan(item({ former_names: { v } }, page));
+
+  it('splits a text on " / " into a list, and keeps a list as it is', () => {
+    expect(names('Ocean Unicorn / Wellington / Khalissa / Bai Lu')).toMatchObject({
+      kind: 'rekey',
+      attrs: { former_names: { v: ['Ocean Unicorn', 'Wellington', 'Khalissa', 'Bai Lu'] } },
+    });
+    expect(names(['Wellington']).kind).toBe('keep');
+  });
+
+  it('turns one plain name into a list of one, and keeps letters that are not ASCII', () => {
+    expect(names('Wellington')).toMatchObject({ attrs: { former_names: { v: ['Wellington'] } } });
+    expect(names('Лазурный')).toMatchObject({ attrs: { former_names: { v: ['Лазурный'] } } });
+  });
+
+  it('holds an empty part, a name that the excerpt lacks, and a name in another case', () => {
+    expect(names('Wellington / ').kind).toBe('hold');
+    expect(names('Wellington / Nayara').kind).toBe('hold');
+    expect(names('WELLINGTON').kind).toBe('hold');
+  });
+
+  it('does not take a name that contains the letters IMO for an IMO number', () => {
+    expect(plan(item({ former_names: { v: 'Simona' } }, 'ex Simona')).kind).toBe('rekey');
+    expect(plan(item({ former_names: { v: 'IMO 9074729' } }, 'IMO 9074729')).kind).toBe('hold');
+  });
+});
