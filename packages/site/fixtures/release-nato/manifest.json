@@ -172,8 +172,8 @@
     },
     {
       "path": "claims.csv",
-      "bytes": 10148,
-      "sha256": "7c119a7c4957d69af844cc8af939362ccf648578d5a0b7778d4fc08636fc1a9c"
+      "bytes": 10309,
+      "sha256": "87e5aa098c232507cc7a6dde0ef23fb6f8b7e1a5c3bb1b56c989d468b6d93e12"
     },
     {
       "path": "merges.csv",
@@ -207,8 +207,8 @@
     },
     {
       "path": "release-notes.md",
-      "bytes": 2310,
-      "sha256": "66786afc260a37cee936daed0e038a3f9bc69947ef9bf99b9271ba33654f57e8"
+      "bytes": 2720,
+      "sha256": "8811207735cbd70b60500774499738f3d44e59c69c9372ae08fdcc2f90632a02"
     },
     {
       "path": "entities.geojson",

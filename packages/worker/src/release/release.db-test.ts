@@ -588,6 +588,7 @@ test('a release writes the public entities, relations and claims, each row with 
       excerpt: 'IMO 9123456',
       modality: 'asserts',
       transcribed: 'false',
+      value_in_excerpt: 'yes',
     },
   ]);
   // The value names its public document only, and takes the licence of that document.
@@ -624,6 +625,7 @@ test('a release writes the public entities, relations and claims, each row with 
       excerpt: 'TEST OWNER LTD owns TEST TANKER',
       modality: 'asserts',
       transcribed: 'false',
+      value_in_excerpt: 'not_tested',
     },
   ]);
   // A public document with no cited passage still names the source of the claim.

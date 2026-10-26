@@ -58,7 +58,12 @@ export const releaseFiles = (
     assetLinks(record, preamble),
     volumeTable.file,
     releaseCredits(heading, claimProviders(record)),
-    releaseNotes(heading, natoCoverage, geolocationCoverage),
+    releaseNotes(
+      heading,
+      natoCoverage,
+      geolocationCoverage,
+      new Set(record.claims.map((one) => one.claim_id)).size,
+    ),
     geojsonExport(record, heading),
     jsonldExport(record, heading, manifest.iriBase),
   ];
