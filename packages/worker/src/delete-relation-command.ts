@@ -6,7 +6,7 @@ import type { SubCommand } from './command.ts';
 const USAGE =
   'Usage: pnpm worker delete-relation <relation>... Each relation is a promoted relation of the ' +
   'record. The act is signed by the operator and keeps a full copy of the row. The delete is ' +
-  'refused when another relation uses the relation as an end. All ids are deleted or none.';
+  'refused when another relation uses the relation as an end. Name a relation before the relations that use it as an end. All ids are deleted or none.';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
@@ -18,10 +18,10 @@ export const deleteRelationCommand: SubCommand = async (args) => {
     return 2;
   }
   const client = new Client({ connectionString: appAddress() });
-  await client.connect();
   try {
+    await client.connect();
     await client.query('BEGIN');
-    for (const id of args)
+    for (const id of new Set(args))
       await client.query(
         `SELECT public.sign_change('operator', 'delete_relation', '{}'::jsonb,
            ARRAY['manual']::text[], 'relation', $1::uuid, '{}'::uuid[])`,
@@ -31,7 +31,7 @@ export const deleteRelationCommand: SubCommand = async (args) => {
     console.log(`deleted ${args.length} relation(s)`);
     return 0;
   } catch (error) {
-    await client.query('ROLLBACK');
+    await client.query('ROLLBACK').catch(() => undefined);
     console.error(error instanceof Error ? error.message : 'The delete was refused.');
     return 1;
   } finally {
