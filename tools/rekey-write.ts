@@ -36,7 +36,8 @@ export interface Act {
   readonly payload: Readonly<Record<string, unknown>>;
   readonly targetId: string | null;
   readonly names: readonly string[];
-  readonly originator: string;
+  /** Null for an act from before the originator was kept. */
+  readonly originator: string | null;
   /** The act was disputed already: a value of it was not stated in the excerpt. */
   readonly dissent: boolean;
   readonly cites: readonly Cite[];
@@ -135,6 +136,7 @@ export const groupsOf = (
           const decided = plans.get(one.id);
           if (decided?.kind === 'hold') return decided.reason;
           if (decided?.kind === 'rekey') attrs.set(one.id, decided.attrs);
+          if (one.originator === null) return 'no originator';
           if (!SUPPORTED.has(one.op)) return `the act ${one.op} cannot be sent again`;
           if (one.op === 'update_attrs' && one.targetId !== null && byId.has(one.targetId))
             return 'an attribute update of a new entity cannot be sent';
@@ -157,6 +159,7 @@ export const groupsOf = (
             if (waiting === undefined) continue;
             if (waiting.op !== 'create_entity')
               return 'a relation names a pending act that is no entity';
+            if (waiting.originator === null) return 'no originator';
             if (plans.has(end)) return 'a relation names a drifted entity that is not in the group';
             if (copies.has(end)) return 'the entity copies a duplicate identifier';
             pass.set(end, waiting);
@@ -199,7 +202,7 @@ export const batchesOf = (
   const item = (one: Act, act: Item): Item => ({
     ref: refs.get(one.id),
     act,
-    originator: group.pass.includes(one) ? one.originator : ORIGINATOR,
+    originator: group.pass.includes(one) ? (one.originator ?? ORIGINATOR) : ORIGINATOR,
     modality: one.cites[0]?.modality,
     evidence: evidenceOf(one),
   });
@@ -417,7 +420,7 @@ const actRow = z.strictObject({
   payload: z.record(z.string(), z.unknown()),
   target_id: z.string().nullable(),
   names: z.array(z.string()),
-  originator: z.string(),
+  originator: z.string().nullable(),
   dissent: z.boolean(),
   cites: z.array(
     z.object({
