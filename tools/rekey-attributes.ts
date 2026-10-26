@@ -1,9 +1,13 @@
 // Plans the re-key of drifted attribute keys in the pending proposals (spec #958):
 //
-//   pnpm rekey:attributes    dry run: prints how many items re-key and how many are held, and why
+//   pnpm rekey:attributes                    dry run: prints how many items re-key, how many are
+//                                            held and why, and the groups that move together
+//   pnpm rekey:attributes --write [--limit N]   sends the corrected acts of the first N groups
+//                                            (one by default), then rejects the old acts
 //
-// The script edits no proposal and writes nothing. An item re-keys only when its excerpt carries the
-// label that matches the key and the number as the page writes it. Any other item is held.
+// The script edits no proposal. An item re-keys only when its excerpt carries the label that
+// matches the key and the number as the page writes it. Any other item is held. The write step is
+// in rekey-write.ts.
 
 import { argv } from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -12,9 +16,11 @@ import { Pool } from 'pg';
 import { z } from 'zod';
 
 import { CANONICAL_KEYS } from '@gab/tools/attribute-key';
+import { UNIQUE_KEYS } from '@gab/tools/duplicate-identifier';
 import { connectionString } from './db-runtime.ts';
+import { apply, doorsOf, readGroups } from './rekey-write.ts';
 
-type Attrs = Readonly<Record<string, { readonly v: unknown }>>;
+export type Attrs = Readonly<Record<string, { readonly v: unknown }>>;
 
 /** One pending act with attributes, and the excerpts that it cites. */
 export interface Item {
@@ -155,16 +161,46 @@ export const READ = `SELECT p.id::text AS id, p.payload->'attrs' AS attrs,
  WHERE p.status = 'pending' AND p.payload->'attrs' ?| $1::text[]
  ORDER BY p.id`;
 
+const limitOf = (): number => {
+  const at = argv.indexOf('--limit');
+  const given = at < 0 ? 1 : Number(argv[at + 1]);
+  if (!Number.isInteger(given) || given < 1)
+    throw new Error('--limit takes a whole number, 1 or more');
+  return given;
+};
+
 const main = async (): Promise<number> => {
+  const write = argv.includes('--write');
+  const limit = limitOf();
   const pool = new Pool({ connectionString: connectionString('app'), statement_timeout: 300_000 });
+  // The research role proposes. The dry run never opens it.
+  const writer = new Pool({ connectionString: connectionString('research') });
   try {
     const found = await pool.query(READ, [[...VARIANTS.keys()]]);
     const { rekey, keep, held } = report(found.rows.map((one) => row.parse(one)));
-    console.log(`dry run: ${String(rekey)} to re-key, ${String(keep)} unchanged`);
-    for (const [reason, count] of held) console.log(`held\t${String(count)}\t${reason}`);
+    console.log(
+      `${write ? 'write' : 'dry run'}: ${String(rekey)} to re-key, ${String(keep)} unchanged`,
+    );
+    for (const [reason, count] of held) console.log(`held	${String(count)}	${reason}`);
+    const groups = await readGroups(pool, UNIQUE_KEYS);
+    for (const one of groups)
+      console.log(
+        `group	${one.key}	${String(one.moved.length)} moved	${String(one.pass.length)} kept	` +
+          (one.held ?? 'ready'),
+      );
+    if (!write) return 0;
+    const doors = doorsOf(writer, pool);
+    for (const one of groups.filter((group) => group.held === null).slice(0, limit)) {
+      const done = await apply(one, doors);
+      console.log(
+        `${done.status}	${done.key}	${String(done.sent)} sent	${String(done.rejected)} rejected` +
+          (done.reason === undefined ? '' : `	${done.reason}`),
+      );
+    }
     return 0;
   } finally {
     await pool.end();
+    await writer.end();
   }
 };
 

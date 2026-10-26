@@ -2530,6 +2530,40 @@ test('read_duplicate_identifiers flags a new entity that waits as a copy of one 
   });
 });
 
+// A role that reads the api views sees no act about a person that cites no public document (PU1).
+// The tool reads the new entities through api.proposal, so the rule holds for it too. A company
+// copy beside the person copies shows that the tool still lists what the reader may see.
+test('read_duplicate_identifiers does not list a pending act about a person', async () => {
+  await rolledBack('superuser', async (ask) => {
+    const made = z.array(z.object({ id: z.uuid() }));
+    const value = () => `97${randomUUID().replaceAll('-', '').slice(0, 10)}`.toUpperCase();
+    const copies = { person: value(), company: value() };
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+    for (const [type, inn] of Object.entries(copies))
+      for (const label of ['Copy A', 'Copy B'])
+        expect(
+          made.parse(
+            await ask(
+              `SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::text[]) AS id`,
+              [
+                'create_entity',
+                JSON.stringify({ type, label, attrs: { tax_id: { v: inn, src: ['manual'] } } }),
+              ],
+            ),
+          ),
+        ).toHaveLength(1);
+    await ask('RESET SESSION AUTHORIZATION');
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_read');
+    const found = z
+      .object({ groups: z.array(z.object({ value: z.string() })) })
+      .parse(await output(ask, 'read_duplicate_identifiers', {}));
+    await ask('RESET SESSION AUTHORIZATION');
+    const listed = found.groups.map((group) => group.value);
+    expect(listed).toContain(copies.company);
+    expect(listed).not.toContain(copies.person);
+  });
+});
+
 // ------------------------------------------------------ read_event_pairs ---
 
 test('read_event_pairs flags a Latin and a Cyrillic event of one site and day', async () => {
