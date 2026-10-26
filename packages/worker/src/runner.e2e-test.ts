@@ -158,6 +158,8 @@ const startRunner = (): ChildProcess => {
       ...process.env,
       GABRIEL_AGENT_PASSWORD: held.GABRIEL_AGENT_PASSWORD,
       GABRIEL_DATABASE: held.GABRIEL_DATABASE,
+      // The entry point refuses to start with no value, and the CI environment holds none.
+      RUNNER_CONCURRENCY: '1',
       OPENROUTER_BASE_URL: `http://127.0.0.1:${String(address.port)}/v1`,
       SEARXNG_URL: `http://127.0.0.1:${String(address.port)}`,
       BRAVE_SEARCH_API_KEY: '',
