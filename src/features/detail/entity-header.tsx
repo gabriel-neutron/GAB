@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 import type { Dossier } from './dossier';
-import { EntityGlyph } from './glyph';
+import { EntityGlyph } from '@/shared/entity-glyph';
 import { CAPTION, DATA } from './style';
 import { Tag } from './tag';
 

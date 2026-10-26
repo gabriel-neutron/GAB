@@ -6,8 +6,8 @@ import type { ReactNode } from 'react';
 import { DeleteControl } from './delete-control';
 import type { RelationLine, SourceRef } from './dossier';
 import { FAMILIES } from './family';
-import { FamilySample } from './family-sample';
-import { EntityGlyph } from './glyph';
+import { RelationLine as FamilySample } from '@/shared/relation-line';
+import { EntityGlyph } from '@/shared/entity-glyph';
 import { CAPTION, DATA, GHOST_LINK } from './style';
 
 /** Whether this list offers the deletion of a line. A panel beside a canvas offers none, and
@@ -57,7 +57,7 @@ export function Relations({ relations, mark, deleting, onSelect, claimHref }: Re
         return (
           <div key={look.key} role="group" aria-label={look.label} className="flex flex-col gap-1">
             <p className={`flex items-center gap-2 ${CAPTION}`}>
-              <FamilySample look={look} />
+              <FamilySample family={look.key} />
               <span>{look.label}</span>
             </p>
             <ul>

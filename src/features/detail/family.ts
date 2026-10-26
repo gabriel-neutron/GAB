@@ -5,23 +5,14 @@ export type RelationFamily = 'ownership' | 'designation' | 'operation' | 'transf
 export interface FamilyLook {
   readonly key: RelationFamily;
   readonly label: string;
-  /** `stroke-dasharray` of the sample line. Empty is solid. */
-  readonly dash: string;
-  /** A whole class name, so Tailwind finds it. */
-  readonly hue: string;
 }
 
 export const FAMILIES: readonly FamilyLook[] = [
-  { key: 'ownership', label: 'Ownership', dash: '', hue: 'text-relation-ownership' },
-  { key: 'designation', label: 'Designation', dash: '12 5', hue: 'text-relation-designation' },
-  { key: 'operation', label: 'Operation', dash: '5 4', hue: 'text-relation-operation' },
-  {
-    key: 'transfer',
-    label: 'Ship-to-ship transfer',
-    dash: '12 4 2 4',
-    hue: 'text-relation-transfer',
-  },
-  { key: 'other', label: 'Other relations', dash: '2 5', hue: 'text-relation-other' },
+  { key: 'ownership', label: 'Ownership' },
+  { key: 'designation', label: 'Designation' },
+  { key: 'operation', label: 'Operation' },
+  { key: 'transfer', label: 'Ship-to-ship transfer' },
+  { key: 'other', label: 'Other relations' },
 ];
 
 const FAMILY_OF_TYPE: ReadonlyMap<string, RelationFamily> = new Map([
