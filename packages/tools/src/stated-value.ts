@@ -357,7 +357,7 @@ const statesToken = (value: string, passage: string): boolean => {
 // inside a longer value such as "OFAC action of 14 August 2025".
 const withDayWords = (text: string): string => {
   const word = (match: string, month: string | undefined, day: string, year: string): string => {
-    const number = monthOf(month ?? '');
+    const number = strictMonthOf(month ?? '');
     return number === null
       ? match
       : `day${dayText(Number(year), number, Number(day)).replaceAll('-', '')}`;

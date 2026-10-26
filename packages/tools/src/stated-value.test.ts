@@ -58,13 +58,13 @@ test.each([
   expect(unstatedValues(entityWith(value, value), [passage])).toStrictEqual([]);
 });
 
-test('a label with another day is not stated', () => {
-  expect(
-    unstatedValues(entityWith('OFAC action of 14 August 2025', 'OFAC action of 14 August 2025'), [
-      'OFAC action of August 15, 2025',
-    ]),
-  ).toHaveLength(2);
-});
+test.each(['August 15, 2025', '14 September 2025', 'August 14, 2024'])(
+  'a label with the day 14 August 2025 is not stated by %j',
+  (written) => {
+    const label = 'OFAC action of 14 August 2025';
+    expect(unstatedValues(entityWith(label, label), [`OFAC action of ${written}`])).toHaveLength(2);
+  },
+);
 
 test.each([
   ['Listed on 03/04/2024.', '2024-04-03'],
