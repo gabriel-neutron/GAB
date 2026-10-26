@@ -130,12 +130,12 @@ export interface GraphModel {
 }
 
 // The radius of a node of degree 0, in the units Sigma scales to pixels. The glyph box is twice
-// the radius, so the floor is the 8px of the design system. At 1.6, a corpus of twenty-seven
-// entities drew one pale pixel, which a person cannot find or click.
-const SIZE_FLOOR = 4;
+// the radius, so the floor is a box of 12px. At 1.6, a corpus of twenty-seven entities drew one
+// pale pixel, which a person cannot find or click.
+const SIZE_FLOOR = 6;
 
 // The floor plus this range is the top radius: the largest hub is a box of 28px.
-const SIZE_RANGE = 10;
+const SIZE_RANGE = 8;
 
 const isDrawable = (relation: Relation, drawn: ReadonlySet<string>): boolean =>
   relation.srcKind === 'entity' &&

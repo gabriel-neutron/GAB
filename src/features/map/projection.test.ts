@@ -25,6 +25,28 @@ const unitRow = (open: ReadonlySet<string>) =>
     true,
   ).types.find((row) => row.type === 'military_unit');
 
+describe('the type rows of the map rail', () => {
+  it('words each row with the label of the type and says what the map counts', () => {
+    const rows = railRows(
+      railLegend(projection, () => true, new Set()),
+      [],
+      FRAME,
+      true,
+    ).types;
+    for (const row of rows) {
+      const facet = projection.facetByType.get(row.type);
+      expect(row.label).toBe(facet?.label);
+      expect(row.label).not.toContain('_');
+      expect(facet?.total ?? 0).toBeGreaterThanOrEqual(facet?.count ?? 0);
+      const placedOnly = facet?.count === facet?.total;
+      expect(row.figure).toBe(
+        placedOnly ? String(facet?.count) : `${String(facet?.count)} of ${String(facet?.total)}`,
+      );
+    }
+    expect(rows.some((row) => row.figure.includes(' of '))).toBe(true);
+  });
+});
+
 describe('the chain of command on the map rail', () => {
   it('reads the chain of command from the relations between drawn entities', () => {
     expect(projection.hierarchy.subordinatesOf(parent.id)).toContain(child);
