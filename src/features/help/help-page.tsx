@@ -5,7 +5,7 @@ import { PageSection } from '@/shared/page/page-section';
 import { READING_LINK } from '@/shared/page/reading-link';
 import { ReadingPage } from '@/shared/page/reading-page';
 
-const PROSE = 'max-w-prose';
+const PROSE = 'max-w-[64ch] text-body';
 
 /** The help page: how to start, where the words are defined, and how a fact is checked. */
 export function HelpPage() {

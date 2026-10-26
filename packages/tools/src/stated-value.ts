@@ -280,6 +280,11 @@ const readingsOf = (written: string): number[] => {
   return [Number(`${whole}.${fraction}`)].filter(Number.isFinite);
 };
 
+// Two passages are two texts. One line break between them would join a number that ends a passage
+// to a number that starts the next one ("59172" and "243.8" would read as one number), and two
+// line breaks never join.
+const joinPassages = (passages: readonly string[]): string => passages.join('\n\n');
+
 const numbersIn = (text: string): number[] =>
   [...text.matchAll(NUMBER)].flatMap(([written]) => readingsOf(written));
 
@@ -353,6 +358,24 @@ const statesToken = (value: string, passage: string): boolean => {
   ).test(plainText(passage));
 };
 
+// A written date becomes one word, so "14 August 2025" and "August 14, 2025" are the same words
+// inside a longer value such as "OFAC action of 14 August 2025".
+const withDayWords = (text: string): string => {
+  const word = (match: string, month: string | undefined, day: string, year: string): string => {
+    const number = strictMonthOf(month ?? '');
+    return number === null
+      ? match
+      : `day${dayText(Number(year), number, Number(day)).replaceAll('-', '')}`;
+  };
+  return text
+    .replace(WORD_DAY, (match, day: string, month: string, year: string) =>
+      word(match, month, day, year),
+    )
+    .replace(WORD_MONTH_FIRST, (match, month: string, day: string, year: string) =>
+      word(match, month, day, year),
+    );
+};
+
 const stated = (value: Scalar, passage: string, options: DayOptions): boolean => {
   if (typeof value === 'boolean') {
     const words = wordsOf(passage);
@@ -363,7 +386,8 @@ const stated = (value: Scalar, passage: string, options: DayOptions): boolean =>
       sameNumber(found, value),
     );
   if (DAY.test(value) && daysIn(passage, options).has(value)) return true;
-  if (statesWords(value, passage)) return true;
+  if (statesWords(value, passage) || statesWords(withDayWords(value), withDayWords(passage)))
+    return true;
   if (statesToken(value, passage)) return true;
   const asNumber = readingsOf(value);
   return (
@@ -474,7 +498,7 @@ export const daysFromPublication = (
   dayFirst = false,
 ): string[] => {
   if (publishedOn === undefined) return [];
-  const text = passages.join('\n');
+  const text = joinPassages(passages);
   const nightEvent = isNightEvent(act);
   const alone = daysIn(text, { dayFirst, nightEvent });
   const deduced = daysIn(text, { publishedOn, dayFirst, nightEvent });
@@ -609,7 +633,7 @@ export const unstatedValues = (
   passages: readonly string[],
   options: StatedOptions = {},
 ): ActValue[] => {
-  const text = passages.join('\n');
+  const text = joinPassages(passages);
   const coordinates = coordinatesIn(text);
   return [
     ...valuesOf(act).filter((named) => {
@@ -641,12 +665,15 @@ export const withoutBounds = <
 /** The name of a value of an act that code removes when no passage states it. */
 export type DroppedName = BoundName | 'observed_on';
 
-/** The relation types of a port call. The claim key of a relation holds the same list. */
+/** The relation types of a port call. */
 export const PORT_CALL_TYPES = ['berthed_at', 'loads_at', 'discharges_at'] as const;
 
-// The day of a port call, when the act is a port call that gives one.
+// The types whose claim key holds the day: the port calls and the ship-to-ship transfer.
+const DAY_KEY_TYPES: readonly string[] = [...PORT_CALL_TYPES, 'sts_with'];
+
+// The day of a port call or a transfer, when the act is one that gives one.
 const callDayOf = (act: WriteRequest): { readonly v: unknown } | undefined =>
-  act.op === 'create_relation' && PORT_CALL_TYPES.some((type) => type === act.type)
+  act.op === 'create_relation' && DAY_KEY_TYPES.includes(act.type)
     ? act.attrs?.['observed_on']
     : undefined;
 
@@ -665,7 +692,7 @@ export const unstatedCallDay = (
   const [, year = '', month = '', date = ''] = parts;
   return !(
     isRealDay(Number(year), Number(month), Number(date)) &&
-    daysIn(passages.join('\n'), options).has(day)
+    daysIn(joinPassages(passages), options).has(day)
   );
 };
 
@@ -685,7 +712,7 @@ export const withoutCallDay = <
 /** A passage names a provision when it names a directive, an annex or an article by its number.
  * A type change of a relation rests on that provision. */
 export const namesProvision = (passages: readonly string[]): boolean =>
-  /\b(directive\s+\d+|annex\s+(?:[ivxlc]+|\d+)\b|articles?\s+\d+)/i.test(passages.join('\n'));
+  /\b(directive\s+\d+|annex\s+(?:[ivxlc]+|\d+)\b|articles?\s+\d+)/i.test(joinPassages(passages));
 
 /** The two bounds of a relation. Each one is a day that a cited passage states, or it is not
  * proposed: a bound that no passage states is removed from the act, and `dropped` names it. The
@@ -697,7 +724,7 @@ export const statedBounds = (
   passages: readonly string[],
   options: StatedOptions = {},
 ): { readonly act: WriteRequest; readonly dropped: BoundName[] } => {
-  const text = passages.join('\n');
+  const text = joinPassages(passages);
   if (act.op !== 'create_relation' && act.op !== 'update_relation') return { act, dropped: [] };
   const dropped = (['validFrom', 'validTo'] as const).filter((name) => {
     const day = act[name];

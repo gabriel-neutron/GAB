@@ -8,6 +8,8 @@ const node = (entityType: string): NodeAttrs => ({
   x: 0,
   y: 0,
   size: 1,
+  type: 'unknown',
+  candidate: false,
   color: '#000000',
   label: entityType,
   entityType,

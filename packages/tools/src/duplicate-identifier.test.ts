@@ -58,3 +58,24 @@ test('does not flag an entity listed twice', () => {
   const same = entity('a', 'A', 'company', { tax_id: { v: '1' } });
   expect(duplicateIdentifiers([same, same])).toEqual([]);
 });
+
+test('flags a new entity that waits as a copy of an element of the record, and marks it', () => {
+  const groups = duplicateIdentifiers([
+    entity('a', 'ALPHA', 'company', { tax_id: { v: '7706107510' } }),
+    { ...entity('b', 'ALPHA', 'company', { tax_id: { v: '7706107510' } }), pending: true },
+  ]);
+  expect(groups[0]?.entities).toEqual([
+    { id: 'a', label: 'ALPHA', type: 'company' },
+    { id: 'b', label: 'ALPHA', type: 'company', pending: true },
+  ]);
+});
+
+test('flags two companies with the same IMO company number', () => {
+  const groups = duplicateIdentifiers([
+    entity('a', 'ACME SHIPPING', 'company', { imo_company_number: { v: '1234567' } }),
+    entity('b', 'ACME SHIPPING LTD', 'company', { imo_company_number: { v: ['1234567'] } }),
+  ]);
+  expect(groups.map((group) => [group.key, group.entities.map((one) => one.id)])).toEqual([
+    ['imo_company_number', ['a', 'b']],
+  ]);
+});

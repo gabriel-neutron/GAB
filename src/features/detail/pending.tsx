@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react';
 
-import { cn } from '@/shared/lib/utils';
-
 import type { PendingLine, SourceRef } from './dossier';
+import { Tag } from './tag';
 
 export interface PendingProps {
   readonly proposals: readonly PendingLine[];
@@ -14,7 +13,7 @@ const CANDIDATE = 'candidate';
 export function Pending({ proposals, mark }: PendingProps) {
   if (proposals.length === 0) {
     return (
-      <p className="text-xs text-label">
+      <p className="text-body-sm text-muted-foreground">
         0 pending proposals. No proposal of the record names this entity, and none was dropped.
       </p>
     );
@@ -26,19 +25,18 @@ export function Pending({ proposals, mark }: PendingProps) {
         <li
           key={proposal.id}
           data-proposal={proposal.id}
-          className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 border-b border-dashed border-border py-1"
+          className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-divider py-2 last:border-b-0"
         >
-          <span className="shrink-0 text-small/4 text-candidate">{CANDIDATE}</span>
-          <span className="shrink-0 text-small/4 text-label">{proposal.origin}</span>
-          <span className="min-w-0 flex-1 basis-48 text-xs break-words">{proposal.summary}</span>
-          <span
-            className={cn(
-              'shrink-0 text-small/4',
-              proposal.dissent ? 'text-dissent' : 'text-label',
-            )}
-          >
-            {proposal.dissent ? 'disputed' : 'not disputed'}
+          <Tag kind="candidate">{CANDIDATE}</Tag>
+          <span className="min-w-0 flex-1 basis-48 text-body-sm break-words">
+            {proposal.summary}
           </span>
+          <span className="shrink-0 text-body-sm text-muted-foreground">{proposal.origin}</span>
+          {proposal.dissent ? (
+            <Tag kind="dissent">disputed</Tag>
+          ) : (
+            <Tag kind="default">not disputed</Tag>
+          )}
           {mark(proposal.sources)}
         </li>
       ))}

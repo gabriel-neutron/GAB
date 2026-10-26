@@ -4,7 +4,7 @@ import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
 import { ReadingPage } from '@/shared/page/reading-page';
 
-const PROSE = 'max-w-prose';
+const PROSE = 'max-w-[64ch] text-body';
 
 interface Term {
   readonly id: string;
@@ -45,7 +45,7 @@ export function GlossaryPage() {
         <dl className={`${PROSE} flex flex-col gap-3`}>
           {TERMS.map((term) => (
             <div key={term.id} id={term.id} className="flex flex-col gap-0.5">
-              <dt className="font-semibold">{term.name}</dt>
+              <dt>{term.name}</dt>
               <dd>{term.meaning}</dd>
             </div>
           ))}
@@ -56,7 +56,7 @@ export function GlossaryPage() {
         <dl className={`${PROSE} flex flex-col gap-3`}>
           {SEEDED_RELATION_TYPES.map((type) => (
             <div key={type.key} data-relation-type={type.key} className="flex flex-col gap-0.5">
-              <dt className="font-semibold">
+              <dt>
                 {type.label}
                 {type.inverseLabel === type.label ? null : (
                   <span className="font-normal text-label">{`, from the other end: ${type.inverseLabel}`}</span>

@@ -12,7 +12,7 @@ export function PageSection({ title, id, children }: PageSectionProps) {
   const titleId = useId();
   return (
     <section id={id} aria-labelledby={titleId} className="flex flex-col gap-2">
-      <h2 id={titleId} className="text-section font-semibold">
+      <h2 id={titleId} className="text-body">
         {title}
       </h2>
       {children}

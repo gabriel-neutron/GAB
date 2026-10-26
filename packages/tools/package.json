@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./attribute-key": "./src/attribute-key.ts",
     "./catalogue": "./src/catalogue.ts",
     "./challenge-page": "./src/challenge-page.ts",
     "./check-answer": "./src/check-answer.ts",
@@ -12,6 +13,7 @@
     "./document-text": "./src/document-text.ts",
     "./document-title": "./src/document-title.ts",
     "./document-type": "./src/document-type.ts",
+    "./duplicate-identifier": "./src/duplicate-identifier.ts",
     "./enqueue-extract": "./src/enqueue-extract.ts",
     "./geolocation-method": "./src/geolocation-method.ts",
     "./event-rules": "./src/event-rules.ts",

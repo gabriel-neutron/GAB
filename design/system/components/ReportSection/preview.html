@@ -1,0 +1,40 @@
+<!-- @dsCard group="Report" height=560 subtitle="Animated report step: text column and sticky figure" -->
+<style>
+  .rs { display:grid; grid-template-columns:5fr 7fr; gap:56px; padding:48px 40px; max-width:1200px; }
+  .rs .text { display:flex; flex-direction:column; gap:24px; }
+  .rs h2 { margin:0; font:400 44px/1.12 var(--font-sans); letter-spacing:-1.1px; }
+  .rs p { margin:0; font:400 16px/1.5 var(--font-sans); color:var(--muted-foreground); max-width:64ch; }
+  .rs p strong { color:var(--foreground); font-weight:400; }
+  .rs .steps { display:flex; gap:6px; }
+  .rs .steps i { width:24px; height:2px; background:var(--border); }
+  .rs .steps i.on { background:var(--signal); }
+  .rs .frame { border:1px solid var(--divider); border-radius:var(--radius-2xl); padding:24px; display:flex; flex-direction:column; gap:16px; }
+  .rs .frame svg { width:100%; height:auto; }
+  .rs .frame line { fill:none; }
+</style>
+<section class="rs">
+  <div class="text">
+    <span class="gab-caption" style="display:flex;gap:8px;align-items:center"><span class="gab-pulse"></span>Chapter 2 · Step 03 / 06</span>
+    <h2>One owner, eleven flags</h2>
+    <p>Between 2022 and 2025, <strong>Sovcomflot</strong> moved its tankers through shell owners in Dubai and Hong Kong. Each vessel changed flag <strong>2.7 times</strong> on average.</p>
+    <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div>
+    <a class="gab-link" href="#" style="align-self:flex-start">Open this network in the graph <span aria-hidden="true">→</span></a>
+  </div>
+  <div class="frame">
+    <span class="gab-caption">Ownership chain · 2024</span>
+    <svg viewBox="0 0 520 260" role="img" aria-label="Ownership chain from Sovcomflot to three vessels">
+      <line class="r-ownership" x1="80" y1="130" x2="230" y2="70" style="stroke-width:2px"/>
+      <line class="r-ownership" x1="80" y1="130" x2="230" y2="190" style="stroke-width:2px"/>
+      <line class="r-ownership" x1="230" y1="70" x2="400" y2="50" style="stroke-width:1px"/>
+      <line class="r-ownership" x1="230" y1="70" x2="400" y2="110" style="stroke-width:1px"/>
+      <line class="r-ownership" x1="230" y1="190" x2="400" y2="200" style="stroke-width:1px"/>
+      <line class="r-designation" x1="400" y1="50" x2="480" y2="130" style="stroke-width:1px"/>
+      <line class="r-designation" x1="400" y1="110" x2="480" y2="130" style="stroke-width:1px"/>
+      <g class="g-company " transform="translate(80,130) scale(2.154)"><circle r="5.5"/></g><g class="g-company " transform="translate(230,70) scale(1.385)"><circle r="5.5"/></g><g class="g-company " transform="translate(230,190) scale(1.385)"><circle r="5.5"/></g>
+      <g class="g-vessel " transform="translate(400,50) scale(1.231)"><path d="M0,-6 L6,5 L-6,5Z"/></g><g class="g-vessel " transform="translate(400,110) scale(1.231)"><path d="M0,-6 L6,5 L-6,5Z"/></g><g class="g-vessel cand" transform="translate(400,200) scale(1.231)"><path d="M0,-6 L6,5 L-6,5Z"/></g>
+      <g class="g-legal-act " transform="translate(480,130) scale(1.385)"><path d="M-4.5,-6 H2 L4.5,-3.5 V6 H-4.5Z"/></g>
+      <style>.rs .cand path { fill:none; stroke-width:1.5px; vector-effect:non-scaling-stroke; } .rs text { font:400 12px var(--font-sans); fill:var(--muted-foreground); }</style>
+      <text x="40" y="160">Sovcomflot</text><text x="190" y="50">Fortune Shipping</text><text x="190" y="220">Gatik Ship Mgmt</text><text x="440" y="160">EU 2024/1745</text>
+    </svg>
+  </div>
+</section>

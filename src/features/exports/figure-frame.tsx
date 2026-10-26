@@ -27,9 +27,9 @@ export function FigureFrame({ number, title, rows, documents, children }: Figure
   return (
     <figure className="flex flex-col gap-2">
       {children}
-      <figcaption className="flex flex-col gap-1 text-xs/5 text-label">
+      <figcaption className="flex flex-col gap-1 text-body-sm text-label">
         <p>
-          <strong className="font-semibold text-foreground">
+          <strong className="font-normal text-foreground">
             {`Figure ${String(number)}. ${title}${units.length === 0 ? '' : ` (${units.join(', ')})`}.`}
           </strong>
         </p>

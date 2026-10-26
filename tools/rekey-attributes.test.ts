@@ -1,0 +1,294 @@
+import { describe, expect, it } from 'vitest';
+
+import { plan, report, valuesOf, type Item } from './rekey-attributes.ts';
+
+const item = (attrs: Item['attrs'], ...excerpts: string[]): Item => ({ id: 'a', attrs, excerpts });
+
+describe('plan', () => {
+  it('keeps an item with no drifted key', () => {
+    expect(plan(item({ capacity_dwt: { v: 1 } }, 'x')).kind).toBe('keep');
+  });
+
+  it('re-keys a deadweight when the excerpt has the label and the number', () => {
+    expect(plan(item({ dwt_t: { v: 115000 } }, 'Deadweight: 115 000 t'))).toEqual({
+      kind: 'rekey',
+      attrs: { capacity_dwt: { v: 115000 } },
+      renamed: ['dwt_t'],
+    });
+  });
+
+  it('holds a tonnage with no label, an NT label or a number that the page lacks', () => {
+    expect(plan(item({ gross_tonnage_t: { v: 9000 } }, 'Tonnage 9000')).kind).toBe('hold');
+    expect(plan(item({ gross_tonnage_t: { v: 9000 } }, 'NT 9000')).kind).toBe('hold');
+    expect(plan(item({ gross_tonnage_t: { v: 9000 } }, 'GT 9100')).kind).toBe('hold');
+    expect(plan(item({ gross_tonnage_t: { v: 9000 } }, 'GT 9000')).kind).toBe('rekey');
+  });
+
+  it('holds a number that belongs to another label', () => {
+    const attrs = { gross_tonnage_t: { v: 5000 } };
+    expect(plan(item(attrs, 'DWT 5000 t, GT 9000')).kind).toBe('hold');
+    expect(plan(item({ dwt_t: { v: 9000 } }, 'DWT 5000 t, GT 9000')).kind).toBe('hold');
+    expect(plan(item({ dwt_t: { v: 5000 } }, '5 000 t DWT, GT 9000')).kind).toBe('rekey');
+  });
+
+  it('holds a list of former names with a placeholder, an IMO number or a part not on the page', () => {
+    expect(plan(item({ former_name: { v: ['N/A', 'ALPHA'] } }, 'ALPHA N/A')).kind).toBe('hold');
+    expect(plan(item({ former_name: { v: ['ALPHA'] } }, 'ALPHABET')).kind).toBe('hold');
+    expect(
+      plan(item({ former_name: { v: 'IMO 9074729 / ALPHA' } }, 'IMO 9074729 ALPHA')).kind,
+    ).toBe('hold');
+    expect(plan(item({ former_name: { v: ['ALPHA'] } }, 'ex ALPHA')).kind).toBe('rekey');
+  });
+
+  it('holds two different values for one canonical key', () => {
+    const attrs = { dwt_t: { v: 5000 }, deadweight_t: { v: 6000 } };
+    expect(plan(item(attrs, 'DWT 5000 and 6000')).kind).toBe('hold');
+    expect(plan(item({ dwt_t: { v: 5000 }, deadweight_t: { v: 5000 } }, 'DWT 5000')).kind).toBe(
+      'rekey',
+    );
+  });
+
+  it('holds a deadweight that is smaller than the gross tonnage', () => {
+    const attrs = { dwt_t: { v: 5000 }, gross_tonnage_t: { v: 9000 } };
+    expect(plan(item(attrs, 'DWT 5000, GT 9000')).kind).toBe('hold');
+  });
+
+  it('splits former names on a slash with spaces, and holds a part the page lacks', () => {
+    const attrs = { former_name: { v: 'ALPHA / BETA' } };
+    expect(plan(item(attrs, 'ex ALPHA, ex BETA'))).toMatchObject({
+      attrs: { former_names: { v: ['ALPHA', 'BETA'] } },
+    });
+    expect(plan(item(attrs, 'ex ALPHA')).kind).toBe('hold');
+    expect(plan(item({ former_name: { v: 'ALPHA / N/A' } }, 'ALPHA N/A')).kind).toBe('hold');
+  });
+
+  it('holds an item with no excerpt', () => {
+    expect(plan(item({ dwt_t: { v: 1 } })).kind).toBe('hold');
+  });
+});
+
+describe('report', () => {
+  it('counts the re-keys and the held items by reason', () => {
+    const done = report([
+      item({ dwt_t: { v: 7 } }, 'DWT 7'),
+      item({ dwt_t: { v: 7 } }, 'x'),
+      item({ dwt_t: { v: 7 } }, 'y'),
+      item({ imo: { v: 1 } }, 'z'),
+    ]);
+    expect(done.rekey).toBe(1);
+    expect(done.keep).toBe(1);
+    expect(done.held.get('the excerpt does not give the number of dwt_t next to its label')).toBe(
+      2,
+    );
+  });
+});
+
+// A page as the GUR vessel pages write it: a label, then the number on the next line.
+const GUR = [
+  'Vessel: NAYARA',
+  'IMO: 9074729',
+  'Net tonnage (t)',
+  '4 000',
+  'Gross tonnage (t)',
+  '42 500',
+  'DWT (t)',
+  '115000',
+].join('\n');
+
+const paged = (attrs: Item['attrs'], text = GUR, ...excerpts: string[]): Item => ({
+  id: 'a',
+  attrs,
+  excerpts,
+  pages: [{ document: 'doc_a', page: 1, text }],
+});
+
+describe('plan with the stored page', () => {
+  it('builds the passage from the page when the excerpt is poor and the number is the same', () => {
+    const done = plan(
+      paged({ dwt_t: { v: 115000 }, gross_tonnage_t: { v: 42500 } }, GUR, 'NAYARA'),
+    );
+    expect(done.kind).toBe('rekey');
+    const extra = done.kind === 'rekey' ? (done.extra ?? []) : [];
+    expect(extra.map((one) => one.excerpt)).toEqual([
+      'DWT (t)\n115000',
+      'Gross tonnage (t)\n42 500',
+    ]);
+    // A passage is a verbatim slice of the page.
+    for (const one of extra) expect(GUR).toContain(one.excerpt);
+  });
+
+  it('holds when the page has another number next to the label', () => {
+    expect(plan(paged({ gross_tonnage_t: { v: 4000 } }, GUR, 'NAYARA')).kind).toBe('hold');
+    expect(plan(paged({ dwt_t: { v: 120000 } }, GUR, 'NAYARA')).kind).toBe('hold');
+  });
+
+  it('holds when a word stands between the label and the number', () => {
+    const text = 'Gross tonnage (t)\nNet tonnage (t)\n4000';
+    expect(plan(paged({ gross_tonnage_t: { v: 4000 } }, text, 'x')).kind).toBe('hold');
+  });
+
+  it('uses no page when the excerpt is good', () => {
+    const done = plan(paged({ dwt_t: { v: 115000 } }, GUR, 'DWT 115000 t'));
+    expect(done).toMatchObject({ kind: 'rekey' });
+    expect(done).not.toHaveProperty('extra');
+  });
+});
+
+describe('valuesOf', () => {
+  it('reads the proposed values and the page values, and swaps nothing', () => {
+    expect(valuesOf(paged({ dwt_t: { v: 40000 }, gross_tonnage_t: { v: 115000 } }))).toEqual({
+      proposed: { capacity_dwt: 40000, gross_tonnage_gt: 115000 },
+      page: { capacity_dwt: 115000, gross_tonnage_gt: 42500 },
+    });
+  });
+});
+
+describe('passage of a page, the whole number only', () => {
+  const held = (value: number, text: string) =>
+    plan(paged({ gross_tonnage_t: { v: value } }, text, 'x')).kind;
+
+  it('holds a shorter value against a longer number', () => {
+    expect(held(500, 'Gross tonnage (t)\n500 000')).toBe('hold');
+    expect(held(42500, 'Gross tonnage (t)\n42 500 000')).toBe('hold');
+    expect(held(42500, 'Gross tonnage (t)\n42 500,75')).toBe('hold');
+    expect(held(42500, 'Gross tonnage (t)\n42 500')).toBe('rekey');
+  });
+
+  it('holds a line that gives two quantities, so no value is taken from the other label', () => {
+    expect(held(115000, 'DWT/GT: 115 000 / 42 500')).toBe('hold');
+  });
+
+  it('reads a page value that stops at the end of the line', () => {
+    const text = 'Gross tonnage (t)\n42 500\n2024';
+    expect(valuesOf(paged({ gross_tonnage_t: { v: 1 } }, text)).page).toEqual({
+      gross_tonnage_gt: 42500,
+    });
+  });
+});
+
+describe('former_names that holds one text', () => {
+  const page = 'Former names\nOcean Unicorn, Wellington, Khalissa, Bai Lu\nФорма: Лазурный';
+  const names = (v: unknown) => plan(item({ former_names: { v } }, page));
+
+  it('splits a text on " / " into a list, and keeps a list as it is', () => {
+    expect(names('Ocean Unicorn / Wellington / Khalissa / Bai Lu')).toMatchObject({
+      kind: 'rekey',
+      attrs: { former_names: { v: ['Ocean Unicorn', 'Wellington', 'Khalissa', 'Bai Lu'] } },
+    });
+    expect(names(['Wellington']).kind).toBe('keep');
+  });
+
+  it('turns one plain name into a list of one, and keeps letters that are not ASCII', () => {
+    expect(names('Wellington')).toMatchObject({ attrs: { former_names: { v: ['Wellington'] } } });
+    expect(names('Лазурный')).toMatchObject({ attrs: { former_names: { v: ['Лазурный'] } } });
+  });
+
+  it('holds an empty part, a name that the excerpt lacks, and a name in another case', () => {
+    expect(names('Wellington / ').kind).toBe('hold');
+    expect(names('Wellington / Nayara').kind).toBe('hold');
+    expect(names('WELLINGTON').kind).toBe('hold');
+  });
+
+  it('does not take a name that contains the letters IMO for an IMO number', () => {
+    expect(plan(item({ former_names: { v: 'Simona' } }, 'ex Simona')).kind).toBe('rekey');
+    expect(plan(item({ former_names: { v: 'IMO 9074729' } }, 'IMO 9074729')).kind).toBe('hold');
+  });
+});
+
+describe('former_names that a split would break', () => {
+  const held = (v: string, page: string) => plan(item({ former_names: { v } }, page)).kind;
+
+  it('holds an IMO number that is glued to its letters, a bracket that a split opens, and a repeat', () => {
+    expect(held('IMO9074729', 'IMO9074729')).toBe('hold');
+    expect(held('Foo (ex Bar / Baz)', 'Foo (ex Bar / Baz)')).toBe('hold');
+    expect(held('Wellington / Wellington', 'Wellington')).toBe('hold');
+    expect(held('Foo (ex Bar)', 'Foo (ex Bar)')).toBe('rekey');
+  });
+});
+
+describe('a plain number that was sent as a text', () => {
+  const run = (attrs: Item['attrs'], page: string) => plan(item(attrs, page));
+
+  it('becomes a number when the excerpt carries the text as written', () => {
+    expect(run({ build_year: { v: '2003' } }, 'Built in 2003.')).toMatchObject({
+      kind: 'rekey',
+      attrs: { build_year: { v: 2003 } },
+    });
+    expect(run({ length_m: { v: '12.50' } }, 'Length 12.50 m')).toMatchObject({
+      attrs: { length_m: { v: 12.5 } },
+    });
+    expect(run({ capacity_dwt: { v: '115000' } }, 'DWT 115000 t')).toMatchObject({
+      attrs: { capacity_dwt: { v: 115000 } },
+    });
+    expect(run({ dwt_t: { v: '115000' } }, 'DWT 115000 t')).toMatchObject({
+      attrs: { capacity_dwt: { v: 115000 } },
+    });
+  });
+
+  it('holds a text that is no plain number, and a number that the excerpt lacks', () => {
+    expect(run({ build_year: { v: '2003 г.' } }, 'Built 2003 г.').kind).toBe('hold');
+    expect(run({ length_m: { v: '12,5' } }, 'Length 12,5 m').kind).toBe('hold');
+    expect(run({ build_year: { v: '2003-2004' } }, 'Built 2003-2004').kind).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Built in 2004').kind).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Order 12003 built').kind).toBe('hold');
+    expect(run({ build_year: { v: '' } }, 'Built').kind).toBe('hold');
+  });
+
+  it('keeps a number as it is', () => {
+    expect(run({ build_year: { v: 2003 } }, 'Built 2003').kind).toBe('keep');
+  });
+});
+
+describe('a number sent as a text, edge cases of the page', () => {
+  const run = (attrs: Item['attrs'], page: string) => plan(item(attrs, page)).kind;
+
+  it('holds a number that the page joins to another token', () => {
+    expect(run({ capacity_dwt: { v: '115' } }, 'DWT 115 000 t')).toBe('hold');
+    expect(run({ capacity_dwt: { v: '000' } }, 'DWT 115 000 t')).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Built 2002-2003')).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Delivered 2003/04')).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Model B2003')).toBe('hold');
+    expect(run({ build_year: { v: '2003' } }, 'Built 2003, Length 12 m')).toBe('rekey');
+  });
+
+  it('holds a zero, a leading zero and a year that has not four digits', () => {
+    expect(run({ length_m: { v: '0' } }, 'Length 0')).toBe('hold');
+    expect(run({ length_m: { v: '007' } }, 'Length 007')).toBe('hold');
+    expect(run({ build_year: { v: '203' } }, 'Built 203')).toBe('hold');
+  });
+});
+
+describe('a deadweight below the gross tonnage', () => {
+  const page = (type: string) =>
+    `Vessel type: ${type}\nGross tonnage (t)\n115 519\nDWT (t)\n88 709\n`;
+  const attrs = { dwt_t: { v: 88709 }, gross_tonnage_t: { v: 115519 } };
+  const run = (text: string, given: Item['attrs'] = attrs) =>
+    plan(paged(given, text, 'NAYARA')).kind;
+
+  it('is released when the page states both values under their labels and the type allows it', () => {
+    expect(run(page('LNG carrier'))).toBe('rekey');
+    expect(run(page('Passenger ship'))).toBe('rekey');
+  });
+
+  it('stays held for a type of cargo ship, an unknown type, or values that the page does not state', () => {
+    expect(run(page('Bulk carrier'))).toBe('hold');
+    expect(run(page('LNG carrier, ex crude tanker'))).toBe('hold');
+    expect(run(page('Unknown'))).toBe('hold');
+    expect(run(page('LNG carrier'), { dwt_t: { v: 88000 }, gross_tonnage_t: { v: 115519 } })).toBe(
+      'hold',
+    );
+  });
+});
+
+describe('the type of vessel that releases a deadweight below the gross tonnage', () => {
+  const attrs = { dwt_t: { v: 88709 }, gross_tonnage_t: { v: 115519 } };
+  const run = (type: string) =>
+    plan(paged(attrs, `${type}\nGross tonnage (t)\n115 519\nDWT (t)\n88 709\n`, 'NAYARA')).kind;
+
+  it('releases an LNG tanker and holds a cargo ship with words of a gas carrier or a cruise', () => {
+    expect(run('Type: LNG tanker')).toBe('rekey');
+    expect(run('Container ship, LNG dual-fuel, cruise speed 14 knots')).toBe('hold');
+    expect(run('Type: LNG carrier. Cargo ship 2003')).toBe('hold');
+    expect(run('Ferry Road, a company')).toBe('hold');
+  });
+});

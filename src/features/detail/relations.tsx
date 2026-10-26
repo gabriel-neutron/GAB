@@ -3,10 +3,12 @@
 
 import type { ReactNode } from 'react';
 
-import { READING_LINK } from '@/shared/page/reading-link';
-
 import { DeleteControl } from './delete-control';
 import type { RelationLine, SourceRef } from './dossier';
+import { FAMILIES } from './family';
+import { RelationLine as FamilySample } from '@/shared/relation-line';
+import { EntityGlyph } from '@/shared/entity-glyph';
+import { CAPTION, DATA, GHOST_LINK } from './style';
 
 /** Whether this list offers the deletion of a line. A panel beside a canvas offers none, and
  * `busy` then names nothing: the two states cannot be held at once. */
@@ -40,85 +42,122 @@ export function Relations({ relations, mark, deleting, onSelect, claimHref }: Re
   const claimLink = (id: string): string | null => claimHref?.(id) ?? null;
   if (relations.length === 0) {
     return (
-      <p className="text-xs text-label">
+      <p className="text-body-sm text-muted-foreground">
         0 relations. No relation has an endpoint on this entity, and none was dropped.
       </p>
     );
   }
 
+  // Rows stand in groups by family. Each group names its family with the sample of its line.
   return (
-    <ul>
-      {relations.map((relation) => (
-        <li key={relation.id} data-relation={relation.id} className="border-b border-border py-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            {onSelect === undefined ? (
-              <span
-                className="min-w-0 flex-1 basis-48 text-xs break-words"
-                title={hoverOf(relation)}
-              >
-                {relation.sentence}
-              </span>
-            ) : (
-              <button
-                type="button"
-                className="min-w-0 flex-1 basis-48 text-left text-xs break-words underline-offset-2 hover:underline"
-                title={hoverOf(relation)}
-                onClick={() => {
-                  onSelect(relation.id);
-                }}
-              >
-                {relation.sentence}
-              </button>
-            )}
-            {relation.typeShown === null ? null : (
-              <span
-                data-relation-type=""
-                className="min-w-0 text-small/4 break-words text-label underline decoration-dotted underline-offset-2"
-                title={relation.definition ?? undefined}
-              >
-                {`Type: ${relation.typeShown}`}
-              </span>
-            )}
-            {/* M6: the interval is written at both ends. The words arrive written, and
-                  "and closed" is among them. */}
-            {relation.interval === null ? null : (
-              <span className="min-w-0 font-mono text-small/4 break-words tabular-nums text-label">
-                {relation.interval}
-              </span>
-            )}
-            {relation.share === null ? null : (
-              <span className="min-w-0 text-small/4 break-words text-label">{relation.share}</span>
-            )}
-            {relation.facts.map((fact) => (
-              <span key={fact} className="min-w-0 text-small/4 break-words text-label">
-                {fact}
-              </span>
-            ))}
-            {mark(relation.sources)}
-            {claimLink(relation.id) === null ? null : (
-              <a
-                className={`${READING_LINK} shrink-0 text-xs`}
-                href={claimLink(relation.id) ?? undefined}
-                aria-label={`Claim: ${relation.sentence}`}
-              >
-                Claim
-              </a>
-            )}
-            {deleting.offered ? (
-              <DeleteControl
-                name={relation.sentence}
-                busy={deleting.busy}
-                onDelete={() => {
-                  deleting.onDelete(relation.id);
-                }}
-              />
-            ) : null}
+    <div className="flex flex-col gap-4">
+      {FAMILIES.map((look) => {
+        const group = relations.filter((relation) => relation.family === look.key);
+        if (group.length === 0) return null;
+        return (
+          <div key={look.key} role="group" aria-label={look.label} className="flex flex-col gap-1">
+            <p className={`flex items-center gap-2 ${CAPTION}`}>
+              <FamilySample family={look.key} />
+              <span>{look.label}</span>
+            </p>
+            <ul>
+              {group.map((relation) => (
+                <li
+                  key={relation.id}
+                  data-relation={relation.id}
+                  className="flex flex-col gap-1 border-b border-divider py-2 last:border-b-0"
+                >
+                  <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
+                    <span className="flex h-5 items-center">
+                      <EntityGlyph type={relation.otherType ?? 'unknown'} />
+                    </span>
+                    {onSelect === undefined ? (
+                      <span
+                        className="min-w-0 flex-1 basis-48 text-body-sm break-words"
+                        title={hoverOf(relation)}
+                      >
+                        {relation.sentence}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="min-w-0 flex-1 basis-48 text-left text-body-sm break-words outline-none hover:underline hover:decoration-border hover:underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        title={hoverOf(relation)}
+                        onClick={() => {
+                          onSelect(relation.id);
+                        }}
+                      >
+                        {relation.sentence}
+                      </button>
+                    )}
+                    {mark(relation.sources)}
+                    {claimLink(relation.id) === null ? null : (
+                      <a
+                        className={`${GHOST_LINK} shrink-0 text-body-sm`}
+                        href={claimLink(relation.id) ?? undefined}
+                        aria-label={`Claim: ${relation.sentence}`}
+                      >
+                        Claim
+                      </a>
+                    )}
+                    {deleting.offered ? (
+                      <DeleteControl
+                        name={relation.sentence}
+                        busy={deleting.busy}
+                        onDelete={() => {
+                          deleting.onDelete(relation.id);
+                        }}
+                      />
+                    ) : null}
+                  </div>
+                  {/* The qualifier stands under the sentence, in the instrument voice. M6: the
+                      interval is written at both ends. The words arrive written, and "and closed"
+                      is among them. */}
+                  {relation.typeShown === null &&
+                  relation.interval === null &&
+                  relation.share === null &&
+                  relation.facts.length === 0 ? null : (
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 pl-[22px]">
+                      {relation.typeShown === null ? null : (
+                        <span
+                          data-relation-type=""
+                          className={`min-w-0 break-words ${DATA} text-muted-foreground`}
+                          title={relation.definition ?? undefined}
+                        >
+                          {`Type: ${relation.typeShown}`}
+                        </span>
+                      )}
+                      {relation.interval === null ? null : (
+                        <span className={`min-w-0 break-words ${DATA} text-muted-foreground`}>
+                          {relation.interval}
+                        </span>
+                      )}
+                      {relation.share === null ? null : (
+                        <span className={`min-w-0 break-words ${DATA} text-muted-foreground`}>
+                          {relation.share}
+                        </span>
+                      )}
+                      {relation.facts.map((fact) => (
+                        <span
+                          key={fact}
+                          className={`min-w-0 break-words ${DATA} text-muted-foreground`}
+                        >
+                          {fact}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {/* M4: a relation can have a relation at an endpoint. The mark comes from
+                      the relation itself. */}
+                  {relation.undrawable ? (
+                    <p className="pl-[22px] text-body-sm text-muted-foreground">{UNDRAWABLE}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
           </div>
-          {/* M4: a relation can have a relation at an endpoint. The mark comes from
-                the relation itself. */}
-          {relation.undrawable ? <p className="text-small/4 text-label">{UNDRAWABLE}</p> : null}
-        </li>
-      ))}
-    </ul>
+        );
+      })}
+    </div>
   );
 }

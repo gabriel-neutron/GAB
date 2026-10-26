@@ -35,7 +35,7 @@ const LAST = at(REPEATED.length - 1);
 const MOVE = 'Move the mark to the last source';
 
 // External constraint: `document.fonts.ready` is awaited before every geometry read. The declared
-// fonts are not installed yet. If a font package lands, each card reflows and each measurement
+// fonts load on demand. A card that is measured before they load reflows, and the measurement
 // flakes.
 const markedCard = (rail: HTMLElement): HTMLElement => {
   const found = rail.querySelector<HTMLElement>('[aria-current="true"]');
@@ -87,7 +87,7 @@ type Story = StoryObj<typeof meta>;
 export const FourteenDocumentsFitTheirRail: Story = {
   args: { sources: REPEATED },
   render: (args) => (
-    <div className="h-[1200px] w-96">
+    <div className="h-[1600px] w-96">
       <Rail {...args} />
     </div>
   ),

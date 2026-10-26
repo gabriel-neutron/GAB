@@ -16,7 +16,7 @@ export interface JustificationProps {
   readonly unit: Unit | null;
 }
 
-const BADGE = 'border border-border px-1 text-small/4';
+const BADGE = 'border border-border px-1 text-caption';
 
 const STATE_WORDS: Readonly<Record<Unit['state'], string>> = {
   clean: 'Clean',
@@ -24,7 +24,7 @@ const STATE_WORDS: Readonly<Record<Unit['state'], string>> = {
   blocked: 'Blocked',
 };
 
-const HEADING = 'text-small/4 tracking-caps text-label uppercase';
+const HEADING = 'font-mono text-caption text-label uppercase';
 
 // A wait for a unit of the same group is not listed: a group action writes the unit, and the
 // decision bar says why Promote of the unit alone is off.
@@ -39,7 +39,7 @@ const LEVELS: readonly {
 ];
 
 const LINK =
-  'text-primary underline underline-offset-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50';
+  'text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50';
 
 // An entity and its relation can cite the same line. One line is read once, and it names each
 // element that it supports.
@@ -72,7 +72,7 @@ function Quote({ passage }: { readonly passage: Passage }) {
   if (passage.transcribed)
     return (
       <div className="space-y-1" data-transcribed>
-        <p className="text-small/4 text-label">
+        <p className="text-caption text-label">
           Read from the image by the AI, not by OCR. Compare each word with the image.
         </p>
         <blockquote className="border-l border-border pl-2 break-words whitespace-pre-line">
@@ -137,7 +137,7 @@ export function Justification({ unit }: JustificationProps) {
           data-passage
           data-own-line={passage.ownLine ? 'true' : undefined}
         >
-          <figcaption className="text-small/4 text-label">
+          <figcaption className="text-caption text-label">
             <span data-supports>
               {'Evidence for '}
               <span className="text-foreground">{passage.supports}</span>
@@ -158,7 +158,7 @@ export function Justification({ unit }: JustificationProps) {
   return (
     <section
       aria-label="The justification"
-      className="min-h-0 space-y-4 overflow-y-auto overscroll-contain p-3 text-xs"
+      className="min-h-0 space-y-4 overflow-y-auto overscroll-contain p-3 text-body-sm"
     >
       <div className="flex flex-wrap items-center gap-1" data-strip>
         <span
@@ -174,7 +174,7 @@ export function Justification({ unit }: JustificationProps) {
         <span
           data-badge="group"
           title={unit.group?.subject ?? undefined}
-          className={cn(BADGE, 'min-w-0 truncate')}
+          className={cn(BADGE, 'min-w-0 break-words')}
         >
           {unit.group === null ? 'No group' : (unit.group.subject ?? 'A group with no subject')}
         </span>
@@ -213,7 +213,7 @@ export function Justification({ unit }: JustificationProps) {
           if (held.length === 0) return null;
           return (
             <div key={level}>
-              <h4 className={cn('text-small/4', paint)}>{words}</h4>
+              <h4 className={cn('text-caption', paint)}>{words}</h4>
               <ul className="space-y-0.5">
                 {held.map((fault) => (
                   <li
@@ -242,7 +242,7 @@ export function Justification({ unit }: JustificationProps) {
               data-document={document.id}
               className="space-y-1 border border-border p-2"
             >
-              <p className="font-medium break-words">
+              <p className=" break-words">
                 {href === null ? (
                   documentName(document)
                 ) : (

@@ -1,0 +1,41 @@
+<!-- @dsCard height=320 -->
+<style>
+  .cv { position:relative; width:960px; height:320px; background:var(--background); overflow:hidden; font-family:var(--font-sans); }
+  .cv svg { position:absolute; left:0; top:0; }
+  .cv .canvas { fill:var(--surface); }
+  .cv .bone { fill:var(--figure); }
+  .cv .sig { fill:var(--signal); }
+  .cv .grn { fill:var(--positive); }
+  .cv .ash { fill:var(--border); }
+  .cv .tile { rx:var(--radius-lg); }
+  .cv .big { rx:var(--radius-2xl); }
+  .cv .rule { stroke:var(--divider); stroke-width:1px; }
+  .cv .mark { fill:var(--on-figure); }
+  .cv .txt { position:absolute; left:40px; bottom:40px; width:420px; }
+  .cv h1 { margin:0; font-weight:400; font-size:120px; line-height:.92; letter-spacing:-4.8px; color:var(--foreground); }
+  .cv p { margin:16px 0 0; font-size:14px; line-height:1.43; color:var(--muted-foreground); }
+</style>
+<div class="cv">
+  <!--
+    blocks: figure (Bone) 248x224 radius-2xl; surface (Carbon) 176x104 and 176x112 radius-lg; signal 80x80 radius-lg; positive 80x40 radius-lg; border 80x56 radius-lg
+    arrangement: one tall bright slab with satellites, flush on a 24px gap, bleeding off the top and right edges, all right of x=480
+    pattern: entity glyphs on the slab (triangle, circle, diamond) joined by three hairline relations; chosen because GAB is a graph of typed entities and the figure card is Factory's signature
+    scales: gaps spacing-24, sides multiples of spacing-8, radii radius-lg and radius-2xl, hairline divider 1px
+  -->
+  <svg width="960" height="320" viewBox="0 0 960 320" aria-hidden="true">
+    <rect class="bone big" x="504" y="-24" width="248" height="248"/>
+    <rect class="canvas tile" x="776" y="-24" width="208" height="128"/>
+    <rect class="sig tile" x="776" y="128" width="80" height="80"/>
+    <rect class="grn tile" x="880" y="128" width="104" height="40"/>
+    <rect class="ash tile" x="880" y="192" width="104" height="56"/>
+    <rect class="canvas tile" x="504" y="248" width="248" height="96"/>
+    <rect class="canvas tile" x="776" y="232" width="80" height="112"/>
+    <line class="rule" x1="560" y1="64" x2="680" y2="40" style="stroke:var(--on-figure)"/>
+    <line class="rule" x1="560" y1="64" x2="640" y2="160" style="stroke:var(--on-figure)"/>
+    <line class="rule" x1="680" y1="40" x2="640" y2="160" style="stroke:var(--on-figure);stroke-dasharray:6 4"/>
+    <circle class="mark" cx="560" cy="64" r="14"/>
+    <path class="mark" d="M680,26 L692,48 L668,48Z"/>
+    <path class="mark" d="M640,146 L654,160 L640,174 L626,160Z"/>
+  </svg>
+  <div class="txt"><h1>GAB</h1><p>Terminal surfaces for an investigation: one bright figure, colour only for data.</p></div>
+</div>

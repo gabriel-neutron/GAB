@@ -96,6 +96,9 @@ each decision is final). The Names page of the review page does the same.
 - `merge-entities <duplicate> <survivor>`: the operator merges one entity into another through the
   door `merge_entities` (ADR 0014). The act is in the ledger and the merge can be undone. The door
   refuses two entities of two types, and a duplicate that an act in the waiting lane names.
+- `delete-relation <relation>...`: the operator deletes promoted relations through the door
+  `sign_change`, in one transaction. The act keeps a full copy of each row. The door refuses a
+  relation that another relation uses as an end: name a relation before the relations that use it.
 - `nato-coverage`, `asset-coverage`, `asset-sanctions`: reports. They write nothing.
 - `activity-report <flare document> <text set> [--operators <document>]`: report. It gives
   each field, LNG plant and refinery an activity mark from the flare table, the stored FIRMS answers

@@ -1,5 +1,4 @@
-import { cn } from '@/shared/lib/utils';
-
+import { CAPTION, DATA } from './style';
 import type { VesselIdentity } from './vessel-identity';
 
 export interface VesselIdsProps {
@@ -17,14 +16,14 @@ export function VesselIds({ identity }: VesselIdsProps) {
     { key: 'call-sign', label: 'Call sign', value: identity.callSign, figure: true },
   ];
   return (
-    <p className="flex flex-wrap items-baseline gap-x-3 text-small/4 text-label">
+    <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
       {parts.map((part) => (
-        <span key={part.key} data-vessel-id={part.key}>
-          {`${part.label} `}
+        <span key={part.key} data-vessel-id={part.key} className="text-body-sm text-label">
+          <span className={CAPTION}>{`${part.label} `}</span>
           {part.value === null ? (
             NOT_RECORDED
           ) : (
-            <span className={cn('text-foreground', part.figure && 'font-mono tabular-nums')}>
+            <span className={part.figure ? `${DATA} text-foreground` : 'text-foreground'}>
               {part.value}
             </span>
           )}

@@ -128,8 +128,8 @@ const expectNothingIsClipped = async (control: HTMLElement): Promise<void> => {
   await expect(control.scrollWidth).toBeLessThanOrEqual(control.clientWidth);
 };
 
-// The fonts are awaited before the first geometry read: `Roboto Condensed` and `JetBrains Mono`
-// are not installed yet, so a measurement that did not wait would flake. A truth value is the word
+// The fonts are awaited before the first geometry read: `Geist` and `Geist Mono`
+// load on demand, so a measurement that did not wait would flake. A truth value is the word
 // of the record, so a checkbox reads `yes`.
 const expectEveryValue = async (context: PlayContext): Promise<void> => {
   const { canvas } = context;
@@ -156,7 +156,7 @@ export const NoValueLosesItsOpacityOnTheDarkGround: Story = {
   play: expectEveryValue,
 };
 
-// The fonts are awaited first: `Roboto Condensed` and `JetBrains Mono` are not installed yet, so
+// The fonts are awaited first: `Geist` and `Geist Mono` load on demand, so
 // a measurement that did not wait would flake. A value longer than 34 characters takes the whole
 // line, so the note is measured on a line and not in a 17 rem cell.
 export const NoValueIsTruncated: Story = {

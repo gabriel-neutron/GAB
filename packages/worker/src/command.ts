@@ -10,6 +10,8 @@ const COMMANDS = {
   'asset-sanctions': async () =>
     (await import('./release/asset-sanctions-command.ts')).assetSanctionsCommand,
   'author-names': async () => (await import('./author-names-command.ts')).authorNamesCommand,
+  'delete-relation': async () =>
+    (await import('./delete-relation-command.ts')).deleteRelationCommand,
   'document-labels': async () =>
     (await import('./document-labels-command.ts')).documentLabelsCommand,
   'dry-join': async () => (await import('./dry-join-command.ts')).dryJoinCommand,

@@ -9,7 +9,7 @@ interface SaidLineProps {
   readonly label: string;
 }
 
-const LINE = 'block min-w-0 text-small/4';
+const LINE = 'block min-w-0 font-mono text-data';
 
 /** The one live region of an act. A caller states what the act said; which role carries it, and
  * which hue, is decided here and in no other file. */

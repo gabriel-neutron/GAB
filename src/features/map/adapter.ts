@@ -3,6 +3,7 @@ import { STAGES } from '@gab/proposal/chain-stage';
 import { shareWords } from '@gab/proposal/share';
 import {
   AttributionControl,
+  ScaleControl,
   GeoJSONSource,
   Map as MapLibreMap,
   type MapMouseEvent,
@@ -13,23 +14,32 @@ import {
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { arrowImage } from '@/shared/canvas-arrow';
-import {
-  CANVAS_LABEL_CLASS,
-  canvasLabelTransform,
-  entityLines,
-  relationLines,
-} from '@/shared/canvas-label';
+import { canvasTheme, observeCanvasTheme } from '@/shared/canvas-theme';
+import { canvasLabelTransform } from '@/shared/canvas-label';
 import { foldEveryUnit } from '@/shared/unit-folds';
 
-import { EVERY_GROUND, groundPaint, groundSource, type GroundSource } from './basemap';
+import {
+  backgroundOf,
+  glyphsUrl,
+  groundSource,
+  imageryPaint,
+  PLAN_GROUND_LAYERS,
+  PLAN_SOURCE,
+  planColours,
+  planLayers,
+  planSource,
+  type GroundSource,
+} from './basemap';
+import { glyphImage, glyphImageId, glyphPath, hasGlyph } from './glyph-image';
+import { EVERY_FAMILY, FAMILY_DASH, familyOfLink, mapTokens, type LinkFamily } from './map-tokens';
+import './map.css';
 import type { ChainView } from './chain-view';
 import type { Imagery } from './imagery';
 import type { NatoSymbol } from './nato-symbol';
-import type { GeoEntity, GeoLink, Projection } from './projection';
+import type { GeoEntity, GeoLink, Projection, TypeFacet } from './projection';
 import { shapeFeatureOf, type ShapeFeature } from './shape-feature';
 import { relationsInReach } from './reach';
 import { spreadOffsetPx, spreadSlots } from './spread';
-import { shapeImage, shapeImageId, shapeOf, type Shape } from './shape-image';
 import { unitSymbolImage, unitSymbolImageId } from './unit-symbol-image';
 import { patchMapWorkspace, readMapWorkspace, type Ground } from './workspace';
 
@@ -119,19 +129,20 @@ const ACTIVE_LINK_LAYER = 'links-active-line';
 const ARROW_SOURCE = 'link-arrows';
 const ARROW_LAYER = 'link-arrow';
 const ARROW_IMAGE = 'link-arrow-head';
+const arrowImageOf = (family: LinkFamily): string => `${ARROW_IMAGE}:${family}`;
 
-// MapLibre parses the style itself, so a CSS custom property never reaches it and the colour must
-// be a hex. Measured against the `--background` theme variable, `#f5f7f8` light and `#070f10`
-// dark, this hue at full opacity gives a ratio of 3.55:1 on light and 5.08:1 on dark.
-const LINK_HUE = '#7b8489';
+// The dash of a family is in pixels at a line of this width. `line-dasharray` is in units of the
+// line width, so a pattern grows with the zoom ramp of the width, and the family stays readable.
+const DASH_UNIT_PX = 1.5;
+// The halo under a point, in pixels.
+const HALO_WIDTH = 2;
 
-// The edge that keeps a point clear of the imagery under it. It is black on every ground, and not
-// a theme token: `--foreground` is near white in the dark theme and would read as a second mark.
-// A CSS custom property never reaches the style parser of MapLibre, so the hex is stated here.
-const POINT_OUTLINE = '#000000';
-// At 0.5 this hue over `#f5f7f8` gives a contrast ratio of 1.76:1, which is close to invisible.
-// At 0.8 it gives 2.63:1 on the light page and 3.64:1 on the dark page, and it stays quieter than
-// the 3.55:1 and 5.08:1 of the bright line.
+/** `60.12 N · 27.48 E`. */
+const coordinateWords = (lat: number, lon: number): string =>
+  `${Math.abs(lat).toFixed(2)} ${lat < 0 ? 'S' : 'N'} · ${Math.abs(lon).toFixed(2)} ${lon < 0 ? 'W' : 'E'}`;
+
+// At 0.5 this hue is close to invisible on the light page. At 0.8 it stays visible on both pages
+// and quieter than the bright line.
 const LINK_OPACITY = 0.8;
 const ACTIVE_LINK_OPACITY = 1;
 
@@ -149,7 +160,6 @@ const HIT_BOX = 5;
 // through and the outline carries the hue, so the shape reads on both grounds.
 const AREA_FILL_OPACITY = 0.2;
 const AREA_OUTLINE_WIDTH = 2;
-const ROUTE_CASING = '#0b1a1f';
 const ROUTE_CASING_WIDTH = 3.6;
 const ROUTE_CASING_OPACITY = 0.55;
 
@@ -189,8 +199,7 @@ const pulseOfProduct = (product: string): string => `chain-pulse-${product}`;
 // MapLibre parses no CSS custom property, so the hues of the chain are hex. The hues of the stages
 // and the products are light ones, and a dark casing under each arc keeps an arc readable on the
 // light plan ground too.
-const CHAIN_CASING = '#000000';
-const CHAIN_IN_REVIEW = '#9aa3ad';
+const CHAIN_IN_REVIEW = '#b8b3b0';
 const CHAIN_PULSE = '#ffffff';
 const CHAIN_EXIT = STAGES.find((one) => one.key === 'exit')?.colour ?? CHAIN_IN_REVIEW;
 // The casing is a shade under the arc, and never a line of its own.
@@ -298,7 +307,7 @@ interface LineFeature {
     readonly type: 'LineString';
     readonly coordinates: readonly (readonly number[])[];
   };
-  readonly properties: Readonly<Record<string, never>>;
+  readonly properties: { readonly family: LinkFamily };
 }
 
 interface LineCollection {
@@ -342,7 +351,7 @@ const collectLines = (
           [to.lon, to.lat],
         ],
       },
-      properties: {},
+      properties: { family: familyOfLink(link.type) },
     };
   }),
 });
@@ -357,7 +366,7 @@ interface ArrowFeature {
     readonly type: 'Point';
     readonly coordinates: readonly [number, number];
   };
-  readonly properties: { readonly bearing: number };
+  readonly properties: { readonly bearing: number; readonly family: LinkFamily };
 }
 
 interface ArrowCollection {
@@ -379,6 +388,7 @@ const collectArrows = (
       geometry: { type: 'Point', coordinates: [to.lon, to.lat] },
       properties: {
         bearing: (Math.atan2(to.lon - from.lon, to.lat - from.lat) * 180) / Math.PI,
+        family: familyOfLink(link.type),
       },
     };
   }),
@@ -417,32 +427,31 @@ export function mountMap({
   // The store holds the state that is switched off, so `linksHidden` says the relations are
   // hidden and never that they are drawn. The two switches of this surface keep one polarity.
   let linksHidden = stored.linksHidden;
-  const colourOfType = new Map(projection.types.map((facet) => [facet.type, facet.colour]));
+  // The tokens and the hues of the theme in force. A theme change rewrites both, and the paint of
+  // every layer follows without a new style, so the camera stays where it is.
+  let theme = canvasTheme();
+  let tokens = mapTokens();
+  const hueOf = (facet: TypeFacet): string => facet.colours[theme];
+  const colourOfType = new Map(projection.types.map((facet) => [facet.type, hueOf(facet)]));
 
   // One raster per drawing, and never one per unit. The resolver below reads this record, so an
   // image can only be asked for by a name that an entity of this projection produced.
   const symbolVariants = new Map<
     string,
-    | { readonly symbol: NatoSymbol; readonly colour: string }
-    | { readonly shape: Shape; readonly colour: string }
+    { readonly symbol: NatoSymbol; readonly type: string } | { readonly type: string }
   >();
   // A unit draws its military marks, and any other entity with a shape draws that shape.
-  const shapeOfEntity = (entity: GeoEntity): Shape | null => {
-    const kind = entity.attrs['asset_kind']?.v;
-    return shapeOf(entity.type, typeof kind === 'string' ? kind : null);
-  };
   const imageOf = (entity: GeoEntity): string | null => {
     if (entity.symbol !== null) return unitSymbolImageId(entity.type, entity.symbol);
-    const shape = shapeOfEntity(entity);
-    return shape === null ? null : shapeImageId(entity.type, shape);
+    return hasGlyph(entity.type) ? glyphImageId(entity.type) : null;
   };
   for (const entity of projection.entities) {
-    const colour = colourOfType.get(entity.type);
     const id = imageOf(entity);
-    if (id === null || colour === undefined) continue;
-    const shape = shapeOfEntity(entity);
-    if (entity.symbol !== null) symbolVariants.set(id, { symbol: entity.symbol, colour });
-    else if (shape !== null) symbolVariants.set(id, { shape, colour });
+    if (id === null || !colourOfType.has(entity.type)) continue;
+    symbolVariants.set(
+      id,
+      entity.symbol !== null ? { symbol: entity.symbol, type: entity.type } : { type: entity.type },
+    );
   }
 
   // The circle each entity shares its point with. Zoom-independent: the map that turns a slot
@@ -507,13 +516,11 @@ export function mountMap({
     // `queryRenderedFeatures` returns them. So the hit test has a second guard against `hidden`.
     layout: { visibility: hidden.has(facet.type) ? 'none' : 'visible' },
     paint: {
-      'circle-color': facet.colour,
+      'circle-color': hueOf(facet),
       'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 14, 7],
-      // **The outline is on every point, and no state removes it** — see `POINT_OUTLINE`.
-      'circle-stroke-color': POINT_OUTLINE,
-      // The width follows the zoom with the radius, so the outline stays a hairline and never a
-      // second disc. At zoom 3 the point is 3px and the outline 1px; at zoom 14, 7px and 1.6px.
-      'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 3, 1, 14, 1.6],
+      // **The halo is on every point, and no state removes it.** It is the `map-water` token.
+      'circle-stroke-color': tokens.water,
+      'circle-stroke-width': HALO_WIDTH,
     },
   }));
 
@@ -527,7 +534,7 @@ export function mountMap({
     filter: ['all', ['==', ['get', 'entityType'], facet.type], ['==', ['get', 'inherited'], true]],
     layout: { visibility: hidden.has(facet.type) ? 'none' : 'visible' },
     paint: {
-      'circle-color': facet.colour,
+      'circle-color': hueOf(facet),
       'circle-opacity': HALO_OPACITY,
       // Twice the radius of the point at each stop of its ramp, so the point stands inside the
       // halo at every zoom and the halo never becomes a mark of its own.
@@ -550,9 +557,9 @@ export function mountMap({
       visibility: hidden.has(facet.type) ? 'none' : 'visible',
       'icon-image': ['get', 'symbolImage'],
       // The raster is four pixels to the unit, and the diamond is 13 units across in it. This
-      // ramp therefore draws that diamond at 8px at zoom 3 and 18px at zoom 14, which is the
+      // ramp therefore draws that diamond at 13px at zoom 3 and 19px at zoom 14, which is the
       // width of the disc of a point at each end of its own ramp.
-      'icon-size': ['interpolate', ['linear'], ['zoom'], 3, 0.15, 14, 0.35],
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 3, 0.25, 14, 0.375],
       // The symbol stands upright on a rotated map: a military mark that turned with the ground
       // would read as another mark.
       'icon-rotation-alignment': 'viewport',
@@ -578,7 +585,7 @@ export function mountMap({
         ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
       ],
       layout: { visibility: hidden.has(facet.type) ? 'none' : 'visible' },
-      paint: { 'fill-color': facet.colour, 'fill-opacity': AREA_FILL_OPACITY },
+      paint: { 'fill-color': hueOf(facet), 'fill-opacity': AREA_FILL_OPACITY },
     },
     // A route (a pipeline) is a line in the hue of its type, and that hue is lost on the blue of
     // the imagery. A thin dark casing under it keeps the line apart from the ground, with no pale band.
@@ -597,7 +604,7 @@ export function mountMap({
         'line-cap': 'round',
       },
       paint: {
-        'line-color': ROUTE_CASING,
+        'line-color': tokens.casing,
         'line-width': ROUTE_CASING_WIDTH,
         'line-opacity': ROUTE_CASING_OPACITY,
       },
@@ -608,7 +615,7 @@ export function mountMap({
       source: AREA_SOURCE,
       filter: ['==', ['get', 'entityType'], facet.type],
       layout: { visibility: hidden.has(facet.type) ? 'none' : 'visible', 'line-join': 'round' },
-      paint: { 'line-color': facet.colour, 'line-width': AREA_OUTLINE_WIDTH },
+      paint: { 'line-color': hueOf(facet), 'line-width': AREA_OUTLINE_WIDTH },
     },
   ]);
 
@@ -618,14 +625,14 @@ export function mountMap({
       type: 'line',
       source: SELECTION_SHAPE_SOURCE,
       layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: { 'line-color': ROUTE_CASING, 'line-width': 9, 'line-opacity': 0.9 },
+      paint: { 'line-color': tokens.casing, 'line-width': 9, 'line-opacity': 0.9 },
     },
     {
       id: SELECTION_SHAPE_BAND,
       type: 'line',
       source: SELECTION_SHAPE_SOURCE,
       layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: { 'line-color': '#ffffff', 'line-width': 6 },
+      paint: { 'line-color': tokens.ring, 'line-width': 6 },
     },
     {
       id: SELECTION_SHAPE_CORE,
@@ -633,39 +640,64 @@ export function mountMap({
       source: SELECTION_SHAPE_SOURCE,
       layout: { 'line-join': 'round', 'line-cap': 'round' },
       // The Chain mode paints the stage hue, and the plain map paints the hue of the type.
-      paint: { 'line-color': ['coalesce', ['get', 'colour'], '#000000'], 'line-width': 3 },
+      paint: { 'line-color': ['coalesce', ['get', 'colour'], tokens.ring], 'line-width': 3 },
     },
   ];
 
-  const linkLayers: LayerSpec[] = [
-    {
-      id: LINK_LAYER,
+  // One layer per family: a dash pattern is not data driven in MapLibre. The pattern carries the
+  // family alone where the hues are hard to tell apart.
+  const linkLayerOf = (
+    id: string,
+    source: string,
+    family: LinkFamily,
+    opacity: number,
+    width: number | unknown[],
+  ): LayerSpec =>
+    ({
+      id,
       type: 'line',
-      source: LINK_SOURCE,
+      source,
+      filter: ['==', ['get', 'family'], family],
       // The relations are hidden with `visibility`, like a type. A hidden layer returns nothing
       // from `queryRenderedFeatures` after the worker parses the tile again, and `linkAt` guards
       // the window before that answer.
-      layout: { visibility: linksHidden ? 'none' : 'visible', 'line-cap': 'round' },
+      layout: { visibility: linksHidden ? 'none' : 'visible', 'line-cap': 'butt' },
       paint: {
-        'line-color': LINK_HUE,
-        'line-opacity': LINK_OPACITY,
-        // A line of less than one pixel is a grey suggestion on the light page. The ramp starts
-        // at one pixel, and it stays under the bright ramp at each zoom of the two.
-        'line-width': ['interpolate', ['linear'], ['zoom'], 2, 1, 8, 1.4, 14, 2.2],
+        'line-color': tokens.family[family],
+        'line-opacity': opacity,
+        'line-width': width,
+        ...(family === 'ownership'
+          ? {}
+          : { 'line-dasharray': FAMILY_DASH[family].map((one) => one / DASH_UNIT_PX) }),
       },
-    },
-    {
-      id: ACTIVE_LINK_LAYER,
-      type: 'line',
-      source: ACTIVE_LINK_SOURCE,
-      layout: { visibility: linksHidden ? 'none' : 'visible', 'line-cap': 'round' },
-      paint: {
-        'line-color': LINK_HUE,
-        'line-opacity': ACTIVE_LINK_OPACITY,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 2, 1.4, 8, 2.4, 14, 3.5],
-      },
-    },
-  ];
+    }) as LayerSpec;
+  const baseLinkLayers = EVERY_FAMILY.map((family) =>
+    linkLayerOf(`${LINK_LAYER}-${family}`, LINK_SOURCE, family, LINK_OPACITY, [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      2,
+      1,
+      8,
+      1.4,
+      14,
+      2.2,
+    ]),
+  );
+  const activeLinkLayers = EVERY_FAMILY.map((family) =>
+    linkLayerOf(`${ACTIVE_LINK_LAYER}-${family}`, ACTIVE_LINK_SOURCE, family, ACTIVE_LINK_OPACITY, [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      2,
+      1.4,
+      8,
+      2.4,
+      14,
+      3.5,
+    ]),
+  );
+  const linkLayers: LayerSpec[] = [...baseLinkLayers, ...activeLinkLayers];
 
   // The heads are above the lines and below every point: a relation must never cover the thing it
   // relates. The collision machinery is off, because MapLibre drops a symbol that meets another
@@ -676,7 +708,7 @@ export function mountMap({
     source: ARROW_SOURCE,
     layout: {
       visibility: linksHidden ? 'none' : 'visible',
-      'icon-image': ARROW_IMAGE,
+      'icon-image': ['concat', ARROW_IMAGE, ':', ['get', 'family']],
       // The head follows the zoom with the width of the line it belongs to, at the same rate.
       'icon-size': ['interpolate', ['linear'], ['zoom'], 2, 0.22, 8, 0.34, 14, 0.48],
       // The image points north, so the bearing on the feature is the whole of the rotation.
@@ -717,7 +749,7 @@ export function mountMap({
       source: CHAIN_ARC_SOURCE,
       layout: { visibility: chainVisibility(), 'line-cap': 'round' },
       paint: {
-        'line-color': CHAIN_CASING,
+        'line-color': tokens.casing,
         'line-width': 4,
         'line-opacity': CHAIN_CASING_OPACITY,
       },
@@ -759,7 +791,7 @@ export function mountMap({
       paint: {
         'circle-color': ['get', 'stageColour'],
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3.5, 14, 7.5],
-        'circle-stroke-color': POINT_OUTLINE,
+        'circle-stroke-color': tokens.water,
         'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 3, 1, 14, 1.6],
       },
     },
@@ -778,17 +810,15 @@ export function mountMap({
     },
   ];
 
-  const isDark = (): boolean => document.documentElement.classList.contains('dark');
-
-  /** The layer that draws one ground. One ground, one layer, and one name for both. */
-  const groundLayerId = (ground: Ground): string => `ground-${ground}`;
+  /** The imagery ground: one source, one layer, and one name for both. */
+  const IMAGERY_LAYER = 'ground-imagery';
 
   let ground: Ground = stored.ground;
   let imagery: Imagery = stored.imagery;
 
-  // `maxzoom` is the ceiling of the server, and it is measured. The OSM servers answer 200 at
-  // z19 and 400 at z20; the EOX service answers 200 far past its 10 m resolution, because it
-  // upsamples. MapLibre then asks no tile past the ceiling and overzooms the parent itself.
+  // `maxzoom` is the ceiling of the server, and it is measured: the EOX service answers 200 far
+  // past its 10 m resolution, because it upsamples. MapLibre then asks no tile past the ceiling
+  // and overzooms the parent itself.
   const rasterSourceOf = (source: GroundSource): SourceSpec => ({
     type: 'raster',
     tiles: [source.tiles],
@@ -797,26 +827,25 @@ export function mountMap({
     attribution: source.attribution,
   });
 
-  // One ground is drawn and the other waits. The switch is this property and nothing else.
-  const groundLayerOf = (name: Ground): LayerSpec => ({
-    id: groundLayerId(name),
+  // The imagery lies over the water and the coast of the plan, and under its borders and names.
+  const imageryLayerOf = (): LayerSpec => ({
+    id: IMAGERY_LAYER,
     type: 'raster',
-    source: groundLayerId(name),
-    layout: { visibility: name === ground ? 'visible' : 'none' },
-    paint: { ...groundPaint(name, isDark()) },
+    source: IMAGERY_LAYER,
+    layout: { visibility: ground === 'imagery' ? 'visible' : 'none' },
+    paint: imageryPaint(),
   });
-
-  const groundSources = Object.fromEntries(
-    EVERY_GROUND.map((name) => [groundLayerId(name), rasterSourceOf(groundSource(name, imagery))]),
-  );
-
-  const groundLayers: LayerSpec[] = EVERY_GROUND.map(groundLayerOf);
+  const plan = planLayers(tokens, ground);
+  const planBelowImagery = plan.findIndex((layer) => layer.id === 'plan-coast') + 1;
+  const IMAGERY_BEFORE = 'plan-border-internal';
 
   const style: StyleSpec = {
     version: 8,
+    glyphs: glyphsUrl(),
     projection: { type: globeOn ? 'globe' : 'mercator' },
     sources: {
-      ...groundSources,
+      [PLAN_SOURCE]: planSource(),
+      [IMAGERY_LAYER]: rasterSourceOf(groundSource(imagery)),
       [ENTITY_SOURCE]: { type: 'geojson', data: collect(featuresOf(projection.entities)) },
       [AREA_SOURCE]: { type: 'geojson', data: areaFeaturesOf(projection.entities) },
       [SELECTION_SOURCE]: { type: 'geojson', data: collect([]) },
@@ -831,7 +860,9 @@ export function mountMap({
     },
     // The first layer of this list is at the bottom of the map, and the last layer is at the top.
     layers: [
-      ...groundLayers,
+      ...plan.slice(0, planBelowImagery),
+      imageryLayerOf(),
+      ...plan.slice(planBelowImagery),
       // **The areas are under every line and every point.** An area is ground, and a mark on it
       // must never be covered by it.
       ...areaLayers,
@@ -863,11 +894,11 @@ export function mountMap({
           // The ring has no fill, and its size follows the zoom. A disc of one size reads as a
           // grey area at low zoom, and it covers each point near it. The fill colour is stated,
           // because a colour that nobody states takes the value of the parser.
-          'circle-color': ['get', 'colour'],
+          'circle-color': tokens.ring,
           'circle-opacity': 0,
-          'circle-stroke-color': ['get', 'colour'],
-          'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 3, 1.5, 14, 3],
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 9, 14, 18],
+          'circle-stroke-color': tokens.ring,
+          'circle-stroke-width': 2,
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 9, 14, 16],
         },
       },
     ],
@@ -908,6 +939,11 @@ export function mountMap({
       ?.classList.remove('maplibregl-compact-show');
   };
   map.once('idle', foldCredit);
+  map.addControl(new ScaleControl({ maxWidth: 96, unit: 'metric' }), 'bottom-left');
+  // The cursor coordinates, bottom right, in `data`: `60.12 N · 27.48 E`.
+  const coords = document.createElement('div');
+  coords.className = 'gab-map-coords';
+  container.append(coords);
 
   // The pixel offset needs a live map to turn into a point, because it reads the current zoom.
   // `project` and `unproject` carry the current bearing and pitch too, so the circle stays a
@@ -1154,22 +1190,24 @@ export function mountMap({
   // This style holds no sprite and no glyph server, so the image the style names must come from
   // here. `styleimagemissing` is not the path in `maplibre-gl` 6: it fires, and the layer that was
   // built keeps an empty image. That was measured in the browser and not assumed.
-  map.setMissingStyleImageResolver((id) => {
-    if (map.hasImage(id)) return;
-    if (id === ARROW_IMAGE) {
-      map.addImage(id, arrowImage(LINK_HUE));
-      return;
+  const imageData = (id: string): ImageData | null => {
+    if (id.startsWith(`${ARROW_IMAGE}:`)) {
+      const family = EVERY_FAMILY.find((one) => arrowImageOf(one) === id);
+      return family === undefined ? null : arrowImage(tokens.family[family]);
     }
     // A name no entity of this projection produced draws nothing. The image is built here at the
     // first request and kept by the library, so a corpus of one drawing costs one raster.
     const variant = symbolVariants.get(id);
-    if (variant === undefined) return;
-    map.addImage(
-      id,
-      'symbol' in variant
-        ? unitSymbolImage(variant.symbol, variant.colour, POINT_OUTLINE)
-        : shapeImage(variant.shape, variant.colour, POINT_OUTLINE),
-    );
+    const colour = variant === undefined ? undefined : colourOfType.get(variant.type);
+    if (variant === undefined || colour === undefined) return null;
+    return 'symbol' in variant
+      ? unitSymbolImage(variant.symbol, colour, tokens.water)
+      : glyphImage(variant.type, colour, tokens.water);
+  };
+  map.setMissingStyleImageResolver((id) => {
+    if (map.hasImage(id)) return;
+    const image = imageData(id);
+    if (image !== null) map.addImage(id, image);
   });
 
   subscriptions.push(
@@ -1282,7 +1320,7 @@ export function mountMap({
         map.setPaintProperty(
           outlineOfType(facet.type),
           'line-color',
-          chainOn ? ['coalesce', ['get', 'stageColour'], facet.colour] : facet.colour,
+          chainOn ? ['coalesce', ['get', 'stageColour'], hueOf(facet)] : hueOf(facet),
         );
         map.setPaintProperty(
           outlineOfType(facet.type),
@@ -1299,7 +1337,7 @@ export function mountMap({
         map.setPaintProperty(
           fillOfType(facet.type),
           'fill-color',
-          chainOn ? ['coalesce', ['get', 'stageColour'], facet.colour] : facet.colour,
+          chainOn ? ['coalesce', ['get', 'stageColour'], hueOf(facet)] : hueOf(facet),
         );
       }
     });
@@ -1350,36 +1388,71 @@ export function mountMap({
   // The label is a child of the container and not of the canvas. MapLibre owns the canvas element
   // and replaces it on a context loss, so an element inside it would go with it.
   const hoverLabel = document.createElement('div');
-  hoverLabel.className = CANVAS_LABEL_CLASS;
+  hoverLabel.className = 'gab-map-card';
   hoverLabel.hidden = true;
   container.append(hoverLabel);
 
-  /** What the label says now, so that a move over one feature writes the DOM one time. */
+  /** What the card says now, so that a move over one feature writes the DOM one time. */
   let hoverWords: string | null = null;
+  // The card opens after 120ms of hover and closes at once.
+  let hoverTimer = 0;
 
-  const nameHover = (
-    lines: readonly string[] | null,
-    point: { x: number; y: number } | null,
-  ): void => {
-    if (lines === null || point === null) {
+  interface Card {
+    readonly type: string | null;
+    readonly eyebrow: string;
+    readonly name: string;
+    /** Two rows at most: key in `muted-foreground`, value in `data`. */
+    readonly rows: readonly (readonly [string, string])[];
+  }
+
+  const cardNodes = (card: Card): Node[] => {
+    const head = document.createElement('span');
+    head.className = 'gab-map-card-head';
+    if (card.type !== null && hasGlyph(card.type)) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '-7 -7 14 14');
+      svg.setAttribute('aria-hidden', 'true');
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', glyphPath(card.type));
+      path.setAttribute('fill', colourOfType.get(card.type) ?? 'currentColor');
+      svg.append(path);
+      head.append(svg);
+    }
+    head.append(card.eyebrow);
+    const name = document.createElement('span');
+    name.textContent = card.name;
+    const rows = card.rows.slice(0, 2).map(([key, value]) => {
+      const row = document.createElement('span');
+      row.className = 'gab-map-card-row';
+      const label = document.createElement('span');
+      label.textContent = key;
+      const data = document.createElement('span');
+      data.className = 'gab-map-card-data';
+      data.textContent = value;
+      row.append(label, data);
+      return row;
+    });
+    return [head, name, ...rows];
+  };
+
+  const nameHover = (card: Card | null, point: { x: number; y: number } | null): void => {
+    if (card === null || point === null) {
+      clearTimeout(hoverTimer);
       hoverWords = null;
       hoverLabel.hidden = true;
       return;
     }
-    const words = lines.join('|');
+    const words = [card.eyebrow, card.name, ...card.rows.flat()].join('|');
     if (words !== hoverWords) {
       hoverWords = words;
-      // One element per line, so each one truncates on its own — a relation takes three.
-      hoverLabel.replaceChildren(
-        ...lines.map((line) => {
-          const row = document.createElement('span');
-          row.textContent = line;
-          return row;
-        }),
-      );
-      hoverLabel.hidden = false;
+      clearTimeout(hoverTimer);
+      hoverLabel.hidden = true;
+      hoverLabel.replaceChildren(...cardNodes(card));
+      hoverTimer = window.setTimeout(() => {
+        hoverLabel.hidden = false;
+      }, 120);
     }
-    // The label follows the pointer here, and the graph anchors it to the node. A map has no
+    // The card follows the pointer here, and the graph anchors it to the node. A map has no
     // node radius to stand clear of, and a point under the pointer is the thing being named.
     hoverLabel.style.transform = canvasLabelTransform(point.x, point.y);
   };
@@ -1387,27 +1460,44 @@ export function mountMap({
   subscriptions.push(
     map.on('mousemove', (event) => {
       const hit = hitAt(event.point);
+      coords.textContent = coordinateWords(event.lngLat.lat, event.lngLat.lng);
       if (hit.kind === 'entity') {
-        // **The name carries the count of relations, in the words the graph uses.** This canvas
-        // draws every point at one radius, so the count is not a second reading of the picture
-        // here: it is the one place the map states it at all.
-        const lines = entityLines(
-          hit.entity.label,
-          (projection.linksByEntity.get(hit.entity.id) ?? []).length,
-          // The halo says THAT a position is borrowed. Only these words say whose it is.
-          hit.entity.positionFrom,
+        const { entity } = hit;
+        const count = (projection.linksByEntity.get(entity.id) ?? []).length;
+        // The echelon and the domain, for a reader who reads no military symbol; the borrowed
+        // position says whose it is. An entity that recorded neither adds no row.
+        const extra = [entity.symbol?.words ?? null, entity.positionFrom]
+          .filter((one) => one !== null)
+          .join(' · ');
+        nameHover(
+          {
+            type: entity.type,
+            eyebrow: entity.type.replaceAll('_', ' '),
+            name: entity.label,
+            rows: [
+              ['Relations', String(count)],
+              ...(extra === '' ? [] : [['Note', extra] as const]),
+            ],
+          },
+          event.point,
         );
-        // The echelon and the domain, for a reader who reads no military symbol. An entity that
-        // recorded neither adds no line, so an absence stays blank and states nothing.
-        const said = hit.entity.symbol?.words ?? null;
-        nameHover(said === null ? lines : [...lines, said], event.point);
         return;
       }
       if (hit.kind === 'link') {
-        const lines = relationLines(hit.link.from.label, hit.link.typeWords, hit.link.to.label);
         // The share of an ownership link, and the mark of a share that GEM estimated.
         const share = shareWords(hit.link.attrs);
-        nameHover(share === null ? lines : [...lines, share], event.point);
+        nameHover(
+          {
+            type: null,
+            eyebrow: share === null ? 'relation' : `relation · ${share}`,
+            name: hit.link.typeWords,
+            rows: [
+              ['From', hit.link.from.label],
+              ['To', hit.link.to.label],
+            ],
+          },
+          event.point,
+        );
         return;
       }
       nameHover(null, null);
@@ -1559,30 +1649,50 @@ export function mountMap({
   });
   observer.observe(container);
 
-  // Every ground is painted for the theme in force, and the inversion reaches the ground layer
-  // only. It runs through the queue, because `setPaintProperty` needs a loaded style.
-  const paintGrounds = (): void => {
+  // A theme change reads the tokens again and repaints the layers that hold a colour. It runs
+  // through the queue, because `setPaintProperty` needs a loaded style, and it never touches the
+  // camera. The theme is read from the class on `documentElement` and never from React.
+  const paintTheme = (): void => {
     whenStyleReady(() => {
-      const dark = isDark();
-      for (const name of EVERY_GROUND) {
-        const paint = groundPaint(name, dark);
-        const id = groundLayerId(name);
-        // The three keys are written one at a time, and each one is a literal, because the paint
-        // setter of the library takes a key of its own union and never a plain string.
-        map.setPaintProperty(id, 'raster-brightness-min', paint['raster-brightness-min']);
-        map.setPaintProperty(id, 'raster-brightness-max', paint['raster-brightness-max']);
-        map.setPaintProperty(id, 'raster-hue-rotate', paint['raster-hue-rotate']);
+      theme = canvasTheme();
+      tokens = mapTokens();
+      for (const facet of projection.types) colourOfType.set(facet.type, hueOf(facet));
+      const plan = planColours(tokens, ground);
+      map.setPaintProperty('background', 'background-color', plan.background);
+      for (const id of plan.fills) map.setPaintProperty(id, 'fill-color', tokens.water);
+      for (const id of plan.lines) map.setPaintProperty(id, 'line-color', tokens.boundary);
+      for (const { id, halo } of plan.names) {
+        map.setPaintProperty(id, 'text-color', tokens.label);
+        map.setPaintProperty(id, 'text-halo-color', halo);
       }
+      for (const facet of projection.types) {
+        map.setPaintProperty(layerOfType(facet.type), 'circle-color', hueOf(facet));
+        map.setPaintProperty(layerOfType(facet.type), 'circle-stroke-color', tokens.water);
+        map.setPaintProperty(haloOfType(facet.type), 'circle-color', hueOf(facet));
+        map.setPaintProperty(fillOfType(facet.type), 'fill-color', hueOf(facet));
+        map.setPaintProperty(casingOfType(facet.type), 'line-color', tokens.casing);
+        map.setPaintProperty(outlineOfType(facet.type), 'line-color', hueOf(facet));
+      }
+      for (const family of EVERY_FAMILY) {
+        map.setPaintProperty(`${LINK_LAYER}-${family}`, 'line-color', tokens.family[family]);
+        map.setPaintProperty(`${ACTIVE_LINK_LAYER}-${family}`, 'line-color', tokens.family[family]);
+      }
+      map.setPaintProperty(SELECTION_SHAPE_CASING, 'line-color', tokens.casing);
+      map.setPaintProperty(SELECTION_SHAPE_BAND, 'line-color', tokens.ring);
+      map.setPaintProperty(SELECTION_LAYER, 'circle-color', tokens.ring);
+      map.setPaintProperty(SELECTION_LAYER, 'circle-stroke-color', tokens.ring);
+      map.setPaintProperty(CHAIN_CASING_LAYER, 'line-color', tokens.casing);
+      map.setPaintProperty(CHAIN_POINT_LAYER, 'circle-stroke-color', tokens.casing);
+      // The registered rasters hold a colour, so each one is drawn again in place.
+      for (const id of [...symbolVariants.keys(), ...EVERY_FAMILY.map(arrowImageOf)]) {
+        const image = map.hasImage(id) ? imageData(id) : null;
+        if (image !== null) map.updateImage(id, image);
+      }
+      paintChainMode();
+      paintSelection();
     });
   };
-
-  // The theme is read from the class on `documentElement` and never from React. A React value here
-  // would sit in the tree that wraps the live element. The filter delivers on a theme change only.
-  const themeObserver = new MutationObserver(paintGrounds);
-  themeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['class'],
-  });
+  const stopTheme = observeCanvasTheme(paintTheme);
 
   // Departure: a switch that takes a point away drops the selection of it and each relation to it.
   // Both line sets are painted at each switch, so a type that comes back brings its lines back
@@ -1712,13 +1822,11 @@ export function mountMap({
       ground = next;
       patchMapWorkspace({ ground: next });
       whenStyleReady(() => {
-        for (const name of EVERY_GROUND) {
-          map.setLayoutProperty(
-            groundLayerId(name),
-            'visibility',
-            name === next ? 'visible' : 'none',
-          );
+        map.setLayoutProperty(IMAGERY_LAYER, 'visibility', next === 'imagery' ? 'visible' : 'none');
+        for (const id of PLAN_GROUND_LAYERS) {
+          map.setLayoutProperty(id, 'visibility', next === 'plan' ? 'visible' : 'none');
         }
+        map.setPaintProperty('background', 'background-color', backgroundOf(next, tokens));
       });
     },
     get ground() {
@@ -1726,17 +1834,16 @@ export function mountMap({
     },
     // `setTiles` on a raster source resets its attribution from the options it was built with, so
     // a new date would keep the old credit. The source and its layer are rebuilt instead, at the
-    // same place in the stack, so the grounds stay under every area, every line and every point.
+    // same place in the stack, so the imagery stays under the borders and every mark.
     setImagery: (next) => {
       if (destroyed) return;
       imagery = next;
       patchMapWorkspace({ imagery: next });
       whenStyleReady(() => {
-        const id = groundLayerId('imagery');
-        if (map.getLayer(id) !== undefined) map.removeLayer(id);
-        if (map.getSource(id) !== undefined) map.removeSource(id);
-        map.addSource(id, rasterSourceOf(groundSource('imagery', next)));
-        map.addLayer(groundLayerOf('imagery'), areaLayers[0]?.id ?? LINK_LAYER);
+        if (map.getLayer(IMAGERY_LAYER) !== undefined) map.removeLayer(IMAGERY_LAYER);
+        if (map.getSource(IMAGERY_LAYER) !== undefined) map.removeSource(IMAGERY_LAYER);
+        map.addSource(IMAGERY_LAYER, rasterSourceOf(groundSource(next)));
+        map.addLayer(imageryLayerOf(), IMAGERY_BEFORE);
       });
     },
     get imagery() {
@@ -1773,7 +1880,7 @@ export function mountMap({
       if (destroyed) return;
       destroyed = true;
       cancelAnimationFrame(pulseFrame);
-      themeObserver.disconnect();
+      stopTheme();
       observer.disconnect();
       for (const subscription of subscriptions) subscription.unsubscribe();
       // A camera animation of the rail that is not complete has a listener that waits for one
@@ -1791,6 +1898,8 @@ export function mountMap({
       // The hover label is a child of the container and not of the canvas, so `map.remove()` does
       // not take it: this file appended it, and this file removes it.
       hoverLabel.remove();
+      coords.remove();
+      clearTimeout(hoverTimer);
       if (mounted.get(container) === handle) mounted.delete(container);
       map.remove();
     },

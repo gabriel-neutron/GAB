@@ -10,6 +10,8 @@ const node: NodeAttrs = {
   size: 1,
   color: '#000000',
   label: 'node',
+  type: 'unknown',
+  candidate: false,
   entityType: 'company',
   degree: 0,
   isolate: false,

@@ -1,12 +1,20 @@
 /** The keys that name one legal or physical thing: an INN (tax_id), an OGRN (registration_number),
- * an IMO number and a LEI. Two entities, of any type, with the same value are one thing recorded
+ * an IMO number, an IMO company number and a LEI. Two entities, of any type, with the same value are one thing recorded
  * twice, or a wrong value. */
-export const UNIQUE_KEYS = ['imo', 'tax_id', 'registration_number', 'lei'] as const;
+export const UNIQUE_KEYS = [
+  'imo',
+  'imo_company_number',
+  'tax_id',
+  'registration_number',
+  'lei',
+] as const;
 
 export interface EntityIdentifiers {
   readonly id: string;
   readonly label: string;
   readonly type: string;
+  /** The entity is a new entity that waits in the review queue, and not an element of the record. */
+  readonly pending?: boolean;
   /** The attributes of the row: each key holds its value in `v`, alone or in a list. */
   readonly attrs: Readonly<Record<string, { readonly v: unknown }>>;
 }
@@ -29,7 +37,7 @@ const valuesOf = (held: unknown): string[] =>
 export const duplicateIdentifiers = (entities: readonly EntityIdentifiers[]): DuplicateGroup[] => {
   const groups = new Map<
     string,
-    DuplicateGroup & { entities: { id: string; label: string; type: string }[] }
+    DuplicateGroup & { entities: { id: string; label: string; type: string; pending?: true }[] }
   >();
   for (const entity of entities) {
     for (const key of UNIQUE_KEYS) {
@@ -37,7 +45,12 @@ export const duplicateIdentifiers = (entities: readonly EntityIdentifiers[]): Du
         const at = JSON.stringify([key, value]);
         const group = groups.get(at) ?? { key, value, entities: [] };
         if (!group.entities.some((one) => one.id === entity.id)) {
-          group.entities.push({ id: entity.id, label: entity.label, type: entity.type });
+          group.entities.push({
+            id: entity.id,
+            label: entity.label,
+            type: entity.type,
+            ...(entity.pending === true ? { pending: true as const } : {}),
+          });
         }
         groups.set(at, group);
       }

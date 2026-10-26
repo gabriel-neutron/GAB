@@ -38,11 +38,11 @@ export function NewRelation({ srcId, choices, busy, onCreate }: NewRelationProps
   };
 
   return (
-    <section aria-label="New relation from this entity" className="space-y-1 pt-2">
+    <section aria-label="New relation from this entity" className="space-y-2 pt-2">
       <p className={ENTRY_ROW.caption}>New relation from this entity</p>
 
       <div className="flex items-end gap-2">
-        <div className="min-w-0 flex-1 space-y-0.5">
+        <div className="min-w-0 flex-1 space-y-1">
           <label htmlFor={typeBox} className={ENTRY_ROW.caption}>
             Type
           </label>
@@ -65,7 +65,7 @@ export function NewRelation({ srcId, choices, busy, onCreate }: NewRelationProps
           </datalist>
         </div>
 
-        <div className="min-w-0 flex-1 space-y-0.5">
+        <div className="min-w-0 flex-1 space-y-1">
           <label htmlFor={targetBox} className={ENTRY_ROW.caption}>
             Other end
           </label>
@@ -87,7 +87,7 @@ export function NewRelation({ srcId, choices, busy, onCreate }: NewRelationProps
           </select>
         </div>
 
-        <div className="w-32 space-y-0.5">
+        <div className="w-32 space-y-1">
           <label htmlFor={fromBox} className={ENTRY_ROW.caption}>
             From
           </label>
@@ -103,7 +103,7 @@ export function NewRelation({ srcId, choices, busy, onCreate }: NewRelationProps
           />
         </div>
 
-        <div className="w-32 space-y-0.5">
+        <div className="w-32 space-y-1">
           <label htmlFor={toBox} className={ENTRY_ROW.caption}>
             To
           </label>
@@ -119,7 +119,7 @@ export function NewRelation({ srcId, choices, busy, onCreate }: NewRelationProps
           />
         </div>
 
-        <Button type="button" size="xs" disabled={!draft.ready || busy} onClick={onSend}>
+        <Button type="button" variant="secondary" disabled={!draft.ready || busy} onClick={onSend}>
           Make the relation
         </Button>
       </div>
