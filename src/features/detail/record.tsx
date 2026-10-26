@@ -29,24 +29,23 @@ export function EntityRecord(props: EntityRecordProps) {
   const onEdit = props.mode === 'writing' ? props.onEdit : null;
   const claimLink = (key: string): string | null => props.claimHref?.(key) ?? null;
 
-  // Two columns: the key, and the value with its marks. A value wraps and is never cut.
+  // Two columns: the key, and the value with its marks. A value wraps and is never cut. The key
+  // column fits the longest key up to 11rem, and a key longer than that breaks anywhere.
   return (
-    <div className="flex flex-col">
+    <div className="grid grid-cols-[fit-content(11rem)_minmax(0,1fr)] gap-x-4">
       {props.cells.map((cell) => (
         <div
           key={cell.key}
           data-claim=""
-          className="grid grid-cols-[minmax(6rem,8rem)_minmax(0,1fr)] gap-x-4 gap-y-1 border-b border-divider py-2 first:pt-0 last:border-b-0"
+          className="col-span-2 grid grid-cols-subgrid border-b border-divider py-2 first:pt-0 last:border-b-0"
         >
           <span title={cell.help === null ? cell.label : `${cell.label}. ${cell.help}`}>
-            <span className={`block min-w-0 break-words ${CAPTION}`}>{cell.label}</span>
+            <span className={`block [overflow-wrap:anywhere] ${CAPTION}`}>{cell.label}</span>
             {/* The stored key, in a secondary place, for the analyst who looks for the raw word.
                 A reader of a release sees the readable name only. */}
             {props.showKey === false ? null : (
-              <span className={`block min-w-0 break-words ${DATA} text-muted-foreground`}>
-                {cell.key
-                  .split('_')
-                  .flatMap((part, at) => (at === 0 ? [part] : ['_', <wbr key={at} />, part]))}
+              <span className={`block [overflow-wrap:anywhere] ${DATA} text-muted-foreground`}>
+                {cell.key}
               </span>
             )}
           </span>
