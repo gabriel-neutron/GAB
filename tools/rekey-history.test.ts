@@ -156,14 +156,17 @@ describe('planHistory', () => {
     });
   });
 
-  it('holds when an MMSI of the record is in no passage of its sources', () => {
+  it('holds when an MMSI of the record is in no passage of one of its sources', () => {
     expect(
       planHistory(
         act({ mmsi_history: '273456789' }),
         record({ mmsi_history: { v: ['215999999'], src: ['doc_old'] } }),
         OLD_PAGES,
       ),
-    ).toEqual({ kind: 'hold', reason: 'an MMSI of the record is in no passage of its sources' });
+    ).toEqual({
+      kind: 'hold',
+      reason: 'an MMSI of the record is in no passage of one of its sources',
+    });
   });
 
   it('holds a target that is no vessel of the record, and a drifted key', () => {
@@ -174,6 +177,77 @@ describe('planHistory', () => {
     expect(
       planHistory(act({ mmsi_history: '273456789', dwt_t: 9000 }), record(), OLD_PAGES),
     ).toEqual({ kind: 'hold', reason: 'the act holds a drifted key: re-key it first' });
+  });
+
+  it('sends the whole list of the record when the act sets a shorter list', () => {
+    const fix = sent(
+      planHistory(
+        act({ mmsi_history: '273456789' }),
+        record({ mmsi_history: { v: ['273456789', '215000111'], src: ['doc_old'] } }),
+        new Map([
+          ['doc_old', [{ document: 'doc_old', page: 1, text: 'MMSI 215000111\nMMSI 273456789' }]],
+        ]),
+      ),
+    );
+    expect(fix.attrs['mmsi_history']).toEqual({ v: ['273456789', '215000111'] });
+  });
+
+  it('keeps a passage of each source of an old MMSI', () => {
+    const both = new Map([
+      ...OLD_PAGES,
+      ['doc_two', [{ document: 'doc_two', page: 2, text: 'Ship\nMMSI 215000111' }]],
+    ]);
+    const fix = sent(
+      planHistory(
+        act({ mmsi_history: '273456789' }),
+        record({ mmsi_history: { v: ['215000111'], src: ['doc_old', 'doc_two'] } }),
+        both,
+      ),
+    );
+    expect(fix.more.map((one) => one.document)).toEqual(
+      expect.arrayContaining(['doc_old', 'doc_two']),
+    );
+    const lost = planHistory(
+      act({ mmsi_history: '273456789' }),
+      record({ mmsi_history: { v: ['215000111'], src: ['doc_old', 'doc_none'] } }),
+      OLD_PAGES,
+    );
+    expect(lost).toEqual({
+      kind: 'hold',
+      reason: 'an MMSI of the record is in no passage of one of its sources',
+    });
+  });
+
+  it('holds when the block of false data may run on to a page with no heading', () => {
+    const cites = [
+      { document: 'doc_page', page: 1, excerpt: null, modality: 'asserts', pageText: PAGE },
+      {
+        document: 'doc_page',
+        page: 2,
+        excerpt: null,
+        modality: 'asserts',
+        pageText: 'MMSI: 351000001',
+      },
+    ];
+    expect(planHistory(act({ mmsi_history: '273456789' }, { cites }), record(), OLD_PAGES)).toEqual(
+      {
+        kind: 'hold',
+        reason: 'the block of false data may run on to a page with no heading',
+      },
+    );
+  });
+
+  it('holds an act with another list, because it would replace the list of the record', () => {
+    expect(
+      planHistory(
+        act({ mmsi_history: '273456789', former_names: ['A', 'B'] }),
+        record(),
+        OLD_PAGES,
+      ),
+    ).toEqual({
+      kind: 'hold',
+      reason: 'the act holds another list: it would replace the list of the record',
+    });
   });
 
   it('holds two pending acts that change the same key of one entity', () => {
@@ -214,7 +288,7 @@ describe('planBare', () => {
     expect(plan.value.olds).toEqual([]);
   });
 
-  it('keeps another value of the act only when a passage states it, and rejects a pending act', () => {
+  it('keeps another value of the act only when a passage states it', () => {
     const plan = planBare(
       bare('company'),
       [carrier({ imo_company_number: '1234567', address: 'Moscow', city: 'Omsk' }, 'pending')],
@@ -223,7 +297,41 @@ describe('planBare', () => {
     if (plan.kind !== 'send') throw new Error(plan.reason);
     expect(Object.keys(plan.value.attrs)).toEqual(['imo_company_number', 'address']);
     expect(plan.value.left).toEqual(['city']);
-    expect(plan.value.olds).toHaveLength(1);
+    expect(plan.value.olds).toEqual([]);
+  });
+
+  it('keeps an old act that has a value left out, and takes no number of another owner', () => {
+    const plan = planBare(
+      bare('company'),
+      [carrier({ imo_company_number: '1234567', city: 'Omsk' }, 'pending')],
+      new Map(),
+    );
+    if (plan.kind !== 'send') throw new Error(plan.reason);
+    expect(plan.value.olds).toEqual([]);
+    const other = carrier({ imo_company_number: '1234567' }, 'pending');
+    const page = 'IMO number of the previous owner is unknown, call 1234567';
+    expect(
+      planBare(
+        bare('company'),
+        [
+          {
+            ...other,
+            cites: [
+              {
+                ...(other.cites[0] ?? {
+                  document: 'd',
+                  page: 1,
+                  modality: 'asserts',
+                  excerpt: null,
+                }),
+                pageText: page,
+              },
+            ],
+          },
+        ],
+        new Map(),
+      ),
+    ).toEqual({ kind: 'hold', reason: 'no page states the number under an IMO label' });
   });
 
   it('holds a number that the page does not state under an IMO label', () => {

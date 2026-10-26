@@ -2,7 +2,9 @@
 //
 //   pnpm rekey:history                     dry run of both classes
 //   pnpm rekey:history --class history     only the history merge
-//   pnpm rekey:history --class bare        only the bare record entities
+//   pnpm rekey:history --class bare        only the bare record entities (--since DATE sets the
+//                                          first day, today by default; --with-rejected also reads
+//                                          the rejected acts)
 //   pnpm rekey:history --write [--limit N] sends the corrected acts of the first N ready items of
 //                                          each class (one by default), then rejects the old acts
 //
@@ -121,24 +123,39 @@ const labelledPassage = (
     })),
   );
 
-// A passage of a document of the record that states the number, from the start of its line.
+// One passage for each document of the record that states the number, from the start of its line.
+// A number in the block of false data of a page is no statement. A document that states it
+// nowhere gives no passage.
 const stating = (
   value: string,
   docs: readonly string[],
   pagesOf: ReadonlyMap<string, readonly Page[]>,
-): Passage | null => {
-  const found = new RegExp(String.raw`(?<!\d)${value}(?!\d)`, 'u');
-  for (const doc of docs)
+): Passage[] =>
+  docs.flatMap((doc) => {
+    const found = new RegExp(String.raw`(?<!\d)${value}(?!\d)`, 'u');
     for (const page of pagesOf.get(doc) ?? []) {
-      const at = found.exec(page.text);
+      const text = split(page.text).main;
+      const at = found.exec(text);
       if (at === null) continue;
-      const head = page.text.slice(Math.max(0, at.index - 40), at.index);
+      const head = text.slice(Math.max(0, at.index - 40), at.index);
       const cut = head.lastIndexOf('\n');
       const line = cut >= 0 && head.length - cut - 1 >= 3 ? head.slice(cut + 1) : head;
-      return { document: page.document, page: page.page, excerpt: `${line}${value}` };
+      return [{ document: page.document, page: page.page, excerpt: `${line}${value}` }];
     }
-  return null;
-};
+    return [];
+  });
+
+// The block of false data can run on to the next page, which has no heading of its own.
+const FALSE_RUNS_ON = 'the block of false data may run on to a page with no heading';
+const runsOn = (pages: readonly Page[]): boolean =>
+  pages.some(
+    (one) =>
+      !FALSE_DATA.test(one.text) &&
+      pages.some(
+        (other) =>
+          other.document === one.document && other.page < one.page && FALSE_DATA.test(other.text),
+      ),
+  );
 
 const sameText = (a: string, b: string): boolean =>
   a.trim().toUpperCase() === b.trim().toUpperCase();
@@ -170,6 +187,9 @@ export const planHistory = (
   const left: string[] = [];
   for (const [key, held] of Object.entries(attrs)) {
     if (key === 'mmsi_history' || key === 'call_sign') continue;
+    // A list would replace the list of the record in the same way as the history does.
+    if (elementsOf(held.v).length > 1 || Array.isArray(held.v))
+      return hold('the act holds another list: it would replace the list of the record');
     kept[key] = { v: held.v };
   }
   const call = attrs['call_sign'];
@@ -195,26 +215,29 @@ export const planHistory = (
       else if (fake.includes(one)) return hold('the MMSI stands in the block of false data');
       else return hold('the MMSI is not on the page under its label');
     }
+    if (runsOn(pages)) return hold(FALSE_RUNS_ON);
     const listed = elementsOf(record.attrs['mmsi_history']?.v);
     const added = given.filter((one) => !listed.includes(one));
-    if (added.length > 0) {
+    // An act that sets a shorter list would delete an MMSI of the record: it gets the whole list.
+    if (added.length > 0 || listed.some((one) => !given.includes(one))) {
       // (a) The record list and the MMSI of the page. Each MMSI of the record keeps a passage of
-      // the documents that hold it up, so its sources stay.
+      // each document that holds it up, so its sources stay.
       const docs = record.attrs['mmsi_history']?.src ?? [];
       for (const one of listed) {
-        const passage = stating(one, docs, pagesOf);
-        if (passage === null) return hold('an MMSI of the record is in no passage of its sources');
-        more.push(passage);
+        const passages = stating(one, docs, pagesOf);
+        if (passages.length < docs.length)
+          return hold('an MMSI of the record is in no passage of one of its sources');
+        more.push(...passages);
       }
       kept['mmsi_history'] = { v: [...listed, ...added] };
     }
   }
   if (Object.keys(kept).length === 0)
     return hold(left.length > 0 ? 'only the call sign differs' : 'the act changes nothing');
-  return {
-    kind: 'send',
-    value: { target: record.id, attrs: kept, more, left, olds: [act], source: act },
-  };
+  const fix: Fix = { target: record.id, attrs: kept, more, left, olds: [act], source: act };
+  return evidenceFor(act, kept, more) === null
+    ? hold('the values need more than 10 passages')
+    : { kind: 'send', value: fix };
 };
 
 /** The pending acts that change the same key of the same entity are held together: the one that
@@ -268,7 +291,10 @@ export const planBare = (
     return hold('the check digit of the IMO is wrong');
   if ((holders.get(number) ?? []).some((id) => id !== entity.id))
     return hold('another entity of the record holds this number');
-  const stated = new RegExp(String.raw`(?:\bIMO\b|ИМО)[^\d]{0,40}?(?<!\d)${number}(?!\d)`, 'u');
+  const stated = new RegExp(
+    String.raw`(?:\bIMO\b|ИМО)(?:\s+company)?(?:\s+(?:number|no\.?))?[^\p{L}\d]{0,12}(?<!\d)${number}(?!\d)`,
+    'u',
+  );
   const found = carriers.flatMap((one) =>
     pagesOfAct(one).flatMap((page) => {
       const excerpt = stated.exec(page.text)?.[0];
@@ -307,17 +333,18 @@ export const planBare = (
       if (name in entity.attrs || !carried) left.push(name);
       else attrs[name] = { v: held.v };
     }
-  return {
-    kind: 'send',
-    value: {
-      target: entity.id,
-      attrs,
-      more: [found],
-      left: [...new Set(left)],
-      olds: carriers.filter((one) => one.status === 'pending'),
-      source,
-    },
+  // An old act that has a value left out stays: its rejection would lose that value.
+  const fix: Fix = {
+    target: entity.id,
+    attrs,
+    more: [found],
+    left: [...new Set(left)],
+    olds: left.length > 0 ? [] : carriers.filter((one) => one.status === 'pending'),
+    source,
   };
+  return evidenceFor(source, attrs, [found]) === null
+    ? hold('the values need more than 10 passages')
+    : { kind: 'send', value: fix };
 };
 
 type Item = Record<string, unknown>;
@@ -454,8 +481,11 @@ const flagOf = (name: string): string | undefined => {
 
 const bareRow = z.object({ id: z.string(), type: z.string(), attrs: recordRow.shape.attrs });
 
+// A rejected act is read only on request: the operator may have rejected it because the number
+// is wrong, and the script does not know why.
 export const readBare = async (
   reader: Session,
+  withRejected: boolean,
   since: string,
 ): Promise<{ entity: Recorded; plan: Plan<Fix> }[]> => {
   const entities = (
@@ -474,9 +504,9 @@ export const readBare = async (
     const carriers = (
       await reader.query(
         readActsSql(
-          "p.status IN ('pending', 'rejected') AND p.target_id = $2::uuid AND p.payload->'attrs' ? $3",
+          "p.status = ANY($4::text[]) AND p.target_id = $2::uuid AND p.payload->'attrs' ? $3",
         ),
-        [[key], entity.id, key],
+        [[key], entity.id, key, withRejected ? ['pending', 'rejected'] : ['pending']],
       )
     ).rows.map((one) => carrierOf(actRow.parse(one)));
     const [first] = carriers;
@@ -507,6 +537,8 @@ const count = (reasons: readonly string[]): [string, number][] => {
 const main = async (): Promise<number> => {
   const write = argv.includes('--write');
   const only = flagOf('--class');
+  if (only !== undefined && only !== 'history' && only !== 'bare')
+    throw new Error('--class takes history or bare');
   const limit = limitOf();
   const since = flagOf('--since') ?? new Date().toISOString().slice(0, 10);
   const pool = new Pool({ connectionString: connectionString('app'), statement_timeout: 300_000 });
@@ -540,7 +572,7 @@ const main = async (): Promise<number> => {
       if (write) for (const fix of ready.slice(0, limit)) show(await replace(fix, doors));
     }
     if (only === undefined || only === 'bare') {
-      const found = await readBare(pool, since);
+      const found = await readBare(pool, argv.includes('--with-rejected'), since);
       console.log(
         `${write ? 'write' : 'dry run'} bare: ${String(found.length)} entities since ${since}`,
       );

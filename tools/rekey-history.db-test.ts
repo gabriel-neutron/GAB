@@ -191,7 +191,7 @@ test('a bare company of the record gets its number from the page of a refused ac
       'a test',
       'a test',
     ]);
-    const planned = (await readBare(sessionAs(ask, 'gabriel_app'), TODAY)).find(
+    const planned = (await readBare(sessionAs(ask, 'gabriel_app'), true, TODAY)).find(
       (one) => one.entity.id === company,
     );
     if (planned?.plan.kind !== 'send')
