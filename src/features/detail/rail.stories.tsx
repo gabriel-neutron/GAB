@@ -87,7 +87,7 @@ type Story = StoryObj<typeof meta>;
 export const FourteenDocumentsFitTheirRail: Story = {
   args: { sources: REPEATED },
   render: (args) => (
-    <div className="h-[1200px] w-96">
+    <div className="h-[1600px] w-96">
       <Rail {...args} />
     </div>
   ),

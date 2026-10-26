@@ -6,6 +6,7 @@ import { Textarea } from '@/shared/ui/textarea';
 
 import type { ClaimValue, TypedValue } from './claims';
 import type { ClaimDraft } from './draft';
+import { ENTRY_ROW } from './entry-row';
 
 export type FieldProps =
   | {
@@ -20,39 +21,34 @@ export type FieldProps =
       readonly onEdit: (typed: TypedValue) => void;
     };
 
-// The geometry both arms share. The kit gives `transition-colors` no duration, and the Tailwind
-// default is 150ms, so 100ms is stated here.
-const SURFACE =
-  'w-full rounded-none border-transparent bg-muted px-1.5 text-xs duration-100 md:text-xs dark:bg-muted';
-const BOX = cn(SURFACE, 'h-6 py-0');
+// The geometry both arms share, with the 150ms of the design system stated.
+const SURFACE = 'w-full duration-150';
+const BOX = cn(SURFACE, ENTRY_ROW.box);
 
 // A text box removes each line break from its value, so a note takes a textarea. One line of
-// `text-xs` is 16 px, and `py-1` adds 8 px, so one line stands at the 24 px of the other boxes.
-const NOTE = cn(SURFACE, 'min-h-6 resize-none py-1');
+// `text-body-sm` is 20 px, and `py-1.5` adds 12 px, so one line stands at the 32 px of the other
+// boxes.
+const NOTE = cn(SURFACE, ENTRY_ROW.box, 'h-auto min-h-8 resize-none py-1.5');
 
 // A story reads no colour and no class, so a read-only control states in a word that it takes no
 // edit and that the fade of the kit is beaten.
 const UNFADED = 'unfaded';
 
-// The box carries no edge at rest, so a hover states the edge before the analyst reaches it. The
-// `focus-visible` recipe is the kit's own, copied whole: `ring` alone paints `currentcolor`.
-const WRITING =
-  'hover:border-input focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
-
 // The figures are not right-aligned. Alignment is for a column of figures, and the cells flow
 // about 2.6 to a line, so a right edge would land at a different place on each cell, far from the
 // name it belongs to. `tabular-nums` still holds the digits on one width.
-const FIGURES = 'font-mono tabular-nums';
+const FIGURES = 'font-mono text-data tabular-nums';
 
 // `appearance-none` takes the paint of the browser away, so every colour of the box comes from a
 // token. It also removes the grey a browser gives a disabled checkbox, which is not opacity and
 // which `disabled:opacity-100` cannot reach.
-const TICK_BOX = 'inline-flex h-6 shrink-0 items-center';
+const TICK_BOX = 'inline-flex h-8 shrink-0 items-center';
 const TICK =
-  'size-3.5 shrink-0 appearance-none rounded-none border border-input bg-muted checked:border-foreground checked:bg-foreground';
-const TICK_WRITING = 'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50';
+  'size-3.5 shrink-0 appearance-none rounded-sm border border-input bg-transparent checked:border-foreground checked:bg-foreground';
+const TICK_WRITING =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
-const SENTENCE = 'block text-small/4 text-label';
+const SENTENCE = 'block text-body-sm text-muted-foreground';
 
 // A value that nobody edits is text in the page, so it reaches a reader with no script and a
 // search engine. A disabled control would keep it in an attribute, out of the text of the page.
@@ -63,7 +59,7 @@ function ReadOnlyField({ value }: { label: string; value: ClaimValue }) {
       title={value.text}
       data-reading={UNFADED}
       className={cn(
-        'flex min-h-6 w-full items-center bg-muted px-1.5 py-1 text-xs break-words whitespace-pre-wrap',
+        'block w-full min-w-0 text-body-sm break-words whitespace-pre-wrap',
         figures && FIGURES,
       )}
     >
@@ -118,7 +114,7 @@ function WritingField({
         aria-invalid={invalid}
         aria-describedby={describedBy}
         title={value.text}
-        className={cn(NOTE, WRITING)}
+        className={NOTE}
       />
     );
   }
@@ -137,11 +133,7 @@ function WritingField({
       aria-invalid={invalid}
       aria-describedby={describedBy}
       title={value.text}
-      className={cn(
-        BOX,
-        WRITING,
-        value.control === 'number' || value.control === 'date' ? FIGURES : '',
-      )}
+      className={cn(BOX, value.control === 'number' || value.control === 'date' ? FIGURES : '')}
     />
   );
 }

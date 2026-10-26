@@ -1,15 +1,15 @@
 import type { ReactNode } from 'react';
 
-import { cn } from '@/shared/lib/utils';
-
 import { entityHref, surfaceHref, type Surface } from './address';
 import { Band } from './band';
+import { EntityHeader } from './entity-header';
 import type { Dossier, RelationDossier, SourceRef } from './dossier';
 import { SourceCount } from './mark';
 import { Pending } from './pending';
 import { recordCells } from './draft';
 import { EntityRecord } from './record';
 import { Relations } from './relations';
+import { CAPTION, DATA, GHOST_LINK } from './style';
 import { UnitOrigin } from './unit-origin';
 import { VesselIds } from './vessel-ids';
 
@@ -26,11 +26,11 @@ const WAY_OUT = 'Open the page';
 
 const SHOW_ON: Readonly<Record<Surface, string>> = { map: 'Show on map', graph: 'Show in graph' };
 
-const LINK =
-  'shrink-0 text-small/4 text-primary underline underline-offset-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50';
+const LINK = `${GHOST_LINK} shrink-0 text-body-sm`;
 
 /** It states no width and no height: the page that holds the panel states its place. */
-const PANE = 'min-h-0 w-full min-w-0 space-y-3 overflow-y-auto overscroll-contain p-2';
+const PANE =
+  'flex min-h-0 w-full min-w-0 flex-col gap-6 overflow-y-auto overscroll-contain bg-surface p-4';
 
 export function Sidebar({ dossier, onSelectRelation, showOn }: SidebarProps) {
   // The sidebar states the count of documents, and not a number. A number would point at a
@@ -41,40 +41,37 @@ export function Sidebar({ dossier, onSelectRelation, showOn }: SidebarProps) {
 
   return (
     <aside aria-label={dossier.label} className={PANE}>
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <h1 className="flex min-w-0 items-baseline gap-2">
-          <span className="min-w-0 text-base break-words" title={dossier.label}>
-            {dossier.label}
-          </span>
-          <span className="shrink-0 text-xs text-label">{dossier.typeName}</span>
-        </h1>
-        {/* A panel beside a canvas holds a record and not the whole dossier. The page carries
-            the rail of documents, which no panel of 24 rem can hold beside a canvas. */}
-        <div className="ml-auto flex shrink-0 gap-3">
-          {/* The map shows a link to an entity it cannot draw too: the map then says that the
-              entity has no position, and a link that is absent says nothing. */}
-          {showOn === undefined ? null : (
-            <a href={surfaceHref(showOn, dossier.entityId)} className={LINK}>
-              {SHOW_ON[showOn]}
+      {/* A panel beside a canvas holds a record and not the whole dossier. The page carries
+          the rail of documents, which no panel of 400 px can hold beside a canvas. */}
+      <EntityHeader
+        dossier={dossier}
+        actions={
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {/* The map shows a link to an entity it cannot draw too: the map then says that the
+                entity has no position, and a link that is absent says nothing. */}
+            {showOn === undefined ? null : (
+              <a href={surfaceHref(showOn, dossier.entityId)} className={LINK}>
+                {SHOW_ON[showOn]}
+              </a>
+            )}
+            <a href={entityHref(dossier.entityId, null)} className={LINK}>
+              {WAY_OUT}
             </a>
-          )}
-          <a href={entityHref(dossier.entityId, null)} className={LINK}>
-            {WAY_OUT}
-          </a>
-        </div>
-      </div>
+          </div>
+        }
+      >
+        {dossier.identity === null ? null : <VesselIds identity={dossier.identity} />}
 
-      {dossier.identity === null ? null : <VesselIds identity={dossier.identity} />}
-
-      {/* On its own lines, and not beside the type: this pane is 24 rem, and a third word in that
-          row squeezes the name. The canvas beside it draws the halo, and these words are what
-          name the ancestor the halo cannot name. */}
-      <UnitOrigin
-        positionFrom={dossier.positionFrom}
-        positionChain={dossier.positionChain}
-        affiliation={dossier.affiliation}
-        sourceDay={dossier.sourceDay}
-      />
+        {/* On its own lines, and not beside the type: the pane is narrow, and a third word in
+            that row squeezes the name. The canvas beside it draws the halo, and these words are
+            what name the ancestor the halo cannot name. */}
+        <UnitOrigin
+          positionFrom={dossier.positionFrom}
+          positionChain={dossier.positionChain}
+          affiliation={dossier.affiliation}
+          sourceDay={dossier.sourceDay}
+        />
+      </EntityHeader>
 
       {/* Every control is read-only and draws with `defaultValue`, which React reads once. A
           selection swaps the dossier under the same mounted element, so a field kept the
@@ -117,14 +114,11 @@ export function RelationSidebar({ relation, showOn }: RelationSidebarProps) {
       {/* **The name of the heading is the sentence, and not the three lines.** The arrow is a
           picture of the direction. A reader who is given the lines hears "down arrow", and the
           order of the words in the sentence says the same thing in words. */}
-      <h1 aria-label={relation.sentence} className="space-y-0.5">
+      <h1 aria-label={relation.sentence} className="flex flex-col gap-1">
         {relation.rows.map((row) => (
           <span
             key={row.key}
-            className={cn(
-              'block break-words',
-              row.key === 'type' ? 'text-xs text-label' : 'text-base',
-            )}
+            className={`block break-words ${row.key === 'type' ? CAPTION : 'text-body'}`}
           >
             {row.text}
           </span>
@@ -132,7 +126,7 @@ export function RelationSidebar({ relation, showOn }: RelationSidebarProps) {
       </h1>
 
       {relation.definition === null ? null : (
-        <p data-relation-definition="" className="text-small/4 text-label">
+        <p data-relation-definition="" className="text-body-sm text-muted-foreground">
           {relation.definition}{' '}
           <a href="/glossary#relation-types" className={LINK}>
             Glossary
@@ -141,10 +135,7 @@ export function RelationSidebar({ relation, showOn }: RelationSidebarProps) {
       )}
 
       {showOn === undefined ? null : (
-        <a
-          href={surfaceHref(showOn, relation.relationId, 'relation')}
-          className={cn(LINK, 'block')}
-        >
+        <a href={surfaceHref(showOn, relation.relationId, 'relation')} className={`${LINK} w-fit`}>
           {SHOW_ON[showOn]}
         </a>
       )}
@@ -152,32 +143,28 @@ export function RelationSidebar({ relation, showOn }: RelationSidebarProps) {
       {/* M6 and M9: the interval is written at both ends, and a relation that carries none draws
           a blank under a header that names the key. An absence must never read as a fault, and a
           row that vanishes tells the analyst nothing about what the record holds. */}
-      <div className="flex items-baseline gap-2 text-small/4">
-        <span className="w-20 shrink-0 text-label">Validity</span>
-        <span className="min-w-0 flex-1 font-mono break-words tabular-nums">
-          {relation.interval}
-        </span>
+      <div className="flex items-baseline gap-4">
+        <span className={`w-20 shrink-0 ${CAPTION}`}>Validity</span>
+        <span className={`min-w-0 flex-1 break-words ${DATA}`}>{relation.interval}</span>
       </div>
 
       {relation.share === null ? null : (
-        <div className="flex items-baseline gap-2 text-small/4">
-          <span className="w-20 shrink-0 text-label">Share</span>
-          <span className="min-w-0 flex-1 break-words">{relation.share}</span>
+        <div className="flex items-baseline gap-4">
+          <span className={`w-20 shrink-0 ${CAPTION}`}>Share</span>
+          <span className="min-w-0 flex-1 text-body-sm break-words">{relation.share}</span>
         </div>
       )}
 
       {relation.facts.map((fact) => (
-        <p key={fact} className="min-w-0 text-small/4 break-words">
+        <p key={fact} className="min-w-0 text-body-sm break-words">
           {fact}
         </p>
       ))}
 
       {/* External constraint: S2 at row level. This list backs the type, the two ends and the
           dates of the relation, and not one attribute, so M8 does not govern it. */}
-      <div className="flex items-center gap-2">
-        <span className="text-small/4 tracking-caps text-label uppercase">
-          Sources of this relation
-        </span>
+      <div className="flex items-center gap-2 border-t border-divider pt-4">
+        <span className={CAPTION}>Sources of this relation</span>
         {/* A relation has no full page, so the popover carries no way out. */}
         <SourceCount sources={relation.sources} cards={relation.cards} entityId={null} />
       </div>

@@ -15,8 +15,7 @@ export function EditSwitch({ view, busy, onSwitch }: EditSwitchProps) {
   return (
     <Button
       type="button"
-      variant="outline"
-      size="xs"
+      variant="secondary"
       aria-pressed={writing}
       disabled={busy}
       onClick={() => {

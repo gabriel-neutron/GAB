@@ -105,7 +105,8 @@ export const TheTopShowsTheNameAndTheTypeOnly: Story = {
   play: async ({ canvas }) => {
     const heading = canvas.getByRole('heading', { level: 1 });
     await expect(heading).toHaveTextContent(DOSSIER.label);
-    await expect(heading).toHaveTextContent(DOSSIER.typeName);
+    // The type stands in the eyebrow over the name, with its glyph.
+    await expect(canvas.getByText(DOSSIER.typeName, { selector: 'p > span' })).toBeVisible();
 
     await expect(canvas.queryByText(DOSSIER.entityId)).toBeNull();
     // The coordinate of this entity in the committed corpus.

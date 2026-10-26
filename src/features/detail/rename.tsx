@@ -28,9 +28,9 @@ export function Rename({ entityId, stored, choices, busy, onRename }: RenameProp
   };
 
   return (
-    <section aria-label="Name and type" className="space-y-1">
+    <section aria-label="Name and type" className="space-y-2">
       <div className="flex items-end gap-2">
-        <div className="min-w-0 flex-1 space-y-0.5">
+        <div className="min-w-0 flex-1 space-y-1">
           <label htmlFor={nameBox} className={ENTRY_ROW.caption}>
             Entity name
           </label>
@@ -45,7 +45,7 @@ export function Rename({ entityId, stored, choices, busy, onRename }: RenameProp
           />
         </div>
 
-        <div className="w-48 space-y-0.5">
+        <div className="w-48 space-y-1">
           <label htmlFor={typeBox} className={ENTRY_ROW.caption}>
             Entity type
           </label>
@@ -66,7 +66,7 @@ export function Rename({ entityId, stored, choices, busy, onRename }: RenameProp
           </select>
         </div>
 
-        <Button type="button" size="xs" disabled={!draft.ready || busy} onClick={onSend}>
+        <Button type="button" variant="secondary" disabled={!draft.ready || busy} onClick={onSend}>
           Save the name and the type
         </Button>
       </div>
