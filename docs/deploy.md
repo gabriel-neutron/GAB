@@ -104,6 +104,9 @@ each decision is final). The Names page of the review page does the same.
   `sign_change`, in one transaction. The act keeps a full copy of each row. The door refuses a
   relation that another relation uses as an end: name a relation before the relations that use it.
 - `nato-coverage`, `asset-coverage`, `asset-sanctions`: reports. They write nothing.
+- `audit-coverage <release-folder> <steps.json>`: the coverage and the depth of each step of a
+  chain on a frozen release, joined by identifier. It reads files, writes nothing and gives the
+  same bytes on each run.
 - `activity-report <flare document> <text set> [--operators <document>]`: report. It gives
   each field, LNG plant and refinery an activity mark from the flare table, the stored FIRMS answers
   and the dated strikes. It writes nothing. The report is internal: it is not a fact of the record.

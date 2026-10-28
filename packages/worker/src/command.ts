@@ -9,6 +9,8 @@ const COMMANDS = {
     (await import('./release/asset-coverage-command.ts')).assetCoverageCommand,
   'asset-sanctions': async () =>
     (await import('./release/asset-sanctions-command.ts')).assetSanctionsCommand,
+  'audit-coverage': async () =>
+    (await import('./release/audit-coverage-command.ts')).auditCoverageCommand,
   'author-names': async () => (await import('./author-names-command.ts')).authorNamesCommand,
   'delete-relation': async () =>
     (await import('./delete-relation-command.ts')).deleteRelationCommand,
