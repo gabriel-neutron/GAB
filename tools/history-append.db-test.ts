@@ -91,3 +91,16 @@ test('an update reads an old value that is one text or the text of a list, and a
     call_sign: { v: ['A', 'B', 'C'], src: ['manual', FIXTURE_DOCUMENT] },
   });
 });
+
+test('an update whose list holds each old value and an older one gives the order of the history', async () => {
+  const attrs = await rolledBack('app', async (ask) => {
+    const id = await created(ask, { mmsi_history: { v: '273278480', src: ['manual'] } });
+    await updated(ask, id, {
+      mmsi_history: { v: ['314975000', '273278480'], src: [FIXTURE_DOCUMENT] },
+    });
+    return attrsNow(ask, id);
+  });
+  expect(attrs).toMatchObject({
+    mmsi_history: { v: ['314975000', '273278480'], src: ['manual', FIXTURE_DOCUMENT] },
+  });
+});
