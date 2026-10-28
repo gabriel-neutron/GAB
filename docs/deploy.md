@@ -85,6 +85,9 @@ each decision is final). The Names page of the review page does the same.
 - `document-labels`: gives a readable title and a type to the stored documents that lack them, and
   lists the stored search pages. Run it with `--dry-run` first. It deletes nothing: you decide on
   each search page.
+- `document-file <document id> <out file>`: writes the stored bytes of one document to a new local
+  file and prints their SHA-256. It refuses a file that exists. It writes nothing to the database
+  or the store.
 - `geolocation-method`: gives the method of geolocation to the stored places that hold
   `not_stated`, when the documents that gave the place state the method clearly. A place with
   unclear documents stays `not_stated`. Run it with `--dry-run` first. It changes no place that has
