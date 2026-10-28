@@ -56,3 +56,18 @@ export const occurredWeekdays = (
     return typeof one === 'string' && weekday !== null ? [{ day: one, weekday }] : [];
   });
 };
+
+const OFAC_ACTION = /^https?:\/\/ofac\.treasury\.gov\/recent-actions\//u;
+const RELEASE_DATE = /(Release Date:\s*)(\d{2})\/(\d{2})\/(\d{4})(?!\d)/gu;
+
+/** On an OFAC page of recent actions, the "Release Date" line is always month/day/year. The line
+ * is written as year-month-day, so the check of a stated day never takes it as ambiguous. Any
+ * other date, and any other page, stays as it is. */
+export const withOfacReleaseDate = (uri: string | null, text: string): string =>
+  uri !== null && OFAC_ACTION.test(uri)
+    ? text.replace(
+        RELEASE_DATE,
+        (_whole, head: string, month: string, day: string, year: string) =>
+          `${head}${year}-${month}-${day}`,
+      )
+    : text;

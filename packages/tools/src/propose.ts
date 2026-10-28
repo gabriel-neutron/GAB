@@ -16,7 +16,7 @@ import { UNIQUE_KEYS } from './duplicate-identifier.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
 import { findExcerpt, pointSlice, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
-import { dateInUrl, occurredWeekdays } from './publication-date.ts';
+import { dateInUrl, occurredWeekdays, withOfacReleaseDate } from './publication-date.ts';
 import {
   daysFromPublication,
   namesProvision,
@@ -381,11 +381,10 @@ const cite = async (
     postDay: postDayOf(page.text),
     page: given.page,
     span,
-    passage: pointSlice(page.text, span.start, span.end),
-    context: pointSlice(
-      page.text,
-      Math.max(0, span.start - CONTEXT_POINTS),
-      span.end + CONTEXT_POINTS,
+    passage: withOfacReleaseDate(page.uri, pointSlice(page.text, span.start, span.end)),
+    context: withOfacReleaseDate(
+      page.uri,
+      pointSlice(page.text, Math.max(0, span.start - CONTEXT_POINTS), span.end + CONTEXT_POINTS),
     ),
   };
 };
