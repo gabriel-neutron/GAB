@@ -24,6 +24,7 @@ import {
   type NodePosition,
 } from './model';
 import { createLiveLayout } from './live-layout';
+import { morph } from './morph';
 import { layoutInput } from './layout-weights';
 import { DEFAULT_VARIANT, variantOf, type Variant, type VariantId } from './variants';
 import { graphPositions } from './positions';
@@ -415,6 +416,25 @@ export function mountGraph(
 
   // A reducer replaces the datum and does not merge into it. Each one below spreads the original,
   // or Sigma finds no `x` and no `y` and refuses the node with an error.
+  // Where each node was drawn when its last move began, as the card reads it. The place that Sigma
+  // holds now is where the move ends.
+  const moves = new Map<string, { fromX: number; fromY: number }>();
+  const reduceNode = (node: string, data: NodeAttrs): Partial<NodeDisplayData> => {
+    // The switch hides the ring. Unlike a filter, it takes the node out of the picture.
+    if (!showUnplaced && data.unplaced) return { ...data, hidden: true, label: null };
+    if (litNodes.has(node)) {
+      const hop = hopOf.get(node);
+      // The ring at two steps can hold most of the graph, through a legal act that lists
+      // hundreds of entities. So it dims as the rest does, and the direct neighbours stand out.
+      if (hop === 2) return { ...data, color: dimOf(data.color), zIndex: 1 };
+      if (hop === 1) return { ...data, zIndex: 2 };
+      return { ...data, zIndex: hop === 0 ? 3 : 0 };
+    }
+    // A type that the filter puts out leaves the picture. A selection only dims the rest.
+    if (!passesFilter(data)) return { ...data, hidden: true, label: null };
+    return { ...data, color: dimOf(data.color), label: null };
+  };
+
   const sigma = new Sigma<NodeAttrs, EdgeAttrs>(model.graph, canvas, {
     // The container is measured in the constructor, while the chrome around it is still built.
     // A container of no height throws here. The `ResizeObserver` below gives the true size at the
@@ -472,21 +492,10 @@ export function mountGraph(
     minCameraRatio: NEAREST_RATIO,
     maxCameraRatio: FARTHEST_RATIO,
 
-    nodeReducer: (node: string, data: NodeAttrs): Partial<NodeDisplayData> => {
-      // The switch hides the ring. Unlike a filter, it takes the node out of the picture.
-      if (!showUnplaced && data.unplaced) return { ...data, hidden: true, label: null };
-      if (litNodes.has(node)) {
-        const hop = hopOf.get(node);
-        // The ring at two steps can hold most of the graph, through a legal act that lists
-        // hundreds of entities. So it dims as the rest does, and the direct neighbours stand out.
-        if (hop === 2) return { ...data, color: dimOf(data.color), zIndex: 1 };
-        if (hop === 1) return { ...data, zIndex: 2 };
-        return { ...data, zIndex: hop === 0 ? 3 : 0 };
-      }
-      // A type that the filter puts out leaves the picture. A selection only dims the rest.
-      if (!passesFilter(data)) return { ...data, hidden: true, label: null };
-      return { ...data, color: dimOf(data.color), label: null };
-    },
+    nodeReducer: (node: string, data: NodeAttrs): Partial<NodeDisplayData> => ({
+      ...reduceNode(node, data),
+      ...moves.get(node),
+    }),
 
     edgeReducer: (edge: string, data: EdgeAttrs): Partial<EdgeDisplayData> => {
       // A relation type that the legend switches off is out of the picture, as the ring is when
@@ -831,6 +840,17 @@ export function mountGraph(
   // The shown nodes and relations pull the layout. A switch of a type or a family starts a new
   // run from the places the nodes hold, so they move to the new place and do not jump.
   const raw = new Map(positions);
+  // A move takes this long. It is a little under the time between two answers of the worker.
+  const MOVE_MS = 400;
+  let moveStart = 0;
+  let moveFrame = 0;
+  const stepMove = (now: number): void => {
+    const share = Math.min(1, (now - moveStart) / MOVE_MS);
+    // Ease out: the nodes are fast at the start and settle at the end.
+    morph.progress = 1 - (1 - share) ** 3;
+    sigma.scheduleRender();
+    moveFrame = share < 1 ? requestAnimationFrame(stepMove) : 0;
+  };
   const layoutWorker = new Worker(new URL('./layout-worker.ts', import.meta.url), {
     type: 'module',
   });
@@ -838,12 +858,29 @@ export function mountGraph(
     raw,
     { cx: frameX, cy: frameY, span: frameSpan },
     (places) => {
+      // Each node that moves starts from the place where it is drawn now, which can be on the way
+      // of an earlier move. The card does the move, so a frame of it is as cheap as a pan.
+      const next = new Map<string, { fromX: number; fromY: number }>();
+      for (const node of places.keys()) {
+        const now = sigma.getNodeDisplayData(node);
+        if (now === undefined) continue;
+        const from = moves.get(node);
+        next.set(node, {
+          fromX: from === undefined ? now.x : from.fromX + (now.x - from.fromX) * morph.progress,
+          fromY: from === undefined ? now.y : from.fromY + (now.y - from.fromY) * morph.progress,
+        });
+      }
+      moves.clear();
+      for (const [node, from] of next) moves.set(node, from);
       // One event for all the nodes: an event for each node would wake Sigma 6000 times. The
       // event schedules the draw, so no refresh follows: a second one would run the work twice.
       model.graph.updateEachNodeAttributes((node, attrs) => {
         const at = places.get(node);
         return at === undefined ? attrs : Object.assign(attrs, at);
       });
+      morph.progress = 0;
+      moveStart = performance.now();
+      if (moveFrame === 0) moveFrame = requestAnimationFrame(stepMove);
     },
     layoutWorker,
   );
@@ -1181,6 +1218,8 @@ export function mountGraph(
     },
     destroy: () => {
       liveLayout.destroy();
+      cancelAnimationFrame(moveFrame);
+      morph.progress = 1;
       layoutWorker.terminate();
       if (destroyed) return;
       // A camera that waits for the trailing store is the camera of the analyst. It is written

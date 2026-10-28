@@ -11,6 +11,7 @@ import { floatColor } from 'sigma/utils';
 import { ARROW_LENGTH_RATIO, ARROW_WIDTH_RATIO } from '@/shared/canvas-arrow';
 
 import type { EdgeAttrs, NodeAttrs } from './model';
+import { morph } from './morph';
 import type { DashPattern } from './relation-families';
 
 // External constraint: Sigma ships no edge program that repeats a mark. This body is the straight
@@ -20,10 +21,12 @@ import type { DashPattern } from './relation-families';
 const VERTEX_SHADER = /* glsl */ `
 attribute vec4 a_id;
 attribute vec4 a_color;
-attribute vec2 a_normal;
+attribute float a_thickness;
 attribute float a_normalCoef;
 attribute vec2 a_positionStart;
 attribute vec2 a_positionEnd;
+attribute vec2 a_fromStart;
+attribute vec2 a_fromEnd;
 attribute float a_positionCoef;
 
 uniform mat3 u_matrix;
@@ -34,6 +37,7 @@ uniform float u_correctionRatio;
 uniform float u_minEdgeThickness;
 uniform float u_feather;
 uniform vec2 u_resolution;
+uniform float u_morph;
 
 varying vec4 v_color;
 varying vec2 v_normal;
@@ -44,19 +48,25 @@ varying float v_along;
 const float bias = 255.0 / 254.0;
 
 void main() {
-  vec2 normal = a_normal * a_normalCoef;
-  vec2 position = a_positionStart * (1.0 - a_positionCoef) + a_positionEnd * a_positionCoef;
+  // The ends move from their old place to their new one on the card, so the normal is read from
+  // the ends of this frame and the body keeps its width while it turns.
+  vec2 start = mix(a_fromStart, a_positionStart, u_morph);
+  vec2 end = mix(a_fromEnd, a_positionEnd, u_morph);
+  vec2 along = end - start;
+  float alongLength = length(along);
+  vec2 direction = alongLength == 0.0 ? vec2(1.0, 0.0) : along / alongLength;
+  vec2 unitNormal = vec2(-direction.y, direction.x) * a_normalCoef;
+  vec2 position = start * (1.0 - a_positionCoef) + end * a_positionCoef;
 
-  float normalLength = length(normal);
-  vec2 unitNormal = normal / normalLength;
+  float normalLength = a_thickness;
 
   float pixelsThickness = max(normalLength, u_minEdgeThickness * u_sizeRatio);
   float webGLThickness = pixelsThickness * u_correctionRatio / u_sizeRatio;
 
   gl_Position = vec4((u_matrix * vec3(position + unitNormal * webGLThickness, 1)).xy, 0, 1);
 
-  vec2 clipStart = (u_matrix * vec3(a_positionStart, 1)).xy;
-  vec2 clipEnd = (u_matrix * vec3(a_positionEnd, 1)).xy;
+  vec2 clipStart = (u_matrix * vec3(start, 1)).xy;
+  vec2 clipEnd = (u_matrix * vec3(end, 1)).xy;
   v_along = a_positionCoef * length((clipEnd - clipStart) * 0.5 * u_resolution);
 
   v_thickness = webGLThickness / u_zoomRatio;
@@ -116,9 +126,13 @@ const UNIFORMS = [
   'u_minEdgeThickness',
   'u_resolution',
   'u_pattern',
+  'u_morph',
 ] as const;
 
 type DashUniform = (typeof UNIFORMS)[number];
+
+/** A node as the edge program reads it: the place now, and the place that the move starts from. */
+type MovingNode = NodeDisplayData & { fromX?: number; fromY?: number };
 
 type GraphEdgeProgram = EdgeProgramType<NodeAttrs, EdgeAttrs>;
 
@@ -135,7 +149,9 @@ function createDashedBody(pattern: DashPattern): GraphEdgeProgram {
         ATTRIBUTES: [
           { name: 'a_positionStart', size: 2, type: FLOAT },
           { name: 'a_positionEnd', size: 2, type: FLOAT },
-          { name: 'a_normal', size: 2, type: FLOAT },
+          { name: 'a_fromStart', size: 2, type: FLOAT },
+          { name: 'a_fromEnd', size: 2, type: FLOAT },
+          { name: 'a_thickness', size: 1, type: FLOAT },
           { name: 'a_color', size: 4, type: UNSIGNED_BYTE, normalized: true },
           { name: 'a_id', size: 4, type: UNSIGNED_BYTE, normalized: true },
         ],
@@ -157,25 +173,22 @@ function createDashedBody(pattern: DashPattern): GraphEdgeProgram {
     processVisibleItem(
       edgeIndex: number,
       startIndex: number,
-      sourceData: NodeDisplayData,
-      targetData: NodeDisplayData,
+      sourceData: MovingNode,
+      targetData: MovingNode,
       data: EdgeDisplayData,
     ): void {
       const thickness = data.size || 1;
-      const dx = targetData.x - sourceData.x;
-      const dy = targetData.y - sourceData.y;
-      const length = Math.hypot(dx, dy);
-      const normalX = length === 0 ? 0 : (-dy / length) * thickness;
-      const normalY = length === 0 ? 0 : (dx / length) * thickness;
-
       const array = this.array;
       let at = startIndex;
       array[at++] = sourceData.x;
       array[at++] = sourceData.y;
       array[at++] = targetData.x;
       array[at++] = targetData.y;
-      array[at++] = normalX;
-      array[at++] = normalY;
+      array[at++] = sourceData.fromX ?? sourceData.x;
+      array[at++] = sourceData.fromY ?? sourceData.y;
+      array[at++] = targetData.fromX ?? targetData.x;
+      array[at++] = targetData.fromY ?? targetData.y;
+      array[at++] = thickness;
       array[at++] = floatColor(data.color);
       array[at] = edgeIndex;
     }
@@ -190,6 +203,7 @@ function createDashedBody(pattern: DashPattern): GraphEdgeProgram {
       gl.uniform1f(uniformLocations.u_minEdgeThickness, params.minEdgeThickness);
       gl.uniform2f(uniformLocations.u_resolution, params.width, params.height);
       gl.uniform4f(uniformLocations.u_pattern, ...pattern);
+      gl.uniform1f(uniformLocations.u_morph, morph.progress);
     }
   };
 }
