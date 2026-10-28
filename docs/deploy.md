@@ -96,6 +96,11 @@ each decision is final). The Names page of the review page does the same.
 - `merge-entities <duplicate> <survivor>`: the operator merges one entity into another through the
   door `merge_entities` (ADR 0014). The act is in the ledger and the merge can be undone. The door
   refuses two entities of two types, and a duplicate that an act in the waiting lane names.
+- `undo-merge <absorbed>`: the operator undoes the last merge of the absorbed entity through the
+  door `undo_merge`. The entity comes back as it was, with its relations, and the survivor loses
+  the values it took. The door refuses an entity that a later merge absorbed in turn: undo the
+  later merge first. The review pages of IMO pairs and name candidates merge a pair in the browser;
+  the undo has this command only.
 - `delete-relation <relation>...`: the operator deletes promoted relations through the door
   `sign_change`, in one transaction. The act keeps a full copy of each row. The door refuses a
   relation that another relation uses as an end: name a relation before the relations that use it.
