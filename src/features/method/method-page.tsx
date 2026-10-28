@@ -50,7 +50,7 @@ function Contact({ address }: { readonly address: string }) {
 export function MethodPage({ manifest }: MethodPageProps) {
   if (manifest === null)
     return (
-      <ReadingPage>
+      <ReadingPage grid>
         <PageHeader title="About" />
         <p className="text-muted-foreground">
           This site holds no release, and the About page comes with a release.
