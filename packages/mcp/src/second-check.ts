@@ -116,12 +116,14 @@ export const readSecondCheck = (
   }
 };
 
-/** The model family of the research AI, from the name that its client gives. Null for a client
- * that the server does not know. */
-export const readerFamilyOf = (client: string | undefined): string | null => {
+/** The model family of the research AI, from the name that its client gives. A script can give
+ * any name, so for a name that the server does not know, the variable CLAUDECODE that Claude Code
+ * sets in each process that it starts gives the family. Null when neither tells the family. */
+export const readerFamilyOf = (client: string | undefined, env: Env): string | null => {
   const name = client?.toLowerCase() ?? '';
   if (name.includes('claude')) return 'anthropic';
   if (name.includes('codex')) return 'openai';
+  if (env['CLAUDECODE'] === '1') return 'anthropic';
   return null;
 };
 

@@ -139,7 +139,7 @@ export const createServer = (pool: SessionPool, reach?: Reach, check?: SecondChe
     pool,
     reach,
     check,
-    readerFamily: () => readerFamilyOf(mcp.server.getClientVersion()?.name),
+    readerFamily: () => readerFamilyOf(mcp.server.getClientVersion()?.name, process.env),
   };
 
   mcp.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: [...LISTED] }));
