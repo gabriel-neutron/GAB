@@ -25,6 +25,7 @@ import {
 } from './model';
 import { createLiveLayout } from './live-layout';
 import { layoutInput } from './layout-weights';
+import { DEFAULT_VARIANT, variantOf, type Variant, type VariantId } from './variants';
 import { graphPositions } from './positions';
 import { FAMILIES, lookOf } from './relation-families';
 import { type RelationFilterState } from './relation-filter';
@@ -52,6 +53,8 @@ export interface GraphView {
   readonly unplaced: number;
   /** Whether the canvas draws them. */
   readonly showUnplaced: boolean;
+  /** The identifier of the prototype in view. */
+  readonly variant: VariantId;
   readonly railOpen: boolean;
   readonly railWidth: number;
 }
@@ -68,6 +71,8 @@ export interface GraphController {
   readonly setRelationFilter: (patch: Partial<RelationFilterState>) => void;
   /** Draws or hides the entities that stand on the ring with no place. */
   readonly setShowUnplaced: (show: boolean) => void;
+  /** Switches the prototype of the graph: the weights, the forces and the sizes. */
+  readonly setVariant: (id: VariantId) => void;
   /** The rail was unfolded or folded. The workspace keeps it, so the next open finds it there. */
   readonly setRailOpen: (open: boolean) => void;
   /** The rail edge was dragged. The workspace keeps the width, as it keeps the fold. */
@@ -206,16 +211,7 @@ export function mountGraph(
   // for one frame. The three settings below take at least 1 ms, and a call that must jump sets the
   // state itself.
   const settingMs = Math.max(1, motionOf());
-  // A layout run places each node that has a relation. A node with none has nothing to place it
-  // by, so it stays off the picture until the reader asks for it.
-  const linked = new Set<string>();
-  for (const relation of corpus.relations) {
-    if (relation.srcKind !== 'entity' || relation.dstKind !== 'entity') continue;
-    linked.add(relation.srcId);
-    linked.add(relation.dstId);
-  }
-  const bare = new Set(corpus.entities.filter((entity) => !linked.has(entity.id)).map((e) => e.id));
-  const model = buildGraphModel(corpus, positions, types, ground, bare);
+  const model = buildGraphModel(corpus, positions, types, ground, placement.unplaced);
   const wordsOf = relationWording(corpus.relationTypes);
 
   const stored = readGraphWorkspace();
@@ -228,6 +224,7 @@ export function mountGraph(
   let railOpen = stored.railOpen;
   let railWidth = stored.railWidth;
   let showUnplaced = stored.showUnplaced;
+  let variant: Variant = DEFAULT_VARIANT;
 
   // The stored picture is the frame. The camera fits are computed in this frame, so it is fixed
   // here and given to Sigma, and the two never differ.
@@ -751,7 +748,8 @@ export function mountGraph(
     markersDrawn: markerTargets.length,
     markersOverCap,
     openUnits: folds.open,
-    unplaced: bare.size,
+    unplaced: placement.unplaced.size,
+    variant: variant.id,
     showUnplaced,
     railOpen,
     railWidth,
@@ -832,20 +830,61 @@ export function mountGraph(
 
   // The shown nodes and relations pull the layout. A switch of a type or a family starts a new
   // run from the places the nodes hold, so they move to the new place and do not jump.
+  const raw = new Map(positions);
+  const layoutWorker = new Worker(new URL('./layout-worker.ts', import.meta.url), {
+    type: 'module',
+  });
   const liveLayout = createLiveLayout(
-    new Map(positions),
+    raw,
     { cx: frameX, cy: frameY, span: frameSpan },
-    (node, at) => model.graph.mergeNodeAttributes(node, at),
-    () => sigma.refresh(),
+    (places) => {
+      // One event for all the nodes: an event for each node would wake Sigma 6000 times.
+      model.graph.updateEachNodeAttributes((node, attrs) => {
+        const at = places.get(node);
+        return at === undefined ? attrs : { ...attrs, x: at.x, y: at.y };
+      });
+      sigma.refresh();
+    },
+    layoutWorker,
   );
-  const relayout = (): void =>
-    liveLayout.run(
-      layoutInput(
-        model.graph,
-        (node) => passesFilter(model.graph.getNodeAttributes(node)),
-        hiddenRelations,
-      ),
+  const sectorOf = (index: number, count: number, node: string): { x: number; y: number } => {
+    // A fixed spread inside the sector of the type, from the characters of the identifier.
+    let hash = 7;
+    for (let at = 0; at < node.length; at += 1)
+      hash = (hash * 31 + node.charCodeAt(at)) % 1_000_003;
+    const along = (hash % 1000) / 1000;
+    const out = ((hash >> 3) % 1000) / 1000;
+    const angle = ((index + 0.1 + 0.8 * along) / Math.max(count, 1)) * 2 * Math.PI;
+    const radius = 0.3 + 0.7 * Math.sqrt(out);
+    return { x: radius * Math.cos(angle), y: radius * Math.sin(angle) };
+  };
+  const reseedByType = (): void => {
+    const kinds = [...new Set(model.graph.mapNodes((n, a) => a.entityType))].sort();
+    model.graph.forEachNode((node, attrs) => {
+      raw.set(node, sectorOf(kinds.indexOf(attrs.entityType), kinds.length, node));
+    });
+  };
+  const relayout = (): void => {
+    const input = layoutInput(
+      model.graph,
+      (node) => passesFilter(model.graph.getNodeAttributes(node)),
+      hiddenRelations,
+      variant.weights,
     );
+    // The size of a node is its share of the strongest node in view, so a variant reads weight.
+    let strongest = 0;
+    for (const value of input.strength.values()) strongest = Math.max(strongest, value);
+    // A crowd shrinks every node, so 5000 nodes do not cover one another.
+    // 1500 nodes is the count where the largest glyph still leaves room for its neighbours.
+    const crowd = Math.min(1, Math.sqrt(1500 / Math.max(1, input.nodes.length)));
+    const sized = (share: number): number => Math.max(3, variant.sizeOf(share) * crowd);
+    for (const node of input.nodes) {
+      const share = strongest === 0 ? 0 : (input.strength.get(node) ?? 0) / strongest;
+      model.graph.setNodeAttribute(node, 'size', sized(share));
+    }
+    for (const node of input.rest) model.graph.setNodeAttribute(node, 'size', sized(0));
+    liveLayout.run(input, variant.forces);
+  };
   relayout();
 
   // Sigma registers no observer of its own: it measures the container in the constructor and
@@ -1071,6 +1110,13 @@ export function mountGraph(
       // A selected relation of a type that is now off is dropped, as the filter drops a node.
       settle(acceptable(selection));
     },
+    setVariant: (id) => {
+      if (destroyed || id === variant.id) return;
+      variant = variantOf(id);
+      if (variant.seedByType) reseedByType();
+      relayout();
+      publish();
+    },
     setShowUnplaced: (show) => {
       if (destroyed || show === showUnplaced) return;
       showUnplaced = show;
@@ -1129,7 +1175,8 @@ export function mountGraph(
       return () => selectListeners.delete(listener);
     },
     destroy: () => {
-      liveLayout.stop();
+      liveLayout.destroy();
+      layoutWorker.terminate();
       if (destroyed) return;
       // A camera that waits for the trailing store is the camera of the analyst. It is written
       // before the instance dies, and never after it.

@@ -2,6 +2,7 @@ import { cn } from '@/shared/lib/utils';
 
 import { glyphSvg } from './glyph-svg';
 import { legendOf } from './legend';
+import { VARIANTS, type VariantId } from './variants';
 import { lookOf } from './relation-families';
 import type { ShownCounts, ShownOfTotal } from './shown-counts';
 
@@ -122,6 +123,42 @@ export function ZoomButtons({ onZoom }: { readonly onZoom: (direction: 'in' | 'o
       >
         −
       </button>
+    </div>
+  );
+}
+
+/** The row of prototypes at the top of the canvas, one square button for each. */
+export function VariantSwitch({
+  current,
+  onPick,
+}: {
+  readonly current: VariantId;
+  readonly onPick: (id: VariantId) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Layout"
+      className="absolute top-2 right-2 z-10 flex border border-border bg-surface"
+    >
+      {VARIANTS.map(({ id, label, reading }) => (
+        <button
+          key={id}
+          type="button"
+          title={reading}
+          aria-label={`${label}: ${reading}`}
+          aria-pressed={id === current}
+          onClick={() => {
+            onPick(id);
+          }}
+          className={cn(
+            'px-3 py-1.5 text-data focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1',
+            id === current ? 'bg-muted text-foreground underline underline-offset-4' : 'text-label',
+          )}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 }
