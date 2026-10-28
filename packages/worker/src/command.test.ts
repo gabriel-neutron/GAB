@@ -23,6 +23,13 @@ test('delete-relation refuses a word that is not an id, before it connects', asy
   expect(await deleteRelationCommand(['x'])).toBe(2);
 });
 
+test('undo-merge refuses a word that is not an id, before it connects', async () => {
+  const { undoMergeCommand } = await import('./undo-merge-command.ts');
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  expect(await undoMergeCommand([])).toBe(2);
+  expect(await undoMergeCommand(['x'])).toBe(2);
+});
+
 test('no word gives the usage, and the usage names each sub-command', () => {
   const command = readCommand([]);
   expect(command.kind).toBe('usage');

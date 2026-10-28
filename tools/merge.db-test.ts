@@ -678,9 +678,11 @@ test('a merge of two companies keeps each relation, identifier, alias and source
         gone: await entityRow(ask, gone),
         relations: await relationsOf(ask, gone),
       },
+      aliasAfter: await resolved(ask, gone),
     };
   });
 
+  expect(seen.aliasAfter).toBeUndefined();
   expect(seen.merged.alias).toBe(seen.keep);
   expect(seen.merged.survivor?.['attrs']).toStrictEqual({
     inn: { v: '7700000001', src: ['manual', FIXTURE_DOCUMENT] },
