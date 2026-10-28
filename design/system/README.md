@@ -1,4 +1,4 @@
-GAB is a terminal for an investigation: a black control surface where the data is the only thing allowed to carry colour. The chrome copies the Factory style exactly (Obsidian canvas, Geist at weight 400 with negative tracking, Geist Mono uppercase labels, 3px and 10px radii, no shadows). The graph, the map, the detail panels and the animated report extend that style; they never bring a style of their own.
+GAB is a terminal for an investigation: a black control surface where the data is the only thing allowed to carry colour. The chrome copies the Factory style exactly (Obsidian canvas, Geist at weight 400 with negative tracking, Geist Mono uppercase labels, square corners, 1px hairlines, a faint page grid, no shadows). The graph, the map, the detail panels and the animated report extend that style; they never bring a style of their own.
 
 ## Principles
 
@@ -60,7 +60,7 @@ Two themes: **Obsidian** (dark, the Factory original, the default) and **Bone** 
 ## Space, shape, layout
 
 - 8px base: `spacing-8` … `spacing-120`. Working screens add `spacing-4` and `spacing-12` for dense rows.
-- Radii: `radius-sm` 3px (buttons, inputs, tags, hover card), `radius-lg` 10px (cards, figure card), `radius-2xl` 20px (the report's framed figure), `radius-0` (canvases, panels on desktop, ghost link). Nothing rounder.
+- Radii: every radius token holds `0px`. The names stay so that a shadcn class still emits a rule. Nothing is rounded.
 - Shadows: `shadow-none` everywhere; `shadow-hairline` only for a popover over a canvas.
 - App layout: `SiteHeader` (56px) on top; `FilterRail` (296px) left; the canvas in the middle at full bleed; `DetailPanel` (400px) right. No sidebar menu, no nested cards.
 - Report layout: `page-max-width` 1200px, `ReportSection` grid 5/7, steps 80px apart, chapters 96px apart.
