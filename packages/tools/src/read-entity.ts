@@ -105,7 +105,11 @@ export const readEntity = defineTool({
     entity: z.uuid().describe('the id of the entity'),
     relationType: z.string().optional().describe('only the relations of this type key'),
     undated: z.boolean().optional().describe('true: only the relations with no validFrom'),
-    cursor: z.string().regex(/^\d+$/).optional().describe('the "nextCursor" of the page before'),
+    cursor: z
+      .string()
+      .regex(/^\d{1,9}$/)
+      .optional()
+      .describe('the "nextCursor" of the page before'),
   }),
   output: z.strictObject({
     id: z.uuid(),
@@ -123,7 +127,7 @@ export const readEntity = defineTool({
   async run(session, input) {
     const [held] = await rowsOf(session, entityRow, ENTITY, [input.entity]);
     if (held === undefined) throw new ToolRefusal(`the record holds no entity ${input.entity}`);
-    // The order is stable, so the cursor is the count of relations already given.
+    // The order is stable while the record does not change, so the cursor is the count of relations already given.
     const offset = Number(input.cursor ?? 0);
     const found = await rowsOf(session, relationRow, RELATIONS, [
       input.entity,
