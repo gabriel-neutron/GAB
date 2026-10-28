@@ -119,3 +119,19 @@ test('a window that does not run forward is refused', async () => {
     refusal: expect.stringContaining('from comes before to') as unknown,
   });
 });
+
+test('a refusal of GFW shows the body of the error and never the token', async () => {
+  const web = stubWeb(
+    () => json({ error: `bad filter for ${TOKEN}`, messages: ['portIds is not valid'] }, 422),
+    { gfwToken: TOKEN },
+  );
+  const reach = { store: memoryStore(), web, now: () => new Date('2026-10-28T10:00:00Z') };
+  const result = await callTool(tool, hashDatabase(), INPUT, reach);
+  expect(result).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('answered 422') as unknown,
+  });
+  const message = JSON.stringify(result);
+  expect(message).toContain('portIds is not valid');
+  expect(message).not.toContain(TOKEN);
+});

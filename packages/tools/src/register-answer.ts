@@ -4,7 +4,7 @@
 
 import type { z } from 'zod';
 
-import { anyAnswerOf, UpstreamFault } from './web-access.ts';
+import { anyAnswerOf, clipped, UpstreamFault } from './web-access.ts';
 import { storeAnswer, type Answer } from './store-answer.ts';
 import { type Reach, type Session, type Web, ToolRefusal } from './tool.ts';
 
@@ -21,12 +21,27 @@ export interface RegisterRequest {
   /** The provider of the answer, when the register is a known provider. Its licence gives the
    * tier of the document. */
   readonly provider?: Answer['provider'];
+  /** True when the register explains a refusal in the body: the refusal then holds the start of it. */
+  readonly showErrorBody?: boolean;
 }
 
 export interface RegisterAnswer {
   readonly body: string;
   readonly json: unknown;
 }
+
+const ERROR_BODY = 500;
+
+// A header value never goes in a refusal, so the body is cut of each header value it echoes.
+const errorBodyOf = (request: RegisterRequest, body: string): string => {
+  if (request.showErrorBody !== true) return '';
+  let text = body.trim();
+  for (const value of Object.values(request.headers ?? {})) {
+    const secret = value.replace(/^Bearer /u, '');
+    if (secret !== '') text = text.split(secret).join('[header value]');
+  }
+  return text === '' ? '' : `: ${clipped(text, ERROR_BODY)}`;
+};
 
 /** One GET. A 404 gives null, and any other fault is a refusal that names the register. */
 export const readRegister = async (
@@ -48,7 +63,9 @@ export const readRegister = async (
   if (request.moved !== undefined && REDIRECTS.has(answer.status) && location !== undefined)
     throw new ToolRefusal(request.moved(location));
   if (answer.status < 200 || answer.status > 299)
-    throw new ToolRefusal(`${request.register} answered ${answer.status}`);
+    throw new ToolRefusal(
+      `${request.register} answered ${answer.status}${errorBodyOf(request, answer.body)}`,
+    );
   try {
     return { body: answer.body, json: JSON.parse(answer.body) as unknown };
   } catch {

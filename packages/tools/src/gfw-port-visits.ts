@@ -98,6 +98,7 @@ export const gfwPortVisits = defineTool({
     const request: RegisterRequest = {
       url,
       register: REGISTER,
+      showErrorBody: true,
       headers: { accept: 'application/json', authorization: `Bearer ${token}` },
     };
     const answer = await readRegister(webFromReach(reach), request);
