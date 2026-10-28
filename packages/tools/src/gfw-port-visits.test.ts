@@ -14,6 +14,7 @@ if (tool === undefined) throw new Error('the catalogue holds no gfw_port_visits'
 const TOKEN = 'gfw-secret-9';
 const INPUT = {
   anchorageIds: ['rus-primorsk', 'rus-ust-luga'],
+  vesselType: 'CARGO',
   from: '2026-01-01',
   to: '2026-02-01',
 };
@@ -22,8 +23,24 @@ const fixture = {
   total: 2,
   nextOffset: null,
   entries: [
-    { id: 'pv1', type: 'port_visit', vessel: { id: 'v1', ssvid: '273000001', type: 'TANKER' } },
-    { id: 'pv2', type: 'port_visit', vessel: { id: 'v2', ssvid: '273000002', type: 'TANKER' } },
+    {
+      id: 'pv1',
+      type: 'port_visit',
+      vessel: { id: 'v1', name: 'ONE', ssvid: '273000001', imo: '9000001' },
+      port_visit: {
+        confidence: 4,
+        startAnchorage: { anchorageId: '0d2f61f7', id: 'rus-primorsk' },
+      },
+    },
+    {
+      id: 'pv2',
+      type: 'port_visit',
+      vessel: { id: 'v2', name: 'TWO', ssvid: '273000002' },
+      port_visit: {
+        confidence: 3,
+        startAnchorage: { anchorageId: '0d2f61f8', id: 'rus-ust-luga' },
+      },
+    },
   ],
 };
 
@@ -58,9 +75,12 @@ test('the tool reads the port visits of the anchorages and stores them once with
   const params = web.asked[0]?.url.searchParams;
   expect(params?.get('datasets[0]')).toBe('public-global-port-visits-events:latest');
   expect(params?.get('types[0]')).toBe('PORT_VISIT');
-  expect(params?.get('vesselTypes[0]')).toBe('TANKER');
-  expect(params?.get('portIds[0]')).toBe('rus-primorsk');
-  expect(params?.get('portIds[1]')).toBe('rus-ust-luga');
+  expect(params?.get('vessel-types[0]')).toBe('CARGO');
+  expect(params?.get('confidences[0]')).toBe('3');
+  expect(params?.get('confidences[1]')).toBe('4');
+  expect(first).toMatchObject({ output: { imos: ['9000001'] } });
+  expect(params?.get('port-ids[0]')).toBe('rus-primorsk');
+  expect(params?.get('port-ids[1]')).toBe('rus-ust-luga');
   expect(params?.get('start-date')).toBe('2026-01-01');
   expect(params?.get('end-date')).toBe('2026-02-01');
 
@@ -120,9 +140,24 @@ test('a window that does not run forward is refused', async () => {
   });
 });
 
+test('a value outside the documentation is refused before the call, with the valid values', async () => {
+  const { web, session, reach } = setup();
+  const cases: [Record<string, unknown>, string][] = [
+    [{ vesselType: 'TANKER' }, 'SEISMIC_VESSEL'],
+    [{ anchorageIds: ['RUS-PRIMORSK'] }, 'lower case'],
+    [{ confidences: [1] }, 'confidences'],
+  ];
+  for (const [bad, word] of cases) {
+    const outcome = await callTool(tool, session, { ...INPUT, ...bad }, reach);
+    expect(outcome).toMatchObject({ ok: false });
+    expect(JSON.stringify(outcome)).toContain(word);
+  }
+  expect(web.asked).toHaveLength(0);
+});
+
 test('a refusal of GFW shows the body of the error and never the token', async () => {
   const web = stubWeb(
-    () => json({ error: `bad filter for ${TOKEN}`, messages: ['portIds is not valid'] }, 422),
+    () => json({ error: `bad filter for ${TOKEN}`, messages: ['port-ids is not valid'] }, 422),
     { gfwToken: TOKEN },
   );
   const reach = { store: memoryStore(), web, now: () => new Date('2026-10-28T10:00:00Z') };
@@ -132,6 +167,6 @@ test('a refusal of GFW shows the body of the error and never the token', async (
     refusal: expect.stringContaining('answered 422') as unknown,
   });
   const message = JSON.stringify(result);
-  expect(message).toContain('portIds is not valid');
+  expect(message).toContain('port-ids is not valid');
   expect(message).not.toContain(TOKEN);
 });

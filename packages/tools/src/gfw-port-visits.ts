@@ -18,11 +18,31 @@ const CITATION = 'Global Fishing Watch';
 const LIMIT =
   'AIS only: a vessel that switches off its AIS, or that has no AIS in range, is not in this extract.';
 
+// The vessel types of the GET /v3/events documentation. TANKER is not one of them.
+const VESSEL_TYPES = [
+  'BUNKER',
+  'CARGO',
+  'DISCREPANCY',
+  'CARRIER',
+  'FISHING',
+  'GEAR',
+  'OTHER',
+  'PASSENGER',
+  'SEISMIC_VESSEL',
+  'SUPPORT',
+  'NON_FISHING',
+  'RESEARCH',
+] as const;
+
 const answerShape = z.object({
   entries: z.array(z.unknown()).default([]),
   nextOffset: z.number().int().nullish(),
   total: z.number().int().nullish(),
 });
+
+const imoOfEntry = z
+  .object({ vessel: z.object({ imo: z.string().optional() }) })
+  .transform((e) => e.vessel.imo);
 
 const outputShape = z.strictObject({
   document: z.string(),
@@ -30,6 +50,9 @@ const outputShape = z.strictObject({
   events: z.number().int(),
   total: z.number().int().nullable(),
   nextOffset: z.number().int().nullable(),
+  // The IMO numbers that GFW gives. The answer holds no IMO for most vessels: read it with the
+  // Vessels API then.
+  imos: z.array(z.string()),
   licence: z.string(),
   citation: z.string(),
   limit: z.string(),
@@ -53,18 +76,21 @@ export const gfwPortVisits = defineTool({
           z
             .string()
             .trim()
-            .regex(/^[A-Za-z0-9_-]{2,64}$/u, 'an anchorage id is a GFW id'),
+            .regex(
+              /^[a-z0-9-]{2,64}$/u,
+              'a port id is lower case letters, digits and dashes, for example rus-primorsk',
+            ),
         )
         .min(1)
         .max(100),
-      // shortcut: the type name and the portIds filter are not checked against a live answer, so
-      // the tool takes any upper case type name. Upgrade after the first live call: check that
-      // the stored entries are tankers at the requested anchorages.
-      vesselType: z
-        .string()
-        .trim()
-        .regex(/^[A-Z_]{3,30}$/u, 'a vessel type is upper case letters, for example TANKER')
-        .default('TANKER'),
+      // The values of the Events API v3 documentation, checked before the call.
+      vesselType: z.enum(VESSEL_TYPES),
+      // 2 low, 3 medium, 4 high confidence of a port visit. The default drops the low ones.
+      confidences: z
+        .array(z.union([z.literal(2), z.literal(3), z.literal(4)]))
+        .min(1)
+        .max(3)
+        .default([3, 4]),
       from: day,
       to: day,
       offset: z.number().int().min(0).default(0),
@@ -85,9 +111,14 @@ export const gfwPortVisits = defineTool({
     const query = new URLSearchParams();
     query.set('datasets[0]', DATASET);
     query.set('types[0]', 'PORT_VISIT');
-    query.set('vesselTypes[0]', input.vesselType);
+    // The query names are lower case with dashes: GFW refuses camel case in a GET query.
+    query.set('vessel-types[0]', input.vesselType);
     anchorages.forEach((id, at) => {
-      query.set(`portIds[${String(at)}]`, id);
+      query.set(`port-ids[${String(at)}]`, id);
+    });
+    const confidences = [...new Set(input.confidences)].sort();
+    confidences.forEach((level, at) => {
+      query.set(`confidences[${String(at)}]`, String(level));
     });
     query.set('start-date', input.from);
     query.set('end-date', input.to);
@@ -113,6 +144,7 @@ export const gfwPortVisits = defineTool({
         dataset: DATASET,
         anchorageIds: anchorages,
         vesselType: input.vesselType,
+        confidences,
         from: input.from,
         to: input.to,
         offset: input.offset,
@@ -133,8 +165,17 @@ export const gfwPortVisits = defineTool({
       },
       { body, json: answer.json },
     );
+    const imos = [
+      ...new Set(
+        entries.flatMap((entry) => {
+          const imo = imoOfEntry.safeParse(entry);
+          return imo.success && imo.data !== undefined && imo.data !== '' ? [imo.data] : [];
+        }),
+      ),
+    ].sort();
     return {
       ...stored,
+      imos,
       events: entries.length,
       total: total ?? null,
       nextOffset: nextOffset ?? null,
