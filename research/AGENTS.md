@@ -18,7 +18,10 @@ act on its verdict. The operator answers only the critical questions that it def
 ## The tools
 
 The MCP server `gab` gives each tool. A read changes nothing. A write needs no approval in the
-session: each proposal waits in the review queue, and the operator decides it there (P12).
+session: each proposal waits in the review queue (P12). **The operator never decides a proposal.**
+After each batch, the session that proposed starts at once a new AI reviewer (subagent or
+session, skill `review-unit`) on the units of the batch. Never end a step with "waits for the
+operator to accept" a proposal.
 
 - Read the record: `search_graph`, `read_entity`, `neighbourhood`, `list_vocabulary`,
   `list_proposals`, `list_entities` (the entities of one type in pages, with the count of those that

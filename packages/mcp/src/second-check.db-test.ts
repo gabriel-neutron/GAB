@@ -9,7 +9,7 @@ import { openrouterModel } from '@gab/model';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import pg from 'pg';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { expect, test } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 
 import { reference } from '../../../tools/author-fixture.ts';
@@ -24,6 +24,10 @@ import {
 } from '@gab/worker/runner-fixture';
 import type { SecondCheck } from './second-check.ts';
 import { createServer, type SessionPool } from './server.ts';
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 const SHA = 'f'.repeat(64);
 const DOC = `doc_${SHA.slice(0, 12)}`;
@@ -366,7 +370,18 @@ test('a batch above the token cap asks no model, and its items wait with no chec
   for (const act of run.acts) expect(act).toMatchObject(NO_CHECK);
 });
 
+test('a script of Claude Code with its own client name gets its check', async () => {
+  vi.stubEnv('CLAUDECODE', '1');
+  const router = routerOf(NO_READER);
+  const run = await proposeThrough(checkOf(router), [NAYARA], 'cli');
+
+  expect(router.checks()).toBe(1);
+  expect(run.output.checkFailure).toBeUndefined();
+  expect(run.acts[0]).toMatchObject({ ...passedCheck, passed: true });
+});
+
 test('a client of an unknown family asks no model, and its items wait with no check', async () => {
+  vi.stubEnv('CLAUDECODE', '');
   const router = routerOf(() => {
     throw new Error('the research check asks no reader');
   });

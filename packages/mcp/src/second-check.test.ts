@@ -94,9 +94,15 @@ describe('the checker of the research proposals', () => {
 
 describe('the family of the research AI', () => {
   it('reads the family from the name of the client', () => {
-    expect(readerFamilyOf('claude-code')).toBe('anthropic');
-    expect(readerFamilyOf('codex-mcp-client')).toBe('openai');
-    expect(readerFamilyOf('an-editor')).toBeNull();
-    expect(readerFamilyOf(undefined)).toBeNull();
+    expect(readerFamilyOf('claude-code', {})).toBe('anthropic');
+    expect(readerFamilyOf('codex-mcp-client', {})).toBe('openai');
+    expect(readerFamilyOf('an-editor', {})).toBeNull();
+    expect(readerFamilyOf(undefined, {})).toBeNull();
+  });
+
+  it('reads the family from Claude Code for a script that gives another name', () => {
+    expect(readerFamilyOf('cli', { CLAUDECODE: '1' })).toBe('anthropic');
+    expect(readerFamilyOf(undefined, { CLAUDECODE: '1' })).toBe('anthropic');
+    expect(readerFamilyOf('codex-mcp-client', { CLAUDECODE: '1' })).toBe('openai');
   });
 });
