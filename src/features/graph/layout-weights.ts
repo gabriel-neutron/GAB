@@ -8,8 +8,8 @@ import type { RelationFamily } from './relation-families';
 
 // A heavy weight pulls two nodes closer. Ownership and flag are the structure of a group, so they
 // bind the hardest. A designation is a legal fact about one node and binds less. A transfer is an
-// event between two nodes that stay apart in the rest of the graph, so it binds weakly. An
-// unplaced family (`other`) is the base of 1: it is the unit that the others scale.
+// event between two nodes that stay apart in the rest of the graph, so it binds weakly. The
+// family `other` is the base of 1: it is the unit that the others scale.
 export const FAMILY_WEIGHT: Readonly<Record<RelationFamily, number>> = {
   ownership: 3,
   designation: 2,

@@ -9,7 +9,7 @@ import type { LayoutInput } from './layout-weights';
 // Iterations for each frame: a batch of 6 costs a few ms at 3000 nodes with the Barnes-Hut tree.
 const STEP = 6;
 // The run stops after this many frames, settled or not, so a graph that never rests still ends.
-const MAX_FRAMES = 240;
+const MAX_FRAMES = 120;
 // The run stops when the mean move of a node in one batch falls under this share of the picture.
 const SETTLED = 0.0004;
 
@@ -90,9 +90,14 @@ export function createLiveLayout(
     }
     const graph = new Graph({ type: 'undirected', multi: false });
     const near = new Map<string, string[]>();
+    const join = (from: string, to: string): void => {
+      const held = near.get(from);
+      if (held === undefined) near.set(from, [to]);
+      else held.push(to);
+    };
     for (const { source, target } of links) {
-      near.set(source, [...(near.get(source) ?? []), target]);
-      near.set(target, [...(near.get(target) ?? []), source]);
+      join(source, target);
+      join(target, source);
     }
     // A returning node goes to the mean of the neighbours that already hold a place, with a
     // small fixed offset from its position in the list so two such nodes do not stack.
@@ -135,11 +140,11 @@ export function createLiveLayout(
       paint(nodes);
       step();
       frames += 1;
-      const span = Math.max(
-        ...nodes.map((node) => Math.abs(placeOf(node).x)),
-        ...nodes.map((node) => Math.abs(placeOf(node).y)),
-        Number.EPSILON,
-      );
+      let span = Number.EPSILON;
+      for (const node of nodes) {
+        const at = placeOf(node);
+        span = Math.max(span, Math.abs(at.x), Math.abs(at.y));
+      }
       if (frames >= MAX_FRAMES || travel / nodes.length / span < SETTLED) {
         return;
       }

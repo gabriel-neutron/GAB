@@ -4,10 +4,27 @@ import { describe, expect, it } from 'vitest';
 import { layoutInput, pairWeight } from './layout-weights';
 import type { EdgeAttrs, NodeAttrs } from './model';
 
-const node = (entityType: string): NodeAttrs =>
-  ({ entityType, x: 0, y: 0, size: 1, color: '', label: '', type: '' }) as unknown as NodeAttrs;
-const edge = (relationType: string, type: EdgeAttrs['type']): EdgeAttrs =>
-  ({ relationType, type, size: 1, color: '' }) as unknown as EdgeAttrs;
+const node = (entityType: string): NodeAttrs => ({
+  x: 0,
+  y: 0,
+  size: 1,
+  color: '#000000',
+  label: '',
+  entityType,
+  type: 'dot',
+  candidate: false,
+  degree: 0,
+  isolate: false,
+  unplaced: false,
+});
+const edge = (relationType: string, type: EdgeAttrs['type']): EdgeAttrs => ({
+  size: 1,
+  color: '#000000',
+  type,
+  relationType,
+  validFrom: null,
+  validTo: null,
+});
 
 const build = (): MultiDirectedGraph<NodeAttrs, EdgeAttrs> => {
   const graph = new MultiDirectedGraph<NodeAttrs, EdgeAttrs>();
