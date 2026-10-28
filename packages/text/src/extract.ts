@@ -306,6 +306,7 @@ interface Piece {
 }
 
 interface Block extends Piece {
+  querySelectorAll(selector: string): ArrayLike<Block>;
   readonly childNodes: ArrayLike<Piece>;
   replaceWith(...pieces: Piece[]): void;
   cloneNode(deep: false): Block;
@@ -378,20 +379,16 @@ const asBlocks = (document: Page): void => {
   }
 };
 
-// Departure: Readability removes the date field of a page, as the "Release Date" of an OFAC page of
-// recent actions, because it is a short block next to the body. A Drupal datetime field (a label
-// and an item) is the date of the page, so each one that Readability lost is put before the text.
-const dated = (document: Page): string => {
-  const labels = Array.from(document.querySelectorAll('.field--type-datetime > .field__label'));
-  const items = Array.from(document.querySelectorAll('.field--type-datetime > .field__item'));
-  return labels
-    .map(
-      (label, i) => `${label.textContent?.trim() ?? ''}: ${items[i]?.textContent?.trim() ?? ''}
-
-`,
-    )
-    .join('');
-};
+// Departure: Readability removes the date field of a page, such as the "Release Date" of an OFAC
+// page of recent actions, because the field is a short block outside the body. A Drupal datetime
+// field has a label and an item. Each field that is not in the text of Readability is added as a
+// "Label: item" line before the text.
+const datesOf = (document: Page): [string, string][] =>
+  Array.from(document.querySelectorAll('.field--type-datetime')).flatMap((field) => {
+    const label = field.querySelectorAll('.field__label')[0]?.textContent?.trim();
+    const item = field.querySelectorAll('.field__item')[0]?.textContent?.trim();
+    return label && item ? [[label, item] as [string, string]] : [];
+  });
 
 // Readability keeps only one part of a long legal act: on Regulation (EU) 2022/879 it kept Annex IV
 // alone. An XHTML answer is a document that a publisher builds as one whole text, as the official
@@ -407,13 +404,15 @@ const htmlPage = (bytes: Uint8Array, mime: string, whole: boolean): string => {
       part.remove();
     });
   asBlocks(document);
+  // Readability removes nodes from the document, so the dates are read first.
+  const dates = datesOf(document);
   // Readability finds nothing in a page with no article, and the whole body is then the text.
-  // Readability changes the document, so the dates are read first.
-  const dates = dated(document);
   const article = whole ? null : new Readability(document).parse();
   const html = article?.content ?? document.documentElement.outerHTML;
   const text = withoutNul(readable().turndown(html).trim());
-  return article === null ? text : `${dates}${text}`;
+  if (article === null) return text;
+  const lost = dates.filter(([, item]) => !text.includes(item));
+  return lost.map(([label, item]) => `${label}: ${item}\n\n`).join('') + text;
 };
 
 // External constraint: the types that extractText reads, by the extension that a file name holds.
