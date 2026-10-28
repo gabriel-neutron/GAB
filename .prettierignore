@@ -19,6 +19,8 @@ docs
 src/routeTree.gen.ts
 # A fixture in windows-1251 must keep its bytes as they are.
 packages/text/fixtures/windows-1251.html
+# A captured OFAC page: a test reads its text, so its line breaks stay as captured.
+packages/text/fixtures/ofac-recent-action-body-date.html
 # The release code writes the fixture of the release, and a test compares each byte.
 packages/site/fixtures
 

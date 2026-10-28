@@ -10,7 +10,6 @@ import { z } from 'zod';
 
 import { probe, rolledBack, type Ask } from '../../../tools/probe.ts';
 import { CATALOGUE } from './catalogue.ts';
-import { MAX_TOLERANT_UNITS } from './excerpt.ts';
 import { proposeOf } from './propose.ts';
 import { UK_LIST_CSV } from './uk-sanctions-list.ts';
 import { callTool, type Reach, type Session, type Tool } from './tool.ts';
