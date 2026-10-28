@@ -132,7 +132,7 @@ operator to accept" a proposal.
   `companies_house` needs a key. When the key is not set, the tool says so, and the other tools
   work.
 - **A sanctions match or a vessel event gives a document to cite.** `sanctions_match` needs a
-  key, and `vessel_events` needs a free token. When one is not set, the tool says so, and the
+  key, and `vessel_events` and `gfw_port_visits` need a free token. When one is not set, the tool says so, and the
   other tools work. OpenSanctions is a repeater: fetch the official entry that the tool names with
   `fetch_document`, and cite that. Events that are matched by an MMSI alone are a lead.
   When an IMO number or an MMSI names more than one identity, `vessel_events` refuses and

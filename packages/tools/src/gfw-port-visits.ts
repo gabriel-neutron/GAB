@@ -57,8 +57,9 @@ export const gfwPortVisits = defineTool({
         )
         .min(1)
         .max(100),
-      // shortcut: the value for a tanker is not checked against a live answer, so the tool
-      // takes any upper case type name. A wrong name is a 4xx refusal, never a silent read.
+      // shortcut: the type name and the portIds filter are not checked against a live answer, so
+      // the tool takes any upper case type name. Upgrade after the first live call: check that
+      // the stored entries are tankers at the requested anchorages.
       vesselType: z
         .string()
         .trim()
