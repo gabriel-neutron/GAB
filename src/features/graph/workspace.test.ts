@@ -14,7 +14,7 @@ afterEach(() => {
 });
 
 describe('the saved workspace of the graph', () => {
-  it('keeps a record saved before the switch existed, shows the ring, and drops the old hops', () => {
+  it('keeps a record saved before the switch existed, hides the nodes with no relation, and drops the old hops', () => {
     store({
       camera: { x: 0.2, y: 0.3, ratio: 0.5 },
       hiddenTypes: ['vessel'],
@@ -28,7 +28,7 @@ describe('the saved workspace of the graph', () => {
       hiddenTypes: ['vessel'],
       railOpen: false,
       railWidth: 300,
-      showUnplaced: true,
+      showUnplaced: false,
       hiddenRelationTypes: [],
     });
   });

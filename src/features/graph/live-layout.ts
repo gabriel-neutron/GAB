@@ -21,8 +21,8 @@ const SETTINGS = {
   barnesHutOptimize: true,
   // A hub of thousands of leaves then pulls each leaf less, so it stays a cluster, not a pole.
   outboundAttractionDistribution: true,
-  gravity: 0.5,
-  scalingRatio: 40,
+  gravity: 0.15,
+  scalingRatio: 15,
   slowDown: 4,
 } as const;
 
