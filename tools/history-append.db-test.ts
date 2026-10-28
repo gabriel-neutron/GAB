@@ -73,3 +73,21 @@ test('an update that adds no value to a history key keeps the value of the recor
     call_sign: { v: ['A', 'B', 'C'], src: ['manual', FIXTURE_DOCUMENT] },
   });
 });
+
+test('an update reads an old value that is one text or the text of a list, and adds each new value once', async () => {
+  const attrs = await rolledBack('app', async (ask) => {
+    const id = await created(ask, {
+      mmsi_history: { v: '111111111', src: ['manual'] },
+      call_sign: { v: '["A", "B"]', src: ['manual'] },
+    });
+    await updated(ask, id, {
+      mmsi_history: { v: ['222222222', '222222222'], src: [FIXTURE_DOCUMENT] },
+      call_sign: { v: ['A', 'C'], src: [FIXTURE_DOCUMENT] },
+    });
+    return attrsNow(ask, id);
+  });
+  expect(attrs).toMatchObject({
+    mmsi_history: { v: ['111111111', '222222222'], src: ['manual', FIXTURE_DOCUMENT] },
+    call_sign: { v: ['A', 'B', 'C'], src: ['manual', FIXTURE_DOCUMENT] },
+  });
+});
