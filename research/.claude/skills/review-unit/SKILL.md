@@ -73,8 +73,24 @@ decide the unit.
      reject it. Leave it in the queue, and tell the operator that the relation goes back to be
      retyped as `restricted_by`.
      A person with only a `restricted_by` relation is not a fact for the record.
+   - A supply, agency or payment relation (`supplies_items_to`, `acts_for`, `transfers_funds_to`,
+     `pays_for`, `settles_through`): the passage must state the act itself. These words give no
+     such relation, and the fact stays `associated_with` or `designated_by`: "materially
+     assisted", "provided goods or services to or in support of", "supports the military-industrial
+     complex", "customers include", "attempted to supply", "would facilitate", "scheme to",
+     "involved in procurement", "transshipment" ("procured" gives a relation only in the reverse
+     direction), a FinCEN typology that names no party, and a bare entry of a sanctions list. Do
+     not promote a unit with such a relation: reject the relation with `reject_relation`.
+     The one exception is `pays_for` for a plan or a scheme ("would facilitate ... on behalf
+     of"): promote it only with the attribute `status: planned`.
+     One fact gets one type only. Test `pays_for` against `settles_through`: when the far end is
+     a principal that the bank pays for, it is `pays_for`. When the far end is a channel that
+     the party uses, it is `settles_through`. An EU ban on transactions with a bank is
+     `restricted_by`.
    - A start or an end of a relation of the record (the card reads "Start of a relation" or "End
-     of a relation"): the passage must state that day for that relation. A date of publication,
+     of a relation"): the passage must state that day for that relation. The date of a designation is never the start
+     of a supply, an agency or a payment: the date comes from the activity that the source gives.
+     An end that the source does not give stays empty. A date of publication,
      a date of a later change, or a day of another entry does not support it.
 4. Decide:
    - The passages state each act, and no fault blocks the unit: call `promote_unit`.
