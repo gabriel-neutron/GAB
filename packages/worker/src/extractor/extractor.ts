@@ -1,3 +1,4 @@
+import { relationDefinition } from '@gab/proposal/relation-types';
 import type { Message, ToolUse } from '@gab/model';
 import { checkAnswer, verdictsOf } from '@gab/tools/check-answer';
 import { documentText } from '@gab/tools/document-text';
@@ -72,9 +73,26 @@ const vocabulary = z.strictObject({
 
 type Vocabulary = z.output<typeof vocabulary>;
 
-const vocabularyOf = async (session: Session): Promise<Vocabulary> => {
+/** The definition of each live relation type that the seed declares, by key. A new type of the
+ * vocabulary reaches the model with its definition and no change of this file. */
+export const definitionsOf = (keys: readonly string[]): Record<string, string> =>
+  Object.fromEntries(
+    keys.flatMap((key) => {
+      const definition = relationDefinition(key);
+      return definition === null ? [] : [[key, definition]];
+    }),
+  );
+
+const vocabularyOf = async (
+  session: Session,
+): Promise<
+  Vocabulary & {
+    relationDefinitions: Record<string, string>;
+  }
+> => {
   const { rows } = await session.query(VOCABULARY, []);
-  return vocabulary.parse(rows[0]);
+  const words = vocabulary.parse(rows[0]);
+  return { ...words, relationDefinitions: definitionsOf(words.relationTypes) };
 };
 
 // The answer of the model is the batch that the propose tool takes, so the research AI and the
@@ -226,7 +244,10 @@ export const makeExtractor = (
     // The model answers with the batch of one chunk. A refusal of the batch goes back to the
     // model once, with the sentence of the tool, and the model gives the whole batch again. The
     // answer is the second refusal, or null.
-    const readChunk = async (chunk: Chunk, words: Vocabulary): Promise<string | null> => {
+    const readChunk = async (
+      chunk: Chunk,
+      words: Awaited<ReturnType<typeof vocabularyOf>>,
+    ): Promise<string | null> => {
       const messages: Message[] = [
         { role: 'system', content: prompt },
         {
