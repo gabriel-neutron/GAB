@@ -14,7 +14,7 @@ import { KEY_ADVICE, keyWarnings } from './attribute-key.ts';
 import { plainText } from './check-answer.ts';
 import { UNIQUE_KEYS } from './duplicate-identifier.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
-import { findExcerpt, MAX_TOLERANT_UNITS, pointSlice, type Span } from './excerpt.ts';
+import { findExcerpt, pointSlice, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import { dateInUrl, occurredWeekdays } from './publication-date.ts';
 import {
@@ -370,13 +370,8 @@ const cite = async (
     findExcerpt(page.text, given.excerpt) ??
     refuse(
       ref,
-      page.text.length > MAX_TOLERANT_UNITS
-        ? `page ${String(given.page)} of ${given.document} holds more than ` +
-            `${String(MAX_TOLERANT_UNITS)} characters, so only an exact copy of its words is ` +
-            'found. Copy the excerpt character for character, with the quotes, the dashes and ' +
-            'the spaces of the page.'
-        : `page ${String(given.page)} of ${given.document} does not hold the excerpt ` +
-            `${JSON.stringify(given.excerpt)}. Copy the words as the page states them.`,
+      `page ${String(given.page)} of ${given.document} does not hold the excerpt ` +
+        `${JSON.stringify(given.excerpt)}. Copy the words as the page states them.`,
     );
   return {
     document: given.document,
