@@ -19,9 +19,8 @@ function PathNotFound() {
     <ReadingPage>
       <PageHeader title="Page not found" />
       <p>This address does not name a page.</p>
-      <AsciiNotFound />
-      {router.history.canGoBack() && (
-        <div>
+      <AsciiNotFound>
+        {router.history.canGoBack() && (
           <Button
             variant="outline"
             onClick={() => {
@@ -30,8 +29,8 @@ function PathNotFound() {
           >
             Go back
           </Button>
-        </div>
-      )}
+        )}
+      </AsciiNotFound>
     </ReadingPage>
   );
 }
