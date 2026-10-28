@@ -39,6 +39,7 @@ const COMMANDS = {
   'sentinel2-pairs': async () =>
     (await import('./sentinel2-pairs-command.ts')).sentinel2PairsCommand,
   'text-set': async () => (await import('./text-set-command.ts')).textSetCommand,
+  'undo-merge': async () => (await import('./undo-merge-command.ts')).undoMergeCommand,
 } as const satisfies Record<string, () => Promise<SubCommand>>;
 
 type CommandName = keyof typeof COMMANDS;
