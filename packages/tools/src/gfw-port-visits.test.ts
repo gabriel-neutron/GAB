@@ -14,6 +14,7 @@ if (tool === undefined) throw new Error('the catalogue holds no gfw_port_visits'
 const TOKEN = 'gfw-secret-9';
 const INPUT = {
   anchorageIds: ['rus-primorsk', 'rus-ust-luga'],
+  vesselType: 'CARGO',
   from: '2026-01-01',
   to: '2026-02-01',
 };
@@ -141,22 +142,22 @@ test('a window that does not run forward is refused', async () => {
 
 test('a value outside the documentation is refused before the call, with the valid values', async () => {
   const { web, session, reach } = setup();
-  for (const bad of [
-    { vesselType: 'TANKER' },
-    { anchorageIds: ['RUS-PRIMORSK'] },
-    { confidences: [1] },
-  ]) {
+  const cases: [Record<string, unknown>, string][] = [
+    [{ vesselType: 'TANKER' }, 'SEISMIC_VESSEL'],
+    [{ anchorageIds: ['RUS-PRIMORSK'] }, 'lower case'],
+    [{ confidences: [1] }, 'confidences'],
+  ];
+  for (const [bad, word] of cases) {
     const outcome = await callTool(tool, session, { ...INPUT, ...bad }, reach);
     expect(outcome).toMatchObject({ ok: false });
+    expect(JSON.stringify(outcome)).toContain(word);
   }
-  const vessel = await callTool(tool, session, { ...INPUT, vesselType: 'TANKER' }, reach);
-  expect(JSON.stringify(vessel)).toContain('SEISMIC_VESSEL');
   expect(web.asked).toHaveLength(0);
 });
 
 test('a refusal of GFW shows the body of the error and never the token', async () => {
   const web = stubWeb(
-    () => json({ error: `bad filter for ${TOKEN}`, messages: ['portIds is not valid'] }, 422),
+    () => json({ error: `bad filter for ${TOKEN}`, messages: ['port-ids is not valid'] }, 422),
     { gfwToken: TOKEN },
   );
   const reach = { store: memoryStore(), web, now: () => new Date('2026-10-28T10:00:00Z') };
@@ -166,6 +167,6 @@ test('a refusal of GFW shows the body of the error and never the token', async (
     refusal: expect.stringContaining('answered 422') as unknown,
   });
   const message = JSON.stringify(result);
-  expect(message).toContain('portIds is not valid');
+  expect(message).toContain('port-ids is not valid');
   expect(message).not.toContain(TOKEN);
 });

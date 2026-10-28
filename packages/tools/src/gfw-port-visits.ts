@@ -40,6 +40,10 @@ const answerShape = z.object({
   total: z.number().int().nullish(),
 });
 
+const imoOfEntry = z
+  .object({ vessel: z.object({ imo: z.string().optional() }) })
+  .transform((e) => e.vessel.imo);
+
 const outputShape = z.strictObject({
   document: z.string(),
   status: z.enum(['known', 'stored']),
@@ -80,7 +84,7 @@ export const gfwPortVisits = defineTool({
         .min(1)
         .max(100),
       // The values of the Events API v3 documentation, checked before the call.
-      vesselType: z.enum(VESSEL_TYPES).default('CARGO'),
+      vesselType: z.enum(VESSEL_TYPES),
       // 2 low, 3 medium, 4 high confidence of a port visit. The default drops the low ones.
       confidences: z
         .array(z.union([z.literal(2), z.literal(3), z.literal(4)]))
@@ -164,8 +168,8 @@ export const gfwPortVisits = defineTool({
     const imos = [
       ...new Set(
         entries.flatMap((entry) => {
-          const imo = (entry as { vessel?: { imo?: unknown } } | null)?.vessel?.imo;
-          return typeof imo === 'string' && imo !== '' ? [imo] : [];
+          const imo = imoOfEntry.safeParse(entry);
+          return imo.success && imo.data !== undefined && imo.data !== '' ? [imo.data] : [];
         }),
       ),
     ].sort();
