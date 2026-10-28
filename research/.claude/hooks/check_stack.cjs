@@ -7,12 +7,27 @@ const net = require('node:net');
 const path = require('node:path');
 
 const HOST = '127.0.0.1';
-const PORT = Number(process.env.GAB_DB_PORT ?? 5432);
+const DEFAULT_PORT = Number(process.env.GAB_DB_PORT ?? 5432);
 const COMPOSE = path.join(__dirname, '..', '..', '..', 'infra', 'docker-compose.yml');
+
+// A session stack names its own port in `infra/.env`, which this hook must not read. Compose reads
+// it, so ask compose. A stopped stack has no port to report: then the default stands.
+const portOfDb = () => {
+  try {
+    const out = execFileSync('docker', ['compose', '-f', COMPOSE, 'port', 'db', '5432'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 15_000,
+    });
+    return Number(/:(\d+)\s*$/u.exec(out)?.[1]) || DEFAULT_PORT;
+  } catch {
+    return DEFAULT_PORT;
+  }
+};
 
 const answers = () =>
   new Promise((resolve) => {
-    const socket = net.connect({ host: HOST, port: PORT });
+    const socket = net.connect({ host: HOST, port: portOfDb() });
     const done = (ok) => {
       socket.destroy();
       resolve(ok);
@@ -54,11 +69,11 @@ const main = async () => {
     say('The stack of the record was stopped, and this hook started it.', 'GAB stack started.');
   if (verdict === 'down')
     say(
-      `STOP. The database of the record does not answer on ${HOST}:${String(PORT)}, so the ` +
+      `STOP. The database of the record does not answer on ${HOST}:${String(portOfDb())}, so the ` +
         'research server gab cannot read the record. Tell the operator in one line: "The GAB ' +
         'stack does not run: start Docker Desktop, then the stack." Do no research step, and ' +
         'write no client of your own to reach the record.',
-      `GAB stack not running on ${HOST}:${String(PORT)}: start Docker Desktop, then the stack.`,
+      `GAB stack not running on ${HOST}:${String(portOfDb())}: start Docker Desktop, then the stack.`,
     );
 };
 

@@ -165,4 +165,5 @@ subagents, the reviewer subagent, the code sessions and the close of the step.
    code finds each value in its excerpt. Free text that you write into Gabriel is in French.
 8. **A refusal tells you what to correct.** It names the field, or the item of a batch, and the
    reason. Correct that part and call the tool again once.
-9. **Stop when the server is absent.** When a `gab` tool is absent or cannot reach the record, stop and say so in one line. Never write a client of your own.
+9. **Stop when the server is absent.** When a `gab` tool is absent or cannot reach the record,
+   stop and say so in one line. Never write a client of your own.
