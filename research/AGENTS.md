@@ -83,6 +83,9 @@ operator to accept" a proposal.
   keeps its dates and its type, and gets the document.
 - Read the sanctions lists and the movement of a vessel: `sanctions_match`, `vessel_events`.
   Each one stores its answer as a document.
+- Freeze the tankers seen at named anchorages: `gfw_port_visits` takes anchorage ids, a vessel type
+  and a date window, and stores the GFW port visits as a document with the CC BY-NC 4.0 licence and
+  the AIS-only limit. It needs `GFW_API_TOKEN`.
 - Read the heat detections of one site: `firms_detections` takes a site box and a period, and
   stores the NASA FIRMS answer as a document. It needs a free map key. When the key is not
   set, the tool says so, and the other tools work.
@@ -98,7 +101,7 @@ operator to accept" a proposal.
 - Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,
   `read_group`, `read_decided`, `read_leads`.
 - Write: `archive_snapshot`, `fetch_document`, `eu_act`, `ofac_sdn`, `uk_sanctions_list`,
-  `firms_detections`, `comtrade_data`, `sentinel2_pairs`, `site_image`, `store_saved_file`, `telegram_channel`,
+  `firms_detections`, `gfw_port_visits`, `comtrade_data`, `sentinel2_pairs`, `site_image`, `store_saved_file`, `telegram_channel`,
   `enqueue_extract`, `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question.
   `enqueue_extract`, `enqueue_mapping` and `start_lead` spend model credit: call them only when
   the operator asks for it.
