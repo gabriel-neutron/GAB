@@ -56,4 +56,19 @@ describe('undatedDesignations', () => {
     expect(counted.total).toBe(6);
     expect(counted.byAct).toEqual({ us_eo_14024: 2, us_ofac_action: 1, eu: 1, uk: 1, other: 1 });
   });
+
+  it('keeps the act by label, and gives other to a mixed or unknown source', () => {
+    const record = {
+      entities: [entity(1, 'Executive Order 14024')],
+      relations: [
+        relation(1, 1, null, ['eu_eurlex']),
+        relation(2, 7, null, ['eu_eurlex', 'uk_sanctions_list']),
+        relation(3, 7, null),
+      ],
+      documents: new Map([doc('eu_eurlex'), doc('uk_sanctions_list')].map((d) => [d.id, d])),
+    };
+    const counted = undatedDesignations(record);
+    expect(counted.byAct).toEqual({ us_eo_14024: 1, us_ofac_action: 0, eu: 0, uk: 0, other: 2 });
+    expect(Object.values(counted.byAct).reduce((a, b) => a + b, 0)).toBe(counted.total);
+  });
 });

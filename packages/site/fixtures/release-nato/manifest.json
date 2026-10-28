@@ -169,9 +169,9 @@
       "uk": 0,
       "other": 0
     },
-    "cause": "The OFAC SDN.CSV file holds no designation date. A US designation has a start date only when a Recent Actions page gives it.",
-    "effect": "The dated-fact test of the arms layer (COMBATTRE) leaves out most producers and intermediaries, because their designation has no start date.",
-    "baselineMetrics": "No metric of this baseline reads the start date (validFrom) of a designation. The US dates of #999 are a declared blind spot; the next release compares the counts above."
+    "cause": "Note on the source: the OFAC SDN.CSV file holds no designation date. A US designation has a start date only when a page of the OFAC Recent Actions gives it.",
+    "effect": "Note on use: a test of dated facts that reads the start date of a designation cannot count an undated designation. The counts above show how many are left out.",
+    "baselineMetrics": "No baseline metric reads the start date of a designation. The US dates are a declared blind spot of this release; the next release compares these counts."
   },
   "files": [
     {

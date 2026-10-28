@@ -2,8 +2,7 @@ import { regimeOfSources } from './alignment-matrix.ts';
 import type { ReleaseRecord } from './release-record.ts';
 
 /** The act that a `designated_by` relation names, split for the count of the blind spot. */
-export const ACTS = ['us_eo_14024', 'us_ofac_action', 'eu', 'uk', 'other'] as const;
-export type Act = (typeof ACTS)[number];
+type Act = 'us_eo_14024' | 'us_ofac_action' | 'eu' | 'uk' | 'other';
 
 /** The same count in SQL, for a reader who checks it on the record. The code below gives the
  * counts of the manifest; this text states the rule. */
@@ -21,11 +20,11 @@ export interface UndatedDesignations {
 }
 
 const CAUSE =
-  'The OFAC SDN.CSV file holds no designation date. A US designation has a start date only when a Recent Actions page gives it.';
+  'Note on the source: the OFAC SDN.CSV file holds no designation date. A US designation has a start date only when a page of the OFAC Recent Actions gives it.';
 const EFFECT =
-  'The dated-fact test of the arms layer (COMBATTRE) leaves out most producers and intermediaries, because their designation has no start date.';
+  'Note on use: a test of dated facts that reads the start date of a designation cannot count an undated designation. The counts above show how many are left out.';
 const METRICS =
-  'No metric of this baseline reads the start date (validFrom) of a designation. The US dates of #999 are a declared blind spot; the next release compares the counts above.';
+  'No baseline metric reads the start date of a designation. The US dates are a declared blind spot of this release; the next release compares these counts.';
 
 /** Counts the `designated_by` relations that have no start date, by act. The count comes from the
  * record of the release, never from a hand count. */
