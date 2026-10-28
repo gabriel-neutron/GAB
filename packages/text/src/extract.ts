@@ -381,7 +381,8 @@ const asBlocks = (document: Page): void => {
 
 // Departure: Readability removes the date field of a page, such as the "Release Date" of an OFAC
 // page of recent actions, because the field is a short block outside the body. A Drupal datetime
-// field has a label and an item. Each field that is not in the text of Readability is added as a
+// field has a label and an item. Each field whose label and item are not both in the text of
+// Readability is added as a
 // "Label: item" line before the text.
 const datesOf = (document: Page): [string, string][] =>
   Array.from(document.querySelectorAll('.field--type-datetime')).flatMap((field) => {
