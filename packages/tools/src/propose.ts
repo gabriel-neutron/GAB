@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { day } from '@gab/proposal/day';
 import { attributeEdit } from '@gab/proposal/attribute-value';
 import { GEOLOCATION_WORDS, geolocationMethod } from '@gab/proposal/geolocation-method';
+import { identifierContainment } from '@gab/proposal/identifiers';
 import { machineAct } from '@gab/proposal/machine';
 import { ASSET_KINDS } from '@gab/proposal/mapping';
 import type { ProposalAct } from '@gab/proposal/payload';
@@ -13,6 +14,7 @@ import { KEY_ADVICE, keyWarnings } from './attribute-key.ts';
 import { plainText } from './check-answer.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
 import { findExcerpt, MAX_TOLERANT_UNITS, pointSlice, type Span } from './excerpt.ts';
+import { UNIQUE_KEYS } from './duplicate-identifier.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import { dateInUrl, occurredWeekdays } from './publication-date.ts';
 import {
@@ -577,6 +579,44 @@ const queuedWithNoPlace = async (session: Session, id: string): Promise<boolean>
     )
   ).length > 0;
 
+// A new entity with an identifier that the record holds, or that another new entity of the queue
+// holds, is one thing recorded twice. The same name in the queue is a retry of the same batch.
+const HOLDERS = `SELECT id::text AS id, label FROM api.entity WHERE attrs @> ANY($1::jsonb[])
+  UNION ALL
+  SELECT id::text, payload->>'label' FROM api.proposal
+  WHERE status = 'pending' AND op = 'create_entity' AND payload->>'label' <> $2::text
+    AND payload->'attrs' @> ANY($1::jsonb[])
+  LIMIT 1`;
+
+const checkNewIdentifiers = async (
+  session: Session,
+  ref: string,
+  act: WriteRequest,
+): Promise<void> => {
+  if (act.op !== 'create_entity') return;
+  for (const key of UNIQUE_KEYS) {
+    const held = act.attrs?.[key]?.v;
+    for (const value of Array.isArray(held) ? held : [held]) {
+      if (typeof value !== 'string' && typeof value !== 'number') continue;
+      const shapes = identifierContainment(key, String(value)).map((shape) =>
+        JSON.stringify(shape),
+      );
+      const [holder] = await rowsOf(
+        session,
+        z.strictObject({ id: z.string(), label: z.string().nullable() }),
+        HOLDERS,
+        [shapes, act.label],
+      );
+      if (holder !== undefined)
+        refuse(
+          ref,
+          `the record holds the ${key} ${String(value)} already, on the entity ${holder.id} ` +
+            `(${holder.label ?? 'no name'}): propose attributes for that entity, or give no ${key}`,
+        );
+    }
+  }
+};
+
 const checkTarget = async (session: Session, ref: string, act: WriteRequest): Promise<void> => {
   if (act.op !== 'update_attrs' && act.op !== 'update_relation' && act.op !== 'update_entity')
     return;
@@ -859,7 +899,7 @@ export const proposeOf = (modelCallId: string | null) =>
   defineTool({
     name: 'propose',
     description:
-      'Proposes a batch of linked facts: new entities, new relations, attributes to add, and the ' +
+      'Proposes a batch of linked facts: new entities (refused when the record holds the IMO, LEI, INN or OGRN already, and the refusal names that entity), new relations, attributes to add, and the ' +
       'end date of an open relation of the record (update_relation, when a page states that an ' +
       'owner, a flag, an operator or an insurer changed), or the start date of a relation of the ' +
       'record that has none (update_relation with validFrom, when a dated page states it), and one ' +
@@ -1002,6 +1042,7 @@ export const proposeOf = (modelCallId: string | null) =>
               `cite the passage that states it, or give no ${lostBound.name}`,
           );
         await checkTarget(session, given.ref, request);
+        await checkNewIdentifiers(session, given.ref, request);
         if (given.act.op === 'add_source')
           await checkSourceNames(session, given.ref, given.act.targetId, cited);
         const act = machineAct(request, documents);
