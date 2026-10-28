@@ -104,3 +104,14 @@ test('an update whose list holds each old value and an older one gives the order
     mmsi_history: { v: ['314975000', '273278480'], src: ['manual', FIXTURE_DOCUMENT] },
   });
 });
+
+test('an update that swaps two old call signs keeps the order of the record and adds the new one', async () => {
+  const attrs = await rolledBack('app', async (ask) => {
+    const id = await created(ask, { call_sign: { v: ['A', 'B'], src: ['manual'] } });
+    await updated(ask, id, { call_sign: { v: ['B', 'A', 'C'], src: [FIXTURE_DOCUMENT] } });
+    return attrsNow(ask, id);
+  });
+  expect(attrs).toMatchObject({
+    call_sign: { v: ['A', 'B', 'C'], src: ['manual', FIXTURE_DOCUMENT] },
+  });
+});

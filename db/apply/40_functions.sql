@@ -107,11 +107,12 @@ LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
 $$;
 
 -- A HISTORY KEY GROWS, AND NEVER LOSES A VALUE. An update of the MMSI list or the call signs of a
--- vessel adds its new values after the values of the record. An act whose list holds each old
--- value gives the full history, so its order stands: the last value is the current one. The src
--- is the list of the documents of all the values: each document of the old value, then the new
--- ones. It does not link one value to one document. When the act adds no value, the old value
--- stays as it is, so the promotion sees no change.
+-- vessel adds its new values after the values of the record, unless its list holds each old value
+-- in the order of the record: that list gives the full history, so its order stands, and it can
+-- put an older value before the others. The last value is the current one. The src is the list
+-- of the documents of all the values: each document of the old value, then the new ones. It does
+-- not link one value to one document. When the act adds no value, the old value stays as it is,
+-- so the promotion sees no change.
 -- shortcut: no act removes a wrong value of a history key; add a remove op when one is found.
 CREATE OR REPLACE FUNCTION history_value(p_old jsonb, p_new jsonb)
 RETURNS jsonb
@@ -128,6 +129,9 @@ LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
     'v', CASE WHEN NOT EXISTS (SELECT 1 FROM added) THEN p_old->'v'
               WHEN NOT EXISTS (SELECT 1 FROM old_v
                                 WHERE NOT EXISTS (SELECT 1 FROM new_v WHERE new_v.e = old_v.e))
+               AND NOT EXISTS (SELECT 1 FROM old_v a JOIN new_v na ON na.e = a.e,
+                                             old_v b JOIN new_v nb ON nb.e = b.e
+                                WHERE a.n < b.n AND na.n > nb.n)
                 THEN (SELECT jsonb_agg(e ORDER BY n) FROM new_v)
               ELSE coalesce((SELECT jsonb_agg(e ORDER BY n) FROM old_v), '[]'::jsonb)
                    || (SELECT jsonb_agg(e ORDER BY n) FROM added) END,
