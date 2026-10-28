@@ -49,7 +49,9 @@
  *   - The grid is 4px with an 8px base. A control and a row are 32px.
  *
  * BEHAVIOUR
- *   - Nothing animates except a state change, and that lasts less than 120ms.
+ *   - Nothing animates except a state change, and that lasts less than 120ms. The one exception
+ *     is the asciify marks: the loading mark and the 404 numerals. They draw in characters, keep
+ *     the words in HTML, and hold still when the reader asks for less motion.
  *   - No emoji, no illustration, no round avatar.
  * ========================================================================================== */
 
@@ -235,6 +237,13 @@
   --sidebar-accent-foreground: var(--foreground);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
+
+  /* The ink of the asciify components follows the theme. A hue is state only, as everywhere. */
+  --ascii-ink: var(--muted-foreground);
+  --ascii-ink-strong: var(--foreground);
+  --ascii-success: var(--positive);
+  --ascii-warning: var(--signal);
+  --ascii-error: var(--dissent);
 }
 
 /* ------------------------------------------------------------------------------- light --- */

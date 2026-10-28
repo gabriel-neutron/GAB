@@ -1,4 +1,6 @@
 import { createRouter, useRouter, type RouterHistory } from '@tanstack/react-router';
+import { AsciiLoading } from '@/shared/ascii/ascii-loading';
+import { AsciiNotFound } from '@/shared/ascii/ascii-not-found';
 import { Button } from '@/shared/ui/button';
 import { ErrorNotice } from '@/shared/error-notice';
 import { PageHeader } from '@/shared/page/page-header';
@@ -17,6 +19,7 @@ function PathNotFound() {
     <ReadingPage>
       <PageHeader title="Page not found" />
       <p>This address does not name a page.</p>
+      <AsciiNotFound />
       {router.history.canGoBack() && (
         <div>
           <Button
@@ -54,7 +57,7 @@ function RouteError({ error }: { error: Error }) {
 function RoutePending() {
   return (
     <div className="flex h-full items-center justify-center p-4">
-      <p>Loading…</p>
+      <AsciiLoading />
     </div>
   );
 }
