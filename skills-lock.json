@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "asciify-engine": {
+      "source": "ayangabryl/asciify-engine",
+      "sourceType": "github",
+      "skillPath": "skills/asciify-engine/SKILL.md",
+      "computedHash": "7fee327c5c9bcb3ad6ee8bdb883710ac6d6f04f5896ab75ae7b0d5bd4fad0878"
+    }
+  }
+}
