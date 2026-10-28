@@ -18,7 +18,7 @@
  *   - The dark theme is the default. The canvas is near black and never pure black. The light
  *     theme is a warm grey and never pure white.
  *   - Depth is contrast. There is one raised level, `surface`. A panel does not sit in a panel.
- *   - No shadow, no blur, no glow. The only gradient is the faint grid of the page ground. The one shadow is a 1px ring on a popover.
+ *   - No shadow, no blur, no glow. The only gradient is the faint grid of the About page. The one shadow is a 1px ring on a popover.
  *
  * COLOUR
  *   - Chrome is neutral. A hue means data: an entity type, a relation family, a state.
@@ -34,7 +34,7 @@
  *   - No radius. Every corner is square: a control, a card, a panel, a frame.
  *   - A 1px hairline separates two surfaces. `border` is decoration. `input` is the edge of
  *     a control and holds 3:1. A fine line is the one ornament: a faint 1px grid sits on the
- *     page ground and is hidden by any panel, canvas or map placed on it.
+ *     ground of the About page only.
  *
  * TYPE
  *   - One text face and one monospace face. Text is regular weight with negative tracking on
@@ -367,16 +367,20 @@
   --grid-line: rgb(238 238 238 / 0.045);
 }
 
+/* The faint grid is for the About page only. Any other page keeps a plain ground. */
+.grid-ground {
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
-    background-image:
-      linear-gradient(var(--grid-line) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-    background-size: 64px 64px;
   }
   html {
     @apply font-sans;

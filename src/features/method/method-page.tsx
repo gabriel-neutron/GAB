@@ -69,7 +69,7 @@ export function MethodPage({ manifest }: MethodPageProps) {
         ] satisfies KeyValueEntry[])),
   ];
   return (
-    <ReadingPage>
+    <ReadingPage grid>
       <PageHeader
         title="About"
         detail="What this dataset holds, what its labels mean, and how to use and cite it."

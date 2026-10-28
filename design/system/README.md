@@ -1,4 +1,4 @@
-GAB is a terminal for an investigation: a black control surface where the data is the only thing allowed to carry colour. The chrome copies the Factory style exactly (Obsidian canvas, Geist at weight 400 with negative tracking, Geist Mono uppercase labels, square corners, 1px hairlines, a faint page grid, no shadows). The graph, the map, the detail panels and the animated report extend that style; they never bring a style of their own.
+GAB is a terminal for an investigation: a black control surface where the data is the only thing allowed to carry colour. The chrome copies the Factory style exactly (Obsidian canvas, Geist at weight 400 with negative tracking, Geist Mono uppercase labels, square corners, 1px hairlines, a faint grid on the About page, no shadows). The graph, the map, the detail panels and the animated report extend that style; they never bring a style of their own.
 
 ## Principles
 
@@ -81,7 +81,7 @@ Two themes: **Obsidian** (dark, the Factory original, the default) and **Bone** 
 
 ## Do not
 
-- No gradient but the faint page grid; no glass, blur, glow or drop shadow.
+- No gradient but the faint grid of the About page; no glass, blur, glow or drop shadow.
 - No blue-purple accent, no coloured left-border card, no rounded pill card, no stat cards with invented numbers.
 - No hue in the chrome, no second highlight colour in a chart, no colour as the only mark of a state.
 - No card inside a card, no panel inside a panel.
