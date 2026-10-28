@@ -10,7 +10,7 @@ The right-hand panel that explains one selected entity: who it is, what is prove
 5. Footer: one `primary` action, the rest `secondary`.
 
 ## Rules
-- Width `panel-width` (400px), `surface` fill, 1px `border` on the side that faces the canvas. Radius 0 on desktop; `radius-lg` top corners on a phone sheet.
+- Width `panel-width` (400px), `surface` fill, 1px `border` on the side that faces the canvas. Square corners.
 - Sections are separated by `divider` hairlines and a `caption` title. No card inside the panel.
 - A name or a value wraps; it is never cut with an ellipsis.
 - Every fact row can show its source on hover or focus; a candidate fact shows the hollow glyph and the dashed tag.

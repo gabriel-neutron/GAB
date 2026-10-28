@@ -1,6 +1,6 @@
 # Button
 
-A flat control with a 3px radius that commits an action; the fill is always neutral, never a data colour.
+A flat control with square corners that commits an action; the fill is always neutral, never a data colour.
 
 ## Variants
 - `gab-btn--primary`: `primary` fill, `primary-foreground` text. One per surface, for the step that commits (promote, save, export).
