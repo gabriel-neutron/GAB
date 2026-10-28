@@ -1,3 +1,5 @@
+import { setTimeout as timer } from 'node:timers/promises';
+
 import { day } from '@gab/proposal/day';
 import { z } from 'zod';
 
@@ -34,15 +36,97 @@ const VESSEL_TYPES = [
   'RESEARCH',
 ] as const;
 
+// The Vessels API reads many ids in one GET. The batch is small, so the address stays short, and
+// the calls run one after the other with a pause, as the API limits the rate of a token.
+const IDENTITY_DATASET = 'public-global-vessel-identity:latest';
+const VESSEL_BATCH = 20;
+const VESSEL_PAUSE_MS = 1_000;
+
+// shortcut: the GFW documentation lists no tanker value for the registry ship type (the vessel types
+// of the reference data have no tanker), so a vessel is a tanker when a registry class or ship type
+// holds the word. Name the exact values here when a live answer shows them.
+const TANKER = /tanker/iu;
+// A bunker boat, a gas carrier and a chemical tanker are not in the oil export fleet.
+const NOT_OIL = /bunker|lng|lpg|gas|chemical/iu;
+const isOilTanker = (type: string): boolean => TANKER.test(type) && !NOT_OIL.test(type);
+// The wait before the one retry of a 429.
+const RETRY_WAIT_MS = 5_000;
+
 const answerShape = z.object({
   entries: z.array(z.unknown()).default([]),
   nextOffset: z.number().int().nullish(),
   total: z.number().int().nullish(),
 });
 
-const imoOfEntry = z
-  .object({ vessel: z.object({ imo: z.string().optional() }) })
-  .transform((e) => e.vessel.imo);
+const visitVessel = z
+  .object({
+    vessel: z.object({
+      id: z.string().optional(),
+      name: z.string().nullish(),
+      ssvid: z.string().nullish(),
+      flag: z.string().nullish(),
+      imo: z.string().nullish(),
+    }),
+  })
+  .transform((e) => e.vessel);
+
+// What the Vessels API gives for one identity. selfReportedInfo is a list in most answers and one
+// object in the example of the documentation: both are read.
+const text = z.string().nullish();
+const identityShape = z.object({
+  selfReportedInfo: z
+    .union([z.array(z.object({ id: text })), z.object({ id: text })])
+    .nullish()
+    .transform((info) => (info === null || info === undefined ? [] : [info].flat())),
+  registryInfo: z
+    .array(z.object({ id: text, imo: text, shiptype: text, vesselType: text }))
+    .nullish()
+    .transform((info) => info ?? []),
+  combinedSourcesInfo: z
+    .array(
+      z.object({
+        registryVesselClass: z
+          .array(z.object({ value: text }))
+          .nullish()
+          .transform((v) => v ?? []),
+        shiptypes: z
+          .array(z.object({ name: text }))
+          .nullish()
+          .transform((v) => v ?? []),
+      }),
+    )
+    .nullish()
+    .transform((info) => info ?? []),
+});
+const vesselsAnswer = z.object({ entries: z.array(z.unknown()).default([]) });
+
+const registryOf = (entry: z.output<typeof identityShape>) => {
+  const imos = entry.registryInfo.flatMap((r) => (r.imo?.trim() ? [r.imo.trim()] : []));
+  const types = [
+    ...entry.registryInfo.flatMap((r) => [r.shiptype, r.vesselType]),
+    ...entry.combinedSourcesInfo.flatMap((c) => [
+      ...c.registryVesselClass.map((v) => v.value),
+      ...c.shiptypes.map((t) => t.name),
+    ]),
+  ].filter((t): t is string => typeof t === 'string' && t !== '');
+  return {
+    imo: imos[0] ?? null,
+    shipTypes: [...new Set(types)].sort(),
+    inRegistry: entry.registryInfo.length > 0,
+  };
+};
+
+const vesselShape = z.strictObject({
+  vesselId: z.string(),
+  name: z.string().nullable(),
+  mmsi: z.string().nullable(),
+  flag: z.string().nullable(),
+  imo: z.string().nullable(),
+  // Every ship type or class that the registry gives. Empty when the registry holds no record.
+  shipTypes: z.array(z.string()),
+  tanker: z.boolean(),
+  inRegistry: z.boolean(),
+});
 
 const outputShape = z.strictObject({
   document: z.string(),
@@ -53,6 +137,12 @@ const outputShape = z.strictObject({
   // The IMO numbers that GFW gives. The answer holds no IMO for most vessels: read it with the
   // Vessels API then.
   imos: z.array(z.string()),
+  // The vessels of the page with their registry identity: IMO and ship type.
+  vessels: z.array(vesselShape),
+  // The documents of the Vessels API answers, one for each batch of ids.
+  vesselDocuments: z.array(z.string()),
+  // The vessels that the registry does not know: they have no IMO, and tankersOnly drops them.
+  withoutRegistry: z.number().int(),
   licence: z.string(),
   citation: z.string(),
   limit: z.string(),
@@ -67,7 +157,12 @@ export const gfwPortVisits = defineTool({
     'set, it refuses and names the setting. The token goes in a header, and the stored address ' +
     'holds none. The document records the licence (CC BY-NC 4.0, non-commercial use), the ' +
     'citation (Global Fishing Watch) and the limit of the data (AIS only). One call stores one ' +
-    'page of 200 events: read the next page with nextOffset until it is null. The window holds ' +
+    'page of 200 events: read the next page with nextOffset until it is null. Then it reads each ' +
+    'distinct GFW vessel id of the page in the GFW Vessels API (20 ids for each call, one call each ' +
+    'second) and stores each answer as a document: the output gives the registry IMO and ship ' +
+    'types. The port visit answer has no tanker class (oil tankers fall in CARGO), so tankersOnly ' +
+    'keeps the vessels with a tanker in the registry ship type; a vessel with no registry record ' +
+    'is dropped then and counted in withoutRegistry. The window holds ' +
     'the day from and excludes the day to.',
   input: z
     .strictObject({
@@ -94,6 +189,9 @@ export const gfwPortVisits = defineTool({
       from: day,
       to: day,
       offset: z.number().int().min(0).default(0),
+      // Keeps only the vessels whose registry ship type is a tanker. The port visit answer has no
+      // tanker class: oil tankers fall in CARGO.
+      tankersOnly: z.boolean().default(false),
     })
     .refine((input) => input.from < input.to, { error: 'from comes before to' }),
   output: outputShape,
@@ -165,18 +263,98 @@ export const gfwPortVisits = defineTool({
       },
       { body, json: answer.json },
     );
-    const imos = [
-      ...new Set(
-        entries.flatMap((entry) => {
-          const imo = imoOfEntry.safeParse(entry);
-          return imo.success && imo.data !== undefined && imo.data !== '' ? [imo.data] : [];
-        }),
-      ),
-    ].sort();
+    // The registry step: the identity of each distinct GFW vessel id of the page.
+    const seen = new Map<string, z.output<typeof visitVessel>>();
+    for (const entry of entries) {
+      const vessel = visitVessel.safeParse(entry);
+      if (vessel.success && vessel.data.id !== undefined && vessel.data.id !== '')
+        seen.set(vessel.data.id, vessel.data);
+    }
+    const ids = [...seen.keys()].sort();
+    const sleep = reach.sleep ?? ((ms: number) => timer(ms));
+    const registry = new Map<string, ReturnType<typeof registryOf>>();
+    const vesselDocuments: string[] = [];
+    for (let at = 0; at < ids.length; at += VESSEL_BATCH) {
+      if (at > 0) await sleep(VESSEL_PAUSE_MS);
+      const batch = ids.slice(at, at + VESSEL_BATCH);
+      const vesselQuery = new URLSearchParams();
+      vesselQuery.set('datasets[0]', IDENTITY_DATASET);
+      batch.forEach((id, n) => {
+        vesselQuery.set(`ids[${String(n)}]`, id);
+      });
+      vesselQuery.set('registries-info-data', 'ALL');
+      const vesselRequest: RegisterRequest = {
+        ...request,
+        url: `${BASE}/v3/vessels?${vesselQuery.toString()}`,
+      };
+      let read: Awaited<ReturnType<typeof readRegister>>;
+      try {
+        read = await readRegister(webFromReach(reach), vesselRequest);
+      } catch (fault) {
+        if (!(fault instanceof ToolRefusal) || !fault.message.includes('answered 429')) throw fault;
+        await sleep(RETRY_WAIT_MS);
+        read = await readRegister(webFromReach(reach), vesselRequest);
+      }
+      if (read === null)
+        throw new ToolRefusal(
+          `${REGISTER} holds no Vessels answer for ${String(batch.length)} ids: the dataset may have moved`,
+        );
+      const vesselBody = JSON.stringify({
+        licence: LICENCE,
+        citation: CITATION,
+        limit: LIMIT,
+        request: { dataset: IDENTITY_DATASET, vesselIds: batch },
+        response: read.json,
+      });
+      if (vesselBody.includes(token))
+        throw new ToolRefusal(`${REGISTER} gave an answer that this tool does not store`);
+      const vesselStored = await storeRegister(
+        session,
+        reach,
+        {
+          ...vesselRequest,
+          title: `Global Fishing Watch identity of ${String(batch.length)} vessels, first id ${batch[0] ?? ''}`,
+        },
+        { body: vesselBody, json: read.json },
+      );
+      vesselDocuments.push(vesselStored.document);
+      for (const raw of shaped(REGISTER, vesselsAnswer, read.json).entries) {
+        const identity = identityShape.safeParse(raw);
+        if (!identity.success) continue;
+        const found = registryOf(identity.data);
+        for (const { id } of identity.data.selfReportedInfo)
+          if (id && seen.has(id)) registry.set(id, found);
+      }
+    }
+    const vessels = ids.map((vesselId) => {
+      const vessel = seen.get(vesselId);
+      const found = registry.get(vesselId);
+      return {
+        vesselId,
+        name: vessel?.name ?? null,
+        mmsi: vessel?.ssvid ?? null,
+        flag: vessel?.flag ?? null,
+        imo: found?.imo ?? vessel?.imo ?? null,
+        shipTypes: found?.shipTypes ?? [],
+        tanker: found?.shipTypes.some((t) => isOilTanker(t)) ?? false,
+        inRegistry: found?.inRegistry ?? false,
+      };
+    });
+    const kept = input.tankersOnly ? vessels.filter((v) => v.tanker) : vessels;
+    const keptIds = new Set(kept.map((v) => v.vesselId));
+    const events = input.tankersOnly
+      ? entries.filter((entry) => {
+          const vessel = visitVessel.safeParse(entry);
+          return vessel.success && keptIds.has(vessel.data.id ?? '');
+        }).length
+      : entries.length;
     return {
       ...stored,
-      imos,
-      events: entries.length,
+      imos: [...new Set(kept.flatMap((v) => (v.imo === null ? [] : [v.imo])))].sort(),
+      vessels: kept,
+      vesselDocuments,
+      withoutRegistry: vessels.filter((v) => !v.inRegistry).length,
+      events,
       total: total ?? null,
       nextOffset: nextOffset ?? null,
       licence: LICENCE,

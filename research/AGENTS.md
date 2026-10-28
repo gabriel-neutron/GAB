@@ -86,7 +86,8 @@ operator to accept" a proposal.
   Each one stores its answer as a document.
 - Freeze the tankers seen at named anchorages: `gfw_port_visits` takes anchorage ids, a vessel type
   and a date window, and stores the GFW port visits as a document with the CC BY-NC 4.0 licence and
-  the AIS-only limit. It needs `GFW_API_TOKEN`.
+  the AIS-only limit. It then reads the registry IMO and ship types of the vessels in the GFW
+  Vessels API, and `tankersOnly` keeps the oil tankers. It needs `GFW_API_TOKEN`.
 - Read the heat detections of one site: `firms_detections` takes a site box and a period, and
   stores the NASA FIRMS answer as a document. It needs a free map key. When the key is not
   set, the tool says so, and the other tools work.

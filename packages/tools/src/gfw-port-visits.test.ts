@@ -26,7 +26,7 @@ const fixture = {
     {
       id: 'pv1',
       type: 'port_visit',
-      vessel: { id: 'v1', name: 'ONE', ssvid: '273000001', imo: '9000001' },
+      vessel: { id: 'v1', name: 'ONE', ssvid: '273000001' },
       port_visit: {
         confidence: 4,
         startAnchorage: { anchorageId: '0d2f61f7', id: 'rus-primorsk' },
@@ -44,9 +44,35 @@ const fixture = {
   ],
 };
 
+// Shaped like the Vessels API documentation: a registry record with an IMO and a class, and one
+// vessel that only has AIS data.
+const vessels = {
+  total: 2,
+  metadata: { idsFound: ['v1', 'v2'], idsNotFound: [] },
+  entries: [
+    {
+      dataset: 'public-global-vessel-identity:latest',
+      registryInfo: [{ id: 'v1', imo: '9000001', shipname: 'ONE' }],
+      combinedSourcesInfo: [
+        {
+          registryVesselClass: [{ source: 'REGISTRY', value: 'CRUDE_OIL_TANKER' }],
+          shiptypes: [{ name: 'CARGO', source: 'GFW' }],
+        },
+      ],
+      selfReportedInfo: [{ id: 'v1', imo: null, ssvid: '273000001' }],
+    },
+    {
+      dataset: 'public-global-vessel-identity:latest',
+      registryInfo: [],
+      selfReportedInfo: [{ id: 'v2', imo: null, shiptype: 'OTHER_NON_FISHING' }],
+    },
+  ],
+};
+
 const setup = (settings: { gfwToken?: string } = { gfwToken: TOKEN }) => {
   const web = stubWeb((asked: Asked) => {
     if (asked.url.pathname === '/v3/events') return json(fixture);
+    if (asked.url.pathname === '/v3/vessels') return json(vessels);
     return text('absent', 404);
   }, settings);
   const store = memoryStore();
@@ -54,7 +80,12 @@ const setup = (settings: { gfwToken?: string } = { gfwToken: TOKEN }) => {
     web,
     store,
     session: hashDatabase(),
-    reach: { store, web, now: () => new Date('2026-10-28T10:00:00Z') },
+    reach: {
+      store,
+      web,
+      now: () => new Date('2026-10-28T10:00:00Z'),
+      sleep: () => Promise.resolve(),
+    },
   };
 };
 
@@ -84,7 +115,7 @@ test('the tool reads the port visits of the anchorages and stores them once with
   expect(params?.get('start-date')).toBe('2026-01-01');
   expect(params?.get('end-date')).toBe('2026-02-01');
 
-  expect(store.puts).toHaveLength(1);
+  expect(store.puts).toHaveLength(2);
   const stored = new TextDecoder().decode(store.puts[0]?.bytes);
   expect(JSON.parse(stored)).toMatchObject({
     licence: 'CC BY-NC 4.0',
@@ -95,7 +126,7 @@ test('the tool reads the port visits of the anchorages and stores them once with
 
   const second = await callTool(tool, session, INPUT, reach);
   expect(second).toMatchObject({ ok: true, output: { status: 'known' } });
-  expect(store.puts).toHaveLength(1);
+  expect(store.puts).toHaveLength(2);
 });
 
 test('the token goes in a header and never in an address, a document or a stored value', async () => {
@@ -118,7 +149,7 @@ test('the order of the anchorages makes no new document', async () => {
     { ...INPUT, anchorageIds: [...INPUT.anchorageIds].reverse() },
     reach,
   );
-  expect(store.puts).toHaveLength(1);
+  expect(store.puts).toHaveLength(2);
 });
 
 test('with no token the tool refuses, names the setting and asks nothing', async () => {
@@ -169,4 +200,154 @@ test('a refusal of GFW shows the body of the error and never the token', async (
   const message = JSON.stringify(result);
   expect(message).toContain('port-ids is not valid');
   expect(message).not.toContain(TOKEN);
+});
+
+test('the registry step reads the vessel ids in one call, stores the answer and fills the IMO', async () => {
+  const { web, store, session, reach } = setup();
+  const result = await callTool(tool, session, INPUT, reach);
+  const asked = web.asked.filter((a) => a.url.pathname === '/v3/vessels');
+  expect(asked).toHaveLength(1);
+  expect(asked[0]?.url.searchParams.get('ids[0]')).toBe('v1');
+  expect(asked[0]?.url.searchParams.get('ids[1]')).toBe('v2');
+  expect(asked[0]?.url.searchParams.get('datasets[0]')).toBe(
+    'public-global-vessel-identity:latest',
+  );
+  expect(result).toMatchObject({
+    ok: true,
+    output: {
+      imos: ['9000001'],
+      withoutRegistry: 1,
+      vessels: [
+        { vesselId: 'v1', imo: '9000001', tanker: true, inRegistry: true },
+        { vesselId: 'v2', imo: null, tanker: false, inRegistry: false },
+      ],
+    },
+  });
+  const second = new TextDecoder().decode(store.puts[1]?.bytes);
+  expect(JSON.parse(second)).toMatchObject({ licence: 'CC BY-NC 4.0', response: vessels });
+});
+
+test('tankersOnly keeps the tanker vessels and counts the vessels with no registry record', async () => {
+  const { session, reach } = setup();
+  const result = await callTool(tool, session, { ...INPUT, tankersOnly: true }, reach);
+  expect(result).toMatchObject({
+    ok: true,
+    output: { events: 1, imos: ['9000001'], withoutRegistry: 1 },
+  });
+  expect(JSON.stringify(result)).not.toContain('"vesselId":"v2"');
+});
+
+test('many vessel ids go in batches with a pause, and a 429 of the Vessels API is a refusal', async () => {
+  const many = {
+    ...fixture,
+    entries: Array.from({ length: 45 }, (_, n) => ({
+      id: `pv${String(n)}`,
+      type: 'port_visit',
+      vessel: { id: `vessel-${String(n).padStart(3, '0')}` },
+    })),
+  };
+  let limited = false;
+  const web = stubWeb(
+    (asked: Asked) =>
+      asked.url.pathname === '/v3/events'
+        ? json(many)
+        : limited
+          ? text('slow down', 429)
+          : json({ entries: [] }),
+    { gfwToken: TOKEN },
+  );
+  const pauses: number[] = [];
+  const reach = {
+    store: memoryStore(),
+    web,
+    now: () => new Date('2026-10-28T10:00:00Z'),
+    sleep: (ms: number) => {
+      pauses.push(ms);
+      return Promise.resolve();
+    },
+  };
+  const ok = await callTool(tool, hashDatabase(), INPUT, reach);
+  expect(ok).toMatchObject({ ok: true, output: { withoutRegistry: 45 } });
+  expect(web.asked.filter((a) => a.url.pathname === '/v3/vessels')).toHaveLength(3);
+  expect(pauses).toEqual([1000, 1000]);
+  limited = true;
+  const refused = await callTool(tool, hashDatabase(), { ...INPUT, offset: 200 }, reach);
+  expect(refused).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('429') as unknown,
+  });
+});
+
+test('a bunker, gas or chemical tanker is not an oil tanker, and one object of selfReportedInfo is read', async () => {
+  const entry = (id: string, type: string, single = false) => ({
+    registryInfo: [{ id: `r-${id}`, imo: `9${id}` }],
+    combinedSourcesInfo: [{ shiptypes: [{ name: type }] }],
+    selfReportedInfo: single ? { id } : [{ id }],
+  });
+  const many = {
+    ...fixture,
+    entries: ['1', '2', '3', '4'].map((n) => ({
+      id: `pv${n}`,
+      type: 'port_visit',
+      vessel: { id: `v${n}` },
+    })),
+  };
+  const web = stubWeb(
+    (asked: Asked) =>
+      asked.url.pathname === '/v3/events'
+        ? json(many)
+        : json({
+            entries: [
+              entry('v1', 'OIL_TANKER', true),
+              entry('v2', 'BUNKER_OR_TANKER'),
+              entry('v3', 'LNG_TANKER'),
+              entry('v4', 'CHEMICAL_TANKER'),
+              { selfReportedInfo: 5 },
+            ],
+          }),
+    { gfwToken: TOKEN },
+  );
+  const reach = {
+    store: memoryStore(),
+    web,
+    now: () => new Date('2026-10-28T10:00:00Z'),
+    sleep: () => Promise.resolve(),
+  };
+  const result = await callTool(tool, hashDatabase(), { ...INPUT, tankersOnly: true }, reach);
+  expect(result).toMatchObject({
+    ok: true,
+    output: { vessels: [{ vesselId: 'v1', tanker: true }], events: 1 },
+  });
+});
+
+test('a 429 of the Vessels API is asked again once, and a 404 is a refusal', async () => {
+  let vesselCalls = 0;
+  let status = 429;
+  const web = stubWeb(
+    (asked: Asked) => {
+      if (asked.url.pathname === '/v3/events') return json(fixture);
+      vesselCalls += 1;
+      return vesselCalls === 1 && status === 429
+        ? text('slow', 429)
+        : status === 404
+          ? text('no', 404)
+          : json(vessels);
+    },
+    { gfwToken: TOKEN },
+  );
+  const reach = {
+    store: memoryStore(),
+    web,
+    now: () => new Date('2026-10-28T10:00:00Z'),
+    sleep: () => Promise.resolve(),
+  };
+  const retried = await callTool(tool, hashDatabase(), INPUT, reach);
+  expect(retried).toMatchObject({ ok: true, output: { imos: ['9000001'] } });
+  expect(vesselCalls).toBe(2);
+  status = 404;
+  const moved = await callTool(tool, hashDatabase(), { ...INPUT, offset: 200 }, reach);
+  expect(moved).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('may have moved') as unknown,
+  });
 });
