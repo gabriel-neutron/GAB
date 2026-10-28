@@ -1,4 +1,17 @@
 {
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 150,
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/check_stack.cjs\""
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "mcp__gab__archive_snapshot",
