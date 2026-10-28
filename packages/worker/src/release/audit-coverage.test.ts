@@ -113,7 +113,10 @@ test('an owner is at the second end of the relation, and an ended relation does 
     { name: 'dated', relation: 'owns', end: 'to', dated: true },
   ];
   const run = (end: 'from' | 'to', ended: string) =>
-    auditCoverage(withRelation(end, ended), [{ ...steps(true)[0]!, fields }]).steps[0];
+    auditCoverage(
+      withRelation(end, ended),
+      steps(true).map((one) => ({ ...one, fields })),
+    ).steps[0];
   expect(run('to', '')).toMatchObject({ depth: { owner: { held: 1 }, dated: { held: 0 } } });
   expect(run('from', '')).toMatchObject({ depth: { owner: { held: 0 } } });
   expect(run('to', '2021-01-01')).toMatchObject({
