@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { readCsv } from '@gab/release/csv';
+import { readCsv } from '@gab/tools/csv';
 import { z } from 'zod';
 
 /** The keys that join a reference to the record. A name never joins. */
@@ -131,7 +131,7 @@ export const auditCoverage = (input: AuditInput, steps: Steps): Record<string, u
   const attributes = new Map<string, Map<string, Set<string>>>();
   const seen = new Set<string>();
   for (const one of table(input.claims)) {
-    const at = `${one.claim_id ?? ''}`;
+    const at = one.claim_id ?? '';
     if (one.claim_kind !== 'attribute' || one.subject_kind !== 'entity' || seen.has(at)) continue;
     seen.add(at);
     const held = attributes.get(one.subject_id ?? '') ?? new Map<string, Set<string>>();
