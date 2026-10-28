@@ -411,7 +411,8 @@ const htmlPage = (bytes: Uint8Array, mime: string, whole: boolean): string => {
   const html = article?.content ?? document.documentElement.outerHTML;
   const text = withoutNul(readable().turndown(html).trim());
   if (article === null) return text;
-  const lost = dates.filter(([, item]) => !text.includes(item));
+  // The body can state the same day (the page of 12 June 2024 does), so the label is tested too.
+  const lost = dates.filter(([label, item]) => !(text.includes(label) && text.includes(item)));
   return lost.map(([label, item]) => `${label}: ${item}\n\n`).join('') + text;
 };
 

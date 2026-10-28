@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { dateInUrl, occurredWeekdays, weekdayOf } from './publication-date.ts';
+import { dateInUrl, occurredWeekdays, weekdayOf, withOfacReleaseDate } from './publication-date.ts';
 
 test('a day gives its weekday in English', () => {
   expect(weekdayOf('2026-05-12')).toBe('Tuesday');
@@ -46,4 +46,20 @@ test('an act with no claimed day gives no weekday', () => {
   expect(occurredWeekdays({ op: 'create_entity' })).toStrictEqual([]);
   expect(occurredWeekdays({ attrs: { occurred_on: { v: '2026-05' } } })).toStrictEqual([]);
   expect(occurredWeekdays('text')).toStrictEqual([]);
+});
+
+test('the Release Date of an OFAC page of recent actions is month/day/year', () => {
+  const uri = 'https://ofac.treasury.gov/recent-actions/20220802';
+  expect(withOfacReleaseDate(uri, 'Release Date: 08/02/2022\n\nThe Department')).toBe(
+    'Release Date: 2022-08-02\n\nThe Department',
+  );
+  expect(withOfacReleaseDate(uri, 'Release Date: 04/06/2018')).toBe('Release Date: 2018-04-06');
+});
+
+test('another date of an OFAC page, and another page, stay as they are', () => {
+  const ofac = 'https://ofac.treasury.gov/recent-actions/20220802';
+  expect(withOfacReleaseDate(ofac, 'made on 08/02/2022')).toBe('made on 08/02/2022');
+  expect(withOfacReleaseDate('https://example.org/a', 'Release Date: 08/02/2022')).toBe(
+    'Release Date: 08/02/2022',
+  );
 });
