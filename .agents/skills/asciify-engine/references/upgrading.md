@@ -1,0 +1,93 @@
+# Update Asciify and its agent skill
+
+Use this when a user asks for the latest package or skill, or a requested feature needs a newer release. Updating npm does not refresh a Vercel Skills CLI installation, and updating a skill does not change the application's runtime dependency.
+
+## Package
+
+1. In the target application, inspect its manifest and lockfile; use that project's existing package manager. Read the installed version (`npm ls asciify-engine --depth=0`, or its package-manager equivalent) and check the registry (`npm view asciify-engine@latest version`). The skill's `tested-engine` is a compatibility checkpoint, not a live registry alias.
+2. When the task authorizes an upgrade, use `npm install asciify-engine@latest`, `pnpm add asciify-engine@latest`, `yarn add asciify-engine@latest`, or `bun add asciify-engine@latest` as appropriate. Preserve the project's exact-version policy and update the matching lockfile. Do not use `npm update` as a substitute when an existing range excludes latest. Never use a sibling `file:` dependency in a consumer release.
+3. Verify the resolved version and installed `asciify-engine/hover` types. Run the application's relevant build/tests and exercise its ASCII media, hover, cleanup and reduced-motion path. Check release notes before crossing a major version; resolve affected integration code rather than claiming the upgrade is automatically compatible.
+
+Version 1.3.0 adds velocity-driven Trail, character finishes (`filter`, `edgeEffect`, `edgeSoftness`), text cutouts (`textMask`) and optional boundary protection (`edgeSafe`, default false). Use `radius` from 0.1 to 1 for hover size. Existing core media APIs remain supported. Read [hero-finish.md](hero-finish.md) for complete examples and limits.
+
+Version 1.4.0 adds the optional `/studio` composition and export API. Its settings are separate from `AsciiOptions`; existing `/core` and `/hover` integrations keep their behavior. Read [studio-workspace.md](studio-workspace.md) only when adding these tools.
+
+## Installed agent skill
+
+Inspect `npx skills list --json` for project installs or `npx skills list -g --json` for global installs. Refresh this skill in the same scope:
+
+```sh
+# Existing project installation
+npx skills update asciify-engine --project --yes
+
+# Existing global installation
+npx skills update asciify-engine --global --yes
+```
+
+Use the scoped command matching the existing installation. Do not run an unqualified bulk update of every installed skill. If this skill is absent, install it with `npx skills add ayangabryl/asciify-engine --skill asciify-engine` and the appropriate scope/agent flags. Preserve agent selection; do not add `--all` unless requested. Inspect `npx skills --help` if CLI flags differ in the installed version. A manually copied skill can be refreshed from the same repository or the matching npm tarball's `skills/asciify-engine` directory; preserve unrelated files.
+
+After updating, read the installed SKILL.md and its linked references, confirm its source/version and resource links, and report both the resolved npm version and whether the installed skill was refreshed. If an offline/registry/authentication error prevents either step, report the actual partial result; do not silently fall back to an unverified version. These consumer upgrade instructions do not authorize publishing npm packages or deploying a site.
+
+## 2.0 catalog migration
+
+2.0.0 removes the `emoji`, `musical`, and `starfield` keys from `CHARSETS`, `ArtStyle`, and `ART_STYLE_PRESETS`. Before upgrading, search application settings and saved presets for those names. For current releases, use a custom `charset` or a current StudioStyle. The existing cosmic sequence now uses sparse marks/circles/shadows, and angular uses geometry/shards/blocks. Other core options and renderers retain their behavior. Do not pass retired keys or tell users that custom Unicode has been removed.
+
+The curated `STUDIO_CHARACTER_SETS` export is available from `/studio` in 2.0.0. Its values contain `label` and `chars`; assign `chars` to Studio settings only for `style: 'ascii'`. The primary editor at `/editor` uses Studio; earlier webcam and classic-editor workflows remain at `/editor/classic`.
+
+2.0.1 fixes Dither size controls and publishes `studioGrid` for budget-aware size pickers. Still-image exports accept `time` for the selected frame. Existing calls default to frame zero. No preset names change in this patch.
+
+## 3.0 motion migration
+
+3.0 removes the old ambient animation identifiers from the public `AnimationStyle` and Studio types and deletes their implementations. Use `none`, `caustics`, `current`, or `reform` instead. The `/hover` module also replaces `print` with `caustics`. Old saved Studio IDs normalize to `none`; do not silently substitute an effect. Review application-owned saved core options when upgrading and replace retired IDs explicitly.
+
+These are actual new treatments, not aliases for Fire, Breathe, Rainbow, Hologram, or the old row-wave effects. Caustics moves light through a fixed grid; Current carries the image with bounded local flow; Reform disperses and reassembles cells with spatially staggered timing. Core Canvas uses the same field with simpler opacity modulation; `/hover` and `/studio` also modulate character density. Hover and optical glitch/blur finishes are separate and remain available. Optional procedural backgrounds are unchanged.
+
+Use one motion owner: `animationStyle` for core, `motion` for `/hover`, or `motion.type` for `/studio`. Keep Off as the default for video. Each motion loops every `12 / speed` seconds. Offer pause, respect reduced motion, and avoid claiming a guaranteed FPS on every device.
+
+## 4.0 background migration
+
+Remove imports from `asciify-engine/backgrounds` and generator imports from the root package. Use `background(host, { preset })` from `asciify-engine/kit` (4.14 and later) with the closest curated preset; [kit.md](kit.md#backgrounds) maps each retired one. The single-file templates once downloadable from asciify.org/backgrounds (`asciiBackground` from `./wave.js`) are no longer offered; copies already in an app keep working and keep calling `destroy()` on unmount. Existing installations can stay on 3.x while migrating. Text and media rendering remain supported, including text backgrounds.
+
+Use `CHARACTER_SETS` from root or `/core` for the same eight choices as the editor's `STUDIO_CHARACTER_SETS`. This data-only import does not load Studio. Keep custom characters available separately; do not import the removed `CHARSETS` object.
+
+
+## 4.1.0 — remove legacy catalogs
+
+This requested minor version contains breaking API removals: `CHARSETS`, `ART_STYLE_PRESETS`, `CHARSET_SEQUENCES`, `LIVING_STYLE_PRESETS`, `CharsetKey`, `CharsetSequenceKey`, and `LivingStylePresetKey`. Search source, saved settings, generated snippets, and documentation before upgrading. Use `/studio`'s 15 `STUDIO_STYLES` for render styles; use `/core`'s curated `CHARACTER_SETS` for ASCII alphabets. Replace old shorthand `artStyle` names with actual Studio rendering or explicit core charset/renderMode/colorMode options. Core only accepts `artStyle: 'classic'`. Custom `charset` and `charsetFrames` remain supported. Fine-dither hover integration uses explicit `fineDither: true`, not the removed terminal preset.
+
+## 4.3 and 4.3.1
+
+4.3 adds Magnetic Pull and Scatter hover (`magnetic`, `scatter`) and Sheen, Tidal Rings and Living Grain motion (`sheen`, `tidal`, `grain`). Old defaults remain. 4.3.1 fixes CMYK tonal interactions and idle-frame work, caches stationary compositions, and accelerates ordered dithering without changing its output. Read [project-integration.md](project-integration.md) for one-owner live integration and independent PNG/video export.
+
+## 4.4
+
+Adds Emboss, Elastic and Rake hover; Parallax, Woven Flow, Print Shift and Contour Light motion. Existing IDs, defaults, saved projects and v1 settings remain valid. `STUDIO_HOVERS` and `STUDIO_MOTIONS` are now shared public catalogs in `/studio` and `/hover`; generate selection controls from them. The four new ambient IDs are also accepted by core `animationStyle`. Keep only one owner for motion.
+### 4.5 tonal controls and blue noise
+
+Adds the `blue-noise` dither algorithm and optional Studio `color.blackPoint`, `whitePoint`, `gamma`, `shadows`, and `highlights` fields. Existing render defaults and existing dither output are unchanged. The serialized settings version remains 1; older engines will ignore these new choices, so check the installed package before using them. Refresh the agent skill separately from the npm dependency. These are Studio features, not additional core `AsciiOptions`.
+
+### 4.6 channel curves and source noise
+
+Adds Studio `color.curves` and `color.denoise` with neutral defaults. Curves support independently editable RGB/red/green/blue control points; incremental updates merge channels, replacing only supplied point arrays. `player.settings` returns a detached current snapshot for persistence/export. Settings version remains 1; older packages ignore the new fields and do not expose the getter. Read the installed types, update the runtime dependency and refresh the agent skill together when adopting these APIs. Root/core/hover behavior is unchanged.
+
+### 4.7 ordered source warps
+
+Adds optional Studio `warps` and `warpEdge` with an empty default stack. Nine transform types are exposed through `STUDIO_WARPS`, plus `MAX_STUDIO_WARPS` and `normalizeStudioWarps` for control builders. Updating `warps` replaces the array. Reuse `player.settings` for save/export. Static shaping does not enable motion; existing motion and hover remain independent. Dither now interpolates alpha with color during motion/hover. Settings version stays 1, root/core/hover behavior remains unchanged, and older packages ignore the new fields. See [source shaping](source-shaping.md); update the runtime and installed skill separately.
+
+### 4.8 layered projects
+
+Adds `mountStudioProject`, `mountStudioProjectMedia`, `createStudioProjectRenderer`, `exportStudioProject` and the typed project model in optional `/studio`. Up to eight independently styled media/text layers share a playback loop and cell/raster budgets. Existing single-source APIs/defaults remain. Layered project JSON uses a distinct `kind` and source keys; it is not interchangeable with single-source settings JSON and does not contain media. See [layered-projects.md](layered-projects.md) for ownership, pointer routing, export consistency and migration choices. Refresh this skill separately from npm; do not migrate simple heroes unnecessarily.
+
+## 4.9 print rendering
+
+Six additional `STUDIO_STYLES` use optional `print` settings. Existing v1 settings remain valid and ASCII defaults stay unchanged. The print group merges on partial updates. Import the shared catalog and read [print-styles.md](print-styles.md); offer print-specific controls only for those styles. Existing `print` and `riso` look IDs retain their dither behavior. Refresh the npm dependency and installed skill separately.
+
+## 4.10 interaction expansion
+
+Adds `lens`, `smudge`, `ripple` hover and `relight`, `shimmer`, `breeze`, `unfold` ambient motion. No IDs are removed and existing defaults remain. `STUDIO_ANIMATION_PRESETS` is exported by Studio and hover; its nested settings are shaped for `player.update`. Core accepts the new ambient IDs through `animationStyle`, with its existing simpler opacity treatment. Do not pass the new surface hover IDs to core `hoverEffect`. Update the npm dependency and refresh the agent skill separately; older packages do not implement these IDs.
+
+## Photo-aware motion and finish (after 4.21)
+
+The still-image motions are rebuilt to read the photograph's own light, relief, highlights, detail and depth instead of laying a pattern over it. The catalog is `relight`, `sheen` (Specular sweep), `glow` (Highlight bloom, new), `shimmer` (Glints), `parallax`, `push` (Slow push, new), `focus` (Focus pull, new), `mist` (new), `current` (Drift) and `develop` (new), plus `none`. Retired IDs keep working everywhere (Studio settings, share links, `mountHover` `motion`, core `animationStyle`) and load as their closest replacement, listed in `DEPRECATED_STUDIO_MOTIONS`: `caustics` → `sheen`, `grain` → `shimmer`, `trace` → `relight`, `tidal`, `weave`, `breeze` → `current`, `reform`, `print`, `unfold` → `develop`. Normalized settings store the new ID. Depth motions now move the image through a fixed character grid instead of moving glyphs; the core renderer (`animationStyle`) draws them the same way as the Studio, sharing its motion code, and light motions change tone, colour and density there rather than only opacity. Drift moves only detected water and sky. `STUDIO_ANIMATION_PRESETS` keeps its six IDs with new pairings and adds `depth-study`; the `wallpaper` look uses Relight.
+
+The optical finish's `bloom` is now a wide, soft-kneed halation screened over the image (no offset ghosts), and `grain` is fine triangular film grain weighted to the midtones. IDs and ranges are unchanged; existing looks render slightly softer and cleaner.
