@@ -1,5 +1,5 @@
 // The force run, off the main thread. The page sends the nodes, their places and the weighted
-// links, and the worker answers with the places about 6 times each second, until the picture
+// links, and the worker answers with the places about 2 times each second, until the picture
 // settles. A new `run` or a `stop` ends the run in progress.
 
 import Graph from 'graphology';
@@ -29,7 +29,7 @@ export interface OutMessage {
 
 // Iterations for each batch, and the time that batches may take before the worker posts.
 const STEP = 6;
-const POST_EVERY_MS = 150;
+const POST_EVERY_MS = 400;
 // The run stops after this many batches, settled or not, so a graph that never rests still ends.
 const MAX_BATCHES = 80;
 // The run stops when the mean move of a node in one batch falls under this share of the picture.
