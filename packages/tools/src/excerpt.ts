@@ -120,25 +120,14 @@ const unitIndex = (text: string, point: number): number => {
 export const pointSlice = (text: string, start: number, end: number): string =>
   text.slice(unitIndex(text, start), unitIndex(text, end));
 
-/** The most UTF-16 units of a page on which the folded match runs. Origin: decided, not
- * calibrated. The fold makes arrays of about 64 bytes for each character, so this cap holds its
- * memory near 64 MiB. A page above it is a whole list or a whole act, and an exact copy of its
- * words is found with no fold. */
+/** The most UTF-16 units of a page that the fold reads at one time. Origin: decided, not
+ * calibrated. The fold makes arrays of about 64 bytes for each character, so this size holds its
+ * memory near 64 MiB. A longer page is read in windows that overlap by more than an excerpt. */
 export const MAX_TOLERANT_UNITS = 1024 * 1024;
 
-/** Where a page holds an excerpt: the exact text first, then the folded text. The folded match
- * runs only on a page of at most MAX_TOLERANT_UNITS. Null when the page does not hold it. */
-export const findExcerpt = (page: string, excerpt: string): Span | null => {
-  const exact = excerpt === '' ? -1 : page.indexOf(excerpt);
-  if (exact !== -1) {
-    const start = pointIndex(page, exact);
-    return { start, end: start + pointIndex(excerpt, excerpt.length) };
-  }
-  if (page.length > MAX_TOLERANT_UNITS) return null;
-
-  const folded = fold(page);
-  const wanted = fold(excerpt).text;
-  if (wanted === '') return null;
+// The span of the folded excerpt in one window of the page, in code points of the window.
+const foldedIn = (window: string, wanted: string): Span | null => {
+  const folded = fold(window);
   // A match that stops before an accent of the page stops inside a letter: "cafe" is not "café".
   let found = folded.text.indexOf(wanted);
   while (found !== -1 && /^\p{M}/u.test(folded.text.slice(found + wanted.length)))
@@ -150,4 +139,30 @@ export const findExcerpt = (page: string, excerpt: string): Span | null => {
   const end = folded.origin[last];
   if (start === undefined || end === undefined) return null;
   return { start, end: end + 1 };
+};
+
+/** Where a page holds an excerpt: the exact text first, then the folded text, window by window.
+ * Null when the page does not hold it. */
+export const findExcerpt = (page: string, excerpt: string): Span | null => {
+  const exact = excerpt === '' ? -1 : page.indexOf(excerpt);
+  if (exact !== -1) {
+    const start = pointIndex(page, exact);
+    return { start, end: start + pointIndex(excerpt, excerpt.length) };
+  }
+  const wanted = fold(excerpt).text;
+  if (wanted === '') return null;
+  // shortcut: a run of white space longer than the overlap, between two words of the excerpt,
+  // hides the excerpt at a window edge; upgrade when a page shows it.
+  const overlap = Math.max(4 * excerpt.length, 4096);
+  const size = MAX_TOLERANT_UNITS + overlap;
+  for (let from = 0; ; from += MAX_TOLERANT_UNITS) {
+    // A window never starts inside a surrogate pair.
+    const begin = isLow(page.charCodeAt(from)) ? from + 1 : from;
+    const span = foldedIn(page.slice(begin, begin + size), wanted);
+    if (span !== null) {
+      const base = pointIndex(page, begin);
+      return { start: base + span.start, end: base + span.end };
+    }
+    if (begin + size >= page.length) return null;
+  }
 };

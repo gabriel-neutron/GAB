@@ -598,8 +598,8 @@ test('an excerpt that the page does not hold refuses the whole batch and names t
   expect(found.rows).toStrictEqual([]);
 });
 
-test('an excerpt that is not exact on a page above the tolerant size is refused with a sentence that asks for an exact copy', async () => {
-  const page = `${'a '.repeat(MAX_TOLERANT_UNITS)}he said “no” today`;
+test('an excerpt that is not exact is found at the end of a page above the tolerant size', async () => {
+  const page = `${'a '.repeat(MAX_TOLERANT_UNITS * 2)}he said “no” today`;
   const found = await rolledBack('superuser', async (ask) => {
     const outcome = await proposeOnPage(
       ask,
@@ -614,13 +614,7 @@ test('an excerpt that is not exact on a page above the tolerant size is refused 
     );
     return { outcome, rows: await rowsOfDocument(ask) };
   });
-  expect(found.outcome).toMatchObject({
-    ok: false,
-    refusal: expect.stringMatching(
-      /^item quotes: .*holds more than .* characters.*exact/u,
-    ) as string,
-  });
-  expect(found.rows).toStrictEqual([]);
+  expect(found.outcome).toMatchObject({ ok: true });
 });
 
 test('a value that its excerpt does not state marks the item as disputed', async () => {

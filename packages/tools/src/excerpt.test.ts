@@ -44,12 +44,12 @@ test('the cut of a span gives the passage that an array of code points gives', (
   expect(pointSlice(page, 3, 3)).toBe('');
 });
 
-test('a page above the tolerant size finds an exact excerpt and refuses a folded one', () => {
-  const page = `${'a '.repeat(MAX_TOLERANT_UNITS)}he said “no” today`;
-  const span = findExcerpt(page, 'said “no”');
-  expect(span).not.toBeNull();
-  if (span === null) return;
-  expect(pointSlice(page, span.start, span.end)).toBe('said “no”');
-  expect(findExcerpt(page, 'said "no"')).toBeNull();
-  expect(cut('he said “no” today', 'said "no"')).toBe('said “no”');
+test('a page above the tolerant size finds a folded excerpt at its end and across a window edge', () => {
+  const filler = 'a '.repeat(MAX_TOLERANT_UNITS * 2);
+  const end = `${filler}he said “no” today\nDate of  listing:\n12.03.2022`;
+  expect(cut(end, 'said "no"')).toBe('said “no”');
+  expect(cut(end, 'Date of listing: 12.03.2022')).toBe('Date of  listing:\n12.03.2022');
+  const edge = `${'a '.repeat(MAX_TOLERANT_UNITS / 2 - 3)}Date of\nlisting${filler}`;
+  expect(cut(edge, 'Date of listing')).toBe('Date of\nlisting');
+  expect(findExcerpt(end, 'Lukoil')).toBeNull();
 });
