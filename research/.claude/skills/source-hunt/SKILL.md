@@ -52,8 +52,13 @@ possible. You then propose the facts with the skill `cite-claim`.
       each earlier step in the report. A page that comes back through the proxy says so in its
       `notice`: keep that in the report, and replace it with a direct or browser copy when one
       is reachable.
-   5. **The list of needs.** Add the source to `research/out/needs.md`, and continue with the
-      next fact.
+   5. **The blocked queue.** When steps 1 to 4 failed and the source is a plain page or file that
+      a country exit could read (no CAPTCHA, no sign-in), add one row to
+      `research/out/blocked.md` and continue with the next fact. Do not stop and do not drop the
+      source. The paid batch pass reads the queue (see "The paid batch pass").
+   6. **The list of needs.** Add the source to `research/out/needs.md`, and continue with the
+      next fact. Use it for a CAPTCHA, a sign-in, a library, a paid database or a file that only
+      the operator can get, and for a row that the batch pass could not store.
 6. Give the result as a table: URL, document id, status (stored, known, blocked), and the reason
    of each failure.
 
@@ -93,6 +98,37 @@ and it returns the URL in its result for the lead session.
   Its title says "saved by the browser". If a call refuses a part or the hash, send the parts
   again from part 1.
 - Never write the bytes yourself and never change them. They must be what the browser held.
+
+## The paid batch pass
+
+The free steps run at each request, in the order of step 5. The tool of a third party that
+charges for each request (Bright Data, residential proxy) never runs at a request. It runs once
+for a topic, over the blocked queue, so the cost is known before it is spent.
+
+1. **Queue.** `research/out/blocked.md` has one row for each blocked source: URL, topic (for
+   example A1), the step of the chain or the fact that needs it, the error of each earlier step,
+   and the status (`queued`, `approved`, `stored`, `needs`). A subagent has no write access to
+   `research/out/`: it returns its blocked rows in its result, and the lead session adds them.
+   Check the URL against the queue before you add it: no duplicate.
+2. **Filter.** At the end of the collect step, the lead session removes the rows that a free step
+   can store now, and the rows that no step of the chain needs. It sends a CAPTCHA, a sign-in
+   and a paid database to `research/out/needs.md`.
+3. **Ask once.** The lead session tells the operator the count of rows, the hosts and the cost
+   estimate against the cap of the topic sheet, and waits for a yes. It never starts the pass on
+   its own.
+4. **Read.** Residential proxy only, with the exit in the country of the site. Never Web
+   Unlocker, never a CAPTCHA solver, never a bypass of a bot filter. One row for each call, no
+   retry, no crawl. Write the bytes to a new folder and store them with `store_saved_file`
+   (`file`) or with `fetch_document` when a vendor address returns the bytes. A page that a
+   proxy returns is a second-hand copy: keep the proxy in the note of the report, and replace it
+   with a direct copy when one is reachable.
+5. **Close.** Set each row to `stored` with its document id, or to `needs` and add it to
+   `research/out/needs.md`. Write the real cost and the count of pages in the report of the
+   topic. Stop at 80 % of the cap and ask the operator.
+
+Before the first batch pass, the vendor and the way to call it (CLI or API; the plugin has only
+skills, no MCP tool) must be set by a separate session. If it is not set, the queue waits, and
+the rows go to the list of needs at the end of the topic.
 
 ## The list of needs
 
