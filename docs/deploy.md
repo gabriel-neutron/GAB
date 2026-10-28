@@ -41,8 +41,10 @@ agent fails with a reason that names the value.
   set the password, run `pnpm db:migrate`: it creates the checker role. Never put that password in
   `research/.env`, which the research AI reads. With a value absent, a proposal waits with no check;
   propose the batch again when the checker is up.
-- The server guesses the family of the research AI from the name of its MCP client. A client that
-  runs a model of another provider gives a wrong family: set a `CHECKER_FAMILY` that is neither.
+- The server guesses the family of the research AI from the name of its MCP client. For a name
+  that gives no family, the variable `CLAUDECODE=1` that Claude Code sets in each process that it
+  starts gives `anthropic`. A client that runs a model of another provider gives a wrong family:
+  set a `CHECKER_FAMILY` that is neither.
 - **Cost:** each job has a token cap, and the key has a credit limit that you set in the OpenRouter
   dashboard. Calls go with `data_collection` set to `deny`. When the credit is spent, each job fails
   with a clear reason: add credit and queue the jobs again.

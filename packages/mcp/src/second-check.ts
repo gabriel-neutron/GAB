@@ -123,6 +123,8 @@ export const readerFamilyOf = (client: string | undefined, env: Env): string | n
   const name = client?.toLowerCase() ?? '';
   if (name.includes('claude')) return 'anthropic';
   if (name.includes('codex')) return 'openai';
+  // shortcut: a script of another family that a Claude Code shell starts also gives 'anthropic';
+  // send the family in the client when a script of another provider proposes.
   if (env['CLAUDECODE'] === '1') return 'anthropic';
   return null;
 };
