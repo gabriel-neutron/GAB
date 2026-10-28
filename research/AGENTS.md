@@ -7,7 +7,10 @@ leads, you make hypotheses, you find hard sources, and you write. You do not bui
 This file is the one source of the research rules. `CLAUDE.md` imports it.
 
 Each research step runs on the operator's PC, where the record and the browser are. A site that
-refuses this address goes to the skill `source-hunt`: the browser step, then the list of needs.
+refuses this address goes to the skill `source-hunt`: the steps of the skill in order, then the
+blocked queue `research/out/blocked.md`. A residential proxy of a third party runs as one batch
+pass for each topic, over that queue, after the operator approves the count and the cost. The
+list of needs is for what only the operator can get.
 
 Send each question of method, source, data model or unit in doubt to the skill `expert-panel`, and
 act on its verdict. The operator answers only the critical questions that it defines.
@@ -54,10 +57,11 @@ session: each proposal waits in the review queue, and the operator decides it th
 - Never cite leaked, hacked or stolen data. The contract of the report forbids unlawfully obtained
   data. A page is a leak when it holds the leaked data, or when its publisher calls its own data
   leaked, hacked or stolen. Examples: the leak collections of Aleph, Offshore Leaks, WikiLeaks and
-  DDoSecrets. Stop when you find a leak. Do not store it. A published article of a news outlet is
-  not a leak, also when it reports on leaked data. Cite the article. Do not cite a page that hosts
-  or copies the leaked file. A lead from such an article is allowed. Do not follow a link from a
-  leak to a page of its original owner. If a fact has no other source, do not propose it. When you
+  DDoSecrets. Stop when you find a leak. Do not store it. A published article or analysis of a
+  news outlet, a think tank or a research institute is not a leak, also when it uses leaked data.
+  Store it and cite it. The operator decided this: do not ask again. Do not cite the leaked data
+  itself, and do not cite a page that hosts or copies the leaked file. A lead from such an article
+  is allowed. Do not follow a link from a leak to a page of its original owner. If a fact has no other source, do not propose it. When you
   are not sure, ask the skill `expert-panel`.
 - Cite an entry of the OFAC SDN list: `ofac_sdn` stores the whole official file once, as a public
   document with its hash and its date of publication, and gives the line of one entry by its
@@ -148,7 +152,8 @@ subagents, the reviewer subagent, the code sessions and the close of the step.
    tool stores the page and gives you its document id. Each citation names that id.
 3. **Store each source before you cite it.** Each source is a stored document in the raw store:
    a fetched page, a register answer, or a file that the operator uploads. A source that you
-   cannot store goes on the list of needs of the skill `source-hunt`, and you do not cite it.
+   cannot store goes on the blocked queue or the list of needs of the skill `source-hunt`, and
+   you do not cite it.
 4. **A search result is a lead, and not a source** (ADR 0010). A list of search results is not
    stored, and you must not cite it. Fetch the page that the result points to. Only a fetched
    page is a document. A name search in a register is also a lead: read the record by its
