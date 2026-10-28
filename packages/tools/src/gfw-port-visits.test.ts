@@ -277,3 +277,77 @@ test('many vessel ids go in batches with a pause, and a 429 of the Vessels API i
     refusal: expect.stringContaining('429') as unknown,
   });
 });
+
+test('a bunker, gas or chemical tanker is not an oil tanker, and one object of selfReportedInfo is read', async () => {
+  const entry = (id: string, type: string, single = false) => ({
+    registryInfo: [{ id: `r-${id}`, imo: `9${id}` }],
+    combinedSourcesInfo: [{ shiptypes: [{ name: type }] }],
+    selfReportedInfo: single ? { id } : [{ id }],
+  });
+  const many = {
+    ...fixture,
+    entries: ['1', '2', '3', '4'].map((n) => ({
+      id: `pv${n}`,
+      type: 'port_visit',
+      vessel: { id: `v${n}` },
+    })),
+  };
+  const web = stubWeb(
+    (asked: Asked) =>
+      asked.url.pathname === '/v3/events'
+        ? json(many)
+        : json({
+            entries: [
+              entry('v1', 'OIL_TANKER', true),
+              entry('v2', 'BUNKER_OR_TANKER'),
+              entry('v3', 'LNG_TANKER'),
+              entry('v4', 'CHEMICAL_TANKER'),
+              { selfReportedInfo: 5 },
+            ],
+          }),
+    { gfwToken: TOKEN },
+  );
+  const reach = {
+    store: memoryStore(),
+    web,
+    now: () => new Date('2026-10-28T10:00:00Z'),
+    sleep: () => Promise.resolve(),
+  };
+  const result = await callTool(tool, hashDatabase(), { ...INPUT, tankersOnly: true }, reach);
+  expect(result).toMatchObject({
+    ok: true,
+    output: { vessels: [{ vesselId: 'v1', tanker: true }], events: 1 },
+  });
+});
+
+test('a 429 of the Vessels API is asked again once, and a 404 is a refusal', async () => {
+  let vesselCalls = 0;
+  let status = 429;
+  const web = stubWeb(
+    (asked: Asked) => {
+      if (asked.url.pathname === '/v3/events') return json(fixture);
+      vesselCalls += 1;
+      return vesselCalls === 1 && status === 429
+        ? text('slow', 429)
+        : status === 404
+          ? text('no', 404)
+          : json(vessels);
+    },
+    { gfwToken: TOKEN },
+  );
+  const reach = {
+    store: memoryStore(),
+    web,
+    now: () => new Date('2026-10-28T10:00:00Z'),
+    sleep: () => Promise.resolve(),
+  };
+  const retried = await callTool(tool, hashDatabase(), INPUT, reach);
+  expect(retried).toMatchObject({ ok: true, output: { imos: ['9000001'] } });
+  expect(vesselCalls).toBe(2);
+  status = 404;
+  const moved = await callTool(tool, hashDatabase(), { ...INPUT, offset: 200 }, reach);
+  expect(moved).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('may have moved') as unknown,
+  });
+});

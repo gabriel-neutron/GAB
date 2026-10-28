@@ -46,6 +46,11 @@ const VESSEL_PAUSE_MS = 1_000;
 // of the reference data have no tanker), so a vessel is a tanker when a registry class or ship type
 // holds the word. Name the exact values here when a live answer shows them.
 const TANKER = /tanker/iu;
+// A bunker boat, a gas carrier and a chemical tanker are not in the oil export fleet.
+const NOT_OIL = /bunker|lng|lpg|gas|chemical/iu;
+const isOilTanker = (type: string): boolean => TANKER.test(type) && !NOT_OIL.test(type);
+// The wait before the one retry of a 429.
+const RETRY_WAIT_MS = 5_000;
 
 const answerShape = z.object({
   entries: z.array(z.unknown()).default([]),
@@ -282,8 +287,18 @@ export const gfwPortVisits = defineTool({
         ...request,
         url: `${BASE}/v3/vessels?${vesselQuery.toString()}`,
       };
-      const read = await readRegister(webFromReach(reach), vesselRequest);
-      if (read === null) continue;
+      let read: Awaited<ReturnType<typeof readRegister>>;
+      try {
+        read = await readRegister(webFromReach(reach), vesselRequest);
+      } catch (fault) {
+        if (!(fault instanceof ToolRefusal) || !fault.message.includes('answered 429')) throw fault;
+        await sleep(RETRY_WAIT_MS);
+        read = await readRegister(webFromReach(reach), vesselRequest);
+      }
+      if (read === null)
+        throw new ToolRefusal(
+          `${REGISTER} holds no Vessels answer for ${String(batch.length)} ids: the dataset may have moved`,
+        );
       const vesselBody = JSON.stringify({
         licence: LICENCE,
         citation: CITATION,
@@ -307,8 +322,8 @@ export const gfwPortVisits = defineTool({
         const identity = identityShape.safeParse(raw);
         if (!identity.success) continue;
         const found = registryOf(identity.data);
-        const known = [...identity.data.selfReportedInfo, ...identity.data.registryInfo];
-        for (const { id } of known) if (id && seen.has(id)) registry.set(id, found);
+        for (const { id } of identity.data.selfReportedInfo)
+          if (id && seen.has(id)) registry.set(id, found);
       }
     }
     const vessels = ids.map((vesselId) => {
@@ -321,7 +336,7 @@ export const gfwPortVisits = defineTool({
         flag: vessel?.flag ?? null,
         imo: found?.imo ?? vessel?.imo ?? null,
         shipTypes: found?.shipTypes ?? [],
-        tanker: found?.shipTypes.some((t) => TANKER.test(t)) ?? false,
+        tanker: found?.shipTypes.some((t) => isOilTanker(t)) ?? false,
         inRegistry: found?.inRegistry ?? false,
       };
     });
