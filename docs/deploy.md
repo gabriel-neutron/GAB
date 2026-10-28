@@ -140,6 +140,7 @@ command refuses an unknown key and names the fault.
   claim row then gives its letter and digit in the CSV, GeoJSON and JSON-LD files, or the text
   "not rated". The file manifest and `release-notes.md` then give the share of the public claims
   with a full pair, in all and by type.
+- The file manifest `manifest.json` gives `undatedDesignations`: the count of `designated_by` relations with no start date, by act, with the rule of the count, the cause and the effect. A metric of an audit must not read the start date of a designation.
 - Each release gives the method of geolocation of each place. The column `geolocation_method` of
   `entities.csv` and the same property of `entities.geojson` hold one word of the closed list, or
   `not_stated`. The file manifest and `release-notes.md` give the share of the places with
