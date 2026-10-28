@@ -206,7 +206,16 @@ export function mountGraph(
   // for one frame. The three settings below take at least 1 ms, and a call that must jump sets the
   // state itself.
   const settingMs = Math.max(1, motionOf());
-  const model = buildGraphModel(corpus, positions, types, ground, placement.unplaced);
+  // A layout run places each node that has a relation. A node with none has nothing to place it
+  // by, so it stays off the picture until the reader asks for it.
+  const linked = new Set<string>();
+  for (const relation of corpus.relations) {
+    if (relation.srcKind !== 'entity' || relation.dstKind !== 'entity') continue;
+    linked.add(relation.srcId);
+    linked.add(relation.dstId);
+  }
+  const bare = new Set(corpus.entities.filter((entity) => !linked.has(entity.id)).map((e) => e.id));
+  const model = buildGraphModel(corpus, positions, types, ground, bare);
   const wordsOf = relationWording(corpus.relationTypes);
 
   const stored = readGraphWorkspace();
@@ -742,7 +751,7 @@ export function mountGraph(
     markersDrawn: markerTargets.length,
     markersOverCap,
     openUnits: folds.open,
-    unplaced: placement.unplaced.size,
+    unplaced: bare.size,
     showUnplaced,
     railOpen,
     railWidth,

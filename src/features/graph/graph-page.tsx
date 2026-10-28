@@ -141,7 +141,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   const railOpen = snapshot?.view.railOpen ?? false;
   const railWidth = snapshot?.view.railWidth ?? DEFAULT_GRAPH_WORKSPACE.railWidth;
   const openUnits = snapshot?.view.openUnits ?? null;
-  const showUnplaced = snapshot?.view.showUnplaced ?? true;
+  const showUnplaced = snapshot?.view.showUnplaced ?? false;
   const counts = snapshot?.view.counts ?? null;
 
   const reach = useCallback((id: string) => {
