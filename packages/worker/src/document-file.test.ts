@@ -48,4 +48,7 @@ test('it refuses a document that is absent or has no stored file', async () => {
   await expect(
     writeDocumentFile(depsOf([{ sha256: SHA, s3_key: null }]), '1', out),
   ).rejects.toThrow('no stored file');
+  await expect(
+    writeDocumentFile(depsOf([{ sha256: null, s3_key: 'raw/x' }]), '1', out),
+  ).rejects.toThrow('no stored hash');
 });

@@ -27,7 +27,8 @@ export const writeDocumentFile = async (
   if (row.s3_key === null) throw new Error(`Document ${document} has no stored file.`);
   const bytes = await deps.read(row.s3_key);
   const sha256 = createHash('sha256').update(bytes).digest('hex');
-  if (row.sha256 !== null && row.sha256 !== sha256)
+  if (row.sha256 === null) throw new Error(`Document ${document} has no stored hash to check.`);
+  if (row.sha256 !== sha256)
     throw new Error(`The bytes of document ${document} do not match its stored hash.`);
   // The flag "wx" fails when the file exists, so no file is overwritten.
   await writeFile(out, bytes, { flag: 'wx' });
