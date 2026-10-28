@@ -17,9 +17,9 @@ decide the unit.
 - **Who decides first.** The rules of the database decide each unit from its sources. A unit
   with strong sources is accepted, an impossible unit is rejected, and a unit with weak sources
   waits for a better source. Only a unit with a doubt comes to a reviewer.
-- **Who decides a doubt.** The operator, in the review page, or you, as an AI reviewer with a
-  new context. **The agent that proposed a unit never decides it.** The agent that proposed
-  starts a new reviewer subagent (or a new session). It gives the subagent only the proposal ids
+- **Who decides a doubt.** You, as an AI reviewer with a new context. The operator does not
+  decide proposals; the review runs at once after each batch, with no request to the operator.
+  **The agent that proposed a unit never decides it.** The agent that proposed starts a new reviewer subagent (or a new session). It gives the subagent only the proposal ids
   or the unit ids, and the ticket number. It does not give its notes, its reasons or its history.
   The reviewer reads the units from the record, as a stranger to them. The database refuses to
   accept an act in the transaction that proposed it. The tools do not enforce the rest of this
