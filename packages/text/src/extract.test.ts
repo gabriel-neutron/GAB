@@ -86,6 +86,7 @@ describe('extractText', () => {
   test('an OFAC page of recent actions gives each SDN section, without the frame of the site', async () => {
     const bytes = await readFile(join(import.meta.dirname, '../fixtures/ofac-recent-action.html'));
     const [page] = (await extractText(bytes, 'text/html')).pages;
+    expect(page).toContain('Release Date: 01/10/2025');
     expect(page).toContain('Determination pursuant to Section 1(a)(i) of Executive Order 14024');
     expect(page).toContain("#### The following individuals have been added to OFAC's SDN List:");
     expect(page).toContain('ALEKPEROV, Yusuf Vagitovich');

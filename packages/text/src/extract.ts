@@ -378,6 +378,21 @@ const asBlocks = (document: Page): void => {
   }
 };
 
+// Departure: Readability removes the date field of a page, as the "Release Date" of an OFAC page of
+// recent actions, because it is a short block next to the body. A Drupal datetime field (a label
+// and an item) is the date of the page, so each one that Readability lost is put before the text.
+const dated = (document: Page): string => {
+  const labels = Array.from(document.querySelectorAll('.field--type-datetime > .field__label'));
+  const items = Array.from(document.querySelectorAll('.field--type-datetime > .field__item'));
+  return labels
+    .map(
+      (label, i) => `${label.textContent?.trim() ?? ''}: ${items[i]?.textContent?.trim() ?? ''}
+
+`,
+    )
+    .join('');
+};
+
 // Readability keeps only one part of a long legal act: on Regulation (EU) 2022/879 it kept Annex IV
 // alone. An XHTML answer is a document that a publisher builds as one whole text, as the official
 // acts of the Publications Office of the EU, so it is read whole, without the frame of a site.
@@ -393,9 +408,12 @@ const htmlPage = (bytes: Uint8Array, mime: string, whole: boolean): string => {
     });
   asBlocks(document);
   // Readability finds nothing in a page with no article, and the whole body is then the text.
+  // Readability changes the document, so the dates are read first.
+  const dates = dated(document);
   const article = whole ? null : new Readability(document).parse();
   const html = article?.content ?? document.documentElement.outerHTML;
-  return withoutNul(readable().turndown(html).trim());
+  const text = withoutNul(readable().turndown(html).trim());
+  return article === null ? text : `${dates}${text}`;
 };
 
 // External constraint: the types that extractText reads, by the extension that a file name holds.
