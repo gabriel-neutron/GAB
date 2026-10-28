@@ -4095,8 +4095,9 @@ BEGIN
       modality := v_cite.modality;
       doc_id := v_page.doc_id;
       page := v_page.page;
-      -- A slice of an array (`v_lines[a:b]`) copies the whole array, and so does a query over it.
-      -- The one page of the v1 import holds 58,000 lines, so each line is read by its own subscript.
+      -- A slice of an array (`v_lines[a:b]`) copies the whole array, and the one page of the v1
+      -- import holds 58,000 lines. So `before` and `after` read each line by its own subscript.
+      -- A citation of many lines keeps the slice: it is rare, and its copy is linear.
       before := '';
       FOR i IN greatest(1, v_first - 2) .. v_first - 1 LOOP
         before := before || v_lines[i] || E'\n';
@@ -4106,11 +4107,10 @@ BEGIN
         cited := substr(v_lines[v_first], v_cite.start - v_at[v_first] + 1,
                         v_cite."end" - v_cite.start);
       ELSE
-        cited := substr(v_lines[v_first], v_cite.start - v_at[v_first] + 1) || E'\n';
-        FOR i IN v_first + 1 .. v_last - 1 LOOP
-          cited := cited || v_lines[i] || E'\n';
-        END LOOP;
-        cited := cited || substr(v_lines[v_last], 1, v_cite."end" - v_at[v_last]);
+        cited := array_to_string(
+                   substr(v_lines[v_first], v_cite.start - v_at[v_first] + 1)
+                   || v_lines[v_first + 1:v_last - 1]
+                   || substr(v_lines[v_last], 1, v_cite."end" - v_at[v_last]), E'\n');
       END IF;
       after := substr(v_lines[v_last], v_cite."end" - v_at[v_last] + 1);
       FOR i IN v_last + 1 .. least(v_count, v_last + 2) LOOP
@@ -7945,7 +7945,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
                 THEN btrim(lower(regexp_replace(c.value #>> '{}', '[^[:alnum:]]+', ' ', 'g')))
            END AS words
       FROM claim c
-  -- MATERIALIZED: else the planner runs cited_passages once for each claim, 25,000 times.
+  -- MATERIALIZED: if not, the planner runs cited_passages once for each claim, 25,000 times.
   ), passage AS MATERIALIZED (
     SELECT p.* FROM public.cited_passages(ARRAY(SELECT DISTINCT a FROM kept k, unnest(k.acts) AS a
                                                  WHERE cardinality(k.public_sources) > 0)) p
@@ -8027,7 +8027,7 @@ LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
   WITH asked AS (
     SELECT p.id, p.claim_key FROM public.proposals p WHERE p.id = ANY (p_acts)
-  -- MATERIALIZED: else the planner calls fact_digit twice for each fact.
+  -- MATERIALIZED: if not, the planner calls fact_digit twice for each fact.
   ), judged AS MATERIALIZED (
     SELECT k.claim_key, public.fact_digit(k.claim_key) AS digit,
            (SELECT min(s.letter) FROM public.fact_support(k.claim_key) s
