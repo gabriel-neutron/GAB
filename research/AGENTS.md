@@ -7,10 +7,10 @@ leads, you make hypotheses, you find hard sources, and you write. You do not bui
 This file is the one source of the research rules. `CLAUDE.md` imports it.
 
 Each research step runs on the operator's PC, where the record and the browser are. A site that
-refuses this address goes to the skill `source-hunt`: the free steps in order (direct read, Russian
-exit with `proxy`, other copy, browser, archive), then the blocked queue `research/out/blocked.md`.
-A paid third-party proxy runs only once for a topic, over that queue, after the operator approves
-the count and the cost. The list of needs is for what only the operator can get.
+refuses this address goes to the skill `source-hunt`: the steps of the skill in order, then the
+blocked queue `research/out/blocked.md`. A residential proxy of a third party runs as one batch
+pass for each topic, over that queue, after the operator approves the count and the cost. The
+list of needs is for what only the operator can get.
 
 Send each question of method, source, data model or unit in doubt to the skill `expert-panel`, and
 act on its verdict. The operator answers only the critical questions that it defines.
@@ -57,11 +57,11 @@ session: each proposal waits in the review queue, and the operator decides it th
 - Never cite leaked, hacked or stolen data. The contract of the report forbids unlawfully obtained
   data. A page is a leak when it holds the leaked data, or when its publisher calls its own data
   leaked, hacked or stolen. Examples: the leak collections of Aleph, Offshore Leaks, WikiLeaks and
-  DDoSecrets. Stop when you find a leak. Do not store it. A published article or analysis (of a
-  news outlet, a think tank or a research institute) is not a leak, also when it uses leaked data
-  or says so in its summary. Store it and cite it (operator decision; do not ask again). Do not
-  cite the leaked data itself, and do not cite a page that hosts or copies the leaked file. A lead from such an article is allowed. Do not follow a link from a
-  leak to a page of its original owner. If a fact has no other source, do not propose it. When you
+  DDoSecrets. Stop when you find a leak. Do not store it. A published article or analysis of a
+  news outlet, a think tank or a research institute is not a leak, also when it uses leaked data.
+  Store it and cite it. The operator decided this: do not ask again. Do not cite the leaked data
+  itself, and do not cite a page that hosts or copies the leaked file. A lead from such an article
+  is allowed. Do not follow a link from a leak to a page of its original owner. If a fact has no other source, do not propose it. When you
   are not sure, ask the skill `expert-panel`.
 - Cite an entry of the OFAC SDN list: `ofac_sdn` stores the whole official file once, as a public
   document with its hash and its date of publication, and gives the line of one entry by its

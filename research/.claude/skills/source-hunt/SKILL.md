@@ -14,8 +14,8 @@ possible. You then propose the facts with the skill `cite-claim`.
 2. Call `find_document` with each URL. When Gabriel stores the page, keep its document id. When
    the URL is on `research/out/needs.md` and the operator saved its file into the inbox, store it
    with `store_saved_file`, and remove its line from the list of needs.
-3. Read `research/out/needs.md` for each other URL. A URL that is on it failed in an earlier
-   session: go to step 5 for it, and do not fetch it again.
+3. Read `research/out/needs.md` and `research/out/blocked.md` for each other URL. A URL that is
+   on one of them failed in an earlier session: do not fetch it again, and keep its row.
 4. Call `fetch_document` for each other URL, one URL for each call. Keep the document id. When
    the answer has `rendered`, keep the id of `rendered.document`. Read the start of the stored
    text with `document_text`: a challenge page, an error page or an empty text is not the source.
@@ -28,9 +28,9 @@ possible. You then propose the facts with the skill `cite-claim`.
    | Refusal | Usual cause | Next step |
    |---|---|---|
    | 403, 429 or 503, a 202 or a 200 with no text, a challenge page | A bot filter (Cloudflare, AWS WAF) | Another copy, then the browser |
-   | No whole answer within the time, no connection | A state site that refuses foreign addresses | The browser, then the list of needs |
+   | No whole answer within the time, no connection | A state site that refuses foreign addresses | The browser, then the blocked queue |
    | 404 or 410, or the page says that it is missing | The address is wrong or old | Another copy, then the archive; never the browser |
-   | A 200 with the page "Доступ временно ограничен" from a `.ru` state site | A block of foreign addresses | The browser, then the paid proxy |
+   | A 200 with the page "Доступ временно ограничен" from a `.ru` state site | A block of foreign addresses | The browser, then the paid proxy, then the blocked queue |
    | A 200 with no text from Interfax e-disclosure (`e-disclosure.ru`) | A filter that runs a script in the page | The browser, one page at a time and slowly |
 
    1. **Another official copy** of the same text from the same issuer: the PDF of the publisher,
@@ -43,7 +43,7 @@ possible. You then propose the facts with the skill `cite-claim`.
    3. **The web archive.** `archive_snapshot` lists the captures. Then `fetch_document` on the
       address of the newest capture. The archive often refuses the address of the PC (429): one
       call for each URL, never a retry. An address with a query string has no capture.
-   4. **The paid proxy.** Call `fetch_document` again with `proxy` true. It reads a `.ru` or
+   4. **The paid proxy of the tool.** Call `fetch_document` again with `proxy` true. It reads a `.ru` or
       `.рф` host once through a Russian exit, and costs 10 credits for each page that it reads.
       It works only when the operator set the key. Use it only when all of these hold: the
       source is the official page of a Russian issuer, a fact of the current layer waits for
@@ -59,14 +59,15 @@ possible. You then propose the facts with the skill `cite-claim`.
    6. **The list of needs.** Add the source to `research/out/needs.md`, and continue with the
       next fact. Use it for a CAPTCHA, a sign-in, a library, a paid database or a file that only
       the operator can get, and for a row that the batch pass could not store.
-6. Give the result as a table: URL, document id, status (stored, known, blocked), and the reason
-   of each failure.
+6. Give the result as a table: URL, document id, status (stored, known, queued, needs), and the
+   reason of each failure.
 
 ## Calls that give nothing
 
 - A tool that answers that its key is refused or not set (401, 402), or that fails 3 times in a
   session: do not call it again in this session. Write it once in the report.
-- A site that fails 3 times in a session: put its next URLs directly on the list of needs.
+- A site that fails 3 times in a session: put its next URLs directly on the blocked queue (or on
+  the list of needs for a CAPTCHA or a sign-in).
 - A whole official list: cite one entry with `ofac_sdn` (ent_num) or `uk_sanctions_list` (Unique
   ID). Never page through the text of a list with `document_text`.
 
@@ -101,9 +102,10 @@ and it returns the URL in its result for the lead session.
 
 ## The paid batch pass
 
-The free steps run at each request, in the order of step 5. The tool of a third party that
-charges for each request (Bright Data, residential proxy) never runs at a request. It runs once
-for a topic, over the blocked queue, so the cost is known before it is spent.
+The steps 1 to 4 of step 5 run at each request, also the paid proxy of the tool. A residential
+proxy of a third party that charges for each request (Bright Data) never runs at a request. It
+runs as one batch pass for each topic, over the blocked queue, so the cost is known before it is
+spent.
 
 1. **Queue.** `research/out/blocked.md` has one row for each blocked source: URL, topic (for
    example A1), the step of the chain or the fact that needs it, the error of each earlier step,
@@ -124,11 +126,11 @@ for a topic, over the blocked queue, so the cost is known before it is spent.
    with a direct copy when one is reachable.
 5. **Close.** Set each row to `stored` with its document id, or to `needs` and add it to
    `research/out/needs.md`. Write the real cost and the count of pages in the report of the
-   topic. Stop at 80 % of the cap and ask the operator.
+   topic. Stop at 80 % of the cap of the topic sheet and ask the operator.
 
-Before the first batch pass, the vendor and the way to call it (CLI or API; the plugin has only
-skills, no MCP tool) must be set by a separate session. If it is not set, the queue waits, and
-the rows go to the list of needs at the end of the topic.
+A separate session sets the vendor and the way to call it (CLI or API) before the first batch
+pass. The plugin has skills only, and no MCP tool. Until then, the queue waits, and the rows go to
+the list of needs at the end of the topic.
 
 ## The list of needs
 
