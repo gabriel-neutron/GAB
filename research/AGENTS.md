@@ -23,7 +23,8 @@ After each batch, the session that proposed starts at once a new AI reviewer (su
 session, skill `review-unit`) on the units of the batch. Never end a step with "waits for the
 operator to accept" a proposal.
 
-- Read the record: `search_graph`, `read_entity`, `neighbourhood`, `list_vocabulary`,
+- Read the record: `search_graph`, `read_entity` (200 relations a page; the filters `relationType` and `undated`, and
+  `cursor` with the `nextCursor` of the page before), `neighbourhood`, `list_vocabulary`,
   `list_proposals`, `list_entities` (the entities of one type in pages, with the count of those that
   hold a key and of those that do not), `read_duplicate_identifiers` (the entities that share an
   INN, an OGRN, an IMO number or a LEI; it flags, and you send each group to a reviewer).

@@ -172,6 +172,8 @@ const entityRead = z.object({
   relations: z.array(
     z.object({
       id: z.uuid(),
+      type: z.string(),
+      validFrom: z.string().nullable(),
       direction: z.enum(['out', 'in']),
       reads: z.string().nullable(),
       other: z.object({ kind: z.string(), id: z.uuid(), label: z.string().nullable() }),
@@ -180,6 +182,8 @@ const entityRead = z.object({
   ),
   documents: z.array(z.object({ id: z.string(), title: z.string() })),
   sources: z.array(z.string()),
+  truncated: z.boolean(),
+  nextCursor: z.string().nullable(),
 });
 
 test('read_entity gives the relations of an entity with their direction and the other end', async () => {
@@ -202,6 +206,33 @@ test('read_entity gives the relations of an entity with their direction and the 
   const cited = new Set(found.read.documents.map((one) => one.id));
   for (const source of [...found.read.sources, ...(relation?.sources ?? [])])
     expect(cited.has(source)).toBe(true);
+});
+
+test('read_entity keeps one relation type, the undated relations, and reads a later page', async () => {
+  const found = await rolledBack('research', async (ask) => {
+    const [held] = connected.parse(await ask(CONNECTED));
+    if (held === undefined) throw new Error('the fixture holds no relation between two entities');
+    return withServer(ask, async (call) => {
+      const read = async (more: object) =>
+        entityRead.parse(outputOf(await call('read_entity', { entity: held.id, ...more })));
+      const all = await read({});
+      const type = all.relations[0]?.type ?? '';
+      return {
+        all,
+        typed: await read({ relationType: type }),
+        none: await read({ relationType: 'no_such_type' }),
+        undated: await read({ undated: true }),
+        past: await read({ cursor: String(all.relations.length) }),
+        type,
+      };
+    });
+  });
+  expect(found.typed.relations.length).toBeGreaterThan(0);
+  expect(found.typed.relations.every((one) => one.type === found.type)).toBe(true);
+  expect(found.none.relations).toStrictEqual([]);
+  expect(found.undated.relations.every((one) => one.validFrom === null)).toBe(true);
+  expect(found.past.relations).toStrictEqual([]);
+  expect(found.all.nextCursor).toBe(found.all.truncated ? '200' : null);
 });
 
 test('read_entity of an id that names no entity is refused with the reason', async () => {

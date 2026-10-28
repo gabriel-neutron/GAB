@@ -27,10 +27,12 @@ const RELATIONS = `SELECT r.id::text AS id, r.type, d.direction,
                                 AS id) o
     LEFT JOIN api.relation_type t ON t.key = r.type
     LEFT JOIN api.entity e ON o.kind = 'entity' AND e.id = o.id
-   WHERE (r.src_kind = 'entity' AND r.src_id = $1::uuid)
+   WHERE ((r.src_kind = 'entity' AND r.src_id = $1::uuid)
       OR (r.dst_kind = 'entity' AND r.dst_id = $1::uuid)
+      ) AND ($3::text IS NULL OR r.type = $3::text)
+   AND (NOT $4::boolean OR r.valid_from IS NULL)
    ORDER BY r.type, e.label, r.id
-   LIMIT $2::int`;
+   LIMIT $2::int OFFSET $5::int`;
 
 const DOCUMENTS = `SELECT id::text AS id, title, uri FROM api.document
   WHERE id = ANY($1::text[]) ORDER BY id`;
@@ -95,9 +97,16 @@ export const readEntity = defineTool({
     'hold up each value, its relations, and its sources. Each relation gives its type, the words ' +
     'that read it from this entity, its direction (out when this entity is the source), the ' +
     `other end, its dates and its sources. At most ${MAX_RELATIONS} relations come back, and ` +
-    '"truncated" says that more exist. "documents" gives the title and the address of each ' +
+    '"truncated" says that more exist, and "nextCursor" goes in "cursor" to read the next page. ' +
+    '"relationType" keeps one type, and "undated" keeps the relations with no start date. ' +
+    '"documents" gives the title and the address of each ' +
     'document that the answer cites.',
-  input: z.strictObject({ entity: z.uuid().describe('the id of the entity') }),
+  input: z.strictObject({
+    entity: z.uuid().describe('the id of the entity'),
+    relationType: z.string().optional().describe('only the relations of this type key'),
+    undated: z.boolean().optional().describe('true: only the relations with no validFrom'),
+    cursor: z.string().regex(/^\d+$/).optional().describe('the "nextCursor" of the page before'),
+  }),
   output: z.strictObject({
     id: z.uuid(),
     type: z.string(),
@@ -106,6 +115,7 @@ export const readEntity = defineTool({
     sources: z.array(z.string()),
     relations: z.array(relation),
     truncated: z.boolean(),
+    nextCursor: z.string().nullable(),
     documents: z.array(
       z.strictObject({ id: z.string(), title: z.string(), url: z.string().nullable() }),
     ),
@@ -113,7 +123,15 @@ export const readEntity = defineTool({
   async run(session, input) {
     const [held] = await rowsOf(session, entityRow, ENTITY, [input.entity]);
     if (held === undefined) throw new ToolRefusal(`the record holds no entity ${input.entity}`);
-    const found = await rowsOf(session, relationRow, RELATIONS, [input.entity, MAX_RELATIONS + 1]);
+    // The order is stable, so the cursor is the count of relations already given.
+    const offset = Number(input.cursor ?? 0);
+    const found = await rowsOf(session, relationRow, RELATIONS, [
+      input.entity,
+      MAX_RELATIONS + 1,
+      input.relationType ?? null,
+      input.undated ?? false,
+      offset,
+    ]);
     const relations = found.slice(0, MAX_RELATIONS);
     const cited = new Set([
       ...held.sources,
@@ -140,6 +158,7 @@ export const readEntity = defineTool({
         sources: row.sources,
       })),
       truncated: found.length > MAX_RELATIONS,
+      nextCursor: found.length > MAX_RELATIONS ? String(offset + MAX_RELATIONS) : null,
       documents: documents.map((row) => ({ id: row.id, title: row.title, url: row.uri })),
     };
   },
