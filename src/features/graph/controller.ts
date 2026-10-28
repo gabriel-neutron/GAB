@@ -23,6 +23,8 @@ import {
   type NodeAttrs,
   type NodePosition,
 } from './model';
+import { createLiveLayout } from './live-layout';
+import { layoutInput } from './layout-weights';
 import { graphPositions } from './positions';
 import { FAMILIES, lookOf } from './relation-families';
 import { type RelationFilterState } from './relation-filter';
@@ -819,6 +821,24 @@ export function mountGraph(
   sigma.on('afterRender', drawOverlay);
   sigma.refresh();
 
+  // The shown nodes and relations pull the layout. A switch of a type or a family starts a new
+  // run from the places the nodes hold, so they move to the new place and do not jump.
+  const liveLayout = createLiveLayout(
+    new Map(positions),
+    { cx: frameX, cy: frameY, span: frameSpan },
+    (node, at) => model.graph.mergeNodeAttributes(node, at),
+    () => sigma.refresh(),
+  );
+  const relayout = (): void =>
+    liveLayout.run(
+      layoutInput(
+        model.graph,
+        (node) => passesFilter(model.graph.getNodeAttributes(node)),
+        hiddenRelations,
+      ),
+    );
+  relayout();
+
   // Sigma registers no observer of its own: it measures the container in the constructor and
   // never again. A canvas of the wrong size draws correctly and warns about nothing. The sizes
   // are whole numbers, and the seed is a value no delivery reports, so the first one resizes.
@@ -1026,6 +1046,7 @@ export function mountGraph(
         filter = { hiddenTypes: [...next.hiddenTypes] };
         hidden = new Set(filter.hiddenTypes);
         patchGraphWorkspace({ hiddenTypes: filter.hiddenTypes });
+        relayout();
       }
       // **A filter that excludes the selection drops the selection.**
       settle(acceptable(selection));
@@ -1037,6 +1058,7 @@ export function mountGraph(
       relationFilter = { hiddenRelationTypes: [...next.hiddenRelationTypes] };
       hiddenRelations = new Set(relationFilter.hiddenRelationTypes);
       patchGraphWorkspace({ hiddenRelationTypes: relationFilter.hiddenRelationTypes });
+      relayout();
       // A selected relation of a type that is now off is dropped, as the filter drops a node.
       settle(acceptable(selection));
     },
@@ -1044,6 +1066,7 @@ export function mountGraph(
       if (destroyed || show === showUnplaced) return;
       showUnplaced = show;
       patchGraphWorkspace({ showUnplaced });
+      relayout();
       settle(acceptable(selection));
     },
     setRailOpen: (open) => {
@@ -1097,6 +1120,7 @@ export function mountGraph(
       return () => selectListeners.delete(listener);
     },
     destroy: () => {
+      liveLayout.stop();
       if (destroyed) return;
       // A camera that waits for the trailing store is the camera of the analyst. It is written
       // before the instance dies, and never after it.
