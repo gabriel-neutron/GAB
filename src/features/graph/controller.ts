@@ -25,7 +25,7 @@ import {
 } from './model';
 import { createLiveLayout } from './live-layout';
 import { layoutInput } from './layout-weights';
-import { DEFAULT_VARIANT, variantOf, type Variant } from './variants';
+import { DEFAULT_VARIANT, variantOf, type Variant, type VariantId } from './variants';
 import { graphPositions } from './positions';
 import { FAMILIES, lookOf } from './relation-families';
 import { type RelationFilterState } from './relation-filter';
@@ -54,7 +54,7 @@ export interface GraphView {
   /** Whether the canvas draws them. */
   readonly showUnplaced: boolean;
   /** The identifier of the prototype in view. */
-  readonly variant: string;
+  readonly variant: VariantId;
   readonly railOpen: boolean;
   readonly railWidth: number;
 }
@@ -72,7 +72,7 @@ export interface GraphController {
   /** Draws or hides the entities that stand on the ring with no place. */
   readonly setShowUnplaced: (show: boolean) => void;
   /** Switches the prototype of the graph: the weights, the forces and the sizes. */
-  readonly setVariant: (id: string) => void;
+  readonly setVariant: (id: VariantId) => void;
   /** The rail was unfolded or folded. The workspace keeps it, so the next open finds it there. */
   readonly setRailOpen: (open: boolean) => void;
   /** The rail edge was dragged. The workspace keeps the width, as it keeps the fold. */
@@ -831,11 +831,21 @@ export function mountGraph(
   // The shown nodes and relations pull the layout. A switch of a type or a family starts a new
   // run from the places the nodes hold, so they move to the new place and do not jump.
   const raw = new Map(positions);
+  const layoutWorker = new Worker(new URL('./layout-worker.ts', import.meta.url), {
+    type: 'module',
+  });
   const liveLayout = createLiveLayout(
     raw,
     { cx: frameX, cy: frameY, span: frameSpan },
-    (node, at) => model.graph.mergeNodeAttributes(node, at),
-    () => sigma.refresh(),
+    (places) => {
+      // One event for all the nodes: an event for each node would wake Sigma 6000 times.
+      model.graph.updateEachNodeAttributes((node, attrs) => {
+        const at = places.get(node);
+        return at === undefined ? attrs : { ...attrs, x: at.x, y: at.y };
+      });
+      sigma.refresh();
+    },
+    layoutWorker,
   );
   const sectorOf = (index: number, count: number, node: string): { x: number; y: number } => {
     // A fixed spread inside the sector of the type, from the characters of the identifier.
@@ -865,6 +875,7 @@ export function mountGraph(
     let strongest = 0;
     for (const value of input.strength.values()) strongest = Math.max(strongest, value);
     // A crowd shrinks every node, so 5000 nodes do not cover one another.
+    // 1500 nodes is the count where the largest glyph still leaves room for its neighbours.
     const crowd = Math.min(1, Math.sqrt(1500 / Math.max(1, input.nodes.length)));
     const sized = (share: number): number => Math.max(3, variant.sizeOf(share) * crowd);
     for (const node of input.nodes) {
@@ -1164,7 +1175,8 @@ export function mountGraph(
       return () => selectListeners.delete(listener);
     },
     destroy: () => {
-      liveLayout.stop();
+      liveLayout.destroy();
+      layoutWorker.terminate();
       if (destroyed) return;
       // A camera that waits for the trailing store is the camera of the analyst. It is written
       // before the instance dies, and never after it.

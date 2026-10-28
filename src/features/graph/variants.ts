@@ -12,8 +12,10 @@ export interface ForceSettings {
   readonly outboundAttractionDistribution: boolean;
 }
 
+export type VariantId = 'power' | 'concentration' | 'links' | 'groups';
+
 export interface Variant {
-  readonly id: string;
+  readonly id: VariantId;
   readonly label: string;
   /** What the variant shows, in one line, for the title of its button. */
   readonly reading: string;
@@ -107,5 +109,5 @@ export const VARIANTS: readonly Variant[] = [
 
 export const DEFAULT_VARIANT: Variant = POWER;
 
-export const variantOf = (id: string): Variant =>
+export const variantOf = (id: VariantId): Variant =>
   VARIANTS.find((variant) => variant.id === id) ?? DEFAULT_VARIANT;

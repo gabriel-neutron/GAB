@@ -2,7 +2,7 @@ import { MultiDirectedGraph } from 'graphology';
 import { describe, expect, it } from 'vitest';
 
 import { layoutInput, pairWeight } from './layout-weights';
-import { VARIANTS } from './variants';
+import { DEFAULT_VARIANT } from './variants';
 import type { EdgeAttrs, NodeAttrs } from './model';
 
 const node = (entityType: string): NodeAttrs => ({
@@ -27,13 +27,7 @@ const edge = (relationType: string, type: EdgeAttrs['type']): EdgeAttrs => ({
   validTo: null,
 });
 
-const W = VARIANTS[0]?.weights ?? {
-  ownership: 1,
-  designation: 1,
-  operation: 1,
-  transfer: 1,
-  other: 1,
-};
+const W = DEFAULT_VARIANT.weights;
 
 const build = (): MultiDirectedGraph<NodeAttrs, EdgeAttrs> => {
   const graph = new MultiDirectedGraph<NodeAttrs, EdgeAttrs>();

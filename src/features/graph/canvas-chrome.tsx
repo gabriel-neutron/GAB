@@ -2,7 +2,7 @@ import { cn } from '@/shared/lib/utils';
 
 import { glyphSvg } from './glyph-svg';
 import { legendOf } from './legend';
-import { VARIANTS } from './variants';
+import { VARIANTS, type VariantId } from './variants';
 import { lookOf } from './relation-families';
 import type { ShownCounts, ShownOfTotal } from './shown-counts';
 
@@ -132,8 +132,8 @@ export function VariantSwitch({
   current,
   onPick,
 }: {
-  readonly current: string;
-  readonly onPick: (id: string) => void;
+  readonly current: VariantId;
+  readonly onPick: (id: VariantId) => void;
 }) {
   return (
     <div
@@ -146,13 +146,14 @@ export function VariantSwitch({
           key={id}
           type="button"
           title={reading}
+          aria-label={`${label}: ${reading}`}
           aria-pressed={id === current}
           onClick={() => {
             onPick(id);
           }}
           className={cn(
-            'px-2 py-1 text-data',
-            id === current ? 'bg-hover text-foreground' : 'text-label',
+            'px-3 py-1.5 text-data focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1',
+            id === current ? 'bg-muted text-foreground underline underline-offset-4' : 'text-label',
           )}
         >
           {label}
