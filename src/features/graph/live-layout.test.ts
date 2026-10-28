@@ -23,8 +23,18 @@ const drain = (limit: number): number => {
   return frames;
 };
 
+const FORCES = {
+  linLogMode: true,
+  strongGravityMode: false,
+  gravity: 1,
+  scalingRatio: 5,
+  outboundAttractionDistribution: false,
+};
+
 const input = {
   nodes: ['a', 'b', 'c'],
+  rest: [],
+  strength: new Map<string, number>(),
   links: [
     { source: 'a', target: 'b', weight: 3 },
     { source: 'b', target: 'c', weight: 1 },
@@ -34,7 +44,7 @@ const input = {
 describe('the live layout', () => {
   it('ends after a bounded count of frames', () => {
     const live = createLiveLayout(new Map(), FRAME, vi.fn(), vi.fn());
-    live.run(input);
+    live.run(input, FORCES);
     expect(drain(1000)).toBeLessThanOrEqual(120);
     expect(queue).toHaveLength(0);
   });
@@ -42,7 +52,7 @@ describe('the live layout', () => {
   it('draws nothing after stop', () => {
     const step = vi.fn();
     const live = createLiveLayout(new Map(), FRAME, vi.fn(), step);
-    live.run(input);
+    live.run(input, FORCES);
     live.stop();
     drain(10);
     expect(step).not.toHaveBeenCalled();
@@ -54,9 +64,17 @@ describe('the live layout', () => {
       ['b', { x: 50, y: 50 }],
     ]);
     const live = createLiveLayout(raw, FRAME, vi.fn(), vi.fn());
-    live.run({ nodes: ['a', 'b'], links: [] });
+    live.run({ nodes: ['a', 'b'], rest: [], links: [], strength: new Map() }, FORCES);
     drain(1);
-    live.run({ nodes: ['a', 'b', 'c'], links: [{ source: 'c', target: 'a', weight: 1 }] });
+    live.run(
+      {
+        nodes: ['a', 'b', 'c'],
+        rest: [],
+        links: [{ source: 'c', target: 'a', weight: 1 }],
+        strength: new Map(),
+      },
+      FORCES,
+    );
     const at = raw.get('c');
     expect(Math.abs((at?.x ?? 0) - (raw.get('a')?.x ?? 99))).toBeLessThan(1);
     live.stop();

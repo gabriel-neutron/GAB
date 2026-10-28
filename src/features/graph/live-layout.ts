@@ -5,6 +5,7 @@ import Graph from 'graphology';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 
 import type { LayoutInput } from './layout-weights';
+import type { ForceSettings } from './variants';
 
 // Iterations for each frame: a batch of 6 costs a few ms at 3000 nodes with the Barnes-Hut tree.
 const STEP = 6;
@@ -13,18 +14,12 @@ const MAX_FRAMES = 120;
 // The run stops when the mean move of a node in one batch falls under this share of the picture.
 const SETTLED = 0.0004;
 
-const SETTINGS = {
-  // Edge weight is the distance rule: a heavier link pulls closer.
-  edgeWeightInfluence: 1,
-  // Log-linear attraction spreads hubs apart and keeps clusters tight, which shows groups.
-  linLogMode: true,
-  barnesHutOptimize: true,
-  // A hub of thousands of leaves then pulls each leaf less, so it stays a cluster, not a pole.
-  outboundAttractionDistribution: true,
-  gravity: 0.15,
-  scalingRatio: 15,
-  slowDown: 4,
-} as const;
+// The nodes with no link stand in rings at the edge of the frame. This is the gap between two of
+// them, as a share of the frame, and the share of the frame that the rings may take at most.
+const RING_GAP = 0.016;
+const RING_MAX = 0.38;
+// The least radius of the linked picture, as a share of the frame.
+const CORE_MIN = 0.12;
 
 interface Point {
   x: number;
@@ -33,7 +28,7 @@ interface Point {
 
 export interface LiveLayout {
   /** Starts a run for these nodes and links, from the places they hold now. */
-  readonly run: (input: LayoutInput) => void;
+  readonly run: (input: LayoutInput, forces: ForceSettings) => void;
   readonly stop: () => void;
 }
 
@@ -57,35 +52,67 @@ export function createLiveLayout(
     handle = 0;
   };
 
-  const paint = (nodes: readonly string[]): void => {
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
-    for (const node of nodes) {
-      const at = placeOf(node);
-      minX = Math.min(minX, at.x);
-      maxX = Math.max(maxX, at.x);
-      minY = Math.min(minY, at.y);
-      maxY = Math.max(maxY, at.y);
+  /** The rings of the nodes with no link, from the edge of the frame inward. Returns the radius,
+   * as a share of the frame, that is left for the linked picture. */
+  const ring = (rest: readonly string[]): number => {
+    let radius = 0.5;
+    let index = 0;
+    while (index < rest.length && radius > 0.5 - RING_MAX) {
+      const room = Math.max(1, Math.floor((2 * Math.PI * radius) / RING_GAP));
+      const count = Math.min(room, rest.length - index);
+      for (let slot = 0; slot < count; slot += 1) {
+        const angle = (2 * Math.PI * slot) / count;
+        const id = rest[index + slot];
+        if (id === undefined) continue;
+        write(id, {
+          x: frame.cx + frame.span * radius * Math.cos(angle),
+          y: frame.cy + frame.span * radius * Math.sin(angle),
+        });
+      }
+      index += count;
+      radius -= RING_GAP;
     }
-    // One scale for both axes, so the picture keeps its shape.
-    const scale = frame.span / Math.max(maxX - minX, maxY - minY, Number.EPSILON);
+    // A band that would fill more than the share allowed takes the nodes on the last ring.
+    for (; index < rest.length; index += 1) {
+      const id = rest[index];
+      if (id !== undefined) write(id, { x: frame.cx, y: frame.cy });
+    }
+    return rest.length === 0 ? 0.5 : Math.max(CORE_MIN, radius - RING_GAP);
+  };
+
+  // The bounds of the picture leave out the 2% of nodes at each end of an axis, so one node that
+  // the forces throw far away cannot shrink the rest. That node stands on the border.
+  const boundsOf = (values: number[]): [number, number] => {
+    values.sort((one, two) => one - two);
+    const cut = Math.floor(values.length * 0.02);
+    return [values[cut] ?? 0, values[values.length - 1 - cut] ?? 0];
+  };
+
+  const paint = (nodes: readonly string[], reach: number): void => {
+    const [minX, maxX] = boundsOf(nodes.map((node) => placeOf(node).x));
+    const [minY, maxY] = boundsOf(nodes.map((node) => placeOf(node).y));
+    // One scale for both axes, so the picture keeps its shape, inside the radius that is left.
+    const scale = (2 * reach * frame.span) / Math.max(maxX - minX, maxY - minY, Number.EPSILON);
     const midX = (minX + maxX) / 2;
     const midY = (minY + maxY) / 2;
+    const half = Math.max(maxX - minX, maxY - minY) / 2;
+    const clamp = (value: number): number => Math.max(-half, Math.min(half, value));
     for (const node of nodes) {
       const at = placeOf(node);
       write(node, {
-        x: frame.cx + (at.x - midX) * scale,
-        y: frame.cy + (at.y - midY) * scale,
+        x: frame.cx + clamp(at.x - midX) * scale,
+        y: frame.cy + clamp(at.y - midY) * scale,
       });
     }
   };
 
-  const run = (input: LayoutInput): void => {
+  const run = (input: LayoutInput, forces: ForceSettings): void => {
     stop();
-    const { nodes, links } = input;
+    const { nodes, links, rest } = input;
+    const reach = ring(rest);
     if (nodes.length === 0) {
+      step();
+      known = new Set();
       return;
     }
     const graph = new Graph({ type: 'undirected', multi: false });
@@ -121,14 +148,16 @@ export function createLiveLayout(
     }
     known = new Set(nodes);
 
+    const settings = {
+      ...forces,
+      edgeWeightInfluence: 1,
+      barnesHutOptimize: true,
+      slowDown: 4,
+    };
     let frames = 0;
     const tick = (): void => {
       handle = 0;
-      const moved = forceAtlas2(graph, {
-        iterations: STEP,
-        settings: SETTINGS,
-        getEdgeWeight: 'weight',
-      });
+      const moved = forceAtlas2(graph, { iterations: STEP, settings, getEdgeWeight: 'weight' });
       let travel = 0;
       for (const node of nodes) {
         const next = moved[node] ?? placeOf(node);
@@ -137,7 +166,7 @@ export function createLiveLayout(
         raw.set(node, next);
         graph.mergeNodeAttributes(node, next);
       }
-      paint(nodes);
+      paint(nodes, reach);
       step();
       frames += 1;
       let span = Number.EPSILON;

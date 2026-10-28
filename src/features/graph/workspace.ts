@@ -28,7 +28,7 @@ export const DEFAULT_GRAPH_WORKSPACE: GraphWorkspace = {
   hiddenTypes: [],
   railOpen: true,
   railWidth: 256,
-  showUnplaced: false,
+  showUnplaced: true,
   hiddenRelationTypes: [],
 };
 
