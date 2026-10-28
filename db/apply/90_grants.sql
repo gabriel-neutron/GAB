@@ -186,6 +186,8 @@ REVOKE ALL ON FUNCTION on_site_of(text,text[])     FROM PUBLIC;
 REVOKE ALL ON FUNCTION passage_words(text,text,int,int,int) FROM PUBLIC;
 REVOKE ALL ON FUNCTION passages_share_run(text[],text[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION citation_source(uuid)       FROM PUBLIC;
+REVOKE ALL ON FUNCTION citation_party(uuid)        FROM PUBLIC;
+REVOKE ALL ON FUNCTION citation_words(uuid)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION citations_independent(uuid,uuid) FROM PUBLIC, gabriel_app;
 REVOKE ALL ON FUNCTION record_act_check(uuid,text,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_research_check(uuid,text,text,text,text,text) FROM PUBLIC;
