@@ -21,6 +21,7 @@ import { releaseHeading } from './release-heading.ts';
 import type { ReleaseManifest } from './release-manifest.ts';
 import { releaseNotes } from './release-notes.ts';
 import type { ReleaseRecord } from './release-record.ts';
+import { undatedDesignations } from './undated-designations.ts';
 import type { VolumeRejection, VolumeTable } from './volume-table.ts';
 
 /** The file that lists each file of a release with its checksum. */
@@ -95,6 +96,7 @@ export const releaseFiles = (
     ),
     natoCoverage,
     geolocationCoverage,
+    undatedDesignations: undatedDesignations(record),
     files: listed,
   };
   return {

@@ -97,6 +97,20 @@
       }
     ]
   },
+  "undatedDesignations": {
+    "query": "release_relations() where type = 'designated_by' and valid_from is null, split by the label of the end entity (release_entities()): 'Executive Order 14024' is us_eo_14024; a label that starts with 'OFAC action of ' is us_ofac_action; else the regime of the official file that the relation cites (eu_eurlex is eu, uk_sanctions_list is uk); else other",
+    "total": 0,
+    "byAct": {
+      "us_eo_14024": 0,
+      "us_ofac_action": 0,
+      "eu": 0,
+      "uk": 0,
+      "other": 0
+    },
+    "cause": "The OFAC SDN.CSV file holds no designation date. A US designation has a start date only when a Recent Actions page gives it.",
+    "effect": "The dated-fact test of the arms layer (COMBATTRE) leaves out most producers and intermediaries, because their designation has no start date.",
+    "baselineMetrics": "No metric of this baseline reads the start date (validFrom) of a designation. The US dates of #999 are a declared blind spot; the next release compares the counts above."
+  },
   "files": [
     {
       "path": "entities.csv",
