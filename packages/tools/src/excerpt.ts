@@ -126,11 +126,13 @@ export const pointSlice = (text: string, start: number, end: number): string =>
 export const MAX_TOLERANT_UNITS = 1024 * 1024;
 
 // The span of the folded excerpt in one window of the page, in code points of the window.
-const foldedIn = (window: string, wanted: string): Span | null => {
+const foldedIn = (window: string, wanted: string, more: boolean): Span | null => {
   const folded = fold(window);
   // A match that stops before an accent of the page stops inside a letter: "cafe" is not "café".
   let found = folded.text.indexOf(wanted);
-  while (found !== -1 && /^\p{M}/u.test(folded.text.slice(found + wanted.length)))
+  // A match at the window end is left to the next window, which sees the mark that may follow.
+  const atEnd = (at: number): boolean => more && at + wanted.length === folded.text.length;
+  while (found !== -1 && (atEnd(found) || /^\p{M}/u.test(folded.text.slice(found + wanted.length))))
     found = folded.text.indexOf(wanted, found + 1);
   if (found === -1) return null;
   const first = pointIndex(folded.text, found);
@@ -158,7 +160,7 @@ export const findExcerpt = (page: string, excerpt: string): Span | null => {
   for (let from = 0; ; from += MAX_TOLERANT_UNITS) {
     // A window never starts inside a surrogate pair.
     const begin = isLow(page.charCodeAt(from)) ? from + 1 : from;
-    const span = foldedIn(page.slice(begin, begin + size), wanted);
+    const span = foldedIn(page.slice(begin, begin + size), wanted, begin + size < page.length);
     if (span !== null) {
       const base = pointIndex(page, begin);
       return { start: base + span.start, end: base + span.end };

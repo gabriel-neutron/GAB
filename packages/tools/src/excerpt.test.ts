@@ -53,3 +53,13 @@ test('a page above the tolerant size finds a folded excerpt at its end and acros
   expect(cut(edge, 'Date of listing')).toBe('Date of\nlisting');
   expect(findExcerpt(end, 'Lukoil')).toBeNull();
 });
+
+test('a page above the tolerant size keeps the accent rule at a window end and the code point origin', () => {
+  const size = MAX_TOLERANT_UNITS + 4096;
+  const mark = String.fromCharCode(0x301);
+  // The quote ends the window one unit before the "e" of the mark: "cafe" is at the window end.
+  const accent = `${'a '.repeat((size - 6) / 2)} "cafe${mark} ${'a '.repeat(10)}`;
+  expect(findExcerpt(accent, '“cafe')).toBeNull();
+  const astral = `${'😀'.repeat(MAX_TOLERANT_UNITS)}said “no”`;
+  expect(findExcerpt(astral, 'said "no"')?.start).toBe(MAX_TOLERANT_UNITS);
+});
