@@ -2601,3 +2601,96 @@ test('read_event_pairs flags a Latin and a Cyrillic event of one site and day', 
     expect(mine[0]?.events.map((one) => one.id).sort()).toStrictEqual([a, b].sort());
   });
 });
+
+// ------------------------------------------------ propose: a held identifier ---
+
+const HELD_IDENTIFIERS = [
+  ['imo', 'vessel', '9482137'],
+  ['imo_company_number', 'company', '5012345'],
+  ['tax_id', 'company', '7714117720'],
+  ['registration_number', 'company', '1027700070518'],
+  ['lei', 'company', '5493001KJTIIGC8Y1R12'],
+] as const;
+
+test.each(HELD_IDENTIFIERS)(
+  'propose refuses a new entity whose %s the record holds, and names the holder',
+  async (key, type, value) => {
+    const found = await rolledBack('superuser', async (ask) => {
+      await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+      const [act] = z
+        .array(z.object({ id: z.uuid() }))
+        .parse(
+          await ask(`SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::text[]) AS id`, [
+            'create_entity',
+            JSON.stringify({ type, label: 'Held holder' }),
+          ]),
+        );
+      await ask('RESET SESSION AUTHORIZATION');
+      z.array(z.object({ id: z.uuid() })).parse(
+        await ask(
+          `INSERT INTO public.entities (type, label, attrs, sources, promoted_from)
+             VALUES ($1, 'Held holder', jsonb_build_object($2::text, jsonb_build_object('v', $3::text, 'src', jsonb_build_array('manual'))),
+                     ARRAY['manual']::doc_id[], $4) RETURNING id`,
+          [type, key, value, act?.id],
+        ),
+      );
+      const outcome = await proposeOnPage(ask, [
+        item(
+          'nayara',
+          { op: 'create_entity', type, label: 'Nayara', attrs: { [key]: { v: value } } },
+          'the tanker NAYARA',
+        ),
+      ]);
+      return { outcome };
+    });
+    expect(found.outcome).toMatchObject({
+      ok: false,
+      refusal: expect.stringMatching(/already, on the entity [0-9a-f-]{36} [(]/u) as string,
+    });
+  },
+);
+
+test('propose passes a retry of the same batch that waits already, and refuses another name', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const make = (label: string) => [
+      item(
+        'nayara',
+        { op: 'create_entity', type: 'vessel', label, attrs: { imo: { v: '9111113' } } },
+        'the tanker NAYARA',
+      ),
+    ];
+    const first = await proposeOnPage(ask, make('Nayara'));
+    const retry = await proposeAgain(ask, make('Nayara'));
+    const other = await proposeAgain(ask, make('Other name'));
+    const batch = await proposeAgain(ask, [
+      item(
+        'a',
+        { op: 'create_entity', type: 'vessel', label: 'Alpha', attrs: { imo: { v: '9222226' } } },
+        'the tanker NAYARA',
+      ),
+      item(
+        'b',
+        {
+          op: 'create_entity',
+          type: 'vessel',
+          label: 'Beta',
+          attrs: { imo: { v: ['x', 9222226] } },
+        },
+        'the tanker NAYARA',
+      ),
+    ]);
+    return { first, retry, other, batch };
+  });
+  expect(found.first).toMatchObject({ ok: true });
+  expect(found.retry).toMatchObject({ ok: true });
+  expect(found.other).toMatchObject({
+    ok: false,
+    refusal: expect.stringMatching(
+      /already, on the new entity that waits as proposal [0-9a-f-]{36} [(]Nayara[)]/u,
+    ) as string,
+  });
+  expect(found.batch).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('another new entity of the batch') as string,
+  });
+});

@@ -44,6 +44,12 @@ export default defineConfig(
 
   { files: ['**/*.{js,mjs,cjs,jsx}'], extends: [js.configs.recommended] },
 
+  // A CommonJS hook runs in Node and reads the globals of Node.
+  {
+    files: ['**/*.cjs'],
+    languageOptions: { globals: { process: 'readonly', __dirname: 'readonly' } },
+  },
+
   {
     files: ['**/*.{ts,mts,cts,tsx}'],
     extends: [

@@ -107,6 +107,7 @@ test('the Claude Code settings allow each tool of the server, except the ones th
   const settings = z
     .strictObject({
       permissions: z.strictObject({ allow: z.array(z.string()), deny: z.array(z.string()) }),
+      hooks: z.unknown(),
     })
     .parse(JSON.parse(read(path.join(ROOT, 'research', '.claude', 'settings.json'))));
   const allowed = [...RESEARCH]
