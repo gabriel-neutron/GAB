@@ -92,6 +92,33 @@ LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
   END
 $$;
 
+-- A HISTORY KEY GROWS, AND NEVER LOSES A VALUE. An update of the MMSI list or the call signs of a
+-- vessel adds its values after the values of the record. The src keeps each document of the old
+-- value, then adds the new ones. When the act adds no value, the old value stays as it is, so the
+-- promotion sees no change.
+-- shortcut: no act removes a wrong value of a history key; add a remove op when one is found.
+CREATE OR REPLACE FUNCTION history_value(p_old jsonb, p_new jsonb)
+RETURNS jsonb
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
+  WITH old_v AS (
+    SELECT x.e, x.n FROM jsonb_array_elements(CASE jsonb_typeof(p_old->'v') WHEN 'array'
+      THEN p_old->'v' ELSE jsonb_build_array(p_old->'v') END) WITH ORDINALITY AS x(e, n)),
+  added AS (
+    SELECT min(y.n) AS n, y.e FROM jsonb_array_elements(CASE jsonb_typeof(p_new->'v') WHEN 'array'
+      THEN p_new->'v' ELSE jsonb_build_array(p_new->'v') END) WITH ORDINALITY AS y(e, n)
+     WHERE NOT EXISTS (SELECT 1 FROM old_v WHERE old_v.e = y.e)
+     GROUP BY y.e)
+  SELECT jsonb_build_object(
+    'v', CASE WHEN NOT EXISTS (SELECT 1 FROM added) THEN p_old->'v'
+              ELSE (SELECT jsonb_agg(e ORDER BY n) FROM old_v)
+                   || (SELECT jsonb_agg(e ORDER BY n) FROM added) END,
+    'src', coalesce(p_old->'src', '[]'::jsonb) || coalesce(
+      (SELECT jsonb_agg(z.doc ORDER BY z.ord)
+         FROM jsonb_array_elements(p_new->'src') WITH ORDINALITY AS z(doc, ord)
+        WHERE NOT coalesce(p_old->'src', '[]'::jsonb) @> jsonb_build_array(z.doc)),
+      '[]'::jsonb))
+$$;
+
 -- MORE DOCUMENTS FOR A ROW OF THE RECORD. The row-level list takes them when p_row is true, and
 -- the src of each named attribute takes them. A document that a list holds already is not added
 -- again. No role holds this step: the promotion runs it.
@@ -2069,7 +2096,10 @@ BEGIN
     -- already cites, and then adds the new ones, so no act loses a corroboration. jsonb equality
     -- reads 41200.0 as 41200, and the record compares the code of a jurisdiction (migration 0079).
     SELECT jsonb_object_agg(n.k,
-             CASE WHEN v_old ? n.k AND v_old->n.k->'v' = n.val->'v'
+             CASE WHEN p.target_kind = 'entity' AND v_old ? n.k
+                       AND n.k IN ('mmsi_history', 'call_sign')
+                  THEN public.history_value(v_old->n.k, n.val)
+                  WHEN v_old ? n.k AND v_old->n.k->'v' = n.val->'v'
                   THEN jsonb_build_object('v', n.val->'v', 'src',
                          (v_old->n.k->'src') || coalesce(
                            (SELECT jsonb_agg(y.doc ORDER BY y.ord)
