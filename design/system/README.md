@@ -68,6 +68,7 @@ Two themes: **Obsidian** (dark, the Factory original, the default) and **Bone** 
 ## Motion
 
 - Interface: 150ms, `cubic-bezier(0.4, 0, 0.2, 1)`, on colour, background, border and stroke together. No scale, no spring, no bounce.
+- Asciify marks (the loading mark and the 404 numerals): characters on the GPU, inked from `--ascii-ink` and its four state names, with the words in HTML. They hold still under reduced motion. No other surface uses them.
 - Canvas focus: when the selection changes, non-neighbours fade to 30% in 200ms.
 - Report: a step change re-states the figure in 200ms; one entrance per figure (bar growth or line draw) in 600ms. No parallax, no scroll-scrubbed zoom, no word-by-word text.
 - `prefers-reduced-motion`: show the final state at once.

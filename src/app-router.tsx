@@ -1,8 +1,7 @@
 import { createRouter, useRouter, type RouterHistory } from '@tanstack/react-router';
-import { Button } from '@/shared/ui/button';
+import { AsciiLoading } from '@/shared/ascii/ascii-loading';
+import { AsciiNotFound } from '@/shared/ascii/ascii-not-found';
 import { ErrorNotice } from '@/shared/error-notice';
-import { PageHeader } from '@/shared/page/page-header';
-import { ReadingPage } from '@/shared/page/reading-page';
 import { refreshCorpus } from '@/shared/read/corpus';
 import { recheckWriter } from '@/shared/write/writer-status';
 import { routeTree } from './routeTree.gen';
@@ -10,27 +9,7 @@ import { routeTree } from './routeTree.gen';
 // The router default answers an unknown path. An unknown entity identifier is a different
 // fault, and `routes/entity.$id.tsx` answers that one with its own words.
 function PathNotFound() {
-  const router = useRouter();
-
-  // A typed address can be the first entry in the history. Then there is no page to go back to.
-  return (
-    <ReadingPage>
-      <PageHeader title="Page not found" />
-      <p>This address does not name a page.</p>
-      {router.history.canGoBack() && (
-        <div>
-          <Button
-            variant="outline"
-            onClick={() => {
-              router.history.back();
-            }}
-          >
-            Go back
-          </Button>
-        </div>
-      )}
-    </ReadingPage>
-  );
+  return <AsciiNotFound />;
 }
 
 // Every surface reads the record through one loader, so a read that fails is the usual cause of
@@ -54,7 +33,7 @@ function RouteError({ error }: { error: Error }) {
 function RoutePending() {
   return (
     <div className="flex h-full items-center justify-center p-4">
-      <p>Loading…</p>
+      <AsciiLoading />
     </div>
   );
 }

@@ -94,6 +94,7 @@
     "@gab/proposal": "workspace:*",
     "@gab/release": "workspace:*",
     "@tanstack/react-router": "^1.170.25",
+    "asciify-engine": "4.32.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "graphology": "^0.26.0",
