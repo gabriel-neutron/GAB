@@ -40,7 +40,7 @@ export const auditCoverageCommand: SubCommand = async (args) => {
     process.stdout.write(auditText(report));
     return 0;
   } catch (error) {
-    console.error(`The audit stops: ${(error as Error).message}`);
+    console.error(`The audit stops: ${error instanceof Error ? error.message : String(error)}`);
     return 2;
   }
 };

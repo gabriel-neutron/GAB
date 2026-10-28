@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { auditCoverage, auditText, type Steps } from './audit-coverage.ts';
+import { auditCoverage, auditText, stepsShape, type Steps } from './audit-coverage.ts';
 import { csvFile } from './csv-file.ts';
 
 const A = '00000000-0000-4000-8000-0000000000a1';
@@ -67,7 +67,7 @@ const steps = (reference: boolean): Steps => [
 ];
 
 test('joins by identifier only, and counts the depth of the matched entities', () => {
-  // The number of ALPHA is text with a prefix and a space, and BETA holds its number in a list.
+  // The reference writes the number of BETA with a space and a dash, and BETA holds it in a list.
   const reference = 'key,value\nimo,9123456\nimo,9 777-777\nimo,9555555\n';
   const report = auditCoverage(input(new Map([['vessels', reference]])), steps(true));
   expect(report).toMatchObject({
@@ -98,6 +98,60 @@ test('a step with no reference is not measurable', () => {
   expect(auditCoverage(input(new Map()), steps(false))).toMatchObject({
     steps: [{ status: 'not measurable' }],
   });
+});
+
+const withRelation = (end: 'from' | 'to', valid_to: string) => ({
+  ...input(new Map([['vessels', 'key,value\nimo,9123456\n']])),
+  relations: csvFile('Preamble', REL_HEADER, [
+    ['r', 'owns', end === 'to' ? FIRM : A, end === 'to' ? A : FIRM, '', valid_to],
+  ]),
+});
+
+test('an owner is at the second end of the relation, and an ended relation does not stand', () => {
+  const fields: Steps[number]['fields'] = [
+    { name: 'owner', relation: 'owns', end: 'to' },
+    { name: 'dated', relation: 'owns', end: 'to', dated: true },
+  ];
+  const run = (end: 'from' | 'to', ended: string) =>
+    auditCoverage(withRelation(end, ended), [{ ...steps(true)[0]!, fields }]).steps[0];
+  expect(run('to', '')).toMatchObject({ depth: { owner: { held: 1 }, dated: { held: 0 } } });
+  expect(run('from', '')).toMatchObject({ depth: { owner: { held: 0 } } });
+  expect(run('to', '2021-01-01')).toMatchObject({
+    depth: { owner: { held: 0 }, dated: { held: 1 } },
+  });
+});
+
+test('an identifier that two entities hold is listed as ambiguous', () => {
+  const base = input(new Map([['vessels', 'key,value\nimo,9123456\n']]));
+  const claims = csvFile('Preamble', CLAIM_HEADER, [
+    claim(A, 'imo', '9123456'),
+    claim(B, 'imo', '9123456'),
+  ]);
+  expect(auditCoverage({ ...base, claims }, steps(true)).steps[0]).toMatchObject({
+    coverage: { matched: 1, total: 1 },
+    matched_entities: [A, B],
+    ambiguous_identifiers: ['imo:9123456'],
+  });
+});
+
+test('stops on a release file that lacks a column, and on a repeated step name', () => {
+  const base = input(new Map([['vessels', 'key,value\nimo,9123456\n']]));
+  expect(() => auditCoverage({ ...base, claims: 'claim_id\r\n' }, steps(true))).toThrow(/lacks/u);
+  expect(stepsShape.safeParse([...steps(false), ...steps(false)]).success).toBe(false);
+});
+
+test('the order of the rows does not change the bytes', () => {
+  const base = input(new Map([['vessels', 'key,value\nimo,9777777\nimo,9123456\n']]));
+  // Keep the preamble and the header, and reverse the rows after them.
+  const reversed = (text: string): string => {
+    const lines = text.split('\r\n').filter((one) => one !== '');
+    const at = lines.findIndex((one) => !one.includes('#')) + 1;
+    return `${[...lines.slice(0, at), ...lines.slice(at).reverse()].join('\r\n')}\r\n`;
+  };
+  const shuffled = { ...base, entities: reversed(base.entities), claims: reversed(base.claims) };
+  expect(auditText(auditCoverage(shuffled, steps(true)))).toBe(
+    auditText(auditCoverage(base, steps(true))),
+  );
 });
 
 test('two runs give the same bytes', () => {
