@@ -76,6 +76,9 @@ export const releaseCommand: SubCommand = async (args) => {
   await client.connect();
   try {
     await client.query(`SET statement_timeout = '${statementTimeout(RELEASE_TIMEOUT)}'`);
+    // A stopped command drops its connection, and the server then ends the statement it runs. Else
+    // the statement runs on to its end, and a new release shares the machine with it.
+    await client.query(`SET client_connection_check_interval = '5s'`);
     const site = join(flags.out, `gab-site-${manifest.date}`);
     const written = await inOneSnapshot(client, () =>
       writeRelease(client, manifest, flags.out, flags.previous, (folder) =>

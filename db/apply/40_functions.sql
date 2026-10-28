@@ -4095,20 +4095,27 @@ BEGIN
       modality := v_cite.modality;
       doc_id := v_page.doc_id;
       page := v_page.page;
-      before := array_to_string(
-        v_lines[greatest(1, v_first - 2):v_first - 1]
-          || substr(v_lines[v_first], 1, v_cite.start - v_at[v_first]), E'\n');
-      cited := CASE WHEN v_first = v_last
-                    THEN substr(v_lines[v_first], v_cite.start - v_at[v_first] + 1,
-                                v_cite."end" - v_cite.start)
-                    ELSE array_to_string(
-                           substr(v_lines[v_first], v_cite.start - v_at[v_first] + 1)
-                           || v_lines[v_first + 1:v_last - 1]
-                           || substr(v_lines[v_last], 1, v_cite."end" - v_at[v_last]), E'\n')
-               END;
-      after := array_to_string(
-        substr(v_lines[v_last], v_cite."end" - v_at[v_last] + 1)
-          || v_lines[v_last + 1:v_last + 2], E'\n');
+      -- A slice of an array (`v_lines[a:b]`) copies the whole array, and so does a query over it.
+      -- The one page of the v1 import holds 58,000 lines, so each line is read by its own subscript.
+      before := '';
+      FOR i IN greatest(1, v_first - 2) .. v_first - 1 LOOP
+        before := before || v_lines[i] || E'\n';
+      END LOOP;
+      before := before || substr(v_lines[v_first], 1, v_cite.start - v_at[v_first]);
+      IF v_first = v_last THEN
+        cited := substr(v_lines[v_first], v_cite.start - v_at[v_first] + 1,
+                        v_cite."end" - v_cite.start);
+      ELSE
+        cited := substr(v_lines[v_first], v_cite.start - v_at[v_first] + 1) || E'\n';
+        FOR i IN v_first + 1 .. v_last - 1 LOOP
+          cited := cited || v_lines[i] || E'\n';
+        END LOOP;
+        cited := cited || substr(v_lines[v_last], 1, v_cite."end" - v_at[v_last]);
+      END IF;
+      after := substr(v_lines[v_last], v_cite."end" - v_at[v_last] + 1);
+      FOR i IN v_last + 1 .. least(v_count, v_last + 2) LOOP
+        after := after || E'\n' || v_lines[i];
+      END LOOP;
       RETURN NEXT;
     END LOOP;
   END LOOP;
@@ -7228,26 +7235,44 @@ END $$;
 -- has resolved the name of the originator. The control is the controller of the author, or the
 -- author itself when it has none, so an author and its controller share one control. Only an act
 -- that states or enacts the fact counts as a source of it.
-CREATE OR REPLACE FUNCTION citation_source(p_citation uuid)
-RETURNS TABLE (author uuid, control text, site text, words text[], stating boolean)
+--
+-- Departure: the words have their own function. The words of a citation of a large page cost
+-- 120 ms, because a substr of the one page of the v1 import (50 million characters) must unpack the
+-- page. A read that needs no words calls citation_party, and the proof of independence reads the
+-- words last, when the other tests pass. Measured on 28 October 2026 on the record.
+CREATE OR REPLACE FUNCTION citation_party(p_citation uuid)
+RETURNS TABLE (author uuid, control text, site text, stating boolean)
 LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT a.id,
          coalesce(public.name_key(a.controller), a.name_key),
          public.site_of(d.uri),
-         -- The words that the AI read from an image are the passage of that citation.
-         CASE WHEN c.transcription IS NOT NULL
-              THEN coalesce(array(
-                     SELECT w FROM regexp_split_to_table(
-                       lower(regexp_replace(c.transcription, '[^[:alnum:]]+', ' ', 'g')), ' ') AS w
-                     WHERE w <> ''), '{}'::text[])
-              ELSE public.passage_words(c.doc_id, c.text_extractor, c.page, c.start, c."end")
-         END,
          c.modality IN ('enacts', 'asserts')
     FROM public.citation c
     JOIN public.proposals p ON p.id = c.claim_id
     JOIN public.documents d ON d.id = c.doc_id
     LEFT JOIN public.author a ON a.id = public.author_of(p.originator)
    WHERE c.id = p_citation
+$$;
+
+-- The words that the AI read from an image are the passage of that citation.
+CREATE OR REPLACE FUNCTION citation_words(p_citation uuid) RETURNS text[]
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT CASE WHEN c.transcription IS NOT NULL
+              THEN coalesce(array(
+                     SELECT w FROM regexp_split_to_table(
+                       lower(regexp_replace(c.transcription, '[^[:alnum:]]+', ' ', 'g')), ' ') AS w
+                     WHERE w <> ''), '{}'::text[])
+              ELSE public.passage_words(c.doc_id, c.text_extractor, c.page, c.start, c."end")
+         END
+    FROM public.citation c
+   WHERE c.id = p_citation
+$$;
+
+CREATE OR REPLACE FUNCTION citation_source(p_citation uuid)
+RETURNS TABLE (author uuid, control text, site text, words text[], stating boolean)
+LANGUAGE sql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT x.author, x.control, x.site, public.citation_words(p_citation), x.stating
+    FROM public.citation_party(p_citation) x
 $$;
 
 -- TWO CITATIONS OF ONE FACT ARE INDEPENDENT only when each one states or enacts the fact, and
@@ -7265,10 +7290,13 @@ SET search_path = pg_catalog, public, pg_temp AS $$
              AND one.author IS NOT NULL AND two.author IS NOT NULL AND one.author <> two.author
              AND one.control <> two.control
              AND one.site IS NOT NULL AND two.site IS NOT NULL AND one.site <> two.site
-             AND one.words IS NOT NULL AND two.words IS NOT NULL
-             AND NOT public.passages_share_run(one.words, two.words),
+             -- The last test: it reads the page. A passage that code cannot read gives no words.
+             AND coalesce((SELECT NOT public.passages_share_run(w.one, w.two)
+                             FROM (SELECT public.citation_words(p_one) AS one,
+                                          public.citation_words(p_two) AS two) w
+                            WHERE w.one IS NOT NULL AND w.two IS NOT NULL), false),
              false)
-      FROM public.citation_source(p_one) one, public.citation_source(p_two) two), false)
+      FROM public.citation_party(p_one) one, public.citation_party(p_two) two), false)
 $$;
 
 -- ================================================================== THE CHECK AND THE DIGIT ==
@@ -7422,7 +7450,7 @@ BEGIN
   v_stating := coalesce(v_stating, '{}'::uuid[]);
   SELECT count(DISTINCT x.author) INTO v_known
     FROM unnest(v_stating) AS s(id)
-   CROSS JOIN LATERAL public.citation_source(s.id) x
+   CROSS JOIN LATERAL public.citation_party(s.id) x
    WHERE x.author IS NOT NULL;
 
   IF EXISTS (SELECT 1 FROM unnest(v_stating) AS one(id), unnest(v_stating) AS two(id)
@@ -7917,7 +7945,8 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
                 THEN btrim(lower(regexp_replace(c.value #>> '{}', '[^[:alnum:]]+', ' ', 'g')))
            END AS words
       FROM claim c
-  ), passage AS (
+  -- MATERIALIZED: else the planner runs cited_passages once for each claim, 25,000 times.
+  ), passage AS MATERIALIZED (
     SELECT p.* FROM public.cited_passages(ARRAY(SELECT DISTINCT a FROM kept k, unnest(k.acts) AS a
                                                  WHERE cardinality(k.public_sources) > 0)) p
   ), matched AS (
@@ -7926,22 +7955,24 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
              ' ' || btrim(lower(regexp_replace(p.cited, '[^[:alnum:]]+', ' ', 'g'))) || ' ',
              ' ' || k.words || ' ') > 0, false) AS holds
       FROM kept k
-      JOIN passage p ON p.claim_id = ANY (k.acts) AND p.doc_id = ANY (k.public_sources)
+     CROSS JOIN LATERAL unnest(k.acts) AS a(act)  -- an equal join, so the planner can hash it
+      JOIN passage p ON p.claim_id = a.act AND p.doc_id = ANY (k.public_sources)
   ), chosen AS (
     SELECT m.*, bool_or(m.holds) OVER (PARTITION BY m.claim_id, m.doc_id) AS some_hold
       FROM matched m
+  ), shown AS (
+    SELECT p.claim_id,
+           jsonb_agg(jsonb_build_object('document', p.doc_id, 'page', p.page, 'excerpt', p.cited,
+                                        'modality', p.modality, 'transcribed', p.transcribed)
+                     ORDER BY p.doc_id, p.page, p.cited) AS passages
+      FROM chosen p
+     WHERE p.holds OR NOT p.some_hold
+     GROUP BY p.claim_id
   )
   SELECT k.claim_id, k.subject_kind, k.subject_id, k.attribute, k.value, k.origin_label,
-         k.public_sources, k.act,
-         coalesce((SELECT jsonb_agg(jsonb_build_object('document', p.doc_id, 'page', p.page,
-                                                       'excerpt', p.cited,
-                                                       'modality', p.modality,
-                                                       'transcribed', p.transcribed)
-                                    ORDER BY p.doc_id, p.page, p.cited)
-                     FROM chosen p
-                    WHERE p.claim_id = k.claim_id AND (p.holds OR NOT p.some_hold)),
-                  '[]'::jsonb)
+         k.public_sources, k.act, coalesce(s.passages, '[]'::jsonb)
     FROM kept k
+    LEFT JOIN shown s ON s.claim_id = k.claim_id
    WHERE cardinality(k.public_sources) > 0
 $$;
 
@@ -7996,7 +8027,8 @@ LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
   WITH asked AS (
     SELECT p.id, p.claim_key FROM public.proposals p WHERE p.id = ANY (p_acts)
-  ), judged AS (
+  -- MATERIALIZED: else the planner calls fact_digit twice for each fact.
+  ), judged AS MATERIALIZED (
     SELECT k.claim_key, public.fact_digit(k.claim_key) AS digit,
            (SELECT min(s.letter) FROM public.fact_support(k.claim_key) s
              WHERE s.author IS NOT NULL) AS letter
