@@ -207,6 +207,9 @@ const CHAIN_CASING_OPACITY = 0.5;
 // Origin of the number: at this opacity an asset or an arc out of the step stays visible on each
 // ground, and an asset of the step reads at once.
 const CHAIN_DIMMED = 0.3;
+// A step that the reader picks hides each arc and each exit out of it, and keeps an asset out of it
+// only as a faint mark, so no asset is left drawn nowhere.
+const CHAIN_OFF_STEP_ASSET = 0.2;
 
 /** The arcs of the chain, one layer for each style. A link in review is never drawn as a fact. */
 const CHAIN_ARC_LAYERS = [
@@ -1247,34 +1250,49 @@ export function mountMap({
     ),
   ]);
 
+  // The assets of the step the reader picked, or null with none. The shapes of any other asset
+  // are hidden, as its arcs are, so a pipeline outside the step does not stay on the map.
+  let stepAssets: ReadonlySet<string> | null = null;
+
   const forward = (
     ids: ReadonlySet<string> | null,
     property: string,
     base = 1,
+    off = CHAIN_DIMMED,
   ): number | ['case', ['in', ['get', string], ['literal', string[]]], number, number] =>
     ids === null
       ? base
-      : ['case', ['in', ['get', property], ['literal', [...ids]]], base, base * CHAIN_DIMMED];
+      : ['case', ['in', ['get', property], ['literal', [...ids]]], base, base * off];
 
   const paintStep = (key: string | null): void => {
     const step = key === null ? undefined : chain.steps.find((one) => one.key === key);
+    stepAssets = step === undefined ? null : new Set(step.assets);
+    paintChainMode();
     whenStyleReady(() => {
       const assets = step === undefined ? null : new Set(step.assets);
       const arcs = step === undefined ? null : new Set(step.arcs);
       const exits = step === undefined ? null : new Set(step.exits);
-      map.setPaintProperty(CHAIN_POINT_LAYER, 'circle-opacity', forward(assets, 'entityId'));
-      map.setPaintProperty(CHAIN_POINT_LAYER, 'circle-stroke-opacity', forward(assets, 'entityId'));
+      map.setPaintProperty(
+        CHAIN_POINT_LAYER,
+        'circle-opacity',
+        forward(assets, 'entityId', 1, CHAIN_OFF_STEP_ASSET),
+      );
+      map.setPaintProperty(
+        CHAIN_POINT_LAYER,
+        'circle-stroke-opacity',
+        forward(assets, 'entityId', 1, CHAIN_OFF_STEP_ASSET),
+      );
       map.setPaintProperty(
         CHAIN_CASING_LAYER,
         'line-opacity',
-        forward(arcs, 'id', CHAIN_CASING_OPACITY),
+        forward(arcs, 'id', CHAIN_CASING_OPACITY, 0),
       );
       for (const id of [
         ...CHAIN_ARC_LAYERS.map((one) => one.id),
         ...PRODUCTS.map((one) => pulseOfProduct(one.key)),
       ])
-        map.setPaintProperty(id, 'line-opacity', forward(arcs, 'id'));
-      map.setPaintProperty(CHAIN_EXIT_LAYER, 'circle-stroke-opacity', forward(exits, 'id'));
+        map.setPaintProperty(id, 'line-opacity', forward(arcs, 'id', 1, 0));
+      map.setPaintProperty(CHAIN_EXIT_LAYER, 'circle-stroke-opacity', forward(exits, 'id', 1, 0));
     });
     if (step === undefined) return;
     const all = [...step.assets, ...step.arcs, ...step.exits].flatMap(
@@ -1295,6 +1313,14 @@ export function mountMap({
   // In the Chain mode, an asset with a stage draws one disc, in the colour of its stage, and each
   // other entity steps back. Out of the mode, the type layers draw as before.
   const paintChainMode = (): void => {
+    // With a step picked, a shape out of it is hidden. With none, `otherwise` holds.
+    type Opacity =
+      | number
+      | ['case', ['has', string] | ['in', ['get', string], ['literal', string[]]], number, number];
+    const shapeOpacity = (base: number, otherwise: Opacity): Opacity =>
+      chainOn && stepAssets !== null
+        ? ['case', ['in', ['get', 'entityId'], ['literal', [...stepAssets]]], base, 0]
+        : otherwise;
     whenStyleReady(() => {
       map.setPaintProperty(
         SELECTION_SHAPE_CORE,
@@ -1313,6 +1339,14 @@ export function mountMap({
         const back = chainOn ? CHAIN_DIMMED : 1;
         map.setPaintProperty(layerOfType(facet.type), 'circle-opacity', back);
         map.setPaintProperty(layerOfType(facet.type), 'circle-stroke-opacity', back);
+        // A staged asset draws one disc of its stage, so its type mark leaves: a disc inside a
+        // square reads as two marks for one asset.
+        map.setFilter(
+          symbolOfType(facet.type),
+          chainOn
+            ? ['all', base, ['has', 'symbolImage'], ['!', staged]]
+            : ['all', base, ['has', 'symbolImage']],
+        );
         map.setPaintProperty(symbolOfType(facet.type), 'icon-opacity', back);
         map.setPaintProperty(haloOfType(facet.type), 'circle-opacity', HALO_OPACITY * back);
         // A route or an area follows its point: the hue of the stage, and a step back when the
@@ -1325,14 +1359,22 @@ export function mountMap({
         map.setPaintProperty(
           outlineOfType(facet.type),
           'line-opacity',
-          chainOn ? ['case', staged, 1, CHAIN_DIMMED] : 1,
+          shapeOpacity(1, chainOn ? ['case', staged, 1, CHAIN_DIMMED] : 1),
         );
         map.setPaintProperty(
           casingOfType(facet.type),
           'line-opacity',
-          chainOn
-            ? ['case', staged, ROUTE_CASING_OPACITY, ROUTE_CASING_OPACITY * CHAIN_DIMMED]
-            : ROUTE_CASING_OPACITY,
+          shapeOpacity(
+            ROUTE_CASING_OPACITY,
+            chainOn
+              ? ['case', staged, ROUTE_CASING_OPACITY, ROUTE_CASING_OPACITY * CHAIN_DIMMED]
+              : ROUTE_CASING_OPACITY,
+          ),
+        );
+        map.setPaintProperty(
+          fillOfType(facet.type),
+          'fill-opacity',
+          shapeOpacity(AREA_FILL_OPACITY, AREA_FILL_OPACITY),
         );
         map.setPaintProperty(
           fillOfType(facet.type),
