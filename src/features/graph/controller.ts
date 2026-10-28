@@ -414,11 +414,11 @@ export function mountGraph(
     nameReach();
   };
 
-  // A reducer replaces the datum and does not merge into it. Each one below spreads the original,
-  // or Sigma finds no `x` and no `y` and refuses the node with an error.
   // Where each node was drawn when its last move began, as the card reads it. The place that Sigma
   // holds now is where the move ends.
   const moves = new Map<string, { fromX: number; fromY: number }>();
+  // A reducer replaces the datum and does not merge into it. Each one below spreads the original,
+  // or Sigma finds no `x` and no `y` and refuses the node with an error.
   const reduceNode = (node: string, data: NodeAttrs): Partial<NodeDisplayData> => {
     // The switch hides the ring. Unlike a filter, it takes the node out of the picture.
     if (!showUnplaced && data.unplaced) return { ...data, hidden: true, label: null };
@@ -845,7 +845,7 @@ export function mountGraph(
   let moveStart = 0;
   let moveFrame = 0;
   const stepMove = (now: number): void => {
-    const share = Math.min(1, (now - moveStart) / MOVE_MS);
+    const share = Math.max(0, Math.min(1, (now - moveStart) / MOVE_MS));
     // Ease out: the nodes are fast at the start and settle at the end.
     morph.progress = 1 - (1 - share) ** 3;
     sigma.scheduleRender();
