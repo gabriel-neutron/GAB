@@ -838,12 +838,12 @@ export function mountGraph(
     raw,
     { cx: frameX, cy: frameY, span: frameSpan },
     (places) => {
-      // One event for all the nodes: an event for each node would wake Sigma 6000 times.
+      // One event for all the nodes: an event for each node would wake Sigma 6000 times. The
+      // event schedules the draw, so no refresh follows: a second one would run the work twice.
       model.graph.updateEachNodeAttributes((node, attrs) => {
         const at = places.get(node);
-        return at === undefined ? attrs : { ...attrs, x: at.x, y: at.y };
+        return at === undefined ? attrs : Object.assign(attrs, at);
       });
-      sigma.refresh();
     },
     layoutWorker,
   );
@@ -878,11 +878,16 @@ export function mountGraph(
     // 1500 nodes is the count where the largest glyph still leaves room for its neighbours.
     const crowd = Math.min(1, Math.sqrt(1500 / Math.max(1, input.nodes.length)));
     const sized = (share: number): number => Math.max(3, variant.sizeOf(share) * crowd);
+    const sizes = new Map<string, number>();
     for (const node of input.nodes) {
       const share = strongest === 0 ? 0 : (input.strength.get(node) ?? 0) / strongest;
-      model.graph.setNodeAttribute(node, 'size', sized(share));
+      sizes.set(node, sized(share));
     }
-    for (const node of input.rest) model.graph.setNodeAttribute(node, 'size', sized(0));
+    for (const node of input.rest) sizes.set(node, sized(0));
+    model.graph.updateEachNodeAttributes((node, attrs) => {
+      const size = sizes.get(node);
+      return size === undefined ? attrs : Object.assign(attrs, { size });
+    });
     liveLayout.run(input, variant.forces);
   };
   relayout();
