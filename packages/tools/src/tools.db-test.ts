@@ -599,7 +599,7 @@ test('an excerpt that the page does not hold refuses the whole batch and names t
 });
 
 test('an excerpt that is not exact is found at the end of a page above the tolerant size', async () => {
-  const page = `${'a '.repeat(MAX_TOLERANT_UNITS * 2)}he said “no” today`;
+  const page = `${'a '.repeat(2_500_000)}he said “no” today`;
   const found = await rolledBack('superuser', async (ask) => {
     const outcome = await proposeOnPage(
       ask,

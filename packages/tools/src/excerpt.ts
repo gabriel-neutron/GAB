@@ -122,8 +122,8 @@ export const pointSlice = (text: string, start: number, end: number): string =>
 
 /** The most UTF-16 units of a page that the fold reads at one time. Origin: decided, not
  * calibrated. The fold makes arrays of about 64 bytes for each character, so this size holds its
- * memory near 64 MiB. A longer page is read in windows that overlap by more than an excerpt. */
-export const MAX_TOLERANT_UNITS = 1024 * 1024;
+ * memory near 8 MiB. A longer page is read in windows that overlap by more than an excerpt. */
+export const MAX_TOLERANT_UNITS = 128 * 1024;
 
 // The span of the folded excerpt in one window of the page, in code points of the window.
 const foldedIn = (window: string, wanted: string, more: boolean): Span | null => {

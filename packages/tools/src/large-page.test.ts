@@ -18,7 +18,7 @@ test('the citation of a page of 50 million characters copies no array of the pag
   };
 
   expect(passage).toBe('The tanker “Nayara” left');
-  expect(folded).toBeNull();
+  expect(folded).toStrictEqual({ start: 50_000_000, end: 50_000_024 });
   // The page alone is 100 MiB as a two-byte string. A copy as an array grows by hundreds of MiB.
   expect(growth).toBeLessThan(32);
 }, 120_000);

@@ -45,7 +45,7 @@ test('the cut of a span gives the passage that an array of code points gives', (
 });
 
 test('a page above the tolerant size finds a folded excerpt at its end and across a window edge', () => {
-  const filler = 'a '.repeat(MAX_TOLERANT_UNITS * 2);
+  const filler = 'a '.repeat(2_500_000);
   const end = `${filler}he said “no” today\nDate of  listing:\n12.03.2022`;
   expect(cut(end, 'said "no"')).toBe('said “no”');
   expect(cut(end, 'Date of listing: 12.03.2022')).toBe('Date of  listing:\n12.03.2022');
