@@ -2626,7 +2626,7 @@ test.each(HELD_IDENTIFIERS)(
           ]),
         );
       await ask('RESET SESSION AUTHORIZATION');
-      const [holder] = z.array(z.object({ id: z.uuid() })).parse(
+      z.array(z.object({ id: z.uuid() })).parse(
         await ask(
           `INSERT INTO public.entities (type, label, attrs, sources, promoted_from)
              VALUES ($1, 'Held holder', jsonb_build_object($2::text, jsonb_build_object('v', $3::text, 'src', jsonb_build_array('manual'))),
@@ -2641,7 +2641,6 @@ test.each(HELD_IDENTIFIERS)(
           'the tanker NAYARA',
         ),
       ]);
-      expect(holder).toBeDefined();
       return { outcome };
     });
     expect(found.outcome).toMatchObject({
@@ -2663,9 +2662,35 @@ test('propose passes a retry of the same batch that waits already, and refuses a
     const first = await proposeOnPage(ask, make('Nayara'));
     const retry = await proposeAgain(ask, make('Nayara'));
     const other = await proposeAgain(ask, make('Other name'));
-    return { first, retry, other };
+    const batch = await proposeAgain(ask, [
+      item(
+        'a',
+        { op: 'create_entity', type: 'vessel', label: 'Alpha', attrs: { imo: { v: '9222226' } } },
+        'the tanker NAYARA',
+      ),
+      item(
+        'b',
+        {
+          op: 'create_entity',
+          type: 'vessel',
+          label: 'Beta',
+          attrs: { imo: { v: ['x', 9222226] } },
+        },
+        'the tanker NAYARA',
+      ),
+    ]);
+    return { first, retry, other, batch };
   });
   expect(found.first).toMatchObject({ ok: true });
   expect(found.retry).toMatchObject({ ok: true });
-  expect(found.other.ok).toBe(false);
+  expect(found.other).toMatchObject({
+    ok: false,
+    refusal: expect.stringMatching(
+      /already, on the new entity that waits as proposal [0-9a-f-]{36} [(]Nayara[)]/u,
+    ) as string,
+  });
+  expect(found.batch).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('another new entity of the batch') as string,
+  });
 });
