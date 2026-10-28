@@ -1,13 +1,13 @@
 import { useNavigate } from '@tanstack/react-router';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef } from 'react';
 import { fieldBackground } from 'asciify-engine/kit';
 
 import { Button } from '@/shared/ui/button';
 
-/** The 404 of the site: the numerals in characters that scatter under the pointer, and break apart
- * and form again when the reader leaves for the report. The words and the buttons stay HTML, and
- * the numerals are decoration: the heading of the page already says the fault. */
-export function AsciiNotFound({ children }: { readonly children?: ReactNode }) {
+/** The 404 of the site: one full page. The numerals fill it in characters that scatter under the
+ * pointer, and break apart and form again when the reader leaves. One button goes to the report.
+ * The numerals are the label of the field, so a screen reader hears the fault once. */
+export function AsciiNotFound() {
   const art = useRef<HTMLDivElement>(null);
   const field = useRef<ReturnType<typeof fieldBackground> | null>(null);
   const leaving = useRef(false);
@@ -24,9 +24,9 @@ export function AsciiNotFound({ children }: { readonly children?: ReactNode }) {
   }, []);
 
   return (
-    <div className="flex flex-col items-start gap-4">
-      <div ref={art} aria-hidden="true" className="h-56 w-full max-w-3xl border border-border" />
-      <div className="flex gap-2">
+    <div className="relative h-full min-h-96">
+      <div ref={art} className="absolute inset-0" />
+      <div className="absolute inset-x-0 bottom-12 flex justify-center">
         <Button
           variant="outline"
           onClick={(event) => {
@@ -45,7 +45,6 @@ export function AsciiNotFound({ children }: { readonly children?: ReactNode }) {
         >
           Go to the report
         </Button>
-        {children}
       </div>
     </div>
   );
