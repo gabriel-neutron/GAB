@@ -124,6 +124,7 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "wikidata_ids: write",
       "sanctions_match: write",
       "vessel_events: write",
+      "gfw_port_visits: write",
       "firms_detections: write",
       "comtrade_data: write",
       "enqueue_extract: write",
