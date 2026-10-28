@@ -63,6 +63,12 @@ const RECORD_WORDS = new Set([
   'point_role',
   'berthed_at',
   'loads_at',
+  'supplies_items_to',
+  'acts_for',
+  'transfers_funds_to',
+  'pays_for',
+  'settles_through',
+  'associated_with',
 ]);
 
 const namedTools = (text: string): string[] =>
