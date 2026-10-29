@@ -1908,6 +1908,7 @@ const NAMES_BOOK = workbookOf({
     ['G4', 'Delta field', 'Russia', 'Register Lead', '', '', '', ''],
     ['G5', 'Epsilon field', 'Russia', 'Fresh Co', '', '', '', ''],
     ['G6', 'Zeta field', 'Russia', 'Fresh Co', '', '', '', ''],
+    ['G7', 'Eta field', 'Russia', 'Fresh Co', 'Fresh Co [100%]', '', '', ''],
   ],
   Production: [
     PRODUCTION_HEADER,
@@ -2044,6 +2045,9 @@ test('a field links to the owners and the operator that the name table gives, an
         share: null,
         unconfirmed: null,
       },
+      // One new name in two columns of one row gives the same company twice.
+      { type: 'operates', holder: 'Fresh Co', field: 'Eta field', share: null, unconfirmed: null },
+      { type: 'owns', holder: 'Fresh Co', field: 'Eta field', share: 100, unconfirmed: null },
       // A candidate that the register check confirmed is a sure link.
       {
         type: 'operates',

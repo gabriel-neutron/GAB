@@ -50,12 +50,16 @@ const PENDING_OWNER = `SELECT id::text AS id FROM public.proposals
 
 // The entity of a type with this name key: the committed one, or else the one that an earlier load
 // proposed and nobody decided yet.
+// A committed entity wins over a proposal of the same name.
 const ENTITY_NAMED = `SELECT id::text AS id FROM (
   SELECT id, 0 AS rank FROM api.entity WHERE type = $1::text AND public.name_key(label) = $2::text
   UNION ALL
   SELECT id, 1 FROM public.proposals
    WHERE op = 'create_entity' AND status = 'pending' AND payload->>'type' = $1::text
-     AND public.name_key(payload->>'label') = $2::text) AS found ORDER BY rank, id LIMIT 2`;
+     AND public.name_key(payload->>'label') = $2::text
+     AND NOT EXISTS (SELECT 1 FROM api.entity
+                      WHERE type = $1::text AND public.name_key(label) = $2::text)) AS found
+  ORDER BY rank, id LIMIT 2`;
 
 const ENTITY_EXISTS =
   'SELECT id::text AS id FROM api.entity WHERE id = $1::uuid AND type = $2::text';
@@ -388,6 +392,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       farType: string,
       note: (reason: string) => void,
       mint = false,
+      rowNew: ReadonlyMap<string, string> = new Map(),
     ): Promise<{
       ends: { id: string; extra: Attrs }[];
       unresolved: number;
@@ -433,7 +438,10 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           const slot = `${farType}:name:${key}`;
           const named = idRow.parse((await context.db.query(ENTITY_NAMED, [farType, key])).rows);
           const [first] = named;
-          const earlier = createdOwners.get(slot) ?? created.find((one) => one.slot === slot)?.id;
+          const earlier =
+            rowNew.get(slot) ??
+            createdOwners.get(slot) ??
+            created.find((one) => one.slot === slot)?.id;
           if (named.length > 1) {
             note(`relation not loaded: the new name "${name}" finds more than one entity`);
             unresolved += 1;
@@ -854,7 +862,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         // cell that splits.
         const ends: { id: string; extra: Attrs }[] = [];
         if (relation.names !== undefined) {
-          const named = await namedEnds(relation, otherText, farType, note, true);
+          const named = await namedEnds(relation, otherText, farType, note, true, rowOwners);
           ends.push(...named.ends);
           // A company that a name creates has no identifier: the label is the name that GEM wrote.
           for (const one of named.created) {
