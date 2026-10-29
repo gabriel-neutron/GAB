@@ -62,6 +62,7 @@ test('the register check confirms a candidate, and an older table confirms none'
     ['D', 'ouvert', '', '', 'candidat-registre'],
     ['E', 'marqueur', '', '', ''],
     ['F', 'sûr', 'E1', '', ''],
+    ['G', 'nouveau', '', '', ''],
   ]);
   expect(held.get('a')).toStrictEqual({ kind: 'candidate', entity: 'id-a', confirmed: true });
   expect(held.get('b')).toStrictEqual({ kind: 'candidate', entity: 'id-b', confirmed: false });
@@ -69,6 +70,7 @@ test('the register check confirms a candidate, and an older table confirms none'
   expect(held.get('d')).toStrictEqual({ kind: 'open' });
   expect(held.get('e')).toStrictEqual({ kind: 'open' });
   expect(held.get('f')).toStrictEqual({ kind: 'sure', gemId: 'E1' });
+  expect(held.get('g')).toStrictEqual({ kind: 'new' });
   const older = nameTable(header.slice(0, 4), [['A', 'candidat-dossier', '', 'id-a']]);
   expect(older.get('a')).toStrictEqual({ kind: 'candidate', entity: 'id-a', confirmed: false });
 });

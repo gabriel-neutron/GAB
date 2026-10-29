@@ -1906,6 +1906,8 @@ const NAMES_BOOK = workbookOf({
     ['G2', 'Beta field', 'Russia', 'Maybe Co', 'Maybe Co [100%]', '', '', ''],
     ['G3', 'Gamma field', 'Russia', 'Checked Co', '', '', '', ''],
     ['G4', 'Delta field', 'Russia', 'Register Lead', '', '', '', ''],
+    ['G5', 'Epsilon field', 'Russia', 'Fresh Co', '', '', '', ''],
+    ['G6', 'Zeta field', 'Russia', 'Fresh Co', '', '', '', ''],
   ],
   Production: [
     PRODUCTION_HEADER,
@@ -1959,6 +1961,7 @@ test('a field links to the owners and the operator that the name table gives, an
       `Maybe Co,operator+owner,candidat-dossier,,${rosneftegaz},name only,,sans-clé`,
       `Checked Co,operator,candidat-dossier,,${rosneftegaz},name only,,confirmé`,
       'Register Lead,operator,ouvert,,,,,candidat-registre',
+      'Fresh Co,operator,nouveau,,,no match,,',
       'Mystery Holder,owner,ouvert,,,,,',
     ].join('\r\n');
     await held.ask(PUT, [
@@ -2033,6 +2036,14 @@ test('a field links to the owners and the operator that the name table gives, an
         share: 100,
         unconfirmed: 'true',
       },
+      // A new name creates one company, and the two fields that name it share that company.
+      {
+        type: 'operates',
+        holder: 'Fresh Co',
+        field: 'Epsilon field',
+        share: null,
+        unconfirmed: null,
+      },
       // A candidate that the register check confirmed is a sure link.
       {
         type: 'operates',
@@ -2041,7 +2052,11 @@ test('a field links to the owners and the operator that the name table gives, an
         share: null,
         unconfirmed: null,
       },
+      { type: 'operates', holder: 'Fresh Co', field: 'Zeta field', share: null, unconfirmed: null },
     ]);
+    expect(
+      await held.ask(`SELECT count(*)::int AS n FROM public.entities WHERE label = 'Fresh Co'`),
+    ).toStrictEqual([{ n: 1 }]);
     // The open name stays text on the field, with the group shares, the licence and the block.
     expect(
       await held.ask(

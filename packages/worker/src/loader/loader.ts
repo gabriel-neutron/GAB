@@ -48,6 +48,15 @@ const PENDING_OWNER = `SELECT id::text AS id FROM public.proposals
   WHERE op = 'create_entity' AND status = 'pending' AND payload->>'type' = $1::text
     AND payload #>> '{attrs,gem_entity_id,v}' = $2::text ORDER BY id LIMIT 20`;
 
+// The entity of a type with this name key: the committed one, or else the one that an earlier load
+// proposed and nobody decided yet.
+const ENTITY_NAMED = `SELECT id::text AS id FROM (
+  SELECT id, 0 AS rank FROM api.entity WHERE type = $1::text AND public.name_key(label) = $2::text
+  UNION ALL
+  SELECT id, 1 FROM public.proposals
+   WHERE op = 'create_entity' AND status = 'pending' AND payload->>'type' = $1::text
+     AND public.name_key(payload->>'label') = $2::text) AS found ORDER BY rank, id LIMIT 2`;
+
 const ENTITY_EXISTS =
   'SELECT id::text AS id FROM api.entity WHERE id = $1::uuid AND type = $2::text';
 
@@ -369,19 +378,27 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
 
     /** The far ends of a cell of names. A name with a GEM identifier in the table finds its entity
      * in the record. A name that the table gives as a candidate finds its entity too, and the
-     * link carries the mark "unconfirmed", unless the register check confirmed the candidate. An open name gives no link, and the name stays text.
-     * Each name that gives no link goes to `note`. */
+     * link carries the mark "unconfirmed", unless the register check confirmed the candidate. A
+     * new name finds the entity of that name when the record or an earlier load holds one, and
+     * else it is an entity to create (`created`, only when `mint` is set). An open name gives no
+     * link, and the name stays text. Each name that gives no link goes to `note`. */
     const namedEnds = async (
       relation: MappingPayload['relations'][number],
       text: string,
       farType: string,
       note: (reason: string) => void,
-    ): Promise<{ ends: { id: string; extra: Attrs }[]; unresolved: number }> => {
+      mint = false,
+    ): Promise<{
+      ends: { id: string; extra: Attrs }[];
+      unresolved: number;
+      created: { slot: string; id: string; label: string }[];
+    }> => {
       const { names } = relation;
       const table = names === undefined ? undefined : nameTables.get(names.table);
       const ends: { id: string; extra: Attrs }[] = [];
+      const created: { slot: string; id: string; label: string }[] = [];
       let unresolved = 0;
-      if (names === undefined || table === undefined) return { ends, unresolved };
+      if (names === undefined || table === undefined) return { ends, unresolved, created };
       const push = (name: string, end: { id: string; extra: Attrs }): void => {
         // Two names of one entity give one link, and the first name gives its share.
         if (ends.some((one) => one.id === end.id)) {
@@ -411,6 +428,24 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
             });
           continue;
         }
+        if (held.kind === 'new') {
+          const key = nameKey(name);
+          const slot = `${farType}:name:${key}`;
+          const named = idRow.parse((await context.db.query(ENTITY_NAMED, [farType, key])).rows);
+          const [first] = named;
+          const earlier = createdOwners.get(slot) ?? created.find((one) => one.slot === slot)?.id;
+          if (named.length > 1) {
+            note(`relation not loaded: the new name "${name}" finds more than one entity`);
+            unresolved += 1;
+          } else if (first !== undefined || earlier !== undefined)
+            push(name, { id: first?.id ?? earlier ?? '', extra });
+          else if (mint) {
+            const id = randomUUID();
+            created.push({ slot, id, label: name });
+            push(name, { id, extra });
+          } else unresolved += 1;
+          continue;
+        }
         const owned = await ownerOf(farType, held.gemId);
         if (owned.kind === 'one') push(name, { id: owned.id, extra });
         else {
@@ -421,7 +456,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           );
         }
       }
-      return { ends, unresolved };
+      return { ends, unresolved, created };
     };
 
     // A link that an earlier edition gave, and that this edition no longer gives, goes to the
@@ -818,9 +853,19 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         // The far ends of this relation: one entity for a plain cell, and one for each owner of a
         // cell that splits.
         const ends: { id: string; extra: Attrs }[] = [];
-        if (relation.names !== undefined)
-          ends.push(...(await namedEnds(relation, otherText, farType, note)).ends);
-        else if (relation.split === undefined) {
+        if (relation.names !== undefined) {
+          const named = await namedEnds(relation, otherText, farType, note, true);
+          ends.push(...named.ends);
+          // A company that a name creates has no identifier: the label is the name that GEM wrote.
+          for (const one of named.created) {
+            rowOwners.set(one.slot, one.id);
+            requests.push({
+              request: { op: 'create_entity', type: farType, label: one.label },
+              id: one.id,
+              foundBy: null,
+            });
+          }
+        } else if (relation.split === undefined) {
           const end = await find(record, [relation.other], farType);
           if (end.kind === 'none') {
             await skip(NOT_IN_GRAPH);

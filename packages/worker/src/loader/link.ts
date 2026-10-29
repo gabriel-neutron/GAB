@@ -254,15 +254,19 @@ export const splitOwners = (
 
 /** What the approved name table says of one name. `sure` is a name with a GEM identifier;
  * `candidate` is the entity of the record for the name, and `confirmed` says that the register
- * check of the table confirmed it (a candidate that is not confirmed is a match of the name only); `open` is no match. */
+ * check of the table confirmed it (a candidate that is not confirmed is a match of the name only);
+ * `new` is a name that no entity of the record matches: the load creates the entity with this name
+ * as its label; `open` is no match. */
 export type NamedEnd =
   | { readonly kind: 'sure'; readonly gemId: string }
   | { readonly kind: 'candidate'; readonly entity: string; readonly confirmed: boolean }
+  | { readonly kind: 'new' }
   | { readonly kind: 'open' };
 
 // External constraint: the columns and the status words of the name table.
 const SURE = 'sûr';
 const CANDIDATE = 'candidat-dossier';
+const NEW = 'nouveau';
 // The register check of the table: a candidate whose key equals the key of the register is sure.
 const CONFIRMED = 'confirmé';
 
@@ -297,7 +301,9 @@ export const nameTableOf = (table: {
         ? { kind: 'sure', gemId }
         : status === CANDIDATE && entity !== ''
           ? { kind: 'candidate', entity, confirmed: cell(checkAt).normalize('NFC') === CONFIRMED }
-          : { kind: 'open' },
+          : status === NEW
+            ? { kind: 'new' }
+            : { kind: 'open' },
     );
   }
   return held;
