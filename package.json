@@ -42,6 +42,7 @@
     "test:a11y:dark": "node --env-file=tools/a11y-dark.env node_modules/vitest/vitest.mjs run --project storybook",
     "writer": "node --env-file=infra/.env packages/writer/src/main.ts",
     "mcp": "node packages/mcp/src/main.ts",
+    "mcp:serve": "node packages/mcp/src/main.ts --http 7420",
     "worker": "node --env-file=infra/.env packages/worker/src/main.ts",
     "speed:budget": "node tools/speed-budget.ts",
     "storybook": "storybook dev -p 6006",
