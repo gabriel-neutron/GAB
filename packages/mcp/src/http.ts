@@ -11,6 +11,7 @@ import {
   type ServerResponse,
 } from 'node:http';
 
+import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -58,7 +59,11 @@ const bodyOf = async (request: IncomingMessage): Promise<unknown> => {
 interface Live {
   readonly transport: StreamableHTTPServerTransport;
   readonly server: McpServer;
+  touch: () => void;
 }
+
+// A client that dies sends no close, so a session with no request for this long is closed.
+const IDLE_MS = 4 * 60 * 60 * 1000;
 
 /** Serve `makeServer` over HTTP on the loopback address. Port 0 picks a free port. */
 export const serveHttp = (makeServer: () => McpServer, port: number): Promise<Server> => {
@@ -87,22 +92,33 @@ export const serveHttp = (makeServer: () => McpServer, port: number): Promise<Se
         refuse(response, 404, 'no such session');
         return;
       }
-      if (live !== undefined) return live.transport.handleRequest(request, response);
+      if (live !== undefined) {
+        live.touch();
+        return live.transport.handleRequest(request, response);
+      }
 
       // A request with no session starts one, and only an initialize request is a start.
-      if (request.method !== 'POST') {
+      const body = request.method === 'POST' ? await bodyOf(request) : undefined;
+      if (!isInitializeRequest(body)) {
         refuse(response, 400, 'no session');
         return;
       }
-      const body = await bodyOf(request);
       const server = makeServer();
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: randomUUID,
         onsessioninitialized: (made) => {
-          sessions.set(made, { transport, server });
+          const touch = (): void => {
+            clearTimeout(timer);
+            timer = setTimeout(() => void transport.close(), IDLE_MS);
+            timer.unref();
+          };
+          sessions.set(made, { transport, server, touch });
+          touch();
         },
       });
+      let timer: NodeJS.Timeout | undefined;
       transport.onclose = () => {
+        clearTimeout(timer);
         if (transport.sessionId !== undefined) sessions.delete(transport.sessionId);
         void server.close();
       };

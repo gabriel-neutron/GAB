@@ -57,5 +57,12 @@ test('a Host or Origin that is not loopback is refused', async () => {
   const url = await open();
   expect(await status(url, { host: 'evil.example' })).toBe(403);
   expect(await status(url, { host: '127.0.0.1', origin: 'https://evil.example' })).toBe(403);
-  expect(await status(url, { host: 'localhost:7420' })).not.toBe(403);
+  expect(await status(url, { host: 'localhost:7420' })).toBe(400);
+  expect(await status(url, { host: '[::1]:7420' })).toBe(400);
+});
+
+test('a request that is not an initialize starts no session', async () => {
+  const url = await open();
+  expect(await status(url, { host: '127.0.0.1' })).toBe(400);
+  expect(await status(url, { host: '127.0.0.1', 'mcp-session-id': 'gone' })).toBe(404);
 });

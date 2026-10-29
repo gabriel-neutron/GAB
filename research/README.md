@@ -48,7 +48,9 @@ pnpm mcp:serve
 The server listens on `http://127.0.0.1:7420/mcp`. To use another port, run
 `node packages/mcp/src/main.ts --http <port>` or set `GAB_MCP_HTTP_PORT`. The server binds to the
 loopback address only, and it refuses a request whose Host or Origin is not loopback. Each client
-gets its own session, and the database pools and workers are shared.
+gets its own session, and the database pools and workers are shared. The server has no
+credential: any local user or process that reaches the port acts as the research role, so do not
+use it on a machine with other users. A session with no request for four hours is closed.
 
 A project points its `gab` entry to the server with local scope, so the checked-in `.mcp.json`
 stays on stdio for every clone:

@@ -111,7 +111,10 @@ const checkOf = (research: string): SecondCheck => {
 
 // The fetch tools keep an exiftool process and an OCR worker thread, and each one holds the event
 // loop open until it ends.
+let closeHttp = (): void => undefined;
+
 const shutdown = (): void => {
+  closeHttp();
   void Promise.all([endMetadata(), endOcr()]).finally(() => process.exit(0));
 };
 
@@ -146,6 +149,10 @@ const start = async (): Promise<void> => {
     return;
   }
   const http = await serveHttp(() => createServer(pool, reach, check), port);
+  closeHttp = () => {
+    http.close();
+    http.closeAllConnections();
+  };
   const bound = http.address();
   console.error(
     `the MCP server runs as gabriel_research at http://${HTTP_HOST}:${typeof bound === 'object' && bound !== null ? bound.port : port}${HTTP_PATH}`,
