@@ -896,7 +896,7 @@ export function mountGraph(
     return { x: radius * Math.cos(angle), y: radius * Math.sin(angle) };
   };
   const reseedByType = (): void => {
-    const kinds = [...new Set(model.graph.mapNodes((n, a) => a.entityType))].sort();
+    const kinds = [...new Set(model.graph.mapNodes((_node, a) => a.entityType))].sort();
     model.graph.forEachNode((node, attrs) => {
       raw.set(node, sectorOf(kinds.indexOf(attrs.entityType), kinds.length, node));
     });

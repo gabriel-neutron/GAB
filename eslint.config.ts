@@ -31,6 +31,8 @@ export default defineConfig(
       '**/storybook-static',
       '.scratch',
       '.claude/worktrees',
+      // A skill of an outside vendor runs in a browser or in its own tool, not in this application.
+      '.agents',
       // A hook is a script that Claude Code runs in Node, outside the application.
       '.claude/hooks',
       // A workflow script is the body of an async function, so a top-level return is valid there.

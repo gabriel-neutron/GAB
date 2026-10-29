@@ -63,6 +63,7 @@ describe('the nodes that take part after a filter', () => {
       graph,
       (n) => graph.getNodeAttribute(n, 'entityType') !== 'company',
       new Set(),
+      W,
     );
     expect(input.nodes).toEqual([]);
     expect(input.rest).toEqual(['c', 'a']);

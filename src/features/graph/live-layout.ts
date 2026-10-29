@@ -20,7 +20,7 @@ interface Point {
 
 /** The part of a worker that the layout uses, so a test can stand in for it. */
 export interface LayoutEngine {
-  postMessage: (message: InMessage, transfer?: Transferable[]) => void;
+  postMessage: (message: InMessage, options?: StructuredSerializeOptions) => void;
   onmessage: ((event: MessageEvent<OutMessage>) => void) | null;
 }
 

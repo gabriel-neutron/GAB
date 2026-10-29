@@ -29,3 +29,6 @@ tools/figures/data/basemap.json
 
 # The design system reference. It is a copy of the published artifact, kept byte for byte.
 design
+
+# A skill of an outside vendor keeps its own style.
+.agents
