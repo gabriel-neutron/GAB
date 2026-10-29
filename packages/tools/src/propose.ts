@@ -16,7 +16,12 @@ import { UNIQUE_KEYS } from './duplicate-identifier.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
 import { findExcerpt, pointSlice, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
-import { dateInUrl, occurredWeekdays, withOfacReleaseDate } from './publication-date.ts';
+import {
+  dateInUrl,
+  isUkListDate,
+  occurredWeekdays,
+  withOfacReleaseDate,
+} from './publication-date.ts';
 import {
   daysFromPublication,
   namesProvision,
@@ -356,7 +361,7 @@ const cite = async (
     // The words that the AI read stand alone: the OCR text around them does not hold them.
     return {
       document: given.document,
-      fcdoList: page.fcdo_list,
+      fcdoList: page.fcdo_list || isUkListDate(page.uri, given.excerpt),
       textExtractor: page.extractor,
       urlDay: dateInUrl(page.uri),
       postDay: postDayOf(page.text),
@@ -373,15 +378,16 @@ const cite = async (
       `page ${String(given.page)} of ${given.document} does not hold the excerpt ` +
         `${JSON.stringify(given.excerpt)}. Copy the words as the page states them.`,
     );
+  const passage = pointSlice(page.text, span.start, span.end);
   return {
     document: given.document,
-    fcdoList: page.fcdo_list,
+    fcdoList: page.fcdo_list || isUkListDate(page.uri, passage),
     textExtractor: page.extractor,
     urlDay: dateInUrl(page.uri),
     postDay: postDayOf(page.text),
     page: given.page,
     span,
-    passage: withOfacReleaseDate(page.uri, pointSlice(page.text, span.start, span.end)),
+    passage: withOfacReleaseDate(page.uri, passage),
     context: withOfacReleaseDate(
       page.uri,
       pointSlice(page.text, Math.max(0, span.start - CONTEXT_POINTS), span.end + CONTEXT_POINTS),

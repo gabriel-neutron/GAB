@@ -1,6 +1,12 @@
 import { expect, test } from 'vitest';
 
-import { dateInUrl, occurredWeekdays, weekdayOf, withOfacReleaseDate } from './publication-date.ts';
+import {
+  dateInUrl,
+  occurredWeekdays,
+  weekdayOf,
+  withOfacReleaseDate,
+  isUkListDate,
+} from './publication-date.ts';
 
 test('a day gives its weekday in English', () => {
   expect(weekdayOf('2026-05-12')).toBe('Tuesday');
@@ -62,4 +68,13 @@ test('another date of an OFAC page, and another page, stay as they are', () => {
   expect(withOfacReleaseDate('https://example.org/a', 'Release Date: 08/02/2022')).toBe(
     'Release Date: 08/02/2022',
   );
+});
+
+test('a passage of the UK Sanctions List reads day/month/year by its host or its label', () => {
+  const host = 'https://search-uk-sanctions-list.service.gov.uk/entity/RUS1426';
+  expect(isUkListDate(host, 'designated 04/05/2022')).toBe(true);
+  expect(isUkListDate('https://example.org/a', 'Date Designated: 04/05/2022')).toBe(true);
+  expect(isUkListDate('https://example.org/a', 'Date Designated: 25/05/2022')).toBe(true);
+  expect(isUkListDate('https://example.org/a', 'made on 04/05/2022')).toBe(false);
+  expect(isUkListDate(null, 'made on 04/05/2022')).toBe(false);
 });
