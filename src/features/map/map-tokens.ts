@@ -48,6 +48,7 @@ const FAMILY_OF_TYPE: ReadonlyMap<string, LinkFamily> = new Map<string, LinkFami
   ['designated_by', 'designation'],
   ['restricted_by', 'designation'],
   ['exempted_by', 'designation'],
+  ['issued_by', 'designation'],
   ['operates', 'operation'],
   ['charters', 'operation'],
   ['carried_out_by', 'operation'],

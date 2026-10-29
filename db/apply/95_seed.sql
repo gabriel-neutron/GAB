@@ -430,6 +430,7 @@ INSERT INTO relation_type (key, label, inverse_label, takes_interval) VALUES
   ('designated_by',      'designated by',      'designates',                   true),
   ('restricted_by',      'restricted by',      'restricts',                    true),
   ('exempted_by',        'exempted by',        'exempts',                      true),
+  ('issued_by',          'issued by',          'issues',                       false),
   ('charters',           'charters',           'is chartered by',              true),
   ('settles_through',    'settles through',    'is the settlement channel of', true),
   ('acts_for',           'acts for',           'has as agent',                 true),

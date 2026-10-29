@@ -88,6 +88,15 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
     true,
     'A licence or an exemption lets the party act despite a sanction.',
   ),
+  // The issuer is stated by the title or the header of the act. The act is the source end, so the
+  // far end is the body. An act keeps the one type, and a designation of a party stays designated_by.
+  relationType(
+    'issued_by',
+    'issued by',
+    'issues',
+    false,
+    'A legal act states in its title or header the body that issued it. Source: a legal act. Far end: a state body.',
+  ),
   relationType(
     'charters',
     'charters',
