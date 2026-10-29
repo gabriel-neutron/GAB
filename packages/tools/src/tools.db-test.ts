@@ -1220,7 +1220,7 @@ test('a relation keeps the start and the end that its excerpt states', async () 
 });
 
 test('a slash date is day/month only when each excerpt comes from the FCDO UK Sanctions List', async () => {
-  const page = 'Date Designated: 09/05/2025';
+  let page = 'Designated on 09/05/2025';
   const other = 'e'.repeat(64);
   const proposed = async (setup: (ask: Ask) => Promise<unknown>, mixed = false) =>
     rolledBack('superuser', async (ask) => {
@@ -1273,6 +1273,10 @@ test('a slash date is day/month only when each excerpt comes from the FCDO UK Sa
     expect(found.batch.proposals).toMatchObject([{ droppedBounds: ['validFrom'] }]);
     expect(found.rows[0]?.payload).not.toHaveProperty('valid_from');
   }
+  // The label "Date Designated" gives the order too, at any address.
+  page = 'Date Designated: 09/05/2025';
+  const labelled = await proposed(atAddress('https://example.org/report'));
+  expect(labelled.batch.proposals).toMatchObject([{ droppedBounds: [] }]);
 });
 
 // The claim that the checker reads, for each item of the last batch.

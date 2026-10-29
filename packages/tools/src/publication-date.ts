@@ -71,3 +71,11 @@ export const withOfacReleaseDate = (uri: string | null, text: string): string =>
           `${head}${year}-${month}-${day}`,
       )
     : text;
+
+const UK_LIST_HOST =
+  /^https?:\/\/(?:sanctionslist\.fcdo\.gov\.uk|search-uk-sanctions-list\.service\.gov\.uk)(?:\/|$)/u;
+
+/** The UK Sanctions List writes each date as day/month/year. A passage is of the list when its
+ * document is on a host of the list, or when it holds the label "Date Designated". */
+export const isUkListDate = (uri: string | null, passage: string): boolean =>
+  (uri !== null && UK_LIST_HOST.test(uri)) || passage.includes('Date Designated');
