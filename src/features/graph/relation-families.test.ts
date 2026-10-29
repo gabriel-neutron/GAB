@@ -16,6 +16,10 @@ describe('the family of a relation type', () => {
     ]);
   });
 
+  it('puts the issuer of an act in the designation family', () => {
+    expect(familyOf('issued_by')).toBe('designation');
+  });
+
   it('puts operates in the operation family', () => {
     expect(familyOf('operates')).toBe('operation');
   });
