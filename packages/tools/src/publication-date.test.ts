@@ -2,10 +2,10 @@ import { expect, test } from 'vitest';
 
 import {
   dateInUrl,
+  isUkListDate,
   occurredWeekdays,
   weekdayOf,
   withOfacReleaseDate,
-  isUkListDate,
 } from './publication-date.ts';
 
 test('a day gives its weekday in English', () => {
