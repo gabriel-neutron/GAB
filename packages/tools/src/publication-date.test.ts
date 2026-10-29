@@ -77,4 +77,5 @@ test('a passage of the UK Sanctions List reads day/month/year by its host or its
   expect(isUkListDate('https://example.org/a', 'Date Designated: 25/05/2022')).toBe(true);
   expect(isUkListDate('https://example.org/a', 'made on 04/05/2022')).toBe(false);
   expect(isUkListDate(null, 'made on 04/05/2022')).toBe(false);
+  expect(isUkListDate('https://sanctionslist.fcdo.gov.uk', 'x')).toBe(true);
 });
