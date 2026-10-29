@@ -17,6 +17,12 @@ test('a type that the list does not hold has no definition', () => {
   expect(relationDefinition('made_up')).toBeNull();
 });
 
+test('issued_by takes no dates and names its far end', () => {
+  const one = SEEDED_RELATION_TYPES.find((row) => row.key === 'issued_by');
+  expect(one?.takesInterval).toBe(false);
+  expect(one?.definition).toContain('Far end: a state body.');
+});
+
 test.each(['settles_through', 'acts_for', 'supplies_items_to', 'transfers_funds_to', 'pays_for'])(
   '%s takes dates and has a definition with its far end',
   (key) => {

@@ -80,6 +80,15 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
     true,
     'A sanctions authority applies a measure to the party that is not an asset freeze, such as a sectoral restriction.',
   ),
+  // The issuer is stated by the title or the header of the act. The act is the source end and the body
+  // is the far end. An act has one issuer relation, and the designation of a party stays designated_by.
+  relationType(
+    'issued_by',
+    'issued by',
+    'issues',
+    false,
+    'A legal act states in its title or header the body that issued it. Source: a legal act. Far end: a state body.',
+  ),
   // A licence and a charter each have a period.
   relationType(
     'exempted_by',
