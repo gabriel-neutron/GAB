@@ -74,7 +74,7 @@ function run(message: RunMessage): void {
     } while (!settled && batches < MAX_BATCHES && performance.now() - started < POST_EVERY_MS);
     const done = settled || batches >= MAX_BATCHES;
     const reply: OutMessage = { id, places: new Float64Array(out), done };
-    self.postMessage(reply, [reply.places.buffer]);
+    self.postMessage(reply, { transfer: [reply.places.buffer] });
     if (!done) setTimeout(loop, 0);
   };
   loop();
