@@ -36,6 +36,30 @@ one is absent, the server starts. Each proposal then waits with no check, and th
 From the root of the repository, run `pnpm mcp`. The server then waits for a client on stdin, so it
 shows no prompt. Stop it with Ctrl+C.
 
+## Share one server between sessions
+
+The default is one stdio process for each session. To serve many sessions with one process, start
+the shared mode from the root of the repository:
+
+```bash
+pnpm mcp:serve
+```
+
+The server listens on `http://127.0.0.1:7420/mcp`. To use another port, run
+`node packages/mcp/src/main.ts --http <port>` or set `GAB_MCP_HTTP_PORT`. The server binds to the
+loopback address only, and it refuses a request whose Host or Origin is not loopback. Each client
+gets its own session, and the database pools and workers are shared.
+
+A project points its `gab` entry to the server with local scope, so the checked-in `.mcp.json`
+stays on stdio for every clone:
+
+```bash
+claude mcp add --scope local --transport http gab http://127.0.0.1:7420/mcp
+```
+
+The process keeps the code it started with. After a pull that changes the server, stop it and start
+it again, then reconnect the sessions.
+
 If the server does not start, it prints the cause on stderr:
 
 - The database does not answer: start the stack.

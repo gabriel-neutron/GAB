@@ -22,6 +22,7 @@ import {
   researchCredentials,
   StartRefusal,
 } from './role.ts';
+import { serveHttp, HTTP_HOST, HTTP_PATH } from './http.ts';
 import { checkEnvOf, readSecondCheck, type SecondCheck } from './second-check.ts';
 import { createServer } from './server.ts';
 import { webOf } from '@gab/tools/web';
@@ -114,6 +115,17 @@ const shutdown = (): void => {
   void Promise.all([endMetadata(), endOcr()]).finally(() => process.exit(0));
 };
 
+// The shared mode: GAB_MCP_HTTP_PORT or the flag --http <port>. With none, the server uses stdio.
+const httpPortOf = (): number | undefined => {
+  const flag = process.argv.indexOf('--http');
+  const given = flag === -1 ? process.env['GAB_MCP_HTTP_PORT'] : process.argv[flag + 1];
+  if (given === undefined || given.trim() === '') return undefined;
+  const port = Number(given);
+  if (!Number.isInteger(port) || port < 0 || port > 65535)
+    throw new StartRefusal('the HTTP port must be a whole number from 0 to 65535');
+  return port;
+};
+
 const start = async (): Promise<void> => {
   const url = researchCredentials(process.env[CREDENTIALS_VARIABLE]);
   const pool = new pg.Pool({ connectionString: url });
@@ -124,9 +136,20 @@ const start = async (): Promise<void> => {
   await mkdir(INBOX, { recursive: true });
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
-  process.stdin.once('end', shutdown);
-  await createServer(pool, reachOf(), checkOf(url)).connect(new StdioServerTransport());
-  console.error('the MCP server runs as gabriel_research over stdio');
+  const reach = reachOf();
+  const check = checkOf(url);
+  const port = httpPortOf();
+  if (port === undefined) {
+    process.stdin.once('end', shutdown);
+    await createServer(pool, reach, check).connect(new StdioServerTransport());
+    console.error('the MCP server runs as gabriel_research over stdio');
+    return;
+  }
+  const http = await serveHttp(() => createServer(pool, reach, check), port);
+  const bound = http.address();
+  console.error(
+    `the MCP server runs as gabriel_research at http://${HTTP_HOST}:${typeof bound === 'object' && bound !== null ? bound.port : port}${HTTP_PATH}`,
+  );
 };
 
 await start().catch(stop);
