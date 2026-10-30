@@ -90,3 +90,13 @@ def test_the_command_line_exits_non_zero_on_a_fault(tmp_path, capsys):
     assert c.main([str(good), str(bad)]) == 1
     out = capsys.readouterr().out
     assert "bad.md" in out and "I-1" in out and "relative" in out
+
+
+def test_an_archive_in_a_public_source_is_not_internal():
+    assert rules(note("Archives nationales, « T », 3 mai 2026.")) == []
+    assert rules(note("Média, « T », 3 mai 2026, https://web.archive.org/x.")) == []
+
+
+def test_an_unclosed_quote_is_a_fault_and_a_date_range_passes():
+    assert ("I-1", "unbalanced") in rules(note("Reuters, « T (3 mai 2026 ; B ; C ; D."))
+    assert rules(note("Média, « T », 3-4 mai 2026 ; Autre, « U », 3 et 4 mai 2026.")) == []

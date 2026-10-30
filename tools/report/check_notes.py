@@ -9,7 +9,7 @@ database.
 Rules: no-note (a call with no note), unused-note (a note with no call), no-source (an empty note),
 sources (more than two sources, separated by a semicolon), internal (an identifier, file name or
 archive word), relative (a note that points to another place), date (a date that is not full),
-version (a list version that differs from the most common one), open-marker (`--final` only).
+version (a list version that differs from the most common one; the first one seen wins a tie), open-marker (`--final` only).
 """
 import argparse
 import re
@@ -27,7 +27,7 @@ DEFINITION = re.compile(r"^\[\^([^\]]+)\]:\s*(.*)$")
 CALL = re.compile(r"\[\^([^\]]+)\](?!:)")
 UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 INTERNAL = re.compile(rf"{UUID}|\bdoc_\w+|(?<![/.])\b[\w-]+\.(?:xlsx?|csv|md|json|pdf|docx|html|png)\b"
-                      r"|\barchiv\w*|\bstocké\w*", re.I)
+                      r"|\bnon archiv\w*|\barchivé\w*|\bstocké\w*", re.I)
 RELATIVE = re.compile(r"\b(?:idem|ibid\w*|op\. cit|même cas|voir (?:l['’]|la |le )?(?:introduction|partie|note)"
                       r"|sources? en partie)", re.I)
 SENTENCE_END = re.compile(r"(?<!\bal)(?<=[a-zà-ÿ0-9)\]»_])\.\s+(?=[A-ZÉÀ«*])")
@@ -107,6 +107,8 @@ def check_file(name, text):
         if not body or body in MARKERS:
             add(label, n, "no-source", "the note has no source")
             continue
+        if body.count("«") != body.count("»") or body.count("(") != body.count(")"):
+            add(label, n, "unbalanced", "a quote or a parenthesis is not closed")
         segments = sources_of(body)
         if len(segments) > MAX_SOURCES:
             add(label, n, "sources", f"{len(segments)} sources, at most {MAX_SOURCES}")
