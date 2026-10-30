@@ -34,6 +34,19 @@ passage that gives a weekday only, such as "on Tuesday", with no date.
   cannot place the day: the claim is `unclear`, not `not_supported`.
 - A passage that gives a full date is read as before. `published_on` does not change it.
 
+## A figure
+
+An act with `op` `create_observation` is a figure: a `measure`, a `value`, a `unit`, a `period`
+and a `reporter`. Code checked that the excerpt holds the number of the value. You check the rest:
+
+- The excerpt must state the period of the act: the year, the quarter, the month or the week, in
+  any language ("март 2024", "March 2024", "Q1 2024").
+- The excerpt must state the unit of the act, in any language or form ("долл. США за баррель" is
+  USD per barrel).
+- The value must be the figure of that period and of that measure. When the excerpt gives two
+  figures, for example the figure of this month and of the month before, and the value is the
+  other one, the claim is `not_supported`.
+
 ## The answer
 
 Give one JSON object, and nothing else. Give one verdict for each claim, with its `ref`:

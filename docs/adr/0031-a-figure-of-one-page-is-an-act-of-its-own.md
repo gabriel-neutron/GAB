@@ -15,8 +15,8 @@ osint-expert, skeptic), that these figures must be decided facts of the record.
 
 ## Decision
 
-- **A figure that one page states is one act of the review queue.** The research agent proposes
-  it with the same tool as a claim: the measure, the value, the unit, the period, the reporter, the
+- **A figure that one page states is one act of the review queue.** An agent proposes it
+  with the same tool as a claim: the measure, the value, the unit, the period, the reporter, the
   method and the publisher, with the page and the excerpt that state the value. The act is a unit
   of its own, as an edit of an attribute is. A reviewer promotes or rejects it, and the reviewer
   never decides an act that the same agent proposed.
@@ -33,7 +33,7 @@ osint-expert, skeptic), that these figures must be decided facts of the record.
   provider gives a restricted licence. The publisher is a word of the act, because a page of a
   ministry has no provider.
 - **A table still goes through a mapping.** This door is for a page that states a small number of
-  figures. A research agent that proposes the rows of a table one by one breaks ADR 0030: the
+  figures. An agent that proposes the rows of a table one by one breaks ADR 0030: the
   reviewer refuses such acts, and the agent maps the table.
 
 ## Cost
@@ -44,3 +44,6 @@ osint-expert, skeptic), that these figures must be decided facts of the record.
   of a mapping filters on the kind of the act.
 - A wrong promoted figure is not corrected in place (ADR 0030). A correction is a new figure from a
   new edition of the page.
+- A page with no provider gives a restricted licence, so the public read does not show its figure.
+  The figure shows only when its document gets a provider with an open licence, and that is a
+  decision of its own.

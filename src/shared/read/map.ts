@@ -169,6 +169,10 @@ const figurePayload = z.looseObject({
   unit: z.string(),
   period: z.string(),
   reporter: z.string(),
+  partner: z.string().optional(),
+  method: z.string(),
+  publisher: z.string(),
+  subject_id: z.string().optional(),
 });
 
 function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
@@ -237,9 +241,18 @@ function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
     }
     case 'figure': {
       const held = figurePayload.parse(value);
+      // The record requires each word but the partner and the subject, so only those two can be
+      // missing.
       return {
         kind,
-        line: `${held.measure} ${String(held.value)} ${held.unit}, ${held.period}, ${held.reporter}`,
+        line: [
+          `${held.measure} ${String(held.value)} ${held.unit}`,
+          held.period,
+          held.partner === undefined ? held.reporter : `${held.reporter} to ${held.partner}`,
+          held.method,
+          held.publisher,
+          ...(held.subject_id === undefined ? [] : [`subject ${held.subject_id}`]),
+        ].join(', '),
       };
     }
   }

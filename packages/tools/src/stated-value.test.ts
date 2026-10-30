@@ -1007,9 +1007,10 @@ const figureOf = (value: number) =>
 test.each([
   [46.82, 'Средняя цена нефти Urals составила 46,82 долл. США за баррель.'],
   [46.82, 'The average Urals price was $46.82 per barrel.'],
+  // The three rows differ only in the space between the groups: U+0020, U+00A0 and U+202F.
   [1234.5, 'Доход составил 1 234,5 млрд рублей.'],
-  [1234.5, 'Доход составил 1 234,5 млрд рублей.'],
-  [1234.5, 'Доход составил 1 234,5 млрд рублей.'],
+  [1234.5, `Доход составил 1${String.fromCodePoint(0xa0)}234,5 млрд рублей.`],
+  [1234.5, `Доход составил 1${String.fromCodePoint(0x202f)}234,5 млрд рублей.`],
   [1234567, 'Revenue: 1 234 567 roubles.'],
 ])('the passage states the figure %d', (value, passage) => {
   expect(unstatedValues(figureOf(value), [passage])).toStrictEqual([]);

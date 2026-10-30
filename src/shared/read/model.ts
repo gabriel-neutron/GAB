@@ -205,7 +205,7 @@ export type ProposalPayload =
   | { readonly kind: 'delete'; readonly reason: string | null }
   | { readonly kind: 'mapping'; readonly table: string | null }
   /** A figure that one page states (ADR 0031), in one line: measure, value and unit, period,
-   * reporter. */
+   * reporter and partner, method, publisher, and subject. */
   | { readonly kind: 'figure'; readonly line: string };
 
 /** What the act replaced. An update copies the keys it named, because the live row still holds

@@ -265,7 +265,32 @@ const payload = z.object({
   unit: z.string().optional(),
   period: z.string().optional(),
   reporter: z.string().optional(),
+  partner: z.string().optional(),
+  method: z.string().optional(),
+  publisher: z.string().optional(),
+  subject_id: z.string().optional(),
 });
+
+// Each word of a figure that the act gives, and no line for a word that it does not give. The read
+// names no subject, so the subject is its id.
+const figureAttributes = (read: z.output<typeof payload>): readonly Attribute[] =>
+  (
+    [
+      ['measure', read.measure],
+      [
+        'value',
+        read.value === undefined
+          ? undefined
+          : [String(read.value), read.unit].filter((one) => one !== undefined).join(' '),
+      ],
+      ['period', read.period],
+      ['reporter', read.reporter],
+      ['partner', read.partner],
+      ['method', read.method],
+      ['publisher', read.publisher],
+      ['subject', read.subject_id],
+    ] as const
+  ).flatMap(([key, value]) => (value === undefined ? [] : [{ key, values: [value] }]));
 
 const act = z.object({
   id: z.string(),
@@ -497,14 +522,7 @@ const actOf = (read: ReadAct): UnitAct => {
   if (read.op === 'create_observation')
     return {
       ...base,
-      attributes: [
-        {
-          key: read.payload.measure ?? 'figure',
-          values: [
-            `${String(read.payload.value)} ${read.payload.unit ?? ''}, ${read.payload.period ?? ''}, ${read.payload.reporter ?? ''}`,
-          ],
-        },
-      ],
+      attributes: figureAttributes(read.payload),
       kind: 'change',
       op: read.op,
       target: null,

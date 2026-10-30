@@ -321,8 +321,8 @@ const candidatePayload = (
         dst_id: dstId,
       };
     }
-    // A merge and a delete have no agreed payload shape, a mapping names a stored table that the
-    // fixture does not hold, and a figure is no candidate of an agent, so none of them is written.
+    // A merge and a delete have no agreed payload shape, and a mapping and a figure cite stored
+    // text that the fixture does not hold, so none of them is written.
     case 'merge':
     case 'delete':
     case 'mapping':

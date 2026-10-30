@@ -2005,6 +2005,10 @@ DECLARE
   v_keys  text[];
   v_row   boolean;
   v_twin  public.proposals%ROWTYPE;
+  v_cite  public.citation%ROWTYPE;
+  v_span  text;
+  v_rep   text;
+  v_par   text;
 BEGIN
   IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
     RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
@@ -2332,8 +2336,9 @@ BEGIN
   -- ---------------------------------------------------------------------------- a figure --
   -- ADR 0031: the act writes one figure, through the table of the loaded figures. The figure names
   -- the act where a loaded figure names its mapping, and it has no load job. Its span is the span
-  -- of the excerpt (P9). The licence and the publisher come from the provider of the document, as
-  -- in put_observations; a document with no provider is `restricted`, with the publisher of the act.
+  -- of the excerpt (P9). The licence comes from the provider of the document, as in
+  -- put_observations, and a document with no provider is `restricted`. The publisher is the word
+  -- of the act that the reviewer read.
   ELSIF p.op = 'create_observation' THEN
     IF p.payload ? 'subject_id'
        AND NOT EXISTS (SELECT 1 FROM public.entities e
@@ -2342,15 +2347,62 @@ BEGIN
         p.payload->>'subject_id'
         USING CONSTRAINT = 'observation_subject';
     END IF;
+    -- A code names one row of the area list. A code of two systems is ambiguous, and refused.
+    SELECT min(a.system) INTO v_rep FROM public.area_code a WHERE a.code = p.payload->>'reporter'
+    HAVING count(*) = 1;
+    IF v_rep IS NULL THEN
+      RAISE EXCEPTION 'the reporter "%" is not one code of the area list', p.payload->>'reporter'
+        USING CONSTRAINT = 'observation_reporter_fkey';
+    END IF;
+    v_par := NULL;
+    IF p.payload ? 'partner' THEN
+      SELECT min(a.system) INTO v_par FROM public.area_code a WHERE a.code = p.payload->>'partner'
+      HAVING count(*) = 1;
+      IF v_par IS NULL THEN
+        RAISE EXCEPTION 'the partner "%" is not one code of the area list', p.payload->>'partner'
+          USING CONSTRAINT = 'observation_partner_fkey';
+      END IF;
+    END IF;
+    SELECT * INTO v_cite FROM public.citation c
+     WHERE c.claim_id = p.id AND c.start IS NOT NULL
+     ORDER BY c.created_at, c.start
+     LIMIT 1;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'the figure has no span of an excerpt' USING CONSTRAINT = 'observation_one_span';
+    END IF;
+    -- THE SPAN HOLDS THE VALUE (ADR 0031). The tool marks the act disputed when it does not, and
+    -- the promotion refuses it, so a write that does not use the tool cannot pass. The span loses
+    -- its white space, and a decimal comma becomes a point. The value is found as its shortest
+    -- form or as the act writes it, with no digit next to it.
+    -- shortcut: a point between groups of digits ("1.234,5") is not read, so such a value is
+    -- refused; add the form when a page needs it.
+    SELECT replace(regexp_replace(substr(t.text, v_cite.start + 1, v_cite."end" - v_cite.start),
+                                  '[[:space:]' || chr(160) || chr(8201) || chr(8239) || ']',
+                                  '', 'g'), ',', '.')
+      INTO v_span
+      FROM public.document_text t
+     WHERE t.document_id = v_cite.doc_id AND t.extractor = v_cite.text_extractor
+       AND t.page = v_cite.page;
+    IF NOT EXISTS (
+         SELECT 1 FROM unnest(ARRAY[trim_scale((p.payload->>'value')::numeric)::text,
+                                    p.payload->>'value']) AS f(form)
+          WHERE v_span ~ ('(^|[^0-9.])' || replace(f.form, '.', '\.') || '($|[^0-9])')) THEN
+      RAISE EXCEPTION 'the cited excerpt does not hold the value % of the figure',
+        p.payload->>'value'
+        USING CONSTRAINT = 'observation_value_stated';
+    END IF;
+    -- The key of the table: one figure for each key in one edition.
     IF EXISTS (
          SELECT 1 FROM public.observation o
-          WHERE o.document_id = p.src[1] AND o.measure = p.payload->>'measure'
+          WHERE o.document_id = v_cite.doc_id AND o.measure = p.payload->>'measure'
             AND o.unit = p.payload->>'unit' AND o.period = p.payload->>'period'
-            AND o.reporter = p.payload->>'reporter'
+            AND o.reporter_system = v_rep AND o.reporter = p.payload->>'reporter'
+            AND o.partner_system IS NOT DISTINCT FROM v_par
             AND o.partner IS NOT DISTINCT FROM p.payload->>'partner'
-            AND o.product IS NULL AND o.method = p.payload->>'method'
+            AND o.product_system IS NULL AND o.product IS NULL
+            AND o.method = p.payload->>'method' AND o.publisher = p.payload->>'publisher'
             AND o.subject_id IS NOT DISTINCT FROM (p.payload->>'subject_id')::uuid) THEN
-      RAISE EXCEPTION 'document % holds this figure already', p.src[1]
+      RAISE EXCEPTION 'document % holds this figure already', v_cite.doc_id
         USING CONSTRAINT = 'observation_key';
     END IF;
     INSERT INTO public.observation
@@ -2358,25 +2410,14 @@ BEGIN
        partner_system, partner, subject_id, licence, document_id, text_extractor, page,
        span_start, span_end, mapping_id, job_id)
     SELECT p.payload->>'measure', (p.payload->>'value')::numeric, p.payload->>'unit',
-           p.payload->>'period', p.payload->>'method',
-           coalesce(v.name, p.payload->>'publisher'),
-           r.system, r.code, a.system, a.code, (p.payload->>'subject_id')::uuid,
-           coalesce(v.licence, 'restricted'), c.doc_id, c.text_extractor, c.page,
-           c.start, c."end", p.id, NULL
-      FROM public.citation c
-      JOIN public.documents d ON d.id = c.doc_id
+           p.payload->>'period', p.payload->>'method', p.payload->>'publisher',
+           v_rep, p.payload->>'reporter', v_par, p.payload->>'partner',
+           (p.payload->>'subject_id')::uuid, coalesce(v.licence, 'restricted'), v_cite.doc_id,
+           v_cite.text_extractor, v_cite.page, v_cite.start, v_cite."end", p.id, NULL
+      FROM public.documents d
       LEFT JOIN public.document_provider v ON v.id = d.provider_id
-      JOIN public.area_code r ON r.code = p.payload->>'reporter'
-      LEFT JOIN public.area_code a ON a.code = p.payload->>'partner'
-     WHERE c.claim_id = p.id AND c.start IS NOT NULL
-     ORDER BY c.created_at, c.start
-     LIMIT 1
+     WHERE d.id = v_cite.doc_id
     RETURNING id INTO v_id;
-    IF v_id IS NULL THEN
-      RAISE EXCEPTION 'the figure has no span of an excerpt, or its reporter is no code of the '
-                      'area list'
-        USING CONSTRAINT = 'observation_one_span';
-    END IF;
 
   -- ------------------------------------------------------------------- a merge, an undo --
   -- M12: identity is a judgement of the operator. A rule, an AI reviewer and a decision on the

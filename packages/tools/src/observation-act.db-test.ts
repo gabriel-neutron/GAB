@@ -187,3 +187,56 @@ test('the door refuses a reporter outside the area list, and words read from an 
   expect(refusals.period).toMatch(/item urals: act\.measure: a figure cites one document/u);
   expect(refusals.image).toMatch(/item urals: a figure cites the stored text/u);
 });
+
+const BATCH = 'SELECT proposal_id::text AS id FROM public.propose_batch($1::jsonb)';
+
+// The door of the batch reads no value, so a caller that does not use the tool writes the act.
+const directAct = (value: number) => {
+  const start = TEXT.indexOf(EXCERPT);
+  return {
+    id: randomUUID(),
+    op: 'create_observation',
+    target_kind: null,
+    target_id: null,
+    payload: {
+      measure: 'urals_price',
+      value,
+      unit: 'USD per barrel',
+      period: '2024-03',
+      reporter: 'RU',
+      method: 'average of the month',
+      publisher: 'Ministry of Finance of Russia',
+    },
+    src: [DOC],
+    names: [],
+    model_call_id: null,
+    originator: 'Ministry of Finance of Russia',
+    modality: 'asserts',
+    citations: [
+      { document: DOC, text_extractor: EXTRACTOR, page: 1, start, end: start + EXCERPT.length },
+    ],
+  };
+};
+
+test('a promotion refuses a figure act whose excerpt does not hold its value', async () => {
+  const refused = await rolledBack('superuser', async (ask) => {
+    await page(ask);
+    const [act] = z
+      .array(z.object({ id: z.uuid() }))
+      .parse(
+        await as(ask, 'gabriel_research', () => ask(BATCH, [JSON.stringify([directAct(71.3)])])),
+      );
+    if (act === undefined) throw new Error('the door wrote no act');
+    await datedBack(ask, act.id);
+    await ask('SAVEPOINT promote');
+    try {
+      await ask("SELECT public.promote_unit($1::uuid, 'a test')", [act.id]);
+      return 'promoted';
+    } catch (cause) {
+      return z.object({ constraint: z.string() }).parse(cause).constraint;
+    } finally {
+      await ask('ROLLBACK TO SAVEPOINT promote');
+    }
+  });
+  expect(refused).toBe('observation_value_stated');
+});
