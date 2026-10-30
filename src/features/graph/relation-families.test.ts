@@ -24,6 +24,10 @@ describe('the family of a relation type', () => {
     expect(familyOf('operates')).toBe('operation');
   });
 
+  it('puts located_in in the operation family', () => {
+    expect(familyOf('located_in')).toBe('operation');
+  });
+
   it('puts a type that no family names in the other family, and so does a key of the prototype', () => {
     expect(familyOf('associated_with')).toBe('other');
     expect(familyOf('a_word_nobody_declared')).toBe('other');

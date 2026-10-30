@@ -189,6 +189,13 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
     'A vessel stood at a berth of a port or a terminal.',
   ),
   relationType(
+    'located_in',
+    'located in',
+    'contains',
+    false,
+    'A facility, such as a terminal, stands in a port or is part of it. Source: a facility. Far end: a port. Not for a place in a city or a country.',
+  ),
+  relationType(
     'loads_at',
     'loads at',
     'is the loading place of',
