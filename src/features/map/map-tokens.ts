@@ -63,6 +63,7 @@ const FAMILY_OF_TYPE: ReadonlyMap<string, LinkFamily> = new Map<string, LinkFami
   ['products_flow_to', 'operation'],
   ['gas_flows_to', 'operation'],
   ['berthed_at', 'operation'],
+  ['located_in', 'operation'],
   ['loads_at', 'operation'],
   ['discharges_at', 'operation'],
   ['inspected_at', 'operation'],
