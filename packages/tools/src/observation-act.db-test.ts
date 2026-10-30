@@ -28,7 +28,7 @@ const TEXT =
   '71,03 долл. США за баррель.';
 const EXCERPT = 'Средняя цена нефти марки Urals в марте 2024 года составила 71,03 долл. США';
 
-const page = async (ask: Ask): Promise<void> =>
+const page = async (ask: Ask, text = TEXT): Promise<void> =>
   as(ask, 'gabriel_research', async () => {
     await ask(STORE, [
       'url',
@@ -40,7 +40,7 @@ const page = async (ask: Ask): Promise<void> =>
       TODAY,
       null,
     ]);
-    await ask(WRITE_TEXT, [DOC, JSON.stringify([TEXT]), EXTRACTOR]);
+    await ask(WRITE_TEXT, [DOC, JSON.stringify([text]), EXTRACTOR]);
   });
 
 const figure = (value: number, more: Readonly<Record<string, unknown>> = {}) => ({
@@ -190,9 +190,11 @@ test('the door refuses a reporter outside the area list, and words read from an 
 
 const BATCH = 'SELECT proposal_id::text AS id FROM public.propose_batch($1::jsonb)';
 
-// The door of the batch reads no value, so a caller that does not use the tool writes the act.
-const directAct = (value: number) => {
-  const start = TEXT.indexOf(EXCERPT);
+// The door of the batch reads no value, so a caller that does not use the tool writes the act. A
+// span counts code points, and a string index counts UTF-16 units.
+const directAct = (value: number, text = TEXT, excerpt = EXCERPT) => {
+  const start = Array.from(text.slice(0, text.indexOf(excerpt))).length;
+  const end = start + Array.from(excerpt).length;
   return {
     id: randomUUID(),
     op: 'create_observation',
@@ -212,19 +214,20 @@ const directAct = (value: number) => {
     model_call_id: null,
     originator: 'Ministry of Finance of Russia',
     modality: 'asserts',
-    citations: [
-      { document: DOC, text_extractor: EXTRACTOR, page: 1, start, end: start + EXCERPT.length },
-    ],
+    citations: [{ document: DOC, text_extractor: EXTRACTOR, page: 1, start, end }],
   };
 };
 
-test('a promotion refuses a figure act whose excerpt does not hold its value', async () => {
-  const refused = await rolledBack('superuser', async (ask) => {
-    await page(ask);
+// The promotion of a direct act: `promoted`, or the rule that refused it.
+const promotion = async (value: number, text = TEXT, excerpt = EXCERPT): Promise<string> =>
+  rolledBack('superuser', async (ask) => {
+    await page(ask, text);
     const [act] = z
       .array(z.object({ id: z.uuid() }))
       .parse(
-        await as(ask, 'gabriel_research', () => ask(BATCH, [JSON.stringify([directAct(71.3)])])),
+        await as(ask, 'gabriel_research', () =>
+          ask(BATCH, [JSON.stringify([directAct(value, text, excerpt)])]),
+        ),
       );
     if (act === undefined) throw new Error('the door wrote no act');
     await datedBack(ask, act.id);
@@ -238,5 +241,26 @@ test('a promotion refuses a figure act whose excerpt does not hold its value', a
       await ask('ROLLBACK TO SAVEPOINT promote');
     }
   });
-  expect(refused).toBe('observation_value_stated');
+
+test('a promotion refuses a figure act whose excerpt does not hold its value', async () => {
+  expect(await promotion(71.3)).toBe('observation_value_stated');
+});
+
+// The page writes a sign outside the Basic Multilingual Plane before the excerpt, so a span in
+// UTF-16 units would miss the number.
+test.each([
+  [53.5, 'Доля 53,50 %'],
+  [64.21, 'Импорт 2023 64,21 долл.'],
+  [1234.5, 'Доход 1 234,5 млрд'],
+  [1234.5, 'Revenue 1,234 or 1234,5'],
+])('a promotion accepts the value %d in %j', async (value, excerpt) => {
+  expect(await promotion(value, `📈 ${excerpt}.`, excerpt)).toBe('promoted');
+});
+
+test.each([
+  [53, 'Доля 53,5 %'],
+  [1234, 'Код 12 34'],
+  [234.5, 'Revenue 1.234,5'],
+])('a promotion refuses the value %d in %j', async (value, excerpt) => {
+  expect(await promotion(value, `📈 ${excerpt}.`, excerpt)).toBe('observation_value_stated');
 });

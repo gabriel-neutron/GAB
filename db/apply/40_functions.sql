@@ -2009,6 +2009,7 @@ DECLARE
   v_span  text;
   v_rep   text;
   v_par   text;
+  v_space text;
 BEGIN
   IF p_decided_by IS NULL OR btrim(p_decided_by, E' \t\n\r\f\v') = '' THEN
     RAISE EXCEPTION 'a decision names who took it' USING CONSTRAINT = 'decision_named';
@@ -2371,22 +2372,33 @@ BEGIN
       RAISE EXCEPTION 'the figure has no span of an excerpt' USING CONSTRAINT = 'observation_one_span';
     END IF;
     -- THE SPAN HOLDS THE VALUE (ADR 0031). The tool marks the act disputed when it does not, and
-    -- the promotion refuses it, so a write that does not use the tool cannot pass. The span loses
-    -- its white space, and a decimal comma becomes a point. The value is found as its shortest
-    -- form or as the act writes it, with no digit next to it.
-    -- shortcut: a point between groups of digits ("1.234,5") is not read, so such a value is
-    -- refused; add the form when a page needs it.
-    SELECT replace(regexp_replace(substr(t.text, v_cite.start + 1, v_cite."end" - v_cite.start),
-                                  '[[:space:]' || chr(160) || chr(8201) || chr(8239) || ']',
-                                  '', 'g'), ',', '.')
-      INTO v_span
+    -- the promotion refuses it, so a write that does not use the tool cannot pass. The door finds
+    -- each number of the span, as the rule NUMBER of the tool does: an optional minus, then one to
+    -- three digits and groups of three digits after a space, or digits alone, then an optional
+    -- decimal part after a point or a comma. No digit and no letter touches a number. Each number
+    -- gives its readings: the comma is a decimal mark, and one mark before exactly three digits
+    -- can also join groups. A reading that is equal to the value, as a number, states it.
+    -- shortcut: a number with two marks ("1.234,5", "1,234.5") states no value, so such a figure
+    -- is refused; add the form when a page needs it.
+    -- The span counts code points, as substr does (packages/tools/src/excerpt.ts).
+    SELECT substr(t.text, v_cite.start + 1, v_cite."end" - v_cite.start) INTO v_span
       FROM public.document_text t
      WHERE t.document_id = v_cite.doc_id AND t.extractor = v_cite.text_extractor
        AND t.page = v_cite.page;
+    v_space := '[ ' || chr(160) || chr(8201) || chr(8239) || ']';
     IF NOT EXISTS (
-         SELECT 1 FROM unnest(ARRAY[trim_scale((p.payload->>'value')::numeric)::text,
-                                    p.payload->>'value']) AS f(form)
-          WHERE v_span ~ ('(^|[^0-9.])' || replace(f.form, '.', '\.') || '($|[^0-9])')) THEN
+         SELECT 1
+           FROM regexp_matches(coalesce(v_span, ''),
+                  '(?<![[:alnum:]])(?<![0-9][.,])([-' || chr(8722) || ']?(?:[0-9]{1,3}(?:'
+                  || v_space || '[0-9]{3})+|[0-9]+)(?:[.,][0-9]+)?)(?![0-9])(?![.,][0-9])',
+                  'g') AS m(token),
+                LATERAL (SELECT replace(regexp_replace(m.token[1], v_space, '', 'g'),
+                                        chr(8722), '-') AS plain) AS n,
+                LATERAL (SELECT replace(n.plain, ',', '.') AS reading
+                         UNION ALL
+                         SELECT regexp_replace(n.plain, '[.,]', '')
+                          WHERE n.plain ~ '^-?[0-9]+[.,][0-9]{3}$') AS r
+          WHERE r.reading::numeric = (p.payload->>'value')::numeric) THEN
       RAISE EXCEPTION 'the cited excerpt does not hold the value % of the figure',
         p.payload->>'value'
         USING CONSTRAINT = 'observation_value_stated';
