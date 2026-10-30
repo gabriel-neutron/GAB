@@ -11,7 +11,7 @@ import {
   WorkbookFault,
   workbookCsvs,
 } from './xlsx.ts';
-import { workbookOf } from './xlsx-fixture.ts';
+import { workbookOf, zipOf } from './xlsx-fixture.ts';
 
 // A workbook in the shape of a tracker: a sheet of notes, and a sheet of fields.
 const SHEETS = {
@@ -160,3 +160,48 @@ test(
     await expect(workbookCsvs(book)).rejects.toThrow(/keeps more than/u);
   },
 );
+
+// A part with many starts that never close is read once. Before the fix, each one took minutes.
+const hostileBook = (sheetData: string, strings: string) =>
+  zipOf([
+    ['[Content_Types].xml', '<Types/>'],
+    [
+      'xl/workbook.xml',
+      '<workbook><sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>',
+    ],
+    [
+      'xl/_rels/workbook.xml.rels',
+      '<Relationships><Relationship Id="rId1" Type="worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+    ],
+    ['xl/worksheets/sheet1.xml', `<worksheet><sheetData>${sheetData}</sheetData></worksheet>`],
+    ['xl/sharedStrings.xml', `<sst>${strings}</sst>`],
+  ]);
+
+test.each([
+  [
+    'shared strings that never close',
+    '<row r="1"><c r="A1"><v>1</v></c></row>',
+    '<si>'.repeat(500_000),
+  ],
+  [
+    'text runs that never close',
+    '<row r="1"><c r="A1"><v>1</v></c></row>',
+    `<si>${'<t>'.repeat(500_000)}</si>`,
+  ],
+  ['a row that never closes', `<row r="1">${'<c r="A1"><v>1</v></c>'.repeat(400_000)}`, ''],
+  ['cells that never close', `<row r="1">${'<c r="A1">'.repeat(500_000)}</row>`, ''],
+])('a sheet with %s is read in linear time', { timeout: 20_000 }, async (_, sheetData, strings) => {
+  const begun = performance.now();
+  await sheetCsv(hostileBook(sheetData, strings), 'S').catch(() => '');
+  expect(performance.now() - begun).toBeLessThan(10_000);
+});
+
+test('rows that close after a long open row in the stream are all read', async () => {
+  const long = 'x'.repeat(3 * 1024 * 1024);
+  const book = hostileBook(
+    `<row r="1"><c r="A1" t="inlineStr"><is><t>${long}</t></is></c></row><row r="2"><c r="A2"><v>2</v></c></row><row r="3"/>`,
+    '',
+  );
+  const csv = await sheetCsv(book, 'S');
+  expect(csv.split('\r\n')).toStrictEqual([long, '2', '']);
+});

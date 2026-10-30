@@ -3830,6 +3830,11 @@ END $$;
 -- ONLY A RUNNING ROW ENDS, and the reason is required: a `failed` row with no reason gives the
 -- operator nothing to act on. No failure kind is written, because the three kinds name the fault
 -- of one call to the model, and this is the end of the job.
+--
+-- THE FAILURE IS WRITTEN EVEN WHEN A RULE RAISES. The rules run on the units of the job after the
+-- status write. A rule that raises would undo the write, and the job would stay running: the next
+-- start puts it back in the queue, and it runs and pays for its model calls again. The rules then
+-- run at the next act on those units.
 CREATE OR REPLACE FUNCTION fail_job(p_id uuid, p_reason text)
 RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER
@@ -3844,7 +3849,11 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'job % is not running, and only a running job fails', p_id;
   END IF;
-  PERFORM public.run_rules(public.units_of_job(p_id));
+  BEGIN
+    PERFORM public.run_rules(public.units_of_job(p_id));
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'the rules of failed job % raised: %', p_id, SQLERRM;
+  END;
 END $$;
 
 
@@ -7892,7 +7901,9 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
                     r.promoted_from)
       FROM api.relation r
      CROSS JOIN LATERAL jsonb_each(r.attrs) AS a(key, value)
-     WHERE r.id IN (SELECT x.id FROM rel x)
+     -- The dates and the type of a relation have the rows below. A value with one of their keys
+     -- would give a second claim with the same identifier, so it is not released.
+     WHERE r.id IN (SELECT x.id FROM rel x) AND a.key NOT IN ('valid_from', 'valid_to', 'type')
     UNION ALL
     SELECT r.id::text, 'relation', r.id, NULL, NULL, r.origin_label, to_jsonb(r.sources),
            r.promoted_from

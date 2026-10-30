@@ -62,7 +62,10 @@ const isConnectionFault = (error: unknown): boolean => {
       (code.startsWith('08') && code !== '08P01'))
   )
     return true;
-  return error.message.startsWith('Connection terminated');
+  // External constraint: pg gives a client whose connection died this error with no code.
+  return (
+    error.message.startsWith('Connection terminated') || error.message.endsWith('is not queryable')
+  );
 };
 
 const lockRow = z.object({ locked: z.boolean() });
@@ -284,17 +287,24 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
         dropped: result.dropped,
       });
     const parts = result.parts ?? { parts: 0, refused: 0, firstRefusal: null };
-    const { status } = ended.parse(
-      (
-        await db.query(COMPLETE, [
-          job.id,
-          parts.parts,
-          parts.refused,
-          parts.firstRefusal,
-          result.stop ?? null,
-        ])
-      ).rows[0],
-    );
+    let answer;
+    try {
+      answer = await db.query(COMPLETE, [
+        job.id,
+        parts.parts,
+        parts.refused,
+        parts.firstRefusal,
+        result.stop ?? null,
+      ]);
+    } catch (cause) {
+      // A lost connection puts the job back. Any other refusal of the end fails the job: a job left
+      // running would go back at the next start, and run and pay for its model calls again.
+      if (isConnectionFault(cause)) throw cause;
+      console.error('the record refused the end of the job', { agent: agent.name, cause });
+      const reason = cause instanceof Error ? cause.message : UNKNOWN_FAULT;
+      return fail(job, `the record refused the end of the job: ${reason}`);
+    }
+    const { status } = ended.parse(answer.rows[0]);
     return { did: status, job: job.id };
   };
 

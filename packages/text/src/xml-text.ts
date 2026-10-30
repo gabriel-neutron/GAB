@@ -33,8 +33,10 @@ const localName = (name: string): string => name.slice(name.indexOf(':') + 1);
 // An attribute value can hold ">", so a tag reads its attributes as quoted strings. A name never
 // holds "<", so a long run of "<" is read once. A tag whose attributes are not quoted is still a
 // tag: the second form opens it and reads none of its attributes.
+// A comment, a CDATA section or a declaration that never closes ends at the end of the text, so
+// a hostile text of many open starts is read once and not once for each start.
 const TOKEN =
-  /<!\[CDATA\[([\s\S]*?)\]\]>|<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<![^>]*>|<(\/?)([^\s/<>]+)((?:\s+[^\s=/<>]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>|<(\/?)([^\s/<>]+)[^<>]*?(\/?)>|([^<]+)|</gu;
+  /<!\[CDATA\[([\s\S]*?)(?:\]\]>|$)|<!--[\s\S]*?(?:-->|$)|<\?[\s\S]*?(?:\?>|$)|<![^>]*(?:>|$)|<(\/?)([^\s/<>]+)((?:\s+[^\s=/<>]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>|<(\/?)([^\s/<>]+)[^<>]*?(\/?)>|([^<]+)|</gu;
 const ATTRIBUTE = /([^\s=]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/gu;
 
 const spaced = (text: string): string => text.replace(/\s+/gu, ' ').trim();

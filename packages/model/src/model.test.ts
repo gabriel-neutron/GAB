@@ -35,6 +35,7 @@ interface Reply {
   readonly status?: number;
   readonly body: unknown;
   readonly headers?: Readonly<Record<string, string>>;
+  readonly delayMs?: number;
 }
 
 const replies: Reply[] = [];
@@ -48,12 +49,18 @@ const server: Server = createServer((request, response) => {
   });
   request.on('end', () => {
     bodies.push(JSON.parse(text));
-    const reply = replies.shift() ?? { status: 500, body: { error: { message: 'no script' } } };
-    response.writeHead(reply.status ?? 200, {
-      'content-type': 'application/json',
-      ...reply.headers,
-    });
-    response.end(typeof reply.body === 'string' ? reply.body : JSON.stringify(reply.body));
+    const reply: Reply = replies.shift() ?? {
+      status: 500,
+      body: { error: { message: 'no script' } },
+    };
+    setTimeout(() => {
+      if (response.destroyed) return;
+      response.writeHead(reply.status ?? 200, {
+        'content-type': 'application/json',
+        ...reply.headers,
+      });
+      response.end(typeof reply.body === 'string' ? reply.body : JSON.stringify(reply.body));
+    }, reply.delayMs ?? 0);
   });
 });
 
@@ -365,6 +372,16 @@ describe('a fault that time mends', () => {
       ok: false,
       failure: { kind: 'network', attempts: 1 },
     });
+    expect(bodies).toHaveLength(1);
+    expect(waits).toStrictEqual([]);
+  });
+
+  it('does not ask again after a call that ran out of time, because it may be billed', async () => {
+    replies.push({ ...said('{"claim":"late"}'), delayMs: LINE.timeoutMs + 500 });
+    replies.push(said('{"claim":"a ship"}'));
+    const { ask, waits } = open();
+
+    expect(await ask()).toMatchObject({ ok: false, failure: { kind: 'network', attempts: 1 } });
     expect(bodies).toHaveLength(1);
     expect(waits).toStrictEqual([]);
   });

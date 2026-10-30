@@ -144,6 +144,10 @@ describe('the runner and a fault of the database connection', () => {
     ['a terminated connection', new Error('Connection terminated unexpectedly')],
     ['a class 08 state', Object.assign(new Error('the connection failed'), { code: '08006' })],
     ['a shutdown of the server', Object.assign(new Error('terminating'), { code: '57P01' })],
+    [
+      'a client that is not queryable',
+      new Error('Client has encountered a connection error and is not queryable'),
+    ],
   ])('does not fail the job when a query of the agent meets %s', async (_name, cause) => {
     const { fake, sleeps, ended } = await drive([job, () => EMPTY], askAndStop, undefined, () => {
       throw cause;
@@ -153,6 +157,16 @@ describe('the runner and a fault of the database connection', () => {
     expect(fake.count('complete_job')).toBe(0);
     expect(fake.count('requeue_running_jobs')).toBe(2);
     expect(sleeps[0]).toBe(1000);
+  });
+
+  it('fails the job, and goes on, when the record refuses the end of the job', async () => {
+    const { fake, ended } = await drive([job, () => EMPTY], undefined, () => {
+      throw Object.assign(new Error('a rule raised'), { code: 'P0001' });
+    });
+    await expect(ended).resolves.toBeUndefined();
+    expect(fake.count('complete_job')).toBe(1);
+    expect(fake.count('fail_job')).toBe(1);
+    expect(fake.count('requeue_running_jobs')).toBe(1);
   });
 
   it('fails the job when another service of the agent refuses the connection', async () => {
