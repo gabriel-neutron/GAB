@@ -1,0 +1,27 @@
+{
+  "unit": "thousand barrels per day",
+  "period": "2026-01",
+  "source": "Report figure 7A; KSE / CREA, drawing on Kpler",
+  "data": [
+    {
+      "name": "Baltic",
+      "crude": 1460,
+      "products": 1551
+    },
+    {
+      "name": "Black Sea",
+      "crude": 391,
+      "products": 686
+    },
+    {
+      "name": "Pacific",
+      "crude": 1167,
+      "products": 175
+    },
+    {
+      "name": "Arctic",
+      "crude": 439,
+      "products": 3
+    }
+  ]
+}

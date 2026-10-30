@@ -1,0 +1,32 @@
+from,to,value,unit,status,document,page
+Crude · Baltic,Shadow fleet,1015,kb/d,fact,doc_f42628ac12e6,4
+Crude · Baltic,IG-insured,445,kb/d,fact,doc_f42628ac12e6,4
+Crude · Black Sea,Shadow fleet,177,kb/d,fact,doc_f42628ac12e6,5
+Crude · Black Sea,IG-insured,214,kb/d,fact,doc_f42628ac12e6,5
+Crude · Pacific,Shadow fleet,1137,kb/d,fact,doc_f42628ac12e6,6
+Crude · Pacific,IG-insured,30,kb/d,fact,doc_f42628ac12e6,6
+Crude · Arctic,Shadow fleet,409,kb/d,fact,doc_f42628ac12e6,7
+Crude · Arctic,"Coalition, no IG cover",30,kb/d,fact,doc_f42628ac12e6,7
+Products · Baltic,Shadow fleet,350,kb/d,fact,doc_f42628ac12e6,4
+Products · Baltic,IG-insured,1201,kb/d,fact,doc_f42628ac12e6,4
+Products · Black Sea,Shadow fleet,166,kb/d,fact,doc_f42628ac12e6,5
+Products · Black Sea,IG-insured,520,kb/d,fact,doc_f42628ac12e6,5
+Products · Pacific,Shadow fleet,104,kb/d,fact,doc_f42628ac12e6,6
+Products · Pacific,IG-insured,71,kb/d,fact,doc_f42628ac12e6,6
+Products · Arctic,Shadow fleet,3,kb/d,fact,doc_f42628ac12e6,7
+“Shadow fleet”,Seaborne crude,2738,kb/d,fact,doc_f42628ac12e6,3
+IG-insured,Seaborne crude,690,kb/d,fact,doc_f42628ac12e6,3
+"Coalition, no IG cover",Seaborne crude,30,kb/d,calculation,doc_f42628ac12e6,7
+“Shadow fleet”,Seaborne products,623,kb/d,fact,doc_f42628ac12e6,3
+IG-insured,Seaborne products,1792,kb/d,fact,doc_f42628ac12e6,3
+Seaborne crude,China,1271,kb/d,fact,doc_f42628ac12e6,8
+Seaborne crude,India,727,kb/d,fact,doc_f42628ac12e6,8
+Seaborne crude,Turkey,225,kb/d,fact,doc_f42628ac12e6,8
+Seaborne crude,Unknown destination,1037,kb/d,fact,doc_f42628ac12e6,8
+Seaborne crude,Other countries,197,kb/d,calculation,doc_f42628ac12e6,8
+Seaborne products,Turkey,322,kb/d,fact,doc_f42628ac12e6,8
+Seaborne products,China,297,kb/d,fact,doc_f42628ac12e6,8
+Seaborne products,Singapore,270,kb/d,fact,doc_f42628ac12e6,8
+Seaborne products,Brazil,246,kb/d,fact,doc_f42628ac12e6,8
+Seaborne products,Unknown destination,501,kb/d,fact,doc_f42628ac12e6,8
+Seaborne products,Other countries,779,kb/d,calculation,doc_f42628ac12e6,8

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AtlasRouteImport } from './routes/atlas'
+import { Route as BibliographyRouteImport } from './routes/bibliography'
 import { Route as DownloadsRouteImport } from './routes/downloads'
 import { Route as ExportsRouteImport } from './routes/exports'
 import { Route as GlossaryRouteImport } from './routes/glossary'
@@ -19,6 +20,7 @@ import { Route as HelpRouteImport } from './routes/help'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as MethodRouteImport } from './routes/method'
 import { Route as NodesRouteImport } from './routes/nodes'
+import { Route as ReportFigureRouteImport } from './routes/report-figure'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as ClaimSplatRouteImport } from './routes/claim.$'
@@ -34,6 +36,11 @@ const IndexRoute = IndexRouteImport.update({
 const AtlasRoute = AtlasRouteImport.update({
   id: '/atlas',
   path: '/atlas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BibliographyRoute = BibliographyRouteImport.update({
+  id: '/bibliography',
+  path: '/bibliography',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DownloadsRoute = DownloadsRouteImport.update({
@@ -76,6 +83,11 @@ const NodesRoute = NodesRouteImport.update({
   path: '/nodes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportFigureRoute = ReportFigureRouteImport.update({
+  id: '/report-figure',
+  path: '/report-figure',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReviewRoute = ReviewRouteImport.update({
   id: '/review',
   path: '/review',
@@ -110,6 +122,7 @@ const VesselImoRoute = VesselImoRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/atlas': typeof AtlasRoute
+  '/bibliography': typeof BibliographyRoute
   '/downloads': typeof DownloadsRoute
   '/exports': typeof ExportsRoute
   '/glossary': typeof GlossaryRoute
@@ -118,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
   '/nodes': typeof NodesRoute
+  '/report-figure': typeof ReportFigureRoute
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
   '/claim/$': typeof ClaimSplatRoute
@@ -128,6 +142,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/atlas': typeof AtlasRoute
+  '/bibliography': typeof BibliographyRoute
   '/downloads': typeof DownloadsRoute
   '/exports': typeof ExportsRoute
   '/glossary': typeof GlossaryRoute
@@ -136,6 +151,7 @@ export interface FileRoutesByTo {
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
   '/nodes': typeof NodesRoute
+  '/report-figure': typeof ReportFigureRoute
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
   '/claim/$': typeof ClaimSplatRoute
@@ -147,6 +163,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/atlas': typeof AtlasRoute
+  '/bibliography': typeof BibliographyRoute
   '/downloads': typeof DownloadsRoute
   '/exports': typeof ExportsRoute
   '/glossary': typeof GlossaryRoute
@@ -155,6 +172,7 @@ export interface FileRoutesById {
   '/map': typeof MapRoute
   '/method': typeof MethodRoute
   '/nodes': typeof NodesRoute
+  '/report-figure': typeof ReportFigureRoute
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
   '/claim/$': typeof ClaimSplatRoute
@@ -167,6 +185,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/atlas'
+    | '/bibliography'
     | '/downloads'
     | '/exports'
     | '/glossary'
@@ -175,6 +194,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/method'
     | '/nodes'
+    | '/report-figure'
     | '/review'
     | '/search'
     | '/claim/$'
@@ -185,6 +205,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/atlas'
+    | '/bibliography'
     | '/downloads'
     | '/exports'
     | '/glossary'
@@ -193,6 +214,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/method'
     | '/nodes'
+    | '/report-figure'
     | '/review'
     | '/search'
     | '/claim/$'
@@ -203,6 +225,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/atlas'
+    | '/bibliography'
     | '/downloads'
     | '/exports'
     | '/glossary'
@@ -211,6 +234,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/method'
     | '/nodes'
+    | '/report-figure'
     | '/review'
     | '/search'
     | '/claim/$'
@@ -222,6 +246,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AtlasRoute: typeof AtlasRoute
+  BibliographyRoute: typeof BibliographyRoute
   DownloadsRoute: typeof DownloadsRoute
   ExportsRoute: typeof ExportsRoute
   GlossaryRoute: typeof GlossaryRoute
@@ -230,6 +255,7 @@ export interface RootRouteChildren {
   MapRoute: typeof MapRoute
   MethodRoute: typeof MethodRoute
   NodesRoute: typeof NodesRoute
+  ReportFigureRoute: typeof ReportFigureRoute
   ReviewRoute: typeof ReviewRoute
   SearchRoute: typeof SearchRoute
   ClaimSplatRoute: typeof ClaimSplatRoute
@@ -252,6 +278,13 @@ declare module '@tanstack/react-router' {
       path: '/atlas'
       fullPath: '/atlas'
       preLoaderRoute: typeof AtlasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bibliography': {
+      id: '/bibliography'
+      path: '/bibliography'
+      fullPath: '/bibliography'
+      preLoaderRoute: typeof BibliographyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/downloads': {
@@ -310,6 +343,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NodesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/report-figure': {
+      id: '/report-figure'
+      path: '/report-figure'
+      fullPath: '/report-figure'
+      preLoaderRoute: typeof ReportFigureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/review': {
       id: '/review'
       path: '/review'
@@ -358,6 +398,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AtlasRoute: AtlasRoute,
+  BibliographyRoute: BibliographyRoute,
   DownloadsRoute: DownloadsRoute,
   ExportsRoute: ExportsRoute,
   GlossaryRoute: GlossaryRoute,
@@ -366,6 +407,7 @@ const rootRouteChildren: RootRouteChildren = {
   MapRoute: MapRoute,
   MethodRoute: MethodRoute,
   NodesRoute: NodesRoute,
+  ReportFigureRoute: ReportFigureRoute,
   ReviewRoute: ReviewRoute,
   SearchRoute: SearchRoute,
   ClaimSplatRoute: ClaimSplatRoute,
