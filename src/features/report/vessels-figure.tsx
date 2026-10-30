@@ -24,16 +24,16 @@ const TILE_LABELS = ['called at a port after', 'still calling at +6 months', 'st
 export function VesselsFigure() {
   let y = 112;
   let lastGroup = '';
-  const lanes = vessels.map((name) => {
+  const lanes = [];
+  for (const name of vessels) {
     const own = rows.filter((r) => r['vessel'] === name);
     const group = own[0]?.['group'] ?? '';
     if (group !== lastGroup) y += 26;
     const head = group !== lastGroup ? { group, y: y - 12 } : undefined;
     lastGroup = group;
-    const lane = { name, own, y, head, d0: time(own.find((r) => r['row'] === 'designation')?.['date'] ?? '') };
+    lanes.push({ name, own, y, head, d0: time(own.find((r) => r['row'] === 'designation')?.['date'] ?? '') });
     y += 20;
-    return lane;
-  });
+  }
   const height = y + 30;
   return (
     <figure className="report-chart">

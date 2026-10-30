@@ -102,7 +102,7 @@ export function FleetWavesFigure() {
   const count = (q: string, r: string) =>
     Number(waves.find((w) => w['kind'] === 'quarter' && w['key'] === q && w['regime'] === r)?.['value'] ?? 0);
   const earlier = waves
-    .filter((w) => w['kind'] === 'quarter' && (w['key'] ?? '') < QUARTERS[0]!)
+    .filter((w) => w['kind'] === 'quarter' && (w['key'] ?? '') < (QUARTERS[0] ?? ''))
     .reduce((t, w) => t + Number(w['value']), 0);
   const combos = waves.filter((w) => w['kind'] === 'combo').map((w) => ({ key: w['key'] ?? '', v: Number(w['value']) }));
   const lag = waves.find((w) => w['kind'] === 'lag')?.['value'];

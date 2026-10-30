@@ -29,17 +29,18 @@ function StackBar({
   /** Write the share of each wide segment inside it. */
   share?: boolean;
 }) {
-  let x = 150;
   const total = parts.reduce((t, p) => t + p.v, 0);
+  // The left edge of each segment, and the end of the bar last.
+  const starts = parts.reduce<number[]>((at, p) => [...at, (at.at(-1) ?? 150) + p.v * scale], [150]);
+  const x = starts.at(-1) ?? 150;
   return (
     <g>
       <text x="0" y={y + 15} className="lp-label flow-name">
         {label}
       </text>
-      {parts.map((p) => {
+      {parts.map((p, i) => {
         const w = p.v * scale,
-          x1 = x;
-        x += w;
+          x1 = starts[i] ?? 150;
         const inside = w > 34;
         return (
           <g key={p.name} className={`lp-series ${p.tone}`}>

@@ -11,7 +11,7 @@ const rows = readCsv(raw);
 const YEARS = [2021, 2022, 2023, 2024, 2025];
 const v = (panel: string, series: string, year: number) => {
   const r = rows.find((x) => x['panel'] === panel && x['series'] === series && x['year'] === String(year));
-  return r && r['value'] ? Number(r['value']) : undefined;
+  return r?.['value'] ? Number(r['value']) : undefined;
 };
 const SUPPLIERS = [
   { name: 'Coalition', tone: 'old' },
@@ -58,7 +58,7 @@ export function ChpFigure() {
           const x = X0 + 8 + i * 50;
           const parts = SUPPLIERS.map((s) => ({ ...s, value: v('a', s.name, year) ?? 0 }));
           const total = parts.reduce((t, p) => t + p.value, 0);
-          const china = (parts[1]!.value + parts[2]!.value) / total;
+          const china = ((parts[1]?.value ?? 0) + (parts[2]?.value ?? 0)) / total;
           return (
             <g key={year}>
               {parts.map((p) => {

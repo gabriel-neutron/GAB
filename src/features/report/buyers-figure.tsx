@@ -15,7 +15,7 @@ const value = (panel: string, series: string, year: number) => {
 const coalition = (year: number) => {
   const parts = COALITION.map((s) => value('a', s, year));
   // A year with a missing partner has no coalition total.
-  return parts.every((p) => p !== undefined) ? parts.reduce((t: number, p) => t + (p ?? 0), 0) : undefined;
+  return parts.every((p) => p !== undefined) ? parts.reduce((t: number, p) => t + p, 0) : undefined;
 };
 
 const yearsA = [2020, 2021, 2022, 2023, 2024, 2025];

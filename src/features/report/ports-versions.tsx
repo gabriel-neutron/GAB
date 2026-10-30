@@ -9,7 +9,7 @@ const get = (panel: string, series: string, period: string) => {
   return r ? Number(r['value']) : undefined;
 };
 
-type Pair = { label: string; before: number; after: number };
+interface Pair { label: string; before: number; after: number }
 /** A before/after dot plot: the 2021 value hollow, the 2025 value filled, the change at the right. */
 function Dumbbell({ y0, title, unit, pairs, max }: { y0: number; title: string; unit: string; pairs: Pair[]; max: number }) {
   const X0 = 150,

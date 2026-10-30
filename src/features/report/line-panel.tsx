@@ -10,7 +10,7 @@ export function readCsv(raw: string): Record<string, string>[] {
   return body.map((cells) => Object.fromEntries(head.map((h, i) => [h, cells[i] ?? ''])));
 }
 
-export type Series = {
+export interface Series {
   label: string;
   tone: 'old' | 'new' | 'other';
   points: (number | undefined)[];
@@ -19,7 +19,7 @@ export type Series = {
   dashed?: boolean;
   /** The end label; defaults to the label and the last value. */
   end?: string;
-};
+}
 
 const PH = 250,
   TOP = 46,
@@ -72,13 +72,11 @@ export function LinePanel({
     })
     .filter((e): e is { s: Series; i: number; v: number } => e.v !== undefined)
     .sort((a, b) => y(a.v) - y(b.v));
-  let last = -Infinity;
-  const labelY = new Map(
-    ends.map((e) => {
-      last = Math.max(y(e.v) + 4, last + 14);
-      return [e.s.label, { y: last, x: x(e.i) + 8, v: e.v }] as const;
-    }),
-  );
+  // Each label sits at its line end, and at least 14 units below the label above it.
+  const placed: { label: string; y: number; x: number; v: number }[] = [];
+  for (const e of ends)
+    placed.push({ label: e.s.label, y: Math.max(y(e.v) + 4, (placed.at(-1)?.y ?? -Infinity) + 14), x: x(e.i) + 8, v: e.v });
+  const labelY = new Map(placed.map(({ label, ...at }) => [label, at] as const));
   return (
     <g>
       <text x={x0} y="12" className="lp-title">
