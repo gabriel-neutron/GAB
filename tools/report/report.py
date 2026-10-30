@@ -50,6 +50,8 @@ from pathlib import Path
 
 import markdown
 
+import check_notes
+
 HERE = Path(__file__).parent
 SITE_CSS = HERE.parents[1] / "src" / "index.css"
 FUNDING = ("This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. "
@@ -732,6 +734,8 @@ def build(source, figures, out, draft=False, name=None, theme_css=None, theme="d
     from weasyprint import HTML
     source, out = Path(source), Path(out)
     text = source.read_text(encoding="utf-8")
+    for f in check_notes.check({source.name: text}):
+        print(f"warning: note {f.label} breaks the citation norm ({f.rule}): {f.detail}", file=sys.stderr)
     meta, text = front_matter(text)
     notes = {m["label"]: " ".join(m["body"].split()) for m in re.finditer(
         r"^\[\^(?P<label>[^\]]+)\]:[ \t]*(?P<body>.*(?:\n[ \t]+.*)*)", text, re.M)}
