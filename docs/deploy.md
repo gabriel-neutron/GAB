@@ -211,6 +211,10 @@ in the repository, in the folder of the site package. The build copies them to `
 application. Set `REPORT_DIR` to another folder to build with other values. A file that holds a
 value that is not a number stops the build.
 
+## Check the notes of the report
+
+Run `python tools/report/check_notes.py FILE.md ...` on the files of the report text. It lists, for each file, each footnote that breaks the citation norm (a missing, empty or internal source, more than two sources, a date that is not full, a list version that differs between notes) and exits 1 when it finds one. Add `--final` to count an open `[SOURCE ?]` or `[année ?]` marker as a fault. The report build runs the same check and prints each fault as a warning.
+
 ## Public writes
 
 No public write path exists. It needs real authentication first, and that is separate work.

@@ -16,4 +16,5 @@ def pytest_collection_modifyitems(config, items):
             raise
         skip = pytest.mark.skip(reason=f"WeasyPrint is not usable: {e.__class__.__name__}")
         for item in items:
-            item.add_marker(skip)
+            if item.module.__name__ != "test_check_notes":
+                item.add_marker(skip)
