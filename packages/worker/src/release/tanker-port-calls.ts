@@ -6,7 +6,7 @@ import type { ReleaseRecord } from './release-record.ts';
 /** A fault in the data that the rebuild reads. The command gives a non-zero exit code for it. */
 export class DataFault extends Error {}
 
-// The vessel types of the merged oil tanker rule (panel decision of #1013). A chemical tanker and
+// The vessel types of the merged oil tanker rule (decided by the expert panel). A chemical tanker and
 // an LNG tanker are not in it.
 export const TANKER_TYPES: ReadonlySet<string> = new Set([
   'Crude Oil Tanker',
@@ -99,8 +99,8 @@ export const tankerSet = (record: ReleaseRecord): readonly Tanker[] => {
   return [...byImo].map(([imo, j0]) => ({ imo, j0 })).sort((a, b) => a.imo.localeCompare(b.imo));
 };
 
-/** The file of the GFW vessel ids of each IMO number: a header `imo,vessel_id`, lines that start with # as comments and one line for
- * each pair. An IMO number can have more than one vessel id (one for each AIS identity). */
+/** The file of the GFW vessel ids of each IMO number: a header `imo,vessel_id`, lines that start
+ * with # as comments, and one line for each pair. An IMO number can have more than one vessel id (one for each AIS identity). */
 export const idsOfImo = (text: string): ReadonlyMap<string, readonly string[]> => {
   const [header, ...lines] = (text.codePointAt(0) === 0xfeff ? text.slice(1) : text)
     .split(/\r?\n/u)
@@ -127,6 +127,7 @@ export const idsOfImo = (text: string): ReadonlyMap<string, readonly string[]> =
 
 const eventsShape = z.object({
   metadata: z.object({ vessels: z.array(z.string()).default([]) }).default({ vessels: [] }),
+  nextOffset: z.number().int().nullish(),
   entries: z.array(z.unknown()).default([]),
 });
 const entryShape = z.object({
@@ -141,12 +142,16 @@ const entryShape = z.object({
     .nullish(),
 });
 
-/** The vessel ids that one stored GFW answer asked for, and its port visits (the JSON text of the
- * document). Another type of event is skipped. A port visit with no vessel id, no start day or no anchorage country is a fault. */
+/** The vessel ids that one stored GFW answer asked for, its port visits and the offset of its next
+ * page (the JSON text of the document). Another type of event is skipped. A port visit with no vessel id, no start day or no anchorage country is a fault. */
 export const portCallsOf = (
   text: string,
   document: string,
-): { readonly vessels: readonly string[]; readonly calls: readonly PortCall[] } => {
+): {
+  readonly vessels: readonly string[];
+  readonly calls: readonly PortCall[];
+  readonly nextOffset: number | null;
+} => {
   let json: unknown;
   try {
     json = JSON.parse(text);
@@ -174,7 +179,11 @@ export const portCallsOf = (
       );
     return [{ eventId: id, vesselId: vessel.id, day: start.slice(0, 10), country }];
   });
-  return { vessels: answer.data.metadata.vessels, calls };
+  return {
+    vessels: answer.data.metadata.vessels,
+    calls,
+    nextOffset: answer.data.nextOffset ?? null,
+  };
 };
 
 /** The values of the two panels for the periods -6 to +16. A vessel counts at a period only when
@@ -217,10 +226,14 @@ export const tankerPeriods = (
         const [pm, imo, one] = key.split('|');
         return pm === String(m) && one === region && inPeriod.has(imo ?? '');
       }).length;
-    const byRegion = Object.fromEntries(REGIONS.map((one) => [one, count(one)])) as Record<
-      Region,
-      number
-    >;
+    const byRegion: Record<Region, number> = {
+      EU: count('EU'),
+      Russia: count('Russia'),
+      China: count('China'),
+      Turkey: count('Turkey'),
+      India: count('India'),
+      other: count('other'),
+    };
     return {
       m,
       counted: counted.length,
@@ -235,8 +248,8 @@ export const tankerPeriods = (
 export const percent = (part: number, total: number): string =>
   total === 0 ? '' : ((100 * part) / total).toFixed(1);
 
-// The values of the calculation of the author on the five exact types (502 vessels), for the
-// comparison. They are the figures of the comment of 30 October 2026 on #1013.
+// The values of the first calculation of the author, on the five exact tanker types (502
+// vessels), for the comparison. The command prints them as the first values and nothing more.
 const PREVIOUS: readonly (readonly [string, number, string])[] = [
   ['A', -6, '36.1'],
   ['A', 0, '27.7'],
@@ -254,7 +267,7 @@ const valueOf = (period: Period, series: string): string =>
 
 /** The lines that put the previous values next to the new ones. */
 export const comparisonLines = (periods: readonly Period[]): readonly string[] => [
-  'series\tperiod\tprevious (502 vessels)\tnew',
+  'series\tperiod\tfirst calculation (502 vessels)\tnew',
   ...PREVIOUS.map(([series, m, before]) => {
     const period = periods.find((one) => one.m === m);
     return `${series}\t${m > 0 ? '+' : ''}${String(m)}\t${before}\t${period === undefined ? '' : valueOf(period, series)}`;
@@ -280,11 +293,48 @@ export const csvRow = (period: Period): readonly string[] => [
   ...REGIONS.map((one) => percent(period.pairs[one], period.pairTotal)),
 ];
 
-/** The limits of the figure, as the comment of 30 October 2026 on #1013 states them. */
+/** The limits of the figure. */
 export const LIMITS: readonly string[] = [
   'AIS only: a tanker that changes its AIS identity leaves the follow-up by IMO number. The fall in panel A is a floor of what is seen. It does not measure what the tankers do.',
   'A tanker with no port call on either side of J0 has no call in panel B.',
-  'After +10 months a period holds few calls (the figure of 30 October counted fewer than 70 a month): read the shares with care.',
+  'After +10 months a period holds few calls (the first calculation counted fewer than 70 a month): read the shares with care.',
   'Russian loadings are not observable: AIS gives port calls and no cargo.',
   'A tanker with no GFW vessel id is counted in panel A with no call.',
 ];
+
+/** One stored GFW answer: its address, the vessel ids it asked for and the offset of its next
+ * page, null for the last page. */
+export interface StoredAnswer {
+  readonly document: string;
+  readonly uri: string;
+  readonly vessels: readonly string[];
+  readonly nextOffset: number | null;
+}
+
+/** Checks that the data can give the figure, and gives the number of tankers with no GFW vessel
+ * id. It throws a fault when the set is empty, when an answer has a next page that is not stored
+ * (the later periods would show no call), or when a tanker with a vessel id has no stored answer. */
+export const checkData = (
+  tankers: readonly Tanker[],
+  ids: ReadonlyMap<string, readonly string[]>,
+  answers: readonly StoredAnswer[],
+): number => {
+  if (tankers.length === 0) throw new DataFault('The record holds no tanker of the set.');
+  const stored = new Set(answers.map((one) => one.uri));
+  for (const one of answers) {
+    if (one.nextOffset === null) continue;
+    const next = one.uri.replace(/offset=\d+/u, `offset=${String(one.nextOffset)}`);
+    if (!stored.has(next))
+      throw new DataFault(`Document ${one.document} has a next page that is not stored.`);
+  }
+  const asked = new Set(answers.flatMap((one) => one.vessels));
+  const unread = tankers.filter((one) => {
+    const own = ids.get(one.imo) ?? [];
+    return own.length > 0 && !own.some((id) => asked.has(id));
+  });
+  if (unread.length > 0)
+    throw new DataFault(
+      `${String(unread.length)} tankers have a vessel id and no stored port visit answer, for example IMO ${unread[0]?.imo ?? ''}.`,
+    );
+  return tankers.filter((one) => !ids.has(one.imo)).length;
+};

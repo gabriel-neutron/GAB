@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 
 import type { ReleaseClaim, ReleaseRecord, ReleaseRelation } from './release-record.ts';
 import {
+  checkData,
   comparisonLines,
   DataFault,
   idsOfImo,
@@ -10,6 +11,7 @@ import {
   tankerPeriods,
   tankerSet,
   type PortCall,
+  type StoredAnswer,
   type Tanker,
 } from './tanker-port-calls.ts';
 
@@ -124,6 +126,7 @@ test('a stored answer gives its port visits and refuses a port visit with no cou
     });
   expect(portCallsOf(text('RUS'), 'doc_1')).toEqual({
     vessels: ['v1'],
+    nextOffset: null,
     calls: [{ eventId: 'e1', vesselId: 'v1', day: '2025-01-02', country: 'RUS' }],
   });
   expect(() => portCallsOf(text(null), 'doc_1')).toThrow(DataFault);
@@ -179,7 +182,7 @@ test('the periods count a vessel only when the whole period ends by the end of t
 
 test('the comparison puts the previous values next to the new ones', () => {
   const lines = comparisonLines(tankerPeriods(tankers, ids, [call('1', 'a', '2025-01-01', 'RUS')]));
-  expect(lines[0]).toContain('previous');
+  expect(lines[0]).toContain('first calculation');
   expect(lines).toContain('A\t0\t27.7\t33.3');
   expect(lines).toContain('B Russia\t+6\t53.2\t');
 });
@@ -188,4 +191,25 @@ test('the mapping file skips comment lines', () => {
   expect(idsOfImo('# note\nimo,vessel_id\n# more\n9000001,a\n')).toEqual(
     new Map([['9000001', ['a']]]),
   );
+});
+
+test('the data check refuses an empty set, a missing next page and a tanker with no answer', () => {
+  const some: readonly Tanker[] = [{ imo: '9000001', j0: '2025-01-01' }];
+  const known = new Map([['9000001', ['a']]]);
+  const answer = (uri: string, nextOffset: number | null): StoredAnswer => ({
+    document: 'doc_1',
+    uri,
+    vessels: ['a'],
+    nextOffset,
+  });
+  const page0 = 'https://x.test/v3/events?vessels%5B0%5D=a&limit=200&offset=0';
+  const page200 = page0.replace('offset=0', 'offset=200');
+  expect(checkData(some, known, [answer(page0, null)])).toBe(0);
+  expect(
+    checkData([...some, { imo: '9000002', j0: '2025-01-01' }], known, [answer(page0, null)]),
+  ).toBe(1);
+  expect(checkData(some, known, [answer(page0, 200), answer(page200, null)])).toBe(0);
+  expect(() => checkData([], known, [])).toThrow(DataFault);
+  expect(() => checkData(some, known, [answer(page0, 200)])).toThrow(DataFault);
+  expect(() => checkData(some, known, [])).toThrow(DataFault);
 });

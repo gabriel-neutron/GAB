@@ -109,7 +109,12 @@ each decision is final). The Names page of the review page does the same.
   `sign_change`, in one transaction. The act keeps a full copy of each row. The door refuses a
   relation that another relation uses as an end: name a relation before the relations that use it.
 - `nato-coverage`, `asset-coverage`, `asset-sanctions`: reports. They write nothing.
-- `tanker-port-calls <mapping.csv> [values.csv]`: report. It rebuilds the values of the figure of the port calls of the designated oil tankers from the record and from the stored Global Fishing Watch port visits. The mapping file (header `imo,vessel_id`) gives the GFW vessel ids of each IMO number. It prints the values next to the values of the first calculation and the limits, writes the CSV when a file is given, gives 1 for a fault in the data and writes nothing to the database.
+- `tanker-port-calls <mapping.csv> [values.csv]`: report. It rebuilds the values of the figure of
+  the port calls of the designated oil tankers from the record and from the stored Global Fishing
+  Watch port visits. The mapping file (header `imo,vessel_id`) gives the GFW vessel ids of each
+  IMO number. It prints the values next to the values of the first calculation and the limits, and
+  writes the CSV when a file is given. It gives 1 for a fault in the data, and writes nothing to
+  the database.
 - `audit-coverage <release-folder> <steps.json>`: the coverage and the depth of each step of a
   chain on a frozen release, joined by identifier. It reads files, writes nothing and gives the
   same bytes on each run.
