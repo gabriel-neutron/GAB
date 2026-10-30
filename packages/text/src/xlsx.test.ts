@@ -64,6 +64,17 @@ test('a limit stops the read after that many kept rows', async () => {
   expect(text.split('\r\n')).toHaveLength(3);
 });
 
+test('a skip drops the title rows, and a blank cell of the header takes the letters of its column', async () => {
+  const book = workbookOf({
+    Prices: [['Price data'], ['', 'Brent', 'Dubai'], ['1960M01', 1.6, 1.5]],
+  });
+
+  expect(await sheetCsv(book, 'Prices', undefined, undefined, 1)).toBe(
+    ['A,Brent,Dubai', '1960M01,1.6,1.5', ''].join('\r\n'),
+  );
+  expect(textSetName('Prices', undefined, 1)).toBe(`${TABLE_READER}|sheet=Prices|skip=1`);
+});
+
 test('the name of a text set holds the reader, the sheet and the filter', () => {
   expect(textSetName('Field-level data')).toBe(`${TABLE_READER}|sheet=Field-level data`);
   expect(textSetName('Field-level data', { column: 'Country/Area', value: 'Russia' })).toBe(

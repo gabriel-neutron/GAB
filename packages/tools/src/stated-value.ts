@@ -437,6 +437,11 @@ const valuesOf = (act: WriteRequest): ActValue[] => {
       ];
     case 'update_attrs':
       return attributeValues(act.attrs);
+    // Code checks only that a cited passage holds the number of a figure (ADR 0031). It does not
+    // check that the number is the figure of the period. The second model checks the period and
+    // the unit (packages/mcp/src/check-prompt.md).
+    case 'create_observation':
+      return [{ name: 'value', value: act.value }];
     default:
       return [];
   }

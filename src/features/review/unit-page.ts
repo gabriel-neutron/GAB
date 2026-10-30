@@ -259,7 +259,38 @@ const payload = z.object({
   valid_from: z.string().nullable().optional(),
   valid_to: z.string().nullable().optional(),
   add_source: z.boolean().optional(),
+  // The words of a figure (ADR 0031).
+  measure: z.string().optional(),
+  value: z.number().optional(),
+  unit: z.string().optional(),
+  period: z.string().optional(),
+  reporter: z.string().optional(),
+  partner: z.string().optional(),
+  method: z.string().optional(),
+  publisher: z.string().optional(),
+  subject_id: z.string().optional(),
 });
+
+// Each word of a figure that the act gives, and no line for a word that it does not give. The read
+// names no subject, so the subject is its id.
+const figureAttributes = (read: z.output<typeof payload>): readonly Attribute[] =>
+  (
+    [
+      ['measure', read.measure],
+      [
+        'value',
+        read.value === undefined
+          ? undefined
+          : [String(read.value), read.unit].filter((one) => one !== undefined).join(' '),
+      ],
+      ['period', read.period],
+      ['reporter', read.reporter],
+      ['partner', read.partner],
+      ['method', read.method],
+      ['publisher', read.publisher],
+      ['subject', read.subject_id],
+    ] as const
+  ).flatMap(([key, value]) => (value === undefined ? [] : [{ key, values: [value] }]));
 
 const act = z.object({
   id: z.string(),
@@ -486,6 +517,15 @@ const actOf = (read: ReadAct): UnitAct => {
       kind: 'place',
       clearing: read.payload.geom === null,
       target: endOf(read.targetId, read.target),
+    };
+  // A figure names no element: its one line is its measure, value and unit, period and reporter.
+  if (read.op === 'create_observation')
+    return {
+      ...base,
+      attributes: figureAttributes(read.payload),
+      kind: 'change',
+      op: read.op,
+      target: null,
     };
   return {
     ...base,

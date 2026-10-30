@@ -106,6 +106,7 @@ const KIND_OF_OP: Readonly<Record<ProposalOp, ProposalPayload['kind']>> = {
   merge_entities: 'merge',
   undo_merge: 'merge',
   map_document: 'mapping',
+  create_observation: 'figure',
 };
 
 const geometryType = z.looseObject({ type: z.string() });
@@ -162,6 +163,17 @@ const mergePayload = z.looseObject({
 });
 const deletePayload = z.looseObject({ reason: z.string().nullish() });
 const mappingPayload = z.looseObject({ table: z.string().nullish() });
+const figurePayload = z.looseObject({
+  measure: z.string(),
+  value: z.number(),
+  unit: z.string(),
+  period: z.string(),
+  reporter: z.string(),
+  partner: z.string().optional(),
+  method: z.string(),
+  publisher: z.string(),
+  subject_id: z.string().optional(),
+});
 
 function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
   const kind = isClose(op, value)
@@ -227,6 +239,22 @@ function payloadOf(op: ProposalOp, value: unknown): ProposalPayload {
       const held = mappingPayload.parse(value);
       return { kind, table: held.table ?? null };
     }
+    case 'figure': {
+      const held = figurePayload.parse(value);
+      // The record requires each word but the partner and the subject, so only those two can be
+      // missing.
+      return {
+        kind,
+        line: [
+          `${held.measure} ${String(held.value)} ${held.unit}`,
+          held.period,
+          held.partner === undefined ? held.reporter : `${held.reporter} to ${held.partner}`,
+          held.method,
+          held.publisher,
+          ...(held.subject_id === undefined ? [] : [`subject ${held.subject_id}`]),
+        ].join(', '),
+      };
+    }
   }
 }
 
@@ -258,6 +286,7 @@ function priorValueOf(op: ProposalOp, payload: unknown, value: unknown): PriorVa
     case 'merge_entities':
     case 'undo_merge':
     case 'map_document':
+    case 'create_observation':
       return null;
   }
 }

@@ -39,7 +39,14 @@ export type TextSetRequest =
   | ({
       readonly document: string;
       readonly filter?: TableFilter;
-    } & ({ readonly sheet: string } | { readonly layer: string }))
+    } & (
+      | {
+          readonly sheet: string;
+          /** Drops this many rows of the sheet before its header row: the title rows. */
+          readonly skip?: number;
+        }
+      | { readonly layer: string }
+    ))
   | {
       /** A CSV file with no header row: the names of its columns, by position. */
       readonly document: string;
@@ -136,7 +143,7 @@ export const makeTextSet = async (
           request.imo,
         )
       : 'sheet' in request
-        ? textSetName(request.sheet, request.filter)
+        ? textSetName(request.sheet, request.filter, request.skip)
         : layerSetName(request.layer, request.filter);
   const file = await deps.open(stored.s3_key);
   let text: string;
@@ -153,7 +160,7 @@ export const makeTextSet = async (
             request.imo,
           )
         : 'sheet' in request
-          ? await sheetCsv(file, request.sheet, request.filter)
+          ? await sheetCsv(file, request.sheet, request.filter, undefined, request.skip)
           : await layerCsv(file, request.layer, request.filter);
   } finally {
     await file.close?.();
