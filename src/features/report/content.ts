@@ -2086,3 +2086,66 @@ export const figureTexts = {
     'Tahir GARAYEV': 'Tahir Garayev',
   },
 };
+
+// The words of the report page itself: controls, counters, panels and labels.
+export const ui = {
+  cover: {
+    src: import.meta.env.BASE_URL + 'report-media/crude-oil-tanker-in-port-arthur-texas-dither.png',
+    alt: 'A dithered photograph of a crude oil tanker in Port Arthur, Texas.',
+    label: 'Illustration. Not evidence of the investigation.',
+    credit:
+      '"Crude Oil Tanker in Port Arthur, Texas" by Quintin Soloviev, CC0, via Wikimedia Commons',
+    href: 'https://commons.wikimedia.org/wiki/File:Crude_Oil_Tanker_in_Port_Arthur,_Texas.jpg',
+  },
+  data: 'Data',
+  pdf: 'Download PDF',
+  reportLabel: 'Research report',
+  counters: {
+    label: 'Scale of the research',
+    nodes: 'Nodes',
+    relations: 'Relations',
+    documents: 'Documents',
+    sources: 'Notes',
+  },
+  part: { number: 'Part', nodes: 'Nodes in this part' },
+  figure: {
+    name: 'Figure',
+    unit: 'Unit',
+    period: 'Period',
+    sources: 'Sources',
+    note: 'Note',
+    pending: 'The chart of this figure comes in a later version of the page.',
+  },
+  node: {
+    open: 'Open the record',
+    evidence: 'Evidence score',
+    outOf: 'of 11',
+    relations: 'Relations',
+    documents: 'Documents',
+  },
+  panel: {
+    close: 'Close',
+    drag: 'Drag down to close',
+    relations: 'Relations',
+    noRelation: 'No relation joins this node to another node of the report.',
+    neighbours: 'Neighbours',
+    neighboursLabel: 'The node and its neighbours in the report graph',
+    place: 'Place',
+    placeLabel: 'Position of the node on a map',
+    sources: 'Documents',
+    noSource: 'No document identifier is stored for this node.',
+    record: 'Record',
+    entity: 'Open the entity page',
+    graph: 'Open in the graph',
+  },
+  note: { label: 'Note', all: 'All notes' },
+  index: {
+    title: 'All nodes of the report',
+    layers: ['Pay', 'Finance', 'Fight'],
+  },
+  bibliography: {
+    title: 'Notes and sources',
+    back: 'Back to the report',
+    label: 'Report notes',
+  },
+} as const;
