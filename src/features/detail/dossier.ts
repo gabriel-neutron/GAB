@@ -191,6 +191,7 @@ const OP_WORDS: Readonly<Record<Proposal['op'], string>> = {
   merge_entities: 'Merges entities',
   undo_merge: 'Undoes a merge',
   map_document: 'Maps the columns of a table',
+  create_observation: 'Adds a figure',
 };
 
 function keysOf(payload: Proposal['payload']): readonly string[] {
@@ -611,6 +612,7 @@ export function readDossier(
       case 'update_entity':
       case 'delete_entity':
       case 'map_document':
+      case 'create_observation':
         return false;
     }
   };

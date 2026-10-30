@@ -116,6 +116,14 @@ const columnOf = (letters: string): number => {
   return column - 1;
 };
 
+// The column 27 (counted from 0) is "AB".
+const lettersOf = (column: number): string => {
+  let letters = '';
+  for (let left = column + 1; left > 0; left = Math.floor((left - 1) / 26))
+    letters = String.fromCharCode(65 + ((left - 1) % 26)) + letters;
+  return letters;
+};
+
 const cellText = (tag: string, body: string, strings: readonly string[]): string => {
   const type = attribute(tag, 't') ?? 'n';
   const value = /<v\b[^>]*>([\s\S]*?)<\/v>/u.exec(body)?.[1];
@@ -192,8 +200,9 @@ export interface TableFilter {
 
 /** The name of a text set. The same sheet and the same filter give the same name, and the name
  * holds the version of the reader. */
-export const textSetName = (sheet: string, filter?: TableFilter): string =>
+export const textSetName = (sheet: string, filter?: TableFilter, skip = 0): string =>
   `${TABLE_READER}|sheet=${sheet}` +
+  (skip === 0 ? '' : `|skip=${String(skip)}`) +
   (filter === undefined ? '' : `|where=${filter.column}=${filter.value}`);
 
 /** The most characters of CSV text that one table read keeps. A read with no filter and no row
@@ -248,14 +257,22 @@ const sheetCsvOf = async (
   filter?: TableFilter,
   maxRows?: number,
   kept = new KeptRows(),
+  skip = 0,
 ): Promise<string> => {
   let header: string[] | undefined;
   let head = '';
   let at = -1;
+  let skipped = 0;
   for await (const row of sheetRows(archive, sheet, strings)) {
+    if (skipped < skip) {
+      skipped += 1;
+      continue;
+    }
     if (header === undefined) {
       header = row.map((name) => name.trim());
       while (header.at(-1) === '') header.pop();
+      // A sheet with title rows (skip) often leaves the first column of its header blank.
+      if (skip > 0) header = header.map((name, column) => (name === '' ? lettersOf(column) : name));
       head = kept.line(header, `sheet "${sheet}"`);
       at = filter === undefined ? -1 : header.indexOf(filter.column);
       if (filter !== undefined && at === -1)
@@ -278,16 +295,18 @@ const sheetCsvOf = async (
  * cut to the width of the header, and a trailing column with no name is dropped. The sheet is
  * read as a stream. The memory is the table of shared strings of the workbook, one chunk, and the
  * lines that are kept (at most MAX_TABLE_CHARS, the header included). `maxRows` stops the read
- * after that many kept rows. */
+ * after that many kept rows. `skip` drops that many rows that are not blank before the header (the
+ * title rows), and a blank cell of that header takes the letters of its column as its name. */
 export const sheetCsv = async (
   input: TableInput,
   sheet: string,
   filter?: TableFilter,
   maxRows?: number,
+  skip = 0,
 ): Promise<string> => {
   const archive = await openArchive(input);
   const strings = sharedStrings(await textOf(archive, 'xl/sharedStrings.xml'));
-  return sheetCsvOf(archive, strings, sheet, filter, maxRows);
+  return sheetCsvOf(archive, strings, sheet, filter, maxRows, new KeptRows(), skip);
 };
 
 /** Every sheet of a workbook as CSV text, in the order of the workbook. The shared strings are

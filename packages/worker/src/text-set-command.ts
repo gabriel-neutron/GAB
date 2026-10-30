@@ -14,7 +14,7 @@ import type { Extraction } from './csv-set.ts';
 import { imoListOf, makeTextSet, registeredImos, type TextSetRequest } from './text-set.ts';
 
 const USAGE =
-  'Usage: pnpm worker text-set <document> (--sheet <name> | --layer <name>) ' +
+  'Usage: pnpm worker text-set <document> (--sheet <name> [--skip <rows>] | --layer <name>) ' +
   '[--where "<column>=<value>"], or pnpm worker text-set <document> --columns "<a>,<b>,..." ' +
   '[--tag "<column>=<tag>"] [--equals "<column>=<value>"] [--skip <records>] [--extract "<name>=<column>:<pattern>"] [--imo-in <file>]. Add --dry-run to count the rows and write nothing. It keeps the rows of one sheet of a stored workbook, of one GeoJSON ' +
   'layer of a stored zip archive, or of a stored CSV file with no header row (--columns names ' +
@@ -89,16 +89,20 @@ export const argsOf = (
   if (
     values.tag !== undefined ||
     values.equals !== undefined ||
-    values.skip !== undefined ||
     values.extract !== undefined ||
     values['imo-in'] !== undefined
   )
-    throw new Error('--tag, --equals, --skip, --extract and --imo-in go with --columns.');
+    throw new Error('--tag, --equals, --extract and --imo-in go with --columns.');
+  const isSheet = sheet !== undefined && sheet !== '';
+  if (values.skip !== undefined && (!isSheet || !/^\d+$/u.test(values.skip)))
+    throw new Error('--skip is a count of rows, with --sheet or --columns.');
+  const skip = Number(values.skip ?? 0);
   const filter = values.where === undefined ? undefined : pairOf(values.where, '--where');
   const base = { document, ...(filter === undefined ? {} : { filter }) };
   return {
-    request:
-      sheet !== undefined && sheet !== '' ? { ...base, sheet } : { ...base, layer: layer ?? '' },
+    request: isSheet
+      ? { ...base, sheet, ...(skip === 0 ? {} : { skip }) }
+      : { ...base, layer: layer ?? '' },
   };
 };
 

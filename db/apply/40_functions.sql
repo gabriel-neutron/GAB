@@ -781,6 +781,13 @@ BEGIN
      'of 64 hexadecimal characters, a modality of enacts, asserts, attributes, alleges or '
      'denies, its rows as an object and its relations as a list, an optional publisher as a '
      'text, and no other key'),
+    ('proposals_create_observation_shape', 'measure',
+     'a figure cites one document and names a measure of lower case words joined by one '
+     'underscore with 100 characters at most, a number as its value, a unit of 1 to 40 '
+     'characters with no space at its ends, a period written as 2024, 2024-Q1, 2024-03 or '
+     '2024-W09, a reporter and an optional partner as codes of the area list, a method and a '
+     'publisher of 1 to 200 characters, an optional subject as the id of an entity, and no other '
+     'value'),
     ('proposals_src_shape', 'documents', 'the act cites at least one document'),
     ('proposals_merge_shape', 'absorbedId',
      'a merge or its undo names one entity beside its target, and the two are not the same '
@@ -1040,7 +1047,8 @@ BEGIN
     -- the record. A place that differs from the place of the record waits as a doubt (S3), so the
     -- proposal of a place is no rewrite in silence.
     IF coalesce(v_item->>'op', '') NOT IN ('create_entity','create_relation','update_attrs',
-                                            'update_relation','update_entity')
+                                            'update_relation','update_entity',
+                                            'create_observation')
        OR (v_item->>'op' = 'update_entity'
            AND NOT (jsonb_typeof(v_item->'payload') = 'object'
                     AND (v_item->'payload') ? 'geom'
@@ -1058,8 +1066,8 @@ BEGIN
       RAISE EXCEPTION 'item %: a machine proposes a new entity, a new relation, new attributes '
                       'or the start or end date of a relation, or the type change of a relation, or '
                       'a source for a relation, or '
-                      'the geometry of an entity, and never a change of a name, a type or a relation, '
-                      'nor a deletion', v_no
+                      'the geometry of an entity, or a figure, and never a change of a name, a type '
+                      'or a relation, nor a deletion', v_no
         USING ERRCODE = 'invalid_parameter_value', HINT = 'op';
     END IF;
     IF coalesce(v_item->>'modality', '') NOT IN ('enacts','asserts','attributes','alleges',
@@ -1230,6 +1238,37 @@ BEGIN
         RAISE EXCEPTION 'item %: %', v_no, v_said
           USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = v_rule, HINT = v_hint;
       END;
+    END IF;
+    -- A FIGURE (ADR 0031) cites the span of one excerpt, because its row points at the words that
+    -- state it. The table cannot read the area list or the entities, so the door checks them.
+    IF v_item->>'op' = 'create_observation' THEN
+      IF jsonb_array_length(v_item->'citations') <> 1
+         OR (v_item->'citations'->0->>'transcription') IS NOT NULL THEN
+        RAISE EXCEPTION 'item %: a figure cites the span of one excerpt of the stored text', v_no
+          USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'observation_one_span';
+      END IF;
+      IF (SELECT count(*) FROM public.area_code a WHERE a.code = v_payload::jsonb->>'reporter') <> 1
+      THEN
+        RAISE EXCEPTION 'item %: the reporter "%" is not a code of the area list', v_no,
+          v_payload::jsonb->>'reporter'
+          USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'observation_reporter_fkey',
+                HINT = 'reporter';
+      END IF;
+      IF v_payload::jsonb ? 'partner'
+         AND (SELECT count(*) FROM public.area_code a
+               WHERE a.code = v_payload::jsonb->>'partner') <> 1 THEN
+        RAISE EXCEPTION 'item %: the partner "%" is not a code of the area list', v_no,
+          v_payload::jsonb->>'partner'
+          USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'observation_partner_fkey',
+                HINT = 'partner';
+      END IF;
+      IF v_payload::jsonb ? 'subject_id'
+         AND NOT EXISTS (SELECT 1 FROM public.entities e
+                          WHERE e.id::text = v_payload::jsonb->>'subject_id') THEN
+        RAISE EXCEPTION 'item %: the subject % is no entity of the record', v_no,
+          v_payload::jsonb->>'subject_id'
+          USING ERRCODE = 'invalid_parameter_value', HINT = 'subjectId';
+      END IF;
     END IF;
     -- A MACHINE GIVES A PLACE WITH THE METHOD THAT FOUND IT. The shape of the act allows the key
     -- and checks its words, and it cannot require the key: an act written before the key waits in
@@ -2290,6 +2329,55 @@ BEGIN
         USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'jobs_one_open_per_kind';
     END;
 
+  -- ---------------------------------------------------------------------------- a figure --
+  -- ADR 0031: the act writes one figure, through the table of the loaded figures. The figure names
+  -- the act where a loaded figure names its mapping, and it has no load job. Its span is the span
+  -- of the excerpt (P9). The licence and the publisher come from the provider of the document, as
+  -- in put_observations; a document with no provider is `restricted`, with the publisher of the act.
+  ELSIF p.op = 'create_observation' THEN
+    IF p.payload ? 'subject_id'
+       AND NOT EXISTS (SELECT 1 FROM public.entities e
+                        WHERE e.id = (p.payload->>'subject_id')::uuid) THEN
+      RAISE EXCEPTION 'the subject % of the figure is no entity of the record',
+        p.payload->>'subject_id'
+        USING CONSTRAINT = 'observation_subject';
+    END IF;
+    IF EXISTS (
+         SELECT 1 FROM public.observation o
+          WHERE o.document_id = p.src[1] AND o.measure = p.payload->>'measure'
+            AND o.unit = p.payload->>'unit' AND o.period = p.payload->>'period'
+            AND o.reporter = p.payload->>'reporter'
+            AND o.partner IS NOT DISTINCT FROM p.payload->>'partner'
+            AND o.product IS NULL AND o.method = p.payload->>'method'
+            AND o.subject_id IS NOT DISTINCT FROM (p.payload->>'subject_id')::uuid) THEN
+      RAISE EXCEPTION 'document % holds this figure already', p.src[1]
+        USING CONSTRAINT = 'observation_key';
+    END IF;
+    INSERT INTO public.observation
+      (measure, value, unit, period, method, publisher, reporter_system, reporter,
+       partner_system, partner, subject_id, licence, document_id, text_extractor, page,
+       span_start, span_end, mapping_id, job_id)
+    SELECT p.payload->>'measure', (p.payload->>'value')::numeric, p.payload->>'unit',
+           p.payload->>'period', p.payload->>'method',
+           coalesce(v.name, p.payload->>'publisher'),
+           r.system, r.code, a.system, a.code, (p.payload->>'subject_id')::uuid,
+           coalesce(v.licence, 'restricted'), c.doc_id, c.text_extractor, c.page,
+           c.start, c."end", p.id, NULL
+      FROM public.citation c
+      JOIN public.documents d ON d.id = c.doc_id
+      LEFT JOIN public.document_provider v ON v.id = d.provider_id
+      JOIN public.area_code r ON r.code = p.payload->>'reporter'
+      LEFT JOIN public.area_code a ON a.code = p.payload->>'partner'
+     WHERE c.claim_id = p.id AND c.start IS NOT NULL
+     ORDER BY c.created_at, c.start
+     LIMIT 1
+    RETURNING id INTO v_id;
+    IF v_id IS NULL THEN
+      RAISE EXCEPTION 'the figure has no span of an excerpt, or its reporter is no code of the '
+                      'area list'
+        USING CONSTRAINT = 'observation_one_span';
+    END IF;
+
   -- ------------------------------------------------------------------- a merge, an undo --
   -- M12: identity is a judgement of the operator. A rule, an AI reviewer and a decision on the
   -- queue give a mode or an origin, so only the merge doors of the operator reach the write.
@@ -2548,6 +2636,8 @@ BEGIN
         CASE p.op
           WHEN 'create_entity'   THEN 'new entity ' || (p.payload->>'label')
           WHEN 'create_relation' THEN 'new relation ' || (p.payload->>'type')
+          WHEN 'create_observation' THEN 'new figure ' || (p.payload->>'measure') || ' '
+                                         || (p.payload->>'period')
           ELSE 'act ' || p.id::text END,
         v_said
         USING ERRCODE = v_code, CONSTRAINT = coalesce(nullif(v_rule, ''), 'unit_item');
@@ -4020,9 +4110,12 @@ RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT jsonb_build_object(
-    'name', coalesce((SELECT public.element_name(
-                               CASE WHEN h.op IN ('create_entity', 'create_relation') THEN h.id
-                                    ELSE h.target_id END)
+    'name', coalesce((SELECT CASE WHEN h.op = 'create_observation'
+                                  THEN concat_ws(' ', h.payload->>'measure', h.payload->>'period',
+                                                 h.payload->>'reporter')
+                                  ELSE public.element_name(
+                                         CASE WHEN h.op IN ('create_entity', 'create_relation')
+                                              THEN h.id ELSE h.target_id END) END
                         FROM public.proposals h WHERE h.id = coalesce(p_relation, p_unit)), ''),
     'entities', count(*) FILTER (WHERE a.op = 'create_entity'),
     'relations', count(*) FILTER (WHERE a.op = 'create_relation'),
@@ -5190,9 +5283,13 @@ SET search_path = pg_catalog, public, pg_temp AS $$
            ARRAY[lpad(coalesce(dp.depth, 999)::text, 3, '0'), lower(u.name), u.unit_id::text]
              AS tail_key
       FROM (SELECT h.unit_id, h.op, h.proposer, h.batch_id, h.payload, gs.subject,
-                   coalesce(public.element_name(
-                              CASE WHEN h.op IN ('create_entity', 'create_relation')
-                                   THEN h.unit_id ELSE h.target_id END), '') AS name
+                   -- A figure names no element, so its words name it (ADR 0031).
+                   CASE WHEN h.op = 'create_observation'
+                        THEN concat_ws(' ', h.payload->>'measure', h.payload->>'period',
+                                       h.payload->>'reporter')
+                        ELSE coalesce(public.element_name(
+                               CASE WHEN h.op IN ('create_entity', 'create_relation')
+                                    THEN h.unit_id ELSE h.target_id END), '') END AS name
               FROM heads h
               LEFT JOIN groups gs ON gs.batch_id = h.batch_id
              WHERE (p_group IS NULL OR h.batch_id = p_group)

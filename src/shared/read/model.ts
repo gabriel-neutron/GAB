@@ -203,7 +203,10 @@ export type ProposalPayload =
       readonly merge_ids: readonly string[];
     }
   | { readonly kind: 'delete'; readonly reason: string | null }
-  | { readonly kind: 'mapping'; readonly table: string | null };
+  | { readonly kind: 'mapping'; readonly table: string | null }
+  /** A figure that one page states (ADR 0031), in one line: measure, value and unit, period,
+   * reporter. */
+  | { readonly kind: 'figure'; readonly line: string };
 
 /** What the act replaced. An update copies the keys it named, because the live row still holds
  * every other one. A deletion copies the whole row it destroyed, an act on the name or the type

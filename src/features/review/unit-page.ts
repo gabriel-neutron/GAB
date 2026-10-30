@@ -259,6 +259,12 @@ const payload = z.object({
   valid_from: z.string().nullable().optional(),
   valid_to: z.string().nullable().optional(),
   add_source: z.boolean().optional(),
+  // The words of a figure (ADR 0031).
+  measure: z.string().optional(),
+  value: z.number().optional(),
+  unit: z.string().optional(),
+  period: z.string().optional(),
+  reporter: z.string().optional(),
 });
 
 const act = z.object({
@@ -486,6 +492,22 @@ const actOf = (read: ReadAct): UnitAct => {
       kind: 'place',
       clearing: read.payload.geom === null,
       target: endOf(read.targetId, read.target),
+    };
+  // A figure names no element: its one line is its measure, value and unit, period and reporter.
+  if (read.op === 'create_observation')
+    return {
+      ...base,
+      attributes: [
+        {
+          key: read.payload.measure ?? 'figure',
+          values: [
+            `${String(read.payload.value)} ${read.payload.unit ?? ''}, ${read.payload.period ?? ''}, ${read.payload.reporter ?? ''}`,
+          ],
+        },
+      ],
+      kind: 'change',
+      op: read.op,
+      target: null,
     };
   return {
     ...base,

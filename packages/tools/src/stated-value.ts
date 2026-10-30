@@ -437,6 +437,10 @@ const valuesOf = (act: WriteRequest): ActValue[] => {
       ];
     case 'update_attrs':
       return attributeValues(act.attrs);
+    // The value of a figure is a number as the page writes it (ADR 0031). The period and the unit
+    // are words of the page in its language, so the checker reads them.
+    case 'create_observation':
+      return [{ name: 'value', value: act.value }];
     default:
       return [];
   }

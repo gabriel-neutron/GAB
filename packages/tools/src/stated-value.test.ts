@@ -989,3 +989,37 @@ test('"yesterday" crosses the end of a month and of a year', () => {
 test('a number that ends a passage never joins the number that starts the next passage', () => {
   expect(unstatedValues(entityWith('Si He', 243.8), ['Si He 59172', '243.8'])).toStrictEqual([]);
 });
+
+const figureOf = (value: number) =>
+  writeRequest.parse({
+    op: 'create_observation',
+    measure: 'urals_price',
+    value,
+    unit: 'USD per barrel',
+    period: '2024-03',
+    reporter: 'RU',
+    method: 'average of the month',
+    publisher: 'Ministry of Finance of Russia',
+  });
+
+// ADR 0031: the page writes the value with a comma or a point for the decimals, and with spaces
+// between the groups of digits.
+test.each([
+  [46.82, 'Средняя цена нефти Urals составила 46,82 долл. США за баррель.'],
+  [46.82, 'The average Urals price was $46.82 per barrel.'],
+  [1234.5, 'Доход составил 1 234,5 млрд рублей.'],
+  [1234.5, 'Доход составил 1 234,5 млрд рублей.'],
+  [1234.5, 'Доход составил 1 234,5 млрд рублей.'],
+  [1234567, 'Revenue: 1 234 567 roubles.'],
+])('the passage states the figure %d', (value, passage) => {
+  expect(unstatedValues(figureOf(value), [passage])).toStrictEqual([]);
+});
+
+test.each([
+  [46.82, 'Средняя цена нефти Urals составила 46,28 долл. США за баррель.'],
+  [1234.5, 'Доход составил 1234 млрд рублей.'],
+  // A comma before three digits has two readings, so it states no value.
+  [1.234, 'The index was 1,234.'],
+])('the passage does not state the figure %d', (value, passage) => {
+  expect(unstatedValues(figureOf(value), [passage])).toStrictEqual([{ name: 'value', value }]);
+});

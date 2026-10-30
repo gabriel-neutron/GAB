@@ -214,6 +214,38 @@ const batchAct = z.discriminatedUnion('op', [
         [act.validFrom, act.validTo, act.type].filter((one) => one !== undefined).length === 1,
       { message: 'give validFrom, validTo or type, and only one of them' },
     ),
+  z.strictObject({
+    op: z.literal('create_observation'),
+    measure: z
+      .string()
+      .describe(
+        'the key of the measure: lower case words joined by one underscore, as urals_price',
+      ),
+    value: z.number().describe('the value, as the excerpt writes it, as a JSON number'),
+    unit: z.string().describe('the unit, as USD per barrel or million cubic metres'),
+    period: z
+      .string()
+      .describe(
+        'the period of the figure: a year (2024), a quarter (2024-Q1), a month (2024-03) or an ISO week (2024-W09)',
+      ),
+    reporter: z
+      .string()
+      .describe(
+        'the code of the area that the figure is about: an ISO 3166-1 code as RU, or a group code as EU27 or WORLD',
+      ),
+    partner: z
+      .string()
+      .optional()
+      .describe('the code of the partner area, for a flow between two areas'),
+    method: z.string().describe('how the publisher made the figure, as the page says it'),
+    publisher: z
+      .string()
+      .describe('the body that publishes the figure, as Ministry of Finance of Russia'),
+    subjectId: z
+      .uuid()
+      .optional()
+      .describe('the id of the entity of the record that the figure is about, as a pipeline'),
+  }),
 ]);
 
 const evidence = z.strictObject({
@@ -408,6 +440,7 @@ const KIND_OF_OP: Readonly<Record<string, Kind | null>> = {
   update_relation: null,
   add_source: null,
   update_entity: null,
+  create_observation: null,
 };
 
 const present = async (session: Session, kind: Kind, id: string): Promise<boolean> =>
@@ -559,6 +592,19 @@ const eventDenialOnRelation = async (
         `one that the passage denies: ${sites.map((one) => one.id).join(', ')}`,
     );
   return { ...given, act: { ...act, targetId: site.id } };
+};
+
+// A figure points at the words of the page that state it (ADR 0031): the span of its one excerpt
+// in the stored text. Words read from an image have no span.
+const checkFigure = async (session: Session, given: ProposeItem): Promise<void> => {
+  const { act } = given;
+  if (act.op !== 'create_observation') return;
+  if (given.evidence.length !== 1)
+    refuse(given.ref, 'a figure cites one excerpt of one page, the excerpt that states its value');
+  if (given.evidence.some((one) => one.fromImage === true))
+    refuse(given.ref, 'a figure cites the stored text, and never words read from an image');
+  if (act.subjectId !== undefined && !(await present(session, 'entity', act.subjectId)))
+    refuse(given.ref, `the subject ${act.subjectId} is no entity of the record`);
 };
 
 const SAME_PLACE = `SELECT public.ST_Equals(public.ST_GeomFromGeoJSON(e.geom::text),
@@ -968,7 +1014,10 @@ export const proposeOf = (modelCallId: string | null) =>
       'observed_on, written as 2026-01-31, only when an excerpt states that exact day; two calls ' +
       'on two days are two facts. A day that no excerpt states, or a value that is not one day, ' +
       'is not proposed, and droppedBounds names it. A ship-to-ship transfer (sts_with) takes the ' +
-      'day in the same way.',
+      'day in the same way. A figure that one page states, such as a monthly price or a monthly ' +
+      'revenue, is a create_observation act with one excerpt that writes its value; the item is ' +
+      'disputed when the excerpt does not hold the value. A table of figures goes through ' +
+      'enqueue_mapping, and never as one act for each row.',
     input: z.strictObject({ items: proposeItems, published_on: publishedOn.optional() }),
     output: z.strictObject({
       proposals: z.array(outcome),
@@ -1002,6 +1051,7 @@ export const proposeOf = (modelCallId: string | null) =>
         // A back-end agent reads the stored text only, so it never gives words read from an image.
         if (modelCallId !== null && given.evidence.some((one) => one.fromImage === true))
           refuse(given.ref, 'an agent cites the stored text, and never words read from an image');
+        if (given.act.op === 'create_observation') await checkFigure(session, given);
         const cited: Cited[] = [];
         for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
         // The post date of a stored Telegram post is the day of publication, when every cited
