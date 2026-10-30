@@ -779,7 +779,9 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           ? rowKeys.map((key) => createdRows.get(key)).find((id) => id !== undefined)
           : undefined;
       if (created !== undefined)
-        note(`the row gives the identifier of entity ${created}, which an earlier row creates`);
+        note(
+          `the row gives the identifier of entity ${created}, which an earlier row creates; its own values are not proposed`,
+        );
       // The entity of the row has the identifier that its act is given, so a relation of the row
       // can name it before the operator promotes it.
       const rowId = found.kind === 'one' ? found.id : (created ?? randomUUID());

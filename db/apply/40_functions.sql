@@ -3833,8 +3833,8 @@ END $$;
 --
 -- THE FAILURE IS WRITTEN EVEN WHEN A RULE RAISES. The rules run on the units of the job after the
 -- status write. A rule that raises would undo the write, and the job would stay running: the next
--- start puts it back in the queue, and it runs and pays for its model calls again. The rules then
--- run at the next act on those units.
+-- start puts it back in the queue, and it runs and pays for its model calls again. The fault of
+-- the rules stays in the server log as a warning.
 CREATE OR REPLACE FUNCTION fail_job(p_id uuid, p_reason text)
 RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER
