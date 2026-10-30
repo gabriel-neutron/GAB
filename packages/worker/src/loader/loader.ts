@@ -353,6 +353,10 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
     // finds it here, because the first act may still wait for the operator. A row records its new
     // owners here only after the door accepts the batch of the row.
     const createdOwners = new Map<string, string>();
+    // The entities that the rows of this load create, by `key|value` of an identifier. The record
+    // does not hold them yet, so a second row with the same identifier finds its entity here and
+    // creates no second one.
+    const createdRows = new Map<string, string>();
 
     // The owner of a GEM identifier: the committed entity of the type, or else the entity that an
     // earlier load proposed and the operator did not decide yet.
@@ -769,9 +773,18 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         return;
       }
 
+      const rowKeys = find.keysOf(record, rows.lookup);
+      const created =
+        found.kind === 'none'
+          ? rowKeys.map((key) => createdRows.get(key)).find((id) => id !== undefined)
+          : undefined;
+      if (created !== undefined)
+        note(
+          `the row gives the identifier of entity ${created}, which an earlier row creates; its own values are not proposed`,
+        );
       // The entity of the row has the identifier that its act is given, so a relation of the row
       // can name it before the operator promotes it.
-      const rowId = found.kind === 'one' ? found.id : randomUUID();
+      const rowId = found.kind === 'one' ? found.id : (created ?? randomUUID());
       // The new owners of this row, recorded in `createdOwners` only if the door accepts the row.
       const rowOwners = new Map<string, string>();
       const requests: { request: unknown; id: string; foundBy: string | null }[] = [];
@@ -779,7 +792,8 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       // earlier load then adds no act of no effect.
       // The name, the values and the place of the entity that the row finds, read once.
       const entity = found.kind === 'one' ? await entityHeld(context.db, found.id) : null;
-      if (entity === null)
+      const creates = entity === null && created === undefined;
+      if (creates)
         requests.push({
           request: {
             op: 'create_entity',
@@ -791,7 +805,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           id: rowId,
           foundBy: null,
         });
-      else if (found.kind === 'one') {
+      else if (entity !== null && found.kind === 'one') {
         // The load compares values and not sources: a row of a new edition that gives the values
         // of the record writes nothing, and a changed value gives one proposal with the changed
         // values only.
@@ -984,8 +998,10 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         }
         items.push(made.item);
       }
-      if (await proposeRow(at, items))
+      if (await proposeRow(at, items)) {
         for (const [slot, id] of rowOwners) createdOwners.set(slot, id);
+        if (creates) for (const key of rowKeys) createdRows.set(key, rowId);
+      }
     };
 
     for (const [index, record] of table.rows.entries()) await loadRow(record, index + 1);

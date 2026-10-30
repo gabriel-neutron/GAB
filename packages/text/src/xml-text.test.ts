@@ -88,3 +88,14 @@ test('a long run of "<" is read in a short time', () => {
   xmlText(`<r>${'<'.repeat(200_000)}</r>`);
   expect(performance.now() - started).toBeLessThan(2000);
 });
+
+// A start that never closes is read once. Before the fix, each of these texts took minutes.
+test.each(['<!--', '<![CDATA[', '<?', '<!', '<a b="', "<a b='"])(
+  'a text of many open "%s" starts is read in linear time',
+  { timeout: 10_000 },
+  (start) => {
+    const begun = performance.now();
+    xmlText(start.repeat(500_000));
+    expect(performance.now() - begun).toBeLessThan(5_000);
+  },
+);

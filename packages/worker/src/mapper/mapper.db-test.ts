@@ -709,6 +709,32 @@ test('a second file of the same host and header reuses the mapping and asks no m
   });
 });
 
+test('two rows with one new identifier create one entity, and the second row reuses it', async () => {
+  await inTransaction(async (held) => {
+    await mappedList(held);
+    const twice = [
+      HEADER,
+      `Twin Hull,${SPARE_IMO},Malta,,`,
+      `Twin Hull,${SPARE_IMO},Malta,,x`,
+    ].join('\n');
+    const job = await seedDocument(held, SECOND, 'https://lists.test/b.csv', twice);
+    expect(await held.step(makeMapper(CONFIG), noModel())).toStrictEqual({ did: 'done', job });
+    const load = await held.idOf(
+      "SELECT id FROM public.jobs WHERE document_id = $1 AND kind = 'load_mapped'",
+      [SECOND],
+    );
+    await held.ask(OLDEST, [load]);
+
+    expect(await held.step(makeLoader({ store: storeOf(held) }), noModel())).toStrictEqual({
+      did: 'done',
+      job: load,
+    });
+
+    const created = (await loadedOf(held, SECOND)).filter((row) => row.op === 'create_entity');
+    expect(created.map((row) => row.label)).toStrictEqual(['Twin Hull']);
+  });
+});
+
 test('a second file of another host gets a new mapping act', async () => {
   await inTransaction(async (held) => {
     await mappedList(held);

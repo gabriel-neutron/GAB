@@ -67,11 +67,18 @@ export type ColumnCasts = Readonly<
 /** Finds an entity of a row of a table under a mapping: the entity of the row, or an end of a
  * relation. `entityType` is the type that a lookup by the name finds. It reads the record and
  * writes nothing, so the load and the dry join give the same answer for the same row. */
+export interface Finder {
+  (record: CsvRecord, given: readonly Lookup[], entityType: string): Promise<Found>;
+  /** The identifier values of a row as the lookups read them, one `key|value` text each. A name
+   * is no key, so it gives none. */
+  keysOf(record: CsvRecord, given: readonly Lookup[]): string[];
+}
+
 export const makeFinder = (
   db: Queryable,
   casts: ColumnCasts,
   header: readonly string[],
-): ((record: CsvRecord, given: readonly Lookup[], entityType: string) => Promise<Found>) => {
+): Finder => {
   const column = new Map(header.map((name, index) => [name, index] as const));
 
   // A lookup reads its cell as the attribute of the same key and the same column reads it. So a
@@ -104,7 +111,11 @@ export const makeFinder = (
     return findByIdentifier(db, lookup.key, value, null);
   };
 
-  return async (record, given, entityType) => {
+  const find = async (
+    record: CsvRecord,
+    given: readonly Lookup[],
+    entityType: string,
+  ): Promise<Found> => {
     for (const one of lookupOrder(given)) {
       const value = valueOf(record, one);
       if (value === null) continue;
@@ -113,6 +124,12 @@ export const makeFinder = (
     }
     return { kind: 'none' };
   };
+  const keysOf = (record: CsvRecord, given: readonly Lookup[]): string[] =>
+    given.flatMap((one) => {
+      const value = one.key === 'label' ? null : valueOf(record, one);
+      return value === null ? [] : [`${one.key}|${value}`];
+    });
+  return Object.assign(find, { keysOf });
 };
 
 /** Finds the entities that hold one identifier, with no mapping and no column. `entityType` limits

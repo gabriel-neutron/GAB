@@ -1003,6 +1003,23 @@ test('a type change that a later act gave is a claim of its own, with the label 
   ]);
 });
 
+test('a value of a relation with the key of a date or of the type gives no claim', async () => {
+  const seen = await inTransaction(async (held) => {
+    const { vesselListed } = await record(held);
+    await held.ask(`UPDATE public.relations SET attrs = attrs || $2::jsonb WHERE id = $1`, [
+      vesselListed.id,
+      JSON.stringify({ valid_to: value('unknown', [SDN]), type: value('other', [SDN]) }),
+    ]);
+    const { rows } = await held
+      .as('gabriel_app')
+      .query('SELECT claim_id FROM public.release_claims() WHERE subject_id = $1', [
+        vesselListed.id,
+      ]);
+    return { id: vesselListed.id, rows };
+  });
+  expect(seen.rows).toStrictEqual([{ claim_id: seen.id }]);
+});
+
 test('a release writes the log of the merges, and a moved value keeps the label of its act', async () => {
   const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
   const made = await inTransaction(async (held) => {
