@@ -1,6 +1,6 @@
 // The record holds the registration jurisdiction as its ISO 3166-1 code. The database writes a
-// known spelling as its code on each write of an entity, and migration 0079 writes again each
-// value that the record held before. A signed act keeps the value that its writer gave. Each
+// known spelling as its code on each write of an entity, and migrations 0079 (RU) and 0090 (CY)
+// write again each value that the record held before. A signed act keeps the value that its writer gave. Each
 // test rolls back.
 
 import { readFile } from 'node:fs/promises';
@@ -204,6 +204,7 @@ test('migration 0090 writes CY for each Cyprus company, and keeps the documents 
   const found = await rolledBack('superuser', async (ask) => {
     await ask('ALTER TABLE public.entities DISABLE TRIGGER entities_coded_jurisdiction');
     const cyprus = await company(ask, 'A Cyprus company of the migration', 'Cyprus');
+    const two = await company(ask, 'A Cyprus company with two values', ['Cyprus', 'CY', 'Russia']);
     await ask('ALTER TABLE public.entities ENABLE ALWAYS TRIGGER entities_coded_jurisdiction');
     const before = await held(ask, cyprus.target_id);
     await ask(
@@ -213,8 +214,14 @@ test('migration 0090 writes CY for each Cyprus company, and keeps the documents 
       ),
     );
     await ask('RESET ROLE');
-    return { before, after: await held(ask, cyprus.target_id) };
+    return {
+      before,
+      after: await held(ask, cyprus.target_id),
+      two: await held(ask, two.target_id),
+    };
   });
+  expect(found.before.value).toBe('Cyprus');
+  expect(found.two.value).toStrictEqual(['CY', 'RU']);
   expect(found.after).toStrictEqual({ ...found.before, value: 'CY' });
   expect(found.after.act_value).toBe('Cyprus');
 });

@@ -2,8 +2,8 @@
 -- 0090 — Cyprus in the list of jurisdiction codes                                       ORDERED
 --
 -- The record held Cyprus as "Cyprus" on some companies and as "CY" on others, so a join on the
--- value found only a part of them. The list of migration 0079 now has the code CY. This
--- migration writes the function again with the new list, and writes each value again, as 0079
+-- value found only a part of them. This migration adds the code CY to the list of migration
+-- 0079: it writes the function again with the new list, and writes each value again, as 0079
 -- does. The spellings of the tool check (JURISDICTION_SPELLINGS) hold the same list.
 -- =============================================================================================
 
