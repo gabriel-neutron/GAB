@@ -98,8 +98,9 @@ each decision is final). The Names page of the review page does the same.
   release, then decide each pair in the "Two scripts" tab.
 - `gem-duplicates`: report. It lists pairs of one entity with a GEM unit key and one without it, near
   and with a similar name. It writes nothing. Merge a true pair with `merge-entities`.
-- `merge-entities <duplicate> <survivor>`: the operator merges one entity into another through the
-  door `merge_entities` (ADR 0014). The act is in the ledger and the merge can be undone. The door
+- `merge-entities <duplicate> <survivor> [--keep-name]`: the operator merges one entity into another
+  through the door `merge_entities` (ADR 0014). The act is in the ledger and the merge can be undone.
+  With `--keep-name`, the name of the duplicate stays as a former name of the survivor. The door
   refuses two entities of two types, and a duplicate that an act in the waiting lane names.
 - `undo-merge <absorbed>`: the operator undoes the last merge of the absorbed entity through the
   door `undo_merge`. The entity comes back as it was, with its relations, and the survivor loses

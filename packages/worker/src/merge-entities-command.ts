@@ -27,6 +27,7 @@ export const mergeEntitiesCommand: SubCommand = async (args) => {
     console.error(USAGE);
     return 2;
   }
+  const keepName = rest.length === 1;
   const client = new Client({ connectionString: appAddress() });
   await client.connect();
   try {
@@ -34,7 +35,7 @@ export const mergeEntitiesCommand: SubCommand = async (args) => {
       'operator',
       survivor,
       duplicate,
-      rest[0] === KEEP_NAME,
+      keepName,
     ]);
     console.log(`merged ${duplicate} into ${survivor}`);
     return 0;
