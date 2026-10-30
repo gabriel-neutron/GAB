@@ -52,7 +52,7 @@ test('no word gives the usage, and the usage names each sub-command', () => {
 test('an unknown word gives the usage, and the usage names the word', () => {
   expect(readCommand(['runner'])).toStrictEqual({
     kind: 'usage',
-    text: '"runner" is not a sub-command. Usage: pnpm worker <activity-report|asset-coverage|asset-sanctions|audit-coverage|author-names|delete-relation|document-file|document-labels|dry-join|firms-sweep|gem-duplicates|geolocation-method|ingest|layout|merge-act|merge-entities|name-candidates|nato-coverage|reconcile|reference-dataset|reference-set|release|requeue-ratings|reread-html|run|sentinel2-pairs|tanker-port-calls|text-set|undo-merge> [arguments]',
+    text: '"runner" is not a sub-command. Usage: pnpm worker <activity-report|asset-coverage|asset-sanctions|audit-coverage|author-names|delete-relation|document-file|document-labels|dry-join|firms-sweep|gem-duplicates|geolocation-method|ingest|layout|merge-act|merge-entities|name-candidates|nato-coverage|reconcile|reference-dataset|reference-set|relation-modality|release|requeue-ratings|reread-html|run|sentinel2-pairs|tanker-port-calls|text-set|undo-merge> [arguments]',
   });
 });
 
@@ -73,6 +73,7 @@ test.each([
   'nato-coverage',
   'reconcile',
   'reference-set',
+  'relation-modality',
   'release',
   'requeue-ratings',
   'reread-html',

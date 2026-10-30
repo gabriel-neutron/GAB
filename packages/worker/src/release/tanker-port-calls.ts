@@ -99,6 +99,26 @@ export const tankerSet = (record: ReleaseRecord): readonly Tanker[] => {
   return [...byImo].map(([imo, j0]) => ({ imo, j0 })).sort((a, b) => a.imo.localeCompare(b.imo));
 };
 
+export const tankerListHeader = ['imo', 'name', 'vessel_id'] as const;
+
+/** One row for each counted tanker: the IMO number, the name of the vessel in the record, and
+ * its GFW vessel ids joined with ";" (empty when the mapping has none). */
+export const tankerListRows = (
+  record: ReleaseRecord,
+  tankers: readonly Tanker[],
+  ids: ReadonlyMap<string, readonly string[]>,
+): string[][] => {
+  const labels = new Map(record.entities.map((one) => [one.id, one.label]));
+  const names = new Map<string, string>();
+  for (const [id, imo] of attributeOfEntities(record, 'imo'))
+    if (typeof imo === 'string' && !names.has(imo)) names.set(imo, labels.get(id) ?? '');
+  return tankers.map((one) => [
+    one.imo,
+    names.get(one.imo) ?? '',
+    (ids.get(one.imo) ?? []).join(';'),
+  ]);
+};
+
 /** The file of the GFW vessel ids of each IMO number: a header `imo,vessel_id`, lines that start
  * with # as comments, and one line for each pair. An IMO number can have more than one vessel id (one for each AIS identity). */
 export const idsOfImo = (text: string): ReadonlyMap<string, readonly string[]> => {

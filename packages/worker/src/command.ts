@@ -34,6 +34,8 @@ const COMMANDS = {
   'reference-dataset': async () =>
     (await import('./reference-dataset-command.ts')).referenceDatasetCommand,
   'reference-set': async () => (await import('./reference-set-command.ts')).referenceSetCommand,
+  'relation-modality': async () =>
+    (await import('./release/relation-modality-command.ts')).relationModalityCommand,
   release: async () => (await import('./release/release-command.ts')).releaseCommand,
   'requeue-ratings': async () =>
     (await import('./requeue-ratings-command.ts')).requeueRatingsCommand,

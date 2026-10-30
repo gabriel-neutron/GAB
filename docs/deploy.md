@@ -113,8 +113,15 @@ each decision is final). The Names page of the review page does the same.
   the port calls of the designated oil tankers from the record and from the stored Global Fishing
   Watch port visits. The mapping file (header `imo,vessel_id`) gives the GFW vessel ids of each
   IMO number. It prints the values next to the values of the first calculation and the limits, and
-  writes the CSV when a file is given. It gives 1 for a fault in the data, and writes nothing to
-  the database.
+  writes the CSV when a file is given. The option `--tankers <list.csv>` writes the list of the
+  counted tankers (header `imo,name,vessel_id`; the vessel ids of one IMO number are joined with
+  `;`). It gives 1 for a fault in the data, and writes nothing to the database.
+- `relation-modality <imo-list.csv>`: report. The file has the header `imo` and one IMO number on
+  each line. For each `owns` relation of the listed vessels it prints the IMO number, the vessel,
+  the owner, the relation, the modality of the citations of its act, the originator of the act and
+  the source documents, with tab-separated columns. An IMO number with no `owns` relation, and a
+  relation with no citation, get a line that says so. It writes nothing to the database. It gives
+  1 for a fault in the data.
 - `audit-coverage <release-folder> <steps.json>`: the coverage and the depth of each step of a
   chain on a frozen release, joined by identifier. It reads files, writes nothing and gives the
   same bytes on each run.
