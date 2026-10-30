@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 import { appAddress } from '../address.ts';
 import type { SubCommand } from '../command.ts';
-import { imoList, modalityLines, OWNS_QUERY } from './relation-modality.ts';
+import { imoList, imoOf, imoPattern, modalityLines, OWNS_QUERY } from './relation-modality.ts';
 import { inOneSnapshot } from './snapshot.ts';
 
 const USAGE = 'Usage: pnpm worker relation-modality <imo-list.csv>';
@@ -33,9 +33,13 @@ export const relationModalityCommand: SubCommand = async (args) => {
   try {
     const imos = imoList(await readFile(file, 'utf8'));
     await client.connect();
-    const rows = await inOneSnapshot(client, async () =>
-      z.array(ownsRow).parse((await client.query(OWNS_QUERY, [imos])).rows),
+    const found = await inOneSnapshot(client, async () =>
+      z.array(ownsRow).parse((await client.query(OWNS_QUERY, [imos.map(imoPattern)])).rows),
     );
+    const rows = found.flatMap((one) => {
+      const imo = imoOf(one.imo);
+      return imo === undefined ? [] : [{ ...one, imo }];
+    });
     console.log(
       ['imo', 'vessel', 'owner', 'relation', 'modality', 'originator', 'sources'].join('\t'),
     );

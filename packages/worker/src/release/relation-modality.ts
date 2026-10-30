@@ -12,6 +12,12 @@ export interface OwnsRow {
   readonly sources: readonly string[];
 }
 
+// The record allows an IMO number as "IMO 9000001" or with spaces, and the role cannot call
+// `imo_key`. So the query matches the spelling with a pattern, and `imoOf` reads the number.
+export const imoPattern = (imo: string): string => String.raw`^\s*(?:[Ii][Mm][Oo]\s*)?${imo}\s*$`;
+export const imoOf = (text: string): string | undefined =>
+  /^\s*(?:[Ii][Mm][Oo]\s*)?(\d{7})\s*$/u.exec(text)?.[1];
+
 // The act of a relation is the proposal that it was promoted from. The modality is on the citations
 // of the act, and the originator is on the act.
 export const OWNS_QUERY = `
@@ -26,7 +32,7 @@ export const OWNS_QUERY = `
     JOIN public.proposals p ON p.id = r.promoted_from
     LEFT JOIN public.citation c ON c.claim_id = p.id
    WHERE r.type = 'owns' AND r.src_kind = 'entity' AND r.dst_kind = 'entity'
-     AND v.attrs->'imo'->>'v' = ANY($1::text[])
+     AND v.attrs->'imo'->>'v' ~ ANY($1::text[])
    GROUP BY v.attrs->'imo'->>'v', v.label, o.label, r.id, p.originator, r.sources
    ORDER BY 1, 3, 4`;
 

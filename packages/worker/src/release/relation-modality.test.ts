@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 
 import { DataFault } from './tanker-port-calls.ts';
-import { imoList, modalityLines, type OwnsRow } from './relation-modality.ts';
+import { imoList, imoOf, imoPattern, modalityLines, type OwnsRow } from './relation-modality.ts';
 
 test('the IMO list needs the header imo, skips comments and refuses a wrong line', () => {
   expect(imoList('\uFEFF# note\nimo\n9000001\n 9000002 \n')).toEqual(['9000001', '9000002']);
@@ -36,4 +36,12 @@ test('a relation with no citation or no originator prints a dash, and a modality
   expect(modalityLines(['9000001'], [row({ modalities: [], originator: null })])).toEqual([
     '9000001\tALPHA\tAlpha LLC\tr1\tno citation\t-\tdoc_1',
   ]);
+});
+
+test('an IMO number is read from the spellings of the record, and the pattern matches them', () => {
+  for (const spelled of ['9000001', ' 9000001 ', 'IMO 9000001', 'imo9000001'])
+    expect(imoOf(spelled)).toBe('9000001');
+  expect(imoOf('IMO 90000012')).toBeUndefined();
+  expect(new RegExp(imoPattern('9000001'), 'u').test('IMO 9000001')).toBe(true);
+  expect(new RegExp(imoPattern('9000001'), 'u').test('19000001')).toBe(false);
 });
