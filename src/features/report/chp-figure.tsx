@@ -10,7 +10,9 @@ import { readCsv } from './line-panel';
 const rows = readCsv(raw);
 const YEARS = [2021, 2022, 2023, 2024, 2025];
 const v = (panel: string, series: string, year: number) => {
-  const r = rows.find((x) => x['panel'] === panel && x['series'] === series && x['year'] === String(year));
+  const r = rows.find(
+    (x) => x['panel'] === panel && x['series'] === series && x['year'] === String(year),
+  );
   return r?.['value'] ? Number(r['value']) : undefined;
 };
 const SUPPLIERS = [
@@ -20,7 +22,11 @@ const SUPPLIERS = [
   { name: 'Nine third countries', tone: 'other' },
 ] as const;
 const chain = readCsv(chainRaw);
-const STAGES = ['Brand (producer headquarters)', 'Country of manufacture', 'Final seller to Russia'];
+const STAGES = [
+  'Brand (producer headquarters)',
+  'Country of manufacture',
+  'Final seller to Russia',
+];
 const GROUPS = [
   { name: 'Coalition', tone: 'old' },
   { name: 'China, Hong Kong', tone: 'new' },
@@ -38,7 +44,11 @@ export function ChpFigure() {
     BWID = 290;
   return (
     <figure className="report-chart">
-      <svg viewBox="0 0 640 340" role="img" aria-label="Exports of high-priority goods to Russia by supplier, 2021-2025">
+      <svg
+        viewBox="0 0 640 340"
+        role="img"
+        aria-label="Exports of high-priority goods to Russia by supplier, 2021-2025"
+      >
         <text y="12" className="lp-title">
           a. By supplier
         </text>
@@ -47,7 +57,13 @@ export function ChpFigure() {
         </text>
         {[0, 5000, 10000].map((t) => (
           <g key={t}>
-            <line x1={X0} x2={X0 + 5 * 50} y1={BASE - t * SCALE} y2={BASE - t * SCALE} className="plot-grid" />
+            <line
+              x1={X0}
+              x2={X0 + 5 * 50}
+              y1={BASE - t * SCALE}
+              y2={BASE - t * SCALE}
+              className="plot-grid"
+            />
             <text x={X0 - 6} y={BASE - t * SCALE + 4} textAnchor="end" className="lp-axis">
               {fmt(t)}
             </text>
@@ -80,7 +96,10 @@ export function ChpFigure() {
           );
         })}
         {SUPPLIERS.map((s, i) => (
-          <g key={s.name} transform={`translate(${X0 + 2 * 50 * (i % 2)},${BASE + 34 + Math.floor(i / 2) * 16})`}>
+          <g
+            key={s.name}
+            transform={`translate(${X0 + 2 * 50 * (i % 2)},${BASE + 34 + Math.floor(i / 2) * 16})`}
+          >
             <g className={`lp-series ${s.tone}`}>
               <rect width="10" height="10" y="-9" className="lp-bar" />
             </g>
@@ -107,7 +126,10 @@ export function ChpFigure() {
                 {stage}
               </text>
               {GROUPS.map((g) => {
-                const share = Number(chain.find((c) => c['stage'] === stage && c['group'] === g.name)?.['share_pct'] ?? 0);
+                const share = Number(
+                  chain.find((c) => c['stage'] === stage && c['group'] === g.name)?.['share_pct'] ??
+                    0,
+                );
                 const w = (share / 100) * BWID,
                   x1 = x;
                 x += w;
@@ -126,7 +148,10 @@ export function ChpFigure() {
           );
         })}
         {GROUPS.map((g, i) => (
-          <g key={g.name} transform={`translate(${gx + (i % 2) * 140},${226 + Math.floor(i / 2) * 16})`}>
+          <g
+            key={g.name}
+            transform={`translate(${gx + (i % 2) * 140},${226 + Math.floor(i / 2) * 16})`}
+          >
             <g className={`lp-series ${g.tone}`}>
               <rect width="10" height="10" y="-9" className="lp-bar" />
             </g>

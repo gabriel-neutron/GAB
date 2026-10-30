@@ -6,7 +6,11 @@ export function readCsv(raw: string): Record<string, string>[] {
   const [head = [], ...body] = raw
     .trim()
     .split(/\r?\n/)
-    .map((line) => [...line.matchAll(/(?:^|,)("(?:[^"]|"")*"|[^,]*)/g)].map((m) => (m[1] ?? '').replace(/^"|"$/g, '').replaceAll('""', '"')));
+    .map((line) =>
+      [...line.matchAll(/(?:^|,)("(?:[^"]|"")*"|[^,]*)/g)].map((m) =>
+        (m[1] ?? '').replace(/^"|"$/g, '').replaceAll('""', '"'),
+      ),
+    );
   return body.map((cells) => Object.fromEntries(head.map((h, i) => [h, cells[i] ?? ''])));
 }
 
@@ -75,7 +79,12 @@ export function LinePanel({
   // Each label sits at its line end, and at least 14 units below the label above it.
   const placed: { label: string; y: number; x: number; v: number }[] = [];
   for (const e of ends)
-    placed.push({ label: e.s.label, y: Math.max(y(e.v) + 4, (placed.at(-1)?.y ?? -Infinity) + 14), x: x(e.i) + 8, v: e.v });
+    placed.push({
+      label: e.s.label,
+      y: Math.max(y(e.v) + 4, (placed.at(-1)?.y ?? -Infinity) + 14),
+      x: x(e.i) + 8,
+      v: e.v,
+    });
   const labelY = new Map(placed.map(({ label, ...at }) => [label, at] as const));
   return (
     <g>

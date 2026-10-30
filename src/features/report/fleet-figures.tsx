@@ -41,7 +41,11 @@ export function FleetPortsFigure() {
   const height = TOP + countries.length * 22 + 58;
   return (
     <figure className="report-chart">
-      <svg viewBox={`0 0 640 ${height}`} role="img" aria-label="Designated tankers calling at a port after their designation, by port country">
+      <svg
+        viewBox={`0 0 640 ${height}`}
+        role="img"
+        aria-label="Designated tankers calling at a port after their designation, by port country"
+      >
         <Tile x={0} value={String(designated)} label="designated tankers" />
         <Tile x={214} value={String(called)} label="called at a port after" />
         <Tile x={428} value={String(eu)} label="called in the EU or the UK" />
@@ -79,7 +83,10 @@ const REGIMES = [
   { key: 'UK', tone: 'other' },
   { key: 'OFAC', tone: 'new' },
 ] as const;
-const QUARTERS = Array.from({ length: 20 }, (_, i) => `${2022 + Math.floor(i / 4)}-Q${(i % 4) + 1}`);
+const QUARTERS = Array.from(
+  { length: 20 },
+  (_, i) => `${2022 + Math.floor(i / 4)}-Q${(i % 4) + 1}`,
+);
 
 const VENN = [
   { key: 'EU', tone: 'old', cx: 230, cy: 150, r: 100, lx: 120, ly: 60, anchor: 'start' },
@@ -100,11 +107,17 @@ const REGIONS = [
 /** Figure 8: tankers newly listed by each regime per quarter, and the regimes that list each tanker. */
 export function FleetWavesFigure() {
   const count = (q: string, r: string) =>
-    Number(waves.find((w) => w['kind'] === 'quarter' && w['key'] === q && w['regime'] === r)?.['value'] ?? 0);
+    Number(
+      waves.find((w) => w['kind'] === 'quarter' && w['key'] === q && w['regime'] === r)?.[
+        'value'
+      ] ?? 0,
+    );
   const earlier = waves
     .filter((w) => w['kind'] === 'quarter' && (w['key'] ?? '') < (QUARTERS[0] ?? ''))
     .reduce((t, w) => t + Number(w['value']), 0);
-  const combos = waves.filter((w) => w['kind'] === 'combo').map((w) => ({ key: w['key'] ?? '', v: Number(w['value']) }));
+  const combos = waves
+    .filter((w) => w['kind'] === 'combo')
+    .map((w) => ({ key: w['key'] ?? '', v: Number(w['value']) }));
   const lag = waves.find((w) => w['kind'] === 'lag')?.['value'];
   const combo = (key: string) => combos.find((c) => c.key === key)?.v ?? 0;
   const regimeTotal = (regime: string) =>
@@ -116,7 +129,11 @@ export function FleetWavesFigure() {
     SCALE = 0.55;
   return (
     <figure className="report-chart">
-      <svg viewBox="0 0 640 640" role="img" aria-label="Tankers listed per quarter by the EU, the UK and OFAC, and the regimes that list each tanker">
+      <svg
+        viewBox="0 0 640 640"
+        role="img"
+        aria-label="Tankers listed per quarter by the EU, the UK and OFAC, and the regimes that list each tanker"
+      >
         <text y="12" className="lp-title">
           a. New listings, by quarter (a tanker listed by two regimes counts twice)
         </text>
@@ -132,7 +149,13 @@ export function FleetWavesFigure() {
         ))}
         {[0, 100, 200, 300].map((t) => (
           <g key={t}>
-            <line x1={X0} x2={X0 + W} y1={BASE - t * SCALE} y2={BASE - t * SCALE} className="plot-grid" />
+            <line
+              x1={X0}
+              x2={X0 + W}
+              y1={BASE - t * SCALE}
+              y2={BASE - t * SCALE}
+              className="plot-grid"
+            />
             <text x={X0 - 6} y={BASE - t * SCALE + 4} textAnchor="end" className="lp-axis">
               {t}
             </text>
@@ -177,7 +200,13 @@ export function FleetWavesFigure() {
             </g>
           ))}
           {REGIONS.map((r) => (
-            <text key={r.key} x={r.x} y={r.y} textAnchor="middle" className={r.key === 'EU+OFAC+UK' ? 'venn-count core' : 'venn-count'}>
+            <text
+              key={r.key}
+              x={r.x}
+              y={r.y}
+              textAnchor="middle"
+              className={r.key === 'EU+OFAC+UK' ? 'venn-count core' : 'venn-count'}
+            >
               {combo(r.key)}
             </text>
           ))}

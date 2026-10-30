@@ -11,7 +11,9 @@ const BUYERS = [
   { name: 'India', tone: 'new' },
 ] as const;
 const value = (series: string, year: number) => {
-  const r = rows.find((x) => x['panel'] === 'b' && x['series'] === series && x['period'] === String(year));
+  const r = rows.find(
+    (x) => x['panel'] === 'b' && x['series'] === series && x['period'] === String(year),
+  );
   return r ? Number(r['value']) : undefined;
 };
 const X0 = 60,
@@ -20,7 +22,11 @@ const X0 = 60,
 export function CrudeBuyersFigure() {
   return (
     <figure className="report-chart">
-      <svg viewBox="0 0 640 170" role="img" aria-label="Crude oil bought from Russia by the EU, China and India, 2021 and 2025">
+      <svg
+        viewBox="0 0 640 170"
+        role="img"
+        aria-label="Crude oil bought from Russia by the EU, China and India, 2021 and 2025"
+      >
         <text x={X0} y="14" className="lp-axis">
           Mt
         </text>

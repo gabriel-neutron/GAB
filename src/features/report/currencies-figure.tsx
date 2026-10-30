@@ -14,17 +14,28 @@ const KEYS = [
 const panel = (series: string): Series[] =>
   KEYS.map((k) => {
     const points = years.map((y) => {
-      const r = rows.find((x) => x['series'] === series && x['key'] === k.key && x['year'] === String(y));
+      const r = rows.find(
+        (x) => x['series'] === series && x['key'] === k.key && x['year'] === String(y),
+      );
       return r ? Number(r['value']) : undefined;
     });
-    return { label: k.label, tone: k.tone, points, end: `${k.label} ${Math.round(points.at(-1) ?? 0)}` };
+    return {
+      label: k.label,
+      tone: k.tone,
+      points,
+      end: `${k.label} ${Math.round(points.at(-1) ?? 0)}`,
+    };
   });
 const invasion = { at: 2022.15, label: 'Invasion' };
 
 export function CurrenciesFigure() {
   return (
     <figure className="report-chart">
-      <svg viewBox={`0 0 640 ${PANEL_HEIGHT}`} role="img" aria-label="Currency of settlement of Russian exports and imports, 2019-2025">
+      <svg
+        viewBox={`0 0 640 ${PANEL_HEIGHT}`}
+        role="img"
+        aria-label="Currency of settlement of Russian exports and imports, 2019-2025"
+      >
         {(
           [
             [0, 'a. Exports', 'settlement_currency_exports'],

@@ -5,13 +5,31 @@ import { LinePanel, PANEL_HEIGHT, readCsv, type Series } from './line-panel';
 // f5-asop.csv, f5-terminals.csv and f5-pipelines-eu.csv (ASOP, Bruegel, Eurostat), copied to ports-alt.csv.
 const rows = readCsv(raw);
 const get = (panel: string, series: string, period: string) => {
-  const r = rows.find((x) => x['panel'] === panel && x['series'] === series && x['period'] === period);
+  const r = rows.find(
+    (x) => x['panel'] === panel && x['series'] === series && x['period'] === period,
+  );
   return r ? Number(r['value']) : undefined;
 };
 
-interface Pair { label: string; before: number; after: number }
+interface Pair {
+  label: string;
+  before: number;
+  after: number;
+}
 /** A before/after dot plot: the 2021 value hollow, the 2025 value filled, the change at the right. */
-function Dumbbell({ y0, title, unit, pairs, max }: { y0: number; title: string; unit: string; pairs: Pair[]; max: number }) {
+function Dumbbell({
+  y0,
+  title,
+  unit,
+  pairs,
+  max,
+}: {
+  y0: number;
+  title: string;
+  unit: string;
+  pairs: Pair[];
+  max: number;
+}) {
   const X0 = 150,
     X1 = 560;
   const x = (v: number) => X0 + (v / max) * (X1 - X0);
@@ -72,7 +90,16 @@ function Key({ y }: { y: number }) {
   );
 }
 
-const PORTS = ['Novorossiysk', 'Ust-Luga', 'Kozmino', 'Primorsk', 'Murmansk', 'Taman', 'Tuapse', 'Vysotsk'];
+const PORTS = [
+  'Novorossiysk',
+  'Ust-Luga',
+  'Kozmino',
+  'Primorsk',
+  'Murmansk',
+  'Taman',
+  'Tuapse',
+  'Vysotsk',
+];
 export function PortsBeforeAfter() {
   const pairs = PORTS.flatMap((p) => {
     const before = get('port', p, '2021'),
@@ -81,7 +108,11 @@ export function PortsBeforeAfter() {
   });
   return (
     <figure className="report-chart">
-      <svg viewBox="0 0 640 290" role="img" aria-label="Throughput of eight Russian oil ports, 2021 and 2025">
+      <svg
+        viewBox="0 0 640 290"
+        role="img"
+        aria-label="Throughput of eight Russian oil ports, 2021 and 2025"
+      >
         <Key y={14} />
         <Dumbbell y0={20} title="" unit="Mt, all cargo" pairs={pairs} max={180} />
       </svg>
@@ -92,12 +123,24 @@ export function PortsBeforeAfter() {
 const years = Array.from({ length: 12 }, (_, i) => 2014 + i);
 export function CrudeAndProducts() {
   const series: Series[] = [
-    { label: 'Crude oil', tone: 'new', points: years.map((y) => get('oil', 'Crude oil', String(y))) },
-    { label: 'Oil products', tone: 'old', points: years.map((y) => get('oil', 'Oil products', String(y))) },
+    {
+      label: 'Crude oil',
+      tone: 'new',
+      points: years.map((y) => get('oil', 'Crude oil', String(y))),
+    },
+    {
+      label: 'Oil products',
+      tone: 'old',
+      points: years.map((y) => get('oil', 'Oil products', String(y))),
+    },
   ];
   return (
     <figure className="report-chart">
-      <svg viewBox={`0 0 640 ${PANEL_HEIGHT}`} role="img" aria-label="Crude oil and oil products through Russian ports, 2014-2025">
+      <svg
+        viewBox={`0 0 640 ${PANEL_HEIGHT}`}
+        role="img"
+        aria-label="Crude oil and oil products through Russian ports, 2014-2025"
+      >
         <LinePanel
           x0={0}
           width={640}

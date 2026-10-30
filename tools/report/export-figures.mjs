@@ -19,15 +19,27 @@ const fontFaces =
   `@font-face{font-family:Geist;src:url(data:font/woff2;base64,${font('geist', 'geist-latin-400-normal.woff2')}) format('woff2')}` +
   `@font-face{font-family:'Geist Mono';src:url(data:font/woff2;base64,${font('geist-mono', 'geist-mono-latin-400-normal.woff2')}) format('woff2')}`;
 const PROPS = [
-  'fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'stroke-linejoin', 'opacity',
-  'font-family', 'font-size', 'letter-spacing', 'text-transform',
+  'fill',
+  'fill-opacity',
+  'stroke',
+  'stroke-width',
+  'stroke-opacity',
+  'stroke-dasharray',
+  'stroke-linejoin',
+  'opacity',
+  'font-family',
+  'font-size',
+  'letter-spacing',
+  'text-transform',
 ];
 
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
 // The theme script of index.html reads this key before the first paint.
-await page.addInitScript(() => localStorage.setItem('gab.shell.v1', JSON.stringify({ theme: 'light' })));
+await page.addInitScript(() =>
+  localStorage.setItem('gab.shell.v1', JSON.stringify({ theme: 'light' })),
+);
 for (const name of figures) {
   await page.goto(`${BASE}/report-figure?name=${encodeURIComponent(name)}`);
   const svg = page.locator('.report-page svg').first();

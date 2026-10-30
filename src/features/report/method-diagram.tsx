@@ -9,14 +9,22 @@ const cards = [
     type: 'port',
     x: 200,
     y: 0,
-    items: ['Oil and gas ports and pipelines', 'Tankers, including sanctioned ships', 'Buyer countries'],
+    items: [
+      'Oil and gas ports and pipelines',
+      'Tankers, including sanctioned ships',
+      'Buyer countries',
+    ],
   },
   {
     name: 'Fight',
     type: 'military-unit',
     x: 0,
     y: 250,
-    items: ['Dual-use and critical goods', 'From component to factory', 'Defence plants under sanctions'],
+    items: [
+      'Dual-use and critical goods',
+      'From component to factory',
+      'Defence plants under sanctions',
+    ],
   },
   {
     name: 'Finance',
@@ -58,7 +66,12 @@ export function MethodDiagram() {
             <svg x="16" y="21" width="16" height="16">
               <EntityGlyph type={c.type} size={16} />
             </svg>
-            <text x="40" y="35" className="method-title" style={{ fill: `var(--entity-${c.type})` }}>
+            <text
+              x="40"
+              y="35"
+              className="method-title"
+              style={{ fill: `var(--entity-${c.type})` }}
+            >
               {c.name}
             </text>
             {c.items.map((item, i) => (

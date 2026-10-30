@@ -33,7 +33,12 @@ const panelA: Series[] = [
   },
 ];
 const panelB: Series[] = [
-  { label: 'Oil and gas revenue', tone: 'old', points: revenue.map((r) => r && r.v / 1000), end: 'Oil and gas' },
+  {
+    label: 'Oil and gas revenue',
+    tone: 'old',
+    points: revenue.map((r) => r && r.v / 1000),
+    end: 'Oil and gas',
+  },
   {
     label: 'National defence',
     tone: 'new',
@@ -45,7 +50,9 @@ const panelB: Series[] = [
     label: 'Defence estimate',
     tone: 'new',
     points: defence.map((r, i) =>
-      r && (ESTIMATED.has(r.style) || ESTIMATED.has(defence[i + 1]?.style ?? '')) ? r.v / 1000 : undefined,
+      r && (ESTIMATED.has(r.style) || ESTIMATED.has(defence[i + 1]?.style ?? ''))
+        ? r.v / 1000
+        : undefined,
     ),
     hollow: defence.map((r) => ESTIMATED.has(r?.style ?? '')),
     dashed: true,

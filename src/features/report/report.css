@@ -3123,13 +3123,17 @@
   stroke: var(--border);
 }
 :where(.report-page) .method-label {
-  font: 12px 'Geist Mono', monospace;
+  font:
+    12px 'Geist Mono',
+    monospace;
   text-transform: uppercase;
   letter-spacing: -0.24px;
   fill: var(--label);
 }
 :where(.report-page) .method-title {
-  font: 20px Geist, sans-serif;
+  font:
+    20px Geist,
+    sans-serif;
   letter-spacing: -0.4px;
 }
 :where(.report-page) .method-figure {
@@ -3140,11 +3144,15 @@
   opacity: 0.25;
 }
 :where(.report-page) .method-item {
-  font: 13px Geist, sans-serif;
+  font:
+    13px Geist,
+    sans-serif;
   fill: var(--foreground);
 }
 :where(.report-page) .method-note {
-  font: 12px Geist, sans-serif;
+  font:
+    12px Geist,
+    sans-serif;
   fill: var(--muted-foreground);
 }
 :where(.report-page) .method-link {
@@ -3174,12 +3182,16 @@
   display: block;
 }
 :where(.report-page) .lp-title {
-  font: 13px Geist, sans-serif;
+  font:
+    13px Geist,
+    sans-serif;
   fill: var(--foreground);
 }
 :where(.report-page) .lp-axis,
 :where(.report-page) .lp-label {
-  font: 11px 'Geist Mono', monospace;
+  font:
+    11px 'Geist Mono',
+    monospace;
   fill: var(--label);
 }
 :where(.report-page) .lp-line {
@@ -3239,7 +3251,9 @@
 }
 /* Designated vessels: calls after designation in signal, identity bars pale (leads), unread time hatched grey. */
 :where(.report-page) .vessel-count {
-  font: 28px Geist, sans-serif;
+  font:
+    28px Geist,
+    sans-serif;
   letter-spacing: -0.8px;
   fill: var(--foreground);
 }
@@ -3264,7 +3278,9 @@
   fill: var(--foreground);
 }
 :where(.report-page) .vessel-flag-text {
-  font: 9px 'Geist Mono', monospace;
+  font:
+    9px 'Geist Mono',
+    monospace;
   fill: var(--foreground);
 }
 :where(.report-page) .lp-title.vessel-group {
@@ -3280,7 +3296,9 @@
   font-size: 12px;
 }
 :where(.report-page) .venn-count {
-  font: 14px Geist, sans-serif;
+  font:
+    14px Geist,
+    sans-serif;
   fill: var(--foreground);
 }
 :where(.report-page) .venn-count.core {

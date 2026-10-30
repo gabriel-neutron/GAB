@@ -3,14 +3,26 @@ import { readCsv } from './line-panel';
 
 // Figure 6: Russian seaborne oil in January 2026 (KSE Russian Oil Tracker, Kpler data; kb/d).
 // Two separate views, never one path: no source links a fleet category to a buyer. Data: f4-v2.csv panel a.
-const rows = readCsv(raw).map((r) => ({ from: r['from'] ?? '', to: r['to'] ?? '', v: Number(r['value']) }));
+const rows = readCsv(raw).map((r) => ({
+  from: r['from'] ?? '',
+  to: r['to'] ?? '',
+  v: Number(r['value']),
+}));
 const FLEET_TONE: Record<string, string> = {
   'Shadow fleet': 'new',
   'IG-insured': 'old',
   'Coalition, no IG cover': 'other',
 };
 const BASINS = ['Baltic', 'Black Sea', 'Pacific', 'Arctic'];
-const BUYERS = ['China', 'India', 'Turkey', 'Singapore', 'Brazil', 'Other countries', 'Unknown destination'];
+const BUYERS = [
+  'China',
+  'India',
+  'Turkey',
+  'Singapore',
+  'Brazil',
+  'Other countries',
+  'Unknown destination',
+];
 
 const basinNodes = BASINS.flatMap((b) => [`Crude · ${b}`, `Products · ${b}`]);
 
@@ -31,7 +43,10 @@ function StackBar({
 }) {
   const total = parts.reduce((t, p) => t + p.v, 0);
   // The left edge of each segment, and the end of the bar last.
-  const starts = parts.reduce<number[]>((at, p) => [...at, (at.at(-1) ?? 150) + p.v * scale], [150]);
+  const starts = parts.reduce<number[]>(
+    (at, p) => [...at, (at.at(-1) ?? 150) + p.v * scale],
+    [150],
+  );
   const x = starts.at(-1) ?? 150;
   return (
     <g>
@@ -62,14 +77,20 @@ function StackBar({
 
 export function FlowsFigure() {
   const fleetOf = (node: string) =>
-    ['Shadow fleet', 'IG-insured', 'Coalition, no IG cover'].map((f) => ({
-      name: f,
-      v: rows.find((r) => r.from === node && r.to === f)?.v ?? 0,
-      tone: FLEET_TONE[f] ?? 'other',
-    })).filter((p) => p.v > 0);
+    ['Shadow fleet', 'IG-insured', 'Coalition, no IG cover']
+      .map((f) => ({
+        name: f,
+        v: rows.find((r) => r.from === node && r.to === f)?.v ?? 0,
+        tone: FLEET_TONE[f] ?? 'other',
+      }))
+      .filter((p) => p.v > 0);
   return (
     <figure className="report-chart">
-      <svg viewBox="0 0 640 530" role="img" aria-label="Russian seaborne oil, January 2026: fleet by basin, and buyers">
+      <svg
+        viewBox="0 0 640 530"
+        role="img"
+        aria-label="Russian seaborne oil, January 2026: fleet by basin, and buyers"
+      >
         <text y="12" className="lp-title">
           a. Fleet category, by loading basin (kb/d)
         </text>
@@ -112,7 +133,8 @@ export function FlowsFigure() {
               parts={['Seaborne crude', 'Seaborne products'].map((n) => ({
                 name: n,
                 v: rows.find((r) => r.from === n && r.to === b)?.v ?? 0,
-                tone: b === 'Unknown destination' ? 'new' : n === 'Seaborne crude' ? 'old' : 'other',
+                tone:
+                  b === 'Unknown destination' ? 'new' : n === 'Seaborne crude' ? 'old' : 'other',
               }))}
               scale={0.2}
               share={false}

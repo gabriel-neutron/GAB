@@ -72,7 +72,13 @@ export function PortsFigure() {
                 <text x={BX} y={y - 6} className="lp-axis">
                   {port && 'short' in port ? port.short : c.name}
                 </text>
-                <rect x={c.v < 0 ? ZERO - w : ZERO} y={y} width={w} height="10" className="lp-bar" />
+                <rect
+                  x={c.v < 0 ? ZERO - w : ZERO}
+                  y={y}
+                  width={w}
+                  height="10"
+                  className="lp-bar"
+                />
                 <text
                   x={c.v < 0 ? ZERO - w - 4 : ZERO + w + 4}
                   y={y + 9}

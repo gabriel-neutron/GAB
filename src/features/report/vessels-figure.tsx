@@ -12,14 +12,23 @@ const PRE = 180,
   POST = 730;
 const L = 170,
   R = 630;
-const x = (days: number) => L + ((Math.max(-PRE, Math.min(POST, days)) + PRE) / (PRE + POST)) * (R - L);
+const x = (days: number) =>
+  L + ((Math.max(-PRE, Math.min(POST, days)) + PRE) / (PRE + POST)) * (R - L);
 const time = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
 
-const vessels = [...new Set(rows.filter((r) => r['row'] === 'designation').map((r) => r['vessel'] ?? ''))];
-const counts = ['any call after designation', 'calls at or after +6 months', 'calls at or after +12 months'].map(
-  (k) => rows.find((r) => r['row'] === 'summary' && r['vessel'] === k)?.['item'] ?? '',
-);
-const TILE_LABELS = ['called at a port after', 'still calling at +6 months', 'still calling at +12 months'];
+const vessels = [
+  ...new Set(rows.filter((r) => r['row'] === 'designation').map((r) => r['vessel'] ?? '')),
+];
+const counts = [
+  'any call after designation',
+  'calls at or after +6 months',
+  'calls at or after +12 months',
+].map((k) => rows.find((r) => r['row'] === 'summary' && r['vessel'] === k)?.['item'] ?? '');
+const TILE_LABELS = [
+  'called at a port after',
+  'still calling at +6 months',
+  'still calling at +12 months',
+];
 
 export function VesselsFigure() {
   let y = 112;
@@ -31,13 +40,23 @@ export function VesselsFigure() {
     if (group !== lastGroup) y += 26;
     const head = group !== lastGroup ? { group, y: y - 12 } : undefined;
     lastGroup = group;
-    lanes.push({ name, own, y, head, d0: time(own.find((r) => r['row'] === 'designation')?.['date'] ?? '') });
+    lanes.push({
+      name,
+      own,
+      y,
+      head,
+      d0: time(own.find((r) => r['row'] === 'designation')?.['date'] ?? ''),
+    });
     y += 20;
   }
   const height = y + 30;
   return (
     <figure className="report-chart">
-      <svg viewBox={`0 0 640 ${height}`} role="img" aria-label="Port calls and identities of designated tankers around their designation date">
+      <svg
+        viewBox={`0 0 640 ${height}`}
+        role="img"
+        aria-label="Port calls and identities of designated tankers around their designation date"
+      >
         {counts.map((c, i) => (
           <g key={i} transform={`translate(${i * 214},0)`}>
             {i > 0 && <line x1="-12" x2="-12" y1="4" y2="60" className="plot-grid" />}
@@ -88,14 +107,31 @@ export function VesselsFigure() {
               <text x={L - 8} y={ly + 4} textAnchor="end" className="lp-label flow-name">
                 {name}
               </text>
-              {end < POST && <rect x={x(end)} y={ly - 7} width={R - x(end)} height="14" className="vessel-unread" />}
+              {end < POST && (
+                <rect
+                  x={x(end)}
+                  y={ly - 7}
+                  width={R - x(end)}
+                  height="14"
+                  className="vessel-unread"
+                />
+              )}
               {own
                 .filter((r) => r['row'] === 'gfw identity')
                 .map((r, i) => {
                   const a = days(r['date'] ?? ''),
                     b = r['end'] ? days(r['end']) : end;
                   if (b < -PRE || a > POST) return null;
-                  return <rect key={i} x={x(a)} y={ly - 3} width={Math.max(1, x(b) - x(a))} height="6" className="vessel-identity" />;
+                  return (
+                    <rect
+                      key={i}
+                      x={x(a)}
+                      y={ly - 3}
+                      width={Math.max(1, x(b) - x(a))}
+                      height="6"
+                      className="vessel-identity"
+                    />
+                  );
                 })}
               {own
                 .filter((r) => r['row'] === 'port call')
