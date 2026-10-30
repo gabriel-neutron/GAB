@@ -41,6 +41,8 @@ const COMMANDS = {
   run: async () => (await import('./run-command.ts')).runCommand,
   'sentinel2-pairs': async () =>
     (await import('./sentinel2-pairs-command.ts')).sentinel2PairsCommand,
+  'tanker-port-calls': async () =>
+    (await import('./release/tanker-port-calls-command.ts')).tankerPortCallsCommand,
   'text-set': async () => (await import('./text-set-command.ts')).textSetCommand,
   'undo-merge': async () => (await import('./undo-merge-command.ts')).undoMergeCommand,
 } as const satisfies Record<string, () => Promise<SubCommand>>;
