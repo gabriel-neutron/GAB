@@ -99,12 +99,12 @@ export const tankerSet = (record: ReleaseRecord): readonly Tanker[] => {
   return [...byImo].map(([imo, j0]) => ({ imo, j0 })).sort((a, b) => a.imo.localeCompare(b.imo));
 };
 
-/** The file of the GFW vessel ids of each IMO number: a header `imo,vessel_id` and one line for
+/** The file of the GFW vessel ids of each IMO number: a header `imo,vessel_id`, lines that start with # as comments and one line for
  * each pair. An IMO number can have more than one vessel id (one for each AIS identity). */
 export const idsOfImo = (text: string): ReadonlyMap<string, readonly string[]> => {
   const [header, ...lines] = (text.codePointAt(0) === 0xfeff ? text.slice(1) : text)
     .split(/\r?\n/u)
-    .filter((line) => line.trim() !== '');
+    .filter((line) => line.trim() !== '' && !line.startsWith('#'));
   if (header?.trim() !== 'imo,vessel_id')
     throw new DataFault('The mapping file must start with the header "imo,vessel_id".');
   const ids = new Map<string, string[]>();

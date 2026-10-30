@@ -183,3 +183,9 @@ test('the comparison puts the previous values next to the new ones', () => {
   expect(lines).toContain('A\t0\t27.7\t33.3');
   expect(lines).toContain('B Russia\t+6\t53.2\t');
 });
+
+test('the mapping file skips comment lines', () => {
+  expect(idsOfImo('# note\nimo,vessel_id\n# more\n9000001,a\n')).toEqual(
+    new Map([['9000001', ['a']]]),
+  );
+});
