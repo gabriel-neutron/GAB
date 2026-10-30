@@ -29,7 +29,8 @@ export function NoteRef({ partSlug, id }: NoteRefProps) {
           className={cn(
             'relative ml-0.5 cursor-pointer align-super font-mono text-small/none text-label',
             'transition-colors duration-150 hover:text-foreground',
-            'before:absolute before:-inset-3.5 before:content-[""]',
+            // A centred 44px box for a finger; it does not move the text.
+            'before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-1/2 before:content-[""]',
             FOCUS,
           )}
         >

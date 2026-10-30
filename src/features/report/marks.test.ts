@@ -22,6 +22,23 @@ describe('parseMarks', () => {
     ]);
   });
 
+  it('keeps a star with no pair as text', () => {
+    expect(parseMarks('a *b and **c')).toEqual([
+      { kind: 'text', text: 'a *b and **c', bold: false, italic: false },
+    ]);
+    expect(parseMarks('5 * 3 = 15, *Title*')).toEqual([
+      { kind: 'text', text: '5 * 3 = 15, ', bold: false, italic: false },
+      { kind: 'text', text: 'Title', bold: false, italic: true },
+    ]);
+  });
+
+  it('keeps a star inside the words of a node reference', () => {
+    expect(parseMarks('[[N-P026|A*B]] *x')).toEqual([
+      { kind: 'node', id: 'N-P026', text: 'A*B', bold: false, italic: false },
+      { kind: 'text', text: ' *x', bold: false, italic: false },
+    ]);
+  });
+
   it('leaves no mark character in the text of the report', () => {
     const leftovers = parts.flatMap((part) =>
       [...part.blocks, ...part.notes]

@@ -228,7 +228,7 @@ export function NodePanel({ id, onClose, returnFocusTo }: NodePanelProps) {
                     {ui.panel.close}
                   </Dialog.Close>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-8">
+                <div key={id} className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-8">
                   <NodeRecord id={id} />
                 </div>
               </motion.div>

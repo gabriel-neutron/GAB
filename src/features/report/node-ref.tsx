@@ -1,10 +1,13 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { EntityGlyph } from '@/shared/entity-glyph';
 import { cn } from '@/shared/lib/utils';
 import { ui } from './content';
 import { reportGraph } from './report-graph';
 import { useReport } from './use-report';
+
+/** The time the pointer has to cross from the reference to its card (WCAG 1.4.13). */
+const CLOSE_DELAY = 150;
 
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
@@ -23,10 +26,25 @@ export function NodeRef({ id, children }: NodeRefProps) {
   const pointer = useRef('');
   const byFocus = useRef(false);
   const trigger = useRef<HTMLButtonElement>(null);
+  const card = useRef<HTMLDivElement>(null);
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
   const node = reportGraph.node(id);
   if (node === undefined) return <>{children}</>;
   const relations = reportGraph.relations(id).length;
   const documents = reportGraph.documents(node).length;
+  const hold = (event: PointerEvent) => {
+    if (event.pointerType !== 'mouse') return;
+    window.clearTimeout(timer.current);
+    setOpen(true);
+  };
+  const release = (event: PointerEvent) => {
+    if (event.pointerType !== 'mouse') return;
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => {
+      setOpen(false);
+    }, CLOSE_DELAY);
+  };
   const show = () => {
     if (trigger.current !== null) openNode(id, trigger.current);
   };
@@ -39,23 +57,25 @@ export function NodeRef({ id, children }: NodeRefProps) {
           onPointerDown={(event) => {
             pointer.current = event.pointerType;
           }}
-          onPointerEnter={(event) => {
-            if (event.pointerType === 'mouse') setOpen(true);
-          }}
-          onPointerLeave={(event) => {
-            if (event.pointerType === 'mouse') setOpen(false);
-          }}
+          onPointerEnter={hold}
+          onPointerLeave={release}
           onFocus={(event) => {
             byFocus.current = event.currentTarget.matches(':focus-visible');
             if (byFocus.current) setOpen(true);
           }}
-          onBlur={() => {
-            if (byFocus.current) setOpen(false);
+          onBlur={(event) => {
+            const into =
+              event.relatedTarget instanceof Node && card.current?.contains(event.relatedTarget);
+            if (byFocus.current && into !== true) setOpen(false);
             byFocus.current = false;
+            pointer.current = '';
           }}
           onClick={(event) => {
             // A tap only toggles the card; the card holds the button that opens the panel.
-            if (pointer.current === 'touch') return;
+            const tap = pointer.current === 'touch';
+            // A later Enter has no pointerdown: it must open the panel.
+            pointer.current = '';
+            if (tap) return;
             event.preventDefault();
             setOpen(false);
             show();
@@ -77,7 +97,10 @@ export function NodeRef({ id, children }: NodeRefProps) {
         </button>
       </PopoverTrigger>
       <PopoverContent
+        ref={card}
         side="top"
+        onPointerEnter={hold}
+        onPointerLeave={release}
         className="w-72 space-y-2 p-3"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
