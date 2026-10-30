@@ -8,6 +8,7 @@ import {
   idsOfImo,
   portCallsOf,
   regionOf,
+  tankerListRows,
   tankerPeriods,
   tankerSet,
   type PortCall,
@@ -212,4 +213,23 @@ test('the data check refuses an empty set, a missing next page and a tanker with
   expect(() => checkData([], known, [])).toThrow(DataFault);
   expect(() => checkData(some, known, [answer(page0, 200)])).toThrow(DataFault);
   expect(() => checkData(some, known, [])).toThrow(DataFault);
+});
+
+test('the tanker list gives the IMO number, the name and the GFW vessel ids of each counted tanker', () => {
+  const [a, b] = [1, 2].map(uuid) as [string, string];
+  const full = {
+    claims: [claim(a, 'imo', '9000001'), claim(b, 'imo', '9000002')],
+    entities: [
+      { id: a, label: 'ALPHA' },
+      { id: b, label: 'BRAVO' },
+    ],
+  } as unknown as ReleaseRecord;
+  const tankers: readonly Tanker[] = [
+    { imo: '9000001', j0: '2025-01-01' },
+    { imo: '9000002', j0: '2025-01-01' },
+  ];
+  expect(tankerListRows(full, tankers, new Map([['9000001', ['x', 'y']]]))).toEqual([
+    ['9000001', 'ALPHA', 'x;y'],
+    ['9000002', 'BRAVO', ''],
+  ]);
 });
