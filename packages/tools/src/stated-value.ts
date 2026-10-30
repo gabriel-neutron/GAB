@@ -448,6 +448,7 @@ const JURISDICTION_KEY = 'registration_jurisdiction';
 // holds the code. A source writes the name, so the code is stated by any of its spellings.
 export const JURISDICTION_SPELLINGS: Readonly<Record<string, readonly string[]>> = {
   RU: ['RU', 'Russia', 'Russian Federation', 'Россия', 'Российская Федерация', 'РФ'],
+  CY: ['CY', 'Cyprus', 'Republic of Cyprus', 'Кипр', 'Республика Кипр'],
 };
 
 const jurisdictionCode = (value: Scalar): string | null => {

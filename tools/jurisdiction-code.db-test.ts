@@ -199,3 +199,22 @@ test('migration 0079 writes RU for each Russian company, and keeps the count, th
   expect(found.after.russia.act_value).toBe('Russia');
   expect(found.after.belarus.value).toBe('Belarus');
 });
+
+test('migration 0090 writes CY for each Cyprus company, and keeps the documents and the act', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    await ask('ALTER TABLE public.entities DISABLE TRIGGER entities_coded_jurisdiction');
+    const cyprus = await company(ask, 'A Cyprus company of the migration', 'Cyprus');
+    await ask('ALTER TABLE public.entities ENABLE ALWAYS TRIGGER entities_coded_jurisdiction');
+    const before = await held(ask, cyprus.target_id);
+    await ask(
+      await readFile(
+        join(import.meta.dirname, '..', 'db', 'migrations', '0090_jurisdiction_cyprus.sql'),
+        'utf8',
+      ),
+    );
+    await ask('RESET ROLE');
+    return { before, after: await held(ask, cyprus.target_id) };
+  });
+  expect(found.after).toStrictEqual({ ...found.before, value: 'CY' });
+  expect(found.after.act_value).toBe('Cyprus');
+});
