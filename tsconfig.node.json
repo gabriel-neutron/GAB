@@ -10,9 +10,7 @@
     // that never runs, and it reads a CommonJS plugin as having no default export when the
     // plugin does have one.
     "module": "preserve",
-    // `vite/client` declares the asset modules: `.storybook/preview.ts` imports the stylesheet for its
-    // side effect, and `noUncheckedSideEffectImports` demands a declaration.
-    "types": ["node", "vite/client"],
+    "types": ["node"],
 
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
 
@@ -22,14 +20,10 @@
   },
   // `vitest.config.ts` is a root configuration file like the other two, and Vitest reads it the
   // same way Vite reads its own.
-  // `.storybook/` is named, not matched: TypeScript drops a path segment that begins with a dot
-  // when it expands `include`, and reports TS18003.
   "include": [
     "vite.config.ts",
     "eslint.config.ts",
     "vitest.config.ts",
-    ".storybook/main.ts",
-    ".storybook/preview.ts",
     "tools/**/*.ts",
     // A command loads the committed fixture, so this target reads it as well as the browser one.
     // The fixture is typed by the shapes of the record, so this target reads those too.

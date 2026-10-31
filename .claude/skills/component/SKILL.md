@@ -1,6 +1,6 @@
 ---
 name: component
-description: Read before you write or edit a component, a story, a derivation or a route, before you touch a live canvas, and when a ticket names a component or a step of a surface. Holds the placement, depth, state, type, story and visual rules that every component shares.
+description: Read before you write or edit a component, a derivation or a route, before you touch a live canvas, and when a ticket names a component or a step of a surface. Holds the placement, depth, state, type and visual rules that every component shares.
 ---
 
 # Build one component
@@ -17,8 +17,7 @@ density, the parts of the kit and the lint set. A value copied here goes stale i
 2. **Place the file.** See *Placement*.
 3. **Write the component.** Read *What to write* first. Your instinct writes the left column.
    Logic that needs its own unit test goes in a `.ts` beside it.
-4. **Write a story** for a page, and for a part with real logic. See *The story*.
-5. **Run the check command, then the test command**, then answer *Before you report*.
+4. **Run the check command, then the test command**, then answer *Before you report*.
 
 **Decide, and continue.** Search the code for a precedent, take the simplest option, and note it in
 your report. Ask the operator only a product question (`docs/authoring.md`). A conflict with an
@@ -131,23 +130,6 @@ Each line was a defect in a prototype, and each one is invisible in a review.
 | Take a mark from the thing itself | Take it from the list it was placed in |
 | Match the credit on screen to the ground on screen | Cover it with a floating control |
 
-## The story
-
-A story is the authoring format of a component check, and not a second test runner.
-
-| Do | Do not |
-|---|---|
-| Write a story for each page, and for a part with real logic. Name the export for the criterion it proves | Write a story file for a very small part that a page story already covers, or `Primary`, `WithProps` |
-| Follow CSF, and copy the shape from a story already in the tree | Break the format. The indexer throws before the first test starts |
-| Await every matcher, and take `expect` from the story test package | Use the Vitest `expect`, or drop an `await` |
-| Assert a role, an accessible name, the text, or a `data-` attribute | Assert a class name or a colour |
-| Fix a component that reads the router, `localStorage` or the theme, so it takes props | Wrap a story in a provider |
-| Set the theme class in the story that proves the dark paint | Rely on a theme decorator. The preview declares none |
-| Set the size where size is part of the contract | Leave a 24 rem rail at `centered` |
-| Import the same read module the caller imports | Invent data a derivation would never produce |
-| Keep the story beside its component | Create a top-level stories folder |
-| Story the panels beside a live canvas | Mount a live canvas. [`CANVAS.md`](CANVAS.md) holds the reason |
-
 ## Comments
 
 The code says what it does. A comment earns its place in three cases only, and in no other:
@@ -164,8 +146,8 @@ A comment carries no path, no `§` and no ticket number. Carry the reference in 
 
 ## Before you report
 
-1. Quote the "Works when" of the ticket. For each clause, name the story that proves it, or write
-   `no story can reach this` and say what does.
+1. Quote the "Works when" of the ticket. For each clause, name the test that proves it, or write
+   `no test can reach this` and say what does.
 2. Count the rules the ticket and the files you touched state, and give the count. Name only the
    rule this component fails.
 3. Give every count this document asks for: props, exports, `useEffect`, `useState`.
@@ -173,4 +155,4 @@ A comment carries no path, no `§` and no ticket number. Carry the reference in 
 5. The check command passes and the test command passes.
 
 Report what you changed, the checks you ran and each choice you made. Reach for
-the visual check agent only for what a story cannot hold: the live canvas, and a whole route.
+the visual check agent for the rendered result: the live canvas, and a whole route.

@@ -12,7 +12,7 @@ import type { ReleaseClaim, ReleaseRecord } from './release-record.ts';
 import { readReleaseTable, readReleaseTables } from './release-table.ts';
 import { readVolumeTable } from './volume-table.ts';
 
-// The fixed release that the offline tests and the stories of the application read. The release
+// The fixed release that the offline tests of the application read. The release
 // code writes it, so the site reads the files as a release gives them. Run this test with `-u`
 // after a change of a release file to write the fixture again.
 

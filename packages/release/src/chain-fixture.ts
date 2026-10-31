@@ -1,4 +1,4 @@
-// A small chain of assets for the tests and the stories of the map: fields, a pipeline, a refinery,
+// A small chain of assets for the tests of the map: fields, a pipeline, a refinery,
 // two export places, two assets outside Russia, two vessels, two assets with no position, the physical links between them, and
 // a volume for some links. The names and the positions are made for the test. They are not data
 // of the record. The rows go on top of the fixed release, which holds no physical link.
