@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -246,6 +254,10 @@ describe.each([
       titles.add(title ?? '');
       expect(html).toMatch(/<meta name="description" content="[^"]+" \/>/u);
       const folder = file.slice(0, -'index.html'.length);
+      if (html.includes('content="noindex')) {
+        expect(html).not.toContain('rel="canonical"');
+        continue;
+      }
       expect(html).toContain(
         `<link rel="canonical" href="${folder === '' ? SITE : `${SITE}${folder}`}" />`,
       );
@@ -281,7 +293,7 @@ describe.each([
     expect(dataset['license']).toBe('https://creativecommons.org/licenses/by/4.0/');
     expect(dataset['dateModified']).toBe(release.manifest.date);
     expect(dataset['distribution']).toHaveLength(release.manifest.files.length);
-    expect(dataset['contactPoint']).toHaveLength(2);
+    expect((dataset['publisher'] as { contactPoint: unknown[] }).contactPoint).toHaveLength(2);
     const entity = release.entities[0];
     expect(page(entityPage(entity?.id ?? ''))).toContain(`"name":${JSON.stringify(entity?.label)}`);
   });
@@ -316,6 +328,65 @@ describe.each([
       expect.arrayContaining(['192x192', '512x512']),
     );
   });
+});
+
+describe('the files for crawlers in other builds', () => {
+  test(
+    'a build for a folder of a host keeps the folder in each absolute address and each link',
+    async () => {
+      vi.stubEnv('SITE_BASE', '/gab/');
+      let folder: Site;
+      try {
+        folder = await writeOf('release');
+      } finally {
+        vi.unstubAllEnvs();
+      }
+      const base = `${SITE}gab/`;
+      expect(readFileSync(join(folder.root, 'sitemap.xml'), 'utf8')).toContain(
+        `<loc>${base}ai-use/</loc>`,
+      );
+      expect(readFileSync(join(folder.root, 'robots.txt'), 'utf8')).toContain(
+        `Sitemap: ${base}sitemap.xml`,
+      );
+      expect(readFileSync(join(folder.root, 'llms.txt'), 'utf8')).toContain(`(${base}release/`);
+      const html = folder.page('help/index.html');
+      expect(html).toContain(`<link rel="canonical" href="${base}help/" />`);
+      expect(html).toContain(`content="${base}og-image.png"`);
+      expect(html).toContain('href="/gab/favicon.svg"');
+      expect(html).toContain('href="/gab/site.webmanifest"');
+    },
+    BUILD_TIMEOUT,
+  );
+
+  test(
+    'a release with no iriBase writes robots.txt and no sitemap, no llms.txt and no absolute tag',
+    async () => {
+      const release = mkdtempSync(join(tmpdir(), 'gab-release-'));
+      for (const [name, text] of filesOf(join(FIXTURES, 'release')))
+        writeFileSync(
+          join(release, name),
+          name === 'manifest.json'
+            ? text.replace('"iriBase": "https://gab.example.org/"', '"iriBase": ""')
+            : text,
+        );
+      const root = join(mkdtempSync(join(tmpdir(), 'gab-site-')), 'site');
+      const note = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      try {
+        await writeSite(release, root);
+        expect(note).toHaveBeenCalledWith(expect.stringContaining('has no usable iriBase'));
+      } finally {
+        note.mockRestore();
+      }
+      expect(existsSync(join(root, 'robots.txt'))).toBe(true);
+      expect(readFileSync(join(root, 'robots.txt'), 'utf8')).not.toContain('Sitemap');
+      for (const name of ['sitemap.xml', 'llms.txt'])
+        expect(existsSync(join(root, name))).toBe(false);
+      const html = readFileSync(join(root, 'help/index.html'), 'utf8');
+      expect(html).not.toContain('rel="canonical"');
+      expect(html).toMatch(/<meta name="description" content="[^"]+" \/>/u);
+    },
+    BUILD_TIMEOUT,
+  );
 });
 
 describe('a site that cannot be written', () => {

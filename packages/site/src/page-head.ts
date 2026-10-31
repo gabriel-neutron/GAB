@@ -48,12 +48,16 @@ export const datasetOf = (manifest: SiteManifest, site: string): Record<string, 
     name: file.path,
     contentUrl: `${site}release/${file.path}`,
     encodingFormat: formatOf(file.path),
-    sha256: file.sha256,
+    description: `SHA-256 checksum: ${file.sha256}`,
   })),
-  contactPoint: [
-    contactPoint('Report an error', manifest.contacts.reportError),
-    contactPoint('Right of reply', manifest.contacts.rightOfReply),
-  ],
+  publisher: {
+    '@type': 'Organization',
+    name: SITE_NAME,
+    contactPoint: [
+      contactPoint('Report an error', manifest.contacts.reportError),
+      contactPoint('Right of reply', manifest.contacts.rightOfReply),
+    ],
+  },
 });
 
 export interface PageHead {
@@ -82,7 +86,8 @@ export const pageHead = (head: PageHead): string => {
   const description = escapeHtml(head.description);
   const tags = [`<meta name="description" content="${description}" />`];
   if (head.noindex) tags.push('<meta name="robots" content="noindex, follow" />');
-  if (head.site !== null) {
+  // A page that is not in a search result has no canonical address and no preview tags.
+  if (head.site !== null && !head.noindex) {
     const address = escapeHtml(canonicalOf(head.site, head.folder));
     const image = escapeHtml(`${head.site}${IMAGE.file}`);
     tags.push(

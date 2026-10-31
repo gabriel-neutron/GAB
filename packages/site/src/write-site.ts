@@ -45,10 +45,10 @@ const TITLE_SUFFIX = ' · GAB dataset';
 
 // The pages that need a script and hold no permanent text: the shell opens them as it is. Each one
 // has its own title, and none is in a search result, because a page with no data gives nothing to find.
-const SCRIPT_PAGES = {
+const SCRIPT_PAGES: Readonly<Record<string, string>> = {
   graph: 'Graph',
   search: 'Search',
-} as const;
+};
 
 const DESCRIPTION_OF_SCRIPT_PAGE =
   'This page of the GAB dataset needs a script to show its data. The pages of the entities, relations and claims hold the same facts as text.';
@@ -319,10 +319,11 @@ const renameWithRetry = async (from: string, to: string): Promise<void> => {
   }
 };
 
-/** A title that no earlier page has. A second page with the same text gets its folder in the end. */
-const uniqueTitle = (title: string, used: Set<string>): string => {
-  let one = title;
-  for (let count = 2; used.has(one); count += 1) one = `${title} (${String(count)})`;
+/** A title that no earlier page has. A second page with the same text gets the last part of its folder, which is its identifier. */
+const uniqueTitle = (title: string, used: Set<string>, folder: string): string => {
+  let one = used.has(title) ? `${title} (${basename(folder)})` : title;
+  for (let count = 2; used.has(one); count += 1)
+    one = `${title} (${basename(folder)} ${String(count)})`;
   used.add(one);
   return one;
 };
@@ -399,7 +400,11 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
       let text = shell;
       if (page.kind === 'merged' && page.survivor !== undefined) {
         const merged = mergedPage(base, page.survivor);
-        const title = uniqueTitle(`Merged entity ${basename(page.folder)}${TITLE_SUFFIX}`, used);
+        const title = uniqueTitle(
+          `Merged entity ${basename(page.folder)}${TITLE_SUFFIX}`,
+          used,
+          page.folder,
+        );
         text = text
           .replace(SHELL_TITLE, () => `<title>${escapeHtml(title)}</title>`)
           .replace('</head>', () =>
@@ -420,8 +425,9 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
           .replace(SHELL_ROOT, () => `<div id="root">${merged.html}</div>`);
       } else if (page.kind === 'script') {
         const title = uniqueTitle(
-          `${SCRIPT_PAGES[page.folder as keyof typeof SCRIPT_PAGES]}${TITLE_SUFFIX}`,
+          `${SCRIPT_PAGES[page.folder] ?? page.folder}${TITLE_SUFFIX}`,
           used,
+          page.folder,
         );
         text = text
           .replace(SHELL_TITLE, () => `<title>${escapeHtml(title)}</title>`)
@@ -441,7 +447,7 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
       } else if (page.kind === 'text') {
         const one = rendered.get(page.folder);
         if (one === undefined) throw new Error(`the page ${page.folder} was not rendered`);
-        const title = uniqueTitle(one.title, used);
+        const title = uniqueTitle(one.title, used, page.folder);
         const noindex = page.sendsTo !== undefined;
         if (!noindex) sitemap.push(page.folder);
         text = text
@@ -456,7 +462,7 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
                 site,
                 folder: page.folder,
                 noindex,
-                structured: structuredOf(page.folder, title, manifest, site),
+                structured: structuredOf(page.folder, one.title, manifest, site),
               }),
               page.sendsTo === undefined ? '' : refreshTo(base, page.sendsTo),
               '</head>',
