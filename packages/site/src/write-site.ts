@@ -1,13 +1,18 @@
 import { access, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 
 import { build, createServer } from 'vite';
 import { z } from 'zod';
 
+import { llmsTxt } from '@gab/release/llms-txt';
 import { REPORT_FILES } from '@gab/release/report-files';
+import { robotsTxt, siteAddress, sitemapFiles } from '@gab/release/site-crawl';
 import { claimPage, entityPage, relationPage, vesselPage } from '@gab/release/site-paths';
+import type { SiteManifest } from '@gab/release/site-manifest';
 import { readSiteRelease, type SiteRelease } from '@gab/release/site-release';
 import { SiteReleaseFault } from '@gab/release/site-release-fault';
+
+import { canonicalOf, datasetOf, escapeHtml, pageHead } from './page-head.ts';
 
 /** A site of the same release is in the folder already. */
 export class SiteFolderExists extends Error {}
@@ -38,8 +43,15 @@ const SHELL_ROOT = '<div id="root"></div>';
 const SHELL_TITLE = /<title>[^<]*<\/title>/u;
 const TITLE_SUFFIX = ' · GAB dataset';
 
-// The pages that need a script and hold no permanent text: the shell opens them as it is.
-const SCRIPT_PAGES = ['graph', 'search'] as const;
+// The pages that need a script and hold no permanent text: the shell opens them as it is. Each one
+// has its own title, and none is in a search result, because a page with no data gives nothing to find.
+const SCRIPT_PAGES: Readonly<Record<string, string>> = {
+  graph: 'Graph',
+  search: 'Search',
+};
+
+const DESCRIPTION_OF_SCRIPT_PAGE =
+  'This page of the GAB dataset needs a script to show its data. The pages of the entities, relations and claims hold the same facts as text.';
 
 const fileManifest = z.object({
   files: z.array(z.object({ path: z.string().regex(/^[\w-][\w.-]*$/u) })),
@@ -95,13 +107,6 @@ const readReportFolder = async (): Promise<ReadonlyMap<string, string>> => {
   );
 };
 
-const escapeHtml = (text: string): string =>
-  text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-
 /** One page of the site: the folder of its file from the root of the site (empty for the home
  * page), and how it opens. */
 interface Page {
@@ -130,7 +135,8 @@ const pagesOf = (release: SiteRelease): readonly Page[] => {
     { folder: 'nodes', kind: 'text' },
     { folder: 'glossary', kind: 'text' },
     { folder: 'help', kind: 'text' },
-    ...SCRIPT_PAGES.map((folder) => ({ folder, kind: 'script' as const })),
+    { folder: 'ai-use', kind: 'text' },
+    ...Object.keys(SCRIPT_PAGES).map((folder) => ({ folder, kind: 'script' as const })),
   ];
   for (const entity of release.entities)
     pages.push({ folder: folderOf(entityPage(entity.id)), kind: 'text' });
@@ -313,6 +319,56 @@ const renameWithRetry = async (from: string, to: string): Promise<void> => {
   }
 };
 
+/** A title that no earlier page has. A second page with the same text gets the last part of its folder, which is its identifier. */
+const uniqueTitle = (title: string, used: Set<string>, folder: string): string => {
+  let one = used.has(title) ? `${title} (${basename(folder)})` : title;
+  for (let count = 2; used.has(one); count += 1)
+    one = `${title} (${basename(folder)} ${String(count)})`;
+  used.add(one);
+  return one;
+};
+
+/** The structured data of a page: the dataset on the home page and the downloads, and the name of
+ * the entity on the page of an entity. */
+const structuredOf = (
+  folder: string,
+  title: string,
+  manifest: SiteManifest,
+  site: string | null,
+): readonly Record<string, unknown>[] => {
+  if (site === null) return [];
+  if (folder === '' || folder === 'downloads') return [datasetOf(manifest, site)];
+  if (folder.startsWith('entity/'))
+    return [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Thing',
+        name: title.endsWith(TITLE_SUFFIX) ? title.slice(0, -TITLE_SUFFIX.length) : title,
+        url: canonicalOf(site, folder),
+        isPartOf: { '@id': `${site}#dataset` },
+      },
+    ];
+  return [];
+};
+
+/** Writes `robots.txt` always, and the sitemap and `llms.txt` when the site has an absolute
+ * address. The sitemap lists the pages that a search result may hold: the pages with a text, and
+ * none of the pages that send the reader to another page. */
+const writeCrawlFiles = async (
+  folder: string,
+  manifest: SiteManifest,
+  site: string | null,
+  sitemapFolders: readonly string[],
+): Promise<void> => {
+  const files = new Map<string, string>([['robots.txt', robotsTxt(site)]]);
+  if (site !== null) {
+    const addresses = sitemapFolders.map((one) => canonicalOf(site, one));
+    for (const [name, text] of sitemapFiles(addresses, manifest.date, site)) files.set(name, text);
+    files.set('llms.txt', llmsTxt(manifest, site));
+  }
+  for (const [name, text] of files) await writeFile(join(folder, name), text);
+};
+
 const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promise<void> => {
   if (await exists(siteFolder))
     throw new SiteFolderExists(
@@ -331,24 +387,83 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
     if (!shell.includes(SHELL_ROOT) || !SHELL_TITLE.test(shell))
       throw new Error('the shell of the application has an unexpected form');
     const rendered = await renderPages(files, pages, base, report);
+    const { manifest } = readSiteRelease(files);
+    const site = siteAddress(manifest.iriBase, base);
+    if (site === null)
+      console.error(
+        `The release has no usable iriBase ("${manifest.iriBase}"). The site has no sitemap, no ` +
+          'llms.txt, no canonical address and no preview tags, because each needs an absolute address.',
+      );
+    const used = new Set<string>();
+    const sitemap: string[] = [];
     for (const page of pages) {
       let text = shell;
       if (page.kind === 'merged' && page.survivor !== undefined) {
         const merged = mergedPage(base, page.survivor);
+        const title = uniqueTitle(
+          `Merged entity ${basename(page.folder)}${TITLE_SUFFIX}`,
+          used,
+          page.folder,
+        );
         text = text
-          .replace(SHELL_TITLE, () => `<title>Merged entity${TITLE_SUFFIX}</title>`)
-          .replace('</head>', () => `${merged.head}</head>`)
+          .replace(SHELL_TITLE, () => `<title>${escapeHtml(title)}</title>`)
+          .replace('</head>', () =>
+            [
+              merged.head,
+              pageHead({
+                title,
+                description:
+                  'A short page that sends the reader to the entity that survived a merge.',
+                site,
+                folder: page.folder,
+                noindex: true,
+                structured: [],
+              }),
+              '</head>',
+            ].join(''),
+          )
           .replace(SHELL_ROOT, () => `<div id="root">${merged.html}</div>`);
+      } else if (page.kind === 'script') {
+        const title = uniqueTitle(
+          `${SCRIPT_PAGES[page.folder] ?? page.folder}${TITLE_SUFFIX}`,
+          used,
+          page.folder,
+        );
+        text = text
+          .replace(SHELL_TITLE, () => `<title>${escapeHtml(title)}</title>`)
+          .replace('</head>', () =>
+            [
+              pageHead({
+                title,
+                description: DESCRIPTION_OF_SCRIPT_PAGE,
+                site,
+                folder: page.folder,
+                noindex: true,
+                structured: [],
+              }),
+              '</head>',
+            ].join(''),
+          );
       } else if (page.kind === 'text') {
         const one = rendered.get(page.folder);
         if (one === undefined) throw new Error(`the page ${page.folder} was not rendered`);
+        const title = uniqueTitle(one.title, used, page.folder);
+        const noindex = page.sendsTo !== undefined;
+        if (!noindex) sitemap.push(page.folder);
         text = text
-          .replace(SHELL_TITLE, () => `<title>${escapeHtml(one.title)}</title>`)
+          .replace(SHELL_TITLE, () => `<title>${escapeHtml(title)}</title>`)
           .replace('</head>', () =>
             [
-              one.description === null
-                ? ''
-                : `<meta name="description" content="${escapeHtml(one.description)}" />`,
+              pageHead({
+                title,
+                description:
+                  one.description ??
+                  `${title}: a page of the GAB dataset, with the entities, relations and claims of a release and the documents that state them.`,
+                site,
+                folder: page.folder,
+                noindex,
+                structured: structuredOf(page.folder, one.title, manifest, site),
+              }),
               page.sendsTo === undefined ? '' : refreshTo(base, page.sendsTo),
               '</head>',
             ].join(''),
@@ -359,6 +474,7 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
       await mkdir(dirname(file), { recursive: true });
       await writeFile(file, text);
     }
+    await writeCrawlFiles(partial, manifest, site, sitemap);
     await renameWithRetry(partial, siteFolder);
   } catch (fault) {
     await rm(partial, { recursive: true, force: true });

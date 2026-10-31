@@ -28,7 +28,7 @@ list that repeats the code.
 
 **The test:** if a normal code commit can make a sentence false, delete the sentence.
 
-A how-to guide (`deploy.md`, a runbook) is the one exception: it can name the commands and the
+A how-to guide (a runbook) is the one exception: it can name the commands and the
 variables that the reader must type.
 
 | Write this | Not this |

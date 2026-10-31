@@ -74,13 +74,12 @@ PowerShell, set the variable first:
 ### Run the full stack
 
 1. Copy `infra/.env.example` to `infra/.env` and set the values. The raw store keys and the
-   operator key are necessary. `infra/README.md` and `docs/deploy.md` tell how to set them.
+   operator key are necessary. `infra/README.md` tells how to set them.
 2. Start the services: `docker compose -f infra/docker-compose.yml up -d`.
 3. Build the database: `pnpm db:migrate`, then `pnpm db:apply`.
 4. Start the writer (`pnpm writer`) and the interface (`pnpm dev`).
 
-[`infra/README.md`](infra/README.md) tells what each service does. [`docs/deploy.md`](docs/deploy.md)
-tells how to run the worker, write a release and publish the site.
+[`infra/README.md`](infra/README.md) tells what each service does.
 
 ### Connect a research AI
 

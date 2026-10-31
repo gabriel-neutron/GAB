@@ -422,7 +422,7 @@ const REFUSED_OBSERVATIONS: readonly (readonly [string, unknown])[] = [
   ],
   [
     'a code list outside the list',
-    { ...OBSERVATIONS, rows: { ...OBSERVATIONS.rows, reporter: { column: 'geo', codes: 'm49' } } },
+    { ...OBSERVATIONS, rows: { ...OBSERVATIONS.rows, reporter: { column: 'geo', codes: 'nuts' } } },
   ],
   ['no method', { ...OBSERVATIONS, rows: { ...OBSERVATIONS.rows, method: ' ' } }],
 ];

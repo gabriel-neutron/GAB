@@ -5847,6 +5847,9 @@ DECLARE
   v_pos        int;
   v_col        int;
   v_celltext   text;
+  v_json       boolean;
+  v_members    jsonb;
+  v_data       json;
 BEGIN
   SELECT j.document_id, p.payload, p.id, coalesce(v.licence, 'restricted'),
          coalesce(v.name, p.payload->>'publisher', p.payload->>'table'),
@@ -5889,6 +5892,10 @@ BEGIN
   -- of the document decides.
   v_tab := v_set NOT LIKE 'xlsx-1|%' AND v_set NOT LIKE 'geojson-1|%'
            AND v_mime = 'text/tab-separated-values';
+  -- A JSON answer with a `data` list of objects (UN Comtrade) is a table of one row for each
+  -- element. The type of the document decides, as it does for a TSV.
+  v_json := v_set NOT LIKE 'xlsx-1|%' AND v_set NOT LIKE 'geojson-1|%'
+            AND (v_mime = 'application/json' OR v_mime LIKE '%+json');
 
   FOR v_row IN SELECT value FROM jsonb_array_elements(p_rows) LOOP
     v_no := v_no + 1;
@@ -5942,7 +5949,7 @@ BEGIN
       -- never the first of a doubled quote, and the text after a closing quote stays in the field. The expression of one record is matched in C, so the
       -- page is read once for each batch.
       -- A wide table needs the record starts, to count the position of a row.
-      v_quotes := NOT v_tab AND (v_wide OR strpos(v_text, '"') > 0);
+      v_quotes := NOT v_tab AND NOT v_json AND (v_wide OR strpos(v_text, '"') > 0);
       v_starts := NULL;
       v_ix := 1;
       IF v_quotes THEN
@@ -5956,8 +5963,47 @@ BEGIN
                    '(?:\r\n|\r|\n|$))', 'g') WITH ORDINALITY AS r(m, n)
            ORDER BY r.n);
       END IF;
-      -- Origin of the number: decided, not calibrated. A header is far shorter.
-      v_header := public.table_record(left(v_text, 100000), v_tab, false);
+      IF v_json THEN
+        -- The page must be what the reader of the tools reads: a JSON object with a `data` list of
+        -- objects, each with distinct keys that are not blank. A page that is not one is a fault
+        -- of the load.
+        IF NOT pg_input_is_valid(regexp_replace(v_text, '^﻿', ''), 'json')
+           OR json_typeof(regexp_replace(v_text, '^﻿', '')::json) IS DISTINCT FROM 'object'
+           OR json_typeof(regexp_replace(v_text, '^﻿', '')::json -> 'data')
+              IS DISTINCT FROM 'array' THEN
+          RAISE EXCEPTION 'page % of document % is not an answer with a data list of objects',
+            v_row->>'page', v_document
+            USING ERRCODE = 'invalid_parameter_value';
+        END IF;
+        v_data := regexp_replace(v_text, '^﻿', '')::json -> 'data';
+        IF EXISTS (
+          SELECT 1 FROM json_array_elements(v_data) AS a(el)
+           WHERE json_typeof(a.el) <> 'object'
+              OR (SELECT count(*) <> count(DISTINCT e.key) OR bool_or(btrim(e.key) = '')
+                    FROM json_each_text(a.el) AS e(key, value))) THEN
+          RAISE EXCEPTION 'page % of document % holds an element that is no object, or a key that is blank or twice in one element',
+            v_row->>'page', v_document
+            USING ERRCODE = 'invalid_parameter_value';
+        END IF;
+        -- The columns are the keys of the elements of the list, in the order of the first element
+        -- that holds each key: the order of the reader of the tools. The type json keeps the
+        -- order of the keys and the text of each element. Shortcut: the whole page is read for
+        -- each batch, so upgrade this when a page of figures is slow to load.
+        v_header := ARRAY(
+          SELECT s.k FROM (
+            SELECT e.key AS k, min(a.n::numeric * 100000000 + e.n) AS first_at
+              FROM json_array_elements(v_data) WITH ORDINALITY AS a(el, n)
+              CROSS JOIN LATERAL json_each_text(
+                CASE WHEN json_typeof(a.el) = 'object' THEN a.el END) WITH ORDINALITY AS e(key, value, n)
+             GROUP BY e.key) s
+           ORDER BY s.first_at);
+        -- A span of a JSON page is the text of one element of the list, and no other text.
+        v_members := (SELECT coalesce(jsonb_object_agg(md5(a.el::text), true), '{}'::jsonb)
+                        FROM json_array_elements(v_data) AS a(el));
+      ELSE
+        -- Origin of the number: decided, not calibrated. A header is far shorter.
+        v_header := public.table_record(left(v_text, 100000), v_tab, false);
+      END IF;
       -- The signature of the header is the one that the loader and the mapping compute: the
       -- SHA-256 of the JSON array of the trimmed names.
       IF v_header IS NULL OR '' = ANY (v_header)
@@ -5978,7 +6024,10 @@ BEGIN
     END IF;
     -- The span starts at the start of a line and ends at the end of a line, so it never cuts a
     -- field. A page starts with a mark of byte order, which is no part of a record.
-    IF v_bytes IS NULL THEN
+    IF v_json THEN
+      v_before := '';
+      v_after := '';
+    ELSIF v_bytes IS NULL THEN
       v_before := CASE WHEN v_start = 0 THEN '' ELSE substr(v_text, v_start, 1) END;
       v_after := substr(v_text, v_end + 1, 1);
     ELSE
@@ -6008,7 +6057,19 @@ BEGIN
     v_span := CASE WHEN v_bytes IS NULL THEN substr(v_text, v_start + 1, v_end - v_start)
                    ELSE convert_from(substring(v_bytes FROM v_start + 1 FOR v_end - v_start),
                                      'UTF8') END;
-    v_fields := public.table_record(v_span, v_tab, true);
+    IF v_json THEN
+      IF NOT (v_members ? md5(v_span)) THEN
+        RAISE EXCEPTION 'row %: the span is not one element of the data list', v_no
+          USING ERRCODE = 'data_exception';
+      END IF;
+      -- A null and a missing key give an empty cell, never a zero.
+      v_fields := ARRAY(
+        SELECT coalesce((SELECT e.value FROM json_each_text(v_span::json) AS e(key, value)
+                          WHERE e.key = h.name LIMIT 1), '')
+          FROM unnest(v_header) WITH ORDINALITY AS h(name, n) ORDER BY h.n);
+    ELSE
+      v_fields := public.table_record(v_span, v_tab, true);
+    END IF;
     IF v_fields IS NULL OR cardinality(v_fields) <> cardinality(v_header) THEN
       RAISE EXCEPTION 'row %: the span is not one record with the fields of the header', v_no
         USING ERRCODE = 'data_exception';
@@ -6525,6 +6586,55 @@ BEGIN
     RETURN 'filled';
   END IF;
   RETURN CASE WHEN v_provider = p_provider THEN 'same' ELSE 'other' END;
+END $$;
+
+-- HOW A FETCHED DOCUMENT WAS READ. A tool that reads a page names the certificate fingerprint that
+-- the server showed (only for a host with a certificate that the tool accepts for that host alone)
+-- and whether the stored bytes are the render of a browser. The same bytes are stored once, so a
+-- read of known bytes reaches the row of the first read. The door never changes a fingerprint that
+-- a row holds, and it never turns `rendered` off. Only a fetched row takes it. It answers what it
+-- found:
+--   filled       the row holds the new facts now;
+--   same         the row held these facts already;
+--   other        the row holds another fingerprint, and keeps it;
+--   not_fetched  the row is no fetched document, so it takes nothing.
+-- The row lock makes two reads of the same bytes write once.
+CREATE OR REPLACE FUNCTION fill_document_trace(
+  p_document    text,
+  p_fingerprint text,
+  p_rendered    boolean)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_kind        text;
+  v_fingerprint text;
+  v_rendered    boolean;
+BEGIN
+  IF p_fingerprint IS NOT NULL AND p_fingerprint !~ '^[0-9A-F]{2}(:[0-9A-F]{2}){31}$' THEN
+    RAISE EXCEPTION 'a certificate fingerprint is 32 pairs of upper-case hex digits with colons'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  SELECT d.kind, d.tls_fingerprint, d.rendered INTO v_kind, v_fingerprint, v_rendered
+    FROM public.documents d WHERE d.id = p_document::doc_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  IF v_kind NOT IN ('url', 'api') THEN
+    RETURN 'not_fetched';
+  END IF;
+  IF v_fingerprint IS NOT NULL AND p_fingerprint IS NOT NULL AND v_fingerprint <> p_fingerprint THEN
+    RETURN 'other';
+  END IF;
+  IF (v_fingerprint IS NOT NULL OR p_fingerprint IS NULL) AND (v_rendered OR NOT p_rendered) THEN
+    RETURN 'same';
+  END IF;
+  UPDATE public.documents
+     SET tls_fingerprint = coalesce(v_fingerprint, p_fingerprint),
+         rendered = v_rendered OR p_rendered
+   WHERE id = p_document::doc_id;
+  RETURN 'filled';
 END $$;
 
 -- THE ARCHIVE THAT HELD A FILE. A store tool unpacks a zip archive into one document for each

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AiUseRouteImport } from './routes/ai-use'
 import { Route as AtlasRouteImport } from './routes/atlas'
 import { Route as BibliographyRouteImport } from './routes/bibliography'
 import { Route as DownloadsRouteImport } from './routes/downloads'
@@ -31,6 +32,11 @@ import { Route as VesselImoRouteImport } from './routes/vessel.$imo'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiUseRoute = AiUseRouteImport.update({
+  id: '/ai-use',
+  path: '/ai-use',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AtlasRoute = AtlasRouteImport.update({
@@ -121,6 +127,7 @@ const VesselImoRoute = VesselImoRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ai-use': typeof AiUseRoute
   '/atlas': typeof AtlasRoute
   '/bibliography': typeof BibliographyRoute
   '/downloads': typeof DownloadsRoute
@@ -141,6 +148,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ai-use': typeof AiUseRoute
   '/atlas': typeof AtlasRoute
   '/bibliography': typeof BibliographyRoute
   '/downloads': typeof DownloadsRoute
@@ -162,6 +170,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ai-use': typeof AiUseRoute
   '/atlas': typeof AtlasRoute
   '/bibliography': typeof BibliographyRoute
   '/downloads': typeof DownloadsRoute
@@ -184,6 +193,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/ai-use'
     | '/atlas'
     | '/bibliography'
     | '/downloads'
@@ -204,6 +214,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/ai-use'
     | '/atlas'
     | '/bibliography'
     | '/downloads'
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/ai-use'
     | '/atlas'
     | '/bibliography'
     | '/downloads'
@@ -245,6 +257,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AiUseRoute: typeof AiUseRoute
   AtlasRoute: typeof AtlasRoute
   BibliographyRoute: typeof BibliographyRoute
   DownloadsRoute: typeof DownloadsRoute
@@ -271,6 +284,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-use': {
+      id: '/ai-use'
+      path: '/ai-use'
+      fullPath: '/ai-use'
+      preLoaderRoute: typeof AiUseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/atlas': {
@@ -397,6 +417,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AiUseRoute: AiUseRoute,
   AtlasRoute: AtlasRoute,
   BibliographyRoute: BibliographyRoute,
   DownloadsRoute: DownloadsRoute,
