@@ -4,6 +4,7 @@ import { PartDefault } from './part-default';
 import { IntroductionPart } from './introduction';
 import { MethodChronologyPart } from './method-chronology';
 import { PayPart } from './pay/pay-part';
+import { PortsFleetPart } from './ports-fleet/ports-fleet-part';
 import { SummaryPart } from './summary';
 
 /** The drawing of one part. It receives the part from the content, and renders a section whose
@@ -17,7 +18,7 @@ export const partComponents: Readonly<Record<string, PartComponent>> = {
   introduction: IntroductionPart,
   'method-chronology': MethodChronologyPart,
   pay: PayPart,
-  'ports-fleet': PartDefault,
+  'ports-fleet': PortsFleetPart,
   finance: PartDefault,
   fight: PartDefault,
   ownership: PartDefault,
