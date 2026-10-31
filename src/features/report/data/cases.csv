@@ -1,0 +1,50 @@
+chain,step_order,entity,country,evidence,source_type,source_year,document,page,listed
+Garpiya,1,"Xiamen Limbach Aircraft Engine Co., Ltd.",China,documented,official,2024,doc_eb6f1283c017,1,
+Garpiya,2,Redlepus Vector Industry Shenzhen Co Ltd,China,lead,official,2024,doc_eb6f1283c017,1,US
+Garpiya,2,GANZHOU GUANGWEI INTERNATIONAL TRADE CO LTD,China,documented,official,2025,doc_8fdb7041d58c,1,US
+Garpiya,2,REG AUTO SHANGHAI INDUSTRY LTD,China,documented,official,2025,doc_8fdb7041d58c,1,US
+Garpiya,2,Beijing Xichao International Technology and Trade,China,lead,research,2026,doc_342f39d91d5c,1,
+Garpiya,3,TSK Vektor OOO,Russia,documented,official,2024,doc_eb6f1283c017,1,US
+Garpiya,3,APEKSGRUP LIMITED LIABILITY COMPANY,Russia,documented,official,2025,doc_8fdb7041d58c,1,US
+Garpiya,3,LIMITED LIABILITY COMPANY ANGAR 22,Russia,documented,official,2025,doc_8fdb7041d58c,1,US
+Garpiya,3,AO IEMZ Kupol,Russia,documented,official,2024,doc_eb6f1283c017,1,EU US
+Garpiya,4,Garpiya,Russia,documented,official,2024,doc_eb6f1283c017,1,
+Garpiya,4,Garpiya-A1,Russia,lead,official,2025,doc_8fdb7041d58c,1,
+Orlan-10,1,Analog Devices,United States,documented,research,2022,doc_84f9d881513f,8,
+Orlan-10,2,"Ace Electronic (HK) Co., Limited",Hong Kong,lead,official,2024,doc_d2af6ce8e17e,1,US UK
+Orlan-10,2,"Guangzhou Ausay Technology Co., Limited",China,lead,official,2024,doc_de33b8bd1cdf,1,US
+Orlan-10,2,Yilufa Electronics Limited,China,lead,official,2024,doc_de33b8bd1cdf,1,US
+Orlan-10,2,"Shenzhen Biguang Trading Co., Ltd",China,lead,official,2024,doc_de33b8bd1cdf,1,US
+Orlan-10,2,"New Idea Guangzhou Technology Co., Ltd.",China,lead,official,2024,doc_de33b8bd1cdf,1,US
+Orlan-10,2,Asia Pacific Links,China,none,press,2022,doc_465432e6fcbd,1,
+Orlan-10,3,SMT-iLogic,Russia,documented,official,2024,doc_de33b8bd1cdf,1,US UK
+Orlan-10,3,STC (Специальный технологический центр),Russia,lead,research,2023,doc_ee02d890b96b,6,EU UK
+Orlan-10,4,Orlan-10,Russia,documented,research,2023,doc_ee02d890b96b,6,
+Geran-2 guidance,1,Taoglas,Ireland,documented,ukrainian-government-only,2026,doc_49308dee36e4,1,
+Geran-2 guidance,1,TE Connectivity,Ireland,documented,ukrainian-government-only,2026,doc_49308dee36e4,1,
+Geran-2 guidance,2,,China,lead,press,2026,doc_49308dee36e4,1,
+Geran-2 guidance,3,,Russia,lead,press,2026,doc_49308dee36e4,1,
+Geran-2 guidance,4,Geran-2,Russia,lead,press,2026,doc_49308dee36e4,1,
+Electrocom,1,,United States,lead,official,2023,doc_0fe0625a54e2,1,
+Electrocom,2,Astrafteros Technokosmos LTD,Cyprus,lead,official,2023,doc_0fe0625a54e2,1,BIS
+Electrocom,2,Ultra Trade Service LLC,Latvia,documented,official,2023,doc_0fe0625a54e2,1,BIS
+Electrocom,2,Juzhoi Electronic LLC,Tajikistan,documented,official,2023,doc_0fe0625a54e2,1,BIS
+Electrocom,3,LLC Electrocom VPK,Russia,documented,official,2023,doc_0fe0625a54e2,1,BIS
+Electrocom,4,,Russia,lead,official,2023,doc_0fe0625a54e2,1,
+SN-99 navigation,1,Spansion,United States,documented,research,2022,doc_9ce6de18c455,14,
+SN-99 navigation,1,Linear Technology Corporation,United States,documented,research,2022,doc_9ce6de18c455,14,
+SN-99 navigation,2,NVS Technologies AG,Switzerland,lead,research,2022,doc_9ce6de18c455,15,
+SN-99 navigation,2,,China,none,research,2025,doc_c2251a5cde1c,12,
+SN-99 navigation,3,AO KB NAVIS,Russia,documented,research,2022,doc_9ce6de18c455,15,US
+SN-99 navigation,4,Kh-101,Russia,documented,research,2022,doc_9ce6de18c455,12,
+SN-99 navigation,4,9M727,Russia,documented,research,2022,doc_9ce6de18c455,12,
+KAB servomotors,1,,China,documented,official,2025,doc_8fdb7041d58c,1,
+KAB servomotors,2,SHENZHEN UNISON BIO TECH CO LTD,China,lead,official,2025,doc_8fdb7041d58c,1,US
+KAB servomotors,2,SHENZHEN BIOSEN BIO TECH CO LTD,China,lead,official,2025,doc_8fdb7041d58c,1,US
+KAB servomotors,2,SHENZHEN YISHENGDA INTERNATIONAL TECHNOLOGY CO LTD,China,lead,official,2025,doc_8fdb7041d58c,1,US
+KAB servomotors,2,UNIHUI INTERNATIONAL LIMITED,Hong Kong,lead,official,2025,doc_8fdb7041d58c,1,US
+KAB servomotors,3,OMNITRADE,Russia,documented,official,2025,doc_8fdb7041d58c,1,US
+KAB servomotors,3,SV POLIMER,Russia,documented,official,2025,doc_8fdb7041d58c,1,US
+KAB servomotors,3,TRV Engineering JSC,Russia,documented,official,2025,doc_8fdb7041d58c,1,US
+KAB servomotors,3,Tactical Missiles Corporation JSC (KTRV),Russia,documented,official,2025,doc_8fdb7041d58c,1,EU UK US
+KAB servomotors,4,UMPK,Russia,documented,official,2025,doc_8fdb7041d58c,1,
