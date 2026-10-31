@@ -1,3 +1,5 @@
+import { join, resolve } from 'node:path';
+
 import { expect, test } from 'vitest';
 
 import {
@@ -69,18 +71,24 @@ test('only a gone stack of a worktree of the main checkout is an orphan', () => 
 });
 
 test('only a node script of the checkout stops, never this process, its parents or a tool server', () => {
-  const root = '/work/tree';
+  // The code under test resolves paths with node:path, so the paths here do the same. A POSIX
+  // literal would not match the resolved path on Windows.
+  const root = resolve('/work/tree');
   const files = new Set([
-    `${root}/packages/writer/src/main.ts`,
-    `${root}/node_modules/vite/bin/vite.js`,
-    `${root}/tools/stack.ts`,
+    join(root, 'packages/writer/src/main.ts'),
+    join(root, 'node_modules/vite/bin/vite.js'),
+    join(root, 'tools/stack.ts'),
   ]);
   const seen = [
     { pid: 10, cwd: root, argv: ['/usr/bin/node', '--env-file=x', 'packages/writer/src/main.ts'] },
-    { pid: 11, cwd: `${root}/src`, argv: ['node', `${root}/node_modules/vite/bin/vite.js`] },
+    {
+      pid: 11,
+      cwd: join(root, 'src'),
+      argv: ['node', join(root, 'node_modules/vite/bin/vite.js')],
+    },
     { pid: 12, cwd: root, argv: ['node', 'tools/stack.ts', 'down'] },
     { pid: 13, cwd: root, argv: ['node', '/opt/mcp.js', '--browser', 'chromium'] },
-    { pid: 14, cwd: '/work/other', argv: ['node', 'packages/writer/src/main.ts'] },
+    { pid: 14, cwd: resolve('/work/other'), argv: ['node', 'packages/writer/src/main.ts'] },
     { pid: 15, cwd: root, argv: ['bash', 'run.sh'] },
     { pid: 16, cwd: root, argv: ['node', '/usr/lib/node_modules/claude-code/cli.js', 'resume'] },
     { pid: 17, cwd: root, argv: ['/opt/claude/claude', '--output-format', 'stream-json'] },
