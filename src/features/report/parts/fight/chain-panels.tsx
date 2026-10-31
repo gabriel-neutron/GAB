@@ -85,6 +85,7 @@ export function ChainStrips({ active }: { readonly active: number | 'all' }) {
             {share.group}
           </li>
         ))}
+        <li className="whitespace-nowrap">One cell = 1 point, rounded</li>
       </ul>
     </div>
   );

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { fightUi, parts } from '../../content';
+import figures from '../../data/publication-figures.json';
 import {
+  arcChains,
   arcs,
   cellsOf,
   chainCount,
@@ -20,6 +22,19 @@ describe('fight copy', () => {
     expect(fight?.blocks.map((block) => block.text).join(' ')).toContain(fightUi.quote);
     for (const one of fightUi.numbers)
       expect(fight?.notes.find((note) => note.id === one.note)?.text).toContain(one.value);
+  });
+
+  it('puts the premium after the price paragraph (block 3), which cites a note of its value', () => {
+    const premium = fightUi.numbers[1];
+    const cited = [...(fight?.blocks[3]?.text.matchAll(/\[\^([^\]]+)\]/g) ?? [])].map((m) => m[1]);
+    expect(fight?.blocks[3]?.kind).toBe('p');
+    expect(
+      fight?.notes.some((note) => cited.includes(note.id) && note.text.includes(premium.value)),
+    ).toBe(true);
+  });
+
+  it('prints clean country names in figure 10b', () => {
+    for (const name of Object.keys(figures.f10b)) expect(name).not.toContain('Ã');
   });
 });
 
@@ -53,6 +68,8 @@ describe('chain data', () => {
   it('keeps the counts of figure 11 and draws no arc to a name without a place', () => {
     expect(routeCounts.steps).toBe(Object.values(routeCounts.hops).reduce((a, b) => a + b, 0));
     expect(arcs.every((arc) => arc.from.name !== arc.to.name)).toBe(true);
+    expect(arcChains.drawn).toBeLessThanOrEqual(arcChains.all);
+    expect(arcChains.all).toBeCloseTo(routeCounts.chains, 2);
     expect(totalsAt(2).length).toBeGreaterThan(0);
     expect(sites.every((site) => Number.isFinite(site.lat))).toBe(true);
   });

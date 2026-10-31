@@ -6,6 +6,7 @@ import { NodeRef } from '../../node-ref';
 import { StickyScene } from '../../primitives/sticky-scene';
 import { RichText } from '../../rich-text';
 import {
+  arcChains,
   arcs,
   brands,
   chainCount,
@@ -23,6 +24,10 @@ const STEPS = stages.length + 2;
 const ROUTES = stages.length;
 const BUYERS = stages.length + 1;
 const pad = (n: number) => String(n).padStart(2, '0');
+// shortcut: these two lines live here, not in content.ts, because content.ts is in another pull request.
+const ARC_NOTE =
+  'Map: arcs join the country of manufacture to the country of the intermediary. Chains with the same country or no named country are not drawn: the arcs carry {drawn} of the {all} chains.';
+const UNPLACED = 'Map: a group with no single place is not drawn.';
 
 // External constraint: a media query is the one way to read the width of the screen. 1024px is the
 // `lg` break of the stylesheet, where the map gets its own column beside the text.
@@ -139,12 +144,14 @@ const Figure = ({ value, label }: { readonly value: string; readonly label: stri
 );
 
 /** The text of the steps, one for each step, each with its own source. */
-function cards(figure: ReportBlock['figure'], partSlug: string): ReactNode[] {
+function cards(figure: ReportBlock['figure'], text: string, partSlug: string): ReactNode[] {
+  // The note marks of the figure block, so that a renumbered note follows the text.
+  const marks = (text.match(/\[\^[^\]]+\]/g) ?? []).join('');
   const routeSource = (
     <div className="mt-6 border-t border-divider pt-2">
       <p className="font-mono text-caption uppercase text-label">{copy.source}</p>
       <p className="mt-1 text-body-sm text-muted-foreground">
-        <RichText text={`${figure?.sources ?? ''}[^IV-43]`} partSlug={partSlug} />
+        <RichText text={`${figure?.sources ?? ''}${marks}`} partSlug={partSlug} />
       </p>
     </div>
   );
@@ -170,6 +177,7 @@ function cards(figure: ReportBlock['figure'], partSlug: string): ReactNode[] {
             </div>
           ))}
         </dl>
+        <p className="mt-2 font-mono text-data text-label">{UNPLACED}</p>
         {index === 0 ? (
           <div className="mt-4">
             <p className="font-mono text-caption uppercase text-label">{copy.brands}</p>
@@ -195,6 +203,12 @@ function cards(figure: ReportBlock['figure'], partSlug: string): ReactNode[] {
         label={copy.documentedLabel.replace('{steps}', String(routeCounts.steps))}
       />
       <p className="mt-4 font-mono text-data text-label">{copy.states}</p>
+      <p className="mt-2 font-mono text-data text-label">
+        {ARC_NOTE.replace('{drawn}', chainCount(arcChains.drawn)).replace(
+          '{all}',
+          chainCount(arcChains.all),
+        )}
+      </p>
       <div className="mt-6">
         <ChainTotals title={copy.byIntermediary} totals={totalsAt(0)} />
       </div>
@@ -242,14 +256,17 @@ function cards(figure: ReportBlock['figure'], partSlug: string): ReactNode[] {
  * map and strips on the right (on a phone and a tablet, above the text). */
 export function ChainStory({
   figure,
+  text,
   partSlug,
 }: {
   readonly figure: ReportBlock['figure'];
+  /** The text of the figure block, which holds its note marks. */
+  readonly text: string;
   readonly partSlug: string;
 }) {
   const reduce = useReducedMotion();
   const wide = useSyncExternalStore(onWidth, isWide, atRelease);
-  const steps = cards(figure, partSlug);
+  const steps = cards(figure, text, partSlug);
   return (
     <section
       aria-labelledby="fight-chain-title"

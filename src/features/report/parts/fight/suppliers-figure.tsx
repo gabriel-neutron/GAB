@@ -43,10 +43,15 @@ const f10b = Object.entries(figures.f10b as Readonly<Record<string, Points>>).so
 // One scale for the nine charts, so that a bar height compares across countries.
 const MAX_B = Math.max(...f10b.flatMap(([, points]) => points.map((point) => point[1] ?? 0)));
 
-// The event falls on 22 December: almost at the end of the 2023 column.
-const eventYear = Number(figures.f10event.slice(0, 4));
+// The event line stands at its day inside its year column.
+const eventDate = new Date(`${figures.f10event}T00:00:00Z`);
+const eventYear = eventDate.getUTCFullYear();
+const yearStart = Date.UTC(eventYear, 0, 1);
 const eventLeft =
-  ((YEARS.indexOf(eventYear as (typeof YEARS)[number]) + 355 / 365) / YEARS.length) * 100;
+  ((YEARS.indexOf(eventYear as (typeof YEARS)[number]) +
+    (eventDate.getTime() - yearStart) / (Date.UTC(eventYear + 1, 0, 1) - yearStart)) /
+    YEARS.length) *
+  100;
 
 const fmt = (value: number) => value.toLocaleString('en-US');
 
@@ -183,7 +188,10 @@ export function SuppliersFigure() {
           </li>
         </ul>
         {/* On a phone the nine charts are one column, so each chart keeps its values and years. */}
-        <ul className="mt-6 grid grid-cols-1 gap-y-8 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-10 md:grid-cols-3">
+        <ul
+          aria-hidden="true"
+          className="mt-6 grid grid-cols-1 gap-y-8 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-10 md:grid-cols-3"
+        >
           {f10b.map(([country, points], rank) => {
             return (
               <li key={country} className="min-w-0">
@@ -237,6 +245,29 @@ export function SuppliersFigure() {
             );
           })}
         </ul>
+        <table className="sr-only">
+          <caption>{copy.b}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{copy.country}</th>
+              {YEARS.map((year) => (
+                <th key={year} scope="col">
+                  {year}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {f10b.map(([country, points]) => (
+              <tr key={country}>
+                <th scope="row">{country}</th>
+                {YEARS.map((year) => (
+                  <td key={year}>{valueAt(points, year) ?? copy.noValueShort}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
