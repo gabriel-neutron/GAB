@@ -6,7 +6,6 @@ export type Point = { readonly x: number; readonly y: number; readonly hollow: b
 // Figure 4 counts months from December 2022, its first month.
 const FIRST_YEAR = 2022;
 const FIRST_MONTH = 12;
-const LAST_INDEX = 45;
 
 /** The place of a date ("2025-09" or "2025-09-03") on the month axis of figure 4. */
 export function monthIndex(date: string): number {
@@ -14,6 +13,13 @@ export function monthIndex(date: string): number {
   const days = new Date(Date.UTC(year, month, 0)).getUTCDate();
   return (year - FIRST_YEAR) * 12 + month - FIRST_MONTH + (day - 1) / days;
 }
+
+// The last month of the data of figure 4.
+const LAST_INDEX = Math.max(
+  ...[...figures.f4.brent, ...figures.f4.urals].map(([date]) =>
+    Math.floor(monthIndex(String(date))),
+  ),
+);
 
 /** One value for each month of figure 4; a month with no value stays null. */
 function monthly(rows: readonly (readonly (string | number)[])[]): Point[] {
