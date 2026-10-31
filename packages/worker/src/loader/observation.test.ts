@@ -100,3 +100,25 @@ test('a wide table refuses two rows with the same position or the same measure',
     ]),
   ).toBe(true);
 });
+
+test('a header that states one month twice gives no figure for that month', () => {
+  const text = ['Section,2018-01,2018M01,2018-02', 'Total,1,2,3'].join('\n');
+  const [head, ...records] = readCsv(text);
+  if (!isWideTable(wideDraft.rows)) throw new Error('the draft is a wide table');
+  const cells = wideCells(wideDraft.rows, head?.fields ?? [], records, { textSet: 's', page: 1 });
+  expect(
+    cells.map((cell) => ('refused' in cell ? cell.refused : cell.figure['period'])),
+  ).toStrictEqual([
+    'the header states the month 2018-01 twice',
+    'the header states the month 2018-01 twice',
+    '2018-02',
+  ]);
+});
+
+test('the span of a cell is the text of its field, without the white space around it', () => {
+  const text = ['Section,2018-01', 'Total,  5.5  '].join('\n');
+  const [head, ...records] = readCsv(text);
+  if (!isWideTable(wideDraft.rows)) throw new Error('the draft is a wide table');
+  const [cell] = wideCells(wideDraft.rows, head?.fields ?? [], records, { textSet: 's', page: 1 });
+  expect(cell && text.slice(cell.at.start, cell.at.end)).toBe('5.5');
+});

@@ -431,6 +431,92 @@ test.each([
   });
 });
 
+// A cell of a wide table that someone forged: the door reads the cell again from the cited row and
+// the header, and refuses a span that is not the cell of the named column. The second row of the
+// file is 'Oil,Revenue,40,,40,12.5': the 40 of 2018-01 and the 40 of the annual total look alike.
+const OIL = 'Oil,Revenue,40,,40,12.5';
+const OIL_AT = WIDE.indexOf(OIL);
+const OIL_ROW = { row_start: OIL_AT, row_end: OIL_AT + OIL.length };
+const MONTH_CELL = { start: OIL_AT + 'Oil,Revenue,'.length, end: OIL_AT + 'Oil,Revenue,40'.length };
+const TOTAL_CELL = {
+  start: OIL_AT + 'Oil,Revenue,40,,'.length,
+  end: OIL_AT + 'Oil,Revenue,40,,40'.length,
+};
+const WIDE_CELL = {
+  subject_id: null,
+  text_extractor: TEXT_SET,
+  page: 1,
+  position: 2,
+  column: '2018-01',
+  ...OIL_ROW,
+  ...MONTH_CELL,
+};
+
+const FORGED: readonly (readonly [string, Record<string, unknown>, RegExp])[] = [
+  ['a span moved to another column with the same text', TOTAL_CELL, /not the cell of the column/u],
+  ['a span that takes the comma before the cell', { start: MONTH_CELL.start - 1 }, /not the cell/u],
+  ['a wrong position', { position: 3 }, /at position 2, and the row cites position 3/u],
+  ['a position that the mapping does not read', { position: 4 }, /at position 2/u],
+  ['a wrong header name', { column: '2018-09' }, /no month of the header/u],
+  ['the annual total column', { column: 'Total 2018', ...TOTAL_CELL }, /no month of the header/u],
+  ['a span outside the row', { start: 0, end: 7 }, /outside the row/u],
+];
+
+const wideJob = async (held: Held, provider: string | null = null): Promise<string> => {
+  const { load } = await mappedFile(held, WIDE_DRAFT, provider, WIDE);
+  const claimed = await held.asRole('gabriel_agent', () =>
+    held.ask('SELECT job_id::text AS id FROM public.claim_job()'),
+  );
+  expect(claimed).toStrictEqual([{ id: load }]);
+  return load;
+};
+
+test('the door writes the cell of a wide table when the cell is the one that it names', async () => {
+  await inTransaction(async (held) => {
+    const job = await wideJob(held);
+    expect(await putAsAgent(held, job, [WIDE_CELL])).toStrictEqual([
+      { item: 1, outcome: 'written' },
+    ]);
+  });
+});
+
+test.each(FORGED)('the door refuses %s as a fault of one row', async (_name, change, sentence) => {
+  await inTransaction(async (held) => {
+    const job = await wideJob(held);
+    const fault = await faultOf(putAsAgent(held, job, [{ ...WIDE_CELL, ...change }]));
+    expect(fault.code).toBe('22000');
+    expect(fault.message).toMatch(sentence);
+  });
+});
+
+test('a figure with no reporter and a reporter system is refused by the table', async () => {
+  await inTransaction(async (held) => {
+    const job = await wideJob(held);
+    await putAsAgent(held, job, [WIDE_CELL]);
+    await held.ask('SAVEPOINT pair');
+    const fault = await faultOf(
+      held.client.query("UPDATE public.observation SET reporter_system = 'iso3166'"),
+    );
+    expect(fault.code).toBe('23514');
+    expect(fault.message).toMatch(/observation_reporter_pair/u);
+    await held.ask('ROLLBACK TO pair');
+  });
+});
+
+test('a release does not give a subject that the public read hides', async () => {
+  await inTransaction(async (held) => {
+    const job = await wideJob(held, 'eurostat');
+    await putAsAgent(held, job, [WIDE_CELL]);
+    // A subject has no foreign key. An entity that api.entity does not show reads as no subject.
+    await held.ask('UPDATE public.observation SET subject_id = gen_random_uuid()');
+    expect(
+      await held.asRole('gabriel_app', () =>
+        held.ask('SELECT subject_id FROM public.release_observations()'),
+      ),
+    ).toStrictEqual([{ subject_id: null }]);
+  });
+});
+
 // A CSV with a label in quotes that holds a comma and a doubled quote, a quote inside a plain field,
 // and text after a closing quote. The door reads each row with the rules of the table reader, so
 // each label stays one field and a stray quote moves no record start.

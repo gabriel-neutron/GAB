@@ -180,6 +180,11 @@ export const wideCells = (
     const period = periodOf(name, 'month');
     return period === null ? [] : [{ name, index, period }];
   });
+  // Two header cells can state one month (2023-01 and 2023M01). The load cannot tell which one
+  // is right, so it reads neither.
+  const twice = new Set(
+    months.map((one) => one.period).filter((period, at, all) => all.indexOf(period) !== at),
+  );
   const cells: WideCell[] = [];
   for (const [place, record] of records.entries()) {
     const position = place + 1;
@@ -198,8 +203,17 @@ export const wideCells = (
       const text = (record.fields[index] ?? '').trim();
       const span = record.cells[index];
       if (text === '' || span === undefined) continue;
-      const at = { row: position, start: span[0], end: span[1] };
-      if (text === '-') cells.push({ at, refused: `the source has no data for ${period} ("-")` });
+      // The cited span is the text of the field: the white space around an unquoted field is
+      // outside it. A quoted field keeps its quotes, and the door removes them.
+      const raw = record.fields[index] ?? '';
+      const quoted = Array.from(raw).length !== span[1] - span[0];
+      const first = quoted ? span[0] : span[0] + raw.length - raw.trimStart().length;
+      const last = quoted ? span[1] : first + Array.from(text).length;
+      const at = { row: position, start: first, end: last };
+      if (twice.has(period))
+        cells.push({ at, refused: `the header states the month ${period} twice` });
+      else if (text === '-')
+        cells.push({ at, refused: `the source has no data for ${period} ("-")` });
       else if (!NUMBER.test(text))
         cells.push({ at, refused: `the value "${text}" is not a number` });
       else
@@ -209,8 +223,8 @@ export const wideCells = (
             subject_id: null,
             text_extractor: cited.textSet,
             page: cited.page,
-            start: span[0],
-            end: span[1],
+            start: first,
+            end: last,
             row_start: record.start,
             row_end: record.end,
             position,

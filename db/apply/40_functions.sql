@@ -6051,10 +6051,15 @@ BEGIN
         RAISE EXCEPTION 'row %: the span of the cell lies outside the row', v_no
           USING ERRCODE = 'data_exception';
       END IF;
+      -- Strict: the span is the text of the field, and only the quotes of the CSV rule are removed
+      -- (a doubled quote is one quote). The white space around the field is outside the span.
       v_celltext := CASE WHEN v_bytes IS NULL THEN substr(v_text, v_cstart + 1, v_cend - v_cstart)
                          ELSE convert_from(substring(v_bytes FROM v_cstart + 1
                                                      FOR v_cend - v_cstart), 'UTF8') END;
-      IF btrim(btrim(v_celltext, E' \t\n\r\f\v'), '"') IS DISTINCT FROM v_cell
+      IF v_celltext ~ '^".*"$' AND char_length(v_celltext) >= 2 THEN
+        v_celltext := replace(substr(v_celltext, 2, char_length(v_celltext) - 2), '""', '"');
+      END IF;
+      IF v_celltext IS DISTINCT FROM v_cell
          OR cardinality(public.table_record(
               CASE WHEN v_bytes IS NULL THEN substr(v_text, v_start + 1, v_cstart - v_start)
                    ELSE convert_from(substring(v_bytes FROM v_start + 1 FOR v_cstart - v_start),
