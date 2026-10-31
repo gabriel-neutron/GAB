@@ -1,4 +1,4 @@
-// The Russian root certificate for listed hosts (#1021). A throwaway authority signs the
+// The Russian root certificate for listed hosts. A throwaway authority signs the
 // certificate of a local HTTPS server and plays the role of the Russian root.
 
 import { execFileSync } from 'node:child_process';
@@ -13,9 +13,22 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
 import { CATALOGUE } from './catalogue.ts';
 import { endMetadata } from './fetch-document.ts';
-import { FETCH_DAY, FIXTURE_HOST, fixtureLookup, memoryStore } from './fetch-fixture.ts';
+import {
+  FETCH_DAY,
+  FIXTURE_HOST,
+  fixtureLookup,
+  memoryStore,
+  startFixture,
+  type Fixture,
+} from './fetch-fixture.ts';
 import { FetchRefusal, guardedGet, type GetOptions } from './fetch-guard.ts';
-import { listedHost, RUSSIAN_ROOT, RUSSIAN_ROOT_PEM, rootsFor } from './russian-root.ts';
+import {
+  chainHolds,
+  listedHost,
+  RUSSIAN_ROOT,
+  RUSSIAN_ROOT_PEM,
+  rootsFor,
+} from './russian-root.ts';
 import { callTool, type Reach, type Tool } from './tool.ts';
 import { fetchDatabase } from './web-stub.ts';
 
@@ -34,6 +47,8 @@ let server: Server;
 let port: number;
 let authorityPem: string;
 let fingerprint: string;
+let plain: Fixture;
+let plainPort = 0;
 
 const openssl = (...args: string[]): void => {
   execFileSync('openssl', args, { cwd: work, stdio: 'ignore' });
@@ -57,9 +72,15 @@ beforeAll(async () => {
   authorityPem = readFileSync(join(work, 'ca.pem'), 'utf8');
   const leaf = readFileSync(join(work, 'leaf.pem'), 'utf8');
   fingerprint = new X509Certificate(leaf).fingerprint256;
+  plain = await startFixture({ '/end': { body: 'end' } });
+  plainPort = plain.port;
   server = createServer(
     { key: readFileSync(join(work, 'leaf.key')), cert: leaf },
-    (_request, response) => {
+    (request, response) => {
+      if (request.url === '/go') {
+        response.writeHead(302, { location: `http://other.test:${String(plainPort)}/end` }).end();
+        return;
+      }
       response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(PAGE);
     },
   );
@@ -70,6 +91,7 @@ beforeAll(async () => {
 afterAll(async () => {
   server.closeAllConnections();
   await new Promise<void>((resolve) => server.close(() => resolve()));
+  await plain.close();
   rmSync(work, { recursive: true, force: true });
   await endMetadata();
 });
@@ -121,11 +143,43 @@ describe('a page of a listed host is read with the extra root', () => {
     await expect(outside).rejects.toThrow(/could not be reached/u);
   });
 
-  test('the default list refuses the authority, and it opens no global trust', async () => {
+  test('the default list refuses the authority', async () => {
     await expect(guardedGet(where(), options(undefined))).rejects.toBeInstanceOf(FetchRefusal);
-    await expect(
-      guardedGet(where(), options({ hosts: ['other.test'], pem: authorityPem })),
-    ).rejects.toBeInstanceOf(FetchRefusal);
+  });
+
+  test('a read of a listed host leaves no trust for a later read of an unlisted host', async () => {
+    const listed = { hosts: [FIXTURE_HOST], pem: authorityPem };
+    const first = await guardedGet(where(), options(listed));
+    expect(first.certFingerprint).toBe(fingerprint);
+    const later = guardedGet(where(), options({ hosts: ['other.test'], pem: authorityPem }));
+    await expect(later).rejects.toBeInstanceOf(FetchRefusal);
+    await expect(guardedGet(where(), options(undefined))).rejects.toBeInstanceOf(FetchRefusal);
+  });
+
+  test('a redirect from a listed host to an unlisted host keeps the fingerprint', async () => {
+    const listed = { hosts: [FIXTURE_HOST], pem: authorityPem };
+    const got = await guardedGet(`https://${FIXTURE_HOST}:${String(port)}/go`, {
+      ...options(listed),
+      lookup: (host) => (host === 'other.test' ? fixtureLookup(FIXTURE_HOST) : fixtureLookup(host)),
+    });
+    expect(got.url).toBe(`http://other.test:${String(plainPort)}/end`);
+    expect(got.certFingerprint).toBe(fingerprint);
+  });
+});
+
+describe('the chain of a certificate', () => {
+  const root = { fingerprint256: 'AA' };
+  const leaf = { fingerprint256: 'BB', issuerCertificate: root };
+  test('holds the root when the root is in the chain', () => {
+    expect(chainHolds(leaf, 'AA')).toBe(true);
+  });
+  test('does not hold a root that signed nothing in the chain', () => {
+    expect(chainHolds(leaf, 'CC')).toBe(false);
+  });
+  test('ends on a certificate that signs itself', () => {
+    const loop: { fingerprint256: string; issuerCertificate?: unknown } = { fingerprint256: 'DD' };
+    loop.issuerCertificate = loop;
+    expect(chainHolds(loop, 'EE')).toBe(false);
   });
 });
 

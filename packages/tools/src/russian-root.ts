@@ -3,6 +3,7 @@
 // when the host of that request is on the list. A state authority can intercept a read that this
 // root signs, so the content of these hosts stays a source to cross-check.
 
+import { X509Certificate } from 'node:crypto';
 import { rootCertificates } from 'node:tls';
 
 // External constraint: the Russian Trusted Root CA of the Ministry of Digital Development and
@@ -59,6 +60,24 @@ export interface ExtraRoot {
 }
 
 export const RUSSIAN_ROOT: ExtraRoot = { hosts: RUSSIAN_ROOT_HOSTS, pem: RUSSIAN_ROOT_PEM };
+
+/** The SHA-256 fingerprint of a certificate, as Node writes it. */
+export const fingerprintOfPem = (pem: string): string => new X509Certificate(pem).fingerprint256;
+
+/** True when a certificate chain, from the leaf up, holds the certificate with this fingerprint. */
+export const chainHolds = (
+  leaf: { readonly fingerprint256?: string; readonly issuerCertificate?: unknown },
+  fingerprint: string,
+): boolean => {
+  const seen = new Set<unknown>();
+  let cert: typeof leaf | undefined = leaf;
+  while (cert !== undefined && !seen.has(cert)) {
+    if (cert.fingerprint256 === fingerprint) return true;
+    seen.add(cert);
+    cert = cert.issuerCertificate as typeof leaf | undefined;
+  }
+  return false;
+};
 
 /** True when `host` is on the list or is a subdomain of a host on the list. */
 export const listedHost = (host: string, extra: ExtraRoot): boolean => {

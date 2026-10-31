@@ -9,7 +9,13 @@ import { request as requestHttps } from 'node:https';
 import { BlockList, isIP, type LookupFunction } from 'node:net';
 import type { TLSSocket } from 'node:tls';
 
-import { RUSSIAN_ROOT, rootsFor, type ExtraRoot } from './russian-root.ts';
+import {
+  chainHolds,
+  fingerprintOfPem,
+  RUSSIAN_ROOT,
+  rootsFor,
+  type ExtraRoot,
+} from './russian-root.ts';
 
 export interface Resolved {
   readonly address: string;
@@ -113,8 +119,9 @@ export interface Got {
   readonly contentEncoding: string | null;
   /** The date that the server gives for the last change of the answer, as it gives it. */
   readonly lastModified: string | null;
-  /** The SHA-256 fingerprint of the certificate that the server showed, as Node writes it. It is
-   * set only for a host on the list of the extra root, and it is null for every other host. */
+  /** The SHA-256 fingerprint of a certificate whose chain ends in the extra root, as Node writes
+   * it. It is set for the final host, or for a host of the redirects before it. It is null when
+   * the extra root signed no certificate of the read. */
   readonly certFingerprint: string | null;
   readonly bytes: Uint8Array;
 }
@@ -306,9 +313,13 @@ const bodyOf = (response: IncomingMessage, maxBytes: number): Promise<Uint8Array
 
 // The fingerprint of the certificate that the server showed. A socket that is no TLS socket, or a
 // certificate that Node cannot read, gives null.
-const fingerprintOf = (response: IncomingMessage): string | null => {
-  const { fingerprint256 } = (response.socket as TLSSocket).getPeerCertificate();
-  return typeof fingerprint256 === 'string' && fingerprint256 !== '' ? fingerprint256 : null;
+// The fingerprint is set only when the chain of the certificate ends in the extra root. A listed
+// host with a certificate of a public authority gives null.
+const fingerprintOf = (response: IncomingMessage, extra: ExtraRoot): string | null => {
+  const leaf = (response.socket as TLSSocket).getPeerCertificate(true);
+  const { fingerprint256 } = leaf;
+  if (typeof fingerprint256 !== 'string' || fingerprint256 === '') return null;
+  return chainHolds(leaf, fingerprintOfPem(extra.pem)) ? fingerprint256 : null;
 };
 
 /** One GET, with its redirects. Each refusal is a FetchRefusal, and each comes before a write. */
@@ -317,6 +328,7 @@ export const guardedGet = async (raw: string, options: GetOptions): Promise<Got>
   const signal = AbortSignal.timeout(options.timeoutMs);
   const lookup = guardedLookup(options.lookup, refuses);
   let url = parsed(raw);
+  let seen: string | null = null;
   for (let hop = 0; ; hop += 1) {
     // A literal address opens no lookup, so it is checked here.
     const host = url.hostname.replace(/^\[(.*)\]$/u, '$1');
@@ -330,11 +342,14 @@ export const guardedGet = async (raw: string, options: GetOptions): Promise<Got>
         lookup,
         signal,
         // The extra root belongs to this request alone, and only for a host on the list.
-        ...(roots === undefined ? {} : { ca: roots }),
+        // A resumed TLS session sends no chain, so a listed host gets a new agent with no cache.
+        ...(roots === undefined ? {} : { ca: roots, agent: false }),
       });
       const status = response.statusCode ?? 0;
       // The socket is gone once the body is read, so the certificate is read now.
-      const certFingerprint = roots === undefined ? null : fingerprintOf(response);
+      const certFingerprint = roots === undefined ? null : fingerprintOf(response, extra);
+      // A redirect to another host keeps the trace: the path to it came over the extra root.
+      seen ??= certFingerprint;
       if (REDIRECTS.has(status)) {
         response.destroy();
         const location = response.headers.location;
@@ -359,7 +374,7 @@ export const guardedGet = async (raw: string, options: GetOptions): Promise<Got>
         contentType: response.headers['content-type'] ?? null,
         contentEncoding: response.headers['content-encoding'] ?? null,
         lastModified: response.headers['last-modified'] ?? null,
-        certFingerprint,
+        certFingerprint: certFingerprint ?? seen,
         bytes,
       };
     } catch (fault) {

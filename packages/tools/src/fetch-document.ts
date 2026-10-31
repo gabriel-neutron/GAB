@@ -537,7 +537,7 @@ export const fetchDocument = defineTool({
     // A state authority can intercept a read that the Russian root signs.
     if (got.certFingerprint !== null)
       notices.push(
-        'the server showed a certificate of the Russian root authority, which this tool accepts ' +
+        'the server showed a certificate that the Russian root authority signed, which this tool accepts ' +
           `for this host alone (SHA-256 ${got.certFingerprint}); a state authority can intercept ` +
           'this read, so cross-check the content',
       );

@@ -1,5 +1,5 @@
-// A fault of the browser reaches the agent as a fixed sentence (#1131), and a render can be asked
-// for (#1022). The browser is replaced, so no test opens one.
+// A fault of the browser reaches the agent as a fixed sentence, and a render can be asked
+// for. The browser is replaced, so no test opens one.
 
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 
