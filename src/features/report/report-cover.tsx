@@ -90,7 +90,7 @@ export function ReportCover() {
             {ui.cover.credit}
           </a>
         </p>
-        <h1 className="mt-3 text-report-heading md:max-w-[14ch] md:text-report-display leading-[0.92] tracking-[-0.05em] text-balance md:mt-4">
+        <h1 className="mt-3 text-report-heading md:text-report-number leading-[0.92] tracking-[-0.05em] text-balance md:mt-4">
           <ScrambleText text={report.title} />
         </h1>
         <div className="mt-3 grid gap-4 md:mt-6 lg:grid-cols-[1fr_auto] lg:items-end lg:gap-12">

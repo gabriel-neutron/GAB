@@ -20,7 +20,7 @@ export function ScaleCounters() {
   return (
     <section aria-label={ui.counters.label} className="mt-16 md:mt-24">
       <h3 className={monoLabel}>{ui.counters.label}</h3>
-      <p className="mt-8 max-w-[24ch] text-report-heading leading-[1.05] tracking-[-0.04em] text-balance text-foreground/55 md:mt-12">
+      <p className="mt-8 max-w-[24ch] text-report-lead md:text-report-heading leading-[1.05] tracking-[-0.04em] text-balance text-foreground/55 md:mt-12">
         {copy.words.map((word, at) => (
           <Fragment key={word}>
             <span className={cn('tracking-[-0.06em] tabular-nums', accent.text)}>
