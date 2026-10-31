@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/utils';
-import { figureTexts, ownershipUi, parts, ui, type ReportPart } from '../../content';
+import { figureTexts, ownershipUi, parts, type ReportPart } from '../../content';
 import { FigureFrame } from '../../figure-frame';
 import { AsciiImage } from '../../primitives/ascii-image';
-import { BigNumber } from '../../primitives/big-number';
 import { ChapterBreak } from '../../primitives/chapter-break';
 import { layout } from '../../primitives/layout';
 import { Reveal } from '../../primitives/reveal';
@@ -38,16 +37,9 @@ function Rail({ text, part }: { readonly text: string; readonly part: ReportPart
   );
 }
 
-/** The chapter break over the chess set: the ASCII art sits at the top right, behind a scrim, so
- * the title stays on near-black ground, and the credit sits at the top right of the art. */
+/** The chapter break over the chess set: the decorative ASCII art sits at the top right, behind a
+ * scrim, so the title stays on near-black ground. */
 function Opening({ number, title }: { readonly number: string; readonly title: string }) {
-  const { image } = ownershipUi;
-  const credit = (
-    <>
-      <span className="block text-foreground">{ui.cover.label}</span>
-      {image.credit}
-    </>
-  );
   return (
     <div
       className={cn(
@@ -58,7 +50,7 @@ function Opening({ number, title }: { readonly number: string; readonly title: s
       )}
     >
       <div className="absolute top-24 right-0 h-[50%] w-full md:top-0 md:h-[78%] md:w-[60%] [&_pre]:text-foreground/70">
-        <AsciiImage src={image.src} alt={image.alt} />
+        <AsciiImage src={ownershipUi.image} />
         {/* The scrims fade the art into the ground at its left and bottom edges. */}
         <div
           aria-hidden="true"
@@ -69,20 +61,12 @@ function Opening({ number, title }: { readonly number: string; readonly title: s
           className="absolute inset-0 hidden bg-linear-to-r from-background via-background/30 to-background/0 md:block"
         />
       </div>
-      <ChapterBreak number={number} title={title} quote={ownershipUi.quote}>
-        {/* On a phone, the credit goes under the quote, clear of the numeral. */}
-        <p className="mt-8 font-mono text-report-label/4 text-label md:hidden">{credit}</p>
-      </ChapterBreak>
-      {/* From 768px, the credit sits at the top right of the art, inside the first view. */}
-      <p className="absolute top-4 right-8 hidden max-w-[34ch] lg:max-w-[52ch] border border-border bg-background px-2 py-1 text-right font-mono text-report-label/4 text-label md:block">
-        {credit}
-      </p>
+      <ChapterBreak number={number} title={title} />
     </div>
   );
 }
 
-/** The ownership part: a chapter break over the chess set, the two ownership rules side by side,
- * the layered graph of figure 12 across the page, then the text with its notes in a rail. */
+/** The ownership part: a chapter break over the chess set, the layered graph of figure 12 across the page, then the text with its notes in a rail. */
 export function OwnershipPart({ part }: { readonly part: ReportPart }) {
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const body: ReactNode[] = [];
@@ -119,22 +103,6 @@ export function OwnershipPart({ part }: { readonly part: ReportPart }) {
         </Reveal>
       </div>,
     );
-    if (index === 0)
-      body.push(
-        <div
-          key="rules"
-          className="mt-14 grid gap-12 border-t border-border pt-10 md:grid-cols-2 md:gap-16"
-        >
-          {[ownershipUi.rule, ownershipUi.ruleEu].map((rule) => (
-            <BigNumber
-              key={rule.note}
-              value={rule.value}
-              label={rule.label}
-              note={{ partSlug: part.slug, id: rule.note }}
-            />
-          ))}
-        </div>,
-      );
   });
   return (
     <section id={part.slug} aria-label={part.title} className="scroll-mt-12">

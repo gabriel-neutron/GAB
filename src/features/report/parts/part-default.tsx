@@ -1,4 +1,4 @@
-import { parts, ui, type ReportPart } from '../content';
+import { parts, type ReportPart } from '../content';
 import { Blocks } from '../blocks';
 import { NodeStrip } from '../node-strip';
 import { ScrambleText } from '../scramble-text';
@@ -14,8 +14,8 @@ export function PartDefault({ part }: { readonly part: ReportPart }) {
     >
       <header className="lg:col-span-4">
         <div className="lg:sticky lg:top-6">
-          <p className="font-mono text-report-label uppercase text-label">
-            {ui.part.number} <span className="tabular-nums">{number}</span>
+          <p aria-hidden="true" className="font-mono text-report-label text-label tabular-nums">
+            {number}
           </p>
           <h2 id={`${part.slug}-title`} className="mt-3 text-report-heading text-balance ">
             <ScrambleText text={part.title} />

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { fightUi, parts } from '../../content';
 import figures from '../../data/publication-figures.json';
 import {
   arcChains,
@@ -15,24 +14,7 @@ import {
 } from './chain-data';
 import { fitCrop, layoutFlow, placeLabels, ringHolds, stackLabels } from './layouts';
 
-const fight = parts.find((part) => part.slug === 'fight');
-
 describe('fight copy', () => {
-  it('quotes the part verbatim and writes each value as its note does', () => {
-    expect(fight?.blocks.map((block) => block.text).join(' ')).toContain(fightUi.quote);
-    for (const one of fightUi.numbers)
-      expect(fight?.notes.find((note) => note.id === one.note)?.text).toContain(one.value);
-  });
-
-  it('puts the premium after the price paragraph (block 3), which cites a note of its value', () => {
-    const premium = fightUi.numbers[1];
-    const cited = [...(fight?.blocks[3]?.text.matchAll(/\[\^([^\]]+)\]/g) ?? [])].map((m) => m[1]);
-    expect(fight?.blocks[3]?.kind).toBe('p');
-    expect(
-      fight?.notes.some((note) => cited.includes(note.id) && note.text.includes(premium.value)),
-    ).toBe(true);
-  });
-
   it('prints clean country names in figure 10b', () => {
     for (const name of Object.keys(figures.f10b)) expect(name).not.toContain('Ã');
   });

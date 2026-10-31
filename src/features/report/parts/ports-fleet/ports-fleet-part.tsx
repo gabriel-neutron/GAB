@@ -3,7 +3,6 @@ import { useInView, useReducedMotion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import { figureTexts, parts, portsFleetUi, type ReportBlock, type ReportPart } from '../../content';
 import { FigureFrame } from '../../figure-frame';
-import { BigNumber } from '../../primitives/big-number';
 import { ChapterBreak } from '../../primitives/chapter-break';
 import { Reveal } from '../../primitives/reveal';
 import { StickyScene } from '../../primitives/sticky-scene';
@@ -12,7 +11,6 @@ import { figureData } from './figure-data';
 import { FleetFlows } from './fleet-flows';
 import { PortTraffic } from './port-traffic';
 import { splitSentences } from './sentences';
-import { TERMINALS } from './terminals';
 import { VesselLives } from './vessel-lives';
 import './map-scene.css';
 
@@ -84,14 +82,8 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
   );
   // Each card of the scene holds whole sentences of the first two paragraphs, in their order, and
   // sets one state of the map. The long last state takes two cards, so a card stays short on a phone.
-  const cards = scene.map(({ block, from, to, state }, index) => (
+  const cards = scene.map(({ block, from, to }, index) => (
     <div key={`${String(block)}-${String(from)}`} className="pf-step" data-pf-card={index}>
-      <p className="mb-2 font-mono text-report-label uppercase text-label md:mb-3">
-        <span className="text-foreground tabular-nums">
-          {String(state + 1).padStart(2, '0')} / {String(copy.map.kickers.length).padStart(2, '0')}
-        </span>{' '}
-        · {copy.map.kickers[state]}
-      </p>
       <p className="text-report-small/[1.5] ">
         {say((block === 0 ? first : second).slice(from, to))}
       </p>
@@ -107,21 +99,7 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
 
   return (
     <section id={part.slug} aria-label={part.title} className="scroll-mt-12">
-      <ChapterBreak number={number} title={part.title} quote={copy.quote} image={copy.art}>
-        <ul
-          aria-label={copy.terminals}
-          className="mt-10 grid max-w-[56rem] grid-cols-1 gap-x-8 border-t border-border pt-4 font-mono text-report-label/5 text-label sm:grid-cols-2"
-        >
-          {TERMINALS.map((terminal) => (
-            <li key={terminal.id} className="flex justify-between gap-4 tabular-nums">
-              <span className="text-foreground uppercase">{terminal.label}</span>
-              <span className="text-foreground/75">
-                {terminal.lat.toFixed(2)} N · {terminal.lon.toFixed(2)} E
-              </span>
-            </li>
-          ))}
-        </ul>
-      </ChapterBreak>
+      <ChapterBreak number={number} title={part.title} image={copy.art} />
 
       <div className="pt-12 md:pt-16">
         <Reveal>
@@ -143,30 +121,10 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
         <FleetFlows />
       </Figure>
       {paragraph(5)}
-      <div className="my-16 grid items-start gap-14 border-y border-border py-12 md:grid-cols-2 md:gap-x-12">
-        {copy.numbers.map((one) => (
-          <Reveal key={one.value}>
-            <BigNumber
-              value={one.value}
-              label={one.label}
-              note={{ partSlug: part.slug, id: one.note }}
-            />
-          </Reveal>
-        ))}
-      </div>
       <Figure facts={figure(6)} note={notes['8']} partSlug={part.slug} period={copy.lives.period}>
         <VesselLives />
       </Figure>
       {paragraph(7)}
-      <div className="my-16 border-y border-border py-12">
-        <Reveal>
-          <BigNumber
-            value={copy.usFirst.value}
-            label={copy.usFirst.label}
-            note={{ partSlug: part.slug, id: copy.usFirst.note }}
-          />
-        </Reveal>
-      </div>
       <Reveal>
         <p className="mx-auto max-w-[28ch] py-16 text-center text-report-heading leading-[1.08] tracking-[-0.035em] text-balance md:py-28">
           <RichText text={text(8)} partSlug={part.slug} />

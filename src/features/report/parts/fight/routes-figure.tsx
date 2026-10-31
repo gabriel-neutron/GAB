@@ -98,7 +98,6 @@ function Flow() {
           );
         })}
       </div>
-      <p className="mt-4 max-w-[64ch] text-report-small text-muted-foreground">{copy.flowText}</p>
     </div>
   );
 }
@@ -114,7 +113,6 @@ export function RoutesFigure() {
       <Flow />
       {/* On a phone: the four columns as lists on one scale, linked by their step numbers. */}
       <ol className="grid md:hidden">
-        <li className="pb-6 font-mono text-report-label text-muted-foreground">{copy.flowSmall}</li>
         {lists.map((totals, index) => (
           <li key={copy.flowColumns[index]} className="grid grid-cols-[2.25rem_minmax(0,1fr)]">
             <div aria-hidden="true" className="flex flex-col items-center">

@@ -175,7 +175,7 @@ export function SuppliersFigure() {
           {copy.b} · {figureTexts.figures['10'].panels[0]?.unit}
         </p>
         <p className="mt-1 text-report-small text-muted-foreground">
-          {copy.bScale.replace('{max}', String(MAX_B))} {copy.bSort}
+          {copy.bScale.replace('{max}', String(MAX_B))}
         </p>
         <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1 font-mono text-report-label text-muted-foreground">
           <li className="flex items-center gap-2">
