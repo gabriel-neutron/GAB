@@ -1,0 +1,42 @@
+series,value,note
+designated tankers,711,with a dated designation; f7-fleet-full.csv
+called after designation,318,at least one AIS port call after the first dated designation
+country:Russia,212,distinct tankers
+country:Egypt,107,distinct tankers
+country:China,89,distinct tankers
+country:Turkey,65,distinct tankers
+country:India,48,distinct tankers
+country:South Korea,30,distinct tankers
+country:Crimea (occupied),25,distinct tankers
+country:UAE,23,distinct tankers
+country:EU or UK,22,distinct tankers
+country:Saudi Arabia,18,distinct tankers
+country:Iran,16,distinct tankers
+country:Malaysia,16,distinct tankers
+eu port:Marsaxlokk (MT),7,distinct tankers
+eu port:Las Palmas (ES),3,distinct tankers
+eu port:Zeebrugge (BE),2,distinct tankers
+eu port:Dunkirk (FR),2,distinct tankers
+eu port:Cádiz (ES),2,distinct tankers
+eu port:Huelva (ES),2,distinct tankers
+eu port:Banco del Hoyo anch. (ES),2,distinct tankers
+eu port:Fos-sur-Mer (FR),2,distinct tankers
+eu port:Portland (UK),2,distinct tankers
+eu port:esp-barcelona,1,distinct tankers
+eu port:esp-bilbao,1,distinct tankers
+eu port:nld-zaandam,1,distinct tankers
+eu port:mlt-valletta,1,distinct tankers
+eu port:gbr-southampton,1,distinct tankers
+eu port:gbr-sainthelens,1,distinct tankers
+eu port:nld-rotterdam,1,distinct tankers
+eu port:nld-rotterdammaasvlakte,1,distinct tankers
+eu port:gbr-immingham,1,distinct tankers
+eu port:esp-tarragona,1,distinct tankers
+eu port:ita-augusta,1,distinct tankers
+eu port:swe-swe-169,1,distinct tankers
+eu port:nld-muiderzand,1,distinct tankers
+eu port:grc-grc-365,1,distinct tankers
+eu port:est-tallinn,1,distinct tankers
+eu port:cyp-famagusta,1,distinct tankers
+eu port:grc-marathokampos,1,distinct tankers
+eu port:esp-sagunto,1,distinct tankers

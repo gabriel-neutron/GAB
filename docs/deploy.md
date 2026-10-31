@@ -225,6 +225,11 @@ in the repository, in the folder of the site package. The build copies them to `
 application. Set `REPORT_DIR` to another folder to build with other values. A file that holds a
 value that is not a number stops the build.
 
+The PDF of the report never enters the repository. Set `REPORT_PDF` to its absolute path, in the
+shell or in `.env`. The build copies it to `report.pdf` beside the application, and the report then
+shows its download link. With no value, the report shows no link. A value that names no file stops
+the build.
+
 ## Check the notes of the report
 
 Run `python tools/report/check_notes.py FILE.md ...` on the files of the report text. It lists, for each file, each footnote that breaks the citation norm (a missing, empty or internal source, more than two sources, a date that is not full, a list version that differs between notes) and exits 1 when it finds one. Add `--final` to count an open `[SOURCE ?]` or `[année ?]` marker as a fault. The report build runs the same check and prints each fault as a warning.

@@ -51,7 +51,7 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
       ? 'data'
       : path === '/map' || path === '/graph'
         ? 'none'
-        : path === '/'
+        : path === '/' || path === '/bibliography'
           ? 'report'
           : 'none';
   return (

@@ -122,6 +122,7 @@ const folderOf = (file: string): string => dirname(file);
 const pagesOf = (release: SiteRelease): readonly Page[] => {
   const pages: Page[] = [
     { folder: '', kind: 'text' },
+    { folder: 'bibliography', kind: 'text' },
     { folder: 'map', kind: 'text' },
     { folder: 'downloads', kind: 'text' },
     { folder: 'method', kind: 'text' },

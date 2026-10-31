@@ -52,6 +52,20 @@ export default defineConfig(
     languageOptions: { globals: { process: 'readonly', __dirname: 'readonly' } },
   },
 
+  // The figure export script runs in Node and sends code to a browser page.
+  {
+    files: ['tools/report/export-figures.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        document: 'readonly',
+        localStorage: 'readonly',
+        getComputedStyle: 'readonly',
+      },
+    },
+  },
+
   {
     files: ['**/*.{ts,mts,cts,tsx}'],
     extends: [
