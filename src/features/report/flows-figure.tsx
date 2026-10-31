@@ -2,7 +2,7 @@ import raw from './data/flows.csv?raw';
 import { readCsv } from './line-panel';
 
 // Figure 6: Russian seaborne oil in January 2026 (KSE Russian Oil Tracker, Kpler data; kb/d).
-// Two separate views, never one path: no source links a fleet category to a buyer. Data: f4-v2.csv panel a.
+// Two separate views, never one path: no source links a fleet category to a buyer.
 const rows = readCsv(raw).map((r) => ({
   from: r['from'] ?? '',
   to: r['to'] ?? '',

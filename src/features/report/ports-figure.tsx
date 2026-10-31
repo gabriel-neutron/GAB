@@ -2,7 +2,7 @@ import raw from './data/ports.csv?raw';
 import { LinePanel, PANEL_HEIGHT, readCsv, type Series } from './line-panel';
 
 // Figure 5: all-cargo throughput of the four oil ports (a, index 2021 = 100) and the change of
-// January-April 2026 against January-April 2025 (b). Data: research/out/fnf/rapport/f5-v2.csv (ASOP, NMTP).
+// January-April 2026 against January-April 2025 (b).
 // Colour: the Baltic ports in signal, the Black Sea ports in foreground, the all-port totals in grey.
 const rows = readCsv(raw);
 const years = Array.from({ length: 12 }, (_, i) => 2014 + i);

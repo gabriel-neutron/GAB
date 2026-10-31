@@ -14,6 +14,9 @@ import { VesselsFigure } from '@/features/report/vessels-figure';
 import { FleetPortsFigure, FleetWavesFigure } from '@/features/report/fleet-figures';
 import { CurrenciesFigure } from '@/features/report/currencies-figure';
 import { ChpFigure } from '@/features/report/chp-figure';
+import { CasesFigure } from '@/features/report/cases-figure';
+import { ControllersFigure } from '@/features/report/controllers-figure';
+import { AtlasFigure } from '@/features/report/atlas-figure';
 import { MethodDiagram } from '@/features/report/method-diagram';
 import '@/features/report/report.css';
 
@@ -31,6 +34,9 @@ const figures = {
   'fleet-waves': FleetWavesFigure,
   currencies: CurrenciesFigure,
   chp: ChpFigure,
+  cases: CasesFigure,
+  controllers: ControllersFigure,
+  atlas: AtlasFigure,
   'ports-v1': PortsBeforeAfter,
   'ports-v2': CrudeAndProducts,
   'ports-v3': EuImportsBeforeAfter,

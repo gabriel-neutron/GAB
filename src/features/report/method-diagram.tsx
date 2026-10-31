@@ -1,7 +1,7 @@
 import { EntityGlyph } from '@/shared/entity-glyph';
 
 // The method diagram of the report: three layers, the two paths of the money, and the three conditions
-// of a critical node. The content is research/out/fnf/rapport/f0-diagram.json; the figure numbers stay out.
+// of a critical node. The figure numbers stay out of the image.
 // Each layer takes the hue and the glyph of the entity type it is about (port, military unit, bank).
 const cards = [
   {

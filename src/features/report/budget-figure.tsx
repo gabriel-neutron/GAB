@@ -1,11 +1,11 @@
 import raw from './data/budget.csv?raw';
 import { LinePanel, PANEL_HEIGHT, readCsv, type Series } from './line-panel';
 
-// Figure 4: oil and gas revenue of the Russian federal budget. Data: research/out/fnf/rapport/fH4-v2.csv.
+// Figure 4: oil and gas revenue of the Russian federal budget.
 // (a) share of federal revenue, full years and the January-September pair; (b) oil and gas revenue and
 // national defence, in trillion roubles of 2021. Defence: executed to 2021 (Minfin), reported for 2022;
 // Minfin publishes no outturn by section since 2022, so 2023-2024 are SIPRI estimates and 2025 the
-// amended law (hollow, dashed). Sources: research/out/fnf/rapport/fH4-defence-sources.md.
+// amended law (hollow, dashed).
 const rows = readCsv(raw);
 const value = (series: string, period: string) => {
   const r = rows.find((x) => x['series'] === series && x['period'] === period);

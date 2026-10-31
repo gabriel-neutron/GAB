@@ -1,10 +1,10 @@
 import portsRaw from './data/fleet-ports.csv?raw';
 import wavesRaw from './data/fleet-waves.csv?raw';
+import flagsRaw from './data/fleet-flags.csv?raw';
 import { readCsv } from './line-panel';
 
-// Figures on the designated tanker fleet. Data: research/out/fnf/rapport/f7-fleet-full.csv (designations of the
-// record; Global Fishing Watch port calls by IMO number), aggregated into ./data/fleet-ports.csv and
-// ./data/fleet-waves.csv (author's counts of distinct tankers).
+// Figures on the designated tanker fleet: designations of the record and Global Fishing Watch port calls by
+// IMO number, as counts of distinct tankers.
 const ports = readCsv(portsRaw);
 const num = (key: string) => Number(ports.find((r) => r['series'] === key)?.['value'] ?? NaN);
 
@@ -119,6 +119,7 @@ export function FleetWavesFigure() {
     .filter((w) => w['kind'] === 'combo')
     .map((w) => ({ key: w['key'] ?? '', v: Number(w['value']) }));
   const lag = waves.find((w) => w['kind'] === 'lag')?.['value'];
+  const flags = readCsv(flagsRaw).map((f) => ({ flag: f['flag'] ?? '', n: Number(f['tankers']) }));
   const combo = (key: string) => combos.find((c) => c.key === key)?.v ?? 0;
   const regimeTotal = (regime: string) =>
     combos.filter((c) => c.key.split('+').includes(regime)).reduce((t, c) => t + c.v, 0);
@@ -130,9 +131,9 @@ export function FleetWavesFigure() {
   return (
     <figure className="report-chart">
       <svg
-        viewBox="0 0 640 640"
+        viewBox="0 0 640 940"
         role="img"
-        aria-label="Tankers listed per quarter by the EU, the UK and OFAC, and the regimes that list each tanker"
+        aria-label="Tankers listed per quarter by the EU, the UK and OFAC, the regimes that list each tanker, and their flags"
       >
         <text y="12" className="lp-title">
           a. New listings, by quarter (a tanker listed by two regimes counts twice)
@@ -213,6 +214,32 @@ export function FleetWavesFigure() {
           <text x="0" y="330" className="lp-axis">
             median lag, first to second regime: {lag} days
           </text>
+        </g>
+        <g transform="translate(0,660)">
+          <text y="12" className="lp-title">
+            c. Flag of the designated tankers
+          </text>
+          <text y="30" className="lp-axis">
+            {flags.reduce((t, f) => t + f.n, 0)} tankers, last flag in the record · a flag is not
+            the country of the owner
+          </text>
+          {flags.map((f, i) => {
+            const y = 44 + i * 20;
+            return (
+              <g
+                key={f.flag}
+                className={`lp-series ${f.flag === 'Russia' ? 'new' : f.flag === 'Not recorded' || f.flag === 'Other flags' ? 'unknown' : 'old'}`}
+              >
+                <text x="142" y={y + 11} textAnchor="end" className="lp-label flow-name">
+                  {f.flag}
+                </text>
+                <rect x="150" y={y} width={f.n * 2.2} height="14" className="lp-bar" />
+                <text x={156 + f.n * 2.2} y={y + 11} className="lp-label">
+                  {f.n}
+                </text>
+              </g>
+            );
+          })}
         </g>
       </svg>
     </figure>

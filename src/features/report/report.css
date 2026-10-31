@@ -3315,3 +3315,139 @@
 :where(.report-page) .lp-series.unknown {
   --tone: var(--chart-neutral);
 }
+/* Case grid of figure 11: solid cell documented, dashed cell lead, faint cell no source. */
+:where(.report-page) .case-cell {
+  fill: var(--surface);
+  stroke: var(--border);
+}
+:where(.report-page) .case-cell.documented {
+  stroke: var(--foreground);
+}
+:where(.report-page) .case-cell.lead {
+  stroke: var(--foreground);
+  stroke-dasharray: 4 3;
+}
+:where(.report-page) .case-cell.none {
+  fill: none;
+  stroke-dasharray: 1 3;
+}
+:where(.report-page) .case-name {
+  font:
+    11px Geist,
+    sans-serif;
+  fill: var(--foreground);
+}
+:where(.report-page) .case-chain {
+  font-size: 12px;
+}
+:where(.report-page) .case-source {
+  font:
+    9px 'Geist Mono',
+    monospace;
+  fill: var(--label);
+}
+:where(.report-page) .case-source.ua {
+  fill: var(--foreground);
+  text-decoration: underline;
+}
+:where(.report-page) .case-listed {
+  font:
+    9px 'Geist Mono',
+    monospace;
+  fill: var(--signal);
+}
+:where(.report-page) .lp-series.flow-ribbon.lead {
+  opacity: 0.22;
+  stroke: var(--tone);
+  stroke-dasharray: 3 2;
+  stroke-width: 0.8;
+}
+:where(.report-page) .lp-label.case-on-flow {
+  font-size: 10px;
+}
+:where(.report-page) .atlas-land {
+  fill: var(--chart-grid);
+  stroke: var(--background);
+  stroke-width: 0.5;
+}
+:where(.report-page) .atlas-plant path,
+:where(.report-page) .atlas-plant circle {
+  fill: var(--foreground);
+}
+:where(.report-page) .lp-axis.atlas-place {
+  fill: var(--foreground);
+}
+/* Atlas stages: the same tone for a country group in every column; China and Hong Kong in signal. */
+:where(.report-page) .atlas-seg {
+  stroke: var(--background);
+  stroke-width: 1;
+}
+:where(.report-page) .atlas-seg.us {
+  fill: var(--foreground);
+}
+:where(.report-page) .atlas-seg.eu {
+  fill: var(--chart-axis);
+}
+:where(.report-page) .atlas-seg.coal {
+  fill: var(--chart-neutral);
+}
+:where(.report-page) .atlas-seg.cn {
+  fill: var(--signal);
+}
+:where(.report-page) .atlas-seg.rest {
+  fill: var(--surface);
+  stroke: var(--border);
+}
+:where(.report-page) .atlas-seg.nd {
+  fill: var(--chart-grid);
+}
+:where(.report-page) .atlas-band {
+  opacity: 0.22;
+}
+:where(.report-page) .atlas-band.us {
+  fill: var(--foreground);
+}
+:where(.report-page) .atlas-band.eu {
+  fill: var(--chart-axis);
+}
+:where(.report-page) .atlas-band.coal {
+  fill: var(--chart-neutral);
+}
+:where(.report-page) .atlas-band.cn {
+  fill: var(--signal);
+  opacity: 0.3;
+}
+:where(.report-page) .atlas-band.rest,
+:where(.report-page) .atlas-band.nd {
+  fill: var(--chart-grid);
+}
+:where(.report-page) .atlas-pct {
+  font:
+    11px 'Geist Mono',
+    monospace;
+  fill: var(--foreground);
+}
+:where(.report-page) .atlas-pct.us,
+:where(.report-page) .atlas-pct.eu,
+:where(.report-page) .atlas-pct.cn {
+  fill: var(--background);
+}
+:where(.report-page) .atlas-apart {
+  fill: none;
+  stroke: var(--border);
+  stroke-dasharray: 4 3;
+}
+:where(.report-page) .atlas-col {
+  font-size: 14px;
+}
+:where(.report-page) .atlas-num {
+  font:
+    10px 'Geist Mono',
+    monospace;
+  fill: var(--foreground);
+}
+:where(.report-page) .atlas-plant.lead path,
+:where(.report-page) .atlas-plant.lead circle {
+  fill: var(--background);
+  stroke: var(--foreground);
+}

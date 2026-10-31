@@ -2,7 +2,7 @@ import raw from './data/buyers.csv?raw';
 import { LinePanel, PANEL_HEIGHT, readCsv, type Series } from './line-panel';
 
 // Figure 2: Russian exports by buyer (mirror data, bn USD). Crude bought from Russia is figure 5.
-// Data: research/out/fnf/rapport/fH3-v2.csv, one row per value with its document. Missing values are not drawn.
+// One row per value with its document. Missing values are not drawn.
 // Colour: the old buyers in `foreground`, the new buyers in `signal`, the others in `chart-axis`.
 const rows = readCsv(raw);
 const COALITION = ['EU27', 'US', 'UK', 'Japan', 'South Korea', 'Switzerland', 'Norway'];

@@ -1,7 +1,7 @@
 import raw from './data/vessels.csv?raw';
 import { readCsv } from './line-panel';
 
-// Figure 7: what designated tankers do after their designation. Data: research/out/fnf/rapport/f6-v3-fleet.csv
+// Figure 7: what designated tankers do after their designation.
 // (Global Fishing Watch port visits and identities by IMO number; designation dates from the record).
 // Top: three counts for the sample of 43 vessels. Below: 11 chosen vessels on one time axis, aligned on the
 // designation date. Port calls after designation are the one highlight; identity bars are leads (pale).

@@ -2,7 +2,6 @@ import raw from './data/currencies.csv?raw';
 import { LinePanel, PANEL_HEIGHT, readCsv, type Series } from './line-panel';
 
 // Figure 9: currency of settlement of Russian exports and imports of goods and services, % of total.
-// Data: research/out/fnf/rapport/f10-v2.csv (Bank of Russia, currency composition of settlements).
 // "Unfriendly" is the Russian government list 430-r: the old currencies in foreground, the rouble in signal.
 const rows = readCsv(raw);
 const years = [2019, 2020, 2021, 2022, 2023, 2024, 2025];
