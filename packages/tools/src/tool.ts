@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import type { ChallengeReader } from './challenge-page.ts';
 import type { Resolved } from './fetch-guard.ts';
+import type { ExtraRoot } from './russian-root.ts';
 
 /** What a tool needs from a connection. The caller opens it and decides its role. */
 export interface Session {
@@ -116,6 +117,9 @@ export interface Reach {
   readonly fetchTimeoutMs?: number;
   /** Opens a page that a bot filter refused in a browser. With no value, the refusal stays. */
   readonly readThroughFilter?: ChallengeReader;
+  /** One more root certificate and the hosts that accept it. A test gives its own; the default is
+   * the Russian root and its list of hosts. */
+  readonly extraRoot?: ExtraRoot;
   /** The key of the hosted proxy for Russian hosts. The default is the variable SCRAPINGBEE_KEY. */
   readonly hostedProxyKey?: string;
   /** The address of the hosted proxy. A test gives its own; the default is the real service. */

@@ -34,7 +34,7 @@ import {
 import { refusedSource } from './refused-source.ts';
 import { renderPage } from './render-page.ts';
 import { holdsLayers, skippedFileShape, storeArchive, storedFileShape } from './store-archive.ts';
-import { knownAnswer, storeAnswer } from './store-answer.ts';
+import { knownAnswer, noteTrace, storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 import { CHALLENGE_PAGE, isHtml, SHORT_PAGE, unreadablePage } from './unreadable-page.ts';
 
@@ -200,8 +200,10 @@ const titleOf = (
   return chosen.slice(0, MAX_TITLE);
 };
 
-const reasonOf = (fault: unknown): string =>
-  (fault instanceof Error ? fault.message : String(fault)).split('\n')[0]?.slice(0, 200) ?? '';
+// A fault of the browser can name a path of the machine, and so the user name. The agent gets a
+// fixed sentence, and the operator reads the fault in the log.
+export const RENDER_FAULT =
+  'the page could not be rendered, and the operator reads the fault in the log';
 
 // The step that each refusal of a bot filter names, so the research AI and the operator know what
 // to do next. A filter that the Chrome window of readThroughFilter does not pass also gives it.
@@ -328,7 +330,8 @@ const renderedOf = async (
     const pages = (await extractText(bytes, 'text/html; charset=utf-8')).pages;
     return { html: page.html, bytes, pages };
   } catch (fault) {
-    notices.push(`the page could not be rendered: ${reasonOf(fault)}`);
+    console.error(fault);
+    notices.push(RENDER_FAULT);
     return null;
   }
 };
@@ -387,6 +390,8 @@ const outputShape = z.strictObject({
   notice: z.string().nullable(),
   files: z.array(storedFileShape).nullable(),
   skipped: z.array(skippedFileShape).nullable(),
+  /** The fingerprint of the certificate of a host on the list of the Russian root, else null. */
+  certificate: z.string().nullable(),
   rendered: z
     .strictObject({
       document: z.string(),
@@ -406,7 +411,8 @@ export const fetchDocument = defineTool({
     'is present, read on with document_text: give the id of the document that gave the pages, ' +
     'and give "next" as fromPage and fromCharacter. An HTML page ' +
     'is also loaded in a headless browser when its text is shorter ' +
-    `than ${String(RENDER_BELOW)} characters. The browser runs the scripts of the ` +
+    `than ${String(RENDER_BELOW)} characters, or when "render" is true. The stored render is ` +
+    'marked as a render. The browser runs the scripts of the ' +
     'page and clicks, fills and scrolls nothing. Its HTML is a second document with the same ' +
     'address, named in "rendered"; "document" stays the bytes that the server gave. When ' +
     '"rendered" is present, the pages come from it: cite rendered.document and queue the ' +
@@ -443,12 +449,16 @@ export const fetchDocument = defineTool({
     'With "proxy" true, a .ru or .рф host whose plain read fails (or gives the block page of ' +
     'the host) is read once through a paid hosted proxy with a Russian exit, when the ' +
     'operator set its key; 10 credits for each page that it reads, and "notice" says so. ' +
-    'Set "proxy" only after the other ways failed, for one source that a fact needs.',
+    'Set "proxy" only after the other ways failed, for one source that a fact needs. A few ' +
+    'Russian hosts have a certificate of the Russian root authority. The tool accepts that ' +
+    'root for those hosts alone, and "certificate" gives the fingerprint that the server ' +
+    'showed. A state authority can intercept such a read, so cross-check its content.',
   input: z.strictObject({
     url: z.string().trim().min(1).max(2048),
     fromPage: z.number().int().min(1).default(1),
     toPage: z.number().int().min(1).optional(),
     proxy: z.boolean().default(false),
+    render: z.boolean().default(false),
   }),
   output: outputShape,
   async run(session, input, reach) {
@@ -465,6 +475,7 @@ export const fetchDocument = defineTool({
       maxRedirects: MAX_REDIRECTS,
       ...(reach.lookup === undefined ? {} : { lookup: reach.lookup }),
       ...(reach.refuses === undefined ? {} : { refuses: reach.refuses }),
+      ...(reach.extraRoot === undefined ? {} : { extraRoot: reach.extraRoot }),
     };
     const notices: string[] = [];
     let got: Got;
@@ -503,6 +514,7 @@ export const fetchDocument = defineTool({
         contentType: 'text/html; charset=utf-8',
         contentEncoding: null,
         lastModified: null,
+        certFingerprint: null,
         bytes: new TextEncoder().encode(passed.html),
       };
     };
@@ -522,6 +534,13 @@ export const fetchDocument = defineTool({
         }
       }
     }
+    // A state authority can intercept a read that the Russian root signs.
+    if (got.certFingerprint !== null)
+      notices.push(
+        'the server showed a certificate that the Russian root authority signed, which this tool accepts ' +
+          `for this host alone (SHA-256 ${got.certFingerprint}); a state authority can intercept ` +
+          'this read, so cross-check the content',
+      );
     // A redirect can lead to an address that is no source.
     const redirected = refusedSource(got.url);
     if (redirected !== null) throw new ToolRefusal(redirected);
@@ -566,6 +585,7 @@ export const fetchDocument = defineTool({
         title: titleOf(mime, type, got.bytes, metadata, got.url),
         day,
       });
+      await noteTrace(session, unpacked.archive.id, got.certFingerprint, false);
       const text = await documentText.run(session, {
         document: unpacked.archive.id,
         fromPage: input.fromPage,
@@ -587,6 +607,7 @@ export const fetchDocument = defineTool({
         notice: notices.length === 0 ? null : notices.join('; '),
         files: unpacked.files,
         skipped: unpacked.skipped,
+        certificate: got.certFingerprint,
         rendered: null,
       };
     }
@@ -599,11 +620,13 @@ export const fetchDocument = defineTool({
       !throughFilter &&
       !notices.includes(PROXY_NOTICE) &&
       mime === 'text/html' &&
-      allText < RENDER_BELOW &&
+      (input.render || allText < RENDER_BELOW) &&
       !blankBytes(got.bytes);
     if (renders) {
       notices.push(
-        `the page gave ${allText} characters of text, so it was rendered with JavaScript`,
+        input.render
+          ? 'the render was asked for, so the page was rendered with JavaScript'
+          : `the page gave ${allText} characters of text, so it was rendered with JavaScript`,
       );
       // The render comes before any write, so a page with no text, also after the render, leaves
       // no object behind. A fault of the browser gives a notice, and the plain page stays.
@@ -648,6 +671,7 @@ export const fetchDocument = defineTool({
         ...(provider === undefined ? {} : { provider }),
       }));
 
+    await noteTrace(session, plain.id, got.certFingerprint, false);
     let rendered: { id: string; status: 'known' | 'stored'; title: string } | null = null;
     if (usable !== null) {
       const stored = await storeAnswer(session, reach.store, {
@@ -660,6 +684,7 @@ export const fetchDocument = defineTool({
         day,
       });
       rendered = { id: stored.id, status: stored.status, title: stored.title };
+      await noteTrace(session, stored.id, got.certFingerprint, true);
     }
     // The notice is about the page that is cited: the render when it is stored, else the plain page.
     const captcha =
@@ -690,6 +715,7 @@ export const fetchDocument = defineTool({
       notice: notices.length === 0 ? null : notices.join('; '),
       files: null,
       skipped: null,
+      certificate: got.certFingerprint,
       rendered:
         rendered === null
           ? null
