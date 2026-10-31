@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { ReportPart } from '../content';
 import { PartDefault } from './part-default';
+import { FinancePart } from './finance/finance-part';
 import { IntroductionPart } from './introduction';
 import { MethodChronologyPart } from './method-chronology';
 import { PayPart } from './pay/pay-part';
@@ -19,7 +20,7 @@ export const partComponents: Readonly<Record<string, PartComponent>> = {
   'method-chronology': MethodChronologyPart,
   pay: PayPart,
   'ports-fleet': PortsFleetPart,
-  finance: PartDefault,
+  finance: FinancePart,
   fight: PartDefault,
   ownership: PartDefault,
   limits: PartDefault,
