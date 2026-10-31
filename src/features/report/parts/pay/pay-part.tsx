@@ -5,7 +5,6 @@ import { figureTexts, parts, payUi, type ReportBlock, type ReportPart } from '..
 import { FigureFrame } from '../../figure-frame';
 import { parseMarks } from '../../marks';
 import { AsciiImage } from '../../primitives/ascii-image';
-import { BigNumber } from '../../primitives/big-number';
 import { ChapterBreak } from '../../primitives/chapter-break';
 import { layout } from '../../primitives/layout';
 import { Reveal } from '../../primitives/reveal';
@@ -17,15 +16,12 @@ import { BudgetChart, BuyersChart, PriceChart } from './pay-figures';
 const ROW = 'lg:grid lg:grid-cols-12 lg:gap-x-10';
 const TEXT = 'max-w-[64ch] text-report-body/[1.65]  lg:col-span-8 lg:col-start-5';
 const KEY = /^\*\*([^*]+?):?\*\*:?\s*/;
-// The paragraph after which the two values of the part stand alone.
-const NUMBERS_AFTER = 'In total, across all goods';
 // A wide figure: past the reading column, up to the width of a large screen.
 const WIDE = cn(layout.bleed, 'px-4 md:px-8');
 const WIDE_INNER = 'mx-auto max-w-[1376px]';
 
 /** Part "Pay": the oil-derrick break, the text on an editorial grid with its notes in the margin,
- * figures 3 and 5 wide, figure 4 as a scroll scene of the price caps and the gap, and the two
- * big values of the part. */
+ * figures 3 and 5 wide, and figure 4 as a scroll scene of the price caps and the gap. */
 export function PayPart({ part }: { readonly part: ReportPart }) {
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const out: ReactNode[] = [];
@@ -55,7 +51,6 @@ export function PayPart({ part }: { readonly part: ReportPart }) {
         </div>
       </Reveal>,
     );
-    if (block.text.includes(NUMBERS_AFTER)) out.push(<Numbers key="numbers" slug={part.slug} />);
   }
   closeReasons();
   return (
@@ -66,16 +61,9 @@ export function PayPart({ part }: { readonly part: ReportPart }) {
   );
 }
 
-/** The chapter break over a band of the Baku oil derricks in ASCII. The numeral stands on the art; the
- * label and the credit of the art close the break, clear of the art at each width. */
+/** The chapter break over a decorative band of the Baku oil derricks in ASCII. The numeral stands
+ * on the art. */
 function PayBreak({ number, title }: { readonly number: string; readonly title: string }) {
-  const { image } = payUi;
-  const caption = (
-    <>
-      <span className="block">{image.label}</span>
-      <span className="block">{image.credit}</span>
-    </>
-  );
   return (
     // From 768px to 1024px the break takes the height of its words, not of the view.
     <div className="relative md:max-lg:[&>.isolate]:min-h-0">
@@ -87,7 +75,7 @@ function PayBreak({ number, title }: { readonly number: string; readonly title: 
       >
         {/* On a phone a taller crop keeps the derricks legible at the few columns of the screen. */}
         <div className="relative aspect-video md:aspect-[1355/565] [&_pre]:text-foreground/70">
-          <AsciiImage src={image.src} alt={image.alt} />
+          <AsciiImage src={payUi.image} />
           {/* The scrim keeps the numeral and the title clear of the art at every width. */}
           <div
             aria-hidden="true"
@@ -95,12 +83,7 @@ function PayBreak({ number, title }: { readonly number: string; readonly title: 
           />
         </div>
       </div>
-      <ChapterBreak number={number} title={title} quote={payUi.quote}>
-        <p className="mt-10 font-mono text-report-label/4 text-label lg:hidden">{caption}</p>
-      </ChapterBreak>
-      <p className="absolute right-8 bottom-6 hidden text-right font-mono text-report-label/4 whitespace-nowrap text-label lg:block">
-        {caption}
-      </p>
+      <ChapterBreak number={number} title={title} />
     </div>
   );
 }
@@ -125,26 +108,6 @@ function Sidenotes({ text, part }: { readonly text: string; readonly part: Repor
         </p>
       ))}
     </aside>
-  );
-}
-
-/** The two values of the part as one full-width beat, in two equal columns, so that the two
- * values take the same size, the same baseline and the same width of label. */
-function Numbers({ slug }: { readonly slug: string }) {
-  return (
-    <div className={cn(layout.bleed, 'my-12 border-y border-border md:my-16')}>
-      <div className="mx-auto grid max-w-[1376px] items-start gap-12 px-4 py-12 md:grid-cols-2 md:gap-10 md:px-8 md:py-16">
-        {payUi.numbers.map((one) => (
-          <Reveal key={one.value}>
-            <BigNumber
-              value={one.value}
-              label={one.label}
-              note={{ partSlug: slug, id: one.note }}
-            />
-          </Reveal>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -220,8 +183,7 @@ function Figure({ figure, slug }: { readonly figure: FigureFacts; readonly slug:
   );
 }
 
-/** One step of figure 4 as an annotation: the date in the accent, a rule toward the chart, and
- * the quoted text. */
+/** One step of figure 4 as an annotation: a rule toward the chart, and the quoted text. */
 function StepText({
   step,
   slug,
@@ -231,8 +193,7 @@ function StepText({
 }) {
   return (
     <>
-      <span className="block font-mono text-report-label uppercase text-signal">{step.kicker}</span>
-      <span aria-hidden="true" className="mt-3 block h-px bg-signal lg:-mr-10" />
+      <span aria-hidden="true" className="block h-px bg-signal lg:-mr-10" />
       <span className="mt-3 block">
         <RichText text={step.text} partSlug={slug} />
       </span>
@@ -257,7 +218,7 @@ function PriceScene({ slug }: { readonly slug: string }) {
         sceneClassName="pointer-events-none z-10"
         stepClassName={CARD}
         steps={steps.map((step) => (
-          <Fragment key={step.kicker}>
+          <Fragment key={step.text}>
             <StepText step={step} slug={slug} />
           </Fragment>
         ))}

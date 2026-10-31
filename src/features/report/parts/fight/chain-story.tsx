@@ -10,7 +10,6 @@ import {
   arcs,
   brands,
   chainCount,
-  routeCounts,
   sites,
   stages,
   totalsAt,
@@ -20,7 +19,6 @@ import { ChainMap } from './chain-map';
 import { ChainStrips, ChainTotals } from './chain-panels';
 
 const copy = fightUi.chain;
-const STEPS = stages.length + 2;
 const ROUTES = stages.length;
 const BUYERS = stages.length + 1;
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -123,22 +121,8 @@ const Record = ({ id }: { readonly id: string }) => (
   </p>
 );
 
-const Head = ({ index, title }: { readonly index: number; readonly title: string }) => (
-  <>
-    <p className="font-mono text-report-label uppercase tabular-nums text-label">
-      {copy.step} <span className="text-signal">{pad(index + 1)}</span> / {pad(STEPS)}
-    </p>
-    <h4 className="mt-4 text-report-lead/[1.05] tracking-[-0.03em] text-balance">{title}</h4>
-  </>
-);
-
-const Figure = ({ value, label }: { readonly value: string; readonly label: string }) => (
-  <div className="mt-5">
-    <p className="font-mono text-report-number/[0.85] tracking-[-0.05em] text-signal tabular-nums">
-      {value}
-    </p>
-    <p className="mt-2 font-mono text-report-label text-label">{label}</p>
-  </div>
+const Head = ({ title }: { readonly title: string }) => (
+  <h4 className="text-report-lead/[1.05] tracking-[-0.03em] text-balance">{title}</h4>
 );
 
 /** The text of the steps, one for each step, each with its own source. */
@@ -153,11 +137,10 @@ function cards(figure: ReportBlock['figure'], text: string, partSlug: string): R
       </p>
     </div>
   );
-  const top = totalsAt(1)[0];
   return [
     ...stages.map((stage, index) => (
       <div key={stage.name}>
-        <Head index={index} title={stage.name} />
+        <Head title={stage.name} />
         <p className="mt-3 text-report-small text-muted-foreground">{copy.imports}</p>
         <dl className="mt-5 grid border-t border-divider">
           {stage.shares.map((share) => (
@@ -194,12 +177,7 @@ function cards(figure: ReportBlock['figure'], text: string, partSlug: string): R
       </div>
     )),
     <div key="routes">
-      <Head index={ROUTES} title={copy.routesTitle} />
-      <p className="mt-3 text-report-small text-muted-foreground">{copy.routesText}</p>
-      <Figure
-        value={String(routeCounts.doc)}
-        label={copy.documentedLabel.replace('{steps}', String(routeCounts.steps))}
-      />
+      <Head title={copy.routesTitle} />
       <p className="mt-4 font-mono text-report-label text-label">{copy.states}</p>
       <p className="mt-2 font-mono text-report-label text-label">
         {ARC_NOTE.replace('{drawn}', chainCount(arcChains.drawn)).replace(
@@ -213,16 +191,7 @@ function cards(figure: ReportBlock['figure'], text: string, partSlug: string): R
       {routeSource}
     </div>,
     <div key="buyers">
-      <Head index={BUYERS} title={copy.buyersTitle} />
-      <p className="mt-3 text-report-small text-muted-foreground">{copy.buyersText}</p>
-      {top === undefined ? null : (
-        <Figure
-          value={chainCount(top.chains)}
-          label={copy.throughLabel
-            .replace('{chains}', String(routeCounts.chains))
-            .replace('{name}', top.name)}
-        />
-      )}
+      <Head title={copy.buyersTitle} />
       <div className="mt-6 grid gap-6">
         <ChainTotals title={copy.byBuyer} totals={totalsAt(1)} />
         <ChainTotals title={copy.byUse} totals={totalsAt(2)} />
@@ -273,14 +242,12 @@ export function ChainStory({
       id="fight-chain"
       className="mt-28 mb-16 scroll-mt-[calc(var(--report-bar,0px)+3rem)] border-t border-foreground pt-3"
     >
-      <p className="font-mono text-report-label uppercase text-label">{copy.kicker}</p>
       <h3
         id="fight-chain-title"
-        className="mt-2 text-report-number/[0.95] tracking-[-0.045em] text-balance"
+        className="text-report-number/[0.95] tracking-[-0.045em] text-balance"
       >
         {copy.title}
       </h3>
-      <p className="mt-4 max-w-[60ch] text-report-small text-muted-foreground">{copy.intro}</p>
       <div className="mt-8">
         {reduce === true || !wide ? (
           <ol className="grid gap-16">

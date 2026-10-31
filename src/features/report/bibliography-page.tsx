@@ -4,7 +4,10 @@ import { noteAnchor } from './note-ref';
 import { ReportFrame } from './report-frame';
 import { RichText } from './rich-text';
 
-/** Every note of the report, grouped by part, each one at the anchor that its marker links to. */
+const { images } = ui.bibliography;
+
+/** Every note of the report, grouped by part, each one at the anchor that its marker links to,
+ * then the credits of the images of the report page. */
 export function BibliographyPage() {
   return (
     <ReportFrame label={ui.bibliography.label}>
@@ -43,6 +46,26 @@ export function BibliographyPage() {
               </ol>
             </section>
           ))}
+        <section
+          aria-labelledby="notes-images"
+          className="mt-12 border-t border-border pt-6 lg:grid lg:grid-cols-12 lg:gap-x-8"
+        >
+          <h2 id="notes-images" className="text-report-lead text-balance lg:col-span-4">
+            {images.title}
+          </h2>
+          <ul className="mt-4 space-y-3 lg:col-span-8 lg:mt-0">
+            {images.items.map((image) => (
+              <li key={image.href} className="max-w-[72ch] text-report-small break-words">
+                <a
+                  href={image.href}
+                  className="inline-flex min-h-11 items-center underline decoration-border underline-offset-4 hover:decoration-foreground"
+                >
+                  {image.credit}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
       </article>
     </ReportFrame>
   );

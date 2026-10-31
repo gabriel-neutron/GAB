@@ -13,7 +13,7 @@ interface FigureFrameProps {
   readonly partSlug?: string | undefined;
   /** The chart. */
   readonly children: ReactNode;
-  /** A plate of a book: a large figure number and a display title. */
+  /** A plate of a book: a display title. */
   readonly plate?: boolean | undefined;
 }
 
@@ -36,25 +36,19 @@ export function FigureFrame({
   ] as const;
   return (
     <figure className="my-12 border-t border-foreground pt-3">
-      <p className="font-mono text-report-label uppercase text-label">
-        {ui.figure.name}{' '}
-        <span
-          className={
-            plate
-              ? 'block pt-2 text-report-display leading-[0.8] tracking-[-0.08em] text-foreground tabular-nums'
-              : ''
-          }
-        >
-          {plate ? String(number).padStart(2, '0') : number}
-        </span>
-      </p>
+      {/* The number of the figure leads the title: the text names each figure by it. */}
       <h3
         className={
           plate
-            ? 'mt-5 max-w-[24ch] text-report-heading leading-[1.02] tracking-[-0.035em] text-balance'
-            : 'mt-2 text-report-lead text-balance'
+            ? 'max-w-[24ch] text-report-heading leading-[1.02] tracking-[-0.035em] text-balance'
+            : 'text-report-lead text-balance'
         }
       >
+        <span className="mr-3 font-mono text-label tabular-nums">
+          <span className="sr-only">{ui.figure.name} </span>
+          {number}
+          <span className="sr-only">. </span>
+        </span>
         {title}
       </h3>
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-b border-divider pb-3 md:grid-cols-[auto_auto_1fr]">

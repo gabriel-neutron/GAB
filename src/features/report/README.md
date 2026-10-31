@@ -6,6 +6,9 @@ both routes.
 
 ## Content
 
+Show only the report text, the figure facts, the notes and the node references. Do not add a
+kicker, a caption of art, a quote of the text or a second copy of a value or a sentence.
+
 The content file holds every word of the page: the text of each part, its notes, the nodes it
 names, the figure texts, and the labels of the controls. Do not change a value of the report text
 there; add new labels beside the others. The node and relation files are the data of the report
@@ -41,7 +44,8 @@ parser splits a text into runs, and the rich text draws each run.
 
 ## Cover and PDF
 
-The cover art is an illustration and carries a label that says so. The PDF is a file of the
+The art of the page is decoration: it has no label, no caption and an empty alternative text. The
+notes page lists the credit of each image. The PDF is a file of the
 operator and never enters the repository. Set `REPORT_PDF` to its absolute path before a build.
 The build copies it as `report.pdf`, and only then the page shows the download link. A path that
 names no file stops the build.
@@ -61,14 +65,14 @@ figure route renders them one by one, with the older report styles.
 
 Each part has one layout. The layout follows what the reader must learn.
 
-- **summary**: one finding per row on one grid, each with its value, label and note, then the scale of the research. The reader learns the main results and how much evidence is under them.
-- **introduction**: a reading column with the sanctions context in the margin and the three questions. The reader learns that sanctions started before 2022 and what the report asks.
+- **summary**: one finding per row on one grid, each with its value and its text. The reader learns the main results.
+- **introduction**: a reading column with the three questions. The reader learns that sanctions started before 2022 and what the report asks.
 - **method-chronology**: a field of squares for the critical nodes, the three layers, the three conditions, and a timeline that moves with the scroll. The reader learns what makes a node critical and when the sanctions came.
 - **pay**: an editorial grid with notes in the margin, wide figures, and the price cap as a scroll scene. The reader learns that Asia replaces the volumes of Europe, but at a discount.
 - **ports-fleet**: a sticky map with text cards that change the ports and flows in view, then the traffic and fleet figures. The reader learns where crude leaves Russia and which fleet carries it.
 - **finance**: the settlement currencies as a scroll scene with one step for each year, then the payment relays as a numbered list. The reader learns that the rouble and the yuan replace the dollar and the euro.
 - **fight**: a scroll-driven chain story with a sticky map, then the suppliers in small charts. The reader learns how foreign components reach Russian weapon plants, and who replaced the coalition sellers.
-- **ownership**: the two ownership rules side by side and the ownership chains in layered bands. The reader learns how far a sanction reaches through share chains, and where they stop.
+- **ownership**: the text with its notes in a rail and the ownership chains in layered bands. The reader learns how far a sanction reaches through share chains, and where they stop.
 - **limits**: the limits as a numbered register, then the research leads. The reader learns what the data cannot prove.
-- **conclusion**: prose with one key value across the page, and an end mark. The reader learns the two routes around the sanctions.
-- **annex-method**: a technical sheet, the index of all named nodes, and the way to the notes. The reader learns how each fact was sourced and can find every node.
+- **conclusion**: prose, and the answer split into its two routes. The reader learns the two routes around the sanctions.
+- **annex-method**: a technical sheet, the index of all named nodes, the scale of the research, and the way to the notes. The reader learns how each fact was sourced and can find every node.

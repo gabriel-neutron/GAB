@@ -1,8 +1,6 @@
 export const report = {
   title: 'The nodes that sustain Russia’s war in 2026',
   subtitle: 'What keeps it running in 2026',
-  date: 'October 2026',
-  deck: 'Oil, money and imported components. Following the infrastructure that sustains Russia’s war, and the limits of sanctions.',
   summary:
     'Russia has found new buyers, new shipping arrangements and new payment channels. The report argues that this adaptation keeps trade moving, but gives its remaining partners more power over prices.',
   sea: [
@@ -2130,25 +2128,16 @@ export const figureTexts = {
 
 // The words of the report page itself: controls, counters, panels and labels.
 export const ui = {
-  cover: {
-    src: import.meta.env.BASE_URL + 'report-media/crude-oil-tanker-in-port-arthur-texas-dither.png',
-    alt: 'A dithered photograph of a crude oil tanker in Port Arthur, Texas.',
-    label: 'Illustration. Not evidence of the investigation.',
-    credit:
-      '"Crude Oil Tanker in Port Arthur, Texas" by Quintin Soloviev, CC0, via Wikimedia Commons',
-    href: 'https://commons.wikimedia.org/wiki/File:Crude_Oil_Tanker_in_Port_Arthur,_Texas.jpg',
-  },
-  data: 'Data',
-  pdf: 'Download PDF',
   reportLabel: 'Research report',
   counters: {
+    // The accessible name of the counts in the annex.
     label: 'Scale of the research',
     nodes: 'Nodes',
     relations: 'Relations',
     documents: 'Documents',
     sources: 'Notes',
   },
-  part: { number: 'Part', nodes: 'Nodes in this part' },
+  part: { nodes: 'Nodes in this part' },
   figure: {
     name: 'Figure',
     unit: 'Unit',
@@ -2188,48 +2177,67 @@ export const ui = {
     title: 'Notes and sources',
     back: 'Back to the report',
     label: 'Report notes',
+    // The art of the report page. Each line is the credit of public/report-media/credits.json.
+    images: {
+      title: 'Images',
+      items: [
+        {
+          credit:
+            '"Crude Oil Tanker in Port Arthur, Texas" by Quintin Soloviev, CC0, via Wikimedia Commons',
+          href: 'https://commons.wikimedia.org/wiki/File:Crude_Oil_Tanker_in_Port_Arthur,_Texas.jpg',
+        },
+        {
+          credit:
+            '"1829 map of the Black Sea by the Russian Hydrographic Depot" by Russian Hydrographic Depot, public domain, via Wikimedia Commons',
+          href: 'https://commons.wikimedia.org/wiki/File:1829_map_of_the_Black_Sea_by_the_Russian_Hydrographic_Depot.jpg',
+        },
+        {
+          credit:
+            '"Crude oil tanker Eagle San Diego" by Jordanroderick, CC0, via Wikimedia Commons',
+          href: 'https://commons.wikimedia.org/wiki/File:Crude_oil_tanker_Eagle_San_Diego.jpg',
+        },
+        {
+          credit: '"1903 Baku Oil Wells" by Unknown author, public domain, via Wikimedia Commons',
+          href: 'https://commons.wikimedia.org/wiki/File:1903_Baku_Oil_Wells.jpg',
+        },
+        {
+          credit:
+            '"Caucasus Novorossiysk general view Postcard 1900-1904" by Brothers Borisov Publishing House, Novorossiysk, public domain, via Wikimedia Commons',
+          href: 'https://commons.wikimedia.org/wiki/File:Caucasus_Novorossiysk_general_view_Postcard_1900-1904.jpg',
+        },
+        {
+          credit:
+            '"Russia 1771 Sestroretsk Rouble" by Russia (coin), National Numismatic Collection (image), public domain, via Wikimedia Commons',
+          href: 'https://commons.wikimedia.org/wiki/File:Russia_1771_Sestroretsk_Rouble.jpg',
+        },
+        {
+          credit:
+            '"Pair of Flintlock Pistols of Empress Catherine the Great (1729–1796)", Johan Adolph Grecke, 1786. The Metropolitan Museum of Art, Open Access, CC0',
+          href: 'https://www.metmuseum.org/art/collection/search/24927',
+        },
+        {
+          credit:
+            '"Chess set", Unknown maker (Russian, Kholmogory), late 18th–early 19th century. The Metropolitan Museum of Art, Open Access, CC0',
+          href: 'https://www.metmuseum.org/art/collection/search/202506',
+        },
+      ],
+    },
   },
 } as const;
 
 export const openingUi = {
-  kicker: 'Research report',
-  coverNumber: {
-    value: '79%',
-    label: 'Of the crude exported by sea in January 2026, carried by the shadow fleet',
-    note: 'S-5',
-  },
-  // The credit of ui.cover applies.
   // The dithered photograph in two tones, black and the accent, as the art of the chapters.
   cover: {
     src: import.meta.env.BASE_URL + 'report-media/crude-oil-tanker-in-port-arthur-texas-dither.png',
     // The photograph itself, for a phone: the dither is too coarse at that size.
     photo: import.meta.env.BASE_URL + 'report-media/crude-oil-tanker-in-port-arthur-texas.jpg',
-    alt: 'A photograph of a crude oil tanker in Port Arthur, Texas, in black and orange.',
   },
   partBar: { label: 'Parts of the report', of: '/' },
   // The actions of the first screen, one row. The PDF action shows only when the build copied it.
   links: { label: 'Report links', read: 'Read', data: 'Data', pdf: 'Download PDF' },
-  // The scale of the research as one sentence: each count, then its words.
-  counters: {
-    words: ['nodes,', 'relations,', 'archived documents and', 'notes.'],
-    // The method paragraph and note S-3: the nodes against the entities of the database.
-    tie: 'The nodes are the entities that meet the three conditions of the method.',
-  },
   summary: {
-    findings: 'Key findings',
     // The plate of the summary head on a wide screen: an old chart of the Black Sea, in two tones.
-    art: {
-      src: import.meta.env.BASE_URL + 'report-media/black-sea-map-1829-dither.png',
-      alt: 'A chart of the Black Sea and the Sea of Azov, made by the Russian Hydrographic Depot in 1829, in two tones.',
-      label: 'Illustration. Not evidence of the investigation.',
-      credit:
-        '"1829 map of the Black Sea by the Russian Hydrographic Depot" by Russian Hydrographic Depot, public domain, via Wikimedia Commons',
-      href: 'https://commons.wikimedia.org/wiki/File:1829_map_of_the_Black_Sea_by_the_Russian_Hydrographic_Depot.jpg',
-    },
-    // The mark of a value that the cover shows too; the outline draws it.
-    repeat: 'Also on the cover',
-    // The method paragraph: "a database of nearly 5,200 entities".
-    entities: { value: '5,200', label: 'Entities in the database (approx.)', note: 'S-3' },
+    art: import.meta.env.BASE_URL + 'report-media/black-sea-map-1829-dither.png',
     // Figure 9 of the report: the rouble line of the export panel. It sits under the finding of
     // note S-11 (2021 and 2025 only), and cites note IV-5 of figure 9, which covers 2019-2025.
     chart: {
@@ -2243,73 +2251,23 @@ export const openingUi = {
       marked: [2021, 2025],
     },
     // Each value is written exactly as in the list item of the same place, with the note of
-    // that item; the label restates the item in a few words.
+    // that item.
     values: [
-      { value: '84%', label: 'Fall of EU purchases from Russia, 2021 to 2025', note: 'S-4' },
-      {
-        value: '79%',
-        label: 'Of the crude exported by sea in January 2026, carried by the shadow fleet',
-        note: 'S-5',
-      },
-      {
-        value: 'almost doubled',
-        label: 'The discount on Russian crude to Brent, since November 2025',
-        note: 'S-7',
-      },
-      {
-        value: 'less than one fifth',
-        label: 'Share of oil and gas in federal revenue in 2026, against half in 2014',
-        note: 'S-10',
-      },
-      {
-        value: '53%',
-        label: 'Of Russian exports settled in roubles in 2025, against 14% in 2021',
-        note: 'S-11',
-      },
-      {
-        value: '77%',
-        label: 'Of the high-priority items for weapons sold to Russia in 2025, from China',
-        note: 'S-14',
-      },
+      { value: '84%', note: 'S-4' },
+      { value: '79%', note: 'S-5' },
+      { value: 'almost doubled', note: 'S-7' },
+      { value: 'less than one fifth', note: 'S-10' },
+      { value: '53%', note: 'S-11' },
+      { value: '77%', note: 'S-14' },
     ],
   },
   introduction: {
-    quote: 'Sanctions against Russia did not start in 2022.',
-    numbers: [
-      {
-        value: '2.6 times',
-        label: 'Defence budget planned for 2025, against 2021 spending, at constant prices',
-        note: 'Int-4',
-      },
-      { value: '36%', label: 'Fall of oil and gas revenue over the same period', note: 'Int-5' },
-    ],
-    timelineLabel: 'Sanctions context, 2014-2026',
-    // The art of the chapter opening, a dithered photograph with its label and credit.
-    art: {
-      src: import.meta.env.BASE_URL + 'report-media/crude-oil-tanker-eagle-san-diego-dither.png',
-      alt: 'A dithered photograph of the oil tanker Eagle San Diego, viewed from the side.',
-      label: 'Illustration. Not evidence of the investigation.',
-      credit: '"Crude oil tanker Eagle San Diego" by Jordanroderick, CC0, via Wikimedia Commons',
-      href: 'https://commons.wikimedia.org/wiki/File:Crude_oil_tanker_Eagle_San_Diego.jpg',
-    },
-    // Each date and each fragment is quoted from the text of the introduction.
-    timeline: [
-      {
-        date: '2014',
-        text: 'the European Union froze the assets of 21 Russian and Crimean officials',
-      },
-      { date: 'December 2016', text: 'the United States kept its sanctions in place' },
-      { date: '24 February 2022', text: 'the measures changed in scale' },
-      { date: '2026', text: 'the war goes on in 2026' },
-    ],
+    // The art of the chapter opening, a dithered photograph.
+    art: import.meta.env.BASE_URL + 'report-media/crude-oil-tanker-eagle-san-diego-dither.png',
   },
 } as const;
 
 export const methodUi = {
-  // Quoted verbatim from the text of the part, without its note marker.
-  quote:
-    'In total, 493 nodes are critical: 442 serve to pay, 29 to finance and 22 to fight, with the ships of one management company counted as a single node.',
-  field: 'One square, one critical node',
   layers: {
     label: 'Layers',
     unit: 'Critical nodes, one square for each node',
@@ -2323,25 +2281,16 @@ export const methodUi = {
     open: 'Open the nodes of the page data',
     conditions: 'Three conditions of a critical node',
   },
-  margin: {
-    notes: 'Notes',
-    scale: 'ADMIRALTY scale',
-    // Quoted from the text of the part: only A and F have a meaning there.
-    a: 'an official issuer',
-    f: 'nothing makes it possible to judge it',
-  },
   timeline: {
     label: 'Sanctions, 2014-2026',
     // Quoted from the text of the part.
     period: 'The report covers 2024-2026',
-    scroll: 'Scroll to move along the timeline.',
     gap: '2015-2021: no event in this figure',
     unit: 'Event, dated',
     actors: { COAL: 'COALITION' } as Readonly<Partial<Record<string, string>>>,
   },
+  // The counts of the text of the part.
   numbers: {
-    total: { value: '493', label: 'Critical nodes', note: 'I-8' },
-    serve: 'Serve to',
     layers: [
       { value: '442', label: 'Pay' },
       { value: '29', label: 'Finance' },
@@ -2351,31 +2300,9 @@ export const methodUi = {
 } as const;
 
 export const payUi = {
-  // A sentence of the part, quoted verbatim.
-  quote:
-    "Under the report's hypothesis, gas sold to China therefore replaces the volumes lost in Europe, but not their revenue.",
-  image: {
-    src: import.meta.env.BASE_URL + 'report-media/baku-oil-wells-1903.jpg',
-    alt: 'An ASCII drawing of a photograph of wooden oil derricks in Baku, 1903.',
-    label: 'Illustration. Not evidence of the investigation.',
-    credit: '"1903 Baku Oil Wells", unknown author, public domain, via Wikimedia Commons',
-  },
-  // Each value is the value of the text of the part; '20×' writes "twenty times" as a numeral.
-  numbers: [
-    {
-      value: '84%',
-      label: 'Fall of EU purchases from Russia, all goods, 2021 to 2025',
-      note: 'II-8',
-    },
-    {
-      value: '20×',
-      label: 'More Russian crude bought by India in 2025 than in 2021',
-      note: 'II-9',
-    },
-  ],
+  image: import.meta.env.BASE_URL + 'report-media/baku-oil-wells-1903.jpg',
   estimate: 'Hollow point: estimate (a measure other than customs)',
   crossingNote: 'Ring: where one line goes below another, between two year-end values.',
-  f3Label: 'Russian exports by buyer and crude bought from Russia',
   // The mark where a line of the old buyers goes below a line of a new buyer.
   crossing: '{a} below {b}',
   // The heading of the column of notes beside the text.
@@ -2384,41 +2311,27 @@ export const payUi = {
     label: 'Brent price, Urals price and EU price cap, monthly',
     // The note of figure 4, with the shaded area of this chart in place of a colour name.
     note: 'Urals: monthly average price used for the Russian mineral extraction tax. Brent: monthly price of the World Bank. The shaded area is the gap between the two; it also includes quality and freight. Cap: maximum price, set by the EU, of a Russian crude transported or insured by a coalition company.',
-    // Each card quotes the text of the part; the kicker names the state of the chart. The
-    // paragraph on Brent and Urals comes just before the figure, so no card repeats it.
+    // Each card quotes the text of the part. The paragraph on Brent and Urals comes just before
+    // the figure, so no card repeats it.
     steps: [
       {
-        kicker: 'Cap $60 · 5 Dec. 2022',
         text: 'Until February 2025, Urals sells above the 60-dollar cap; it then mostly falls below it from March to August 2025',
       },
       {
-        kicker: 'Cap $47.6 · 3 Sep. 2025 · Cap $44.1 · 1 Feb. 2026',
         text: 'then below the cap lowered to 47.6 dollars in November and December 2025 (figure 4).',
       },
       {
-        kicker: 'Rosneft and Lukoil designated · 22 Oct. 2025',
         text: 'The gap widens further after October 2025 (figure 4), when OFAC designates [[N-P026|Rosneft]] and [[N-P030|Lukoil]], two large Russian oil groups,[^II-20] and several Indian refiners stop buying.[^II-21] The report sees this as a probable effect of this designation, but cannot measure it, because the series only shows a coincidence of dates.',
       },
     ],
   },
-  f5Label: 'Share of oil and gas in federal revenue, and defence spending',
 } as const;
 
 export const portsFleetUi = {
-  quote: 'So a list of ships describes a state that the ship has often already left.',
-  terminals: 'Export terminals of the report, with their position',
   // The art of the opening: a postcard of the port of Novorossiysk, drawn in ASCII.
-  art: {
-    src: import.meta.env.BASE_URL + 'report-media/novorossiysk-postcard-1900-1904.jpg',
-    alt: 'An ASCII drawing of a postcard of the port of Novorossiysk, with its piers and oil tanks, 1900-1904.',
-    label:
-      'Novorossiysk port, postcard, 1900-1904. Illustration. Not evidence of the investigation.',
-    credit:
-      '"Caucasus Novorossiysk general view Postcard 1900-1904" by Brothers Borisov Publishing House, Novorossiysk, public domain, via Wikimedia Commons',
-  },
+  art: import.meta.env.BASE_URL + 'report-media/novorossiysk-postcard-1900-1904.jpg',
   map: {
     label: 'Map of the oil export terminals of the report',
-    kickers: ['Where it leaves from', 'The Pacific outlet', 'Traffic holds up', 'The shadow fleet'],
     named: 'Named in this step',
     other: 'Other terminal of the report',
     ban: 'EU ban on transactions with the port: start date at each port',
@@ -2466,45 +2379,10 @@ export const portsFleetUi = {
     label:
       'Timeline of {n} designated ships, from 6 months before to 24 months after their designation',
   },
-  // Each display figure is a short form of the value; its caption gives the words of the text.
-  numbers: [
-    {
-      value: '≈8/10',
-      label:
-        'about eight in ten designated tankers lose the AIS identity linked to their IMO number within a year',
-      note: 'III-8',
-    },
-    {
-      value: '37',
-      label: 'tankers call at EU ports in the six months before their designation',
-      note: 'III-8',
-    },
-    { value: '≥7', label: 'at least 7 in the two years after', note: 'III-8' },
-    {
-      value: '>1/5',
-      label:
-        'more than one designated tanker in five still loads Russian oil in December 2025, according to the KSE',
-      note: 'III-9',
-    },
-  ],
-  usFirst: {
-    value: 'almost nine cases out of ten',
-    label:
-      'the United States designates first, when the EU and the United States designate the same ship',
-    note: 'III-14',
-  },
 } as const;
 
 export const financeUi = {
-  // One sentence of the part, quoted verbatim.
-  quote: 'Yet a payment in yuan still goes through a bank that needs the dollar.',
-  image: {
-    src: import.meta.env.BASE_URL + 'report-media/sestroretsk-rouble-1771.jpg',
-    alt: 'An ASCII drawing of the two faces of a copper rouble coin of 1771.',
-    label: 'Illustration. Not evidence of the investigation.',
-    credit:
-      '"Russia 1771 Sestroretsk Rouble" by Russia (coin), National Numismatic Collection (image), public domain, via Wikimedia Commons',
-  },
+  image: import.meta.env.BASE_URL + 'report-media/sestroretsk-rouble-1771.jpg',
   figure: {
     // The years that the steps of the scene show, from the data of figure 9.
     steps: [2021, 2022, 2023, 2024, 2025],
@@ -2514,63 +2392,11 @@ export const financeUi = {
     tableCaption: 'Data of figure 9, percentage of total',
     year: 'Year',
   },
-  tie: {
-    label: 'December 2023, share of export revenue',
-    // Written exactly as in note IV-6.
-    values: [
-      { value: '35.8%', label: 'Yuan' },
-      { value: '35.7%', label: 'Rouble' },
-    ],
-    note: { partSlug: 'finance', id: 'IV-6' },
-  },
-  relays: {
-    label: 'Payment relays',
-    nodes: 'Nodes',
-    sanctions: 'Sanctions that follow',
-    // The sanctions that each relay text names, in the order of the relays. "when" is written as
-    // in the text; an empty "when" is a date that the text does not give.
-    stamps: [
-      [
-        { body: 'OFAC', when: 'June 2024' },
-        { body: 'EU', when: '' },
-        { body: 'EU', when: '2026' },
-      ],
-      [{ body: 'EU', when: '2025' }],
-      [
-        { body: 'EU', when: '' },
-        { body: 'EU', when: '2026' },
-      ],
-      [],
-      [],
-      [{ body: 'OFAC', when: 'threat' }],
-    ],
-  },
+  relays: { label: 'Payment relays' },
 } as const;
 
 export const fightUi = {
-  // Quoted verbatim from the text of the part.
-  quote:
-    'The sanctions therefore do not cut access to these goods, but they make it more costly, and this cost mainly benefits China.',
-  image: {
-    src: import.meta.env.BASE_URL + 'report-media/met-24927-flintlock-pistols.jpg',
-    alt: 'An ASCII drawing of a pair of eighteenth-century flintlock pistols.',
-    label: 'Illustration. Not evidence of the investigation.',
-    credit:
-      '"Pair of Flintlock Pistols of Empress Catherine the Great (1729–1796)", Johan Adolph Grecke, 1786. The Metropolitan Museum of Art, Open Access, CC0',
-  },
-  // Each value is written exactly as in the note of the same id.
-  numbers: [
-    {
-      value: '88%',
-      label: 'Share of China and Hong Kong in the declared sales of CHP goods to Russia, 2025',
-      note: 'IV-33',
-    },
-    {
-      value: 'about 300%',
-      label: 'Premium paid to China for CHP goods in 2025',
-      note: 'IV-31',
-    },
-  ],
+  image: import.meta.env.BASE_URL + 'report-media/met-24927-flintlock-pistols.jpg',
   suppliers: {
     a: 'a. By reporting country',
     b: 'b. Nine third countries',
@@ -2579,14 +2405,10 @@ export const fightUi = {
     country: 'Reporting country',
     noValue: 'Hatch: no declared value',
     noValueShort: 'n/d',
-    bSort: 'Sorted by the change from 2023 to 2025, largest rise first; no 2025 value last.',
     sanctionYear: 'Band: 2023, the year of Executive Order 14114',
   },
   chain: {
-    kicker: 'The chain, step by step',
     title: 'From the brand to the weapon',
-    intro:
-      'Scroll the steps. The map shows the places that each step names. Each step gives its own unit, period and source.',
     step: 'Step',
     mapLabel: 'Map of the places named by the step in view',
     openSite: 'Open the record of the site',
@@ -2597,15 +2419,9 @@ export const fightUi = {
     page: 'p.',
     source: 'Source',
     unit: 'Unit',
-    unitValue: 'Shown on each step',
     routesTitle: 'From the manufacturer to the intermediary',
-    routesText:
-      'Figure 11 data: the routes from the country of the component manufacturer to the country of the intermediary. The widths count chains, not trade.',
     buyersTitle: 'From the intermediary to the weapon',
-    buyersText:
-      'Figure 11 data: the chains by type of buyer and by end use. The diamonds on the map are the Fight nodes of the report that have a known site.',
     byIntermediary: 'Chains by intermediary',
-    byManufacturer: 'Chains by country of the component manufacturer',
     byBuyer: 'Chains by buyer',
     byUse: 'Chains by end use',
     sites: 'Fight nodes with a known site',
@@ -2617,9 +2433,6 @@ export const fightUi = {
       url: 'https://kse-ua-prod-media.fra1.digitaloceanspaces.com/wp-content/uploads/2024/01/Challenges-of-Export-Controls-Enforcement.pdf',
     },
     record: 'Record',
-    documentedLabel: 'of the {steps} steps of the routes are documented',
-    throughLabel: 'of the {chains} chains go through the buyer type "{name}"',
-    siteKey: 'Fight node with a known site',
     siteCount: '{n} sites on the map',
     flowColumns: [
       'Country of the component manufacturer',
@@ -2629,7 +2442,6 @@ export const fightUi = {
     ],
     flowText:
       'Each band is a set of chains. Its width counts chains, on one scale for the four columns. China and Hong Kong carry the accent.',
-    flowSmall: 'One scale for the four lists.',
     unitChains: 'Chains',
     // A reference line of the map, for orientation only.
     urals: 'Urals',
@@ -2641,28 +2453,9 @@ export const fightUi = {
 } as const;
 // The words of the ownership part and of its figure 12.
 export const ownershipUi = {
-  quote: 'So knowing who owns a company tells us how far a sanction reaches it.',
-  image: {
-    src: import.meta.env.BASE_URL + 'report-media/met-202506-chess-set.jpg',
-    alt: 'An ASCII drawing of a carved ivory chess set: two ships, two standing figures and two seated figures.',
-    credit:
-      '"Chess set", Unknown maker (Russian, Kholmogory), late 18th–early 19th century. The Metropolitan Museum of Art, Open Access, CC0',
-  },
-  rule: {
-    // Written exactly as in the first paragraph of the part.
-    value: '50%',
-    label: 'United States: owned together at 50% or more by designated persons, blocked too',
-    note: 'V-1',
-  },
-  // Written exactly as in the first paragraph of the part: "more than 50%".
-  ruleEu: {
-    value: '50%',
-    label: 'EU and United Kingdom: ownership of more than 50%, and control too',
-    note: 'V-2',
-  },
+  image: import.meta.env.BASE_URL + 'report-media/met-202506-chess-set.jpg',
   figure: {
     legend: 'Legend',
-    hint: 'At rest, the figure shows two chains that the text names. Point at or focus an entity to show its links. Select it to open its panel.',
     links: 'links',
     more: 'Show {n} more',
     fewer: 'Show fewer',
@@ -2680,42 +2473,13 @@ export const ownershipUi = {
 
 export const closingUi = {
   limits: {
-    // One sentence of the part, quoted verbatim, away from the first paragraph.
-    quote: 'Only official sources receive a reliability grade.',
     limitsLabel: 'Limits of the evidence',
     leadsLabel: 'Leads',
     checkLabel: 'Check before use',
   },
-  conclusion: {
-    quote:
-      'So, according to the report’s hypothesis, part of the cost of the sanctions for Russia becomes a gain for its new partners.',
-    routesLabel: 'The two routes',
-    money: 'Money',
-    goods: 'Goods',
-    last: {
-      kicker: 'The shadow fleet',
-      value: '79%',
-      label:
-        'Share of the crude that Russia exports by sea, carried by the “shadow fleet”, January 2026, according to KSE',
-      note: 'C-6',
-    },
-    end: 'End of the report text',
-    dataDate: 'Database as at 27 October 2026',
-    next: 'Next:',
-  },
   annex: {
-    quote: 'A source that is known but not archived stays a lead and does not count as a fact.',
-    // Each value is written exactly as in A.1; a qualifier is the word before the value.
-    figures: [
-      { value: '6,327', label: 'Entities in the database' },
-      { value: '1,165', label: 'Military units, not tested' },
-      { value: '5,200', qualifier: 'close to', label: 'Entities tested' },
-    ] as readonly { value: string; qualifier?: string; label: string }[],
-    figuresDate: 'As at 27 October 2026, A.1',
-    figuresNote: 'A-1',
-    rule: 'Rule',
-    condition: 'Condition',
-    scale: 'Scale of the research, read from the data of this page',
-    notes: 'Every note and source of the report',
+    // The date of the counts, and note S-3, which says that the nodes are not the entities of A.1.
+    dataDate: 'Database as at 27 October 2026',
+    dataNote: 'S-3',
   },
 } as const;

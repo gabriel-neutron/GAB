@@ -93,8 +93,7 @@ export function LimitsPart({ part }: { readonly part: ReportPart }) {
           {/* The rule of the list above and the rule of the heading below frame the check. */}
           <aside aria-label={copy.checkLabel} className="my-16 py-6 md:py-10">
             <div className={cn('border-l-4 pl-5 md:pl-8', accent.border)}>
-              <p className="font-mono text-report-label uppercase text-label">{copy.checkLabel}</p>
-              <p className="mt-4 max-w-[40ch] text-report-lead leading-[1.2] tracking-[-0.025em] text-balance">
+              <p className="max-w-[40ch] text-report-lead leading-[1.2] tracking-[-0.025em] text-balance">
                 {text}
               </p>
             </div>
@@ -114,11 +113,9 @@ export function LimitsPart({ part }: { readonly part: ReportPart }) {
       <ClosingBreak
         number={number}
         title={part.title}
-        quote={copy.quote}
         className="top-[22%] right-[6%] w-[44%]"
         art={
           <ol className="font-mono text-report-label/[1.5] uppercase  ">
-            <li className="border-b border-foreground/40 pb-2 text-label">{copy.limitsLabel}</li>
             {claims.map((claim, index) => (
               <li
                 key={claim}

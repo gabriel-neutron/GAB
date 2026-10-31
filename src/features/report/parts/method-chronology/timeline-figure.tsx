@@ -229,9 +229,6 @@ function ScrollTrack({ onMissing }: { readonly onMissing: () => void }) {
             />
           ))}
         </motion.ol>
-        <p className="absolute bottom-6 left-8 font-mono text-report-label text-label">
-          {methodUi.timeline.scroll}
-        </p>
         <motion.div
           aria-hidden="true"
           style={{ scaleX: progress }}
