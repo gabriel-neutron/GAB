@@ -13,7 +13,8 @@ const { entities, links } = figure12;
 const nameOf = new Map(entities.map((one) => [one.id, one.name]));
 const copy = ownershipUi.figure;
 const keyOf = (link: Link): string => `${link.from}>${link.to}`;
-// The chain that the figure shows at rest: from the State to the port of Novorossiysk, and from
+// The chain that the figure shows at rest: from the State, through Transneft, to Novoport Holding
+// (the holding of the port of Novorossiysk), and from
 // Nord Axis to Vostok Oil and the 2Rivers network. The text names each of these links.
 const CHAIN = new Set(['N-O001>N-P034', 'N-P034>N-O020', 'N-O049>N-O050', 'N-O049>N-O046']);
 const chainNodes = new Set([...CHAIN].flatMap((key) => key.split('>')));
@@ -38,7 +39,39 @@ const LEGEND = [
 const typeOf = (id: string): string => reportGraph.glyph(reportGraph.node(id)?.type ?? '');
 
 const dashOf = (link: Link): string | undefined =>
-  link.proposed ? (link.personal ? '1 3' : '5 3') : link.personal ? '1 3' : undefined;
+  link.personal ? '1 3' : link.proposed ? '5 3' : undefined;
+
+// The bands group the entities by class, so an owner can sit below what it holds: an arrowhead
+// at the end of each ownership line gives its direction, from the owner to what it holds.
+const ARROW = { foreground: 'ownership-arrow', signal: 'ownership-arrow-signal' } as const;
+const arrowOf = (link: { readonly personal: boolean; readonly proposed: boolean }) =>
+  link.personal ? undefined : `url(#${link.proposed ? ARROW.signal : ARROW.foreground})`;
+
+/** The two arrowheads, one per stroke colour. A marker cannot take the colour of its line. */
+function Arrows() {
+  return (
+    <defs>
+      {[
+        [ARROW.foreground, 'fill-foreground'],
+        [ARROW.signal, accent.fill],
+      ].map(([id, fill]) => (
+        <marker
+          key={id}
+          id={id}
+          viewBox="0 0 6 6"
+          refX="6"
+          refY="3"
+          markerWidth="6"
+          markerHeight="6"
+          markerUnits="userSpaceOnUse"
+          orient="auto"
+        >
+          <path d="M0,0 L6,3 L0,6 z" className={fill} />
+        </marker>
+      ))}
+    </defs>
+  );
+}
 
 /** One curve from the owner to what it holds, between the edges of the two boxes. */
 function curve(from: Box, to: Box): string {
@@ -121,7 +154,8 @@ export function OwnershipFigure() {
         one.id === active || (active === null && chainNodes.has(one.id))
           ? 'border-foreground'
           : 'border-transparent hover:border-foreground',
-        active !== null && !lit.has(one.id) && 'opacity-30',
+        // A chip out of the active set dims to the muted text colour, which keeps 4.5:1.
+        active !== null && !lit.has(one.id) && 'text-muted-foreground',
       )}
     >
       <span
@@ -151,6 +185,7 @@ export function OwnershipFigure() {
       <ul className="mb-6 flex flex-wrap gap-x-6 gap-y-2" aria-label={copy.legend}>
         {LEGEND.map((item) => (
           <li key={item.key} className="flex items-center gap-2 text-body-sm text-muted-foreground">
+            {/* The arrowheads are defined once, in the svg of the figure below. */}
             <svg aria-hidden="true" width="32" height="8" className="shrink-0">
               <line
                 x1="0"
@@ -159,6 +194,7 @@ export function OwnershipFigure() {
                 y2="4"
                 strokeWidth={item.width}
                 strokeDasharray={item.dash}
+                markerEnd={arrowOf({ personal: item.dash === '1 3', proposed: item.proposed })}
                 className={item.proposed ? accent.stroke : 'stroke-foreground'}
               />
             </svg>
@@ -179,11 +215,16 @@ export function OwnershipFigure() {
         onPointerLeave={() => {
           setActive(null);
         }}
+        onBlur={(event) => {
+          // Focus that leaves the figure clears the active entity, as the pointer does.
+          if (!event.currentTarget.contains(event.relatedTarget)) setActive(null);
+        }}
       >
         <svg
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 size-full overflow-visible"
         >
+          <Arrows />
           {links.map((link) => {
             const from = boxes.get(link.from);
             const to = boxes.get(link.to);
@@ -197,6 +238,7 @@ export function OwnershipFigure() {
                 fill="none"
                 strokeWidth={(link.personal ? 1.25 : 1.5) + (on ? 0.75 : 0)}
                 strokeDasharray={dashOf(link)}
+                markerEnd={arrowOf(link)}
                 className={cn(
                   'transition-opacity duration-100',
                   link.proposed ? accent.stroke : 'stroke-foreground',
@@ -294,7 +336,8 @@ export function OwnershipFigure() {
           );
         })}
       </div>
-      <div aria-live="polite" className="min-h-16 border-t border-foreground pt-3 text-body-sm">
+      {/* No live region: the table below gives the same links, so focus does not read them out. */}
+      <div className="min-h-16 border-t border-foreground pt-3 text-body-sm">
         {active === null ? (
           <p className="text-muted-foreground">{copy.hint}</p>
         ) : (

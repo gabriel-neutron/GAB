@@ -93,8 +93,7 @@ export function OwnershipPart({ part }: { readonly part: ReportPart }) {
     if (block.kind === 'figure' && block.figure !== undefined) {
       body.push(
         <div key={key} className={cn(layout.bleed, 'my-16 md:my-24')}>
-          {/* The figure gives no unit and no period: their empty fields stay out of view. */}
-          <div className="mx-auto max-w-[1400px] px-4 md:px-8 [&_dl>div:has(>dd:empty)]:hidden">
+          <div className="mx-auto max-w-[1400px] px-4 md:px-8">
             <FigureFrame
               number={block.figure.number}
               title={block.figure.title}
