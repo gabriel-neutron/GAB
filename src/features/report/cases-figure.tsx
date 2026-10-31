@@ -41,6 +41,10 @@ const SHORT: Record<string, string> = {
   'Astrafteros Technokosmos LTD': 'Astrafteros',
   'Ultra Trade Service LLC': 'Ultra Trade Service',
   'LLC Electrocom VPK': 'Electrocom VPK',
+  'Tactical Missiles Corporation JSC (KTRV)': 'KTRV',
+  'TRV Engineering JSC': 'TRV Engineering',
+  'LIMITED LIABILITY COMPANY ANGAR 22': 'Angar 22',
+  'REG AUTO SHANGHAI INDUSTRY LTD': 'Reg Auto Shanghai',
 };
 const short = (name: string) => SHORT[name] ?? name;
 

@@ -39,9 +39,9 @@ const holdings = CONTROLLERS.flatMap((c) => {
 const U = 4.4, // pixels per node
   GAP = 8,
   TOP = 24,
-  XC = 150, // controller column
-  XH = 360, // holding column
-  XL = 560, // layer column
+  XC = 170, // controller column
+  XH = 375, // holding column
+  XL = 570, // layer column
   BAR = 6;
 type Stack = Map<string, { y: number; total: number }>;
 const stack = (names: string[], sizeOf: (n: string) => number, gap: number): Stack => {
