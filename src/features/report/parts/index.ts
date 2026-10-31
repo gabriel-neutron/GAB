@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react';
 import type { ReportPart } from '../content';
-import { PartDefault } from './part-default';
 import { FinancePart } from './finance/finance-part';
 import { FightPart } from './fight/fight-part';
+import { AnnexMethodPart } from './annex-method';
+import { ConclusionPart } from './conclusion';
 import { IntroductionPart } from './introduction';
 import { MethodChronologyPart } from './method-chronology';
 import { OwnershipPart } from './ownership/ownership-part';
 import { PayPart } from './pay/pay-part';
 import { PortsFleetPart } from './ports-fleet/ports-fleet-part';
+import { LimitsPart } from './limits';
 import { SummaryPart } from './summary';
 
 /** The drawing of one part. It receives the part from the content, and renders a section whose
@@ -25,7 +27,7 @@ export const partComponents: Readonly<Record<string, PartComponent>> = {
   finance: FinancePart,
   fight: FightPart,
   ownership: OwnershipPart,
-  limits: PartDefault,
-  conclusion: PartDefault,
-  'annex-method': PartDefault,
+  limits: LimitsPart,
+  conclusion: ConclusionPart,
+  'annex-method': AnnexMethodPart,
 };
