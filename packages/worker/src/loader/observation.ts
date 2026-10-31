@@ -12,8 +12,8 @@ const PERIOD_SHAPE: Readonly<Record<ObservationRows['period']['length'], RegExp>
   week: /^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/u,
 };
 
-// UN Comtrade writes a month as six digits.
-const COMPACT_MONTH = /^(\d{4})(0[1-9]|1[0-2])$/u;
+// UN Comtrade writes a month as six digits, and the Pink Sheet of the World Bank as 2024M03.
+const COMPACT_MONTH = /^(\d{4})M?(0[1-9]|1[0-2])$/u;
 
 /** The period of a cell in its ISO form, or null when the cell is not a period of that length.
  * The door of a figure reads the cell with the same rules. */
