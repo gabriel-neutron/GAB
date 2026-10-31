@@ -5,6 +5,7 @@ import { FinancePart } from './finance/finance-part';
 import { FightPart } from './fight/fight-part';
 import { IntroductionPart } from './introduction';
 import { MethodChronologyPart } from './method-chronology';
+import { OwnershipPart } from './ownership/ownership-part';
 import { PayPart } from './pay/pay-part';
 import { PortsFleetPart } from './ports-fleet/ports-fleet-part';
 import { SummaryPart } from './summary';
@@ -23,7 +24,7 @@ export const partComponents: Readonly<Record<string, PartComponent>> = {
   'ports-fleet': PortsFleetPart,
   finance: FinancePart,
   fight: FightPart,
-  ownership: PartDefault,
+  ownership: OwnershipPart,
   limits: PartDefault,
   conclusion: PartDefault,
   'annex-method': PartDefault,
