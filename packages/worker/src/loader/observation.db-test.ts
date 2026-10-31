@@ -632,14 +632,11 @@ test('a licence word opens a figure exactly when it opens a document, and the li
   });
 });
 
-// A stored answer of UN Comtrade (JSON). The area list reads ISO 3166 alpha-2 codes only, and the
-// answer gives numeric codes, so the test writes the two codes of the file as alpha-2 codes.
+// A stored answer of UN Comtrade (JSON), as the key-free API gave it: the codes are numbers.
 const COMTRADE = readFileSync(
   join(import.meta.dirname, '../../../tools/fixtures/comtrade-answer.json'),
   'utf8',
-)
-  .replaceAll('"reporterCode": 156', '"reporterCode": "CN"')
-  .replaceAll('"partnerCode": 643', '"partnerCode": "RU"');
+);
 
 const COMTRADE_DRAFT = {
   table: 'comtrade',
@@ -650,8 +647,8 @@ const COMTRADE_DRAFT = {
     value: { column: 'primaryValue' },
     unit: { column: 'qtyUnitAbbr' },
     period: { column: 'period', length: 'year' },
-    reporter: { column: 'reporterCode', codes: 'iso3166' },
-    partner: { column: 'partnerCode', codes: 'iso3166' },
+    reporter: { column: 'reporterCode', codes: 'm49' },
+    partner: { column: 'partnerCode', codes: 'm49' },
     product: { column: 'cmdCode', system: 'hs' },
     method: 'imports reported by the importer',
   },
@@ -774,3 +771,30 @@ test.each([
     expect(fault.code).toBe('22023');
   });
 });
+
+test.each([
+  ['156', 'iso3166', 'CN'],
+  ['643', 'iso3166', 'RU'],
+  ['251', 'iso3166', 'FR'],
+  ['842', 'iso3166', 'US'],
+  ['412', 'iso3166', 'XK'],
+  ['0', 'group', 'WORLD'],
+  ['899', 'group', 'OTHER'],
+])('the M49 code %s of UN Comtrade is the area %s %s', async (cell, system, code) => {
+  const { rows } = await pool.query('SELECT area_system, area_code FROM public.area_of($1, $2)', [
+    'm49',
+    cell,
+  ]);
+  expect(rows).toStrictEqual([{ area_system: system, area_code: code }]);
+});
+
+test.each(['97', '490', '250', '99999', 'CN'])(
+  'the M49 code %s gives no area, so its row goes to the report',
+  async (cell) => {
+    const { rows } = await pool.query('SELECT area_system FROM public.area_of($1, $2)', [
+      'm49',
+      cell,
+    ]);
+    expect(rows).toStrictEqual([]);
+  },
+);

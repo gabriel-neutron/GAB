@@ -157,8 +157,9 @@ const links = z.strictObject({
 export type LinkEnd = z.infer<typeof linkEnd>;
 
 /** The code lists that a column of a reporter or a partner can hold. The database turns each one
- * into a code of the fixed area list: Eurostat writes its own codes for Greece and for the EU. */
-export const AREA_CODES = ['iso3166', 'eurostat'] as const;
+ * into a code of the fixed area list: Eurostat writes its own codes for Greece and for the EU, and UN
+ * Comtrade writes a number (m49) for each country. */
+export const AREA_CODES = ['iso3166', 'eurostat', 'm49'] as const;
 
 /** The length of the period of a figure. A cell gives the ISO form: 2024, 2024-Q1, 2024-03 or
  * 2024-W05. A month can also be written 202403, as UN Comtrade writes it. */
