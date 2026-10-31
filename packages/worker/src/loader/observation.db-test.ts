@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import type { RawObject } from '@gab/store';
 import { Pool, type PoolClient } from 'pg';
@@ -152,8 +154,14 @@ const storeOf = (held: Held) => ({
   },
 });
 
-const storeFile = async (held: Held, id: string, text: string, day: string): Promise<void> => {
-  await held.ask(PUT, [id, `raw/${id}.csv`, URI, sha256(text), SDMX_CSV, day]);
+const storeFile = async (
+  held: Held,
+  id: string,
+  text: string,
+  day: string,
+  mime: string = SDMX_CSV,
+): Promise<void> => {
+  await held.ask(PUT, [id, `raw/${id}.csv`, URI, sha256(text), mime, day]);
   await held.ask('SELECT public.put_document_text($1, $2::jsonb, $3)', [
     id,
     JSON.stringify([text]),
@@ -176,8 +184,9 @@ const mappedFile = async (
   draft: unknown = DRAFT,
   provider: string | null = 'eurostat',
   text: string = TEXT,
+  mime: string = SDMX_CSV,
 ): Promise<{ mapping: string; load: string }> => {
-  await storeFile(held, FILE, text, '2026-10-25');
+  await storeFile(held, FILE, text, '2026-10-25', mime);
   // fetch_document names the provider of a file of the Eurostat API.
   if (provider !== null)
     await held.ask('SELECT public.fill_document_provider($1, $2)', [FILE, provider]);
@@ -620,5 +629,148 @@ test('a licence word opens a figure exactly when it opens a document, and the li
         figure: held_.document,
         document: held_.document,
       });
+  });
+});
+
+// A stored answer of UN Comtrade (JSON). The area list reads ISO 3166 alpha-2 codes only, and the
+// answer gives numeric codes, so the test writes the two codes of the file as alpha-2 codes.
+const COMTRADE = readFileSync(
+  join(import.meta.dirname, '../../../tools/fixtures/comtrade-answer.json'),
+  'utf8',
+)
+  .replaceAll('"reporterCode": 156', '"reporterCode": "CN"')
+  .replaceAll('"partnerCode": 643', '"partnerCode": "RU"');
+
+const COMTRADE_DRAFT = {
+  table: 'comtrade',
+  modality: 'asserts',
+  publisher: 'UN Comtrade',
+  rows: {
+    measure: 'imports_goods',
+    value: { column: 'primaryValue' },
+    unit: { column: 'qtyUnitAbbr' },
+    period: { column: 'period', length: 'year' },
+    reporter: { column: 'reporterCode', codes: 'iso3166' },
+    partner: { column: 'partnerCode', codes: 'iso3166' },
+    product: { column: 'cmdCode', system: 'hs' },
+    method: 'imports reported by the importer',
+  },
+  relations: [],
+};
+
+test('a stored Comtrade JSON answer is mapped, shows a dry run, loads once and stays restricted', async () => {
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(
+      held,
+      COMTRADE_DRAFT,
+      'un_comtrade',
+      COMTRADE,
+      'application/json',
+    );
+    const mapping = await held.idOf('SELECT mapping::text AS id FROM public.jobs WHERE id = $1', [
+      load,
+    ]);
+    const dry = await held.asRole('gabriel_agent', () =>
+      dryJoin({ query: async (text, values) => ({ rows: await held.ask(text, values) }) }, mapping),
+    );
+    expect(dry.split('\r\n')[0]).toContain('rows 3; figures 2; to the report 1');
+
+    await runLoad(held, load);
+    const figures = await figuresOf(held);
+    expect(figures.map(({ product, value, unit }) => [product, value, unit])).toStrictEqual([
+      ['2709', '52000000.5', 'kg'],
+      ['2711', '0', 'N/A'],
+    ]);
+    // The cited passage is the element of the stored answer, and its licence stays restricted.
+    expect(figures.every(({ licence }) => licence === 'restricted')).toBe(true);
+    expect(figures[0]?.passage).toMatch(/^\{[^]*"cmdCode": "2709"[^]*\}$/u);
+    expect(reportText(held)).toContain('read 3; loaded 2; excluded 1; dropped 0');
+  });
+});
+
+// The span of the element of the data list that holds a text, as the loader gives it. The file is
+// ASCII, so a code point is one UTF-16 unit.
+const elementOf = (inside: string) => {
+  const at = COMTRADE.indexOf(inside);
+  const start = COMTRADE.lastIndexOf('{', at);
+  return {
+    subject_id: null,
+    text_extractor: TEXT_SET,
+    page: 1,
+    start,
+    end: COMTRADE.indexOf('}', at) + 1,
+  };
+};
+
+test('a second load of a Comtrade element adds no row, and a span that is no element is refused', async () => {
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(
+      held,
+      COMTRADE_DRAFT,
+      'un_comtrade',
+      COMTRADE,
+      'application/json',
+    );
+    const claimed = await held.asRole('gabriel_agent', () =>
+      held.ask('SELECT job_id::text AS id FROM public.claim_job()'),
+    );
+    expect(claimed).toStrictEqual([{ id: load }]);
+
+    const row = elementOf('"cmdCode": "2709"');
+    expect(await putAsAgent(held, load, [row])).toStrictEqual([{ item: 1, outcome: 'written' }]);
+    expect(await putAsAgent(held, load, [row])).toStrictEqual([{ item: 1, outcome: 'held' }]);
+    expect(await held.ask('SELECT count(*)::int AS n FROM public.observation')).toStrictEqual([
+      { n: 1 },
+    ]);
+
+    // The element with a missing unit gives no figure, and the empty cell is not a zero.
+    const missing = await faultOf(putAsAgent(held, load, [elementOf('"cmdCode": "2701"')]));
+    expect(missing).toMatchObject({ code: '22000', message: 'row 1: the unit is empty' });
+  });
+});
+
+test('the door refuses a span that is a cut of an element of the data list', async () => {
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(
+      held,
+      COMTRADE_DRAFT,
+      'un_comtrade',
+      COMTRADE,
+      'application/json',
+    );
+    await held.asRole('gabriel_agent', () => held.ask('SELECT job_id FROM public.claim_job()'));
+    const row = elementOf('"cmdCode": "2709"');
+    const cut = await faultOf(putAsAgent(held, load, [{ ...row, start: row.start + 1 }]));
+    expect(cut).toMatchObject({ code: '22000' });
+    expect(cut.message).toContain('not one element of the data list');
+  });
+});
+
+test.each([
+  ['an element with a key twice', '{"data":[{"value":1,"value":2}]}'],
+  ['an element that is no object', '{"data":[{"value":1},2]}'],
+  ['a page with no data list', '{"value":1}'],
+  ['a page that is no JSON', '{"data":'],
+])('the door refuses %s as a fault of the load', async (_name, page) => {
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(
+      held,
+      COMTRADE_DRAFT,
+      'un_comtrade',
+      COMTRADE,
+      'application/json',
+    );
+    // The mapper reads a good page. The stored page then changes, as a damaged store would.
+    await held.ask('UPDATE public.document_text SET text = $2 WHERE document_id = $1', [
+      FILE,
+      page,
+    ]);
+    await held.asRole('gabriel_agent', () => held.ask('SELECT job_id FROM public.claim_job()'));
+    const fault = await faultOf(
+      putAsAgent(held, load, [
+        { subject_id: null, text_extractor: TEXT_SET, page: 1, start: 9, end: 20 },
+      ]),
+    );
+    expect(fault.code).toBe('22023');
   });
 });
