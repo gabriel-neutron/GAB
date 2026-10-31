@@ -1,8 +1,7 @@
 import raw from './data/ports-alt.csv?raw';
 import { LinePanel, PANEL_HEIGHT, readCsv, type Series } from './line-panel';
 
-// Three before/after versions of figure 5, for the operator to choose. Data: research/out/fnf/rapport
-// f5-asop.csv, f5-terminals.csv and f5-pipelines-eu.csv (ASOP, Bruegel, Eurostat), copied to ports-alt.csv.
+// Three before/after versions of figure 5, for the operator to choose (ASOP, Bruegel, Eurostat).
 const rows = readCsv(raw);
 const get = (panel: string, series: string, period: string) => {
   const r = rows.find(

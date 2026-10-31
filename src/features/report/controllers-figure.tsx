@@ -2,16 +2,18 @@ import raw from './data/controllers.csv?raw';
 import { readCsv } from './line-panel';
 
 // Figure 13: ultimate controllers of the report's nodes, by holding and layer, 2026 (number of nodes).
-// Data: research/out/fnf/rapport/f12-nodes-v2.csv: the 95 designated entities linked to at least 3 others,
-// and the designated fleet as one aggregate node (research of 2026-10-31). One band unit is one node,
+// Nodes: the entities of the record designated by the EU, OFAC or the UK and linked to at least 3 others,
+// and the designated fleet as one aggregate node. One band unit is one node,
 // not economic size. A lead (unstored source or a link inferred from a name) is a dashed band.
-const rows = readCsv(raw).map((r) => ({
-  layer: r['layer'] ?? '',
-  controller: r['controller'] ?? '',
-  holding: r['holding'] ?? '',
-  lead: r['evidence'] === 'lead',
-  v: Number(r['nodes']),
-}));
+const rows = readCsv(raw)
+  .map((r) => ({
+    layer: r['layer'] ?? '',
+    controller: r['controller'] ?? '',
+    holding: r['holding'] ?? '',
+    lead: r['evidence'] === 'lead',
+    v: Number(r['nodes']),
+  }))
+  .filter((r) => Number.isFinite(r.v) && r.v > 0);
 const CONTROLLERS = [
   { name: 'Russian federal state', tone: 'old' },
   { name: 'Russian region or level not stated', tone: 'new' },
@@ -96,7 +98,8 @@ export function ControllersFigure() {
       ),
     )
     .filter((l) => l.v > 0);
-  const height = Math.max(...[...H.values()].map((h) => h.y + h.total * U)) + 30;
+  const height =
+    Math.max(...[...C.values(), ...H.values(), ...Ly.values()].map((h) => h.y + h.total * U)) + 30;
   return (
     <figure className="report-chart">
       <svg

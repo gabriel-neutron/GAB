@@ -3,9 +3,8 @@ import wavesRaw from './data/fleet-waves.csv?raw';
 import flagsRaw from './data/fleet-flags.csv?raw';
 import { readCsv } from './line-panel';
 
-// Figures on the designated tanker fleet. Data: research/out/fnf/rapport/f7-fleet-full.csv (designations of the
-// record; Global Fishing Watch port calls by IMO number), aggregated into ./data/fleet-ports.csv and
-// ./data/fleet-waves.csv (author's counts of distinct tankers).
+// Figures on the designated tanker fleet: designations of the record and Global Fishing Watch port calls by
+// IMO number, as counts of distinct tankers.
 const ports = readCsv(portsRaw);
 const num = (key: string) => Number(ports.find((r) => r['series'] === key)?.['value'] ?? NaN);
 
@@ -221,7 +220,8 @@ export function FleetWavesFigure() {
             c. Flag of the designated tankers
           </text>
           <text y="30" className="lp-axis">
-            711 tankers, last flag in the record · a flag is not the country of the owner
+            {flags.reduce((t, f) => t + f.n, 0)} tankers, last flag in the record · a flag is not
+            the country of the owner
           </text>
           {flags.map((f, i) => {
             const y = 44 + i * 20;

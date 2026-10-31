@@ -2,7 +2,7 @@ import raw from './data/buyers.csv?raw';
 import { readCsv } from './line-panel';
 
 // Figure 5: crude oil bought from Russia by the EU, China and India, 2021 and 2025 (Mt). The bars have
-// almost the same length: the volume held, the buyers changed. Data: fH3-v2.csv panel b (Eurostat Comext,
+// almost the same length: the volume held, the buyers changed. (Eurostat Comext,
 // UN Comtrade); customs data, so pipeline crude is included.
 const rows = readCsv(raw);
 const BUYERS = [

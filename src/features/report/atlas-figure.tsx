@@ -3,14 +3,13 @@ import plantsRaw from './data/atlas-plants.csv?raw';
 import land from './basemap-data';
 import { readCsv } from './line-panel';
 
-// Figure 11, the supply-chain atlas (a double page): brand → made → sold → shipped → Russian plants.
+// The supply-chain atlas (a double page): brand → made → sold → shipped → Russian plants.
 // Each column is 100 % of one stage, with the same country groups in the same order; a band joins the share
-// of one group from a stage to the next (a share, not a flow of the same goods).
-// Brand, made and sold: KSE 2024, Russian customs, battlefield goods, Jan-Oct 2023 (doc_c5184d052910 p. 11-13).
-// Shipped: UN Comtrade mirror exports to Russia, CHP list, 2025 (f11-atlas-volumes.csv).
-// Identified (left, apart): GUR census of components identified in recovered weapons (f11-atlas-gur.csv), a
-// selective catalogue of a Ukrainian government body, by maker headquarters.
-// Plants: f11-atlas-plants.csv (stored points only).
+// of one group from a stage to the next (a share, not a flow of the same goods). A group that a source does
+// not state is absent from its column, not a zero. Brand, made and sold: the same goods (Russian customs,
+// 2023); shipped: mirror exports of the CHP list (2025). The catalogue of identified components stands apart:
+// it is a selective catalogue by maker headquarters, not a measure of trade. The source of each value is in
+// the data files. A plant with an approximate point draws hollow.
 const stages = readCsv(stagesRaw);
 const plants = readCsv(plantsRaw);
 const GROUPS = [
@@ -47,7 +46,8 @@ const segments = (stage: string) => {
 };
 
 // Map of Russia: equirectangular, longitude 27-142 E, latitude 42-70 N.
-const MAP = { lon0: 27, lon1: 142, lat0: 42, lat1: 70, x: 900, y: TOP, w: 380, h: 300 };
+// Height for a true shape at about 56 N: 380 px for 115 degrees of longitude at cos(56) gives 5.9 px a degree.
+const MAP = { lon0: 27, lon1: 142, lat0: 42, lat1: 70, x: 900, y: TOP, w: 380, h: 166 };
 const px = (lon: number, lat: number) => [
   MAP.x + ((lon - MAP.lon0) / (MAP.lon1 - MAP.lon0)) * MAP.w,
   MAP.y + ((MAP.lat1 - lat) / (MAP.lat1 - MAP.lat0)) * MAP.h,
@@ -74,6 +74,15 @@ const GLYPH: Record<string, string> = {
   aircraft: 'M-5,3L0,-4L5,3L0,0Z',
 };
 const LABELS = ['Alabuga SEZ', 'IEMZ Kupol', 'KTRV', 'STC', 'Kalashnikov', 'Uralvagonzavod'];
+// The most specific weapon of a plant gives its glyph: a drone plant with other lines shows as a drone.
+const PRIORITY = [
+  'drone',
+  'cruise missile',
+  'ballistic missile',
+  'guided bomb',
+  'aircraft',
+  'armour',
+];
 
 export function AtlasFigure() {
   const cols = COLUMNS.map((c) => ({ ...c, segs: segments(c.key) }));
@@ -157,10 +166,10 @@ export function AtlasFigure() {
           not a measure of trade
         </text>
         <text x={brand.x} y={TOP + BH + 30} className="lp-axis">
-          Brand, made, sold: the same goods (KSE, Russian customs, $8.8 bn, Jan–Oct 2023).
+          Brand, made, sold: the same goods (Russian customs, Jan–Oct 2023).
         </text>
         <text x={brand.x} y={TOP + BH + 44} className="lp-axis">
-          Shipped: CHP-list exports to Russia, 2025 ($5.5 bn). Bands join shares, not shipments.
+          Shipped: CHP-list exports to Russia, 2025. Bands join shares, not shipments.
         </text>
         {/* 5. Where they go. */}
         <text x={MAP.x} y={TOP - 34} className="lp-title atlas-col">
@@ -177,9 +186,14 @@ export function AtlasFigure() {
           .filter((p) => p['lat'])
           .map((p, i) => {
             const [x, y] = px(Number(p['lon']), Number(p['lat']));
-            const type = (p['weapon_type'] ?? '').split(/[;,]/)[0]?.trim() ?? '';
+            const types = (p['weapon_type'] ?? '').split(/[;,]/).map((t) => t.trim());
+            const type = PRIORITY.find((t) => types.includes(t)) ?? 'other';
             return (
-              <g key={i} transform={`translate(${x},${y})`} className="atlas-plant">
+              <g
+                key={i}
+                transform={`translate(${x},${y})`}
+                className={p['position_basis'] === 'lead' ? 'atlas-plant lead' : 'atlas-plant'}
+              >
                 {GLYPH[type] ? <path d={GLYPH[type]} /> : <circle r="3" />}
               </g>
             );
@@ -194,17 +208,13 @@ export function AtlasFigure() {
               <text x={(x ?? 0) + 5} y={(y ?? 0) - 5} className="atlas-num">
                 {i + 1}
               </text>
-              <text
-                x={MAP.x + (i % 2) * 215}
-                y={MAP.y + MAP.h + 24 + Math.floor(i / 2) * 16}
-                className="lp-axis atlas-place"
-              >
+              <text x={MAP.x} y={MAP.y + MAP.h + 24 + i * 15} className="lp-axis atlas-place">
                 {i + 1} {(p['entity'] ?? '').split(' (')[0]} ({p['city']})
               </text>
             </g>
           );
         })}
-        <g transform={`translate(${MAP.x},${MAP.y + MAP.h + 90})`}>
+        <g transform={`translate(${MAP.x},${MAP.y + MAP.h + 130})`}>
           {[
             ['drone', 'Drones'],
             ['cruise missile', 'Missiles'],
@@ -224,6 +234,12 @@ export function AtlasFigure() {
               </text>
             </g>
           ))}
+          <g transform="translate(0,44)" className="atlas-plant lead">
+            <circle r="3" />
+            <text x="10" y="4" className="lp-axis">
+              hollow: approximate point
+            </text>
+          </g>
         </g>
       </svg>
     </figure>

@@ -1,9 +1,9 @@
 import raw from './data/cases.csv?raw';
 import { readCsv } from './line-panel';
 
-// Figure 11: six supply chains from a foreign component to a Russian weapon, one row per chain, one column
-// per hop. Data: research/out/fnf/rapport/f11-cases.csv (corrected 2026-10-30), with the listing regimes of
-// f11-cases.md. A solid cell is documented, a dashed cell is a lead, an empty cell names no entity.
+// Six supply chains from a foreign component to a Russian weapon, one row per chain, one column per hop,
+// with the listing regimes of each entity. A solid cell is documented, a dashed cell is a lead, an empty
+// cell names no entity.
 // A part found in a weapon does not prove that its maker sold it to Russia.
 const rows = readCsv(raw);
 const CHAINS = [
@@ -80,7 +80,9 @@ export function CasesFigure() {
                   : cells.some((x) => x['evidence'] === 'lead')
                     ? 'lead'
                     : 'none';
-                const named = cells.filter((x) => x['entity']);
+                const named = cells
+                  .filter((x) => x['entity'])
+                  .sort((a, b) => (b['listed'] ?? '').length - (a['listed'] ?? '').length);
                 const head = cells.find((x) => x['evidence'] === best) ?? cells[0];
                 const x0 = LX + c * (CW + 4);
                 const listed = [
