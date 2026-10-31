@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useInView, useReducedMotion } from 'motion/react';
 
 const GLYPHS = '#$%&*+-/<=>?@[]^_{|}~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const DURATION_MS = 700;
+const DURATION_MS = 450;
 
 const glyph = (seed: number): string => GLYPHS.charAt(seed % GLYPHS.length);
 // A fixed scramble for the first paint: a render stays pure, and the random glyphs start in the

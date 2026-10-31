@@ -2375,6 +2375,7 @@ export const payUi = {
     },
   ],
   estimate: 'Hollow point: estimate (a measure other than customs)',
+  crossingNote: 'Ring: where one line goes below another, between two year-end values.',
   f3Label: 'Russian exports by buyer and crude bought from Russia',
   // The mark where a line of the old buyers goes below a line of a new buyer.
   crossing: '{a} below {b}',
