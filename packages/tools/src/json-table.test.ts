@@ -43,8 +43,7 @@ test('the span of a row is its element in the page', () => {
   const points = Array.from(answer);
   const { rows } = readJsonTable(answer);
   for (const row of rows) {
-    const element = JSON.parse(points.slice(row.start, row.end).join('')) as Record<string, unknown>;
-    expect(element.cmdCode).toBeTypeOf('string');
+    expect(points.slice(row.start, row.end).join('')).toMatch(/^\{\s*"typeCode"/u);
   }
   expect(JSON.parse(points.slice(rows[2]?.start, rows[2]?.end).join(''))).toMatchObject({
     cmdCode: '2701',
@@ -74,6 +73,11 @@ test('a page that is no answer with a data list is refused with a sentence', () 
   expect(() => readJsonTable('{"data":[{"a":1,"a":2}]}')).toThrow('names a twice');
 });
 
+test('the last data key wins, and a byte order mark is allowed', () => {
+  expect(readJsonTable('{"data":[],"data":[{"a":1}]}').rows).toHaveLength(1);
+  expect(readJsonTable('﻿{"data":[{"a":1}]}').header).toStrictEqual(['a']);
+});
+
 test('the sample of a stored JSON answer gives the header and the rows', async () => {
   const session: Session = {
     query: () =>
@@ -82,5 +86,13 @@ test('the sample of a stored JSON answer gives the header and the rows', async (
       }),
   };
   const read = await callTool(fileSchemaSample, session, { document: 'doc_a' });
-  expect(read).toMatchObject({ ok: true, output: { rowCount: 3 } });
+  expect(read).toMatchObject({
+    ok: true,
+    output: { rowCount: 3 },
+  });
+  if (!read.ok) throw new Error(read.refusal);
+  const sample = fileSchemaSample.output.parse(read.output);
+  expect(sample.header).toContain('qty');
+  expect(sample.rows[1]?.values[sample.header.indexOf('qty')]).toBe('');
+  expect(sample.rows[1]?.values[sample.header.indexOf('primaryValue')]).toBe('0');
 });

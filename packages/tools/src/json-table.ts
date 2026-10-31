@@ -1,5 +1,10 @@
+import { z } from 'zod';
+
 import type { CsvRecord } from './csv.ts';
 import { ToolRefusal } from './tool.ts';
+
+const string = z.string();
+const BOM = '﻿';
 
 /** The table of a JSON answer that holds a `data` list of objects (the answer of UN Comtrade).
  * One row for each element of the list. A column is a key of the elements, in the order of the
@@ -8,7 +13,8 @@ import { ToolRefusal } from './tool.ts';
  * element in the page, in code points as a span counts them. The page must be valid JSON. */
 export const readJsonTable = (text: string): { header: string[]; rows: CsvRecord[] } => {
   try {
-    JSON.parse(text);
+    // A byte order mark is no part of the JSON text, but it stays in the span of the page.
+    JSON.parse(text.startsWith(BOM) ? text.slice(1) : text);
   } catch {
     throw new ToolRefusal('the page is not valid JSON');
   }
@@ -58,7 +64,7 @@ export const readJsonTable = (text: string): { header: string[]; rows: CsvRecord
     let at = space(from + 1);
     while (at < to - 1) {
       const keyEnd = stringEnd(at);
-      const key = JSON.parse(slice(at, keyEnd)) as string;
+      const key = string.parse(JSON.parse(slice(at, keyEnd)));
       const start = space(keyEnd + 1);
       const end = valueEnd(start);
       pairs.push([key, slice(start, end)]);
@@ -75,10 +81,12 @@ export const readJsonTable = (text: string): { header: string[]; rows: CsvRecord
   at = space(at + 1);
   while (at < top - 1) {
     const keyEnd = stringEnd(at);
-    const key = JSON.parse(slice(at, keyEnd)) as string;
+    const key = string.parse(JSON.parse(slice(at, keyEnd)));
     const start = space(keyEnd + 1);
     const end = valueEnd(start);
     if (key === 'data' && points[start] === '[') {
+      // The last `data` key wins, as it does in JSON.parse.
+      spans.length = 0;
       let item = space(start + 1);
       while (item < end - 1) {
         if (points[item] !== '{') refuse();
@@ -87,7 +95,6 @@ export const readJsonTable = (text: string): { header: string[]; rows: CsvRecord
         item = space(itemEnd);
         if (points[item] === ',') item = space(item + 1);
       }
-      break;
     }
     at = space(end);
     if (points[at] === ',') at = space(at + 1);
@@ -98,7 +105,7 @@ export const readJsonTable = (text: string): { header: string[]; rows: CsvRecord
     const cells = new Map<string, string>();
     for (const [key, raw] of pairsOf(start, end)) {
       if (cells.has(key)) throw new ToolRefusal(`an element of the data list names ${key} twice`);
-      cells.set(key, raw === 'null' ? '' : raw.startsWith('"') ? (JSON.parse(raw) as string) : raw);
+      cells.set(key, raw === 'null' ? '' : raw.startsWith('"') ? string.parse(JSON.parse(raw)) : raw);
     }
     return { start, end, cells };
   });
