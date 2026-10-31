@@ -16,7 +16,7 @@ export const operatorKeyIn = (text: string | undefined): string | undefined => {
 };
 
 /** The page to open: the key goes in the fragment, which no server receives, and only for
- * `pnpm dev`, so Storybook, preview and Vitest open no browser. */
+ * `pnpm dev`, so preview and Vitest open no browser. */
 export const openWithKey = (
   envText: string | undefined,
   lifecycle: string | undefined,

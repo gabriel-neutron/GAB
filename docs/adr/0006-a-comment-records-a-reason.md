@@ -44,8 +44,7 @@ from each line.
 
 ## Scope and enforcement
 
-The rule applies to authored source: the code under `src/`, the source of each package and the
-Storybook configuration. It applies to a comment, a doc comment and a message that a person reads
+The rule applies to authored source: the code under `src/`, the source of each package. It applies to a comment, a doc comment and a message that a person reads
 on the screen.
 
 It does not apply to documents, skills, commit messages or generated files.

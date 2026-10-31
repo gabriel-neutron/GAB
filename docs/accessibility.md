@@ -1,25 +1,6 @@
 # Accessibility checks
 
-Two parts: an automated check that runs in the build, and a manual checklist that a person does.
-
-## The automated check
-
-Each story of a page or of a part is a test. The Storybook accessibility add-on runs the axe rules
-on the story after it plays. A fault fails the test. The check runs two times: once in the light
-theme and once in the dark theme, so the contrast of the text, the links and the symbols is
-measured in both. The rule for the size of a touch target is in the same run.
-
-Run both passes with the two accessibility scripts of `package.json`. The `no-stack` job of the
-gates workflow runs them on each pull request.
-
-The check cannot read a canvas. The map and the graph draw their symbols and halos in WebGL, so
-axe sees no text there. A person checks them with the list below.
-
-### Known faults
-
-A story that has a known fault which is not fixed yet is set to `todo` in its own `parameters.a11y`
-with a reason beside it. A `todo` story still reports the fault and does not fail the build. Remove
-the line when the fault is fixed.
+No automated check runs in the build. A person does the manual checklist.
 
 ## The manual checklist
 

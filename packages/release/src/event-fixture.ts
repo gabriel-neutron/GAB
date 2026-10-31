@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Rows of events for the tests and the stories of the lane of events and of the card of an asset.
+// Rows of events for the tests of the lane of events and of the card of an asset.
 // They go on top of the fixed release, which holds no event. The rows are made for the tests: they
 // are not data of the registry.
 
