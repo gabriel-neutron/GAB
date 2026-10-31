@@ -447,6 +447,8 @@ export const openModel = (
   ): Promise<Step | { done: 'spent' }> => {
     // Every call starts here, and the cap stops each one: a test at the door alone stops none of
     // the calls after the first.
+    // shortcut: the cap is soft by one call, whose input and maxAnswerTokens can pass it; estimate
+    // the input of the call when a job must never pass its cap.
     if (run.budget.left() <= 0) return { done: 'spent' };
     run.calls += 1;
     const heard: Heard = {};

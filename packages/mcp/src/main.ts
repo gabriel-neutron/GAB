@@ -129,9 +129,19 @@ const httpPortOf = (): number | undefined => {
   return port;
 };
 
+// Origin of the numbers: the pg default of 10 connections, and a wait longer than a slow fetch.
+const POOL_SIZE = 10;
+const CONNECT_MS = 60_000;
+
 const start = async (): Promise<void> => {
   const url = researchCredentials(process.env[CREDENTIALS_VARIABLE]);
-  const pool = new pg.Pool({ connectionString: url });
+  // A tool call holds its connection for the whole call, a slow fetch included. When all are held,
+  // a call waits at most this long and then fails, and it never hangs.
+  const pool = new pg.Pool({
+    connectionString: url,
+    max: POOL_SIZE,
+    connectionTimeoutMillis: CONNECT_MS,
+  });
   pool.on('error', (fault) => {
     console.error(fault);
   });

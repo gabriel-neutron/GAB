@@ -1,9 +1,10 @@
 import { PRODUCT_LINK_TYPES } from '@gab/proposal/relation-types';
+import { isAccepted } from '@gab/release/accepted';
 
 import type { ReleaseFile } from './csv-export.ts';
 import { csvFile } from './csv-file.ts';
 import { rowLicence } from './licence.ts';
-import { CAUTIOUS, type ReleaseRecord } from './release-record.ts';
+import type { ReleaseRecord } from './release-record.ts';
 import type { VolumeRejection, VolumeTable } from './volume-table.ts';
 
 const HEADER = [
@@ -87,7 +88,7 @@ export const chainVolumes = (
   const links = new Map<string, { readonly id: string; readonly accepted: boolean }>();
   for (const relation of record.relations) {
     const key = `${relation.type} ${relation.src_id} ${relation.dst_id}`;
-    const accepted = relation.origin_label !== CAUTIOUS;
+    const accepted = isAccepted(relation.origin_label);
     const held = links.get(key);
     if (held === undefined || (accepted && !held.accepted))
       links.set(key, { id: relation.id, accepted });

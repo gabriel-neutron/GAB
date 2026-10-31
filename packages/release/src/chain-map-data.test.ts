@@ -85,6 +85,15 @@ test('the card gives the unit in English, and keeps a unit that it does not know
   );
 });
 
+test('a range with one bound gives that bound', () => {
+  expect(volumeCard([{ ...VOLUME, minimum: 5 }], false)[0]?.text).toBe(
+    'Observed: 7 kb/d, at least 5 kb/d, period 2026-07.',
+  );
+  expect(volumeCard([{ ...VOLUME, maximum: 9 }], false)[0]?.text).toBe(
+    'Observed: 7 kb/d, at most 9 kb/d, period 2026-07.',
+  );
+});
+
 test('each volume of a link in review is marked in review, so the card never gives it as a fact', () => {
   expect(cardOf(REFINERY_TO_TERMINAL).map((one) => one.text)).toEqual([
     'In review, not a fact: Observed: 50 kt/month, period 2026-07.',
