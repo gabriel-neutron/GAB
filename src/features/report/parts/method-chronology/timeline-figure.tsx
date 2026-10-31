@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import { figureTexts, methodUi, type ReportBlock } from '../../content';
@@ -12,8 +12,11 @@ const { events, legend } = figureTexts.fig2;
 const START = 2014;
 const END = 2027;
 const YEARS = Array.from({ length: END - START }, (_, index) => START + index);
-// The years the text names as the period of the report.
-const PERIOD = [2024, 2026] as const;
+// The years the text names as the period of the report, read from the quoted sentence.
+const [PERIOD_FROM = START, PERIOD_TO = END - 1] = (
+  methodUi.timeline.period.match(/\d{4}/g) ?? []
+).map(Number);
+const PERIOD = [PERIOD_FROM, PERIOD_TO] as const;
 // The figure has no event from 2015 to 2021, so the axis folds these years into one gap.
 const GAP = [2015, 2022] as const;
 const GAP_PX = 320;
@@ -52,19 +55,25 @@ const BANDS = [
 ] as const;
 
 /** Figure 2: the sanctions from 2014 to 2026. On a wide screen, the page scroll moves a time axis
- * at true scale across the view. On a phone, and under reduced motion, it is a list by year. */
+ * across the view, at true scale outside the fold of the empty years. On a phone, under reduced
+ * motion, and when no scroll frame is found, it is a list by year. */
 export function TimelineFigure() {
   const reduce = useReducedMotion();
+  const [track, setTrack] = useState(true);
   return (
     <>
-      {reduce === true ? (
+      {reduce === true || !track ? (
         <YearList />
       ) : (
         <>
           <div className="lg:hidden">
             <YearList />
           </div>
-          <ScrollTrack />
+          <ScrollTrack
+            onMissing={() => {
+              setTrack(false);
+            }}
+          />
         </>
       )}
       <dl className="mt-6 flex flex-wrap gap-x-6 gap-y-2 border-t border-divider pt-3">
@@ -158,7 +167,7 @@ export interface ChartProps {
   readonly partSlug: string;
 }
 
-function ScrollTrack() {
+function ScrollTrack({ onMissing }: { readonly onMissing: () => void }) {
   const outer = useRef<HTMLDivElement | null>(null);
   // The report frame, not the window, scrolls the page.
   const scroller = useRef<HTMLElement | null>(null);
@@ -184,6 +193,8 @@ function ScrollTrack() {
       ref={(node) => {
         outer.current = node;
         scroller.current = node?.closest<HTMLElement>('[role="region"]') ?? null;
+        // Without its scroll frame the axis cannot move, so the list by year replaces it.
+        if (node !== null && scroller.current === null) onMissing();
       }}
       className="relative hidden lg:block"
       // One px of page scroll moves the axis by one px.
