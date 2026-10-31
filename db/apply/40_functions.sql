@@ -6010,8 +6010,8 @@ BEGIN
       WHEN 'quarter' THEN substring(v_cell FROM '^([0-9]{4}-Q[1-4])$')
       WHEN 'week' THEN substring(v_cell FROM '^([0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3]))$')
       WHEN 'month' THEN coalesce(substring(v_cell FROM '^([0-9]{4}-(0[1-9]|1[0-2]))$'),
-                                 regexp_replace(substring(v_cell FROM '^([0-9]{4}(0[1-9]|1[0-2]))$'),
-                                                '^([0-9]{4})', '\1-'))
+                                 regexp_replace(substring(v_cell FROM '^([0-9]{4}M?(0[1-9]|1[0-2]))$'),
+                                                '^([0-9]{4})M?', '\1-'))
     END;
     IF v_period IS NULL THEN
       RAISE EXCEPTION 'row %: "%" is not a period of one %', v_no, v_cell,
