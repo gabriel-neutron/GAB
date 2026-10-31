@@ -61,9 +61,8 @@ export const MAP_STEPS: readonly MapStep[] = [
 ];
 
 // Seaborne crude by loading basin and fleet category, from figure 7a. Each basin has its own
-// column above the map, in the order of the westmost terminal of each basin, with an elbow leader
-// to each terminal of the basin, so no two leaders cross. The column shows the volume only: no source
-// gives a route.
+// column above its sea. The terminals only place the column: no source gives the volume of one
+// terminal, so no line joins a column to a terminal.
 const BASINS = [
   { name: 'Baltic', ports: ['N-P001', 'N-P002'] },
   { name: 'Arctic', ports: ['N-P009', 'N-P016'] },
@@ -83,6 +82,13 @@ const fleetFill = (to: string) =>
       ? 'fill-chart-neutral'
       : 'fill-map-water stroke-foreground';
 const fleetTags: Readonly<Record<string, string>> = copy.fleetTags;
+// The dates and the notes of the ban and Pacific steps come from the text of the part.
+const TEXT_SOURCES = {
+  ban: 'Dates: text of the report, note III-2 (February 2025 to April 2026)',
+  pacific: 'Notes: text of the report, note III-1 (2023)',
+} as const;
+const SCHEMATIC =
+  'Schematic: each column stands above its sea and gives the basin total, not the volume of a terminal.';
 const labels7: Readonly<Record<string, string>> = figureTexts.figures['7'].labels;
 
 /** The sources of the data that a step shows: figure 6 for the changes, figure 7 for the flows. */
@@ -186,8 +192,10 @@ export function PortMap({ step, sources }: PortMapProps) {
   );
   // One line for each source, so no line breaks in the middle of a name.
   const credit = [
+    state.tag === 'ban' || state.tag === 'pacific' ? TEXT_SOURCES[state.tag] : '',
     state.tag === 'change' ? `${copy.data} ${sources.change}` : '',
     flows ? `${copy.data} ${sources.flows}` : '',
+    flows ? SCHEMATIC : '',
     `${copy.basemap} ${mapGeometry.source}`,
   ]
     .filter((one) => one !== '')
@@ -355,30 +363,10 @@ export function PortMap({ step, sources }: PortMapProps) {
                 return { row, tall: (row.value ?? 0) * flowScale, top: stack };
               });
               const head = baseline - band;
-              const foot = x + bar / 2;
               // On a phone each value stands centred over its column, so no two values touch.
-              const tx = compact ? foot : x;
+              const tx = compact ? x + bar / 2 : x;
               return (
                 <g key={basin.name}>
-                  {(ports[index] ?? []).map((port) => (
-                    <g key={`${String(port.x)}-${String(port.y)}`}>
-                      <path
-                        // An elbow: down from the column to the row of the terminal, then across to it.
-                        d={`M${String(foot)},${String(baseline)}V${String(port.y)}H${String(port.x)}`}
-                        fill="none"
-                        strokeWidth={1}
-                        className="stroke-label"
-                      />
-                      <circle
-                        cx={port.x}
-                        cy={port.y}
-                        r={5}
-                        fill="none"
-                        strokeWidth={1.5}
-                        className={accent.stroke}
-                      />
-                    </g>
-                  ))}
                   <motion.g
                     initial={false}
                     animate={{ scaleY: flows ? 1 : 0 }}
@@ -479,6 +467,8 @@ export function PortMap({ step, sources }: PortMapProps) {
         ? null
         : TERMINALS.map((terminal) => {
             const at = screen(terminal.lon, terminal.lat);
+            // A terminal that the map does not draw gets no button.
+            if (!state.named.includes(terminal.id) && hidden(at)) return null;
             return (
               <motion.button
                 key={terminal.id}
