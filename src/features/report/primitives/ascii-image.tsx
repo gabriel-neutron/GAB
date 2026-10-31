@@ -12,12 +12,12 @@ interface Art {
 }
 
 /** A monochrome ASCII drawing of an image that covers its box. It loads the image only near the
- * view, and draws once, in the ink of the theme. */
-export function AsciiImage({ src, alt }: { readonly src: string; readonly alt: string }) {
+ * view, and draws once, in the ink of the theme. It is decoration, so assistive technology skips
+ * it. */
+export function AsciiImage({ src }: { readonly src: string }) {
   const box = useRef<HTMLDivElement>(null);
   const near = useInView(box, { once: true, margin: '400px 0px' });
   const [art, setArt] = useState<Art | null>(null);
-  const [failed, setFailed] = useState(false);
 
   // An adapter: the browser loads and reads the image past React, and a ResizeObserver draws it
   // again when the box changes size (a resize or a rotation).
@@ -75,10 +75,7 @@ export function AsciiImage({ src, alt }: { readonly src: string; readonly alt: s
       draw();
       observer.observe(node);
     };
-    // A failed load leaves an empty box with no image role.
-    image.onerror = () => {
-      if (live) setFailed(true);
-    };
+    // A failed load leaves an empty box.
     image.src = src;
     return () => {
       live = false;
@@ -88,15 +85,9 @@ export function AsciiImage({ src, alt }: { readonly src: string; readonly alt: s
   }, [near, src]);
 
   return (
-    <div
-      ref={box}
-      role={failed ? undefined : 'img'}
-      aria-label={failed ? undefined : alt}
-      className="absolute inset-0 overflow-hidden"
-    >
+    <div ref={box} aria-hidden="true" className="absolute inset-0 overflow-hidden">
       {art === null ? null : (
         <pre
-          aria-hidden="true"
           style={{ fontSize: art.fontSize }}
           className="absolute inset-0 m-0 overflow-hidden font-mono leading-none whitespace-pre text-foreground/40 select-none"
         >

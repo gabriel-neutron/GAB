@@ -340,40 +340,36 @@ export function OwnershipFigure() {
         })}
       </div>
       {/* No live region: the table below gives the same links, so focus does not read them out. */}
-      <div className="min-h-16 border-t border-foreground pt-3 text-report-small">
-        {active === null ? (
-          <p className="text-muted-foreground">{copy.hint}</p>
-        ) : (
-          <>
-            <p>
-              {nameOf.get(active)}{' '}
-              <span className="font-mono text-report-label text-label tabular-nums">
-                · {own.length} {copy.links}
-              </span>
-            </p>
-            <ul className="mt-2 grid gap-x-8 gap-y-1 md:grid-cols-2">
-              {own.map((link) => (
-                <li key={`${link.from}-${link.relation}-${link.to}`} className="break-words">
-                  {link.from === active ? '' : `${nameOf.get(link.from) ?? ''} `}
-                  <span className="font-mono text-report-label text-label">
-                    {link.relation}
-                    {link.share === '' ? '' : ` ${link.share}`}
-                  </span>
-                  {link.to === active ? '' : ` ${nameOf.get(link.to) ?? ''}`}
-                  <span
-                    className={cn(
-                      'ml-2 font-mono text-report-label',
-                      link.proposed ? accent.text : 'text-label',
-                    )}
-                  >
-                    {link.state}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </div>
+      {active === null ? null : (
+        <div className="border-t border-foreground pt-3 text-report-small">
+          <p>
+            {nameOf.get(active)}{' '}
+            <span className="font-mono text-report-label text-label tabular-nums">
+              · {own.length} {copy.links}
+            </span>
+          </p>
+          <ul className="mt-2 grid gap-x-8 gap-y-1 md:grid-cols-2">
+            {own.map((link) => (
+              <li key={`${link.from}-${link.relation}-${link.to}`} className="break-words">
+                {link.from === active ? '' : `${nameOf.get(link.from) ?? ''} `}
+                <span className="font-mono text-report-label text-label">
+                  {link.relation}
+                  {link.share === '' ? '' : ` ${link.share}`}
+                </span>
+                {link.to === active ? '' : ` ${nameOf.get(link.to) ?? ''}`}
+                <span
+                  className={cn(
+                    'ml-2 font-mono text-report-label',
+                    link.proposed ? accent.text : 'text-label',
+                  )}
+                >
+                  {link.state}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <details className="group mt-6 border-y border-foreground">
         <summary
           className={cn(

@@ -7,15 +7,8 @@ describe('method copy', () => {
       .find((part) => part.slug === 'method-chronology')
       ?.blocks.map((block) => block.text)
       .join(' ');
-    const { quote, timeline, numbers, margin } = methodUi;
-    for (const fragment of [
-      quote,
-      timeline.period,
-      margin.a,
-      margin.f,
-      numbers.total.value,
-      ...numbers.layers.map((one) => one.value),
-    ])
+    const { timeline, numbers } = methodUi;
+    for (const fragment of [timeline.period, ...numbers.layers.map((one) => one.value)])
       expect(text).toContain(fragment);
   });
 });

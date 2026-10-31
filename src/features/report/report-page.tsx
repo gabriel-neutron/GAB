@@ -11,8 +11,9 @@ import { ReportFrame } from './report-frame';
 export function ReportPage() {
   return (
     <ReportFrame label={ui.reportLabel}>
-      {/* The site header takes 3.5rem; the part bar takes 2rem on a phone and 2.75rem above. */}
-      <div className="@container [--report-bar:2rem] [--report-view:calc(100svh-5.5rem)] md:[--report-bar:2.75rem] md:[--report-view:calc(100svh-6.25rem)]">
+      {/* The site header takes 3.5rem; the part bar takes 2rem on a phone and 2.75rem above. The
+          clip keeps the visually hidden data tables from a horizontal scroll; it keeps sticky. */}
+      <div className="@container overflow-x-clip [--report-bar:2rem] [--report-view:calc(100svh-5.5rem)] md:[--report-bar:2.75rem] md:[--report-view:calc(100svh-6.25rem)]">
         <ReportCover />
         <PartBar />
         <article className="mx-auto max-w-[1200px] px-4 md:px-8">
