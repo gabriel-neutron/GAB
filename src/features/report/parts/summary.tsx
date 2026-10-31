@@ -70,23 +70,34 @@ function RoubleChart() {
           {chart.unit} · {chart.period}
         </span>
       </figcaption>
-      <ol className="mt-6 grid h-44 grid-cols-7">
+      <ol aria-label={chart.label} className="mt-6 grid h-44 grid-cols-7">
         {points.map(([year, value]) => {
           const marked = chart.marked.some((one) => one === year);
           return (
             <li key={year} className="flex h-full flex-col">
-              <div className="flex flex-1 flex-col items-center justify-end border-b border-foreground/40">
-                {marked ? (
-                  <span className={cn('mb-2 font-mono text-[13px] tabular-nums', accent.text)}>
-                    {Math.round(value)}%
-                  </span>
-                ) : null}
+              <span className="sr-only">
+                {year}: {Math.round(value)}%
+              </span>
+              {/* Every bar prints its value, as figure 9 does; the two years of the text in the accent. */}
+              <div
+                aria-hidden="true"
+                className="flex flex-1 flex-col items-center justify-end border-b border-foreground/40"
+              >
+                <span
+                  className={cn(
+                    'mb-2 font-mono tabular-nums',
+                    marked ? cn('text-[13px]', accent.text) : 'text-[11px] text-label',
+                  )}
+                >
+                  {Math.round(value)}%
+                </span>
                 <span
                   className={cn('block w-1', marked ? accent.bg : 'bg-foreground/60')}
                   style={{ height: `${String((value / top) * 70)}%` }}
                 />
               </div>
               <span
+                aria-hidden="true"
                 className={cn(
                   'mt-2 text-center font-mono text-[11px] tabular-nums',
                   marked ? 'text-foreground' : 'text-label',
@@ -100,7 +111,7 @@ function RoubleChart() {
       </ol>
       <p className="mt-3 text-body-sm text-foreground/75">
         {chart.source}
-        <NoteRef partSlug="summary" id={chart.note} />
+        <NoteRef partSlug={chart.note.part} id={chart.note.id} />
       </p>
     </figure>
   );
@@ -145,7 +156,7 @@ const layout = (finding: Finding): ReactNode => (
       {caption(finding)}
       <p className={cn('mt-6', SENTENCE)}>{finding.sentence}</p>
       {/* The finding on the rouble has the small chart of its data. */}
-      {finding.note === copy.chart.note ? (
+      {finding.note === copy.chart.finding ? (
         <div className="mt-8">
           <RoubleChart />
         </div>
@@ -166,7 +177,7 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
     <section
       id={part.slug}
       aria-labelledby={`${part.slug}-title`}
-      className="scroll-mt-[calc(var(--report-bar,0px)+1px)] pt-4 pb-4 md:pt-16 md:pb-8"
+      className="scroll-mt-[calc(var(--report-bar,0px)+1px)] pt-3 pb-4 md:pt-16 md:pb-8"
     >
       {/* The head of every chapter break, without the break: the cover is the pause before it. */}
       <div className="relative">
