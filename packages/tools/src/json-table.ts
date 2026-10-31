@@ -105,7 +105,10 @@ export const readJsonTable = (text: string): { header: string[]; rows: CsvRecord
     const cells = new Map<string, string>();
     for (const [key, raw] of pairsOf(start, end)) {
       if (cells.has(key)) throw new ToolRefusal(`an element of the data list names ${key} twice`);
-      cells.set(key, raw === 'null' ? '' : raw.startsWith('"') ? string.parse(JSON.parse(raw)) : raw);
+      cells.set(
+        key,
+        raw === 'null' ? '' : raw.startsWith('"') ? string.parse(JSON.parse(raw)) : raw,
+      );
     }
     return { start, end, cells };
   });

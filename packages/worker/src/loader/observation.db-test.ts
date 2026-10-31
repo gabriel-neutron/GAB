@@ -761,10 +761,15 @@ test.each([
       'application/json',
     );
     // The mapper reads a good page. The stored page then changes, as a damaged store would.
-    await held.ask('UPDATE public.document_text SET text = $2 WHERE document_id = $1', [FILE, page]);
+    await held.ask('UPDATE public.document_text SET text = $2 WHERE document_id = $1', [
+      FILE,
+      page,
+    ]);
     await held.asRole('gabriel_agent', () => held.ask('SELECT job_id FROM public.claim_job()'));
     const fault = await faultOf(
-      putAsAgent(held, load, [{ subject_id: null, text_extractor: TEXT_SET, page: 1, start: 9, end: 20 }]),
+      putAsAgent(held, load, [
+        { subject_id: null, text_extractor: TEXT_SET, page: 1, start: 9, end: 20 },
+      ]),
     );
     expect(fault.code).toBe('22023');
   });
