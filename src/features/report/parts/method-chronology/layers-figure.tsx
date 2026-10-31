@@ -10,6 +10,10 @@ const { layers, arrows, conditions, budgetPath } = figureTexts.fig1;
 // The counts of the text of the part, by layer name.
 const counts = new Map(methodUi.numbers.layers.map((one) => [one.label as string, one.value]));
 
+// The arrows and the budget path show the argument of the report; no edge of the data backs them.
+const SCHEMATIC = 'Schematic of the argument of the report, not a measured relation.';
+const NO_RECORD = 'counted in the text, no page record';
+
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
 
@@ -20,6 +24,7 @@ export function LayersFigure() {
   return (
     <div className="bg-[linear-gradient(var(--color-chart-grid)_1px,transparent_1px),linear-gradient(90deg,var(--color-chart-grid)_1px,transparent_1px)] bg-size-[2rem_2rem] py-6">
       <Legend />
+      <p className="mt-2 bg-background font-mono text-caption/4 text-label">{SCHEMATIC}</p>
       <ol
         aria-label={methodUi.layers.label}
         className="mt-4 grid lg:grid-cols-[1fr_7rem_1fr_7rem_1fr] lg:grid-rows-[repeat(6,auto)]"
@@ -99,7 +104,7 @@ function Legend() {
       </li>
       <li className="flex items-center gap-2">
         <span aria-hidden="true" className="size-2.5 bg-foreground/35" />
-        {critical}
+        {critical}, {NO_RECORD}
       </li>
       <li className="flex items-center gap-2">
         <span aria-hidden="true" className="size-2.5 border border-foreground" />
@@ -189,37 +194,19 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
           ))}
         </ul>
       </details>
-      {/* One square for each critical node; the keyboard and touch reach the nodes in the list
-          under it, so the small squares stay out of the tab order. */}
+      {/* One square for each critical node, as a picture only: the buttons of the list above open
+          the nodes. */}
       <div aria-hidden="true" className="mt-6 flex flex-wrap content-start gap-[3px]">
         {kept.map((node) => (
-          <button
-            key={node.node_id}
-            type="button"
-            tabIndex={-1}
-            title={node.name}
-            onClick={(event) => {
-              open(node, event.currentTarget);
-            }}
-            className={cn('size-2 cursor-pointer hover:bg-foreground', accent.bg)}
-          />
+          <span key={node.node_id} className={cn('size-2', accent.bg)} />
         ))}
         {Array.from({ length: rest }, (_, square) => (
           <span key={square} className="size-2 bg-foreground/35" />
         ))}
         {examined.map((node, place) => (
-          <button
+          <span
             key={node.node_id}
-            type="button"
-            tabIndex={-1}
-            title={node.name}
-            onClick={(event) => {
-              open(node, event.currentTarget);
-            }}
-            className={cn(
-              'size-2 cursor-pointer border border-foreground hover:bg-foreground',
-              place === 0 && 'ml-3',
-            )}
+            className={cn('size-2 border border-foreground', place === 0 && 'ml-3')}
           />
         ))}
       </div>

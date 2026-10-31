@@ -63,14 +63,13 @@ const TEXT: Record<Tone, string> = {
 const shownClass = (tone: Tone, shown: boolean) =>
   !shown
     ? 'opacity-0'
-    : tone === 'tint'
+    : // 70% keeps the muted line above 3:1 against the background in the two themes.
+      tone === 'tint' || tone === 'faint'
       ? 'opacity-70'
-      : tone === 'faint'
-        ? 'opacity-40'
-        : 'opacity-100';
+      : 'opacity-100';
 const MARGIN = { left: 34, top: 26, bottom: 30 };
 // The width of one glyph of the 11px mono labels, and the gap before an end label.
-const GLYPH = 6.7;
+export const GLYPH = 6.7;
 const GAP = 12;
 export const FADE = 'transition-opacity duration-500 motion-reduce:transition-none';
 

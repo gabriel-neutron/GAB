@@ -40,11 +40,13 @@ const STATS = [
     of: census.euB[1],
   },
 ];
+// One month, from the 24 months after the designation that the data reads.
+const month = after / 24;
 const TICKS = [
   { day: -before, text: label('{m} mois', { m: -6 }) },
   { day: 0, text: label('désignation') },
-  { day: 182, text: label('+6 mois') },
-  { day: 365, text: label('+12 mois') },
+  { day: month * 6, text: label('+6 mois') },
+  { day: month * 12, text: label('+12 mois') },
   { day: after, text: label('{m} mois', { m: '+24' }) },
 ];
 
@@ -127,8 +129,78 @@ export function VesselLives() {
           {portsFleetUi.lives.after}
         </li>
       </ul>
+      <LanesTable />
       <Census />
     </div>
+  );
+}
+
+// shortcut: the words of the table are in the code; move them to content.ts with the other labels.
+const TABLE = {
+  summary: 'Values of the timeline',
+  ship: 'Ship',
+  group: 'Profile',
+  ids: 'AIS identity: flag, days from the designation',
+  before: 'Port calls before',
+  after: 'Port calls after',
+};
+const KINDS = [
+  ['R', 'Russian'],
+  ['O', 'other'],
+  ['E', 'EU'],
+] as const;
+const callCounts = (calls: Lane['calls']) =>
+  KINDS.map(
+    ([kind, name]) => `${String(calls.filter((call) => call.kind === kind).length)} ${name}`,
+  ).join(', ');
+
+/** The timeline as a table: the same data as the lanes, for a reader who cannot see them. */
+function LanesTable() {
+  return (
+    <details className="mt-6 border-t border-border pt-1">
+      <summary className="flex min-h-11 cursor-pointer items-center font-mono text-caption uppercase text-label">
+        {TABLE.summary}
+      </summary>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left font-mono text-small tabular-nums">
+          <thead className="text-label">
+            <tr>
+              <th className="py-1 pr-3 font-normal">{TABLE.ship}</th>
+              <th className="py-1 pr-3 font-normal">{TABLE.group}</th>
+              <th className="py-1 pr-3 font-normal">{TABLE.ids}</th>
+              <th className="py-1 pr-3 font-normal">{TABLE.before}</th>
+              <th className="py-1 font-normal">{TABLE.after}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {groups.flatMap((group) =>
+              group.lanes.map((lane) => (
+                <tr key={lane.name} className="border-t border-divider align-top">
+                  <th scope="row" className="py-1 pr-3 font-normal">
+                    {lane.name}
+                  </th>
+                  <td className="py-1 pr-3">{groupNames[group.name] ?? group.name}</td>
+                  <td className="py-1 pr-3">
+                    {lane.identities.length === 0
+                      ? label('aucune identité AIS suivie')
+                      : lane.identities
+                          .map(
+                            (identity) =>
+                              `${identity.flag} ${String(identity.from)} to ${String(identity.to)}`,
+                          )
+                          .join('; ')}
+                  </td>
+                  <td className="py-1 pr-3">
+                    {callCounts(lane.calls.filter((call) => call.day < 0))}
+                  </td>
+                  <td className="py-1">{callCounts(lane.calls.filter((call) => call.day >= 0))}</td>
+                </tr>
+              )),
+            )}
+          </tbody>
+        </table>
+      </div>
+    </details>
   );
 }
 
