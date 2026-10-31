@@ -9,7 +9,6 @@ import { Reveal } from '../../primitives/reveal';
 import { StickyScene } from '../../primitives/sticky-scene';
 import { RichText } from '../../rich-text';
 import { figureData } from './figure-data';
-import { mapGeometry } from './map-geometry';
 import { FleetFlows } from './fleet-flows';
 import { PortTraffic } from './port-traffic';
 import { splitSentences } from './sentences';
@@ -21,7 +20,7 @@ import type { MapSources } from './port-map';
 
 const PortMap = lazy(() => import('./port-map').then((module) => ({ default: module.PortMap })));
 
-const PROSE = 'max-w-[64ch] text-[18px]/[1.65] md:text-[20px]/[1.65] lg:ml-[25%]';
+const PROSE = 'max-w-[64ch] text-report-body/[1.65]  lg:ml-[25%]';
 const copy = portsFleetUi;
 const census = figureData.lives.census;
 const values: Readonly<Record<string, number>> = {
@@ -56,29 +55,6 @@ const STATIC_SCENE: Scene = SCENE.reduce<
   else out.push({ ...one });
   return out;
 }, []);
-// The art of the opening: the land of the basemap, white on black, as a PNG for the ASCII
-// drawing. A canvas path never taints the canvas that reads it. The page draws it only in a
-// browser; the prerender has no canvas.
-let artSource: string | undefined;
-const art = () => {
-  if (artSource !== undefined || typeof document === 'undefined') return artSource ?? '';
-  const [west, south, east, north] = [-10, 30, 150, 78];
-  const [x0, y0] = mapGeometry.project(west, north);
-  const [x1, y1] = mapGeometry.project(east, south);
-  const scale = 1600 / (x1 - x0);
-  const canvas = document.createElement('canvas');
-  canvas.width = 1600;
-  canvas.height = Math.round((y1 - y0) * scale);
-  const context = canvas.getContext('2d');
-  if (context === null) return '';
-  context.fillStyle = '#000';
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.setTransform(scale, 0, 0, scale, -x0 * scale, -y0 * scale);
-  context.fillStyle = '#fff';
-  context.fill(new Path2D(mapGeometry.land));
-  artSource = canvas.toDataURL('image/png');
-  return artSource;
-};
 // Figure 6 has one unit for each panel: a, b, then c.
 const unit6 = [...texts['6'].panels.map((panel) => panel.unit), copy.traffic.cUnit]
   .filter((one) => one !== '')
@@ -110,13 +86,13 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
   // sets one state of the map. The long last state takes two cards, so a card stays short on a phone.
   const cards = scene.map(({ block, from, to, state }, index) => (
     <div key={`${String(block)}-${String(from)}`} className="pf-step" data-pf-card={index}>
-      <p className="mb-2 font-mono text-caption uppercase text-label md:mb-3">
+      <p className="mb-2 font-mono text-report-label uppercase text-label md:mb-3">
         <span className="text-foreground tabular-nums">
           {String(state + 1).padStart(2, '0')} / {String(copy.map.kickers.length).padStart(2, '0')}
         </span>{' '}
         · {copy.map.kickers[state]}
       </p>
-      <p className="text-[15px]/[1.5] md:text-[17px]/[1.6]">
+      <p className="text-report-small/[1.5] ">
         {say((block === 0 ? first : second).slice(from, to))}
       </p>
     </div>
@@ -131,20 +107,10 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
 
   return (
     <section id={part.slug} aria-label={part.title} className="scroll-mt-12">
-      <ChapterBreak
-        number={number}
-        title={part.title}
-        quote={copy.quote}
-        image={{
-          src: art(),
-          alt: copy.art.alt,
-          label: copy.art.label,
-          credit: `${copy.map.basemap} ${mapGeometry.source}`,
-        }}
-      >
+      <ChapterBreak number={number} title={part.title} quote={copy.quote} image={copy.art}>
         <ul
           aria-label={copy.terminals}
-          className="mt-10 grid max-w-[56rem] grid-cols-1 gap-x-8 border-t border-border pt-4 font-mono text-small/5 text-label sm:grid-cols-2"
+          className="mt-10 grid max-w-[56rem] grid-cols-1 gap-x-8 border-t border-border pt-4 font-mono text-report-label/5 text-label sm:grid-cols-2"
         >
           {TERMINALS.map((terminal) => (
             <li key={terminal.id} className="flex justify-between gap-4 tabular-nums">
@@ -202,7 +168,7 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
         </Reveal>
       </div>
       <Reveal>
-        <p className="mx-auto max-w-[28ch] py-16 text-center text-[clamp(1.75rem,4.4vw,3.5rem)] leading-[1.08] tracking-[-0.035em] text-balance md:py-28">
+        <p className="mx-auto max-w-[28ch] py-16 text-center text-report-heading leading-[1.08] tracking-[-0.035em] text-balance md:py-28">
           <RichText text={text(8)} partSlug={part.slug} />
         </p>
       </Reveal>

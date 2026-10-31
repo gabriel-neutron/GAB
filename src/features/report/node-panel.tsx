@@ -15,9 +15,9 @@ const NodeMap = lazy(() => import('./node-map').then((module) => ({ default: mod
 
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
-const CAPTION = 'font-mono text-caption uppercase text-label';
+const CAPTION = 'font-mono text-report-label uppercase text-label';
 const LINK = cn(
-  'inline-flex min-h-11 items-center border border-input px-3 text-body-sm transition-colors duration-150 hover:bg-surface-secondary',
+  'inline-flex min-h-11 items-center border border-input px-3 text-report-small transition-colors duration-150 hover:bg-surface-secondary',
   FOCUS,
 );
 const EASE = [0.4, 0, 0.2, 1] as const;
@@ -53,8 +53,8 @@ function NodeRecord({ id }: { readonly id: string }) {
           <EntityGlyph type={reportGraph.glyph(node.type)} size={12} />
           {node.type} · {node.layer}
         </p>
-        <Dialog.Title className="text-heading-sm break-words">{node.name}</Dialog.Title>
-        <Dialog.Description className="text-body-sm text-muted-foreground">
+        <Dialog.Title className="text-report-lead break-words">{node.name}</Dialog.Title>
+        <Dialog.Description className="text-report-small text-muted-foreground">
           {node.country} · {ui.node.evidence} {node.evidence_score_0_11} {ui.node.outOf}
         </Dialog.Description>
         {node.record_entity_id === '' ? null : (
@@ -79,9 +79,9 @@ function NodeRecord({ id }: { readonly id: string }) {
       </div>
       <Section title={`${ui.panel.relations} · ${relations.length}`}>
         {relations.length === 0 ? (
-          <p className="text-body-sm text-muted-foreground">{ui.panel.noRelation}</p>
+          <p className="text-report-small text-muted-foreground">{ui.panel.noRelation}</p>
         ) : (
-          <ul className="space-y-3 text-body-sm">
+          <ul className="space-y-3 text-report-small">
             {relations.map((edge) => {
               const name = (other: string) =>
                 other === id ? (
@@ -98,9 +98,11 @@ function NodeRecord({ id }: { readonly id: string }) {
                   className="break-words"
                 >
                   {name(edge.source)}{' '}
-                  <span className="font-mono text-data text-label">{edge.relation_type}</span>{' '}
+                  <span className="font-mono text-report-label text-label">
+                    {edge.relation_type}
+                  </span>{' '}
                   {name(edge.target)}
-                  <span className="block font-mono text-data text-label">
+                  <span className="block font-mono text-report-label text-label">
                     {edge.state} · {edge.document_ids.split(';').filter(Boolean).join(' · ')}
                   </span>
                 </li>
@@ -123,9 +125,9 @@ function NodeRecord({ id }: { readonly id: string }) {
       ) : null}
       <Section title={`${ui.panel.sources} · ${documents.length}`}>
         {documents.length === 0 ? (
-          <p className="text-body-sm text-muted-foreground">{ui.panel.noSource}</p>
+          <p className="text-report-small text-muted-foreground">{ui.panel.noSource}</p>
         ) : (
-          <ul className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-data">
+          <ul className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-report-label">
             {documents.map((doc) => (
               <li key={doc}>{doc}</li>
             ))}
@@ -138,10 +140,10 @@ function NodeRecord({ id }: { readonly id: string }) {
             .filter(([, value]) => value !== '')
             .map(([key, value]) => (
               <div key={key} className="contents">
-                <dt className="font-mono text-data text-label break-words">
+                <dt className="font-mono text-report-label text-label break-words">
                   {key.replaceAll('_', ' ')}
                 </dt>
-                <dd className="text-body-sm break-words">{value}</dd>
+                <dd className="text-report-small break-words">{value}</dd>
               </div>
             ))}
         </dl>
@@ -219,7 +221,7 @@ export function NodePanel({ id, onClose, returnFocusTo }: NodePanelProps) {
                   )}
                   <Dialog.Close
                     className={cn(
-                      'flex h-11 items-center gap-1.5 border border-input px-3 font-mono text-caption uppercase text-label',
+                      'flex h-11 items-center gap-1.5 border border-input px-3 font-mono text-report-label uppercase text-label',
                       'transition-colors duration-150 hover:bg-surface-secondary hover:text-foreground',
                       FOCUS,
                     )}

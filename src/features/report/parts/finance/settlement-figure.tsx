@@ -104,7 +104,7 @@ function SharePanel({ panel, year }: { readonly panel: Panel; readonly year: num
   const title = panel === 'exports' ? labels['a. Exportations'] : labels['b. Importations'];
   return (
     <div ref={box} className="min-w-0">
-      <p className="font-mono text-caption uppercase text-label">{title}</p>
+      <p className="font-mono text-report-label uppercase text-label">{title}</p>
       {W === 0 ? (
         <div style={{ aspectRatio: narrow ? '10 / 7' : '1 / 1' }} />
       ) : (
@@ -177,7 +177,7 @@ function SharePanel({ panel, year }: { readonly panel: Panel; readonly year: num
               x={PAD.left - 8}
               y={y(tick) + 4}
               textAnchor="end"
-              className="fill-label font-mono text-[12px] tabular-nums"
+              className="fill-label font-mono text-report-label tabular-nums"
             >
               {tick}
             </text>
@@ -189,7 +189,7 @@ function SharePanel({ panel, year }: { readonly panel: Panel; readonly year: num
               y={H - 8}
               textAnchor="middle"
               className={cn(
-                'font-mono text-[12px] tabular-nums',
+                'font-mono text-report-label tabular-nums',
                 one === year ? 'fill-foreground' : 'fill-label',
               )}
             >
@@ -236,7 +236,7 @@ function SharePanel({ panel, year }: { readonly panel: Panel; readonly year: num
                 y={y(middle) + 5}
                 textAnchor="end"
                 className={cn(
-                  'fill-foreground stroke-background font-mono text-[13px] tabular-nums',
+                  'fill-foreground stroke-background font-mono text-report-label tabular-nums',
                   series.key === 'Rouble' && 'font-semibold',
                 )}
                 paintOrder="stroke"
@@ -265,19 +265,19 @@ function YearReadout({ year, still }: { readonly year: number; readonly still: b
     >
       <p
         className={cn(
-          'font-mono text-[clamp(3rem,7vw,7rem)] leading-[0.82] tracking-[-0.06em] tabular-nums',
+          'font-mono text-report-number leading-[0.82] tracking-[-0.06em] tabular-nums',
           accent.text,
         )}
       >
         {year}
       </p>
       <div className="lg:mt-6">
-        <p className="font-mono text-caption uppercase text-label">{copy.stepLabel}</p>
+        <p className="font-mono text-report-label uppercase text-label">{copy.stepLabel}</p>
         <dl className="mt-2 grid grid-cols-2 gap-x-5 lg:grid-cols-1 lg:gap-y-4">
           {PANELS.map((panel) => (
             <div key={panel}>
-              <dt className="font-mono text-caption uppercase text-label">{copy[panel]}</dt>
-              <dd className="font-mono text-[clamp(1.75rem,3.2vw,3rem)] leading-none tracking-[-0.04em] tabular-nums">
+              <dt className="font-mono text-report-label uppercase text-label">{copy[panel]}</dt>
+              <dd className="font-mono text-report-lead leading-none tracking-[-0.04em] tabular-nums">
                 {percent(value(panel, 'Rouble', year))}%
               </dd>
             </div>
@@ -297,7 +297,7 @@ function SettlementChart({ year, still }: { readonly year: number; readonly stil
       <div className="min-w-0">
         <ul className="flex flex-wrap gap-x-5 gap-y-1">
           {SERIES.map((series) => (
-            <li key={series.key} className="flex items-center gap-2 font-mono text-data">
+            <li key={series.key} className="flex items-center gap-2 font-mono text-report-label">
               <span
                 aria-hidden="true"
                 className={cn('inline-block size-3 border border-chart-axis', series.swatch)}

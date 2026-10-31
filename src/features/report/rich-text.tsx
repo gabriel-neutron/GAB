@@ -47,7 +47,7 @@ export function RichText({ text, partSlug }: RichTextProps) {
   const draw = (run: Run, key: string): ReactNode => {
     if (run.kind === 'note')
       return partSlug === undefined ? (
-        <sup key={key} className="font-mono text-small text-label">
+        <sup key={key} className="font-mono text-report-label text-label">
           {run.id}
         </sup>
       ) : (

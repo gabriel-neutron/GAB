@@ -9,7 +9,7 @@ import { ClosingBreak, OUTLINE } from './closing-art';
 const { limits: copy } = closingUi;
 // A list item opens with its claim in bold; the rest of the item explains it.
 const KEY = /^\*\*(.+?)\*\*\s*/;
-const PROSE = 'max-w-[64ch] text-[18px]/[1.65] md:text-[20px]/[1.65]';
+const PROSE = 'max-w-[64ch] text-report-body/[1.65] ';
 // The widths of the redaction bars of the break: what the data cannot say.
 const BARS = ['w-[38%]', 'w-[62%]', 'w-[24%]', 'w-[48%]'];
 
@@ -21,20 +21,20 @@ function Item({ block, index, partSlug }: { block: ReportBlock; index: number; p
       <span
         aria-hidden="true"
         className={cn(
-          'row-span-2 font-mono text-[48px] leading-[0.8] tracking-[-0.06em] tabular-nums md:text-[64px]',
+          'row-span-2 font-mono text-report-number leading-[0.8] tracking-[-0.06em] tabular-nums ',
           OUTLINE,
         )}
       >
         {String(index + 1).padStart(2, '0')}
       </span>
       {match === null ? null : (
-        <p className="text-[clamp(1.25rem,2.6vw,1.75rem)] leading-[1.15] tracking-[-0.02em] text-balance">
+        <p className="text-report-lead leading-[1.15] tracking-[-0.02em] text-balance">
           {match[1]}
         </p>
       )}
       <p
         className={cn(
-          'mt-3 max-w-[60ch] text-[17px]/[1.6] text-foreground/80 lg:mt-0',
+          'mt-3 max-w-[60ch] text-report-body/[1.6] text-foreground/80 lg:mt-0',
           match === null ? 'lg:col-span-2' : 'col-start-2 lg:col-start-3',
         )}
       >
@@ -82,7 +82,7 @@ export function LimitsPart({ part }: { readonly part: ReportPart }) {
       out.push(
         <h3
           key={block.text}
-          className="mt-24 border-t border-foreground pt-3 font-mono text-caption uppercase text-label"
+          className="mt-24 border-t border-foreground pt-3 font-mono text-report-label uppercase text-label"
         >
           {block.text}
         </h3>,
@@ -93,8 +93,8 @@ export function LimitsPart({ part }: { readonly part: ReportPart }) {
           {/* The rule of the list above and the rule of the heading below frame the check. */}
           <aside aria-label={copy.checkLabel} className="my-16 py-6 md:py-10">
             <div className={cn('border-l-4 pl-5 md:pl-8', accent.border)}>
-              <p className="font-mono text-caption uppercase text-label">{copy.checkLabel}</p>
-              <p className="mt-4 max-w-[40ch] text-[clamp(1.5rem,3.4vw,2.5rem)] leading-[1.2] tracking-[-0.025em] text-balance">
+              <p className="font-mono text-report-label uppercase text-label">{copy.checkLabel}</p>
+              <p className="mt-4 max-w-[40ch] text-report-lead leading-[1.2] tracking-[-0.025em] text-balance">
                 {text}
               </p>
             </div>
@@ -117,7 +117,7 @@ export function LimitsPart({ part }: { readonly part: ReportPart }) {
         quote={copy.quote}
         className="top-[22%] right-[6%] w-[44%]"
         art={
-          <ol className="font-mono text-[11px]/[1.5] uppercase md:text-[13px]/[1.5] lg:text-[15px]/[1.5]">
+          <ol className="font-mono text-report-label/[1.5] uppercase  ">
             <li className="border-b border-foreground/40 pb-2 text-label">{copy.limitsLabel}</li>
             {claims.map((claim, index) => (
               <li

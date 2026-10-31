@@ -68,9 +68,12 @@ const shownClass = (tone: Tone, shown: boolean) =>
       ? 'opacity-70'
       : 'opacity-100';
 const MARGIN = { left: 34, top: 26, bottom: 30 };
-// The width of one glyph of the 11px mono labels, and the gap before an end label.
-export const GLYPH = 6.7;
+// The width of one glyph of the 13px mono labels (0.6em and the tracking), and the gap before an
+// end label.
+export const GLYPH = 8.1;
 const GAP = 12;
+// The distance between the baselines of two stacked end labels.
+const LINE = 18;
 export const FADE = 'transition-opacity duration-500 motion-reduce:transition-none';
 
 /** A line chart on a faint grid, in the one accent and neutrals. A missing value breaks the line.
@@ -139,13 +142,20 @@ export function LineChart({
       const above = ends.at(-1)?.y ?? -Infinity;
       ends.push({
         id: one.id,
-        y: Math.max(scales.y(last.y) + 4, above + 16),
+        y: Math.max(scales.y(last.y) + 4, above + LINE),
         x: scales.x(last.x) + 8,
         text: `${one.label} ${last.y.toFixed(digits)}`,
         tone: one.tone,
         shown: one.shown ?? true,
       });
     });
+  // The stack stays above the year labels: the lowest labels move up when the stack is too deep.
+  for (let at = ends.length - 1, floor = bottom - 2; at >= 0; at -= 1) {
+    const end = ends[at];
+    if (end === undefined) continue;
+    end.y = Math.min(end.y, floor);
+    floor = end.y - LINE;
+  }
 
   return (
     <div
@@ -159,7 +169,7 @@ export function LineChart({
           height={height}
           viewBox={`0 0 ${String(width)} ${String(height)}`}
           aria-hidden="true"
-          className="block overflow-visible font-mono text-[11px]"
+          className="block overflow-visible font-mono text-report-label"
         >
           <text x={0} y={12} className="fill-label">
             {spec.unit}

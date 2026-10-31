@@ -69,7 +69,7 @@ function Grow({ share, className }: { readonly share: number; readonly className
   );
 }
 
-const tick = 'font-mono text-[11px]/4 text-label tabular-nums';
+const tick = 'font-mono text-report-label/4 text-label tabular-nums';
 
 /** Figure 10: (a) the declared exports of CHP goods to Russia by reporting country, stacked, with
  * the share of China and Hong Kong over each year; (b) the nine third countries, on one shared
@@ -78,10 +78,10 @@ export function SuppliersFigure() {
   return (
     <div className="grid gap-14">
       <div>
-        <p className="font-mono text-caption uppercase text-label">
+        <p className="font-mono text-report-label uppercase text-label">
           {copy.a} · {figureTexts.figures['10'].panels[0]?.unit}
         </p>
-        <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 font-mono text-caption text-muted-foreground">
+        <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 font-mono text-report-label text-muted-foreground">
           {SERIES.map((series) => (
             <li key={series.key} className="flex items-center gap-1.5">
               <span aria-hidden="true" className={cn('size-2.5', series.ink)} />
@@ -111,7 +111,7 @@ export function SuppliersFigure() {
             className="absolute -top-12 bottom-0 border-l border-signal"
             style={{ left: `${String(eventLeft)}%` }}
           >
-            <span className="absolute top-0 right-1.5 w-[9rem] text-right font-mono text-[11px]/4 text-signal md:right-auto md:left-1.5 md:w-max md:text-left">
+            <span className="absolute top-0 right-1.5 w-[9rem] text-right font-mono text-report-label/4 text-signal md:right-auto md:left-1.5 md:w-max md:text-left">
               {labels['décret 14114 (22 déc. 2023)']}
             </span>
           </div>
@@ -122,7 +122,7 @@ export function SuppliersFigure() {
               return (
                 <div key={year} className="relative flex flex-col items-center justify-end">
                   <span
-                    className="absolute font-mono text-[clamp(0.875rem,2.2vw,1.75rem)]/none tracking-[-0.04em] text-signal tabular-nums"
+                    className="absolute font-mono text-report-small/none md:text-report-lead/none tracking-[-0.04em] text-signal tabular-nums"
                     style={{ bottom: `calc(${String((total / MAX) * 100)}% + 0.5rem)` }}
                   >
                     {valueAt(f10a[SHARE], year)}%
@@ -171,13 +171,13 @@ export function SuppliersFigure() {
         </table>
       </div>
       <div className="mt-4">
-        <p className="font-mono text-caption uppercase text-label">
+        <p className="font-mono text-report-label uppercase text-label">
           {copy.b} · {figureTexts.figures['10'].panels[0]?.unit}
         </p>
-        <p className="mt-1 text-body-sm text-muted-foreground">
+        <p className="mt-1 text-report-small text-muted-foreground">
           {copy.bScale.replace('{max}', String(MAX_B))} {copy.bSort}
         </p>
-        <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1 font-mono text-caption text-muted-foreground">
+        <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1 font-mono text-report-label text-muted-foreground">
           <li className="flex items-center gap-2">
             <span aria-hidden="true" className={cn('h-3 w-5', GAP)} />
             {copy.noValue}
@@ -195,8 +195,8 @@ export function SuppliersFigure() {
           {f10b.map(([country, points], rank) => {
             return (
               <li key={country} className="min-w-0">
-                <p className="flex items-baseline gap-2 text-body-sm">
-                  <span className="font-mono text-data text-label tabular-nums">
+                <p className="flex items-baseline gap-2 text-report-small">
+                  <span className="font-mono text-report-label text-label tabular-nums">
                     {String(rank + 1).padStart(2, '0')}
                   </span>
                   <span className="truncate">{country}</span>
@@ -212,14 +212,14 @@ export function SuppliersFigure() {
                         {value === null ? (
                           <>
                             <span className={cn('absolute inset-x-1 bottom-0 h-1/2', GAP)} />
-                            <span className="absolute bottom-[calc(50%+0.3rem)] font-mono text-[11px]/3 text-label">
+                            <span className="absolute bottom-[calc(50%+0.3rem)] font-mono text-report-label text-label">
                               {copy.noValueShort}
                             </span>
                           </>
                         ) : (
                           <>
                             <span
-                              className="absolute font-mono text-[11px]/3 text-foreground tabular-nums"
+                              className="absolute font-mono text-report-label text-foreground tabular-nums"
                               style={{ bottom: `calc(${String((value / MAX_B) * 100)}% + 0.3rem)` }}
                             >
                               {value}

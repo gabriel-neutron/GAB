@@ -61,7 +61,7 @@ export function MethodChronologyPart({ part }: { readonly part: ReportPart }) {
     const scale = block.text.includes('ADMIRALTY');
     return (
       <div key={key} className="lg:grid lg:grid-cols-12 lg:gap-8">
-        <div className="max-w-[40rem] text-[18px]/[1.65] md:text-[20px]/[1.65] lg:col-span-8 lg:col-start-4">
+        <div className="max-w-[40rem] text-report-body/[1.65]  lg:col-span-8 lg:col-start-4">
           <Reveal>
             <p>
               <RichText text={block.text} partSlug={part.slug} />
@@ -72,7 +72,7 @@ export function MethodChronologyPart({ part }: { readonly part: ReportPart }) {
         {notes.length === 0 && !scale ? null : (
           <aside
             aria-hidden="true"
-            className="hidden space-y-4 border-t border-divider pt-2 font-mono text-small/5 text-label lg:row-start-1 lg:col-span-3 lg:col-start-1 lg:block"
+            className="hidden space-y-4 border-t border-divider pt-2 font-mono text-report-label/5 text-label lg:row-start-1 lg:col-span-3 lg:col-start-1 lg:block"
           >
             {notes.map((note) => (
               <p key={note.id}>
@@ -92,7 +92,7 @@ export function MethodChronologyPart({ part }: { readonly part: ReportPart }) {
         <NodeField />
         <ChapterBreak number={number} title={part.title}>
           <Reveal>
-            <p className="mt-8 max-w-[34ch] border-l border-foreground pl-4 text-[clamp(1.375rem,2.8vw,2rem)] leading-snug tracking-[-0.02em] text-balance text-foreground/85">
+            <p className="mt-8 max-w-[52ch] border-l border-foreground pl-4 text-report-body text-balance text-foreground/85 md:text-report-lead">
               {methodUi.quote}
             </p>
           </Reveal>
@@ -108,20 +108,22 @@ export function MethodChronologyPart({ part }: { readonly part: ReportPart }) {
           />
         </div>
         <div className="lg:col-span-7">
-          <p className="font-mono text-caption uppercase text-label">{serve}</p>
+          <p className="font-mono text-report-label uppercase text-label">{serve}</p>
           <ul className="mt-3 grid grid-cols-3 gap-4">
             {layers.map((one) => (
               <li key={one.label} className="min-w-0 border-t border-foreground pt-3">
                 {/* One size for the three values, so their lengths do not change their weight. */}
                 <p
                   className={cn(
-                    'font-mono text-[clamp(2.75rem,11vw,6.5rem)] leading-[0.82] tracking-[-0.06em] tabular-nums',
+                    'font-mono text-report-number leading-[0.82] tracking-[-0.06em] tabular-nums',
                     accent.text,
                   )}
                 >
                   <NumberRoll value={one.value} />
                 </p>
-                <p className="mt-4 font-mono text-caption/4 uppercase text-label">{one.label}</p>
+                <p className="mt-4 font-mono text-report-label/4 uppercase text-label">
+                  {one.label}
+                </p>
               </li>
             ))}
           </ul>
@@ -142,7 +144,7 @@ function AdmiraltyScale() {
           <li
             key={letter}
             className={cn(
-              'border-r border-divider py-1 text-center text-body',
+              'border-r border-divider py-1 text-center text-report-small',
               letter === 'A' ? 'text-foreground' : 'text-label',
             )}
           >

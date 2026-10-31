@@ -2,7 +2,7 @@ import { cn } from '@/shared/lib/utils';
 import { NoteRef } from '../note-ref';
 import { RichText } from '../rich-text';
 import { accent } from './accent';
-import { monoLabel } from './label';
+import { monoNote } from './label';
 import { NumberRoll } from './number-roll';
 
 interface BigNumberProps {
@@ -21,20 +21,19 @@ export function BigNumber({ value, label, note, source }: BigNumberProps) {
     <div className="@container min-w-0">
       <p
         // The bottom padding keeps the descender of a comma clear of the label.
-        className={cn('pb-[0.12em] leading-[0.82] tracking-[-0.06em] tabular-nums', accent.text)}
-        // The value fills the width of its box at most: a figure of the grotesk is about 0.6em wide.
-        style={{
-          fontSize: `clamp(3rem, min(22vw, ${String(Math.floor(100 / (value.length * 0.6)))}cqi), 13rem)`,
-        }}
+        className={cn(
+          'pb-[0.12em] text-report-display leading-[0.82] tracking-[-0.06em] tabular-nums',
+          accent.text,
+        )}
       >
         <NumberRoll value={value} />
       </p>
-      <p className={cn('mt-4 max-w-[36ch]', monoLabel)}>
+      <p className={cn('mt-4 max-w-[36ch]', monoNote)}>
         {label}
         {note === undefined ? null : <NoteRef partSlug={note.partSlug} id={note.id} />}
       </p>
       {source === undefined ? null : (
-        <p className="mt-2 max-w-[48ch] text-body-sm text-foreground/75">
+        <p className="mt-2 max-w-[48ch] text-report-small text-foreground/75">
           <RichText text={source} partSlug={note?.partSlug} />
         </p>
       )}

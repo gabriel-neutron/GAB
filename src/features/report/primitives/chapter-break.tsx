@@ -11,9 +11,8 @@ import { Reveal } from './reveal';
 export const chapterHead = {
   row: 'flex items-end gap-4 md:block',
   number:
-    'shrink-0 text-[clamp(3.75rem,20vw,20rem)] leading-[0.78] tracking-[-0.06em] text-foreground/90 tabular-nums md:text-[clamp(6rem,24vw,20rem)]',
-  title:
-    'min-w-0 text-[clamp(2.25rem,8vw,7rem)] leading-[0.95] tracking-[-0.045em] text-balance md:mt-6',
+    'shrink-0 text-report-display leading-[0.78] tracking-[-0.06em] text-foreground/90 tabular-nums ',
+  title: 'min-w-0 text-report-heading leading-[0.95] tracking-[-0.045em] text-balance md:mt-6',
 } as const;
 
 interface ChapterBreakImage {
@@ -73,7 +72,7 @@ export function ChapterBreak({ number, title, quote, image, children }: ChapterB
         </div>
         {quote === undefined ? null : (
           <Reveal>
-            <p className="mt-8 max-w-[40ch] border-l border-foreground pl-4 text-[clamp(1.25rem,2.4vw,1.75rem)] leading-snug tracking-[-0.02em] text-balance text-foreground/75">
+            <p className="mt-8 max-w-[40ch] border-l border-foreground pl-4 text-report-lead leading-snug tracking-[-0.02em] text-balance text-foreground/75">
               {quote}
             </p>
           </Reveal>
@@ -82,8 +81,8 @@ export function ChapterBreak({ number, title, quote, image, children }: ChapterB
       </div>
       {image === undefined ? null : (
         // On a phone the credit is a caption under the words, so it never covers the numeral.
-        <p className="relative mx-4 mb-6 self-start border border-border bg-background px-2 py-1 font-mono text-[12px]/4 text-label md:absolute md:top-3 md:right-4 md:m-0 md:max-w-[44ch] md:text-right">
-          <span className="block tracking-[0.08em] text-foreground uppercase">{image.label}</span>
+        <p className="relative mx-4 mb-6 self-start border border-border bg-background px-2 py-1 font-mono text-report-label/4 text-label md:absolute md:top-3 md:right-4 md:m-0 md:max-w-[44ch] md:text-right">
+          <span className="block text-foreground">{image.label}</span>
           {image.credit}
         </p>
       )}

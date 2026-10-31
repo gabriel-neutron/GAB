@@ -38,7 +38,7 @@ export function StickyScene({
             className="grid gap-6 border-t border-border py-8 lg:grid-cols-12 lg:gap-8"
           >
             <div className="min-w-0 lg:col-span-8">{children(index)}</div>
-            <div className="min-w-0 text-body lg:col-span-4">{step}</div>
+            <div className="min-w-0 text-report-small lg:col-span-4">{step}</div>
           </div>
         ))}
       </div>
@@ -86,7 +86,7 @@ function SceneStep({ index, onEnter, className, children }: SceneStepProps) {
       <div
         className={cn(
           'pointer-events-auto',
-          className ?? 'max-w-sm border border-border bg-background p-5 text-body',
+          className ?? 'max-w-sm border border-border bg-background p-5 text-report-small',
         )}
       >
         {children}

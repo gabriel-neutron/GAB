@@ -39,7 +39,7 @@ export function Blocks({ blocks, partSlug }: BlocksProps) {
     closeList(key);
     if (block.kind === 'h3')
       out.push(
-        <h3 key={key} className="mt-10 mb-3 max-w-[40ch] text-heading-sm text-balance">
+        <h3 key={key} className="mt-10 mb-3 max-w-[40ch] text-report-lead text-balance">
           {text}
         </h3>,
       );
@@ -55,7 +55,7 @@ export function Blocks({ blocks, partSlug }: BlocksProps) {
           note={figureNotes[String(block.figure.number)]?.note}
           partSlug={partSlug}
         >
-          <p className="border border-dashed border-border p-6 text-body-sm text-muted-foreground">
+          <p className="border border-dashed border-border p-6 text-report-small text-muted-foreground">
             {ui.figure.pending}
           </p>
         </FigureFrame>,

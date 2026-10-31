@@ -13,6 +13,8 @@ const lanesN = groups.reduce((sum, group) => sum + group.lanes.length, 0);
 const at = (day: number) =>
   ((Math.max(-before, Math.min(after, day)) + before) / (before + after)) * 100;
 const pct = (value: number) => `${value.toFixed(3)}%`;
+// The step between two rows of flag codes over a lane: the label size and a gap.
+const ROW = 14;
 const label = (key: string, values: Readonly<Record<string, string | number>> = {}) =>
   (labels[key] ?? key).replace(/\{(\w+)\}/g, (whole, name: string) =>
     String(values[name] ?? whole),
@@ -55,7 +57,7 @@ const TICKS = [
 export function VesselLives() {
   return (
     <div>
-      <p className="mb-6 font-mono text-small text-label">
+      <p className="mb-6 font-mono text-report-label text-label">
         {label(
           'Chiffres : les {ais} pétroliers désignés qui ont une identité AIS. Frise : {lanesN} navires, exemples de chaque profil.',
           { ais: census.ais, lanesN },
@@ -73,7 +75,7 @@ export function VesselLives() {
               <span
                 key={tick.day}
                 className={cn(
-                  'absolute top-0 font-mono text-small whitespace-nowrap',
+                  'absolute top-0 font-mono text-report-label whitespace-nowrap',
                   tick.day === 0 ? 'text-foreground' : 'text-label',
                   tick.day === -before
                     ? ''
@@ -92,7 +94,7 @@ export function VesselLives() {
           {groups.map((group) => (
             <Reveal key={group.name}>
               <div className="border-t border-border pt-2 pb-3">
-                <p className="mb-1 font-mono text-caption uppercase text-label">
+                <p className="mb-1 font-mono text-report-label uppercase text-label">
                   {groupNames[group.name] ?? group.name}
                 </p>
                 {group.lanes.map((lane) => (
@@ -103,7 +105,7 @@ export function VesselLives() {
           ))}
         </div>
       </div>
-      <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2 font-mono text-small text-muted-foreground">
+      <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2 font-mono text-report-label text-muted-foreground">
         <li className="flex items-center gap-2">
           <span aria-hidden="true" className="h-1.5 w-5 bg-foreground/60" />
           {label('pavillon russe')}
@@ -158,11 +160,11 @@ const callCounts = (calls: Lane['calls']) =>
 function LanesTable() {
   return (
     <details className="mt-6 border-t border-border pt-1">
-      <summary className="flex min-h-11 cursor-pointer items-center font-mono text-caption uppercase text-label">
+      <summary className="flex min-h-11 cursor-pointer items-center font-mono text-report-label text-label">
         {TABLE.summary}
       </summary>
       <div className="overflow-x-auto">
-        <table className="w-full text-left font-mono text-small tabular-nums">
+        <table className="w-full text-left font-mono text-report-label tabular-nums">
           <thead className="text-label">
             <tr>
               <th className="py-1 pr-3 font-normal">{TABLE.ship}</th>
@@ -214,12 +216,10 @@ function Census() {
     <div className="mt-16 border-t border-foreground pt-8">
       <Reveal>
         <p className="flex flex-wrap items-baseline gap-x-5 leading-[0.85] tracking-[-0.055em] tabular-nums">
-          <span className={cn('text-[clamp(6rem,22vw,14rem)]', accent.text)}>{lost}</span>
-          <span className="text-[clamp(2.5rem,8vw,5.5rem)] text-label">
-            {label('sur {n}', { n: of })}
-          </span>
+          <span className={cn('text-report-display', accent.text)}>{lost}</span>
+          <span className="text-report-number text-label">{label('sur {n}', { n: of })}</span>
         </p>
-        <p className="mt-4 max-w-[48ch] font-mono text-caption/4 uppercase text-label">
+        <p className="mt-4 max-w-[48ch] font-mono text-report-label/4 text-label">
           {label(first.key)}
         </p>
         <div
@@ -239,17 +239,17 @@ function Census() {
             />
           ))}
         </div>
-        <p className="mt-3 font-mono text-small text-label">{portsFleetUi.lives.lost}</p>
+        <p className="mt-3 font-mono text-report-label text-label">{portsFleetUi.lives.lost}</p>
       </Reveal>
       <dl className="mt-14 grid gap-x-10 gap-y-10 md:grid-cols-3">
         {rest.map((stat) => (
           <div key={stat.key} className="flex flex-col border-t border-border pt-4">
-            <dt className="order-2 mt-3 max-w-[34ch] text-body-sm text-muted-foreground">
+            <dt className="order-2 mt-3 max-w-[34ch] text-report-small text-muted-foreground">
               {label(stat.key)}
             </dt>
-            <dd className="flex flex-wrap items-baseline gap-x-3 text-[clamp(3rem,6vw,4.5rem)] leading-[0.9] tracking-[-0.05em] tabular-nums">
+            <dd className="flex flex-wrap items-baseline gap-x-3 text-report-number leading-[0.9] tracking-[-0.05em] tabular-nums">
               {stat.value}
-              <span className="font-mono text-small tracking-normal text-label">
+              <span className="font-mono text-report-label tracking-normal text-label">
                 {label('sur {n}', { n: stat.of ?? '' })}
               </span>
             </dd>
@@ -281,12 +281,12 @@ function LaneRow({ lane }: { readonly lane: Lane }) {
   );
   return (
     <div className="grid items-center gap-x-4 py-1.5 md:grid-cols-[10rem_1fr]">
-      <p className="font-mono text-small text-foreground break-words">{lane.name}</p>
+      <p className="font-mono text-report-label text-foreground break-words">{lane.name}</p>
       {/* The flag codes stand above the row of calls, in the room this margin keeps. */}
       <div
         ref={track}
         className="relative h-9"
-        style={{ marginTop: ends.length === 0 ? 0 : ends.length * 11 + 2 }}
+        style={{ marginTop: ends.length === 0 ? 0 : ends.length * ROW + 2 }}
       >
         {/* The designation day. */}
         <span className="absolute inset-y-0 w-px bg-foreground" style={{ left: pct(at(0)) }} />
@@ -297,7 +297,7 @@ function LaneRow({ lane }: { readonly lane: Lane }) {
           />
         ) : null}
         {lane.identities.length === 0 ? (
-          <span className="absolute top-1/2 left-0 -translate-y-1/2 font-mono text-small text-label">
+          <span className="absolute top-1/2 left-0 -translate-y-1/2 bg-background pr-1 font-mono text-report-label text-label">
             {label('aucune identité AIS suivie')}
           </span>
         ) : null}
@@ -317,8 +317,8 @@ function LaneRow({ lane }: { readonly lane: Lane }) {
             >
               {russian ? null : (
                 <span
-                  className="absolute left-0 font-mono text-[10px]/3 text-label"
-                  style={{ top: -29 - (rowOf.get(identity) ?? 0) * 11 }}
+                  className="absolute left-0 font-mono text-report-label/none text-label"
+                  style={{ top: -31 - (rowOf.get(identity) ?? 0) * ROW }}
                 >
                   {identity.flag}
                 </span>

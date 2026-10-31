@@ -24,7 +24,7 @@ export function LayersFigure() {
   return (
     <div className="bg-[linear-gradient(var(--color-chart-grid)_1px,transparent_1px),linear-gradient(90deg,var(--color-chart-grid)_1px,transparent_1px)] bg-size-[2rem_2rem] py-6">
       <Legend />
-      <p className="mt-2 bg-background font-mono text-caption/4 text-label">{SCHEMATIC}</p>
+      <p className="mt-2 bg-background font-mono text-report-label/4 text-label">{SCHEMATIC}</p>
       <ol
         aria-label={methodUi.layers.label}
         className="mt-4 grid lg:grid-cols-[1fr_7rem_1fr_7rem_1fr] lg:grid-rows-[repeat(6,auto)]"
@@ -46,7 +46,7 @@ export function LayersFigure() {
                   >
                     <path d="M0 6 H46 M40 1 L46 6 L40 11" fill="none" strokeWidth="1.25" />
                   </svg>
-                  <span className="font-mono text-caption/4 text-label uppercase">
+                  <span className="font-mono text-report-label/4 text-label uppercase">
                     {arrow.lines.join(' ')}
                   </span>
                 </li>
@@ -55,7 +55,7 @@ export function LayersFigure() {
           );
         })}
       </ol>
-      <p className="mt-4 flex items-start gap-3 border-t border-dashed border-foreground bg-background pt-3 font-mono text-caption/4 text-label uppercase">
+      <p className="mt-4 flex items-start gap-3 border-t border-dashed border-foreground bg-background pt-3 font-mono text-report-label/4 text-label">
         <span aria-hidden="true" className="text-foreground">
           ↺
         </span>
@@ -65,7 +65,7 @@ export function LayersFigure() {
         aria-label={methodUi.layers.conditions}
         className="mt-12 border-t border-foreground bg-background pt-3"
       >
-        <h4 className="font-mono text-caption uppercase text-label">
+        <h4 className="font-mono text-report-label uppercase text-label">
           {methodUi.layers.conditions}
         </h4>
         <ol className="mt-6 grid gap-8 lg:grid-cols-3">
@@ -76,13 +76,13 @@ export function LayersFigure() {
             >
               <span
                 aria-hidden="true"
-                className="font-mono text-[clamp(3rem,8vw,5rem)] leading-[0.8] tracking-[-0.06em] text-foreground"
+                className="font-mono text-report-number leading-[0.8] tracking-[-0.06em] text-foreground"
               >
                 {one.letter}
               </span>
               <span className="border-t border-divider pt-2">
-                <span className="block text-heading-sm text-balance">{one.title}</span>
-                <span className="mt-2 block max-w-[52ch] text-body text-muted-foreground">
+                <span className="block text-report-lead text-balance">{one.title}</span>
+                <span className="mt-2 block max-w-[52ch] text-report-small text-muted-foreground">
                   {one.text}
                 </span>
               </span>
@@ -97,7 +97,7 @@ export function LayersFigure() {
 function Legend() {
   const { inData, critical, examined } = methodUi.layers;
   return (
-    <ul className="flex flex-wrap gap-x-6 gap-y-2 bg-background font-mono text-caption/4 text-label uppercase">
+    <ul className="flex flex-wrap gap-x-6 gap-y-2 bg-background font-mono text-report-label/4 text-label">
       <li className="flex items-center gap-2">
         <span aria-hidden="true" className={cn('size-2.5', accent.bg)} />
         {inData}
@@ -133,25 +133,23 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
   return (
     <>
       <div className="flex items-baseline justify-between gap-4">
-        <p className="font-mono text-caption text-label tabular-nums">
+        <p className="font-mono text-report-label text-label tabular-nums">
           {String(index + 1).padStart(2, '0')}
         </p>
         <p
           className={cn(
-            'font-mono text-[clamp(2.5rem,6vw,4rem)] leading-none tracking-[-0.06em] tabular-nums',
+            'font-mono text-report-number leading-none tracking-[-0.06em] tabular-nums',
             accent.text,
           )}
         >
           <NumberRoll value={count} />
         </p>
       </div>
-      <h4 className="mt-2 text-[clamp(2.5rem,6vw,4rem)] leading-[0.95] tracking-[-0.045em]">
-        {layer.k}
-      </h4>
-      <p className="mt-3 text-body text-balance text-muted-foreground">{layer.d}</p>
+      <h4 className="mt-2 text-report-heading leading-[0.95] tracking-[-0.045em]">{layer.k}</h4>
+      <p className="mt-3 text-report-small text-balance text-muted-foreground">{layer.d}</p>
       <ul className="mt-5 border-t border-divider">
         {layer.items.map((item) => (
-          <li key={item} className="border-b border-divider py-2 text-body-sm">
+          <li key={item} className="border-b border-divider py-2 text-report-small">
             {item}
           </li>
         ))}
@@ -159,7 +157,7 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
       <details className="group mt-5 border-t border-divider">
         <summary
           className={cn(
-            'flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 font-mono text-caption uppercase text-label hover:text-foreground',
+            'flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 font-mono text-report-label text-label hover:text-foreground',
             FOCUS,
           )}
         >
@@ -177,7 +175,7 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
                   open(node, event.currentTarget);
                 }}
                 className={cn(
-                  'flex min-h-11 items-center gap-2 border border-border px-2 text-body-sm hover:border-foreground',
+                  'flex min-h-11 items-center gap-2 border border-border px-2 text-report-small hover:border-foreground',
                   FOCUS,
                 )}
               >

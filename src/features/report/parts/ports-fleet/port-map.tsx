@@ -21,7 +21,7 @@ const LEADS: Readonly<Record<string, readonly [number, number]>> = {
   'N-P002': [1, 1],
   'N-P005': [-1, 1],
   'N-P011': [1, 1],
-  'N-P009': [1, -1],
+  'N-P009': [-1, -1],
   'N-P007': [-1, 1],
 };
 
@@ -124,12 +124,13 @@ export function PortMap({ step, sources }: PortMapProps) {
   const wide = width >= 1024;
   const compact = width < 640;
   const side = Math.max(0, (width - 1200) / 2) + 32 + 384 + 32;
-  const big = compact ? 24 : 40;
+  const big = wide ? 28 : 20;
   // The flow columns stand in a band under the head, the map under the band. A column is a bar
   // with its name, its shadow-fleet value and its other value above it.
   const bar = compact ? 20 : wide ? 44 : 32;
-  const flowBig = compact ? 20 : wide ? 40 : 30;
-  const line = compact ? 10 : 12;
+  // The sizes of the report roles: the label, and the lead at this width.
+  const flowBig = wide ? 28 : 20;
+  const line = 13;
   const slot = compact ? 84 : wide ? 160 : 120;
   // The name, the shadow-fleet value, its tag and the other value.
   const textHeight = line * 3 + flowBig + 20;
@@ -139,7 +140,7 @@ export function PortMap({ step, sources }: PortMapProps) {
   // Room for the labels that stand above a terminal, or for the band of the flow columns. Under
   // 1024px the head holds the legend and the sources, so the room takes the full label block of
   // the step: no label can go into the head.
-  const rise = 22 + 15 + 13 + (state.tag === 'change' ? big + 3 : state.tag === undefined ? 0 : 17);
+  const rise = 22 + 16 + 16 + (state.tag === 'change' ? big + 3 : state.tag === undefined ? 0 : 16);
   const top = flows ? baseline + 28 : headHeight + (wide ? 24 : rise + 16);
   // Under 1024px the card stands from 55% of the view on a phone and from 62% from 768px or for
   // the flows (map-scene.css). The map starts under the part bar.
@@ -413,10 +414,13 @@ export function PortMap({ step, sources }: PortMapProps) {
                     >
                       {number.format(shadow?.value ?? 0)}
                     </tspan>
-                    {/* The large value is the shadow fleet only, not the total of the column. */}
-                    <tspan x={tx} dy={line + 4} className={cn('normal-case', accent.fill)}>
-                      {fleetTags[SHADOW] ?? SHADOW}
-                    </tspan>
+                    {/* The large value is the shadow fleet only, not the total of the column. On a
+                        phone the tag is wider than its column: the accent and the legend name it. */}
+                    {compact ? null : (
+                      <tspan x={tx} dy={line + 4} className={cn('normal-case', accent.fill)}>
+                        {fleetTags[SHADOW] ?? SHADOW}
+                      </tspan>
+                    )}
                     {others.map((row) => (
                       <tspan
                         key={row.to}
@@ -488,13 +492,13 @@ export function PortMap({ step, sources }: PortMapProps) {
         ref={head}
         className={cn(
           // A halo of the sea colour keeps the words of the head clear of the coasts.
-          'pointer-events-none absolute inset-x-0 top-0 grid gap-1.5 p-4 font-mono [text-shadow:0_0_2px_var(--map-water),0_0_2px_var(--map-water),0_0_4px_var(--map-water)] text-caption/4 uppercase text-label md:gap-2 md:px-8',
+          'pointer-events-none absolute inset-x-0 top-0 grid gap-1.5 p-4 font-mono [text-shadow:0_0_2px_var(--map-water),0_0_2px_var(--map-water),0_0_4px_var(--map-water)] text-report-label/4 uppercase text-label md:gap-2 md:px-8',
           sticky && wide ? 'justify-items-end text-right' : '',
         )}
       >
         <p className="max-w-[48ch] text-balance text-foreground">{title}</p>
         {sticky && !wide ? (
-          <div className="grid gap-1 text-[11px]/4 normal-case md:text-small/4">
+          <div className="grid gap-1 text-report-label/4 normal-case ">
             {legend}
             {credit}
           </div>
@@ -542,7 +546,10 @@ function MapFoot({
   return (
     <div
       ref={ref}
-      className={cn('pointer-events-none grid gap-1 font-mono text-small/4 text-label', className)}
+      className={cn(
+        'pointer-events-none grid gap-1 font-mono text-report-label/4 text-label',
+        className,
+      )}
     >
       {children}
     </div>
@@ -569,13 +576,13 @@ function markerLayout({ id, label, lat, lon, tag, big }: Omit<MarkerProps, 'puls
   const value = tag === 'change' ? change.get(CHANGE_NAMES[id] ?? '') : undefined;
   const date = tag === undefined || tag === 'change' ? '' : (notes[tag]?.[id] ?? '');
   const valueText = value === undefined ? '' : `${value > 0 ? '+' : ''}${String(value)}%`;
-  const valueSize = valueText === '' ? (date === '' ? 0 : 14) : big;
+  const valueSize = valueText === '' ? (date === '' ? 0 : 13) : big;
   // The lines stack away from the terminal: upward above it, downward under it.
   const lines = [
-    { text: label, size: 12, className: 'fill-foreground font-mono uppercase' },
+    { text: label, size: 13, className: 'fill-foreground font-mono uppercase' },
     {
       text: `${lat.toFixed(2)} N · ${lon.toFixed(2)} E`,
-      size: 10,
+      size: 13,
       className: 'fill-foreground/75 font-mono tabular-nums',
     },
     ...(valueSize === 0

@@ -20,7 +20,7 @@ export function ScaleCounters() {
   return (
     <section aria-label={ui.counters.label} className="mt-16 md:mt-24">
       <h3 className={monoLabel}>{ui.counters.label}</h3>
-      <p className="mt-8 max-w-[24ch] text-[clamp(2.25rem,6.4vw,5.5rem)] leading-[1.05] tracking-[-0.04em] text-balance text-foreground/55 md:mt-12">
+      <p className="mt-8 max-w-[24ch] text-report-lead md:text-report-heading leading-[1.05] tracking-[-0.04em] text-balance text-foreground/55 md:mt-12">
         {copy.words.map((word, at) => (
           <Fragment key={word}>
             <span className={cn('tracking-[-0.06em] tabular-nums', accent.text)}>
@@ -29,7 +29,7 @@ export function ScaleCounters() {
             {word}
             {at === copy.words.length - 1 ? (
               // At display size the marker scales with the words, tight on the last word.
-              <span className="[&_.note-ref]:ml-0 [&_.note-ref]:align-top [&_.note-ref]:text-[0.3em]">
+              <span className="[&_.note-ref]:ml-0 [&_.note-ref]:align-top [&_.note-ref]:text-report-label">
                 <NoteRef partSlug="summary" id={summary.entities.note} />
               </span>
             ) : (
@@ -44,7 +44,7 @@ export function ScaleCounters() {
           label={summary.entities.label}
           note={{ partSlug: 'summary', id: summary.entities.note }}
         />
-        <p className="max-w-[44ch] text-[18px]/[1.55] text-foreground/75">{copy.tie}</p>
+        <p className="max-w-[44ch] text-report-body/[1.55] text-foreground/75">{copy.tie}</p>
       </div>
     </section>
   );

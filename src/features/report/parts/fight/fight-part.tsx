@@ -51,7 +51,7 @@ export function FightPart({ part }: { readonly part: ReportPart }) {
       <div
         key={one.note}
         className={cn(
-          'my-16 grid items-end gap-10 border-y border-border py-10 md:my-24 md:gap-16 [&_p:nth-of-type(2)]:text-[14px]/5',
+          'my-16 grid items-end gap-10 border-y border-border py-10 md:my-24 md:gap-16 [&_p:nth-of-type(2)]:text-report-small/5',
           aside !== undefined && 'md:grid-cols-2',
         )}
       >
@@ -102,7 +102,7 @@ export function FightPart({ part }: { readonly part: ReportPart }) {
         quote={fightUi.quote}
         image={fightUi.image}
       />
-      <div className="py-16 text-[18px]/[1.65] md:py-24 md:text-[20px]/[1.65]">{out}</div>
+      <div className="py-16 text-report-body/[1.65] md:py-24 ">{out}</div>
     </section>
   );
 }

@@ -27,7 +27,7 @@ const xOf = (column: number) => (column * (1000 - BAR)) / (flow.columns - 1);
 function Flow() {
   return (
     <div className="hidden md:block">
-      <div className="relative mr-[11rem] h-10 font-mono text-caption uppercase text-label">
+      <div className="relative mr-[11rem] h-10 font-mono text-report-label uppercase text-label">
         {copy.flowColumns.map((name, index) => (
           <p
             key={name}
@@ -83,20 +83,22 @@ function Flow() {
               />
               <span
                 className={cn(
-                  'absolute top-1/2 left-[calc(100%+0.25rem)] w-max -translate-y-1/2 border-l-2 bg-background px-1.5 py-px text-[13px]/4',
+                  'absolute top-1/2 left-[calc(100%+0.25rem)] w-max -translate-y-1/2 border-l-2 bg-background px-1.5 py-px text-report-label/4',
                   ACCENT.has(node.name) ? 'border-signal' : 'border-foreground',
                   last ? 'max-w-[10rem]' : 'max-w-[10rem] lg:max-w-[16rem]',
                   ACCENT.has(node.name) && 'text-signal',
                 )}
               >
                 {node.name}{' '}
-                <span className="font-mono text-data tabular-nums">{chainCount(node.value)}</span>
+                <span className="font-mono text-report-label tabular-nums">
+                  {chainCount(node.value)}
+                </span>
               </span>
             </div>
           );
         })}
       </div>
-      <p className="mt-4 max-w-[64ch] text-body-sm text-muted-foreground">{copy.flowText}</p>
+      <p className="mt-4 max-w-[64ch] text-report-small text-muted-foreground">{copy.flowText}</p>
     </div>
   );
 }
@@ -112,11 +114,11 @@ export function RoutesFigure() {
       <Flow />
       {/* On a phone: the four columns as lists on one scale, linked by their step numbers. */}
       <ol className="grid md:hidden">
-        <li className="pb-6 font-mono text-caption text-muted-foreground">{copy.flowSmall}</li>
+        <li className="pb-6 font-mono text-report-label text-muted-foreground">{copy.flowSmall}</li>
         {lists.map((totals, index) => (
           <li key={copy.flowColumns[index]} className="grid grid-cols-[2.25rem_minmax(0,1fr)]">
             <div aria-hidden="true" className="flex flex-col items-center">
-              <span className="font-mono text-data text-signal tabular-nums">
+              <span className="font-mono text-report-label text-signal tabular-nums">
                 {String(index + 1).padStart(2, '0')}
               </span>
               {index < lists.length - 1 ? <span className="mt-1 w-0.5 flex-1 bg-signal" /> : null}
@@ -152,7 +154,7 @@ export function RoutesFigure() {
         </tbody>
       </table>
       <div>
-        <p className="font-mono text-caption uppercase text-label">{copy.stepsByState}</p>
+        <p className="font-mono text-report-label uppercase text-label">{copy.stepsByState}</p>
         <div aria-hidden="true" className="mt-3 grid grid-cols-33 gap-px md:grid-cols-66">
           {states.flatMap(([state, count]) =>
             Array.from({ length: count }, (_unused, cell) => (
@@ -163,7 +165,7 @@ export function RoutesFigure() {
             )),
           )}
         </div>
-        <ul className="mt-3 grid gap-x-8 gap-y-1 font-mono text-data text-muted-foreground md:grid-cols-2">
+        <ul className="mt-3 grid gap-x-8 gap-y-1 font-mono text-report-label text-muted-foreground md:grid-cols-2">
           {states.map(([state, count]) => (
             <li key={state} className="flex items-start gap-2">
               <span aria-hidden="true" className={cn('mt-0.5 size-2.5 shrink-0', cellOf(state))} />

@@ -20,12 +20,10 @@ export function IntroductionPart({ part }: { readonly part: ReportPart }) {
     if (block.kind === 'li') {
       questions.push(
         <li key={block.text} className="grid grid-cols-[3rem_1fr] border-t border-border py-5">
-          <span className="pt-2 font-mono text-caption text-label tabular-nums">
+          <span className="pt-2 font-mono text-report-label text-label tabular-nums">
             {String(questions.length + 1).padStart(2, '0')}
           </span>
-          <span className="text-[clamp(1.75rem,4.2vw,2.75rem)] leading-[1.08] tracking-[-0.03em] text-balance">
-            {text}
-          </span>
+          <span className="text-report-lead text-balance">{text}</span>
         </li>,
       );
       return;
@@ -73,8 +71,8 @@ export function IntroductionPart({ part }: { readonly part: ReportPart }) {
             // The dither is black on white: it multiplies onto paper, and inverts onto the dark.
             className="block h-auto w-full mix-blend-multiply [image-rendering:pixelated] dark:mix-blend-screen dark:invert"
           />
-          <figcaption className="mt-2 font-mono text-[11px]/4 text-label md:text-[12px]/4">
-            <span className="tracking-[0.08em] text-foreground uppercase">{copy.art.label}</span>{' '}
+          <figcaption className="mt-2 font-mono text-report-label/4 text-label ">
+            <span className=" text-foreground">{copy.art.label}</span>{' '}
             <a
               href={copy.art.href}
               className="underline decoration-border underline-offset-2 hover:text-foreground"
@@ -95,14 +93,16 @@ export function IntroductionPart({ part }: { readonly part: ReportPart }) {
                     aria-hidden="true"
                     className="absolute top-[1.1rem] -left-[3px] size-[5px] bg-foreground"
                   />
-                  <span className="block font-mono text-data text-foreground">{mark.date}</span>
-                  <span className="block text-body-sm text-foreground/75">{mark.text}</span>
+                  <span className="block font-mono text-report-label text-foreground">
+                    {mark.date}
+                  </span>
+                  <span className="block text-report-small text-foreground/75">{mark.text}</span>
                 </li>
               ))}
             </ol>
           </div>
         </aside>
-        <div className="max-w-[64ch] text-[18px]/[1.65] md:text-[20px]/[1.65] lg:col-span-8 lg:col-start-5">
+        <div className="max-w-[64ch] text-report-body/[1.65]  lg:col-span-8 lg:col-start-5">
           {body}
         </div>
       </div>

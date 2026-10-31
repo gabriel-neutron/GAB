@@ -34,7 +34,7 @@ export function NodeField() {
         // On a tablet the numeral fills the width, so the field starts under it and stays small.
         className="mx-auto max-w-[1200px] px-4 pt-6 print:opacity-100! md:px-8 md:pt-[calc(min(56vw,26rem)*0.78+3.5rem)] lg:pt-16"
       >
-        <div className="font-mono text-caption uppercase text-label lg:ml-auto lg:w-1/2">
+        <div className="font-mono text-report-label text-label lg:ml-auto lg:w-1/2">
           <p>
             {methodUi.numbers.total.value} · {methodUi.field}
           </p>

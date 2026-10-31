@@ -73,13 +73,13 @@ export function PartBar() {
     >
       <div className="hidden h-11 items-center gap-8 px-6 md:flex">
         <p className="flex min-w-0 items-baseline gap-3 md:w-96 md:shrink-0">
-          <span className="shrink-0 font-mono text-[12px] tracking-[0.08em] text-label tabular-nums">
+          <span className="shrink-0 font-mono text-report-label tracking-[0.08em] text-label tabular-nums">
             <span className="text-foreground">{pad(shown + 1)}</span> {openingUi.partBar.of}{' '}
             {pad(parts.length)}
           </span>
           <span
             className={cn(
-              'line-clamp-2 text-[16px] leading-[1.1] tracking-[-0.01em]',
+              'line-clamp-2 text-report-small leading-[1.1] tracking-[-0.01em]',
               pointed === null ? 'text-foreground' : accent.text,
             )}
           >
@@ -122,11 +122,11 @@ export function PartBar() {
         </ol>
       </div>
       <div className="relative flex h-8 items-center gap-3 px-4 pb-1 md:hidden">
-        <span className="shrink-0 font-mono text-[12px] tracking-[0.08em] text-label tabular-nums">
+        <span className="shrink-0 font-mono text-report-label tracking-[0.08em] text-label tabular-nums">
           <span className="text-foreground">{pad(current + 1)}</span> {openingUi.partBar.of}{' '}
           {pad(parts.length)}
         </span>
-        <span className="truncate text-[14px] leading-none text-foreground">
+        <span className="truncate text-report-small leading-none text-foreground">
           {parts[current]?.title}
         </span>
         <span aria-hidden="true" className="absolute inset-x-4 bottom-1 flex h-0.5 gap-0.5">
