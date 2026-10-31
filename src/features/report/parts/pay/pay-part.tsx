@@ -270,7 +270,10 @@ function PriceScene({ slug }: { readonly slug: string }) {
                 <PriceChart step={active + 1} focus fill />
               </div>
               {step === undefined ? null : (
-                <div className="pointer-events-auto min-h-0 flex-1 overflow-hidden border-t border-border pt-3 text-body-sm md:text-body lg:hidden">
+                <div
+                  aria-live="polite"
+                  className="pointer-events-auto min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-border pt-3 text-body-sm md:text-body lg:hidden"
+                >
                   <StepText step={step} slug={slug} />
                 </div>
               )}

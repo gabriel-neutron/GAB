@@ -68,7 +68,14 @@ export function FightPart({ part }: { readonly part: ReportPart }) {
     const key = `${part.slug}-${String(index)}`;
     if (block.kind === 'figure') {
       if (block.figure?.number === 11)
-        out.push(<ChainStory key={`${key}-story`} figure={block.figure} partSlug={part.slug} />);
+        out.push(
+          <ChainStory
+            key={`${key}-story`}
+            figure={block.figure}
+            text={block.text}
+            partSlug={part.slug}
+          />,
+        );
       out.push(
         <div key={key}>
           {figureOf(block, block.figure?.number === 10 ? <SuppliersFigure /> : <RoutesFigure />)}
@@ -84,7 +91,7 @@ export function FightPart({ part }: { readonly part: ReportPart }) {
         </p>
       </Reveal>,
     );
-    // The value of the price paragraph stands alone after it.
+    // The value of the price paragraph stands alone after it (the test checks that block 3 is it).
     if (index === 3) out.push(number_(premium));
   });
   return (

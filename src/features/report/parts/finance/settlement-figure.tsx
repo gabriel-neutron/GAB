@@ -45,14 +45,18 @@ const value = (panel: Panel, key: string, year: number): number | undefined => {
 };
 const percent = (share: number | undefined) => (share === undefined ? '' : share.toFixed(1));
 
-// The lower and upper edge of each band, year by year. A missing value stays a gap of zero.
+// The lower and upper edge of each band, year by year. A missing value is a data fault, not a
+// share of zero, so it stops the build of the chart.
 const edgesOf = (panel: Panel) => {
   let floor = YEARS.map(() => 0);
   return SERIES.map((series) => {
     const low = floor;
-    const high = YEARS.map(
-      (one, index) => (low[index] ?? 0) + (value(panel, series.key, one) ?? 0),
-    );
+    const high = YEARS.map((one, index) => {
+      const share = value(panel, series.key, one);
+      if (share === undefined)
+        throw new Error(`Figure 9: no ${series.key} ${panel} value for ${String(one)}`);
+      return (low[index] ?? 0) + share;
+    });
     floor = high;
     return { series, low, high };
   });
@@ -274,7 +278,7 @@ function YearReadout({ year, still }: { readonly year: number; readonly still: b
             <div key={panel}>
               <dt className="font-mono text-caption uppercase text-label">{copy[panel]}</dt>
               <dd className="font-mono text-[clamp(1.75rem,3.2vw,3rem)] leading-none tracking-[-0.04em] tabular-nums">
-                {percent(value(panel, 'Rouble', year))}
+                {percent(value(panel, 'Rouble', year))}%
               </dd>
             </div>
           ))}
@@ -344,7 +348,8 @@ export function SettlementFigure({
   const steps = copy.steps.map((year) => (
     <p key={year}>
       {year}. {copy.stepLabel}:{' '}
-      {PANELS.map((panel) => `${copy[panel]} ${percent(value(panel, 'Rouble', year))}`).join(', ')}.
+      {PANELS.map((panel) => `${copy[panel]} ${percent(value(panel, 'Rouble', year))}%`).join(', ')}
+      .
     </p>
   ));
   return (

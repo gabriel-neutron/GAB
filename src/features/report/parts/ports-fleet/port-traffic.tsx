@@ -36,6 +36,13 @@ export function PortTraffic() {
         className="lg:col-span-7"
       >
         <TrafficLines />
+        <ValuesTable
+          head={['', ...YEARS.map(String)]}
+          rows={figureData.traffic.map((one) => [
+            one.name,
+            ...one.points.map((point) => number.format(point.value)),
+          ])}
+        />
       </Panel>
       <Panel
         title={`${panelB?.id ?? ''}. ${panelB?.title ?? ''}`}
@@ -50,6 +57,13 @@ export function PortTraffic() {
         className="lg:col-span-12"
       >
         <FleetLines />
+        <ValuesTable
+          head={['', ...figureData.fleet.map((one) => FLEET_LABELS[one.key] ?? one.key)]}
+          rows={MONTHS.map((month, index) => [
+            month,
+            ...figureData.fleet.map((one) => number.format(one.points[index]?.value ?? 0)),
+          ])}
+        />
       </Panel>
     </div>
   );
@@ -72,6 +86,60 @@ function Panel({ title, unit, className, children }: PanelProps) {
   );
 }
 
+/** The values of a line chart, for a reader who cannot see the lines. */
+function ValuesTable({
+  head,
+  rows,
+}: {
+  readonly head: readonly string[];
+  readonly rows: readonly (readonly string[])[];
+}) {
+  return (
+    <details className="mt-3 border-t border-border pt-1">
+      <summary className="flex min-h-11 cursor-pointer items-center font-mono text-caption uppercase text-label">
+        {portsFleetUi.flows.table}
+      </summary>
+      <div className="max-h-80 overflow-auto">
+        <table className="w-full text-left font-mono text-small tabular-nums">
+          <thead className="text-label">
+            <tr>
+              {head.map((cell, index) => (
+                <th key={`${String(index)}-${cell}`} className="py-1 pr-3 font-normal">
+                  {cell}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row[0]} className="border-t border-divider">
+                {row.map((cell, index) =>
+                  index === 0 ? (
+                    <th key="name" scope="row" className="py-1 pr-3 font-normal whitespace-nowrap">
+                      {cell}
+                    </th>
+                  ) : (
+                    <td key={`${String(index)}-${cell}`} className="py-1 pr-3">
+                      {cell}
+                    </td>
+                  ),
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  );
+}
+
+const YEARS = figureData.traffic[0]?.points.map((point) => point.year) ?? [];
+// The value axis of figure 6a: the data range, out to whole tens.
+const allValues = figureData.traffic.flatMap((one) => one.points.map((point) => point.value));
+const LOW = Math.floor(Math.min(...allValues) / 10) * 10;
+const HIGH = Math.ceil(Math.max(...allValues) / 10) * 10;
+const VALUE_TICKS = Array.from({ length: (HIGH - LOW) / 10 + 1 }, (_, index) => LOW + index * 10);
+
 // The ticks of the years at a regular step, clear of the embargo rule at December 2022: every two
 // years, with 2025 when a year has 40px, and every four years from 2016 on a narrow chart.
 const years = (yearWidth: number) =>
@@ -89,7 +157,8 @@ function TrafficLines() {
   const height = 340;
   const x = (year: number) =>
     PAD.left + ((year - 2014) / 11) * Math.max(1, width - PAD.left - PAD.right);
-  const y = (value: number) => PAD.top + ((130 - value) / 70) * (height - PAD.top - PAD.bottom);
+  const y = (value: number) =>
+    PAD.top + ((HIGH - value) / (HIGH - LOW)) * (height - PAD.top - PAD.bottom);
   const series = [...figureData.traffic].sort(
     (a, b) => Number(a.name === LEAD) - Number(b.name === LEAD),
   );
@@ -117,7 +186,7 @@ function TrafficLines() {
           aria-label={panelA?.title ?? ''}
           className="block"
         >
-          {[70, 80, 90, 100, 110, 120, 130].map((tick) => (
+          {VALUE_TICKS.map((tick) => (
             <g key={tick}>
               <line
                 x1={PAD.left}
@@ -304,16 +373,23 @@ const FLEET_LABELS: Readonly<Record<string, string>> = {
   shadow: labels['« Flotte fantôme »'] ?? '',
   ig: labels['Assurés IG'] ?? '',
 };
+// The text (note III-2) names the three ports that the EU bans from February 2025.
 const MARKS = [
-  { month: '2022-12', label: labels['embargo (UE)'] ?? '' },
-  { month: '2025-02', label: labels['ports interdits'] ?? '' },
+  { month: '2022-12', label: labels['embargo (UE)'] ?? '', short: labels['embargo (UE)'] ?? '' },
+  {
+    month: '2025-02',
+    label: `Primorsk, Ust-Luga, Novorossiysk ${labels['ports interdits'] ?? ''}`,
+    short: `3 ${labels['ports interdits'] ?? ''}`,
+  },
 ];
 
 function FleetLines() {
   const box = useRef<HTMLDivElement>(null);
   const { width } = useSize(box);
   const height = 240;
-  const pad = { left: 44, right: width < 640 ? 16 : 150, top: 24, bottom: 28 };
+  const narrow = width < 640;
+  // On a phone each mark label takes its own row, so no two labels touch.
+  const pad = { left: 44, right: narrow ? 16 : 150, top: narrow ? 38 : 24, bottom: 28 };
   const x = (month: string) =>
     pad.left +
     (MONTHS.indexOf(month) / Math.max(1, MONTHS.length - 1)) *
@@ -361,7 +437,7 @@ function FleetLines() {
               {month.slice(0, 4)}
             </text>
           ))}
-          {MARKS.map((mark) => (
+          {MARKS.map((mark, index) => (
             <g key={mark.month}>
               <line
                 x1={x(mark.month)}
@@ -371,11 +447,12 @@ function FleetLines() {
                 className="stroke-foreground"
               />
               <text
-                x={x(mark.month) + 4}
-                y={pad.top - 12}
+                x={x(mark.month) + (narrow && index > 0 ? -4 : 4)}
+                y={pad.top - 12 - (narrow && index === 0 ? 13 : 0)}
+                textAnchor={narrow && index > 0 ? 'end' : 'start'}
                 className="fill-foreground font-mono text-[11px] uppercase"
               >
-                {mark.label}
+                {narrow ? mark.short : mark.label}
               </text>
             </g>
           ))}
@@ -399,7 +476,7 @@ function FleetLines() {
                   viewport={{ once: true, amount: 0.4 }}
                   transition={DRAW}
                 />
-                {last === undefined || width < 640 ? null : (
+                {last === undefined || narrow ? null : (
                   <text
                     x={x(last.month) + 8}
                     y={y(last.value) + 4}

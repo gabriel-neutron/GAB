@@ -189,13 +189,19 @@ export const arcs: readonly Arc[] = (() => {
   return [...sums.values()];
 })();
 
+/** The chains of step 0 that the map draws as arcs, and all the chains of step 0. */
+export const arcChains = {
+  drawn: arcs.reduce((sum, arc) => sum + arc.weight, 0),
+  all: links.filter((link) => link.stage === 0).reduce((sum, link) => sum + link.weight, 0),
+};
+
 /** The counts of figure 11: steps by state, chains shown and recorded, routes, documented steps. */
 export const routeCounts = {
   hops: f11.hops,
   chains: f11.chains,
   all: f11.all,
   routes: f11.routes,
-  steps: f11.routes * 3,
+  steps: Object.values(f11.hops).reduce((a, b) => a + b, 0),
   doc: f11.doc,
 };
 

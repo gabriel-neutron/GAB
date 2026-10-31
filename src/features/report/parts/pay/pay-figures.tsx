@@ -1,8 +1,8 @@
 import { cn } from '@/shared/lib/utils';
 import { figureTexts, payUi } from '../../content';
 import { NodeRef } from '../../node-ref';
-import { FADE, LineChart, type LineSeries, type Scales } from './line-chart';
-import { crossing, payData, type Point } from './pay-data';
+import { FADE, GLYPH, LineChart, type LineSeries, type Scales } from './line-chart';
+import { crossing, monthIndex, payData, type Point } from './pay-data';
 
 const PANEL_TITLE = 'font-mono text-caption uppercase text-label';
 const LEGEND = 'mt-2 font-mono text-small/4 text-label';
@@ -54,8 +54,6 @@ const f3Tone = (key: string): LineSeries['tone'] =>
       : key === 'Coalition' || key === 'EU27'
         ? 'ink'
         : 'faint';
-// The width of one glyph of the 11px mono labels.
-const GLYPH = 6.7;
 
 /** A ring where line `a` goes below line `b`, with its label. A label sits above its ring, or
  * hangs below it when the panel has two; with `lead`, it goes up into the clear top band of the
@@ -189,7 +187,14 @@ export function BuyersChart() {
 
 const f4 = payData.f4;
 const f4Labels = figureTexts.figures['4'].labels;
-const firstYearAt = [1, 13, 25, 37];
+// The first month of each year of the axis.
+const firstYearAt = Array.from({ length: Math.floor((f4.last - 1) / 12) + 1 }, (_, index) =>
+  monthIndex(`${String(2023 + index)}-01`),
+);
+// The groups that step 3 names, read from its text.
+const designated = [...payUi.f4.steps[2].text.matchAll(/\[\[(N-[^|\]]+)\|/g)].map(
+  (match) => match[1] ?? '',
+);
 
 /** The gap between Brent and Urals as an area, one shape for each run of months that has both. */
 function gapPath(scales: Scales): string {
@@ -222,7 +227,8 @@ function focusPoint(step: number): { x: number; y: number } | undefined {
     return cap === undefined ? undefined : { x: cap.x, y: cap.value };
   }
   if (step === 3) {
-    const urals = f4.urals[Math.round(f4.event)];
+    // The month that holds the date: the 22nd of October is October.
+    const urals = f4.urals[Math.floor(f4.event)];
     return urals === null || urals === undefined ? undefined : { x: urals.x, y: urals.y };
   }
   return undefined;
@@ -255,7 +261,7 @@ export function PriceChart({
         )}
       >
         <span className="text-small/4 text-label">{f4Labels['Rosneft et Lukoil désignés']}</span>
-        {['N-P026', 'N-P030'].map((id) => (
+        {designated.map((id) => (
           <span key={id} className="inline-flex min-h-11 items-center">
             <NodeRef id={id} />
           </span>
