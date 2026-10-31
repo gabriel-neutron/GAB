@@ -290,6 +290,50 @@ test('a promoted mapping of a Eurostat table loads each row as a figure that cit
   });
 });
 
+// A world price has no reporter and no column of areas. Seven rows of the same shape as the Pink
+// Sheet of the World Bank, after the title rows are skipped: a period, then one price.
+const WORLD =
+  ['Period,Crude oil Brent', '2023M01,82.5', '2023M02,83.1', '2023M03,'].join('\r\n') + '\r\n';
+
+test('a mapping with no reporter loads figures of the world', async () => {
+  await inTransaction(async (held) => {
+    const world = {
+      table: 'pink_sheet',
+      modality: 'asserts',
+      publisher: 'World Bank',
+      rows: {
+        measure: 'price_crude_oil_brent',
+        value: { column: 'Crude oil Brent' },
+        unit: { constant: 'USD per barrel' },
+        period: { column: 'Period', length: 'month' },
+        method: 'monthly average price',
+      },
+      relations: [],
+    };
+    const { load } = await mappedFile(held, world, null, WORLD);
+    await runLoad(held, load);
+    expect(
+      await held.ask(
+        `SELECT reporter_system, reporter, period, value::text AS value, licence
+           FROM public.observation WHERE document_id = $1 ORDER BY period`,
+        [FILE],
+      ),
+    ).toStrictEqual(
+      [
+        ['2023-01', '82.5'],
+        ['2023-02', '83.1'],
+      ].map(([period, value]) => ({
+        reporter_system: null,
+        reporter: null,
+        period,
+        value,
+        licence: 'restricted',
+      })),
+    );
+    expect(reportText(held)).toContain('read 3; loaded 2; excluded 1');
+  });
+});
+
 // A CSV with a label in quotes that holds a comma and a doubled quote, a quote inside a plain field,
 // and text after a closing quote. The door reads each row with the rules of the table reader, so
 // each label stays one field and a stray quote moves no record start.

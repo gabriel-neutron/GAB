@@ -182,7 +182,12 @@ const observations = z.strictObject({
     ])
     .describe('the column of the unit, or one unit for every row. The unit is part of the key'),
   period: z.strictObject({ column, length: z.enum(PERIODS) }),
-  reporter: area.describe('the country or the group that reports the figure'),
+  reporter: area
+    .optional()
+    .describe(
+      'the country or the group that reports the figure. Give none for a figure of the world, ' +
+        'such as a world price: the table has no column of areas then',
+    ),
   partner: area.optional().describe('the other country or group of a flow'),
   product: z.strictObject({ column, system: z.enum(PRODUCT_SYSTEMS) }).optional(),
   subject: linkEnd
@@ -383,7 +388,7 @@ const namedColumns = (mapping: MappingDraft): string[] => {
         held.value.column,
         ...('column' in held.unit ? [held.unit.column] : []),
         held.period.column,
-        held.reporter.column,
+        ...(held.reporter === undefined ? [] : [held.reporter.column]),
         ...(held.partner === undefined ? [] : [held.partner.column]),
         ...(held.product === undefined ? [] : [held.product.column]),
         ...(held.subject === undefined

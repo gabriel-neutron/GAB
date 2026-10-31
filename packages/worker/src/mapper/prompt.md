@@ -99,6 +99,8 @@ each entry gives the number of the row and its values. `vocabulary` gives the wo
     - `reporter`: `{"column": "<column>", "codes": "eurostat"}`, the country that reports the
       figure (`geo` in Eurostat). `codes` is `eurostat` for a table of Eurostat, and `iso3166`
       for two-letter ISO country codes.
+      Leave `reporter` out for a figure of the world with no country, such as a world price (the
+      Pink Sheet of the World Bank). Never invent a column or a code for it.
     - `partner`: optional, the other country of a flow, as `reporter` (`partner` in Eurostat).
     - `product`: optional, `{"column": "<column>", "system": "siec"}`. The system is `siec` (the
       energy products of Eurostat, column `siec`), `hs` (customs codes) or `chpl`.

@@ -397,6 +397,16 @@ test('an observation table parses, and each row is one figure', () => {
   ]);
 });
 
+test('an observation table without a reporter is a table of figures of the world', () => {
+  const world = { ...OBSERVATIONS.rows, reporter: undefined };
+  const read = mappingDraft.safeParse({ ...OBSERVATIONS, rows: world });
+  expect(read.success).toBe(true);
+  if (!read.success) return;
+  expect(
+    missingColumns(read.data, ['TIME_PERIOD', 'OBS_VALUE', 'unit', 'partner', 'siec', 'OBS_FLAG']),
+  ).toStrictEqual([]);
+});
+
 const REFUSED_OBSERVATIONS: readonly (readonly [string, unknown])[] = [
   ['a relation of an entity', { ...OBSERVATIONS, relations: [DRAFT.relations[0]] }],
   [

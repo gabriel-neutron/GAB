@@ -6019,13 +6019,18 @@ BEGIN
         USING ERRCODE = 'data_exception';
     END IF;
 
-    v_cell := v_fields[array_position(v_header, v_rows->'reporter'->>'column')];
-    SELECT a.area_system, a.area_code INTO v_rep_sys, v_rep_code
-      FROM public.area_of(v_rows->'reporter'->>'codes', v_cell) a;
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'row %: the reporter "%" is not a code of the area list', v_no,
-        coalesce(v_cell, '')
-        USING ERRCODE = 'data_exception';
+    -- A mapping with no reporter gives figures of the world: the reporter is null.
+    v_rep_sys := NULL;
+    v_rep_code := NULL;
+    IF v_rows ? 'reporter' THEN
+      v_cell := v_fields[array_position(v_header, v_rows->'reporter'->>'column')];
+      SELECT a.area_system, a.area_code INTO v_rep_sys, v_rep_code
+        FROM public.area_of(v_rows->'reporter'->>'codes', v_cell) a;
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'row %: the reporter "%" is not a code of the area list', v_no,
+          coalesce(v_cell, '')
+          USING ERRCODE = 'data_exception';
+      END IF;
     END IF;
     v_par_sys := NULL;
     v_par_code := NULL;
@@ -6062,7 +6067,8 @@ BEGIN
     SELECT o.value INTO v_held FROM public.observation o
      WHERE o.document_id = v_document AND o.measure = v_rows->>'measure'
        AND o.unit = v_unit AND o.period = v_period
-       AND o.reporter_system = v_rep_sys AND o.reporter = v_rep_code
+       AND o.reporter_system IS NOT DISTINCT FROM v_rep_sys
+       AND o.reporter IS NOT DISTINCT FROM v_rep_code
        AND o.partner_system IS NOT DISTINCT FROM v_par_sys
        AND o.partner IS NOT DISTINCT FROM v_par_code
        AND o.product_system IS NOT DISTINCT FROM v_rows->'product'->>'system'

@@ -105,7 +105,7 @@ export const observationOf = async (
 
   const area = (
     side: 'reporter' | 'partner',
-    held: ObservationRows['reporter'],
+    held: NonNullable<ObservationRows['reporter']>,
   ): { text: string; area: string } | { refused: string } => {
     const text = cell(held.column);
     const found = context.areas.get(areaKey(held.codes, text));
@@ -118,8 +118,8 @@ export const observationOf = async (
       };
     return { text, area: found };
   };
-  const reporter = area('reporter', rows.reporter);
-  if ('refused' in reporter) return reporter;
+  const reporter = rows.reporter === undefined ? null : area('reporter', rows.reporter);
+  if (reporter !== null && 'refused' in reporter) return reporter;
   const partner = rows.partner === undefined ? null : area('partner', rows.partner);
   if (partner !== null && 'refused' in partner) return partner;
 
@@ -146,7 +146,7 @@ export const observationOf = async (
     },
     figure: {
       period,
-      reporter: reporter.area,
+      reporter: reporter?.area ?? '',
       partner: partner?.area ?? '',
       product,
       value: `${valueText} ${unit}`,
