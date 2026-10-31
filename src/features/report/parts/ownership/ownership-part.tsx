@@ -11,8 +11,7 @@ import { RichText } from '../../rich-text';
 import { OwnershipFigure } from './ownership-figure';
 
 // One body size for all the text of the part. A node reference keeps a thin dotted underline.
-const PROSE =
-  'max-w-[64ch] text-[18px]/[1.65] text-pretty md:text-[20px]/[1.65] [&_button]:decoration-dotted';
+const PROSE = 'max-w-[64ch] text-report-body/[1.65] text-pretty  [&_button]:decoration-dotted';
 // From 1024px, a rail at the left of the text holds the notes of each paragraph.
 const ROW = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,64ch)] lg:gap-x-16';
 
@@ -25,7 +24,7 @@ function Rail({ text, part }: { readonly text: string; readonly part: ReportPart
     <aside aria-hidden="true" className="hidden pt-2 lg:block">
       <ol className="ml-auto max-w-[40ch] space-y-3 border-t border-divider pt-3">
         {notes.map((note) => (
-          <li key={note.id} className="flex gap-3 text-small/5 text-muted-foreground">
+          <li key={note.id} className="flex gap-3 text-report-label/5 text-muted-foreground">
             <span className="w-6 shrink-0 font-mono text-label tabular-nums">
               {note.id.slice(note.id.lastIndexOf('-') + 1)}
             </span>
@@ -45,7 +44,7 @@ function Opening({ number, title }: { readonly number: string; readonly title: s
   const { image } = ownershipUi;
   const credit = (
     <>
-      <span className="block tracking-[0.08em] text-foreground uppercase">{ui.cover.label}</span>
+      <span className="block text-foreground">{ui.cover.label}</span>
       {image.credit}
     </>
   );
@@ -72,10 +71,10 @@ function Opening({ number, title }: { readonly number: string; readonly title: s
       </div>
       <ChapterBreak number={number} title={title} quote={ownershipUi.quote}>
         {/* On a phone, the credit goes under the quote, clear of the numeral. */}
-        <p className="mt-8 font-mono text-small/4 text-label md:hidden">{credit}</p>
+        <p className="mt-8 font-mono text-report-label/4 text-label md:hidden">{credit}</p>
       </ChapterBreak>
       {/* From 768px, the credit sits at the top right of the art, inside the first view. */}
-      <p className="absolute top-4 right-8 hidden max-w-[34ch] lg:max-w-[52ch] border border-border bg-background px-2 py-1 text-right font-mono text-small/4 text-label md:block">
+      <p className="absolute top-4 right-8 hidden max-w-[34ch] lg:max-w-[52ch] border border-border bg-background px-2 py-1 text-right font-mono text-report-label/4 text-label md:block">
         {credit}
       </p>
     </div>

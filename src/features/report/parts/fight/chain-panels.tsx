@@ -22,7 +22,7 @@ export function ChainStrips({ active }: { readonly active: number | 'all' }) {
   const shown = active === 'all' ? 'all' : Math.min(active, stages.length - 1);
   return (
     <div className={cn('grid gap-2 lg:gap-3', past && 'hidden')}>
-      <p className="flex items-center gap-1.5 font-mono text-caption uppercase text-label">
+      <p className="flex items-center gap-1.5 font-mono text-report-label uppercase text-label">
         <span aria-hidden="true" className="size-2.5 shrink-0 bg-signal" />
         {fightUi.chain.chinaShare}
       </p>
@@ -40,7 +40,7 @@ export function ChainStrips({ active }: { readonly active: number | 'all' }) {
           >
             <span
               className={cn(
-                'text-right font-mono text-[1.625rem]/[0.8] lg:text-[2.25rem]/[0.8] tracking-[-0.04em] tabular-nums',
+                'text-right font-mono text-report-lead  tracking-[-0.04em] tabular-nums',
                 lit && active !== 'all' ? 'text-signal' : 'text-muted-foreground',
               )}
             >
@@ -49,7 +49,7 @@ export function ChainStrips({ active }: { readonly active: number | 'all' }) {
             <div className="min-w-0">
               <p
                 className={cn(
-                  'truncate font-mono text-caption uppercase',
+                  'truncate font-mono text-report-label uppercase',
                   lit ? 'text-foreground' : 'text-muted-foreground',
                 )}
               >
@@ -78,7 +78,7 @@ export function ChainStrips({ active }: { readonly active: number | 'all' }) {
           </div>
         );
       })}
-      <ul className="ml-[5.5rem] lg:ml-[7.25rem] flex flex-wrap gap-x-4 gap-y-1 font-mono text-caption text-muted-foreground">
+      <ul className="ml-[5.5rem] lg:ml-[7.25rem] flex flex-wrap gap-x-4 gap-y-1 font-mono text-report-label text-muted-foreground">
         {(stages[0]?.shares ?? []).map((share) => (
           <li key={share.group} className="flex items-center gap-1.5 whitespace-nowrap">
             <span aria-hidden="true" className={cn('size-2.5 shrink-0', cellClass(share))} />
@@ -107,7 +107,7 @@ export function ChainTotals({
 }) {
   return (
     <div className="min-w-0">
-      <p className="font-mono text-caption uppercase text-label">
+      <p className="font-mono text-report-label uppercase text-label">
         {title}
         <span className="block normal-case">{fightUi.chain.chainUnit}</span>
       </p>
@@ -115,7 +115,7 @@ export function ChainTotals({
         {totals.map((total) => (
           <li
             key={total.name}
-            className="grid grid-cols-[minmax(0,8.5rem)_1fr_3rem] sm:grid-cols-[minmax(0,12rem)_1fr_3rem] items-center gap-2 border-b border-divider py-1 text-body-sm"
+            className="grid grid-cols-[minmax(0,8.5rem)_1fr_3rem] sm:grid-cols-[minmax(0,12rem)_1fr_3rem] items-center gap-2 border-b border-divider py-1 text-report-small"
           >
             <span className="break-words">{total.name}</span>
             <span className="h-1.5 bg-chart-grid">
@@ -127,7 +127,7 @@ export function ChainTotals({
                 style={{ transform: `scaleX(${String(total.chains / max)})` }}
               />
             </span>
-            <span className="text-right font-mono text-data tabular-nums">
+            <span className="text-right font-mono text-report-label tabular-nums">
               {chainCount(total.chains)}
             </span>
           </li>

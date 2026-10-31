@@ -45,13 +45,13 @@ function Cells({
         const rest = match === null ? block.text : block.text.slice(match[0].length);
         return (
           <li key={index} className="bg-background p-4 md:p-5">
-            <p className="font-mono text-caption uppercase text-label">
+            <p className="font-mono text-report-label uppercase text-label">
               {label} <span className="text-foreground tabular-nums">{index + 1}</span>
             </p>
             {match === null ? null : (
-              <p className="mt-3 font-mono text-data-lg uppercase text-signal">{match[1]}</p>
+              <p className="mt-3 font-mono text-report-label uppercase text-signal">{match[1]}</p>
             )}
-            <p className="mt-3 text-body-sm/6">
+            <p className="mt-3 text-report-small/6">
               <RichText text={rest} partSlug={partSlug} />
             </p>
           </li>
@@ -88,7 +88,7 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
         art={
           // A page of the register: the first rows of the node data, as they are written.
           // The right edge fades out, so a cut name reads as the edge of a longer page.
-          <ol className="mask-r-from-70% font-mono text-[10px]/[1.9] text-foreground/35 md:text-[12px]/[1.9]">
+          <ol className="mask-r-from-70% font-mono text-report-label/[1.9] text-foreground/35 ">
             {nodes.slice(0, REGISTER_ROWS).map((node) => (
               <li
                 key={node.node_id}
@@ -127,7 +127,7 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
             }
             flush();
             body.push(
-              <p key={block.text} className="my-4 max-w-[64ch] text-[17px]/[1.6]">
+              <p key={block.text} className="my-4 max-w-[64ch] text-report-body/[1.6]">
                 <RichText text={block.text} partSlug={part.slug} />
               </p>,
             );
@@ -143,10 +143,10 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
                 )}
               >
                 <h3 className="lg:col-span-3">
-                  <span className="block font-mono text-caption text-label tabular-nums">
+                  <span className="block font-mono text-report-label text-label tabular-nums">
                     {match?.[1]}
                   </span>
-                  <span className="mt-2 block text-[clamp(1.25rem,2.2vw,1.5rem)] leading-tight tracking-[-0.02em] text-balance">
+                  <span className="mt-2 block text-report-lead leading-tight tracking-[-0.02em] text-balance">
                     {match?.[2] ?? section.heading}
                   </span>
                 </h3>
@@ -157,12 +157,12 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
                   <dl className="grid gap-y-8 sm:grid-cols-3 sm:gap-x-6">
                     {copy.figures.map((one) => (
                       <div key={one.value} className="flex flex-col-reverse justify-end gap-3">
-                        <dt className="font-mono text-caption/4 uppercase text-label">
+                        <dt className="font-mono text-report-label/4 uppercase text-label">
                           {one.label}
                         </dt>
-                        <dd className="text-[clamp(3rem,6.5vw,5.5rem)] leading-none tracking-[-0.045em] whitespace-nowrap tabular-nums">
+                        <dd className="text-report-number leading-none tracking-[-0.045em] whitespace-nowrap tabular-nums">
                           {one.qualifier === undefined ? null : (
-                            <span className="mr-2 font-mono text-caption tracking-normal text-label uppercase">
+                            <span className="mr-2 font-mono text-report-label tracking-normal text-label uppercase">
                               {one.qualifier}
                             </span>
                           )}
@@ -171,7 +171,7 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
                       </div>
                     ))}
                   </dl>
-                  <figcaption className="mt-6 border-t border-border pt-3 font-mono text-caption uppercase text-label">
+                  <figcaption className="mt-6 border-t border-border pt-3 font-mono text-report-label text-label">
                     {copy.figuresDate}
                     <NoteRef partSlug={part.slug} id={copy.figuresNote} />
                   </figcaption>
@@ -184,21 +184,23 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
       <NodeIndex />
       <footer className="border-t border-foreground pt-6 pb-24">
         <section aria-label={copy.scale}>
-          <p className="font-mono text-caption uppercase text-label">{copy.scale}</p>
+          <p className="font-mono text-report-label uppercase text-label">{copy.scale}</p>
           <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2">
             {scale.map(([term, value]) => (
               <div key={term} className="flex flex-row-reverse items-baseline gap-2 font-mono">
-                <dt className="text-caption uppercase text-label">{term}</dt>
-                <dd className="text-data-lg text-foreground tabular-nums">{count.format(value)}</dd>
+                <dt className="text-report-label uppercase text-label">{term}</dt>
+                <dd className="text-report-label text-foreground tabular-nums">
+                  {count.format(value)}
+                </dd>
               </div>
             ))}
           </dl>
           {/* The nodes are not the entities of A.1: the tie line and note S-3 say which they are. */}
-          <p className="mt-3 max-w-[64ch] font-mono text-caption uppercase text-label">
+          <p className="mt-3 max-w-[64ch] font-mono text-report-label text-label">
             {closingUi.conclusion.dataDate}
             <NoteRef partSlug="summary" id={openingUi.summary.entities.note} />
           </p>
-          <p className="mt-3 max-w-[64ch] text-body-sm/6 text-foreground/75">
+          <p className="mt-3 max-w-[64ch] text-report-small/6 text-foreground/75">
             {openingUi.counters.tie}
           </p>
         </section>
@@ -210,14 +212,14 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
           )}
         >
           <span>
-            <span className="block font-mono text-caption uppercase text-label">{copy.notes}</span>
-            <span className="mt-3 block text-[clamp(2.25rem,7vw,6rem)] leading-[0.95] tracking-[-0.045em] text-balance">
+            <span className="block font-mono text-report-label text-label">{copy.notes}</span>
+            <span className="mt-3 block text-report-number leading-[0.95] tracking-[-0.045em] text-balance">
               {ui.bibliography.title}
             </span>
           </span>
           <span
             aria-hidden="true"
-            className="font-mono text-[clamp(2rem,6vw,5rem)] leading-none transition-transform duration-150 group-hover:translate-x-2 motion-reduce:transition-none"
+            className="font-mono text-report-number leading-none transition-transform duration-150 group-hover:translate-x-2 motion-reduce:transition-none"
           >
             →
           </span>

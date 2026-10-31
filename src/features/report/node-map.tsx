@@ -38,7 +38,7 @@ export function NodeMap({
         <circle cx={cx} cy={cy} r={2.5} fill="var(--signal)" />
         <circle cx={cx} cy={cy} r={6} fill="none" stroke="var(--signal)" strokeWidth={0.6} />
       </svg>
-      <figcaption className="mt-1 font-mono text-data text-label tabular-nums">
+      <figcaption className="mt-1 font-mono text-report-label text-label tabular-nums">
         {Math.abs(lat).toFixed(2)} {lat >= 0 ? 'N' : 'S'} · {Math.abs(lon).toFixed(2)}{' '}
         {lon >= 0 ? 'E' : 'W'} · {land.source}
       </figcaption>

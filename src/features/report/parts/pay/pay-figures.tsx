@@ -4,8 +4,8 @@ import { NodeRef } from '../../node-ref';
 import { FADE, GLYPH, LineChart, type LineSeries, type Scales } from './line-chart';
 import { crossing, monthIndex, payData, type Point } from './pay-data';
 
-const PANEL_TITLE = 'font-mono text-caption uppercase text-label';
-const LEGEND = 'mt-2 font-mono text-small/4 text-label';
+const PANEL_TITLE = 'font-mono text-report-label uppercase text-label';
+const LEGEND = 'mt-2 font-mono text-report-label/4 text-label';
 const INVASION = 2022.15;
 const year = (x: number) => String(x);
 const ticks = (from: number, to: number, every: number) =>
@@ -255,13 +255,15 @@ export function PriceChart({
       <p
         className={cn(
           FADE,
-          'flex flex-wrap items-center gap-x-3 font-mono text-caption',
+          'flex flex-wrap items-center gap-x-3 font-mono text-report-label',
           // The glyphs take the ink: the accent of the page stays on the caps and the gap.
           '[&_svg_*]:stroke-foreground [&_svg_*:not([fill=none])]:fill-foreground',
           step >= 3 ? 'opacity-100' : 'invisible opacity-0',
         )}
       >
-        <span className="text-small/4 text-label">{f4Labels['Rosneft et Lukoil désignés']}</span>
+        <span className="text-report-label/4 text-label">
+          {f4Labels['Rosneft et Lukoil désignés']}
+        </span>
         {designated.map((id) => (
           <span key={id} className="inline-flex min-h-11 items-center">
             <NodeRef id={id} />
@@ -297,9 +299,9 @@ export function PriceChart({
                     d={gapPath(scales)}
                     className={cn(FADE, 'fill-signal', step >= 3 ? 'opacity-25' : 'opacity-0')}
                   />
-                  <text x={scales.x(1)} y={scales.y(8)} className="fill-label">
+                  <text x={scales.x(1)} y={scales.y(8) - 6} className="fill-label">
                     <tspan x={scales.x(1)}>{f4Labels['prix de l’Oural non publié']}</tspan>
-                    <tspan x={scales.x(1)} dy={13}>
+                    <tspan x={scales.x(1)} dy={16}>
                       {f4Labels['pour dix mois de 2023']}
                     </tspan>
                   </text>

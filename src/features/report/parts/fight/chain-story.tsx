@@ -101,8 +101,8 @@ function Scene({ step }: { readonly step: number }) {
 function KseSource({ page }: { readonly page: string }) {
   return (
     <div className="mt-6 border-t border-divider pt-2">
-      <p className="font-mono text-caption uppercase text-label">{copy.source}</p>
-      <p className="mt-1 text-body-sm text-muted-foreground">
+      <p className="font-mono text-report-label uppercase text-label">{copy.source}</p>
+      <p className="mt-1 text-report-small text-muted-foreground">
         <a
           href={copy.kse.url}
           target="_blank"
@@ -118,28 +118,26 @@ function KseSource({ page }: { readonly page: string }) {
 }
 
 const Record = ({ id }: { readonly id: string }) => (
-  <p className="mt-1 font-mono text-data text-label">
+  <p className="mt-1 font-mono text-report-label text-label">
     {copy.record} {id}
   </p>
 );
 
 const Head = ({ index, title }: { readonly index: number; readonly title: string }) => (
   <>
-    <p className="font-mono text-caption uppercase tabular-nums text-label">
+    <p className="font-mono text-report-label uppercase tabular-nums text-label">
       {copy.step} <span className="text-signal">{pad(index + 1)}</span> / {pad(STEPS)}
     </p>
-    <h4 className="mt-4 text-[clamp(1.75rem,3vw,2.5rem)]/[1.05] tracking-[-0.03em] text-balance">
-      {title}
-    </h4>
+    <h4 className="mt-4 text-report-lead/[1.05] tracking-[-0.03em] text-balance">{title}</h4>
   </>
 );
 
 const Figure = ({ value, label }: { readonly value: string; readonly label: string }) => (
   <div className="mt-5">
-    <p className="font-mono text-[clamp(3rem,7vw,4.5rem)]/[0.85] tracking-[-0.05em] text-signal tabular-nums">
+    <p className="font-mono text-report-number/[0.85] tracking-[-0.05em] text-signal tabular-nums">
       {value}
     </p>
-    <p className="mt-2 font-mono text-caption uppercase text-label">{label}</p>
+    <p className="mt-2 font-mono text-report-label text-label">{label}</p>
   </div>
 );
 
@@ -149,8 +147,8 @@ function cards(figure: ReportBlock['figure'], text: string, partSlug: string): R
   const marks = (text.match(/\[\^[^\]]+\]/g) ?? []).join('');
   const routeSource = (
     <div className="mt-6 border-t border-divider pt-2">
-      <p className="font-mono text-caption uppercase text-label">{copy.source}</p>
-      <p className="mt-1 text-body-sm text-muted-foreground">
+      <p className="font-mono text-report-label uppercase text-label">{copy.source}</p>
+      <p className="mt-1 text-report-small text-muted-foreground">
         <RichText text={`${figure?.sources ?? ''}${marks}`} partSlug={partSlug} />
       </p>
     </div>
@@ -160,28 +158,28 @@ function cards(figure: ReportBlock['figure'], text: string, partSlug: string): R
     ...stages.map((stage, index) => (
       <div key={stage.name}>
         <Head index={index} title={stage.name} />
-        <p className="mt-3 text-body-sm text-muted-foreground">{copy.imports}</p>
+        <p className="mt-3 text-report-small text-muted-foreground">{copy.imports}</p>
         <dl className="mt-5 grid border-t border-divider">
           {stage.shares.map((share) => (
             <div
               key={share.group}
               className="grid grid-cols-[1fr_auto] gap-x-3 border-b border-divider py-1.5"
             >
-              <dt className="text-body-sm">{share.group}</dt>
-              <dd className="text-right font-mono text-data tabular-nums">{share.text}%</dd>
+              <dt className="text-report-small">{share.group}</dt>
+              <dd className="text-right font-mono text-report-label tabular-nums">{share.text}%</dd>
               {share.note === '' ? null : (
-                <dd className="col-span-2 font-mono text-data text-pretty text-label">
+                <dd className="col-span-2 font-mono text-report-label text-pretty text-label">
                   {share.note}
                 </dd>
               )}
             </div>
           ))}
         </dl>
-        <p className="mt-2 font-mono text-data text-label">{UNPLACED}</p>
+        <p className="mt-2 font-mono text-report-label text-label">{UNPLACED}</p>
         {index === 0 ? (
           <div className="mt-4">
-            <p className="font-mono text-caption uppercase text-label">{copy.brands}</p>
-            <ul className="mt-1 grid gap-0.5 font-mono text-data">
+            <p className="font-mono text-report-label uppercase text-label">{copy.brands}</p>
+            <ul className="mt-1 grid gap-0.5 font-mono text-report-label">
               {brands.map((brand) => (
                 <li key={brand.name} className="flex justify-between gap-3">
                   <span>{brand.name}</span>
@@ -197,13 +195,13 @@ function cards(figure: ReportBlock['figure'], text: string, partSlug: string): R
     )),
     <div key="routes">
       <Head index={ROUTES} title={copy.routesTitle} />
-      <p className="mt-3 text-body-sm text-muted-foreground">{copy.routesText}</p>
+      <p className="mt-3 text-report-small text-muted-foreground">{copy.routesText}</p>
       <Figure
         value={String(routeCounts.doc)}
         label={copy.documentedLabel.replace('{steps}', String(routeCounts.steps))}
       />
-      <p className="mt-4 font-mono text-data text-label">{copy.states}</p>
-      <p className="mt-2 font-mono text-data text-label">
+      <p className="mt-4 font-mono text-report-label text-label">{copy.states}</p>
+      <p className="mt-2 font-mono text-report-label text-label">
         {ARC_NOTE.replace('{drawn}', chainCount(arcChains.drawn)).replace(
           '{all}',
           chainCount(arcChains.all),
@@ -216,7 +214,7 @@ function cards(figure: ReportBlock['figure'], text: string, partSlug: string): R
     </div>,
     <div key="buyers">
       <Head index={BUYERS} title={copy.buyersTitle} />
-      <p className="mt-3 text-body-sm text-muted-foreground">{copy.buyersText}</p>
+      <p className="mt-3 text-report-small text-muted-foreground">{copy.buyersText}</p>
       {top === undefined ? null : (
         <Figure
           value={chainCount(top.chains)}
@@ -229,7 +227,7 @@ function cards(figure: ReportBlock['figure'], text: string, partSlug: string): R
         <ChainTotals title={copy.byBuyer} totals={totalsAt(1)} />
         <ChainTotals title={copy.byUse} totals={totalsAt(2)} />
       </div>
-      <p className="mt-6 font-mono text-caption uppercase text-label">
+      <p className="mt-6 font-mono text-report-label text-label">
         <span
           aria-hidden="true"
           className="mr-2 inline-block size-2.5 rotate-45 border border-signal bg-background"
@@ -237,10 +235,12 @@ function cards(figure: ReportBlock['figure'], text: string, partSlug: string): R
         {copy.sites} · {copy.siteCount.replace('{n}', String(sites.length))}
       </p>
       {/* The orange number is the key of the map, so the list hides the type glyph. */}
-      <ol className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[13px]/5 [&_button>svg]:hidden">
+      <ol className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-report-label/5 [&_button>svg]:hidden">
         {sites.map((site, index) => (
           <li key={site.id} className="flex gap-2">
-            <span className="font-mono text-data text-signal tabular-nums">{pad(index + 1)}</span>
+            <span className="font-mono text-report-label text-signal tabular-nums">
+              {pad(index + 1)}
+            </span>
             <NodeRef id={site.id} />
           </li>
         ))}
@@ -273,14 +273,14 @@ export function ChainStory({
       id="fight-chain"
       className="mt-28 mb-16 scroll-mt-[calc(var(--report-bar,0px)+3rem)] border-t border-foreground pt-3"
     >
-      <p className="font-mono text-caption uppercase text-label">{copy.kicker}</p>
+      <p className="font-mono text-report-label uppercase text-label">{copy.kicker}</p>
       <h3
         id="fight-chain-title"
-        className="mt-2 text-[clamp(2.5rem,7vw,5.5rem)]/[0.95] tracking-[-0.045em] text-balance"
+        className="mt-2 text-report-number/[0.95] tracking-[-0.045em] text-balance"
       >
         {copy.title}
       </h3>
-      <p className="mt-4 max-w-[60ch] text-body-sm text-muted-foreground">{copy.intro}</p>
+      <p className="mt-4 max-w-[60ch] text-report-small text-muted-foreground">{copy.intro}</p>
       <div className="mt-8">
         {reduce === true || !wide ? (
           <ol className="grid gap-16">
@@ -295,7 +295,7 @@ export function ChainStory({
                   </div>
                   <ChainStrips active={index} />
                 </div>
-                <div className="min-w-0 text-body">{step}</div>
+                <div className="min-w-0 text-report-small">{step}</div>
               </li>
             ))}
           </ol>
@@ -305,7 +305,7 @@ export function ChainStory({
             tail={false}
             sceneClassName="pointer-events-none z-10"
             stepClassName={cn(
-              'w-full border-t border-foreground bg-background pt-4 pb-8 text-body',
+              'w-full border-t border-foreground bg-background pt-4 pb-8 text-report-small',
               'lg:max-w-[28rem] lg:border-0 lg:bg-transparent lg:pt-0',
             )}
           >

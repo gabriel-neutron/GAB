@@ -140,8 +140,8 @@ export function NodeRef({ id, children, side = 'top' }: NodeRefProps) {
         >
           <span aria-hidden="true">×</span>
         </button>
-        <p className="text-body-sm text-foreground pointer-coarse:pr-8">{node.name}</p>
-        <p className="flex items-center gap-1.5 font-mono text-caption uppercase text-label">
+        <p className="text-report-small text-foreground pointer-coarse:pr-8">{node.name}</p>
+        <p className="flex items-center gap-1.5 font-mono text-report-label uppercase text-label">
           <EntityGlyph type={reportGraph.glyph(node.type)} size={12} />
           {node.type}
           {node.country === '' ? null : ` · ${node.country}`}
@@ -156,8 +156,8 @@ export function NodeRef({ id, children, side = 'top' }: NodeRefProps) {
             [ui.node.documents, documents],
           ].map(([term, value]) => (
             <div key={String(term)}>
-              <dt className="font-mono text-caption uppercase text-label">{term}</dt>
-              <dd className="font-mono text-data tabular-nums">{value}</dd>
+              <dt className="font-mono text-report-label uppercase text-label">{term}</dt>
+              <dd className="font-mono text-report-label tabular-nums">{value}</dd>
             </div>
           ))}
         </dl>
@@ -168,7 +168,7 @@ export function NodeRef({ id, children, side = 'top' }: NodeRefProps) {
             show();
           }}
           className={cn(
-            'flex h-11 w-full items-center justify-center border border-input text-body-sm',
+            'flex h-11 w-full items-center justify-center border border-input text-report-small',
             'transition-colors duration-150 hover:bg-surface-secondary',
             FOCUS,
           )}

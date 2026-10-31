@@ -13,7 +13,7 @@ import { Reveal } from '../../primitives/reveal';
 import { RichText } from '../../rich-text';
 import { SettlementFigure } from './settlement-figure';
 
-const PROSE = 'max-w-[64ch] text-[18px]/[1.65] md:text-[20px]/[1.65]';
+const PROSE = 'max-w-[64ch] text-report-body/[1.65] ';
 
 /** The distinct nodes that one block of text names, in the order of the text. */
 const namedNodes = (text: string): readonly string[] => [
@@ -41,7 +41,7 @@ function CurrencyTie({ part }: { readonly part: ReportPart }) {
             <dt className={monoLabel}>{one.label}</dt>
             <dd
               className={cn(
-                'mt-2 text-[clamp(3rem,12vw,10rem)] leading-[0.82] tracking-[-0.06em] tabular-nums',
+                'mt-2 text-report-display leading-[0.82] tracking-[-0.06em] tabular-nums',
                 // The rouble keeps the accent of figure 9.
                 one.label === 'Rouble' ? accent.text : 'text-foreground',
               )}
@@ -52,7 +52,7 @@ function CurrencyTie({ part }: { readonly part: ReportPart }) {
         ))}
       </dl>
       {source === '' ? null : (
-        <p className="mt-6 font-mono text-caption text-label">
+        <p className="mt-6 font-mono text-report-label text-label">
           <span className="uppercase">{ui.figure.sources}</span>{' '}
           <RichText text={source} partSlug={part.slug} />
         </p>
@@ -74,8 +74,8 @@ function FinanceBreak({ number, title }: { readonly number: string; readonly tit
         <AsciiImage src={image.src} alt={image.alt} />
       </div>
       <ChapterBreak number={number} title={title} quote={financeUi.quote}>
-        <p className="mt-10 max-w-[60ch] border-t border-border pt-3 font-mono text-[12px]/[1.5] text-label">
-          <span className="block tracking-[0.08em] text-foreground uppercase">{image.label}</span>
+        <p className="mt-10 max-w-[60ch] border-t border-border pt-3 font-mono text-report-label/[1.5] text-label">
+          <span className="block text-foreground">{image.label}</span>
           {image.credit}
         </p>
       </ChapterBreak>
@@ -106,7 +106,7 @@ function RelayRow({
           stamps.length > 0 ? accent.bg : 'bg-border',
         )}
       />
-      <span className="font-mono text-[clamp(2.5rem,6vw,4.5rem)] leading-[0.85] tracking-[-0.06em] text-transparent tabular-nums [-webkit-text-stroke:1px_var(--color-foreground)]">
+      <span className="font-mono text-report-number leading-[0.85] tracking-[-0.06em] text-transparent tabular-nums [-webkit-text-stroke:1px_var(--color-foreground)]">
         {String(index + 1).padStart(2, '0')}
       </span>
       <p className={cn(PROSE, '[&_strong]:font-medium')}>
@@ -116,7 +116,7 @@ function RelayRow({
         <div className="col-start-2 flex flex-col gap-4 md:flex-row md:flex-wrap md:gap-x-10 lg:col-start-3 lg:flex-col lg:gap-4">
           {stamps.length === 0 ? null : (
             <div>
-              <p className="font-mono text-caption uppercase text-label">
+              <p className="font-mono text-report-label uppercase text-label">
                 {financeUi.relays.sanctions}
               </p>
               <ul className="mt-2 flex flex-wrap gap-2">
@@ -125,7 +125,7 @@ function RelayRow({
                   <li
                     key={`${stamp.body}-${String(place)}`}
                     className={cn(
-                      'border px-2 py-1 font-mono text-data uppercase tabular-nums',
+                      'border px-2 py-1 font-mono text-report-label uppercase tabular-nums',
                       accent.border,
                       accent.text,
                     )}
@@ -141,10 +141,10 @@ function RelayRow({
           )}
           {nodes.length === 0 ? null : (
             <div>
-              <p className="font-mono text-caption uppercase text-label">
+              <p className="font-mono text-report-label uppercase text-label">
                 {financeUi.relays.nodes} · <span className="tabular-nums">{nodes.length}</span>
               </p>
-              <ul className="mt-1 flex flex-wrap gap-x-4 text-body-sm">
+              <ul className="mt-1 flex flex-wrap gap-x-4 text-report-small">
                 {nodes.map((id) => (
                   <li key={id} className="flex min-h-11 items-center">
                     <NodeRef id={id} />
@@ -170,7 +170,7 @@ export function FinancePart({ part }: { readonly part: ReportPart }) {
     if (relays.length === 0) return;
     body.push(
       <section key={`relays-${key}`} aria-label={financeUi.relays.label} className="my-14">
-        <p className="border-b border-foreground pb-3 font-mono text-caption uppercase text-label">
+        <p className="border-b border-foreground pb-3 font-mono text-report-label uppercase text-label">
           {financeUi.relays.label}
         </p>
         <ol className="border-l border-border">{relays}</ol>

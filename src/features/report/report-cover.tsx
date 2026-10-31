@@ -3,7 +3,7 @@ import { cn } from '@/shared/lib/utils';
 import { openingUi, report, ui } from './content';
 import { NoteRef } from './note-ref';
 import { accent } from './primitives/accent';
-import { monoLabel } from './primitives/label';
+import { monoLabel, monoNote } from './primitives/label';
 import { NumberRoll } from './primitives/number-roll';
 import { ScrambleText } from './scramble-text';
 
@@ -15,7 +15,7 @@ const pdfHref =
 
 // The actions of the first screen: 44px boxes. The first one reads the report, so it is solid.
 const ACTION = cn(
-  'inline-flex min-h-11 items-center gap-2 border px-3 font-mono text-[12px] tracking-[0.06em] uppercase md:px-4 md:text-[13px] md:tracking-[0.08em]',
+  'inline-flex min-h-11 items-center gap-2 border px-3 font-mono text-report-label tracking-[0.06em] uppercase md:px-4  md:tracking-[0.08em]',
   'transition-colors duration-150',
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring',
 );
@@ -81,8 +81,8 @@ export function ReportCover() {
           <span>{openingUi.kicker}</span>
         </p>
         {/* The label and credit of the art, a caption line under the kicker, clear of the art. */}
-        <p className="mt-2 max-w-[60ch] font-mono text-[10px]/[1.4] text-label md:text-[11px]/4">
-          <span className="tracking-[0.08em] text-foreground uppercase">{ui.cover.label}</span>{' '}
+        <p className="mt-2 max-w-[60ch] font-mono text-report-label/[1.4] text-label ">
+          <span className=" text-foreground">{ui.cover.label}</span>{' '}
           <a
             href={ui.cover.href}
             className="underline decoration-border underline-offset-2 hover:text-foreground"
@@ -90,12 +90,12 @@ export function ReportCover() {
             {ui.cover.credit}
           </a>
         </p>
-        <h1 className="mt-3 max-w-[14ch] text-[clamp(2.5rem,9.4vw,8.5rem)] leading-[0.92] tracking-[-0.05em] text-balance md:mt-4">
+        <h1 className="mt-3 max-w-[14ch] text-report-display leading-[0.92] tracking-[-0.05em] text-balance md:mt-4">
           <ScrambleText text={report.title} />
         </h1>
         <div className="mt-3 grid gap-4 md:mt-6 lg:grid-cols-[1fr_auto] lg:items-end lg:gap-12">
           <div>
-            <p className="max-w-[52ch] text-[17px]/[1.45] text-foreground/80 md:text-[19px]/7">
+            <p className="max-w-[52ch] text-report-body/[1.45] text-foreground/80 ">
               {report.deck}
             </p>
             <nav
@@ -119,13 +119,13 @@ export function ReportCover() {
           <div className="grid grid-cols-[auto_minmax(0,1fr)] items-end gap-4 border-t border-border pt-3 lg:max-w-[30rem] lg:grid-cols-1 lg:gap-3 lg:border lg:bg-background lg:p-6">
             <p
               className={cn(
-                'text-[2.75rem] leading-[0.8] md:text-[clamp(6rem,22vw,10rem)] tracking-[-0.06em] tabular-nums lg:order-2 lg:text-[clamp(7rem,10vw,10rem)]',
+                'text-report-display leading-[0.8]  tracking-[-0.06em] tabular-nums lg:order-2 ',
                 accent.text,
               )}
             >
               <NumberRoll value={coverNumber.value} />
             </p>
-            <p className={cn('max-w-[30ch] pb-1 lg:order-1 lg:max-w-none', monoLabel)}>
+            <p className={cn('max-w-[30ch] pb-1 lg:order-1 lg:max-w-none', monoNote)}>
               {coverNumber.label}
               <NoteRef partSlug="summary" id={coverNumber.note} />
             </p>

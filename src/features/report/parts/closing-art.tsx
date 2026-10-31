@@ -10,7 +10,7 @@ export const OUTLINE = 'text-transparent [-webkit-text-stroke:1px_var(--color-fo
 const Label = ({ className }: { readonly className?: string | undefined }) => (
   <p
     className={cn(
-      'mt-3 font-mono text-[11px]/4 tracking-[0.08em] text-label uppercase md:text-[12px]/4',
+      'mt-3 font-mono text-report-label/4 tracking-[0.08em] text-label uppercase ',
       className,
     )}
   >

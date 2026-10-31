@@ -11,13 +11,11 @@ export function BibliographyPage() {
       <article className="mx-auto max-w-[1200px] px-4 py-10 md:px-8">
         <Link
           to="/"
-          className="inline-flex min-h-11 items-center text-body-sm underline decoration-border underline-offset-4 outline-none hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="inline-flex min-h-11 items-center text-report-small underline decoration-border underline-offset-4 outline-none hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           {ui.bibliography.back}
         </Link>
-        <h1 className="mt-6 text-heading text-balance md:text-heading-lg">
-          {ui.bibliography.title}
-        </h1>
+        <h1 className="mt-6 text-report-heading text-balance ">{ui.bibliography.title}</h1>
         {parts
           .filter((part) => part.notes.length > 0)
           .map((part) => (
@@ -26,7 +24,7 @@ export function BibliographyPage() {
               aria-labelledby={`notes-${part.slug}`}
               className="mt-12 border-t border-border pt-6 lg:grid lg:grid-cols-12 lg:gap-x-8"
             >
-              <h2 id={`notes-${part.slug}`} className="text-heading-sm text-balance lg:col-span-4">
+              <h2 id={`notes-${part.slug}`} className="text-report-lead text-balance lg:col-span-4">
                 {part.title}
               </h2>
               <ol className="mt-4 space-y-3 lg:col-span-8 lg:mt-0">
@@ -34,9 +32,9 @@ export function BibliographyPage() {
                   <li
                     key={note.id}
                     id={noteAnchor(part.slug, note.id)}
-                    className="grid scroll-mt-6 grid-cols-[4rem_minmax(0,1fr)] gap-3 text-body-sm target:bg-surface-secondary"
+                    className="grid scroll-mt-6 grid-cols-[4rem_minmax(0,1fr)] gap-3 text-report-small target:bg-surface-secondary"
                   >
-                    <span className="font-mono text-data text-label">{note.id}</span>
+                    <span className="font-mono text-report-label text-label">{note.id}</span>
                     <span className="max-w-[72ch] break-words">
                       <RichText text={note.text} />
                     </span>

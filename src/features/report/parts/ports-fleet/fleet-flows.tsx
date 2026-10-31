@@ -39,7 +39,9 @@ const OTHER_PANELS = texts.panels.filter((panel) => panel.id !== 'a');
 const HEIGHT = 440;
 const TOP = 32;
 const NODE = 10;
-const RIGHT = 170;
+const RIGHT = 230;
+// The width of the box from which the bands replace the list.
+const WIDE = 900;
 const nameOf = (name: string) => labels[name] ?? name;
 const shareOf = (name: string) => {
   const share = designated.get(name);
@@ -58,24 +60,25 @@ export function FleetFlows() {
   return (
     <div className="grid gap-12">
       <div className="min-w-0">
-        <p className="font-mono text-caption uppercase text-foreground">{panelA?.title}</p>
-        <p className="font-mono text-caption uppercase text-label">{panelA?.unit}</p>
-        <p className="mt-1 mb-4 max-w-[64ch] text-body-sm text-muted-foreground">
+        <p className="font-mono text-report-label uppercase text-foreground">{panelA?.title}</p>
+        <p className="font-mono text-report-label uppercase text-label">{panelA?.unit}</p>
+        <p className="mt-1 mb-4 max-w-[64ch] text-report-small text-muted-foreground">
           {
             labels[
               'Chaque bande relie deux colonnes voisines : aucune source ne relie une catégorie de flotte à un acheteur.'
             ]
           }
         </p>
-        {/* The bands are one image; the phone list is real text, so it keeps its own roles. */}
+        {/* The bands are one image; the list is real text, so it keeps its own roles. Under 900px
+            a column has no room for its 13px labels, so the list replaces the bands. */}
         <div
           ref={box}
-          role={width >= 640 ? 'img' : undefined}
-          aria-label={width >= 640 ? panelA?.title : undefined}
+          role={width >= WIDE ? 'img' : undefined}
+          aria-label={width >= WIDE ? panelA?.title : undefined}
         >
           {width === 0 ? (
             <div style={{ height: HEIGHT + TOP }} />
-          ) : width < 640 ? (
+          ) : width < WIDE ? (
             <StageList />
           ) : (
             <HorizontalFlow width={width} />
@@ -93,11 +96,11 @@ export function FleetFlows() {
         ))}
       </div>
       <details className="border-t border-border pt-3">
-        <summary className="flex min-h-11 cursor-pointer items-center font-mono text-caption uppercase text-label">
+        <summary className="flex min-h-11 cursor-pointer items-center font-mono text-report-label text-label">
           {copy.table}
         </summary>
         <div className="overflow-x-auto">
-          <table className="mt-2 w-full text-left font-mono text-small">
+          <table className="mt-2 w-full text-left font-mono text-report-label">
             <thead className="text-label uppercase">
               <tr>
                 <th className="py-1 pr-4 font-normal">{copy.from}</th>
@@ -168,7 +171,7 @@ function HorizontalFlow({ width }: { readonly width: number }) {
             key={head}
             x={x(column)}
             y={12}
-            className="fill-label font-mono text-[11px] uppercase"
+            className="fill-label font-mono text-report-label uppercase"
           >
             {labels[head]}
           </text>
@@ -205,7 +208,7 @@ function HorizontalFlow({ width }: { readonly width: number }) {
           <p
             key={node.name}
             aria-hidden="true"
-            className="absolute -translate-y-1/2 bg-background px-1.5 py-0.5 font-mono text-[11px]/4 whitespace-nowrap"
+            className="absolute -translate-y-1/2 bg-background px-1.5 py-0.5 font-mono text-report-label/4 whitespace-nowrap"
             style={{
               left: x(node.column) + NODE + 4,
               top: TOP + (spots[node.column]?.get(node.name) ?? 0),
@@ -232,7 +235,7 @@ function StageList() {
     <ol className="grid gap-8">
       {HEADS.map((head, column) => (
         <li key={head} className="border-t border-border pt-3">
-          <p className="mb-3 font-mono text-caption uppercase text-label">
+          <p className="mb-3 font-mono text-report-label uppercase text-label">
             {String(column + 1).padStart(2, '0')} · {labels[head]}
           </p>
           <ul className="grid gap-2.5">
@@ -242,7 +245,7 @@ function StageList() {
                 const shadow = node.name === SHADOW;
                 const share = shareOf(node.name);
                 return (
-                  <li key={node.name} className="font-mono text-small">
+                  <li key={node.name} className="font-mono text-report-label">
                     <p className="flex justify-between gap-3">
                       <span className={shadow ? accent.text : 'text-foreground'}>
                         {nameOf(node.name)}
@@ -280,14 +283,16 @@ function BarPanel({ title, unit, rows }: BarPanelProps) {
   const max = Math.max(...rows.map((row) => (row.from === ESPO ? 0 : (row.value ?? 0))));
   return (
     <div className="min-w-0 border-t border-foreground pt-3">
-      <p className="font-mono text-caption uppercase text-foreground">{labels[title] ?? title}</p>
-      <p className="mb-4 font-mono text-caption uppercase text-label">{unit}</p>
+      <p className="font-mono text-report-label uppercase text-foreground">
+        {labels[title] ?? title}
+      </p>
+      <p className="mb-4 font-mono text-report-label uppercase text-label">{unit}</p>
       <ul className="grid gap-3">
         {rows.map((row) => {
           const espo = row.from === ESPO;
           const hatched = row.from === DESIGNATED_PROJECT;
           return (
-            <li key={`${row.from}-${row.to}`} className="min-w-0 font-mono text-small">
+            <li key={`${row.from}-${row.to}`} className="min-w-0 font-mono text-report-label">
               <p className="text-muted-foreground break-words">
                 {labels[row.from] ?? row.from}
                 {hatched ? labels[' (désigné)'] : ''} →{' '}

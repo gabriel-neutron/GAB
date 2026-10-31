@@ -104,8 +104,8 @@ const LINE: Record<Tone, string> = {
 const SITE_TONE: Tone = 'accent';
 const DASH: Readonly<Record<string, string>> = { lead: '6 4', 'no source found': '1.5 4' };
 
-// A label is 11px mono: a glyph is 0.6em wide, plus the padding of its halo.
-const FONT = 11;
+// A label is 13px mono: a glyph is 0.6em wide, plus the padding of its halo.
+const FONT = 13;
 const labelSize = (text: string) => ({ w: text.length * FONT * 0.6 + 8, h: FONT + 6 });
 
 // The Ural range as a reference line of the Russia map: approximate, for drawing only.
@@ -418,7 +418,7 @@ export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapP
         {russia ? (
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute -translate-x-1/2 bg-background px-1 py-[3px] font-mono text-[11px]/none tracking-[0.2em] text-muted-foreground uppercase"
+            className="pointer-events-none absolute -translate-x-1/2 bg-background px-1 py-[3px] font-mono text-report-label/none tracking-[0.2em] text-muted-foreground uppercase"
             style={{ left: uralsAt.x, top: uralsAt.y }}
           >
             {fightUi.chain.urals}
@@ -460,7 +460,7 @@ export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapP
               <span
                 aria-hidden="true"
                 className={cn(
-                  'pointer-events-none absolute bg-background px-1 py-[3px] font-mono text-[11px]/[11px] tracking-[0.12em] whitespace-nowrap uppercase',
+                  'pointer-events-none absolute bg-background px-1 py-[3px] font-mono text-report-label tracking-[0.12em] whitespace-nowrap uppercase',
                   TEXT.accent,
                 )}
                 style={{ left: terminalBox.x, top: terminalBox.y }}
@@ -478,7 +478,7 @@ export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapP
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
             className={cn(
-              'pointer-events-none absolute bg-background px-1 py-[3px] font-mono text-[11px]/[11px] whitespace-nowrap tabular-nums',
+              'pointer-events-none absolute bg-background px-1 py-[3px] font-mono text-report-label whitespace-nowrap tabular-nums',
               TEXT[edge.tone],
             )}
             style={{ left: edge.left, top: edge.top }}
@@ -494,7 +494,7 @@ export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapP
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
             className={cn(
-              'pointer-events-none absolute bg-background px-1 py-[3px] font-mono text-[11px]/[11px] whitespace-nowrap tabular-nums',
+              'pointer-events-none absolute bg-background px-1 py-[3px] font-mono text-report-label whitespace-nowrap tabular-nums',
               TEXT[label.tone],
             )}
             style={{ left: label.left, top: label.top }}

@@ -79,8 +79,8 @@ interface PanelProps {
 function Panel({ title, unit, className, children }: PanelProps) {
   return (
     <div className={cn('min-w-0', className)}>
-      <p className="font-mono text-caption uppercase text-foreground">{title}</p>
-      <p className="mb-4 font-mono text-caption uppercase text-label">{unit}</p>
+      <p className="font-mono text-report-label uppercase text-foreground">{title}</p>
+      <p className="mb-4 font-mono text-report-label uppercase text-label">{unit}</p>
       {children}
     </div>
   );
@@ -96,11 +96,11 @@ function ValuesTable({
 }) {
   return (
     <details className="mt-3 border-t border-border pt-1">
-      <summary className="flex min-h-11 cursor-pointer items-center font-mono text-caption uppercase text-label">
+      <summary className="flex min-h-11 cursor-pointer items-center font-mono text-report-label text-label">
         {portsFleetUi.flows.table}
       </summary>
       <div className="max-h-80 overflow-auto">
-        <table className="w-full text-left font-mono text-small tabular-nums">
+        <table className="w-full text-left font-mono text-report-label tabular-nums">
           <thead className="text-label">
             <tr>
               {head.map((cell, index) => (
@@ -148,7 +148,7 @@ const years = (yearWidth: number) =>
     : [2014, 2016, 2018, 2020, 2022, 2024, ...(yearWidth >= 40 ? [2025] : [])];
 
 // The top pad holds the label of the embargo rule, above the plot.
-const PAD = { left: 34, right: 132, top: 30, bottom: 28 };
+const PAD = { left: 34, right: 160, top: 30, bottom: 28 };
 
 function TrafficLines() {
   const box = useRef<HTMLDivElement>(null);
@@ -166,14 +166,22 @@ function TrafficLines() {
   const placed = [...ends].sort((a, b) => y(a.last?.value ?? 0) - y(b.last?.value ?? 0));
   const spots = chartLayout.spread(
     placed.map((one) => y(one.last?.value ?? 0)),
-    15,
+    18,
     PAD.top,
     height - PAD.bottom,
   );
   const embargo = 2022 + 11 / 12;
   // The label stands at the rule: left of it when it fits there, right of it on a narrow chart.
   const embargoLabel = `${labels['embargo de l’UE'] ?? ''} · ${portsFleetUi.traffic.embargoDate}`;
-  const leftOfRule = x(embargo) - 6 - embargoLabel.length * 6.7 >= 0;
+  // On a phone neither side holds it: it ends at the right edge, over the rule, with a halo.
+  const labelWidth = embargoLabel.length * 8.1;
+  const leftOfRule = x(embargo) - 6 - labelWidth >= 0;
+  const rightOfRule = x(embargo) + 6 + labelWidth <= width;
+  const embargoAt = leftOfRule
+    ? { x: x(embargo) - 6, anchor: 'end' as const }
+    : rightOfRule
+      ? { x: x(embargo) + 6, anchor: 'start' as const }
+      : { x: width, anchor: 'end' as const };
   return (
     <div ref={box}>
       {width === 0 ? (
@@ -200,7 +208,7 @@ function TrafficLines() {
                 x={PAD.left - 6}
                 y={y(tick) + 4}
                 textAnchor="end"
-                className="fill-label font-mono text-[11px]"
+                className="fill-label font-mono text-report-label"
               >
                 {tick}
               </text>
@@ -212,7 +220,7 @@ function TrafficLines() {
               x={x(year)}
               y={height - 8}
               textAnchor="middle"
-              className="fill-label font-mono text-[11px] tabular-nums"
+              className="fill-label font-mono text-report-label tabular-nums"
             >
               {year}
             </text>
@@ -226,10 +234,12 @@ function TrafficLines() {
             strokeWidth={1}
           />
           <text
-            x={x(embargo) + (leftOfRule ? -6 : 6)}
+            x={embargoAt.x}
             y={16}
-            textAnchor={leftOfRule ? 'end' : 'start'}
-            className="fill-foreground font-mono text-[11px] uppercase"
+            textAnchor={embargoAt.anchor}
+            strokeWidth={4}
+            paintOrder="stroke"
+            className="fill-foreground stroke-background font-mono text-report-label uppercase"
           >
             {embargoLabel}
           </text>
@@ -276,7 +286,7 @@ function TrafficLines() {
                   x={width - PAD.right + 10}
                   y={spot + 4}
                   className={cn(
-                    'font-mono text-[11px]',
+                    'font-mono text-report-label',
                     one.name === LEAD ? accent.fill : 'fill-foreground',
                   )}
                 >
@@ -310,7 +320,7 @@ function ChangeBars() {
             {id === undefined ? (
               <span
                 className={cn(
-                  'font-mono text-small sm:whitespace-nowrap',
+                  'font-mono text-report-label sm:whitespace-nowrap',
                   lead ? accent.text : 'text-foreground',
                 )}
               >
@@ -322,14 +332,14 @@ function ChangeBars() {
                 onClick={(event) => {
                   openNode(id, event.currentTarget);
                 }}
-                className="-mx-1 flex min-h-11 items-center px-1 text-left font-mono text-small text-foreground underline sm:whitespace-nowrap decoration-border underline-offset-4 outline-none hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
+                className="-mx-1 flex min-h-11 items-center px-1 text-left font-mono text-report-label text-foreground underline sm:whitespace-nowrap decoration-border underline-offset-4 outline-none hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
               >
                 {name}
               </button>
             )}
             <span
               className={cn(
-                'text-right text-[clamp(1.75rem,3vw,2.5rem)] leading-none tracking-[-0.04em] tabular-nums max-sm:absolute max-sm:top-[calc(100%-1.75rem)] max-sm:h-7 max-sm:content-center',
+                'text-right text-report-lead leading-none tracking-[-0.04em] tabular-nums max-sm:absolute max-sm:top-[calc(100%-1.75rem)] max-sm:h-7 max-sm:content-center',
                 // Under 640px the value stands beside the axis, on the side the bar leaves free.
                 row.value < 0
                   ? 'max-sm:left-[calc(50%+0.75rem)] max-sm:text-left'
@@ -389,7 +399,7 @@ function FleetLines() {
   const height = 240;
   const narrow = width < 640;
   // On a phone each mark label takes its own row, so no two labels touch.
-  const pad = { left: 44, right: narrow ? 16 : 150, top: narrow ? 38 : 24, bottom: 28 };
+  const pad = { left: 50, right: narrow ? 16 : 175, top: narrow ? 38 : 24, bottom: 28 };
   const x = (month: string) =>
     pad.left +
     (MONTHS.indexOf(month) / Math.max(1, MONTHS.length - 1)) *
@@ -420,7 +430,7 @@ function FleetLines() {
                 x={pad.left - 6}
                 y={y(tick) + 4}
                 textAnchor="end"
-                className="fill-label font-mono text-[11px] tabular-nums"
+                className="fill-label font-mono text-report-label tabular-nums"
               >
                 {number.format(tick)}
               </text>
@@ -432,7 +442,7 @@ function FleetLines() {
               x={x(month)}
               y={height - 8}
               textAnchor="middle"
-              className="fill-label font-mono text-[11px]"
+              className="fill-label font-mono text-report-label"
             >
               {month.slice(0, 4)}
             </text>
@@ -450,7 +460,7 @@ function FleetLines() {
                 x={x(mark.month) + (narrow && index > 0 ? -4 : 4)}
                 y={pad.top - 12 - (narrow && index === 0 ? 13 : 0)}
                 textAnchor={narrow && index > 0 ? 'end' : 'start'}
-                className="fill-foreground font-mono text-[11px] uppercase"
+                className="fill-foreground font-mono text-report-label uppercase"
               >
                 {narrow ? mark.short : mark.label}
               </text>
@@ -480,7 +490,10 @@ function FleetLines() {
                   <text
                     x={x(last.month) + 8}
                     y={y(last.value) + 4}
-                    className={cn('font-mono text-[11px]', lead ? accent.fill : 'fill-foreground')}
+                    className={cn(
+                      'font-mono text-report-label',
+                      lead ? accent.fill : 'fill-foreground',
+                    )}
                   >
                     {FLEET_LABELS[one.key]} {number.format(last.value)}
                   </text>
@@ -490,7 +503,7 @@ function FleetLines() {
           })}
         </svg>
       )}
-      <p className="mt-2 flex flex-wrap gap-x-5 gap-y-1 font-mono text-small text-muted-foreground sm:hidden">
+      <p className="mt-2 flex flex-wrap gap-x-5 gap-y-1 font-mono text-report-label text-muted-foreground sm:hidden">
         {figureData.fleet.map((one) => (
           <span key={one.key} className="flex items-center gap-2">
             <span

@@ -161,7 +161,7 @@ export function OwnershipFigure() {
       <span
         className={cn(
           'flex items-baseline gap-1.5 break-words',
-          one.band === 0 ? 'text-body md:text-[19px]/6' : 'text-body-sm',
+          one.band === 0 ? 'text-report-small ' : 'text-report-small',
         )}
       >
         <EntityGlyph type={typeOf(one.id)} size={one.band === 0 ? 10 : 8} className="shrink-0" />
@@ -174,7 +174,7 @@ export function OwnershipFigure() {
           {one.name}
         </span>
       </span>
-      <span className="font-mono text-small/4 text-muted-foreground">
+      <span className="font-mono text-report-label/4 text-muted-foreground">
         {one.holding ?? one.kind}
       </span>
     </button>
@@ -184,7 +184,10 @@ export function OwnershipFigure() {
     <div>
       <ul className="mb-6 flex flex-wrap gap-x-6 gap-y-2" aria-label={copy.legend}>
         {LEGEND.map((item) => (
-          <li key={item.key} className="flex items-center gap-2 text-body-sm text-muted-foreground">
+          <li
+            key={item.key}
+            className="flex items-center gap-2 text-report-small text-muted-foreground"
+          >
             {/* The arrowheads are defined once, in the svg of the figure below. */}
             <svg aria-hidden="true" width="32" height="8" className="shrink-0">
               <line
@@ -201,7 +204,7 @@ export function OwnershipFigure() {
             {english(item.key)}
           </li>
         ))}
-        <li className="flex items-center gap-2 text-body-sm text-muted-foreground">
+        <li className="flex items-center gap-2 text-report-small text-muted-foreground">
           <span
             aria-hidden="true"
             className="h-3 w-8 shrink-0 border border-dashed border-signal/70"
@@ -270,7 +273,7 @@ export function OwnershipFigure() {
               aria-label={english(band)}
               className="relative border-t border-border pt-3 pb-6 first:border-foreground md:pb-8"
             >
-              <h4 className="mb-3 flex items-baseline gap-2 font-mono text-caption uppercase text-label md:mb-4">
+              <h4 className="mb-3 flex items-baseline gap-2 font-mono text-report-label uppercase text-label md:mb-4">
                 <span className="tabular-nums text-foreground">
                   {String(index + 1).padStart(2, '0')}
                 </span>
@@ -295,7 +298,7 @@ export function OwnershipFigure() {
                         held.every((one) => shut.has(one.id)) && 'max-md:hidden',
                       )}
                     >
-                      <p className="mb-2 font-mono text-caption uppercase text-label md:mb-3">
+                      <p className="mb-2 font-mono text-report-label text-label md:mb-3">
                         <span className={accent.text}>{english(owner)}</span> ·{' '}
                         {held.length > 1
                           ? english(
@@ -321,7 +324,7 @@ export function OwnershipFigure() {
                     setOpenBands(next);
                   }}
                   className={cn(
-                    'mt-2 flex min-h-11 w-full items-center justify-between border-t border-divider font-mono text-caption uppercase text-muted-foreground md:hidden',
+                    'mt-2 flex min-h-11 w-full items-center justify-between border-t border-divider font-mono text-report-label uppercase text-muted-foreground md:hidden',
                     FOCUS,
                   )}
                 >
@@ -337,14 +340,14 @@ export function OwnershipFigure() {
         })}
       </div>
       {/* No live region: the table below gives the same links, so focus does not read them out. */}
-      <div className="min-h-16 border-t border-foreground pt-3 text-body-sm">
+      <div className="min-h-16 border-t border-foreground pt-3 text-report-small">
         {active === null ? (
           <p className="text-muted-foreground">{copy.hint}</p>
         ) : (
           <>
             <p>
               {nameOf.get(active)}{' '}
-              <span className="font-mono text-caption text-label tabular-nums">
+              <span className="font-mono text-report-label text-label tabular-nums">
                 · {own.length} {copy.links}
               </span>
             </p>
@@ -352,14 +355,14 @@ export function OwnershipFigure() {
               {own.map((link) => (
                 <li key={`${link.from}-${link.relation}-${link.to}`} className="break-words">
                   {link.from === active ? '' : `${nameOf.get(link.from) ?? ''} `}
-                  <span className="font-mono text-data text-label">
+                  <span className="font-mono text-report-label text-label">
                     {link.relation}
                     {link.share === '' ? '' : ` ${link.share}`}
                   </span>
                   {link.to === active ? '' : ` ${nameOf.get(link.to) ?? ''}`}
                   <span
                     className={cn(
-                      'ml-2 font-mono text-data',
+                      'ml-2 font-mono text-report-label',
                       link.proposed ? accent.text : 'text-label',
                     )}
                   >
@@ -374,7 +377,7 @@ export function OwnershipFigure() {
       <details className="group mt-6 border-y border-foreground">
         <summary
           className={cn(
-            'flex min-h-12 cursor-pointer list-none items-center gap-3 py-2 text-body-sm [&::-webkit-details-marker]:hidden',
+            'flex min-h-12 cursor-pointer list-none items-center gap-3 py-2 text-report-small [&::-webkit-details-marker]:hidden',
             FOCUS,
           )}
         >
@@ -383,14 +386,14 @@ export function OwnershipFigure() {
             className="size-4 shrink-0 transition-transform group-open:rotate-180"
           />
           <span className="min-w-0 flex-1">{copy.table}</span>
-          <span className="font-mono text-caption text-label tabular-nums uppercase">
+          <span className="font-mono text-report-label text-label tabular-nums uppercase">
             {copy.rows.replace('{n}', String(links.length))}
           </span>
         </summary>
         <div className="mb-4 overflow-x-auto" tabIndex={0} role="region" aria-label={copy.table}>
-          <table className="w-full min-w-[40rem] border-collapse text-left text-body-sm">
+          <table className="w-full min-w-[40rem] border-collapse text-left text-report-small">
             <thead>
-              <tr className="border-b border-border font-mono text-caption uppercase text-label">
+              <tr className="border-b border-border font-mono text-report-label uppercase text-label">
                 {Object.values(copy.columns).map((column) => (
                   <th key={column} scope="col" className="py-2 pr-4 font-normal">
                     {column}
@@ -405,12 +408,12 @@ export function OwnershipFigure() {
                   className="border-b border-divider align-top"
                 >
                   <td className="py-2 pr-4">{nameOf.get(link.from)}</td>
-                  <td className="py-2 pr-4 font-mono text-data">{link.relation}</td>
-                  <td className="py-2 pr-4 font-mono text-data">{link.share}</td>
+                  <td className="py-2 pr-4 font-mono text-report-label">{link.relation}</td>
+                  <td className="py-2 pr-4 font-mono text-report-label">{link.share}</td>
                   <td className="py-2 pr-4">{nameOf.get(link.to)}</td>
                   <td
                     className={cn(
-                      'py-2 font-mono text-data',
+                      'py-2 font-mono text-report-label',
                       link.proposed ? accent.text : 'text-label',
                     )}
                   >

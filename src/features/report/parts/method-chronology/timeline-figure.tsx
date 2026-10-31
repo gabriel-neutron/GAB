@@ -80,11 +80,14 @@ export function TimelineFigure() {
         {Object.entries(legend).map(([key, name]) => (
           <div key={key} className="flex items-baseline gap-2">
             <dt
-              className={cn('font-mono text-data', key === 'WAR' ? accent.text : 'text-foreground')}
+              className={cn(
+                'font-mono text-report-label',
+                key === 'WAR' ? accent.text : 'text-foreground',
+              )}
             >
               {actorName(key)}
             </dt>
-            <dd className="text-body-sm text-muted-foreground">{name}</dd>
+            <dd className="text-report-small text-muted-foreground">{name}</dd>
           </div>
         ))}
       </dl>
@@ -95,19 +98,19 @@ export function TimelineFigure() {
 function EventText({ event }: { readonly event: TimelineEvent }) {
   return (
     <>
-      <span className="flex items-baseline gap-2 font-mono text-data tabular-nums">
-        <time dateTime={event.date} className="text-label">
+      <span className="flex flex-wrap items-baseline gap-x-2 font-mono text-report-label tabular-nums">
+        <time dateTime={event.date} className="whitespace-nowrap text-label">
           {event.date}
         </time>
         <span className={event.actor === 'WAR' ? accent.text : 'text-foreground'}>
           {actorName(event.actor)}
         </span>
       </span>
-      <span className="mt-1 block text-[1.25rem] leading-tight tracking-[-0.02em] text-balance">
+      <span className="mt-1 block text-report-lead leading-tight tracking-[-0.02em] text-balance">
         {event.title}
       </span>
       {event.detail === '' ? null : (
-        <span className="mt-1 block text-body-sm text-muted-foreground">{event.detail}</span>
+        <span className="mt-1 block text-report-small text-muted-foreground">{event.detail}</span>
       )}
     </>
   );
@@ -132,16 +135,16 @@ function YearList() {
             <span
               className={cn(
                 'font-mono tabular-nums',
-                inYear.length > 0 ? 'text-heading leading-none' : 'text-data text-label',
+                inYear.length > 0
+                  ? 'text-report-heading leading-none'
+                  : 'text-report-label text-label',
               )}
             >
               {year}
             </span>
             <div className="min-w-0">
               {year === PERIOD[0] ? (
-                <p className="mb-4 font-mono text-caption/4 uppercase">
-                  {methodUi.timeline.period}
-                </p>
+                <p className="mb-4 font-mono text-report-label/4">{methodUi.timeline.period}</p>
               ) : null}
               {inYear.length === 0 ? null : (
                 <ol className="space-y-5">
@@ -209,7 +212,7 @@ function ScrollTrack({ onMissing }: { readonly onMissing: () => void }) {
         <div aria-hidden="true" className="absolute inset-y-0 left-1/2 w-px bg-foreground/15" />
         <motion.p
           aria-hidden="true"
-          className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 font-mono text-[clamp(5rem,9vw,8rem)] leading-none tracking-[-0.08em] text-foreground/10 tabular-nums"
+          className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 font-mono text-report-display leading-none tracking-[-0.08em] text-foreground/10 tabular-nums"
         >
           {year}
         </motion.p>
@@ -226,7 +229,7 @@ function ScrollTrack({ onMissing }: { readonly onMissing: () => void }) {
             />
           ))}
         </motion.ol>
-        <p className="absolute bottom-6 left-8 font-mono text-caption uppercase text-label">
+        <p className="absolute bottom-6 left-8 font-mono text-report-label text-label">
           {methodUi.timeline.scroll}
         </p>
         <motion.div
@@ -252,7 +255,7 @@ function Axis() {
       {/* The label sits on the bar of the period, clear of the year labels under the axis. */}
       <p
         className={cn(
-          'absolute -top-7 bg-background px-1 font-mono text-caption whitespace-nowrap uppercase',
+          'absolute -top-7 bg-background px-1 font-mono text-report-label whitespace-nowrap uppercase',
           accent.text,
         )}
         style={{ left: periodStart }}
@@ -261,13 +264,13 @@ function Axis() {
       </p>
       {/* The fold of the empty years: two slashes across the axis and their label. */}
       <div
-        className="absolute -top-5 flex h-10 items-center justify-center bg-background font-mono text-heading text-label"
+        className="absolute -top-5 flex h-10 items-center justify-center bg-background font-mono text-report-heading text-label"
         style={{ left: xOfYear(GAP[0]) + 24, width: GAP_PX - 48 }}
       >
         //
       </div>
       <p
-        className="absolute top-9 text-center font-mono text-caption whitespace-nowrap uppercase text-label"
+        className="absolute top-9 text-center font-mono text-report-label whitespace-nowrap uppercase text-label"
         style={{ left: xOfYear(GAP[0]), width: GAP_PX }}
       >
         {methodUi.timeline.gap}
@@ -275,7 +278,7 @@ function Axis() {
       {AXIS_YEARS.map((year) => (
         <div key={year} className="absolute top-0" style={{ left: xOfYear(year) }}>
           <div className="h-3 w-px bg-chart-axis" />
-          <p className="mt-1 -translate-x-1/2 font-mono text-data text-label tabular-nums">
+          <p className="mt-1 -translate-x-1/2 font-mono text-report-label text-label tabular-nums">
             {year}
           </p>
         </div>

@@ -5,7 +5,7 @@ import figures from '../data/publication-figures.json';
 import { NoteRef } from '../note-ref';
 import { accent } from '../primitives/accent';
 import { chapterHead } from '../primitives/chapter-break';
-import { monoLabel } from '../primitives/label';
+import { monoLabel, monoNote } from '../primitives/label';
 import { NumberRoll } from '../primitives/number-roll';
 import { Reveal } from '../primitives/reveal';
 import { RichText } from '../rich-text';
@@ -13,7 +13,7 @@ import { ScaleCounters } from '../scale-counters';
 import { ScrambleText } from '../scramble-text';
 
 const KEY = /^\*\*([^*]+?):\*\*\s*/;
-const SENTENCE = 'text-[18px]/[1.55] text-foreground/75 md:text-[19px]/[1.55]';
+const SENTENCE = 'text-report-body/[1.55] text-foreground/75 ';
 const WORDS = 'leading-[0.9] tracking-[-0.045em] text-balance';
 const { summary: copy } = openingUi;
 
@@ -28,7 +28,7 @@ interface Finding {
 
 /** The short label and the note mark directly under a value. */
 const caption = (finding: Finding, className?: string) => (
-  <p className={cn('mt-4 flex max-w-[44ch] gap-3', monoLabel, className)}>
+  <p className={cn('mt-4 flex max-w-[44ch] gap-3', monoNote, className)}>
     <span
       aria-hidden="true"
       className={cn('mt-[0.6em] inline-block h-px w-6 shrink-0', accent.bg)}
@@ -65,7 +65,7 @@ function RoubleChart() {
   return (
     <figure className="m-0 border-t border-border pt-3">
       <figcaption className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <span className="text-body-sm text-foreground">{chart.title}</span>
+        <span className="text-report-small text-foreground">{chart.title}</span>
         <span className={monoLabel}>
           {chart.unit} · {chart.period}
         </span>
@@ -86,7 +86,7 @@ function RoubleChart() {
                 <span
                   className={cn(
                     'mb-2 font-mono tabular-nums',
-                    marked ? cn('text-[13px]', accent.text) : 'text-[11px] text-label',
+                    marked ? cn('text-report-label', accent.text) : 'text-report-label text-label',
                   )}
                 >
                   {Math.round(value)}%
@@ -99,7 +99,7 @@ function RoubleChart() {
               <span
                 aria-hidden="true"
                 className={cn(
-                  'mt-2 text-center font-mono text-[11px] tabular-nums',
+                  'mt-2 text-center font-mono text-report-label tabular-nums',
                   marked ? 'text-foreground' : 'text-label',
                 )}
               >
@@ -109,7 +109,7 @@ function RoubleChart() {
           );
         })}
       </ol>
-      <p className="mt-3 text-body-sm text-foreground/75">
+      <p className="mt-3 text-report-small text-foreground/75">
         {chart.source}
         <NoteRef partSlug={chart.note.part} id={chart.note.id} />
       </p>
@@ -122,7 +122,7 @@ function RoubleChart() {
 // number in the accent, words in the ink, and the outline only for the value of the cover.
 // The value that the cover shows too.
 const repeats = (finding: Finding): boolean => finding.value === openingUi.coverNumber.value;
-const NUMBER = 'text-[clamp(5rem,24vw,15rem)] leading-[0.8] tracking-[-0.07em] tabular-nums';
+const NUMBER = 'text-report-display leading-[0.8] tracking-[-0.07em] tabular-nums';
 
 function hero(finding: Finding): ReactNode {
   if (repeats(finding))
@@ -142,7 +142,7 @@ function hero(finding: Finding): ReactNode {
         <NumberRoll value={finding.value} />
       </p>
     );
-  return <p className={cn('max-w-[10ch] text-[clamp(3rem,8vw,7.5rem)]', WORDS)}>{finding.value}</p>;
+  return <p className={cn('max-w-[10ch] text-report-number', WORDS)}>{finding.value}</p>;
 }
 
 const layout = (finding: Finding): ReactNode => (
@@ -180,7 +180,8 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
       className="scroll-mt-[calc(var(--report-bar,0px)+1px)] pt-3 pb-4 md:pt-16 md:pb-8"
     >
       {/* The head of every chapter break, without the break: the cover is the pause before it. */}
-      <div className="relative">
+      {/* From 1024px the head keeps the height of the plate, so the text starts under it. */}
+      <div className="relative lg:min-h-[24rem]">
         <div className={chapterHead.row}>
           <p aria-hidden="true" className={chapterHead.number}>
             {number}
@@ -200,8 +201,8 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
             // The dither is black on white: it multiplies onto paper, and inverts onto the dark.
             className="block aspect-[16/10] w-full object-cover object-[20%_62%] mix-blend-multiply [image-rendering:pixelated] dark:mix-blend-screen dark:invert"
           />
-          <figcaption className="mt-2 font-mono text-[12px]/4 text-label">
-            <span className="tracking-[0.08em] text-foreground uppercase">{copy.art.label}</span>{' '}
+          <figcaption className="mt-2 font-mono text-report-label/4 text-label">
+            <span className=" text-foreground">{copy.art.label}</span>{' '}
             <a
               href={copy.art.href}
               className="underline decoration-border underline-offset-2 hover:text-foreground"
@@ -213,7 +214,7 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
       </div>
       <div className="mt-4 md:mt-14 lg:grid lg:grid-cols-12 lg:gap-x-8">
         {lead === undefined ? null : (
-          <p className="max-w-[34ch] text-[clamp(1.375rem,2.6vw,2.25rem)] [&_.note-ref]:text-[0.5em] leading-[1.3] tracking-[-0.02em] text-balance lg:col-span-9">
+          <p className="max-w-[34ch] text-report-lead [&_.note-ref]:text-report-label leading-[1.3] tracking-[-0.02em] text-balance lg:col-span-9">
             <RichText text={lead.text} partSlug={part.slug} />
           </p>
         )}

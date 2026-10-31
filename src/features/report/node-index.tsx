@@ -25,7 +25,7 @@ const GLYPH = Object.fromEntries(
 export function NodeIndex() {
   return (
     <section id="nodes" aria-labelledby="nodes-title" className="border-t border-border pt-6 pb-24">
-      <h2 id="nodes-title" className="text-heading text-balance md:text-heading-lg">
+      <h2 id="nodes-title" className="text-report-heading text-balance ">
         {ui.index.title}
       </h2>
       <div className="mt-8 grid gap-12">
@@ -33,12 +33,15 @@ export function NodeIndex() {
           const nodes = reportGraph.layer(layer);
           return (
             <section key={layer} aria-labelledby={`nodes-${layer}`}>
-              <h3 id={`nodes-${layer}`} className="font-mono text-caption uppercase text-label">
+              <h3
+                id={`nodes-${layer}`}
+                className="font-mono text-report-label uppercase text-label"
+              >
                 {layer} · <span className="tabular-nums">{nodes.length}</span>
               </h3>
               <ol
                 // An underline shows on hover or focus only; a long name hangs past its glyph.
-                className="mt-3 gap-x-8 text-body-sm md:columns-2 lg:columns-3 [&_button]:block [&_button]:pl-3.5 [&_button]:-indent-3.5 [&_button]:no-underline [&_button:focus-visible]:underline [&_button:hover]:underline"
+                className="mt-3 gap-x-8 text-report-small md:columns-2 lg:columns-3 [&_button]:block [&_button]:pl-3.5 [&_button]:-indent-3.5 [&_button]:no-underline [&_button:focus-visible]:underline [&_button:hover]:underline"
               >
                 {nodes.map((node) => (
                   <li
@@ -49,7 +52,9 @@ export function NodeIndex() {
                     <NodeRef id={node.node_id} side="right">
                       {node.name}
                     </NodeRef>
-                    <span className="shrink-0 font-mono text-data text-label">{node.type}</span>
+                    <span className="shrink-0 font-mono text-report-label text-label">
+                      {node.type}
+                    </span>
                   </li>
                 ))}
               </ol>

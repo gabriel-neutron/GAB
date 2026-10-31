@@ -15,7 +15,7 @@ import { BudgetChart, BuyersChart, PriceChart } from './pay-figures';
 
 // The editorial grid: the notes hang in the left third, the text reads in the right two thirds.
 const ROW = 'lg:grid lg:grid-cols-12 lg:gap-x-10';
-const TEXT = 'max-w-[64ch] text-[18px]/[1.65] md:text-[20px]/[1.65] lg:col-span-8 lg:col-start-5';
+const TEXT = 'max-w-[64ch] text-report-body/[1.65]  lg:col-span-8 lg:col-start-5';
 const KEY = /^\*\*([^*]+?):?\*\*:?\s*/;
 // The paragraph after which the two values of the part stand alone.
 const NUMBERS_AFTER = 'In total, across all goods';
@@ -72,7 +72,7 @@ function PayBreak({ number, title }: { readonly number: string; readonly title: 
   const { image } = payUi;
   const caption = (
     <>
-      <span className="block uppercase">{image.label}</span>
+      <span className="block">{image.label}</span>
       <span className="block">{image.credit}</span>
     </>
   );
@@ -96,9 +96,9 @@ function PayBreak({ number, title }: { readonly number: string; readonly title: 
         </div>
       </div>
       <ChapterBreak number={number} title={title} quote={payUi.quote}>
-        <p className="mt-10 font-mono text-small/4 text-label lg:hidden">{caption}</p>
+        <p className="mt-10 font-mono text-report-label/4 text-label lg:hidden">{caption}</p>
       </ChapterBreak>
-      <p className="absolute right-8 bottom-6 hidden text-right font-mono text-small/4 whitespace-nowrap text-label lg:block">
+      <p className="absolute right-8 bottom-6 hidden text-right font-mono text-report-label/4 whitespace-nowrap text-label lg:block">
         {caption}
       </p>
     </div>
@@ -117,7 +117,7 @@ function Sidenotes({ text, part }: { readonly text: string; readonly part: Repor
       className="hidden min-w-0 border-t border-border pt-2 lg:col-span-4 lg:block"
     >
       {notes.map((note) => (
-        <p key={note.id} className="mb-3 text-caption/[1.5] break-words text-muted-foreground">
+        <p key={note.id} className="mb-3 text-report-label/[1.5] break-words text-muted-foreground">
           <span className="mr-2 font-mono text-label">
             {note.id.slice(note.id.lastIndexOf('-') + 1)}
           </span>
@@ -165,7 +165,7 @@ function Reasons({
             <Sidenotes text={block.text} part={part} />
             <div className={cn(TEXT, 'border-t border-border py-6')}>
               <Reveal>
-                <span className="block text-[clamp(1.75rem,4vw,2.5rem)] leading-none tracking-[-0.03em]">
+                <span className="block text-report-lead leading-none tracking-[-0.03em]">
                   {match?.[1]}
                 </span>
                 <span className="mt-3 block">
@@ -231,7 +231,7 @@ function StepText({
 }) {
   return (
     <>
-      <span className="block font-mono text-caption uppercase text-signal">{step.kicker}</span>
+      <span className="block font-mono text-report-label uppercase text-signal">{step.kicker}</span>
       <span aria-hidden="true" className="mt-3 block h-px bg-signal lg:-mr-10" />
       <span className="mt-3 block">
         <RichText text={step.text} partSlug={slug} />
@@ -242,7 +242,7 @@ function StepText({
 
 // The cards of the scene: under 1024px they only drive the scroll, and the caption bar of the
 // chart shows the step in view; on a large screen they are open annotations in the left third.
-const CARD = 'invisible w-full text-body lg:visible lg:w-[calc(100%/3-1.5rem)]';
+const CARD = 'invisible w-full text-report-small lg:visible lg:w-[calc(100%/3-1.5rem)]';
 
 /** Figure 4 as a scroll scene: each step shows one more state of the caps and the gap. Under
  * reduced motion, one chart in its final state; the body text holds the words of the steps. */
@@ -272,7 +272,7 @@ function PriceScene({ slug }: { readonly slug: string }) {
               {step === undefined ? null : (
                 <div
                   aria-live="polite"
-                  className="pointer-events-auto min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-border pt-3 text-body-sm md:text-body lg:hidden"
+                  className="pointer-events-auto min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-border pt-3 text-report-small  lg:hidden"
                 >
                   <StepText step={step} slug={slug} />
                 </div>

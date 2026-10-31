@@ -181,6 +181,28 @@
   --text-heading--line-height: 1.1;
   --text-heading--letter-spacing: -1.12px;
 
+  /* Report page roles (src/features/report). Each role is one size curve; the report uses no
+     other size. Nothing that is read goes under the label. */
+  --text-report-display: clamp(3.5rem, 12vw, 10rem); /* chapter numerals, cover title */
+  --text-report-display--line-height: 0.85;
+  --text-report-display--letter-spacing: -0.05em;
+  --text-report-number: clamp(2.75rem, 7vw, 6rem); /* one value alone */
+  --text-report-number--line-height: 0.9;
+  --text-report-number--letter-spacing: -0.045em;
+  --text-report-heading: clamp(2rem, 4.4vw, 3.5rem); /* part titles */
+  --text-report-heading--line-height: 1.05;
+  --text-report-heading--letter-spacing: -0.035em;
+  --text-report-lead: clamp(1.25rem, 2.2vw, 1.75rem);
+  --text-report-lead--line-height: 1.3;
+  --text-report-lead--letter-spacing: -0.02em;
+  --text-report-body: clamp(1.125rem, 1rem + 0.3vw, 1.25rem);
+  --text-report-body--line-height: 1.6;
+  --text-report-small: 1rem; /* card and panel text */
+  --text-report-small--line-height: 1.5;
+  --text-report-label: 13px; /* Geist Mono labels, chart and map text */
+  --text-report-label--line-height: 1.35;
+  --text-report-label--letter-spacing: 0.02em;
+
   /* Interface scale. */
   --text-heading-sm: 24px;
   --text-heading-sm--line-height: 1.15;

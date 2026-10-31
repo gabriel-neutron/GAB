@@ -21,7 +21,7 @@ import type { MapSources } from './port-map';
 
 const PortMap = lazy(() => import('./port-map').then((module) => ({ default: module.PortMap })));
 
-const PROSE = 'max-w-[64ch] text-[18px]/[1.65] md:text-[20px]/[1.65] lg:ml-[25%]';
+const PROSE = 'max-w-[64ch] text-report-body/[1.65]  lg:ml-[25%]';
 const copy = portsFleetUi;
 const census = figureData.lives.census;
 const values: Readonly<Record<string, number>> = {
@@ -110,13 +110,13 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
   // sets one state of the map. The long last state takes two cards, so a card stays short on a phone.
   const cards = scene.map(({ block, from, to, state }, index) => (
     <div key={`${String(block)}-${String(from)}`} className="pf-step" data-pf-card={index}>
-      <p className="mb-2 font-mono text-caption uppercase text-label md:mb-3">
+      <p className="mb-2 font-mono text-report-label uppercase text-label md:mb-3">
         <span className="text-foreground tabular-nums">
           {String(state + 1).padStart(2, '0')} / {String(copy.map.kickers.length).padStart(2, '0')}
         </span>{' '}
         · {copy.map.kickers[state]}
       </p>
-      <p className="text-[15px]/[1.5] md:text-[17px]/[1.6]">
+      <p className="text-report-small/[1.5] ">
         {say((block === 0 ? first : second).slice(from, to))}
       </p>
     </div>
@@ -144,7 +144,7 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
       >
         <ul
           aria-label={copy.terminals}
-          className="mt-10 grid max-w-[56rem] grid-cols-1 gap-x-8 border-t border-border pt-4 font-mono text-small/5 text-label sm:grid-cols-2"
+          className="mt-10 grid max-w-[56rem] grid-cols-1 gap-x-8 border-t border-border pt-4 font-mono text-report-label/5 text-label sm:grid-cols-2"
         >
           {TERMINALS.map((terminal) => (
             <li key={terminal.id} className="flex justify-between gap-4 tabular-nums">
@@ -202,7 +202,7 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
         </Reveal>
       </div>
       <Reveal>
-        <p className="mx-auto max-w-[28ch] py-16 text-center text-[clamp(1.75rem,4.4vw,3.5rem)] leading-[1.08] tracking-[-0.035em] text-balance md:py-28">
+        <p className="mx-auto max-w-[28ch] py-16 text-center text-report-heading leading-[1.08] tracking-[-0.035em] text-balance md:py-28">
           <RichText text={text(8)} partSlug={part.slug} />
         </p>
       </Reveal>

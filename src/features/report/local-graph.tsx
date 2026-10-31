@@ -72,7 +72,7 @@ export function LocalGraph({ id }: { readonly id: string }) {
               y={index > 0 && y < 1 ? -16 : 22}
               textAnchor="middle"
               fill={index === 0 ? 'var(--foreground)' : 'var(--muted-foreground)'}
-              className="font-mono text-[10px]"
+              className="font-mono text-report-label"
             >
               {one.short_label}
             </text>

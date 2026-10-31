@@ -29,7 +29,7 @@ export function NoteRef({ partSlug, id }: NoteRefProps) {
           className={cn(
             // A comma between two markers that follow each other, so "2" and "3" do not read as "23".
             'note-ref relative ml-0.5 cursor-pointer [&:has(+.note-ref)]:after:content-[","]',
-            'align-super font-mono text-small/none text-label',
+            'align-super font-mono text-report-label/none text-label',
             'transition-colors duration-150 hover:text-foreground',
             // A centred 44px box for a finger; it does not move the text.
             'before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-1/2 before:content-[""]',
@@ -40,17 +40,17 @@ export function NoteRef({ partSlug, id }: NoteRefProps) {
         </button>
       </PopoverTrigger>
       <PopoverContent side="top" className="w-80 max-w-[calc(100vw-32px)] space-y-2 p-3">
-        <p className="font-mono text-caption uppercase text-label">
+        <p className="font-mono text-report-label uppercase text-label">
           {ui.note.label} {id}
         </p>
-        <p className="text-body-sm break-words">
+        <p className="text-report-small break-words">
           <RichText text={note.text} partSlug={partSlug} />
         </p>
         <Link
           to="/bibliography"
           hash={noteAnchor(partSlug, id)}
           className={cn(
-            'inline-flex min-h-11 items-center text-body-sm underline decoration-border underline-offset-4 hover:decoration-foreground',
+            'inline-flex min-h-11 items-center text-report-small underline decoration-border underline-offset-4 hover:decoration-foreground',
             FOCUS,
           )}
         >

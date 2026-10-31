@@ -14,19 +14,16 @@ export function PartDefault({ part }: { readonly part: ReportPart }) {
     >
       <header className="lg:col-span-4">
         <div className="lg:sticky lg:top-6">
-          <p className="font-mono text-caption uppercase text-label">
+          <p className="font-mono text-report-label uppercase text-label">
             {ui.part.number} <span className="tabular-nums">{number}</span>
           </p>
-          <h2
-            id={`${part.slug}-title`}
-            className="mt-3 text-heading text-balance md:text-heading-lg"
-          >
+          <h2 id={`${part.slug}-title`} className="mt-3 text-report-heading text-balance ">
             <ScrambleText text={part.title} />
           </h2>
           <NodeStrip nodeIds={part.nodeIds} />
         </div>
       </header>
-      <div className="mt-8 min-w-0 text-body lg:col-span-8 lg:mt-0">
+      <div className="mt-8 min-w-0 text-report-small lg:col-span-8 lg:mt-0">
         <Blocks blocks={part.blocks} partSlug={part.slug} />
       </div>
     </section>
