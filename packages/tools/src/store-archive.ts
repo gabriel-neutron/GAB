@@ -27,10 +27,8 @@ const MAX_TITLE = 500;
 // the sentence of the rule. Null for every other fault.
 export const toldFault = (fault: unknown): string | null => {
   if (fault instanceof ToolRefusal) return fault.message;
-  const code = fault instanceof Error && 'code' in fault ? fault.code : undefined;
-  return typeof code === 'string' && /^(?:22|23|P0)/u.test(code) && fault instanceof Error
-    ? fault.message
-    : null;
+  if (!(fault instanceof Error) || !('code' in fault)) return null;
+  return typeof fault.code === 'string' && /^(?:22|23|P0)/u.test(fault.code) ? fault.message : null;
 };
 
 const LINK = 'SELECT public.fill_document_archive($1, $2, $3) AS outcome';
