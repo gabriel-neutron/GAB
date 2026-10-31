@@ -62,7 +62,7 @@ export function LimitsPart({ part }: { readonly part: ReportPart }) {
     out.push(
       <ol key={`list-${String(lists)}`} aria-label={label} className="my-10 border-b border-border">
         {list.map((block, index) => (
-          <Item key={block.text} block={block} index={index} partSlug={part.slug} />
+          <Item key={index} block={block} index={index} partSlug={part.slug} />
         ))}
       </ol>,
     );

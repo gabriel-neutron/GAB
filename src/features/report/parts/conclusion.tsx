@@ -38,6 +38,8 @@ export function ConclusionPart({ part }: { readonly part: ReportPart }) {
         title={part.title}
         quote={copy.quote}
         className="top-[12%] -right-[4vw] text-right"
+        // The label keeps clear of the bleed of the words.
+        labelClassName="pr-[10vw]"
         art={
           <p
             className={cn(

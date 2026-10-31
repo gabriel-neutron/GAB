@@ -1,7 +1,7 @@
 import { Fragment, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { cn } from '@/shared/lib/utils';
-import { closingUi, parts, ui, type ReportBlock, type ReportPart } from '../content';
+import { closingUi, openingUi, parts, ui, type ReportBlock, type ReportPart } from '../content';
 import { NodeIndex } from '../node-index';
 import { NoteRef } from '../note-ref';
 import { RichText } from '../rich-text';
@@ -44,7 +44,7 @@ function Cells({
         const match = KEY.exec(block.text);
         const rest = match === null ? block.text : block.text.slice(match[0].length);
         return (
-          <li key={block.text} className="bg-background p-4 md:p-5">
+          <li key={index} className="bg-background p-4 md:p-5">
             <p className="font-mono text-caption uppercase text-label">
               {label} <span className="text-foreground tabular-nums">{index + 1}</span>
             </p>
@@ -193,6 +193,14 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
               </div>
             ))}
           </dl>
+          {/* The nodes are not the entities of A.1: the tie line and note S-3 say which they are. */}
+          <p className="mt-3 max-w-[64ch] font-mono text-caption uppercase text-label">
+            {closingUi.conclusion.dataDate}
+            <NoteRef partSlug="summary" id={openingUi.summary.entities.note} />
+          </p>
+          <p className="mt-3 max-w-[64ch] text-body-sm/6 text-foreground/75">
+            {openingUi.counters.tie}
+          </p>
         </section>
         <Link
           to="/bibliography"
@@ -209,7 +217,7 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
           </span>
           <span
             aria-hidden="true"
-            className="font-mono text-[clamp(2rem,6vw,5rem)] leading-none transition-transform duration-150 group-hover:translate-x-2"
+            className="font-mono text-[clamp(2rem,6vw,5rem)] leading-none transition-transform duration-150 group-hover:translate-x-2 motion-reduce:transition-none"
           >
             →
           </span>
