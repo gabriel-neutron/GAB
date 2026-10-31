@@ -23,9 +23,7 @@ export function IntroductionPart({ part }: { readonly part: ReportPart }) {
           <span className="pt-2 font-mono text-report-label text-label tabular-nums">
             {String(questions.length + 1).padStart(2, '0')}
           </span>
-          <span className="text-report-heading leading-[1.08] tracking-[-0.03em] text-balance">
-            {text}
-          </span>
+          <span className="text-report-lead text-balance">{text}</span>
         </li>,
       );
       return;

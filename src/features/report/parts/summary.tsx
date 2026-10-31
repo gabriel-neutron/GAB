@@ -13,6 +13,9 @@ import { ScaleCounters } from '../scale-counters';
 import { ScrambleText } from '../scramble-text';
 
 const KEY = /^\*\*([^*]+?):\*\*\s*/;
+/** The bold key and the first sentence of a paragraph, with the space after it. */
+const leadHead = (text: string): string =>
+  /^(?:\*\*[^*]+\*\*\s*)?[^.?!]*[.?!]\s*/.exec(text)?.[0] ?? text;
 const SENTENCE = 'text-report-body/[1.55] text-foreground/75 ';
 const WORDS = 'leading-[0.9] tracking-[-0.045em] text-balance';
 const { summary: copy } = openingUi;
@@ -199,7 +202,7 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
             loading="lazy"
             decoding="async"
             // The dither is black on white: it multiplies onto paper, and inverts onto the dark.
-            className="block aspect-[16/10] w-full object-cover object-[20%_62%] mix-blend-multiply [image-rendering:pixelated] dark:mix-blend-screen dark:invert"
+            className="block aspect-[16/10] w-full object-cover mix-blend-multiply [image-rendering:pixelated] dark:mix-blend-screen dark:invert"
           />
           <figcaption className="mt-2 font-mono text-report-label/4 text-label">
             <span className=" text-foreground">{copy.art.label}</span>{' '}
@@ -214,9 +217,15 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
       </div>
       <div className="mt-4 md:mt-14 lg:grid lg:grid-cols-12 lg:gap-x-8">
         {lead === undefined ? null : (
-          <p className="max-w-[34ch] text-report-lead [&_.note-ref]:text-report-label leading-[1.3] tracking-[-0.02em] text-balance lg:col-span-9">
-            <RichText text={lead.text} partSlug={part.slug} />
-          </p>
+          <div className="lg:col-span-10">
+            {/* Only the first sentence of the problem stays large; the rest reads as body text. */}
+            <p className="max-w-[56ch] text-report-lead text-balance">
+              <RichText text={leadHead(lead.text)} partSlug={part.slug} />
+            </p>
+            <p className={cn('mt-4 max-w-[64ch]', SENTENCE)}>
+              <RichText text={lead.text.slice(leadHead(lead.text).length)} partSlug={part.slug} />
+            </p>
+          </div>
         )}
         <div className="mt-10 grid gap-8 md:mt-14 md:grid-cols-2 md:gap-10 lg:col-span-12">
           {rest.map((block) => (
