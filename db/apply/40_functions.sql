@@ -6428,6 +6428,55 @@ BEGIN
   RETURN CASE WHEN v_provider = p_provider THEN 'same' ELSE 'other' END;
 END $$;
 
+-- HOW A FETCHED DOCUMENT WAS READ. A tool that reads a page names the certificate fingerprint that
+-- the server showed (only for a host with a certificate that the tool accepts for that host alone)
+-- and whether the stored bytes are the render of a browser. The same bytes are stored once, so a
+-- read of known bytes reaches the row of the first read. The door never changes a fingerprint that
+-- a row holds, and it never turns `rendered` off. Only a fetched row takes it. It answers what it
+-- found:
+--   filled       the row holds the new facts now;
+--   same         the row held these facts already;
+--   other        the row holds another fingerprint, and keeps it;
+--   not_fetched  the row is no fetched document, so it takes nothing.
+-- The row lock makes two reads of the same bytes write once.
+CREATE OR REPLACE FUNCTION fill_document_trace(
+  p_document    text,
+  p_fingerprint text,
+  p_rendered    boolean)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_kind        text;
+  v_fingerprint text;
+  v_rendered    boolean;
+BEGIN
+  IF p_fingerprint IS NOT NULL AND p_fingerprint !~ '^[0-9A-F]{2}(:[0-9A-F]{2}){31}$' THEN
+    RAISE EXCEPTION 'a certificate fingerprint is 32 pairs of upper-case hex digits with colons'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  SELECT d.kind, d.tls_fingerprint, d.rendered INTO v_kind, v_fingerprint, v_rendered
+    FROM public.documents d WHERE d.id = p_document::doc_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  IF v_kind NOT IN ('url', 'api') THEN
+    RETURN 'not_fetched';
+  END IF;
+  IF v_fingerprint IS NOT NULL AND p_fingerprint IS NOT NULL AND v_fingerprint <> p_fingerprint THEN
+    RETURN 'other';
+  END IF;
+  IF (v_fingerprint IS NOT NULL OR p_fingerprint IS NULL) AND (v_rendered OR NOT p_rendered) THEN
+    RETURN 'same';
+  END IF;
+  UPDATE public.documents
+     SET tls_fingerprint = coalesce(v_fingerprint, p_fingerprint),
+         rendered = v_rendered OR p_rendered
+   WHERE id = p_document::doc_id;
+  RETURN 'filled';
+END $$;
+
 -- THE ARCHIVE THAT HELD A FILE. A store tool unpacks a zip archive into one document for each
 -- file, and this door links the file to the archive and to its path in it (#595). The same bytes
 -- are stored once, so a file that is already a document takes the link here too. A row keeps its

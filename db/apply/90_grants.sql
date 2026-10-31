@@ -225,6 +225,7 @@ REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,t
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_provider(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_archive(text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fill_document_trace(text,text,boolean) FROM PUBLIC;
 
 -- THE TIER IS HELD BY NO ROLE. The owner of a view does not lend EXECUTE on a function that the
 -- view calls, so the reader role of an export gets the grant together with that export.
@@ -241,6 +242,8 @@ GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,dat
 GRANT EXECUTE ON FUNCTION fill_document_provider(text,text) TO gabriel_agent, gabriel_research;
 -- THE ARCHIVE THAT HELD A FILE goes with the fetched-document door too.
 GRANT EXECUTE ON FUNCTION fill_document_archive(text,text,text) TO gabriel_agent, gabriel_research;
+-- HOW A FETCHED DOCUMENT WAS READ goes with the fetched-document door too.
+GRANT EXECUTE ON FUNCTION fill_document_trace(text,text,boolean) TO gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric,text)
   TO gabriel_app;
 -- THE ADDRESS OF A KNOWN UPLOAD goes with the upload door, so only the operator holds it.
