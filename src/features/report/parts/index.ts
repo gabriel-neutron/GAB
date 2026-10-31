@@ -3,6 +3,7 @@ import type { ReportPart } from '../content';
 import { PartDefault } from './part-default';
 import { IntroductionPart } from './introduction';
 import { MethodChronologyPart } from './method-chronology';
+import { PayPart } from './pay/pay-part';
 import { SummaryPart } from './summary';
 
 /** The drawing of one part. It receives the part from the content, and renders a section whose
@@ -15,7 +16,7 @@ export const partComponents: Readonly<Record<string, PartComponent>> = {
   summary: SummaryPart,
   introduction: IntroductionPart,
   'method-chronology': MethodChronologyPart,
-  pay: PartDefault,
+  pay: PayPart,
   'ports-fleet': PartDefault,
   finance: PartDefault,
   fight: PartDefault,
