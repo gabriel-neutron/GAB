@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { MotionConfig } from 'motion/react';
 import { NodePanel } from './node-panel';
 import { reportGraph } from './report-graph';
-import { ReportContext, type Report } from './use-report';
+import { CLOSE_CARDS, ReportContext, type Report } from './use-report';
 
 /** The control, then the trigger of each popover around it: a fallback when the control unmounts. */
 function focusChain(from: HTMLElement | undefined): HTMLElement[] {
@@ -37,6 +37,7 @@ export function ReportFrame({ label, children }: ReportFrameProps) {
         // A reference inside the open panel keeps the first opener: it leaves with the panel.
         if (!showing.current) opener.current = focusChain(returnFocusTo);
         showing.current = true;
+        window.dispatchEvent(new Event(CLOSE_CARDS));
         setSelected(id);
       },
     }),

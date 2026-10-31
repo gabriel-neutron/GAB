@@ -179,6 +179,7 @@ export function BuyersChart() {
         </div>
       ))}
       <p className={cn(LEGEND, 'md:col-span-2')}>{payUi.estimate}</p>
+      <p className={cn(LEGEND, 'md:col-span-2')}>{payUi.crossingNote}</p>
     </div>
   );
 }

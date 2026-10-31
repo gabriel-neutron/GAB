@@ -4,7 +4,7 @@ import { EntityGlyph } from '@/shared/entity-glyph';
 import { cn } from '@/shared/lib/utils';
 import { ui } from './content';
 import { reportGraph } from './report-graph';
-import { useReport } from './use-report';
+import { CLOSE_CARDS, useReport } from './use-report';
 
 /** The time the pointer has to cross from the reference to its card (WCAG 1.4.13). */
 const CLOSE_DELAY = 150;
@@ -32,14 +32,17 @@ export function NodeRef({ id, children, side = 'top' }: NodeRefProps) {
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
   // A scroll moves the reference away from the pointer or the finger, so the card closes.
+  // The panel also closes the card when it opens.
   useEffect(() => {
     if (!open) return undefined;
     const close = () => {
       setOpen(false);
     };
     window.addEventListener('scroll', close, { passive: true, once: true });
+    window.addEventListener(CLOSE_CARDS, close);
     return () => {
       window.removeEventListener('scroll', close);
+      window.removeEventListener(CLOSE_CARDS, close);
     };
   }, [open]);
   const node = reportGraph.node(id);
