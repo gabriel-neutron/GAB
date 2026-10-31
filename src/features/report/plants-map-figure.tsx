@@ -45,9 +45,24 @@ const PRIORITY = [
 ];
 
 export function PlantsMapFigure() {
+  const at = (name: string) => {
+    const p = plants.find((x) => (x['entity'] ?? '').startsWith(name) && x['lat']);
+    return p ? px(Number(p['lon']), Number(p['lat'])) : undefined;
+  };
+  // Two plants in one town (Izhevsk) sit on the same point: the later number moves below left.
+  const near = (i: number) =>
+    LABELS.slice(0, i).some((other) => {
+      const a = at(other),
+        b = at(LABELS[i] ?? '');
+      return a && b && Math.hypot((a[0] ?? 0) - (b[0] ?? 0), (a[1] ?? 0) - (b[1] ?? 0)) < 10;
+    });
   return (
     <figure className="report-chart">
-      <svg viewBox="0 0 640 440" role="img" aria-label="Russian defence plants by main weapon">
+      <svg
+        viewBox="0 0 640 440"
+        role="img"
+        aria-label="Russian defence plants by main weapon; six main plants numbered; hollow points are approximate"
+      >
         <text x={MAP.x} y="12" className="lp-axis">
           defence plants and integrators by main weapon
         </text>
@@ -78,7 +93,11 @@ export function PlantsMapFigure() {
           // Labels go to a list under the map, with a number on the point: the plants sit close together.
           return (
             <g key={name}>
-              <text x={(x ?? 0) + 5} y={(y ?? 0) - 5} className="atlas-num">
+              <text
+                x={(x ?? 0) + (near(i) ? -12 : 5)}
+                y={(y ?? 0) + (near(i) ? 12 : -5)}
+                className="atlas-num"
+              >
                 {i + 1}
               </text>
               <text
