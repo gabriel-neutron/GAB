@@ -111,6 +111,13 @@ each entry gives the number of the row and its values. `vocabulary` gives the wo
       figure is a mirror figure: write `mirror figure reported by the partner`.
     - `flag`: optional, the column of the mark beside a value (`OBS_FLAG` in SDMX-CSV).
     Never map a column of a dataflow name or of an update date.
+    A wide table has the months as columns (`2018-01`, `2018-02`) and the measures as rows, for
+    example a table of revenue with one row for each tax. Do not give `value`, `period`,
+    `reporter`, `partner`, `product`, `subject` or `flag` for it. Give `wide`, `{"rows":
+    [{"position": 1, "measure": "<measure>"}]}`, where `position` is the place of a row under the
+    header, counted from 1, because the labels of the rows repeat under different parents. List
+    only the rows that are figures. Give `unit` as `{"constant": "<unit>"}`, and give `method`.
+    The load reads only the header cells that are months, so it skips the annual total columns.
 17. Do not give an expression, a formula, a confidence or a note.
 
 ## The answer

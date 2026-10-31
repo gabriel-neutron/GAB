@@ -1,6 +1,8 @@
 /** One record of a CSV page: its fields, and where it stands in the page. */
 export interface CsvRecord {
   readonly fields: readonly string[];
+  /** The span of each field, as a pair of code points: a quote of the field is part of it. */
+  readonly cells: readonly (readonly [number, number])[];
   /** The first code point of the record. */
   readonly start: number;
   /** One after the last code point of the record. The line break is not part of it. */
@@ -27,6 +29,8 @@ export const readCsv = (page: string): CsvRecord[] => {
   while (at < points.length) {
     const start = at;
     const fields: string[] = [];
+    const cells: (readonly [number, number])[] = [];
+    let cellStart = at;
     let field = '';
     let quoted = false;
     let ended = false;
@@ -49,8 +53,10 @@ export const readCsv = (page: string): CsvRecord[] => {
         at += 1;
       } else if (point === COMMA) {
         fields.push(field);
+        cells.push([cellStart, at]);
         field = '';
         at += 1;
+        cellStart = at;
       } else if (point === CR || point === LF) {
         ended = true;
       } else {
@@ -63,10 +69,11 @@ export const readCsv = (page: string): CsvRecord[] => {
 
     const end = at;
     fields.push(field);
+    cells.push([cellStart, end]);
     if (points[at] === CR && points[at + 1] === LF) at += 2;
     else if (at < points.length) at += 1;
 
-    if (end > start) records.push({ fields, start, end });
+    if (end > start) records.push({ fields, cells, start, end });
   }
   return records;
 };
@@ -91,8 +98,16 @@ export const readTsv = (page: string): CsvRecord[] => {
     if (points[at] === CR && points[at + 1] === LF) at += 2;
     else if (at < points.length) at += 1;
 
-    if (end > start)
-      records.push({ fields: points.slice(start, end).join('').split(TAB), start, end });
+    if (end > start) {
+      const fields = points.slice(start, end).join('').split(TAB);
+      const cells: (readonly [number, number])[] = [];
+      let from = start;
+      for (const field of fields) {
+        cells.push([from, from + Array.from(field).length]);
+        from += Array.from(field).length + 1;
+      }
+      records.push({ fields, cells, start, end });
+    }
   }
   return records;
 };

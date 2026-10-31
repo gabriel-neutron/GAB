@@ -1,4 +1,4 @@
-import type { ObservationRows } from '@gab/proposal/mapping';
+import { isWideTable, type ObservationRows, type WideRows } from '@gab/proposal/mapping';
 import type { CsvRecord } from '@gab/tools/csv';
 import { z } from 'zod';
 
@@ -154,6 +154,82 @@ export const observationOf = async (
   };
 };
 
+/** One cell of a wide table (ADR 0032): the figure that the door makes of it, or the sentence that
+ * says why the cell is no figure. A cell with nothing in it is not applicable, and it gives
+ * nothing. */
+export type WideCell =
+  | {
+      readonly at: { readonly row: number; readonly start: number; readonly end: number };
+      readonly row: DoorRow;
+      readonly figure: Readonly<Record<string, string>>;
+    }
+  | {
+      readonly at: { readonly row: number; readonly start: number; readonly end: number };
+      readonly refused: string;
+    };
+
+/** The cells of a wide table. Only a header cell that is a month gives a period: the annual totals
+ * give nothing. Code reads the rows by position, and the labels of the rows play no part. */
+export const wideCells = (
+  rows: WideRows,
+  header: readonly string[],
+  records: readonly CsvRecord[],
+  cited: Cited,
+): WideCell[] => {
+  const months = header.flatMap((name, index) => {
+    const period = periodOf(name, 'month');
+    return period === null ? [] : [{ name, index, period }];
+  });
+  const cells: WideCell[] = [];
+  for (const [place, record] of records.entries()) {
+    const position = place + 1;
+    const section = rows.wide.rows.find((one) => one.position === position);
+    if (section === undefined) continue;
+    if (record.fields.length !== header.length) {
+      cells.push({
+        at: { row: position, start: record.start, end: record.end },
+        refused:
+          `the row holds ${String(record.fields.length)} fields, and the header holds ` +
+          String(header.length),
+      });
+      continue;
+    }
+    for (const { name, index, period } of months) {
+      const text = (record.fields[index] ?? '').trim();
+      const span = record.cells[index];
+      if (text === '' || span === undefined) continue;
+      const at = { row: position, start: span[0], end: span[1] };
+      if (text === '-') cells.push({ at, refused: `the source has no data for ${period} ("-")` });
+      else if (!NUMBER.test(text))
+        cells.push({ at, refused: `the value "${text}" is not a number` });
+      else
+        cells.push({
+          at,
+          row: {
+            subject_id: null,
+            text_extractor: cited.textSet,
+            page: cited.page,
+            start: span[0],
+            end: span[1],
+            row_start: record.start,
+            row_end: record.end,
+            position,
+            column: name,
+          },
+          figure: {
+            measure: section.measure,
+            period,
+            reporter: '',
+            partner: '',
+            product: '',
+            value: `${text} ${rows.unit.constant}`,
+          },
+        });
+    }
+  }
+  return cells;
+};
+
 const PUT =
   'SELECT item, outcome, held_value::text AS held FROM public.put_observations($1::uuid, $2::jsonb)';
 
@@ -207,16 +283,13 @@ export const loadObservations = async (
   db: Queryable,
   input: {
     readonly job: string;
-    readonly rows: ObservationRows;
+    readonly rows: ObservationRows | WideRows;
     readonly header: readonly string[];
     readonly records: readonly CsvRecord[];
     readonly cited: Cited;
   },
-): Promise<{ loaded: number; excluded: number; lines: ReportLine[] }> => {
+): Promise<{ loaded: number; excluded: number; lines: ReportLine[]; read: number }> => {
   const { rows, header, records, cited } = input;
-  const areas = await areasOf(db, rows, header, records);
-  const column = new Map(header.map((name, index) => [name, index] as const));
-  const subjectOf = subjectFinder(db, rows, header);
 
   const lines: ReportLine[] = [];
   let loaded = 0;
@@ -259,6 +332,26 @@ export const loadObservations = async (
     }
   };
 
+  // A cell of a wide table is one figure, and its span is the cell. A cell with nothing in it is
+  // not applicable, so it is neither loaded nor excluded.
+  if (isWideTable(rows)) {
+    const cells = wideCells(rows, header, records, cited);
+    for (const cell of cells) {
+      const at: ReportLine = { ...cell.at, page: cited.page, reason: '' };
+      if ('refused' in cell) exclude(at, cell.refused);
+      else {
+        pending.push({ at, row: cell.row });
+        if (pending.length >= BATCH) await put(pending.splice(0));
+      }
+    }
+    await put(pending.splice(0));
+    return { loaded, excluded, lines, read: cells.length };
+  }
+
+  const areas = await areasOf(db, rows, header, records);
+  const column = new Map(header.map((name, index) => [name, index] as const));
+  const subjectOf = subjectFinder(db, rows, header);
+
   for (const [index, record] of records.entries()) {
     const at: ReportLine = {
       row: index + 1,
@@ -285,5 +378,5 @@ export const loadObservations = async (
     if (pending.length >= BATCH) await put(pending.splice(0));
   }
   await put(pending.splice(0));
-  return { loaded, excluded, lines };
+  return { loaded, excluded, lines, read: records.length };
 };

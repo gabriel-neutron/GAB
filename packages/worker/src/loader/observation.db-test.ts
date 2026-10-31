@@ -334,6 +334,85 @@ test('a mapping with no reporter loads figures of the world', async () => {
   });
 });
 
+// A wide table (ADR 0032): the months are columns, and the measures are rows. The labels repeat
+// under different parents, an annual total sits between the months, a negative value is real, an
+// empty cell is not applicable, and "-" is no data. The third row has a quoted label with a comma.
+const WIDE =
+  [
+    'Section,Item,2018-01,2018-02,Total 2018,2018-03',
+    'Total,Revenue,100.5,-3.2,97.3,-',
+    'Oil,Revenue,40,,40,12.5',
+    '"Other, misc",Revenue,7,8,15,9',
+    'Gas,Revenue,1,1,2,1',
+  ].join('\r\n') + '\r\n';
+
+const WIDE_DRAFT = {
+  table: 'revenue',
+  modality: 'asserts',
+  publisher: 'Ministry of Finance',
+  rows: {
+    wide: {
+      rows: [
+        { position: 1, measure: 'revenue_total' },
+        { position: 2, measure: 'revenue_oil' },
+        { position: 3, measure: 'revenue_other' },
+      ],
+    },
+    unit: { constant: 'billion roubles' },
+    method: 'monthly revenue',
+  },
+  relations: [],
+};
+
+test('a wide table loads one figure for each month cell, and each figure cites its cell', async () => {
+  await inTransaction(async (held) => {
+    const { mapping, load } = await mappedFile(held, WIDE_DRAFT, null, WIDE);
+    const dry = await held.asRole('gabriel_agent', () =>
+      dryJoin({ query: async (text, values) => ({ rows: await held.ask(text, values) }) }, mapping),
+    );
+    expect(dry.split('\r\n')[0]).toContain('cells 8; figures 7; to the report 1');
+
+    await runLoad(held, load);
+    const found = z
+      .array(
+        z.object({
+          measure: z.string(),
+          period: z.string(),
+          value: z.string(),
+          unit: z.string(),
+          reporter: z.string().nullable(),
+          passage: z.string(),
+        }),
+      )
+      .parse(
+        await held.ask(
+          `SELECT o.measure, o.period, o.value::text AS value, o.unit, o.reporter,
+                  substr(t.text, o.span_start + 1, o.span_end - o.span_start) AS passage
+             FROM public.observation o
+             JOIN public.document_text t
+               ON (t.document_id, t.extractor, t.page) = (o.document_id, o.text_extractor, o.page)
+            WHERE o.document_id = $1 ORDER BY o.measure, o.period`,
+          [FILE],
+        ),
+      );
+    expect(found.map((one) => [one.measure, one.period, one.value, one.passage])).toStrictEqual([
+      ['revenue_oil', '2018-01', '40', '40'],
+      ['revenue_oil', '2018-03', '12.5', '12.5'],
+      ['revenue_other', '2018-01', '7', '7'],
+      ['revenue_other', '2018-02', '8', '8'],
+      ['revenue_other', '2018-03', '9', '9'],
+      ['revenue_total', '2018-01', '100.5', '100.5'],
+      ['revenue_total', '2018-02', '-3.2', '-3.2'],
+    ]);
+    expect(found.every((one) => one.unit === 'billion roubles' && one.reporter === null)).toBe(
+      true,
+    );
+    const report = reportText(held);
+    expect(report).toContain('read 8; loaded 7; excluded 1');
+    expect(report).toContain('the source has no data for 2018-03');
+  });
+});
+
 // A CSV with a label in quotes that holds a comma and a doubled quote, a quote inside a plain field,
 // and text after a closing quote. The door reads each row with the rules of the table reader, so
 // each label stays one field and a stray quote moves no record start.
