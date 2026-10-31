@@ -66,6 +66,9 @@ research/.claude/worktrees/
 # TanStack Router plugin scratch folder
 .tanstack/
 
+# Wrangler's local state and deployment output
+.wrangler/
+
 # Local plugin files (Motion), not shared
 .claude/agents/motion-reviewer.md
 .claude/skills/motion/

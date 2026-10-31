@@ -14,7 +14,6 @@ detail. Find a decision record with `ls docs/adr`; open one only when a file or 
 | `../design/system/README.md` | Agent | You change a colour, a type style, a component look, the graph or map marks, or the report page. It is the design system: read it, then the README of the component. |
 | [Design and report references](../DESIGN.md) | Operator / Agent | You need the project style or the user's selected layouts, ASCII text idea and image references for a report prototype. |
 | `accessibility.md` | Agent | You change a story, a colour or a control, or you do the manual accessibility check. |
-| `deploy.md` | Agent | You write and publish a release, or point the writer at a remote database. |
 | `authoring.md` | Agent | You write or change a document. |
 | `agents/issue-tracker.md` | Agent | You write to GitHub. |
 | `agents/commit.md` | Agent | You write a commit message. |
