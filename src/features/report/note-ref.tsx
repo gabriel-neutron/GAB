@@ -27,7 +27,9 @@ export function NoteRef({ partSlug, id }: NoteRefProps) {
           type="button"
           aria-label={`${ui.note.label} ${id}`}
           className={cn(
-            'relative ml-0.5 cursor-pointer align-super font-mono text-small/none text-label',
+            // A comma between two markers that follow each other, so "2" and "3" do not read as "23".
+            'note-ref relative ml-0.5 cursor-pointer [&:has(+.note-ref)]:after:content-[","]',
+            'align-super font-mono text-small/none text-label',
             'transition-colors duration-150 hover:text-foreground',
             // A centred 44px box for a finger; it does not move the text.
             'before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-1/2 before:content-[""]',
