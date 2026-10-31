@@ -188,13 +188,16 @@ export const readReleaseRecord = async (
        FROM public.release_documents() ORDER BY id`,
   );
   // A figure of the release names its document, so the document is public (PU1).
-  const observations = await rowsOf(
+  const observed = await rowsOf(
     db,
     observationRow,
     `SELECT id, measure, value::text AS value, unit, period, method, publisher, reporter, partner,
             product, subject_id, licence, document_id, page, span_start, span_end
        FROM public.release_observations() ORDER BY measure, period, reporter, id`,
   );
+  // A figure whose document is not a public document of the release is left out.
+  const publicIds = new Set(documents.map((one) => one.id));
+  const observations = observed.filter((one) => publicIds.has(one.document_id));
   const [said] = await rowsOf(
     db,
     disclaimerRow,
