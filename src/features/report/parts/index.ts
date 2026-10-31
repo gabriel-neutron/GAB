@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { ReportPart } from '../content';
 import { PartDefault } from './part-default';
 import { IntroductionPart } from './introduction';
+import { MethodChronologyPart } from './method-chronology';
 import { SummaryPart } from './summary';
 
 /** The drawing of one part. It receives the part from the content, and renders a section whose
@@ -13,7 +14,7 @@ export type PartComponent = (props: { readonly part: ReportPart }) => ReactNode;
 export const partComponents: Readonly<Record<string, PartComponent>> = {
   summary: SummaryPart,
   introduction: IntroductionPart,
-  'method-chronology': PartDefault,
+  'method-chronology': MethodChronologyPart,
   pay: PartDefault,
   'ports-fleet': PartDefault,
   finance: PartDefault,
