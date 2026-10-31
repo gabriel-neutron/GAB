@@ -23,6 +23,16 @@ import { unreadablePage } from './unreadable-page.ts';
 
 const MAX_TITLE = 500;
 
+// External constraint: SQLSTATE class 22, 23 and P0 is a rule of the record, and its message is
+// the sentence of the rule. Null for every other fault.
+export const toldFault = (fault: unknown): string | null => {
+  if (fault instanceof ToolRefusal) return fault.message;
+  const code = fault instanceof Error && 'code' in fault ? fault.code : undefined;
+  return typeof code === 'string' && /^(?:22|23|P0)/u.test(code) && fault instanceof Error
+    ? fault.message
+    : null;
+};
+
 const LINK = 'SELECT public.fill_document_archive($1, $2, $3) AS outcome';
 
 const linkedRow = z.object({ outcome: z.enum(['filled', 'same', 'other', 'not_fetched']) });
@@ -164,9 +174,13 @@ export const storeArchive = async (
       });
     }
   } catch (fault) {
+    // Only a refusal of a tool or of a rule of the record is a sentence for the client. Any other
+    // fault can name a path or a host, so the operator reads it in the log, as in the server.
+    const told = toldFault(fault);
+    if (told === null) console.error('an archive file was not stored', fault);
     throw new ToolRefusal(
       `${String(stored.length)} of ${String(files.length)} files of archive ${parent.id} are ` +
-        `stored, and the next one failed: ${fault instanceof Error ? fault.message : String(fault)}. ` +
+        `stored, and the next one failed: ${told ?? 'the operator reads the fault in the log'}. ` +
         'Call the tool again to store the rest',
     );
   }

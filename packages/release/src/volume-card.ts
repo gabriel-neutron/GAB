@@ -39,10 +39,15 @@ export const volumeCard = (
   volumes.map((one) => {
     const unit = unitWords(one.unit);
     const amount = (value: number): string => `${String(value)} ${unit}`;
+    // A range with one bound is still a fact of the source, so the card gives that bound.
     const range =
-      one.minimum === null || one.maximum === null
-        ? ''
-        : `, from ${String(one.minimum)} to ${amount(one.maximum)}`;
+      one.minimum !== null && one.maximum !== null
+        ? `, from ${String(one.minimum)} to ${amount(one.maximum)}`
+        : one.minimum !== null
+          ? `, at least ${amount(one.minimum)}`
+          : one.maximum !== null
+            ? `, at most ${amount(one.maximum)}`
+            : '';
     const capacity = one.volumeClass === 'capacity' ? ' A nominal capacity, not a flow.' : '';
     const note = one.note === '' ? '' : ` Note: ${one.note}.`;
     const page = one.page === '' ? '' : `, page ${one.page}`;

@@ -34,6 +34,10 @@ test('an empty page gives no chunk', () => {
   expect(chunkPages([{ page: 1, text: '' }], 4)).toStrictEqual([]);
 });
 
+test('a page of blanks gives no chunk', () => {
+  expect(chunkPages([{ page: 1, text: ' \n\t ' }], 10)).toStrictEqual([]);
+});
+
 test('a cap that is not a whole number above zero throws', () => {
   expect(() => chunkPages([{ page: 1, text: 'a' }], 0)).toThrow(/cap/u);
 });
