@@ -2231,13 +2231,16 @@ export const openingUi = {
     repeat: 'Also on the cover',
     // The method paragraph: "a database of nearly 5,200 entities".
     entities: { value: '5,200', label: 'Entities in the database (approx.)', note: 'S-3' },
-    // Figure 9 of the report: the rouble line of the export panel. Note S-11 gives its source.
+    // Figure 9 of the report: the rouble line of the export panel. It sits under the finding of
+    // note S-11 (2021 and 2025 only), and cites note IV-5 of figure 9, which covers 2019-2025.
     chart: {
       title: 'Exports settled in roubles',
+      label: 'Exports settled in roubles, percentage of export settlements, by year',
       unit: '% of export settlements',
       period: '2019-2025',
-      source: 'Bank of Russia.',
-      note: 'S-11',
+      source: 'Source: Bank of Russia (2026).',
+      finding: 'S-11',
+      note: { part: 'finance', id: 'IV-5' },
       marked: [2021, 2025],
     },
     // Each value is written exactly as in the list item of the same place, with the note of

@@ -51,7 +51,7 @@ export function ReportCover() {
             alt={openingUi.cover.alt}
             decoding="async"
             fetchPriority="high"
-            className="absolute -top-44 h-[25rem] w-full object-cover object-[14%_50%] mix-blend-multiply grayscale contrast-125 md:static md:h-full md:object-[60%_40%] md:grayscale-0 md:contrast-100 lg:object-[50%_64%] lg:[image-rendering:pixelated]"
+            className="absolute -top-28 h-[14rem] w-full object-cover object-[14%_50%] mix-blend-multiply grayscale contrast-125 md:static md:h-full md:object-[60%_40%] md:grayscale-0 md:contrast-100 lg:object-[50%_64%] lg:[image-rendering:pixelated]"
           />
         </picture>
         <div
@@ -62,11 +62,11 @@ export function ReportCover() {
         {/* The scrim. On a phone the art is a band above the words, on the plain ground. */}
         <div
           aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-52 bg-linear-to-b from-background/0 from-40% to-background md:hidden"
+          className="absolute inset-x-0 top-0 h-24 bg-linear-to-b from-background/0 from-40% to-background md:hidden"
         />
         <div
           aria-hidden="true"
-          className="absolute inset-x-0 top-52 bottom-0 bg-background md:hidden"
+          className="absolute inset-x-0 top-24 bottom-0 bg-background md:hidden"
         />
         {/* From below on a tablet, from the left on a wide screen. */}
         <div
@@ -74,7 +74,7 @@ export function ReportCover() {
           className="absolute inset-0 hidden bg-linear-to-t md:block from-background from-50% via-background/80 via-70% to-background/0 lg:bg-linear-to-r lg:from-35% lg:via-background/75 lg:via-60%"
         />
       </div>
-      <div className="mx-auto flex w-full max-w-[1440px] flex-col justify-end px-4 pt-52 pb-5 md:px-8 md:pt-[30svh] md:pb-10 lg:min-h-[var(--report-view,100svh)] lg:px-12 lg:pt-28 lg:pb-12">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col justify-end px-4 pt-24 pb-3 md:px-8 md:pt-[30svh] md:pb-10 lg:min-h-[var(--report-view,100svh)] lg:px-12 lg:pt-28 lg:pb-12">
         <p className={monoLabel}>
           <span>{report.date}</span>
           <span aria-hidden="true"> · </span>
@@ -90,17 +90,17 @@ export function ReportCover() {
             {ui.cover.credit}
           </a>
         </p>
-        <h1 className="mt-3 max-w-[14ch] text-[clamp(2.75rem,9.4vw,8.5rem)] leading-[0.92] tracking-[-0.05em] text-balance md:mt-4">
+        <h1 className="mt-3 max-w-[14ch] text-[clamp(2.5rem,9.4vw,8.5rem)] leading-[0.92] tracking-[-0.05em] text-balance md:mt-4">
           <ScrambleText text={report.title} />
         </h1>
-        <div className="mt-4 grid gap-5 md:mt-6 lg:grid-cols-[1fr_auto] lg:items-end lg:gap-12">
+        <div className="mt-3 grid gap-4 md:mt-6 lg:grid-cols-[1fr_auto] lg:items-end lg:gap-12">
           <div>
             <p className="max-w-[52ch] text-[17px]/[1.45] text-foreground/80 md:text-[19px]/7">
               {report.deck}
             </p>
             <nav
               aria-label={links.label}
-              className="mt-4 flex flex-wrap items-center gap-2 md:mt-6"
+              className="mt-3 flex flex-wrap items-center gap-2 md:mt-6"
             >
               <a href="#summary" className={PRIMARY}>
                 {links.read} <span aria-hidden="true">↓</span>
@@ -116,10 +116,10 @@ export function ReportCover() {
             </nav>
           </div>
           {/* The value and its label on the plain ground, never on the bare art. */}
-          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-end gap-4 border-t border-border pt-4 lg:max-w-[30rem] lg:grid-cols-1 lg:gap-3 lg:border lg:bg-background lg:p-6">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-end gap-4 border-t border-border pt-3 lg:max-w-[30rem] lg:grid-cols-1 lg:gap-3 lg:border lg:bg-background lg:p-6">
             <p
               className={cn(
-                'text-[3.75rem] leading-[0.8] md:text-[clamp(6rem,22vw,10rem)] tracking-[-0.06em] tabular-nums lg:order-2 lg:text-[clamp(7rem,10vw,10rem)]',
+                'text-[2.75rem] leading-[0.8] md:text-[clamp(6rem,22vw,10rem)] tracking-[-0.06em] tabular-nums lg:order-2 lg:text-[clamp(7rem,10vw,10rem)]',
                 accent.text,
               )}
             >
