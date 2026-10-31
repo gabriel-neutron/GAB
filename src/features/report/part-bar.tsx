@@ -19,7 +19,9 @@ const segment = (index: number, current: number): string =>
  * one short line, the number and title over the same segments, so it keeps the reading space. */
 export function PartBar() {
   const bar = useRef<HTMLElement>(null);
-  const fill = useRef<HTMLSpanElement>(null);
+  const fill = useRef<HTMLSpanElement | null>(null);
+  // The progress of the part in view, kept past React so that a new fill span starts with it.
+  const progress = useRef(0);
   const [current, setCurrent] = useState(0);
   const [pointed, setPointed] = useState<number | null>(null);
 
@@ -43,6 +45,7 @@ export function PartBar() {
         box === undefined
           ? 0
           : Math.min(1, Math.max(0, (mark - box.top) / Math.max(1, box.height)));
+      progress.current = inner;
       setCurrent(index);
       fill.current?.style.setProperty('transform', `scaleX(${String(inner)})`);
     };
@@ -103,9 +106,13 @@ export function PartBar() {
                 >
                   {index === current ? (
                     <span
-                      ref={fill}
+                      // On a part change this span mounts after the scroll update, so it reads
+                      // the last progress: the new segment never stays empty.
+                      ref={(node) => {
+                        fill.current = node;
+                        node?.style.setProperty('transform', `scaleX(${String(progress.current)})`);
+                      }}
                       className={cn('absolute inset-0 origin-left', accent.bg)}
-                      style={{ transform: 'scaleX(0)' }}
                     />
                   ) : null}
                 </span>

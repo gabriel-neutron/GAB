@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { financeUi, parts, type ReportPart } from '../../content';
+import { financeUi, parts, ui, type ReportPart } from '../../content';
 import { parseMarks } from '../../marks';
 import { NodeRef } from '../../node-ref';
 import { NoteRef } from '../../note-ref';
@@ -21,9 +21,11 @@ const namedNodes = (text: string): readonly string[] => [
 ];
 
 /** The crossover of the yuan and the rouble at the end of 2023, after the paragraph that names it.
- * Each value is written exactly as in the note. */
-function CurrencyTie() {
+ * Each value is written exactly as in the note, and the source is the citation of the note. */
+function CurrencyTie({ part }: { readonly part: ReportPart }) {
   const { tie } = financeUi;
+  // The citation is the text of the note before its first colon.
+  const source = part.notes.find((note) => note.id === tie.note.id)?.text.split(': ')[0] ?? '';
   return (
     <div className="my-16 border-y border-border py-10 lg:ml-[calc(100%/6)]">
       <p className={monoLabel}>
@@ -31,7 +33,7 @@ function CurrencyTie() {
         <NoteRef partSlug={tie.note.partSlug} id={tie.note.id} />
       </p>
       <dl className="mt-6 grid grid-cols-2">
-        {tie.values.map((one, place) => (
+        {tie.values.map((one) => (
           <div
             key={one.label}
             className="min-w-0 border-l border-border pl-3 first:border-l-0 first:pl-0 md:pl-6"
@@ -41,7 +43,7 @@ function CurrencyTie() {
               className={cn(
                 'mt-2 text-[clamp(3rem,12vw,10rem)] leading-[0.82] tracking-[-0.06em] tabular-nums',
                 // The rouble keeps the accent of figure 9.
-                place === 1 ? accent.text : 'text-foreground',
+                one.label === 'Rouble' ? accent.text : 'text-foreground',
               )}
             >
               {one.value}
@@ -49,6 +51,12 @@ function CurrencyTie() {
           </div>
         ))}
       </dl>
+      {source === '' ? null : (
+        <p className="mt-6 font-mono text-caption text-label">
+          <span className="uppercase">{ui.figure.sources}</span>{' '}
+          <RichText text={source} partSlug={part.slug} />
+        </p>
+      )}
     </div>
   );
 }
@@ -87,7 +95,8 @@ function RelayRow({
   readonly partSlug: string;
 }) {
   const nodes = namedNodes(text);
-  const stamps = financeUi.relays.stamps[index] ?? [];
+  // A threat is not a sanction, so it gets no sanction stamp and no accent.
+  const stamps = (financeUi.relays.stamps[index] ?? []).filter((stamp) => stamp.when !== 'threat');
   return (
     <li className="relative grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-3 gap-y-4 border-b border-border py-8 pl-4 md:grid-cols-[6rem_minmax(0,1fr)] md:gap-x-8 md:pl-6 lg:grid-cols-[6rem_minmax(0,1fr)_15rem]">
       <span
@@ -190,7 +199,8 @@ export function FinancePart({ part }: { readonly part: ReportPart }) {
         </p>
       </Reveal>,
     );
-    if (block.text.includes(`[^${financeUi.tie.note.id}]`)) body.push(<CurrencyTie key="tie" />);
+    if (block.text.includes(`[^${financeUi.tie.note.id}]`))
+      body.push(<CurrencyTie key="tie" part={part} />);
   });
   closeRelays('end');
   return (

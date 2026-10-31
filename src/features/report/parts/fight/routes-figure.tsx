@@ -131,14 +131,19 @@ export function RoutesFigure() {
         <caption>{copy.flowText}</caption>
         <thead>
           <tr>
-            <th scope="col">{copy.flowColumns[0]}</th>
-            <th scope="col">{copy.flowColumns[1]}</th>
+            <th scope="col">{copy.step}</th>
+            {/* shortcut: From and To are not in content.ts, which is in another pull request. */}
+            <th scope="col">From</th>
+            <th scope="col">To</th>
             <th scope="col">{copy.unitChains}</th>
           </tr>
         </thead>
         <tbody>
           {flowLinks.map((link) => (
             <tr key={`${String(link.column)}-${link.from}-${link.to}`}>
+              <td>
+                {copy.flowColumns[link.column]} to {copy.flowColumns[link.column + 1]}
+              </td>
               <td>{link.from}</td>
               <td>{link.to}</td>
               <td>{chainCount(link.value)}</td>

@@ -25,6 +25,14 @@ describe('pay data', () => {
     expect(payData.f4.urals[45]?.y).toBe(92.08);
   });
 
+  it('puts the designation in October 2025', () => {
+    // 22 October 2025: the ring of step 3 marks the Urals value of that month.
+    const month = Math.floor(payData.f4.event);
+    expect(month).toBe(monthIndex('2025-10'));
+    expect(payData.f4.urals[month]?.y).toBe(53.68);
+    expect(payData.f4.last).toBe(monthIndex('2026-09'));
+  });
+
   it('finds where the coalition line goes below the line of China', () => {
     const line = (key: string) => payData.f3a.find((row) => row.key === key)?.points ?? [];
     const cross = crossing(line('Coalition'), line('China'));

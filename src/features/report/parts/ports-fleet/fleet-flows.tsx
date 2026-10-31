@@ -67,7 +67,12 @@ export function FleetFlows() {
             ]
           }
         </p>
-        <div ref={box} role="img" aria-label={panelA?.title}>
+        {/* The bands are one image; the phone list is real text, so it keeps its own roles. */}
+        <div
+          ref={box}
+          role={width >= 640 ? 'img' : undefined}
+          aria-label={width >= 640 ? panelA?.title : undefined}
+        >
           {width === 0 ? (
             <div style={{ height: HEIGHT + TOP }} />
           ) : width < 640 ? (

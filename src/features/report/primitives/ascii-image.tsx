@@ -17,18 +17,22 @@ export function AsciiImage({ src, alt }: { readonly src: string; readonly alt: s
   const box = useRef<HTMLDivElement>(null);
   const near = useInView(box, { once: true, margin: '400px 0px' });
   const [art, setArt] = useState<Art | null>(null);
+  const [failed, setFailed] = useState(false);
 
-  // An adapter: the browser loads and reads the image past React.
-  // shortcut: the art keeps the size of the box at its first draw, redraw on resize if needed.
+  // An adapter: the browser loads and reads the image past React, and a ResizeObserver draws it
+  // again when the box changes size (a resize or a rotation).
   useEffect(() => {
     const node = box.current;
     if (!near || node === null) return undefined;
     let live = true;
+    let loaded = false;
+    let frame = 0;
     const image = new Image();
     image.decoding = 'async';
-    image.onload = () => {
+    const draw = () => {
+      frame = 0;
       const { width, height } = node.getBoundingClientRect();
-      if (!live || width === 0 || height === 0) return;
+      if (!live || !loaded || width === 0 || height === 0) return;
       const cols = Math.max(40, Math.round(width / COLUMN_PX));
       const fontSize = width / cols / GLYPH_WIDTH;
       const rows = Math.ceil(height / fontSize);
@@ -62,14 +66,34 @@ export function AsciiImage({ src, alt }: { readonly src: string; readonly alt: s
           255;
       setArt({ text: asciiRows(luminance, cols).join('\n'), fontSize });
     };
+    const schedule = () => {
+      if (frame === 0) frame = requestAnimationFrame(draw);
+    };
+    const observer = new ResizeObserver(schedule);
+    image.onload = () => {
+      loaded = true;
+      draw();
+      observer.observe(node);
+    };
+    // A failed load leaves an empty box with no image role.
+    image.onerror = () => {
+      if (live) setFailed(true);
+    };
     image.src = src;
     return () => {
       live = false;
+      cancelAnimationFrame(frame);
+      observer.disconnect();
     };
   }, [near, src]);
 
   return (
-    <div ref={box} role="img" aria-label={alt} className="absolute inset-0 overflow-hidden">
+    <div
+      ref={box}
+      role={failed ? undefined : 'img'}
+      aria-label={failed ? undefined : alt}
+      className="absolute inset-0 overflow-hidden"
+    >
       {art === null ? null : (
         <pre
           aria-hidden="true"
