@@ -51,7 +51,8 @@ function RootLayout() {
         >
           Skip to the content
         </a>
-        <div className="relative flex h-svh flex-col overflow-hidden">
+        {/* Clip, not hidden: an anchor jump can scroll a hidden box and push the header out. */}
+        <div className="relative flex h-svh flex-col overflow-clip">
           <SiteHeader
             writerOnline={writerOnline}
             filter={FILTERED_SCREENS.has(path) ? <ScreenQueryField /> : null}

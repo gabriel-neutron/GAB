@@ -56,3 +56,19 @@ the transform and the opacity. The map of the panel loads only when the panel op
 
 The figure components of the paper report stay in this folder for later use by the parts. The
 figure route renders them one by one, with the older report styles.
+
+## Part layouts
+
+Each part has one layout. The layout follows what the reader must learn.
+
+- **summary**: one finding per row on one grid, each with its value, label and note, then the scale of the research. The reader learns the main results and how much evidence is under them.
+- **introduction**: a reading column with the sanctions context in the margin and the three questions. The reader learns that sanctions started before 2022 and what the report asks.
+- **method-chronology**: a field of squares for the critical nodes, the three layers, the three conditions, and a timeline that moves with the scroll. The reader learns what makes a node critical and when the sanctions came.
+- **pay**: an editorial grid with notes in the margin, wide figures, and the price cap as a scroll scene. The reader learns that Asia replaces the volumes of Europe, but at a discount.
+- **ports-fleet**: a sticky map with text cards that change the ports and flows in view, then the traffic and fleet figures. The reader learns where crude leaves Russia and which fleet carries it.
+- **finance**: the settlement currencies as a scroll scene with one step for each year, then the payment relays as a numbered list. The reader learns that the rouble and the yuan replace the dollar and the euro.
+- **fight**: a scroll-driven chain story with a sticky map, then the suppliers in small charts. The reader learns how foreign components reach Russian weapon plants, and who replaced the coalition sellers.
+- **ownership**: the two ownership rules side by side and the ownership chains in layered bands. The reader learns how far a sanction reaches through share chains, and where they stop.
+- **limits**: the limits as a numbered register, then the research leads. The reader learns what the data cannot prove.
+- **conclusion**: prose with one key value across the page, and an end mark. The reader learns the two routes around the sanctions.
+- **annex-method**: a technical sheet, the index of all named nodes, and the way to the notes. The reader learns how each fact was sourced and can find every node.

@@ -16,11 +16,13 @@ interface NodeRefProps {
   readonly id: string;
   /** The words of the reference. The short name of the node when absent. */
   readonly children?: ReactNode;
+  /** The side of the card. Above the words when absent; the index sets it beside its rows. */
+  readonly side?: 'top' | 'right' | 'bottom' | 'left';
 }
 
 /** A reference to a node of the report. Hover or keyboard focus shows a short card; a click or
  * Enter opens the panel. A tap shows the card, and its button opens the panel. */
-export function NodeRef({ id, children }: NodeRefProps) {
+export function NodeRef({ id, children, side = 'top' }: NodeRefProps) {
   const { openNode } = useReport();
   const [open, setOpen] = useState(false);
   const pointer = useRef('');
@@ -29,6 +31,17 @@ export function NodeRef({ id, children }: NodeRefProps) {
   const card = useRef<HTMLDivElement>(null);
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
+  // A scroll moves the reference away from the pointer or the finger, so the card closes.
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = () => {
+      setOpen(false);
+    };
+    window.addEventListener('scroll', close, { passive: true, once: true });
+    return () => {
+      window.removeEventListener('scroll', close);
+    };
+  }, [open]);
   const node = reportGraph.node(id);
   if (node === undefined) return <>{children}</>;
   const relations = reportGraph.relations(id).length;
@@ -91,17 +104,18 @@ export function NodeRef({ id, children }: NodeRefProps) {
           <EntityGlyph
             type={reportGraph.glyph(node.type)}
             size={10}
-            className="mr-1 inline-block align-baseline"
+            // The ink of the text, not the hue of the type: the accent stays the one colour.
+            className="mr-1 inline-block align-baseline text-foreground/55 [&_*]:stroke-current [&_:not([fill=none])]:fill-current"
           />
           {children ?? node.short_label}
         </button>
       </PopoverTrigger>
       <PopoverContent
         ref={card}
-        side="top"
+        side={side}
         onPointerEnter={hold}
         onPointerLeave={release}
-        className="w-72 space-y-2 p-3"
+        className="relative w-72 space-y-2 p-3"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
         }}
@@ -109,14 +123,32 @@ export function NodeRef({ id, children }: NodeRefProps) {
           event.preventDefault();
         }}
       >
-        <p className="text-body-sm text-foreground">{node.name}</p>
+        {/* A touch screen has no hover to leave: the card gets its own close control. */}
+        <button
+          type="button"
+          aria-label={ui.panel.close}
+          onClick={() => {
+            setOpen(false);
+          }}
+          className={cn(
+            'absolute top-0 right-0 hidden size-11 items-center justify-center text-label pointer-coarse:flex',
+            FOCUS,
+          )}
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+        <p className="text-body-sm text-foreground pointer-coarse:pr-8">{node.name}</p>
         <p className="flex items-center gap-1.5 font-mono text-caption uppercase text-label">
           <EntityGlyph type={reportGraph.glyph(node.type)} size={12} />
-          {node.type} · {node.country}
+          {node.type}
+          {node.country === '' ? null : ` · ${node.country}`}
         </p>
         <dl className="grid grid-cols-3 gap-2 border-t border-divider pt-2">
           {[
-            [ui.node.evidence, `${node.evidence_score_0_11} ${ui.node.outOf}`],
+            // A node with no evidence score shows no score field.
+            ...(node.evidence_score_0_11 === ''
+              ? []
+              : [[ui.node.evidence, `${node.evidence_score_0_11} ${ui.node.outOf}`]]),
             [ui.node.relations, relations],
             [ui.node.documents, documents],
           ].map(([term, value]) => (
