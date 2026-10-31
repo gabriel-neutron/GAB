@@ -745,3 +745,27 @@ test('the door refuses a span that is a cut of an element of the data list', asy
     expect(cut.message).toContain('not one element of the data list');
   });
 });
+
+test.each([
+  ['an element with a key twice', '{"data":[{"value":1,"value":2}]}'],
+  ['an element that is no object', '{"data":[{"value":1},2]}'],
+  ['a page with no data list', '{"value":1}'],
+  ['a page that is no JSON', '{"data":'],
+])('the door refuses %s as a fault of the load', async (_name, page) => {
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(
+      held,
+      COMTRADE_DRAFT,
+      'un_comtrade',
+      COMTRADE,
+      'application/json',
+    );
+    // The mapper reads a good page. The stored page then changes, as a damaged store would.
+    await held.ask('UPDATE public.document_text SET text = $2 WHERE document_id = $1', [FILE, page]);
+    await held.asRole('gabriel_agent', () => held.ask('SELECT job_id FROM public.claim_job()'));
+    const fault = await faultOf(
+      putAsAgent(held, load, [{ subject_id: null, text_extractor: TEXT_SET, page: 1, start: 9, end: 20 }]),
+    );
+    expect(fault.code).toBe('22023');
+  });
+});
