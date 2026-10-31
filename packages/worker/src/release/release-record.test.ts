@@ -48,7 +48,7 @@ const db: Queryable = {
         return [{ proposed: 0, confirmed: 0, refused: 0 }];
       return [];
     };
-    return Promise.resolve({ rows: rows() }) as ReturnType<Queryable['query']>;
+    return Promise.resolve({ rows: rows() });
   },
 };
 
