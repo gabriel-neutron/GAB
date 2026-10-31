@@ -10,6 +10,7 @@ import { ErrorNotice } from '@/shared/error-notice';
 import { refreshCorpus } from '@/shared/read/corpus';
 import { ModeToggle } from '@/shared/mode-toggle';
 import { ScreenQueryField, ScreenQueryProvider } from '@/shared/screen-query';
+import { SiteFooter } from '@/shared/site-footer';
 import { SiteHeader } from '@/shared/site-header';
 import { ThemeProvider, useTheme } from '@/shared/theme-provider';
 import { recheckWriter, useWriterOnline } from '@/shared/write/writer-status';
@@ -68,6 +69,7 @@ function RootLayout() {
           <main id="main" tabIndex={-1} className="min-h-0 flex-1 outline-none">
             <Outlet />
           </main>
+          <SiteFooter />
         </div>
       </ScreenQueryProvider>
     </ThemeProvider>

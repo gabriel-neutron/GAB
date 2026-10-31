@@ -50,7 +50,7 @@ test('a cell of names splits into names with their shares', () => {
 const nameTable = (header: string[], rows: string[][]) =>
   nameTableOf({
     header,
-    rows: rows.map((fields) => ({ fields, start: 0, end: 0 })),
+    rows: rows.map((fields) => ({ fields, cells: [], start: 0, end: 0 })),
   });
 
 test('the register check confirms a candidate, and an older table confirms none', () => {

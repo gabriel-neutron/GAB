@@ -1,0 +1,49 @@
+{
+  "elapsedTime": "0.31 secs",
+  "count": 3,
+  "data": [
+    {
+      "typeCode": "C",
+      "freqCode": "A",
+      "period": "2023",
+      "reporterCode": 156,
+      "reporterDesc": "China",
+      "flowCode": "M",
+      "partnerCode": 643,
+      "partnerDesc": "Russian Federation",
+      "cmdCode": "2709",
+      "qty": 1.10,
+      "qtyUnitCode": 8,
+      "qtyUnitAbbr": "kg",
+      "primaryValue": 52000000.5
+    },
+    {
+      "typeCode": "C",
+      "freqCode": "A",
+      "period": "2023",
+      "reporterCode": 156,
+      "reporterDesc": "China",
+      "flowCode": "M",
+      "partnerCode": 643,
+      "partnerDesc": "Russian Federation",
+      "cmdCode": "2711",
+      "qty": null,
+      "qtyUnitCode": -1,
+      "qtyUnitAbbr": "N/A",
+      "primaryValue": 0
+    },
+    {
+      "typeCode": "C",
+      "freqCode": "A",
+      "period": "2023",
+      "reporterCode": 156,
+      "reporterDesc": "China",
+      "flowCode": "M",
+      "partnerCode": 643,
+      "partnerDesc": "Russian Federation",
+      "cmdCode": "2701",
+      "primaryValue": 7
+    }
+  ],
+  "error": ""
+}

@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import type { RawObject } from '@gab/store';
 import { Pool, type PoolClient } from 'pg';
@@ -152,8 +154,14 @@ const storeOf = (held: Held) => ({
   },
 });
 
-const storeFile = async (held: Held, id: string, text: string, day: string): Promise<void> => {
-  await held.ask(PUT, [id, `raw/${id}.csv`, URI, sha256(text), SDMX_CSV, day]);
+const storeFile = async (
+  held: Held,
+  id: string,
+  text: string,
+  day: string,
+  mime: string = SDMX_CSV,
+): Promise<void> => {
+  await held.ask(PUT, [id, `raw/${id}.csv`, URI, sha256(text), mime, day]);
   await held.ask('SELECT public.put_document_text($1, $2::jsonb, $3)', [
     id,
     JSON.stringify([text]),
@@ -176,8 +184,9 @@ const mappedFile = async (
   draft: unknown = DRAFT,
   provider: string | null = 'eurostat',
   text: string = TEXT,
+  mime: string = SDMX_CSV,
 ): Promise<{ mapping: string; load: string }> => {
-  await storeFile(held, FILE, text, '2026-10-25');
+  await storeFile(held, FILE, text, '2026-10-25', mime);
   // fetch_document names the provider of a file of the Eurostat API.
   if (provider !== null)
     await held.ask('SELECT public.fill_document_provider($1, $2)', [FILE, provider]);
@@ -287,6 +296,233 @@ test('a promoted mapping of a Eurostat table loads each row as a figure that cit
         [FILE],
       ),
     ).toStrictEqual([{ acts: 0 }]);
+  });
+});
+
+// A world price has no reporter and no column of areas. Seven rows of the same shape as the Pink
+// Sheet of the World Bank, after the title rows are skipped: a period, then one price.
+const WORLD =
+  ['Period,Crude oil Brent', '2023M01,82.5', '2023M02,83.1', '2023M03,'].join('\r\n') + '\r\n';
+
+test('a mapping with no reporter loads figures of the world', async () => {
+  await inTransaction(async (held) => {
+    const world = {
+      table: 'pink_sheet',
+      modality: 'asserts',
+      publisher: 'World Bank',
+      rows: {
+        measure: 'price_crude_oil_brent',
+        value: { column: 'Crude oil Brent' },
+        unit: { constant: 'USD per barrel' },
+        period: { column: 'Period', length: 'month' },
+        method: 'monthly average price',
+      },
+      relations: [],
+    };
+    const { load } = await mappedFile(held, world, null, WORLD);
+    await runLoad(held, load);
+    expect(
+      await held.ask(
+        `SELECT reporter_system, reporter, period, value::text AS value, licence
+           FROM public.observation WHERE document_id = $1 ORDER BY period`,
+        [FILE],
+      ),
+    ).toStrictEqual(
+      [
+        ['2023-01', '82.5'],
+        ['2023-02', '83.1'],
+      ].map(([period, value]) => ({
+        reporter_system: null,
+        reporter: null,
+        period,
+        value,
+        licence: 'restricted',
+      })),
+    );
+    expect(reportText(held)).toContain('read 3; loaded 2; excluded 1');
+  });
+});
+
+// A wide table (ADR 0032): the months are columns, and the measures are rows. The labels repeat
+// under different parents, an annual total sits between the months, a negative value is real, an
+// empty cell is not applicable, and "-" is no data. The third row has a quoted label with a comma.
+const WIDE =
+  [
+    'Section,Item,2018-01,2018-02,Total 2018,2018-03',
+    'Total,Revenue,100.5,-3.2,97.3,-',
+    'Oil,Revenue,40,,40,12.5',
+    '"Other, misc",Revenue,7,8,15,9',
+    'Gas,Revenue,1,1,2,1',
+  ].join('\r\n') + '\r\n';
+
+const WIDE_DRAFT = {
+  table: 'revenue',
+  modality: 'asserts',
+  publisher: 'Ministry of Finance',
+  rows: {
+    wide: {
+      rows: [
+        { position: 1, measure: 'revenue_total' },
+        { position: 2, measure: 'revenue_oil' },
+        { position: 3, measure: 'revenue_other' },
+      ],
+    },
+    unit: { constant: 'billion roubles' },
+    method: 'monthly revenue',
+  },
+  relations: [],
+};
+
+test('a wide table loads one figure for each month cell, and each figure cites its cell', async () => {
+  await inTransaction(async (held) => {
+    const { mapping, load } = await mappedFile(held, WIDE_DRAFT, null, WIDE);
+    const dry = await held.asRole('gabriel_agent', () =>
+      dryJoin({ query: async (text, values) => ({ rows: await held.ask(text, values) }) }, mapping),
+    );
+    expect(dry.split('\r\n')[0]).toContain('cells 8; figures 7; to the report 1');
+
+    await runLoad(held, load);
+    const found = z
+      .array(
+        z.object({
+          measure: z.string(),
+          period: z.string(),
+          value: z.string(),
+          unit: z.string(),
+          reporter: z.string().nullable(),
+          passage: z.string(),
+        }),
+      )
+      .parse(
+        await held.ask(
+          `SELECT o.measure, o.period, o.value::text AS value, o.unit, o.reporter,
+                  substr(t.text, o.span_start + 1, o.span_end - o.span_start) AS passage
+             FROM public.observation o
+             JOIN public.document_text t
+               ON (t.document_id, t.extractor, t.page) = (o.document_id, o.text_extractor, o.page)
+            WHERE o.document_id = $1 ORDER BY o.measure, o.period`,
+          [FILE],
+        ),
+      );
+    expect(found.map((one) => [one.measure, one.period, one.value, one.passage])).toStrictEqual([
+      ['revenue_oil', '2018-01', '40', '40'],
+      ['revenue_oil', '2018-03', '12.5', '12.5'],
+      ['revenue_other', '2018-01', '7', '7'],
+      ['revenue_other', '2018-02', '8', '8'],
+      ['revenue_other', '2018-03', '9', '9'],
+      ['revenue_total', '2018-01', '100.5', '100.5'],
+      ['revenue_total', '2018-02', '-3.2', '-3.2'],
+    ]);
+    expect(found.every((one) => one.unit === 'billion roubles' && one.reporter === null)).toBe(
+      true,
+    );
+    const report = reportText(held);
+    expect(report).toContain('read 8; loaded 7; excluded 1');
+    expect(report).toContain('the source has no data for 2018-03');
+  });
+});
+
+// The frozen release reads the figures through one function. It gives the figures of an open
+// licence, as the public read does, and none of a restricted licence.
+test.each([
+  ['eurostat', 5],
+  [null, 0],
+] as const)('a release exports the figures of the provider %s: %i', async (provider, count) => {
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(held, DRAFT, provider);
+    await runLoad(held, load);
+    expect(await figuresOf(held)).toHaveLength(5);
+    expect(
+      await held.asRole('gabriel_app', () =>
+        held.ask('SELECT count(*)::int AS shown FROM public.release_observations()'),
+      ),
+    ).toStrictEqual([{ shown: count }]);
+  });
+});
+
+// A cell of a wide table that someone forged: the door reads the cell again from the cited row and
+// the header, and refuses a span that is not the cell of the named column. The second row of the
+// file is 'Oil,Revenue,40,,40,12.5': the 40 of 2018-01 and the 40 of the annual total look alike.
+const OIL = 'Oil,Revenue,40,,40,12.5';
+const OIL_AT = WIDE.indexOf(OIL);
+const OIL_ROW = { row_start: OIL_AT, row_end: OIL_AT + OIL.length };
+const MONTH_CELL = { start: OIL_AT + 'Oil,Revenue,'.length, end: OIL_AT + 'Oil,Revenue,40'.length };
+const TOTAL_CELL = {
+  start: OIL_AT + 'Oil,Revenue,40,,'.length,
+  end: OIL_AT + 'Oil,Revenue,40,,40'.length,
+};
+const WIDE_CELL = {
+  subject_id: null,
+  text_extractor: TEXT_SET,
+  page: 1,
+  position: 2,
+  column: '2018-01',
+  ...OIL_ROW,
+  ...MONTH_CELL,
+};
+
+const FORGED: readonly (readonly [string, Record<string, unknown>, RegExp])[] = [
+  ['a span moved to another column with the same text', TOTAL_CELL, /not the cell of the column/u],
+  ['a span that takes the comma before the cell', { start: MONTH_CELL.start - 1 }, /not the cell/u],
+  ['a wrong position', { position: 3 }, /at position 2, and the row cites position 3/u],
+  ['a position that the mapping does not read', { position: 4 }, /at position 2/u],
+  ['a wrong header name', { column: '2018-09' }, /no month of the header/u],
+  ['the annual total column', { column: 'Total 2018', ...TOTAL_CELL }, /no month of the header/u],
+  ['a span outside the row', { start: 0, end: 7 }, /outside the row/u],
+];
+
+const wideJob = async (held: Held, provider: string | null = null): Promise<string> => {
+  const { load } = await mappedFile(held, WIDE_DRAFT, provider, WIDE);
+  const claimed = await held.asRole('gabriel_agent', () =>
+    held.ask('SELECT job_id::text AS id FROM public.claim_job()'),
+  );
+  expect(claimed).toStrictEqual([{ id: load }]);
+  return load;
+};
+
+test('the door writes the cell of a wide table when the cell is the one that it names', async () => {
+  await inTransaction(async (held) => {
+    const job = await wideJob(held);
+    expect(await putAsAgent(held, job, [WIDE_CELL])).toStrictEqual([
+      { item: 1, outcome: 'written' },
+    ]);
+  });
+});
+
+test.each(FORGED)('the door refuses %s as a fault of one row', async (_name, change, sentence) => {
+  await inTransaction(async (held) => {
+    const job = await wideJob(held);
+    const fault = await faultOf(putAsAgent(held, job, [{ ...WIDE_CELL, ...change }]));
+    expect(fault.code).toBe('22000');
+    expect(fault.message).toMatch(sentence);
+  });
+});
+
+test('a figure with no reporter and a reporter system is refused by the table', async () => {
+  await inTransaction(async (held) => {
+    const job = await wideJob(held);
+    await putAsAgent(held, job, [WIDE_CELL]);
+    await held.ask('SAVEPOINT pair');
+    const fault = await faultOf(
+      held.client.query("UPDATE public.observation SET reporter_system = 'iso3166'"),
+    );
+    expect(fault.code).toBe('23514');
+    expect(fault.message).toMatch(/observation_reporter_pair/u);
+    await held.ask('ROLLBACK TO pair');
+  });
+});
+
+test('a release does not give a subject that the public read hides', async () => {
+  await inTransaction(async (held) => {
+    const job = await wideJob(held, 'eurostat');
+    await putAsAgent(held, job, [WIDE_CELL]);
+    // A subject has no foreign key. An entity that api.entity does not show reads as no subject.
+    await held.ask('UPDATE public.observation SET subject_id = gen_random_uuid()');
+    expect(
+      await held.asRole('gabriel_app', () =>
+        held.ask('SELECT subject_id FROM public.release_observations()'),
+      ),
+    ).toStrictEqual([{ subject_id: null }]);
   });
 });
 
@@ -622,3 +858,170 @@ test('a licence word opens a figure exactly when it opens a document, and the li
       });
   });
 });
+
+// A stored answer of UN Comtrade (JSON), as the key-free API gave it: the codes are numbers.
+const COMTRADE = readFileSync(
+  join(import.meta.dirname, '../../../tools/fixtures/comtrade-answer.json'),
+  'utf8',
+);
+
+const COMTRADE_DRAFT = {
+  table: 'comtrade',
+  modality: 'asserts',
+  publisher: 'UN Comtrade',
+  rows: {
+    measure: 'imports_goods',
+    value: { column: 'primaryValue' },
+    unit: { column: 'qtyUnitAbbr' },
+    period: { column: 'period', length: 'year' },
+    reporter: { column: 'reporterCode', codes: 'm49' },
+    partner: { column: 'partnerCode', codes: 'm49' },
+    product: { column: 'cmdCode', system: 'hs' },
+    method: 'imports reported by the importer',
+  },
+  relations: [],
+};
+
+test('a stored Comtrade JSON answer is mapped, shows a dry run, loads once and stays restricted', async () => {
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(
+      held,
+      COMTRADE_DRAFT,
+      'un_comtrade',
+      COMTRADE,
+      'application/json',
+    );
+    const mapping = await held.idOf('SELECT mapping::text AS id FROM public.jobs WHERE id = $1', [
+      load,
+    ]);
+    const dry = await held.asRole('gabriel_agent', () =>
+      dryJoin({ query: async (text, values) => ({ rows: await held.ask(text, values) }) }, mapping),
+    );
+    expect(dry.split('\r\n')[0]).toContain('rows 3; figures 2; to the report 1');
+
+    await runLoad(held, load);
+    const figures = await figuresOf(held);
+    expect(figures.map(({ product, value, unit }) => [product, value, unit])).toStrictEqual([
+      ['2709', '52000000.5', 'kg'],
+      ['2711', '0', 'N/A'],
+    ]);
+    // The cited passage is the element of the stored answer, and its licence stays restricted.
+    expect(figures.every(({ licence }) => licence === 'restricted')).toBe(true);
+    expect(figures[0]?.passage).toMatch(/^\{[^]*"cmdCode": "2709"[^]*\}$/u);
+    expect(reportText(held)).toContain('read 3; loaded 2; excluded 1; dropped 0');
+  });
+});
+
+// The span of the element of the data list that holds a text, as the loader gives it. The file is
+// ASCII, so a code point is one UTF-16 unit.
+const elementOf = (inside: string) => {
+  const at = COMTRADE.indexOf(inside);
+  const start = COMTRADE.lastIndexOf('{', at);
+  return {
+    subject_id: null,
+    text_extractor: TEXT_SET,
+    page: 1,
+    start,
+    end: COMTRADE.indexOf('}', at) + 1,
+  };
+};
+
+test('a second load of a Comtrade element adds no row, and a span that is no element is refused', async () => {
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(
+      held,
+      COMTRADE_DRAFT,
+      'un_comtrade',
+      COMTRADE,
+      'application/json',
+    );
+    const claimed = await held.asRole('gabriel_agent', () =>
+      held.ask('SELECT job_id::text AS id FROM public.claim_job()'),
+    );
+    expect(claimed).toStrictEqual([{ id: load }]);
+
+    const row = elementOf('"cmdCode": "2709"');
+    expect(await putAsAgent(held, load, [row])).toStrictEqual([{ item: 1, outcome: 'written' }]);
+    expect(await putAsAgent(held, load, [row])).toStrictEqual([{ item: 1, outcome: 'held' }]);
+    expect(await held.ask('SELECT count(*)::int AS n FROM public.observation')).toStrictEqual([
+      { n: 1 },
+    ]);
+
+    // The element with a missing unit gives no figure, and the empty cell is not a zero.
+    const missing = await faultOf(putAsAgent(held, load, [elementOf('"cmdCode": "2701"')]));
+    expect(missing).toMatchObject({ code: '22000', message: 'row 1: the unit is empty' });
+  });
+});
+
+test('the door refuses a span that is a cut of an element of the data list', async () => {
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(
+      held,
+      COMTRADE_DRAFT,
+      'un_comtrade',
+      COMTRADE,
+      'application/json',
+    );
+    await held.asRole('gabriel_agent', () => held.ask('SELECT job_id FROM public.claim_job()'));
+    const row = elementOf('"cmdCode": "2709"');
+    const cut = await faultOf(putAsAgent(held, load, [{ ...row, start: row.start + 1 }]));
+    expect(cut).toMatchObject({ code: '22000' });
+    expect(cut.message).toContain('not one element of the data list');
+  });
+});
+
+test.each([
+  ['an element with a key twice', '{"data":[{"value":1,"value":2}]}'],
+  ['an element that is no object', '{"data":[{"value":1},2]}'],
+  ['a page with no data list', '{"value":1}'],
+  ['a page that is no JSON', '{"data":'],
+])('the door refuses %s as a fault of the load', async (_name, page) => {
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(
+      held,
+      COMTRADE_DRAFT,
+      'un_comtrade',
+      COMTRADE,
+      'application/json',
+    );
+    // The mapper reads a good page. The stored page then changes, as a damaged store would.
+    await held.ask('UPDATE public.document_text SET text = $2 WHERE document_id = $1', [
+      FILE,
+      page,
+    ]);
+    await held.asRole('gabriel_agent', () => held.ask('SELECT job_id FROM public.claim_job()'));
+    const fault = await faultOf(
+      putAsAgent(held, load, [
+        { subject_id: null, text_extractor: TEXT_SET, page: 1, start: 9, end: 20 },
+      ]),
+    );
+    expect(fault.code).toBe('22023');
+  });
+});
+
+test.each([
+  ['156', 'iso3166', 'CN'],
+  ['643', 'iso3166', 'RU'],
+  ['251', 'iso3166', 'FR'],
+  ['842', 'iso3166', 'US'],
+  ['412', 'iso3166', 'XK'],
+  ['0', 'group', 'WORLD'],
+  ['899', 'group', 'OTHER'],
+])('the M49 code %s of UN Comtrade is the area %s %s', async (cell, system, code) => {
+  const { rows } = await pool.query('SELECT area_system, area_code FROM public.area_of($1, $2)', [
+    'm49',
+    cell,
+  ]);
+  expect(rows).toStrictEqual([{ area_system: system, area_code: code }]);
+});
+
+test.each(['97', '490', '250', '99999', 'CN'])(
+  'the M49 code %s gives no area, so its row goes to the report',
+  async (cell) => {
+    const { rows } = await pool.query('SELECT area_system FROM public.area_of($1, $2)', [
+      'm49',
+      cell,
+    ]);
+    expect(rows).toStrictEqual([]);
+  },
+);

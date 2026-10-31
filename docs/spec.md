@@ -117,6 +117,8 @@ a file → one ingestion door (P6) → raw store + document record + text
 every unit → the decision rules (S3) → accepted, rejected, waits, or the review queue
 the queue  → the operator promotes or rejects (P1) → entities and relations
 a table of figures → its promoted mapping → code writes each figure, with no act per row (ADR 0030)
+                     (a wide table gives one figure for each month cell: ADR 0032)
+the frozen release → the figures with an open licence, as the public read shows them
 ```
 
 - **Transactions:** a promotion writes the target and marks the proposal accepted in one

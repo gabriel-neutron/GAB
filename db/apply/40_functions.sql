@@ -5840,6 +5840,16 @@ DECLARE
   v_quotes     boolean;
   v_starts     int[];
   v_ix         int;
+  v_wide       boolean;
+  v_measure    text;
+  v_cstart     int;
+  v_cend       int;
+  v_pos        int;
+  v_col        int;
+  v_celltext   text;
+  v_json       boolean;
+  v_members    jsonb;
+  v_data       json;
 BEGIN
   SELECT j.document_id, p.payload, p.id, coalesce(v.licence, 'restricted'),
          coalesce(v.name, p.payload->>'publisher', p.payload->>'table'),
@@ -5857,7 +5867,9 @@ BEGIN
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
   v_rows := v_mapping->'rows';
-  IF NOT v_rows ? 'measure' THEN
+  -- A wide table (ADR 0032) has the months as columns: each cell under a month header is a figure.
+  v_wide := v_rows ? 'wide';
+  IF NOT (v_rows ? 'measure' OR v_wide) THEN
     RAISE EXCEPTION 'the mapping of job % maps no observation', p_job
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
@@ -5880,6 +5892,10 @@ BEGIN
   -- of the document decides.
   v_tab := v_set NOT LIKE 'xlsx-1|%' AND v_set NOT LIKE 'geojson-1|%'
            AND v_mime = 'text/tab-separated-values';
+  -- A JSON answer with a `data` list of objects (UN Comtrade) is a table of one row for each
+  -- element. The type of the document decides, as it does for a TSV.
+  v_json := v_set NOT LIKE 'xlsx-1|%' AND v_set NOT LIKE 'geojson-1|%'
+            AND (v_mime = 'application/json' OR v_mime LIKE '%+json');
 
   FOR v_row IN SELECT value FROM jsonb_array_elements(p_rows) LOOP
     v_no := v_no + 1;
@@ -5891,6 +5907,21 @@ BEGIN
     END IF;
     v_start := (v_row->>'start')::int;
     v_end := (v_row->>'end')::int;
+    -- A figure of a wide table cites its cell. The row that holds the cell is the record that the
+    -- door reads.
+    IF v_wide THEN
+      IF NOT (coalesce(pg_input_is_valid(v_row->>'row_start', 'int'), false)
+              AND coalesce(pg_input_is_valid(v_row->>'row_end', 'int'), false)
+              AND coalesce(pg_input_is_valid(v_row->>'position', 'int'), false)) THEN
+        RAISE EXCEPTION 'row %: the row start, the row end and the position are whole numbers',
+          v_no USING ERRCODE = 'data_exception';
+      END IF;
+      v_cstart := v_start;
+      v_cend := v_end;
+      v_start := (v_row->>'row_start')::int;
+      v_end := (v_row->>'row_end')::int;
+      v_pos := (v_row->>'position')::int;
+    END IF;
     IF v_row->>'text_extractor' IS DISTINCT FROM v_set THEN
       RAISE EXCEPTION 'the rows of job % cite the text set %, which the load reads', p_job, v_set
         USING ERRCODE = 'invalid_parameter_value';
@@ -5917,7 +5948,8 @@ BEGIN
       -- quote opens a field only at its start, a doubled quote is a quote, a closing quote is
       -- never the first of a doubled quote, and the text after a closing quote stays in the field. The expression of one record is matched in C, so the
       -- page is read once for each batch.
-      v_quotes := NOT v_tab AND strpos(v_text, '"') > 0;
+      -- A wide table needs the record starts, to count the position of a row.
+      v_quotes := NOT v_tab AND NOT v_json AND (v_wide OR strpos(v_text, '"') > 0);
       v_starts := NULL;
       v_ix := 1;
       IF v_quotes THEN
@@ -5931,8 +5963,47 @@ BEGIN
                    '(?:\r\n|\r|\n|$))', 'g') WITH ORDINALITY AS r(m, n)
            ORDER BY r.n);
       END IF;
-      -- Origin of the number: decided, not calibrated. A header is far shorter.
-      v_header := public.table_record(left(v_text, 100000), v_tab, false);
+      IF v_json THEN
+        -- The page must be what the reader of the tools reads: a JSON object with a `data` list of
+        -- objects, each with distinct keys that are not blank. A page that is not one is a fault
+        -- of the load.
+        IF NOT pg_input_is_valid(regexp_replace(v_text, '^﻿', ''), 'json')
+           OR json_typeof(regexp_replace(v_text, '^﻿', '')::json) IS DISTINCT FROM 'object'
+           OR json_typeof(regexp_replace(v_text, '^﻿', '')::json -> 'data')
+              IS DISTINCT FROM 'array' THEN
+          RAISE EXCEPTION 'page % of document % is not an answer with a data list of objects',
+            v_row->>'page', v_document
+            USING ERRCODE = 'invalid_parameter_value';
+        END IF;
+        v_data := regexp_replace(v_text, '^﻿', '')::json -> 'data';
+        IF EXISTS (
+          SELECT 1 FROM json_array_elements(v_data) AS a(el)
+           WHERE json_typeof(a.el) <> 'object'
+              OR (SELECT count(*) <> count(DISTINCT e.key) OR bool_or(btrim(e.key) = '')
+                    FROM json_each_text(a.el) AS e(key, value))) THEN
+          RAISE EXCEPTION 'page % of document % holds an element that is no object, or a key that is blank or twice in one element',
+            v_row->>'page', v_document
+            USING ERRCODE = 'invalid_parameter_value';
+        END IF;
+        -- The columns are the keys of the elements of the list, in the order of the first element
+        -- that holds each key: the order of the reader of the tools. The type json keeps the
+        -- order of the keys and the text of each element. Shortcut: the whole page is read for
+        -- each batch, so upgrade this when a page of figures is slow to load.
+        v_header := ARRAY(
+          SELECT s.k FROM (
+            SELECT e.key AS k, min(a.n::numeric * 100000000 + e.n) AS first_at
+              FROM json_array_elements(v_data) WITH ORDINALITY AS a(el, n)
+              CROSS JOIN LATERAL json_each_text(
+                CASE WHEN json_typeof(a.el) = 'object' THEN a.el END) WITH ORDINALITY AS e(key, value, n)
+             GROUP BY e.key) s
+           ORDER BY s.first_at);
+        -- A span of a JSON page is the text of one element of the list, and no other text.
+        v_members := (SELECT coalesce(jsonb_object_agg(md5(a.el::text), true), '{}'::jsonb)
+                        FROM json_array_elements(v_data) AS a(el));
+      ELSE
+        -- Origin of the number: decided, not calibrated. A header is far shorter.
+        v_header := public.table_record(left(v_text, 100000), v_tab, false);
+      END IF;
       -- The signature of the header is the one that the loader and the mapping compute: the
       -- SHA-256 of the JSON array of the trimmed names.
       IF v_header IS NULL OR '' = ANY (v_header)
@@ -5953,7 +6024,10 @@ BEGIN
     END IF;
     -- The span starts at the start of a line and ends at the end of a line, so it never cuts a
     -- field. A page starts with a mark of byte order, which is no part of a record.
-    IF v_bytes IS NULL THEN
+    IF v_json THEN
+      v_before := '';
+      v_after := '';
+    ELSIF v_bytes IS NULL THEN
       v_before := CASE WHEN v_start = 0 THEN '' ELSE substr(v_text, v_start, 1) END;
       v_after := substr(v_text, v_end + 1, 1);
     ELSE
@@ -5983,86 +6057,172 @@ BEGIN
     v_span := CASE WHEN v_bytes IS NULL THEN substr(v_text, v_start + 1, v_end - v_start)
                    ELSE convert_from(substring(v_bytes FROM v_start + 1 FOR v_end - v_start),
                                      'UTF8') END;
-    v_fields := public.table_record(v_span, v_tab, true);
+    IF v_json THEN
+      IF NOT (v_members ? md5(v_span)) THEN
+        RAISE EXCEPTION 'row %: the span is not one element of the data list', v_no
+          USING ERRCODE = 'data_exception';
+      END IF;
+      -- A null and a missing key give an empty cell, never a zero.
+      v_fields := ARRAY(
+        SELECT coalesce((SELECT e.value FROM json_each_text(v_span::json) AS e(key, value)
+                          WHERE e.key = h.name LIMIT 1), '')
+          FROM unnest(v_header) WITH ORDINALITY AS h(name, n) ORDER BY h.n);
+    ELSE
+      v_fields := public.table_record(v_span, v_tab, true);
+    END IF;
     IF v_fields IS NULL OR cardinality(v_fields) <> cardinality(v_header) THEN
       RAISE EXCEPTION 'row %: the span is not one record with the fields of the header', v_no
         USING ERRCODE = 'data_exception';
     END IF;
 
-    v_cell := v_fields[array_position(v_header, v_rows->'value'->>'column')];
-    -- The number form of the loader: digits, a point and an exponent, and no NaN or Infinity.
-    IF coalesce(v_cell, '') !~ '^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?$'
-       OR NOT pg_input_is_valid(v_cell, 'numeric') THEN
-      RAISE EXCEPTION 'row %: the value "%" is not a number', v_no, coalesce(v_cell, '')
-        USING ERRCODE = 'data_exception';
-    END IF;
-    v_value := v_cell::numeric;
-
-    v_unit := coalesce(v_rows->'unit'->>'constant',
-                       v_fields[array_position(v_header, v_rows->'unit'->>'column')]);
-    IF coalesce(v_unit, '') = '' THEN
-      RAISE EXCEPTION 'row %: the unit is empty', v_no USING ERRCODE = 'data_exception';
-    END IF;
-
-    v_cell := coalesce(v_fields[array_position(v_header, v_rows->'period'->>'column')], '');
-    v_period := CASE v_rows->'period'->>'length'
-      WHEN 'year' THEN substring(v_cell FROM '^([0-9]{4})$')
-      WHEN 'quarter' THEN substring(v_cell FROM '^([0-9]{4}-Q[1-4])$')
-      WHEN 'week' THEN substring(v_cell FROM '^([0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3]))$')
-      WHEN 'month' THEN coalesce(substring(v_cell FROM '^([0-9]{4}-(0[1-9]|1[0-2]))$'),
-                                 regexp_replace(substring(v_cell FROM '^([0-9]{4}M?(0[1-9]|1[0-2]))$'),
-                                                '^([0-9]{4})M?', '\1-'))
-    END;
-    IF v_period IS NULL THEN
-      RAISE EXCEPTION 'row %: "%" is not a period of one %', v_no, v_cell,
-        v_rows->'period'->>'length'
-        USING ERRCODE = 'data_exception';
-    END IF;
-
-    v_cell := v_fields[array_position(v_header, v_rows->'reporter'->>'column')];
-    SELECT a.area_system, a.area_code INTO v_rep_sys, v_rep_code
-      FROM public.area_of(v_rows->'reporter'->>'codes', v_cell) a;
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'row %: the reporter "%" is not a code of the area list', v_no,
-        coalesce(v_cell, '')
-        USING ERRCODE = 'data_exception';
-    END IF;
-    v_par_sys := NULL;
-    v_par_code := NULL;
-    IF v_rows ? 'partner' THEN
-      v_cell := v_fields[array_position(v_header, v_rows->'partner'->>'column')];
-      SELECT a.area_system, a.area_code INTO v_par_sys, v_par_code
-        FROM public.area_of(v_rows->'partner'->>'codes', v_cell) a;
+    IF v_wide THEN
+      -- The position of the row is its place among the records under the header, and the measure
+      -- is the one that the mapping gives to that place.
+      IF v_ix - 1 <> v_pos THEN
+        RAISE EXCEPTION 'row %: the record is at position %, and the row cites position %', v_no,
+          v_ix - 1, v_pos USING ERRCODE = 'data_exception';
+      END IF;
+      SELECT r->>'measure' INTO v_measure
+        FROM jsonb_array_elements(v_rows->'wide'->'rows') AS r
+       WHERE (r->>'position')::int = v_pos;
       IF NOT FOUND THEN
-        RAISE EXCEPTION 'row %: the partner "%" is not a code of the area list', v_no,
-          coalesce(v_cell, '')
+        RAISE EXCEPTION 'row %: the mapping reads no row at position %', v_no, v_pos
           USING ERRCODE = 'data_exception';
       END IF;
-    END IF;
-    v_product := NULL;
-    IF v_rows ? 'product' THEN
-      v_product := v_fields[array_position(v_header, v_rows->'product'->>'column')];
-      IF coalesce(v_product, '') = '' THEN
-        RAISE EXCEPTION 'row %: the product is empty', v_no USING ERRCODE = 'data_exception';
+      -- Only a header cell that is a month is a period: an annual total is no figure.
+      v_col := array_position(v_header, v_row->>'column');
+      v_cell := coalesce(v_row->>'column', '');
+      v_period := coalesce(substring(v_cell FROM '^([0-9]{4}-(0[1-9]|1[0-2]))$'),
+                           regexp_replace(substring(v_cell FROM '^([0-9]{4}M?(0[1-9]|1[0-2]))$'),
+                                          '^([0-9]{4})M?', '\1-'));
+      IF v_col IS NULL OR v_period IS NULL THEN
+        RAISE EXCEPTION 'row %: the column "%" is no month of the header', v_no, v_cell
+          USING ERRCODE = 'data_exception';
       END IF;
-    END IF;
-    v_flag := CASE WHEN v_rows ? 'flag'
-                   THEN nullif(v_fields[array_position(v_header, v_rows->>'flag')], '') END;
+      v_cell := v_fields[v_col];
+      IF coalesce(v_cell, '') !~ '^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?$'
+         OR NOT pg_input_is_valid(v_cell, 'numeric') THEN
+        RAISE EXCEPTION 'row %: the value "%" is not a number', v_no, coalesce(v_cell, '')
+          USING ERRCODE = 'data_exception';
+      END IF;
+      v_value := v_cell::numeric;
+      -- The cited span is the cell: it lies in the row, it holds the text of the field, and the
+      -- fields before it are the fields before that column.
+      IF v_cstart < v_start OR v_cstart >= v_cend OR v_cend > v_end THEN
+        RAISE EXCEPTION 'row %: the span of the cell lies outside the row', v_no
+          USING ERRCODE = 'data_exception';
+      END IF;
+      -- Strict: the span is the text of the field, and only the quotes of the CSV rule are removed
+      -- (a doubled quote is one quote). The white space around the field is outside the span.
+      v_celltext := CASE WHEN v_bytes IS NULL THEN substr(v_text, v_cstart + 1, v_cend - v_cstart)
+                         ELSE convert_from(substring(v_bytes FROM v_cstart + 1
+                                                     FOR v_cend - v_cstart), 'UTF8') END;
+      IF v_celltext ~ '^".*"$' AND char_length(v_celltext) >= 2 THEN
+        v_celltext := replace(substr(v_celltext, 2, char_length(v_celltext) - 2), '""', '"');
+      END IF;
+      IF v_celltext IS DISTINCT FROM v_cell
+         OR cardinality(public.table_record(
+              CASE WHEN v_bytes IS NULL THEN substr(v_text, v_start + 1, v_cstart - v_start)
+                   ELSE convert_from(substring(v_bytes FROM v_start + 1 FOR v_cstart - v_start),
+                                     'UTF8') END || 'x', v_tab, true)) <> v_col THEN
+        RAISE EXCEPTION 'row %: the span of the cell is not the cell of the column "%"', v_no,
+          v_row->>'column' USING ERRCODE = 'data_exception';
+      END IF;
+      -- The figure cites the cell, not the row.
+      v_start := v_cstart;
+      v_end := v_cend;
+      v_unit := v_rows->'unit'->>'constant';
+      v_rep_sys := NULL;
+      v_rep_code := NULL;
+      v_par_sys := NULL;
+      v_par_code := NULL;
+      v_product := NULL;
+      v_flag := NULL;
+      v_subject := NULL;
+    ELSE
+      v_measure := v_rows->>'measure';
+      v_cell := v_fields[array_position(v_header, v_rows->'value'->>'column')];
+      -- The number form of the loader: digits, a point and an exponent, and no NaN or Infinity.
+      IF coalesce(v_cell, '') !~ '^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?$'
+         OR NOT pg_input_is_valid(v_cell, 'numeric') THEN
+        RAISE EXCEPTION 'row %: the value "%" is not a number', v_no, coalesce(v_cell, '')
+          USING ERRCODE = 'data_exception';
+      END IF;
+      v_value := v_cell::numeric;
 
-    v_subject := NULL;
-    IF v_rows ? 'subject' THEN
-      IF NOT coalesce(pg_input_is_valid(v_row->>'subject_id', 'uuid'), false)
-         OR NOT EXISTS (SELECT 1 FROM public.entities e WHERE e.id = (v_row->>'subject_id')::uuid) THEN
-        RAISE EXCEPTION 'row %: the subject is no entity of the record', v_no
+      v_unit := coalesce(v_rows->'unit'->>'constant',
+                         v_fields[array_position(v_header, v_rows->'unit'->>'column')]);
+      IF coalesce(v_unit, '') = '' THEN
+        RAISE EXCEPTION 'row %: the unit is empty', v_no USING ERRCODE = 'data_exception';
+      END IF;
+
+      v_cell := coalesce(v_fields[array_position(v_header, v_rows->'period'->>'column')], '');
+      v_period := CASE v_rows->'period'->>'length'
+        WHEN 'year' THEN substring(v_cell FROM '^([0-9]{4})$')
+        WHEN 'quarter' THEN substring(v_cell FROM '^([0-9]{4}-Q[1-4])$')
+        WHEN 'week' THEN substring(v_cell FROM '^([0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3]))$')
+        WHEN 'month' THEN coalesce(substring(v_cell FROM '^([0-9]{4}-(0[1-9]|1[0-2]))$'),
+                                   regexp_replace(substring(v_cell FROM '^([0-9]{4}M?(0[1-9]|1[0-2]))$'),
+                                                  '^([0-9]{4})M?', '\1-'))
+      END;
+      IF v_period IS NULL THEN
+        RAISE EXCEPTION 'row %: "%" is not a period of one %', v_no, v_cell,
+          v_rows->'period'->>'length'
           USING ERRCODE = 'data_exception';
       END IF;
-      v_subject := (v_row->>'subject_id')::uuid;
+
+      -- A mapping with no reporter gives figures of the world: the reporter is null.
+      v_rep_sys := NULL;
+      v_rep_code := NULL;
+      IF v_rows ? 'reporter' THEN
+        v_cell := v_fields[array_position(v_header, v_rows->'reporter'->>'column')];
+        SELECT a.area_system, a.area_code INTO v_rep_sys, v_rep_code
+          FROM public.area_of(v_rows->'reporter'->>'codes', v_cell) a;
+        IF NOT FOUND THEN
+          RAISE EXCEPTION 'row %: the reporter "%" is not a code of the area list', v_no,
+            coalesce(v_cell, '')
+            USING ERRCODE = 'data_exception';
+        END IF;
+      END IF;
+      v_par_sys := NULL;
+      v_par_code := NULL;
+      IF v_rows ? 'partner' THEN
+        v_cell := v_fields[array_position(v_header, v_rows->'partner'->>'column')];
+        SELECT a.area_system, a.area_code INTO v_par_sys, v_par_code
+          FROM public.area_of(v_rows->'partner'->>'codes', v_cell) a;
+        IF NOT FOUND THEN
+          RAISE EXCEPTION 'row %: the partner "%" is not a code of the area list', v_no,
+            coalesce(v_cell, '')
+            USING ERRCODE = 'data_exception';
+        END IF;
+      END IF;
+      v_product := NULL;
+      IF v_rows ? 'product' THEN
+        v_product := v_fields[array_position(v_header, v_rows->'product'->>'column')];
+        IF coalesce(v_product, '') = '' THEN
+          RAISE EXCEPTION 'row %: the product is empty', v_no USING ERRCODE = 'data_exception';
+        END IF;
+      END IF;
+      v_flag := CASE WHEN v_rows ? 'flag'
+                     THEN nullif(v_fields[array_position(v_header, v_rows->>'flag')], '') END;
+
+      v_subject := NULL;
+      IF v_rows ? 'subject' THEN
+        IF NOT coalesce(pg_input_is_valid(v_row->>'subject_id', 'uuid'), false)
+           OR NOT EXISTS (SELECT 1 FROM public.entities e WHERE e.id = (v_row->>'subject_id')::uuid) THEN
+          RAISE EXCEPTION 'row %: the subject is no entity of the record', v_no
+            USING ERRCODE = 'data_exception';
+        END IF;
+        v_subject := (v_row->>'subject_id')::uuid;
+      END IF;
+
     END IF;
 
     SELECT o.value INTO v_held FROM public.observation o
-     WHERE o.document_id = v_document AND o.measure = v_rows->>'measure'
+     WHERE o.document_id = v_document AND o.measure = v_measure
        AND o.unit = v_unit AND o.period = v_period
-       AND o.reporter_system = v_rep_sys AND o.reporter = v_rep_code
+       AND o.reporter_system IS NOT DISTINCT FROM v_rep_sys
+       AND o.reporter IS NOT DISTINCT FROM v_rep_code
        AND o.partner_system IS NOT DISTINCT FROM v_par_sys
        AND o.partner IS NOT DISTINCT FROM v_par_code
        AND o.product_system IS NOT DISTINCT FROM v_rows->'product'->>'system'
@@ -6084,7 +6244,7 @@ BEGIN
        partner_system, partner, product_system, product, subject_id, licence, flag, document_id,
        text_extractor, page, span_start, span_end, mapping_id, job_id)
     VALUES
-      (v_rows->>'measure', v_value, v_unit, v_period, v_rows->>'method', v_publisher,
+      (v_measure, v_value, v_unit, v_period, v_rows->>'method', v_publisher,
        v_rep_sys, v_rep_code, v_par_sys, v_par_code,
        v_rows->'product'->>'system', v_product, v_subject, v_licence, v_flag, v_document,
        v_row->>'text_extractor', (v_row->>'page')::int, v_start, v_end, v_mapping_id, p_job);
@@ -6426,6 +6586,55 @@ BEGIN
     RETURN 'filled';
   END IF;
   RETURN CASE WHEN v_provider = p_provider THEN 'same' ELSE 'other' END;
+END $$;
+
+-- HOW A FETCHED DOCUMENT WAS READ. A tool that reads a page names the certificate fingerprint that
+-- the server showed (only for a host with a certificate that the tool accepts for that host alone)
+-- and whether the stored bytes are the render of a browser. The same bytes are stored once, so a
+-- read of known bytes reaches the row of the first read. The door never changes a fingerprint that
+-- a row holds, and it never turns `rendered` off. Only a fetched row takes it. It answers what it
+-- found:
+--   filled       the row holds the new facts now;
+--   same         the row held these facts already;
+--   other        the row holds another fingerprint, and keeps it;
+--   not_fetched  the row is no fetched document, so it takes nothing.
+-- The row lock makes two reads of the same bytes write once.
+CREATE OR REPLACE FUNCTION fill_document_trace(
+  p_document    text,
+  p_fingerprint text,
+  p_rendered    boolean)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_kind        text;
+  v_fingerprint text;
+  v_rendered    boolean;
+BEGIN
+  IF p_fingerprint IS NOT NULL AND p_fingerprint !~ '^[0-9A-F]{2}(:[0-9A-F]{2}){31}$' THEN
+    RAISE EXCEPTION 'a certificate fingerprint is 32 pairs of upper-case hex digits with colons'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  SELECT d.kind, d.tls_fingerprint, d.rendered INTO v_kind, v_fingerprint, v_rendered
+    FROM public.documents d WHERE d.id = p_document::doc_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  IF v_kind NOT IN ('url', 'api') THEN
+    RETURN 'not_fetched';
+  END IF;
+  IF v_fingerprint IS NOT NULL AND p_fingerprint IS NOT NULL AND v_fingerprint <> p_fingerprint THEN
+    RETURN 'other';
+  END IF;
+  IF (v_fingerprint IS NOT NULL OR p_fingerprint IS NULL) AND (v_rendered OR NOT p_rendered) THEN
+    RETURN 'same';
+  END IF;
+  UPDATE public.documents
+     SET tls_fingerprint = coalesce(v_fingerprint, p_fingerprint),
+         rendered = v_rendered OR p_rendered
+   WHERE id = p_document::doc_id;
+  RETURN 'filled';
 END $$;
 
 -- THE ARCHIVE THAT HELD A FILE. A store tool unpacks a zip archive into one document for each
@@ -7942,6 +8151,7 @@ DROP FUNCTION IF EXISTS release_entities();
 DROP FUNCTION IF EXISTS release_documents();
 DROP FUNCTION IF EXISTS release_disclaimer();
 DROP FUNCTION IF EXISTS release_merges();
+DROP FUNCTION IF EXISTS release_observations();
 DROP FUNCTION IF EXISTS nato_pair(uuid);
 DROP FUNCTION IF EXISTS nato_pair(uuid[]);
 
@@ -8148,6 +8358,21 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
     FROM public.documents d
     LEFT JOIN public.document_provider p ON p.id = d.provider_id
    WHERE d.id IN (SELECT o.id FROM public.public_document o)
+$$;
+
+-- THE FIGURES OF A RELEASE (ADR 0030). Each figure of the newest edition for its key, with the same
+-- licence filter as the public read. The function reads api.observation as its owner, and that view
+-- shows the owner only the figures with an open licence, so a figure with a restricted licence is
+-- not in a release. The view also hides a subject that the public read does not show.
+CREATE FUNCTION release_observations()
+RETURNS TABLE (id uuid, measure text, value numeric, unit text, period text, method text,
+               publisher text, reporter text, partner text, product text, subject_id uuid,
+               licence text, document_id text, page int, span_start int, span_end int)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
+  SELECT o.id, o.measure, o.value, o.unit, o.period, o.method, o.publisher, o.reporter, o.partner,
+         o.product, o.subject_id, o.licence, o.document_id::text, o.page, o.span_start, o.span_end
+    FROM api.observation o
 $$;
 
 -- THE LOG OF THE MERGES (M12): each merge and each undo, with its label, and the entity that each

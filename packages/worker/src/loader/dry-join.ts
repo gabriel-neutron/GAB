@@ -1,9 +1,11 @@
 import {
   isLinkTable,
   isObservationTable,
+  isWideTable,
   mappingPayload,
   type LinkRows,
   type ObservationRows,
+  type WideRows,
 } from '@gab/proposal/mapping';
 import { headerSignature } from '@gab/tools/header-signature';
 import { readTablePage, tableOf } from '@gab/tools/table';
@@ -13,7 +15,7 @@ import { z } from 'zod';
 import type { Queryable } from '../queryable.ts';
 import { makeFinder } from './join.ts';
 import { castAll, daysOf, foundWords, makeEndFinder, resolveEnd } from './link.ts';
-import { areasOf, observationOf, subjectFinder } from './observation.ts';
+import { areasOf, observationOf, subjectFinder, wideCells } from './observation.ts';
 
 const MAPPING = `SELECT p.payload, p.src[1]::text AS document,
        public.mapping_text_set(p.id) AS text_set
@@ -136,6 +138,36 @@ const observationJoin = async (
   ].join('');
 };
 
+/** The dry run of a wide table: for each cell under a month header that holds something, the
+ * figure that the load writes, or the sentence that sends the cell to the report. */
+const wideJoin = (
+  mappingId: string,
+  document: string,
+  page: { readonly textSet: string; readonly page: number },
+  table: ReturnType<typeof tableOf>,
+  rows: WideRows,
+): string => {
+  const cells = wideCells(rows, table.header, table.rows, page);
+  const figures = cells.filter((cell) => 'figure' in cell).length;
+  return [
+    `# dry run of mapping ${mappingId}; document ${document}; text set ${page.textSet}; ` +
+      `cells ${String(cells.length)}; figures ${String(figures)}; ` +
+      `to the report ${String(cells.length - figures)}\r\n`,
+    lineText(['row', 'period', 'measure', 'value', 'outcome']),
+    ...cells.map((cell) =>
+      'refused' in cell
+        ? lineText([String(cell.at.row), '', '', '', cell.refused])
+        : lineText([
+            String(cell.at.row),
+            cell.figure['period'] ?? '',
+            cell.figure['measure'] ?? '',
+            cell.figure['value'] ?? '',
+            'figure',
+          ]),
+    ),
+  ].join('');
+};
+
 /** The dry join of a mapping: for each row of its table, the key that finds the entity of the
  * row in the record, or the sentence that the row creates one. It reads the record through the
  * same lookup as the load, it calls no model, and it writes nothing. The mapping can wait for its
@@ -156,6 +188,7 @@ export const dryJoin = async (db: Queryable, mappingId: string): Promise<string>
     );
 
   const { rows } = mapping;
+  if (isWideTable(rows)) return wideJoin(mappingId, held.document, page, table, rows);
   if (isObservationTable(rows))
     return observationJoin(db, mappingId, held.document, page, table, rows);
   if (isLinkTable(rows)) return linkJoin(db, mappingId, held.document, page.textSet, table, rows);
