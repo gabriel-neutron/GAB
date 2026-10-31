@@ -75,3 +75,10 @@ research/.claude/worktrees/
 
 # Output of the figure tool
 figures-out/
+
+# Local output of the taste skill
+.taste-skill/
+
+# Skills that an agent installs for one operator (the lock file records them)
+.agents/
+skills-lock.json
