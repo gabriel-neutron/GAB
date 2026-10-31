@@ -61,7 +61,7 @@ function CurrencyTie({ part }: { readonly part: ReportPart }) {
   );
 }
 
-/** The chapter break: the bed curtain border as an ASCII band behind the numeral, down to its
+/** The chapter break: the rouble coin as an ASCII band behind the numeral, down to its
  * baseline, and its credit as a mono caption in the flow under the deck, at every width. */
 function FinanceBreak({ number, title }: { readonly number: string; readonly title: string }) {
   const { image } = financeUi;
@@ -159,7 +159,7 @@ function RelayRow({
   );
 }
 
-/** Part 6, finance: an ASCII chapter break on a Russian bed curtain border, figure 9 as a scroll
+/** Part 6, finance: an ASCII chapter break on a rouble coin of 1771, figure 9 as a scroll
  * scene, the crossover of the yuan and the rouble, and the payment relays as a ledger with the nodes that
  * each relay names. */
 export function FinancePart({ part }: { readonly part: ReportPart }) {

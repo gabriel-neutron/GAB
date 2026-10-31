@@ -9,7 +9,6 @@ import { Reveal } from '../../primitives/reveal';
 import { StickyScene } from '../../primitives/sticky-scene';
 import { RichText } from '../../rich-text';
 import { figureData } from './figure-data';
-import { mapGeometry } from './map-geometry';
 import { FleetFlows } from './fleet-flows';
 import { PortTraffic } from './port-traffic';
 import { splitSentences } from './sentences';
@@ -56,29 +55,6 @@ const STATIC_SCENE: Scene = SCENE.reduce<
   else out.push({ ...one });
   return out;
 }, []);
-// The art of the opening: the land of the basemap, white on black, as a PNG for the ASCII
-// drawing. A canvas path never taints the canvas that reads it. The page draws it only in a
-// browser; the prerender has no canvas.
-let artSource: string | undefined;
-const art = () => {
-  if (artSource !== undefined || typeof document === 'undefined') return artSource ?? '';
-  const [west, south, east, north] = [-10, 30, 150, 78];
-  const [x0, y0] = mapGeometry.project(west, north);
-  const [x1, y1] = mapGeometry.project(east, south);
-  const scale = 1600 / (x1 - x0);
-  const canvas = document.createElement('canvas');
-  canvas.width = 1600;
-  canvas.height = Math.round((y1 - y0) * scale);
-  const context = canvas.getContext('2d');
-  if (context === null) return '';
-  context.fillStyle = '#000';
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.setTransform(scale, 0, 0, scale, -x0 * scale, -y0 * scale);
-  context.fillStyle = '#fff';
-  context.fill(new Path2D(mapGeometry.land));
-  artSource = canvas.toDataURL('image/png');
-  return artSource;
-};
 // Figure 6 has one unit for each panel: a, b, then c.
 const unit6 = [...texts['6'].panels.map((panel) => panel.unit), copy.traffic.cUnit]
   .filter((one) => one !== '')
@@ -131,17 +107,7 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
 
   return (
     <section id={part.slug} aria-label={part.title} className="scroll-mt-12">
-      <ChapterBreak
-        number={number}
-        title={part.title}
-        quote={copy.quote}
-        image={{
-          src: art(),
-          alt: copy.art.alt,
-          label: copy.art.label,
-          credit: `${copy.map.basemap} ${mapGeometry.source}`,
-        }}
-      >
+      <ChapterBreak number={number} title={part.title} quote={copy.quote} image={copy.art}>
         <ul
           aria-label={copy.terminals}
           className="mt-10 grid max-w-[56rem] grid-cols-1 gap-x-8 border-t border-border pt-4 font-mono text-small/5 text-label sm:grid-cols-2"

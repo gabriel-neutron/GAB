@@ -20,10 +20,10 @@ export function IntroductionPart({ part }: { readonly part: ReportPart }) {
     if (block.kind === 'li') {
       questions.push(
         <li key={block.text} className="grid grid-cols-[3rem_1fr] border-t border-border py-5">
-          <span className="pt-2 font-mono text-caption text-label tabular-nums">
+          <span className="pt-1.5 font-mono text-caption text-label tabular-nums">
             {String(questions.length + 1).padStart(2, '0')}
           </span>
-          <span className="text-[clamp(1.75rem,4.2vw,2.75rem)] leading-[1.08] tracking-[-0.03em] text-balance">
+          <span className="text-[20px]/[1.4] tracking-[-0.01em] text-balance md:text-[24px]/[1.35]">
             {text}
           </span>
         </li>,

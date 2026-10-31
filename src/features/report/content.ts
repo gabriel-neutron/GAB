@@ -2217,15 +2217,14 @@ export const openingUi = {
   },
   summary: {
     findings: 'Key findings',
-    // The plate of the summary head on a wide screen: the cover photograph, cropped on the ship.
+    // The plate of the summary head on a wide screen: an old chart of the Black Sea, in two tones.
     art: {
-      src:
-        import.meta.env.BASE_URL + 'report-media/crude-oil-tanker-in-port-arthur-texas-dither.png',
-      alt: 'A dithered photograph of the crude oil tanker in Port Arthur, Texas, cropped on its bridge.',
+      src: import.meta.env.BASE_URL + 'report-media/black-sea-map-1829-dither.png',
+      alt: 'A chart of the Black Sea and the Sea of Azov, made by the Russian Hydrographic Depot in 1829, in two tones.',
       label: 'Illustration. Not evidence of the investigation.',
       credit:
-        '"Crude Oil Tanker in Port Arthur, Texas" by Quintin Soloviev, CC0, via Wikimedia Commons',
-      href: 'https://commons.wikimedia.org/wiki/File:Crude_Oil_Tanker_in_Port_Arthur,_Texas.jpg',
+        '"1829 map of the Black Sea by the Russian Hydrographic Depot" by Russian Hydrographic Depot, public domain, via Wikimedia Commons',
+      href: 'https://commons.wikimedia.org/wiki/File:1829_map_of_the_Black_Sea_by_the_Russian_Hydrographic_Depot.jpg',
     },
     // The mark of a value that the cover shows too; the outline draws it.
     repeat: 'Also on the cover',
@@ -2356,10 +2355,10 @@ export const payUi = {
   quote:
     "Under the report's hypothesis, gas sold to China therefore replaces the volumes lost in Europe, but not their revenue.",
   image: {
-    src: import.meta.env.BASE_URL + 'report-media/crude-oil-tanker-eagle-san-diego.jpg',
-    alt: 'An ASCII drawing of the oil tanker Eagle San Diego, viewed from the bow.',
+    src: import.meta.env.BASE_URL + 'report-media/baku-oil-wells-1903.jpg',
+    alt: 'An ASCII drawing of a photograph of wooden oil derricks in Baku, 1903.',
     label: 'Illustration. Not evidence of the investigation.',
-    credit: '"Crude oil tanker Eagle San Diego" by Jordanroderick, CC0, via Wikimedia Commons',
+    credit: '"1903 Baku Oil Wells", unknown author, public domain, via Wikimedia Commons',
   },
   // Each value is the value of the text of the part; '20×' writes "twenty times" as a numeral.
   numbers: [
@@ -2408,10 +2407,14 @@ export const payUi = {
 export const portsFleetUi = {
   quote: 'So a list of ships describes a state that the ship has often already left.',
   terminals: 'Export terminals of the report, with their position',
-  // The art of the opening: the coasts of the basemap drawn in ASCII.
+  // The art of the opening: a postcard of the port of Novorossiysk, drawn in ASCII.
   art: {
-    alt: 'An ASCII drawing of the coasts of Europe and northern Asia, from the Atlantic to the Pacific.',
-    label: 'Illustration. Not evidence of the investigation.',
+    src: import.meta.env.BASE_URL + 'report-media/novorossiysk-postcard-1900-1904.jpg',
+    alt: 'An ASCII drawing of a postcard of the port of Novorossiysk, with its piers and oil tanks, 1900-1904.',
+    label:
+      'Novorossiysk port, postcard, 1900-1904. Illustration. Not evidence of the investigation.',
+    credit:
+      '"Caucasus Novorossiysk general view Postcard 1900-1904" by Brothers Borisov Publishing House, Novorossiysk, public domain, via Wikimedia Commons',
   },
   map: {
     label: 'Map of the oil export terminals of the report',
@@ -2496,11 +2499,11 @@ export const financeUi = {
   // One sentence of the part, quoted verbatim.
   quote: 'Yet a payment in yuan still goes through a bank that needs the dollar.',
   image: {
-    src: import.meta.env.BASE_URL + 'report-media/met-158372-bed-curtain-border.jpg',
-    alt: 'An ASCII drawing of an embroidered Russian bed curtain border, early 19th century.',
+    src: import.meta.env.BASE_URL + 'report-media/sestroretsk-rouble-1771.jpg',
+    alt: 'An ASCII drawing of the two faces of a copper rouble coin of 1771.',
     label: 'Illustration. Not evidence of the investigation.',
     credit:
-      '"Bed curtain border", Unknown maker (Russian), early 19th century. The Metropolitan Museum of Art, Open Access, CC0',
+      '"Russia 1771 Sestroretsk Rouble" by Russia (coin), National Numismatic Collection (image), public domain, via Wikimedia Commons',
   },
   figure: {
     // The years that the steps of the scene show, from the data of figure 9.

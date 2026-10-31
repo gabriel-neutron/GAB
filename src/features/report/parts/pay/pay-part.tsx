@@ -23,7 +23,7 @@ const NUMBERS_AFTER = 'In total, across all goods';
 const WIDE = cn(layout.bleed, 'px-4 md:px-8');
 const WIDE_INNER = 'mx-auto max-w-[1376px]';
 
-/** Part "Pay": the tanker break, the text on an editorial grid with its notes in the margin,
+/** Part "Pay": the oil-derrick break, the text on an editorial grid with its notes in the margin,
  * figures 3 and 5 wide, figure 4 as a scroll scene of the price caps and the gap, and the two
  * big values of the part. */
 export function PayPart({ part }: { readonly part: ReportPart }) {
@@ -66,7 +66,7 @@ export function PayPart({ part }: { readonly part: ReportPart }) {
   );
 }
 
-/** The chapter break over a band of the tanker in ASCII. The numeral stands on the art; the
+/** The chapter break over a band of the Baku oil derricks in ASCII. The numeral stands on the art; the
  * label and the credit of the art close the break, clear of the art at each width. */
 function PayBreak({ number, title }: { readonly number: string; readonly title: string }) {
   const { image } = payUi;
@@ -85,13 +85,13 @@ function PayBreak({ number, title }: { readonly number: string; readonly title: 
           'lg:top-auto lg:bottom-[22%]',
         )}
       >
-        {/* On a phone a taller crop keeps the ship legible at the few columns of the screen. */}
-        <div className="relative aspect-video md:aspect-[1920/728] [&_pre]:text-foreground/70">
+        {/* On a phone a taller crop keeps the derricks legible at the few columns of the screen. */}
+        <div className="relative aspect-video md:aspect-[1355/565] [&_pre]:text-foreground/70">
           <AsciiImage src={image.src} alt={image.alt} />
-          {/* The scrim keeps the numeral and the title clear of the art on a large screen. */}
+          {/* The scrim keeps the numeral and the title clear of the art at every width. */}
           <div
             aria-hidden="true"
-            className="absolute inset-0 hidden bg-linear-to-t from-background via-background/40 to-transparent lg:block"
+            className="absolute inset-0 bg-linear-to-t from-background via-background/40 to-transparent"
           />
         </div>
       </div>

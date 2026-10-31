@@ -92,7 +92,7 @@ export function MethodChronologyPart({ part }: { readonly part: ReportPart }) {
         <NodeField />
         <ChapterBreak number={number} title={part.title}>
           <Reveal>
-            <p className="mt-8 max-w-[34ch] border-l border-foreground pl-4 text-[clamp(1.375rem,2.8vw,2rem)] leading-snug tracking-[-0.02em] text-balance text-foreground/85">
+            <p className="mt-8 max-w-[52ch] border-l border-foreground pl-4 text-[18px]/[1.5] text-balance text-foreground/85 md:text-[clamp(1.25rem,1.8vw,1.5rem)]/[1.4] md:tracking-[-0.01em]">
               {methodUi.quote}
             </p>
           </Reveal>
