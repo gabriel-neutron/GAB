@@ -214,6 +214,7 @@ REVOKE ALL ON FUNCTION release_claims()         FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_documents()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_disclaimer()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_merges()         FROM PUBLIC;
+REVOKE ALL ON FUNCTION release_observations()   FROM PUBLIC;
 REVOKE ALL ON FUNCTION nato_pair(uuid[])        FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
@@ -388,7 +389,7 @@ GRANT EXECUTE ON FUNCTION rating_context(text)     TO gabriel_agent;
 -- whole through the views already, so the grant shows them nothing new. The public read role holds
 -- none: a release is a set of files, and no public reader calls the database for it.
 GRANT EXECUTE ON FUNCTION release_entities(), release_relations(), release_claims(),
-  release_documents(), release_disclaimer(), release_merges()
+  release_documents(), release_disclaimer(), release_merges(), release_observations()
   TO gabriel_app, gabriel_agent, gabriel_research;
 -- THE NATO PAIR IS HELD BY THE OPERATOR ROLE ONLY. A machine role
 -- that read the pair would read the letters and the digits that the rules decide from, and the

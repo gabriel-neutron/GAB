@@ -84,6 +84,25 @@ const mergeRow = z.object({
   origin_label: label,
 });
 
+const observationRow = z.object({
+  id: z.uuid(),
+  measure: z.string(),
+  value: z.string(),
+  unit: z.string(),
+  period: z.string(),
+  method: z.string(),
+  publisher: z.string(),
+  reporter: z.string().nullable(),
+  partner: z.string().nullable(),
+  product: z.string().nullable(),
+  subject_id: z.uuid().nullable(),
+  licence: z.string(),
+  document_id: z.string(),
+  page: z.number().int(),
+  span_start: z.number().int(),
+  span_end: z.number().int(),
+});
+
 const disclaimerRow = z.object({ disclaimer: z.string() });
 
 const candidateCounts = z.object({
@@ -97,6 +116,7 @@ export type ReleaseRelation = z.output<typeof relationRow>;
 export type ReleaseClaim = z.output<typeof claimRow>;
 export type ReleaseDocument = z.output<typeof documentRow>;
 export type ReleaseMerge = z.output<typeof mergeRow>;
+export type ReleaseObservation = z.output<typeof observationRow>;
 export type NameCandidateCounts = z.output<typeof candidateCounts>;
 
 /** What a release publishes: the public part of the record, as the release functions of the
@@ -109,6 +129,9 @@ export interface ReleaseRecord {
   readonly merges: readonly ReleaseMerge[];
   /** Each public document that a row of the release cites, by its identifier. */
   readonly documents: ReadonlyMap<string, ReleaseDocument>;
+  /** Each figure of the newest edition for its key, with an open licence. A test record may leave
+   * it out, and it holds no figure then. */
+  readonly observations?: readonly ReleaseObservation[];
   /** The number of merge candidates across a Latin and a Cyrillic spelling in each state. */
   readonly nameCandidates: NameCandidateCounts;
   /** The disclaimer of the dataset, in Markdown, with its two contact links still to fill. */
@@ -164,6 +187,14 @@ export const readReleaseRecord = async (
     `SELECT id, title, uri, retrieved_at::text AS retrieved_at, licence, provider, doc_type
        FROM public.release_documents() ORDER BY id`,
   );
+  // A figure of the release names its document, so the document is public (PU1).
+  const observations = await rowsOf(
+    db,
+    observationRow,
+    `SELECT id, measure, value::text AS value, unit, period, method, publisher, reporter, partner,
+            product, subject_id, licence, document_id, page, span_start, span_end
+       FROM public.release_observations() ORDER BY measure, period, reporter, id`,
+  );
   const [said] = await rowsOf(
     db,
     disclaimerRow,
@@ -182,6 +213,7 @@ export const readReleaseRecord = async (
     ...[...entities, ...relations, ...claims].flatMap((one) => one.sources),
     ...entities.flatMap((one) => one.geom_sources ?? []),
     ...claims.flatMap((one) => one.passages.map((passage) => passage.document)),
+    ...observations.map((one) => one.document_id),
     ...alsoCited,
   ]);
   return {
@@ -189,6 +221,7 @@ export const readReleaseRecord = async (
     relations,
     claims,
     merges,
+    observations,
     nameCandidates,
     documents: new Map(documents.filter((one) => cited.has(one.id)).map((one) => [one.id, one])),
     disclaimer: said.disclaimer,

@@ -413,6 +413,24 @@ test('a wide table loads one figure for each month cell, and each figure cites i
   });
 });
 
+// The frozen release reads the figures through one function. It gives the figures of an open
+// licence, as the public read does, and none of a restricted licence.
+test.each([
+  ['eurostat', 5],
+  [null, 0],
+] as const)('a release exports the figures of the provider %s: %i', async (provider, count) => {
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(held, DRAFT, provider);
+    await runLoad(held, load);
+    expect(await figuresOf(held)).toHaveLength(5);
+    expect(
+      await held.asRole('gabriel_app', () =>
+        held.ask('SELECT count(*)::int AS shown FROM public.release_observations()'),
+      ),
+    ).toStrictEqual([{ shown: count }]);
+  });
+});
+
 // A CSV with a label in quotes that holds a comma and a doubled quote, a quote inside a plain field,
 // and text after a closing quote. The door reads each row with the rules of the table reader, so
 // each label stays one field and a stray quote moves no record start.

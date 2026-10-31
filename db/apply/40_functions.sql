@@ -8036,6 +8036,7 @@ DROP FUNCTION IF EXISTS release_entities();
 DROP FUNCTION IF EXISTS release_documents();
 DROP FUNCTION IF EXISTS release_disclaimer();
 DROP FUNCTION IF EXISTS release_merges();
+DROP FUNCTION IF EXISTS release_observations();
 DROP FUNCTION IF EXISTS nato_pair(uuid);
 DROP FUNCTION IF EXISTS nato_pair(uuid[]);
 
@@ -8242,6 +8243,21 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
     FROM public.documents d
     LEFT JOIN public.document_provider p ON p.id = d.provider_id
    WHERE d.id IN (SELECT o.id FROM public.public_document o)
+$$;
+
+-- THE FIGURES OF A RELEASE (ADR 0030). Each figure of the newest edition for its key, with the same
+-- licence filter as the public read. The function reads api.observation as its owner, and that view
+-- shows the owner only the figures with an open licence, so a figure with a restricted licence is
+-- not in a release. The view also hides a subject that the public read does not show.
+CREATE FUNCTION release_observations()
+RETURNS TABLE (id uuid, measure text, value numeric, unit text, period text, method text,
+               publisher text, reporter text, partner text, product text, subject_id uuid,
+               licence text, document_id text, page int, span_start int, span_end int)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
+  SELECT o.id, o.measure, o.value, o.unit, o.period, o.method, o.publisher, o.reporter, o.partner,
+         o.product, o.subject_id, o.licence, o.document_id::text, o.page, o.span_start, o.span_end
+    FROM api.observation o
 $$;
 
 -- THE LOG OF THE MERGES (M12): each merge and each undo, with its label, and the entity that each
