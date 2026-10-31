@@ -1,17 +1,14 @@
 import stagesRaw from './data/atlas-stages.csv?raw';
-import plantsRaw from './data/atlas-plants.csv?raw';
-import land from './basemap-data';
 import { readCsv } from './line-panel';
 
-// The supply-chain atlas (a double page): brand → made → sold → shipped → Russian plants.
+// The supply-chain atlas: brand → made → sold → shipped. The Russian plants are a separate figure.
 // Each column is 100 % of one stage, with the same country groups in the same order; a band joins the share
 // of one group from a stage to the next (a share, not a flow of the same goods). A group that a source does
 // not state is absent from its column, not a zero. Brand, made and sold: the same goods (Russian customs,
 // 2023); shipped: mirror exports of the CHP list (2025). The catalogue of identified components stands apart:
 // it is a selective catalogue by maker headquarters, not a measure of trade. The source of each value is in
-// the data files. A plant with an approximate point draws hollow.
+// the data files.
 const stages = readCsv(stagesRaw);
-const plants = readCsv(plantsRaw);
 const GROUPS = [
   { key: 'United States', tone: 'us' },
   { key: 'EU', tone: 'eu' },
@@ -28,7 +25,7 @@ const COLUMNS = [
   { key: 'sold', x: 590, title: '3. Sold to Russia by', sub: 'seller · 2023' },
   { key: 'shipped', x: 760, title: '4. Shipped by', sub: 'exporter · 2025' },
 ] as const;
-const W = 1280,
+const W = 880,
   H = 700,
   TOP = 110,
   BH = 470,
@@ -45,45 +42,6 @@ const segments = (stage: string) => {
   });
 };
 
-// Map of Russia: equirectangular, longitude 27-142 E, latitude 42-70 N.
-// Height for a true shape at about 56 N: 380 px for 115 degrees of longitude at cos(56) gives 5.9 px a degree.
-const MAP = { lon0: 27, lon1: 142, lat0: 42, lat1: 70, x: 900, y: TOP, w: 380, h: 166 };
-const px = (lon: number, lat: number) => [
-  MAP.x + ((lon - MAP.lon0) / (MAP.lon1 - MAP.lon0)) * MAP.w,
-  MAP.y + ((MAP.lat1 - lat) / (MAP.lat1 - MAP.lat0)) * MAP.h,
-];
-const landPath = land.polygons
-  .map(
-    (ring) =>
-      ring
-        .map(
-          ([lon, lat], i) =>
-            `${i ? 'L' : 'M'}${px(lon ?? 0, lat ?? 0)
-              .map((v) => v.toFixed(1))
-              .join(',')}`,
-        )
-        .join('') + 'Z',
-  )
-  .join('');
-const GLYPH: Record<string, string> = {
-  drone: 'M0,-5L5,4H-5Z',
-  'cruise missile': 'M0,-5L5,0L0,5L-5,0Z',
-  'ballistic missile': 'M0,-5L5,0L0,5L-5,0Z',
-  'guided bomb': 'M-4,-4H4V4H-4Z',
-  armour: 'M-5,-3H5V3H-5Z',
-  aircraft: 'M-5,3L0,-4L5,3L0,0Z',
-};
-const LABELS = ['Alabuga SEZ', 'IEMZ Kupol', 'KTRV', 'STC', 'Kalashnikov', 'Uralvagonzavod'];
-// The most specific weapon of a plant gives its glyph: a drone plant with other lines shows as a drone.
-const PRIORITY = [
-  'drone',
-  'cruise missile',
-  'ballistic missile',
-  'guided bomb',
-  'aircraft',
-  'armour',
-];
-
 export function AtlasFigure() {
   const cols = COLUMNS.map((c) => ({ ...c, segs: segments(c.key) }));
   const [ident, brand] = cols;
@@ -93,7 +51,7 @@ export function AtlasFigure() {
       <svg
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label="Atlas of the supply chains of Russia's defence industry: brand, origin, seller, exporter, and Russian plants"
+        aria-label="Atlas of the supply chains of Russia's defence industry: brand, origin, seller and exporter"
       >
         {/* Bands between the four linked stages. */}
         {cols.slice(1, -1).map((c, i) => {
@@ -171,76 +129,6 @@ export function AtlasFigure() {
         <text x={brand.x} y={TOP + BH + 44} className="lp-axis">
           Shipped: CHP-list exports to Russia, 2025. Bands join shares, not shipments.
         </text>
-        {/* 5. Where they go. */}
-        <text x={MAP.x} y={TOP - 34} className="lp-title atlas-col">
-          5. Where they go in Russia
-        </text>
-        <text x={MAP.x} y={TOP - 16} className="lp-axis">
-          defence plants by main weapon
-        </text>
-        <clipPath id="atlas-map">
-          <rect x={MAP.x} y={MAP.y} width={MAP.w} height={MAP.h} />
-        </clipPath>
-        <path d={landPath} className="atlas-land" clipPath="url(#atlas-map)" />
-        {plants
-          .filter((p) => p['lat'])
-          .map((p, i) => {
-            const [x, y] = px(Number(p['lon']), Number(p['lat']));
-            const types = (p['weapon_type'] ?? '').split(/[;,]/).map((t) => t.trim());
-            const type = PRIORITY.find((t) => types.includes(t)) ?? 'other';
-            return (
-              <g
-                key={i}
-                transform={`translate(${x},${y})`}
-                className={p['position_basis'] === 'lead' ? 'atlas-plant lead' : 'atlas-plant'}
-              >
-                {GLYPH[type] ? <path d={GLYPH[type]} /> : <circle r="3" />}
-              </g>
-            );
-          })}
-        {LABELS.map((name, i) => {
-          const p = plants.find((x) => (x['entity'] ?? '').startsWith(name) && x['lat']);
-          if (!p) return null;
-          const [x, y] = px(Number(p['lon']), Number(p['lat']));
-          // Labels go to a list under the map, with a number on the point: the plants sit close together.
-          return (
-            <g key={name}>
-              <text x={(x ?? 0) + 5} y={(y ?? 0) - 5} className="atlas-num">
-                {i + 1}
-              </text>
-              <text x={MAP.x} y={MAP.y + MAP.h + 24 + i * 15} className="lp-axis atlas-place">
-                {i + 1} {(p['entity'] ?? '').split(' (')[0]} ({p['city']})
-              </text>
-            </g>
-          );
-        })}
-        <g transform={`translate(${MAP.x},${MAP.y + MAP.h + 130})`}>
-          {[
-            ['drone', 'Drones'],
-            ['cruise missile', 'Missiles'],
-            ['guided bomb', 'Guided bombs'],
-            ['armour', 'Armour'],
-            ['aircraft', 'Aircraft'],
-            ['other', 'Other'],
-          ].map(([k, label], i) => (
-            <g
-              key={k}
-              transform={`translate(${(i % 3) * 126},${Math.floor(i / 3) * 18})`}
-              className="atlas-plant"
-            >
-              {GLYPH[k ?? ''] ? <path d={GLYPH[k ?? '']} /> : <circle r="3" />}
-              <text x="10" y="4" className="lp-axis">
-                {label}
-              </text>
-            </g>
-          ))}
-          <g transform="translate(0,44)" className="atlas-plant lead">
-            <circle r="3" />
-            <text x="10" y="4" className="lp-axis">
-              hollow: approximate point
-            </text>
-          </g>
-        </g>
       </svg>
     </figure>
   );

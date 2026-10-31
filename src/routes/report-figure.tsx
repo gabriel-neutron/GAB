@@ -17,6 +17,7 @@ import { ChpFigure } from '@/features/report/chp-figure';
 import { CasesFigure } from '@/features/report/cases-figure';
 import { ControllersFigure } from '@/features/report/controllers-figure';
 import { AtlasFigure } from '@/features/report/atlas-figure';
+import { PlantsMapFigure } from '@/features/report/plants-map-figure';
 import { MethodDiagram } from '@/features/report/method-diagram';
 import '@/features/report/report.css';
 
@@ -37,6 +38,7 @@ const figures = {
   cases: CasesFigure,
   controllers: ControllersFigure,
   atlas: AtlasFigure,
+  plants: PlantsMapFigure,
   'ports-v1': PortsBeforeAfter,
   'ports-v2': CrudeAndProducts,
   'ports-v3': EuImportsBeforeAfter,
