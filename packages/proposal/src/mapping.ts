@@ -183,7 +183,12 @@ const observations = z.strictObject({
     ])
     .describe('the column of the unit, or one unit for every row. The unit is part of the key'),
   period: z.strictObject({ column, length: z.enum(PERIODS) }),
-  reporter: area.describe('the country or the group that reports the figure'),
+  reporter: area
+    .optional()
+    .describe(
+      'the country or the group that reports the figure. Give none for a figure of the world, ' +
+        'such as a world price: the table has no column of areas then',
+    ),
   partner: area.optional().describe('the other country or group of a flow'),
   product: z.strictObject({ column, system: z.enum(PRODUCT_SYSTEMS) }).optional(),
   subject: linkEnd
@@ -202,6 +207,39 @@ const observations = z.strictObject({
 });
 
 export type ObservationRows = z.infer<typeof observations>;
+
+/** A wide table (ADR 0032): the months are columns and the measures are rows. Each cell under a
+ * month header is one figure, and the mapping names the rows to read by their position, because
+ * the labels of the rows repeat under different parents. A world figure has no reporter, and the
+ * unit is one constant. */
+const wideObservations = z
+  .strictObject({
+    wide: z.strictObject({
+      rows: z
+        .array(
+          z.strictObject({
+            position: z
+              .number()
+              .int()
+              .min(1)
+              .describe('the place of the row among the rows under the header, from 1'),
+            measure: key.max(100).describe('what the figures of this row count'),
+          }),
+        )
+        .min(1)
+        .max(50),
+    }),
+    unit: z.strictObject({ constant: z.string().trim().min(1).max(40) }),
+    method: z.string().trim().min(1).max(200).describe('how the source makes the figure'),
+  })
+  .refine(
+    (held) =>
+      new Set(held.wide.rows.map((one) => one.position)).size === held.wide.rows.length &&
+      new Set(held.wide.rows.map((one) => one.measure)).size === held.wide.rows.length,
+    { message: 'each row of a wide table has its own position and its own measure' },
+  );
+
+export type WideRows = z.infer<typeof wideObservations>;
 
 /** The kinds of asset. An asset is an entity of the facility type, and its kind tells a field from
  * a pipeline segment. The list is closed, so a filter and a release can group the assets. */
@@ -292,14 +330,14 @@ const entityRows = z
 
 /** The rows of a table: each row is one entity, one relation (a relation table) or one figure
  * (an observation table). */
-const rows = z.union([entityRows, links, observations], {
+const rows = z.union([entityRows, links, observations, wideObservations], {
   // The union alone words each failure as "Invalid input". The key `relation_type` or `measure`
   // tells the branch that the model meant, so the retry gets the issues of that branch.
   error: (issue) => {
     const input: unknown = issue.input;
     const has = (name: string): boolean =>
       typeof input === 'object' && input !== null && name in input;
-    const branch = has('relation_type') ? 1 : has('measure') ? 2 : 0;
+    const branch = has('relation_type') ? 1 : has('measure') ? 2 : has('wide') ? 3 : 0;
     const issues = issue.errors[branch] ?? [];
     if (issues.length === 0) return undefined;
     return issues
@@ -311,13 +349,16 @@ const rows = z.union([entityRows, links, observations], {
 export type EntityRows = z.infer<typeof entityRows>;
 export type LinkRows = z.infer<typeof links>;
 
-type Rows = EntityRows | LinkRows | ObservationRows;
+type Rows = EntityRows | LinkRows | ObservationRows | WideRows;
 
 /** True when each row of the table is one relation, and no row is an entity. */
 export const isLinkTable = (held: Rows): held is LinkRows => 'relation_type' in held;
 
 /** True when each row of the table is one figure, and no row is an entity. */
 export const isObservationTable = (held: Rows): held is ObservationRows => 'measure' in held;
+
+/** True when the months are columns and each cell under a month is one figure (ADR 0032). */
+export const isWideTable = (held: Rows): held is WideRows => 'wide' in held;
 
 const draftFields = {
   table: z.string().trim().min(1).max(200),
@@ -339,7 +380,8 @@ const linkTableHasNoRelations = (held: {
   readonly rows: Rows;
   readonly relations: readonly unknown[];
 }): boolean =>
-  (!isLinkTable(held.rows) && !isObservationTable(held.rows)) || held.relations.length === 0;
+  (!isLinkTable(held.rows) && !isObservationTable(held.rows) && !isWideTable(held.rows)) ||
+  held.relations.length === 0;
 const NO_RELATIONS = {
   message: 'a relation table and an observation table give no relation, and relations is []',
 };
@@ -378,13 +420,15 @@ const namedColumns = (mapping: MappingDraft): string[] => {
   const attrColumns = (held: Readonly<Record<string, { readonly column: string }>> = {}) =>
     Object.values(held).map((one) => one.column);
   const { rows: held } = mapping;
+  // A wide table reads the whole header: it names no column.
+  if (isWideTable(held)) return [];
   if (isObservationTable(held))
     return [
       ...new Set([
         held.value.column,
         ...('column' in held.unit ? [held.unit.column] : []),
         held.period.column,
-        held.reporter.column,
+        ...(held.reporter === undefined ? [] : [held.reporter.column]),
         ...(held.partner === undefined ? [] : [held.partner.column]),
         ...(held.product === undefined ? [] : [held.product.column]),
         ...(held.subject === undefined
@@ -498,6 +542,7 @@ export const vocabularyFaults = (
         );
   };
   const { rows: held } = mapping;
+  if (isWideTable(held)) return faults;
   if (isObservationTable(held)) {
     if (held.subject !== undefined) {
       type('rows.subject.entity_type', held.subject.entity_type);

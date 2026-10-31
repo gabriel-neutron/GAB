@@ -119,6 +119,8 @@ export const readJsonTable = (text: string): { header: string[]; rows: CsvRecord
     header,
     rows: held.map(({ start, end, cells }) => ({
       fields: header.map((name) => cells.get(name) ?? ''),
+      // A value of JSON has no span of a cell, so a wide table cannot read it.
+      cells: [],
       start,
       end,
     })),

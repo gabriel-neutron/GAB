@@ -215,6 +215,11 @@
       "sha256": "487760d2ee421c43b130554d13ace96468277d388d0148f8bffcca1d08ca17a4"
     },
     {
+      "path": "observations.csv",
+      "bytes": 1926,
+      "sha256": "37908f85b5f5be1b512b77ea42323f6155d8b28b42bb400b15280e8c0c0abb4a"
+    },
+    {
       "path": "credits.md",
       "bytes": 2002,
       "sha256": "b45928658eeefb5be8170d7e22464cde48ddefa0c23e73011cbf2a9e5a2e8add"

@@ -12,6 +12,8 @@ export const FILE_WORDS: Readonly<Record<string, string>> = {
     'The OpenStreetMap link and the own point of each asset that has an OpenStreetMap identifier.',
   'volumes.csv':
     'The volume table of the research, each row with its class, its unit and its source, joined to the physical links of the map.',
+  'observations.csv':
+    'The decided figures of the record, such as monthly prices, each with its period, its unit, its source and its licence. A figure with a restricted licence is not in the file.',
   'release-notes.md':
     'The notes of the release, with the share of the places that have no stated method of geolocation, and the share of the public claims that have a full NATO pair when the release shows it.',
   'credits.md': 'The credit of each source, as its licence asks.',

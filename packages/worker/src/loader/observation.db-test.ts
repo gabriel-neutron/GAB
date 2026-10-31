@@ -299,6 +299,233 @@ test('a promoted mapping of a Eurostat table loads each row as a figure that cit
   });
 });
 
+// A world price has no reporter and no column of areas. Seven rows of the same shape as the Pink
+// Sheet of the World Bank, after the title rows are skipped: a period, then one price.
+const WORLD =
+  ['Period,Crude oil Brent', '2023M01,82.5', '2023M02,83.1', '2023M03,'].join('\r\n') + '\r\n';
+
+test('a mapping with no reporter loads figures of the world', async () => {
+  await inTransaction(async (held) => {
+    const world = {
+      table: 'pink_sheet',
+      modality: 'asserts',
+      publisher: 'World Bank',
+      rows: {
+        measure: 'price_crude_oil_brent',
+        value: { column: 'Crude oil Brent' },
+        unit: { constant: 'USD per barrel' },
+        period: { column: 'Period', length: 'month' },
+        method: 'monthly average price',
+      },
+      relations: [],
+    };
+    const { load } = await mappedFile(held, world, null, WORLD);
+    await runLoad(held, load);
+    expect(
+      await held.ask(
+        `SELECT reporter_system, reporter, period, value::text AS value, licence
+           FROM public.observation WHERE document_id = $1 ORDER BY period`,
+        [FILE],
+      ),
+    ).toStrictEqual(
+      [
+        ['2023-01', '82.5'],
+        ['2023-02', '83.1'],
+      ].map(([period, value]) => ({
+        reporter_system: null,
+        reporter: null,
+        period,
+        value,
+        licence: 'restricted',
+      })),
+    );
+    expect(reportText(held)).toContain('read 3; loaded 2; excluded 1');
+  });
+});
+
+// A wide table (ADR 0032): the months are columns, and the measures are rows. The labels repeat
+// under different parents, an annual total sits between the months, a negative value is real, an
+// empty cell is not applicable, and "-" is no data. The third row has a quoted label with a comma.
+const WIDE =
+  [
+    'Section,Item,2018-01,2018-02,Total 2018,2018-03',
+    'Total,Revenue,100.5,-3.2,97.3,-',
+    'Oil,Revenue,40,,40,12.5',
+    '"Other, misc",Revenue,7,8,15,9',
+    'Gas,Revenue,1,1,2,1',
+  ].join('\r\n') + '\r\n';
+
+const WIDE_DRAFT = {
+  table: 'revenue',
+  modality: 'asserts',
+  publisher: 'Ministry of Finance',
+  rows: {
+    wide: {
+      rows: [
+        { position: 1, measure: 'revenue_total' },
+        { position: 2, measure: 'revenue_oil' },
+        { position: 3, measure: 'revenue_other' },
+      ],
+    },
+    unit: { constant: 'billion roubles' },
+    method: 'monthly revenue',
+  },
+  relations: [],
+};
+
+test('a wide table loads one figure for each month cell, and each figure cites its cell', async () => {
+  await inTransaction(async (held) => {
+    const { mapping, load } = await mappedFile(held, WIDE_DRAFT, null, WIDE);
+    const dry = await held.asRole('gabriel_agent', () =>
+      dryJoin({ query: async (text, values) => ({ rows: await held.ask(text, values) }) }, mapping),
+    );
+    expect(dry.split('\r\n')[0]).toContain('cells 8; figures 7; to the report 1');
+
+    await runLoad(held, load);
+    const found = z
+      .array(
+        z.object({
+          measure: z.string(),
+          period: z.string(),
+          value: z.string(),
+          unit: z.string(),
+          reporter: z.string().nullable(),
+          passage: z.string(),
+        }),
+      )
+      .parse(
+        await held.ask(
+          `SELECT o.measure, o.period, o.value::text AS value, o.unit, o.reporter,
+                  substr(t.text, o.span_start + 1, o.span_end - o.span_start) AS passage
+             FROM public.observation o
+             JOIN public.document_text t
+               ON (t.document_id, t.extractor, t.page) = (o.document_id, o.text_extractor, o.page)
+            WHERE o.document_id = $1 ORDER BY o.measure, o.period`,
+          [FILE],
+        ),
+      );
+    expect(found.map((one) => [one.measure, one.period, one.value, one.passage])).toStrictEqual([
+      ['revenue_oil', '2018-01', '40', '40'],
+      ['revenue_oil', '2018-03', '12.5', '12.5'],
+      ['revenue_other', '2018-01', '7', '7'],
+      ['revenue_other', '2018-02', '8', '8'],
+      ['revenue_other', '2018-03', '9', '9'],
+      ['revenue_total', '2018-01', '100.5', '100.5'],
+      ['revenue_total', '2018-02', '-3.2', '-3.2'],
+    ]);
+    expect(found.every((one) => one.unit === 'billion roubles' && one.reporter === null)).toBe(
+      true,
+    );
+    const report = reportText(held);
+    expect(report).toContain('read 8; loaded 7; excluded 1');
+    expect(report).toContain('the source has no data for 2018-03');
+  });
+});
+
+// The frozen release reads the figures through one function. It gives the figures of an open
+// licence, as the public read does, and none of a restricted licence.
+test.each([
+  ['eurostat', 5],
+  [null, 0],
+] as const)('a release exports the figures of the provider %s: %i', async (provider, count) => {
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(held, DRAFT, provider);
+    await runLoad(held, load);
+    expect(await figuresOf(held)).toHaveLength(5);
+    expect(
+      await held.asRole('gabriel_app', () =>
+        held.ask('SELECT count(*)::int AS shown FROM public.release_observations()'),
+      ),
+    ).toStrictEqual([{ shown: count }]);
+  });
+});
+
+// A cell of a wide table that someone forged: the door reads the cell again from the cited row and
+// the header, and refuses a span that is not the cell of the named column. The second row of the
+// file is 'Oil,Revenue,40,,40,12.5': the 40 of 2018-01 and the 40 of the annual total look alike.
+const OIL = 'Oil,Revenue,40,,40,12.5';
+const OIL_AT = WIDE.indexOf(OIL);
+const OIL_ROW = { row_start: OIL_AT, row_end: OIL_AT + OIL.length };
+const MONTH_CELL = { start: OIL_AT + 'Oil,Revenue,'.length, end: OIL_AT + 'Oil,Revenue,40'.length };
+const TOTAL_CELL = {
+  start: OIL_AT + 'Oil,Revenue,40,,'.length,
+  end: OIL_AT + 'Oil,Revenue,40,,40'.length,
+};
+const WIDE_CELL = {
+  subject_id: null,
+  text_extractor: TEXT_SET,
+  page: 1,
+  position: 2,
+  column: '2018-01',
+  ...OIL_ROW,
+  ...MONTH_CELL,
+};
+
+const FORGED: readonly (readonly [string, Record<string, unknown>, RegExp])[] = [
+  ['a span moved to another column with the same text', TOTAL_CELL, /not the cell of the column/u],
+  ['a span that takes the comma before the cell', { start: MONTH_CELL.start - 1 }, /not the cell/u],
+  ['a wrong position', { position: 3 }, /at position 2, and the row cites position 3/u],
+  ['a position that the mapping does not read', { position: 4 }, /at position 2/u],
+  ['a wrong header name', { column: '2018-09' }, /no month of the header/u],
+  ['the annual total column', { column: 'Total 2018', ...TOTAL_CELL }, /no month of the header/u],
+  ['a span outside the row', { start: 0, end: 7 }, /outside the row/u],
+];
+
+const wideJob = async (held: Held, provider: string | null = null): Promise<string> => {
+  const { load } = await mappedFile(held, WIDE_DRAFT, provider, WIDE);
+  const claimed = await held.asRole('gabriel_agent', () =>
+    held.ask('SELECT job_id::text AS id FROM public.claim_job()'),
+  );
+  expect(claimed).toStrictEqual([{ id: load }]);
+  return load;
+};
+
+test('the door writes the cell of a wide table when the cell is the one that it names', async () => {
+  await inTransaction(async (held) => {
+    const job = await wideJob(held);
+    expect(await putAsAgent(held, job, [WIDE_CELL])).toStrictEqual([
+      { item: 1, outcome: 'written' },
+    ]);
+  });
+});
+
+test.each(FORGED)('the door refuses %s as a fault of one row', async (_name, change, sentence) => {
+  await inTransaction(async (held) => {
+    const job = await wideJob(held);
+    const fault = await faultOf(putAsAgent(held, job, [{ ...WIDE_CELL, ...change }]));
+    expect(fault.code).toBe('22000');
+    expect(fault.message).toMatch(sentence);
+  });
+});
+
+test('a figure with no reporter and a reporter system is refused by the table', async () => {
+  await inTransaction(async (held) => {
+    const job = await wideJob(held);
+    await putAsAgent(held, job, [WIDE_CELL]);
+    await held.ask('SAVEPOINT pair');
+    const fault = await faultOf(
+      held.client.query("UPDATE public.observation SET reporter_system = 'iso3166'"),
+    );
+    expect(fault.code).toBe('23514');
+    expect(fault.message).toMatch(/observation_reporter_pair/u);
+    await held.ask('ROLLBACK TO pair');
+  });
+});
+
+test('a release does not give a subject that the public read hides', async () => {
+  await inTransaction(async (held) => {
+    const job = await wideJob(held, 'eurostat');
+    await putAsAgent(held, job, [WIDE_CELL]);
+    // A subject has no foreign key. An entity that api.entity does not show reads as no subject.
+    await held.ask('UPDATE public.observation SET subject_id = gen_random_uuid()');
+    expect(
+      await held.asRole('gabriel_app', () =>
+        held.ask('SELECT subject_id FROM public.release_observations()'),
+      ),
+    ).toStrictEqual([{ subject_id: null }]);
+  });
+});
+
 // A CSV with a label in quotes that holds a comma and a doubled quote, a quote inside a plain field,
 // and text after a closing quote. The door reads each row with the rules of the table reader, so
 // each label stays one field and a stray quote moves no record start.

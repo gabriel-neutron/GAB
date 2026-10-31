@@ -5840,6 +5840,13 @@ DECLARE
   v_quotes     boolean;
   v_starts     int[];
   v_ix         int;
+  v_wide       boolean;
+  v_measure    text;
+  v_cstart     int;
+  v_cend       int;
+  v_pos        int;
+  v_col        int;
+  v_celltext   text;
   v_json       boolean;
   v_members    jsonb;
   v_data       json;
@@ -5860,7 +5867,9 @@ BEGIN
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
   v_rows := v_mapping->'rows';
-  IF NOT v_rows ? 'measure' THEN
+  -- A wide table (ADR 0032) has the months as columns: each cell under a month header is a figure.
+  v_wide := v_rows ? 'wide';
+  IF NOT (v_rows ? 'measure' OR v_wide) THEN
     RAISE EXCEPTION 'the mapping of job % maps no observation', p_job
       USING ERRCODE = 'invalid_parameter_value';
   END IF;
@@ -5898,6 +5907,21 @@ BEGIN
     END IF;
     v_start := (v_row->>'start')::int;
     v_end := (v_row->>'end')::int;
+    -- A figure of a wide table cites its cell. The row that holds the cell is the record that the
+    -- door reads.
+    IF v_wide THEN
+      IF NOT (coalesce(pg_input_is_valid(v_row->>'row_start', 'int'), false)
+              AND coalesce(pg_input_is_valid(v_row->>'row_end', 'int'), false)
+              AND coalesce(pg_input_is_valid(v_row->>'position', 'int'), false)) THEN
+        RAISE EXCEPTION 'row %: the row start, the row end and the position are whole numbers',
+          v_no USING ERRCODE = 'data_exception';
+      END IF;
+      v_cstart := v_start;
+      v_cend := v_end;
+      v_start := (v_row->>'row_start')::int;
+      v_end := (v_row->>'row_end')::int;
+      v_pos := (v_row->>'position')::int;
+    END IF;
     IF v_row->>'text_extractor' IS DISTINCT FROM v_set THEN
       RAISE EXCEPTION 'the rows of job % cite the text set %, which the load reads', p_job, v_set
         USING ERRCODE = 'invalid_parameter_value';
@@ -5924,7 +5948,8 @@ BEGIN
       -- quote opens a field only at its start, a doubled quote is a quote, a closing quote is
       -- never the first of a doubled quote, and the text after a closing quote stays in the field. The expression of one record is matched in C, so the
       -- page is read once for each batch.
-      v_quotes := NOT v_tab AND NOT v_json AND strpos(v_text, '"') > 0;
+      -- A wide table needs the record starts, to count the position of a row.
+      v_quotes := NOT v_tab AND NOT v_json AND (v_wide OR strpos(v_text, '"') > 0);
       v_starts := NULL;
       v_ix := 1;
       IF v_quotes THEN
@@ -6050,80 +6075,154 @@ BEGIN
         USING ERRCODE = 'data_exception';
     END IF;
 
-    v_cell := v_fields[array_position(v_header, v_rows->'value'->>'column')];
-    -- The number form of the loader: digits, a point and an exponent, and no NaN or Infinity.
-    IF coalesce(v_cell, '') !~ '^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?$'
-       OR NOT pg_input_is_valid(v_cell, 'numeric') THEN
-      RAISE EXCEPTION 'row %: the value "%" is not a number', v_no, coalesce(v_cell, '')
-        USING ERRCODE = 'data_exception';
-    END IF;
-    v_value := v_cell::numeric;
-
-    v_unit := coalesce(v_rows->'unit'->>'constant',
-                       v_fields[array_position(v_header, v_rows->'unit'->>'column')]);
-    IF coalesce(v_unit, '') = '' THEN
-      RAISE EXCEPTION 'row %: the unit is empty', v_no USING ERRCODE = 'data_exception';
-    END IF;
-
-    v_cell := coalesce(v_fields[array_position(v_header, v_rows->'period'->>'column')], '');
-    v_period := CASE v_rows->'period'->>'length'
-      WHEN 'year' THEN substring(v_cell FROM '^([0-9]{4})$')
-      WHEN 'quarter' THEN substring(v_cell FROM '^([0-9]{4}-Q[1-4])$')
-      WHEN 'week' THEN substring(v_cell FROM '^([0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3]))$')
-      WHEN 'month' THEN coalesce(substring(v_cell FROM '^([0-9]{4}-(0[1-9]|1[0-2]))$'),
-                                 regexp_replace(substring(v_cell FROM '^([0-9]{4}M?(0[1-9]|1[0-2]))$'),
-                                                '^([0-9]{4})M?', '\1-'))
-    END;
-    IF v_period IS NULL THEN
-      RAISE EXCEPTION 'row %: "%" is not a period of one %', v_no, v_cell,
-        v_rows->'period'->>'length'
-        USING ERRCODE = 'data_exception';
-    END IF;
-
-    v_cell := v_fields[array_position(v_header, v_rows->'reporter'->>'column')];
-    SELECT a.area_system, a.area_code INTO v_rep_sys, v_rep_code
-      FROM public.area_of(v_rows->'reporter'->>'codes', v_cell) a;
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'row %: the reporter "%" is not a code of the area list', v_no,
-        coalesce(v_cell, '')
-        USING ERRCODE = 'data_exception';
-    END IF;
-    v_par_sys := NULL;
-    v_par_code := NULL;
-    IF v_rows ? 'partner' THEN
-      v_cell := v_fields[array_position(v_header, v_rows->'partner'->>'column')];
-      SELECT a.area_system, a.area_code INTO v_par_sys, v_par_code
-        FROM public.area_of(v_rows->'partner'->>'codes', v_cell) a;
+    IF v_wide THEN
+      -- The position of the row is its place among the records under the header, and the measure
+      -- is the one that the mapping gives to that place.
+      IF v_ix - 1 <> v_pos THEN
+        RAISE EXCEPTION 'row %: the record is at position %, and the row cites position %', v_no,
+          v_ix - 1, v_pos USING ERRCODE = 'data_exception';
+      END IF;
+      SELECT r->>'measure' INTO v_measure
+        FROM jsonb_array_elements(v_rows->'wide'->'rows') AS r
+       WHERE (r->>'position')::int = v_pos;
       IF NOT FOUND THEN
-        RAISE EXCEPTION 'row %: the partner "%" is not a code of the area list', v_no,
-          coalesce(v_cell, '')
+        RAISE EXCEPTION 'row %: the mapping reads no row at position %', v_no, v_pos
           USING ERRCODE = 'data_exception';
       END IF;
-    END IF;
-    v_product := NULL;
-    IF v_rows ? 'product' THEN
-      v_product := v_fields[array_position(v_header, v_rows->'product'->>'column')];
-      IF coalesce(v_product, '') = '' THEN
-        RAISE EXCEPTION 'row %: the product is empty', v_no USING ERRCODE = 'data_exception';
+      -- Only a header cell that is a month is a period: an annual total is no figure.
+      v_col := array_position(v_header, v_row->>'column');
+      v_cell := coalesce(v_row->>'column', '');
+      v_period := coalesce(substring(v_cell FROM '^([0-9]{4}-(0[1-9]|1[0-2]))$'),
+                           regexp_replace(substring(v_cell FROM '^([0-9]{4}M?(0[1-9]|1[0-2]))$'),
+                                          '^([0-9]{4})M?', '\1-'));
+      IF v_col IS NULL OR v_period IS NULL THEN
+        RAISE EXCEPTION 'row %: the column "%" is no month of the header', v_no, v_cell
+          USING ERRCODE = 'data_exception';
       END IF;
-    END IF;
-    v_flag := CASE WHEN v_rows ? 'flag'
-                   THEN nullif(v_fields[array_position(v_header, v_rows->>'flag')], '') END;
+      v_cell := v_fields[v_col];
+      IF coalesce(v_cell, '') !~ '^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?$'
+         OR NOT pg_input_is_valid(v_cell, 'numeric') THEN
+        RAISE EXCEPTION 'row %: the value "%" is not a number', v_no, coalesce(v_cell, '')
+          USING ERRCODE = 'data_exception';
+      END IF;
+      v_value := v_cell::numeric;
+      -- The cited span is the cell: it lies in the row, it holds the text of the field, and the
+      -- fields before it are the fields before that column.
+      IF v_cstart < v_start OR v_cstart >= v_cend OR v_cend > v_end THEN
+        RAISE EXCEPTION 'row %: the span of the cell lies outside the row', v_no
+          USING ERRCODE = 'data_exception';
+      END IF;
+      -- Strict: the span is the text of the field, and only the quotes of the CSV rule are removed
+      -- (a doubled quote is one quote). The white space around the field is outside the span.
+      v_celltext := CASE WHEN v_bytes IS NULL THEN substr(v_text, v_cstart + 1, v_cend - v_cstart)
+                         ELSE convert_from(substring(v_bytes FROM v_cstart + 1
+                                                     FOR v_cend - v_cstart), 'UTF8') END;
+      IF v_celltext ~ '^".*"$' AND char_length(v_celltext) >= 2 THEN
+        v_celltext := replace(substr(v_celltext, 2, char_length(v_celltext) - 2), '""', '"');
+      END IF;
+      IF v_celltext IS DISTINCT FROM v_cell
+         OR cardinality(public.table_record(
+              CASE WHEN v_bytes IS NULL THEN substr(v_text, v_start + 1, v_cstart - v_start)
+                   ELSE convert_from(substring(v_bytes FROM v_start + 1 FOR v_cstart - v_start),
+                                     'UTF8') END || 'x', v_tab, true)) <> v_col THEN
+        RAISE EXCEPTION 'row %: the span of the cell is not the cell of the column "%"', v_no,
+          v_row->>'column' USING ERRCODE = 'data_exception';
+      END IF;
+      -- The figure cites the cell, not the row.
+      v_start := v_cstart;
+      v_end := v_cend;
+      v_unit := v_rows->'unit'->>'constant';
+      v_rep_sys := NULL;
+      v_rep_code := NULL;
+      v_par_sys := NULL;
+      v_par_code := NULL;
+      v_product := NULL;
+      v_flag := NULL;
+      v_subject := NULL;
+    ELSE
+      v_measure := v_rows->>'measure';
+      v_cell := v_fields[array_position(v_header, v_rows->'value'->>'column')];
+      -- The number form of the loader: digits, a point and an exponent, and no NaN or Infinity.
+      IF coalesce(v_cell, '') !~ '^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?$'
+         OR NOT pg_input_is_valid(v_cell, 'numeric') THEN
+        RAISE EXCEPTION 'row %: the value "%" is not a number', v_no, coalesce(v_cell, '')
+          USING ERRCODE = 'data_exception';
+      END IF;
+      v_value := v_cell::numeric;
 
-    v_subject := NULL;
-    IF v_rows ? 'subject' THEN
-      IF NOT coalesce(pg_input_is_valid(v_row->>'subject_id', 'uuid'), false)
-         OR NOT EXISTS (SELECT 1 FROM public.entities e WHERE e.id = (v_row->>'subject_id')::uuid) THEN
-        RAISE EXCEPTION 'row %: the subject is no entity of the record', v_no
+      v_unit := coalesce(v_rows->'unit'->>'constant',
+                         v_fields[array_position(v_header, v_rows->'unit'->>'column')]);
+      IF coalesce(v_unit, '') = '' THEN
+        RAISE EXCEPTION 'row %: the unit is empty', v_no USING ERRCODE = 'data_exception';
+      END IF;
+
+      v_cell := coalesce(v_fields[array_position(v_header, v_rows->'period'->>'column')], '');
+      v_period := CASE v_rows->'period'->>'length'
+        WHEN 'year' THEN substring(v_cell FROM '^([0-9]{4})$')
+        WHEN 'quarter' THEN substring(v_cell FROM '^([0-9]{4}-Q[1-4])$')
+        WHEN 'week' THEN substring(v_cell FROM '^([0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3]))$')
+        WHEN 'month' THEN coalesce(substring(v_cell FROM '^([0-9]{4}-(0[1-9]|1[0-2]))$'),
+                                   regexp_replace(substring(v_cell FROM '^([0-9]{4}M?(0[1-9]|1[0-2]))$'),
+                                                  '^([0-9]{4})M?', '\1-'))
+      END;
+      IF v_period IS NULL THEN
+        RAISE EXCEPTION 'row %: "%" is not a period of one %', v_no, v_cell,
+          v_rows->'period'->>'length'
           USING ERRCODE = 'data_exception';
       END IF;
-      v_subject := (v_row->>'subject_id')::uuid;
+
+      -- A mapping with no reporter gives figures of the world: the reporter is null.
+      v_rep_sys := NULL;
+      v_rep_code := NULL;
+      IF v_rows ? 'reporter' THEN
+        v_cell := v_fields[array_position(v_header, v_rows->'reporter'->>'column')];
+        SELECT a.area_system, a.area_code INTO v_rep_sys, v_rep_code
+          FROM public.area_of(v_rows->'reporter'->>'codes', v_cell) a;
+        IF NOT FOUND THEN
+          RAISE EXCEPTION 'row %: the reporter "%" is not a code of the area list', v_no,
+            coalesce(v_cell, '')
+            USING ERRCODE = 'data_exception';
+        END IF;
+      END IF;
+      v_par_sys := NULL;
+      v_par_code := NULL;
+      IF v_rows ? 'partner' THEN
+        v_cell := v_fields[array_position(v_header, v_rows->'partner'->>'column')];
+        SELECT a.area_system, a.area_code INTO v_par_sys, v_par_code
+          FROM public.area_of(v_rows->'partner'->>'codes', v_cell) a;
+        IF NOT FOUND THEN
+          RAISE EXCEPTION 'row %: the partner "%" is not a code of the area list', v_no,
+            coalesce(v_cell, '')
+            USING ERRCODE = 'data_exception';
+        END IF;
+      END IF;
+      v_product := NULL;
+      IF v_rows ? 'product' THEN
+        v_product := v_fields[array_position(v_header, v_rows->'product'->>'column')];
+        IF coalesce(v_product, '') = '' THEN
+          RAISE EXCEPTION 'row %: the product is empty', v_no USING ERRCODE = 'data_exception';
+        END IF;
+      END IF;
+      v_flag := CASE WHEN v_rows ? 'flag'
+                     THEN nullif(v_fields[array_position(v_header, v_rows->>'flag')], '') END;
+
+      v_subject := NULL;
+      IF v_rows ? 'subject' THEN
+        IF NOT coalesce(pg_input_is_valid(v_row->>'subject_id', 'uuid'), false)
+           OR NOT EXISTS (SELECT 1 FROM public.entities e WHERE e.id = (v_row->>'subject_id')::uuid) THEN
+          RAISE EXCEPTION 'row %: the subject is no entity of the record', v_no
+            USING ERRCODE = 'data_exception';
+        END IF;
+        v_subject := (v_row->>'subject_id')::uuid;
+      END IF;
+
     END IF;
 
     SELECT o.value INTO v_held FROM public.observation o
-     WHERE o.document_id = v_document AND o.measure = v_rows->>'measure'
+     WHERE o.document_id = v_document AND o.measure = v_measure
        AND o.unit = v_unit AND o.period = v_period
-       AND o.reporter_system = v_rep_sys AND o.reporter = v_rep_code
+       AND o.reporter_system IS NOT DISTINCT FROM v_rep_sys
+       AND o.reporter IS NOT DISTINCT FROM v_rep_code
        AND o.partner_system IS NOT DISTINCT FROM v_par_sys
        AND o.partner IS NOT DISTINCT FROM v_par_code
        AND o.product_system IS NOT DISTINCT FROM v_rows->'product'->>'system'
@@ -6145,7 +6244,7 @@ BEGIN
        partner_system, partner, product_system, product, subject_id, licence, flag, document_id,
        text_extractor, page, span_start, span_end, mapping_id, job_id)
     VALUES
-      (v_rows->>'measure', v_value, v_unit, v_period, v_rows->>'method', v_publisher,
+      (v_measure, v_value, v_unit, v_period, v_rows->>'method', v_publisher,
        v_rep_sys, v_rep_code, v_par_sys, v_par_code,
        v_rows->'product'->>'system', v_product, v_subject, v_licence, v_flag, v_document,
        v_row->>'text_extractor', (v_row->>'page')::int, v_start, v_end, v_mapping_id, p_job);
@@ -8052,6 +8151,7 @@ DROP FUNCTION IF EXISTS release_entities();
 DROP FUNCTION IF EXISTS release_documents();
 DROP FUNCTION IF EXISTS release_disclaimer();
 DROP FUNCTION IF EXISTS release_merges();
+DROP FUNCTION IF EXISTS release_observations();
 DROP FUNCTION IF EXISTS nato_pair(uuid);
 DROP FUNCTION IF EXISTS nato_pair(uuid[]);
 
@@ -8258,6 +8358,21 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
     FROM public.documents d
     LEFT JOIN public.document_provider p ON p.id = d.provider_id
    WHERE d.id IN (SELECT o.id FROM public.public_document o)
+$$;
+
+-- THE FIGURES OF A RELEASE (ADR 0030). Each figure of the newest edition for its key, with the same
+-- licence filter as the public read. The function reads api.observation as its owner, and that view
+-- shows the owner only the figures with an open licence, so a figure with a restricted licence is
+-- not in a release. The view also hides a subject that the public read does not show.
+CREATE FUNCTION release_observations()
+RETURNS TABLE (id uuid, measure text, value numeric, unit text, period text, method text,
+               publisher text, reporter text, partner text, product text, subject_id uuid,
+               licence text, document_id text, page int, span_start int, span_end int)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
+  SELECT o.id, o.measure, o.value, o.unit, o.period, o.method, o.publisher, o.reporter, o.partner,
+         o.product, o.subject_id, o.licence, o.document_id::text, o.page, o.span_start, o.span_end
+    FROM api.observation o
 $$;
 
 -- THE LOG OF THE MERGES (M12): each merge and each undo, with its label, and the entity that each

@@ -43,7 +43,8 @@ The operator decided on #929, after the expert panel (software-architect, osint-
   reporter column, and the database turns the codes of the source into the codes of the fixed
   list, from a second fixed list of the codes that a source writes in its own way. A code outside
   the list sends the row to the load report.
-- **The reporter and the partner are codes, not entities.** A country is a code of ISO 3166-1,
+- **The reporter and the partner are codes, not entities.** (ADR 0032 makes the reporter optional
+  for a figure that has no country, such as a world price.) A country is a code of ISO 3166-1,
   and a group is a code of the same list (the EU, the world, a partner that the source does not
   state). The list is a fixed reference list in the seed. A country entity would duplicate a
   reference list that the record does not investigate.
