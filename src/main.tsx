@@ -12,10 +12,9 @@ const loaded = new Promise<void>((resolve) => {
   else addEventListener('load', () => resolve(), { once: true });
 });
 
+// A browser with no paint timing, or a page in a hidden tab, starts after the wait.
 const PAINT_WAIT_MS = 3000;
 const painted = new Promise<void>((resolve) => {
-  // A browser with no paint timing, or a page in a hidden tab, starts after the wait.
-  setTimeout(resolve, PAINT_WAIT_MS);
   try {
     new PerformanceObserver((list) => {
       if (list.getEntriesByName('first-contentful-paint').length > 0) resolve();
@@ -25,8 +24,14 @@ const painted = new Promise<void>((resolve) => {
   }
 });
 
+// A slow image or font never holds the start for longer than the wait.
+const ready = Promise.race([
+  Promise.all([loaded, painted]),
+  new Promise((resolve) => setTimeout(resolve, PAINT_WAIT_MS)),
+]);
+
 if (prerendered)
-  void Promise.all([loaded, painted]).then(() => {
+  void ready.then(() => {
     setTimeout(() => void boot());
   });
 else void boot();

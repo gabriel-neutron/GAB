@@ -21,14 +21,16 @@ export function ReportPage() {
       <div className="@container overflow-x-clip [--report-bar:2rem] [--report-view:calc(100cqh-2rem)] md:[--report-bar:2.75rem] md:[--report-view:calc(100cqh-2.75rem)]">
         <ReportCover />
         <PartBar />
-        <article className="mx-auto max-w-[1200px] px-4 md:px-8">
+        <article>
           {parts.map((part, index) => {
             const Part = partComponents[part.slug] ?? PartDefault;
             // The browser lays out and paints a part only near the view, and the client hydrates
             // it only near the view, so the first paint and the hydration do not do the work of
-            // the whole page. The HTML holds the full text all the time. Measure the slot of a
-            // part, not an element in it: a measure in a part far from the view lays it out. The
-            // first part is in the first view, so it paints with the cover.
+            // the whole page. The HTML holds the full text all the time. The first part is in the
+            // first view, so it paints with the cover. The slot is as wide as the view: a part
+            // with `content-visibility` clips what goes out of it, and the art of a part goes to
+            // the edges of the view. Measure the slot of a part, not an element in it: a measure
+            // in a part far from the view lays it out.
             return (
               <div
                 key={part.slug}
@@ -39,11 +41,15 @@ export function ReportPage() {
                     : '[contain-intrinsic-size:auto_2000px] [content-visibility:auto]'
                 }
               >
-                <Suspense fallback={null}>
-                  <HydrateNear slug={part.slug}>
-                    <Part part={part} />
-                  </HydrateNear>
-                </Suspense>
+                <div className="mx-auto max-w-[1200px] px-4 md:px-8">
+                  {/* A part that renders in the browser, not from the release, waits for its
+                      code; the room keeps the next parts out of the view until it comes. */}
+                  <Suspense fallback={<div className="min-h-svh" />}>
+                    <HydrateNear slug={part.slug}>
+                      <Part part={part} />
+                    </HydrateNear>
+                  </Suspense>
+                </div>
               </div>
             );
           })}
