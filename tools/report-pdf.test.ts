@@ -2,7 +2,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { copies, hashOf, htmlOf, LANGS, pagesOf, pdfOf, STAMP } from './report-pdf.ts';
+import { copies, LANGS, pagesOf, pdfOf, STAMP, stampOf } from './report-pdf.ts';
 
 const words = (text: string): string =>
   text
@@ -20,11 +20,13 @@ describe('report PDF', () => {
     for (const lang of LANGS) {
       expect(existsSync(pdfOf(lang))).toBe(true);
       expect(statSync(pdfOf(lang)).size).toBeLessThan(10 * 1024 * 1024);
-      // One PDF page for each template.
+      // One PDF page or more for each template: the layout pass can add a page.
       const pdf = readFileSync(pdfOf(lang), 'latin1');
-      expect(pdf.match(/\/Type\s*\/Page[^s]/g)).toHaveLength(pagesOf(lang).length);
+      expect(pdf.match(/\/Type\s*\/Page[^s]/g)?.length).toBeGreaterThanOrEqual(
+        pagesOf(lang).length,
+      );
       // A failure here means: run `pnpm report:pdf`, and commit the PDF files and the stamp.
-      expect(stamp[lang]).toBe(hashOf(htmlOf(lang, all[lang])));
+      expect(stamp[lang]).toBe(stampOf(lang, all[lang]));
     }
     expect(pagesOf('en')).toHaveLength(pagesOf('fr').length);
   });
