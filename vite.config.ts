@@ -9,6 +9,7 @@ import { openWithKey } from './tools/dev-open.ts';
 import { maplibreWorker } from './tools/maplibre-worker.ts';
 import { releaseFolder, reportFolder } from './tools/release-folder.ts';
 import { reportPdf } from './tools/report-pdf.ts';
+import { isReleaseBuild } from '@gab/release/site-crawl';
 import { stagingHeaders } from './tools/staging-headers.ts';
 
 // External constraint: the key of the operator lives in infra/.env, and only the operator side
@@ -50,6 +51,10 @@ export default defineConfig({
     maplibreWorker(),
     stagingHeaders(),
   ],
+  // The page reads the release flag: a layer that waits for the legal review stays off in a release.
+  define: {
+    'import.meta.env.VITE_SITE_RELEASE': JSON.stringify(isReleaseBuild(process.env) ? '1' : ''),
+  },
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },
   },
