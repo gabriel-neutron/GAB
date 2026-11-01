@@ -569,8 +569,8 @@ const sizeOf = (bytes: Uint8Array): Size | undefined => {
   return pngSize(view) ?? jpegSize(view);
 };
 
-const reasonOf = (fault: unknown): string =>
-  (fault instanceof Error ? fault.message : String(fault)).split('\n')[0] ?? '';
+export const OCR_FAULT =
+  'OCR could not read the image, and the operator reads the fault in the log';
 
 const imagePage = async (bytes: Uint8Array): Promise<string> => {
   const size = sizeOf(bytes);
@@ -602,9 +602,10 @@ const imagePage = async (bytes: Uint8Array): Promise<string> => {
     // new one.
     await closeOcr(held);
     if (fault instanceof RefusedImageError) throw fault;
-    throw new RefusedImageError(`OCR could not read the image: ${reasonOf(fault)}`, {
-      cause: fault,
-    });
+    // A fault of the OCR engine can name a path of the machine. The caller gets a fixed sentence,
+    // and the operator reads the fault in the log.
+    console.error(fault);
+    throw new RefusedImageError(OCR_FAULT, { cause: fault });
   } finally {
     clearTimeout(timer);
   }

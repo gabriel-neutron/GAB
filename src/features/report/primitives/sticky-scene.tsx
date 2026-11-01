@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useInView, useReducedMotion } from 'motion/react';
+import { useInView } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import { layout } from './layout';
+import { useReduceMotion } from '../reduced-motion';
 
 interface StickySceneProps {
   /** The text cards, in reading order. */
@@ -14,22 +15,25 @@ interface StickySceneProps {
   readonly stepClassName?: string | undefined;
   /** False ends the scene with the last card, with no empty view after it. True by default. */
   readonly tail?: boolean | undefined;
+  /** True shows each card beside its own figure, as under reduced motion. */
+  readonly still?: boolean | undefined;
 }
 
 /** A scroll scene: the figure stays fixed in the view, the text cards scroll over it, and the card
- * at the middle of the view sets the step of the figure. Under reduced motion, each card shows
- * beside the figure in its own step, with no scroll effect. */
+ * at the middle of the view sets the step of the figure. Under reduced motion or with `still`, each
+ * card shows beside the figure in its own step, with no scroll effect. */
 export function StickyScene({
   steps,
   children,
   sceneClassName,
   stepClassName,
   tail = true,
+  still = false,
 }: StickySceneProps) {
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion() || still;
   const [active, setActive] = useState(0);
   // The steps are positional report text with no identity of their own, so their place is their key.
-  if (reduce === true)
+  if (reduce)
     return (
       <div>
         {steps.map((step, index) => (
@@ -45,7 +49,8 @@ export function StickyScene({
     );
   return (
     <div className="relative">
-      <div className={cn('sticky flex items-center', layout.top, layout.view, sceneClassName)}>
+      {/* Safe centre: a figure taller than the view starts at the top and never covers the text above. */}
+      <div className={cn('sticky flex items-center-safe', layout.top, layout.view, sceneClassName)}>
         <div className="w-full min-w-0">{children(active)}</div>
       </div>
       <div className="pointer-events-none relative -mt-[var(--report-view,100svh)]">

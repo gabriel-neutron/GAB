@@ -5,6 +5,7 @@ import { machineAct } from '@gab/proposal/machine';
 import {
   isLinkTable,
   isObservationTable,
+  isWideTable,
   mappingPayload,
   type LinkRows,
   type MappingPayload,
@@ -304,13 +305,14 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       excluded: number,
       dropped: number,
       lines: readonly Line[],
+      read = table.rows.length,
     ): Promise<void> => {
       const text = reportOf(
         {
           document,
           mapping: job.mappingId,
           job: job.id,
-          read: table.rows.length,
+          read,
           loaded,
           excluded,
           dropped,
@@ -321,14 +323,14 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       const digest = sha256(bytes);
       const key = await options.store.put({ key: `raw/${digest}`, bytes, mime: REPORT_MIME });
       const title =
-        `Load report of ${document} under mapping ${job.mappingId}: ${String(table.rows.length)} ` +
+        `Load report of ${document} under mapping ${job.mappingId}: ${String(read)} ` +
         `rows read, ${String(loaded)} loaded, ${String(excluded)} excluded, ` +
         `${String(dropped)} links dropped`;
       await context.db.query(REPORT, [job.id, title, key, digest, REPORT_MIME]);
     };
 
     // A figure is no entity: the door of a figure writes each row, and no act waits for a decision.
-    if (isObservationTable(mapping.rows)) {
+    if (isObservationTable(mapping.rows) || isWideTable(mapping.rows)) {
       const done = await loadObservations(context.db, {
         job: job.id,
         rows: mapping.rows,
@@ -336,9 +338,9 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         records: table.rows,
         cited: { textSet: page.textSet, page: page.page },
       });
-      if (done.loaded + done.excluded !== table.rows.length)
+      if (done.loaded + done.excluded !== done.read)
         throw new JobStop('the rows loaded and excluded do not add up to the rows read');
-      await putReport(done.loaded, done.excluded, 0, done.lines);
+      await putReport(done.loaded, done.excluded, 0, done.lines, done.read);
       return { refusals: [] };
     }
 

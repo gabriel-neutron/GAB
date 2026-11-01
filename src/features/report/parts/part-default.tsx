@@ -1,10 +1,12 @@
-import { parts, type ReportPart } from '../content';
+import type { ReportPart } from '../content';
 import { Blocks } from '../blocks';
 import { NodeStrip } from '../node-strip';
 import { ScrambleText } from '../scramble-text';
+import { useContent } from '../use-content';
 
 /** The default drawing of one part: its chapter head, the nodes it names and its text. */
 export function PartDefault({ part }: { readonly part: ReportPart }) {
+  const { parts } = useContent();
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   return (
     <section

@@ -1,28 +1,37 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { RouterProvider } from '@tanstack/react-router';
-import { router } from './router';
-import { loadCorpus } from './shared/read/corpus';
-import { probeWriter } from './shared/write/writer-status';
 import './index.css';
 
-const container = document.getElementById('root');
-if (container === null) throw new Error('The element #root is absent from index.html.');
+// A page of the release holds its text in the root already, so the browser loads and paints it
+// with its images first, and only then loads the script of the application. The script never
+// delays the first paint of the text or of the cover. An empty root (the dev server, a page with
+// no text) starts the application at once.
+const prerendered = document.getElementById('root')?.hasChildNodes() === true;
+const boot = () => import('./boot');
 
-// The first read of the write service starts here, so the entries know it before they draw.
-void probeWriter();
+const loaded = new Promise<void>((resolve) => {
+  if (document.readyState === 'complete') resolve();
+  else addEventListener('load', () => resolve(), { once: true });
+});
 
-// The first read of the record starts here too. A read that finds the service down loads the
-// release, which sets the release note on a page that reads no record. A fault shows on the page that
-// needs the record, so it is not shown twice.
-loadCorpus().catch(() => undefined);
+// A browser with no paint timing, or a page in a hidden tab, starts after the wait.
+const PAINT_WAIT_MS = 3000;
+const painted = new Promise<void>((resolve) => {
+  try {
+    new PerformanceObserver((list) => {
+      if (list.getEntriesByName('first-contentful-paint').length > 0) resolve();
+    }).observe({ type: 'paint', buffered: true });
+  } catch {
+    resolve();
+  }
+});
 
-// A page of the release holds its text in the root already. The first render waits for the data of
-// the route, so the text is replaced by the same text and never by a loading notice.
-if (container.hasChildNodes()) await router.load().catch(() => undefined);
+// A slow image or font never holds the start for longer than the wait.
+const ready = Promise.race([
+  Promise.all([loaded, painted]),
+  new Promise((resolve) => setTimeout(resolve, PAINT_WAIT_MS)),
+]);
 
-createRoot(container).render(
-  <StrictMode>
-    <RouterProvider router={router} />
-  </StrictMode>,
-);
+if (prerendered)
+  void ready.then(() => {
+    setTimeout(() => void boot());
+  });
+else void boot();

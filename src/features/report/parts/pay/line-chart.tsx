@@ -76,20 +76,46 @@ const GAP = 12;
 const LINE = 18;
 export const FADE = 'transition-opacity duration-500 motion-reduce:transition-none';
 
+/** The x values that have a point in one series or more, in order. */
+export const xsOf = (series: readonly LineSeries[]): number[] =>
+  [...new Set(series.flatMap((one) => one.points.flatMap((p) => (p ? [p.x] : []))))].sort(
+    (a, b) => a - b,
+  );
+
+/** The read-out of the chart at `x`: the name of `x`, then the value and the unit of each shown
+ * series that has a point there. */
+export function readout(spec: ChartSpec, x: number): { name: string; rows: string[] } {
+  return {
+    name: spec.xName(x),
+    rows: spec.series.flatMap((one) => {
+      const point = one.points.find((p) => p?.x === x);
+      return (one.shown ?? true) && point
+        ? [`${one.label}: ${point.y.toFixed(spec.digits ?? 0)} ${spec.unit}`]
+        : [];
+    }),
+  };
+}
+
 /** A line chart on a faint grid, in the one accent and neutrals. A missing value breaks the line.
  * A hollow mark is an estimate or a plan, and its line is dashed. Each line ends in its label. */
 export function LineChart({
   spec,
   layers,
   fill = false,
+  tableLabel,
 }: {
   readonly spec: ChartSpec;
   readonly layers?: (scales: Scales) => Layers;
   /** True: the chart takes the height of its parent, not a height from its width. */
   readonly fill?: boolean;
+  /** With a label, the data table shows under the chart in a disclosure of that name; with
+   * none, only a screen reader reads it. */
+  readonly tableLabel?: string;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
+  // The x value under the pointer or at the keyboard focus.
+  const [pointed, setPointed] = useState<number | null>(null);
   // An adapter: the browser reports the size of the box.
   useEffect(() => {
     const node = box.current;
@@ -131,6 +157,17 @@ export function LineChart({
     bottom,
   };
   const extra = width === 0 || layers === undefined ? {} : layers(scales);
+  const xs = xsOf(spec.series.filter((one) => one.shown ?? true));
+  const nearest = (px: number) =>
+    xs.reduce<number | null>(
+      (best, x) =>
+        best === null || Math.abs(scales.x(x) - px) < Math.abs(scales.x(best) - px) ? x : best,
+      null,
+    );
+  // A point that the shown series no longer have reads as no point.
+  const at = pointed !== null && xs.includes(pointed) ? pointed : null;
+  const read = at === null ? null : readout(spec, at);
+  const text = read === null ? '' : [read.name, ...read.rows].join(', ');
 
   // End labels in value order, pushed apart so that two labels never touch.
   const ends: { id: string; y: number; x: number; text: string; tone: Tone; shown: boolean }[] = [];
@@ -158,95 +195,180 @@ export function LineChart({
   }
 
   return (
-    <div
-      ref={box}
-      className={cn('relative w-full min-w-0', fill && 'h-full')}
-      style={fill ? undefined : { height }}
-    >
-      {width === 0 ? null : (
-        <svg
-          width={width}
-          height={height}
-          viewBox={`0 0 ${String(width)} ${String(height)}`}
-          aria-hidden="true"
-          className="block overflow-visible font-mono text-report-label"
-        >
-          <text x={0} y={12} className="fill-label">
-            {spec.unit}
-          </text>
-          {spec.yTicks.map((tick) => (
-            <g key={tick}>
-              <line
-                x1={MARGIN.left}
-                x2={right}
-                y1={scales.y(tick)}
-                y2={scales.y(tick)}
-                className="stroke-chart-grid"
-              />
+    <>
+      {/* A pointer or the arrow keys show the values of all series at one x. */}
+      <div
+        ref={box}
+        tabIndex={0}
+        role="group"
+        aria-label={spec.label}
+        className={cn(
+          'relative w-full min-w-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid',
+          fill && 'h-full',
+        )}
+        style={fill ? undefined : { height }}
+        onPointerMove={(event) => {
+          const px = event.clientX - event.currentTarget.getBoundingClientRect().left;
+          setPointed(px < scales.left || px > scales.right ? null : nearest(px));
+        }}
+        onPointerLeave={() => {
+          setPointed(null);
+        }}
+        onPointerCancel={() => {
+          setPointed(null);
+        }}
+        onBlur={() => {
+          setPointed(null);
+        }}
+        onKeyDown={(event) => {
+          // The keys belong to a control in the chart, if there is one.
+          if (event.target !== event.currentTarget) return;
+          const index = at === null ? -1 : xs.indexOf(at);
+          const to =
+            event.key === 'ArrowRight'
+              ? Math.min(index + 1, xs.length - 1)
+              : event.key === 'ArrowLeft'
+                ? Math.max(index === -1 ? xs.length - 1 : index - 1, 0)
+                : event.key === 'Home'
+                  ? 0
+                  : event.key === 'End'
+                    ? xs.length - 1
+                    : null;
+          if (event.key === 'Escape') setPointed(null);
+          if (to === null) return;
+          event.preventDefault();
+          setPointed(xs[to] ?? null);
+        }}
+      >
+        {width === 0 ? null : (
+          <svg
+            width={width}
+            height={height}
+            viewBox={`0 0 ${String(width)} ${String(height)}`}
+            aria-hidden="true"
+            className="block overflow-visible font-mono text-report-label"
+          >
+            <text x={0} y={12} className="fill-label">
+              {spec.unit}
+            </text>
+            {spec.yTicks.map((tick) => (
+              <g key={tick}>
+                <line
+                  x1={MARGIN.left}
+                  x2={right}
+                  y1={scales.y(tick)}
+                  y2={scales.y(tick)}
+                  className="stroke-chart-grid"
+                />
+                <text
+                  x={MARGIN.left - 6}
+                  y={scales.y(tick) + 4}
+                  textAnchor="end"
+                  className="fill-label tabular-nums"
+                >
+                  {tick}
+                </text>
+              </g>
+            ))}
+            {spec.xTicks.map((tick) => (
               <text
-                x={MARGIN.left - 6}
-                y={scales.y(tick) + 4}
-                textAnchor="end"
+                key={tick.at}
+                x={scales.x(tick.at)}
+                y={bottom + 20}
+                textAnchor="middle"
                 className="fill-label tabular-nums"
               >
-                {tick}
+                {tick.label}
               </text>
-            </g>
-          ))}
-          {spec.xTicks.map((tick) => (
-            <text
-              key={tick.at}
-              x={scales.x(tick.at)}
-              y={bottom + 20}
-              textAnchor="middle"
-              className="fill-label tabular-nums"
-            >
-              {tick.label}
-            </text>
-          ))}
-          {extra.under}
-          {spec.series.map((one) => (
-            <g key={one.id} className={cn(FADE, shownClass(one.tone, one.shown ?? true))}>
-              <path
-                d={linePath(one.points, scales)}
-                fill="none"
-                strokeWidth={one.tone === 'ink' || one.tone === 'accent' ? 2 : 1.5}
-                strokeDasharray={one.dashed === true ? '5 4' : undefined}
-                className={STROKE[one.tone]}
+            ))}
+            {extra.under}
+            {spec.series.map((one) => (
+              <g key={one.id} className={cn(FADE, shownClass(one.tone, one.shown ?? true))}>
+                <path
+                  d={linePath(one.points, scales)}
+                  fill="none"
+                  strokeWidth={one.tone === 'ink' || one.tone === 'accent' ? 2 : 1.5}
+                  strokeDasharray={one.dashed === true ? '5 4' : undefined}
+                  className={STROKE[one.tone]}
+                />
+                {one.points.map((point) =>
+                  point === null ? null : (
+                    <circle
+                      key={point.x}
+                      cx={scales.x(point.x)}
+                      cy={scales.y(point.y)}
+                      r={point.hollow ? 3.5 : 2.5}
+                      strokeWidth={1.5}
+                      className={cn(
+                        STROKE[one.tone],
+                        point.hollow ? 'fill-background' : TEXT[one.tone],
+                      )}
+                    />
+                  ),
+                )}
+              </g>
+            ))}
+            {ends.map((end) => (
+              <text
+                key={end.id}
+                x={end.x}
+                y={end.y}
+                className={cn(FADE, TEXT[end.tone], end.shown ? 'opacity-100' : 'opacity-0')}
+              >
+                {end.text}
+              </text>
+            ))}
+            {extra.over}
+            {at === null ? null : (
+              <line
+                x1={scales.x(at)}
+                x2={scales.x(at)}
+                y1={scales.top}
+                y2={scales.bottom}
+                className="stroke-foreground"
+                strokeDasharray="2 3"
               />
-              {one.points.map((point) =>
-                point === null ? null : (
-                  <circle
-                    key={point.x}
-                    cx={scales.x(point.x)}
-                    cy={scales.y(point.y)}
-                    r={point.hollow ? 3.5 : 2.5}
-                    strokeWidth={1.5}
-                    className={cn(
-                      STROKE[one.tone],
-                      point.hollow ? 'fill-background' : TEXT[one.tone],
-                    )}
-                  />
-                ),
-              )}
-            </g>
-          ))}
-          {ends.map((end) => (
-            <text
-              key={end.id}
-              x={end.x}
-              y={end.y}
-              className={cn(FADE, TEXT[end.tone], end.shown ? 'opacity-100' : 'opacity-0')}
-            >
-              {end.text}
-            </text>
-          ))}
-          {extra.over}
-        </svg>
+            )}
+          </svg>
+        )}
+        {extra.html}
+        {/* The box stands in the plot, on the side away from the point, under the unit. */}
+        {read === null || at === null ? null : (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute z-10 border border-border bg-background px-2 py-1 font-mono text-report-label tabular-nums"
+            style={
+              scales.x(at) > (scales.left + scales.right) / 2
+                ? { left: scales.left + 4, top: scales.top }
+                : { right: width - scales.right + 4, top: scales.top }
+            }
+          >
+            <p className="text-label">{read.name}</p>
+            {read.rows.map((row) => (
+              <p key={row}>{row}</p>
+            ))}
+          </div>
+        )}
+        <p aria-live="polite" className="sr-only">
+          {text}
+        </p>
+        {tableLabel === undefined ? <DataTable spec={spec} className="sr-only" /> : null}
+      </div>
+      {tableLabel === undefined ? null : (
+        // Out of the box of the chart, whose height is fixed.
+        <details className="mt-3">
+          <summary className="inline-flex min-h-11 cursor-pointer items-center font-mono text-report-label text-label focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid">
+            {tableLabel}
+          </summary>
+          <div className="overflow-x-auto">
+            <DataTable
+              spec={spec}
+              className="w-full font-mono text-report-label tabular-nums [&_caption]:text-left [&_caption]:text-label [&_td]:py-1 [&_td]:text-right [&_th]:py-1 [&_th]:text-left [&_th]:font-normal [&_th]:text-label [&_thead_th]:text-right [&_tr]:border-b [&_tr]:border-divider"
+            />
+          </div>
+        </details>
       )}
-      {extra.html}
-      <DataTable spec={spec} />
-    </div>
+    </>
   );
 }
 
@@ -265,13 +387,11 @@ function linePath(points: readonly Point[], scales: Scales): string {
   return path;
 }
 
-/** The values of the chart as a table, for a screen reader. */
-function DataTable({ spec }: { readonly spec: ChartSpec }) {
-  const xs = [
-    ...new Set(spec.series.flatMap((one) => one.points.flatMap((p) => (p ? [p.x] : [])))),
-  ].sort((a, b) => a - b);
+/** The values of the chart as a table. */
+function DataTable({ spec, className }: { readonly spec: ChartSpec; readonly className: string }) {
+  const xs = xsOf(spec.series);
   return (
-    <table className="sr-only">
+    <table className={className}>
       <caption>
         {spec.label} ({spec.unit})
       </caption>

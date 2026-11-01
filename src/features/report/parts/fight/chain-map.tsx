@@ -1,10 +1,13 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { motion, useInView, useReducedMotion } from 'motion/react';
-import { fightUi } from '../../content';
+import { motion, useInView } from 'motion/react';
+import { useContent } from '../../use-content';
+import { useDataName } from './chain-panels';
 import { cn } from '@/shared/lib/utils';
 import { useReport } from '../../use-report';
 import type { Arc, Place, Tone } from './chain-data';
 import { fitCrop, placeLabels, ringHolds } from './layouts';
+import { GLYPH, type PlantMark } from './plants-data';
+import { useReduceMotion } from '../../reduced-motion';
 
 interface Site {
   readonly id: string;
@@ -23,19 +26,21 @@ interface Crop {
 // Equirectangular, one unit for one degree: the boxes the map must hold. The map widens each box
 // to fill its frame, up to a cap of latitudes. The world box is the band of the routes, from the
 // Atlantic to the Pacific: the United States is past its west edge and shows as an edge marker.
-// The Russia box holds the sites, with room around them for their numbers.
+// The Russia box holds the sites, with room around them for their numbers. The plants box holds
+// the defence plants, from the Baltic to the Pacific.
 export const CROPS = {
   world: { west: -20, east: 135, south: 2, north: 70 },
   russia: { west: 26, east: 70, south: 50, north: 62 },
+  plants: { west: 28, east: 140, south: 47, north: 67 },
 } as const satisfies Record<string, Crop>;
-const MAX_LAT = { world: 80, russia: 60 } as const;
+const MAX_LAT = { world: 80, russia: 60, plants: 44 } as const;
 // On a phone the world box narrows to the corridor from Europe to the Pacific, with more latitudes,
 // so that the map is taller and its labels have room.
 const CORRIDOR: Crop = { west: -8, east: 124, south: 2, north: 66 };
 const CORRIDOR_MAX_LAT = 100;
 
 interface ChainMapProps {
-  readonly crop: 'world' | 'russia';
+  readonly crop: keyof typeof CROPS;
   /** The labelled places of the step. */
   readonly places: readonly Place[];
   /** All the routes; `lit` draws them all, else only the routes with a labelled place at each end. */
@@ -43,6 +48,10 @@ interface ChainMapProps {
   readonly lit: boolean;
   /** The sites to draw; an empty list hides them. */
   readonly sites: readonly Site[];
+  /** The defence plants to draw, by main weapon. They enter once, from west to east. */
+  readonly plants?: readonly PlantMark[] | undefined;
+  /** The name of the map for a screen reader. */
+  readonly label?: string | undefined;
 }
 
 interface Land {
@@ -121,21 +130,33 @@ const URALS = [
 const URALS_TOP = URALS[URALS.length - 1] ?? [0, 0];
 
 const pad = (n: number) => String(n).padStart(2, '0');
+const spanOf = (crop: Crop) => crop.east - crop.west;
 // The gap in pixels between an edge marker and the edge of the map.
 const EDGE_INSET = 8;
 
 /** The map of the chain story: the land as a grid of dots with Russia in stronger ink, the places
- * of the step in view with their labels on leader lines, the routes of figure 11 and the sites of
- * the Fight layer, each with its number on a short leader. The map fills its
+ * of the step in view with their labels on leader lines, the routes figure, the sites of
+ * the Fight layer, each with its number on a short leader, and the defence plants by main weapon. The map fills its
  * frame; it loads the land only near the view. */
-export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapProps) {
+export function ChainMap({
+  crop: cropName,
+  places,
+  arcs,
+  lit,
+  sites,
+  plants = [],
+  label,
+}: ChainMapProps) {
   const frame = useRef<HTMLDivElement>(null);
   const near = useInView(frame, { once: true, margin: '600px 0px' });
+  const seen = useInView(frame, { once: true, amount: 0.4 });
   const [land, setLand] = useState<Land | undefined>(undefined);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const dots = useId();
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion();
   const { openNode } = useReport();
+  const { fightUi } = useContent();
+  const say = useDataName();
 
   // An adapter: the land file loads past React, once, when the map comes near the view.
   useEffect(() => {
@@ -162,7 +183,8 @@ export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapP
     };
   }, []);
 
-  const russia = cropName === 'russia';
+  // Every map but the world map is a map of Russia: it draws its border and the Urals.
+  const russia = cropName !== 'world';
   const corridor = !russia && size.w < 480;
   const crop = fitCrop(
     corridor ? CORRIDOR : CROPS[cropName],
@@ -178,16 +200,19 @@ export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapP
   // One dot for each 4.5 pixels, at every size.
   const cell = width === 0 ? 1 : (spanX / width) * 4.5;
   const grid = spanX > 100 ? 30 : 5;
-  const fade = reduce === true ? false : { opacity: 0 };
+  const fade = reduce ? false : { opacity: 0 };
 
   // A route shows only when the step names both of its ends, so no route ends in empty land.
   const named = new Set(places.map((place) => place.name));
   const shown = arcs.filter((arc) => lit || (named.has(arc.from.name) && named.has(arc.to.name)));
+  // On a phone the plants sit too close for their labels: the map shows the points only, and the
+  // table under the map names each plant.
+  const labelled = cropName === 'plants' && size.w < 480 ? [] : places;
   // Places on one point share one label: "EU 12% / Europe".
   const merged = new Map<string, { place: Place; text: string }>();
-  for (const place of places) {
+  for (const place of labelled) {
     const at = `${String(place.lon)},${String(place.lat)}`;
-    const text = `${place.name}${place.value === undefined ? '' : ` ${place.value}`}`;
+    const text = `${say(place.name)}${place.value === undefined ? '' : ` ${place.value}`}`;
     const held = merged.get(at);
     merged.set(
       at,
@@ -201,7 +226,7 @@ export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapP
     const at = `${String(arc.from.lon)},${String(arc.from.lat)}`;
     const raw = x(arc.from.lon);
     if ((raw < 0 || raw > width) && !merged.has(at))
-      merged.set(at, { place: arc.from, text: arc.from.name });
+      merged.set(at, { place: arc.from, text: say(arc.from.name) });
   }
   const all = [...merged.values()].map(({ place, text }) => {
     const raw = x(place.lon);
@@ -298,7 +323,7 @@ export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapP
       <div className="absolute inset-x-0 top-1/2 -translate-y-1/2" style={{ height }}>
         <svg
           role="img"
-          aria-label={fightUi.chain.mapLabel}
+          aria-label={label ?? fightUi.chain.mapLabel}
           viewBox={`${String(crop.west)} ${String(-crop.north)} ${String(spanX)} ${String(spanY)}`}
           preserveAspectRatio="none"
           className="absolute inset-0 size-full"
@@ -413,6 +438,34 @@ export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapP
               strokeWidth={1}
               className="stroke-signal/60"
             />
+          ))}
+          {plants.map((plant) => (
+            <g
+              key={plant.name}
+              data-plant={plant.name}
+              transform={`translate(${String(x(plant.lon))},${String(y(plant.lat))})`}
+            >
+              <motion.g
+                initial={reduce ? false : { opacity: 0, scale: 0 }}
+                animate={seen || reduce ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }}
+                transition={{
+                  duration: 0.35,
+                  ease: [0.16, 1, 0.3, 1],
+                  delay: ((plant.lon - CROPS.plants.west) / spanOf(CROPS.plants)) * 0.8,
+                }}
+                className={
+                  plant.approximate
+                    ? 'fill-background stroke-foreground'
+                    : 'fill-foreground stroke-background'
+                }
+              >
+                {GLYPH[plant.glyph] === undefined ? (
+                  <circle r={3} />
+                ) : (
+                  <path d={GLYPH[plant.glyph]} />
+                )}
+              </motion.g>
+            </g>
           ))}
         </svg>
         {russia ? (

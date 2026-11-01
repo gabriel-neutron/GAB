@@ -75,8 +75,8 @@ const folderPlugin = (
   };
 };
 
-export const releaseFolder = (folder: string | undefined): Plugin =>
-  folderPlugin('gab-release-folder', 'release', folder);
+export const releaseFolder = (folder: string | undefined, only?: readonly string[]): Plugin =>
+  folderPlugin('gab-release-folder', 'release', folder, only);
 
 /** The data files of the report, beside the application under `report/`. They sit in the
  * repository, and `REPORT_DIR` names another folder when a build needs other values. */

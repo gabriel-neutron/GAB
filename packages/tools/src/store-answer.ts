@@ -31,6 +31,8 @@ const STORE = `WITH stored AS (
     SELECT public.put_fetched_document($9, $1, $2, $3, $4, $5, $6::date, NULL, $10, $11)::text AS id)
   SELECT s.id, public.put_document_text(s.id, $7::jsonb, $8) AS pages FROM stored s`;
 
+const FILL_TRACE = 'SELECT public.fill_document_trace($1, $2, $3) AS outcome';
+
 const knownRow = z.object({
   id: z.string(),
   title: z.string(),
@@ -142,4 +144,17 @@ export const storeAnswer = async (
   if (answer.provider !== undefined && known.provider_id === null)
     await rowsOf(session, filledRow, FILL_PROVIDER, [known.id, answer.provider]);
   return answerOf(known, status);
+};
+
+/** Records how a fetched document was read: the fingerprint of the certificate that the server
+ * showed (only for a host with an extra root) and whether the bytes are the render of a browser.
+ * It writes nothing when both are empty. */
+export const noteTrace = async (
+  session: Session,
+  document: string,
+  fingerprint: string | null,
+  rendered: boolean,
+): Promise<void> => {
+  if (fingerprint === null && !rendered) return;
+  await rowsOf(session, filledRow, FILL_TRACE, [document, fingerprint, rendered]);
 };

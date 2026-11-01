@@ -1,14 +1,15 @@
 import type { ReactNode } from 'react';
-import { openingUi, parts, type ReportPart } from '../content';
+import type { ReportPart } from '../content';
 import { ChapterBreak } from '../primitives/chapter-break';
 import { Reveal } from '../primitives/reveal';
 import { RichText } from '../rich-text';
+import { useContent } from '../use-content';
 
-const { introduction: copy } = openingUi;
-
-/** The introduction: a typographic chapter break with a dithered illustration in its empty half,
+/** The introduction: a chapter break over the tanker photograph in ASCII,
  * then a calm reading column with the three questions. */
 export function IntroductionPart({ part }: { readonly part: ReportPart }) {
+  const { openingUi, parts } = useContent();
+  const { introduction: copy } = openingUi;
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const body: ReactNode[] = [];
   const questions: ReactNode[] = [];
@@ -41,22 +42,7 @@ export function IntroductionPart({ part }: { readonly part: ReportPart }) {
   if (questions.length > 0) body.push(<ol key="questions-end">{questions}</ol>);
   return (
     <section id={part.slug} aria-label={part.title} className="scroll-mt-12">
-      <ChapterBreak number={number} title={part.title}>
-        {/* In the flow on a phone; in the empty right half of the break on a wide screen. */}
-        <div className="mt-10 lg:absolute lg:top-16 lg:right-8 lg:mt-0 lg:w-[46%]">
-          <img
-            src={copy.art}
-            alt=""
-            aria-hidden="true"
-            width={1440}
-            height={546}
-            loading="lazy"
-            decoding="async"
-            // The dither is black on white: it multiplies onto paper, and inverts onto the dark.
-            className="block h-auto w-full mix-blend-multiply [image-rendering:pixelated] dark:mix-blend-screen dark:invert"
-          />
-        </div>
-      </ChapterBreak>
+      <ChapterBreak number={number} title={part.title} image={copy.art} />
       <div className="py-16 md:py-24 lg:grid lg:grid-cols-12 lg:gap-8">
         <div className="max-w-[64ch] text-report-body/[1.65]  lg:col-span-8 lg:col-start-3">
           {body}

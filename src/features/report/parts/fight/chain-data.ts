@@ -164,7 +164,7 @@ const links = f11.links.flatMap((link) => {
     : [];
 });
 
-/** The chains of figure 11 at each name of one end of one step, largest first. Step 0 runs from
+/** The chains of the routes figure at each name of one end of one step, largest first. Step 0 runs from
  * the manufacturer to the intermediary, step 1 to the buyer, step 2 to the end use. */
 export function totalsAt(stage: number, end: 'from' | 'to' = 'to'): Total[] {
   const sums = new Map<string, number>();
@@ -173,7 +173,7 @@ export function totalsAt(stage: number, end: 'from' | 'to' = 'to'): Total[] {
   return [...sums].map(([name, chains]) => ({ name, chains })).sort((a, b) => b.chains - a.chains);
 }
 
-/** The routes of figure 11 from the country of the manufacturer to the country of the
+/** The routes of the routes figure from the country of the manufacturer to the country of the
  * intermediary, one arc for each pair and state. A name with no place stays off the map. */
 export const arcs: readonly Arc[] = (() => {
   const sums = new Map<string, Arc>();
@@ -195,7 +195,7 @@ export const arcChains = {
   all: links.filter((link) => link.stage === 0).reduce((sum, link) => sum + link.weight, 0),
 };
 
-/** The counts of figure 11: steps by state, chains shown and recorded, routes, documented steps. */
+/** The counts of the routes figure: steps by state, chains shown and recorded, routes, documented steps. */
 export const routeCounts = {
   hops: f11.hops,
   chains: f11.chains,
@@ -217,7 +217,7 @@ export const sites = nodes
   }))
   .sort((a, b) => b.lat - a.lat);
 
-/** The links of figure 11, summed for each step, source and target: the bands of the flow. */
+/** The links of the routes figure, summed for each step, source and target: the bands of the flow. */
 export const flowLinks = (() => {
   const sums = new Map<string, { column: number; from: string; to: string; value: number }>();
   for (const link of links) {

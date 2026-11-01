@@ -1,37 +1,149 @@
-// The PDF of the report is a file of the operator and never a file of the repository. When
-// `REPORT_PDF` names it, the build copies it beside the application as `report.pdf`, and the page
-// shows its download link. When no file is named, the page shows no link.
+// Print the report to one A4 PDF for each language, in the public folder of the site, and write
+// the hash of each printed page beside the PDFs.
+//
+//     pnpm report:pdf
+//
+// Each page of a PDF is one template of `report-pdf/pages/<lang>/`, in the order of the file
+// names. The templates are the pages of the print design of the operator, with the same markup and
+// styles; the English pages have the final English text. The figures are the pictures in
+// `report-pdf/figures/`. Headless Chromium prints the pages, with no network access.
 
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
-import type { Plugin } from 'vite';
+import { layout, type LayoutInput } from './report-pdf/layout.ts';
 
-const NAME = 'report.pdf';
+const FOLDER = resolve(import.meta.dirname, '../public/report');
+export const STAMP = join(FOLDER, 'stamp.json');
+export const LANGS = ['en', 'fr'] as const;
+export const pdfOf = (lang: string): string => join(FOLDER, `gab-report-${lang}.pdf`);
+const TEMPLATES = resolve(import.meta.dirname, 'report-pdf');
+export const pagesOf = (lang: string): string[] =>
+  readdirSync(join(TEMPLATES, 'pages', lang))
+    .filter((file) => file.endsWith('.html'))
+    .sort()
+    .map((file) => join(TEMPLATES, 'pages', lang, file));
 
-export function reportPdf(file: string | undefined): Plugin {
-  const source = file === undefined || file.trim() === '' ? null : resolve(file.trim());
-  // A name that points nowhere is a fault of the operator: the build stops, and it never links a
-  // missing file.
-  if (source !== null && !existsSync(source))
-    throw new Error(`REPORT_PDF names ${source}, and no file is there.`);
-  return {
-    name: 'gab-report-pdf',
-    // Vite puts a define key under `import.meta.env.` into the object `import.meta.env`, so the
-    // page reads it like any other variable.
-    config: () => ({
-      define: { 'import.meta.env.VITE_REPORT_PDF': JSON.stringify(source === null ? '' : NAME) },
-    }),
-    configureServer: ({ middlewares }) => {
-      if (source === null) return;
-      middlewares.use(`/${NAME}`, (_request, reply) => {
-        reply.setHeader('Content-Type', 'application/pdf');
-        reply.end(readFileSync(source));
-      });
-    },
-    generateBundle() {
-      if (source !== null)
-        this.emitFile({ type: 'asset', fileName: NAME, source: readFileSync(source) });
-    },
-  };
+type Lang = (typeof LANGS)[number];
+interface Copy {
+  readonly byline: string;
 }
+
+/** The byline of each language, read from the modules of the page through `load`. The types stay
+ * local: the tools project does not compile the application. */
+export async function copies(
+  load: (file: string) => Promise<unknown>,
+): Promise<Record<Lang, Copy>> {
+  const at = (file: string) => resolve(import.meta.dirname, '../src/features/report', file);
+  const { en } = (await load(at('content.ts'))) as { en: { report: Copy } };
+  const { fr } = (await load(at('content-fr.ts'))) as { fr: { report: Copy } };
+  return { en: { byline: en.report.byline }, fr: { byline: fr.report.byline } };
+}
+
+/** The input of the layout pass: the label of a link line, and the URL of a source document for
+ * each note with an exact match. A manual match never gives a link. */
+export function layoutInputOf(lang: Lang): LayoutInput {
+  const file = JSON.parse(
+    readFileSync(
+      resolve(import.meta.dirname, '../src/features/report/data/note-documents.json'),
+      'utf8',
+    ),
+  ) as { notes: { id: string; documents: { url: string; match: string }[] }[] };
+  const links: Record<string, string> = {};
+  for (const note of file.notes) {
+    const exact = note.documents.find((document) => document.match === 'exact');
+    if (exact) links[note.id] = exact.url;
+  }
+  return { linkLabel: lang === 'fr' ? 'Lien :' : 'Link:', links };
+}
+
+/** The stamp of one language: the printed page, the code of the layout pass and its input. */
+export const stampOf = (lang: Lang, copy: Copy): string =>
+  hashOf(
+    htmlOf(lang, copy) +
+      readFileSync(join(TEMPLATES, 'layout.ts'), 'utf8') +
+      JSON.stringify(layoutInputOf(lang)),
+  );
+
+/** The hash of the page that Chromium prints: it changes with a template, a figure, the byline and
+ * the tool. A checkout on Windows can have CRLF line ends, so the hash drops each carriage return. */
+export const hashOf = (html: string): string =>
+  createHash('sha256').update(html.replace(/\r/g, '')).digest('hex');
+
+const escape = (text: string): string =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+const font = (family: string, file: string, weight: number): string => {
+  const data = readFileSync(
+    resolve(import.meta.dirname, `../node_modules/@fontsource/${family}/files/${file}`),
+  ).toString('base64');
+  const name = family === 'geist' ? 'Geist' : 'Geist Mono';
+  return `@font-face{font-family:'${name}';font-weight:${weight};src:url(data:font/woff2;base64,${data}) format('woff2')}`;
+};
+
+// The type of the design: Geist 400 and 500, Geist Mono 400. The page box is the A4 sheet; the
+// root of each template is 794 × 1123 px, the A4 sheet at 96 px per inch.
+function css(): string {
+  const fonts = ['latin', 'latin-ext', 'cyrillic']
+    .flatMap((set) => [
+      font('geist', `geist-${set}-400-normal.woff2`, 400),
+      font('geist', `geist-${set}-500-normal.woff2`, 500),
+      font('geist-mono', `geist-mono-${set}-400-normal.woff2`, 400),
+    ])
+    .join('\n');
+  return `${fonts}
+@page{size:A4;margin:0}
+body{margin:0;background:#eeeeee}
+a{color:#101010}
+.sheet{width:210mm;height:297mm;overflow:hidden;break-after:page}`;
+}
+
+/** The page that Chromium prints for one language: each template in a sheet, the byline in place
+ * of `{{byline}}` and each figure inline. */
+export function htmlOf(lang: Lang, { byline }: Copy): string {
+  const sheets = pagesOf(lang).map((file) => {
+    const page = readFileSync(file, 'utf8')
+      .replace('{{byline}}', () => escape(byline))
+      .replace(/src="(figures\/[^"]+\.png)"/g, (_, path: string) => {
+        const data = readFileSync(join(TEMPLATES, path)).toString('base64');
+        return `src="data:image/png;base64,${data}"`;
+      });
+    return `<div class="sheet">${page}</div>`;
+  });
+  // The title of the PDF is the title of the cover.
+  const title = /<h1[^>]*>([^<]*)<\/h1>/.exec(sheets[0] ?? '')?.[1] ?? '';
+  return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>${title}</title><meta name="author" content="${escape(byline)}"><style>${css()}</style></head><body>${sheets.join('\n')}</body></html>`;
+}
+
+async function main(): Promise<void> {
+  const { chromium } = await import('playwright');
+  const { runnerImport } = await import('vite');
+  const all = await copies(async (file) => (await runnerImport(file)).module);
+  const browser = await chromium.launch();
+  const stamp: Record<string, { hash: string; pages: number }> = {};
+  try {
+    const page = await browser.newPage();
+    for (const lang of LANGS) {
+      await page.setContent(htmlOf(lang, all[lang]), { waitUntil: 'load' });
+      await page.evaluate(() => document.fonts.ready);
+      const { faults, ...counts } = await page.evaluate(layout, layoutInputOf(lang));
+      // A clipped element, a note that does not fit, or a note away from its call stops the tool.
+      if (faults.length > 0) throw new Error(`The ${lang} PDF has faults:\n${faults.join('\n')}`);
+      console.log(lang, JSON.stringify(counts));
+      await page.pdf({
+        path: pdfOf(lang),
+        preferCSSPageSize: true,
+        printBackground: true,
+        tagged: true,
+        outline: true,
+      });
+      stamp[lang] = { hash: stampOf(lang, all[lang]), pages: counts.pages };
+    }
+  } finally {
+    await browser.close();
+  }
+  writeFileSync(STAMP, `${JSON.stringify(stamp, null, 2)}\n`);
+}
+
+if (import.meta.main) await main();

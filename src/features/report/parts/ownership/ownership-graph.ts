@@ -69,21 +69,21 @@ const PERSONAL = new Set([
 export interface Entity {
   readonly id: string;
   readonly name: string;
-  /** The class of the entity, in English. */
+  /** The class of the entity, in the words of the page. */
   readonly kind: string;
   readonly band: number;
   /** The row of the entity in its band: an owner sits above what it owns. */
   readonly depth: number;
   /** The placeholder owner of the entity when the source names none, in French. */
   readonly unnamedOwner?: string | undefined;
-  /** What the placeholder owner holds, in English, for example "11 vessels". */
+  /** What the placeholder owner holds, in the words of the page, for example "11 vessels". */
   readonly holding?: string | undefined;
 }
 
 export interface Link {
   readonly from: string;
   readonly to: string;
-  /** The relation and the share, in English, exactly as the figure gives them. */
+  /** The relation and the share, in the words of the page, exactly as the figure gives them. */
   readonly relation: string;
   readonly share: string;
   readonly state: string;
@@ -94,8 +94,12 @@ export interface Link {
 type Row = readonly string[];
 
 /** The entities and links of figure 12, read from the data of the figure. A row whose owner is a
- * placeholder gives no link: it marks the entity it holds. */
-export function ownershipGraph(rows: readonly Row[]): {
+ * placeholder gives no link: it marks the entity it holds. `label` gives the words of the page
+ * for a French label of the data (English by default). */
+export function ownershipGraph(
+  rows: readonly Row[],
+  label: (french: string) => string = english,
+): {
   readonly entities: readonly Entity[];
   readonly links: readonly Link[];
 } {
@@ -128,15 +132,15 @@ export function ownershipGraph(rows: readonly Row[]): {
         classes.set(name, cls);
     }
     if (NOBODY.has(owner)) {
-      unnamed.set(owned, { owner, holding: english(share) });
+      unnamed.set(owned, { owner, holding: label(share) });
       continue;
     }
     links.push({
       from: idOf(owner),
       to: idOf(owned),
-      relation: english(relation),
-      share: english(share),
-      state: english(state),
+      relation: label(relation),
+      share: label(share),
+      state: label(state),
       proposed: state.startsWith('proposé'),
       personal: PERSONAL.has(relation),
     });
@@ -162,8 +166,8 @@ export function ownershipGraph(rows: readonly Row[]): {
     const placeholder = unnamed.get(name);
     return {
       id,
-      name: english(name),
-      kind: english(classes.get(name) ?? ''),
+      name: label(name),
+      kind: label(classes.get(name) ?? ''),
       band: bandOf.get(id) ?? 3,
       depth: placeholder === undefined ? (depth.get(id) ?? 0) : 0,
       unnamedOwner: placeholder?.owner,

@@ -8,6 +8,7 @@ import { SelectionPanel } from '@/shared/selection-panel';
 import { UnplacedNotice } from '@/features/detail/unplaced-notice';
 import { loadCorpus } from '@/shared/read/corpus';
 import { loadEntityTypes } from '@/shared/read/vocabulary';
+import { patchMapWorkspace } from '@/features/map/workspace';
 
 export interface MapSearch {
   /** The entity the analyst selected. An empty string is the normal state of a map. */
@@ -16,6 +17,8 @@ export interface MapSearch {
   // entity when a line is clicked, so the bright lines of that entity stay on the canvas. The
   // chosen relation is the later act, so the panel below draws the relation and not the entity.
   readonly relation: string;
+  /** `?chain=1` opens the chain on the globe. The report links to the map with it. */
+  readonly chain?: true;
 }
 
 export const Route = createFileRoute('/map')({
@@ -25,10 +28,18 @@ export const Route = createFileRoute('/map')({
   validateSearch: (search: Record<string, unknown>): MapSearch => {
     const entity = search['entity'];
     const relation = search['relation'];
+    const chain = search['chain'];
     return {
       entity: typeof entity === 'string' ? entity : '',
       relation: typeof relation === 'string' ? relation : '',
+      // The router writes the flag back as `chain=true`, so a reload keeps it.
+      ...(chain === true || chain === 1 || chain === '1' ? { chain: true as const } : {}),
     };
+  },
+
+  // The adapter reads the chain mode and the projection from the workspace at the mount.
+  beforeLoad: ({ search }) => {
+    if (search.chain === true) patchMapWorkspace({ chain: true, globe: true });
   },
 
   // An empty key never reaches the address bar. **The adapter reads the address itself**, and an

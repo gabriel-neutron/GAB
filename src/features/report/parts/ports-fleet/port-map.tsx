@@ -1,19 +1,22 @@
 import { useId, useRef, type ReactNode, type Ref } from 'react';
-import { motion, useInView, useReducedMotion } from 'motion/react';
+import { motion, useInView } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
-import { figureTexts, portsFleetUi } from '../../content';
 import { accent } from '../../primitives/accent';
 import { layout } from '../../primitives/layout';
+import { useContent } from '../../use-content';
 import { useReport } from '../../use-report';
 import { chartLayout } from './chart-layout';
 import { figureData } from './figure-data';
 import { mapGeometry, type Box, type Frame } from './map-geometry';
+import { portVisits } from './port-visits';
 import { TERMINALS } from './terminals';
 import { useSize } from './use-size';
+import { visitLayer } from './visit-layer';
+import { useReduceMotion } from '../../reduced-motion';
 
-const copy = portsFleetUi.map;
 const EASE = [0.4, 0, 0.2, 1] as const;
-const number = new Intl.NumberFormat('en-US');
+const VISITS_ON = portVisits.on(import.meta.env);
+const { file: visitFile } = portVisits;
 
 /** The direction of the leader line from a terminal to its label: x and y, each -1 or 1. */
 const LEADS: Readonly<Record<string, readonly [number, number]>> = {
@@ -33,11 +36,8 @@ const CHANGE_NAMES: Readonly<Record<string, string>> = {
   'N-P011': 'Tuapse',
 };
 const change = new Map(figureData.change.map((row) => [row.name, row.value]));
-// The short line under the position of a named terminal, for each kind of step.
-const notes: Readonly<Record<string, Readonly<Record<string, string>>>> = {
-  ban: copy.banDates,
-  pacific: copy.pacificNotes,
-};
+const throughput = new Map(figureData.throughput.ports.map((row) => [row.name, row.value]));
+const MAX_THROUGHPUT = Math.max(...throughput.values());
 
 interface MapStep {
   readonly box: Box;
@@ -54,8 +54,9 @@ export const MAP_STEPS: readonly MapStep[] = [
     named: ['N-P001', 'N-P002', 'N-P005', 'N-P011', 'N-P009'],
     tag: 'ban',
   },
-  // The text compares Kozmino with Primorsk, so the camera holds both ends of the country.
-  { box: [24, 38, 140, 66], named: ['N-P007', 'N-P001'], tag: 'pacific' },
+  // The text names the ports of the Baltic, the Black Sea and the Pacific, so the camera holds both
+  // ends of the country.
+  { box: [24, 38, 140, 66], named: ['N-P001', 'N-P002', 'N-P005', 'N-P007'], tag: 'pacific' },
   { box: [25.5, 42.6, 42, 61.4], named: ['N-P001', 'N-P002', 'N-P005', 'N-P011'], tag: 'change' },
   { box: [22, 38, 140, 74], named: [], flows: true },
 ];
@@ -81,15 +82,6 @@ const fleetFill = (to: string) =>
     : to === 'IG-insured'
       ? 'fill-chart-neutral'
       : 'fill-map-water stroke-foreground';
-const fleetTags: Readonly<Record<string, string>> = copy.fleetTags;
-// The dates and the notes of the ban and Pacific steps come from the text of the part.
-const TEXT_SOURCES = {
-  ban: 'Dates: text of the report, note III-2 (February 2025 to April 2026)',
-  pacific: 'Notes: text of the report, note III-1 (2023)',
-} as const;
-const SCHEMATIC =
-  'Schematic: each column stands above its sea and gives the basin total, not the volume of a terminal.';
-const labels7: Readonly<Record<string, string>> = figureTexts.figures['7'].labels;
 
 /** The sources of the data that a step shows: figure 6 for the changes, figure 7 for the flows. */
 export interface MapSources {
@@ -100,25 +92,56 @@ export interface MapSources {
 interface PortMapProps {
   readonly step: number;
   readonly sources: MapSources;
+  /** True: the map is a still frame in the flow of the page, not the sticky map of a scene. */
+  readonly still?: boolean | undefined;
 }
 
 /** The dark map of the export terminals. The camera, the named terminals and the flows follow the
  * card in view. Every terminal opens its record. */
-export function PortMap({ step, sources }: PortMapProps) {
+export function PortMap({ step, sources, still = false }: PortMapProps) {
   const box = useRef<HTMLDivElement>(null);
   const head = useRef<HTMLDivElement>(null);
   const foot = useRef<HTMLDivElement>(null);
   const { width, height } = useSize(box);
   const headHeight = useSize(head).height;
   const footSize = useSize(foot);
-  const reduce = useReducedMotion() === true;
+  const reduce = useReduceMotion();
   const visible = useInView(box, { amount: 0.2 });
   const { openNode } = useReport();
+  const { portsFleetUi, figureTexts, ui } = useContent();
+  const copy = portsFleetUi.map;
+  const number = new Intl.NumberFormat(ui.numberLocale);
+  const fleetTags: Readonly<Partial<Record<string, string>>> = copy.fleetTags;
+  const labels6: Readonly<Partial<Record<string, string>>> = figureTexts.figures['6'].labels;
+  const labels7: Readonly<Partial<Record<string, string>>> = figureTexts.figures['7'].labels;
+  // The circles in words. The names are the ports of figure 6, not one terminal of the port.
+  const throughputText = `${copy.throughput} ${String(figureData.throughput.year)}, Mt: ${Object.values(
+    CHANGE_NAMES,
+  )
+    .flatMap((name) => {
+      const value = throughput.get(name);
+      return value === undefined ? [] : [`${labels6[name] ?? name} ${number.format(value)}`];
+    })
+    .join(', ')}`;
+  // The short line under the position of a named terminal: the dates of the ban step. The final
+  // text gives no words for the terminals of the Pacific step.
+  const dates: Readonly<Partial<Record<string, string>>> = copy.banDates;
+  const visitsText =
+    `${copy.visits.counted} ${number.format(visitFile.visits.length)} ${copy.visits.by} ${number.format(portVisits.tankersSeen)} ${copy.visits.of} ` +
+    `${number.format(visitFile.imoList.count)} ${copy.visits.listed}, ${copy.visits.range
+      .replace('{from}', visitFile.parameters.from)
+      // The query window excludes its end day, so the text gives the last day it holds.
+      .replace(
+        '{to}',
+        new Date(Date.parse(visitFile.parameters.to) - 86_400_000).toISOString().slice(0, 10),
+      )}. ` +
+    copy.visits.limit;
   const id = useId();
   const state = MAP_STEPS[step] ?? MAP_STEPS[0];
   if (state === undefined) return null;
-  const sticky = !reduce;
+  const sticky = !reduce && !still;
   const flows = state.flows === true;
+  const visits = VISITS_ON && state.tag === 'change';
   // Under 1024px the card is a sheet on the lower part of the view, so the map uses the upper part.
   // From 1024px the map moves right of the cards.
   const wide = width >= 1024;
@@ -142,12 +165,11 @@ export function PortMap({ step, sources }: PortMapProps) {
   // the step: no label can go into the head.
   const rise = 22 + 16 + 16 + (state.tag === 'change' ? big + 3 : state.tag === undefined ? 0 : 16);
   const top = flows ? baseline + 28 : headHeight + (wide ? 24 : rise + 16);
-  // Under 1024px the card stands from 55% of the view on a phone and from 62% from 768px or for
-  // the flows (map-scene.css). The map starts under the part bar.
+  // From 768px to 1024px the card stands from 62% of the view (map-scene.css). The map starts
+  // under the part bar.
   // shortcut: the part bar is 2rem at a 16px root; read --report-bar if it changes.
   const view = typeof window === 'undefined' ? height : window.innerHeight;
-  const tablet = typeof window !== 'undefined' && window.innerWidth >= 768;
-  const cardTop = view * (flows || tablet ? 0.62 : 0.55) - 32;
+  const cardTop = view * 0.62 - 32;
   const frame: Frame = !sticky
     ? { width, height, left: 24, right: 24, top, bottom: flows ? 24 : 84 }
     : wide
@@ -193,10 +215,12 @@ export function PortMap({ step, sources }: PortMapProps) {
   );
   // One line for each source, so no line breaks in the middle of a name.
   const credit = [
-    state.tag === 'ban' || state.tag === 'pacific' ? TEXT_SOURCES[state.tag] : '',
+    state.tag === 'ban' ? copy.banSource : '',
     state.tag === 'change' ? `${copy.data} ${sources.change}` : '',
+    state.tag === 'change' ? throughputText : '',
+    visits ? visitsText : '',
     flows ? `${copy.data} ${sources.flows}` : '',
-    flows ? SCHEMATIC : '',
+    flows ? copy.schematic : '',
     `${copy.basemap} ${mapGeometry.source}`,
   ]
     .filter((one) => one !== '')
@@ -205,6 +229,19 @@ export function PortMap({ step, sources }: PortMapProps) {
         {one}
       </p>
     ));
+  // External constraint: the GFW API terms ask for this line with a link on each page that shows
+  // their data, so it stays in view when the other sources fold.
+  const gfw = visits ? (
+    <p className="text-balance">
+      {`${copy.visits.label} ${visitFile.queryDate}. `}
+      <a
+        href="https://globalfishingwatch.org"
+        className="pointer-events-auto underline underline-offset-2"
+      >
+        {copy.visits.powered}
+      </a>
+    </p>
+  ) : null;
   const title = flows
     ? copy.flows
     : state.tag === 'ban'
@@ -240,7 +277,7 @@ export function PortMap({ step, sources }: PortMapProps) {
     const terminal = terminalOf.get(one);
     if (terminal === undefined) return [];
     const at = screen(terminal.lon, terminal.lat);
-    const { box: area } = markerLayout({ ...terminal, tag: state.tag, big });
+    const { box: area } = markerLayout({ ...terminal, tag: state.tag, big, dates });
     return [{ x0: at.x + area.x0, x1: at.x + area.x1, y0: at.y + area.y0, y1: at.y + area.y1 }];
   });
   if (sticky && !wide) covers.push({ x0: 0, x1: width, y0: 0, y1: headHeight });
@@ -437,6 +474,41 @@ export function PortMap({ step, sources }: PortMapProps) {
             })}
           </motion.g>
 
+          {/* The still circles stand under every marker, so a large circle hides no terminal. */}
+          {TERMINALS.map((terminal) => {
+            const traffic =
+              state.tag === 'change' ? throughput.get(CHANGE_NAMES[terminal.id] ?? '') : undefined;
+            if (traffic === undefined) return null;
+            const at = screen(terminal.lon, terminal.lat);
+            // Its area is the traffic of the port, at the scale of the step.
+            return (
+              <motion.circle
+                key={terminal.id}
+                aria-hidden="true"
+                // The circle moves with a transform, not with its centre attributes.
+                cx={0}
+                cy={0}
+                initial={false}
+                animate={{ x: at.x, y: at.y }}
+                transition={move}
+                r={big * 1.6 * Math.sqrt(traffic / MAX_THROUGHPUT)}
+                strokeWidth={1}
+                fillOpacity={0.15}
+                className={cn(accent.stroke, accent.fill)}
+              />
+            );
+          })}
+          {visits && pulse ? (
+            <visitLayer.Pulses
+              key={step}
+              at={(id) => {
+                const terminal = terminalOf.get(id);
+                if (terminal === undefined) return null;
+                const point = screen(terminal.lon, terminal.lat);
+                return hidden(point) && !state.named.includes(id) ? null : point;
+              }}
+            />
+          ) : null}
           {TERMINALS.map((terminal) => {
             const at = screen(terminal.lon, terminal.lat);
             const order = state.named.indexOf(terminal.id);
@@ -458,6 +530,7 @@ export function PortMap({ step, sources }: PortMapProps) {
                     lon={terminal.lon}
                     tag={state.tag}
                     big={big}
+                    dates={dates}
                     pulse={pulse ? { order, count: state.named.length } : undefined}
                   />
                 )}
@@ -497,10 +570,20 @@ export function PortMap({ step, sources }: PortMapProps) {
         )}
       >
         <p className="max-w-[48ch] text-balance text-foreground">{title}</p>
+        {visits && pulse ? <visitLayer.Cursor key={step} /> : null}
         {sticky && !wide ? (
           <div className="grid gap-1 text-report-label/4 normal-case ">
             {legend}
-            {credit}
+            {gfw}
+            {visits ? (
+              // On a phone the sources of this step fold, so the head leaves room for the map.
+              <details className="pointer-events-auto">
+                <summary className="cursor-pointer">{copy.visits.sources}</summary>
+                <div className="grid gap-1 pt-1">{credit}</div>
+              </details>
+            ) : (
+              credit
+            )}
           </div>
         ) : null}
       </div>
@@ -515,6 +598,7 @@ export function PortMap({ step, sources }: PortMapProps) {
             ref={foot}
             className="absolute right-0 bottom-0 max-w-[84ch] justify-items-end pt-4 pr-8 pb-4 pl-24 text-right"
           >
+            {gfw}
             {legend}
             {credit}
           </MapFoot>
@@ -529,6 +613,7 @@ export function PortMap({ step, sources }: PortMapProps) {
       <MapFoot className="mt-3">
         {legend}
         {credit}
+        {gfw}
       </MapFoot>
     </div>
   );
@@ -563,18 +648,20 @@ interface MarkerProps {
   readonly lon: number;
   readonly tag: MapStep['tag'];
   readonly big: number;
+  /** The date of the ban at each terminal, for the ban step. */
+  readonly dates: Readonly<Partial<Record<string, string>>>;
   readonly pulse: { readonly order: number; readonly count: number } | undefined;
 }
 
 /** The leader and the lines of the label of a named terminal, from the terminal. */
-function markerLayout({ id, label, lat, lon, tag, big }: Omit<MarkerProps, 'pulse'>) {
+function markerLayout({ id, label, lat, lon, tag, big, dates }: Omit<MarkerProps, 'pulse'>) {
   const [sx, sy] = LEADS[id] ?? [1, -1];
   const lead = 22;
   const ax = sx * lead;
   const ay = sy * lead;
   const tx = ax + sx * 4;
   const value = tag === 'change' ? change.get(CHANGE_NAMES[id] ?? '') : undefined;
-  const date = tag === undefined || tag === 'change' ? '' : (notes[tag]?.[id] ?? '');
+  const date = tag === 'ban' ? (dates[id] ?? '') : '';
   const valueText = value === undefined ? '' : `${value > 0 ? '+' : ''}${String(value)}%`;
   const valueSize = valueText === '' ? (date === '' ? 0 : 13) : big;
   // The lines stack away from the terminal: upward above it, downward under it.

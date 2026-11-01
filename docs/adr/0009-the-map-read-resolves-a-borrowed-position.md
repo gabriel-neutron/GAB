@@ -58,7 +58,7 @@ map read of about 150 ms. The timeout of ADR 0008 stays the only bound.
   exemption of ADR 0003 and the time bound of ADR 0008 still hold at that size.
 - The map read decides what is drawn, and the geometry of the entity does not. A surface that
   filters on the geometry is wrong for the rows that this ADR is about.
-- The application repeats none of the walk. Only the committed fixture for the stories walks the
+- The application repeats none of the walk. Only the committed fixture walks the
   tree in TypeScript, because it replaces the database.
 - An entity that nobody located, and whose ancestors have no point, has no position. The map does
   not draw it. That is not a fault.

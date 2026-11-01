@@ -1,25 +1,28 @@
-import { motion, useReducedMotion } from 'motion/react';
+import { motion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
-import { methodUi } from '../../content';
 import { accent } from '../../primitives/accent';
+import { criticalLayers } from './critical-layers';
+import { useReduceMotion } from '../../reduced-motion';
 
-// The counts of the text of the part, from the smallest layer to the largest.
-const { layers } = methodUi.numbers;
 const TONE: Readonly<Record<string, string>> = {
   Fight: accent.bg,
   Finance: 'bg-foreground/55',
   Pay: 'bg-foreground/15',
 };
-const squares = [...layers]
-  .reverse()
-  .flatMap((layer) =>
-    Array.from({ length: Number(layer.value) }, () => TONE[layer.label] ?? TONE['Pay']),
-  );
+const toneOf = (layer: string) => {
+  const tone = TONE[layer];
+  if (tone === undefined) throw new Error(`node-field: no tone for the layer "${layer}"`);
+  return tone;
+};
+// One square for each critical node, from the smallest layer to the largest.
+const squares = [...criticalLayers]
+  .sort(([, a], [, b]) => a - b)
+  .flatMap(([layer, count]) => Array.from({ length: count }, () => toneOf(layer)));
 
 /** The decorative art of the chapter break: one square for each critical node, across the full width behind
  * the numeral, fading into the ground under the title. */
 export function NodeField() {
-  const reduce = useReducedMotion() === true;
+  const reduce = useReduceMotion();
   return (
     <div
       aria-hidden="true"

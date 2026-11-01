@@ -15,6 +15,7 @@ import { geojsonExport } from './geojson-export.ts';
 import { geolocationCoverageOf } from './geolocation-coverage.ts';
 import { jsonldExport } from './jsonld-export.ts';
 import { natoCoverageOf } from './nato-coverage.ts';
+import { observationExport } from './observation-export.ts';
 import { assertNoOsmGeometry } from './osm-geometry.ts';
 import type { PreviousRelease } from './previous-release.ts';
 import { releaseHeading } from './release-heading.ts';
@@ -58,6 +59,7 @@ export const releaseFiles = (
     criticalNodes(record, sheet, preamble),
     assetLinks(record, preamble),
     volumeTable.file,
+    observationExport(record, preamble),
     releaseCredits(heading, claimProviders(record)),
     releaseNotes(
       heading,

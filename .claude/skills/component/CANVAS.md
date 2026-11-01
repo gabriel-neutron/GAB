@@ -25,9 +25,8 @@ of that, and each failure below is invisible in a review.
 - **A mount is idempotent and a cleanup is complete.** React invokes an effect twice in development.
   A second instance makes the browser drop the older WebGL context, which looks like a blank canvas
   and is not one.
-- **No story mounts a live canvas.** One story is one live WebGL context, and a browser drops the
-  oldest after about sixteen. The Storybook configuration records it. Story the panels beside the
-  canvas, and check the canvas itself in the running application.
+- **No test mounts more than one live canvas.** A browser drops the oldest WebGL context after
+  about sixteen. Check the canvas itself in the running application.
 
 ## The traps that no type checker sees
 

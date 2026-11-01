@@ -1,73 +1,24 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/utils';
-import { figureTexts, ownershipUi, parts, type ReportPart } from '../../content';
+import type { ReportPart } from '../../content';
 import { FigureFrame } from '../../figure-frame';
-import { AsciiImage } from '../../primitives/ascii-image';
 import { ChapterBreak } from '../../primitives/chapter-break';
 import { layout } from '../../primitives/layout';
 import { Reveal } from '../../primitives/reveal';
 import { RichText } from '../../rich-text';
+import { useContent } from '../../use-content';
+import { OwnersMap } from './owners-map';
 import { OwnershipFigure } from './ownership-figure';
 
 // One body size for all the text of the part. A node reference keeps a thin dotted underline.
 const PROSE = 'max-w-[64ch] text-report-body/[1.65] text-pretty  [&_button]:decoration-dotted';
-// From 1024px, a rail at the left of the text holds the notes of each paragraph.
-const ROW = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,64ch)] lg:gap-x-16';
+// From 1280px the text reads at the right, and a note opens in the margin at its left; under 1280px
+// the note opens in a sheet, so the text keeps the full column.
+const ROW = 'xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,64ch)] xl:gap-x-16';
 
-/** The notes of one paragraph, in the rail: a reader sees the source beside the claim. The note
- * markers in the text stay the way in for assistive technology, so the rail is hidden from it. */
-function Rail({ text, part }: { readonly text: string; readonly part: ReportPart }) {
-  const ids = [...text.matchAll(/\[\^([^\]]+)\]/g)].map((match) => match[1] ?? '');
-  const notes = part.notes.filter((note) => ids.includes(note.id));
-  return (
-    <aside aria-hidden="true" className="hidden pt-2 lg:block">
-      <ol className="ml-auto max-w-[40ch] space-y-3 border-t border-divider pt-3">
-        {notes.map((note) => (
-          <li key={note.id} className="flex gap-3 text-report-label/5 text-muted-foreground">
-            <span className="w-6 shrink-0 font-mono text-label tabular-nums">
-              {note.id.slice(note.id.lastIndexOf('-') + 1)}
-            </span>
-            <span className="line-clamp-3 min-w-0 break-words">
-              <RichText text={note.text} />
-            </span>
-          </li>
-        ))}
-      </ol>
-    </aside>
-  );
-}
-
-/** The chapter break over the chess set: the decorative ASCII art sits at the top right, behind a
- * scrim, so the title stays on near-black ground. */
-function Opening({ number, title }: { readonly number: string; readonly title: string }) {
-  return (
-    <div
-      className={cn(
-        layout.bleed,
-        'isolate',
-        // On a phone, the numeral is at least as tall as the title block.
-        "max-md:[&_p[aria-hidden='true']]:text-[64vw]",
-      )}
-    >
-      <div className="absolute top-24 right-0 h-[50%] w-full md:top-0 md:h-[78%] md:w-[60%] [&_pre]:text-foreground/70">
-        <AsciiImage src={ownershipUi.image} />
-        {/* The scrims fade the art into the ground at its left and bottom edges. */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 bg-linear-to-t from-background via-background/40 to-background/0"
-        />
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 hidden bg-linear-to-r from-background via-background/30 to-background/0 md:block"
-        />
-      </div>
-      <ChapterBreak number={number} title={title} />
-    </div>
-  );
-}
-
-/** The ownership part: a chapter break over the chess set, the layered graph of figure 12 across the page, then the text with its notes in a rail. */
+/** The ownership part: a chapter break over the chess set, the layered graph of figure 12 across the page, then the text with a margin for its notes. */
 export function OwnershipPart({ part }: { readonly part: ReportPart }) {
+  const { figureTexts, parts, ownershipUi } = useContent();
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const body: ReactNode[] = [];
   part.blocks.forEach((block, index) => {
@@ -88,25 +39,43 @@ export function OwnershipPart({ part }: { readonly part: ReportPart }) {
             >
               <OwnershipFigure />
             </FigureFrame>
+            <FigureFrame
+              title={ownershipUi.owners.title}
+              unit={ownershipUi.owners.unit}
+              sources={ownershipUi.owners.sources}
+            >
+              <OwnersMap />
+            </FigureFrame>
           </div>
+        </div>,
+      );
+      return;
+    }
+    if (block.kind === 'h3') {
+      body.push(
+        <div key={key} className={cn(ROW, 'mt-16')}>
+          <h3 className={cn(PROSE, 'text-report-lead text-balance xl:col-start-2')}>
+            {block.text}
+          </h3>
         </div>,
       );
       return;
     }
     body.push(
       <div key={key} className={cn(ROW, block.kind === 'li' ? 'mt-10' : 'my-6')}>
-        <Rail text={block.text} part={part} />
-        <Reveal>
-          <p className={cn(PROSE, block.kind === 'li' && 'border-t border-foreground pt-4')}>
-            <RichText text={block.text} partSlug={part.slug} />
-          </p>
-        </Reveal>
+        <div className="xl:col-start-2">
+          <Reveal>
+            <p className={cn(PROSE, block.kind === 'li' && 'border-t border-foreground pt-4')}>
+              <RichText text={block.text} partSlug={part.slug} />
+            </p>
+          </Reveal>
+        </div>
       </div>,
     );
   });
   return (
     <section id={part.slug} aria-label={part.title} className="scroll-mt-12">
-      <Opening number={number} title={part.title} />
+      <ChapterBreak number={number} title={part.title} image={ownershipUi.image} />
       <div className="py-16 md:py-24">{body}</div>
     </section>
   );

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AiUseRouteImport } from './routes/ai-use'
 import { Route as AtlasRouteImport } from './routes/atlas'
 import { Route as BibliographyRouteImport } from './routes/bibliography'
 import { Route as DownloadsRouteImport } from './routes/downloads'
@@ -25,12 +26,19 @@ import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as ClaimSplatRouteImport } from './routes/claim.$'
 import { Route as EntityIdRouteImport } from './routes/entity.$id'
+import { Route as FrIndexRouteImport } from './routes/fr/index'
+import { Route as FrBibliographyRouteImport } from './routes/fr/bibliography'
 import { Route as RelationSplatRouteImport } from './routes/relation.$'
 import { Route as VesselImoRouteImport } from './routes/vessel.$imo'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiUseRoute = AiUseRouteImport.update({
+  id: '/ai-use',
+  path: '/ai-use',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AtlasRoute = AtlasRouteImport.update({
@@ -108,6 +116,16 @@ const EntityIdRoute = EntityIdRouteImport.update({
   path: '/entity/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FrIndexRoute = FrIndexRouteImport.update({
+  id: '/fr/',
+  path: '/fr/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FrBibliographyRoute = FrBibliographyRouteImport.update({
+  id: '/fr/bibliography',
+  path: '/fr/bibliography',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RelationSplatRoute = RelationSplatRouteImport.update({
   id: '/relation/$',
   path: '/relation/$',
@@ -121,6 +139,7 @@ const VesselImoRoute = VesselImoRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ai-use': typeof AiUseRoute
   '/atlas': typeof AtlasRoute
   '/bibliography': typeof BibliographyRoute
   '/downloads': typeof DownloadsRoute
@@ -136,11 +155,14 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/claim/$': typeof ClaimSplatRoute
   '/entity/$id': typeof EntityIdRoute
+  '/fr/bibliography': typeof FrBibliographyRoute
   '/relation/$': typeof RelationSplatRoute
   '/vessel/$imo': typeof VesselImoRoute
+  '/fr/': typeof FrIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ai-use': typeof AiUseRoute
   '/atlas': typeof AtlasRoute
   '/bibliography': typeof BibliographyRoute
   '/downloads': typeof DownloadsRoute
@@ -156,12 +178,15 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/claim/$': typeof ClaimSplatRoute
   '/entity/$id': typeof EntityIdRoute
+  '/fr/bibliography': typeof FrBibliographyRoute
   '/relation/$': typeof RelationSplatRoute
   '/vessel/$imo': typeof VesselImoRoute
+  '/fr': typeof FrIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ai-use': typeof AiUseRoute
   '/atlas': typeof AtlasRoute
   '/bibliography': typeof BibliographyRoute
   '/downloads': typeof DownloadsRoute
@@ -177,13 +202,16 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/claim/$': typeof ClaimSplatRoute
   '/entity/$id': typeof EntityIdRoute
+  '/fr/bibliography': typeof FrBibliographyRoute
   '/relation/$': typeof RelationSplatRoute
   '/vessel/$imo': typeof VesselImoRoute
+  '/fr/': typeof FrIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/ai-use'
     | '/atlas'
     | '/bibliography'
     | '/downloads'
@@ -199,11 +227,14 @@ export interface FileRouteTypes {
     | '/search'
     | '/claim/$'
     | '/entity/$id'
+    | '/fr/bibliography'
     | '/relation/$'
     | '/vessel/$imo'
+    | '/fr/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/ai-use'
     | '/atlas'
     | '/bibliography'
     | '/downloads'
@@ -219,11 +250,14 @@ export interface FileRouteTypes {
     | '/search'
     | '/claim/$'
     | '/entity/$id'
+    | '/fr/bibliography'
     | '/relation/$'
     | '/vessel/$imo'
+    | '/fr'
   id:
     | '__root__'
     | '/'
+    | '/ai-use'
     | '/atlas'
     | '/bibliography'
     | '/downloads'
@@ -239,12 +273,15 @@ export interface FileRouteTypes {
     | '/search'
     | '/claim/$'
     | '/entity/$id'
+    | '/fr/bibliography'
     | '/relation/$'
     | '/vessel/$imo'
+    | '/fr/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AiUseRoute: typeof AiUseRoute
   AtlasRoute: typeof AtlasRoute
   BibliographyRoute: typeof BibliographyRoute
   DownloadsRoute: typeof DownloadsRoute
@@ -260,8 +297,10 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   ClaimSplatRoute: typeof ClaimSplatRoute
   EntityIdRoute: typeof EntityIdRoute
+  FrBibliographyRoute: typeof FrBibliographyRoute
   RelationSplatRoute: typeof RelationSplatRoute
   VesselImoRoute: typeof VesselImoRoute
+  FrIndexRoute: typeof FrIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -271,6 +310,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-use': {
+      id: '/ai-use'
+      path: '/ai-use'
+      fullPath: '/ai-use'
+      preLoaderRoute: typeof AiUseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/atlas': {
@@ -378,6 +424,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EntityIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/fr/': {
+      id: '/fr/'
+      path: '/fr'
+      fullPath: '/fr/'
+      preLoaderRoute: typeof FrIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fr/bibliography': {
+      id: '/fr/bibliography'
+      path: '/fr/bibliography'
+      fullPath: '/fr/bibliography'
+      preLoaderRoute: typeof FrBibliographyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/relation/$': {
       id: '/relation/$'
       path: '/relation/$'
@@ -397,6 +457,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AiUseRoute: AiUseRoute,
   AtlasRoute: AtlasRoute,
   BibliographyRoute: BibliographyRoute,
   DownloadsRoute: DownloadsRoute,
@@ -412,8 +473,10 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   ClaimSplatRoute: ClaimSplatRoute,
   EntityIdRoute: EntityIdRoute,
+  FrBibliographyRoute: FrBibliographyRoute,
   RelationSplatRoute: RelationSplatRoute,
   VesselImoRoute: VesselImoRoute,
+  FrIndexRoute: FrIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

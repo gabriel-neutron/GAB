@@ -27,7 +27,7 @@ and their form are costly to change after the first publication.
   test builds the site from a fixed release with no stack.
 - The pages are React components (ADR 0004) that the release renders to HTML. Vite loads them,
   because Node does not run JSX, and Tailwind builds the stylesheet from the one stylesheet of the
-  application, so the site has no second palette. The same components have stories.
+  application, so the site has no second palette.
 - The site holds a copy of each file of the release, byte for byte, so the downloads page links
   files of the site and the checksums of the manifest stay true.
 - The site holds no script, except the map script. No page sends a request to a server other than

@@ -1,8 +1,9 @@
-import { ui } from './content';
+import { useContent } from './use-content';
 import { NodeRef } from './node-ref';
 
 /** The nodes that one part names, as a row of references at the start of the part. */
 export function NodeStrip({ nodeIds }: { readonly nodeIds: readonly string[] }) {
+  const { ui } = useContent();
   if (nodeIds.length === 0) return null;
   return (
     <div className="mt-6">

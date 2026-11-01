@@ -105,7 +105,6 @@ The MCP server `gab` gives the research tools to an MCP client such as Claude Co
 | `pnpm check` | Type check, lint and format check |
 | `pnpm test:fast` | The tests that need no service |
 | `pnpm test` | The full suite. It needs the stack. |
-| `pnpm storybook` | The components in isolation |
 
 The project uses AI coding agents. Their shared rules are in `CLAUDE.md`, `.claude/` and
 `docs/agents/`. You do not need an agent to contribute. Read [`CONTRIBUTING.md`](CONTRIBUTING.md).

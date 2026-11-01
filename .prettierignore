@@ -30,5 +30,8 @@ tools/figures/data/basemap.json
 # The design system reference. It is a copy of the published artifact, kept byte for byte.
 design
 
-# A skill of an outside vendor keeps its own style.
-.agents
+# A fixture of a source file keeps its bytes: 1.10 must stay 1.10.
+packages/tools/fixtures
+
+# The pages of the print design of the report: the markup of the design, kept as it is.
+tools/report-pdf/pages

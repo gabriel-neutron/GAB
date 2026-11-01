@@ -41,8 +41,13 @@ export async function fetchRelease(folder: URL): Promise<SiteRelease> {
   const listed = listing.safeParse(json);
   if (!listed.success) throw new Error('The release manifest does not list files.');
   const files = new Map([['manifest.json', manifest]]);
+  // The reader reads no JSON-LD file, and the host serves the large one from another origin. So
+  // the page does not fetch it, and the read sees an empty file in its place.
   const texts = await Promise.all(
-    listed.data.files.map(async ({ path }) => [path, await textOf(new URL(path, folder))] as const),
+    listed.data.files.map(
+      async ({ path }) =>
+        [path, path.endsWith('.jsonld') ? '' : await textOf(new URL(path, folder))] as const,
+    ),
   );
   for (const [path, text] of texts) files.set(path, text);
   return readSiteRelease(files);

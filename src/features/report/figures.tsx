@@ -3,12 +3,13 @@ import { EntityGlyph } from '@/shared/entity-glyph';
 import { reportAddress, type OpenReportNode } from './report-context';
 import { itemAt, type ReportNode, type ReportRelation } from './model';
 import { useRef, useState, useEffect } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import { motion } from 'motion/react';
 import rows from './prices-data';
 import rawNodes from './nodes-data';
 import rawEdges from './edges-data';
 import land from './basemap-data';
 import { Citation } from './citations';
+import { useReduceMotion } from './reduced-motion';
 
 export const nodes: Record<string, ReportNode> = Object.fromEntries(
   rawNodes.map((n) => [
@@ -443,7 +444,7 @@ export function PortMap({ onOpen }: { onOpen: OpenReportNode }) {
     }, 1800);
     return () => clearTimeout(timer);
   }, [tour, step]);
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion();
   return (
     <figure className="port-map" id="geography">
       <figcaption>
@@ -595,7 +596,7 @@ export function EvidenceGraph({ onOpen }: { onOpen: OpenReportNode }) {
   );
 
   const [selected, setSelected] = useState('N-P034');
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion();
   const neighbours = new Set([
     selected,
     ...relations

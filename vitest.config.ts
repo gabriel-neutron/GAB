@@ -1,6 +1,4 @@
 import path from 'node:path';
-import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
-import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 
 import { testRunDatabase } from './tools/test-database.ts';
@@ -115,26 +113,6 @@ const liveProjects = [
 export default defineConfig({
   test: {
     projects: [
-      {
-        // Departure: the story project takes the application configuration, so a story compiles
-        // under the same alias and the same Tailwind plugin as the component it checks.
-        extends: './vite.config.ts',
-
-        // External constraint: `storybookTest` returns a promise, and it sets the include itself.
-        plugins: [await storybookTest({ configDir: '.storybook' })],
-
-        test: {
-          name: 'storybook',
-          testTimeout: TEST_TIMEOUT,
-          browser: {
-            enabled: true,
-            headless: true,
-            provider: playwright(),
-            instances: [{ browser: 'chromium' }],
-          },
-        },
-      },
-
       offlineProject,
 
       // Departure: one condition for both services. The guard above proves both credentials are

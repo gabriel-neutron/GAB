@@ -1,19 +1,20 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import { motion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import { useNarrowScreen } from '@/shared/narrow-screen';
-import { financeUi, figureTexts, type ReportBlock } from '../../content';
+import { type ReportBlock } from '../../content';
 import publication from '../../data/publication-figures.json';
 import { FigureFrame } from '../../figure-frame';
 import { accent } from '../../primitives/accent';
 import { layout } from '../../primitives/layout';
-import { StickyScene } from '../../primitives/sticky-scene';
+import { useContent } from '../../use-content';
+import { ValuesTable } from '../ports-fleet/values-table';
+import { settlementShare as value } from './settlement-shares';
+import { useReduceMotion } from '../../reduced-motion';
 
 type Pairs = readonly (readonly number[])[];
 type Panel = 'exports' | 'imports';
 
-const copy = financeUi.figure;
-const labels = figureTexts.figures['9'].labels;
 const data = publication.f9;
 const YEARS = (data.exports.Rouble as Pairs).map((pair) => pair[0] ?? 0);
 const FIRST = YEARS[0] ?? 0;
@@ -23,26 +24,22 @@ const PANELS = ['exports', 'imports'] as const;
 // The bands from the bottom up: the rouble (the accent), the other currencies, the "unfriendly"
 // currencies. Each band has its own shape, so the chart reads without colour.
 const SERIES = [
-  { key: 'Rouble', label: labels.Rouble, fill: 'fill-signal/30', swatch: 'bg-signal/30' },
+  { key: 'Rouble', labelKey: 'Rouble', fill: 'fill-signal/30', swatch: 'bg-signal/30' },
   {
     key: 'Other currencies',
-    label: labels['Autres devises'],
+    labelKey: 'Autres devises',
     fill: 'hatch',
     swatch: 'bg-[repeating-linear-gradient(45deg,var(--chart-axis)_0_1px,transparent_1px_5px)]',
   },
   {
     key: '“Unfriendly” currencies',
-    label: labels['Devises de pays « inamicaux »'],
+    labelKey: 'Devises de pays « inamicaux »',
     fill: 'dots',
     swatch:
       'bg-chart-neutral/30 bg-[radial-gradient(var(--chart-axis)_1px,transparent_1.5px)] bg-[length:5px_5px]',
   },
 ] as const;
 
-const value = (panel: Panel, key: string, year: number): number | undefined => {
-  const pairs = (data[panel] as Readonly<Record<string, Pairs>>)[key];
-  return pairs?.find((pair) => pair[0] === year)?.[1];
-};
 const percent = (share: number | undefined) => (share === undefined ? '' : share.toFixed(1));
 
 // The lower and upper edge of each band, year by year. A missing value is a data fault, not a
@@ -54,7 +51,7 @@ const edgesOf = (panel: Panel) => {
     const high = YEARS.map((one, index) => {
       const share = value(panel, series.key, one);
       if (share === undefined)
-        throw new Error(`Figure 9: no ${series.key} ${panel} value for ${String(one)}`);
+        throw new Error(`Figure 10: no ${series.key} ${panel} value for ${String(one)}`);
       return (low[index] ?? 0) + share;
     });
     floor = high;
@@ -84,14 +81,24 @@ function useWidth() {
   return [box, width] as const;
 }
 
-/** One panel of figure 9: the shares of the three groups of currencies as stacked bands. The years
- * after `year` stay under a veil. */
-function SharePanel({ panel, year }: { readonly panel: Panel; readonly year: number }) {
-  const reduce = useReducedMotion();
+/** One panel of figure 10: the shares of the three groups of currencies as stacked bands. The years
+ * after `year` stay under a veil. A mouse or a pen on a year calls `onPoint`. */
+function SharePanel({
+  panel,
+  year,
+  onPoint,
+}: {
+  readonly panel: Panel;
+  readonly year: number;
+  readonly onPoint: (year: number | null) => void;
+}) {
+  const labels = useContent().figureTexts.figures['9'].labels;
+  const reduce = useReduceMotion();
   const narrow = useNarrowScreen();
   const hatch = useId();
   const dots = useId();
   const [box, W] = useWidth();
+  // The same shape as the room that the CSS holds before the width is known.
   const H = Math.round(narrow ? W * 0.7 : Math.min(W * 1.1, 460));
   const x = (one: number) =>
     PAD.left + ((one - FIRST) / (LAST - FIRST || 1)) * (W - PAD.left - PAD.right);
@@ -106,7 +113,8 @@ function SharePanel({ panel, year }: { readonly panel: Panel; readonly year: num
     <div ref={box} className="min-w-0">
       <p className="font-mono text-report-label uppercase text-label">{title}</p>
       {W === 0 ? (
-        <div style={{ aspectRatio: narrow ? '10 / 7' : '1 / 1' }} />
+        // The CSS sizes the room before the width is known, so the first render fits every width.
+        <div className="mt-2 aspect-[10/7] md:aspect-[10/11] md:max-h-[460px]" />
       ) : (
         <svg
           viewBox={`0 0 ${String(W)} ${String(H)}`}
@@ -114,6 +122,9 @@ function SharePanel({ panel, year }: { readonly panel: Panel; readonly year: num
           height={H}
           className="mt-2 block"
           aria-hidden="true"
+          onPointerLeave={() => {
+            onPoint(null);
+          }}
         >
           <defs>
             <pattern
@@ -206,9 +217,7 @@ function SharePanel({ panel, year }: { readonly panel: Panel; readonly year: num
             fillOpacity="0.8"
             initial={false}
             animate={{ x: x(year) + 6 }}
-            transition={
-              reduce === true ? { duration: 0 } : { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
-            }
+            transition={reduce ? { duration: 0 } : { duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           />
           <line
             x1={x(year)}
@@ -247,14 +256,35 @@ function SharePanel({ panel, year }: { readonly panel: Panel; readonly year: num
               </text>
             );
           })}
+          {/* One zone for each year. A touch moves the page, so only a mouse or a pen inspects. */}
+          {YEARS.map((one) => {
+            const step = (W - PAD.left - PAD.right) / (YEARS.length - 1 || 1);
+            return (
+              <rect
+                key={one}
+                x={x(one) - step / 2}
+                y={0}
+                width={step}
+                height={H}
+                fill="transparent"
+                onPointerEnter={(event) => {
+                  if (event.pointerType !== 'touch') onPoint(one);
+                }}
+              />
+            );
+          })}
         </svg>
       )}
     </div>
   );
 }
 
-/** The rouble shares of one year, set as an editorial numeral with the two values under it. */
+/** The shares of one year: the year as an editorial numeral, the two rouble shares under it, and
+ * the shares of the other groups of currencies. */
 function YearReadout({ year, still }: { readonly year: number; readonly still: boolean }) {
+  const { financeUi, figureTexts } = useContent();
+  const copy = financeUi.figure;
+  const labels = figureTexts.figures['9'].labels;
   return (
     <motion.div
       key={year}
@@ -280,6 +310,15 @@ function YearReadout({ year, still }: { readonly year: number; readonly still: b
               <dd className="font-mono text-report-lead leading-none tracking-[-0.04em] tabular-nums">
                 {percent(value(panel, 'Rouble', year))}%
               </dd>
+              {/* On a phone the bands carry these values, so the readout stays short enough to stick. */}
+              {SERIES.slice(1).map((series) => (
+                <dd
+                  key={series.key}
+                  className="mt-1 hidden font-mono text-report-label tabular-nums text-label lg:block"
+                >
+                  {labels[series.labelKey]} {percent(value(panel, series.key, year))}%
+                </dd>
+              ))}
             </div>
           ))}
         </dl>
@@ -288,12 +327,68 @@ function YearReadout({ year, still }: { readonly year: number; readonly still: b
   );
 }
 
-/** The chart of figure 9 at one year: the year in the gutter, then the legend and the exports
- * and imports side by side. */
+/** The chart of figure 10 at one year: the year in the gutter, then the legend and the exports
+ * and imports side by side. A pointer on a year, or the focus on its button, shows that year in
+ * place of the step. */
 function SettlementChart({ year, still }: { readonly year: number; readonly still: boolean }) {
+  const { financeUi, figureTexts } = useContent();
+  const copy = financeUi.figure;
+  const labels = figureTexts.figures['9'].labels;
+  const describe = useId();
+  // Three sources of the shown year, from the most to the least transient: the pointer on the
+  // chart, the focus on a year button, and a year pinned by a click (a click does not focus a
+  // button in every browser).
+  const [pointed, setPointed] = useState<number | null>(null);
+  const [focused, setFocused] = useState<number | null>(null);
+  const [pinned, setPinned] = useState<number | null>(null);
+  const inspect = pointed ?? focused ?? pinned;
+  const shown = inspect ?? year;
   return (
     <div className="grid gap-4 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-10">
-      <YearReadout year={year} still={still} />
+      <div>
+        <YearReadout year={shown} still={still || inspect !== null} />
+        <div
+          role="group"
+          aria-label={copy.inspect}
+          className="mt-3 grid lg:mt-6"
+          style={{ gridTemplateColumns: `repeat(${String(YEARS.length)}, minmax(0, 1fr))` }}
+        >
+          {YEARS.map((one) => (
+            <button
+              key={one}
+              type="button"
+              aria-describedby={`${describe}-${String(one)}`}
+              aria-pressed={pinned === one}
+              onFocus={() => {
+                setFocused(one);
+              }}
+              onBlur={() => {
+                setFocused(null);
+              }}
+              onClick={() => {
+                setPinned((current) => (current === one ? null : one));
+              }}
+              className={cn(
+                'min-h-6 font-mono text-report-label tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring',
+                one === shown ? 'text-foreground underline underline-offset-4' : 'text-label',
+              )}
+            >
+              {/* The name is the full year; the short year is what shows. */}
+              <span aria-hidden="true">{`’${String(one).slice(2)}`}</span>
+              <span className="sr-only">{one}</span>
+              <span id={`${describe}-${String(one)}`} hidden>
+                {PANELS.map(
+                  (panel) =>
+                    `${copy[panel]}: ${SERIES.map(
+                      (series) =>
+                        `${labels[series.labelKey]} ${percent(value(panel, series.key, one))}%`,
+                    ).join(', ')}.`,
+                ).join(' ')}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="min-w-0">
         <ul className="flex flex-wrap gap-x-5 gap-y-1">
           {SERIES.map((series) => (
@@ -302,13 +397,13 @@ function SettlementChart({ year, still }: { readonly year: number; readonly stil
                 aria-hidden="true"
                 className={cn('inline-block size-3 border border-chart-axis', series.swatch)}
               />
-              {series.label}
+              {labels[series.labelKey]}
             </li>
           ))}
         </ul>
         <div className="mt-3 grid gap-3 md:grid-cols-2 md:gap-8">
           {PANELS.map((panel) => (
-            <SharePanel key={panel} panel={panel} year={year} />
+            <SharePanel key={panel} panel={panel} year={shown} onPoint={setPointed} />
           ))}
         </div>
       </div>
@@ -316,9 +411,8 @@ function SettlementChart({ year, still }: { readonly year: number; readonly stil
   );
 }
 
-/** Figure 9 as a scroll scene: the frame, the year and the chart stick together as one unit, and
- * each step of the scroll moves them to one year. Under reduced motion the figure shows its final
- * state at once. A screen reader gets the full data as a table. */
+/** Figure 10: the chart at the last year, with a button for each year. A disclosure under the
+ * chart holds the full data as a table. */
 export function SettlementFigure({
   block,
   partSlug,
@@ -326,8 +420,10 @@ export function SettlementFigure({
   readonly block: ReportBlock;
   readonly partSlug: string;
 }) {
-  const reduce = useReducedMotion() === true;
-  const narrow = useNarrowScreen();
+  const reduce = useReduceMotion();
+  const { financeUi, figureTexts } = useContent();
+  const copy = financeUi.figure;
+  const labels = figureTexts.figures['9'].labels;
   const figure = block.figure;
   if (figure === undefined) return null;
   const frame = (chart: ReactNode) => (
@@ -341,62 +437,31 @@ export function SettlementFigure({
       partSlug={partSlug}
     >
       {chart}
+      {/* Under the chart and in the frame: the figure holds its data table, and an open table
+          never covers the chart. */}
+      <ValuesTable
+        summary={copy.tableCaption}
+        head={[
+          copy.year,
+          ...PANELS.flatMap((panel) =>
+            SERIES.map((series) => `${copy[panel]}, ${labels[series.labelKey]}`),
+          ),
+        ]}
+        rows={YEARS.map((one) => [
+          String(one),
+          ...PANELS.flatMap((panel) =>
+            SERIES.map((series) => percent(value(panel, series.key, one))),
+          ),
+        ])}
+      />
     </FigureFrame>
   );
-  const chart = (year: number) => <SettlementChart year={year} still={reduce} />;
-  // The step text repeats the readout of the chart for a screen reader; the chart shows it.
-  const steps = copy.steps.map((year) => (
-    <p key={year}>
-      {year}. {copy.stepLabel}:{' '}
-      {PANELS.map((panel) => `${copy[panel]} ${percent(value(panel, 'Rouble', year))}%`).join(', ')}
-      .
-    </p>
-  ));
   return (
     <div className={layout.bleed}>
       <div className="mx-auto max-w-[1440px] px-4 md:px-8 lg:px-12">
-        {/* On a wide screen the frame sticks with the chart; on a phone it is too tall for the
-            view, so only the chart sticks. */}
-        {reduce ? (
-          frame(chart(LAST))
-        ) : narrow ? (
-          frame(
-            <StickyScene steps={steps} stepClassName="sr-only">
-              {(active) => chart(copy.steps[active] ?? LAST)}
-            </StickyScene>,
-          )
-        ) : (
-          <StickyScene steps={steps} stepClassName="sr-only">
-            {(active) => frame(chart(copy.steps[active] ?? LAST))}
-          </StickyScene>
-        )}
-        <table className="sr-only">
-          <caption>{copy.tableCaption}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{copy.year}</th>
-              {PANELS.flatMap((panel) =>
-                SERIES.map((series) => (
-                  <th key={`${panel}-${series.key}`} scope="col">
-                    {copy[panel]}, {series.label}
-                  </th>
-                )),
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {YEARS.map((one) => (
-              <tr key={one}>
-                <th scope="row">{one}</th>
-                {PANELS.flatMap((panel) =>
-                  SERIES.map((series) => (
-                    <td key={`${panel}-${series.key}`}>{percent(value(panel, series.key, one))}</td>
-                  )),
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* The chart shows the last year; the year buttons choose another. The page scroll never
+            moves it. */}
+        {frame(<SettlementChart year={LAST} still={reduce} />)}
       </div>
     </div>
   );

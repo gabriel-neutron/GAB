@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
-import { openingUi, parts } from './content';
+
+import { LanguageSwitch } from './language-switch';
 import { accent } from './primitives/accent';
+import { useContent } from './use-content';
 
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ring';
@@ -18,6 +20,7 @@ const segment = (index: number, current: number): string =>
  * Each segment is a link that shows its title in the bar on hover or focus. On a phone the bar is
  * one short line, the number and title over the same segments, so it keeps the reading space. */
 export function PartBar() {
+  const { openingUi, parts } = useContent();
   const bar = useRef<HTMLElement>(null);
   const fill = useRef<HTMLSpanElement | null>(null);
   // The progress of the part in view, kept past React so that a new fill span starts with it.
@@ -30,7 +33,10 @@ export function PartBar() {
   useEffect(() => {
     const region = bar.current?.closest('[role="region"]');
     if (!(region instanceof HTMLElement)) return undefined;
-    const sections = parts.map((part) => document.getElementById(part.slug));
+    // The slot of each part (report page): a measure in a part far from the view lays it out.
+    const sections = parts.map((part) =>
+      region.querySelector(`[data-part="${CSS.escape(part.slug)}"]`),
+    );
     let frame = 0;
     const update = () => {
       frame = 0;
@@ -60,7 +66,7 @@ export function PartBar() {
       region.removeEventListener('scroll', schedule);
       window.removeEventListener('resize', schedule);
     };
-  }, []);
+  }, [parts]);
 
   const shown = pointed ?? current;
   const part = parts[shown];
@@ -120,15 +126,22 @@ export function PartBar() {
             </li>
           ))}
         </ol>
+        {/* The switch goes to the part in view, in the other locale. */}
+        <LanguageSwitch page="report" anchor={parts[current]?.slug} className="-mr-3" />
       </div>
       <div className="relative flex h-8 items-center gap-3 px-4 pb-1 md:hidden">
         <span className="shrink-0 font-mono text-report-label tracking-[0.08em] text-label tabular-nums">
           <span className="text-foreground">{pad(current + 1)}</span> {openingUi.partBar.of}{' '}
           {pad(parts.length)}
         </span>
-        <span className="truncate text-report-small leading-none text-foreground">
+        <span className="min-w-0 flex-1 truncate text-report-small leading-none text-foreground">
           {parts[current]?.title}
         </span>
+        <LanguageSwitch
+          page="report"
+          anchor={parts[current]?.slug}
+          className="-my-2 -mr-3 min-h-8"
+        />
         <span aria-hidden="true" className="absolute inset-x-4 bottom-1 flex h-0.5 gap-0.5">
           {parts.map((one, index) => (
             <span

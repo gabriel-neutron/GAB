@@ -1,33 +1,37 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/utils';
-import { openingUi, parts, type ReportPart } from '../content';
+import type { ReportPart } from '../content';
 import figures from '../data/publication-figures.json';
-import { NoteRef } from '../note-ref';
+import { ImageCredit, NoteRef } from '../note-ref';
 import { accent } from '../primitives/accent';
 import { chapterHead } from '../primitives/chapter-break';
 import { monoLabel } from '../primitives/label';
-import { NumberRoll } from '../primitives/number-roll';
+import { CountUp } from '../primitives/count-up';
 import { Reveal } from '../primitives/reveal';
 import { RichText } from '../rich-text';
 import { ScrambleText } from '../scramble-text';
+import { useContent } from '../use-content';
+import { type SummaryValue, summaryValues } from './summary-values';
 
 /** The bold key and the first sentence of a paragraph, with the space after it. */
 const leadHead = (text: string): string =>
   /^(?:\*\*[^*]+\*\*\s*)?[^.?!]*[.?!]\s*/.exec(text)?.[0] ?? text;
 const SENTENCE = 'text-report-body/[1.55] text-foreground/75 ';
 const WORDS = 'leading-[0.9] tracking-[-0.045em] text-balance';
-const { summary: copy } = openingUi;
 
 interface Finding {
-  readonly value: string;
-  readonly note: string;
+  readonly value: SummaryValue | undefined;
   readonly sentence: ReactNode;
+  /** The finding on the rouble has the small chart of its data. */
+  readonly chart: boolean;
+  /** The note of the final text that supports the value, in the summary. */
+  readonly note: string;
 }
 
-/** A small column chart of the rouble share of export settlements, from the data of figure 9.
+/** A small column chart of the rouble share of export settlements, from the data of figure 10.
  * The two years of the text carry the accent and their value. */
 function RoubleChart() {
-  const { chart } = copy;
+  const { chart } = useContent().openingUi.summary;
   const points = figures.f9.exports.Rouble.map(([year = 0, value = 0]) => [year, value] as const);
   const top = Math.max(...points.map(([, value]) => value));
   return (
@@ -46,7 +50,7 @@ function RoubleChart() {
               <span className="sr-only">
                 {year}: {Math.round(value)}%
               </span>
-              {/* Every bar prints its value, as figure 9 does; the two years of the text in the accent. */}
+              {/* Every bar prints its value, as figure 10 does; the two years of the text in the accent. */}
               <div
                 aria-hidden="true"
                 className="flex flex-1 flex-col items-center justify-end border-b border-foreground/40"
@@ -89,23 +93,32 @@ function RoubleChart() {
 // sentence in the other 5, from the top of the value. A number in the accent, words in the ink.
 const NUMBER = 'text-report-display leading-[0.8] tracking-[-0.07em] tabular-nums';
 
-function hero(finding: Finding): ReactNode {
-  if (/\d/.test(finding.value))
+function hero(finding: Finding, partSlug: string): ReactNode {
+  const { value } = finding;
+  const note = finding.note === '' ? null : <NoteRef partSlug={partSlug} id={finding.note} />;
+  if (value?.kind === 'number')
     return (
-      <p className={cn(NUMBER, accent.text)}>
-        <NumberRoll value={finding.value} />
+      <p className={cn(NUMBER, accent.text, 'w-fit')}>
+        <CountUp value={value.value} format={value.format} />
+        {note}
       </p>
     );
-  return <p className={cn('max-w-[10ch] text-report-number', WORDS)}>{finding.value}</p>;
+  return (
+    <p className={cn('max-w-[10ch] text-report-number', WORDS)}>
+      {value?.text}
+      {note}
+    </p>
+  );
 }
 
-const layout = (finding: Finding): ReactNode => (
-  <div className="lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-8">
-    <div className="min-w-0 lg:col-span-7">{hero(finding)}</div>
+const layout = (finding: Finding, partSlug: string): ReactNode => (
+  // From 1280px the row leaves a margin at its right, where its notes open: a note never covers
+  // the value or its sentence.
+  <div data-note-block className="lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-8 xl:w-3/4">
+    <div className="min-w-0 lg:col-span-7">{hero(finding, partSlug)}</div>
     <div className="min-w-0 lg:col-span-5">
       <p className={cn('mt-6 lg:mt-0', SENTENCE)}>{finding.sentence}</p>
-      {/* The finding on the rouble has the small chart of its data. */}
-      {finding.note === copy.chart.finding ? (
+      {finding.chart ? (
         <div className="mt-8">
           <RoubleChart />
         </div>
@@ -118,9 +131,19 @@ const layout = (finding: Finding): ReactNode => (
  * method and the result under it, then each finding of the list as one value on the same grid. On a phone the opening is one row, so that the first screen
  * shows the start of the text. */
 export function SummaryPart({ part }: { readonly part: ReportPart }) {
+  const { openingUi, parts, ui } = useContent();
+  const copy = openingUi.summary;
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
-  const [lead, ...rest] = part.blocks.filter((block) => block.kind === 'p');
+  // The paragraphs before the findings open the part; the paragraphs after them close it.
+  const at = part.blocks.findIndex((block) => block.kind === 'li');
+  const first = at === -1 ? part.blocks.length : at;
+  const [lead, ...rest] = part.blocks.slice(0, first).filter((block) => block.kind === 'p');
   const findings = part.blocks.filter((block) => block.kind === 'li');
+  const after = part.blocks.slice(first).filter((block) => block.kind === 'p');
+  const values = summaryValues(
+    findings.map((block) => block.text),
+    copy.values,
+  );
   return (
     <section
       id={part.slug}
@@ -150,6 +173,10 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
             // The dither is black on white: it multiplies onto paper, and inverts onto the dark.
             className="block aspect-[16/10] w-full object-cover mix-blend-multiply [image-rendering:pixelated] dark:mix-blend-screen dark:invert"
           />
+          <p className="mt-2 w-fit font-mono text-report-label uppercase text-label">
+            <span aria-hidden="true">{ui.note.image}</span>
+            <ImageCredit src={copy.art} />
+          </p>
         </div>
       </div>
       <div className="mt-4 md:mt-14 lg:grid lg:grid-cols-12 lg:gap-x-8">
@@ -174,20 +201,32 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
       </div>
       <ol className="mt-16 border-t border-foreground lg:mt-24">
         {findings.map((block, index) => {
-          const value = copy.values[index];
           return (
             <li key={block.text} className="border-b border-border py-8 lg:py-12">
               <Reveal>
-                {layout({
-                  value: value?.value ?? '',
-                  note: value?.note ?? '',
-                  sentence: <RichText text={block.text} partSlug={part.slug} />,
-                })}
+                {layout(
+                  {
+                    value: values[index],
+                    chart: copy.values[index]?.note === copy.chart.finding,
+                    note: copy.values[index]?.note ?? '',
+                    sentence: <RichText text={block.text} partSlug={part.slug} />,
+                  },
+                  part.slug,
+                )}
               </Reveal>
             </li>
           );
         })}
       </ol>
+      {after.length === 0 ? null : (
+        <div className="mt-10 max-w-[64ch] space-y-4">
+          {after.map((block) => (
+            <p key={block.text} className={SENTENCE}>
+              <RichText text={block.text} partSlug={part.slug} />
+            </p>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

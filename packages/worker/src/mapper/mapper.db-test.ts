@@ -409,7 +409,7 @@ test('a file that is not a csv fails with a sentence and asks no model', async (
 
     expect(await held.step(makeMapper(CONFIG), router)).toStrictEqual({ did: 'failed', job });
     expect((await held.job(job)).failure_reason).toBe(
-      `the mapper reads a CSV, TSV or SDMX-CSV table only, and document ${LIST} is ` +
+      `the mapper reads a CSV, TSV, SDMX-CSV or JSON data table only, and document ${LIST} is ` +
         'application/vnd.ms-excel',
     );
     expect(router.chats()).toBe(0);

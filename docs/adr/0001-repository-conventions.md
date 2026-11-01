@@ -73,4 +73,4 @@ enough to run after each file.
 - No layout rule keeps the public read safe. The read role of the database and the read address
   given to the frontend keep it safe (ADR 0003).
 - One package can hold more than one compile target: the browser bundle, the Node configuration
-  files and the Storybook folder each have their own TypeScript configuration.
+  files each have their own TypeScript configuration.

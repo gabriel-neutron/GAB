@@ -1,5 +1,5 @@
 /* The cards of the map scene. The scene primitive owns the card box and its slot: this file only
- * holds the card low in the view under 1024px and shows only the card of the step in view, and
+ * holds the card low in the view from 768px to 1024px and shows only the card of the step in view, and
  * from 1024px fades a card before it reaches the part bar. The scene marks the step in view with
  * `data-pf-active`. Tailwind cannot write these selectors or a scroll timeline. */
 
@@ -33,11 +33,11 @@
   }
 }
 
-/* port-map.tsx fits the map above the card with the same tops: 55% of the view on a phone, 62%
- * from 768px and for the cards of the flows. */
-@media (max-width: 1023px) and (prefers-reduced-motion: no-preference) {
+/* The map fits above the card with the same top: 62% of the view from 768px to 1024px. Under
+ * 768px the page shows still frames in place of the scene. */
+@media (min-width: 768px) and (max-width: 1023px) and (prefers-reduced-motion: no-preference) {
   .pf-scene {
-    --pf-card-top: 55svh;
+    --pf-card-top: 62svh;
   }
 
   .pf-scene :has(> .pf-step) {
@@ -49,12 +49,6 @@
     background-color: var(--background);
   }
 
-  /* The cards of the flows stand lower, so the band of flow columns and the map fit above them. */
-  .pf-scene :has(> [data-pf-card='3']),
-  .pf-scene :has(> [data-pf-card='4']) {
-    --pf-card-top: 62svh;
-  }
-
   /* The first card comes to its place only when the map is held under the part bar, so no label
    * moves under it. */
   .pf-scene :has(> [data-pf-card='0']) {
@@ -63,13 +57,6 @@
 }
 
 @media (min-width: 768px) and (max-width: 1023px) and (prefers-reduced-motion: no-preference) {
-  /* The cards are shorter from 768px: they stand lower, so no empty band stays under them. */
-  .pf-scene {
-    --pf-card-top: 62svh;
-  }
-}
-
-@media (max-width: 1023px) and (prefers-reduced-motion: no-preference) {
   .pf-scene :has(> .pf-step) {
     opacity: 0;
     visibility: hidden;
@@ -167,7 +154,7 @@ html:not(.dark) #ports-fleet {
 /* Under 1024px the last card is held until 38% of the view after its slot, and the next figure
  * comes up 25% of the view over the scene: the room after the last slot is longer than both, so
  * the card leaves before the figure comes. */
-@media (max-width: 1023px) and (prefers-reduced-motion: no-preference) {
+@media (min-width: 768px) and (max-width: 1023px) and (prefers-reduced-motion: no-preference) {
   .pf-scene > .relative > .pointer-events-none > :last-child {
     height: 72svh;
   }
@@ -175,7 +162,7 @@ html:not(.dark) #ports-fleet {
 
 /* Under 1024px each slot of a card is taller than one flick of the page, so no card is passed
  * over: the two cards of the last state each show. */
-@media (max-width: 1023px) and (prefers-reduced-motion: no-preference) {
+@media (min-width: 768px) and (max-width: 1023px) and (prefers-reduced-motion: no-preference) {
   .pf-scene > .relative > .pointer-events-none > :not(:last-child) {
     min-height: 95svh;
   }

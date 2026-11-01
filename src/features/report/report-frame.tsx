@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { MotionConfig } from 'motion/react';
 import { NodePanel } from './node-panel';
 import { reportGraph } from './report-graph';
+import { useContent } from './use-content';
 import { CLOSE_CARDS, ReportContext, type Report } from './use-report';
 
 /** The control, then the trigger of each popover around it: a fallback when the control unmounts. */
@@ -28,6 +29,16 @@ interface ReportFrameProps {
 /** The scroll region of a report page, the node panel, and the context that opens it. */
 export function ReportFrame({ label, children }: ReportFrameProps) {
   const [selected, setSelected] = useState<string | null>(null);
+  const { lang } = useContent().ui;
+  // An adapter: the document states the language of the page. The site is English, so the
+  // document goes back to English when the report leaves.
+  useEffect(() => {
+    // The release page states its language already; a write of the same value restyles the page.
+    if (document.documentElement.lang !== lang) document.documentElement.lang = lang;
+    return () => {
+      document.documentElement.lang = 'en';
+    };
+  }, [lang]);
   const opener = useRef<HTMLElement[]>([]);
   const showing = useRef(false);
   const report = useMemo<Report>(
@@ -46,11 +57,13 @@ export function ReportFrame({ label, children }: ReportFrameProps) {
   return (
     <MotionConfig reducedMotion="user">
       <ReportContext.Provider value={report}>
+        {/* A size container: the report reads the height of its view in cqh. */}
         <div
           role="region"
+          lang={lang}
           aria-label={label}
           tabIndex={0}
-          className="h-full overflow-x-clip overflow-y-auto bg-background text-foreground outline-none"
+          className="h-full overflow-x-clip overflow-y-auto bg-background text-foreground outline-none [container-type:size]"
         >
           {children}
         </div>

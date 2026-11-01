@@ -34,6 +34,7 @@ const addressBar = (): { readonly pathname: string; readonly search: string } =>
 const TO_MAP = () => carriedSelection(addressBar().pathname, addressBar().search, '/map');
 const ABOUT = ['/method', '/glossary', '/help'];
 const DATA = ['/search', '/downloads', '/entity/', '/relation/', '/claim/'];
+const REPOSITORY = 'https://github.com/gabriel-neutron/GAB';
 const TO_GRAPH = () => carriedSelection(addressBar().pathname, addressBar().search, '/graph');
 
 /** The one header of the site: the name of the dataset, one navigation with every page, and the
@@ -44,7 +45,8 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
   // so each new address of the router builds the two links again, and each one names the
   // selection of that moment. The graph writes past the router, and its click reads the address.
   const address = useLocation({ select: (location) => location.searchStr });
-  const path = useLocation({ select: (location) => location.pathname });
+  // A page of the release opens at its folder address, with an end slash; its render had none.
+  const path = useLocation({ select: (location) => location.pathname.replace(/(.)\/$/u, '$1') });
   const section = ABOUT.includes(path)
     ? 'about'
     : DATA.some((prefix) => path.startsWith(prefix))
@@ -92,6 +94,12 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
         <Link to="/method" data-section-active={section === 'about'} className={PAGE_LINK}>
           About
         </Link>
+        <a href={REPOSITORY} aria-label="Source code on GitHub" className={PAGE_LINK}>
+          {/* The GitHub mark: the icon set has no brand marks. */}
+          <svg aria-hidden="true" viewBox="0 0 16 16" className="size-4 fill-current">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+          </svg>
+        </a>
       </nav>
       <div className="site-navigation-actions">
         {filter === null ? null : <div className="site-context-filter">{filter}</div>}

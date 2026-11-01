@@ -1,16 +1,12 @@
 import { useRef } from 'react';
 import { motion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
-import { figureTexts, portsFleetUi } from '../../content';
 import { accent } from '../../primitives/accent';
+import { useContent } from '../../use-content';
 import { chartLayout } from './chart-layout';
 import { figureData, type Flow } from './figure-data';
 import { useSize } from './use-size';
 
-const texts = figureTexts.figures['7'];
-const labels: Readonly<Record<string, string>> = texts.labels;
-const copy = portsFleetUi.flows;
-const number = new Intl.NumberFormat('en-US');
 const SHADOW = '“Shadow fleet”';
 
 const COLUMNS = [
@@ -34,7 +30,6 @@ const designated = new Map(
     .filter((row) => row.to === 'share on designated tankers')
     .map((row) => [row.from, row.value]),
 );
-const OTHER_PANELS = texts.panels.filter((panel) => panel.id !== 'a');
 
 const HEIGHT = 440;
 const TOP = 32;
@@ -42,13 +37,22 @@ const NODE = 10;
 const RIGHT = 230;
 // The width of the box from which the bands replace the list.
 const WIDE = 900;
-const nameOf = (name: string) => labels[name] ?? name;
-const shareOf = (name: string) => {
-  const share = designated.get(name);
-  return share === undefined || share === null
-    ? ''
-    : (labels['{v} % désignés (CREA)'] ?? '').replace('{v}', String(share));
-};
+/** The words of figure 7 in the page locale: its texts, its labels (a French label of the
+ * publication, or a name of the data), the words of the table and the number format. */
+function useFigure() {
+  const { figureTexts, portsFleetUi, ui } = useContent();
+  const texts = figureTexts.figures['7'];
+  const labels: Readonly<Partial<Record<string, string>>> = texts.labels;
+  const nameOf = (name: string) => labels[name] ?? name;
+  const shareOf = (name: string) => {
+    const share = designated.get(name);
+    return share === undefined || share === null
+      ? ''
+      : (labels['{v} % désignés (CREA)'] ?? '').replace('{v}', String(share));
+  };
+  const number = new Intl.NumberFormat(ui.numberLocale);
+  return { texts, labels, copy: portsFleetUi.flows, number, nameOf, shareOf };
+}
 
 /** Figure 7: seaborne oil in January 2026 as bands between neighbouring columns (loading basin,
  * fleet category, product, buyer), then gas and pipeline crude as bars. No band joins a fleet
@@ -56,6 +60,7 @@ const shareOf = (name: string) => {
 export function FleetFlows() {
   const box = useRef<HTMLDivElement>(null);
   const { width } = useSize(box);
+  const { texts, labels, copy, number } = useFigure();
   const panelA = texts.panels.find((panel) => panel.id === 'a');
   return (
     <div className="grid gap-12">
@@ -86,14 +91,16 @@ export function FleetFlows() {
         </div>
       </div>
       <div className="grid gap-10 md:grid-cols-3">
-        {OTHER_PANELS.map((panel) => (
-          <BarPanel
-            key={panel.id}
-            title={panel.title}
-            unit={panel.unit}
-            rows={figureData.flows.filter((row) => row.panel === panel.id)}
-          />
-        ))}
+        {texts.panels
+          .filter((panel) => panel.id !== 'a')
+          .map((panel) => (
+            <BarPanel
+              key={panel.id}
+              title={panel.title}
+              unit={panel.unit}
+              rows={figureData.flows.filter((row) => row.panel === panel.id)}
+            />
+          ))}
       </div>
       <details className="border-t border-border pt-3">
         <summary className="flex min-h-11 cursor-pointer items-center font-mono text-report-label text-label">
@@ -150,6 +157,7 @@ function Band({ d, shadow, column }: BandProps) {
 
 /** The flow from left to right: every label stands right of its node, on a chip of the ground. */
 function HorizontalFlow({ width }: { readonly width: number }) {
+  const { labels, number, nameOf, shareOf } = useFigure();
   const { nodes, bands } = chartLayout.sankey(COLUMNS, LINKS, HEIGHT, 8);
   const span = (width - RIGHT - NODE) / (COLUMNS.length - 1);
   const x = (column: number) => column * span;
@@ -229,6 +237,7 @@ function HorizontalFlow({ width }: { readonly width: number }) {
 /** The flow of a phone: one row for each stage, with one bar for each node of the stage, at one
  * scale for all stages. */
 function StageList() {
+  const { labels, number, nameOf, shareOf } = useFigure();
   const { nodes } = chartLayout.sankey(COLUMNS, LINKS, 100, 0);
   const max = Math.max(...nodes.map((node) => node.value));
   return (
@@ -280,6 +289,7 @@ const ESPO = 'ESPO spur Skovorodino-Mohe';
 const DESIGNATED_PROJECT = 'Arctic LNG 2 (Utrenneye)';
 
 function BarPanel({ title, unit, rows }: BarPanelProps) {
+  const { labels, copy, number } = useFigure();
   const max = Math.max(...rows.map((row) => (row.from === ESPO ? 0 : (row.value ?? 0))));
   return (
     <div className="min-w-0 border-t border-foreground pt-3">

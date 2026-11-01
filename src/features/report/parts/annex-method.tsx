@@ -1,21 +1,26 @@
 import { Fragment, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { cn } from '@/shared/lib/utils';
-import { closingUi, parts, ui, type ReportBlock, type ReportPart } from '../content';
+import type { ReportBlock, ReportPart } from '../content';
 import { NodeIndex } from '../node-index';
-import { NoteRef } from '../note-ref';
+import { CountUp } from '../primitives/count-up';
+import { recordCounts } from '../record-counts';
 import { RichText } from '../rich-text';
 import { reportGraph } from '../report-graph';
 import nodes from '../nodes-data';
+import { useContent, type ReportPath } from '../use-content';
+import { sources } from '../source';
 import { ClosingBreak } from './closing-art';
 
-const { annex: copy } = closingUi;
-const KEY = /^\*\*(.+?)\*\*:?\s*/;
+const KEY = /^\*\*(.+?)\s?:?\*\*:?\s*/; // A French key has a space before its colon.
 const CODE = /^(A\.\d+)\s+(.*)$/;
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
-const count = new Intl.NumberFormat('en-GB');
 const REGISTER_ROWS = 14;
+// The spec takes the record counts from the final English text in every locale.
+const record = recordCounts(sources.en);
+// The anchor of a section of the annex, from its code: A.1 is "annex-a-1".
+const anchor = (code: string) => `annex-${code.toLowerCase().replace('.', '-')}`;
 
 interface Section {
   readonly heading: string;
@@ -60,19 +65,44 @@ function Cells({
  * rules and conditions), every node of the report, the scale of the research in small, and the
  * way to the notes as the end of the page. */
 export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
+  const { closingUi, parts, report, ui } = useContent();
+  const { annex: copy } = closingUi;
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const sections: Section[] = [];
   for (const block of part.blocks) {
     if (block.kind === 'h3') sections.push({ heading: block.text, blocks: [] });
     else sections.at(-1)?.blocks.push(block);
   }
+  // The final text gives the date of the counts in A.1, with no note: the date line links there.
+  const dated = CODE.exec(sections[0]?.heading ?? '')?.[1];
   const { counts } = reportGraph;
-  const scale = [
-    [ui.counters.nodes, counts.nodes],
-    [ui.counters.relations, counts.relations],
-    [ui.counters.documents, counts.documents],
-    [ui.counters.sources, counts.sources],
+  const groups = [
+    {
+      label: copy.record,
+      counts: [
+        [copy.entities, record.entities],
+        [copy.critical, record.critical],
+        [copy.official, record.official],
+      ],
+    },
+    {
+      label: copy.report,
+      counts: [
+        [ui.counters.nodes, counts.nodes],
+        [ui.counters.relations, counts.relations],
+        [ui.counters.documents, counts.documents],
+        [ui.counters.sources, counts.sources],
+      ],
+    },
   ] as const;
+  const count = new Intl.NumberFormat(copy.locale);
+  const format = (value: number) => count.format(Math.round(value));
+  const date = new Intl.DateTimeFormat(copy.locale, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(record.date);
   return (
     <section id={part.slug} aria-label={part.title} className="scroll-mt-12">
       <ClosingBreak
@@ -123,8 +153,9 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
           return (
             <Fragment key={section.heading}>
               <div
+                id={match === null ? undefined : anchor(match[1] ?? '')}
                 className={cn(
-                  'grid gap-x-8 py-8 lg:grid-cols-12',
+                  'grid scroll-mt-[calc(var(--report-bar,0px)+3rem)] gap-x-8 py-8 lg:grid-cols-12',
                   // The chapter break above already draws the first rule.
                   sectionIndex > 0 && 'border-t border-border',
                 )}
@@ -145,27 +176,47 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
       </div>
       <NodeIndex />
       <footer className="border-t border-foreground pt-6 pb-24">
-        <section aria-label={ui.counters.label}>
-          <dl className="flex flex-wrap gap-x-8 gap-y-2">
-            {scale.map(([term, value]) => (
-              <div key={term} className="flex flex-row-reverse items-baseline gap-2 font-mono">
-                <dt className="text-report-label uppercase text-label">{term}</dt>
-                <dd className="text-report-label text-foreground tabular-nums">
-                  {count.format(value)}
-                </dd>
-              </div>
-            ))}
-          </dl>
-          {/* The nodes are not the entities of A.1: note S-3 says which they are. */}
-          <p className="mt-3 max-w-[64ch] font-mono text-report-label text-label">
-            {copy.dataDate}
-            <NoteRef partSlug="summary" id={copy.dataNote} />
-          </p>
+        <section aria-label={ui.counters.label} className="grid gap-8 md:grid-cols-2">
+          {groups.map((group, index) => (
+            <div
+              key={group.label}
+              className={cn(index > 0 && 'md:border-l md:border-border md:pl-8')}
+            >
+              <h3 className="font-mono text-report-label uppercase text-label">{group.label}</h3>
+              <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-4">
+                {group.counts.map(([term, value]) => (
+                  <div
+                    key={term}
+                    className="flex flex-col-reverse gap-1 border-t border-divider pt-2"
+                  >
+                    <dt className="font-mono text-report-label text-label">{term}</dt>
+                    <dd className="font-mono text-report-lead text-foreground tabular-nums">
+                      <CountUp value={value} format={format} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              {index > 0 ? null : (
+                <p className="mt-3 max-w-[64ch] font-mono text-report-label text-label">
+                  {copy.recordSource.replace('{date}', date)}
+                  {dated === undefined ? null : (
+                    <span className="whitespace-nowrap">
+                      {' · '}
+                      <a href={`#${anchor(dated)}`} className={cn('underline', FOCUS)}>
+                        {dated}
+                      </a>
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
+          ))}
         </section>
+        <p className="mt-16 font-mono text-report-label text-label">{report.byline}</p>
         <Link
-          to="/bibliography"
+          to={`/${ui.paths.notes}` as ReportPath}
           className={cn(
-            'group mt-16 flex min-h-11 items-end justify-between gap-6 border-b border-foreground pb-4',
+            'group mt-6 flex min-h-11 items-end justify-between gap-6 border-b border-foreground pb-4',
             FOCUS,
           )}
         >
