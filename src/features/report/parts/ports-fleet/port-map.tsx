@@ -33,6 +33,17 @@ const CHANGE_NAMES: Readonly<Record<string, string>> = {
   'N-P011': 'Tuapse',
 };
 const change = new Map(figureData.change.map((row) => [row.name, row.value]));
+const throughput = new Map(figureData.throughput.ports.map((row) => [row.name, row.value]));
+const MAX_THROUGHPUT = Math.max(...throughput.values());
+// The circles in words. The names are the ports of figure 6, not one terminal of the port.
+const THROUGHPUT_TEXT = `${copy.throughput} ${String(figureData.throughput.year)}, Mt: ${Object.values(
+  CHANGE_NAMES,
+)
+  .flatMap((name) => {
+    const value = throughput.get(name);
+    return value === undefined ? [] : [`${name} ${number.format(value)}`];
+  })
+  .join(', ')}`;
 // The short line under the position of a named terminal, for each kind of step.
 const notes: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   ban: copy.banDates,
@@ -195,6 +206,7 @@ export function PortMap({ step, sources }: PortMapProps) {
   const credit = [
     state.tag === 'ban' || state.tag === 'pacific' ? TEXT_SOURCES[state.tag] : '',
     state.tag === 'change' ? `${copy.data} ${sources.change}` : '',
+    state.tag === 'change' ? THROUGHPUT_TEXT : '',
     flows ? `${copy.data} ${sources.flows}` : '',
     flows ? SCHEMATIC : '',
     `${copy.basemap} ${mapGeometry.source}`,
@@ -441,6 +453,8 @@ export function PortMap({ step, sources }: PortMapProps) {
             const at = screen(terminal.lon, terminal.lat);
             const order = state.named.indexOf(terminal.id);
             if (order < 0 && hidden(at)) return null;
+            const traffic =
+              state.tag === 'change' ? throughput.get(CHANGE_NAMES[terminal.id] ?? '') : undefined;
             return (
               <motion.g
                 key={terminal.id}
@@ -448,6 +462,16 @@ export function PortMap({ step, sources }: PortMapProps) {
                 animate={{ x: at.x, y: at.y }}
                 transition={move}
               >
+                {traffic === undefined ? null : (
+                  // A still circle: its area is the traffic of the port, at the scale of the step.
+                  <circle
+                    aria-hidden="true"
+                    r={big * 1.6 * Math.sqrt(traffic / MAX_THROUGHPUT)}
+                    strokeWidth={1}
+                    fillOpacity={0.15}
+                    className={cn(accent.stroke, accent.fill)}
+                  />
+                )}
                 {order < 0 ? (
                   <rect x={-2.5} y={-2.5} width={5} height={5} className="fill-label" />
                 ) : (
