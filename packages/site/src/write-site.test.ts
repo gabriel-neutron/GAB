@@ -347,7 +347,7 @@ describe('the files for crawlers in other builds', () => {
         expect(staging.page(file)).toContain('<meta name="robots" content="noindex, follow" />');
       expect(readFileSync(join(staging.root, 'sitemap.xml'), 'utf8')).not.toContain('<loc>');
       expect(readFileSync(join(staging.root, 'robots.txt'), 'utf8')).toContain(
-        'User-agent: *\nDisallow: /\n',
+        'User-agent: *\nAllow: /\n',
       );
       expect(readFileSync(join(staging.root, '_headers'), 'utf8')).toContain(
         'X-Robots-Tag: noindex',
