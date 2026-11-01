@@ -76,11 +76,16 @@ function NoteBody({ partSlug, id }: NoteRefProps) {
   );
 }
 
-// The note sits beside the text block of its marker, at the height of the marker.
+// The note sits beside the text block of its marker, at the height of the marker. A block with
+// `data-note-block` holds more than one column of text: its notes go beside the whole block.
 const besideText = (button: HTMLElement | null): DOMRect => {
   if (button === null) return new DOMRect();
   const line = button.getBoundingClientRect();
-  const block = (button.closest('p, li, figcaption') ?? button).getBoundingClientRect();
+  const block = (
+    button.closest('[data-note-block]') ??
+    button.closest('p, li, figcaption') ??
+    button
+  ).getBoundingClientRect();
   return new DOMRect(block.left, line.top, block.width, line.height);
 };
 
