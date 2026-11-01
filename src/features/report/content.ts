@@ -2192,6 +2192,12 @@ export const methodUi = {
     gap: '2015-2021: no event in this figure',
     unit: 'Event, dated',
     actors: { COAL: 'COALITION' } as Readonly<Partial<Record<string, string>>>,
+    cursor: 'Time cursor: event',
+    counters:
+      "Tankers designated by each regime to the end of the quarter of the event. Data: the sanctions lists of the EU, the UK and OFAC; author's calculations",
+    table: 'Events and tankers designated, as a table',
+    date: 'Date',
+    event: 'Event',
   },
   // The critical nodes of each layer. Their sum is the count of critical nodes of the text.
   numbers: {
