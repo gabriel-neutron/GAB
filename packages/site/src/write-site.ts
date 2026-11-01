@@ -375,6 +375,8 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
       `The site folder ${siteFolder} exists already. A release never writes over another site.`,
     );
   const base = baseOfSite();
+  // A staging build is the default, so a build that is not a release is never in a search result.
+  const staging = process.env['SITE_RELEASE'] !== '1';
   const files = await readReleaseFolder(releaseFolder);
   const report = await readReportFolder();
   const pages = pagesOf(readSiteRelease(files));
@@ -448,7 +450,7 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
         const one = rendered.get(page.folder);
         if (one === undefined) throw new Error(`the page ${page.folder} was not rendered`);
         const title = uniqueTitle(one.title, used, page.folder);
-        const noindex = page.sendsTo !== undefined;
+        const noindex = staging || page.sendsTo !== undefined;
         if (!noindex) sitemap.push(page.folder);
         text = text
           .replace(SHELL_TITLE, () => `<title>${escapeHtml(title)}</title>`)

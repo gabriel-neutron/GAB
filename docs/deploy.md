@@ -30,6 +30,23 @@ in the HTML, with no script. The home page and the downloads page hold a schema.
 - `SITE_BASE`: the folder of the host where the site stands, as `/gab/`. The addresses then
   start with the origin and this folder. A search engine reads `robots.txt` only at the root of
   a host, so copy that file there when the site is in a folder.
+- `SITE_RELEASE`: set it to `1` only for the build of a release that goes to `main`. With no
+  value, the build is a staging build: each page holds a noindex tag, and the sitemap lists no
+  page. So a staging site never goes into a search result.
+
+## Release checklist
+
+A pull request into `main` refers to this list, and each item must be done before the merge. The
+contract of the report holds three blockers:
+
+- [ ] A written legal review of the report and of each data layer that the release shows. A layer
+      that the review does not cover stays off.
+- [ ] A documented right of reply: each party that the report names received the claims about it
+      and a date to reply, and the file keeps each reply or the lack of one.
+- [ ] A Corrections page on the site, with a contact address that a reader can use to ask for a
+      correction.
+
+Then build the site with `SITE_RELEASE=1`, and check that a page holds no noindex tag.
 
 ## How to change the policy for AI systems
 

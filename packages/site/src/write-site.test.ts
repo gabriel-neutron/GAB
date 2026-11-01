@@ -66,6 +66,7 @@ const SERVICE = 'https://service.example.invalid';
 
 beforeAll(async () => {
   vi.stubEnv('VITE_API_URL', SERVICE);
+  vi.stubEnv('SITE_RELEASE', '1');
   off = await writeOf('release');
   on = await writeOf('release-nato');
   vi.unstubAllEnvs();
@@ -332,9 +333,22 @@ describe.each([
 
 describe('the files for crawlers in other builds', () => {
   test(
+    'a staging build marks every page noindex, and a release build does not',
+    async () => {
+      const staging = await writeOf('release');
+      for (const file of pagesOf(staging.root))
+        expect(staging.page(file)).toContain('<meta name="robots" content="noindex, follow" />');
+      expect(readFileSync(join(staging.root, 'sitemap.xml'), 'utf8')).not.toContain('<loc>');
+      expect(off.page('index.html')).not.toContain('noindex');
+    },
+    BUILD_TIMEOUT,
+  );
+
+  test(
     'a build for a folder of a host keeps the folder in each absolute address and each link',
     async () => {
       vi.stubEnv('SITE_BASE', '/gab/');
+      vi.stubEnv('SITE_RELEASE', '1');
       let folder: Site;
       try {
         folder = await writeOf('release');
