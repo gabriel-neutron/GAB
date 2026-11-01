@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { useReleaseRender } from '../hydrate-near';
+import { useReleaseRender } from '../release-render';
 import { useReduceMotion } from '../reduced-motion';
 
 /** Show the content with a fade and a rise of 24px when it enters the view, once. Under reduced

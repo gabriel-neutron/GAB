@@ -1,4 +1,5 @@
-import { use, useSyncExternalStore, type ReactNode } from 'react';
+import { use, type ReactNode } from 'react';
+import { useReleaseRender } from './release-render';
 
 const waits = new Map<string, Promise<void>>();
 
@@ -34,18 +35,6 @@ const near = (slug: string): Promise<void> => {
   }
   return wait;
 };
-
-const subscribe = () => () => undefined;
-
-/** True in the render at the release and in the hydration of its HTML, false in any other render.
- * External constraint: React has no flag for a hydration. The server value of a store is used only
- * in these two renders. */
-export const useReleaseRender = (): boolean =>
-  useSyncExternalStore(
-    subscribe,
-    () => false,
-    () => true,
-  );
 
 /** Hydrates its children only when the slot of the part `slug` (in the HTML of the release) comes
  * near the view. Until then the release HTML stays, with all its text, and the browser does no work
