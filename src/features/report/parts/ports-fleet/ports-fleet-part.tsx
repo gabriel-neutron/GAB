@@ -94,7 +94,8 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
     const heading = part.blocks[block - 1];
     return (
       <div key={`${String(block)}-${String(from)}`} className="pf-step" data-pf-card={index}>
-        {from === 0 && heading?.kind === 'h3' ? (
+        {/* The first heading stands over the scene, so no card repeats it. */}
+        {from === 0 && block > 1 && heading?.kind === 'h3' ? (
           <h3 className="mb-2 text-report-lead text-balance">{heading.text}</h3>
         ) : null}
         <p className="text-report-small/[1.5] ">
@@ -132,7 +133,7 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
     }
     if (block.kind === 'h3')
       return (
-        <h3 key={key} className={cn('mt-16 text-report-lead text-balance', PROSE)}>
+        <h3 key={key} className={cn(PROSE, 'mt-16 text-report-lead text-balance')}>
           {block.text}
         </h3>
       );
@@ -157,7 +158,7 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
 
       {opening === undefined ? null : (
         <div className="pt-12 md:pt-16">
-          <h3 className={cn('text-report-lead text-balance', PROSE)}>{opening}</h3>
+          <h3 className={cn(PROSE, 'text-report-lead text-balance')}>{opening}</h3>
         </div>
       )}
 

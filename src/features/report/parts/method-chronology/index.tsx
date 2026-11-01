@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cn } from '@/shared/lib/utils';
 import type { ReportBlock, ReportPart } from '../../content';
 import { FigureFrame } from '../../figure-frame';
 import { ChapterBreak } from '../../primitives/chapter-break';
@@ -107,7 +108,7 @@ export function MethodChronologyPart({ part }: { readonly part: ReportPart }) {
     if (block.kind === 'h3') {
       body.push(
         <div key={key} className="lg:grid lg:grid-cols-12 lg:gap-8">
-          <h3 className={`${COLUMN} pt-8 text-report-lead text-balance`}>{block.text}</h3>
+          <h3 className={cn(COLUMN, 'pt-8 text-report-lead text-balance')}>{block.text}</h3>
         </div>,
       );
       return;
