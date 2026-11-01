@@ -70,6 +70,15 @@ const visitVessel = z
   })
   .transform((e) => e.vessel);
 
+// The date and the port of one visit, for the visits that the tool keeps.
+const visitShape = z.object({
+  id: z.string(),
+  start: z.string(),
+  end: z.string().nullish(),
+  vessel: z.object({ id: z.string() }),
+  port_visit: z.object({ startAnchorage: z.object({ id: z.string() }) }),
+});
+
 // What the Vessels API gives for one identity. selfReportedInfo is a list in most answers and one
 // object in the example of the documentation: both are read.
 const text = z.string().nullish();
@@ -139,6 +148,16 @@ const outputShape = z.strictObject({
   imos: z.array(z.string()),
   // The vessels of the page with their registry identity: IMO and ship type.
   vessels: z.array(vesselShape),
+  // The visits of the kept vessels: the event id, the vessel id, the port id and the dates.
+  visits: z.array(
+    z.strictObject({
+      id: z.string(),
+      vesselId: z.string(),
+      portId: z.string(),
+      start: z.string(),
+      end: z.string().nullable(),
+    }),
+  ),
   // The documents of the Vessels API answers, one for each batch of ids.
   vesselDocuments: z.array(z.string()),
   // The vessels that the registry does not know: they have no IMO, and tankersOnly drops them.
@@ -152,7 +171,7 @@ export const gfwPortVisits = defineTool({
   name: 'gfw_port_visits',
   description:
     'Reads the port visit events of Global Fishing Watch for a list of GFW anchorage ids, one ' +
-    'vessel type and a fixed date window, and stores the answer as a document: a frozen reference ' +
+    'vessel type (or all types when vesselType is absent) and a fixed date window, and stores the answer as a document: a frozen reference ' +
     'of the vessels seen at those anchorages. The tool needs the free GFW token: with no token ' +
     'set, it refuses and names the setting. The token goes in a header, and the stored address ' +
     'holds none. The document records the licence (CC BY-NC 4.0, non-commercial use), the ' +
@@ -160,7 +179,9 @@ export const gfwPortVisits = defineTool({
     'page of 200 events: read the next page with nextOffset until it is null. Then it reads each ' +
     'distinct GFW vessel id of the page in the GFW Vessels API (20 ids for each call, one call each ' +
     'second) and stores each answer as a document: the output gives the registry IMO and ship ' +
-    'types. The port visit answer has no tanker class (oil tankers fall in CARGO), so tankersOnly ' +
+    'types, and the dates of the kept visits. The port visit answer has no tanker class (a tanker ' +
+    'is often OTHER_NON_FISHING, which no vessel-type filter reaches), so omit vesselType and set ' +
+    'tankersOnly to read the tanker visits: tankersOnly ' +
     'keeps the vessels with a tanker in the registry ship type; a vessel with no registry record ' +
     'is dropped then and counted in withoutRegistry. The window holds ' +
     'the day from and excludes the day to.',
@@ -179,7 +200,9 @@ export const gfwPortVisits = defineTool({
         .min(1)
         .max(100),
       // The values of the Events API v3 documentation, checked before the call.
-      vesselType: z.enum(VESSEL_TYPES),
+      // Absent: no vessel-type filter. A tanker often has the event type OTHER_NON_FISHING, which
+      // no value of the filter selects.
+      vesselType: z.enum(VESSEL_TYPES).optional(),
       // 2 low, 3 medium, 4 high confidence of a port visit. The default drops the low ones.
       confidences: z
         .array(z.union([z.literal(2), z.literal(3), z.literal(4)]))
@@ -190,7 +213,7 @@ export const gfwPortVisits = defineTool({
       to: day,
       offset: z.number().int().min(0).default(0),
       // Keeps only the vessels whose registry ship type is a tanker. The port visit answer has no
-      // tanker class: oil tankers fall in CARGO.
+      // tanker class.
       tankersOnly: z.boolean().default(false),
     })
     .refine((input) => input.from < input.to, { error: 'from comes before to' }),
@@ -210,7 +233,7 @@ export const gfwPortVisits = defineTool({
     query.set('datasets[0]', DATASET);
     query.set('types[0]', 'PORT_VISIT');
     // The query names are lower case with dashes: GFW refuses camel case in a GET query.
-    query.set('vessel-types[0]', input.vesselType);
+    if (input.vesselType !== undefined) query.set('vessel-types[0]', input.vesselType);
     anchorages.forEach((id, at) => {
       query.set(`port-ids[${String(at)}]`, id);
     });
@@ -241,7 +264,7 @@ export const gfwPortVisits = defineTool({
       request: {
         dataset: DATASET,
         anchorageIds: anchorages,
-        vesselType: input.vesselType,
+        vesselType: input.vesselType ?? null,
         confidences,
         from: input.from,
         to: input.to,
@@ -258,7 +281,7 @@ export const gfwPortVisits = defineTool({
       {
         ...request,
         title:
-          `Global Fishing Watch ${input.vesselType} port visits at ${anchorages.length} ` +
+          `Global Fishing Watch ${input.vesselType ?? 'all-type'} port visits at ${anchorages.length} ` +
           `anchorages from ${input.from} to ${input.to}, offset ${String(input.offset)}`,
       },
       { body, json: answer.json },
@@ -342,16 +365,32 @@ export const gfwPortVisits = defineTool({
     });
     const kept = input.tankersOnly ? vessels.filter((v) => v.tanker) : vessels;
     const keptIds = new Set(kept.map((v) => v.vesselId));
-    const events = input.tankersOnly
+    const keptEntries = input.tankersOnly
       ? entries.filter((entry) => {
           const vessel = visitVessel.safeParse(entry);
           return vessel.success && keptIds.has(vessel.data.id ?? '');
-        }).length
-      : entries.length;
+        })
+      : entries;
+    const events = keptEntries.length;
+    const visits = keptEntries.flatMap((entry) => {
+      const visit = visitShape.safeParse(entry);
+      return visit.success
+        ? [
+            {
+              id: visit.data.id,
+              vesselId: visit.data.vessel.id,
+              portId: visit.data.port_visit.startAnchorage.id,
+              start: visit.data.start,
+              end: visit.data.end ?? null,
+            },
+          ]
+        : [];
+    });
     return {
       ...stored,
       imos: [...new Set(kept.flatMap((v) => (v.imo === null ? [] : [v.imo])))].sort(),
       vessels: kept,
+      visits,
       vesselDocuments,
       withoutRegistry: vessels.filter((v) => !v.inRegistry).length,
       events,

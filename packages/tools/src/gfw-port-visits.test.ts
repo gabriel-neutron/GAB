@@ -26,6 +26,8 @@ const fixture = {
     {
       id: 'pv1',
       type: 'port_visit',
+      start: '2026-01-05T10:00:00.000Z',
+      end: '2026-01-06T08:00:00.000Z',
       vessel: { id: 'v1', name: 'ONE', ssvid: '273000001' },
       port_visit: {
         confidence: 4,
@@ -349,5 +351,26 @@ test('a 429 of the Vessels API is asked again once, and a 404 is a refusal', asy
   expect(moved).toMatchObject({
     ok: false,
     refusal: expect.stringContaining('may have moved') as unknown,
+  });
+});
+
+test('with no vesselType the query has no type filter, and the kept visits carry their dates', async () => {
+  const { web, session, reach } = setup();
+  const all = { anchorageIds: INPUT.anchorageIds, from: INPUT.from, to: INPUT.to };
+  const result = await callTool(tool, session, { ...all, tankersOnly: true }, reach);
+  expect(web.asked[0]?.url.searchParams.has('vessel-types[0]')).toBe(false);
+  expect(result).toMatchObject({
+    ok: true,
+    output: {
+      visits: [
+        {
+          id: 'pv1',
+          vesselId: 'v1',
+          portId: 'rus-primorsk',
+          start: '2026-01-05T10:00:00.000Z',
+          end: '2026-01-06T08:00:00.000Z',
+        },
+      ],
+    },
   });
 });
