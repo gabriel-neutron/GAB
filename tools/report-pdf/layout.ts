@@ -324,6 +324,11 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
         ...(split ? [split.tail] : []),
         ...blocks.slice(m + (split ? 1 : 0)),
       );
+      // A heading at the top of a page, after a float, goes beside the float.
+      for (const top of [body, nextBody]) {
+        const [a, b] = Array.from(top.children) as HTMLElement[];
+        if (a && b && a.tagName === 'FIGURE' && keepNext(a) && isHeading(b)) b.style.clear = 'none';
+      }
       rehome();
     };
     const search = (): { m: number; split?: { head: HTMLElement; tail: HTMLElement } } => {
@@ -376,6 +381,24 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
       return { m, split, gap: gap() };
     };
     let best = plan();
+    // A figure that does not fit shrinks, with the figures before it on the page, to 85% at most.
+    const squeeze = (): void => {
+      const stuck = blocks[best.m];
+      if (best.split || best.gap < 3 * lead || stuck?.tagName !== 'FIGURE' || keepNext(stuck))
+        return;
+      const group = [...blocks.slice(0, best.m), stuck].filter(
+        (block) => block.tagName === 'FIGURE' && !keepNext(block),
+      );
+      const scale = [0.95, 0.9, 0.85].find((candidate) => {
+        for (const figure of group) figure.style.zoom = String(candidate);
+        put(best.m + 1);
+        return !over(column);
+      });
+      if (scale === undefined) for (const figure of group) figure.style.zoom = '';
+      else best = plan();
+    };
+    // With no text after it to fill the page, the figure shrinks first.
+    if (!blocks[best.m + 1] || blocks[best.m + 1]?.tagName === 'FIGURE') squeeze();
     // A figure that does not fit goes to the top of the next page, and the text after it comes
     // back to fill this page.
     let swapped = false;
@@ -389,21 +412,63 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
       const saved = blocks;
       const kept = deferred;
       if (keepNext(figure)) {
-        // A float stays beside text: it gives way to one paragraph only.
+        // A float gives way to the paragraphs after it, and goes to the top of the next page.
         if (after.tagName !== 'P' || swapped) break;
         swapped = true;
-        blocks = [...saved.slice(0, at), after, figure, ...saved.slice(at + 2)];
+        let end = at + 1;
+        while (saved[end]?.tagName === 'P') end += 1;
+        blocks = [...saved.slice(0, at), ...saved.slice(at + 1, end), figure, ...saved.slice(end)];
       } else {
         deferred = [...kept, figure];
         blocks = saved.filter((block) => block !== figure);
+        // A float right after a heading gives way to the first paragraph that follows it.
+        const float = blocks.findIndex(
+          (block, i) => i >= at && block.tagName === 'FIGURE' && keepNext(block),
+        );
+        const text = blocks[float + 1];
+        if (float > 0 && text?.tagName === 'P' && isHeading(blocks[float - 1] as Element))
+          blocks = [
+            ...blocks.slice(0, float),
+            text,
+            ...blocks.slice(float, float + 1),
+            ...blocks.slice(float + 2),
+          ];
       }
-      const other = plan();
+      let other = plan();
+      // The figures keep their order: a figure that the text passes goes to the next page too.
+      for (let again = 0; again < 3; again += 1) {
+        const used = blocks.slice(0, other.m + (other.split ? 1 : 0));
+        const passed = used.find((block) => block.tagName === 'FIGURE' && !keepNext(block));
+        if (!passed || deferred.length === kept.length) break;
+        deferred = [...deferred, passed];
+        blocks = blocks.filter((block) => block !== passed);
+        other = plan();
+      }
       if (other.gap < best.gap - lead) best = other;
       else {
         deferred = kept;
         blocks = saved;
         best = plan();
         break;
+      }
+    }
+    squeeze();
+    // A hole above the notes shrinks when the notes get smaller and more text comes in.
+    if (!best.split && best.gap > 4 * lead) {
+      const before = best;
+      let improved = false;
+      for (const size of SIZES.slice(1)) {
+        sized(column, size);
+        const other = plan();
+        if (other.gap < best.gap - lead) {
+          best = other;
+          improved = true;
+        }
+        if (best.gap <= 4 * lead) break;
+      }
+      if (!improved) {
+        sized(column, SIZES[0]);
+        best = before;
       }
     }
     if (best.m === 0 && !best.split) {
@@ -546,6 +611,24 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
     current = (last ? labelOf.get(last) : undefined) ?? label ?? current;
   }
 
+  // A page that is not the last page of its part spreads a small hole over the space between
+  // its blocks (40 px at most for each block).
+  sheets().forEach((sheet, index) => {
+    const column = columnOf(sheet);
+    const next = sheets()[index + 1];
+    const nextColumn = next ? columnOf(next) : undefined;
+    const first = nextColumn ? bodyOf(nextColumn).firstElementChild : null;
+    if (!column || !first || index < FIXED) return;
+    if (first.matches('h2') || first.querySelector(':scope > h2')) return;
+    const body = bodyOf(column);
+    const blocks = Array.from(body.children) as HTMLElement[];
+    const lead = parseFloat(getComputedStyle(body.querySelector('p') ?? body).lineHeight) || 20;
+    const hole = footOf(column).getBoundingClientRect().top - body.getBoundingClientRect().bottom;
+    if (blocks.length < 2 || hole < 2 * lead) return;
+    const add = Math.min(40, hole / (blocks.length - 1));
+    for (const block of blocks.slice(1)) block.style.paddingTop = `${add}px`;
+  });
+
   // 3. The page numbers of the contents and of the list of figures.
   for (const entry of Array.from(
     document.querySelectorAll<HTMLElement>('a[href^="#sec-"], a[href^="#fig-"]'),
@@ -591,6 +674,19 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
     ] as const)
       if (el?.tagName === 'P' && el.hasAttribute('data-cut') && lines(el as HTMLElement).length < 3)
         faults.push(`${page}: a paragraph has fewer than 3 lines at the ${place} of the page`);
+    // A page that is not the last page of a part has no hole above its notes (4 lines at most).
+    const nextColumn = all[index + 1] ? columnOf(all[index + 1] as Element) : undefined;
+    const first = nextColumn ? bodyOf(nextColumn).firstElementChild : null;
+    const endsPart = !first || first.matches('h2') || first.querySelector(':scope > h2') !== null;
+    const lead = parseFloat(getComputedStyle(body.querySelector('p') ?? body).lineHeight) || 20;
+    const hole = footOf(column).getBoundingClientRect().top - body.getBoundingClientRect().bottom;
+    // A figure that does not fit in the hole, even at 85%, justifies the hole.
+    const figureNext =
+      first?.tagName === 'FIGURE' &&
+      !(first as HTMLElement).style.float &&
+      first.getBoundingClientRect().height > hole;
+    if (!endsPart && !figureNext && index >= FIXED && hole > 4 * lead)
+      faults.push(`${page}: ${Math.round(hole / lead)} empty lines above the notes`);
     const bottom = column.getBoundingClientRect().bottom;
     for (const row of rowsOf(column)) {
       const number = numberOf(row);
