@@ -170,8 +170,8 @@ const outputShape = z.strictObject({
 export const gfwPortVisits = defineTool({
   name: 'gfw_port_visits',
   description:
-    'Reads the port visit events of Global Fishing Watch for a list of GFW anchorage ids, one ' +
-    'vessel type (or all types when vesselType is absent) and a fixed date window, and stores the answer as a document: a frozen reference ' +
+    'Reads the port visit events of Global Fishing Watch for a list of GFW anchorage ids, an ' +
+    'optional vessel type and a fixed date window, and stores the answer as a document: a frozen reference ' +
     'of the vessels seen at those anchorages. The tool needs the free GFW token: with no token ' +
     'set, it refuses and names the setting. The token goes in a header, and the stored address ' +
     'holds none. The document records the licence (CC BY-NC 4.0, non-commercial use), the ' +
@@ -179,9 +179,9 @@ export const gfwPortVisits = defineTool({
     'page of 200 events: read the next page with nextOffset until it is null. Then it reads each ' +
     'distinct GFW vessel id of the page in the GFW Vessels API (20 ids for each call, one call each ' +
     'second) and stores each answer as a document: the output gives the registry IMO and ship ' +
-    'types, and the dates of the kept visits. The port visit answer has no tanker class (a tanker ' +
-    'is often OTHER_NON_FISHING, which no vessel-type filter reaches), so omit vesselType and set ' +
-    'tankersOnly to read the tanker visits: tankersOnly ' +
+    'types, and the dates of the kept visits. The port visit answer has no tanker class, and a ' +
+    'tanker often has the event type other_non_fishing, which is not a value of vesselType: to ' +
+    'read the tanker visits, omit vesselType and set tankersOnly. tankersOnly ' +
     'keeps the vessels with a tanker in the registry ship type; a vessel with no registry record ' +
     'is dropped then and counted in withoutRegistry. The window holds ' +
     'the day from and excludes the day to.',
@@ -386,6 +386,11 @@ export const gfwPortVisits = defineTool({
           ]
         : [];
     });
+    // A dated file holds one row for each visit, so a visit with no date is a refusal, not a gap.
+    if (visits.length !== events)
+      throw new ToolRefusal(
+        `${REGISTER} gave ${String(events - visits.length)} visits with no date, vessel or port`,
+      );
     return {
       ...stored,
       imos: [...new Set(kept.flatMap((v) => (v.imo === null ? [] : [v.imo])))].sort(),
