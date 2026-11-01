@@ -103,7 +103,9 @@ parser splits a text into runs, and the rich text draws each run.
 ## Cover and PDF
 
 The art of the page is decoration: it has no label, no caption and an empty alternative text. The
-notes page lists the credit of each image. The PDF is a file of the
+notes page lists the credit of each image. A note marker beside the art opens its credit, as a
+note marker opens a note; its number is the place of the credit on the notes page. A value of the
+summary has the marker of the note that its item cites. The PDF is a file of the
 operator and never enters the repository. Set `REPORT_PDF` to its absolute path before a build.
 The build copies it as `report.pdf`, and the download link of the first screen gives it. A path
 that names no file stops the build. With no PDF, the download link gives the final text of the

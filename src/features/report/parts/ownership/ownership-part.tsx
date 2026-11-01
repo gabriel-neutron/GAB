@@ -42,7 +42,7 @@ function Opening({ number, title }: { readonly number: string; readonly title: s
           className="absolute inset-0 hidden bg-linear-to-r from-background via-background/30 to-background/0 md:block"
         />
       </div>
-      <ChapterBreak number={number} title={title} />
+      <ChapterBreak number={number} title={title} credit={ownershipUi.image} />
     </div>
   );
 }

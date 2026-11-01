@@ -94,7 +94,7 @@ function PayBreak({ number, title }: { readonly number: string; readonly title: 
           />
         </div>
       </div>
-      <ChapterBreak number={number} title={title} />
+      <ChapterBreak number={number} title={title} credit={payUi.image} />
     </div>
   );
 }

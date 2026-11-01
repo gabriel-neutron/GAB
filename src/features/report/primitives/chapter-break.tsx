@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/utils';
+import { ImageCredit } from '../note-ref';
 import { ScrambleText } from '../scramble-text';
+import { useContent } from '../use-content';
 import { AsciiImage } from './ascii-image';
 import { layout } from './layout';
 
@@ -20,13 +22,17 @@ interface ChapterBreakProps {
   readonly title: string;
   /** The source of a decorative ASCII background. */
   readonly image?: string | undefined;
+  /** The source of art that the part draws outside the break, for its credit. */
+  readonly credit?: string | undefined;
   readonly children?: ReactNode;
 }
 
 /** The full-width opening of a part: a giant numeral, the part title as the h2 of the part, and
- * an optional decorative ASCII background. Put it first in the part
+ * an optional decorative ASCII background with its credit marker. Put it first in the part
  * section. The head sits at the foot of the break, with or without art. */
-export function ChapterBreak({ number, title, image, children }: ChapterBreakProps) {
+export function ChapterBreak({ number, title, image, credit, children }: ChapterBreakProps) {
+  const { ui } = useContent();
+  const art = credit ?? image;
   return (
     <div
       className={cn(
@@ -58,6 +64,12 @@ export function ChapterBreak({ number, title, image, children }: ChapterBreakPro
             <ScrambleText text={title} />
           </h2>
         </div>
+        {art === undefined ? null : (
+          <p className="mt-4 w-fit font-mono text-report-label uppercase text-label">
+            <span aria-hidden="true">{ui.note.image}</span>
+            <ImageCredit src={art} />
+          </p>
+        )}
         {children}
       </div>
     </div>
