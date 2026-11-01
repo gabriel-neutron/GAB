@@ -7,7 +7,6 @@ import publication from '../../data/publication-figures.json';
 import { FigureFrame } from '../../figure-frame';
 import { accent } from '../../primitives/accent';
 import { layout } from '../../primitives/layout';
-import { StickyScene } from '../../primitives/sticky-scene';
 import { useContent } from '../../use-content';
 import { ValuesTable } from '../ports-fleet/values-table';
 import { settlementShare as value } from './settlement-shares';
@@ -412,9 +411,8 @@ function SettlementChart({ year, still }: { readonly year: number; readonly stil
   );
 }
 
-/** Figure 10 as a scroll scene: the year and the chart stick together, and each step of the
- * scroll moves them to one year. Under reduced motion and on a phone, the final state at once. A
- * disclosure under the chart holds the full data as a table. */
+/** Figure 10: the chart at the last year, with a button for each year. A disclosure under the
+ * chart holds the full data as a table. */
 export function SettlementFigure({
   block,
   partSlug,
@@ -458,37 +456,12 @@ export function SettlementFigure({
       />
     </FigureFrame>
   );
-  const chart = (year: number) => <SettlementChart year={year} still={reduce} />;
-  // The step text repeats the readout of the chart for a screen reader; the chart shows it.
-  const steps = copy.steps.map((year) => (
-    <p key={year}>
-      {year}. {copy.stepLabel}:{' '}
-      {PANELS.map((panel) => `${copy[panel]} ${percent(value(panel, 'Rouble', year))}%`).join(', ')}
-      .
-    </p>
-  ));
   return (
     <div className={layout.bleed}>
       <div className="mx-auto max-w-[1440px] px-4 md:px-8 lg:px-12">
-        {/* Only the chart sticks: the frame, its facts and its table scroll with the page, as in
-            figure 4. */}
-        {frame(
-          reduce ? (
-            chart(LAST)
-          ) : (
-            <>
-              {/* Under 768px the CSS shows the final year in place of the scene. */}
-              <div className="md:hidden">
-                <SettlementChart year={LAST} still />
-              </div>
-              <div className="max-md:hidden">
-                <StickyScene steps={steps} stepClassName="sr-only">
-                  {(active) => chart(copy.steps[active] ?? LAST)}
-                </StickyScene>
-              </div>
-            </>
-          ),
-        )}
+        {/* The chart shows the last year; the year buttons choose another. The page scroll never
+            moves it. */}
+        {frame(<SettlementChart year={LAST} still={reduce} />)}
       </div>
     </div>
   );
