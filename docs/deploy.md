@@ -31,9 +31,12 @@ in the HTML, with no script. The home page and the downloads page hold a schema.
 - `SITE_BASE`: the folder of the host where the site stands, as `/gab/`. The addresses then
   start with the origin and this folder. A search engine reads `robots.txt` only at the root of
   a host, so copy that file there when the site is in a folder.
-- `SITE_RELEASE`: set it to `1` only for the build of a release that goes to `main`. With no
-  value, the build is a staging build: each page holds a noindex tag, and the sitemap lists no
-  page. So a staging site never goes into a search result.
+- `SITE_RELEASE`: set it to `1` only for the build of a release that goes to `main`. A build on
+  the host of the branch `main` (Cloudflare Workers Builds sets `WORKERS_CI_BRANCH`) is a release
+  build too. Every other build is a staging build: each page holds a noindex tag, the sitemap
+  lists no page, `robots.txt` disallows each crawler, and a `_headers` file tells the host to
+  send `X-Robots-Tag: noindex` on each response. So a staging site never goes into a search
+  result.
 
 ## Release checklist
 

@@ -88,6 +88,19 @@ export const sitemapFiles = (
   return files;
 };
 
+/** True for the build of a release: `SITE_RELEASE` is `1`, or the host builds the branch `main`
+ * (`WORKERS_CI_BRANCH`). Every other build is a staging build, which no search result may hold. */
+export const isReleaseBuild = (env: Readonly<Record<string, string | undefined>>): boolean =>
+  env['SITE_RELEASE'] === '1' || env['WORKERS_CI_BRANCH'] === 'main';
+
+/** The `robots.txt` of a staging site: no crawler may read it. */
+export const STAGING_ROBOTS_TXT =
+  '# A staging site. No crawler may read it.\nUser-agent: *\nDisallow: /\n';
+
+/** The `_headers` file of a staging build on the host: each response tells a search engine not
+ * to index it, the files of the release included. */
+export const STAGING_HEADERS = '/*\n  X-Robots-Tag: noindex\n';
+
 /** The `robots.txt` of the site. It allows each page and each file. It names the AI crawlers with
  * the policy of the operator, and it points to the sitemap when the site has one. */
 export const robotsTxt = (site: string | null, policy: AiPolicy = AI_CRAWLER_POLICY): string => {

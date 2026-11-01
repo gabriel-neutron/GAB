@@ -6,7 +6,13 @@ import { z } from 'zod';
 
 import { llmsTxt } from '@gab/release/llms-txt';
 import { REPORT_FILES } from '@gab/release/report-files';
-import { robotsTxt, siteAddress, sitemapFiles } from '@gab/release/site-crawl';
+import {
+  isReleaseBuild,
+  robotsTxt,
+  siteAddress,
+  STAGING_ROBOTS_TXT,
+  sitemapFiles,
+} from '@gab/release/site-crawl';
 import { claimPage, entityPage, relationPage, vesselPage } from '@gab/release/site-paths';
 import type { SiteManifest } from '@gab/release/site-manifest';
 import { readSiteRelease, type SiteRelease } from '@gab/release/site-release';
@@ -359,8 +365,11 @@ const writeCrawlFiles = async (
   manifest: SiteManifest,
   site: string | null,
   sitemapFolders: readonly string[],
+  staging: boolean,
 ): Promise<void> => {
-  const files = new Map<string, string>([['robots.txt', robotsTxt(site)]]);
+  const files = new Map<string, string>([
+    ['robots.txt', staging ? STAGING_ROBOTS_TXT : robotsTxt(site)],
+  ]);
   if (site !== null) {
     const addresses = sitemapFolders.map((one) => canonicalOf(site, one));
     for (const [name, text] of sitemapFiles(addresses, manifest.date, site)) files.set(name, text);
@@ -376,7 +385,7 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
     );
   const base = baseOfSite();
   // A staging build is the default, so a build that is not a release is never in a search result.
-  const staging = process.env['SITE_RELEASE'] !== '1';
+  const staging = !isReleaseBuild(process.env);
   const files = await readReleaseFolder(releaseFolder);
   const report = await readReportFolder();
   const pages = pagesOf(readSiteRelease(files));
@@ -476,7 +485,7 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
       await mkdir(dirname(file), { recursive: true });
       await writeFile(file, text);
     }
-    await writeCrawlFiles(partial, manifest, site, sitemap);
+    await writeCrawlFiles(partial, manifest, site, sitemap, staging);
     await renameWithRetry(partial, siteFolder);
   } catch (fault) {
     await rm(partial, { recursive: true, force: true });
