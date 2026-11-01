@@ -32,3 +32,6 @@ design
 
 # A fixture of a source file keeps its bytes: 1.10 must stay 1.10.
 packages/tools/fixtures
+
+# The pages of the print design of the report: the markup of the design, kept as it is.
+tools/report-pdf/pages
