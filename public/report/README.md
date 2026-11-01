@@ -9,7 +9,7 @@ This folder holds the files of the report that the site serves as they are, with
 
 Each PDF is the print design of the operator, page by page. The French pages are the design as the
 operator made it. The English pages have the same layout, with the final English text in place of
-the French text and the figures with English labels. A test fails when a block of text of an English
+the French text and the figures with English labels. A test fails when a block of text or a note of an English
 page is not in the final English text.
 
 The page templates and the figures are in the folder of the tool, under `tools/`. To change a page,

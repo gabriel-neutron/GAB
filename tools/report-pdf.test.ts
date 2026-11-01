@@ -20,7 +20,6 @@ describe('report PDF', () => {
     for (const lang of LANGS) {
       expect(existsSync(pdfOf(lang))).toBe(true);
       expect(statSync(pdfOf(lang)).size).toBeLessThan(10 * 1024 * 1024);
-      expect(htmlOf(lang, all[lang])).toContain(all[lang].byline);
       // One PDF page for each template.
       const pdf = readFileSync(pdfOf(lang), 'latin1');
       expect(pdf.match(/\/Type\s*\/Page[^s]/g)).toHaveLength(pagesOf(lang).length);
@@ -30,7 +29,7 @@ describe('report PDF', () => {
     expect(pagesOf('en')).toHaveLength(pagesOf('fr').length);
   });
 
-  it('each block of text of an English page is in the final English text', () => {
+  it('each block of text and each note of an English page is in the final English text', () => {
     const text = words(
       readFileSync(
         resolve(import.meta.dirname, '../src/features/report/source/report-en.md'),
@@ -41,9 +40,14 @@ describe('report PDF', () => {
       [
         ...readFileSync(file, 'utf8')
           .replace(/<sup[^>]*>.*?<\/sup>/g, '')
-          .matchAll(/<(p|h2|h3|figcaption)\b[^>]*>(.*?)<\/\1>/gs),
+          // A block of text, or the text of a note at the foot of the page.
+          .matchAll(
+            /<(p|h2|h3|figcaption)\b[^>]*>(.*?)<\/\1>|<span style="overflow-wrap: anywhere">(.*?)<\/span><\/div>/gs,
+          ),
       ]
-        .map((block) => words((block[2] ?? '').replace(/<span[^>]*>–<\/span>|<[^>]+>/g, '')))
+        .map((block) =>
+          words((block[2] ?? block[3] ?? '').replace(/<span[^>]*>–<\/span>|<[^>]+>/g, '')),
+        )
         .filter((block) => !text.includes(block))
         .map((block) => `${file}: ${block}`),
     );

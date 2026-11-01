@@ -12,11 +12,11 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-export const FOLDER = resolve(import.meta.dirname, '../public/report');
+const FOLDER = resolve(import.meta.dirname, '../public/report');
 export const STAMP = join(FOLDER, 'stamp.json');
 export const LANGS = ['en', 'fr'] as const;
 export const pdfOf = (lang: string): string => join(FOLDER, `gab-report-${lang}.pdf`);
-export const TEMPLATES = resolve(import.meta.dirname, 'report-pdf');
+const TEMPLATES = resolve(import.meta.dirname, 'report-pdf');
 export const pagesOf = (lang: string): string[] =>
   readdirSync(join(TEMPLATES, 'pages', lang))
     .filter((file) => file.endsWith('.html'))
@@ -77,7 +77,7 @@ a{color:#101010}
 export function htmlOf(lang: Lang, { byline }: Copy): string {
   const sheets = pagesOf(lang).map((file) => {
     const page = readFileSync(file, 'utf8')
-      .replace('{{byline}}', escape(byline))
+      .replace('{{byline}}', () => escape(byline))
       .replace(/src="(figures\/[^"]+\.png)"/g, (_, path: string) => {
         const data = readFileSync(join(TEMPLATES, path)).toString('base64');
         return `src="data:image/png;base64,${data}"`;
