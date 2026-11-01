@@ -2216,6 +2216,7 @@ export const financeUi = {
     imports: 'Imports',
     tableCaption: 'Data of figure 10, percentage of total',
     year: 'Year',
+    inspect: 'Shares of one year',
   },
   relays: { label: 'Payment relays' },
 } as const;
