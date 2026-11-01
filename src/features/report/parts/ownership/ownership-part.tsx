@@ -13,31 +13,8 @@ import { OwnershipFigure } from './ownership-figure';
 
 // One body size for all the text of the part. A node reference keeps a thin dotted underline.
 const PROSE = 'max-w-[64ch] text-report-body/[1.65] text-pretty  [&_button]:decoration-dotted';
-// From 1024px, a rail at the left of the text holds the notes of each paragraph.
+// From 1024px, the text reads at the right. From 1280px, a note opens in the margin at its left.
 const ROW = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,64ch)] lg:gap-x-16';
-
-/** The notes of one paragraph, in the rail: a reader sees the source beside the claim. The note
- * markers in the text stay the way in for assistive technology, so the rail is hidden from it. */
-function Rail({ text, part }: { readonly text: string; readonly part: ReportPart }) {
-  const ids = [...text.matchAll(/\[\^([^\]]+)\]/g)].map((match) => match[1] ?? '');
-  const notes = part.notes.filter((note) => ids.includes(note.id));
-  return (
-    <aside aria-hidden="true" className="hidden pt-2 lg:block">
-      <ol className="ml-auto max-w-[40ch] space-y-3 border-t border-divider pt-3">
-        {notes.map((note) => (
-          <li key={note.id} className="flex gap-3 text-report-label/5 text-muted-foreground">
-            <span className="w-6 shrink-0 font-mono text-label tabular-nums">
-              {note.id.slice(note.id.lastIndexOf('-') + 1)}
-            </span>
-            <span className="line-clamp-3 min-w-0 break-words">
-              <RichText text={note.text} />
-            </span>
-          </li>
-        ))}
-      </ol>
-    </aside>
-  );
-}
 
 /** The chapter break over the chess set: the decorative ASCII art sits at the top right, behind a
  * scrim, so the title stays on near-black ground. */
@@ -69,7 +46,7 @@ function Opening({ number, title }: { readonly number: string; readonly title: s
   );
 }
 
-/** The ownership part: a chapter break over the chess set, the layered graph of figure 12 across the page, then the text with its notes in a rail. */
+/** The ownership part: a chapter break over the chess set, the layered graph of figure 12 across the page, then the text with a margin for its notes. */
 export function OwnershipPart({ part }: { readonly part: ReportPart }) {
   const { figureTexts, parts, ownershipUi } = useContent();
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
@@ -116,12 +93,13 @@ export function OwnershipPart({ part }: { readonly part: ReportPart }) {
     }
     body.push(
       <div key={key} className={cn(ROW, block.kind === 'li' ? 'mt-10' : 'my-6')}>
-        <Rail text={block.text} part={part} />
-        <Reveal>
-          <p className={cn(PROSE, block.kind === 'li' && 'border-t border-foreground pt-4')}>
-            <RichText text={block.text} partSlug={part.slug} />
-          </p>
-        </Reveal>
+        <div className="lg:col-start-2">
+          <Reveal>
+            <p className={cn(PROSE, block.kind === 'li' && 'border-t border-foreground pt-4')}>
+              <RichText text={block.text} partSlug={part.slug} />
+            </p>
+          </Reveal>
+        </div>
       </div>,
     );
   });

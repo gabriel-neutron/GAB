@@ -63,7 +63,12 @@ parser splits a text into runs, and the rich text draws each run.
   position, the document identifiers and all fields of the node. It links to the entity page and
   to the graph when the node has a corpus record.
 - A chart opens the panel through the report hook, and gives the element that gets the focus back.
-- A note marker opens the text of the note, and links to the note on the notes page.
+- A note marker is a button with the number of the note; a screen reader says "Source" and the
+  number, and the open state. From 1280px, the note opens in the margin beside its paragraph;
+  under 1280px, it opens in a bottom sheet (a dialog). Escape closes it, and the focus goes back to
+  the marker. The note shows its reference, then its documents of the record, then its quote, and
+  links to the note on the notes page. A note with no document shows its reference only. A quote
+  shows only when the file holds one.
 - A committed, dated file joins each note to the documents of the record that support it, and a
   command on the operator PC builds it (ADR 0033).
 
@@ -93,11 +98,11 @@ Each part has one layout. The layout follows what the reader must learn.
 - **summary**: one finding per row on one grid, each with its value and its text. The reader learns the main results.
 - **introduction**: a reading column with the three questions. The reader learns that sanctions started before 2022 and what the report asks.
 - **method-chronology**: a field of squares for the critical nodes, the three layers, the three conditions, and a timeline that moves with the scroll. A time cursor (the scroll or a slider) chooses an event and shows the tankers designated by each regime to the end of its quarter. The reader learns what makes a node critical and when the sanctions came.
-- **pay**: an editorial grid with notes in the margin, wide figures, and the price cap as a scroll scene. The reader learns that Asia replaces the volumes of Europe, but at a discount.
+- **pay**: an editorial grid with a margin for the notes, wide figures, and the price cap as a scroll scene. The reader learns that Asia replaces the volumes of Europe, but at a discount.
 - **ports-fleet**: a sticky map with text cards that change the ports and flows in view, then the traffic and fleet figures. The reader learns where crude leaves Russia and which fleet carries it.
 - **finance**: the settlement currencies as a scroll scene with one step for each year, then the payment relays as a numbered list. The reader learns that the rouble and the yuan replace the dollar and the euro.
 - **fight**: a scroll-driven chain story with a sticky map, then the suppliers in small charts. The reader learns how foreign components reach Russian weapon plants, and who replaced the coalition sellers.
-- **ownership**: the text with its notes in a rail and the ownership chains in layered bands. The reader learns how far a sanction reaches through share chains, and where they stop.
+- **ownership**: the text with a margin for its notes and the ownership chains in layered bands. The reader learns how far a sanction reaches through share chains, and where they stop.
 - **limits**: the limits as a numbered register, then the research leads. The reader learns what the data cannot prove.
 - **conclusion**: prose, and the answer split into its two routes. The reader learns the two routes around the sanctions.
 - **annex-method**: a technical sheet, the index of all named nodes, the scale of the research, and the way to the notes. The reader learns how each fact was sourced and can find every node.

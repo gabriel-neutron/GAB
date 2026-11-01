@@ -1954,7 +1954,12 @@ export const ui = {
     entity: 'Open the entity page',
     graph: 'Open in the graph',
   },
-  note: { label: 'Note', all: 'All notes' },
+  note: {
+    label: 'Source',
+    all: 'All notes',
+    documents: 'Documents of the record',
+    retrieved: 'retrieved',
+  },
   index: {
     title: 'All nodes of the report',
     layers: ['Pay', 'Finance', 'Fight', 'Ownership'],
@@ -2093,8 +2098,6 @@ export const payUi = {
   year: 'Year',
   estimated: 'estimate',
   table: 'Values of all years',
-  // The heading of the column of notes beside the text.
-  sidenotes: 'Notes',
   f4: {
     label: 'Brent price, Urals price and EU price cap, monthly',
     // The note of figure 4, with the shaded area of this chart in place of a colour name.

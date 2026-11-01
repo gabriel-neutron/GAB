@@ -3,7 +3,6 @@ import { useReducedMotion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import type { ReportBlock, ReportPart } from '../../content';
 import { FigureFrame } from '../../figure-frame';
-import { parseMarks } from '../../marks';
 import { AsciiImage } from '../../primitives/ascii-image';
 import { ChapterBreak } from '../../primitives/chapter-break';
 import { layout } from '../../primitives/layout';
@@ -14,7 +13,8 @@ import { useContent, type ReportContent } from '../../use-content';
 import { CapWhatIf } from './cap-what-if';
 import { BudgetChart, BuyersChart, PriceChart } from './pay-figures';
 
-// The editorial grid: the notes hang in the left third, the text reads in the right two thirds.
+// The editorial grid: the text reads in the right two thirds. From 1280px, a note opens in the left
+// third.
 const ROW = 'lg:grid lg:grid-cols-12 lg:gap-x-10';
 const TEXT = 'max-w-[64ch] text-report-body/[1.65]  lg:col-span-8 lg:col-start-5';
 const KEY = /^\*\*([^*]+?):?\*\*:?\s*/;
@@ -22,7 +22,7 @@ const KEY = /^\*\*([^*]+?):?\*\*:?\s*/;
 const WIDE = cn(layout.bleed, 'px-4 md:px-8');
 const WIDE_INNER = 'mx-auto max-w-[1376px]';
 
-/** Part "Pay": the oil-derrick break, the text on an editorial grid with its notes in the margin,
+/** Part "Pay": the oil-derrick break, the text on an editorial grid with a margin for its notes,
  * figures 3 and 5 wide, and figure 4 as a scroll scene of the price caps and the gap. */
 export function PayPart({ part }: { readonly part: ReportPart }) {
   const { parts } = useContent();
@@ -55,7 +55,6 @@ export function PayPart({ part }: { readonly part: ReportPart }) {
     out.push(
       <Reveal key={block.text}>
         <div className={cn(ROW, 'my-6')}>
-          <Sidenotes text={block.text} part={part} />
           <p className={TEXT}>
             <RichText text={block.text} partSlug={part.slug} />
           </p>
@@ -100,30 +99,6 @@ function PayBreak({ number, title }: { readonly number: string; readonly title: 
   );
 }
 
-/** The notes of one paragraph, in full, in the left margin of a large screen. On a smaller
- * screen each marker opens its note. */
-function Sidenotes({ text, part }: { readonly text: string; readonly part: ReportPart }) {
-  const { payUi } = useContent();
-  const ids = parseMarks(text).flatMap((run) => (run.kind === 'note' ? [run.id] : []));
-  const notes = ids.flatMap((id) => part.notes.filter((note) => note.id === id));
-  if (notes.length === 0) return null;
-  return (
-    <aside
-      aria-label={payUi.sidenotes}
-      className="hidden min-w-0 border-t border-border pt-2 lg:col-span-4 lg:block"
-    >
-      {notes.map((note) => (
-        <p key={note.id} className="mb-3 text-report-label/[1.5] break-words text-muted-foreground">
-          <span className="mr-2 font-mono text-label">
-            {note.id.slice(note.id.lastIndexOf('-') + 1)}
-          </span>
-          <RichText text={note.text} />
-        </p>
-      ))}
-    </aside>
-  );
-}
-
 /** The two reasons of the shift to Asia, each under its key word in large type. */
 function Reasons({
   blocks,
@@ -138,7 +113,6 @@ function Reasons({
         const match = KEY.exec(block.text);
         return (
           <li key={block.text} className={ROW}>
-            <Sidenotes text={block.text} part={part} />
             <div className={cn(TEXT, 'border-t border-border py-6')}>
               <Reveal>
                 <span className="block text-report-lead leading-none tracking-[-0.03em]">
