@@ -31,7 +31,7 @@ const releaseDir =
 
 // A build with no release named, as on the host, takes the release that tools/data-release.ts pins.
 const fetched =
-  releaseDir === undefined && process.argv.includes('build')
+  (releaseDir === undefined || releaseDir === '') && process.argv.includes('build')
     ? await fetchDataRelease(import.meta.dirname)
     : undefined;
 
