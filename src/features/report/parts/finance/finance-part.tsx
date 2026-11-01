@@ -86,7 +86,10 @@ export function FinancePart({ part }: { readonly part: ReportPart }) {
     }
     if (block.kind === 'h3') {
       body.push(
-        <h3 key={key} className={`mt-16 mb-2 text-balance lg:ml-[calc(100%/6)] ${PROSE} text-report-lead`}>
+        <h3
+          key={key}
+          className={`mt-16 mb-2 text-balance lg:ml-[calc(100%/6)] ${PROSE} text-report-lead`}
+        >
           {block.text}
         </h3>,
       );

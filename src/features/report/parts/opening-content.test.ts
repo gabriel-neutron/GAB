@@ -20,7 +20,9 @@ describe('opening copy', () => {
     const { chart } = openingUi.summary;
     const caption = parts
       .find((part) => part.slug === chart.note.part)
-      ?.blocks.find((block) => block.kind === 'figure' && block.text.includes(`[^${chart.note.id}]`));
+      ?.blocks.find(
+        (block) => block.kind === 'figure' && block.text.includes(`[^${chart.note.id}]`),
+      );
     expect(caption?.figure?.period).toBe(chart.period);
     const years = figures.f9.exports.Rouble.map(([year = 0]) => year);
     expect(`${String(Math.min(...years))}-${String(Math.max(...years))}`).toBe(chart.period);

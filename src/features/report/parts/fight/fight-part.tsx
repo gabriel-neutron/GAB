@@ -49,7 +49,10 @@ export function FightPart({ part }: { readonly part: ReportPart }) {
     }
     if (block.kind === 'h3') {
       out.push(
-        <h3 key={key} className="mt-16 mb-2 max-w-[64ch] text-report-lead text-balance lg:ml-[33.333%]">
+        <h3
+          key={key}
+          className="mt-16 mb-2 max-w-[64ch] text-report-lead text-balance lg:ml-[33.333%]"
+        >
           {block.text}
         </h3>,
       );
