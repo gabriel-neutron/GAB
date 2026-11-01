@@ -1,7 +1,8 @@
-import { motion, useReducedMotion } from 'motion/react';
+import { motion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import figures from '../../data/publication-figures.json';
 import { useContent } from '../../use-content';
+import { useReduceMotion } from '../../reduced-motion';
 
 const YEARS = [2021, 2022, 2023, 2024, 2025] as const;
 // The scale runs past the top tick, so the share over the tallest bar stays under the frame.
@@ -53,10 +54,10 @@ const eventLeft =
   100;
 
 function Grow({ share, className }: { readonly share: number; readonly className: string }) {
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion();
   return (
     <motion.span
-      initial={reduce === true ? false : { scaleY: 0 }}
+      initial={reduce ? false : { scaleY: 0 }}
       whileInView={{ scaleY: 1 }}
       viewport={{ once: true, amount: 0.3 }}
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}

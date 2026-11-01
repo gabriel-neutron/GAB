@@ -1,5 +1,5 @@
 import { lazy, Suspense, useRef, type ReactNode } from 'react';
-import { useInView, useReducedMotion } from 'motion/react';
+import { useInView } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import type { ReportBlock, ReportPart } from '../../content';
 import { FigureFrame } from '../../figure-frame';
@@ -20,6 +20,7 @@ import { visitLayer } from './visit-layer';
 import './map-scene.css';
 
 import type { MapSources } from './port-map';
+import { useReduceMotion } from '../../reduced-motion';
 
 const PortMap = lazy(() => import('./port-map').then((module) => ({ default: module.PortMap })));
 // The table of the port visits needs no map, so it loads with the page.
@@ -78,7 +79,7 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
   const { figureTexts, parts, portsFleetUi: copy } = useContent();
   const texts = figureTexts.figures;
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
-  const scene = useReducedMotion() === true ? STATIC_SCENE : SCENE;
+  const scene = useReduceMotion() ? STATIC_SCENE : SCENE;
   const figureOf = (n: number) => part.blocks.find((block) => block.figure?.number === n)?.figure;
   // Figure 6 has one unit for each panel: a, b, then c. Figure 7 has one unit for each kind of
   // panel. The two notes of a figure of the PDF read as one note under the chart.

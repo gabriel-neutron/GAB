@@ -1,5 +1,4 @@
 import { Fragment, useState, type ReactNode } from 'react';
-import { useReducedMotion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import type { ReportBlock, ReportPart } from '../../content';
 import { FigureFrame } from '../../figure-frame';
@@ -12,6 +11,7 @@ import { RichText } from '../../rich-text';
 import { useContent, type ReportContent } from '../../use-content';
 import { CapWhatIf, WHAT_IF_START, WhatIfControls, WhatIfTable, whatIfLabel } from './cap-what-if';
 import { BudgetChart, BuyersChart, PriceChart } from './pay-figures';
+import { useReduceMotion } from '../../reduced-motion';
 
 // The editorial grid: from 1280px the text reads in the right two thirds, and a note opens in the
 // left third. Under 1280px a note opens in a sheet, so the text keeps the full column.
@@ -198,10 +198,10 @@ const CARD = 'invisible w-full text-report-small lg:visible lg:w-[calc(100%/3-1.
  * only the chart with the what-if line; the body text holds the words of the steps. */
 function PriceScene({ slug }: { readonly slug: string }) {
   const { payUi } = useContent();
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion();
   const [line, setLine] = useState(WHAT_IF_START);
   // Under reduced motion the chart of the what-if line is the one chart in its final state.
-  if (reduce === true) return <CapWhatIf />;
+  if (reduce) return <CapWhatIf />;
   const steps = payUi.f4.steps;
   const controls = <WhatIfControls line={line} onLine={setLine} />;
   return (

@@ -15,7 +15,20 @@ const W = (BOX.east - BOX.west) * K * 10;
 const H = (BOX.north - BOX.south) * 10;
 const px = (lon: number, lat: number) =>
   [(lon - BOX.west) * K * 10, (BOX.north - lat) * 10] as const;
+// Only the rings whose bounds meet the box: the others draw outside the map and only add weight to
+// the page.
+const meetsBox = (ring: readonly (readonly number[])[]) => {
+  const lons = ring.map(([lon = 0]) => lon);
+  const lats = ring.map(([, lat = 0]) => lat);
+  return (
+    Math.max(...lons) >= BOX.west &&
+    Math.min(...lons) <= BOX.east &&
+    Math.max(...lats) >= BOX.south &&
+    Math.min(...lats) <= BOX.north
+  );
+};
 const LAND = land.polygons
+  .filter(meetsBox)
   .map(
     (ring) =>
       ring

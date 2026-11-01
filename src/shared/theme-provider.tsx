@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { holdsOnlyDeclaredKeys, readWorkspace, writeWorkspace } from '@/shared/storage';
 
 /** The value read from `localStorage` is unknown, so a guard checks it before its first use. */
@@ -27,35 +27,52 @@ const DECLARED_KEYS: Readonly<Record<keyof ShellWorkspace, true>> = { theme: tru
 const isShellWorkspace = (value: unknown): value is ShellWorkspace =>
   holdsOnlyDeclaredKeys(value, DECLARED_KEYS) && isTheme(value['theme']);
 
-// The default is `undefined`, and not a stub state, so that a component used outside the
-// provider fails loudly instead of silently reading a theme nobody set.
-const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undefined);
+const DEFAULT_THEME: Theme = 'dark';
 
-export function ThemeProvider({
-  children,
-  defaultTheme = 'dark',
-}: {
-  children: ReactNode;
-  defaultTheme?: Theme;
-}) {
-  const [theme, setTheme] = useState<Theme>(
-    () => readWorkspace('shell', isShellWorkspace, { theme: defaultTheme }).theme,
-  );
+// The theme is a store and not a context. The render at the release has no storage and draws the
+// default; the hydration draws the same and then the stored theme. Only the readers of the theme
+// render again: a new context value would make React hydrate every part of the report at once.
+const listeners = new Set<() => void>();
+
+const subscribe = (listener: () => void): (() => void) => {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+};
+
+// The choice of this page stays in memory too: a browser that refuses storage keeps it until it
+// leaves.
+let chosen: Theme | null = null;
+
+const readTheme = (): Theme =>
+  chosen ?? readWorkspace('shell', isShellWorkspace, { theme: DEFAULT_THEME }).theme;
+
+const setTheme = (next: Theme): void => {
+  chosen = next;
+  writeWorkspace('shell', { theme: next } satisfies ShellWorkspace);
+  for (const listener of listeners) listener();
+};
+
+export function useTheme(): ThemeProviderState {
+  const theme = useSyncExternalStore(subscribe, readTheme, () => DEFAULT_THEME);
+  return { theme, setTheme };
+}
+
+/** Applies the theme to the document. */
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const { theme } = useTheme();
 
   useEffect(() => {
     const root = window.document.documentElement;
     const query = window.matchMedia('(prefers-color-scheme: dark)');
 
     // `system` follows the operating system while the page is open, so the query needs a listener.
+    // A class that is set already stays: a change of the root class restyles the whole page.
     const apply = (): void => {
-      root.classList.remove('light', 'dark');
-
-      if (theme === 'system') {
-        root.classList.add(query.matches ? 'dark' : 'light');
-        return;
-      }
-
-      root.classList.add(theme);
+      const dark = theme === 'system' ? query.matches : theme === 'dark';
+      root.classList.toggle('dark', dark);
+      root.classList.toggle('light', !dark);
     };
 
     apply();
@@ -66,21 +83,5 @@ export function ThemeProvider({
     };
   }, [theme]);
 
-  const value: ThemeProviderState = {
-    theme,
-    setTheme: (next: Theme) => {
-      writeWorkspace('shell', { theme: next } satisfies ShellWorkspace);
-      setTheme(next);
-    },
-  };
-
-  return <ThemeProviderContext.Provider value={value}>{children}</ThemeProviderContext.Provider>;
-}
-
-export function useTheme(): ThemeProviderState {
-  const context = useContext(ThemeProviderContext);
-
-  if (context === undefined) throw new Error('useTheme must be used within a ThemeProvider');
-
-  return context;
+  return children;
 }

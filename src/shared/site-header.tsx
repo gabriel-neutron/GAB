@@ -44,7 +44,8 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
   // so each new address of the router builds the two links again, and each one names the
   // selection of that moment. The graph writes past the router, and its click reads the address.
   const address = useLocation({ select: (location) => location.searchStr });
-  const path = useLocation({ select: (location) => location.pathname });
+  // A page of the release opens at its folder address, with an end slash; its render had none.
+  const path = useLocation({ select: (location) => location.pathname.replace(/(.)\/$/u, '$1') });
   const section = ABOUT.includes(path)
     ? 'about'
     : DATA.some((prefix) => path.startsWith(prefix))

@@ -1,7 +1,8 @@
-import { motion, useReducedMotion } from 'motion/react';
+import { motion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import { accent } from '../../primitives/accent';
 import { criticalLayers } from './critical-layers';
+import { useReduceMotion } from '../../reduced-motion';
 
 const TONE: Readonly<Record<string, string>> = {
   Fight: accent.bg,
@@ -21,7 +22,7 @@ const squares = [...criticalLayers]
 /** The decorative art of the chapter break: one square for each critical node, across the full width behind
  * the numeral, fading into the ground under the title. */
 export function NodeField() {
-  const reduce = useReducedMotion() === true;
+  const reduce = useReduceMotion();
   return (
     <div
       aria-hidden="true"

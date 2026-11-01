@@ -1,11 +1,5 @@
 import { useRef, useState } from 'react';
-import {
-  motion,
-  useMotionValueEvent,
-  useReducedMotion,
-  useScroll,
-  useTransform,
-} from 'motion/react';
+import { motion, useMotionValueEvent, useScroll, useTransform } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import type { ReportBlock } from '../../content';
 import { accent } from '../../primitives/accent';
@@ -28,6 +22,7 @@ import {
   yearAt,
 } from './timeline-axis';
 import { countsAt, REGIMES } from './timeline-counts';
+import { useReduceMotion } from '../../reduced-motion';
 
 type TimelineEvent = ReportContent['figureTexts']['fig2']['events'][number];
 type Actors = ReportContent['methodUi']['timeline']['actors'];
@@ -55,14 +50,14 @@ const BANDS = [
  * across the view, at true scale outside the fold of the empty years, and moves the cursor with
  * it. On a phone, under reduced motion, and when no scroll frame is found, it is a list by year. */
 export function TimelineFigure() {
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion();
   const { figureTexts, methodUi } = useContent();
   const [track, setTrack] = useState(true);
   const [index, setIndex] = useState(0);
   const { events, legend } = figureTexts.fig2;
   return (
     <>
-      {reduce === true || !track ? (
+      {reduce || !track ? (
         <>
           <YearList />
           <Cursor index={index} onSelect={setIndex} />

@@ -33,7 +33,8 @@ export function ReportFrame({ label, children }: ReportFrameProps) {
   // An adapter: the document states the language of the page. The site is English, so the
   // document goes back to English when the report leaves.
   useEffect(() => {
-    document.documentElement.lang = lang;
+    // The release page states its language already; a write of the same value restyles the page.
+    if (document.documentElement.lang !== lang) document.documentElement.lang = lang;
     return () => {
       document.documentElement.lang = 'en';
     };
