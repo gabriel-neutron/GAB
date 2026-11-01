@@ -2192,6 +2192,12 @@ export const methodUi = {
     gap: '2015-2021: no event in this figure',
     unit: 'Event, dated',
     actors: { COAL: 'COALITION' } as Readonly<Partial<Record<string, string>>>,
+    cursor: 'Time cursor: event',
+    counters:
+      "Tankers designated by each regime to the end of the quarter of the event. Data: the sanctions lists of the EU, the UK and OFAC; author's calculations",
+    table: 'Events and tankers designated, as a table',
+    date: 'Date',
+    event: 'Event',
   },
   // The critical nodes of each layer. Their sum is the count of critical nodes of the text.
   numbers: {
@@ -2295,6 +2301,20 @@ export const portsFleetUi = {
     after: 'Port call after the designation',
     label:
       'Timeline of {n} designated ships, from 6 months before to 24 months after their designation',
+  },
+  waves: {
+    regimes: { EU: 'EU', UK: 'UK', OFAC: 'OFAC' },
+    unit: 'tankers',
+    filters: 'Regimes shown',
+    aTitle: 'a. New designations, by quarter',
+    aUnit: 'a tanker designated by two regimes counts twice',
+    aLabel: 'New designations of tankers per quarter, by regime',
+    earlier: '{n} designations before 2022 are not drawn.',
+    bTitle: 'b. Tankers, by the regimes that designate them',
+    bUnit: 'each tanker counts once',
+    tankers: '{n} tankers designated by the regimes shown',
+    none: 'No regime is shown. Select EU, UK or OFAC.',
+    quarter: 'Quarter',
   },
 } as const;
 
