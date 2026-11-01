@@ -90,19 +90,23 @@ const besideText = (button: HTMLElement | null): DOMRect => {
 export function NoteRef({ partSlug, id }: NoteRefProps) {
   const { parts, ui } = useContent();
   const margin = useMarginScreen();
-  // The width class where the note opened: a note that crosses 1280px closes, because the margin
-  // note and the sheet are two trees, and the marker mounts again in the other one.
-  const [openAt, setOpenAt] = useState<boolean | null>(null);
-  const open = openAt === margin;
-  const setOpen = (next: boolean) => {
-    setOpenAt(next ? margin : null);
-  };
+  const [open, setOpen] = useState(false);
   const marker = useRef<HTMLButtonElement>(null);
-  const crossed = openAt !== null && openAt !== margin;
+  // A note that crosses 1280px closes, because the margin note and the sheet are two trees, and
+  // the marker mounts again in the other one; the count asks the new marker to take the focus.
+  const [shownAt, setShownAt] = useState(margin);
+  const [refocus, setRefocus] = useState(0);
+  if (shownAt !== margin) {
+    setShownAt(margin);
+    if (open) {
+      setOpen(false);
+      setRefocus(refocus + 1);
+    }
+  }
   // An adapter: the new marker takes the focus that the closed note held.
   useEffect(() => {
-    if (crossed) marker.current?.focus();
-  }, [crossed]);
+    if (refocus > 0) marker.current?.focus();
+  }, [refocus]);
   // True when the reader closes the note from the note or its marker: only then the focus goes
   // back to the marker. A click or a Tab to another control keeps the focus there.
   const giveBack = useRef(false);
