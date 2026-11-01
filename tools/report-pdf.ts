@@ -12,6 +12,8 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
+import { layout, type LayoutInput } from './report-pdf/layout.ts';
+
 const FOLDER = resolve(import.meta.dirname, '../public/report');
 export const STAMP = join(FOLDER, 'stamp.json');
 export const LANGS = ['en', 'fr'] as const;
@@ -38,6 +40,31 @@ export async function copies(
   const { fr } = (await load(at('content-fr.ts'))) as { fr: { report: Copy } };
   return { en: { byline: en.report.byline }, fr: { byline: fr.report.byline } };
 }
+
+/** The input of the layout pass: the label of a link line, and the URL of a source document for
+ * each note with an exact match. A manual match never gives a link. */
+export function layoutInputOf(lang: Lang): LayoutInput {
+  const file = JSON.parse(
+    readFileSync(
+      resolve(import.meta.dirname, '../src/features/report/data/note-documents.json'),
+      'utf8',
+    ),
+  ) as { notes: { id: string; documents: { url: string; match: string }[] }[] };
+  const links: Record<string, string> = {};
+  for (const note of file.notes) {
+    const exact = note.documents.find((document) => document.match === 'exact');
+    if (exact) links[note.id] = exact.url;
+  }
+  return { linkLabel: lang === 'fr' ? 'Lien :' : 'Link:', links };
+}
+
+/** The stamp of one language: the printed page, the code of the layout pass and its input. */
+export const stampOf = (lang: Lang, copy: Copy): string =>
+  hashOf(
+    htmlOf(lang, copy) +
+      readFileSync(join(TEMPLATES, 'layout.ts'), 'utf8') +
+      JSON.stringify(layoutInputOf(lang)),
+  );
 
 /** The hash of the page that Chromium prints: it changes with a template, a figure, the byline and
  * the tool. A checkout on Windows can have CRLF line ends, so the hash drops each carriage return. */
@@ -94,13 +121,16 @@ async function main(): Promise<void> {
   const { runnerImport } = await import('vite');
   const all = await copies(async (file) => (await runnerImport(file)).module);
   const browser = await chromium.launch();
-  const stamp: Record<string, string> = {};
+  const stamp: Record<string, { hash: string; pages: number }> = {};
   try {
     const page = await browser.newPage();
     for (const lang of LANGS) {
-      const html = htmlOf(lang, all[lang]);
-      await page.setContent(html, { waitUntil: 'load' });
+      await page.setContent(htmlOf(lang, all[lang]), { waitUntil: 'load' });
       await page.evaluate(() => document.fonts.ready);
+      const { faults, ...counts } = await page.evaluate(layout, layoutInputOf(lang));
+      // A clipped element, a note that does not fit, or a note away from its call stops the tool.
+      if (faults.length > 0) throw new Error(`The ${lang} PDF has faults:\n${faults.join('\n')}`);
+      console.log(lang, JSON.stringify(counts));
       await page.pdf({
         path: pdfOf(lang),
         preferCSSPageSize: true,
@@ -108,7 +138,7 @@ async function main(): Promise<void> {
         tagged: true,
         outline: true,
       });
-      stamp[lang] = hashOf(html);
+      stamp[lang] = { hash: stampOf(lang, all[lang]), pages: counts.pages };
     }
   } finally {
     await browser.close();
