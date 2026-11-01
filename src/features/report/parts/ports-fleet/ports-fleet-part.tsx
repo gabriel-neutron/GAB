@@ -10,6 +10,7 @@ import { RichText } from '../../rich-text';
 import { useContent } from '../../use-content';
 import { figureData } from './figure-data';
 import { FleetFlows } from './fleet-flows';
+import { FleetWavesFigure } from './fleet-waves-figure';
 import { PortTraffic } from './port-traffic';
 import { splitSentences } from './sentences';
 import { VesselLives } from './vessel-lives';
@@ -55,12 +56,12 @@ const STATIC_SCENE: Scene = SCENE.reduce<
   return out;
 }, []);
 const SCENE_END = Math.max(...SCENE.map((card) => card.block));
-// The charts of the figures of the part. A figure with no chart yet (figure 9) waits for its own
-// ticket: its caption stays in the content.
+// The charts of the figures of the part.
 const charts: Readonly<Partial<Record<number, () => ReactNode>>> = {
   6: PortTraffic,
   7: FleetFlows,
   8: VesselLives,
+  9: FleetWavesFigure,
 };
 const stripNotes = (text: string) => text.replace(/\[\^[^\]]+\]/g, '');
 
