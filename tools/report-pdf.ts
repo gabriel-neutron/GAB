@@ -3,12 +3,15 @@
 //
 //     pnpm report:pdf
 //
-// The PDF holds a title page, the text, the captions of the figures and the notes at the end. It
-// holds no figure: the figures are live parts of the web page. Headless Chromium prints the page.
+// The PDF holds a title page, the text, the figures and the notes at the end. Each figure is a
+// picture of the chart of the web page, in the light theme with reduced motion: the tool starts a
+// Vite server for it. Headless Chromium prints the page.
 
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+
+import type { Browser } from 'playwright';
 
 export const FOLDER = resolve(import.meta.dirname, '../public/report');
 export const STAMP = join(FOLDER, 'stamp.json');
@@ -62,7 +65,10 @@ const inline = (text: string, marker: (id: string) => string): string =>
 
 /** The body and the notes of a source text, as HTML. The notes get numbers in the order of their
  * first marker, and a cross-reference "n. N" in a note follows the new number. */
-export function toHtml(text: string): { body: string; notes: string } {
+export function toHtml(
+  text: string,
+  images: Readonly<Record<string, string>> = {},
+): { body: string; notes: string } {
   const lines = text.replace(/\r/g, '').split('\n');
   const notes = new Map<string, string>();
   const order: string[] = [];
@@ -100,8 +106,10 @@ export function toHtml(text: string): { body: string; notes: string } {
       if (figure === null) blocks.pop();
       else {
         const [label = '', ...title] = figure.split(': ');
+        const image = images[label.replace(/\D/g, '')];
+        const picture = image === undefined ? '' : `<img src="${image}" alt="">`;
         blocks.push(
-          `<figure><figcaption><span class="label">${escape(label)}</span>${inline(title.join(': '), number)}</figcaption><p>${inline(body, number)}</p></figure>`,
+          `<figure><figcaption><span class="label">${escape(label)}</span>${inline(title.join(': '), number)}</figcaption>${picture}<p>${inline(body, number)}</p></figure>`,
         );
       }
       figure = null;
@@ -178,15 +186,21 @@ ul li::before{content:'–';position:absolute;left:0;color:var(--signal)}
 figure{margin:4mm 0 5mm;padding:2.5mm 0 0;border-top:0.25mm solid var(--border);break-inside:avoid}
 figcaption{font-weight:500;font-size:9.5pt;line-height:1.35;margin-bottom:1.2mm}
 .label{display:block;font:400 7.5pt 'Geist Mono';letter-spacing:0.06em;text-transform:uppercase;color:var(--label);margin-bottom:0.8mm}
+figure img{display:block;max-width:100%;max-height:205mm;margin:2mm 0 2.5mm}
 figure p{font-size:8pt;line-height:1.45;color:var(--muted-foreground);margin:0}
 .notes{font-size:7.5pt;line-height:1.45;padding-left:8mm;margin:0;overflow-wrap:anywhere;hyphens:manual}
 .notes li{margin-bottom:1.4mm;padding-left:1mm}
 .notes li::marker{font-family:'Geist Mono';color:var(--label)}`;
 }
 
-/** The page that Chromium prints for one language. */
-export function htmlOf(lang: Lang, { text, title, byline }: Copy): string {
-  const { body, notes } = toHtml(text);
+/** The page that Chromium prints for one language. `images` holds a picture of each figure, by
+ * its number. */
+export function htmlOf(
+  lang: Lang,
+  { text, title, byline }: Copy,
+  images: Readonly<Record<string, string>> = {},
+): string {
+  const { body, notes } = toHtml(text, images);
   const sign = `<p class="byline">${escape(byline)}</p>`;
   return (
     `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>${escape(title)}</title><meta name="author" content="${escape(byline)}"><style>${css()}</style></head><body>` +
@@ -195,15 +209,68 @@ export function htmlOf(lang: Lang, { text, title, byline }: Copy): string {
   );
 }
 
+/** A picture of the chart of each numbered figure of the web page at `url`, by number. */
+async function figures(browser: Browser, url: string): Promise<Record<string, string>> {
+  // A tall view holds each whole figure, so no part of it waits for the scroll to paint.
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 3000 },
+    deviceScaleFactor: 2,
+    reducedMotion: 'reduce',
+    colorScheme: 'light',
+  });
+  // The key of the theme of the site (src/shared/storage.ts).
+  await context.addInitScript(() => {
+    localStorage.setItem('gab.shell.v1', JSON.stringify({ theme: 'light' }));
+  });
+  const page = await context.newPage();
+  await page.goto(url, { waitUntil: 'networkidle' });
+  // The parts of the page load when they come near the view.
+  for (let step = 0; step < 80; step += 1) {
+    await page.mouse.wheel(0, 1500);
+    await page.waitForTimeout(100);
+  }
+  await page.waitForLoadState('networkidle');
+  // A white ground, as on paper; no bar of the site over a figure; no table that opens.
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty('--background', '#ffffff');
+    document.querySelectorAll<HTMLElement>('body *').forEach((node) => {
+      const { position } = getComputedStyle(node);
+      if ((position === 'fixed' || position === 'sticky') && node.closest('figure') === null)
+        node.style.visibility = 'hidden';
+    });
+    document.querySelectorAll<HTMLElement>('figure details').forEach((node) => {
+      node.style.display = 'none';
+    });
+  });
+  const images: Record<string, string> = {};
+  for (const figure of await page.$$('figure:has(> h3 > span.font-mono)')) {
+    const label = await figure.$eval('h3 > span.font-mono', (node) => node.textContent);
+    const chart = await figure.$(':scope > div.mt-4');
+    if (chart === null) continue;
+    await chart.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    const picture = await chart.screenshot({ type: 'png' });
+    images[label.replace(/\D/g, '')] = `data:image/png;base64,${picture.toString('base64')}`;
+  }
+  await context.close();
+  return images;
+}
+
 async function main(): Promise<void> {
   const { chromium } = await import('playwright');
-  const { runnerImport } = await import('vite');
+  const { createServer, runnerImport } = await import('vite');
   const all = await copies(async (file) => (await runnerImport(file)).module);
+  const server = await createServer({ server: { port: 0 }, logLevel: 'error' });
+  await server.listen();
+  const origin = server.resolvedUrls?.local[0] ?? '';
   const browser = await chromium.launch();
   const page = await browser.newPage();
   const stamp: Record<string, string> = {};
   for (const lang of LANGS) {
-    const html = htmlOf(lang, all[lang]);
+    const images = await figures(browser, `${origin}${lang === 'en' ? '' : lang}`);
+    if (Object.keys(images).length === 0) throw new Error(`The ${lang} page shows no figure.`);
+    // The pictures stay out of the stamp: a test cannot take them again with no server.
+    const html = htmlOf(lang, all[lang], images);
     await page.setContent(html, { waitUntil: 'load' });
     await page.evaluate(() => document.fonts.ready);
     await page.pdf({
@@ -213,9 +280,10 @@ async function main(): Promise<void> {
       tagged: true,
       outline: true,
     });
-    stamp[lang] = hashOf(html);
+    stamp[lang] = hashOf(htmlOf(lang, all[lang]));
   }
   await browser.close();
+  await server.close();
   writeFileSync(STAMP, `${JSON.stringify(stamp, null, 2)}\n`);
 }
 
