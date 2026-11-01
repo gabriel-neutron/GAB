@@ -108,8 +108,10 @@ note marker opens a note; its number is the place of the credit on the notes pag
 summary has the marker of the note that its item cites. The download link of the first screen
 gives the PDF of the page language. A command makes the PDF of each language from the final text
 and writes it to the public folder of the site, which the build serves as it is. The PDF has the
-text, the captions of the figures and the notes at the end, but no figure, because the figures are
-live parts of the page. A test fails when a PDF is older than its source text. The authors sign
+text, the figures and the notes at the end. Each figure is a picture of the chart of the page, in
+the light theme with reduced motion, so the PDF shows the final state of each figure. A test fails
+when a PDF is older than its source text; it cannot take the pictures again, so a change to a
+figure alone needs a new run of the command. The authors sign
 the report: the first screen, the end of the page and the PDF show the same byline.
 
 ## Motion

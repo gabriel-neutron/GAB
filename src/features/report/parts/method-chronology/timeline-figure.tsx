@@ -239,7 +239,8 @@ function YearList() {
           <li
             key={year}
             className={cn(
-              'grid grid-cols-[5.5rem_minmax(0,1fr)] gap-4 border-t border-border',
+              // The year column holds four digits at the heading size.
+              'grid grid-cols-[calc(var(--text-report-heading)*2.5)_minmax(0,1fr)] gap-4 border-t border-border',
               inYear.length > 0 ? 'py-6' : 'py-1',
               inPeriod && 'border-l-4 border-l-foreground pl-3',
             )}
