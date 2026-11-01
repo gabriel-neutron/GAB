@@ -34,15 +34,35 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
     ['10px', '13.5px'],
     ['9.5px', '12.5px'],
   ] as const;
-  // The first pages (cover, summary, contents, figures, introduction) are fixed: no text comes
-  // into them from another page.
-  const FIXED = 5;
+  // The size and the leading of the text of the introduction, when it must be smaller to fit on one page.
+  const TEXT = [
+    ['14px', '20px'],
+    ['13.5px', '19px'],
+    ['13px', '18.5px'],
+    ['12.7px', '18px'],
+  ] as const;
+  // The first pages (cover, summary, contents, list of figures) are fixed: no text comes into them
+  // from another page.
+  const FIXED = 4;
+  // A part starts on the page of the part before it when this room (in px) is free on that page.
+  const JOIN = 190;
 
   const sheets = (): HTMLElement[] => Array.from(document.querySelectorAll<HTMLElement>('.sheet'));
+  const sheetAt = (index: number): HTMLElement => {
+    const sheet = sheets()[index];
+    if (!sheet) throw new Error(`page ${index} is missing`);
+    return sheet;
+  };
   const columnOf = (sheet: Element): HTMLElement | undefined =>
-    Array.from(sheet.querySelectorAll<HTMLElement>('div')).find(
-      (div) => div.style.height === '955px',
-    );
+    Array.from(sheet.querySelectorAll<HTMLElement>('div')).find((div) => {
+      const height = parseInt(div.style.height, 10);
+      return height > 900 && height < 1100 && div.style.flexDirection === 'column';
+    });
+  const columnAt = (index: number): HTMLElement => {
+    const column = columnOf(sheetAt(index));
+    if (!column) throw new Error(`page ${index} has no column`);
+    return column;
+  };
   const bodyOf = (column: HTMLElement): HTMLElement => column.children[0] as HTMLElement;
   const footOf = (column: HTMLElement): HTMLElement => column.children[1] as HTMLElement;
   const isRow = (el: Element): boolean =>
@@ -197,84 +217,39 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
   };
   // A paragraph that ends with no stop goes on at the top of the next page.
   const goesOn = (p: Element, next: Element | null): boolean =>
-    next?.tagName === 'P' && !/[.!?:;»”"')\]…]$/.test(plain(p));
-
-  // The pages that the pass changed.
-  const touched = new Set<HTMLElement>();
-  // Move the end of the body of a page to the next page: at the top of its body, or just after
-  // the element `after` of its body.
-  const push = (from: HTMLElement, to: HTMLElement, after: Element | null = null): boolean => {
-    const body = bodyOf(from);
-    const target = bodyOf(to);
-    const last = body.lastElementChild as HTMLElement | null;
-    if (last === null || body.children.length < 2) return false;
-    touched.add(from);
-    touched.add(to);
-    let anchor = after ? after.nextElementSibling : target.firstElementChild;
-    const put = (el: Element): void => {
-      if (anchor) anchor.before(el);
-      else target.append(el);
-      anchor = el;
-    };
-    if (last.tagName === 'P') {
-      const starts = lines(last);
-      const head = anchor;
-      const joins = head !== null && goesOn(last, head);
-      // At least two lines of a paragraph stay at the foot of a page and at the top of the next.
-      const moved = joins ? 1 : 2;
-      if (starts.length - moved >= 2) {
-        const start = starts[starts.length - moved];
-        if (start === undefined) return false;
-        const range = document.createRange();
-        range.setStart(start.node, start.offset);
-        range.setEnd(last, last.childNodes.length);
-        const tail = range.extractContents();
-        if (joins) head.prepend(tail, ' ');
-        else {
-          const p = last.cloneNode(false) as HTMLElement;
-          p.removeAttribute('id');
-          p.append(tail);
-          put(p);
-        }
-        return true;
-      }
-      if (joins) {
-        head.prepend(...Array.from(last.childNodes), ' ');
-        last.remove();
-      } else put(last);
-    } else put(last);
-    // A heading stays with the text that follows it.
-    while (body.lastElementChild && isHeading(body.lastElementChild) && body.children.length > 1)
-      put(body.lastElementChild);
-    return true;
-  };
+    p.tagName === 'P' && next?.tagName === 'P' && !/[.!?:;»”"')\]…]$/.test(plain(p));
 
   // A new page after `sheet`: the same frame, with no body and no notes, and the next folio.
-  const addPage = (sheet: HTMLElement): HTMLElement | undefined => {
-    const all = sheets();
+  const folioStyles = (): Map<number, string> => {
     const styles = new Map<number, string>();
-    for (const other of all) {
+    for (const other of sheets()) {
       const folio = folioOf(other);
       const number = Number(folio?.textContent);
       if (folio && Number.isInteger(number) && number > 0)
         styles.set(number % 2, folio.getAttribute('style') ?? '');
     }
-    const copy = sheet.cloneNode(true) as HTMLElement;
-    const column = columnOf(copy);
-    if (!column) return undefined;
-    bodyOf(column).replaceChildren();
-    footOf(column).replaceChildren();
-    copy.setAttribute('data-added', '');
-    sheet.after(copy);
-    const start = all.indexOf(sheet) + 1;
-    for (const other of sheets().slice(start)) {
+    return styles;
+  };
+  const renumber = (from: number, step: 1 | -1, styles: Map<number, string>): void => {
+    for (const other of sheets().slice(from)) {
       const folio = folioOf(other);
       const number = Number(folio?.textContent);
       if (!folio || !Number.isInteger(number) || number <= 0) continue;
-      folio.textContent = String(number + 1);
-      folio.setAttribute('style', styles.get((number + 1) % 2) ?? '');
+      folio.textContent = String(number + step);
+      folio.setAttribute('style', styles.get((number + step) % 2) ?? '');
     }
-    return column;
+  };
+  const addPage = (sheet: HTMLElement): void => {
+    const styles = folioStyles();
+    const copy = sheet.cloneNode(true) as HTMLElement;
+    const column = columnOf(copy);
+    if (!column) return;
+    bodyOf(column).replaceChildren();
+    footOf(column).replaceChildren();
+    delete column.dataset['notes'];
+    copy.setAttribute('data-added', '');
+    sheet.after(copy);
+    renumber(sheets().indexOf(copy), 1, styles);
   };
 
   // The notes of one page keep one size: the page keeps it, and each note that comes in takes it.
@@ -286,105 +261,289 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
     }
   };
 
+  // The edge of a page: no margin above its first block, and none below its last one.
+  const style = document.createElement('style');
+  style.textContent =
+    '[data-body] > :first-child { margin-top: 0 !important } [data-body] > :last-child { margin-bottom: 0 !important }';
+  document.head.append(style);
+  for (const sheet of sheets()) {
+    const column = columnOf(sheet);
+    if (!column) continue;
+    bodyOf(column).setAttribute('data-body', '');
+    // The body holds its floats, so that its height is the height of its content.
+    bodyOf(column).style.display = 'flow-root';
+  }
+
   rehome();
   const faults: string[] = [];
-  for (let index = 0; index < sheets().length; index += 1) {
-    const sheet = sheets()[index];
-    const column = sheet ? columnOf(sheet) : undefined;
-    if (!sheet || !column) continue;
-    for (let step = 0; over(column) && step < 400; step += 1) {
-      const next = sheets()[index + 1];
-      const nextColumn = next ? columnOf(next) : undefined;
-      const added = next?.hasAttribute('data-added') === true;
-      // A page of the design gives its end to the next page of the same part.
-      if (nextColumn && index >= FIXED && !added && !startsPart(nextColumn)) {
-        if (!push(column, nextColumn)) break;
-        rehome();
-        continue;
+
+  const keepNext = (el: Element): boolean =>
+    isHeading(el) || (el.tagName === 'FIGURE' && getComputedStyle(el).float !== 'none');
+
+  // The head and the tail of a paragraph, cut at the start of a line.
+  const cut = (
+    p: HTMLElement,
+    at: { node: Text; offset: number },
+  ): { head: HTMLElement; tail: HTMLElement } => {
+    const index = textNodes(p).indexOf(at.node);
+    const copy = (keepTail: boolean): HTMLElement => {
+      const c = p.cloneNode(true) as HTMLElement;
+      const node = textNodes(c)[index];
+      const range = document.createRange();
+      if (keepTail) {
+        range.setStart(c, 0);
+        range.setEnd(node ?? c, node ? at.offset : 0);
+      } else {
+        range.setStart(node ?? c, node ? at.offset : 0);
+        range.setEnd(c, c.childNodes.length);
       }
-      // Else the notes of the page get smaller, and only then the end of the page goes to a new
-      // page, a step at a time, until the page fits.
+      range.deleteContents();
+      c.setAttribute('data-cut', '');
+      return c;
+    };
+    const head = copy(false);
+    const tail = copy(true);
+    tail.removeAttribute('id');
+    tail.style.textIndent = '0';
+    return { head, tail };
+  };
+
+  // The text of one page fills the page: the blocks that fit, then the lines of the next
+  // paragraph that fit (three lines at least stay at the foot, three at least go to the next page).
+  const fill = (column: HTMLElement, nextColumn: HTMLElement): void => {
+    const body = bodyOf(column);
+    const nextBody = bodyOf(nextColumn);
+    let blocks = Array.from(body.children) as HTMLElement[];
+    const lead = parseFloat(getComputedStyle(body.querySelector('p') ?? body).lineHeight) || 20;
+    // The figures that go to the top of the next page, with the text after them filling this page.
+    let deferred: HTMLElement[] = [];
+    const put = (m: number, split?: { head: HTMLElement; tail: HTMLElement }): void => {
+      body.replaceChildren(...blocks.slice(0, m), ...(split ? [split.head] : []));
+      nextBody.replaceChildren(
+        ...deferred,
+        ...(split ? [split.tail] : []),
+        ...blocks.slice(m + (split ? 1 : 0)),
+      );
+      rehome();
+    };
+    const search = (): { m: number; split?: { head: HTMLElement; tail: HTMLElement } } => {
+      let lo = 0;
+      let hi = blocks.length;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        put(mid);
+        if (over(column)) hi = mid - 1;
+        else lo = mid;
+      }
+      if (lo === blocks.length) return { m: lo };
+      const next = blocks[lo];
+      if (next?.tagName === 'P') {
+        put(lo + 1);
+        const starts = lines(next);
+        let low = 2;
+        let high = starts.length - 3;
+        let best: { head: HTMLElement; tail: HTMLElement } | undefined;
+        while (low < high) {
+          const mid = Math.ceil((low + high) / 2);
+          const at = starts[mid];
+          if (!at) break;
+          const split = cut(next, at);
+          put(lo, split);
+          if (over(column)) high = mid - 1;
+          else {
+            low = mid;
+            best = split;
+          }
+        }
+        if (best) return { m: lo, split: best };
+      }
+      return { m: lo };
+    };
+
+    const gap = (): number =>
+      footOf(column).getBoundingClientRect().top - body.getBoundingClientRect().bottom;
+    // The best split of the blocks: a heading, or a float, stays with the block that follows it.
+    const plan = (): {
+      m: number;
+      split?: { head: HTMLElement; tail: HTMLElement } | undefined;
+      gap: number;
+    } => {
+      const found = search();
+      const { split } = found;
+      let { m } = found;
+      if (!split) while (m > 0 && keepNext(blocks[m - 1] as Element)) m -= 1;
+      put(m, split);
+      return { m, split, gap: gap() };
+    };
+    let best = plan();
+    // A figure that does not fit goes to the top of the next page, and the text after it comes
+    // back to fill this page.
+    let swapped = false;
+    for (let figures = 0; figures < 3 && !best.split && best.gap >= 3 * lead; figures += 1) {
+      let at = best.m;
+      while (blocks[at] && keepNext(blocks[at] as Element) && blocks[at]?.tagName !== 'FIGURE')
+        at += 1;
+      const figure = blocks[at];
+      const after = blocks[at + 1];
+      if (figure?.tagName !== 'FIGURE' || !after || after.tagName === 'FIGURE') break;
+      const saved = blocks;
+      const kept = deferred;
+      if (keepNext(figure)) {
+        // A float stays beside text: it gives way to one paragraph only.
+        if (after.tagName !== 'P' || swapped) break;
+        swapped = true;
+        blocks = [...saved.slice(0, at), after, figure, ...saved.slice(at + 2)];
+      } else {
+        deferred = [...kept, figure];
+        blocks = saved.filter((block) => block !== figure);
+      }
+      const other = plan();
+      if (other.gap < best.gap - lead) best = other;
+      else {
+        deferred = kept;
+        blocks = saved;
+        best = plan();
+        break;
+      }
+    }
+    if (best.m === 0 && !best.split) {
+      // Nothing fits: the notes of the page get smaller, then the first block goes to the page.
       const size = SIZES.find((candidate) => {
         sized(column, candidate);
+        put(1);
         return !over(column);
       });
-      if (size) break;
+      if (!size) sized(column, SIZES[0]);
+      best = { m: 1, gap: 0 };
+    }
+    put(best.m, best.split);
+    blocks = Array.from(nextBody.children) as HTMLElement[];
+  };
+
+  // The text of one part (from its first page to the page before the next part) flows page by
+  // page, from the first page of the part.
+  // With `join`, the next part follows the text of its page, and the flow goes on from there. The
+  // result is the index of the last page of the flow.
+  const flow = (first: number, join: boolean): number => {
+    let end = first + 1;
+    let starts = join ? 1 : 0;
+    for (; end < sheets().length; end += 1) {
+      const next = columnOf(sheetAt(end));
+      if (!next) break;
+      if (startsPart(next)) {
+        if (starts === 0) break;
+        starts -= 1;
+      }
+    }
+    const host = bodyOf(columnAt(first));
+    for (let j = first + 1; j < end; j += 1) {
+      const source = bodyOf(columnAt(j));
+      while (source.firstElementChild) {
+        const el = source.firstElementChild;
+        const last = host.lastElementChild;
+        if (last && goesOn(last, el)) {
+          last.append(' ', ...Array.from(el.childNodes));
+          el.remove();
+        } else {
+          // The title of a part that follows text has some room above it.
+          if (join && isHeading(el) && host.children.length > 0)
+            (el as HTMLElement).style.marginTop = '40px';
+          host.append(el);
+        }
+      }
+    }
+    rehome();
+    for (let k = first; k < 400; k += 1) {
+      const column = columnAt(k);
+      if (!over(column)) break;
+      if (k + 1 >= end) {
+        addPage(sheetAt(k));
+        end += 1;
+      }
+      fill(column, columnAt(k + 1));
+    }
+    // A page with no body goes away.
+    for (let k = end - 1; k > first; k -= 1) {
+      const sheet = sheetAt(k);
+      const column = columnAt(k);
+      if (bodyOf(column).children.length > 0) continue;
+      footOf(column).replaceChildren();
+      const styles = folioStyles();
+      sheet.remove();
+      renumber(k, -1, styles);
+      end -= 1;
+    }
+    return end - 1;
+  };
+
+  // The notes of a fixed page get smaller when they do not fit.
+  for (const sheet of sheets().slice(0, FIXED)) {
+    const column = columnOf(sheet);
+    if (column && over(column) && !SIZES.some((size) => (sized(column, size), !over(column))))
       sized(column, SIZES[0]);
-      const target = added ? nextColumn : addPage(sheet);
-      if (!target || !push(column, target)) break;
-      rehome();
+  }
+
+  // The introduction fits on one page when it can: first the text, then the notes, get smaller.
+  const intro = document.getElementById('sec-1')?.closest('.sheet');
+  const introColumn = intro ? columnOf(intro) : undefined;
+  if (introColumn) {
+    // The float of the introduction needs no room below it.
+    const float = bodyOf(introColumn).querySelector<HTMLElement>(':scope > figure');
+    if (float) float.style.marginBottom = '0';
+    const paragraphs = Array.from(bodyOf(introColumn).querySelectorAll<HTMLElement>(':scope > p'));
+    const fitted = [null, ...TEXT].some((step) => {
+      for (const p of paragraphs) {
+        if (step) [p.style.fontSize, p.style.lineHeight] = step;
+      }
+      return SIZES.some((candidate) => {
+        sized(introColumn, candidate);
+        return !over(introColumn);
+      });
+    });
+    if (!fitted) sized(introColumn, SIZES[0]);
+  }
+
+  // The label of the running header of each part title, read before the text moves.
+  const labelOf = new Map<Element, string>();
+  const headerOf = (column: HTMLElement): HTMLElement | null =>
+    (column.previousElementSibling?.lastElementChild as HTMLElement | null) ?? null;
+  for (const sheet of sheets()) {
+    const column = columnOf(sheet);
+    const label = column ? headerOf(column)?.textContent : undefined;
+    if (column && label !== undefined)
+      for (const h2 of Array.from(bodyOf(column).querySelectorAll('h2'))) labelOf.set(h2, label);
+  }
+  const room = (column: HTMLElement): number =>
+    footOf(column).getBoundingClientRect().top - bodyOf(column).getBoundingClientRect().bottom;
+  for (let index = FIXED; index < sheets().length; index += 1) {
+    const column = columnOf(sheetAt(index));
+    if (!column || !startsPart(column)) continue;
+    // A part that ends on a page with much room left is followed by the next part on that page.
+    let last = flow(index, false);
+    for (let guard = 0; guard < 10; guard += 1) {
+      const lastColumn = columnAt(last);
+      const next = sheets()[last + 1];
+      const nextColumn = next ? columnOf(next) : undefined;
+      if (!nextColumn || !startsPart(nextColumn) || room(lastColumn) < JOIN) break;
+      last = flow(last, true);
     }
   }
 
-  // A page that the pass changed has no hole: while four lines or more are free at its foot, the
-  // start of the next page of the same part comes back, a block at a time (the design fills a
-  // page while four lines are free). A block that does not fit goes back, cut at a line.
-  // The leading of the body text of the design: a page fills while four lines are free.
-  const LINE = 24;
-  const free = (column: HTMLElement): number =>
-    footOf(column).getBoundingClientRect().top - bodyOf(column).getBoundingClientRect().bottom;
-  for (let index = FIXED; index < sheets().length - 1; index += 1) {
-    const sheet = sheets()[index];
-    const column = sheet ? columnOf(sheet) : undefined;
-    const next = sheets()[index + 1];
-    const nextColumn = next ? columnOf(next) : undefined;
-    if (!column || !nextColumn || !touched.has(column) || !touched.has(nextColumn)) continue;
-    if (startsPart(nextColumn)) continue;
-    // A figure that does not fit stays at the top of the next page, and the text after it comes
-    // back before it (the rule of floats of the design).
-    let figure: Element | null = null;
-    for (let step = 0; step < 100 && free(column) >= 4 * LINE; step += 1) {
-      const body = bodyOf(column);
-      const source = bodyOf(nextColumn);
-      const first: Element | null = figure ? figure.nextElementSibling : source.firstElementChild;
-      if (first === null) break;
-      const last = body.lastElementChild;
-      const joins = first.tagName === 'P' && last !== null && goesOn(last, first);
-      if (joins) {
-        last.append(' ', ...Array.from(first.childNodes));
-        first.remove();
-      } else {
-        body.append(first);
-        // A heading comes back with the block that follows it.
-        const after = figure ? figure.nextElementSibling : source.firstElementChild;
-        if (isHeading(first) && after) body.append(after);
-      }
-      rehome();
-      if (!over(column)) continue;
-      if (!joins && first.tagName === 'FIGURE' && figure === null) {
-        source.prepend(first);
-        rehome();
-        figure = first;
-        continue;
-      }
-      for (let back = 0; over(column) && back < 100; back += 1) {
-        if (!push(column, nextColumn, figure)) break;
-        rehome();
-      }
-      break;
-    }
-  }
-  // A page that the pass added and that is now empty goes away.
+  // The running header of a page names the part of its first text.
+  let current = '';
   for (const sheet of sheets()) {
     const column = columnOf(sheet);
-    if (!sheet.hasAttribute('data-added') || !column || bodyOf(column).children.length > 0)
-      continue;
-    const start = sheets().indexOf(sheet) + 1;
-    const styles = new Map<number, string>();
-    for (const other of sheets()) {
-      const folio = folioOf(other);
-      const number = Number(folio?.textContent);
-      if (folio && Number.isInteger(number) && number > 0)
-        styles.set(number % 2, folio.getAttribute('style') ?? '');
-    }
-    for (const other of sheets().slice(start)) {
-      const folio = folioOf(other);
-      const number = Number(folio?.textContent);
-      if (!folio || !Number.isInteger(number) || number <= 1) continue;
-      folio.textContent = String(number - 1);
-      folio.setAttribute('style', styles.get((number - 1) % 2) ?? '');
-    }
-    sheet.remove();
+    if (!column) continue;
+    const titles = Array.from(bodyOf(column).querySelectorAll('h2'));
+    const first = bodyOf(column).firstElementChild;
+    const label =
+      first && titles.length > 0 && (first.matches('h2') || first.querySelector('h2'))
+        ? labelOf.get(titles[0] as Element)
+        : current;
+    const header = headerOf(column);
+    if (header && label) header.textContent = label;
+    const last = titles[titles.length - 1];
+    current = (last ? labelOf.get(last) : undefined) ?? label ?? current;
   }
 
   // 3. The page numbers of the contents and of the list of figures.
@@ -424,6 +583,14 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
     }
     const column = columnOf(sheet);
     if (!column) return;
+    // A paragraph cut at the foot or at the top of a page keeps three lines at least on the page.
+    const body = bodyOf(column);
+    for (const [place, el] of [
+      ['top', body.firstElementChild],
+      ['foot', body.lastElementChild],
+    ] as const)
+      if (el?.tagName === 'P' && el.hasAttribute('data-cut') && lines(el as HTMLElement).length < 3)
+        faults.push(`${page}: a paragraph has fewer than 3 lines at the ${place} of the page`);
     const bottom = column.getBoundingClientRect().bottom;
     for (const row of rowsOf(column)) {
       const number = numberOf(row);

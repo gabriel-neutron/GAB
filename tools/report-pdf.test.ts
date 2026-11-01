@@ -23,10 +23,10 @@ describe('report PDF', () => {
     for (const lang of LANGS) {
       expect(existsSync(pdfOf(lang))).toBe(true);
       expect(statSync(pdfOf(lang)).size).toBeLessThan(10 * 1024 * 1024);
-      // The layout pass can add pages: the stamp holds the count that it printed.
+      // The layout pass adds and removes pages: the stamp holds the count that it printed.
       const pdf = readFileSync(pdfOf(lang), 'latin1');
       expect(pdf.match(/\/Type\s*\/Page[^s]/g)).toHaveLength(stamp[lang]?.pages ?? 0);
-      expect(stamp[lang]?.pages).toBeGreaterThanOrEqual(pagesOf(lang).length);
+      expect(stamp[lang]?.pages).toBeGreaterThan(0);
       // A failure here means: run `pnpm report:pdf`, and commit the PDF files and the stamp.
       expect(stamp[lang]?.hash).toBe(stampOf(lang, all[lang]));
     }
