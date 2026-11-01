@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { crossing, monthIndex, payData } from './pay-data';
+import { crossing, lineGap, monthIndex, payData } from './pay-data';
 
 describe('pay data', () => {
   it('puts the months of figure 4 on one axis from December 2022', () => {
@@ -40,5 +40,21 @@ describe('pay data', () => {
     expect(cross?.x).toBeGreaterThan(2022);
     expect(cross?.x).toBeLessThan(2023);
     expect(crossing(line('China'), line('Coalition'))).toBeUndefined();
+  });
+
+  it('gives Urals minus a what-if line for each month, and the months above it', () => {
+    const urals = [null, { x: 1, y: 70.5, hollow: false }, { x: 2, y: 60, hollow: false }, null];
+    const result = lineGap(urals, 60);
+    expect(result.months.map(({ gap }) => gap)).toEqual([null, 10.5, 0, null]);
+    // A month on the line is not above it; a missing month is neither above nor known.
+    expect(result.above).toEqual([1]);
+    expect(result.known).toBe(2);
+  });
+
+  it('keeps every month of figure 4, the missing ones as null', () => {
+    const result = lineGap(payData.f4.urals, payData.f4.caps[0]?.value ?? 0);
+    expect(result.months).toHaveLength(payData.f4.urals.length);
+    expect(result.months[0]?.gap).toBeNull();
+    expect(result.known).toBe(payData.f4.urals.filter((point) => point !== null).length);
   });
 });

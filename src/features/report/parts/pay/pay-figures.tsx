@@ -242,10 +242,13 @@ export function PriceChart({
   step,
   focus = false,
   fill = false,
+  whatIf,
 }: {
   readonly step: number;
   readonly focus?: boolean;
   readonly fill?: boolean;
+  /** A what-if line across all months, with its label; the three real caps stay. */
+  readonly whatIf?: { readonly value: number; readonly label: string };
 }) {
   const [first, ...lower] = f4.caps;
   const point = focus ? focusPoint(step) : undefined;
@@ -347,6 +350,23 @@ export function PriceChart({
                       className="stroke-foreground"
                     />
                   </g>
+                  {whatIf === undefined ? null : (
+                    <g>
+                      <path
+                        d={capLine(0, f4.last, whatIf.value)}
+                        strokeWidth={1.5}
+                        className="stroke-foreground"
+                      />
+                      <text
+                        x={scales.right}
+                        y={scales.y(whatIf.value) - 6}
+                        textAnchor="end"
+                        className="fill-foreground"
+                      >
+                        {whatIf.label}
+                      </text>
+                    </g>
+                  )}
                   {point === undefined ? null : (
                     <g key={step}>
                       <circle

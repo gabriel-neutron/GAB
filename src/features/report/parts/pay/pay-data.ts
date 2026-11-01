@@ -92,6 +92,24 @@ export const payData = {
   },
 } as const;
 
+/** Urals minus a what-if line for each month: `null` where Urals has no value. Only the months
+ * with a value count, so a missing month is never above or below the line. */
+export function lineGap(
+  urals: readonly Point[],
+  line: number,
+): {
+  readonly months: readonly { readonly x: number; readonly gap: number | null }[];
+  readonly above: readonly number[];
+  readonly known: number;
+} {
+  const months = urals.map((point, x) => ({ x, gap: point === null ? null : point.y - line }));
+  return {
+    months,
+    above: months.flatMap(({ x, gap }) => (gap !== null && gap > 0 ? [x] : [])),
+    known: months.filter(({ gap }) => gap !== null).length,
+  };
+}
+
 /** The first place where line `a` goes from above line `b` to below it, by linear interpolation
  * between two known values of both; undefined when it never does. */
 export function crossing(
