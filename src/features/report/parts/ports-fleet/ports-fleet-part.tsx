@@ -64,7 +64,7 @@ const charts: Readonly<Partial<Record<number, () => ReactNode>>> = {
   8: VesselLives,
   9: FleetWavesFigure,
 };
-const waveQuarters = selectWaves(new Set(REGIMES)).quarters;
+const waves = selectWaves(new Set(REGIMES));
 const stripNotes = (text: string) => text.replace(/\[\^[^\]]+\]/g, '');
 
 /** Exporting through the ports and the fleet: a typographic chapter break, a sticky map of the
@@ -89,7 +89,7 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
   };
   const periods: Readonly<Partial<Record<number, string>>> = {
     8: copy.lives.period,
-    9: `${waveQuarters[0]?.quarter ?? ''} – ${waveQuarters.at(-1)?.quarter ?? ''}`,
+    9: `${waves.quarters[0]?.quarter ?? ''} – ${waves.end}`,
   };
   const notes: Readonly<Partial<Record<number, string>>> = {
     6: `${texts['6'].note} ${texts['6'].noteB}`,

@@ -11,13 +11,19 @@ const count = (value: string | undefined) => {
     throw new Error(`fleet-waves: "${String(value)}" is not a count`);
   return number;
 };
+const dateOf = (value: string | undefined) => {
+  if (value === undefined || !/^\d{4}-\d{2}-\d{2}$/.test(value))
+    throw new Error(`fleet-waves: "${String(value)}" is not a date`);
+  return value;
+};
 const regimeOf = (value: string) => {
   if (!isRegime(value)) throw new Error(`fleet-waves: "${value}" is not a regime`);
   return value;
 };
 
-/** Reads the fleet-waves CSV: the new listings of each quarter, and the regimes that list each
- * tanker (each tanker is in one combination only). A bad regime or count stops the build. */
+/** Reads the fleet-waves CSV: the new listings of each quarter, the regimes that list each tanker
+ * (each tanker is in one combination only), and the date of the last designation in the data. A
+ * bad regime, count or date stops the build. */
 export function readWaves(raw: string) {
   const rows = readCsv(raw);
   return {
@@ -35,16 +41,20 @@ export function readWaves(raw: string) {
         regimes: (row['key'] ?? '').split('+').map(regimeOf),
         value: count(row['value']),
       })),
+    end: dateOf(rows.find((row) => row['kind'] === 'end')?.['value']),
   };
 }
 
-const { listings, combos } = readWaves(wavesRaw);
+const { listings, combos, end } = readWaves(wavesRaw);
 
 // The chart starts with the first wave of 2022; the listings before it are a count in words.
 const FIRST = '2022-Q1';
 const quarterAt = (index: number) =>
   `${String(2022 + Math.floor(index / 4))}-Q${String((index % 4) + 1)}`;
 const last = listings.reduce((top, one) => (one.quarter > top ? one.quarter : top), FIRST);
+// The last day of each quarter: a quarter that ends after the last designation is partial.
+const quarterEnd = (quarter: string) =>
+  `${quarter.slice(0, 4)}-${['03-31', '06-30', '09-30', '12-31'][Number(quarter.slice(-1)) - 1] ?? ''}`;
 const QUARTERS: readonly string[] = Array.from(
   { length: (Number(last.slice(0, 4)) - 2022) * 4 + Number(last.slice(-1)) },
   (_, index) => quarterAt(index),
@@ -61,6 +71,7 @@ export function selectWaves(shown: ReadonlySet<string>) {
       .reduce((total, one) => total + one.value, 0);
   const quarters = QUARTERS.map((quarter) => ({
     quarter,
+    partial: quarterEnd(quarter) > end,
     values: { EU: sum(quarter, 'EU'), UK: sum(quarter, 'UK'), OFAC: sum(quarter, 'OFAC') },
   }));
   const groups = new Map<string, { regimes: Regime[]; value: number }>();
@@ -74,6 +85,7 @@ export function selectWaves(shown: ReadonlySet<string>) {
   const overlaps = [...groups.values()].sort((a, b) => b.value - a.value);
   return {
     quarters,
+    end,
     earlier: visible
       .filter((one) => one.quarter < FIRST)
       .reduce((total, one) => total + one.value, 0),

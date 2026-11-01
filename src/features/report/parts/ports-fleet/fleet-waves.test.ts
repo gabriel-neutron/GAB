@@ -36,6 +36,13 @@ describe('selectWaves', () => {
     expect(selectWaves(new Set(['OFAC'])).earlier).toBe(all.earlier);
   });
 
+  it('marks as partial the one quarter that ends after the last designation', () => {
+    const all = selectWaves(new Set(REGIMES));
+    const partial = all.quarters.filter((one) => one.partial);
+    expect(partial).toEqual([all.quarters.at(-1)]);
+    expect(all.end.slice(0, 4)).toBe(partial[0]?.quarter.slice(0, 4));
+  });
+
   it('shows no tanker when no regime shows', () => {
     const none = selectWaves(new Set());
     expect(none.tankers).toBe(0);
@@ -52,6 +59,10 @@ describe('readWaves', () => {
   it('stops on a value that is not a count', () => {
     expect(() => readWaves(`${head}quarter,2024-Q1,EU,\n`)).toThrow(/count/);
     expect(() => readWaves(`${head}combo,EU,,1.5\n`)).toThrow(/count/);
+  });
+  it('stops when the date of the last designation is absent or in a bad form', () => {
+    expect(() => readWaves(`${head}combo,EU,,1\n`)).toThrow(/date/);
+    expect(() => readWaves(`${head}end,last designation,,8 October\n`)).toThrow(/date/);
   });
   it('stops on a quarter in a bad form', () => {
     expect(() => readWaves(`${head}quarter,2024-Q5,EU,3\n`)).toThrow(/quarter/);
