@@ -5,7 +5,7 @@ import { useContent } from '../../use-content';
 import { REGIMES, selectWaves, type Regime } from './fleet-waves';
 import { ValuesTable } from './values-table';
 
-// OFAC takes the accent: the text says the United States designates first.
+// One regime takes the accent of the report: OFAC.
 const TONE: Readonly<Record<Regime, string>> = {
   EU: 'bg-foreground',
   UK: 'bg-chart-neutral',
@@ -20,7 +20,7 @@ const TOP = Math.ceil(PEAK / 100) * 100;
 const TICKS = Array.from({ length: TOP / 100 }, (_, index) => (index + 1) * 100);
 const number = new Intl.NumberFormat('en-US');
 
-/** Figure 9: the tankers that the EU, the UK and OFAC designate, by quarter and by the regimes that
+/** The tankers that the EU, the UK and OFAC designate, by quarter and by the regimes that
  * designate each tanker. A filter shows or hides a regime; each tanker stays in one group. */
 export function FleetWavesFigure() {
   const { portsFleetUi } = useContent();
@@ -104,13 +104,9 @@ export function FleetWavesFigure() {
             ))}
           </div>
         </div>
-        {data.earlier > 0 ? (
-          <p className="mt-8 font-mono text-report-label text-muted-foreground">
-            {copy.earlier.replace('{n}', number.format(data.earlier))}
-          </p>
-        ) : (
-          <div className="h-8" />
-        )}
+        <p className="mt-8 min-h-5 font-mono text-report-label text-muted-foreground">
+          {data.earlier > 0 ? copy.earlier.replace('{n}', number.format(data.earlier)) : null}
+        </p>
         <ValuesTable
           head={[copy.quarter, ...visible.map((regime) => copy.regimes[regime])]}
           rows={data.quarters.map((one) => [
@@ -124,7 +120,7 @@ export function FleetWavesFigure() {
         <p className="font-mono text-report-label uppercase text-foreground">{copy.bTitle}</p>
         <p className="mb-4 font-mono text-report-label uppercase text-label">{copy.bUnit}</p>
         <p className="mb-4 font-mono text-report-label text-foreground" aria-live="polite">
-          {copy.tankers.replace('{n}', number.format(data.tankers))}
+          {shown.size === 0 ? copy.none : copy.tankers.replace('{n}', number.format(data.tankers))}
         </p>
         <ul className="grid gap-y-3">
           {data.overlaps.map((group) => (

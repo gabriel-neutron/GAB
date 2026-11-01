@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { REGIMES, selectWaves, type Regime } from './fleet-waves';
+import { readWaves, REGIMES, selectWaves, type Regime } from './fleet-waves';
 
 const sum = (values: readonly number[]) => values.reduce((total, one) => total + one, 0);
 
@@ -40,5 +40,20 @@ describe('selectWaves', () => {
     const none = selectWaves(new Set());
     expect(none.tankers).toBe(0);
     expect(none.overlaps).toEqual([]);
+  });
+});
+
+describe('readWaves', () => {
+  const head = 'kind,key,regime,value\n';
+  it('stops on a regime that is not EU, UK or OFAC', () => {
+    expect(() => readWaves(`${head}combo,EU+OFCA,,6\n`)).toThrow(/OFCA/);
+    expect(() => readWaves(`${head}quarter,2024-Q1,US,6\n`)).toThrow(/US/);
+  });
+  it('stops on a value that is not a count', () => {
+    expect(() => readWaves(`${head}quarter,2024-Q1,EU,\n`)).toThrow(/count/);
+    expect(() => readWaves(`${head}combo,EU,,1.5\n`)).toThrow(/count/);
+  });
+  it('stops on a quarter in a bad form', () => {
+    expect(() => readWaves(`${head}quarter,2024-Q5,EU,3\n`)).toThrow(/quarter/);
   });
 });

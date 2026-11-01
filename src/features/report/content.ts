@@ -2290,6 +2290,7 @@ export const portsFleetUi = {
     bTitle: 'b. Tankers, by the regimes that designate them',
     bUnit: 'each tanker counts once',
     tankers: '{n} tankers designated by the regimes shown',
+    none: 'No regime is shown. Select EU, UK or OFAC.',
     quarter: 'Quarter',
   },
 } as const;
