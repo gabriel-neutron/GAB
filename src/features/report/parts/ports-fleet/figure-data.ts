@@ -1,4 +1,6 @@
+import portsRaw from '../../data/ports.csv?raw';
 import figures from '../../data/publication-figures.json';
+import { readCsv } from '../../line-panel';
 
 export interface Flow {
   readonly panel: string;
@@ -25,6 +27,8 @@ export interface Lane {
 }
 
 const f8 = figures.f8;
+const ports = readCsv(portsRaw).filter((row) => row['panel'] === 'a' && row['unit'] === 'Mt');
+const lastYear = Math.max(...ports.map((row) => Number(row['period'])));
 
 /** The data of figures 6, 7 and 8 of the PDF, read once and typed: one job, the figure data of the
  * part on ports and the fleet. */
@@ -36,6 +40,13 @@ export const figureData = {
   })),
   /** 6b: change of January-April 2026 against January-April 2025, in %. */
   change: figures.f6b.map(([name, value]) => ({ name: String(name), value: Number(value) })),
+  /** 6a: all-cargo traffic of each port in the last year of the data, in million tonnes. */
+  throughput: {
+    year: lastYear,
+    ports: ports
+      .filter((row) => Number(row['period']) === lastYear)
+      .map((row) => ({ name: row['series'] ?? '', value: Number(row['value']) })),
+  },
   /** 6c: seaborne crude by fleet category, kb/d, by month. */
   fleet: figures.f6c.map((series) => ({
     key: series.k,
