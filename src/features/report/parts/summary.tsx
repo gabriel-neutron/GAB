@@ -112,7 +112,9 @@ function hero(finding: Finding, partSlug: string): ReactNode {
 }
 
 const layout = (finding: Finding, partSlug: string): ReactNode => (
-  <div className="lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-8">
+  // From 1280px the row leaves a margin at its right, where its notes open: a note never covers
+  // the value or its sentence.
+  <div data-note-block className="lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-8 xl:w-3/4">
     <div className="min-w-0 lg:col-span-7">{hero(finding, partSlug)}</div>
     <div className="min-w-0 lg:col-span-5">
       <p className={cn('mt-6 lg:mt-0', SENTENCE)}>{finding.sentence}</p>

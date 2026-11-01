@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { cn } from '@/shared/lib/utils';
+import { ImageCredit } from './note-ref';
 import { summaryValues } from './parts/summary-values';
 import { accent } from './primitives/accent';
 import { CountUp } from './primitives/count-up';
@@ -124,6 +125,12 @@ export function ReportCover() {
           </span>
         </a>
       </div>
+      {/* The credit of the photograph, as for all art of the page. It sits in the corner of the
+          photograph, so its note opens over the art and not over the words. */}
+      <p className="absolute right-4 bottom-3 w-fit font-mono text-report-label uppercase text-label md:right-8 md:bottom-10 lg:right-12 lg:bottom-12">
+        <span aria-hidden="true">{ui.note.image}</span>
+        <ImageCredit src={openingUi.cover.src} />
+      </p>
     </header>
   );
 }
