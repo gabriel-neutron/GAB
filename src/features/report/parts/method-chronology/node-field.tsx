@@ -8,10 +8,15 @@ const TONE: Readonly<Record<string, string>> = {
   Finance: 'bg-foreground/55',
   Pay: 'bg-foreground/15',
 };
+const toneOf = (layer: string) => {
+  const tone = TONE[layer];
+  if (tone === undefined) throw new Error(`node-field: no tone for the layer "${layer}"`);
+  return tone;
+};
 // One square for each critical node, from the smallest layer to the largest.
 const squares = [...criticalLayers]
-  .reverse()
-  .flatMap(([layer, count]) => Array.from({ length: count }, () => TONE[layer] ?? TONE['Pay']));
+  .sort(([, a], [, b]) => a - b)
+  .flatMap(([layer, count]) => Array.from({ length: count }, () => toneOf(layer)));
 
 /** The decorative art of the chapter break: one square for each critical node, across the full width behind
  * the numeral, fading into the ground under the title. */

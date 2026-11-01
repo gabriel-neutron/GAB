@@ -32,6 +32,10 @@ marks. The notes keep the numbers of the final text. The parity test compares, f
 numbers, the months and the note markers of the body and of each figure caption with the source,
 and each note with the words of the source. A text change that adds, removes or moves one of
 them fails the test. A figure of the page that the final text does not have shows no number.
+When the text gives only a total, a dated data file can split it: the critical nodes of each layer
+come from the selection test of the author on the record (the nodes that meet the three conditions
+in the record, and the nodes of the first list that the record does not link yet), and a test
+checks that the layers sum to the total of the text.
 
 ## The part contract
 

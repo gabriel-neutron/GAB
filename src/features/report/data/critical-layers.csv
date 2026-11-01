@@ -1,4 +1,4 @@
 layer,record,list_only,date,source
-Pay,438,4,2026-10-27,"Author's selection test of the critical nodes on the record (gab server ca18638d). record: nodes that meet the three conditions in the record. list_only: nodes of the first list with archived documents that the record does not link yet."
-Finance,5,24,2026-10-27,"Author's selection test of the critical nodes on the record (gab server ca18638d). record: nodes that meet the three conditions in the record. list_only: nodes of the first list with archived documents that the record does not link yet."
-Fight,7,15,2026-10-27,"Author's selection test of the critical nodes on the record (gab server ca18638d). record: nodes that meet the three conditions in the record. list_only: nodes of the first list with archived documents that the record does not link yet."
+Pay,438,4,2026-10-27,selection test of the author on the record
+Finance,5,24,2026-10-27,selection test of the author on the record
+Fight,7,15,2026-10-27,selection test of the author on the record
