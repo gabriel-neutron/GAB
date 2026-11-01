@@ -105,11 +105,11 @@ parser splits a text into runs, and the rich text draws each run.
 The art of the page is decoration: it has no label, no caption and an empty alternative text. The
 notes page lists the credit of each image. A note marker beside the art opens its credit, as a
 note marker opens a note; its number is the place of the credit on the notes page. A value of the
-summary has the marker of the note that its item cites. The PDF is a file of the
-operator and never enters the repository. Set `REPORT_PDF` to its absolute path before a build.
-The build copies it as `report.pdf`, and the download link of the first screen gives it. A path
-that names no file stops the build. With no PDF, the download link gives the final text of the
-page locale: the Markdown file of the source folder, which the build copies as it is.
+summary has the marker of the note that its item cites. The download link of the first screen
+gives the PDF of the page language. A command makes the PDF of each language from the final text
+and writes it to the public folder of the site, which the build serves as it is. The PDF has the
+text, the captions of the figures and the notes at the end, but no figure, because the figures are
+live parts of the page. A test fails when a PDF is older than its source text.
 
 ## Motion
 

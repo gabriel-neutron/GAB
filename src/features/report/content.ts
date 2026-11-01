@@ -1,4 +1,3 @@
-import textFile from './source/report-en.md?url';
 import { reportTitles } from './titles';
 
 export const report = {
@@ -2062,8 +2061,6 @@ export const openingUi = {
     read: 'Scroll down to read',
     data: 'Data',
     pdf: 'Download the report',
-    // The final text of this locale: the download when the build has no PDF.
-    text: textFile,
   },
   summary: {
     // The plate of the summary head on a wide screen: an old chart of the Black Sea, in two tones.

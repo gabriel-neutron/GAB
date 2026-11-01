@@ -1,4 +1,3 @@
-import textFile from './source/report-fr.md?url';
 import { reportTitles } from './titles';
 import {
   closingUi,
@@ -241,7 +240,6 @@ export const fr: ReportContent = {
       read: 'Faire défiler pour lire',
       data: 'Données',
       pdf: 'Télécharger le rapport',
-      text: textFile,
     },
     summary: {
       ...openingUi.summary,
