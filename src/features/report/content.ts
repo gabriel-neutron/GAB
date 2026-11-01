@@ -2,6 +2,8 @@ import { reportTitles } from './titles';
 
 export const report = {
   title: reportTitles.en,
+  // The authors sign the report: the first screen, the end of the page and the PDF show it.
+  byline: 'By Tomas Arden and Gabriel',
   subtitle: 'What keeps it running in 2026',
   summary:
     'Russia has found new buyers, new shipping arrangements and new payment channels. The report argues that this adaptation keeps trade moving, but gives its remaining partners more power over prices.',

@@ -65,7 +65,7 @@ function Cells({
  * rules and conditions), every node of the report, the scale of the research in small, and the
  * way to the notes as the end of the page. */
 export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
-  const { closingUi, parts, ui } = useContent();
+  const { closingUi, parts, report, ui } = useContent();
   const { annex: copy } = closingUi;
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const sections: Section[] = [];
@@ -212,10 +212,11 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
             </div>
           ))}
         </section>
+        <p className="mt-16 font-mono text-report-label text-label">{report.byline}</p>
         <Link
           to={`/${ui.paths.notes}` as ReportPath}
           className={cn(
-            'group mt-16 flex min-h-11 items-end justify-between gap-6 border-b border-foreground pb-4',
+            'group mt-6 flex min-h-11 items-end justify-between gap-6 border-b border-foreground pb-4',
             FOCUS,
           )}
         >

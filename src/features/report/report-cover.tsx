@@ -81,6 +81,7 @@ export function ReportCover() {
         <h1 className="text-report-heading md:text-report-number leading-[0.92] tracking-[-0.05em] text-balance">
           <ScrambleText text={report.title} />
         </h1>
+        <p className="mt-4 font-mono text-report-label text-label md:mt-6">{report.byline}</p>
         <dl className="mt-6 grid max-w-3xl grid-cols-2 gap-x-6 gap-y-4 md:mt-10 md:grid-cols-4">
           {values.map((value) => (
             <div key={value.label} className="border-t border-foreground/40 pt-2">
@@ -97,7 +98,6 @@ export function ReportCover() {
           ))}
         </dl>
         <nav aria-label={links.label} className="mt-6 flex flex-wrap items-center gap-2 md:mt-10">
-          {/* `pnpm report:pdf` writes the PDF of each language to the public folder. */}
           <a
             href={`${import.meta.env.BASE_URL}report/gab-report-${ui.lang}.pdf`}
             download=""

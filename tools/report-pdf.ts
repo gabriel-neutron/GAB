@@ -1,5 +1,5 @@
 // Render the final text of the report to one A4 PDF for each language, in the public folder of
-// the site, and write the hash of each source text beside the PDFs.
+// the site, and write the hash of each printed page beside the PDFs.
 //
 //     pnpm report:pdf
 //
@@ -15,12 +15,40 @@ export const STAMP = join(FOLDER, 'stamp.json');
 export const LANGS = ['en', 'fr'] as const;
 export const pdfOf = (lang: string): string => join(FOLDER, `gab-report-${lang}.pdf`);
 
-/** The hash of the source text of one language. Git can change the line ends, so they count as
- * `\n`. */
-export function sourceHash(lang: string): string {
-  const file = resolve(import.meta.dirname, `../src/features/report/source/report-${lang}.md`);
-  return createHash('sha256').update(readFileSync(file, 'utf8').replace(/\r/g, '')).digest('hex');
+type Lang = (typeof LANGS)[number];
+interface Content {
+  readonly report: { readonly title: string; readonly byline: string };
 }
+interface Copy {
+  readonly text: string;
+  readonly title: string;
+  readonly byline: string;
+}
+
+/** The final text, the title and the byline of each language, read from the modules of the page
+ * through `load`. The PDF gets the same French text as the page (note ids and figure numbers of
+ * the English text). The types stay local: the tools project does not compile the application. */
+export async function copies(
+  load: (file: string) => Promise<unknown>,
+): Promise<Record<Lang, Copy>> {
+  const at = (file: string) => resolve(import.meta.dirname, '../src/features/report', file);
+  const { sources } = (await load(at('source/index.ts'))) as {
+    sources: Record<Lang, { text: string }>;
+  };
+  const { en } = (await load(at('content.ts'))) as { en: Content };
+  const { fr } = (await load(at('content-fr.ts'))) as { fr: Content };
+  const copy = (lang: Lang, content: Content): Copy => ({
+    text: sources[lang].text,
+    ...content.report,
+  });
+  return { en: copy('en', en), fr: copy('fr', fr) };
+}
+
+/** The hash of the page that Chromium prints: it changes with the text, the byline, the tool and
+ * the tokens of the design system. A checkout on Windows can have CRLF line ends, so the hash
+ * drops each carriage return. */
+export const hashOf = (html: string): string =>
+  createHash('sha256').update(html.replace(/\r/g, '')).digest('hex');
 
 const escape = (text: string): string =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -135,6 +163,7 @@ function css(): string {
 html{font:400 9.5pt/1.55 Geist,sans-serif;color:var(--foreground);hyphens:auto;text-rendering:optimizeLegibility}
 body{margin:0}
 .cover{height:251mm;display:flex;flex-direction:column;justify-content:flex-end;break-after:page}
+.byline{font:400 8.5pt 'Geist Mono';color:var(--muted-foreground);margin:6mm 0 0}
 .cover .rule{height:3mm;width:24mm;background:var(--signal);margin-bottom:8mm}
 h1{font-weight:400;font-size:34pt;line-height:1.02;letter-spacing:-0.035em;margin:0;max-width:150mm}
 h2{font-weight:400;font-size:20pt;line-height:1.1;letter-spacing:-0.02em;margin:0 0 6mm;padding-top:2mm;border-top:0.4mm solid var(--foreground);break-before:page;break-after:avoid}
@@ -155,32 +184,27 @@ figure p{font-size:8pt;line-height:1.45;color:var(--muted-foreground);margin:0}
 .notes li::marker{font-family:'Geist Mono';color:var(--label)}`;
 }
 
+/** The page that Chromium prints for one language. */
+export function htmlOf(lang: Lang, { text, title, byline }: Copy): string {
+  const { body, notes } = toHtml(text);
+  const sign = `<p class="byline">${escape(byline)}</p>`;
+  return (
+    `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>${escape(title)}</title><meta name="author" content="${escape(byline)}"><style>${css()}</style></head><body>` +
+    `<section class="cover"><div class="rule"></div><h1>${escape(title)}</h1>${sign}</section>` +
+    `${body}${sign}<h2>Notes</h2>${notes}</body></html>`
+  );
+}
+
 async function main(): Promise<void> {
   const { chromium } = await import('playwright');
   const { runnerImport } = await import('vite');
-  // Vite reads the source module, so the PDF gets the same French text as the page (note ids and
-  // figure numbers of the English text). The types stay local: the tools project does not
-  // compile the application.
-  type Text = Record<(typeof LANGS)[number], string>;
-  const { module: source } = await runnerImport<{
-    sources: Record<(typeof LANGS)[number], { text: string }>;
-  }>(resolve(import.meta.dirname, '../src/features/report/source/index.ts'));
-  const { module: titles } = await runnerImport<{ reportTitles: Text }>(
-    resolve(import.meta.dirname, '../src/features/report/titles.ts'),
-  );
-  const { reportTitles } = titles;
+  const all = await copies(async (file) => (await runnerImport(file)).module);
   const browser = await chromium.launch();
   const page = await browser.newPage();
   const stamp: Record<string, string> = {};
   for (const lang of LANGS) {
-    const { body, notes } = toHtml(source.sources[lang].text);
-    const title = reportTitles[lang];
-    await page.setContent(
-      `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>${escape(title)}</title><style>${css()}</style></head><body>` +
-        `<section class="cover"><div class="rule"></div><h1>${escape(title)}</h1></section>` +
-        `${body}<h2>Notes</h2>${notes}</body></html>`,
-      { waitUntil: 'load' },
-    );
+    const html = htmlOf(lang, all[lang]);
+    await page.setContent(html, { waitUntil: 'load' });
     await page.evaluate(() => document.fonts.ready);
     await page.pdf({
       path: pdfOf(lang),
@@ -189,10 +213,14 @@ async function main(): Promise<void> {
       tagged: true,
       outline: true,
     });
-    stamp[lang] = sourceHash(lang);
+    stamp[lang] = hashOf(html);
   }
   await browser.close();
-  writeFileSync(STAMP, `${JSON.stringify(stamp, null, 2)}\n`);
+  writeFileSync(
+    STAMP,
+    `${JSON.stringify(stamp, null, 2)}
+`,
+  );
 }
 
 if (import.meta.main) await main();

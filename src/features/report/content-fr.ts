@@ -162,8 +162,8 @@ const frFigureTexts = {
 /** The French copy of the report content: the French text (V4) with the note ids of the English
  * text, and the words of the page in French. */
 export const fr: ReportContent = {
-  // The page shows only the title of this block.
-  report: { ...report, title: reportTitles.fr },
+  // The page shows only the title and the byline of this block.
+  report: { ...report, title: reportTitles.fr, byline: 'Par Tomas Arden et Gabriel' },
   parts: frParts,
   untwinned: Object.entries(noteTwins).flatMap(([id, twin]) => (twin === null ? [id] : [])),
   figureTexts: frFigureTexts,
