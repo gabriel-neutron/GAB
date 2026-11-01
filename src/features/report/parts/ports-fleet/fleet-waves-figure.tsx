@@ -87,7 +87,8 @@ export function FleetWavesFigure() {
                 className={cn(
                   'relative flex h-full flex-1 flex-col-reverse',
                   // A partial quarter: a dashed frame and paler bars, named in the line below.
-                  one.partial && 'border border-dashed border-foreground [&>span]:opacity-50',
+                  one.partial &&
+                    'outline-1 -outline-offset-1 outline-foreground outline-dashed [&>span]:opacity-50',
                 )}
               >
                 {REGIMES.map((regime) => (
