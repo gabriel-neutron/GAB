@@ -7,6 +7,7 @@ import { defineConfig, loadEnv } from 'vite';
 
 import { openWithKey } from './tools/dev-open.ts';
 import { maplibreWorker } from './tools/maplibre-worker.ts';
+import { fetchDataRelease, largeFileRedirects, servedFiles } from './tools/data-release.ts';
 import { releaseFolder, reportFolder } from './tools/release-folder.ts';
 import { isReleaseBuild } from '@gab/release/site-crawl';
 import { stagingHeaders } from './tools/staging-headers.ts';
@@ -28,6 +29,12 @@ const reportDir = process.env['REPORT_DIR'];
 const releaseDir =
   process.env['RELEASE_DIR'] ?? loadEnv('development', import.meta.dirname, '')['RELEASE_DIR'];
 
+// A build with no release named, as on the host, takes the release that tools/data-release.ts pins.
+const fetched =
+  releaseDir === undefined && process.argv.includes('build')
+    ? await fetchDataRelease(import.meta.dirname)
+    : undefined;
+
 export default defineConfig({
   plugins: [
     // External constraint: TanStack Router requires this plugin before the React plugin. The
@@ -37,7 +44,9 @@ export default defineConfig({
     tailwindcss(),
     // Departure: the release is the one input that the build takes from the environment, because
     // a release is a folder of the operator and not a file of the repository.
-    releaseFolder(releaseDir),
+    fetched === undefined
+      ? releaseFolder(releaseDir)
+      : [releaseFolder(fetched, servedFiles(fetched)), largeFileRedirects(fetched)],
     // An empty REPORT_DIR also takes the default, so the operator is not left with the root folder.
     reportFolder(
       reportDir === undefined || reportDir === ''
