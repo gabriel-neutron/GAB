@@ -4,7 +4,15 @@ import { figureTexts, payUi } from '../../content';
 import { NodeRef } from '../../node-ref';
 import { useContent } from '../../use-content';
 import { FADE, GLYPH, LineChart, type LineSeries, type Scales } from './line-chart';
-import { buyerYears, crossing, monthIndex, payData, valuesInYear, type Point } from './pay-data';
+import {
+  buyerYears,
+  crossing,
+  monthIndex,
+  monthName,
+  payData,
+  valuesInYear,
+  type Point,
+} from './pay-data';
 
 const PANEL_TITLE = 'font-mono text-report-label uppercase text-label';
 const LEGEND = 'mt-2 font-mono text-report-label/4 text-label';
@@ -337,13 +345,14 @@ export function PriceChart({
         <LineChart
           fill={fill}
           spec={{
-            label: payUi.f4.label,
+            // The second chart, with the what-if line, gets its own name.
+            label: whatIf === undefined ? payUi.f4.label : `${payUi.f4.label}, ${whatIf.label}`,
             unit: figureTexts.figures['4'].panels[0]?.unit ?? '',
             x: [0, f4.last],
             y: [0, 125],
             xTicks: firstYearAt.map((at) => ({ at, label: String(2022 + Math.ceil(at / 12)) })),
             yTicks: [0, 25, 50, 75, 100, 125],
-            xName: (x) => new Date(Date.UTC(2022, 11 + x, 1)).toISOString().slice(0, 7),
+            xName: monthName,
             digits: 1,
             series: [
               { id: 'brent', label: f4Labels.Brent, tone: 'muted', points: f4.brent },

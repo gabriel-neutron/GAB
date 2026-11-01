@@ -1,15 +1,14 @@
 import { useId, useState } from 'react';
 import { useContent } from '../../use-content';
 import { PriceChart } from './pay-figures';
-import { lineGap, payData } from './pay-data';
+import { lineGap, monthName, payData } from './pay-data';
 
 const f4 = payData.f4;
 const prices = f4.urals.flatMap((point) => (point === null ? [] : [point.y]));
 // The slider runs over the range of Urals; it starts on the first real cap.
 const MIN = Math.floor(Math.min(...prices));
 const MAX = Math.ceil(Math.max(...prices));
-const START = f4.caps[0]?.value ?? MIN;
-const monthName = (x: number) => new Date(Date.UTC(2022, 11 + x, 1)).toISOString().slice(0, 7);
+const START = Math.round(f4.caps[0]?.value ?? MIN);
 
 /** Figure 4 in its final state with a what-if line that the reader moves. For each month it
  * shows Urals minus the line, and it names the months where Urals is above the line. */
@@ -43,8 +42,9 @@ export function CapWhatIf() {
         </output>
       </label>
       <PriceChart step={3} whatIf={{ value: line, label: value }} />
-      <div aria-live="polite" className="mt-4 text-report-small">
-        <p>
+      <div className="mt-4 text-report-small">
+        {/* Only the count is live: the list of months is too long to hear at each key press. */}
+        <p aria-live="polite">
           {result.above.length === 0
             ? words.none
             : words.above
@@ -65,11 +65,16 @@ export function CapWhatIf() {
       <details className="mt-4">
         <summary className="cursor-pointer text-report-small">{words.table}</summary>
         <table className="mt-2 font-mono text-report-label tabular-nums">
-          <caption className="sr-only">{words.table}</caption>
+          <caption className="sr-only">
+            {words.table}, {value}
+          </caption>
           <thead>
             <tr>
               <th scope="col" className="pr-6 text-left font-normal text-label">
                 {words.month}
+              </th>
+              <th scope="col" className="pr-6 text-right font-normal text-label">
+                {words.urals}
               </th>
               <th scope="col" className="text-right font-normal text-label">
                 {words.gap}
@@ -82,6 +87,7 @@ export function CapWhatIf() {
                 <th scope="row" className="pr-6 text-left font-normal">
                   {monthName(x)}
                 </th>
+                <td className="pr-6 text-right">{f4.urals[x]?.y.toFixed(2) ?? ''}</td>
                 <td className="text-right">{gap === null ? '' : gap.toFixed(2)}</td>
               </tr>
             ))}

@@ -1,10 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { buyerYears, crossing, lineGap, monthIndex, payData, valuesInYear } from './pay-data';
+import {
+  buyerYears,
+  crossing,
+  lineGap,
+  monthIndex,
+  monthName,
+  payData,
+  valuesInYear,
+} from './pay-data';
 
 describe('pay data', () => {
   it('puts the months of figure 4 on one axis from December 2022', () => {
     expect(monthIndex('2022-12')).toBe(0);
     expect(monthIndex('2026-09')).toBe(45);
+    expect(monthName(0)).toBe('2022-12');
+    expect(monthName(45)).toBe('2026-09');
     expect(monthIndex('2025-09-03')).toBeCloseTo(33 + 2 / 30);
   });
 

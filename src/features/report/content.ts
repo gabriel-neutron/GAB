@@ -2242,6 +2242,7 @@ export const payUi = {
       missing: 'Months with no Urals value: {n}. They stay blank.',
       table: 'Urals minus the what-if line, each month',
       month: 'Month',
+      urals: 'Urals ($ per barrel)',
       gap: 'Urals minus the line ($)',
     },
   },

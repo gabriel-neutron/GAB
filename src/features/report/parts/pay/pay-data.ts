@@ -14,6 +14,10 @@ export function monthIndex(date: string): number {
   return (year - FIRST_YEAR) * 12 + month - FIRST_MONTH + (day - 1) / days;
 }
 
+/** The month at a place of the month axis of figure 4, as "2025-09". */
+export const monthName = (x: number): string =>
+  new Date(Date.UTC(FIRST_YEAR, FIRST_MONTH - 1 + x, 1)).toISOString().slice(0, 7);
+
 // The last month of the data of figure 4.
 const LAST_INDEX = Math.max(
   ...[...figures.f4.brent, ...figures.f4.urals].map(([date]) =>
