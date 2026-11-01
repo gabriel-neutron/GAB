@@ -36,10 +36,13 @@ const change = new Map(figureData.change.map((row) => [row.name, row.value]));
 const throughput = new Map(figureData.throughput.ports.map((row) => [row.name, row.value]));
 const MAX_THROUGHPUT = Math.max(...throughput.values());
 // The circles in words. The names are the ports of figure 6, not one terminal of the port.
-const THROUGHPUT_TEXT = `${copy.throughput} ${String(figureData.throughput.year)}: ${Object.values(
+const THROUGHPUT_TEXT = `${copy.throughput} ${String(figureData.throughput.year)}, Mt: ${Object.values(
   CHANGE_NAMES,
 )
-  .map((name) => `${name} ${number.format(throughput.get(name) ?? 0)}`)
+  .flatMap((name) => {
+    const value = throughput.get(name);
+    return value === undefined ? [] : [`${name} ${number.format(value)}`];
+  })
   .join(', ')}`;
 // The short line under the position of a named terminal, for each kind of step.
 const notes: Readonly<Record<string, Readonly<Record<string, string>>>> = {
@@ -462,6 +465,7 @@ export function PortMap({ step, sources }: PortMapProps) {
                 {traffic === undefined ? null : (
                   // A still circle: its area is the traffic of the port, at the scale of the step.
                   <circle
+                    aria-hidden="true"
                     r={big * 1.6 * Math.sqrt(traffic / MAX_THROUGHPUT)}
                     strokeWidth={1}
                     fillOpacity={0.15}
