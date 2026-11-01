@@ -2208,6 +2208,10 @@ export const payUi = {
   crossingNote: 'Ring: where one line goes below another, between two year-end values.',
   // The mark where a line of the old buyers goes below a line of a new buyer.
   crossing: '{a} below {b}',
+  // The year scrubber of figure 3, the mark of an estimate in its readout, and its data table.
+  year: 'Year',
+  estimated: 'estimate',
+  table: 'Values of all years',
   // The heading of the column of notes beside the text.
   sidenotes: 'Notes',
   f4: {

@@ -109,3 +109,23 @@ export function crossing(
   }
   return undefined;
 }
+
+/** The value of each series in one year; a series with no value that year gives null. */
+export function valuesInYear(
+  rows: readonly { readonly key: string; readonly points: readonly Point[] }[],
+  year: number,
+): { key: string; point: Point }[] {
+  return rows.map((row) => ({
+    key: row.key,
+    point: row.points.find((point) => point?.x === year) ?? null,
+  }));
+}
+
+/** The years of figure 3 that hold a value, in order. */
+export const buyerYears: readonly number[] = [
+  ...new Set(
+    [...payData.f3a, ...payData.f3b].flatMap((row) =>
+      row.points.flatMap((point) => (point === null ? [] : [point.x])),
+    ),
+  ),
+].sort((a, b) => a - b);

@@ -82,11 +82,15 @@ export function LineChart({
   spec,
   layers,
   fill = false,
+  tableLabel,
 }: {
   readonly spec: ChartSpec;
   readonly layers?: (scales: Scales) => Layers;
   /** True: the chart takes the height of its parent, not a height from its width. */
   readonly fill?: boolean;
+  /** With a label, the data table shows under the chart in a disclosure of that name; with
+   * none, only a screen reader reads it. */
+  readonly tableLabel?: string;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -245,7 +249,21 @@ export function LineChart({
         </svg>
       )}
       {extra.html}
-      <DataTable spec={spec} />
+      {tableLabel === undefined ? (
+        <DataTable spec={spec} className="sr-only" />
+      ) : (
+        <details className="mt-3">
+          <summary className="inline-flex min-h-11 cursor-pointer items-center font-mono text-report-label text-label focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid">
+            {tableLabel}
+          </summary>
+          <div className="overflow-x-auto">
+            <DataTable
+              spec={spec}
+              className="w-full font-mono text-report-label tabular-nums [&_td]:py-1 [&_td]:text-right [&_th]:py-1 [&_th]:text-left [&_th]:font-normal [&_th]:text-label [&_thead_th]:text-right [&_tr]:border-b [&_tr]:border-divider"
+            />
+          </div>
+        </details>
+      )}
     </div>
   );
 }
@@ -265,13 +283,13 @@ function linePath(points: readonly Point[], scales: Scales): string {
   return path;
 }
 
-/** The values of the chart as a table, for a screen reader. */
-function DataTable({ spec }: { readonly spec: ChartSpec }) {
+/** The values of the chart as a table. */
+function DataTable({ spec, className }: { readonly spec: ChartSpec; readonly className: string }) {
   const xs = [
     ...new Set(spec.series.flatMap((one) => one.points.flatMap((p) => (p ? [p.x] : [])))),
   ].sort((a, b) => a - b);
   return (
-    <table className="sr-only">
+    <table className={className}>
       <caption>
         {spec.label} ({spec.unit})
       </caption>
