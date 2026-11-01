@@ -50,7 +50,7 @@ function RelayRow({
   );
 }
 
-/** Part 6, finance: an ASCII chapter break on a rouble coin of 1771, figure 9 as a scroll
+/** Part 6, finance: an ASCII chapter break on a rouble coin of 1771, figure 10 as a scroll
  * scene, and the payment relays as a ledger. */
 export function FinancePart({ part }: { readonly part: ReportPart }) {
   const { financeUi, parts } = useContent();
@@ -82,6 +82,14 @@ export function FinancePart({ part }: { readonly part: ReportPart }) {
     closeRelays(key);
     if (block.kind === 'figure') {
       body.push(<SettlementFigure key={key} block={block} partSlug={part.slug} />);
+      return;
+    }
+    if (block.kind === 'h3') {
+      body.push(
+        <h3 key={key} className={`mt-16 mb-2 text-balance lg:ml-[calc(100%/6)] ${PROSE} text-report-lead`}>
+          {block.text}
+        </h3>,
+      );
       return;
     }
     body.push(

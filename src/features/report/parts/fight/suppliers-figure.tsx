@@ -71,7 +71,7 @@ function Grow({ share, className }: { readonly share: number; readonly className
 
 const tick = 'font-mono text-report-label/4 text-label tabular-nums';
 
-/** Figure 10: (a) the declared exports of CHP goods to Russia by reporting country, stacked, with
+/** Figure 11: (a) the declared exports of CHP goods to Russia by reporting country, stacked, with
  * the share of China and Hong Kong over each year; (b) the nine third countries, on one shared
  * scale, with the value over each bar. A missing value shows as a dotted baseline. */
 export function SuppliersFigure() {

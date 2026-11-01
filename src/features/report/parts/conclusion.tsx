@@ -6,11 +6,11 @@ import { RichText } from '../rich-text';
 import { useContent } from '../use-content';
 
 const PROSE = 'max-w-[64ch] text-report-body/[1.65] ';
-// The third paragraph is the answer: the question, two sentences on the money, one on the goods.
+// The third paragraph: a statement, two sentences on the steps of the EU, one on their delay.
 const SENTENCE = /(?<=[.?])\s+/;
 
-/** The conclusion: the effect and the two ways around it in prose, the answer to the starting
- * question split into its two routes, and the advice. */
+/** The conclusion: the effect and the two ways around it in prose, the steps of the EU sanctions
+ * as a statement over two columns, and the advice. */
 export function ConclusionPart({ part }: { readonly part: ReportPart }) {
   const { parts } = useContent();
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');

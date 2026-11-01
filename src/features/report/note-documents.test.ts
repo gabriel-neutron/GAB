@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { parts } from './content';
 import committed from './data/note-documents.json';
 import { noteDocumentFaults, type NoteDocumentsFile } from './note-documents';
 
-// shortcut: the final English text holds the notes 1 to 127 and is not in the repository; read the
-// ids from the content once it holds the final notes.
-const NOTE_IDS = new Set(Array.from({ length: 127 }, (_, index) => String(index + 1)));
+// The notes of the final text, as the content holds them.
+const NOTE_IDS = new Set(parts.flatMap((part) => part.notes.map((note) => note.id)));
 
 const document = {
   id: 'doc_0123456789ab',

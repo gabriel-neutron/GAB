@@ -125,7 +125,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 const EDGE_INSET = 8;
 
 /** The map of the chain story: the land as a grid of dots with Russia in stronger ink, the places
- * of the step in view with their labels on leader lines, the routes of figure 11 and the sites of
+ * of the step in view with their labels on leader lines, the routes figure and the sites of
  * the Fight layer, each with its number on a short leader. The map fills its
  * frame; it loads the land only near the view. */
 export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapProps) {

@@ -80,13 +80,13 @@ export function tokens(text: string): readonly string[] {
 }
 
 /** The words of a text with no mark: no note marker, no node id, no bold or italic star, and no
- * list dash of the source. */
+ * list dash of the source (with or without its en dash). */
 export const words = (text: string): string =>
   text
     .replace(/\[\^[^\]]+\]/g, '')
     .replace(/\[\[[^|\]]+\|([^\]]+)\]\]/g, '$1')
     .replace(/\*/g, '')
-    .replace(/(^|\s)- –/g, '$1')
+    .replace(/(^|\s)- –?/g, '$1')
     .replace(/\s+/g, ' ')
     .trim();
 

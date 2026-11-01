@@ -1,7 +1,7 @@
 import { useSyncExternalStore, type ReactNode } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
-import { fightUi, type ReportBlock } from '../../content';
+import { fightUi } from '../../content';
 import { NodeRef } from '../../node-ref';
 import { StickyScene } from '../../primitives/sticky-scene';
 import { RichText } from '../../rich-text';
@@ -126,14 +126,12 @@ const Head = ({ title }: { readonly title: string }) => (
 );
 
 /** The text of the steps, one for each step, each with its own source. */
-function cards(figure: ReportBlock['figure'], text: string, partSlug: string): ReactNode[] {
-  // The note marks of the figure block, so that a renumbered note follows the text.
-  const marks = (text.match(/\[\^[^\]]+\]/g) ?? []).join('');
+function cards(sources: string, partSlug: string): ReactNode[] {
   const routeSource = (
     <div className="mt-6 border-t border-divider pt-2">
       <p className="font-mono text-report-label uppercase text-label">{copy.source}</p>
       <p className="mt-1 text-report-small text-muted-foreground">
-        <RichText text={`${figure?.sources ?? ''}${marks}`} partSlug={partSlug} />
+        <RichText text={sources} partSlug={partSlug} />
       </p>
     </div>
   );
@@ -224,18 +222,16 @@ function cards(figure: ReportBlock['figure'], text: string, partSlug: string): R
  * fixed map would cover the cards, each step shows as a static row: its text on the left, its own
  * map and strips on the right (on a phone and a tablet, above the text). */
 export function ChainStory({
-  figure,
-  text,
+  sources,
   partSlug,
 }: {
-  readonly figure: ReportBlock['figure'];
-  /** The text of the figure block, which holds its note marks. */
-  readonly text: string;
+  /** The sources of the routes: report text with the note marks of `partSlug`. */
+  readonly sources: string;
   readonly partSlug: string;
 }) {
   const reduce = useReducedMotion();
   const wide = useSyncExternalStore(onWidth, isWide, atRelease);
-  const steps = cards(figure, text, partSlug);
+  const steps = cards(sources, partSlug);
   return (
     <section
       aria-labelledby="fight-chain-title"

@@ -25,7 +25,7 @@ interface Finding {
   readonly chart: boolean;
 }
 
-/** A small column chart of the rouble share of export settlements, from the data of figure 9.
+/** A small column chart of the rouble share of export settlements, from the data of figure 10.
  * The two years of the text carry the accent and their value. */
 function RoubleChart() {
   const { chart } = useContent().openingUi.summary;
@@ -47,7 +47,7 @@ function RoubleChart() {
               <span className="sr-only">
                 {year}: {Math.round(value)}%
               </span>
-              {/* Every bar prints its value, as figure 9 does; the two years of the text in the accent. */}
+              {/* Every bar prints its value, as figure 10 does; the two years of the text in the accent. */}
               <div
                 aria-hidden="true"
                 className="flex flex-1 flex-col items-center justify-end border-b border-foreground/40"

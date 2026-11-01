@@ -28,7 +28,7 @@ allowed: a paragraph cut, a list item for each item of the text, a short heading
 marks. The notes keep the numbers of the final text. The parity test compares, for each part, the
 numbers, the months and the note markers of the body and of each figure caption with the source,
 and each note with the words of the source. A text change that adds, removes or moves one of
-them fails the test.
+them fails the test. A figure of the page that the final text does not have shows no number.
 
 ## The part contract
 
