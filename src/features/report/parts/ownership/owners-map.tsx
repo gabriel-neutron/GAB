@@ -38,6 +38,7 @@ const rows = owners.flatMap((owner, index) => {
   if (site === undefined || holder === undefined) return [];
   let [x, y] = px(Number(site.lon), Number(site.lat));
   // A point too near an earlier one moves away from it (Novorossiysk and Tuapse): the table keeps the place.
+  // shortcut: one push for each earlier point, enough for a few far sites; use a force layout when the sites crowd.
   for (const [ox, oy] of placed) {
     const d = Math.hypot(x - ox, y - oy);
     if (d < GAP) {
@@ -49,6 +50,9 @@ const rows = owners.flatMap((owner, index) => {
   return [{ ...owner, number: index + 1, site, holder, x, y }];
 });
 const controllers = [...new Set(rows.map((row) => row.controller))];
+// The oldest check of the rows: the caption claims no later date for any row.
+const CHECKED = rows.map((row) => row.checked).sort()[0] ?? '';
+const COLUMNS = ['site', 'holder', 'relation', 'controller', 'documents'] as const;
 
 /** The owners map: each site of the join at its position, numbered, in the colour of the
  * controller class of its holder. A point or a name opens the panel of its node. */
@@ -56,10 +60,10 @@ export function OwnersMap() {
   const { openNode } = useReport();
   const { ownershipUi } = useContent();
   const copy = ownershipUi.owners;
-  const label = (word: string): string =>
-    (copy.labels as Readonly<Record<string, string>>)[word] ?? word;
-  const relation = (code: string): string =>
-    (copy.relations as Readonly<Record<string, string>>)[code] ?? code;
+  // The join test makes sure that the copy has each word; a missing one shows its key.
+  const words = (map: Readonly<Record<string, string>>) => (key: string) => map[key] ?? key;
+  const label = words(copy.labels);
+  const relation = words(copy.relations);
   const nodeButton = (id: string, name: string) => (
     <button
       type="button"
@@ -132,7 +136,7 @@ export function OwnersMap() {
         </ol>
       </div>
       <p className="mt-2 font-mono text-report-label text-label">
-        {land.source} · {copy.checked.replace('{date}', rows[0]?.checked ?? '')}
+        {land.source} · {copy.checked.replace('{date}', CHECKED)}
       </p>
       <details className="group mt-6 border-y border-foreground" open>
         <summary
@@ -157,9 +161,9 @@ export function OwnersMap() {
                 <th scope="col" className="py-2 pr-4 font-normal">
                   #
                 </th>
-                {Object.values(copy.columns).map((column) => (
+                {COLUMNS.map((column) => (
                   <th key={column} scope="col" className="py-2 pr-4 font-normal">
-                    {column}
+                    {copy.columns[column]}
                   </th>
                 ))}
               </tr>

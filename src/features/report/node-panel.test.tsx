@@ -14,7 +14,7 @@ vi.mock('@tanstack/react-router', () => ({
   ),
 }));
 
-// The record sits in the dialog of the panel inside the report frame, which give it their context.
+// The record sits in the dialog of the panel inside the report frame, which give the record its context.
 const graphLink = (id: string) =>
   renderToStaticMarkup(
     <ReportContext value={{ openNode: () => undefined }}>

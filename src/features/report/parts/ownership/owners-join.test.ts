@@ -32,6 +32,17 @@ describe('the owners join', () => {
     expect(faultsOf(good.replace('N-P020', 'N-X998'))).toEqual(['row 1: unknown node id "N-X998"']);
   });
 
+  it('fails on a second row, a bad relation, a missing document or a missing date', () => {
+    const good = 'N-P020,N-P034,owns,,Russian federal state,Transneft,doc_7dc0578dfb33,2026-11-01';
+    expect(faultsOf(`${good}\n${good}`)).toEqual(['row 2: second row for N-P020']);
+    expect(faultsOf(good.replace(',owns,', ',holds,'))).toEqual([
+      'row 1: unknown relation "holds"',
+    ]);
+    expect(faultsOf(good.replace('doc_7dc0578dfb33', ''))).toEqual(['row 1: no document']);
+    expect(faultsOf(good.replace('doc_7dc0578dfb33', 'doc_x'))).toEqual(['row 1: bad document id']);
+    expect(faultsOf(good.replace('2026-11-01', ''))).toEqual(['row 1: no check date']);
+  });
+
   it('fails on a site with no position, or a controller that the owners figure does not have', () => {
     // Transneft is a node with no position.
     expect(
@@ -39,6 +50,6 @@ describe('the owners join', () => {
     ).toEqual(['row 1: no position']);
     expect(
       faultsOf('N-P020,N-P034,owns,,Private shareholders,Transneft,doc_7dc0578dfb33,2026-11-01'),
-    ).toHaveLength(1);
+    ).toEqual([`row 1: "Private shareholders" / "Transneft" is not in the owners figure`]);
   });
 });

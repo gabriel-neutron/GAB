@@ -1,5 +1,5 @@
 node_id,holder_id,relation,share_pct,controller,holding,documents,checked
-N-P001,N-P034,owns_operator,50.1,Russian federal state,Transneft,doc_6fa56240716c doc_b3ada943e49d doc_2a03e6049413,2026-11-01
+N-P001,N-P034,owns_operator,,Russian federal state,Transneft,doc_6fa56240716c doc_b3ada943e49d doc_2a03e6049413,2026-11-01
 N-P005,N-P034,owns_operator,50.1,Russian federal state,Transneft,doc_b7330b299b42 doc_2a03e6049413 doc_c34d0decf2c7,2026-11-01
 N-P020,N-P034,owns,,Russian federal state,Transneft,doc_7dc0578dfb33,2026-11-01
 N-P011,N-P026,operates,,Russian federal state,Rosneft,doc_3fb0a6a4e79d,2026-11-01
