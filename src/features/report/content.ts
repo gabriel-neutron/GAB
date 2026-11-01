@@ -2269,6 +2269,46 @@ export const fightUi = {
     russia: 'Russia',
     // The unit of the chain counts, as the note of the routes figure gives it: a count can have decimals.
     chainUnit: 'one chain = 1, shared between its routes',
+    routeTable: 'All the routes of the map, as a table',
+    routeColumns: ['Country of manufacture', 'Country of the intermediary', 'State', 'Chains'],
+  },
+  // The defence plants of the data file on the chain map, with a table of all of them.
+  plants: {
+    title: 'Russian defence plants and integrators by main weapon',
+    unit: 'one point = one plant or integrator',
+    sources: 'GAB record: positions and matches by name on the EU, UK and US sanctions lists',
+    mapLabel:
+      'Map of the Russian defence plants and integrators by main weapon; six main plants named; hollow points are approximate',
+    legend: [
+      ['drone', 'Drones'],
+      ['cruise missile', 'Missiles'],
+      ['guided bomb', 'Guided bombs'],
+      ['armour', 'Armour'],
+      ['aircraft', 'Aircraft'],
+      ['other', 'Other'],
+    ],
+    approximate: 'Hollow: approximate point',
+    table: 'All the plants and integrators, as a table',
+    columns: ['Plant or integrator', 'City', 'Weapon', 'Point', 'EU', 'UK', 'US'],
+    // The words of the data file, for the cells of the table. A word that is not here shows as the file writes it.
+    words: {
+      stored: 'stored position',
+      lead: 'approximate',
+      none: 'not on the map',
+      yes: 'yes',
+      no: 'no',
+      'not checked': 'not checked',
+      'no match by name': 'no match by name',
+      drone: 'drone',
+      'cruise missile': 'cruise missile',
+      'ballistic missile': 'ballistic missile',
+      'guided bomb': 'guided bomb',
+      armour: 'armour',
+      aircraft: 'aircraft',
+      'air defence': 'air defence',
+      'communications/EW': 'communications, EW',
+      other: 'other',
+    },
   },
   noPeriod: 'Not given in the source of the figure',
   // The routes of the components: a figure of the page with no number, because the final text

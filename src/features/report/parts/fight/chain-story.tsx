@@ -5,6 +5,8 @@ import { fightUi } from '../../content';
 import { NodeRef } from '../../node-ref';
 import { StickyScene } from '../../primitives/sticky-scene';
 import { RichText } from '../../rich-text';
+import { useContent } from '../../use-content';
+import { ValuesTable } from '../ports-fleet/values-table';
 import {
   arcChains,
   arcs,
@@ -125,6 +127,18 @@ const Head = ({ title }: { readonly title: string }) => (
   <h4 className="text-report-lead/[1.05] tracking-[-0.03em] text-balance">{title}</h4>
 );
 
+/** The routes that the map draws, for a reader who cannot see the arcs. */
+function RouteTable() {
+  const { chain } = useContent().fightUi;
+  return (
+    <ValuesTable
+      summary={chain.routeTable}
+      head={chain.routeColumns}
+      rows={arcs.map((arc) => [arc.from.name, arc.to.name, arc.state, chainCount(arc.weight)])}
+    />
+  );
+}
+
 /** The text of the steps, one for each step, each with its own source. */
 function cards(sources: string, partSlug: string): ReactNode[] {
   const routeSource = (
@@ -183,6 +197,7 @@ function cards(sources: string, partSlug: string): ReactNode[] {
           chainCount(arcChains.all),
         )}
       </p>
+      <RouteTable />
       <div className="mt-6">
         <ChainTotals title={copy.byIntermediary} totals={totalsAt(0)} />
       </div>

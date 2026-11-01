@@ -5,6 +5,7 @@ import { cn } from '@/shared/lib/utils';
 import { useReport } from '../../use-report';
 import type { Arc, Place, Tone } from './chain-data';
 import { fitCrop, placeLabels, ringHolds } from './layouts';
+import { GLYPH, type PlantMark } from './plants-data';
 
 interface Site {
   readonly id: string;
@@ -23,19 +24,21 @@ interface Crop {
 // Equirectangular, one unit for one degree: the boxes the map must hold. The map widens each box
 // to fill its frame, up to a cap of latitudes. The world box is the band of the routes, from the
 // Atlantic to the Pacific: the United States is past its west edge and shows as an edge marker.
-// The Russia box holds the sites, with room around them for their numbers.
+// The Russia box holds the sites, with room around them for their numbers. The plants box holds
+// the defence plants, from the Baltic to the Pacific.
 export const CROPS = {
   world: { west: -20, east: 135, south: 2, north: 70 },
   russia: { west: 26, east: 70, south: 50, north: 62 },
+  plants: { west: 28, east: 140, south: 47, north: 67 },
 } as const satisfies Record<string, Crop>;
-const MAX_LAT = { world: 80, russia: 60 } as const;
+const MAX_LAT = { world: 80, russia: 60, plants: 44 } as const;
 // On a phone the world box narrows to the corridor from Europe to the Pacific, with more latitudes,
 // so that the map is taller and its labels have room.
 const CORRIDOR: Crop = { west: -8, east: 124, south: 2, north: 66 };
 const CORRIDOR_MAX_LAT = 100;
 
 interface ChainMapProps {
-  readonly crop: 'world' | 'russia';
+  readonly crop: keyof typeof CROPS;
   /** The labelled places of the step. */
   readonly places: readonly Place[];
   /** All the routes; `lit` draws them all, else only the routes with a labelled place at each end. */
@@ -43,6 +46,10 @@ interface ChainMapProps {
   readonly lit: boolean;
   /** The sites to draw; an empty list hides them. */
   readonly sites: readonly Site[];
+  /** The defence plants to draw, by main weapon. They enter once, from west to east. */
+  readonly plants?: readonly PlantMark[] | undefined;
+  /** The name of the map for a screen reader. */
+  readonly label?: string | undefined;
 }
 
 interface Land {
@@ -121,16 +128,26 @@ const URALS = [
 const URALS_TOP = URALS[URALS.length - 1] ?? [0, 0];
 
 const pad = (n: number) => String(n).padStart(2, '0');
+const spanOf = (crop: Crop) => crop.east - crop.west;
 // The gap in pixels between an edge marker and the edge of the map.
 const EDGE_INSET = 8;
 
 /** The map of the chain story: the land as a grid of dots with Russia in stronger ink, the places
- * of the step in view with their labels on leader lines, the routes figure and the sites of
- * the Fight layer, each with its number on a short leader. The map fills its
+ * of the step in view with their labels on leader lines, the routes figure, the sites of
+ * the Fight layer, each with its number on a short leader, and the defence plants by main weapon. The map fills its
  * frame; it loads the land only near the view. */
-export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapProps) {
+export function ChainMap({
+  crop: cropName,
+  places,
+  arcs,
+  lit,
+  sites,
+  plants = [],
+  label = fightUi.chain.mapLabel,
+}: ChainMapProps) {
   const frame = useRef<HTMLDivElement>(null);
   const near = useInView(frame, { once: true, margin: '600px 0px' });
+  const seen = useInView(frame, { once: true, amount: 0.4 });
   const [land, setLand] = useState<Land | undefined>(undefined);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const dots = useId();
@@ -162,7 +179,8 @@ export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapP
     };
   }, []);
 
-  const russia = cropName === 'russia';
+  // Every map but the world map is a map of Russia: it draws its border and the Urals.
+  const russia = cropName !== 'world';
   const corridor = !russia && size.w < 480;
   const crop = fitCrop(
     corridor ? CORRIDOR : CROPS[cropName],
@@ -298,7 +316,7 @@ export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapP
       <div className="absolute inset-x-0 top-1/2 -translate-y-1/2" style={{ height }}>
         <svg
           role="img"
-          aria-label={fightUi.chain.mapLabel}
+          aria-label={label}
           viewBox={`${String(crop.west)} ${String(-crop.north)} ${String(spanX)} ${String(spanY)}`}
           preserveAspectRatio="none"
           className="absolute inset-0 size-full"
@@ -413,6 +431,36 @@ export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapP
               strokeWidth={1}
               className="stroke-signal/60"
             />
+          ))}
+          {plants.map((plant) => (
+            <g
+              key={plant.name}
+              data-plant={plant.name}
+              transform={`translate(${String(x(plant.lon))},${String(y(plant.lat))})`}
+            >
+              <motion.g
+                initial={reduce === true ? false : { opacity: 0, scale: 0 }}
+                animate={
+                  seen || reduce === true ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }
+                }
+                transition={{
+                  duration: 0.35,
+                  ease: [0.16, 1, 0.3, 1],
+                  delay: ((plant.lon - CROPS.plants.west) / spanOf(CROPS.plants)) * 0.8,
+                }}
+                className={
+                  plant.approximate
+                    ? 'fill-background stroke-foreground'
+                    : 'fill-foreground stroke-background'
+                }
+              >
+                {GLYPH[plant.glyph] === undefined ? (
+                  <circle r={3} />
+                ) : (
+                  <path d={GLYPH[plant.glyph]} />
+                )}
+              </motion.g>
+            </g>
           ))}
         </svg>
         {russia ? (
