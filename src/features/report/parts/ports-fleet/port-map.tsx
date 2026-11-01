@@ -35,7 +35,7 @@ const CHANGE_NAMES: Readonly<Record<string, string>> = {
 const change = new Map(figureData.change.map((row) => [row.name, row.value]));
 const throughput = new Map(figureData.throughput.ports.map((row) => [row.name, row.value]));
 const MAX_THROUGHPUT = Math.max(...throughput.values());
-// The circles of the change step give the traffic of each port, in words too.
+// The circles in words. The names are the ports of figure 6, not one terminal of the port.
 const THROUGHPUT_TEXT = `${copy.throughput} ${String(figureData.throughput.year)}: ${Object.values(
   CHANGE_NAMES,
 )

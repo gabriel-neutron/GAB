@@ -2349,7 +2349,7 @@ export const portsFleetUi = {
       'N-P001': 'The largest of these ports',
     },
     change: 'Traffic, January-April 2026 / January-April 2025, change in %',
-    throughput: 'Circle area: traffic of the port, all cargo, million tonnes,',
+    throughput: 'Circle area: all-cargo traffic, Mt,',
     flows: 'Seaborne crude by loading basin and fleet, January 2026, kb/d',
     open: 'Open the record of',
     data: 'Data:',
