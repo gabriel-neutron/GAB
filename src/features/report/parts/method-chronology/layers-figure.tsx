@@ -2,7 +2,7 @@ import { Fragment } from 'react';
 import { cn } from '@/shared/lib/utils';
 import { figureTexts, methodUi } from '../../content';
 import { accent } from '../../primitives/accent';
-import { NumberRoll } from '../../primitives/number-roll';
+import { CountUp } from '../../primitives/count-up';
 import { reportGraph, type GraphNode } from '../../report-graph';
 import { useReport } from '../../use-report';
 
@@ -142,7 +142,7 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
             accent.text,
           )}
         >
-          <NumberRoll value={count} />
+          <CountUp value={Number(count)} format={(n) => String(Math.round(n))} />
         </p>
       </div>
       <h4 className="mt-2 text-report-heading leading-[0.95] tracking-[-0.045em]">{layer.k}</h4>
