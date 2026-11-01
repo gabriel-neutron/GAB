@@ -11,7 +11,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import type { Browser } from 'playwright';
+import type { Browser, Page } from 'playwright';
 
 export const FOLDER = resolve(import.meta.dirname, '../public/report');
 export const STAMP = join(FOLDER, 'stamp.json');
@@ -222,10 +222,17 @@ async function figures(browser: Browser, url: string): Promise<Record<string, st
   await context.addInitScript(() => {
     localStorage.setItem('gab.shell.v1', JSON.stringify({ theme: 'light' }));
   });
-  const page = await context.newPage();
+  try {
+    return await pictures(await context.newPage(), url);
+  } finally {
+    await context.close();
+  }
+}
+
+async function pictures(page: Page, url: string): Promise<Record<string, string>> {
   await page.goto(url, { waitUntil: 'networkidle' });
-  // The parts of the page load when they come near the view.
-  for (let step = 0; step < 80; step += 1) {
+  // The parts of the page load when they come near the view: scroll to the end of the page.
+  while (await page.evaluate(() => scrollY + innerHeight < document.body.scrollHeight - 1)) {
     await page.mouse.wheel(0, 1500);
     await page.waitForTimeout(100);
   }
@@ -243,6 +250,8 @@ async function figures(browser: Browser, url: string): Promise<Record<string, st
     });
   });
   const images: Record<string, string> = {};
+  // The number and the chart of a figure are elements of FigureFrame (figure-frame.tsx). A
+  // change there shows as a missing figure, which stops the tool.
   for (const figure of await page.$$('figure:has(> h3 > span.font-mono)')) {
     const label = await figure.$eval('h3 > span.font-mono', (node) => node.textContent);
     const chart = await figure.$(':scope > div.mt-4');
@@ -252,7 +261,6 @@ async function figures(browser: Browser, url: string): Promise<Record<string, st
     const picture = await chart.screenshot({ type: 'png' });
     images[label.replace(/\D/g, '')] = `data:image/png;base64,${picture.toString('base64')}`;
   }
-  await context.close();
   return images;
 }
 
@@ -264,26 +272,32 @@ async function main(): Promise<void> {
   await server.listen();
   const origin = server.resolvedUrls?.local[0] ?? '';
   const browser = await chromium.launch();
-  const page = await browser.newPage();
   const stamp: Record<string, string> = {};
-  for (const lang of LANGS) {
-    const images = await figures(browser, `${origin}${lang === 'en' ? '' : lang}`);
-    if (Object.keys(images).length === 0) throw new Error(`The ${lang} page shows no figure.`);
-    // The pictures stay out of the stamp: a test cannot take them again with no server.
-    const html = htmlOf(lang, all[lang], images);
-    await page.setContent(html, { waitUntil: 'load' });
-    await page.evaluate(() => document.fonts.ready);
-    await page.pdf({
-      path: pdfOf(lang),
-      preferCSSPageSize: true,
-      printBackground: true,
-      tagged: true,
-      outline: true,
-    });
-    stamp[lang] = hashOf(htmlOf(lang, all[lang]));
+  try {
+    const page = await browser.newPage();
+    for (const lang of LANGS) {
+      const images = await figures(browser, `${origin}${lang === 'en' ? '' : lang}`);
+      // Each figure of the text needs its picture.
+      const wanted = [...all[lang].text.matchAll(/^FIGURE: \D*(\d+)/gm)].map((match) => match[1]);
+      const missing = wanted.filter((number) => number === undefined || !(number in images));
+      if (missing.length > 0)
+        throw new Error(`The ${lang} page shows no figure ${missing.join(', ')}.`);
+      // The pictures stay out of the stamp: a test cannot take them again with no server.
+      await page.setContent(htmlOf(lang, all[lang], images), { waitUntil: 'load' });
+      await page.evaluate(() => document.fonts.ready);
+      await page.pdf({
+        path: pdfOf(lang),
+        preferCSSPageSize: true,
+        printBackground: true,
+        tagged: true,
+        outline: true,
+      });
+      stamp[lang] = hashOf(htmlOf(lang, all[lang]));
+    }
+  } finally {
+    await browser.close();
+    await server.close();
   }
-  await browser.close();
-  await server.close();
   writeFileSync(STAMP, `${JSON.stringify(stamp, null, 2)}\n`);
 }
 
