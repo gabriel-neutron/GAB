@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { closingUi, parts } from '../content';
-import { sources } from '../source';
+import { parts } from '../content';
 
 describe('closing copy', () => {
-  it('dates the counts as the final text does', () => {
-    const date = /\d+ [A-Z][a-z]+ \d{4}/.exec(closingUi.annex.dataDate)?.[0] ?? '';
-    expect(date).not.toBe('');
-    expect(sources.en.text).toContain(`On ${date}, the database holds`);
-  });
-
   it('splits the third paragraph of the conclusion into a statement and three sentences', () => {
     const answer = parts.find((part) => part.slug === 'conclusion')?.blocks[2]?.text ?? '';
     const [, ...steps] = answer.split(/(?<=[.?])\s+/);

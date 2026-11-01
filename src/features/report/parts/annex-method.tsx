@@ -3,18 +3,26 @@ import { Link } from '@tanstack/react-router';
 import { cn } from '@/shared/lib/utils';
 import type { ReportBlock, ReportPart } from '../content';
 import { NodeIndex } from '../node-index';
+import { CountUp } from '../primitives/count-up';
+import { recordCounts } from '../record-counts';
 import { RichText } from '../rich-text';
 import { reportGraph } from '../report-graph';
 import nodes from '../nodes-data';
+<<<<<<< HEAD
 import { useContent, type ReportPath } from '../use-content';
+=======
+import { sources } from '../source';
+import { useContent } from '../use-content';
+>>>>>>> origin/staging
 import { ClosingBreak } from './closing-art';
 
 const KEY = /^\*\*(.+?)\s?:?\*\*:?\s*/; // A French key has a space before its colon.
 const CODE = /^(A\.\d+)\s+(.*)$/;
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
-const count = new Intl.NumberFormat('en-GB');
 const REGISTER_ROWS = 14;
+// The spec takes the record counts from the final English text in every locale.
+const record = recordCounts(sources.en);
 // The anchor of a section of the annex, from its code: A.1 is "annex-a-1".
 const anchor = (code: string) => `annex-${code.toLowerCase().replace('.', '-')}`;
 
@@ -72,12 +80,33 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
   // The final text gives the date of the counts in A.1, with no note: the date line links there.
   const dated = CODE.exec(sections[0]?.heading ?? '')?.[1];
   const { counts } = reportGraph;
-  const scale = [
-    [ui.counters.nodes, counts.nodes],
-    [ui.counters.relations, counts.relations],
-    [ui.counters.documents, counts.documents],
-    [ui.counters.sources, counts.sources],
+  const groups = [
+    {
+      label: copy.record,
+      counts: [
+        [copy.entities, record.entities],
+        [copy.critical, record.critical],
+        [copy.official, record.official],
+      ],
+    },
+    {
+      label: copy.report,
+      counts: [
+        [ui.counters.nodes, counts.nodes],
+        [ui.counters.relations, counts.relations],
+        [ui.counters.documents, counts.documents],
+        [ui.counters.sources, counts.sources],
+      ],
+    },
   ] as const;
+  const count = new Intl.NumberFormat(copy.locale);
+  const format = (value: number) => count.format(Math.round(value));
+  const date = new Intl.DateTimeFormat(copy.locale, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(record.date);
   return (
     <section id={part.slug} aria-label={part.title} className="scroll-mt-12">
       <ClosingBreak
@@ -151,28 +180,41 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
       </div>
       <NodeIndex />
       <footer className="border-t border-foreground pt-6 pb-24">
-        <section aria-label={ui.counters.label}>
-          <dl className="flex flex-wrap gap-x-8 gap-y-2">
-            {scale.map(([term, value]) => (
-              <div key={term} className="flex flex-row-reverse items-baseline gap-2 font-mono">
-                <dt className="text-report-label uppercase text-label">{term}</dt>
-                <dd className="text-report-label text-foreground tabular-nums">
-                  {count.format(value)}
-                </dd>
-              </div>
-            ))}
-          </dl>
-          <p className="mt-3 max-w-[64ch] font-mono text-report-label text-label">
-            {copy.dataDate}
-            {dated === undefined ? null : (
-              <>
-                {' · '}
-                <a href={`#${anchor(dated)}`} className={cn('underline', FOCUS)}>
-                  {dated}
-                </a>
-              </>
-            )}
-          </p>
+        <section aria-label={ui.counters.label} className="grid gap-8 md:grid-cols-2">
+          {groups.map((group, index) => (
+            <div
+              key={group.label}
+              className={cn(index > 0 && 'md:border-l md:border-border md:pl-8')}
+            >
+              <h3 className="font-mono text-report-label uppercase text-label">{group.label}</h3>
+              <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-4">
+                {group.counts.map(([term, value]) => (
+                  <div
+                    key={term}
+                    className="flex flex-col-reverse gap-1 border-t border-divider pt-2"
+                  >
+                    <dt className="font-mono text-report-label text-label">{term}</dt>
+                    <dd className="font-mono text-report-lead text-foreground tabular-nums">
+                      <CountUp value={value} format={format} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              {index > 0 ? null : (
+                <p className="mt-3 max-w-[64ch] font-mono text-report-label text-label">
+                  {copy.recordSource.replace('{date}', date)}
+                  {dated === undefined ? null : (
+                    <span className="whitespace-nowrap">
+                      {' · '}
+                      <a href={`#${anchor(dated)}`} className={cn('underline', FOCUS)}>
+                        {dated}
+                      </a>
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
+          ))}
         </section>
         <Link
           to={`/${ui.paths.notes}` as ReportPath}

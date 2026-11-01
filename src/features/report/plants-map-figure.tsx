@@ -1,10 +1,8 @@
-import plantsRaw from './data/atlas-plants.csv?raw';
 import land from './basemap-data';
-import { readCsv } from './line-panel';
+import { GLYPH, LABELS, plantMarks, plants } from './parts/fight/plants-data';
 
 // The Russian defence plants and integrators that receive foreign components, by main weapon. A plant with
 // an approximate point draws hollow; a plant with no point is left out.
-const plants = readCsv(plantsRaw);
 // Map of Russia: equirectangular, longitude 27-142 E, latitude 42-70 N.
 // Height for a true shape at about 56 N: 640 px for 115 degrees of longitude at cos(56) gives 9.95 px a degree.
 const MAP = { lon0: 27, lon1: 142, lat0: 42, lat1: 70, x: 0, y: 24, w: 640, h: 279 };
@@ -25,25 +23,6 @@ const landPath = land.polygons
         .join('') + 'Z',
   )
   .join('');
-const GLYPH: Record<string, string> = {
-  drone: 'M0,-5L5,4H-5Z',
-  'cruise missile': 'M0,-5L5,0L0,5L-5,0Z',
-  'ballistic missile': 'M0,-5L5,0L0,5L-5,0Z',
-  'guided bomb': 'M-4,-4H4V4H-4Z',
-  armour: 'M-5,-3H5V3H-5Z',
-  aircraft: 'M-5,3L0,-4L5,3L0,0Z',
-};
-const LABELS = ['Alabuga SEZ', 'IEMZ Kupol', 'KTRV', 'STC', 'Kalashnikov', 'Uralvagonzavod'];
-// The most specific weapon of a plant gives its glyph: a drone plant with other lines shows as a drone.
-const PRIORITY = [
-  'drone',
-  'cruise missile',
-  'ballistic missile',
-  'guided bomb',
-  'aircraft',
-  'armour',
-];
-
 export function PlantsMapFigure() {
   const at = (name: string) => {
     const p = plants.find((x) => (x['entity'] ?? '').startsWith(name) && x['lat']);
@@ -70,22 +49,18 @@ export function PlantsMapFigure() {
           <rect x={MAP.x} y={MAP.y} width={MAP.w} height={MAP.h} />
         </clipPath>
         <path d={landPath} className="atlas-land" clipPath="url(#plants-map)" />
-        {plants
-          .filter((p) => p['lat'])
-          .map((p, i) => {
-            const [x, y] = px(Number(p['lon']), Number(p['lat']));
-            const types = (p['weapon_type'] ?? '').split(/[;,]/).map((t) => t.trim());
-            const type = PRIORITY.find((t) => types.includes(t)) ?? 'other';
-            return (
-              <g
-                key={i}
-                transform={`translate(${x},${y})`}
-                className={p['position_basis'] === 'lead' ? 'atlas-plant lead' : 'atlas-plant'}
-              >
-                {GLYPH[type] ? <path d={GLYPH[type]} /> : <circle r="3" />}
-              </g>
-            );
-          })}
+        {plantMarks.map((p, i) => {
+          const [x, y] = px(p.lon, p.lat);
+          return (
+            <g
+              key={i}
+              transform={`translate(${x},${y})`}
+              className={p.approximate ? 'atlas-plant lead' : 'atlas-plant'}
+            >
+              {GLYPH[p.glyph] ? <path d={GLYPH[p.glyph]} /> : <circle r="3" />}
+            </g>
+          );
+        })}
         {LABELS.map((name, i) => {
           const p = plants.find((x) => (x['entity'] ?? '').startsWith(name) && x['lat']);
           if (!p) return null;

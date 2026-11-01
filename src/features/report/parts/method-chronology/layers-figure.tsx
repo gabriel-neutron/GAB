@@ -9,6 +9,8 @@ import { useReport } from '../../use-report';
 // The layer of the report graph for each layer of the figure, in the same order in all locales.
 const LAYER_KEYS = ['Pay', 'Finance', 'Fight'] as const;
 
+// The arrows and the budget path show the argument of the report; no edge of the data backs them.
+
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
 
@@ -92,16 +94,12 @@ export function LayersFigure() {
 }
 
 function Legend() {
-  const { inData, critical, examined, noRecord } = useContent().methodUi.layers;
+  const { inData, examined } = useContent().methodUi.layers;
   return (
     <ul className="flex flex-wrap gap-x-6 gap-y-2 bg-background font-mono text-report-label/4 text-label">
       <li className="flex items-center gap-2">
         <span aria-hidden="true" className={cn('size-2.5', accent.bg)} />
         {inData}
-      </li>
-      <li className="flex items-center gap-2">
-        <span aria-hidden="true" className="size-2.5 bg-foreground/35" />
-        {critical}, {noRecord}
       </li>
       <li className="flex items-center gap-2">
         <span aria-hidden="true" className="size-2.5 border border-foreground" />
@@ -122,10 +120,6 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
   const nodes = reportGraph.layer(LAYER_KEYS[index] ?? layer.k);
   const kept = nodes.filter((node) => node.kept === 'yes');
   const examined = nodes.filter((node) => node.kept !== 'yes');
-  // The count of the text of the part for this layer: the layers are in the same order.
-  const count = methodUi.numbers.layers[index]?.value ?? '';
-  // The critical nodes of the page data come first; the rest of the count has no page record.
-  const rest = Math.max(0, Number(count) - kept.length);
   const open = (node: GraphNode, target: HTMLElement) => {
     openNode(node.node_id, target);
   };
@@ -135,13 +129,20 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
         <p className="font-mono text-report-label text-label tabular-nums">
           {String(index + 1).padStart(2, '0')}
         </p>
-        <p
-          className={cn(
-            'font-mono text-report-number leading-none tracking-[-0.06em] tabular-nums',
-            accent.text,
-          )}
-        >
-          <CountUp value={Number(count)} format={(n) => String(Math.round(n))} />
+        <p className="text-right">
+          <span
+            className={cn(
+              'block font-mono text-report-number leading-none tracking-[-0.06em] tabular-nums',
+              accent.text,
+            )}
+          >
+            <CountUp value={kept.length} format={(n) => String(Math.round(n))} />
+          </span>
+          {/* The text gives only the total of critical nodes, so the count of a layer is that of
+              the page data. */}
+          <span className="mt-1 block font-mono text-report-label text-label">
+            {methodUi.layers.inData}
+          </span>
         </p>
       </div>
       <h4 className="mt-2 text-report-heading leading-[0.95] tracking-[-0.045em]">{layer.k}</h4>
@@ -196,9 +197,6 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
       <div aria-hidden="true" className="mt-6 flex flex-wrap content-start gap-[3px]">
         {kept.map((node) => (
           <span key={node.node_id} className={cn('size-2', accent.bg)} />
-        ))}
-        {Array.from({ length: rest }, (_, square) => (
-          <span key={square} className="size-2 bg-foreground/35" />
         ))}
         {examined.map((node, place) => (
           <span

@@ -8,8 +8,5 @@ describe('method copy', () => {
       ?.blocks.map((block) => block.text)
       .join(' ');
     expect(text).toContain(methodUi.timeline.period);
-    // The final text gives the total of critical nodes, not the count of each layer.
-    const total = methodUi.numbers.layers.reduce((sum, one) => sum + Number(one.value), 0);
-    expect(text).toContain(`In total, ${String(total)} nodes are critical`);
   });
 });

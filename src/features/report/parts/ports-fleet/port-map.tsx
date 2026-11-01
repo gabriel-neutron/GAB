@@ -8,10 +8,14 @@ import { useReport } from '../../use-report';
 import { chartLayout } from './chart-layout';
 import { figureData } from './figure-data';
 import { mapGeometry, type Box, type Frame } from './map-geometry';
+import { portVisits } from './port-visits';
 import { TERMINALS } from './terminals';
 import { useSize } from './use-size';
+import { visitLayer } from './visit-layer';
 
 const EASE = [0.4, 0, 0.2, 1] as const;
+const VISITS_ON = portVisits.on(import.meta.env);
+const { file: visitFile } = portVisits;
 
 /** The direction of the leader line from a terminal to its label: x and y, each -1 or 1. */
 const LEADS: Readonly<Record<string, readonly [number, number]>> = {
@@ -119,11 +123,22 @@ export function PortMap({ step, sources }: PortMapProps) {
   // The short line under the position of a named terminal: the dates of the ban step. The final
   // text gives no words for the terminals of the Pacific step.
   const dates: Readonly<Partial<Record<string, string>>> = copy.banDates;
+  const visitsText =
+    `${copy.visits.counted} ${number.format(visitFile.visits.length)} ${copy.visits.by} ${number.format(portVisits.tankersSeen)} ${copy.visits.of} ` +
+    `${number.format(visitFile.imoList.count)} ${copy.visits.listed}, ${copy.visits.range
+      .replace('{from}', visitFile.parameters.from)
+      // The query window excludes its end day, so the text gives the last day it holds.
+      .replace(
+        '{to}',
+        new Date(Date.parse(visitFile.parameters.to) - 86_400_000).toISOString().slice(0, 10),
+      )}. ` +
+    copy.visits.limit;
   const id = useId();
   const state = MAP_STEPS[step] ?? MAP_STEPS[0];
   if (state === undefined) return null;
   const sticky = !reduce;
   const flows = state.flows === true;
+  const visits = VISITS_ON && state.tag === 'change';
   // Under 1024px the card is a sheet on the lower part of the view, so the map uses the upper part.
   // From 1024px the map moves right of the cards.
   const wide = width >= 1024;
@@ -201,6 +216,7 @@ export function PortMap({ step, sources }: PortMapProps) {
     state.tag === 'ban' ? copy.banSource : '',
     state.tag === 'change' ? `${copy.data} ${sources.change}` : '',
     state.tag === 'change' ? throughputText : '',
+    visits ? visitsText : '',
     flows ? `${copy.data} ${sources.flows}` : '',
     flows ? copy.schematic : '',
     `${copy.basemap} ${mapGeometry.source}`,
@@ -211,6 +227,20 @@ export function PortMap({ step, sources }: PortMapProps) {
         {one}
       </p>
     ));
+  if (visits) credit.push(<visitLayer.Table key="visits" shown={!sticky} />);
+  // External constraint: the GFW API terms ask for this line with a link on each page that shows
+  // their data, so it stays in view when the other sources fold.
+  const gfw = visits ? (
+    <p className="text-balance">
+      {`${copy.visits.label} ${visitFile.queryDate}. `}
+      <a
+        href="https://globalfishingwatch.org"
+        className="pointer-events-auto underline underline-offset-2"
+      >
+        {copy.visits.powered}
+      </a>
+    </p>
+  ) : null;
   const title = flows
     ? copy.flows
     : state.tag === 'ban'
@@ -464,6 +494,17 @@ export function PortMap({ step, sources }: PortMapProps) {
               />
             );
           })}
+          {visits && pulse ? (
+            <visitLayer.Pulses
+              key={step}
+              at={(id) => {
+                const terminal = terminalOf.get(id);
+                if (terminal === undefined) return null;
+                const point = screen(terminal.lon, terminal.lat);
+                return hidden(point) && !state.named.includes(id) ? null : point;
+              }}
+            />
+          ) : null}
           {TERMINALS.map((terminal) => {
             const at = screen(terminal.lon, terminal.lat);
             const order = state.named.indexOf(terminal.id);
@@ -525,10 +566,20 @@ export function PortMap({ step, sources }: PortMapProps) {
         )}
       >
         <p className="max-w-[48ch] text-balance text-foreground">{title}</p>
+        {visits && pulse ? <visitLayer.Cursor key={step} /> : null}
         {sticky && !wide ? (
           <div className="grid gap-1 text-report-label/4 normal-case ">
             {legend}
-            {credit}
+            {gfw}
+            {visits ? (
+              // On a phone the sources of this step fold, so the head leaves room for the map.
+              <details className="pointer-events-auto">
+                <summary className="cursor-pointer">{copy.visits.sources}</summary>
+                <div className="grid gap-1 pt-1">{credit}</div>
+              </details>
+            ) : (
+              credit
+            )}
           </div>
         ) : null}
       </div>
@@ -543,6 +594,7 @@ export function PortMap({ step, sources }: PortMapProps) {
             ref={foot}
             className="absolute right-0 bottom-0 max-w-[84ch] justify-items-end pt-4 pr-8 pb-4 pl-24 text-right"
           >
+            {gfw}
             {legend}
             {credit}
           </MapFoot>
@@ -557,6 +609,7 @@ export function PortMap({ step, sources }: PortMapProps) {
       <MapFoot className="mt-3">
         {legend}
         {credit}
+        {gfw}
       </MapFoot>
     </div>
   );
