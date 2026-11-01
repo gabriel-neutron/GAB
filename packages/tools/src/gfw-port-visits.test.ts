@@ -26,6 +26,8 @@ const fixture = {
     {
       id: 'pv1',
       type: 'port_visit',
+      start: '2026-01-05T10:00:00.000Z',
+      end: '2026-01-06T08:00:00.000Z',
       vessel: { id: 'v1', name: 'ONE', ssvid: '273000001' },
       port_visit: {
         confidence: 4,
@@ -35,6 +37,7 @@ const fixture = {
     {
       id: 'pv2',
       type: 'port_visit',
+      start: '2026-01-07T10:00:00.000Z',
       vessel: { id: 'v2', name: 'TWO', ssvid: '273000002' },
       port_visit: {
         confidence: 3,
@@ -42,6 +45,12 @@ const fixture = {
       },
     },
   ],
+};
+
+// The date and the port that each visit of a dated file needs.
+const DATED = {
+  start: '2026-01-10T00:00:00.000Z',
+  port_visit: { startAnchorage: { id: 'rus-primorsk' } },
 };
 
 // Shaped like the Vessels API documentation: a registry record with an IMO and a class, and one
@@ -244,6 +253,7 @@ test('many vessel ids go in batches with a pause, and a 429 of the Vessels API i
       id: `pv${String(n)}`,
       type: 'port_visit',
       vessel: { id: `vessel-${String(n).padStart(3, '0')}` },
+      ...DATED,
     })),
   };
   let limited = false;
@@ -290,6 +300,7 @@ test('a bunker, gas or chemical tanker is not an oil tanker, and one object of s
       id: `pv${n}`,
       type: 'port_visit',
       vessel: { id: `v${n}` },
+      ...DATED,
     })),
   };
   const web = stubWeb(
@@ -349,5 +360,47 @@ test('a 429 of the Vessels API is asked again once, and a 404 is a refusal', asy
   expect(moved).toMatchObject({
     ok: false,
     refusal: expect.stringContaining('may have moved') as unknown,
+  });
+});
+
+test('with no vesselType the query has no type filter, and the kept visits carry their dates', async () => {
+  const { web, session, reach } = setup();
+  const all = { anchorageIds: INPUT.anchorageIds, from: INPUT.from, to: INPUT.to };
+  const result = await callTool(tool, session, { ...all, tankersOnly: true }, reach);
+  expect(web.asked[0]?.url.searchParams.has('vessel-types[0]')).toBe(false);
+  expect(result).toMatchObject({
+    ok: true,
+    output: {
+      visits: [
+        {
+          id: 'pv1',
+          vesselId: 'v1',
+          portId: 'rus-primorsk',
+          start: '2026-01-05T10:00:00.000Z',
+          end: '2026-01-06T08:00:00.000Z',
+        },
+      ],
+    },
+  });
+});
+
+test('a kept visit with no date is a refusal, so a dated file never loses a visit', async () => {
+  const web = stubWeb(
+    (asked: Asked) =>
+      asked.url.pathname === '/v3/events'
+        ? json({ ...fixture, entries: [{ id: 'pv9', vessel: { id: 'v9' } }] })
+        : json({ entries: [] }),
+    { gfwToken: TOKEN },
+  );
+  const reach = {
+    store: memoryStore(),
+    web,
+    now: () => new Date('2026-10-28T10:00:00Z'),
+    sleep: () => Promise.resolve(),
+  };
+  const result = await callTool(tool, hashDatabase(), INPUT, reach);
+  expect(result).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('1 visits with no date') as unknown,
   });
 });
