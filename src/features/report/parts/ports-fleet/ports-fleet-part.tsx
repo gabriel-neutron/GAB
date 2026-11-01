@@ -207,7 +207,7 @@ function MapScene({
 }) {
   const box = useRef<HTMLDivElement>(null);
   const near = useInView(box, { once: true, margin: '800px 0px' });
-  // A still frame renders at once, also in the HTML of the release: its box has a fixed aspect,
+  // A still frame renders at once, not when the scene comes near: its box has a fixed aspect,
   // so the drawing of the map moves no text. The sticky map waits until the scene is near.
   const map = (scene: Scene, step: number, still: boolean) =>
     still || near ? (
