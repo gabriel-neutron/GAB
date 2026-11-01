@@ -2037,15 +2037,16 @@ export const openingUi = {
       note: { part: 'finance', id: '57' },
       marked: [2021, 2025],
     },
-    // Each value is written exactly as in the list item of the same place, with the note of
-    // that item. The item on the price has no note.
+    // One entry for each list item, with the note of that item. A number comes from the item
+    // text; words, when given, are written exactly as in the item. The item on the price has no
+    // note.
     values: [
-      { value: '84%', note: '1' },
-      { value: '79%', note: '2' },
-      { value: 'almost doubled', note: '' },
-      { value: 'less than one fifth', note: '3' },
-      { value: '53%', note: '4' },
-      { value: '77%', note: '5' },
+      { words: '', note: '1' },
+      { words: '', note: '2' },
+      { words: 'almost doubled', note: '' },
+      { words: 'less than one fifth', note: '3' },
+      { words: '', note: '4' },
+      { words: '', note: '5' },
     ],
   },
   introduction: {
@@ -2073,6 +2074,12 @@ export const methodUi = {
     gap: '2015-2021: no event in this figure',
     unit: 'Event, dated',
     actors: { COAL: 'COALITION' } as Readonly<Partial<Record<string, string>>>,
+    cursor: 'Time cursor: event',
+    counters:
+      "Tankers designated by each regime to the end of the quarter of the event. Data: the sanctions lists of the EU, the UK and OFAC; author's calculations",
+    table: 'Events and tankers designated, as a table',
+    date: 'Date',
+    event: 'Event',
   },
   // The critical nodes of each layer. Their sum is the count of critical nodes of the text.
   numbers: {
@@ -2090,6 +2097,10 @@ export const payUi = {
   crossingNote: 'Ring: where one line goes below another, between two year-end values.',
   // The mark where a line of the old buyers goes below a line of a new buyer.
   crossing: '{a} below {b}',
+  // The year scrubber of figure 3, the mark of an estimate in its readout, and its data table.
+  year: 'Year',
+  estimated: 'estimate',
+  table: 'Values of all years',
   // The heading of the column of notes beside the text.
   sidenotes: 'Notes',
   f4: {
@@ -2159,6 +2170,20 @@ export const portsFleetUi = {
     after: 'Port call after the designation',
     label:
       'Timeline of {n} designated ships, from 6 months before to 24 months after their designation',
+  },
+  waves: {
+    regimes: { EU: 'EU', UK: 'UK', OFAC: 'OFAC' },
+    unit: 'tankers',
+    filters: 'Regimes shown',
+    aTitle: 'a. New designations, by quarter',
+    aUnit: 'a tanker designated by two regimes counts twice',
+    aLabel: 'New designations of tankers per quarter, by regime',
+    earlier: '{n} designations before 2022 are not drawn.',
+    bTitle: 'b. Tankers, by the regimes that designate them',
+    bUnit: 'each tanker counts once',
+    tankers: '{n} tankers designated by the regimes shown',
+    none: 'No regime is shown. Select EU, UK or OFAC.',
+    quarter: 'Quarter',
   },
 } as const;
 
