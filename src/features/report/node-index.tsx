@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { ui } from './content';
+import { useContent } from './use-content';
 import { NodeRef } from './node-ref';
 import { reportGraph } from './report-graph';
 
@@ -23,6 +23,7 @@ const GLYPH = Object.fromEntries(
 /** Every node of the report, grouped by layer and in the rank order of its layer. Each layer
  * spans the full width as a list in columns: 2 from 768px, 3 from 1024px. */
 export function NodeIndex() {
+  const { ui } = useContent();
   return (
     <section id="nodes" aria-labelledby="nodes-title" className="border-t border-border pt-6 pb-24">
       <h2 id="nodes-title" className="text-report-heading text-balance ">

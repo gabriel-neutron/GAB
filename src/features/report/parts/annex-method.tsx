@@ -1,15 +1,14 @@
 import { Fragment, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { cn } from '@/shared/lib/utils';
-import { closingUi, parts, ui, type ReportBlock, type ReportPart } from '../content';
+import type { ReportBlock, ReportPart } from '../content';
 import { NodeIndex } from '../node-index';
-import { NoteRef } from '../note-ref';
 import { RichText } from '../rich-text';
 import { reportGraph } from '../report-graph';
 import nodes from '../nodes-data';
+import { useContent } from '../use-content';
 import { ClosingBreak } from './closing-art';
 
-const { annex: copy } = closingUi;
 const KEY = /^\*\*(.+?)\*\*:?\s*/;
 const CODE = /^(A\.\d+)\s+(.*)$/;
 const FOCUS =
@@ -60,6 +59,8 @@ function Cells({
  * rules and conditions), every node of the report, the scale of the research in small, and the
  * way to the notes as the end of the page. */
 export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
+  const { closingUi, parts, ui } = useContent();
+  const { annex: copy } = closingUi;
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const sections: Section[] = [];
   for (const block of part.blocks) {
@@ -156,10 +157,8 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
               </div>
             ))}
           </dl>
-          {/* The nodes are not the entities of A.1: note S-3 says which they are. */}
           <p className="mt-3 max-w-[64ch] font-mono text-report-label text-label">
             {copy.dataDate}
-            <NoteRef partSlug="summary" id={copy.dataNote} />
           </p>
         </section>
         <Link

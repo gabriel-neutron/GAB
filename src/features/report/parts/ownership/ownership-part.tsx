@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/utils';
-import { figureTexts, ownershipUi, parts, type ReportPart } from '../../content';
+import type { ReportPart } from '../../content';
 import { FigureFrame } from '../../figure-frame';
 import { AsciiImage } from '../../primitives/ascii-image';
 import { ChapterBreak } from '../../primitives/chapter-break';
 import { layout } from '../../primitives/layout';
 import { Reveal } from '../../primitives/reveal';
 import { RichText } from '../../rich-text';
+import { useContent } from '../../use-content';
 import { OwnershipFigure } from './ownership-figure';
 
 // One body size for all the text of the part. A node reference keeps a thin dotted underline.
@@ -40,6 +41,7 @@ function Rail({ text, part }: { readonly text: string; readonly part: ReportPart
 /** The chapter break over the chess set: the decorative ASCII art sits at the top right, behind a
  * scrim, so the title stays on near-black ground. */
 function Opening({ number, title }: { readonly number: string; readonly title: string }) {
+  const { ownershipUi } = useContent();
   return (
     <div
       className={cn(
@@ -68,6 +70,7 @@ function Opening({ number, title }: { readonly number: string; readonly title: s
 
 /** The ownership part: a chapter break over the chess set, the layered graph of figure 12 across the page, then the text with its notes in a rail. */
 export function OwnershipPart({ part }: { readonly part: ReportPart }) {
+  const { figureTexts, parts } = useContent();
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const body: ReactNode[] = [];
   part.blocks.forEach((block, index) => {

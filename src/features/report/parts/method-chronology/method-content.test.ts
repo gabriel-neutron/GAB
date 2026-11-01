@@ -7,8 +7,9 @@ describe('method copy', () => {
       .find((part) => part.slug === 'method-chronology')
       ?.blocks.map((block) => block.text)
       .join(' ');
-    const { timeline, numbers } = methodUi;
-    for (const fragment of [timeline.period, ...numbers.layers.map((one) => one.value)])
-      expect(text).toContain(fragment);
+    expect(text).toContain(methodUi.timeline.period);
+    // The final text gives the total of critical nodes, not the count of each layer.
+    const total = methodUi.numbers.layers.reduce((sum, one) => sum + Number(one.value), 0);
+    expect(text).toContain(`In total, ${String(total)} nodes are critical`);
   });
 });

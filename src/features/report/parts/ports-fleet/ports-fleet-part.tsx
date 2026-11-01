@@ -1,12 +1,13 @@
 import { lazy, Suspense, useRef, type ReactNode } from 'react';
 import { useInView, useReducedMotion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
-import { figureTexts, parts, portsFleetUi, type ReportBlock, type ReportPart } from '../../content';
+import type { ReportBlock, ReportPart } from '../../content';
 import { FigureFrame } from '../../figure-frame';
 import { ChapterBreak } from '../../primitives/chapter-break';
 import { Reveal } from '../../primitives/reveal';
 import { StickyScene } from '../../primitives/sticky-scene';
 import { RichText } from '../../rich-text';
+import { useContent } from '../../use-content';
 import { figureData } from './figure-data';
 import { FleetFlows } from './fleet-flows';
 import { PortTraffic } from './port-traffic';
@@ -19,7 +20,6 @@ import type { MapSources } from './port-map';
 const PortMap = lazy(() => import('./port-map').then((module) => ({ default: module.PortMap })));
 
 const PROSE = 'max-w-[64ch] text-report-body/[1.65]  lg:ml-[25%]';
-const copy = portsFleetUi;
 const census = figureData.lives.census;
 const values: Readonly<Record<string, number>> = {
   'F.census.read': census.read,
@@ -31,15 +31,16 @@ const values: Readonly<Record<string, number>> = {
 };
 const fill = (text: string) =>
   text.replace(/\{([^}]+)\}/g, (whole, key: string) => String(values[key] ?? whole));
-const texts = figureTexts.figures;
-// The cards of the map scene: a range of sentences of a paragraph, and the state of the map that
-// the card sets.
+// The cards of the map scene: a range of sentences of a paragraph (its place in the blocks), and
+// the state of the map that the card sets: 0 the port ban, 1 the export ports, 2 the change of
+// traffic, 3 the flows by fleet. The blocks before the last card are the scene; a heading among
+// them opens the card that follows it.
 const SCENE = [
-  { block: 0, from: 5, to: 6, state: 0 },
-  { block: 0, from: 6, to: 8, state: 1 },
-  { block: 1, from: 0, to: 2, state: 2 },
-  { block: 1, from: 2, to: 4, state: 3 },
-  { block: 1, from: 4, to: 6, state: 3 },
+  { block: 1, from: 0, to: 1, state: 1 },
+  { block: 1, from: 1, to: 2, state: 2 },
+  { block: 2, from: 0, to: 3, state: 0 },
+  { block: 4, from: 0, to: 2, state: 3 },
+  { block: 4, from: 2, to: 4, state: 3 },
 ] as const;
 type Scene = readonly { block: number; from: number; to: number; state: number }[];
 // Under reduced motion each card shows its own frame of the map: the cards of one state join, so
@@ -53,83 +54,124 @@ const STATIC_SCENE: Scene = SCENE.reduce<
   else out.push({ ...one });
   return out;
 }, []);
-// Figure 6 has one unit for each panel: a, b, then c.
-const unit6 = [...texts['6'].panels.map((panel) => panel.unit), copy.traffic.cUnit]
-  .filter((one) => one !== '')
-  .join(' · ');
-// The two notes of a figure of the PDF read as one note under the chart.
-// Figure 7 has one unit for each kind of panel.
-const unit7 = [...new Set(texts['7'].panels.map((panel) => panel.unit))]
-  .filter((one) => one !== '')
-  .join(' · ');
-const notes = {
-  '6': `${texts['6'].note} ${texts['6'].noteB}`,
-  '7': `${texts['7'].note} ${texts['7'].noteB}`,
-  '8': fill(texts['8'].note),
+const SCENE_END = Math.max(...SCENE.map((card) => card.block));
+// The charts of the figures of the part. A figure with no chart yet (figure 9) waits for its own
+// ticket: its caption stays in the content.
+const charts: Readonly<Partial<Record<number, () => ReactNode>>> = {
+  6: PortTraffic,
+  7: FleetFlows,
+  8: VesselLives,
 };
+const stripNotes = (text: string) => text.replace(/\[\^[^\]]+\]/g, '');
 
 /** Exporting through the ports and the fleet: a typographic chapter break, a sticky map of the
- * export terminals under the first two paragraphs, then the figures of traffic, flows and ships. */
+ * export terminals under the paragraphs on the ports and the fleet, then the figures of traffic,
+ * flows and ships between the paragraphs. The last paragraph closes the part in large type. */
 export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
+  const { figureTexts, parts, portsFleetUi: copy } = useContent();
+  const texts = figureTexts.figures;
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const scene = useReducedMotion() === true ? STATIC_SCENE : SCENE;
-  const text = (index: number) => part.blocks[index]?.text ?? '';
-  const figure = (index: number) => part.blocks[index]?.figure;
-  const first = splitSentences(text(0));
-  const second = splitSentences(text(1));
-  const say = (sentences: readonly string[]) => (
-    <RichText text={sentences.join(' ')} partSlug={part.slug} />
-  );
-  // Each card of the scene holds whole sentences of the first two paragraphs, in their order, and
-  // sets one state of the map. The long last state takes two cards, so a card stays short on a phone.
-  const cards = scene.map(({ block, from, to }, index) => (
-    <div key={`${String(block)}-${String(from)}`} className="pf-step" data-pf-card={index}>
-      <p className="text-report-small/[1.5] ">
-        {say((block === 0 ? first : second).slice(from, to))}
-      </p>
-    </div>
-  ));
-  const paragraph = (index: number) => (
-    <Reveal>
-      <p className={cn('my-8', PROSE)}>
-        <RichText text={text(index)} partSlug={part.slug} />
-      </p>
-    </Reveal>
-  );
+  const figureOf = (n: number) => part.blocks.find((block) => block.figure?.number === n)?.figure;
+  // Figure 6 has one unit for each panel: a, b, then c. Figure 7 has one unit for each kind of
+  // panel. The two notes of a figure of the PDF read as one note under the chart.
+  const units: Readonly<Partial<Record<number, string>>> = {
+    6: [...texts['6'].panels.map((panel) => panel.unit), copy.traffic.cUnit]
+      .filter((one) => one !== '')
+      .join(' · '),
+    7: [...new Set(texts['7'].panels.map((panel) => panel.unit))]
+      .filter((one) => one !== '')
+      .join(' · '),
+  };
+  const notes: Readonly<Partial<Record<number, string>>> = {
+    6: `${texts['6'].note} ${texts['6'].noteB}`,
+    7: `${texts['7'].note} ${texts['7'].noteB}`,
+    8: fill(texts['8'].note),
+  };
+  const say = (text: string) => <RichText text={text} partSlug={part.slug} />;
+  // Each card holds whole sentences of a paragraph, in their order, and sets one state of the map.
+  const cards = scene.map(({ block, from, to }, index) => {
+    const heading = part.blocks[block - 1];
+    return (
+      <div key={`${String(block)}-${String(from)}`} className="pf-step" data-pf-card={index}>
+        {/* The first heading stands over the scene, so no card repeats it. */}
+        {from === 0 && block > 1 && heading?.kind === 'h3' ? (
+          <h3 className="mb-2 text-report-lead text-balance">{heading.text}</h3>
+        ) : null}
+        <p className="text-report-small/[1.5] ">
+          {say(
+            splitSentences(part.blocks[block]?.text ?? '')
+              .slice(from, to)
+              .join(' '),
+          )}
+        </p>
+      </div>
+    );
+  });
+  const opening = part.blocks[0]?.kind === 'h3' ? part.blocks[0].text : undefined;
+  const rest = part.blocks.slice(SCENE_END + 1);
+  const last = rest.findLastIndex((block) => block.kind === 'p');
+  const body = rest.map((block, index) => {
+    // The blocks of a part never move, so their place is their identity.
+    const key = `${part.slug}-${String(SCENE_END + 1 + index)}`;
+    if (block.kind === 'figure') {
+      const n = block.figure?.number ?? 0;
+      const Chart = charts[n];
+      if (Chart === undefined) return null;
+      return (
+        <Figure
+          key={key}
+          facts={block.figure}
+          note={notes[n] ?? ''}
+          partSlug={part.slug}
+          unit={units[n]}
+          period={n === 8 ? copy.lives.period : undefined}
+        >
+          <Chart />
+        </Figure>
+      );
+    }
+    if (block.kind === 'h3')
+      return (
+        <h3 key={key} className={cn(PROSE, 'mt-16 text-report-lead text-balance')}>
+          {block.text}
+        </h3>
+      );
+    if (index === last)
+      return (
+        <Reveal key={key}>
+          <p className="mx-auto max-w-[28ch] py-16 text-center text-report-heading leading-[1.08] tracking-[-0.035em] text-balance md:py-28">
+            {say(block.text)}
+          </p>
+        </Reveal>
+      );
+    return (
+      <Reveal key={key}>
+        <p className={cn('my-8', PROSE)}>{say(block.text)}</p>
+      </Reveal>
+    );
+  });
 
   return (
     <section id={part.slug} aria-label={part.title} className="scroll-mt-12">
       <ChapterBreak number={number} title={part.title} image={copy.art} />
 
-      <div className="pt-12 md:pt-16">
-        <Reveal>
-          <p className={PROSE}>{say(first.slice(0, 5))}</p>
-        </Reveal>
-      </div>
+      {opening === undefined ? null : (
+        <div className="pt-12 md:pt-16">
+          <h3 className={cn(PROSE, 'text-report-lead text-balance')}>{opening}</h3>
+        </div>
+      )}
 
       <MapScene
         scene={scene}
         steps={cards}
-        sources={{ change: figure(2)?.sources ?? '', flows: figure(4)?.sources ?? '' }}
+        sources={{
+          change: stripNotes(figureOf(6)?.sources ?? ''),
+          flows: stripNotes(figureOf(7)?.sources ?? ''),
+        }}
       />
 
-      <Figure facts={figure(2)} note={notes['6']} partSlug={part.slug} unit={unit6}>
-        <PortTraffic />
-      </Figure>
-      {paragraph(3)}
-      <Figure facts={figure(4)} note={notes['7']} partSlug={part.slug} unit={unit7}>
-        <FleetFlows />
-      </Figure>
-      {paragraph(5)}
-      <Figure facts={figure(6)} note={notes['8']} partSlug={part.slug} period={copy.lives.period}>
-        <VesselLives />
-      </Figure>
-      {paragraph(7)}
-      <Reveal>
-        <p className="mx-auto max-w-[28ch] py-16 text-center text-report-heading leading-[1.08] tracking-[-0.035em] text-balance md:py-28">
-          <RichText text={text(8)} partSlug={part.slug} />
-        </p>
-      </Reveal>
+      {body}
     </section>
   );
 }
@@ -172,8 +214,8 @@ interface FigureProps {
   readonly note: string;
   readonly partSlug: string;
   /** The period and the unit when the figure facts give none. */
-  readonly period?: string;
-  readonly unit?: string;
+  readonly period?: string | undefined;
+  readonly unit?: string | undefined;
   readonly children: ReactNode;
 }
 
