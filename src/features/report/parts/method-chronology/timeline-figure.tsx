@@ -12,42 +12,28 @@ import { accent } from '../../primitives/accent';
 import { layout } from '../../primitives/layout';
 import { Reveal } from '../../primitives/reveal';
 import { useContent, type ReportContent } from '../../use-content';
+import {
+  AXIS_YEARS,
+  cursorAt,
+  END,
+  GAP,
+  GAP_PX,
+  shiftFor,
+  START,
+  stepAt,
+  TRACK,
+  xOf,
+  xOfYear,
+  YEARS,
+  yearAt,
+} from './timeline-axis';
 import { countsAt, REGIMES } from './timeline-counts';
 
 type TimelineEvent = ReportContent['figureTexts']['fig2']['events'][number];
 type Actors = ReportContent['methodUi']['timeline']['actors'];
 
-const START = 2014;
-const END = 2027;
-const YEARS = Array.from({ length: END - START }, (_, index) => START + index);
-// The figure has no event from 2015 to 2021, so the axis folds these years into one gap.
-const GAP = [2015, 2022] as const;
-const GAP_PX = 320;
-// 340px for one year keeps 160px labels clear of the next stem in the same band.
-const PX_PER_YEAR = 340;
-const PAD = 96;
-const TRACK = (END - START - (GAP[1] - GAP[0])) * PX_PER_YEAR + GAP_PX + 2 * PAD;
-const AXIS_YEARS = YEARS.filter((year) => year <= GAP[0] || year >= GAP[1]);
-const YEAR_MS = 365.25 * 24 * 3600 * 1000;
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
-/** The place on the axis of a time in years, for example 2022.5. */
-const xOfTime = (time: number): number => {
-  if (time <= GAP[0]) return PAD + (time - START) * PX_PER_YEAR;
-  const gapStart = PAD + (GAP[0] - START) * PX_PER_YEAR;
-  if (time < GAP[1]) return gapStart + ((time - GAP[0]) / (GAP[1] - GAP[0])) * GAP_PX;
-  return gapStart + GAP_PX + (time - GAP[1]) * PX_PER_YEAR;
-};
-const xOf = (date: string): number =>
-  xOfTime(START + (Date.parse(date) - Date.UTC(START, 0, 1)) / YEAR_MS);
-const xOfYear = (year: number): number => xOfTime(year);
-/** The year under a place on the axis, or the gap label inside the gap. */
-const yearAt = (x: number): string => {
-  const gapStart = xOfTime(GAP[0]);
-  if (x < gapStart) return String(Math.max(START, START + Math.floor((x - PAD) / PX_PER_YEAR)));
-  if (x < gapStart + GAP_PX) return '//';
-  return String(Math.min(END - 1, GAP[1] + Math.floor((x - gapStart - GAP_PX) / PX_PER_YEAR)));
-};
 const actorName = (actors: Actors, actor: string): string => actors[actor] ?? actor;
 /** The years the text names as the period of the report, read from the quoted sentence. */
 const periodOf = (period: string): readonly [number, number] => {
@@ -331,24 +317,25 @@ function ScrollTrack({ index, onStep, onMissing }: ScrollTrackProps) {
   const transform = useTransform(shift, (px) => `translateX(${String(-px)}px)`);
   // The cursor line crosses the view as the axis moves, so that it meets the first event at the
   // start of the scene and the last event at its end.
-  const cursorX = useTransform(
-    shift,
-    (px) => px + (px / Math.max(1, TRACK - viewWidth())) * viewWidth(),
-  );
+  const cursorX = useTransform(shift, (px) => cursorAt(px, viewWidth()));
   const line = useTransform(progress, (part) => `translateX(${String(part * viewWidth())}px)`);
   const year = useTransform(cursorX, yearAt);
   // The scroll only chooses the step: the last event at or before the cursor line.
   useMotionValueEvent(cursorX, 'change', (x) => {
-    onStep(Math.max(0, events.filter((event) => xOf(event.date) <= x).length - 1));
+    onStep(
+      stepAt(
+        events.map((event) => event.date),
+        x,
+      ),
+    );
   });
   /** Scroll the page until the cursor line is on the event, so the scroll and the slider agree. */
   const select = (next: number) => {
     const event = events[next];
     const frame = scroller.current;
     if (event === undefined || frame === null) return;
-    const free = TRACK - viewWidth();
-    // The shift that puts the cursor line on x is x * free / TRACK; one px more passes the event.
-    frame.scrollBy({ top: (xOf(event.date) * free) / TRACK - shiftNow() + 1 });
+    // One px more than the shift of the event passes the event.
+    frame.scrollBy({ top: shiftFor(xOf(event.date), viewWidth()) - shiftNow() + 1 });
     onStep(next);
   };
   return (

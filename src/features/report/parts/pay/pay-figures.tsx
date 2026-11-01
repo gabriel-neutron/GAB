@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 import { payUi as enPay } from '../../content';
 import { NodeRef } from '../../node-ref';
+import { layout } from '../../primitives/layout';
 import { useContent, type ReportContent } from '../../use-content';
 import { FADE, GLYPH, LineChart, type LineSeries, type Scales } from './line-chart';
 import {
@@ -171,7 +172,15 @@ export function BuyersChart() {
   ];
   return (
     <div className="grid gap-10 md:grid-cols-2 md:gap-8">
-      <div className="flex items-center gap-4 font-mono text-report-label md:col-span-2">
+      {/* On a phone the panels stack: the slider sticks under the part bar, so it stays in view
+          over the second panel. */}
+      <div
+        className={cn(
+          'flex items-center gap-4 font-mono text-report-label md:col-span-2',
+          'sticky z-10 bg-background md:static',
+          layout.top,
+        )}
+      >
         <span aria-hidden="true" className="uppercase text-label">
           {copy.year}
         </span>
@@ -320,7 +329,7 @@ export function PriceChart({
   readonly focus?: boolean;
   readonly fill?: boolean;
   /** A what-if line across all months, with its label; the three real caps stay. */
-  readonly whatIf?: { readonly value: number; readonly label: string };
+  readonly whatIf?: { readonly value: number; readonly label: string } | undefined;
 }) {
   const [first, ...lower] = f4.caps;
   const point = focus ? focusPoint(step) : undefined;

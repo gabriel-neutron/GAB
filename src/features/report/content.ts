@@ -1,5 +1,7 @@
+import { reportTitles } from './titles';
+
 export const report = {
-  title: 'The nodes that sustain Russia’s war in 2026',
+  title: reportTitles.en,
   subtitle: 'What keeps it running in 2026',
   summary:
     'Russia has found new buyers, new shipping arrangements and new payment channels. The report argues that this adaptation keeps trade moving, but gives its remaining partners more power over prices.',
@@ -2036,8 +2038,10 @@ export const openingUi = {
   // The dithered photograph in two tones, black and the accent, as the art of the chapters.
   cover: {
     src: import.meta.env.BASE_URL + 'report-media/crude-oil-tanker-in-port-arthur-texas-dither.png',
-    // The photograph itself, for a phone: the dither is too coarse at that size.
-    photo: import.meta.env.BASE_URL + 'report-media/crude-oil-tanker-in-port-arthur-texas.jpg',
+    // The photograph itself, for a phone: the dither is too coarse at that size. A grey copy at twice
+    // the width of a phone, because the page shows it in grey.
+    photo:
+      import.meta.env.BASE_URL + 'report-media/crude-oil-tanker-in-port-arthur-texas-phone.jpg',
   },
   partBar: { label: 'Parts of the report', of: '/' },
   // The actions of the first screen, one row. The PDF action shows only when the build copied it.
@@ -2424,6 +2428,11 @@ export const ownershipUi = {
     unit: 'one point = one site',
     sources: 'GAB record: the documents of each row, in the table.',
     checked: 'checked against the record on {date}',
+    // The day of a share in the record, after the share.
+    asOf: 'on {date}',
+    // A row whose holding the owners figure does not have in the layer of the site.
+    outsideFigure:
+      'Figure 12 has no node of this layer under this holding; the record documents this holder.',
     mapLabel: 'Map of the sites of the report, by the controller of their holder',
     table: 'The sites of the map, as a table',
     rows: '{n} rows',

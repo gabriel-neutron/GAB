@@ -13,6 +13,8 @@ interface ReadSource {
   /** The caption of each numbered figure: its title line and its note line. */
   readonly captions: ReadonlyMap<number, { readonly slug: string; readonly text: string }>;
   readonly notes: ReadonlyMap<string, string>;
+  /** The subheadings of each part, with their section numbers. */
+  readonly headings: ReadonlyMap<string, readonly string[]>;
 }
 
 const NOTE_LINE = /^\[\^([^\]]+)\]: (.*)$/;
@@ -25,6 +27,7 @@ export function readSource(source: Source): ReadSource {
   const body = new Map<string, string[]>();
   const captions = new Map<number, { slug: string; text: string }>();
   const notes = new Map<string, string>();
+  const subheadings = new Map<string, string[]>();
   const headings = new Map(source.starts.map(([slug, heading]) => [heading, slug]));
   let slug: string | undefined;
   let figure: number | undefined;
@@ -37,6 +40,8 @@ export function readSource(source: Source): ReadSource {
       notes.set(note[1] ?? '', note[2] ?? '');
       continue;
     }
+    if (slug !== undefined && line.startsWith('### '))
+      subheadings.set(slug, [...(subheadings.get(slug) ?? []), line.slice('### '.length)]);
     if (slug === undefined || line.trim() === '' || line.startsWith('#')) continue;
     // The words inside a figure (one entry for each line) belong to the figure, not to the text.
     if (/^FIGURE \d+ /.test(line)) inside = true;
@@ -63,7 +68,7 @@ export function readSource(source: Source): ReadSource {
     figure = undefined;
     lines.push(line);
   }
-  return { body, captions, notes };
+  return { body, captions, notes, headings: subheadings };
 }
 
 // The month names of the two locales. A month name is in one language only, so the two lists can
@@ -103,7 +108,8 @@ const noteIds = (text: string) =>
  * the body has the words of the source and the same numbers, months and note markers in the same
  * order, each figure caption has those of its source caption, the title, period and sources that
  * the frame shows are pieces of that caption, each part holds exactly the notes it cites, with the
- * words of the source, and the parts hold the figures of their source sections. */
+ * words of the source, each heading is a subheading of its part in the source, and the parts
+ * hold the figures of their source sections. */
 export function parity(parts: readonly ReportPart[], source: Source): readonly string[] {
   const read = readSource(source);
   const issues: string[] = [];
@@ -117,6 +123,14 @@ export function parity(parts: readonly ReportPart[], source: Source): readonly s
     if (!sameList(want, have))
       issues.push(`${part.slug}: body ${have.join(' ')} != source ${want.join(' ')}`);
     if (words(source) !== words(text)) issues.push(`${part.slug}: body words differ`);
+    // A heading of the page is a subheading of the source, with or without its section number.
+    const subheadings = (read.headings.get(part.slug) ?? []).flatMap((one) => [
+      one,
+      one.replace(/^[A-Z]?\.?\d+(?:\.\d+)* /, ''),
+    ]);
+    for (const block of part.blocks.filter((one) => one.kind === 'h3'))
+      if (!subheadings.includes(block.text))
+        issues.push(`${part.slug}: heading "${block.text}" not in source`);
     for (const block of part.blocks.filter(isFigure)) {
       const number = block.figure?.number ?? 0;
       shown.add(number);

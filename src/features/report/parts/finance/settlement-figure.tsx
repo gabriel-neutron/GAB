@@ -9,6 +9,7 @@ import { accent } from '../../primitives/accent';
 import { layout } from '../../primitives/layout';
 import { StickyScene } from '../../primitives/sticky-scene';
 import { useContent } from '../../use-content';
+import { ValuesTable } from '../ports-fleet/values-table';
 import { settlementShare as value } from './settlement-shares';
 
 type Pairs = readonly (readonly number[])[];
@@ -356,7 +357,6 @@ function SettlementChart({ year, still }: { readonly year: number; readonly stil
             <button
               key={one}
               type="button"
-              aria-label={String(one)}
               aria-describedby={`${describe}-${String(one)}`}
               aria-pressed={pinned === one}
               onFocus={() => {
@@ -373,7 +373,9 @@ function SettlementChart({ year, still }: { readonly year: number; readonly stil
                 one === shown ? 'text-foreground underline underline-offset-4' : 'text-label',
               )}
             >
-              {`’${String(one).slice(2)}`}
+              {/* The name is the full year; the short year is what shows. */}
+              <span aria-hidden="true">{`’${String(one).slice(2)}`}</span>
+              <span className="sr-only">{one}</span>
               <span id={`${describe}-${String(one)}`} hidden>
                 {PANELS.map(
                   (panel) =>
@@ -409,9 +411,9 @@ function SettlementChart({ year, still }: { readonly year: number; readonly stil
   );
 }
 
-/** Figure 10 as a scroll scene: the frame, the year and the chart stick together as one unit, and
- * each step of the scroll moves them to one year. Under reduced motion the figure shows its final
- * state at once. A screen reader gets the full data as a table. */
+/** Figure 10 as a scroll scene: the year and the chart stick together, and each step of the
+ * scroll moves them to one year. Under reduced motion the figure shows its final state at once. A
+ * disclosure under the chart holds the full data as a table. */
 export function SettlementFigure({
   block,
   partSlug,
@@ -420,7 +422,6 @@ export function SettlementFigure({
   readonly partSlug: string;
 }) {
   const reduce = useReducedMotion() === true;
-  const narrow = useNarrowScreen();
   const { financeUi, figureTexts } = useContent();
   const copy = financeUi.figure;
   const labels = figureTexts.figures['9'].labels;
@@ -437,34 +438,23 @@ export function SettlementFigure({
       partSlug={partSlug}
     >
       {chart}
-      {/* In the frame, so the figure holds its data table. */}
-      <table className="sr-only">
-        <caption>{copy.tableCaption}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{copy.year}</th>
-            {PANELS.flatMap((panel) =>
-              SERIES.map((series) => (
-                <th key={`${panel}-${series.key}`} scope="col">
-                  {copy[panel]}, {labels[series.labelKey]}
-                </th>
-              )),
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {YEARS.map((one) => (
-            <tr key={one}>
-              <th scope="row">{one}</th>
-              {PANELS.flatMap((panel) =>
-                SERIES.map((series) => (
-                  <td key={`${panel}-${series.key}`}>{percent(value(panel, series.key, one))}</td>
-                )),
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* Under the chart and in the frame: the figure holds its data table, and an open table
+          never covers the chart. */}
+      <ValuesTable
+        summary={copy.tableCaption}
+        head={[
+          copy.year,
+          ...PANELS.flatMap((panel) =>
+            SERIES.map((series) => `${copy[panel]}, ${labels[series.labelKey]}`),
+          ),
+        ]}
+        rows={YEARS.map((one) => [
+          String(one),
+          ...PANELS.flatMap((panel) =>
+            SERIES.map((series) => percent(value(panel, series.key, one))),
+          ),
+        ])}
+      />
     </FigureFrame>
   );
   const chart = (year: number) => <SettlementChart year={year} still={reduce} />;
@@ -479,20 +469,16 @@ export function SettlementFigure({
   return (
     <div className={layout.bleed}>
       <div className="mx-auto max-w-[1440px] px-4 md:px-8 lg:px-12">
-        {/* On a wide screen the frame sticks with the chart; on a phone it is too tall for the
-            view, so only the chart sticks. */}
-        {reduce ? (
-          frame(chart(LAST))
-        ) : narrow ? (
-          frame(
+        {/* Only the chart sticks: the frame, its facts and its table scroll with the page, as in
+            figure 4. */}
+        {frame(
+          reduce ? (
+            chart(LAST)
+          ) : (
             <StickyScene steps={steps} stepClassName="sr-only">
               {(active) => chart(copy.steps[active] ?? LAST)}
-            </StickyScene>,
-          )
-        ) : (
-          <StickyScene steps={steps} stepClassName="sr-only">
-            {(active) => frame(chart(copy.steps[active] ?? LAST))}
-          </StickyScene>
+            </StickyScene>
+          ),
         )}
       </div>
     </div>
