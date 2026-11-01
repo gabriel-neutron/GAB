@@ -2325,7 +2325,6 @@ export const fightUi = {
     russia: 'Russia',
     // The unit of the chain counts, as the note of the routes figure gives it: a count can have decimals.
     chainUnit: 'one chain = 1, shared between its routes',
-<<<<<<< HEAD
     arcNote:
       'Map: arcs join the country of manufacture to the country of the intermediary. Chains with the same country or no named country are not drawn: the arcs carry {drawn} of the {all} chains.',
     unplaced: 'Map: a group with no single place is not drawn.',
@@ -2333,7 +2332,6 @@ export const fightUi = {
     from: 'From',
     to: 'To',
     fromTo: '{a} to {b}',
-=======
     routeTable: 'All the routes of the map, as a table',
     routeColumns: ['Country of manufacture', 'Country of the intermediary', 'State', 'Chains'],
     // The states of the routes data, for the cells of the route table.
@@ -2386,7 +2384,6 @@ export const fightUi = {
       'communications/EW': 'communications, EW',
       other: 'other',
     },
->>>>>>> origin/staging
   },
   noPeriod: 'Not given in the source of the figure',
   // The routes of the components: a figure of the page with no number, because the final text

@@ -71,6 +71,8 @@ export interface PageHead {
   readonly noindex: boolean;
   /** The structured data of the page, or none. */
   readonly structured: readonly Record<string, unknown>[];
+  /** The same page in each language, by the folder of its page, or none. */
+  readonly alternates?: readonly { readonly lang: string; readonly folder: string }[];
 }
 
 /** The address of the page, absolute, with a slash at its end. */
@@ -107,6 +109,13 @@ export const pageHead = (head: PageHead): string => {
       `<meta name="twitter:image" content="${image}" />`,
     );
   }
+  // A link to each language of the page needs an absolute address. A page that is not in a
+  // search result keeps it too: the link only tells which page is the twin of which.
+  if (head.site !== null)
+    for (const one of head.alternates ?? [])
+      tags.push(
+        `<link rel="alternate" hreflang="${escapeHtml(one.lang)}" href="${escapeHtml(canonicalOf(head.site, one.folder))}" />`,
+      );
   for (const one of head.structured)
     tags.push(`<script type="application/ld+json">${scriptJson(one)}</script>`);
   return tags.join('');

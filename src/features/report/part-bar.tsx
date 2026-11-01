@@ -134,7 +134,11 @@ export function PartBar() {
         <span className="min-w-0 flex-1 truncate text-report-small leading-none text-foreground">
           {parts[current]?.title}
         </span>
-        <LanguageSwitch page="report" anchor={parts[current]?.slug} className="-my-2 -mr-3 min-h-8" />
+        <LanguageSwitch
+          page="report"
+          anchor={parts[current]?.slug}
+          className="-my-2 -mr-3 min-h-8"
+        />
         <span aria-hidden="true" className="absolute inset-x-4 bottom-1 flex h-0.5 gap-0.5">
           {parts.map((one, index) => (
             <span

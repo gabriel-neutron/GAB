@@ -23,7 +23,9 @@ export function LayersFigure() {
   return (
     <div className="bg-[linear-gradient(var(--color-chart-grid)_1px,transparent_1px),linear-gradient(90deg,var(--color-chart-grid)_1px,transparent_1px)] bg-size-[2rem_2rem] py-6">
       <Legend />
-      <p className="mt-2 bg-background font-mono text-report-label/4 text-label">{methodUi.layers.schematic}</p>
+      <p className="mt-2 bg-background font-mono text-report-label/4 text-label">
+        {methodUi.layers.schematic}
+      </p>
       <ol
         aria-label={methodUi.layers.label}
         className="mt-4 grid lg:grid-cols-[1fr_7rem_1fr_7rem_1fr] lg:grid-rows-[repeat(6,auto)]"

@@ -62,7 +62,10 @@ export function BibliographyPage() {
             {/* No machine translation fills an English note with no French twin: a mark says so. */}
             <ol className="mt-4 space-y-3 lg:col-span-8 lg:mt-0">
               {untwinned.map((id) => (
-                <li key={id} className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3 text-report-small">
+                <li
+                  key={id}
+                  className="grid grid-cols-[4rem_minmax(0,1fr)] gap-3 text-report-small"
+                >
                   <span className="font-mono text-report-label text-label">{id}</span>
                   <span className="font-mono text-report-label uppercase text-label">
                     {ui.note.noTwin}

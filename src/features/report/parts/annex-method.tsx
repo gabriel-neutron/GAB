@@ -8,12 +8,8 @@ import { recordCounts } from '../record-counts';
 import { RichText } from '../rich-text';
 import { reportGraph } from '../report-graph';
 import nodes from '../nodes-data';
-<<<<<<< HEAD
 import { useContent, type ReportPath } from '../use-content';
-=======
 import { sources } from '../source';
-import { useContent } from '../use-content';
->>>>>>> origin/staging
 import { ClosingBreak } from './closing-art';
 
 const KEY = /^\*\*(.+?)\s?:?\*\*:?\s*/; // A French key has a space before its colon.

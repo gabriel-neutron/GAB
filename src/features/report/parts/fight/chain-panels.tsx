@@ -105,7 +105,9 @@ export function ChainTotals({
   /** The value at the full width; one max for several lists puts them on one scale. */
   readonly max?: number;
 }) {
-  const { fightUi } = useContent();
+  const { fightUi, figureTexts } = useContent();
+  // The names of the data are English; the labels of the routes figure give them in the page locale.
+  const names: Readonly<Partial<Record<string, string>>> = figureTexts.figures['11'].labels;
   return (
     <div className="min-w-0">
       <p className="font-mono text-report-label uppercase text-label">
@@ -118,7 +120,7 @@ export function ChainTotals({
             key={total.name}
             className="grid grid-cols-[minmax(0,8.5rem)_1fr_3rem] sm:grid-cols-[minmax(0,12rem)_1fr_3rem] items-center gap-2 border-b border-divider py-1 text-report-small"
           >
-            <span className="break-words">{total.name}</span>
+            <span className="break-words">{names[total.name] ?? total.name}</span>
             <span className="h-1.5 bg-chart-grid">
               <span
                 className={cn(

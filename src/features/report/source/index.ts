@@ -56,7 +56,12 @@ export function rekey(text: string, twins: Readonly<Record<string, string | null
         .replace(/\[\^([^\]]+)\]/g, (_, id: string) => `[^${marker(id)}]`);
       const caption = /^Figure (V\d+)\. (.*?)\. Note\. (.*)$/.exec(body);
       if (caption === null)
-        return [body.replace(/\b(figures?) (V\d+)/g, (_, word: string, key: string) => `${word} ${figureOf(key)}`)];
+        return [
+          body.replace(
+            /\b(figures?) (V\d+)/g,
+            (_, word: string, key: string) => `${word} ${figureOf(key)}`,
+          ),
+        ];
       return [
         `FIGURE: Figure ${figureOf(caption[1] ?? '')}: ${caption[2] ?? ''}`,
         '',

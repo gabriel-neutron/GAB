@@ -64,11 +64,7 @@ export function PortTraffic() {
       >
         <ChangeBars />
       </Panel>
-      <Panel
-        title={copy.cTitle}
-        unit={copy.cUnit}
-        className="lg:col-span-12"
-      >
+      <Panel title={copy.cTitle} unit={copy.cUnit} className="lg:col-span-12">
         <FleetLines />
         <ValuesTable
           head={['', ...figureData.fleet.map((one) => fleetLabels[one.key] ?? one.key)]}
@@ -376,13 +372,7 @@ function FleetLines() {
       {width === 0 ? (
         <div style={{ height }} />
       ) : (
-        <svg
-          width={width}
-          height={height}
-          role="img"
-          aria-label={copy.cTitle}
-          className="block"
-        >
+        <svg width={width} height={height} role="img" aria-label={copy.cTitle} className="block">
           {[0, 1000, 2000, 3000].map((tick) => (
             <g key={tick}>
               <line

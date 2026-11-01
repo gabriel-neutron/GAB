@@ -52,7 +52,6 @@ const eventLeft =
     YEARS.length) *
   100;
 
-
 function Grow({ share, className }: { readonly share: number; readonly className: string }) {
   const reduce = useReducedMotion();
   return (

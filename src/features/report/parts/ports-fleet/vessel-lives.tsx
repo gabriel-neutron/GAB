@@ -73,11 +73,7 @@ export function VesselLives() {
         )}
       </p>
 
-      <div
-        role="img"
-        aria-label={copy.label.replace('{n}', String(lanesN))}
-        className="mt-10"
-      >
+      <div role="img" aria-label={copy.label.replace('{n}', String(lanesN))} className="mt-10">
         <div aria-hidden="true">
           <div className="relative ml-0 h-8 md:ml-[11rem]">
             {TICKS.map((tick) => (
@@ -154,8 +150,7 @@ function LanesTable() {
   const TABLE = copy.table;
   const callCounts = (calls: Lane['calls']) =>
     KINDS.map(
-      (kind) =>
-        `${String(calls.filter((call) => call.kind === kind).length)} ${TABLE.kinds[kind]}`,
+      (kind) => `${String(calls.filter((call) => call.kind === kind).length)} ${TABLE.kinds[kind]}`,
     ).join(', ');
   return (
     <details className="mt-6 border-t border-border pt-1">
@@ -185,12 +180,11 @@ function LanesTable() {
                     {lane.identities.length === 0
                       ? label('aucune identité AIS suivie')
                       : lane.identities
-                          .map(
-                            (identity) =>
-                              TABLE.span
-                                .replace('{flag}', identity.flag)
-                                .replace('{from}', String(identity.from))
-                                .replace('{to}', String(identity.to)),
+                          .map((identity) =>
+                            TABLE.span
+                              .replace('{flag}', identity.flag)
+                              .replace('{from}', String(identity.from))
+                              .replace('{to}', String(identity.to)),
                           )
                           .join('; ')}
                   </td>

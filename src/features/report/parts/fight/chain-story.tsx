@@ -127,15 +127,18 @@ const Head = ({ title }: { readonly title: string }) => (
 
 /** The routes that the map draws, for a reader who cannot see the arcs. */
 function RouteTable() {
-  const { chain } = useContent().fightUi;
+  const { fightUi, figureTexts } = useContent();
+  const { chain } = fightUi;
   const states: Readonly<Record<string, string>> = chain.stateWords;
+  // The names of the data are English; the labels of the routes figure give them in the page locale.
+  const names: Readonly<Partial<Record<string, string>>> = figureTexts.figures['11'].labels;
   return (
     <ValuesTable
       summary={chain.routeTable}
       head={chain.routeColumns}
       rows={arcs.map((arc) => [
-        arc.from.name,
-        arc.to.name,
+        names[arc.from.name] ?? arc.from.name,
+        names[arc.to.name] ?? arc.to.name,
         states[arc.state] ?? arc.state,
         chainCount(arc.weight),
       ])}
@@ -196,10 +199,9 @@ function cards(sources: string, partSlug: string, copy: Copy): ReactNode[] {
       <Head title={copy.routesTitle} />
       <p className="mt-4 font-mono text-report-label text-label">{copy.states}</p>
       <p className="mt-2 font-mono text-report-label text-label">
-        {copy.arcNote.replace('{drawn}', chainCount(arcChains.drawn)).replace(
-          '{all}',
-          chainCount(arcChains.all),
-        )}
+        {copy.arcNote
+          .replace('{drawn}', chainCount(arcChains.drawn))
+          .replace('{all}', chainCount(arcChains.all))}
       </p>
       <RouteTable />
       <div className="mt-6">
