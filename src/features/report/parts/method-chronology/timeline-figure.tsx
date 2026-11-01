@@ -138,10 +138,13 @@ export function TimelineFigure() {
                 const counts = countsAt(event.date);
                 return (
                   <tr key={event.date + event.title} className="border-t border-divider">
-                    <td className="py-1 pr-4 whitespace-nowrap tabular-nums">{event.date}</td>
-                    <th scope="row" className="py-1 pr-4 font-normal">
-                      {event.title}
+                    <th
+                      scope="row"
+                      className="py-1 pr-4 font-normal whitespace-nowrap tabular-nums"
+                    >
+                      {event.date}
                     </th>
+                    <td className="py-1 pr-4">{event.title}</td>
                     {REGIMES.map((regime) => (
                       <td key={regime} className="py-1 pr-4 text-right tabular-nums">
                         {counts[regime]}
@@ -198,7 +201,12 @@ function Cursor({ index, onSelect }: CursorProps) {
         </p>
       </div>
       <div className="min-w-0">
-        <dl aria-live="polite" aria-atomic="true" className="mt-3 grid grid-cols-3 gap-4 sm:mt-0">
+        <dl
+          aria-live="polite"
+          aria-atomic="true"
+          aria-label={methodUi.timeline.counters}
+          className="mt-3 grid grid-cols-3 gap-4 sm:mt-0"
+        >
           {REGIMES.map((regime) => (
             <div key={regime} className="min-w-0 border-t border-divider pt-1">
               <dt className="font-mono text-report-label text-label">{regime}</dt>
@@ -311,13 +319,14 @@ function ScrollTrack({ index, onStep, onMissing }: ScrollTrackProps) {
   const { scrollY } = useScroll({ container: scroller });
   // How far the page has scrolled past the top of the scene, from 0 to the length of the axis
   // that is out of the view.
-  const shift = useTransform(scrollY, () => {
+  const shiftNow = () => {
     const node = outer.current;
     const frame = scroller.current;
     if (node === null || frame === null) return 0;
     const past = frame.getBoundingClientRect().top - node.getBoundingClientRect().top;
     return Math.min(Math.max(0, TRACK - viewWidth()), Math.max(0, past));
-  });
+  };
+  const shift = useTransform(scrollY, shiftNow);
   const progress = useTransform(shift, (px) => px / Math.max(1, TRACK - viewWidth()));
   const transform = useTransform(shift, (px) => `translateX(${String(-px)}px)`);
   // The cursor line crosses the view as the axis moves, so that it meets the first event at the
@@ -339,7 +348,7 @@ function ScrollTrack({ index, onStep, onMissing }: ScrollTrackProps) {
     if (event === undefined || frame === null) return;
     const free = TRACK - viewWidth();
     // The shift that puts the cursor line on x is x * free / TRACK; one px more passes the event.
-    frame.scrollBy({ top: (xOf(event.date) * free) / TRACK - shift.get() + 1 });
+    frame.scrollBy({ top: (xOf(event.date) * free) / TRACK - shiftNow() + 1 });
     onStep(next);
   };
   return (

@@ -2194,7 +2194,7 @@ export const methodUi = {
     actors: { COAL: 'COALITION' } as Readonly<Partial<Record<string, string>>>,
     cursor: 'Time cursor: event',
     counters:
-      'Tankers designated by each regime to the end of the quarter of the event, from the data of figure 9',
+      "Tankers designated by each regime to the end of the quarter of the event. Data: the sanctions lists of the EU, the UK and OFAC; author's calculations",
     table: 'Events and tankers designated, as a table',
     date: 'Date',
     event: 'Event',
