@@ -69,7 +69,7 @@ describe.each([
 });
 
 describe('the table of the port visits', () => {
-  it('is a disclosure that a reader can open while the map moves', () => {
+  it('is a disclosure that a reader can open at all times', () => {
     for (const copy of [en, fr]) {
       const html = render(copy, <visitLayer.Table />);
       expect(html).toContain(`<summary`);

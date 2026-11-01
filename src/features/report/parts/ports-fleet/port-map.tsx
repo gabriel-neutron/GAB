@@ -227,7 +227,6 @@ export function PortMap({ step, sources }: PortMapProps) {
         {one}
       </p>
     ));
-  if (visits) credit.push(<visitLayer.Table key="visits" />);
   // External constraint: the GFW API terms ask for this line with a link on each page that shows
   // their data, so it stays in view when the other sources fold.
   const gfw = visits ? (
@@ -613,6 +612,12 @@ export function PortMap({ step, sources }: PortMapProps) {
       </MapFoot>
     </div>
   );
+}
+
+/** The port visits as a table, under the map scene, so a reader can open it at all times. No
+ * table when the site has no visit layer. */
+export function VisitTable() {
+  return VISITS_ON ? <visitLayer.Table /> : null;
 }
 
 function MapFoot({

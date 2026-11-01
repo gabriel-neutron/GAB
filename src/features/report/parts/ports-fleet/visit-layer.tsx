@@ -77,25 +77,21 @@ function Cursor() {
   );
 }
 
-/** The visits and the tankers for each port of the query: the text form of the pulses. A
- * disclosure that a reader can open at all times, also while the map moves. */
+/** The visits and the tankers for each port of the query: the text form of the pulses. */
 function Table() {
   const { portsFleetUi, ui } = useContent();
   const copy = portsFleetUi.map.visits;
   const number = new Intl.NumberFormat(ui.numberLocale);
   return (
-    // The foot of the map lets the pointer through to the map; the disclosure takes it.
-    <div className="pointer-events-auto">
-      <ValuesTable
-        summary={copy.table}
-        head={[copy.port, copy.count, copy.tankers]}
-        rows={portVisits.ports.map((port) => [
-          labelOf.get(port.terminal) ?? port.port,
-          number.format(port.visits),
-          number.format(port.tankers),
-        ])}
-      />
-    </div>
+    <ValuesTable
+      summary={copy.table}
+      head={[copy.port, copy.count, copy.tankers]}
+      rows={portVisits.ports.map((port) => [
+        labelOf.get(port.terminal) ?? port.port,
+        number.format(port.visits),
+        number.format(port.tankers),
+      ])}
+    />
   );
 }
 
