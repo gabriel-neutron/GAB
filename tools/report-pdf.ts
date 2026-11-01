@@ -121,7 +121,7 @@ async function main(): Promise<void> {
   const { runnerImport } = await import('vite');
   const all = await copies(async (file) => (await runnerImport(file)).module);
   const browser = await chromium.launch();
-  const stamp: Record<string, string> = {};
+  const stamp: Record<string, { hash: string; pages: number }> = {};
   try {
     const page = await browser.newPage();
     for (const lang of LANGS) {
@@ -138,7 +138,7 @@ async function main(): Promise<void> {
         tagged: true,
         outline: true,
       });
-      stamp[lang] = stampOf(lang, all[lang]);
+      stamp[lang] = { hash: stampOf(lang, all[lang]), pages: counts.pages };
     }
   } finally {
     await browser.close();

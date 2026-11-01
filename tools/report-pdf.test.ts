@@ -16,17 +16,19 @@ describe('report PDF', () => {
   it('each PDF is made from the current templates of its language', async () => {
     // Vitest reads the modules of the page as Vite does.
     const all = await copies((file) => import(/* @vite-ignore */ file));
-    const stamp = JSON.parse(readFileSync(STAMP, 'utf8')) as Record<string, string>;
+    const stamp = JSON.parse(readFileSync(STAMP, 'utf8')) as Record<
+      string,
+      { hash: string; pages: number }
+    >;
     for (const lang of LANGS) {
       expect(existsSync(pdfOf(lang))).toBe(true);
       expect(statSync(pdfOf(lang)).size).toBeLessThan(10 * 1024 * 1024);
-      // One PDF page or more for each template: the layout pass can add a page.
+      // The layout pass can add pages: the stamp holds the count that it printed.
       const pdf = readFileSync(pdfOf(lang), 'latin1');
-      expect(pdf.match(/\/Type\s*\/Page[^s]/g)?.length).toBeGreaterThanOrEqual(
-        pagesOf(lang).length,
-      );
+      expect(pdf.match(/\/Type\s*\/Page[^s]/g)).toHaveLength(stamp[lang]?.pages ?? 0);
+      expect(stamp[lang]?.pages).toBeGreaterThanOrEqual(pagesOf(lang).length);
       // A failure here means: run `pnpm report:pdf`, and commit the PDF files and the stamp.
-      expect(stamp[lang]).toBe(stampOf(lang, all[lang]));
+      expect(stamp[lang]?.hash).toBe(stampOf(lang, all[lang]));
     }
     expect(pagesOf('en')).toHaveLength(pagesOf('fr').length);
   });

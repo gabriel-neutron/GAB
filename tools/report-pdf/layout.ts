@@ -24,7 +24,8 @@ export interface LayoutResult {
 }
 
 export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
-  const URL = /https?:\/\/[^\s<]*[^\s<.,;)]/g;
+  // A URL ends before a stop or a closing bracket of the sentence; a pair of brackets inside it stays.
+  const URL = /https?:\/\/(?:\([^\s<()]*\)|[^\s<()])*(?:\([^\s<()]*\)|[^\s<.,;()])/g;
   const LINK = 'color: inherit; text-decoration: none';
   // The size and the leading of the notes, from the size of the design to 7 pt.
   const SIZES = [
@@ -161,6 +162,12 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
       const column = columnOf(sheet);
       const box = column ? footOf(column).firstElementChild : null;
       if (column && box && rowsOf(column).length === 0) box.remove();
+      const [size = '', leading = ''] = column?.dataset['notes']?.split(' ') ?? [];
+      if (column && size !== '')
+        for (const row of rowsOf(column)) {
+          row.style.fontSize = size;
+          row.style.lineHeight = leading;
+        }
     }
   };
 
@@ -225,6 +232,7 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
         if (joins) head.prepend(tail, ' ');
         else {
           const p = last.cloneNode(false) as HTMLElement;
+          p.removeAttribute('id');
           p.append(tail);
           put(p);
         }
@@ -269,7 +277,9 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
     return column;
   };
 
+  // The notes of one page keep one size: the page keeps it, and each note that comes in takes it.
   const sized = (column: HTMLElement, [size, leading]: readonly [string, string]): void => {
+    column.dataset['notes'] = `${size} ${leading}`;
     for (const row of rowsOf(column)) {
       row.style.fontSize = size;
       row.style.lineHeight = leading;
@@ -309,6 +319,7 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
   // A page that the pass changed has no hole: while four lines or more are free at its foot, the
   // start of the next page of the same part comes back, a block at a time (the design fills a
   // page while four lines are free). A block that does not fit goes back, cut at a line.
+  // The leading of the body text of the design: a page fills while four lines are free.
   const LINE = 24;
   const free = (column: HTMLElement): number =>
     footOf(column).getBoundingClientRect().top - bodyOf(column).getBoundingClientRect().bottom;
@@ -394,6 +405,7 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
   all.forEach((sheet, index) => {
     const page = `page ${index + 1}`;
     for (const box of [sheet, ...Array.from(sheet.querySelectorAll<HTMLElement>('*'))]) {
+      // The ASCII picture of the cover is a decoration, cut by its frame on purpose.
       if (box.closest('[aria-hidden="true"]')) continue;
       const style = getComputedStyle(box);
       if (style.overflow === 'visible' && box !== sheet) continue;
@@ -422,5 +434,15 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
         faults.push(`${page}: note ${number} is not on the page of its call`);
     }
   });
+  // Each call has one note, and each note one call.
+  const calls = Array.from(document.querySelectorAll('.sheet sup[data-fn]')).map(
+    (sup) => sup.getAttribute('data-fn') ?? '',
+  );
+  const notes = Array.from(document.querySelectorAll('.sheet [id^="note-"]')).map((row) =>
+    row.id.slice('note-'.length),
+  );
+  for (const number of new Set([...calls, ...notes]))
+    if (calls.filter((call) => call === number).length !== 1 || !notes.includes(number))
+      faults.push(`note ${number} has no row, no call, or more than one call`);
   return { faults, internalLinks, textUrls, addedLinks, notesWithNoLink, pages: all.length };
 }

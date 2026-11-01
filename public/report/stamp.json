@@ -1,4 +1,10 @@
 {
-  "en": "d10988de1233117a1a0ad9bf6684a0a5321b4af4a06c445b36c9c767b817d13f",
-  "fr": "bab735fe93b5d8eb56f097a2a54b9424296aa70b1a78cb57a9afb5af22c124de"
+  "en": {
+    "hash": "d22ad9e017bb4c76bad76f51317c7bce14c733d33e1435d8c001ab2d7ce75da7",
+    "pages": 37
+  },
+  "fr": {
+    "hash": "df5b69ab5c646ec8be57b0f2eb08e41f055dd8348726eddbefc33ac1f22521ad",
+    "pages": 37
+  }
 }
