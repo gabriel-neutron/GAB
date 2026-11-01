@@ -33,7 +33,9 @@ describe('PlantsFigure', () => {
   });
 
   it('draws one point for each row with a position, and none for the others', () => {
-    const placed = plants.filter((plant) => plant['lat'] !== '').map((plant) => plant['entity']);
+    const placed = plants
+      .filter((plant) => plant['lat'] !== '' && plant['lon'] !== '')
+      .map((plant) => plant['entity']);
     expect(marks).toEqual(placed);
     expect(marks.length).toBeGreaterThan(0);
     const offMap = rows.filter((row) => !marks.includes(row[0] ?? ''));

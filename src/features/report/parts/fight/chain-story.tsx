@@ -130,11 +130,17 @@ const Head = ({ title }: { readonly title: string }) => (
 /** The routes that the map draws, for a reader who cannot see the arcs. */
 function RouteTable() {
   const { chain } = useContent().fightUi;
+  const states: Readonly<Record<string, string>> = chain.stateWords;
   return (
     <ValuesTable
       summary={chain.routeTable}
       head={chain.routeColumns}
-      rows={arcs.map((arc) => [arc.from.name, arc.to.name, arc.state, chainCount(arc.weight)])}
+      rows={arcs.map((arc) => [
+        arc.from.name,
+        arc.to.name,
+        states[arc.state] ?? arc.state,
+        chainCount(arc.weight),
+      ])}
     />
   );
 }

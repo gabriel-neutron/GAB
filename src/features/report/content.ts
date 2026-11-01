@@ -2275,12 +2275,23 @@ export const fightUi = {
     chainUnit: 'one chain = 1, shared between its routes',
     routeTable: 'All the routes of the map, as a table',
     routeColumns: ['Country of manufacture', 'Country of the intermediary', 'State', 'Chains'],
+    // The states of the routes data, for the cells of the route table.
+    stateWords: {
+      documented: 'documented',
+      'documented (Ukrainian government source only)':
+        'documented (Ukrainian government source only)',
+      'documented (Russian importer named; foreign intermediary not named)':
+        'documented (Russian importer named; foreign intermediary not named)',
+      lead: 'lead',
+      'no source found': 'no source found',
+    },
   },
   // The defence plants of the data file on the chain map, with a table of all of them.
   plants: {
     title: 'Russian defence plants and integrators by main weapon',
     unit: 'one point = one plant or integrator',
-    sources: 'GAB record: positions and matches by name on the EU, UK and US sanctions lists',
+    sources:
+      'GAB record: plant positions (stored or approximate) and the result of the check on the EU, UK and US lists; some plants are not checked',
     mapLabel:
       'Map of the Russian defence plants and integrators by main weapon; on a wide screen six main plants are named; hollow points are approximate',
     legend: [
@@ -2303,6 +2314,7 @@ export const fightUi = {
       no: 'no',
       'not checked': 'not checked',
       'no match by name': 'no match by name',
+      'BIS Entity List (not SDN)': 'BIS Entity List (not SDN)',
       drone: 'drone',
       'cruise missile': 'cruise missile',
       'ballistic missile': 'ballistic missile',
