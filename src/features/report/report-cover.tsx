@@ -8,12 +8,6 @@ import { monoLabel } from './primitives/label';
 import { ScrambleText } from './scramble-text';
 import { useContent } from './use-content';
 
-// The build sets this name only when it copied the PDF beside the page, so the link never names
-// a file that is absent. With no PDF, the link gives the final text of the page locale.
-const pdfName: unknown = import.meta.env['VITE_REPORT_PDF'];
-const pdfHref =
-  typeof pdfName === 'string' && pdfName !== '' ? import.meta.env.BASE_URL + pdfName : null;
-
 // The actions of the first screen: 44px boxes. The first one downloads the report, so it is solid.
 const ACTION = cn(
   'inline-flex min-h-11 items-center gap-2 border px-3 font-mono text-report-label tracking-[0.06em] uppercase md:px-4  md:tracking-[0.08em]',
@@ -87,6 +81,7 @@ export function ReportCover() {
         <h1 className="text-report-heading md:text-report-number leading-[0.92] tracking-[-0.05em] text-balance">
           <ScrambleText text={report.title} />
         </h1>
+        <p className="mt-4 font-mono text-report-label text-label md:mt-6">{report.byline}</p>
         <dl className="mt-6 grid max-w-3xl grid-cols-2 gap-x-6 gap-y-4 md:mt-10 md:grid-cols-4">
           {values.map((value) => (
             <div key={value.label} className="border-t border-foreground/40 pt-2">
@@ -104,9 +99,8 @@ export function ReportCover() {
         </dl>
         <nav aria-label={links.label} className="mt-6 flex flex-wrap items-center gap-2 md:mt-10">
           <a
-            href={pdfHref ?? links.text}
-            // The build gives the text file a hashed name; the reader saves it under a plain one.
-            download={pdfHref === null ? `gab-report-${ui.lang}.md` : ''}
+            href={`${import.meta.env.BASE_URL}report/gab-report-${ui.lang}.pdf`}
+            download=""
             className={PRIMARY}
           >
             {links.pdf} <span aria-hidden="true">↓</span>

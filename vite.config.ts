@@ -8,7 +8,6 @@ import { defineConfig, loadEnv } from 'vite';
 import { openWithKey } from './tools/dev-open.ts';
 import { maplibreWorker } from './tools/maplibre-worker.ts';
 import { releaseFolder, reportFolder } from './tools/release-folder.ts';
-import { reportPdf } from './tools/report-pdf.ts';
 import { isReleaseBuild } from '@gab/release/site-crawl';
 import { stagingHeaders } from './tools/staging-headers.ts';
 
@@ -28,8 +27,6 @@ const reportDir = process.env['REPORT_DIR'];
 // the files that the map needs. The shell variable wins.
 const releaseDir =
   process.env['RELEASE_DIR'] ?? loadEnv('development', import.meta.dirname, '')['RELEASE_DIR'];
-const reportPdfFile =
-  process.env['REPORT_PDF'] ?? loadEnv('development', import.meta.dirname, '')['REPORT_PDF'];
 
 export default defineConfig({
   plugins: [
@@ -47,7 +44,6 @@ export default defineConfig({
         ? path.resolve(import.meta.dirname, 'packages/site/report')
         : reportDir,
     ),
-    reportPdf(reportPdfFile),
     maplibreWorker(),
     stagingHeaders(),
   ],

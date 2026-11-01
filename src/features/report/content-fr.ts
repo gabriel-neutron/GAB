@@ -1,4 +1,3 @@
-import textFile from './source/report-fr.md?url';
 import { reportTitles } from './titles';
 import {
   closingUi,
@@ -163,8 +162,8 @@ const frFigureTexts = {
 /** The French copy of the report content: the French text (V4) with the note ids of the English
  * text, and the words of the page in French. */
 export const fr: ReportContent = {
-  // The page shows only the title of this block.
-  report: { ...report, title: reportTitles.fr },
+  // The page shows only the title and the byline of this block.
+  report: { ...report, title: reportTitles.fr, byline: 'Par Tomas Arden et Gabriel' },
   parts: frParts,
   untwinned: Object.entries(noteTwins).flatMap(([id, twin]) => (twin === null ? [id] : [])),
   figureTexts: frFigureTexts,
@@ -241,7 +240,6 @@ export const fr: ReportContent = {
       read: 'Faire défiler pour lire',
       data: 'Données',
       pdf: 'Télécharger le rapport',
-      text: textFile,
     },
     summary: {
       ...openingUi.summary,
