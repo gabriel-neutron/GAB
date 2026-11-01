@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { cn } from '@/shared/lib/utils';
-import { openingUi, report } from './content';
 import { ScrambleText } from './scramble-text';
+import { useContent } from './use-content';
 
 // The build sets this name only when it copied the PDF beside the page, so the link never names
 // a file that is absent.
@@ -28,12 +28,12 @@ const SECONDARY = cn(
 const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1.4 -0.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E\")";
 
-const { links } = openingUi;
-
 /** The first screen, in the theme of the page. The dithered tanker, black on the accent, fills
  * the screen behind the words, and a scrim keeps every word on the plain ground of the page. The art is
  * decoration: the bibliography page gives its credit. */
 export function ReportCover() {
+  const { openingUi, report } = useContent();
+  const { links } = openingUi;
   return (
     <header className="relative isolate overflow-hidden border-b border-border bg-background text-foreground">
       <div className="absolute inset-0 -z-10 bg-signal">

@@ -10,7 +10,8 @@ describe('opening copy', () => {
     expect(items).toHaveLength(openingUi.summary.values.length);
     openingUi.summary.values.forEach(({ value, note }, index) => {
       expect(items?.[index]?.text).toContain(value);
-      expect(items?.[index]?.text).toContain(`[^${note}]`);
+      // The item on the price has no note.
+      if (note !== '') expect(items?.[index]?.text).toContain(`[^${note}]`);
     });
     expect(items?.[4]?.text).toContain('14%');
   });

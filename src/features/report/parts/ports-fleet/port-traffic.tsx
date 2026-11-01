@@ -383,7 +383,7 @@ const FLEET_LABELS: Readonly<Record<string, string>> = {
   shadow: labels['« Flotte fantôme »'] ?? '',
   ig: labels['Assurés IG'] ?? '',
 };
-// The text (note III-2) names the three ports that the EU bans from February 2025.
+// Figure 1 of the text names the three ports that the EU bans from February 2025.
 const MARKS = [
   { month: '2022-12', label: labels['embargo (UE)'] ?? '', short: labels['embargo (UE)'] ?? '' },
   {

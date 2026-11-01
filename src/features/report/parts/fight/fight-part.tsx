@@ -1,30 +1,32 @@
 import type { ReactNode } from 'react';
-import { fightUi, figureTexts, parts, type ReportBlock, type ReportPart } from '../../content';
+import type { ReportBlock, ReportPart } from '../../content';
 import { FigureFrame } from '../../figure-frame';
 import { ChapterBreak } from '../../primitives/chapter-break';
 import { Reveal } from '../../primitives/reveal';
 import { RichText } from '../../rich-text';
+import { useContent } from '../../use-content';
 import { routeCounts } from './chain-data';
 import { ChainStory } from './chain-story';
 import { RoutesFigure } from './routes-figure';
 import { SuppliersFigure } from './suppliers-figure';
 
 // The note of figure 11 holds the counts of its data as {F.name} marks.
-const routesNote = figureTexts.figures['11'].note
-  .replaceAll('{F.routes * 3}', String(routeCounts.steps))
-  .replaceAll('{F.doc}', String(routeCounts.doc))
-  .replaceAll('{F.chains}', String(routeCounts.chains))
-  .replaceAll('{F.routes}', String(routeCounts.routes))
-  .replaceAll('{F.all}', String(routeCounts.all));
-
-const NOTES: Readonly<Record<number, string>> = {
-  10: figureTexts.figures['10'].note,
-  11: routesNote,
-};
+const fillRoutes = (note: string) =>
+  note
+    .replaceAll('{F.routes * 3}', String(routeCounts.steps))
+    .replaceAll('{F.doc}', String(routeCounts.doc))
+    .replaceAll('{F.chains}', String(routeCounts.chains))
+    .replaceAll('{F.routes}', String(routeCounts.routes))
+    .replaceAll('{F.all}', String(routeCounts.all));
 
 /** Fight: a chapter break over the flintlock pistols, figure 10 at the full width of the page,
  * the chain story from the brand to the weapon, and figure 11. */
 export function FightPart({ part }: { readonly part: ReportPart }) {
+  const { fightUi, figureTexts, parts } = useContent();
+  const NOTES: Readonly<Record<number, string>> = {
+    10: figureTexts.figures['10'].note,
+    11: fillRoutes(figureTexts.figures['11'].note),
+  };
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const out: ReactNode[] = [];
   const figureOf = (block: ReportBlock, chart: ReactNode) =>

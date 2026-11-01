@@ -6,10 +6,10 @@ import { Dialog } from 'radix-ui';
 import { EntityGlyph } from '@/shared/entity-glyph';
 import { cn } from '@/shared/lib/utils';
 import { useNarrowScreen } from '@/shared/narrow-screen';
-import { ui } from './content';
 import { LocalGraph } from './local-graph';
 import { NodeRef } from './node-ref';
 import { reportGraph } from './report-graph';
+import { useContent } from './use-content';
 
 const NodeMap = lazy(() => import('./node-map').then((module) => ({ default: module.NodeMap })));
 
@@ -40,6 +40,7 @@ function Section({ title, children }: { readonly title: string; readonly childre
 }
 
 function NodeRecord({ id }: { readonly id: string }) {
+  const { ui } = useContent();
   const node = reportGraph.node(id);
   if (node === undefined) return null;
   const relations = reportGraph.relations(id);
@@ -155,6 +156,7 @@ function NodeRecord({ id }: { readonly id: string }) {
 /** The panel of one node: a column on the right of a wide screen, a bottom sheet on a phone.
  * Escape, the close control or a drag down on the sheet closes it. */
 export function NodePanel({ id, onClose, returnFocusTo }: NodePanelProps) {
+  const { ui } = useContent();
   const narrow = useNarrowScreen();
   const drag = useDragControls();
   const away = narrow ? { y: '100%', opacity: 1 } : { x: 32, opacity: 0 };

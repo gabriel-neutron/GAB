@@ -1,5 +1,5 @@
 import land from './basemap-data';
-import { ui } from './content';
+import { useContent } from './use-content';
 
 // The basemap of the report is equirectangular over its box, at 5 units for one degree.
 const [WEST, , , NORTH] = land.bbox;
@@ -24,6 +24,7 @@ export function NodeMap({
   readonly lon: number;
   readonly name: string;
 }) {
+  const { ui } = useContent();
   const cx = x(lon);
   const cy = y(lat);
   return (

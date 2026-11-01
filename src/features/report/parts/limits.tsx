@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/utils';
-import { closingUi, parts, type ReportBlock, type ReportPart } from '../content';
+import type { ReportBlock, ReportPart } from '../content';
 import { accent } from '../primitives/accent';
 import { Reveal } from '../primitives/reveal';
 import { RichText } from '../rich-text';
+import { useContent } from '../use-content';
 import { ClosingBreak, OUTLINE } from './closing-art';
 
-const { limits: copy } = closingUi;
 // A list item opens with its claim in bold; the rest of the item explains it.
 const KEY = /^\*\*(.+?)\*\*\s*/;
 const PROSE = 'max-w-[64ch] text-report-body/[1.65] ';
@@ -47,6 +47,8 @@ function Item({ block, index, partSlug }: { block: ReportBlock; index: number; p
 /** The limits: a break with the four limits as a redacted register, the limits of the evidence as
  * a ruled list, the one check that every fact needs as a pull statement, then the leads. */
 export function LimitsPart({ part }: { readonly part: ReportPart }) {
+  const { closingUi, parts } = useContent();
+  const { limits: copy } = closingUi;
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const claims = part.blocks
     .filter((block) => block.kind === 'li')

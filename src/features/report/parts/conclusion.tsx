@@ -1,8 +1,9 @@
 import { cn } from '@/shared/lib/utils';
-import { parts, type ReportPart } from '../content';
+import type { ReportPart } from '../content';
 import { ChapterBreak } from '../primitives/chapter-break';
 import { Reveal } from '../primitives/reveal';
 import { RichText } from '../rich-text';
+import { useContent } from '../use-content';
 
 const PROSE = 'max-w-[64ch] text-report-body/[1.65] ';
 // The third paragraph is the answer: the question, two sentences on the money, one on the goods.
@@ -11,6 +12,7 @@ const SENTENCE = /(?<=[.?])\s+/;
 /** The conclusion: the effect and the two ways around it in prose, the answer to the starting
  * question split into its two routes, and the advice. */
 export function ConclusionPart({ part }: { readonly part: ReportPart }) {
+  const { parts } = useContent();
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const [effect, around, answer, advice] = part.blocks.map((block) => block.text);
   const [question, ...routes] = answer === undefined ? [] : answer.split(SENTENCE);

@@ -1,14 +1,15 @@
 import type { ReactNode } from 'react';
-import { openingUi, parts, type ReportPart } from '../content';
+import type { ReportPart } from '../content';
 import { ChapterBreak } from '../primitives/chapter-break';
 import { Reveal } from '../primitives/reveal';
 import { RichText } from '../rich-text';
-
-const { introduction: copy } = openingUi;
+import { useContent } from '../use-content';
 
 /** The introduction: a typographic chapter break with a dithered illustration in its empty half,
  * then a calm reading column with the three questions. */
 export function IntroductionPart({ part }: { readonly part: ReportPart }) {
+  const { openingUi, parts } = useContent();
+  const { introduction: copy } = openingUi;
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const body: ReactNode[] = [];
   const questions: ReactNode[] = [];

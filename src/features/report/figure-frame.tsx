@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { ui } from './content';
 import { RichText } from './rich-text';
+import { useContent } from './use-content';
 
 interface FigureFrameProps {
   readonly number: number;
@@ -30,6 +30,7 @@ export function FigureFrame({
   children,
   plate = false,
 }: FigureFrameProps) {
+  const { ui } = useContent();
   const facts = [
     [ui.figure.unit, unit ?? ''],
     [ui.figure.period, period ?? ''],

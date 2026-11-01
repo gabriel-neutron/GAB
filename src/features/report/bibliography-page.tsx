@@ -1,14 +1,14 @@
 import { Link } from '@tanstack/react-router';
-import { parts, ui } from './content';
 import { noteAnchor } from './note-ref';
 import { ReportFrame } from './report-frame';
 import { RichText } from './rich-text';
-
-const { images } = ui.bibliography;
+import { useContent } from './use-content';
 
 /** Every note of the report, grouped by part, each one at the anchor that its marker links to,
  * then the credits of the images of the report page. */
 export function BibliographyPage() {
+  const { parts, ui } = useContent();
+  const { images } = ui.bibliography;
   return (
     <ReportFrame label={ui.bibliography.label}>
       <article className="mx-auto max-w-[1200px] px-4 py-10 md:px-8">
