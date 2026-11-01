@@ -14,6 +14,22 @@ names, the figure texts, and the labels of the controls. Do not change a value o
 there; add new labels beside the others. The node and relation files are the data of the report
 graph. The page reads every count from these files, so a count never sits in the text of the page.
 
+## Locale and final text
+
+The content has one shape and one copy for each locale. A part, a mark or the frame reads the copy
+of the page locale from the content context, not from a direct import. The root gives no copy, so
+the page reads English; the route of another locale gives its copy to the provider. The part slugs,
+the node identifiers and the figure data stay the same in all locales. Some figure components
+still read the English labels directly.
+
+The text of a part is the final text of the author, word for word. The source folder holds that
+text as the author delivers it, and the heading where each part starts. Only these changes are
+allowed: a paragraph cut, a list item for each item of the text, a short heading, and the node
+marks. The notes keep the numbers of the final text. The parity test compares, for each part, the
+numbers, the months and the note markers of the body and of each figure caption with the source,
+and each note with the words of the source. A text change that adds, removes or moves one of
+them fails the test.
+
 ## The part contract
 
 The report is a list of parts. Each part has a slug, a title, blocks, notes and node identifiers.

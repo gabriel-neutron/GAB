@@ -7,12 +7,19 @@ import { splitSentences } from './sentences';
 const part = parts.find((one) => one.slug === 'ports-fleet');
 
 describe('ports and fleet', () => {
-  it('splits the two map paragraphs into whole sentences that give the text back', () => {
-    const [first, second] = [0, 1].map((index) => part?.blocks[index]?.text ?? '');
-    expect(splitSentences(first ?? '')).toHaveLength(8);
-    expect(splitSentences(second ?? '')).toHaveLength(6);
-    expect(splitSentences(first ?? '').join(' ')).toBe(first);
-    expect(splitSentences(second ?? '').join(' ')).toBe(second);
+  it('splits the paragraphs of the map scene into whole sentences that give the text back', () => {
+    // The scene shows the paragraphs 1, 2 and 4 of the part: two, three and four sentences.
+    for (const [index, count] of [
+      [1, 2],
+      [2, 3],
+      [4, 4],
+    ] as const) {
+      const block = part?.blocks.at(index);
+      const text = block?.text ?? '';
+      expect(block?.kind).toBe('p');
+      expect(splitSentences(text)).toHaveLength(count);
+      expect(splitSentences(text).join(' ')).toBe(text);
+    }
   });
 
   it('stacks the bands of a flow on their nodes at one scale', () => {

@@ -1,7 +1,7 @@
 import { Fragment, type ReactNode } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
-import { figureTexts, parts, payUi, type ReportBlock, type ReportPart } from '../../content';
+import type { ReportBlock, ReportPart } from '../../content';
 import { FigureFrame } from '../../figure-frame';
 import { parseMarks } from '../../marks';
 import { AsciiImage } from '../../primitives/ascii-image';
@@ -10,6 +10,7 @@ import { layout } from '../../primitives/layout';
 import { Reveal } from '../../primitives/reveal';
 import { StickyScene } from '../../primitives/sticky-scene';
 import { RichText } from '../../rich-text';
+import { useContent, type ReportContent } from '../../use-content';
 import { BudgetChart, BuyersChart, PriceChart } from './pay-figures';
 
 // The editorial grid: the notes hang in the left third, the text reads in the right two thirds.
@@ -23,6 +24,7 @@ const WIDE_INNER = 'mx-auto max-w-[1376px]';
 /** Part "Pay": the oil-derrick break, the text on an editorial grid with its notes in the margin,
  * figures 3 and 5 wide, and figure 4 as a scroll scene of the price caps and the gap. */
 export function PayPart({ part }: { readonly part: ReportPart }) {
+  const { parts } = useContent();
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const out: ReactNode[] = [];
   let reasons: ReportBlock[] = [];
@@ -37,6 +39,14 @@ export function PayPart({ part }: { readonly part: ReportPart }) {
       continue;
     }
     closeReasons();
+    if (block.kind === 'h3') {
+      out.push(
+        <div key={block.text} className={ROW}>
+          <h3 className={cn(TEXT, 'mt-14 mb-2 text-report-lead text-balance')}>{block.text}</h3>
+        </div>,
+      );
+      continue;
+    }
     if (block.kind === 'figure' && block.figure !== undefined) {
       out.push(<Figure key={block.text} figure={block.figure} slug={part.slug} />);
       continue;
@@ -64,6 +74,7 @@ export function PayPart({ part }: { readonly part: ReportPart }) {
 /** The chapter break over a decorative band of the Baku oil derricks in ASCII. The numeral stands
  * on the art. */
 function PayBreak({ number, title }: { readonly number: string; readonly title: string }) {
+  const { payUi } = useContent();
   return (
     // From 768px to 1024px the break takes the height of its words, not of the view.
     <div className="relative md:max-lg:[&>.isolate]:min-h-0">
@@ -91,6 +102,7 @@ function PayBreak({ number, title }: { readonly number: string; readonly title: 
 /** The notes of one paragraph, in full, in the left margin of a large screen. On a smaller
  * screen each marker opens its note. */
 function Sidenotes({ text, part }: { readonly text: string; readonly part: ReportPart }) {
+  const { payUi } = useContent();
   const ids = parseMarks(text).flatMap((run) => (run.kind === 'note' ? [run.id] : []));
   const notes = ids.flatMap((id) => part.notes.filter((note) => note.id === id));
   if (notes.length === 0) return null;
@@ -150,6 +162,7 @@ type FigureFacts = NonNullable<ReportBlock['figure']>;
 
 /** One figure of the part in its frame, wider than the text. */
 function Figure({ figure, slug }: { readonly figure: FigureFacts; readonly slug: string }) {
+  const { figureTexts, payUi } = useContent();
   const chart =
     figure.number === 3 ? (
       <BuyersChart />
@@ -188,7 +201,7 @@ function StepText({
   step,
   slug,
 }: {
-  readonly step: (typeof payUi.f4.steps)[number];
+  readonly step: ReportContent['payUi']['f4']['steps'][number];
   readonly slug: string;
 }) {
   return (
@@ -208,6 +221,7 @@ const CARD = 'invisible w-full text-report-small lg:visible lg:w-[calc(100%/3-1.
 /** Figure 4 as a scroll scene: each step shows one more state of the caps and the gap. Under
  * reduced motion, one chart in its final state; the body text holds the words of the steps. */
 function PriceScene({ slug }: { readonly slug: string }) {
+  const { payUi } = useContent();
   const reduce = useReducedMotion();
   if (reduce === true) return <PriceChart step={3} />;
   const steps = payUi.f4.steps;

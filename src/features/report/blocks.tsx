@@ -1,19 +1,20 @@
 import type { ReactNode } from 'react';
-import { figureTexts, ui, type ReportBlock } from './content';
+import type { ReportBlock } from './content';
 import { FigureFrame } from './figure-frame';
 import { RichText } from './rich-text';
+import { useContent } from './use-content';
 
 interface BlocksProps {
   readonly blocks: readonly ReportBlock[];
   readonly partSlug: string;
 }
 
-const figureNotes: Readonly<Partial<Record<string, { readonly note: string }>>> =
-  figureTexts.figures;
-
 /** The body of a part: paragraphs, subheads, lists and figure frames, in the order of the text.
  * A figure shows its frame and a placeholder until a part draws its chart. */
 export function Blocks({ blocks, partSlug }: BlocksProps) {
+  const { figureTexts, ui } = useContent();
+  const figureNotes: Readonly<Partial<Record<string, { readonly note: string }>>> =
+    figureTexts.figures;
   const out: ReactNode[] = [];
   let list: ReactNode[] = [];
   const closeList = (key: string) => {

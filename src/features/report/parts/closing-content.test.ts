@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { closingUi, parts } from '../content';
+import { sources } from '../source';
 
 describe('closing copy', () => {
-  it('cites a note of the summary for the date of the counts', () => {
-    const summary = parts.find((part) => part.slug === 'summary');
-    expect(summary?.notes.some((note) => note.id === closingUi.annex.dataNote)).toBe(true);
+  it('dates the counts as the final text does', () => {
+    const date = /\d+ [A-Z][a-z]+ \d{4}/.exec(closingUi.annex.dataDate)?.[0] ?? '';
+    expect(date).not.toBe('');
+    expect(sources.en.text).toContain(`On ${date}, the database holds`);
   });
 
   it('splits the answer of the conclusion into a question and three sentences', () => {

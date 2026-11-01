@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
-import { financeUi, parts, type ReportPart } from '../../content';
+import type { ReportPart } from '../../content';
 import { cn } from '@/shared/lib/utils';
 import { AsciiImage } from '../../primitives/ascii-image';
 import { ChapterBreak } from '../../primitives/chapter-break';
 import { layout } from '../../primitives/layout';
 import { Reveal } from '../../primitives/reveal';
 import { RichText } from '../../rich-text';
+import { useContent } from '../../use-content';
 import { SettlementFigure } from './settlement-figure';
 
 const PROSE = 'max-w-[64ch] text-report-body/[1.65] ';
@@ -13,6 +14,7 @@ const PROSE = 'max-w-[64ch] text-report-body/[1.65] ';
 /** The chapter break: the rouble coin as a decorative ASCII band behind the numeral, down to its
  * baseline. */
 function FinanceBreak({ number, title }: { readonly number: string; readonly title: string }) {
+  const { financeUi } = useContent();
   return (
     // The break packs to its content, so the title sits under the numeral at every width.
     <div className={cn(layout.bleed, 'isolate [&>div]:min-h-0')}>
@@ -51,6 +53,7 @@ function RelayRow({
 /** Part 6, finance: an ASCII chapter break on a rouble coin of 1771, figure 9 as a scroll
  * scene, and the payment relays as a ledger. */
 export function FinancePart({ part }: { readonly part: ReportPart }) {
+  const { financeUi, parts } = useContent();
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const body: ReactNode[] = [];
   let relays: ReactNode[] = [];

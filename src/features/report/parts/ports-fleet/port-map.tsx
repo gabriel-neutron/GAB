@@ -54,8 +54,9 @@ export const MAP_STEPS: readonly MapStep[] = [
     named: ['N-P001', 'N-P002', 'N-P005', 'N-P011', 'N-P009'],
     tag: 'ban',
   },
-  // The text compares Kozmino with Primorsk, so the camera holds both ends of the country.
-  { box: [24, 38, 140, 66], named: ['N-P007', 'N-P001'], tag: 'pacific' },
+  // The text names the ports of the Baltic, the Black Sea and the Pacific, so the camera holds both
+  // ends of the country.
+  { box: [24, 38, 140, 66], named: ['N-P001', 'N-P002', 'N-P005', 'N-P007'], tag: 'pacific' },
   { box: [25.5, 42.6, 42, 61.4], named: ['N-P001', 'N-P002', 'N-P005', 'N-P011'], tag: 'change' },
   { box: [22, 38, 140, 74], named: [], flows: true },
 ];
@@ -82,10 +83,10 @@ const fleetFill = (to: string) =>
       ? 'fill-chart-neutral'
       : 'fill-map-water stroke-foreground';
 const fleetTags: Readonly<Record<string, string>> = copy.fleetTags;
-// The dates and the notes of the ban and Pacific steps come from the text of the part.
+// The dates of the ban step come from the text of the part. The Pacific step has no note.
 const TEXT_SOURCES = {
-  ban: 'Dates: text of the report, note III-2 (February 2025 to April 2026)',
-  pacific: 'Notes: text of the report, note III-1 (2023)',
+  ban: 'Dates: text of the report, note 42 (February 2025 to April 2026)',
+  pacific: '',
 } as const;
 const SCHEMATIC =
   'Schematic: each column stands above its sea and gives the basin total, not the volume of a terminal.';

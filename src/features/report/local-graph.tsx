@@ -1,5 +1,5 @@
 import { EntityGlyph } from '@/shared/entity-glyph';
-import { ui } from './content';
+import { useContent } from './use-content';
 import { reportGraph } from './report-graph';
 
 const RADIUS = 92;
@@ -7,6 +7,7 @@ const RADIUS = 92;
 /** The node at the centre and its neighbours on a ring. A still picture: the list of relations
  * beside it holds the controls. */
 export function LocalGraph({ id }: { readonly id: string }) {
+  const { ui } = useContent();
   const node = reportGraph.node(id);
   if (node === undefined) return null;
   // A neighbour is a node of the report, or a shared entity that the relation names.

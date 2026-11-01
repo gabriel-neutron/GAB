@@ -74,617 +74,521 @@ export interface ReportPart {
 }
 export const parts: ReportPart[] = [
   {
-    source: 'synthese.md',
+    source: 'report-en.md, Summary',
     slug: 'summary',
     title: 'Summary',
     blocks: [
       {
         kind: 'p',
-        text: '**The problem.** Since 2022, the European Union, the United States, the United Kingdom and their allies have imposed broad sanctions on Russia, from oil and gas to military technology. Yet the war goes on, and it costs more and more: at constant prices,[^S-1] the defence budget planned for 2025 is 2.6 times the 2021 spending.[^S-2] Where do the money and the technology that let Russia wage it come from?',
+        text: '**The problem.** Since 2022, the European Union, the United States, the United Kingdom and their allies have imposed wide-ranging sanctions on Russia, from oil and gas to military technology. Yet the war goes on, and it costs more and more: at constant prices, the defence budget planned for 2025 is 2.6 times the spending of 2021. Where do the money and the technology that let Russia fight come from?',
       },
       {
         kind: 'p',
-        text: '**The method.** In a database of nearly 5,200 entities, where each fact points to an archived document, the report looks for the nodes (companies, ports, fleets, banks, payment channels) that are exposed to sanctions, active in 2024-2026 and linked to a country that does not apply them. These nodes serve to earn the money for the war, to move it, or to buy the components of weapons.[^S-3]',
+        text: '**The method.** The report searches a database of nearly 5,200 entities, where every fact points to an archived document. It looks for the nodes (companies, ports, fleets, banks, payment channels) that are exposed to sanctions, active in 2024-2026 and tied to a country that does not apply them.',
       },
       {
         kind: 'p',
-        text: '**The result.** Russia holds out, and the report explains this by new trade relations with countries that are not aligned with the coalition. These countries use their strategic autonomy to avoid secondary sanctions (which target companies in third countries), while they take advantage of their strong position in negotiations with Russia.',
+        text: '**The result.** Russia holds out, and the report explains this by new trade relations with countries that are not aligned with the coalition. These countries use their strategic autonomy and, at the same time, take advantage of their strong position in negotiations with Russia.',
       },
       {
         kind: 'li',
-        text: '**Customers:** From 2021 to 2025, EU purchases from Russia fall by 84%. By contrast, China becomes Russia’s first customer, and India multiplies its purchases of Russian crude by twenty.[^S-4]',
+        text: "**Customers:** From 2021 to 2025, EU purchases from Russia fell by 84%;[^1] China became Russia's first customer, and India bought twenty times as much Russian crude.",
       },
       {
         kind: 'li',
-        text: '**Ships:** To deliver them, Russia relies on the "shadow fleet" (tankers without Western insurance), which carries 79% of the crude exported by sea in January 2026.[^S-5] Most of the selected nodes are therefore the companies that manage these tankers, often based in the United Arab Emirates.[^S-6]',
+        text: '**Ships:** The tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance, carried 79% of the crude exported by sea in January 2026.[^2]',
       },
       {
         kind: 'li',
-        text: '**Price:** But this detour has a cost. Since November 2025, the discount on Russian crude (its price gap with Brent, the benchmark oil) has almost doubled.[^S-7] The report links this, as a hypothesis, to the US sanctions of October 2025 against [[N-P026|Rosneft]] and [[N-P030|Lukoil]].[^S-8] The partners profit from it: China buys Russian crude at a discount and sells the components of weapons at a high premium.[^S-9]',
+        text: "**Price:** Since November 2025, the discount of Russian crude to Brent has almost doubled. The report links this, as a hypothesis, to the American sanctions on [[N-P026|Rosneft]] and [[N-P030|Lukoil]]. Russia's partners benefit: China buys Russian crude at a discount and sells the components of weapons at a high premium.",
       },
       {
         kind: 'li',
-        text: '**Budget:** The share of oil and gas in federal revenue falls from half in 2014 to less than one fifth in 2026, mostly because these revenues decline.[^S-10]',
+        text: '**Budget:** The share of oil and gas in federal revenue falls from one half in 2014 to less than one fifth in 2026, partly because that revenue is shrinking.[^3]',
       },
       {
         kind: 'li',
-        text: '**Currency:** The rouble settles 53% of Russian exports in 2025, against 14% in 2021.[^S-11] With China, the rouble and the yuan settle almost all payments.[^S-12] This ties Russia to a partner for which it carries little weight.[^S-13]',
+        text: '**Currency:** The rouble settled 53% of Russian exports in 2025, against 14% in 2021,[^4] and the rouble and the yuan settle almost all payments with China.',
       },
       {
         kind: 'li',
-        text: '**Components:** Finally, China supplies 77% of the high-priority items for weapons (the components that the coalition monitors first) sold to Russia in 2025, and Hong Kong, a financial centre and re-export platform, 11%.[^S-14]',
+        text: '**Components:** Finally, China supplied 77% of the priority goods for weapons sold to Russia in 2025, and Hong Kong 11%.[^5]',
+      },
+      {
+        kind: 'p',
+        text: 'The sources of the other figures are given in the body of the report.',
+      },
+      {
+        kind: 'p',
+        text: '*This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. The author(s) are solely responsible for the content and conclusions presented.*',
       },
     ],
     notes: [
       {
-        id: 'S-1',
-        text: 'World Bank, "Inflation, GDP deflator (annual %)" (NY.GDP.DEFL.KD.ZG), Russia, update of 8 October 2026.',
+        id: '1',
+        text: "Author's calculations based on Bahí Esteba, A. et al. (2026, September 21). *Russian foreign trade tracker* (35th ed.) [Data]. Bruegel. https://www.bruegel.org, fig. 2.",
       },
       {
-        id: 'S-2',
-        text: 'Author’s calculations based on the Ministry of Finance of Russia, annex 3.1, «Краткая информация об исполнении федерального бюджета», 5 May 2026, line 2.2 «Национальная оборона»; Reuters (D. Korsounskaïa), «Траты России на оборону в 25г вырастут до 13,5 трлн р…», 30 September 2024, republished by *The Moscow Times*, Russian edition.',
+        id: '2',
+        text: 'Dodonov, B., Hilgenstock, B. et al. (2026, March 2). *Russian Oil Tracker*. KSE Institute. https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf, p. 3.',
       },
       {
-        id: 'S-3',
-        text: 'Author’s calculations on the report’s database, which combines the designations of the US Treasury’s *Specially Designated Nationals List* (OFAC, version of 21 October 2026), the FCDO’s *UK Sanctions List* (version of 16 October 2026) and EU acts, company registers and vessel records: entities in the database, nodes that meet the three selection conditions, and countries of the head office of the selected tanker management companies.',
+        id: '3',
+        text: "Author's calculations based on Ministry of Finance of the Russian Federation. (2026a). *Приложение 3.1. Краткая информация об исполнении федерального бюджета (млрд руб.)* [Annex 3.1. Short information on the execution of the federal budget (billion roubles)]. https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub, lines 1, 1.1 and 1.2; Ministry of Finance of the Russian Federation. (2026b). *Предварительная оценка исполнения федерального бюджета за январь-сентябрь 2026 года* [Preliminary estimate of the execution of the federal budget for January–September 2026]. https://minfin.gov.ru/ru/press-center/?id_4=40677.",
       },
       {
-        id: 'S-4',
-        text: 'Author’s calculations based on Bruegel (A. Bahí Esteba, M. Barata da Rocha, N. E. Boivin et al.), *Russian foreign trade tracker*, Bruegel Datasets, 35th edition, 21 September 2026, fig. 2 (all goods); UN Comtrade, imports from Russia reported by India and China, HS 2709, net weight, 2021 and 2025, query of 25 October 2026.',
+        id: '4',
+        text: 'Central Bank of Russia. (2026, October 15). *Currency composition of settlements* [Data]. https://cbr.ru/vfs/eng/statistics/credit_statistics/cur_str_new_e.xlsx.',
       },
       {
-        id: 'S-5',
-        text: 'KSE Institute (B. Dodonov, B. Hilgenstock et al.), *Russian Oil Tracker*, February 2026, p. 3. KSE classifies these ships by their flag and their insurance.',
-      },
-      {
-        id: 'S-6',
-        text: 'Author’s calculations on the report’s database, which combines the designations of the US Treasury’s *Specially Designated Nationals List* (OFAC, version of 21 October 2026), the FCDO’s *UK Sanctions List* (version of 16 October 2026) and EU acts, company registers and vessel records: entities in the database, nodes that meet the three selection conditions, and countries of the head office of the selected tanker management companies.',
-      },
-      {
-        id: 'S-7',
-        text: 'Author’s calculations based on World Bank, *Commodity Markets (Pink Sheet)*, monthly Brent prices, update of 2 October 2026, and Federal Tax Service of Russia (FNS), «Опубликованы данные для расчёта НДПИ…», monthly pages, August 2023 to September 2026 (Urals price): the discount goes from 10-16 to 19-27 dollars per barrel.',
-      },
-      {
-        id: 'S-8',
-        text: 'US Treasury (OFAC), "Russia-related Designations; Issuance of New and Amended Russia-related General Licenses", Recent Actions, 22 October 2025.',
-      },
-      {
-        id: 'S-9',
-        text: 'KSE Institute (L. Risinger, B. Hilgenstock), *Russian CHP Imports Tracker*, Q2 2026, July 2026, pp. 5-6; T. Deryugina and O. Shepotylo, *China’s Support for Russia: Implications for Sanctions and European Security*, econ4ua, Policy Brief No. 4, September 2026, p. 4.',
-      },
-      {
-        id: 'S-10',
-        text: 'Author’s calculations based on the Ministry of Finance of Russia, annex 3.1, «Краткая информация об исполнении федерального бюджета», 5 May 2026, lines 1, 1.1 and 1.2; Ministry of Finance of Russia, «Предварительная оценка исполнения федерального бюджета за январь-сентябрь 2026 года», press release, 9 October 2026. The year 2026 covers January to September. The decline in oil and gas revenue explains about two thirds of the fall in their share in 2025, and half in 2026 (share recalculated with the other revenues of the previous year).',
-      },
-      {
-        id: 'S-11',
-        text: 'Bank of Russia, "Currency Composition of Settlements for Exports", Russia, 2021 and 2025, update of 15 October 2026.',
-      },
-      {
-        id: 'S-12',
-        text: 'TASS, "National currencies account for nearly 100% of Russia-China settlements", 23 October 2026 (interview with Ivan Tchebeskov, Deputy Minister of Finance of Russia).',
-      },
-      {
-        id: 'S-13',
-        text: 'T. Deryugina and O. Shepotylo, *China’s Support for Russia: Implications for Sanctions and European Security*, econ4ua, Policy Brief No. 4, September 2026, p. 4 (Russia accounts for 3.6% of China’s trade in goods in 2025; China, about 40% of Russia’s).',
-      },
-      {
-        id: 'S-14',
-        text: 'Author’s calculations based on UN Comtrade, exports to Russia reported by 17 partners (coalition, China, Hong Kong and nine third countries), 55 six-digit codes of the Harmonized System taken from the Common High Priority (CHP) list of the EU, the United States, the United Kingdom and Japan, 2025, query of 25 October 2026: China 77%, Hong Kong 11% of reported sales.',
+        id: '5',
+        text: "Author's calculations based on UN Comtrade. (2026, October 25). *UN Comtrade database* [Data]. https://comtradeplus.un.org/.",
       },
     ],
     nodeIds: ['N-P026', 'N-P030'],
   },
   {
-    source: 'introduction.md',
+    source: 'report-en.md, Introduction',
     slug: 'introduction',
     title: 'Introduction',
     blocks: [
       {
         kind: 'p',
-        text: 'Sanctions against Russia did not start in 2022. As early as 2014, at the time of the annexation of Crimea, the European Union froze the assets of 21 Russian and Crimean officials. It then banned the five large Russian state banks from raising funds for more than 90 days on its markets, and restricted the sale of oil technology and of dual-use goods meant for the military.[^Int-1] Then, in December 2016, the United States kept its sanctions in place until Russia applied the Minsk agreements, signed in 2014 and 2015 to stop the fighting in eastern Ukraine.[^Int-2] By contrast, after the invasion of Ukraine on 24 February 2022, the measures changed in scale: an embargo on Russian oil, a price cap on oil sold elsewhere, and bans on ports and banks.',
+        text: 'Sanctions against Russia did not begin in 2022. As early as 2014, when Russia annexed Crimea, the European Union froze the assets of 21 Russian and Crimean officials. It then barred the five largest Russian state banks from raising debt on its markets with a maturity above 90 days. It also restricted sales of oil technology and of dual-use goods meant for the army.[^6] Later, in December 2016, the United States kept its sanctions in place until Russia implemented the Minsk agreements, signed in 2014 and 2015 to stop the fighting in eastern Ukraine.[^7] By contrast, after the invasion of Ukraine on 24 February 2022, the measures changed scale: an embargo on Russian oil, a price cap on Russian oil sold elsewhere, and bans on ports and banks (figure 1).',
       },
       {
         kind: 'p',
-        text: 'Yet the war goes on in 2026, and the Russian state manages to pay for it: at constant prices,[^Int-3] the budget planned for defence in 2025 is 2.6 times the 2021 spending,[^Int-4] while, over the same period, oil and gas revenue falls by 36%.[^Int-5] If this revenue declines while war spending rises, which routes do the money and goods of the war take?',
-      },
-      {
-        kind: 'p',
-        text: 'This report looks for these routes by asking three questions:',
+        text: 'Yet the war goes on in 2026, and the Russian state manages to pay for it. At constant prices, the defence budget planned for 2025 is 2.6 times the spending of 2021,[^8] while over the same period oil and gas revenue falls by 36%.[^9] If that revenue shrinks while war spending rises, which channels carry the money and the goods of the war?',
       },
       {
         kind: 'li',
         text: 'Which nodes (companies, ports, fleets, banks) make it possible to finance the war?',
       },
-      {
-        kind: 'li',
-        text: 'Who owns them?',
-      },
-      {
-        kind: 'li',
-        text: 'How do they get around the sanctions?',
-      },
-      {
-        kind: 'p',
-        text: 'To answer, it follows what has changed since 2022 in exports, imports and payments. After each measure, it looks for correlations between the sanctions and trade, then puts forward explanations. Each explanation is attributed to its source, or presented as a hypothesis when no source establishes it. The method and the chronology of sanctions open the report, and the limits of the evidence close it.',
-      },
+      { kind: 'li', text: 'Who owns them?' },
+      { kind: 'li', text: 'How do they get around the sanctions?' },
     ],
     notes: [
       {
-        id: 'Int-1',
-        text: 'Council Regulation (EU) No 269/2014 of 17 March 2014, annex I; Council Regulation (EU) No 833/2014 of 31 July 2014, arts. 2 to 5.',
+        id: '6',
+        text: 'Council Regulation (EU) No 269/2014, Annex I (CELEX 32014R0269); Council Regulation (EU) No 833/2014, Arts. 2–5 (CELEX 32014R0833). https://eur-lex.europa.eu.',
       },
       {
-        id: 'Int-2',
-        text: 'US Treasury (OFAC), "Treasury Sanctions Individuals and Entities In Connection with Russia’s Occupation of Crimea and the Conflict in Ukraine", press release jl0688, 20 December 2016.',
+        id: '7',
+        text: "U.S. Department of the Treasury. (2016, December 20). *Treasury Sanctions Individuals and Entities In Connection with Russia's Occupation of Crimea and the Conflict in Ukraine* (press release jl0688). https://home.treasury.gov/news/press-releases/jl0688.",
       },
       {
-        id: 'Int-3',
-        text: 'World Bank, "Inflation, GDP deflator (annual %)" (NY.GDP.DEFL.KD.ZG), Russia, update of 8 October 2026.',
+        id: '8',
+        text: 'Author\'s calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, line 2.2 "Национальная оборона" [National defence], year 2021; Korsunskaya, D. (2024, September 30). *Траты России на оборону в 25г вырастут до 13,5 трлн р, более чем вдвое обогнав социальные расходы* [Russian defence spending in 2025 will rise to 13.5 trillion roubles, more than twice social spending]. Reuters, in The Moscow Times (Russian service). https://ru.themoscowtimes.com/2024/09/30/update-1-traty-rossii-na-oboronu-v-25g-vyrastut-do-135-trln-r-bolee-chem-vdvoe-obognav-sotsialnye-raskhody-a143572; World Bank. (2026). *Inflation, GDP deflator (annual %) – Russian Federation (NY.GDP.DEFL.KD.ZG)*. https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG.',
       },
       {
-        id: 'Int-4',
-        text: 'Author’s calculations based on the Ministry of Finance of Russia, annex 3.1, «Краткая информация об исполнении федерального бюджета», 5 May 2026, line 2.2 «Национальная оборона»; Reuters (D. Korsounskaïa), «Траты России на оборону в 25г вырастут до 13,5 трлн р…», 30 September 2024, republished by *The Moscow Times*, Russian edition.',
-      },
-      {
-        id: 'Int-5',
-        text: 'Author’s calculations based on the Ministry of Finance of Russia, annex 3.1, «Краткая информация об исполнении федерального бюджета», 5 May 2026, line 1.1; World Bank, "Inflation, GDP deflator (annual %)" (NY.GDP.DEFL.KD.ZG), Russia, 2014-2025, update of 8 October 2026.',
+        id: '9',
+        text: "Author's calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, line 1.1; World Bank (2026), op. cit., n. 8.",
       },
     ],
     nodeIds: [],
   },
   {
-    source: 'partie-I.md',
+    source: 'report-en.md, 1 Method',
     slug: 'method-chronology',
-    title: 'Method and chronology of sanctions',
+    title: 'Method',
     blocks: [
       {
         kind: 'p',
-        text: 'To follow the money and goods of the war, the report divides the Russian economy into nodes: a site (a port, a plant, a gas field), a company, a fleet of ships or a payment channel (a bank, a platform, a digital token). These nodes fall into three layers, pay, finance and fight (figure 1). The report links them because they depend on one another: the pay layer brings the money that the other two need. As the report assumes, a sanction that cuts one layer therefore also hinders the layers that it feeds.',
+        text: 'A long war is paid for twice: with the money that comes in, and with the goods that must be bought to make weapons. To follow this double flow despite the sanctions, the report does not start from the national totals of the Russian economy. It starts from the precise points through which the money and the goods must pass.',
       },
+      { kind: 'h3', text: 'The three layers' },
       {
         kind: 'p',
-        text: 'The report does not keep all designated nodes, but only those that it calls critical, which meet three conditions. First, a critical node is exposed to sanctions: the European Union (EU), the US Office of Foreign Assets Control (OFAC) or the United Kingdom designates it, or a designated person owns 50% or more of it. An old designation does not tell whether the node is still in use, so the node must also leave a dated trace from 2024-2026: production, transit or a new designation. Finally, it passes through a third country, through its head office, the flag of its ships or a counterparty. A third country does not apply the sanctions of the coalition (the EU, the United States, the United Kingdom and their allies), and it is therefore through such a country that Russia can get around them.',
+        text: 'The report therefore divides the Russian economy into nodes: sites (a port, a factory, a gas field), companies, fleets of ships or payment channels (a bank, a platform, a digital token). Each node serves one of three functions, which the report calls layers:',
+      },
+      {
+        kind: 'li',
+        text: '**Pay:** Earn the foreign currency that pays for the war, mainly by selling oil and gas;',
+      },
+      { kind: 'li', text: '**Finance:** Move that money, through banks and payment channels;' },
+      { kind: 'li', text: '**Fight:** Import the components and make the weapons.' },
+      {
+        kind: 'p',
+        text: 'These three layers follow the path of the money (figure 2). The foreign-currency revenue of the pay layer settles the imports of the fight layer, and this settlement passes through the finance layer. In parallel, taxes on oil and gas fill the budget, which orders weapons from Russian factories. A sanction can therefore target the inflow, the transit or the outflow of the money, and the report examines all three.',
+      },
+      { kind: 'h3', text: 'Critical nodes' },
+      { kind: 'p', text: 'A node is called critical when it meets three conditions:' },
+      {
+        kind: 'li',
+        text: '**Exposed to sanctions:** The European Union (EU), the American Office of Foreign Assets Control (OFAC) or the United Kingdom designates it, or a designated person owns 50% or more of it;',
+      },
+      {
+        kind: 'li',
+        text: '**Active in 2024-2026:** A dated production, transit or new designation shows it;',
+      },
+      {
+        kind: 'li',
+        text: '**Runs through a third country:** Its head office, the flag of its ships or a counterparty is in a country that does not apply the sanctions of the coalition (the EU, the United States, the United Kingdom and their allies).',
       },
       {
         kind: 'figure',
-        text: 'Figure 1. The three layers of the Russian war economy and their links. Source: author.',
+        text: 'Figure 2: The three layers of the Russian war economy and their links. Diagram by the author.',
         figure: {
-          number: 1,
+          number: 2,
           title: 'The three layers of the Russian war economy and their links',
           unit: '',
           period: '',
-          sources: 'author',
+          sources: 'Diagram by the author.',
         },
       },
       {
         kind: 'p',
-        text: 'The report covers 2024-2026 because by then the main oil sanctions are in place: the embargo, the price cap, then the first designations of shipowners that do not respect this cap (figure 2).[^I-1] These years therefore show how trade has adapted to these sanctions.',
+        text: 'These conditions single out the nodes where the sanctions are in place but the activity continues through a third country: where the circumvention can be seen, and where a new measure could have an effect.',
+      },
+      {
+        kind: 'p',
+        text: 'The choice of period follows the calendar of the sanctions. By 2024, the major oil measures are in place: the embargo, the price cap, and then the first designations of shipowners that do not respect that cap.[^11] The years 2024-2026 therefore show how trade has adapted to these sanctions. After each measure, the report looks for correlations between the sanctions and trade, and then proposes explanations, each one attributed to its source, or presented as a hypothesis when no source establishes it.',
       },
       {
         kind: 'figure',
-        text: 'Figure 2. Chronology of the main sanctions against Russia, 2014-2026. Sources: EU and OFAC acts.[^I-2][^I-3][^I-4][^I-5][^I-6]',
+        text: 'Figure 1: Timeline of the main sanctions, 2014-2026. Data: Regulations (EU) No 269/2014 and No 833/2014; Regulations (EU) 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494 and 2026/506; Implementing Regulations (EU) 2022/2368, 2023/251 and 2026/124; U.S. Department of the Treasury (2023); Office of Foreign Assets Control (2025).[^10]',
         figure: {
-          number: 2,
-          title: 'Chronology of the main sanctions against Russia',
+          number: 1,
+          title: 'Timeline of the main sanctions',
           unit: '',
           period: '2014-2026',
-          sources: 'EU and OFAC acts.[^I-2][^I-3][^I-4][^I-5][^I-6]',
+          sources:
+            'Regulations (EU) No 269/2014 and No 833/2014; Regulations (EU) 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494 and 2026/506; Implementing Regulations (EU) 2022/2368, 2023/251 and 2026/124; U.S. Department of the Treasury (2023); Office of Foreign Assets Control (2025).[^10]',
         },
       },
+      { kind: 'h3', text: 'The data and its control' },
       {
         kind: 'p',
-        text: 'The data come from a database of nearly 5,200 entities (companies, ships, sites, ports, banks, persons and legal acts)[^I-7] and the relations between them, such as a designation, ownership, the management of a ship, a port call, an oil flow or a payment. These facts come from official sanctions lists, company registers and published investigations, and each one points to the archived document that establishes it. The reliability of each source follows the ADMIRALTY scale, used by intelligence services and investigators. It rates the issuer with a letter, from A for an official issuer (sanctions list, company register, official journal) to F when nothing makes it possible to judge it.',
+        text: 'The data come from a database of nearly 5,200 entities (companies, ships, sites, ports, banks, people and legal acts) and the relations between them, such as a designation, an ownership, the management of a ship, a port call, an oil flow or a payment. These facts are taken from the official sanctions lists, company registers and published investigations, and each one points to the archived document that establishes it. The reliability of each official source follows the ADMIRALTY scale, which rates the issuer with a letter, from A for an official issuer (sanctions list, company register, official journal) to F when the issuer cannot be judged.',
       },
       {
         kind: 'p',
-        text: 'In total, 493 nodes are critical: 442 serve to pay, 29 to finance and 22 to fight, with the ships of one management company counted as a single node.[^I-8] For at least 416 of them, the three conditions rest on a document from an official issuer.[^I-9]',
+        text: 'In total, 493 nodes are critical, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For at least 416 of them, the three conditions rest on a document from an official issuer. Annex A describes how the facts are collected and checked.',
       },
     ],
     notes: [
       {
-        id: 'I-1',
-        text: 'US Treasury (OFAC), "Treasury Sanctions Entities for Transporting Oil Sold Above the Coalition Price Cap to Restrict Russia’s War Machine", press release jy1795, 12 October 2023.',
+        id: '10',
+        text: "EU. (2014–2026). Regulations (EU) No 269/2014, No 833/2014, 2022/879, 2022/2367, 2022/2368, 2023/250, 2023/251, 2025/395, 2025/1494, 2026/506; Implementing Regulation (EU) 2026/124. https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32014R0269 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32014R0833 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R0879 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2367 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2368 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R0250 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R0251 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R0395 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R1494 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32026R0506 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32026R0124 ; U.S. Department of the Treasury. (2023, October 12). *Treasury Sanctions Entities for Transporting Oil Sold Above the Coalition Price Cap to Restrict Russia's War Machine* (press release jy1795). https://home.treasury.gov/news/press-releases/jy1795 ; Office of Foreign Assets Control. (2025, October 22). *Russia-related Designations; Issuance of New and Amended Russia-related General Licenses* (Recent Actions 20251022). https://ofac.treasury.gov/recent-actions/20251022.",
       },
       {
-        id: 'I-2',
-        text: 'Council Regulation (EU) No 269/2014 of 17 March 2014 (art. 2 and annex I) and Council Regulation (EU) No 833/2014 of 31 July 2014 (arts. 2 to 5).',
-      },
-      {
-        id: 'I-3',
-        text: 'Council Regulation (EU) 2022/879 of 3 June 2022 (art. 3 m); Council Regulation (EU) 2022/2367 of 3 December 2022 (art. 3 n) and Commission Implementing Regulation (EU) 2022/2368 of 3 December 2022.',
-      },
-      {
-        id: 'I-4',
-        text: 'Council Regulation (EU) 2023/250 of 4 February 2023 and Commission Implementing Regulation (EU) 2023/251 of 4 February 2023; US Treasury (OFAC), "Treasury Sanctions Entities for Transporting Oil Sold Above the Coalition Price Cap to Restrict Russia’s War Machine", press release jy1795, 12 October 2023.',
-      },
-      {
-        id: 'I-5',
-        text: 'Council Regulation (EU) 2025/395 of 24 February 2025 (annex XIV); US Treasury (OFAC), "Russia-related Designations; Issuance of New and Amended Russia-related General Licenses", Recent Actions, 22 October 2025.',
-      },
-      {
-        id: 'I-6',
-        text: 'Commission Implementing Regulation (EU) 2026/124 of 14 January 2026; Council Regulation (EU) 2026/506 of 23 April 2026 (annex XVI).',
-      },
-      {
-        id: 'I-7',
-        text: 'Author’s calculations on the report’s database, which combines the designations of the US Treasury’s *Specially Designated Nationals List* (OFAC, version of 21 October 2026), the FCDO’s *UK Sanctions List* (version of 16 October 2026) and EU acts, company registers and vessel records. The database holds 6,327 entities, including 1,165 military units excluded from the selection, which gives nearly 5,200 entities examined, and 2,299 entities designated by the EU, OFAC or the United Kingdom.',
-      },
-      {
-        id: 'I-8',
-        text: 'Author’s calculations on the report’s database, which combines the designations of the US Treasury’s *Specially Designated Nationals List* (OFAC, version of 21 October 2026), the FCDO’s *UK Sanctions List* (version of 16 October 2026) and EU acts, company registers and vessel records (450 nodes); published investigations on banks and suppliers of weapons (43 nodes). The pay layer dominates because the lists of designated ships are long and well documented: the count measures what is documented, not the economic weight of each layer.',
-      },
-      {
-        id: 'I-9',
-        text: 'Author’s calculations on the report’s database, which combines the designations of the US Treasury’s *Specially Designated Nationals List* (OFAC, version of 21 October 2026), the FCDO’s *UK Sanctions List* (version of 16 October 2026) and EU acts, company registers and vessel records: nodes whose three conditions rest on a document from an official issuer. The letter A is given only when the document comes from an official issuer on its own website; institute reports and the press receive no reliability rating.',
+        id: '11',
+        text: 'U.S. Department of the Treasury (2023), op. cit., n. 10.',
       },
     ],
-    nodeIds: ['N-P026', 'N-P030'],
+    nodeIds: [],
   },
   {
-    source: 'partie-II.md',
+    source: 'report-en.md, 2 Pay, sections 2.1 to 2.3',
     slug: 'pay',
-    title: 'Pay: selling oil and gas',
+    title: 'Pay',
     nodeIds: ['N-P026', 'N-P030'],
     blocks: [
       {
         kind: 'p',
-        text: 'Let us start with the elephant in the room, the subject that is both the most discussed and often the most misunderstood: oil and gas, which carry the Russian economy. In 2021, their rent (what they earn above their cost of production) is worth about one sixth of GDP;[^II-1] fuels make up more than 40% of goods exports,[^II-2] and oil and gas bring in more than a third of federal budget revenue.[^II-3]',
+        text: 'Oil and gas carry the Russian economy. They are the most discussed topic and often the worst understood. In 2021, their rent (what they earn beyond their cost of production) was worth about a sixth of GDP;[^12] fuels made up more than 40% of goods exports,[^13] and oil and gas brought in more than a third of federal budget revenue.[^14] If sanctions were to dry up the money of the war, this is where they should bite first.',
+      },
+      { kind: 'h3', text: 'The buyers' },
+      {
+        kind: 'p',
+        text: "From 2022, the EU almost closed its market to Russian oil, with an embargo on crude carried by sea, then on oil products.[^15] It also cut its purchases of Russian gas, then decided in January 2026 to stop them in stages.[^16] By contrast, Asia took over (figure 3): China became Russia's first customer, and India bought twenty times as much Russian crude in 2025 as in 2021.[^17] Two reasons explain this shift:[^18]",
+      },
+      {
+        kind: 'li',
+        text: '**Price:** Sold at a discount, Russian crude stays cheaper for the buyer;',
+      },
+      {
+        kind: 'li',
+        text: '**Politics:** China and India do not apply the sanctions, and their leaders do not want to look as if they yield to the United States.',
+      },
+      {
+        kind: 'p',
+        text: 'Gas follows the same path to Asia: in 2025, for the first time, Gazprom delivered more gas by pipeline to China than to Europe.[^19]',
+      },
+      {
+        kind: 'p',
+        text: "But China sets the terms. To sell the gas of the Yamal peninsula, which Europe no longer buys, Russia has only one possible customer. That customer is in no hurry to seal a deal on the new Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer.[^20] The report's hypothesis is that the gas sold to China therefore replaces the volumes lost in Europe, but not their revenue.",
       },
       {
         kind: 'figure',
-        text: 'Figure 3. Russian exports by buyer (billion US dollars) and crude bought from Russia (million tonnes), 2020-2025. Sources: Bruegel; Eurostat; UN Comtrade; CREA.[^II-4][^II-5]',
+        text: "Figure 3: Russian exports by buyer and crude bought from Russia, 2020-2025. Data: Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026); CREA (2026). Author's calculations.[^21]",
         figure: {
           number: 3,
-          title:
-            'Russian exports by buyer (billion US dollars) and crude bought from Russia (million tonnes)',
+          title: 'Russian exports by buyer and crude bought from Russia',
           unit: 'billion US dollars; million tonnes',
           period: '2020-2025',
-          sources: 'Bruegel; Eurostat; UN Comtrade; CREA.',
+          sources:
+            "Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026); CREA (2026). Author's calculations.[^21]",
         },
       },
+      { kind: 'h3', text: 'The price and the cap' },
       {
         kind: 'p',
-        text: "From 2022, the EU almost closes its market to Russian oil, with an embargo on crude carried by sea, then on oil products (figure 2).[^II-6] It also cuts its purchases of Russian gas, then decides in January 2026 to end them in stages.[^II-7] In total, across all goods, its purchases from Russia fall by 84% from 2021 to 2025, and those of the whole coalition by 82%.[^II-8] On the other hand, Asia takes over (figure 3): China becomes Russia's first customer, and India buys twenty times more Russian crude in 2025 than in 2021.[^II-9] According to Kpler, a maritime trade analytics company, two reasons explain this shift:[^II-10]",
-      },
-      {
-        kind: 'li',
-        text: '**Price**: Sold at a discount, Russian crude stays cheaper for the buyer;',
-      },
-      {
-        kind: 'li',
-        text: '**Politics**: China and India do not apply the sanctions, and their leaders do not want to appear to give in to the United States.',
+        text: 'To measure what Russia loses on each barrel, the report compares its oil with Brent, the North Sea oil that serves as the reference price. Urals, the main Russian crude exported, is heavier and higher in sulphur, so a little cheaper. In 2019, before the war, this price gap, called the discount, averaged less than $1 a barrel from January to September.[^22]',
       },
       {
         kind: 'p',
-        text: "Gas takes the same road to Asia: in 2025, Gazprom delivers more gas by pipeline to China than to Europe for the first time.[^II-11] But it is China that sets the terms. To sell gas from the Yamal peninsula, which Europe no longer buys, Russia has only one possible customer, and this customer is in no hurry to close the deal on the new Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer.[^II-12] Already, through the first pipeline, Power of Siberia, signed in 2014, Russia sells its gas cheaper than Turkmenistan, and much cheaper than it used to sell it to Western Europe; according to Sergei Vakulenko, a researcher at the Carnegie centre, these terms are probably the best Gazprom can hope for in a new contract.[^II-13] Under the report's hypothesis, gas sold to China therefore replaces the volumes lost in Europe, but not their revenue.",
-      },
-      {
-        kind: 'p',
-        text: 'To measure what Russia loses on each barrel, we compare its oil with Brent, a North Sea oil that serves as the benchmark price. Urals, the main Russian export crude, is heavier and more sulphurous, so slightly cheaper: in 2019, before the war, this price gap, called the discount, stayed below one dollar per barrel.[^II-14]',
-      },
-      {
-        kind: 'p',
-        text: 'Since December 2022, a company of the EU or its allies can no longer carry, insure or finance Russian crude sold above a price cap (figure 4).[^II-15] The coalition chooses a cap rather than a full embargo because it pursues two aims at once: according to the US Treasury, to cut the oil profits that let Russia wage the war, and to keep world energy markets stable and well supplied.[^II-16] A full embargo, by contrast, would have taken this oil off the market, at the risk of raising prices for all buyers.',
+        text: 'Since December 2022, an EU company or a company of its allies can no longer carry, insure or finance Russian crude sold above a price cap (figure 4).[^23] The coalition chose a cap rather than a full embargo because it pursues two aims at once: reducing the oil profits that let Russia wage the war, and keeping world energy markets stable and well supplied.[^24]',
       },
       {
         kind: 'figure',
-        text: 'Figure 4. Brent price, Urals price and EU price cap, December 2022 to September 2026 (dollars per barrel). Sources: Russian government agencies; World Bank; EU regulations.[^II-17]',
+        text: 'Figure 4: Brent, Urals and the EU price cap, 2022-2026. Data: Federal Tax Service of Russia (2023-2026); Ministry of Finance of Russia (2023); Ministry of Economic Development of Russia (2026); World Bank (2026); EU regulations (2022-2026).[^25]',
         figure: {
           number: 4,
-          title: 'Brent price, Urals price and EU price cap',
+          title: 'Brent, Urals and the EU price cap',
           unit: 'dollars per barrel',
-          period: 'December 2022 to September 2026',
-          sources: 'Russian government agencies; World Bank; EU regulations.',
+          period: '2022-2026',
+          sources:
+            'Federal Tax Service of Russia (2023-2026); Ministry of Finance of Russia (2023); Ministry of Economic Development of Russia (2026); World Bank (2026); EU regulations (2022-2026).[^25]',
         },
       },
       {
         kind: 'p',
-        text: 'Until February 2025, Urals sells above the 60-dollar cap; it then mostly falls below it from March to August 2025, then below the cap lowered to 47.6 dollars in November and December 2025 (figure 4). As long as it is above the cap, it therefore travels mainly on ships and with insurers outside the coalition, which the cap does not bind (next section).[^II-18] Yet its price falls: according to Kpler, the sanctions push it down, far beyond what the quality gap explains.[^II-19] The gap widens further after October 2025 (figure 4), when OFAC designates [[N-P026|Rosneft]] and [[N-P030|Lukoil]], two large Russian oil groups,[^II-20] and several Indian refiners stop buying.[^II-21] The report sees this as a probable effect of this designation, but cannot measure it, because the series only shows a coincidence of dates.',
+        text: 'As long as Urals stays above the cap, it travels mostly on ships and with insurers outside the coalition, which the cap does not bind (section 2.5).[^26] Its price falls all the same, well beyond what the quality gap explains: sanctions push it down.[^27] The gap widened again after October 2025, when OFAC designated [[N-P026|Rosneft]] and [[N-P030|Lukoil]], two large Russian oil groups,[^28] and several Indian refiners stopped buying.[^29] From August 2023 to October 2025, Urals was worth $10 to $16 less than Brent each month; since November 2025, it has been worth $19 to $27 less.[^30] The report sees a probable effect of this designation, without being able to measure it, because the series shows only a coincidence of dates.',
       },
       {
         kind: 'p',
-        text: 'The countries that keep buying take advantage of this fall. According to Kpler, refiners in India, China and Turkey keep buying Russian crude through intermediaries, and the pressure of sanctions on its price improves their margins.[^II-22] China, in particular, has paid less for this crude than for that of its other suppliers since 2022; according to a study by the econ4ua network of economists, Moscow thus hands it a share of its oil rent, because it cannot lose its first customer.[^II-23] Economic theory predicted this: according to a model by economists published by the World Bank, a country that does not join the sanctions weakens their effect on the target country, but it also gains from them.[^II-24]',
+        text: 'For the buyers who stayed loyal, this fall is a windfall. Refiners in India, China and Turkey keep buying Russian crude through intermediaries, and the pressure of sanctions on its price improves their margins.[^31] China, in particular, has paid less for this crude than for that of its other suppliers since 2022. Moscow thus yields part of its oil rent to China, because it cannot lose its first customer.[^32]',
+      },
+      { kind: 'h3', text: 'The budget' },
+      {
+        kind: 'p',
+        text: 'Oil taxation in Russia is based on the Urals price.[^33] A bigger discount therefore cuts what the state, which pays for the war, draws from each barrel: a 10% discount on sales to China alone costs the Russian Treasury about $3 billion a year.[^34]',
       },
       {
         kind: 'p',
-        text: 'Now, the tax on oil is calculated on the Urals price.[^II-25] A larger discount therefore reduces what the state, which pays for the war, earns from each barrel: according to the same econ4ua study, a 10% discount on sales to China alone costs the Russian Treasury about 3 billion dollars per year.[^II-26]',
+        text: 'The share of oil and gas in federal revenue falls (figure 5) for two reasons, and the first is a real decline in that revenue. In current roubles, it fell by about a quarter from 2024 to 2025, mostly because of a lower oil price, then fell again from January to September 2026.[^35] This time, however, the Urals price in roubles rose. The fall comes instead from a strong rouble and from a rise in the "damper" (in Russian *dempfer*), a payment from the state to oil companies that increases with world fuel prices.[^36]',
       },
       {
         kind: 'figure',
-        text: 'Figure 5. Share of oil and gas in federal revenue (%) and defence spending (trillion 2021 roubles), 2014-2026. Sources: Ministry of Finance of Russia; Reuters; World Bank.[^II-27]',
+        text: "Figure 5: Oil, gas and defence in the federal budget, 2014-2026. Data: Ministry of Finance of Russia (2026); Korsunskaya (2024); World Bank (2026). Author's calculations.[^37]",
         figure: {
           number: 5,
-          title:
-            'Share of oil and gas in federal revenue (%) and defence spending (trillion 2021 roubles)',
+          title: 'Oil, gas and defence in the federal budget',
           unit: '%; trillion 2021 roubles',
           period: '2014-2026',
-          sources: 'Ministry of Finance of Russia; Reuters; World Bank.',
+          sources:
+            "Ministry of Finance of Russia (2026); Korsunskaya (2024); World Bank (2026). Author's calculations.[^37]",
         },
       },
       {
         kind: 'p',
-        text: 'Oil and gas weigh less and less in federal revenue (figure 5), for two reasons.',
+        text: 'The rest of the economy also pays more, and this is the second reason for the fall. Profit tax went from 20 to 25% in 2025, and VAT from 20 to 22% in 2026.[^38] This shift is deliberate: the budget guidelines of the Ministry of Finance for 2026-2028 present the VAT rise as a way to bring the share of non-oil-and-gas revenue to 80%.[^39]',
       },
       {
         kind: 'p',
-        text: 'First, what the state earns from oil and gas falls: about a quarter less in current roubles from 2024 to 2025, mainly because the oil price falls, according to the Ministry of Finance.[^II-28] From January to September 2026, this revenue falls by a further 17% year on year, while the Urals price in roubles rises: the ministry puts this down to a strong rouble and to the state paying more to oil companies through the "damper", a payment that rises with world fuel prices and that in September 2026 reaches its highest level since April 2022.[^II-29] Since the ministry also notes that the oil tax reform has been complete since 2024, the report concludes that the fall comes from prices, the rouble and this payment, more than from the tax itself.[^II-31a]',
-      },
-      {
-        kind: 'p',
-        text: "Second, other taxes rise: corporate profit tax goes from 20 to 25% in 2025, and VAT from 20 to 22% in 2026.[^II-30] This shift is intended, because the ministry presents the VAT rise as a way to bring the share of revenue that does not come from oil and gas to 80%.[^II-31b] According to the author's calculation, the fall in oil and gas revenue explains about two thirds of the drop in their share in 2025, and the rise in other revenue the rest; in 2026, the two reasons weigh about the same.[^II-32]",
-      },
-      {
-        kind: 'p',
-        text: "Under the report's hypothesis, an ever more costly defence therefore rests more and more on the other taxes, paid by Russian companies and households, and on the deficit. Because budget money is fungible, figure 5 does not, however, say that oil pays for defence.",
+        text: "The report's hypothesis is that an ever more expensive defence rests more and more on other taxes and on the deficit. Because budget money is fungible (a rouble of oil revenue cannot be told from any other), figure 5 does not say that oil pays for defence.",
       },
     ],
     notes: [
       {
-        id: 'II-1',
-        text: 'Author\'s calculations based on World Bank, "Oil rents (% of GDP)" (NY.GDP.PETR.RT.ZS) and "Natural gas rents (% of GDP)" (NY.GDP.NGAS.RT.ZS), Russia, 2021, update of 8 October 2026: 9.7% and 5.9%.',
+        id: '12',
+        text: "Author's calculations based on World Bank. (2026). *Oil rents (% of GDP) – Russian Federation (NY.GDP.PETR.RT.ZS)*. https://api.worldbank.org ; World Bank. (2026). *Natural gas rents (% of GDP) – Russian Federation (NY.GDP.NGAS.RT.ZS)*. https://api.worldbank.org.",
       },
       {
-        id: 'II-2',
-        text: 'World Bank, "Fuel exports (% of merchandise exports)" (TX.VAL.FUEL.ZS.UN), Russia, 2021, update of 8 October 2026. Fuels include oil, gas and coal.',
+        id: '13',
+        text: 'World Bank. (2026, October 8). *Fuel exports (% of merchandise exports) – Russian Federation (TX.VAL.FUEL.ZS.UN)* [Data]. https://api.worldbank.org.',
       },
       {
-        id: 'II-3',
-        text: "Author's calculations based on Ministry of Finance of Russia, annex 3.1, « Краткая информация об исполнении федерального бюджета », 5 May 2026, lines 1 and 1.1, year 2021.",
+        id: '14',
+        text: "Author's calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, lines 1 and 1.1, year 2021.",
+      },
+      { id: '15', text: 'CELEX 32022R0879, Art. 3m ; https://eur-lex.europa.eu.' },
+      { id: '16', text: 'CELEX 32026R0261, recitals 1 and 10 ; https://eur-lex.europa.eu.' },
+      {
+        id: '17',
+        text: "Bahí Esteba et al. (2026), op. cit., n. 1, fig. 2 ; Author's calculations based on UN Comtrade (2026), op. cit., n. 5.",
       },
       {
-        id: 'II-4',
-        text: 'Bruegel (A. Bahí Esteba, M. Barata da Rocha, N. E. Boivin et al.), *Russian foreign trade tracker*, Bruegel Datasets, 35th edition, 21 September 2026, fig. 2; Eurostat (Comext), HS 2709, weight; UN Comtrade, imports reported by China and India, HS 2709, net weight; Centre for Research on Energy and Clean Air (CREA), *Russia Fossil Tracker*, counter by destination country, API query of 26 October 2026. Russia has not published its trade by product since 2022 (KSE Institute, L. Risinger and B. Hilgenstock, *Russian CHP Imports Tracker*, Q2 2026, July 2026, p. 1): the figures are mirror data, that is, the reports of partner countries. A country that does not report, such as Belarus, does not have a zero value. The "coalition" group in the figure follows Bruegel: EU-27, United States, United Kingdom, Japan, South Korea, Switzerland, Norway. Turkey\'s crude is a CREA estimate from tracked cargoes, not a customs report; the 2023 weight for China is a Comtrade estimate. Prices and volumes are not separated.',
+        id: '18',
+        text: 'Kpler. (2025, December 2). *Rosneft and Lukoil sanctions are live: how India, China and Turkey adapt rather than exit*. Kpler. https://www.kpler.com/blog/rosneft-and-lukoil-sanctions-are-live-how-india-china-and-turkey-adapt-rather-than-exit.',
       },
       {
-        id: 'II-5',
-        text: "Author's calculations based on Bruegel (A. Bahí Esteba, M. Barata da Rocha, N. E. Boivin et al.), *Russian foreign trade tracker*, Bruegel Datasets, 35th edition, 21 September 2026, fig. 2, lines for the coalition countries, India and China; UN Comtrade, imports from Russia reported by India and China, HS 2709, net weight, 2021 and 2025, query of 25 October 2026. In dollars, China and India rise little in the figure: the axis goes up to the coalition's purchases in 2021, China already bought a lot of Russian crude before the war, and the value counts all goods, with crude sold at a discount. From 2021 to 2025, India's purchases are multiplied by 7 in dollars, against 20 in tonnes of crude.",
+        id: '19',
+        text: 'Interfax. (2026, January 13). *Gazprom supplies 38.8 bcm of gas to China in 2025, for first time more than towards west – company*. Interfax. https://interfax.com/newsroom/top-stories/115552/.',
       },
       {
-        id: 'II-6',
-        text: 'Council Regulation (EU) 2022/879 of 3 June 2022 amending Regulation (EU) No 833/2014, art. 3m.',
+        id: '20',
+        text: 'Vakulenko, S. (2025, September 22). *Why Can’t Russia and China Agree on the Power of Siberia 2 Gas Pipeline?* Carnegie Politika. Carnegie Endowment for International Peace. https://carnegieendowment.org/russia-eurasia/politika/2025/09/russia-china-gas-deals.',
       },
       {
-        id: 'II-7',
-        text: 'Regulation (EU) 2026/261 of the European Parliament and of the Council of 26 January 2026 on phasing out Russian natural gas imports, *OJ* L of 2 February 2026, recitals 1 and 10: since 2022, the EU has already greatly reduced its dependence on Russian gas, but the remaining volumes are still large.',
+        id: '21',
+        text: 'Bahí Esteba et al. (2026), op. cit., n. 1, fig. 2 ; Eurostat. (2026). *International trade of EU and non-EU countries since 2002 by CN8 (DS-045409)*. https://ec.europa.eu ; UN Comtrade (2026), op. cit., n. 5 ; Centre for Research on Energy and Clean Air (CREA). (2026). *Russia Fossil Tracker*. https://api.russiafossiltracker.com.',
       },
       {
-        id: 'II-8',
-        text: "Author's calculations based on Bruegel (A. Bahí Esteba, M. Barata da Rocha, N. E. Boivin et al.), *Russian foreign trade tracker*, Bruegel Datasets, 35th edition, 21 September 2026, fig. 2, line 9 (EU) and lines for the coalition countries.",
+        id: '22',
+        text: 'Yagova, O., & Gorodyankin, G. (2019, October 11). *IMO 2020 regulations challenge Russian Urals crude*. Reuters, reprinted by Hydrocarbon Processing. https://www.hydrocarbonprocessing.com/news/2019/10/imo-2020-regulations-challenge-russian-urals-crude.',
+      },
+      { id: '23', text: 'CELEX 32022R2367, Art. 3n ; https://eur-lex.europa.eu.' },
+      { id: '24', text: 'U.S. Department of the Treasury (2023), op. cit., n. 10.' },
+      {
+        id: '25',
+        text: 'Federal Tax Service of Russia. (2023–2026). [Data for the calculation of the mineral extraction tax, monthly releases]. https://www.nalog.gov.ru/rn77/news/activities_fts/ (one page per month, for example *Опубликованы данные для расчёта НДПИ и НДД, а также акциза на нефтяное сырье за июль 2026 года* [Data published for the calculation of the mineral extraction tax and the additional income tax, and of the excise on crude, for July 2026], https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/) ; World Bank. (2026, October 2). *Commodity Price Data (The Pink Sheet)* [Data, monthly prices]. https://www.worldbank.org/en/research/commodity-markets ; CELEX 32022R2367, 32022R2368, 32025R1494, 32026R0124.',
+      },
+      { id: '26', text: 'Dodonov et al. (2026), op. cit., n. 2, p. 3.' },
+      { id: '27', text: 'Kpler (2025), op. cit., n. 18.' },
+      { id: '28', text: 'OFAC (2025), op. cit., n. 10.' },
+      { id: '29', text: 'Dodonov et al. (2026), op. cit., n. 2, p. 2.' },
+      {
+        id: '30',
+        text: "Author's calculations based on World Bank. (2026, October 2). *Commodity Price Data (The Pink Sheet)* [Data, monthly prices]. https://www.worldbank.org/en/research/commodity-markets ; Federal Tax Service of Russia. (2023–2026). [Data for the calculation of the mineral extraction tax, monthly releases]. https://www.nalog.gov.ru/rn77/news/activities_fts/ (one page per month, for example *Опубликованы данные для расчёта НДПИ и НДД, а также акциза на нефтяное сырье за июль 2026 года* [Data published for the calculation of the mineral extraction tax and the additional income tax, and of the excise on crude, for July 2026], https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/). Urals: monthly average price published by the Ministry of Economic Development; Brent: World Bank monthly average.",
+      },
+      { id: '31', text: 'Kpler (2025), op. cit., n. 18.' },
+      {
+        id: '32',
+        text: 'Deryugina, T., & Shepotylo, O. (2026, September). *China’s Support for Russia* (Policy Brief No. 4). econ4ua. https://econ4ua.org/wp-content/uploads/2026/09/Chinas-Support-for-Russia-Final.pdf, p. 4.',
       },
       {
-        id: 'II-9',
-        text: "Bruegel (A. Bahí Esteba, M. Barata da Rocha, N. E. Boivin et al.), *Russian foreign trade tracker*, Bruegel Datasets, 35th edition, 21 September 2026, fig. 2 (China); author's calculations based on UN Comtrade, imports from Russia reported by India, HS 2709, net weight, 2021 and 2025, query of 25 October 2026.",
+        id: '33',
+        text: 'Federal Tax Service of Russia (2026), op. cit., n. 25 ; Ministry of Economic Development of the Russian Federation. (2026, October 2). *О среднем уровне цен нефти сорта «Юралс» за сентябрь 2026 года* [On the average price level of Urals oil for September 2026]. https://www.economy.gov.ru/material/departments/d12/konyunktura_mirovyh_tovarnyh_rynkov/o_srednem_urovne_cen_nefti_sorta_yurals_za_sentyabr_2026_goda.html.',
+      },
+      { id: '34', text: 'Deryugina and Shepotylo (2026), op. cit., n. 32, pp. 4–5.' },
+      {
+        id: '35',
+        text: 'Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, line 1.1 "Нефтегазовые доходы" [Oil and gas revenue] ; Ministry of Finance of the Russian Federation. (2025, October 9). *Предварительная оценка исполнения федерального бюджета за январь-сентябрь 2025 года* [Preliminary estimate of the execution of the federal budget for January–September 2025]. https://minfin.gov.ru/ru/press-center/?id_4=39967-predvaritelnaya_otsenka_ispolneniya_federalnogo_byudzheta_za_yanvar-sentyabr_2025_goda, p. 1.',
       },
       {
-        id: 'II-10',
-        text: 'Kpler, "Rosneft and Lukoil sanctions are live: how India, China and Turkey adapt rather than exit", 2 December 2025.',
+        id: '36',
+        text: 'Ministry of Finance of the Russian Federation (2026b), op. cit., n. 3, p. 1 and table ; Nezavisimaya Gazeta. (2026, October 6). *Выплаты нефтяникам установили очередной рекорд* [Payments to oil companies set a new record]. https://www.ng.ru/economics/2026-10-06/1_9597_price.html.',
       },
       {
-        id: 'II-11',
-        text: 'Interfax, "Gazprom supplies 38.8 bcm of gas to China in 2025, for first time more than towards west – company", 13 January 2026. Gazprom compares China with all the countries of Europe that are not neighbours of Russia, Turkey included.',
+        id: '37',
+        text: "Author's calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, lines 1, 1.1 and 2.2 ; Ministry of Finance of the Russian Federation (2026b), op. cit., n. 3 ; Korsunskaya (2024), op. cit., n. 8 ; World Bank (2026), op. cit., n. 8.",
       },
       {
-        id: 'II-12',
-        text: 'S. Vakulenko, "Why Can\'t Russia and China Agree on the Power of Siberia 2 Gas Pipeline?", *Carnegie Politika*, Carnegie Endowment for International Peace, 22 September 2025.',
+        id: '38',
+        text: 'Federal Tax Service of Russia. (2025, January 20). *Ставка налога на прибыль организаций изменилась с 2025 года* [The corporate profit tax rate changed from 2025]. https://www.nalog.gov.ru/rn27/news/tax_doc_news/15617353/ ; Federal Tax Service of Russia. (2025, December 17). *Как исчислять НДС по новым правилам с 2026 года* [How to calculate VAT under the new rules from 2026]. https://www.nalog.gov.ru/rn25/news/activities_fts/16590316/.',
       },
       {
-        id: 'II-13',
-        text: 'S. Vakulenko, "Price Analysis Shows China Holds Upper Hand in Russia Gas Supply Talks", *Carnegie Politika*, Carnegie Endowment for International Peace, 23 October 2026 (40 to 60 dollars less per thousand cubic metres than Turkmen gas; up to 30% less than in Western Europe over a long period; based on Chinese customs and an annex published by the Russian Ministry of Economic Development).',
-      },
-      {
-        id: 'II-14',
-        text: 'O. Yagova and G. Gorodyankin (Reuters), "IMO 2020 regulations challenge Russian Urals crude", *Hydrocarbon Processing*, 11 October 2019. Urals contains about 1.6 to 1.8% sulphur; when refined, it yields about 28% fuel oil, against 19% for Brent; the average 2019 gap is 0.73 dollars per barrel for Urals loaded in the Baltic.',
-      },
-      {
-        id: 'II-15',
-        text: 'Council Regulation (EU) 2022/2367 of 3 December 2022 amending Regulation (EU) No 833/2014, art. 3n.',
-      },
-      {
-        id: 'II-16',
-        text: 'US Treasury (OFAC), "Treasury Sanctions Entities for Transporting Oil Sold Above the Coalition Price Cap to Restrict Russia\'s War Machine", press release jy1795, 12 October 2023, statement by Deputy Secretary of the Treasury W. Adeyemo and section "The Price Cap".',
-      },
-      {
-        id: 'II-17',
-        text: 'Federal Tax Service of Russia (FNS), « Опубликованы данные для расчёта НДПИ… », monthly pages 2024-2026; Ministry of Finance of Russia, « О средней цене на нефть марки Urals », August and December 2023; Ministry of Economic Development of Russia, « О среднем уровне цен нефти сорта “Юралс” за сентябрь 2026 года », 2 October 2026, and the August 2026 notice reproduced by ConsultantPlus; World Bank, *Commodity Markets (Pink Sheet)*, monthly Brent prices, update of 2 October 2026; Council Regulation (EU) 2022/2367 of 3 December 2022 (60 dollars), Council Regulation (EU) 2025/1494 of 18 July 2025 (47.6 dollars from 3 September 2025) and Commission Implementing Regulation (EU) 2026/124 of 14 January 2026, annex, p. 3 (44.1 dollars from 1 February 2026). The Urals price is the tax base price used by the Russian state; the cap applies to the contract price, which no public series gives. December 2022 and ten months of 2023 have no documented price: these months stay empty in the figure.',
-      },
-      {
-        id: 'II-18',
-        text: 'KSE Institute (B. Dodonov, B. Hilgenstock et al.), *Russian Oil Tracker*, February 2026, p. 3 (share of crude carried by tankers insured by the P&I clubs of the International Group, linked to the coalition).',
-      },
-      {
-        id: 'II-19',
-        text: 'Kpler, "Rosneft and Lukoil sanctions are live: how India, China and Turkey adapt rather than exit", 2 December 2025.',
-      },
-      {
-        id: 'II-20',
-        text: 'US Treasury (OFAC), "Russia-related Designations; Issuance of New and Amended Russia-related General Licenses", Recent Actions, 22 October 2025.',
-      },
-      {
-        id: 'II-21',
-        text: 'KSE Institute (B. Dodonov, B. Hilgenstock et al.), *Russian Oil Tracker*, February 2026, p. 2 (Indian refiners MRPL, HPCL and HMEL).',
-      },
-      {
-        id: 'II-22',
-        text: 'Kpler, "Rosneft and Lukoil sanctions are live: how India, China and Turkey adapt rather than exit", 2 December 2025.',
-      },
-      {
-        id: 'II-23',
-        text: "T. Deryugina and O. Shepotylo, *China's Support for Russia: Implications for Sanctions and European Security*, econ4ua, Policy Brief No. 4, September 2026, p. 4 (discount of 5 to 9% per year since 2022, about 13% in early and mid-2026, based on the unit values of Chinese crude imports, HS 270900).",
-      },
-      {
-        id: 'II-24',
-        text: 'F. Ghironi, D. Kim and G. K. Ozhan, *International Trade and Macroeconomic Dynamics with Sanctions*, unpublished working paper, version of 15 December 2022, posted online by the World Bank, p. 1, 5.',
-      },
-      {
-        id: 'II-25',
-        text: 'Federal Tax Service of Russia (FNS), « Опубликованы данные для расчёта НДПИ… », monthly pages 2024-2026; Ministry of Economic Development of Russia, « О среднем уровне цен нефти сорта “Юралс” за сентябрь 2026 года », 2 October 2026. The Urals price is the tax base price used by the Russian state.',
-      },
-      {
-        id: 'II-26',
-        text: "T. Deryugina and O. Shepotylo, *China's Support for Russia: Implications for Sanctions and European Security*, econ4ua, Policy Brief No. 4, September 2026, p. 4-5 (about 4 dollars per barrel).",
-      },
-      {
-        id: 'II-27',
-        text: 'Ministry of Finance of Russia, annex 3.1, « Краткая информация об исполнении федерального бюджета », 5 May 2026, lines 1, 1.1 and 2.2 « Национальная оборона », and « Предварительная оценка исполнения федерального бюджета за январь-сентябрь 2026 года », press release, 9 October 2026; Reuters (D. Korsunskaya), « Траты России на оборону в 25г вырастут до 13,5 трлн р… », 30 September 2024, reproduced by *The Moscow Times*, Russian edition; World Bank, "Inflation, GDP deflator (annual %)" (NY.GDP.DEFL.KD.ZG), Russia, 2014-2025, update of 8 October 2026; author\'s calculations. 2026 covers January to September (preliminary data); defence for 2024 and 2025 in plan values; defence for 2023 not documented; no 2021 roubles for 2026, for lack of a deflator.',
-      },
-      {
-        id: 'II-28',
-        text: 'Ministry of Finance of Russia, annex 3.1, « Краткая информация об исполнении федерального бюджета », 5 May 2026, line 1.1 « Нефтегазовые доходы » (11,131 billion roubles in 2024, 8,477 in 2025); Ministry of Finance of Russia, « Предварительная оценка исполнения федерального бюджета за январь-сентябрь 2025 года », press release, 9 October 2025, p. 1.',
-      },
-      {
-        id: 'II-29',
-        text: 'Ministry of Finance of Russia, « Предварительная оценка исполнения федерального бюджета за январь-сентябрь 2026 года », press release, 9 October 2026, p. 1 and table (−17.2% year on year for oil and gas revenue; "damper" translates « демпфирующей компоненты », author\'s translation); « Выплаты нефтяникам установили очередной рекорд », *Nezavisimaya Gazeta*, 6 October 2026 (Urals at 5,453 roubles per barrel on average over nine months, +8.8%; damper of 305.5 billion roubles in September, based on Bloomberg).',
-      },
-      {
-        id: 'II-30',
-        text: 'Federal Tax Service of Russia (FNS), « Ставка налога на прибыль организаций изменилась с 2025 года », 20 January 2025 (Federal Law No. 176-FZ of 12 July 2024); FNS, « С 2026 года ставка НДС увеличена », 17 December 2025 (Federal Law No. 425-FZ of 28 November 2025).',
-      },
-      {
-        id: 'II-32',
-        text: "Author's calculations based on Ministry of Finance of Russia, annex 3.1, « Краткая информация об исполнении федерального бюджета », 5 May 2026, lines 1.1 and 1.2, and « Предварительная оценка исполнения федерального бюджета за январь-сентябрь 2026 года », press release, 9 October 2026, table. Method: the share is recalculated with the other revenue of the previous year; in 2025, it goes from 30.3% to 22.7%, and would be 24.9% without the rise in other revenue; from January to September 2026, it goes from 24.5% to 18.5%, and would be 21.2%.",
-      },
-      {
-        id: 'II-31a',
-        text: 'Ministry of Finance of Russia, *Основные направления бюджетной, налоговой и таможенно-тарифной политики на 2026 год и на плановый период 2027 и 2028 годов*, 3 October 2025, p. 21, 30 ("great tax manoeuvre" complete since 2024; damper adjusted for 2026).',
-      },
-      {
-        id: 'II-31b',
-        text: 'Ministry of Finance of Russia, *Основные направления бюджетной, налоговой и таможенно-тарифной политики на 2026 год и на плановый период 2027 и 2028 годов*, 3 October 2025, p. 21, 30.',
+        id: '39',
+        text: 'Ministry of Finance of the Russian Federation. (2025, October 3). *Информация Минфина России от 03.10.2025 «Основные направления бюджетной, налоговой и таможенно-тарифной политики на 2026 год и на плановый период 2027 и 2028 годов»* [Information of the Ministry of Finance of Russia of 3 October 2025, "Main directions of budget, tax and customs tariff policy for 2026 and for the planning period 2027 and 2028"]. Garant. https://base.garant.ru/412797173/, pp. 21, 30.',
       },
     ],
   },
   {
-    source: 'partie-III.md',
+    source: 'report-en.md, 2 Pay, sections 2.4 to 2.6',
     slug: 'ports-fleet',
     title: 'Exporting through the ports and the fleet',
     nodeIds: ['N-P001', 'N-P002', 'N-P005', 'N-P011', 'N-P007', 'N-P025'],
     blocks: [
+      { kind: 'h3', text: 'The ports' },
       {
         kind: 'p',
-        text: 'The EU first sanctions what leaves (the oil), then how it leaves (the ships), and finally where it leaves from (the ports): the sanctions move up the logistics chain (figure 2). In June 2022, the EU decides the embargo on Russian crude and oil products carried by sea. It applies to crude in December 2022 and to products in February 2023.[^III-a] Since December 2022, EU companies can no longer carry, insure or finance this oil if it is sold above a price cap.[^III-b] Next, the tankers themselves become targets: the United States designates them from October 2023, and the EU closes its ports and its maritime services to them since June 2024.[^III-c] Finally, since February 2025, an EU company can no longer deal with the ports through which crude that does not go by pipeline leaves Russia: [[N-P001|Primorsk]] and [[N-P002|Ust-Luga]] on the Baltic, [[N-P005|Novorossiysk]] on the Black Sea, then, since April 2026, [[N-P011|Tuapse]], on the Black Sea, and Murmansk, on the Barents Sea.[^III-2] Like the price cap, these measures bind only coalition companies. Crude also leaves from [[N-P007|Kozmino]], on the Pacific, at the end of the Eastern Siberia-Pacific Ocean (ESPO) pipeline: in 2023, this port loads almost as much crude as Primorsk, the largest of these ports.[^III-1]',
+        text: 'Russian crude that does not leave by pipeline leaves Russia through a few ports, mainly [[N-P001|Primorsk]] and [[N-P002|Ust-Luga]] on the Baltic, [[N-P005|Novorossiysk]] on the Black Sea and [[N-P007|Kozmino]] on the Pacific.[^40] Traffic at the first three, all goods included, held up despite the embargo: in 2025, it exceeded its 2021 level (figure 6).[^41]',
       },
       {
         kind: 'p',
-        text: 'Yet traffic at [[N-P001|Primorsk]], Ust-Luga and Novorossiysk holds up: in 2025, it is above its 2021 level. From January to April 2026, however, it falls at Novorossiysk, at Ust-Luga and above all at Tuapse, while the crude loaded across all ports rises a little (figure 6). To explain why traffic held up until 2025, the report relies on the "shadow fleet". This is the name that the KSE Institute, the research centre of the Kyiv School of Economics, gives to tankers linked to a country outside the coalition and without Western insurance;[^III-3] in January 2026, these tankers carry most of the crude exported by sea (figures 6B and 7A). Because these tankers do not use coalition companies, neither the cap nor the port ban affects them. The report\'s hypothesis is that their rise since the embargo explains why port traffic held up.',
+        text: 'Sanctions ended up targeting these ports themselves. Since February 2025, an EU company can no longer deal with the ports on the Baltic and the Black Sea, and since April 2026 with [[N-P011|Tuapse]] and Murmansk.[^42] Like the price cap, these measures bind only the companies of the coalition.',
+      },
+      { kind: 'h3', text: 'The fleet' },
+      {
+        kind: 'p',
+        text: 'To leave ports closed to companies of the coalition, the crude needs ships that do not depend on them. These are mostly the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance.[^43] Neither the cap nor the port ban touches them. The report\'s hypothesis is that their growth since the embargo explains why port traffic held up until 2025.',
       },
       {
         kind: 'figure',
-        text: 'Figure 6. Traffic at Russian oil ports, 2014-2025, and its change from January to April 2026. Sources: ASOP; NMTP; KSE, based on Kpler.[^III-4]',
+        text: 'Figure 6: Traffic at Russian oil ports, 2014-2026. Data: ASOP (2022; 2026); PortNews (2018; 2019; 2021); NMTP (2017; 2020); Dodonov et al. (2026).[^44]',
         figure: {
           number: 6,
-          title:
-            'Traffic at Russian oil ports, 2014-2025, and its change from January to April 2026',
-          period: '2014-2025',
-          sources: 'ASOP; NMTP; KSE, based on Kpler.',
+          title: 'Traffic at Russian oil ports',
+          period: '2014-2026',
+          sources:
+            'ASOP (2022; 2026); PortNews (2018; 2019; 2021); NMTP (2017; 2020); Dodonov et al. (2026).[^44]',
         },
       },
       {
         kind: 'p',
-        text: 'These tankers mostly fly the flags of countries outside the coalition, such as Panama, Barbados, Gabon or Sierra Leone,[^III-5] and the companies that manage them are often based outside Russia. For example, according to the US Treasury, [[N-P025|Sovcomflot]], the Russian state shipowner, transferred the management of tankers to Stream Ship Management, based in the United Arab Emirates, to try to evade sanctions.[^III-6]',
+        text: 'Most Russian crude exported by sea travels on these ships (figure 7). On their sterns fly mostly the flags of Panama, Barbados, Gabon or Sierra Leone. These flags of convenience also serve ordinary trade, so a flag alone does not signal circumvention. The companies that manage the tankers say more, because they are often based outside Russia. [[N-P025|Совкомфлот (Sovcomflot)]], the Russian state shipowner, thus transferred the management of tankers to Stream Ship Management, based in the United Arab Emirates. The United States designated that company for this reason.[^45]',
       },
       {
         kind: 'figure',
-        text: 'Figure 7. Russian oil exports by sea, by route, fleet and buyer, January 2026. Sources: KSE and CREA, based on Kpler; other sources in the note.[^III-7]',
+        text: 'Figure 7: Russian oil exported by sea, January 2026. Data: Dodonov et al. (2026); Raghunandan et al. (2026), based on Kpler.[^48]',
         figure: {
           number: 7,
-          title: 'Russian oil exports by sea, by route, fleet and buyer, January 2026',
+          title: 'Russian oil exported by sea',
           period: 'January 2026',
-          sources: 'KSE and CREA, based on Kpler; other sources in the note.',
+          sources: 'Dodonov et al. (2026); Raghunandan et al. (2026), based on Kpler.[^48]',
         },
       },
+      { kind: 'h3', text: 'Vessel sanctions' },
       {
         kind: 'p',
-        text: 'The sanctions also target the ships themselves. A designation targets a ship by its International Maritime Organization (IMO) number, which never changes. But its name, its flag, its owner and the identity it broadcasts in the Automatic Identification System (AIS), the radio signal that gives its position, can change. As a result, a designation tracks a ship that changes identity poorly (figure 8): about eight in ten designated tankers lose the AIS identity linked to their IMO number within a year. A lost identity alone does not prove evasion, though, because the ship may also be out of service or carry a new identity. EU ports, for their part, close to these ships: 37 of these tankers call there in the six months before their designation, against at least 7 in the two years after, because only 55 are tracked long enough to know.[^III-8] Designation does not stop loading, however: according to the KSE, more than one designated tanker in five still loads Russian oil in December 2025.[^III-9]',
+        text: 'Sanctions also target the ships themselves, by their International Maritime Organization (IMO) number, which never changes, while their name, flag, owner and AIS (automatic identification system) identity can change. Designation, however, does not stop port calls (figure 8).[^46] In December 2025, more than one designated tanker in five still loads Russian oil.[^47]',
       },
       {
         kind: 'figure',
-        text: 'Figure 8. AIS identity and port calls of designated ships, before and after their designation (ships). Sources: Global Fishing Watch; OFAC, UK and EU lists.[^III-10]',
+        text: "Figure 8: Port calls of designated tankers after their designation. Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations.[^50]",
         figure: {
           number: 8,
-          title:
-            'AIS identity and port calls of designated ships, before and after their designation',
+          title: 'Port calls of designated tankers after their designation',
           unit: 'ships',
-          sources: 'Global Fishing Watch; OFAC, UK and EU lists.',
+          sources:
+            "Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations.[^50]",
         },
       },
       {
         kind: 'p',
-        text: 'The lists also lag behind one another. For example, in February 2024 the United States designates the tanker GEORGY MASLOV, of the [[N-P025|Sovcomflot]] fleet;[^III-11] the ship then moves to the Russian flag, under a company of the same group,[^III-12] and the United Kingdom designates it only nine months later.[^III-13] More broadly, when the EU and the United States designate the same ship, the United States does so first in almost nine cases out of ten.[^III-14]',
+        text: 'The three sanctions regimes do not move at the same pace. When the EU and the United States designate the same ship, the United States does so first in nearly nine cases out of ten (figure 9).[^49]',
       },
       {
         kind: 'p',
-        text: "So a list of ships describes a state that the ship has often already left. The report's hypothesis is that targeting the company that manages the tankers, and the country where it is based, would reach the fleet more surely than targeting each ship.",
+        text: 'A designated ship also often changes hands. In a non-random sample of 100 designated ships, Ukrainian military intelligence (GUR), a party to the conflict, dates a change of owner or manager after designation for 81 of them.[^51]',
+      },
+      {
+        kind: 'p',
+        text: "A list of ships therefore describes a situation that the ship has often already left. The report's hypothesis is that targeting the company that manages the tankers, and the country where it is based, would reach the fleet more surely than targeting each ship.",
+      },
+      {
+        kind: 'figure',
+        text: "Figure 9: Tankers designated by the EU, the United Kingdom and OFAC. Data: Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations.[^52]",
+        figure: {
+          number: 9,
+          title: 'Tankers designated by the EU, the United Kingdom and OFAC',
+          sources:
+            "Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations.[^52]",
+        },
       },
     ],
     notes: [
       {
-        id: 'III-1',
-        text: 'US Treasury (OFAC), « Treasury Sanctions Entities for Transporting Oil Sold Above the Coalition Price Cap to Restrict Russia’s War Machine », press release jy1795, 12 October 2023 (ESPO crude exported through Russian Pacific ports, including Kozmino); « Russian Kozmino crude exports jump 9.4% in 2023 amid sanctions: reports », *S&P Global Commodity Insights*, 10 January 2024, based on Transneft, quoted by the TASS agency: 42.8 million tonnes loaded at Kozmino in 2023, against 44.4 million at Primorsk.',
+        id: '40',
+        text: 'U.S. Department of the Treasury (2023), op. cit., n. 10 ; S&P Global Commodity Insights. (2024, January 10). *Russian Kozmino crude exports jump 9.4% in 2023 amid sanctions*. https://www.spglobal.com.',
       },
       {
-        id: 'III-2',
-        text: 'Council Regulation (EU) 2025/395 of 24 February 2025 amending Regulation (EU) No 833/2014, *OJ* L of 24 February 2025, Annex XIV (Annex XLVII, Part A, points 3 to 5); Council Regulation (EU) 2026/506 of 23 April 2026 amending Regulation (EU) No 833/2014, *OJ* L of 23 April 2026, Annex XVI (Annex XLVII, Part A, points 6 and 7). The measure bans transactions with the port; the port itself is on no sanctions list.',
+        id: '41',
+        text: 'ASOP (2022; 2026; 2026). https://www.morport.com, p. 1 ; PortNews (2018; 2019; 2021). https://portnews.ru ; NMTP (2017). https://en.portnews.ru, pp. 7–8 ; NMTP (2020). https://fs.moex.com, p. 1 ; Dodonov et al. (2026), op. cit., n. 2, p. 3.',
       },
       {
-        id: 'III-3',
-        text: 'KSE Institute (B. Dodonov, B. Hilgenstock et al.), *Russian Oil Tracker*, February 2026 (published online on 2 March 2026), p. 3. The insurance used is that of the clubs of the International Group of P&I Clubs, which brings together the major maritime liability insurers. In January 2026, 20% of the crude exported by sea leaves on tankers insured by these clubs.',
+        id: '42',
+        text: 'CELEX 32025R0395, Annex XIV ; CELEX 32026R0506, Annex XVI ; https://eur-lex.europa.eu.',
+      },
+      { id: '43', text: 'See n. 2.' },
+      { id: '44', text: 'See n. 41.' },
+      {
+        id: '45',
+        text: 'U.S. Department of the Treasury. (2025, January 10). *Treasury Intensifies Sanctions Against Russia by Targeting Russia’s Oil Production and Exports* (press release jy2777). https://home.treasury.gov/news/press-releases/jy2777, Annex 2.',
       },
       {
-        id: 'III-4',
-        text: "Association of Commercial Sea Ports of Russia (ASOP), annual press releases (2017-2026), from « Грузооборот морских портов России за 12 месяцев 2021 г. » (17 January 2022) to « Грузооборот морских портов России за 2025 год » (16 January 2026), reported by *PortNews* for 2017, 2018 and 2020, and « Грузооборот морских портов России за январь-апрель 2026 года », 14 May 2026, p. 1; Novorossiysk port group (NMTP), *Годовой отчет ПАО «НМТП» за 2016 год*, 2017, p. 7-8, and *Годовой отчет ПАО «НМТП» за 2019 год*, 30 April 2020, p. 1; KSE Institute (B. Dodonov, B. Hilgenstock et al.), *Russian Oil Tracker*, February 2026 (published online on 2 March 2026), p. 3, based on Kpler. Units: index 2021 = 100 for traffic, percentage for the 2026 change, thousand barrels per day for crude. A port's traffic counts all its goods, as there is no crude figure per port. Novorossiysk includes the terminal of the Caspian Pipeline Consortium (CPC), mostly Kazakh oil.",
+        id: '46',
+        text: "Author's calculations based on Global Fishing Watch (2026). https://globalfishingwatch.org ; OFAC (2026). https://sanctionslistservice.ofac.treas.gov ; FCDO (2026). https://sanctionslist.fcdo.gov.uk ; CELEX 32014R0833 ; https://eur-lex.europa.eu.",
+      },
+      { id: '47', text: 'Dodonov et al. (2026), op. cit., n. 2, p. 2.' },
+      {
+        id: '48',
+        text: 'Dodonov et al. (2026), op. cit., n. 2, pp. 2–8 ; Raghunandan, V. et al. (2026, February 18). *January 2026 — Monthly analysis of Russian fossil fuel exports and sanctions*. Centre for Research on Energy and Clean Air. https://energyandcleanair.org.',
       },
       {
-        id: 'III-5',
-        text: "Author's calculations on the report's database, which brings together the designations of the OFAC lists (21 October 2026), the UK lists (16 October 2026) and the EU acts, and the flags taken from the ship records: flags of the ships of the selected management companies.",
+        id: '49',
+        text: "Author's calculations based on OFAC (2026), op. cit., n. 46 ; CELEX 32014R0833 ; https://eur-lex.europa.eu.",
+      },
+      { id: '50', text: 'See n. 46.' },
+      {
+        id: '51',
+        text: "Author's calculations based on GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua ; OFAC (2026), op. cit., n. 46 ; FCDO (2026), op. cit., n. 46 ; CELEX 32014R0833 ; https://eur-lex.europa.eu.",
       },
       {
-        id: 'III-6',
-        text: 'US Treasury (OFAC), « Treasury Intensifies Sanctions Against Russia by Targeting Russia’s Oil Production and Exports », press release jy2777, 10 January 2025, Annex 2. In it, the Treasury designates Sovcomflot and Stream Ship Management.',
-      },
-      {
-        id: 'III-7',
-        text: 'KSE Institute (B. Dodonov, B. Hilgenstock et al.), *Russian Oil Tracker*, February 2026 (published online on 2 March 2026), p. 2-8, based on Kpler; Centre for Research on Energy and Clean Air (CREA) (V. Raghunandan, P. Katinas and L. Wickenden), « January 2026 — Monthly analysis of Russian fossil fuel exports and sanctions », 18 February 2026, based on Kpler; Gazprom, according to Interfax, « Gazprom supplies 38.8 bcm of gas to China in 2025, for first time more than towards west – company », 13 January 2026; ENTSOG, according to TASS, « Russian gas exports to Europe via TurkStream up 1.4% in 9M », 1 October 2026; ExPro Consulting, « Transit of Russian oil through Ukraine fell to a new low – 9.7 million tons in 2025 », 2 February 2026; Urgewald, « In 2025, EU imports from the Kremlin’s flagship Yamal LNG project hit €7.2 billion », January 2026, based on Kpler; LSEG, according to Reuters, « Russian LNG exports dip in 2025 as sanctions squeeze logistics », reported by *Baird Maritime*, 30 December 2025; Global Energy Monitor, « Druzhba Oil Pipeline » and « Skovorodino-Mohe Oil pipeline », *GEM.wiki*, pages accessed on 26 October 2026. Oil by sea in January 2026, gas and crude by pipeline in 2025; units: thousand barrels per day, billion cubic metres, million tonnes. "Shadow fleet" and International Group insurance are KSE categories; the share on designated tankers comes from CREA, with a different method. "Other countries" is a residual (author\'s calculations). No published source links a tanker at sea to a buyer, and about 30% of the crude of January 2026 has no known destination in mid-February (KSE Institute, *Russian Oil Tracker*, February 2026, p. 8). The flow of the Eastern Siberia-Pacific Ocean (ESPO) pipeline to China is not documented; the CPC is not counted.',
-      },
-      {
-        id: 'III-8',
-        text: "Author's calculations based on Global Fishing Watch, « Port visits » and vessel identity registry, API version 3, data read on 27 October 2026; and the report's database, which brings together the designations of the US Treasury's *Specially Designated Nationals List* (OFAC, version of 21 October 2026), the FCDO's *UK Sanctions List* (version of 16 October 2026) and the EU acts: all designated tankers in the database with an IMO number and a designation date. Lost identity: 356 of the 441 tankers tracked for at least one year. EU port calls: 37 tankers in the six months before designation, at least 7 in the two years after, out of 497; only 55 are tracked for twenty-four months (6 before, 1 after for these). An EU port call is a presence in the port or anchorage of a member state, not a loading.",
-      },
-      {
-        id: 'III-9',
-        text: 'KSE Institute (B. Dodonov, B. Hilgenstock et al.), *Russian Oil Tracker*, February 2026 (published online on 2 March 2026), p. 2: 140 of the 621 tankers designated by at least one jurisdiction. The six jurisdictions used by the KSE are the EU, the United States, the United Kingdom, Canada, Australia and New Zealand.',
-      },
-      {
-        id: 'III-10',
-        text: "Author's calculations based on Global Fishing Watch, port calls and vessel registry, 2026; designation dates: OFAC's *SDN List*, FCDO's *UK Sanctions List* and Annex XLII of Regulation (EU) No 833/2014. Census of the 502 designated tankers in the database, of which 497 have an AIS identity; each share counts the ships tracked long enough (six, twelve or twenty-four months before 26 October 2026); the timeline shows 11 of these ships as examples. The AIS identity and flag dates come from the registry, of which the report keeps no copy: they are leads. A new identity not linked to the IMO number is out of scope: the identity loss is therefore a ceiling, and the port calls after designation are floors. A port call is a presence in the port or anchorage, not a loading.",
-      },
-      {
-        id: 'III-11',
-        text: 'US Treasury (OFAC), « Russia-related Designations; Issuance of Russia-related General Licenses », *Recent Actions*, 23 February 2024; US Treasury (OFAC), *Specially Designated Nationals List*, version of 21 October 2026, entry 46991 (ship linked to Sovcomflot).',
-      },
-      {
-        id: 'III-12',
-        text: 'GUR (Ukrainian military intelligence, a party to the conflict), *War & Sanctions* portal, record « GEORGY MASLOV », update of 5 October 2026: owner South Fleet, managed by SKF Arktika, a subsidiary of Sovcomflot.',
-      },
-      {
-        id: 'III-13',
-        text: 'FCDO, *UK Sanctions List*, version of 16 October 2026, entry RUS2331: designation of 25 November 2024, Russian flag, owner South Fleet.',
-      },
-      {
-        id: 'III-14',
-        text: "Author's calculations based on the US Treasury's *Specially Designated Nationals List* (OFAC, version of 21 October 2026) and Annex XLII of Regulation (EU) No 833/2014 (status at 22 October 2026): the United States designates first in 182 of the 211 cases, with a median gap of 131 days.",
-      },
-      {
-        id: 'III-a',
-        text: 'Council Regulation (EU) 2022/879 of 3 June 2022 amending Regulation (EU) No 833/2014, Art. 3m, paras. 1 and 3(a)-(b) (end of the exceptions on 5 December 2022 for crude and on 5 February 2023 for oil products).',
-      },
-      {
-        id: 'III-b',
-        text: 'Council Regulation (EU) 2022/2367 of 3 December 2022 amending Regulation (EU) No 833/2014, Art. 3n.',
-      },
-      {
-        id: 'III-c',
-        text: 'US Treasury (OFAC), « Treasury Sanctions Entities for Transporting Oil Sold Above the Coalition Price Cap to Restrict Russia’s War Machine », press release jy1795, 12 October 2023; Council Regulation (EU) 2024/1745 of 24 June 2024 amending Regulation (EU) No 833/2014, recital 13.',
+        id: '52',
+        text: "Author's calculations based on OFAC (2026), op. cit., n. 46 ; FCDO (2026), op. cit., n. 46 ; CELEX 32014R0833, retrieved October 30, 2026 ; https://eur-lex.europa.eu.",
       },
     ],
   },
@@ -2238,27 +2142,28 @@ export const openingUi = {
   summary: {
     // The plate of the summary head on a wide screen: an old chart of the Black Sea, in two tones.
     art: import.meta.env.BASE_URL + 'report-media/black-sea-map-1829-dither.png',
-    // Figure 9 of the report: the rouble line of the export panel. It sits under the finding of
-    // note S-11 (2021 and 2025 only), and cites note IV-5 of figure 9, which covers 2019-2025.
+    // The figure of the settlement currencies: the rouble line of the export panel. It sits under
+    // the finding of note 4 (2021 and 2025 only), and cites note IV-5 of that figure, which covers
+    // 2019-2025.
     chart: {
       title: 'Exports settled in roubles',
       label: 'Exports settled in roubles, percentage of export settlements, by year',
       unit: '% of export settlements',
       period: '2019-2025',
       source: 'Source: Bank of Russia (2026).',
-      finding: 'S-11',
+      finding: '4',
       note: { part: 'finance', id: 'IV-5' },
       marked: [2021, 2025],
     },
     // Each value is written exactly as in the list item of the same place, with the note of
-    // that item.
+    // that item. The item on the price has no note.
     values: [
-      { value: '84%', note: 'S-4' },
-      { value: '79%', note: 'S-5' },
-      { value: 'almost doubled', note: 'S-7' },
-      { value: 'less than one fifth', note: 'S-10' },
-      { value: '53%', note: 'S-11' },
-      { value: '77%', note: 'S-14' },
+      { value: '84%', note: '1' },
+      { value: '79%', note: '2' },
+      { value: 'almost doubled', note: '' },
+      { value: 'less than one fifth', note: '3' },
+      { value: '53%', note: '4' },
+      { value: '77%', note: '5' },
     ],
   },
   introduction: {
@@ -2273,8 +2178,6 @@ export const methodUi = {
     unit: 'Critical nodes, one square for each node',
     // The figure counts the nodes of the report, so its period is the period of the report.
     period: '2024-2026',
-    // The source of the figure as the text of the part writes it, with a capital letter.
-    sources: 'Author',
     critical: 'Critical nodes',
     inData: 'Critical and in the page data',
     examined: 'In the page data, fewer than three conditions documented',
@@ -2284,12 +2187,12 @@ export const methodUi = {
   timeline: {
     label: 'Sanctions, 2014-2026',
     // Quoted from the text of the part.
-    period: 'The report covers 2024-2026',
+    period: 'The years 2024-2026',
     gap: '2015-2021: no event in this figure',
     unit: 'Event, dated',
     actors: { COAL: 'COALITION' } as Readonly<Partial<Record<string, string>>>,
   },
-  // The counts of the text of the part.
+  // The critical nodes of each layer. Their sum is the count of critical nodes of the text.
   numbers: {
     layers: [
       { value: '442', label: 'Pay' },
@@ -2311,17 +2214,17 @@ export const payUi = {
     label: 'Brent price, Urals price and EU price cap, monthly',
     // The note of figure 4, with the shaded area of this chart in place of a colour name.
     note: 'Urals: monthly average price used for the Russian mineral extraction tax. Brent: monthly price of the World Bank. The shaded area is the gap between the two; it also includes quality and freight. Cap: maximum price, set by the EU, of a Russian crude transported or insured by a coalition company.',
-    // Each card quotes the text of the part. The paragraph on Brent and Urals comes just before
-    // the figure, so no card repeats it.
+    // Each card quotes the text of the part: the first cap, the cap and the fleet, then the gap
+    // after the designation of Rosneft and Lukoil.
     steps: [
       {
-        text: 'Until February 2025, Urals sells above the 60-dollar cap; it then mostly falls below it from March to August 2025',
+        text: 'Since December 2022, an EU company or a company of its allies can no longer carry, insure or finance Russian crude sold above a price cap (figure 4).[^23]',
       },
       {
-        text: 'then below the cap lowered to 47.6 dollars in November and December 2025 (figure 4).',
+        text: 'As long as Urals stays above the cap, it travels mostly on ships and with insurers outside the coalition, which the cap does not bind (section 2.5).[^26]',
       },
       {
-        text: 'The gap widens further after October 2025 (figure 4), when OFAC designates [[N-P026|Rosneft]] and [[N-P030|Lukoil]], two large Russian oil groups,[^II-20] and several Indian refiners stop buying.[^II-21] The report sees this as a probable effect of this designation, but cannot measure it, because the series only shows a coincidence of dates.',
+        text: 'The gap widened again after October 2025, when OFAC designated [[N-P026|Rosneft]] and [[N-P030|Lukoil]], two large Russian oil groups,[^28] and several Indian refiners stopped buying.[^29] From August 2023 to October 2025, Urals was worth $10 to $16 less than Brent each month; since November 2025, it has been worth $19 to $27 less.[^30]',
       },
     ],
   },
@@ -2342,12 +2245,9 @@ export const portsFleetUi = {
       'N-P011': 'April 2026',
       'N-P009': 'April 2026',
     },
-    pacific: 'Kozmino, on the Pacific, and Primorsk, on the Baltic',
-    // Words of the text of the part, for the terminals of the Pacific step.
-    pacificNotes: {
-      'N-P007': 'End of the ESPO pipeline',
-      'N-P001': 'The largest of these ports',
-    },
+    pacific: 'Crude export ports on the Baltic, the Black Sea and the Pacific',
+    // Words of the text of the part, for the terminals of the Pacific step: the final text has none.
+    pacificNotes: {} as Readonly<Record<string, string>>,
     change: 'Traffic, January-April 2026 / January-April 2025, change in %',
     flows: 'Seaborne crude by loading basin and fleet, January 2026, kb/d',
     open: 'Open the record of',
@@ -2478,8 +2378,24 @@ export const closingUi = {
     checkLabel: 'Check before use',
   },
   annex: {
-    // The date of the counts, and note S-3, which says that the nodes are not the entities of A.1.
+    // The date of the counts, as section A.1 of the final text gives it.
     dataDate: 'Database as at 27 October 2026',
-    dataNote: 'S-3',
   },
 } as const;
+
+/** The English copy of the report content. The copy of another locale has the same shape
+ * (`ReportContent` in use-content.ts), and the page reads it from the content context. */
+export const en = {
+  report,
+  parts,
+  figureTexts,
+  ui,
+  openingUi,
+  methodUi,
+  payUi,
+  portsFleetUi,
+  financeUi,
+  fightUi,
+  ownershipUi,
+  closingUi,
+};

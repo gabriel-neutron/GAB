@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
-import { openingUi, parts } from './content';
+
 import { accent } from './primitives/accent';
+import { useContent } from './use-content';
 
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ring';
@@ -18,6 +19,7 @@ const segment = (index: number, current: number): string =>
  * Each segment is a link that shows its title in the bar on hover or focus. On a phone the bar is
  * one short line, the number and title over the same segments, so it keeps the reading space. */
 export function PartBar() {
+  const { openingUi, parts } = useContent();
   const bar = useRef<HTMLElement>(null);
   const fill = useRef<HTMLSpanElement | null>(null);
   // The progress of the part in view, kept past React so that a new fill span starts with it.
@@ -60,7 +62,7 @@ export function PartBar() {
       region.removeEventListener('scroll', schedule);
       window.removeEventListener('resize', schedule);
     };
-  }, []);
+  }, [parts]);
 
   const shown = pointed ?? current;
   const part = parts[shown];

@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from '
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { EntityGlyph } from '@/shared/entity-glyph';
 import { cn } from '@/shared/lib/utils';
-import { ui } from './content';
 import { reportGraph } from './report-graph';
+import { useContent } from './use-content';
 import { CLOSE_CARDS, useReport } from './use-report';
 
 /** The time the pointer has to cross from the reference to its card (WCAG 1.4.13). */
@@ -23,6 +23,7 @@ interface NodeRefProps {
 /** A reference to a node of the report. Hover or keyboard focus shows a short card; a click or
  * Enter opens the panel. A tap shows the card, and its button opens the panel. */
 export function NodeRef({ id, children, side = 'top' }: NodeRefProps) {
+  const { ui } = useContent();
   const { openNode } = useReport();
   const [open, setOpen] = useState(false);
   const pointer = useRef('');
