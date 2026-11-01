@@ -17,7 +17,7 @@ import {
   type Place,
 } from './chain-data';
 import { ChainMap } from './chain-map';
-import { ChainStrips, ChainTotals } from './chain-panels';
+import { ChainStrips, ChainTotals, useDataName } from './chain-panels';
 
 type Copy = ReportContent['fightUi']['chain'];
 const ROUTES = stages.length;
@@ -127,18 +127,16 @@ const Head = ({ title }: { readonly title: string }) => (
 
 /** The routes that the map draws, for a reader who cannot see the arcs. */
 function RouteTable() {
-  const { fightUi, figureTexts } = useContent();
-  const { chain } = fightUi;
+  const { chain } = useContent().fightUi;
+  const say = useDataName();
   const states: Readonly<Record<string, string>> = chain.stateWords;
-  // The names of the data are English; the labels of the routes figure give them in the page locale.
-  const names: Readonly<Partial<Record<string, string>>> = figureTexts.figures['11'].labels;
   return (
     <ValuesTable
       summary={chain.routeTable}
       head={chain.routeColumns}
       rows={arcs.map((arc) => [
-        names[arc.from.name] ?? arc.from.name,
-        names[arc.to.name] ?? arc.to.name,
+        say(arc.from.name),
+        say(arc.to.name),
         states[arc.state] ?? arc.state,
         chainCount(arc.weight),
       ])}
@@ -147,7 +145,12 @@ function RouteTable() {
 }
 
 /** The text of the steps, one for each step, each with its own source. */
-function cards(sources: string, partSlug: string, copy: Copy): ReactNode[] {
+function cards(
+  sources: string,
+  partSlug: string,
+  copy: Copy,
+  say: (name: string) => string,
+): ReactNode[] {
   const routeSource = (
     <div className="mt-6 border-t border-divider pt-2">
       <p className="font-mono text-report-label uppercase text-label">{copy.source}</p>
@@ -159,7 +162,7 @@ function cards(sources: string, partSlug: string, copy: Copy): ReactNode[] {
   return [
     ...stages.map((stage, index) => (
       <div key={stage.name}>
-        <Head title={stage.name} />
+        <Head title={say(stage.name)} />
         <p className="mt-3 text-report-small text-muted-foreground">{copy.imports}</p>
         <dl className="mt-5 grid border-t border-divider">
           {stage.shares.map((share) => (
@@ -167,11 +170,11 @@ function cards(sources: string, partSlug: string, copy: Copy): ReactNode[] {
               key={share.group}
               className="grid grid-cols-[1fr_auto] gap-x-3 border-b border-divider py-1.5"
             >
-              <dt className="text-report-small">{share.group}</dt>
+              <dt className="text-report-small">{say(share.group)}</dt>
               <dd className="text-right font-mono text-report-label tabular-nums">{share.text}%</dd>
               {share.note === '' ? null : (
                 <dd className="col-span-2 font-mono text-report-label text-pretty text-label">
-                  {share.note}
+                  {say(share.note)}
                 </dd>
               )}
             </div>
@@ -253,7 +256,7 @@ export function ChainStory({
   const reduce = useReducedMotion();
   const wide = useSyncExternalStore(onWidth, isWide, atRelease);
   const copy = useContent().fightUi.chain;
-  const steps = cards(sources, partSlug, copy);
+  const steps = cards(sources, partSlug, copy, useDataName());
   return (
     <section
       aria-labelledby="fight-chain-title"

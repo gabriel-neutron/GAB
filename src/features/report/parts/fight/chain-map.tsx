@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { motion, useInView, useReducedMotion } from 'motion/react';
 import { useContent } from '../../use-content';
+import { useDataName } from './chain-panels';
 import { cn } from '@/shared/lib/utils';
 import { useReport } from '../../use-report';
 import type { Arc, Place, Tone } from './chain-data';
@@ -154,6 +155,7 @@ export function ChainMap({
   const reduce = useReducedMotion();
   const { openNode } = useReport();
   const { fightUi } = useContent();
+  const say = useDataName();
 
   // An adapter: the land file loads past React, once, when the map comes near the view.
   useEffect(() => {
@@ -209,7 +211,7 @@ export function ChainMap({
   const merged = new Map<string, { place: Place; text: string }>();
   for (const place of labelled) {
     const at = `${String(place.lon)},${String(place.lat)}`;
-    const text = `${place.name}${place.value === undefined ? '' : ` ${place.value}`}`;
+    const text = `${say(place.name)}${place.value === undefined ? '' : ` ${place.value}`}`;
     const held = merged.get(at);
     merged.set(
       at,
@@ -223,7 +225,7 @@ export function ChainMap({
     const at = `${String(arc.from.lon)},${String(arc.from.lat)}`;
     const raw = x(arc.from.lon);
     if ((raw < 0 || raw > width) && !merged.has(at))
-      merged.set(at, { place: arc.from, text: arc.from.name });
+      merged.set(at, { place: arc.from, text: say(arc.from.name) });
   }
   const all = [...merged.values()].map(({ place, text }) => {
     const raw = x(place.lon);

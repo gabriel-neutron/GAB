@@ -1,6 +1,8 @@
 // The note-to-documents file of the report: for each note, the documents of the record that
 // support it, and at most one short quote.
 
+import committed from './data/note-documents.json';
+
 export interface NoteDocument {
   readonly id: string;
   readonly type: string;
@@ -82,3 +84,11 @@ export function noteDocumentFaults(
   for (const id of noteIds) if (!seen.has(id)) faults.push(`note ${id}: not in the file`);
   return faults;
 }
+
+const held: NoteDocumentsFile = committed;
+const byNote = new Map(held.notes.map((note) => [note.id, note]));
+
+/** The document rows and the quote of one note, from the committed file. Undefined for a note id
+ * that the file does not hold. */
+export const noteDocuments = (id: string): NoteDocumentsFile['notes'][number] | undefined =>
+  byNote.get(id);

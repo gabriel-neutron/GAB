@@ -1968,8 +1968,10 @@ export const ui = {
     graph: 'Open in the graph',
   },
   note: {
-    label: 'Note',
+    label: 'Source',
     all: 'All notes',
+    documents: 'Documents of the record',
+    retrieved: 'retrieved',
     // The mark of an English note with no French twin, on the French notes page.
     missing: 'Notes of the English text',
     noTwin: 'no FR source',
@@ -2077,9 +2079,10 @@ export const openingUi = {
 export const methodUi = {
   layers: {
     label: 'Layers',
-    unit: 'Nodes of the page data, one square for each node',
+    unit: 'Critical nodes, one square for each node',
     // The figure counts the nodes of the report, so its period is the period of the report.
     period: '2024-2026',
+    critical: 'Critical, no page record',
     inData: 'Critical and in the page data',
     examined: 'In the page data, fewer than three conditions documented',
     open: 'Open the nodes of the page data',
@@ -2113,8 +2116,6 @@ export const payUi = {
   year: 'Year',
   estimated: 'estimate',
   table: 'Values of all years',
-  // The heading of the column of notes beside the text.
-  sidenotes: 'Notes',
   f4: {
     label: 'Brent price, Urals price and EU price cap, monthly',
     // The note of figure 4, with the shaded area of this chart in place of a colour name.
@@ -2332,6 +2333,9 @@ export const fightUi = {
     from: 'From',
     to: 'To',
     fromTo: '{a} to {b}',
+    // The names of the chain data (stages, groups, places, routes) in the words of the page. A name
+    // that is not here shows as the data writes it.
+    dataNames: {} as Readonly<Partial<Record<string, string>>>,
     routeTable: 'All the routes of the map, as a table',
     routeColumns: ['Country of manufacture', 'Country of the intermediary', 'State', 'Chains'],
     // The states of the routes data, for the cells of the route table.
@@ -2410,6 +2414,40 @@ export const ownershipUi = {
       share: 'Share',
       owned: 'Owned',
       state: 'State',
+    },
+  },
+  // The owners map: a figure of the page with no number, because the final text has no such
+  // figure. Each site comes from a committed join that a reviewer checks against the record.
+  owners: {
+    title: 'Who holds the sites on the map',
+    unit: 'one point = one site',
+    sources: 'GAB record: the documents of each row, in the table.',
+    checked: 'checked against the record on {date}',
+    mapLabel: 'Map of the sites of the report, by the controller of their holder',
+    table: 'The sites of the map, as a table',
+    rows: '{n} rows',
+    columns: {
+      site: 'Site',
+      holder: 'Holder',
+      relation: 'Relation',
+      controller: 'Controller',
+      documents: 'Documents',
+    },
+    relations: {
+      owns: 'owns',
+      owns_majority: 'owns the majority of',
+      owns_operator: 'owns the operator of',
+      operates: 'operates',
+    },
+    // The controller classes and holdings of controllers.csv that the map uses.
+    labels: {
+      'Russian federal state': 'Russian federal state',
+      'Private shareholders': 'Private shareholders',
+      Transneft: 'Transneft',
+      Rosneft: 'Rosneft',
+      Rostec: 'Rostec',
+      'Other holdings': 'Other holdings',
+      'Named persons': 'Named persons',
     },
   },
 } as const;

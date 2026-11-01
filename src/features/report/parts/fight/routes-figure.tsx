@@ -1,7 +1,7 @@
 import { cn } from '@/shared/lib/utils';
 import { useContent } from '../../use-content';
 import { chainCount, flowLinks, routeCounts, totalsAt } from './chain-data';
-import { ChainTotals } from './chain-panels';
+import { ChainTotals, useDataName } from './chain-panels';
 import { layoutFlow } from './layouts';
 
 // A documented step is in ink, a lead in grey, a step with no source found is hollow.
@@ -24,6 +24,7 @@ const xOf = (column: number) => (column * (1000 - BAR)) / (flow.columns - 1);
  * gutter at the right. */
 function Flow() {
   const copy = useContent().fightUi.chain;
+  const say = useDataName();
   return (
     <div className="hidden md:block">
       <div className="relative mr-[11rem] h-10 font-mono text-report-label uppercase text-label">
@@ -88,7 +89,7 @@ function Flow() {
                   ACCENT.has(node.name) && 'text-signal',
                 )}
               >
-                {node.name}{' '}
+                {say(node.name)}{' '}
                 <span className="font-mono text-report-label tabular-nums">
                   {chainCount(node.value)}
                 </span>
