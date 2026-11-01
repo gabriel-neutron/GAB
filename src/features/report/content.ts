@@ -2058,9 +2058,10 @@ export const openingUi = {
 export const methodUi = {
   layers: {
     label: 'Layers',
-    unit: 'Nodes of the page data, one square for each node',
+    unit: 'Critical nodes, one square for each node',
     // The figure counts the nodes of the report, so its period is the period of the report.
     period: '2024-2026',
+    critical: 'Critical, no page record',
     inData: 'Critical and in the page data',
     examined: 'In the page data, fewer than three conditions documented',
     open: 'Open the nodes of the page data',
