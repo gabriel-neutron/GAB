@@ -34,6 +34,7 @@ describe('settlementShare', () => {
   });
 
   it('gives no share for a year out of the data', () => {
-    expect(settlementShare('exports', 'Rouble', 2018)).toBeUndefined();
+    const first = Math.min(...rows.map((row) => Number(row['year'])));
+    expect(settlementShare('exports', 'Rouble', first - 1)).toBeUndefined();
   });
 });
