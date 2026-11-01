@@ -335,7 +335,13 @@ describe('the files for crawlers in other builds', () => {
   test(
     'a staging build marks every page noindex, and a release build does not',
     async () => {
-      const staging = await writeOf('release');
+      vi.stubEnv('SITE_RELEASE', '');
+      let staging: Site;
+      try {
+        staging = await writeOf('release');
+      } finally {
+        vi.unstubAllEnvs();
+      }
       for (const file of pagesOf(staging.root))
         expect(staging.page(file)).toContain('<meta name="robots" content="noindex, follow" />');
       expect(readFileSync(join(staging.root, 'sitemap.xml'), 'utf8')).not.toContain('<loc>');

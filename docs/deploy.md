@@ -5,8 +5,9 @@ is a how-to guide: it names the variables and the files that the operator types 
 
 ## What a release writes
 
-The release command writes the site in a hidden folder and renames it at the end. At the root of
-the site folder it writes:
+The release command writes the site in a hidden folder and renames it at the end. This section
+tells what a release build writes; a staging build differs (see `SITE_RELEASE` below). At the root
+of the site folder it writes:
 
 - `robots.txt`. It allows each page and each file. It names the known AI crawlers with the policy
   of the operator. It points to the sitemap.
