@@ -7,6 +7,7 @@ import { RichText } from '../../rich-text';
 import { useContent } from '../../use-content';
 import { routeCounts } from './chain-data';
 import { ChainStory } from './chain-story';
+import { PlantsFigure } from './plants-figure';
 import { RoutesFigure } from './routes-figure';
 import { SuppliersFigure } from './suppliers-figure';
 
@@ -20,7 +21,8 @@ const fillRoutes = (note: string) =>
     .replaceAll('{F.all}', String(routeCounts.all));
 
 /** Fight: a chapter break over the flintlock pistols, figure 11 at the full width of the page,
- * then, after the text, the chain story from the brand to the weapon and the routes figure. The
+ * then, after the text, the chain story from the brand to the weapon, the map of the defence
+ * plants and the routes figure. The
  * final text has no figure of the routes, so that figure has no number. */
 export function FightPart({ part }: { readonly part: ReportPart }) {
   const { fightUi, figureTexts, parts } = useContent();
@@ -72,6 +74,16 @@ export function FightPart({ part }: { readonly part: ReportPart }) {
       <div className="py-16 text-report-body/[1.65] md:py-24 ">
         {out}
         <ChainStory sources={fightUi.routes.sources} partSlug={part.slug} />
+        {/* A figure of the page that the final text does not have: no number. */}
+        <FigureFrame
+          title={fightUi.plants.title}
+          unit={fightUi.plants.unit}
+          period={fightUi.noPeriod}
+          sources={fightUi.plants.sources}
+          partSlug={part.slug}
+        >
+          <PlantsFigure />
+        </FigureFrame>
         <FigureFrame
           title={fightUi.routes.title}
           unit={fightUi.routes.unit}

@@ -5,14 +5,12 @@ import { accent } from '../../primitives/accent';
 import { CountUp } from '../../primitives/count-up';
 import { reportGraph, type GraphNode } from '../../report-graph';
 import { useReport } from '../../use-report';
+import { criticalLayers } from './critical-layers';
 
 const { layers, arrows, conditions, budgetPath } = figureTexts.fig1;
-// The counts of the text of the part, by layer name.
-const counts = new Map(methodUi.numbers.layers.map((one) => [one.label as string, one.value]));
 
 // The arrows and the budget path show the argument of the report; no edge of the data backs them.
 const SCHEMATIC = 'Schematic of the argument of the report, not a measured relation.';
-const NO_RECORD = 'counted in the text, no page record';
 
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
@@ -104,7 +102,7 @@ function Legend() {
       </li>
       <li className="flex items-center gap-2">
         <span aria-hidden="true" className="size-2.5 bg-foreground/35" />
-        {critical}, {NO_RECORD}
+        {critical}
       </li>
       <li className="flex items-center gap-2">
         <span aria-hidden="true" className="size-2.5 border border-foreground" />
@@ -124,9 +122,9 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
   const nodes = reportGraph.layer(layer.k);
   const kept = nodes.filter((node) => node.kept === 'yes');
   const examined = nodes.filter((node) => node.kept !== 'yes');
-  const count = counts.get(layer.k) ?? '';
+  const count = criticalLayers.get(layer.k) ?? 0;
   // The critical nodes of the page data come first; the rest of the count has no page record.
-  const rest = Math.max(0, Number(count) - kept.length);
+  const rest = Math.max(0, count - kept.length);
   const open = (node: GraphNode, target: HTMLElement) => {
     openNode(node.node_id, target);
   };
@@ -142,7 +140,7 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
             accent.text,
           )}
         >
-          <CountUp value={Number(count)} format={(n) => String(Math.round(n))} />
+          <CountUp value={count} format={(n) => String(Math.round(n))} />
         </p>
       </div>
       <h4 className="mt-2 text-report-heading leading-[0.95] tracking-[-0.045em]">{layer.k}</h4>

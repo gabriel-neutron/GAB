@@ -13,6 +13,9 @@ The content file holds every word of the page: the text of each part, its notes,
 names, the figure texts, and the labels of the controls. Do not change a value of the report text
 there; add new labels beside the others. The node and relation files are the data of the report
 graph. The page reads every count from these files, so a count never sits in the text of the page.
+The counts of the database (entities, critical nodes, nodes on an official source, and their
+date) come from the final English text: a parser reads them from its sentences, and a change of
+these sentences stops the build.
 
 ## Locale and final text
 
@@ -29,6 +32,10 @@ marks. The notes keep the numbers of the final text. The parity test compares, f
 numbers, the months and the note markers of the body and of each figure caption with the source,
 and each note with the words of the source. A text change that adds, removes or moves one of
 them fails the test. A figure of the page that the final text does not have shows no number.
+When the text gives only a total, a dated data file can split it: the critical nodes of each layer
+come from the selection test of the author on the record (the nodes that meet the three conditions
+in the record, and the nodes of the first list that the record does not link yet), and a test
+checks that the layers sum to the total of the text.
 
 ## The part contract
 
