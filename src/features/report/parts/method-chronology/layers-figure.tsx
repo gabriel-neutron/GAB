@@ -1,18 +1,13 @@
 import { Fragment } from 'react';
 import { cn } from '@/shared/lib/utils';
-import { figureTexts, methodUi } from '../../content';
 import { accent } from '../../primitives/accent';
 import { CountUp } from '../../primitives/count-up';
 import { reportGraph, type GraphNode } from '../../report-graph';
+import { useContent, type ReportContent } from '../../use-content';
 import { useReport } from '../../use-report';
 
-const { layers, arrows, conditions, budgetPath } = figureTexts.fig1;
-// The counts of the text of the part, by layer name.
-const counts = new Map(methodUi.numbers.layers.map((one) => [one.label as string, one.value]));
-
-// The arrows and the budget path show the argument of the report; no edge of the data backs them.
-const SCHEMATIC = 'Schematic of the argument of the report, not a measured relation.';
-const NO_RECORD = 'counted in the text, no page record';
+// The layer of the report graph for each layer of the figure, in the same order in all locales.
+const LAYER_KEYS = ['Pay', 'Finance', 'Fight'] as const;
 
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
@@ -21,10 +16,12 @@ const FOCUS =
  * path, one square for each critical node of a layer, and the three conditions of a critical
  * node as a list with hanging letters. */
 export function LayersFigure() {
+  const { figureTexts, methodUi } = useContent();
+  const { layers, arrows, conditions, budgetPath } = figureTexts.fig1;
   return (
     <div className="bg-[linear-gradient(var(--color-chart-grid)_1px,transparent_1px),linear-gradient(90deg,var(--color-chart-grid)_1px,transparent_1px)] bg-size-[2rem_2rem] py-6">
       <Legend />
-      <p className="mt-2 bg-background font-mono text-report-label/4 text-label">{SCHEMATIC}</p>
+      <p className="mt-2 bg-background font-mono text-report-label/4 text-label">{methodUi.layers.schematic}</p>
       <ol
         aria-label={methodUi.layers.label}
         className="mt-4 grid lg:grid-cols-[1fr_7rem_1fr_7rem_1fr] lg:grid-rows-[repeat(6,auto)]"
@@ -95,7 +92,7 @@ export function LayersFigure() {
 }
 
 function Legend() {
-  const { inData, critical, examined } = methodUi.layers;
+  const { inData, critical, examined, noRecord } = useContent().methodUi.layers;
   return (
     <ul className="flex flex-wrap gap-x-6 gap-y-2 bg-background font-mono text-report-label/4 text-label">
       <li className="flex items-center gap-2">
@@ -104,7 +101,7 @@ function Legend() {
       </li>
       <li className="flex items-center gap-2">
         <span aria-hidden="true" className="size-2.5 bg-foreground/35" />
-        {critical}, {NO_RECORD}
+        {critical}, {noRecord}
       </li>
       <li className="flex items-center gap-2">
         <span aria-hidden="true" className="size-2.5 border border-foreground" />
@@ -116,15 +113,17 @@ function Legend() {
 
 interface LayerColumnProps {
   readonly index: number;
-  readonly layer: (typeof layers)[number];
+  readonly layer: ReportContent['figureTexts']['fig1']['layers'][number];
 }
 
 function LayerColumn({ index, layer }: LayerColumnProps) {
   const { openNode } = useReport();
-  const nodes = reportGraph.layer(layer.k);
+  const { methodUi } = useContent();
+  const nodes = reportGraph.layer(LAYER_KEYS[index] ?? layer.k);
   const kept = nodes.filter((node) => node.kept === 'yes');
   const examined = nodes.filter((node) => node.kept !== 'yes');
-  const count = counts.get(layer.k) ?? '';
+  // The count of the text of the part for this layer: the layers are in the same order.
+  const count = methodUi.numbers.layers[index]?.value ?? '';
   // The critical nodes of the page data come first; the rest of the count has no page record.
   const rest = Math.max(0, Number(count) - kept.length);
   const open = (node: GraphNode, target: HTMLElement) => {

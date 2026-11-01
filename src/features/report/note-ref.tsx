@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { cn } from '@/shared/lib/utils';
 import { RichText } from './rich-text';
-import { useContent } from './use-content';
+import { useContent, type ReportPath } from './use-content';
 
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
@@ -48,7 +48,7 @@ export function NoteRef({ partSlug, id }: NoteRefProps) {
           <RichText text={note.text} partSlug={partSlug} />
         </p>
         <Link
-          to="/bibliography"
+          to={`/${ui.paths.notes}` as ReportPath}
           hash={noteAnchor(partSlug, id)}
           className={cn(
             'inline-flex min-h-11 items-center text-report-small underline decoration-border underline-offset-4 hover:decoration-foreground',

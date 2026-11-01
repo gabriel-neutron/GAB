@@ -1,10 +1,10 @@
 import { useSyncExternalStore, type ReactNode } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
-import { fightUi } from '../../content';
 import { NodeRef } from '../../node-ref';
 import { StickyScene } from '../../primitives/sticky-scene';
 import { RichText } from '../../rich-text';
+import { useContent, type ReportContent } from '../../use-content';
 import {
   arcChains,
   arcs,
@@ -18,14 +18,10 @@ import {
 import { ChainMap } from './chain-map';
 import { ChainStrips, ChainTotals } from './chain-panels';
 
-const copy = fightUi.chain;
+type Copy = ReportContent['fightUi']['chain'];
 const ROUTES = stages.length;
 const BUYERS = stages.length + 1;
 const pad = (n: number) => String(n).padStart(2, '0');
-// shortcut: these two lines live here, not in content.ts, because content.ts is in another pull request.
-const ARC_NOTE =
-  'Map: arcs join the country of manufacture to the country of the intermediary. Chains with the same country or no named country are not drawn: the arcs carry {drawn} of the {all} chains.';
-const UNPLACED = 'Map: a group with no single place is not drawn.';
 
 // External constraint: a media query is the one way to read the width of the screen. 1024px is the
 // `lg` break of the stylesheet, where the map gets its own column beside the text.
@@ -97,6 +93,7 @@ function Scene({ step }: { readonly step: number }) {
 
 /** A source of one step: the citation a reader can follow, then the record of the database. */
 function KseSource({ page }: { readonly page: string }) {
+  const copy = useContent().fightUi.chain;
   return (
     <div className="mt-6 border-t border-divider pt-2">
       <p className="font-mono text-report-label uppercase text-label">{copy.source}</p>
@@ -115,18 +112,20 @@ function KseSource({ page }: { readonly page: string }) {
   );
 }
 
-const Record = ({ id }: { readonly id: string }) => (
-  <p className="mt-1 font-mono text-report-label text-label">
-    {copy.record} {id}
-  </p>
-);
+function Record({ id }: { readonly id: string }) {
+  return (
+    <p className="mt-1 font-mono text-report-label text-label">
+      {useContent().fightUi.chain.record} {id}
+    </p>
+  );
+}
 
 const Head = ({ title }: { readonly title: string }) => (
   <h4 className="text-report-lead/[1.05] tracking-[-0.03em] text-balance">{title}</h4>
 );
 
 /** The text of the steps, one for each step, each with its own source. */
-function cards(sources: string, partSlug: string): ReactNode[] {
+function cards(sources: string, partSlug: string, copy: Copy): ReactNode[] {
   const routeSource = (
     <div className="mt-6 border-t border-divider pt-2">
       <p className="font-mono text-report-label uppercase text-label">{copy.source}</p>
@@ -156,7 +155,7 @@ function cards(sources: string, partSlug: string): ReactNode[] {
             </div>
           ))}
         </dl>
-        <p className="mt-2 font-mono text-report-label text-label">{UNPLACED}</p>
+        <p className="mt-2 font-mono text-report-label text-label">{copy.unplaced}</p>
         {index === 0 ? (
           <div className="mt-4">
             <p className="font-mono text-report-label uppercase text-label">{copy.brands}</p>
@@ -178,7 +177,7 @@ function cards(sources: string, partSlug: string): ReactNode[] {
       <Head title={copy.routesTitle} />
       <p className="mt-4 font-mono text-report-label text-label">{copy.states}</p>
       <p className="mt-2 font-mono text-report-label text-label">
-        {ARC_NOTE.replace('{drawn}', chainCount(arcChains.drawn)).replace(
+        {copy.arcNote.replace('{drawn}', chainCount(arcChains.drawn)).replace(
           '{all}',
           chainCount(arcChains.all),
         )}
@@ -231,7 +230,8 @@ export function ChainStory({
 }) {
   const reduce = useReducedMotion();
   const wide = useSyncExternalStore(onWidth, isWide, atRelease);
-  const steps = cards(sources, partSlug);
+  const copy = useContent().fightUi.chain;
+  const steps = cards(sources, partSlug, copy);
   return (
     <section
       aria-labelledby="fight-chain-title"

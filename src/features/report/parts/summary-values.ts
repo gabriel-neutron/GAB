@@ -19,7 +19,8 @@ export function summaryValues(
   copy: readonly { readonly words: string }[],
 ): readonly SummaryValue[] {
   return items.map((item, index) => {
-    const label = /^\*\*([^*]+?):?\*\*/.exec(item)?.[1] ?? '';
+    // A French key has a space before its colon.
+    const label = /^\*\*([^*]+?)\s?:?\*\*/.exec(item)?.[1] ?? '';
     const words = copy[index]?.words ?? '';
     const match = PERCENT.exec(item);
     if (words !== '' || match === null) return { kind: 'words', label, text: words };

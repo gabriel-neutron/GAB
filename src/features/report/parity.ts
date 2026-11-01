@@ -66,8 +66,11 @@ export function readSource(source: Source): ReadSource {
   return { body, captions, notes };
 }
 
+// The month names of the two locales. A month name is in one language only, so the two lists can
+// share one pattern.
 const MONTHS =
-  'January|February|March|April|May|June|July|August|September|October|November|December';
+  'January|February|March|April|May|June|July|August|September|October|November|December|' +
+  'janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre';
 const TOKEN = new RegExp(`\\[\\^([^\\]]+)\\]|\\d+(?:[.,]\\d+)*|\\b(?:${MONTHS})\\b`, 'g');
 
 /** The numbers, the month names and the note markers of a text, in their order. A node mark

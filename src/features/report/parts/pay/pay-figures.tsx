@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { cn } from '@/shared/lib/utils';
-import { figureTexts, payUi } from '../../content';
+import { payUi as enPay } from '../../content';
 import { NodeRef } from '../../node-ref';
-import { useContent } from '../../use-content';
+import { useContent, type ReportContent } from '../../use-content';
 import { FADE, GLYPH, LineChart, type LineSeries, type Scales } from './line-chart';
 import {
   buyerYears,
@@ -46,15 +46,16 @@ function EventRule({ at, label, scales }: { at: number; label: string; scales: S
 
 // Figure 3 ----------------------------------------------------------------------------------
 
-const f3 = figureTexts.figures['3'];
-const f3Names: Record<string, string> = {
+type Figure3 = ReportContent['figureTexts']['figures']['3'];
+// The names of the series of figure 3, in the words of the page.
+const namesOf = (f3: Figure3): Readonly<Record<string, string>> => ({
   Coalition: f3.labels.Coalition,
   China: f3.labels.Chine,
   India: f3.labels.Inde,
   Turkey: f3.labels.Turquie,
   Kazakhstan: f3.labels.Kazakhstan,
   EU27: f3.labels.UE,
-};
+});
 // The first and the last year of a panel that hold a value.
 const span = (rows: readonly { readonly points: readonly Point[] }[]) => {
   const years = rows.flatMap((row) => row.points.flatMap((point) => (point ? [point.x] : [])));
@@ -82,6 +83,8 @@ function Crossings({
   pairs: readonly { readonly a: string; readonly b: string; readonly lead?: boolean }[];
   scales: Scales;
 }) {
+  const { payUi, figureTexts } = useContent();
+  const f3Names = namesOf(figureTexts.figures['3']);
   const line = (key: string) => rows.find((row) => row.key === key)?.points ?? [];
   // A leader line goes under the other labels: their halo cuts it where they cross.
   const order = pairs
@@ -134,7 +137,9 @@ function Crossings({
 /** Figure 3: two panels side by side, the buyers in dollars and the crude in tonnes. The new
  * buyers carry the accent; an estimate is a hollow point, and an estimated series is dashed. */
 export function BuyersChart() {
-  const copy = useContent().payUi;
+  const { payUi: copy, figureTexts } = useContent();
+  const f3 = figureTexts.figures['3'];
+  const f3Names = namesOf(f3);
   const [chosen, setChosen] = useState(buyerYears.at(-1) ?? 0);
   const [a, b] = f3.panels;
   const panels = [
@@ -246,8 +251,8 @@ export function BuyersChart() {
           </div>
         </div>
       ))}
-      <p className={cn(LEGEND, 'md:col-span-2')}>{payUi.estimate}</p>
-      <p className={cn(LEGEND, 'md:col-span-2')}>{payUi.crossingNote}</p>
+      <p className={cn(LEGEND, 'md:col-span-2')}>{copy.estimate}</p>
+      <p className={cn(LEGEND, 'md:col-span-2')}>{copy.crossingNote}</p>
     </div>
   );
 }
@@ -255,13 +260,12 @@ export function BuyersChart() {
 // Figure 4 ----------------------------------------------------------------------------------
 
 const f4 = payData.f4;
-const f4Labels = figureTexts.figures['4'].labels;
 // The first month of each year of the axis.
 const firstYearAt = Array.from({ length: Math.floor((f4.last - 1) / 12) + 1 }, (_, index) =>
   monthIndex(`${String(2023 + index)}-01`),
 );
 // The groups that step 3 names, read from its text.
-const designated = [...payUi.f4.steps[2].text.matchAll(/\[\[(N-[^|\]]+)\|/g)].map(
+const designated = [...enPay.f4.steps[2].text.matchAll(/\[\[(N-[^|\]]+)\|/g)].map(
   (match) => match[1] ?? '',
 );
 
@@ -320,6 +324,8 @@ export function PriceChart({
 }) {
   const [first, ...lower] = f4.caps;
   const point = focus ? focusPoint(step) : undefined;
+  const { payUi, figureTexts } = useContent();
+  const f4Labels = figureTexts.figures['4'].labels;
   return (
     <div className={cn('flex flex-col', fill && 'h-full')}>
       {/* The row keeps its place at each step, so the chart does not move when it shows. */}
@@ -461,7 +467,6 @@ export function PriceChart({
 
 // Figure 5 ----------------------------------------------------------------------------------
 
-const f5 = figureTexts.figures['5'];
 const f5Data = payData.f5;
 const facts = (points: readonly Point[]) => points.map((point) => (point?.hollow ? null : point));
 const plans = (points: readonly Point[]) => points.map((point) => (point?.hollow ? point : null));
@@ -469,6 +474,7 @@ const plans = (points: readonly Point[]) => points.map((point) => (point?.hollow
 /** Figure 5: the share of oil and gas in revenue, and the revenue against defence. The
  * January-September values and the planned budgets are hollow points; 2023 has no figure. */
 export function BudgetChart() {
+  const f5 = useContent().figureTexts.figures['5'];
   const [a, b] = f5.panels;
   return (
     <div className="grid gap-10 md:grid-cols-2 md:gap-8">

@@ -15,6 +15,9 @@ export type ReportContent = Omit<Widen<typeof en>, 'parts'> & {
   readonly parts: readonly ReportPart[];
 };
 
+/** A route of the report: the copy names its paths as text, so a link casts them to this type. */
+export type ReportPath = '/' | '/fr' | '/bibliography' | '/fr/bibliography';
+
 /** The content of the page locale. A route of another locale gives its copy to the provider; the
  * root gives none, so the page reads English. */
 export const ContentContext = createContext<ReportContent>(en);

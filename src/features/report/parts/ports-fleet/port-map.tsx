@@ -1,9 +1,9 @@
 import { useId, useRef, type ReactNode, type Ref } from 'react';
 import { motion, useInView, useReducedMotion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
-import { figureTexts, portsFleetUi } from '../../content';
 import { accent } from '../../primitives/accent';
 import { layout } from '../../primitives/layout';
+import { useContent } from '../../use-content';
 import { useReport } from '../../use-report';
 import { chartLayout } from './chart-layout';
 import { figureData } from './figure-data';
@@ -11,9 +11,7 @@ import { mapGeometry, type Box, type Frame } from './map-geometry';
 import { TERMINALS } from './terminals';
 import { useSize } from './use-size';
 
-const copy = portsFleetUi.map;
 const EASE = [0.4, 0, 0.2, 1] as const;
-const number = new Intl.NumberFormat('en-US');
 
 /** The direction of the leader line from a terminal to its label: x and y, each -1 or 1. */
 const LEADS: Readonly<Record<string, readonly [number, number]>> = {
@@ -35,21 +33,6 @@ const CHANGE_NAMES: Readonly<Record<string, string>> = {
 const change = new Map(figureData.change.map((row) => [row.name, row.value]));
 const throughput = new Map(figureData.throughput.ports.map((row) => [row.name, row.value]));
 const MAX_THROUGHPUT = Math.max(...throughput.values());
-// The circles in words. The names are the ports of figure 6, not one terminal of the port.
-const THROUGHPUT_TEXT = `${copy.throughput} ${String(figureData.throughput.year)}, Mt: ${Object.values(
-  CHANGE_NAMES,
-)
-  .flatMap((name) => {
-    const value = throughput.get(name);
-    return value === undefined ? [] : [`${name} ${number.format(value)}`];
-  })
-  .join(', ')}`;
-// The short line under the position of a named terminal, for each kind of step.
-const notes: Readonly<Record<string, Readonly<Record<string, string>>>> = {
-  ban: copy.banDates,
-  // The final text gives no words for the terminals of the Pacific step.
-  pacific: {},
-};
 
 interface MapStep {
   readonly box: Box;
@@ -94,15 +77,6 @@ const fleetFill = (to: string) =>
     : to === 'IG-insured'
       ? 'fill-chart-neutral'
       : 'fill-map-water stroke-foreground';
-const fleetTags: Readonly<Record<string, string>> = copy.fleetTags;
-// The dates of the ban step come from the text of the part. The Pacific step has no note.
-const TEXT_SOURCES = {
-  ban: 'Dates: text of the report, note 42 (February 2025 to April 2026)',
-  pacific: '',
-} as const;
-const SCHEMATIC =
-  'Schematic: each column stands above its sea and gives the basin total, not the volume of a terminal.';
-const labels7: Readonly<Record<string, string>> = figureTexts.figures['7'].labels;
 
 /** The sources of the data that a step shows: figure 6 for the changes, figure 7 for the flows. */
 export interface MapSources {
@@ -127,6 +101,24 @@ export function PortMap({ step, sources }: PortMapProps) {
   const reduce = useReducedMotion() === true;
   const visible = useInView(box, { amount: 0.2 });
   const { openNode } = useReport();
+  const { portsFleetUi, figureTexts, ui } = useContent();
+  const copy = portsFleetUi.map;
+  const number = new Intl.NumberFormat(ui.numberLocale);
+  const fleetTags: Readonly<Partial<Record<string, string>>> = copy.fleetTags;
+  const labels6: Readonly<Partial<Record<string, string>>> = figureTexts.figures['6'].labels;
+  const labels7: Readonly<Partial<Record<string, string>>> = figureTexts.figures['7'].labels;
+  // The circles in words. The names are the ports of figure 6, not one terminal of the port.
+  const throughputText = `${copy.throughput} ${String(figureData.throughput.year)}, Mt: ${Object.values(
+    CHANGE_NAMES,
+  )
+    .flatMap((name) => {
+      const value = throughput.get(name);
+      return value === undefined ? [] : [`${labels6[name] ?? name} ${number.format(value)}`];
+    })
+    .join(', ')}`;
+  // The short line under the position of a named terminal: the dates of the ban step. The final
+  // text gives no words for the terminals of the Pacific step.
+  const dates: Readonly<Partial<Record<string, string>>> = copy.banDates;
   const id = useId();
   const state = MAP_STEPS[step] ?? MAP_STEPS[0];
   if (state === undefined) return null;
@@ -206,11 +198,11 @@ export function PortMap({ step, sources }: PortMapProps) {
   );
   // One line for each source, so no line breaks in the middle of a name.
   const credit = [
-    state.tag === 'ban' || state.tag === 'pacific' ? TEXT_SOURCES[state.tag] : '',
+    state.tag === 'ban' ? copy.banSource : '',
     state.tag === 'change' ? `${copy.data} ${sources.change}` : '',
-    state.tag === 'change' ? THROUGHPUT_TEXT : '',
+    state.tag === 'change' ? throughputText : '',
     flows ? `${copy.data} ${sources.flows}` : '',
-    flows ? SCHEMATIC : '',
+    flows ? copy.schematic : '',
     `${copy.basemap} ${mapGeometry.source}`,
   ]
     .filter((one) => one !== '')
@@ -254,7 +246,7 @@ export function PortMap({ step, sources }: PortMapProps) {
     const terminal = terminalOf.get(one);
     if (terminal === undefined) return [];
     const at = screen(terminal.lon, terminal.lat);
-    const { box: area } = markerLayout({ ...terminal, tag: state.tag, big });
+    const { box: area } = markerLayout({ ...terminal, tag: state.tag, big, dates });
     return [{ x0: at.x + area.x0, x1: at.x + area.x1, y0: at.y + area.y0, y1: at.y + area.y1 }];
   });
   if (sticky && !wide) covers.push({ x0: 0, x1: width, y0: 0, y1: headHeight });
@@ -493,6 +485,7 @@ export function PortMap({ step, sources }: PortMapProps) {
                     lon={terminal.lon}
                     tag={state.tag}
                     big={big}
+                    dates={dates}
                     pulse={pulse ? { order, count: state.named.length } : undefined}
                   />
                 )}
@@ -598,18 +591,20 @@ interface MarkerProps {
   readonly lon: number;
   readonly tag: MapStep['tag'];
   readonly big: number;
+  /** The date of the ban at each terminal, for the ban step. */
+  readonly dates: Readonly<Partial<Record<string, string>>>;
   readonly pulse: { readonly order: number; readonly count: number } | undefined;
 }
 
 /** The leader and the lines of the label of a named terminal, from the terminal. */
-function markerLayout({ id, label, lat, lon, tag, big }: Omit<MarkerProps, 'pulse'>) {
+function markerLayout({ id, label, lat, lon, tag, big, dates }: Omit<MarkerProps, 'pulse'>) {
   const [sx, sy] = LEADS[id] ?? [1, -1];
   const lead = 22;
   const ax = sx * lead;
   const ay = sy * lead;
   const tx = ax + sx * 4;
   const value = tag === 'change' ? change.get(CHANGE_NAMES[id] ?? '') : undefined;
-  const date = tag === undefined || tag === 'change' ? '' : (notes[tag]?.[id] ?? '');
+  const date = tag === 'ban' ? (dates[id] ?? '') : '';
   const valueText = value === undefined ? '' : `${value > 0 ? '+' : ''}${String(value)}%`;
   const valueSize = valueText === '' ? (date === '' ? 0 : 13) : big;
   // The lines stack away from the terminal: upward above it, downward under it.

@@ -2,18 +2,17 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import { useNarrowScreen } from '@/shared/narrow-screen';
-import { financeUi, figureTexts, type ReportBlock } from '../../content';
+import type { ReportBlock } from '../../content';
 import publication from '../../data/publication-figures.json';
 import { FigureFrame } from '../../figure-frame';
 import { accent } from '../../primitives/accent';
 import { layout } from '../../primitives/layout';
 import { StickyScene } from '../../primitives/sticky-scene';
+import { useContent } from '../../use-content';
 
 type Pairs = readonly (readonly number[])[];
 type Panel = 'exports' | 'imports';
 
-const copy = financeUi.figure;
-const labels = figureTexts.figures['9'].labels;
 const data = publication.f9;
 const YEARS = (data.exports.Rouble as Pairs).map((pair) => pair[0] ?? 0);
 const FIRST = YEARS[0] ?? 0;
@@ -21,18 +20,19 @@ const LAST = YEARS.at(-1) ?? 0;
 const PANELS = ['exports', 'imports'] as const;
 
 // The bands from the bottom up: the rouble (the accent), the other currencies, the "unfriendly"
-// currencies. Each band has its own shape, so the chart reads without colour.
+// currencies. Each band has its own shape, so the chart reads without colour. The label is the
+// French label of the publication, which the copy of the page locale gives in its words.
 const SERIES = [
-  { key: 'Rouble', label: labels.Rouble, fill: 'fill-signal/30', swatch: 'bg-signal/30' },
+  { key: 'Rouble', label: 'Rouble', fill: 'fill-signal/30', swatch: 'bg-signal/30' },
   {
     key: 'Other currencies',
-    label: labels['Autres devises'],
+    label: 'Autres devises',
     fill: 'hatch',
     swatch: 'bg-[repeating-linear-gradient(45deg,var(--chart-axis)_0_1px,transparent_1px_5px)]',
   },
   {
     key: '“Unfriendly” currencies',
-    label: labels['Devises de pays « inamicaux »'],
+    label: 'Devises de pays « inamicaux »',
     fill: 'dots',
     swatch:
       'bg-chart-neutral/30 bg-[radial-gradient(var(--chart-axis)_1px,transparent_1.5px)] bg-[length:5px_5px]',
@@ -64,6 +64,12 @@ const edgesOf = (panel: Panel) => {
 const EDGES = { exports: edgesOf('exports'), imports: edgesOf('imports') };
 
 const PAD = { left: 34, right: 18, top: 10, bottom: 26 };
+
+/** The words of figure 10 in the page locale. */
+function useFigure() {
+  const { financeUi, figureTexts } = useContent();
+  return { copy: financeUi.figure, texts: figureTexts.figures['9'] };
+}
 
 /** The width of a box in CSS pixels, so the chart draws its text at its true size. */
 function useWidth() {
@@ -101,6 +107,7 @@ function SharePanel({ panel, year }: { readonly panel: Panel; readonly year: num
   const edges = EDGES[panel];
   const roubleEdge = edges[0]?.high ?? [];
   const at = YEARS.indexOf(year);
+  const { labels } = useFigure().texts;
   const title = panel === 'exports' ? labels['a. Exportations'] : labels['b. Importations'];
   return (
     <div ref={box} className="min-w-0">
@@ -255,6 +262,7 @@ function SharePanel({ panel, year }: { readonly panel: Panel; readonly year: num
 
 /** The rouble shares of one year, set as an editorial numeral with the two values under it. */
 function YearReadout({ year, still }: { readonly year: number; readonly still: boolean }) {
+  const { copy } = useFigure();
   return (
     <motion.div
       key={year}
@@ -291,6 +299,7 @@ function YearReadout({ year, still }: { readonly year: number; readonly still: b
 /** The chart of figure 10 at one year: the year in the gutter, then the legend and the exports
  * and imports side by side. */
 function SettlementChart({ year, still }: { readonly year: number; readonly still: boolean }) {
+  const { labels } = useFigure().texts;
   return (
     <div className="grid gap-4 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-10">
       <YearReadout year={year} still={still} />
@@ -302,7 +311,7 @@ function SettlementChart({ year, still }: { readonly year: number; readonly stil
                 aria-hidden="true"
                 className={cn('inline-block size-3 border border-chart-axis', series.swatch)}
               />
-              {series.label}
+              {labels[series.label]}
             </li>
           ))}
         </ul>
@@ -328,6 +337,7 @@ export function SettlementFigure({
 }) {
   const reduce = useReducedMotion() === true;
   const narrow = useNarrowScreen();
+  const { copy, texts } = useFigure();
   const figure = block.figure;
   if (figure === undefined) return null;
   const frame = (chart: ReactNode) => (
@@ -337,7 +347,7 @@ export function SettlementFigure({
       unit={figure.unit}
       period={figure.period}
       sources={figure.sources}
-      note={figureTexts.figures['9'].note}
+      note={texts.note}
       partSlug={partSlug}
     >
       {chart}
@@ -378,7 +388,7 @@ export function SettlementFigure({
               {PANELS.flatMap((panel) =>
                 SERIES.map((series) => (
                   <th key={`${panel}-${series.key}`} scope="col">
-                    {copy[panel]}, {series.label}
+                    {copy[panel]}, {texts.labels[series.label]}
                   </th>
                 )),
               )}

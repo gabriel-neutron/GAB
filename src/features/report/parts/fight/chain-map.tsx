@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { motion, useInView, useReducedMotion } from 'motion/react';
-import { fightUi } from '../../content';
+import { useContent } from '../../use-content';
 import { cn } from '@/shared/lib/utils';
 import { useReport } from '../../use-report';
 import type { Arc, Place, Tone } from './chain-data';
@@ -136,6 +136,7 @@ export function ChainMap({ crop: cropName, places, arcs, lit, sites }: ChainMapP
   const dots = useId();
   const reduce = useReducedMotion();
   const { openNode } = useReport();
+  const { fightUi } = useContent();
 
   // An adapter: the land file loads past React, once, when the map comes near the view.
   useEffect(() => {

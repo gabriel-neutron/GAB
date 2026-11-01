@@ -1,10 +1,8 @@
 import { cn } from '@/shared/lib/utils';
-import { fightUi } from '../../content';
+import { useContent } from '../../use-content';
 import { chainCount, flowLinks, routeCounts, totalsAt } from './chain-data';
 import { ChainTotals } from './chain-panels';
 import { layoutFlow } from './layouts';
-
-const copy = fightUi.chain;
 
 // A documented step is in ink, a lead in grey, a step with no source found is hollow.
 const cellOf = (state: string) =>
@@ -25,6 +23,7 @@ const xOf = (column: number) => (column * (1000 - BAR)) / (flow.columns - 1);
  * the end use. The bars and the bands share one scale; the labels of the last column use the
  * gutter at the right. */
 function Flow() {
+  const copy = useContent().fightUi.chain;
   return (
     <div className="hidden md:block">
       <div className="relative mr-[11rem] h-10 font-mono text-report-label uppercase text-label">
@@ -108,6 +107,7 @@ export function RoutesFigure() {
   const states = Object.entries(routeCounts.hops);
   const lists = [totalsAt(0, 'from'), totalsAt(0), totalsAt(1), totalsAt(2)];
   const max = Math.max(...lists.flat().map((total) => total.chains));
+  const copy = useContent().fightUi.chain;
   return (
     <div className="grid gap-12">
       <Flow />
@@ -132,9 +132,8 @@ export function RoutesFigure() {
         <thead>
           <tr>
             <th scope="col">{copy.step}</th>
-            {/* shortcut: From and To are not in content.ts, which is in another pull request. */}
-            <th scope="col">From</th>
-            <th scope="col">To</th>
+            <th scope="col">{copy.from}</th>
+            <th scope="col">{copy.to}</th>
             <th scope="col">{copy.unitChains}</th>
           </tr>
         </thead>
@@ -142,7 +141,9 @@ export function RoutesFigure() {
           {flowLinks.map((link) => (
             <tr key={`${String(link.column)}-${link.from}-${link.to}`}>
               <td>
-                {copy.flowColumns[link.column]} to {copy.flowColumns[link.column + 1]}
+                {copy.fromTo
+                  .replace('{a}', copy.flowColumns[link.column] ?? '')
+                  .replace('{b}', copy.flowColumns[link.column + 1] ?? '')}
               </td>
               <td>{link.from}</td>
               <td>{link.to}</td>

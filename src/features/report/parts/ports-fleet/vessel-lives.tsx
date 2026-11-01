@@ -1,13 +1,11 @@
 import { useRef } from 'react';
 import { cn } from '@/shared/lib/utils';
-import { figureTexts, portsFleetUi } from '../../content';
 import { accent } from '../../primitives/accent';
 import { Reveal } from '../../primitives/reveal';
+import { useContent } from '../../use-content';
 import { figureData, type Lane } from './figure-data';
 import { useSize } from './use-size';
 
-const labels: Readonly<Record<string, string>> = figureTexts.figures['8'].labels;
-const groupNames: Readonly<Record<string, string>> = figureTexts.dataLabels;
 const { before, after, census, groups } = figureData.lives;
 const lanesN = groups.reduce((sum, group) => sum + group.lanes.length, 0);
 const at = (day: number) =>
@@ -15,10 +13,20 @@ const at = (day: number) =>
 const pct = (value: number) => `${value.toFixed(3)}%`;
 // The step between two rows of flag codes over a lane: the label size and a gap.
 const ROW = 14;
-const label = (key: string, values: Readonly<Record<string, string | number>> = {}) =>
-  (labels[key] ?? key).replace(/\{(\w+)\}/g, (whole, name: string) =>
-    String(values[name] ?? whole),
-  );
+
+/** The words of figure 8 in the page locale: a label of the publication with its values filled,
+ * the name of a group of the data, and the words of the page. */
+function useFigure() {
+  const { figureTexts, portsFleetUi } = useContent();
+  const labels: Readonly<Partial<Record<string, string>>> = figureTexts.figures['8'].labels;
+  const groups: Readonly<Partial<Record<string, string>>> = figureTexts.dataLabels;
+  const label = (key: string, values: Readonly<Record<string, string | number>> = {}) =>
+    (labels[key] ?? key).replace(/\{(\w+)\}/g, (whole, name: string) =>
+      String(values[name] ?? whole),
+    );
+  const groupName = (name: string) => groups[name] ?? name;
+  return { label, groupName, copy: portsFleetUi.lives };
+}
 
 const STATS = [
   {
@@ -44,17 +52,18 @@ const STATS = [
 ];
 // One month, from the 24 months after the designation that the data reads.
 const month = after / 24;
-const TICKS = [
-  { day: -before, text: label('{m} mois', { m: -6 }) },
-  { day: 0, text: label('désignation') },
-  { day: month * 6, text: label('+6 mois') },
-  { day: month * 12, text: label('+12 mois') },
-  { day: after, text: label('{m} mois', { m: '+24' }) },
-];
 
 /** Figure 8: four shares of the census of designated tankers, then the AIS identity and the port
  * calls of a few ships, aligned on the day of their designation. Calls after it take the accent. */
 export function VesselLives() {
+  const { label, groupName, copy } = useFigure();
+  const TICKS = [
+    { day: -before, text: label('{m} mois', { m: -6 }) },
+    { day: 0, text: label('désignation') },
+    { day: month * 6, text: label('+6 mois') },
+    { day: month * 12, text: label('+12 mois') },
+    { day: after, text: label('{m} mois', { m: '+24' }) },
+  ];
   return (
     <div>
       <p className="mb-6 font-mono text-report-label text-label">
@@ -66,7 +75,7 @@ export function VesselLives() {
 
       <div
         role="img"
-        aria-label={portsFleetUi.lives.label.replace('{n}', String(lanesN))}
+        aria-label={copy.label.replace('{n}', String(lanesN))}
         className="mt-10"
       >
         <div aria-hidden="true">
@@ -95,7 +104,7 @@ export function VesselLives() {
             <Reveal key={group.name}>
               <div className="border-t border-border pt-2 pb-3">
                 <p className="mb-1 font-mono text-report-label uppercase text-label">
-                  {groupNames[group.name] ?? group.name}
+                  {groupName(group.name)}
                 </p>
                 {group.lanes.map((lane) => (
                   <LaneRow key={lane.name} lane={lane} />
@@ -128,7 +137,7 @@ export function VesselLives() {
         </li>
         <li className="flex items-center gap-2">
           <span aria-hidden="true" className={cn('h-2 w-0.5', accent.bg)} />
-          {portsFleetUi.lives.after}
+          {copy.after}
         </li>
       </ul>
       <LanesTable />
@@ -137,27 +146,17 @@ export function VesselLives() {
   );
 }
 
-// shortcut: the words of the table are in the code; move them to content.ts with the other labels.
-const TABLE = {
-  summary: 'Values of the timeline',
-  ship: 'Ship',
-  group: 'Profile',
-  ids: 'AIS identity: flag, days from the designation',
-  before: 'Port calls before',
-  after: 'Port calls after',
-};
-const KINDS = [
-  ['R', 'Russian'],
-  ['O', 'other'],
-  ['E', 'EU'],
-] as const;
-const callCounts = (calls: Lane['calls']) =>
-  KINDS.map(
-    ([kind, name]) => `${String(calls.filter((call) => call.kind === kind).length)} ${name}`,
-  ).join(', ');
+const KINDS = ['R', 'O', 'E'] as const;
 
 /** The timeline as a table: the same data as the lanes, for a reader who cannot see them. */
 function LanesTable() {
+  const { label, groupName, copy } = useFigure();
+  const TABLE = copy.table;
+  const callCounts = (calls: Lane['calls']) =>
+    KINDS.map(
+      (kind) =>
+        `${String(calls.filter((call) => call.kind === kind).length)} ${TABLE.kinds[kind]}`,
+    ).join(', ');
   return (
     <details className="mt-6 border-t border-border pt-1">
       <summary className="flex min-h-11 cursor-pointer items-center font-mono text-report-label text-label">
@@ -181,14 +180,17 @@ function LanesTable() {
                   <th scope="row" className="py-1 pr-3 font-normal">
                     {lane.name}
                   </th>
-                  <td className="py-1 pr-3">{groupNames[group.name] ?? group.name}</td>
+                  <td className="py-1 pr-3">{groupName(group.name)}</td>
                   <td className="py-1 pr-3">
                     {lane.identities.length === 0
                       ? label('aucune identité AIS suivie')
                       : lane.identities
                           .map(
                             (identity) =>
-                              `${identity.flag} ${String(identity.from)} to ${String(identity.to)}`,
+                              TABLE.span
+                                .replace('{flag}', identity.flag)
+                                .replace('{from}', String(identity.from))
+                                .replace('{to}', String(identity.to)),
                           )
                           .join('; ')}
                   </td>
@@ -209,6 +211,7 @@ function LanesTable() {
 /** The census under the timeline: the lost identities as one value and one dot for each tanker,
  * then the port calls as a row of smaller values. */
 function Census() {
+  const { label, copy } = useFigure();
   const [lost, of] = census.lose12;
   const [first, ...rest] = STATS;
   if (first === undefined || lost === undefined || of === undefined) return null;
@@ -224,7 +227,7 @@ function Census() {
         </p>
         <div
           role="img"
-          aria-label={`${String(lost)} ${label('sur {n}', { n: of })} ${portsFleetUi.lives.lost}`}
+          aria-label={`${String(lost)} ${label('sur {n}', { n: of })} ${copy.lost}`}
           className="mt-8 flex flex-wrap gap-1 md:gap-1.5"
         >
           {Array.from({ length: of }, (_, index) => (
@@ -239,7 +242,7 @@ function Census() {
             />
           ))}
         </div>
-        <p className="mt-3 font-mono text-report-label text-label">{portsFleetUi.lives.lost}</p>
+        <p className="mt-3 font-mono text-report-label text-label">{copy.lost}</p>
       </Reveal>
       <dl className="mt-14 grid gap-x-10 gap-y-10 md:grid-cols-3">
         {rest.map((stat) => (
@@ -264,6 +267,7 @@ function Census() {
 const FLAG_ROOM = 7 * 6;
 
 function LaneRow({ lane }: { readonly lane: Lane }) {
+  const { label } = useFigure();
   const track = useRef<HTMLDivElement>(null);
   const { width } = useSize(track);
   // Each flag code takes the lowest row where it stays clear of the code before it.

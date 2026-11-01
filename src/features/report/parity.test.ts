@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { parts, payUi } from './content';
 import { parity, readSource, tokens } from './parity';
-import { sources } from './source';
+import { frParts } from './parts-fr';
+import { rekey, sources } from './source';
+import { noteTwins } from './source/note-twins';
 
 // All parts show the final text.
 const final = parts;
@@ -75,6 +77,31 @@ describe('parity of the report text', () => {
     };
     expect(parity([moved], sources.en)).toContain('summary: note 1 not cited');
     expect(parity([moved], sources.en)).toContain('summary: note 2 differs');
+  });
+
+  it('keeps the numbers, the dates and the notes of the French text (V4)', () => {
+    expect(frParts.map((part) => part.slug)).toEqual(FINAL);
+    expect(parity(frParts, sources.fr)).toEqual([]);
+  });
+
+  it('gives each English note one French twin, and each French note one English id', () => {
+    const french = readSource(sources.fr);
+    const english = readSource(sources.en);
+    expect(Object.keys(noteTwins)).toEqual([...english.notes.keys()]);
+    for (const [id, twin] of Object.entries(noteTwins))
+      if (twin !== null) expect(french.notes.get(id)).toBeDefined();
+    // The French page holds the notes of the English page that have a twin, with the same ids.
+    const held = frParts.flatMap((part) => part.notes.map((note) => note.id));
+    expect(new Set(held)).toEqual(
+      new Set(Object.keys(noteTwins).filter((id) => noteTwins[id] !== null)),
+    );
+  });
+
+  it('gives a French marker the English id of the same place, and a repeat the next id', () => {
+    const text = 'a[^x] b[^x]\n\n[^x]: Note.';
+    expect(rekey(text, { '1': 'x', '2': 'x', '3': null })).toBe(
+      'a[^1] b[^2]\n\n[^1]: Note.\n[^2]: Note.',
+    );
   });
 
   it('quotes in each step of figure 4 the words of the pay part', () => {

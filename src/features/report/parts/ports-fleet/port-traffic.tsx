@@ -1,18 +1,14 @@
 import { useRef, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
-import { figureTexts, portsFleetUi } from '../../content';
 import { accent } from '../../primitives/accent';
+import { useContent } from '../../use-content';
 import { useReport } from '../../use-report';
 import { chartLayout } from './chart-layout';
 import { figureData } from './figure-data';
 import { useSize } from './use-size';
 import { ValuesTable } from './values-table';
 
-const texts = figureTexts.figures['6'];
-const labels: Readonly<Record<string, string>> = texts.labels;
-const [panelA, panelB] = texts.panels;
-const number = new Intl.NumberFormat('en-US');
 const DRAW = { duration: 0.6, ease: [0.4, 0, 0.2, 1] } as const;
 
 // The ports of figure 6a and the nodes of the report they name. Primorsk is the one port that the
@@ -26,9 +22,25 @@ const PORT_NODES: Readonly<Record<string, string>> = {
 const LEAD = 'Primorsk';
 const CRUDE = 'All ports: crude oil';
 
+/** The words of figure 6 in the page locale: its panels, its labels (a French label of the
+ * publication, or a name of the data), the words of panel c and the number format. */
+function useFigure() {
+  const { figureTexts, portsFleetUi, ui } = useContent();
+  const texts = figureTexts.figures['6'];
+  const labels: Readonly<Partial<Record<string, string>>> = texts.labels;
+  const [panelA, panelB] = texts.panels;
+  const number = new Intl.NumberFormat(ui.numberLocale);
+  const fleetLabels: Readonly<Partial<Record<string, string>>> = {
+    shadow: labels['« Flotte fantôme »'] ?? '',
+    ig: labels['Assurés IG'] ?? '',
+  };
+  return { labels, panelA, panelB, number, copy: portsFleetUi.traffic, fleetLabels };
+}
+
 /** Figure 6: the traffic of the oil ports by year, their change in early 2026, and seaborne crude
  * by fleet category by month. A port line or its name opens the record of the port. */
 export function PortTraffic() {
+  const { panelA, panelB, number, copy, fleetLabels } = useFigure();
   return (
     <div className="grid gap-x-10 gap-y-12 lg:grid-cols-12">
       <Panel
@@ -53,13 +65,13 @@ export function PortTraffic() {
         <ChangeBars />
       </Panel>
       <Panel
-        title={portsFleetUi.traffic.cTitle}
-        unit={portsFleetUi.traffic.cUnit}
+        title={copy.cTitle}
+        unit={copy.cUnit}
         className="lg:col-span-12"
       >
         <FleetLines />
         <ValuesTable
-          head={['', ...figureData.fleet.map((one) => FLEET_LABELS[one.key] ?? one.key)]}
+          head={['', ...figureData.fleet.map((one) => fleetLabels[one.key] ?? one.key)]}
           rows={MONTHS.map((month, index) => [
             month,
             ...figureData.fleet.map((one) => number.format(one.points[index]?.value ?? 0)),
@@ -108,6 +120,7 @@ function TrafficLines() {
   const box = useRef<HTMLDivElement>(null);
   const { width } = useSize(box);
   const { openNode } = useReport();
+  const { labels, panelA, number, copy } = useFigure();
   const height = 340;
   const x = (year: number) =>
     PAD.left + ((year - 2014) / 11) * Math.max(1, width - PAD.left - PAD.right);
@@ -126,7 +139,7 @@ function TrafficLines() {
   );
   const embargo = 2022 + 11 / 12;
   // The label stands at the rule: left of it when it fits there, right of it on a narrow chart.
-  const embargoLabel = `${labels['embargo de l’UE'] ?? ''} · ${portsFleetUi.traffic.embargoDate}`;
+  const embargoLabel = `${labels['embargo de l’UE'] ?? ''} · ${copy.embargoDate}`;
   // On a phone neither side holds it: it ends at the right edge, over the rule, with a halo.
   const labelWidth = embargoLabel.length * 8.1;
   const leftOfRule = x(embargo) - 6 - labelWidth >= 0;
@@ -244,7 +257,8 @@ function TrafficLines() {
                     one.name === LEAD ? accent.fill : 'fill-foreground',
                   )}
                 >
-                  {one.name.replace(' (incl. CPC)', '')} {number.format(last.value)}
+                  {(labels[one.name] ?? one.name).replace(/ \((incl\.|avec) CPC\)/, '')}{' '}
+                  {number.format(last.value)}
                 </text>
               </g>
             );
@@ -257,6 +271,7 @@ function TrafficLines() {
 
 function ChangeBars() {
   const { openNode } = useReport();
+  const { labels } = useFigure();
   const rows = figureData.change;
   const extent = Math.max(...rows.map((row) => Math.abs(row.value)));
   return (
@@ -333,23 +348,20 @@ function ChangeBars() {
 }
 
 const MONTHS = figureData.fleet[0]?.points.map((point) => point.month) ?? [];
-const FLEET_LABELS: Readonly<Record<string, string>> = {
-  shadow: labels['« Flotte fantôme »'] ?? '',
-  ig: labels['Assurés IG'] ?? '',
-};
-// Figure 1 of the text names the three ports that the EU bans from February 2025.
-const MARKS = [
-  { month: '2022-12', label: labels['embargo (UE)'] ?? '', short: labels['embargo (UE)'] ?? '' },
-  {
-    month: '2025-02',
-    label: `Primorsk, Ust-Luga, Novorossiysk ${labels['ports interdits'] ?? ''}`,
-    short: `3 ${labels['ports interdits'] ?? ''}`,
-  },
-];
 
 function FleetLines() {
   const box = useRef<HTMLDivElement>(null);
   const { width } = useSize(box);
+  const { labels, number, copy, fleetLabels } = useFigure();
+  // Figure 1 of the text names the three ports that the EU bans from February 2025.
+  const MARKS = [
+    { month: '2022-12', label: labels['embargo (UE)'] ?? '', short: labels['embargo (UE)'] ?? '' },
+    {
+      month: '2025-02',
+      label: `${copy.bannedPorts} ${labels['ports interdits'] ?? ''}`,
+      short: `3 ${labels['ports interdits'] ?? ''}`,
+    },
+  ];
   const height = 240;
   const narrow = width < 640;
   // On a phone each mark label takes its own row, so no two labels touch.
@@ -368,7 +380,7 @@ function FleetLines() {
           width={width}
           height={height}
           role="img"
-          aria-label={portsFleetUi.traffic.cTitle}
+          aria-label={copy.cTitle}
           className="block"
         >
           {[0, 1000, 2000, 3000].map((tick) => (
@@ -449,7 +461,7 @@ function FleetLines() {
                       lead ? accent.fill : 'fill-foreground',
                     )}
                   >
-                    {FLEET_LABELS[one.key]} {number.format(last.value)}
+                    {fleetLabels[one.key]} {number.format(last.value)}
                   </text>
                 )}
               </g>
@@ -464,7 +476,7 @@ function FleetLines() {
               aria-hidden="true"
               className={cn('h-0.5 w-4', one.key === 'shadow' ? accent.bg : 'bg-chart-neutral')}
             />
-            {FLEET_LABELS[one.key]} · {number.format(one.points.at(-1)?.value ?? 0)} (
+            {fleetLabels[one.key]} · {number.format(one.points.at(-1)?.value ?? 0)} (
             {one.points.at(-1)?.month})
           </span>
         ))}

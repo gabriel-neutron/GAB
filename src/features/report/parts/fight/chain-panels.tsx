@@ -1,5 +1,5 @@
 import { cn } from '@/shared/lib/utils';
-import { fightUi } from '../../content';
+import { useContent } from '../../use-content';
 import { chainCount, stages, type Share, type Total } from './chain-data';
 
 const CELL: Record<Share['tone'], string> = {
@@ -20,6 +20,7 @@ const cellClass = (share: Share) =>
 export function ChainStrips({ active }: { readonly active: number | 'all' }) {
   const past = active !== 'all' && active >= stages.length;
   const shown = active === 'all' ? 'all' : Math.min(active, stages.length - 1);
+  const { fightUi } = useContent();
   return (
     <div className={cn('grid gap-2 lg:gap-3', past && 'hidden')}>
       <p className="flex items-center gap-1.5 font-mono text-report-label uppercase text-label">
@@ -104,6 +105,7 @@ export function ChainTotals({
   /** The value at the full width; one max for several lists puts them on one scale. */
   readonly max?: number;
 }) {
+  const { fightUi } = useContent();
   return (
     <div className="min-w-0">
       <p className="font-mono text-report-label uppercase text-label">
