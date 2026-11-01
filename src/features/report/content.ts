@@ -2155,15 +2155,16 @@ export const openingUi = {
       note: { part: 'finance', id: 'IV-5' },
       marked: [2021, 2025],
     },
-    // Each value is written exactly as in the list item of the same place, with the note of
-    // that item. The item on the price has no note.
+    // One entry for each list item, with the note of that item. A number comes from the item
+    // text; words, when given, are written exactly as in the item. The item on the price has no
+    // note.
     values: [
-      { value: '84%', note: '1' },
-      { value: '79%', note: '2' },
-      { value: 'almost doubled', note: '' },
-      { value: 'less than one fifth', note: '3' },
-      { value: '53%', note: '4' },
-      { value: '77%', note: '5' },
+      { words: '', note: '1' },
+      { words: '', note: '2' },
+      { words: 'almost doubled', note: '' },
+      { words: 'less than one fifth', note: '3' },
+      { words: '', note: '4' },
+      { words: '', note: '5' },
     ],
   },
   introduction: {
