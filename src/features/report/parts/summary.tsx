@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/utils';
 import type { ReportPart } from '../content';
 import figures from '../data/publication-figures.json';
-import { NoteRef } from '../note-ref';
+import { ImageCredit, NoteRef } from '../note-ref';
 import { accent } from '../primitives/accent';
 import { chapterHead } from '../primitives/chapter-break';
 import { monoLabel } from '../primitives/label';
@@ -24,6 +24,8 @@ interface Finding {
   readonly sentence: ReactNode;
   /** The finding on the rouble has the small chart of its data. */
   readonly chart: boolean;
+  /** The note of the final text that supports the value, in the summary. */
+  readonly note: string;
 }
 
 /** A small column chart of the rouble share of export settlements, from the data of figure 10.
@@ -91,20 +93,27 @@ function RoubleChart() {
 // sentence in the other 5, from the top of the value. A number in the accent, words in the ink.
 const NUMBER = 'text-report-display leading-[0.8] tracking-[-0.07em] tabular-nums';
 
-function hero(finding: Finding): ReactNode {
+function hero(finding: Finding, partSlug: string): ReactNode {
   const { value } = finding;
+  const note = finding.note === '' ? null : <NoteRef partSlug={partSlug} id={finding.note} />;
   if (value?.kind === 'number')
     return (
       <p className={cn(NUMBER, accent.text)}>
         <CountUp value={value.value} format={value.format} />
+        {note}
       </p>
     );
-  return <p className={cn('max-w-[10ch] text-report-number', WORDS)}>{value?.text}</p>;
+  return (
+    <p className={cn('max-w-[10ch] text-report-number', WORDS)}>
+      {value?.text}
+      {note}
+    </p>
+  );
 }
 
-const layout = (finding: Finding): ReactNode => (
+const layout = (finding: Finding, partSlug: string): ReactNode => (
   <div className="lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-8">
-    <div className="min-w-0 lg:col-span-7">{hero(finding)}</div>
+    <div className="min-w-0 lg:col-span-7">{hero(finding, partSlug)}</div>
     <div className="min-w-0 lg:col-span-5">
       <p className={cn('mt-6 lg:mt-0', SENTENCE)}>{finding.sentence}</p>
       {finding.chart ? (
@@ -120,7 +129,7 @@ const layout = (finding: Finding): ReactNode => (
  * method and the result under it, then each finding of the list as one value on the same grid. On a phone the opening is one row, so that the first screen
  * shows the start of the text. */
 export function SummaryPart({ part }: { readonly part: ReportPart }) {
-  const { openingUi, parts } = useContent();
+  const { openingUi, parts, ui } = useContent();
   const copy = openingUi.summary;
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   // The paragraphs before the findings open the part; the paragraphs after them close it.
@@ -162,6 +171,10 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
             // The dither is black on white: it multiplies onto paper, and inverts onto the dark.
             className="block aspect-[16/10] w-full object-cover mix-blend-multiply [image-rendering:pixelated] dark:mix-blend-screen dark:invert"
           />
+          <p className="mt-2 font-mono text-report-label uppercase text-label">
+            {ui.note.image}
+            <ImageCredit src={copy.art} />
+          </p>
         </div>
       </div>
       <div className="mt-4 md:mt-14 lg:grid lg:grid-cols-12 lg:gap-x-8">
@@ -189,11 +202,15 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
           return (
             <li key={block.text} className="border-b border-border py-8 lg:py-12">
               <Reveal>
-                {layout({
-                  value: values[index],
-                  chart: copy.values[index]?.note === copy.chart.finding,
-                  sentence: <RichText text={block.text} partSlug={part.slug} />,
-                })}
+                {layout(
+                  {
+                    value: values[index],
+                    chart: copy.values[index]?.note === copy.chart.finding,
+                    note: copy.values[index]?.note ?? '',
+                    sentence: <RichText text={block.text} partSlug={part.slug} />,
+                  },
+                  part.slug,
+                )}
               </Reveal>
             </li>
           );

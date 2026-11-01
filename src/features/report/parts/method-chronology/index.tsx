@@ -15,43 +15,25 @@ const charts: Readonly<Record<number, (props: ChartProps) => ReactNode>> = {
   2: LayersFigure,
 };
 
-const NOTE = /\[\^([^\]]+)\]/g;
 const COLUMN = 'max-w-[40rem] text-report-body/[1.65]  lg:col-span-8 lg:col-start-4';
 
 /** Method and chronology: a chapter break over the field of the critical nodes, the reading
- * column with its notes in the left margin, the layer diagram across the page, and the sanctions
+ * column, the layer diagram across the page, and the sanctions
  * timeline on scroll. */
 export function MethodChronologyPart({ part }: { readonly part: ReportPart }) {
   const { figureTexts, methodUi, parts } = useContent();
   const figureNotes: Readonly<Partial<Record<string, { readonly note: string }>>> =
     figureTexts.figures;
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
-  // A paragraph, or a list of the items that follow each other, with the notes they cite.
-  const row = (key: string, blocks: readonly ReportBlock[], text: ReactNode) => {
-    const ids = blocks.flatMap((block) => [...block.text.matchAll(NOTE)].map((m) => m[1] ?? ''));
-    const notes = part.notes.filter((note) => ids.includes(note.id));
-    return (
-      <div key={key} className="lg:grid lg:grid-cols-12 lg:gap-8">
-        <div className={COLUMN}>
-          <Reveal>{text}</Reveal>
-        </div>
-        {/* The margin repeats what the note markers open, so a phone does without it. */}
-        {notes.length === 0 ? null : (
-          <aside
-            aria-hidden="true"
-            className="hidden space-y-4 border-t border-divider pt-2 font-mono text-report-label/5 text-label lg:row-start-1 lg:col-span-3 lg:col-start-1 lg:block"
-          >
-            {notes.map((note) => (
-              <p key={note.id}>
-                <span className="text-foreground">{note.id.slice(note.id.indexOf('-') + 1)}</span>{' '}
-                <RichText text={note.text} />
-              </p>
-            ))}
-          </aside>
-        )}
+  // A paragraph, or a list of the items that follow each other. Its notes open from their markers,
+  // as in all parts.
+  const row = (key: string, text: ReactNode) => (
+    <div key={key} className="lg:grid lg:grid-cols-12 lg:gap-8">
+      <div className={COLUMN}>
+        <Reveal>{text}</Reveal>
       </div>
-    );
-  };
+    </div>
+  );
   const body: ReactNode[] = [];
   let items: ReportBlock[] = [];
   const closeList = () => {
@@ -60,7 +42,6 @@ export function MethodChronologyPart({ part }: { readonly part: ReportPart }) {
     body.push(
       row(
         `${part.slug}-list-${String(body.length)}`,
-        list,
         <ul className="space-y-2 border-l border-divider pl-5">
           {list.map((block) => (
             <li key={block.text}>
@@ -116,7 +97,6 @@ export function MethodChronologyPart({ part }: { readonly part: ReportPart }) {
     body.push(
       row(
         key,
-        [block],
         <p>
           <RichText text={block.text} partSlug={part.slug} />
         </p>,

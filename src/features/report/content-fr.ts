@@ -220,6 +220,7 @@ export const fr: ReportContent = {
       retrieved: 'récupéré le',
       missing: 'Notes du texte anglais',
       noTwin: 'pas de source FR',
+      image: 'Image',
     },
     index: {
       title: 'Tous les nœuds du rapport',

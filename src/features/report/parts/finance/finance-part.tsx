@@ -23,7 +23,7 @@ function FinanceBreak({ number, title }: { readonly number: string; readonly tit
       <div className="absolute inset-x-0 top-0 -z-10 h-[calc(4rem+0.78*clamp(8rem,56vw,26rem))] opacity-70 [mask-image:linear-gradient(to_bottom,black_60%,transparent)] md:h-[calc(5rem+0.78*clamp(8rem,56vw,26rem))] lg:opacity-60">
         <AsciiImage src={financeUi.image} />
       </div>
-      <ChapterBreak number={number} title={title} />
+      <ChapterBreak number={number} title={title} credit={financeUi.image} />
     </div>
   );
 }

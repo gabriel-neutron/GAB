@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -89,6 +89,47 @@ const besideText = (button: HTMLElement | null): DOMRect => {
  * focus goes back to the marker. */
 export function NoteRef({ partSlug, id }: NoteRefProps) {
   const { parts, ui } = useContent();
+  if (!parts.some((part) => part.slug === partSlug && part.notes.some((one) => one.id === id)))
+    return null;
+  return (
+    <Marker name={`${ui.note.label} ${id}`} mark={id.slice(id.lastIndexOf('-') + 1)}>
+      <NoteBody partSlug={partSlug} id={id} />
+    </Marker>
+  );
+}
+
+/** The credit of one image of the page, with the note marker: the number of the image on the notes
+ * page. An image with no credit shows no marker. */
+export function ImageCredit({ src }: { readonly src: string }) {
+  const { ui } = useContent();
+  const { items } = ui.bibliography.images;
+  const index = items.findIndex((item) => src.includes(item.file));
+  const item = items[index];
+  if (item === undefined) return null;
+  const mark = String(index + 1);
+  return (
+    <Marker name={`${ui.note.image} ${mark}`} mark={mark}>
+      <a
+        href={item.href}
+        className={cn('inline-flex min-h-11 items-center text-report-small', UNDERLINE, FOCUS)}
+      >
+        {item.credit}
+      </a>
+    </Marker>
+  );
+}
+
+/** The marker button and the note it opens: in the margin from 1280px, in a sheet under it. */
+function Marker({
+  name,
+  mark,
+  children,
+}: {
+  readonly name: string;
+  readonly mark: string;
+  readonly children: ReactNode;
+}) {
+  const { ui } = useContent();
   const margin = useMarginScreen();
   const [open, setOpen] = useState(false);
   const marker = useRef<HTMLButtonElement>(null);
@@ -118,9 +159,6 @@ export function NoteRef({ partSlug, id }: NoteRefProps) {
       return marker.current ?? undefined;
     },
   });
-  if (!parts.some((part) => part.slug === partSlug && part.notes.some((one) => one.id === id)))
-    return null;
-  const name = `${ui.note.label} ${id}`;
   const button = (
     <button
       ref={marker}
@@ -148,7 +186,7 @@ export function NoteRef({ partSlug, id }: NoteRefProps) {
         FOCUS,
       )}
     >
-      {id.slice(id.lastIndexOf('-') + 1)}
+      {mark}
     </button>
   );
   if (margin)
@@ -184,7 +222,7 @@ export function NoteRef({ partSlug, id }: NoteRefProps) {
             className="z-40 max-h-[70svh] w-[min(18rem,var(--radix-popper-available-width))] overflow-y-auto overscroll-contain border border-border bg-surface p-3 text-foreground outline-none"
           >
             <p className={cn(CAPTION, 'mb-2')}>{name}</p>
-            <NoteBody partSlug={partSlug} id={id} />
+            {children}
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>
@@ -226,7 +264,7 @@ export function NoteRef({ partSlug, id }: NoteRefProps) {
                   </Dialog.Close>
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-8">
-                  <NoteBody partSlug={partSlug} id={id} />
+                  {children}
                 </div>
               </motion.div>
             </Dialog.Content>

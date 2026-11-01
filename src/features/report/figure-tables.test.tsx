@@ -94,3 +94,36 @@ describe.each([
     expect(disclosure).not.toContain('sr-only');
   });
 });
+
+describe.each([
+  ['en', en],
+  ['fr', fr],
+] as const)('the citations of the %s page', (lang, copy) => {
+  const html = pages[lang];
+
+  it('draws each note marker with the shared marker only', () => {
+    // The bare marker of a text with no part, or a note printed beside the text, is another system.
+    expect(html).not.toContain('<sup');
+    expect(html).not.toMatch(/\[\^[^\]]+\]/);
+    // A closed note is not in the markup; a note printed in full beside its text is.
+    for (const note of copy.parts.flatMap((part) => part.notes))
+      expect(html).not.toContain(note.text.replaceAll('*', ''));
+    const markers = (html.match(/<button[^>]*>/g) ?? []).filter((one) =>
+      one.includes(`aria-label="${copy.ui.note.label} `),
+    );
+    expect(markers.length).toBeGreaterThan(0);
+    for (const marker of markers) expect(marker).toContain('note-ref');
+  });
+
+  it('gives each summary value with a note the marker of that note', () => {
+    for (const { note } of copy.openingUi.summary.values.filter((one) => one.note !== ''))
+      expect(html.split(`aria-label="${copy.ui.note.label} ${note}"`).length - 1).toBe(2);
+  });
+
+  it('gives each image of the page a credit', () => {
+    const files = new Set(JSON.stringify(copy).match(/report-media\/[\w.-]+/g) ?? []);
+    expect(files.size).toBeGreaterThan(0);
+    for (const file of files)
+      expect(copy.ui.bibliography.images.items.some((item) => file.includes(item.file))).toBe(true);
+  });
+});

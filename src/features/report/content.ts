@@ -1978,6 +1978,8 @@ export const ui = {
     // The mark of an English note with no French twin, on the French notes page.
     missing: 'Notes of the English text',
     noTwin: 'no FR source',
+    // The name of the marker that opens the credit of an image.
+    image: 'Image',
   },
   index: {
     title: 'All nodes of the report',
@@ -1987,7 +1989,8 @@ export const ui = {
     title: 'Notes and sources',
     back: 'Back to the report',
     label: 'Report notes',
-    // The art of the report page. Each line is the credit of public/report-media/credits.json.
+    // The art of the report page. Each line is the credit of public/report-media/credits.json, and
+    // `file` is the start of the name of the image file that it credits.
     images: {
       title: 'Images',
       items: [
@@ -1995,40 +1998,48 @@ export const ui = {
           credit:
             '"Crude Oil Tanker in Port Arthur, Texas" by Quintin Soloviev, CC0, via Wikimedia Commons',
           href: 'https://commons.wikimedia.org/wiki/File:Crude_Oil_Tanker_in_Port_Arthur,_Texas.jpg',
+          file: 'crude-oil-tanker-in-port-arthur-texas',
         },
         {
           credit:
             '"1829 map of the Black Sea by the Russian Hydrographic Depot" by Russian Hydrographic Depot, public domain, via Wikimedia Commons',
           href: 'https://commons.wikimedia.org/wiki/File:1829_map_of_the_Black_Sea_by_the_Russian_Hydrographic_Depot.jpg',
+          file: 'black-sea-map-1829',
         },
         {
           credit:
             '"Crude oil tanker Eagle San Diego" by Jordanroderick, CC0, via Wikimedia Commons',
           href: 'https://commons.wikimedia.org/wiki/File:Crude_oil_tanker_Eagle_San_Diego.jpg',
+          file: 'crude-oil-tanker-eagle-san-diego',
         },
         {
           credit: '"1903 Baku Oil Wells" by Unknown author, public domain, via Wikimedia Commons',
           href: 'https://commons.wikimedia.org/wiki/File:1903_Baku_Oil_Wells.jpg',
+          file: 'baku-oil-wells-1903',
         },
         {
           credit:
             '"Caucasus Novorossiysk general view Postcard 1900-1904" by Brothers Borisov Publishing House, Novorossiysk, public domain, via Wikimedia Commons',
           href: 'https://commons.wikimedia.org/wiki/File:Caucasus_Novorossiysk_general_view_Postcard_1900-1904.jpg',
+          file: 'novorossiysk-postcard-1900-1904',
         },
         {
           credit:
             '"Russia 1771 Sestroretsk Rouble" by Russia (coin), National Numismatic Collection (image), public domain, via Wikimedia Commons',
           href: 'https://commons.wikimedia.org/wiki/File:Russia_1771_Sestroretsk_Rouble.jpg',
+          file: 'sestroretsk-rouble-1771',
         },
         {
           credit:
             '"Pair of Flintlock Pistols of Empress Catherine the Great (1729–1796)", Johan Adolph Grecke, 1786. The Metropolitan Museum of Art, Open Access, CC0',
           href: 'https://www.metmuseum.org/art/collection/search/24927',
+          file: 'met-24927-flintlock-pistols',
         },
         {
           credit:
             '"Chess set", Unknown maker (Russian, Kholmogory), late 18th–early 19th century. The Metropolitan Museum of Art, Open Access, CC0',
           href: 'https://www.metmuseum.org/art/collection/search/202506',
+          file: 'met-202506-chess-set',
         },
       ],
     },
