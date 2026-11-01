@@ -2251,10 +2251,12 @@ export const portsFleetUi = {
     visits: {
       label: 'AIS port visits of the tankers named in this report, GFW, query date',
       powered: 'Powered by Global Fishing Watch.',
+      counted: 'Port visits:',
+      sources: 'Sources of this map',
       port: 'Port',
       count: 'Visits',
       tankers: 'Tankers',
-      limit: 'A visit is an AIS presence in the port, not a loading.',
+      limit: 'A presence in port, not a loading.',
     },
     flows: 'Seaborne crude by loading basin and fleet, January 2026, kb/d',
     open: 'Open the record of',

@@ -19,10 +19,10 @@ const number = new Intl.NumberFormat('en-US');
 const VISITS_ON = portVisits.on(import.meta.env);
 const { file: visitFile } = portVisits;
 const VISITS_TEXT =
-  `${copy.visits.label} ${visitFile.queryDate}: ${number.format(visitFile.visits.length)} ` +
-  `visits of ${number.format(portVisits.tankersSeen)} of the ` +
-  `${number.format(visitFile.imoList.count)} tankers of the list, ` +
-  `${visitFile.parameters.from} to ${visitFile.parameters.to} (end day excluded). ` +
+  `${copy.visits.counted} ${number.format(visitFile.visits.length)} visits by ${number.format(portVisits.tankersSeen)} of the ` +
+  `${number.format(visitFile.imoList.count)} listed tankers, ${visitFile.parameters.from} to ` +
+  // The query window excludes its end day, so the text gives the last day it holds.
+  `${new Date(Date.parse(visitFile.parameters.to) - 86_400_000).toISOString().slice(0, 10)}. ` +
   copy.visits.limit;
 
 /** The direction of the leader line from a terminal to its label: x and y, each -1 or 1. */
@@ -231,20 +231,20 @@ export function PortMap({ step, sources }: PortMapProps) {
         {one}
       </p>
     ));
-  if (visits)
-    credit.push(
-      // External constraint: the GFW API terms ask for this line with a link on each page that
-      // shows their data.
-      <p key="gfw">
-        <a
-          href="https://globalfishingwatch.org"
-          className="pointer-events-auto underline underline-offset-2"
-        >
-          {copy.visits.powered}
-        </a>
-      </p>,
-      <visitLayer.Table key="visits" shown={!sticky} />,
-    );
+  if (visits) credit.push(<visitLayer.Table key="visits" shown={!sticky} />);
+  // External constraint: the GFW API terms ask for this line with a link on each page that shows
+  // their data, so it stays in view when the other sources fold.
+  const gfw = visits ? (
+    <p className="text-balance">
+      {`${copy.visits.label} ${visitFile.queryDate}. `}
+      <a
+        href="https://globalfishingwatch.org"
+        className="pointer-events-auto underline underline-offset-2"
+      >
+        {copy.visits.powered}
+      </a>
+    </p>
+  ) : null;
   const title = flows
     ? copy.flows
     : state.tag === 'ban'
@@ -573,7 +573,16 @@ export function PortMap({ step, sources }: PortMapProps) {
         {sticky && !wide ? (
           <div className="grid gap-1 text-report-label/4 normal-case ">
             {legend}
-            {credit}
+            {gfw}
+            {visits ? (
+              // On a phone the sources of this step fold, so the head leaves room for the map.
+              <details className="pointer-events-auto">
+                <summary className="cursor-pointer">{copy.visits.sources}</summary>
+                <div className="grid gap-1 pt-1">{credit}</div>
+              </details>
+            ) : (
+              credit
+            )}
           </div>
         ) : null}
       </div>
@@ -588,6 +597,7 @@ export function PortMap({ step, sources }: PortMapProps) {
             ref={foot}
             className="absolute right-0 bottom-0 max-w-[84ch] justify-items-end pt-4 pr-8 pb-4 pl-24 text-right"
           >
+            {gfw}
             {legend}
             {credit}
           </MapFoot>
@@ -602,6 +612,7 @@ export function PortMap({ step, sources }: PortMapProps) {
       <MapFoot className="mt-3">
         {legend}
         {credit}
+        {gfw}
       </MapFoot>
     </div>
   );
