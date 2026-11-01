@@ -58,7 +58,7 @@ export function rekey(text: string, twins: Readonly<Record<string, string | null
       if (caption === null)
         return [
           body.replace(
-            /\b(figures?) (V\d+)/g,
+            /\b([Ff]igures?) (V\d+)/g,
             (_, word: string, key: string) => `${word} ${figureOf(key)}`,
           ),
         ];

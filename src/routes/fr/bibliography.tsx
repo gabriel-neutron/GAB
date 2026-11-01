@@ -10,5 +10,5 @@ export const Route = createFileRoute('/fr/bibliography')({
       <BibliographyPage />
     </ContentContext.Provider>
   ),
-  head: () => ({ meta: [{ title: 'Bibliographie du rapport · GAB' }] }),
+  head: () => ({ meta: [{ title: `${fr.ui.bibliography.title} · GAB` }] }),
 });
