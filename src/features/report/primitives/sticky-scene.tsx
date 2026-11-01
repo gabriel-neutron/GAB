@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useInView } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import { layout } from './layout';
+import { useNarrowScreen } from '@/shared/narrow-screen';
 import { useReduceMotion } from '../reduced-motion';
 
 interface StickySceneProps {
@@ -18,8 +19,8 @@ interface StickySceneProps {
 }
 
 /** A scroll scene: the figure stays fixed in the view, the text cards scroll over it, and the card
- * at the middle of the view sets the step of the figure. Under reduced motion, each card shows
- * beside the figure in its own step, with no scroll effect. */
+ * at the middle of the view sets the step of the figure. Under reduced motion and under 768px, each
+ * card shows beside the figure in its own step, with no scroll effect. */
 export function StickyScene({
   steps,
   children,
@@ -27,7 +28,10 @@ export function StickyScene({
   stepClassName,
   tail = true,
 }: StickySceneProps) {
-  const reduce = useReduceMotion();
+  // On a phone no scene holds the page scroll: each card shows beside its figure, as under
+  // reduced motion.
+  const narrow = useNarrowScreen();
+  const reduce = useReduceMotion() || narrow;
   const [active, setActive] = useState(0);
   // The steps are positional report text with no identity of their own, so their place is their key.
   if (reduce)

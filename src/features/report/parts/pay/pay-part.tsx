@@ -12,6 +12,7 @@ import { useContent, type ReportContent } from '../../use-content';
 import { CapWhatIf, WHAT_IF_START, WhatIfControls, WhatIfTable, whatIfLabel } from './cap-what-if';
 import { BudgetChart, BuyersChart, PriceChart } from './pay-figures';
 import { useReduceMotion } from '../../reduced-motion';
+import { useNarrowScreen } from '@/shared/narrow-screen';
 
 // The editorial grid: from 1280px the text reads in the right two thirds, and a note opens in the
 // left third. Under 1280px a note opens in a sheet, so the text keeps the full column.
@@ -194,14 +195,16 @@ function StepText({
 const CARD = 'invisible w-full text-report-small lg:visible lg:w-[calc(100%/3-1.5rem)]';
 
 /** Figure 4 as a scroll scene: each step shows one more state of the caps and the gap, and the
- * last step adds the what-if line that the reader moves, in the same chart. Under reduced motion,
- * only the chart with the what-if line; the body text holds the words of the steps. */
+ * last step adds the what-if line that the reader moves, in the same chart. Under reduced motion
+ * and under 768px, only the chart with the what-if line; the body text holds the words of the steps. */
 function PriceScene({ slug }: { readonly slug: string }) {
   const { payUi } = useContent();
   const reduce = useReduceMotion();
+  const narrow = useNarrowScreen();
   const [line, setLine] = useState(WHAT_IF_START);
-  // Under reduced motion the chart of the what-if line is the one chart in its final state.
-  if (reduce) return <CapWhatIf />;
+  // Under reduced motion and on a phone, the chart of the what-if line is the one chart in its
+  // final state: no scroll step only moves a mark, and the page scroll is never held.
+  if (reduce || narrow) return <CapWhatIf />;
   const steps = payUi.f4.steps;
   const controls = <WhatIfControls line={line} onLine={setLine} />;
   return (
