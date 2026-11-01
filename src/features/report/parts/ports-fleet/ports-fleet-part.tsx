@@ -10,6 +10,7 @@ import { RichText } from '../../rich-text';
 import { useContent } from '../../use-content';
 import { figureData } from './figure-data';
 import { FleetFlows } from './fleet-flows';
+import { REGIMES, selectWaves } from './fleet-waves';
 import { FleetWavesFigure } from './fleet-waves-figure';
 import { PortTraffic } from './port-traffic';
 import { splitSentences } from './sentences';
@@ -63,6 +64,7 @@ const charts: Readonly<Partial<Record<number, () => ReactNode>>> = {
   8: VesselLives,
   9: FleetWavesFigure,
 };
+const waveQuarters = selectWaves(new Set(REGIMES)).quarters;
 const stripNotes = (text: string) => text.replace(/\[\^[^\]]+\]/g, '');
 
 /** Exporting through the ports and the fleet: a typographic chapter break, a sticky map of the
@@ -83,6 +85,11 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
     7: [...new Set(texts['7'].panels.map((panel) => panel.unit))]
       .filter((one) => one !== '')
       .join(' · '),
+    9: copy.waves.unit,
+  };
+  const periods: Readonly<Partial<Record<number, string>>> = {
+    8: copy.lives.period,
+    9: `${waveQuarters[0]?.quarter ?? ''} – ${waveQuarters.at(-1)?.quarter ?? ''}`,
   };
   const notes: Readonly<Partial<Record<number, string>>> = {
     6: `${texts['6'].note} ${texts['6'].noteB}`,
@@ -126,7 +133,7 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
           note={notes[n] ?? ''}
           partSlug={part.slug}
           unit={units[n]}
-          period={n === 8 ? copy.lives.period : undefined}
+          period={periods[n]}
         >
           <Chart />
         </Figure>
