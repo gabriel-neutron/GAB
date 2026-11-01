@@ -41,6 +41,8 @@ parser splits a text into runs, and the rich text draws each run.
   to the graph when the node has a corpus record.
 - A chart opens the panel through the report hook, and gives the element that gets the focus back.
 - A note marker opens the text of the note, and links to the note on the notes page.
+- A committed, dated file joins each note to the documents of the record that support it, and a
+  command on the operator PC builds it (ADR 0033).
 
 ## Cover and PDF
 
