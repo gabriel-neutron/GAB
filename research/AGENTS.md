@@ -7,7 +7,10 @@ leads, you make hypotheses, you find hard sources, and you write. You do not bui
 This file is the one source of the research rules. `CLAUDE.md` imports it.
 
 Each research step runs on the operator's PC, where the record and the browser are. A site that
-refuses this address goes to the skill `source-hunt`: the browser step, then the list of needs.
+refuses this address goes to the skill `source-hunt`: the steps of the skill in order, then the
+blocked queue `research/out/blocked.md`. A residential proxy of a third party runs as one batch
+pass for each topic, over that queue, after the operator approves the count and the cost. The
+list of needs is for what only the operator can get.
 
 Send each question of method, source, data model or unit in doubt to the skill `expert-panel`, and
 act on its verdict. The operator answers only the critical questions that it defines.
@@ -15,9 +18,13 @@ act on its verdict. The operator answers only the critical questions that it def
 ## The tools
 
 The MCP server `gab` gives each tool. A read changes nothing. A write needs no approval in the
-session: each proposal waits in the review queue, and the operator decides it there (P12).
+session: each proposal waits in the review queue (P12). **The operator never decides a proposal.**
+After each batch, the session that proposed starts at once a new AI reviewer (subagent or
+session, skill `review-unit`) on the units of the batch. Never end a step with "waits for the
+operator to accept" a proposal.
 
-- Read the record: `search_graph`, `read_entity`, `neighbourhood`, `list_vocabulary`,
+- Read the record: `search_graph`, `read_entity` (the relations come in pages; the filters `relationType` and `undated`, and
+  `cursor` with the `nextCursor` of the page before), `neighbourhood`, `list_vocabulary`,
   `list_proposals`, `list_entities` (the entities of one type in pages, with the count of those that
   hold a key and of those that do not), `read_duplicate_identifiers` (the entities that share an
   INN, an OGRN, an IMO number or a LEI; it flags, and you send each group to a reviewer).
@@ -54,10 +61,11 @@ session: each proposal waits in the review queue, and the operator decides it th
 - Never cite leaked, hacked or stolen data. The contract of the report forbids unlawfully obtained
   data. A page is a leak when it holds the leaked data, or when its publisher calls its own data
   leaked, hacked or stolen. Examples: the leak collections of Aleph, Offshore Leaks, WikiLeaks and
-  DDoSecrets. Stop when you find a leak. Do not store it. A published article of a news outlet is
-  not a leak, also when it reports on leaked data. Cite the article. Do not cite a page that hosts
-  or copies the leaked file. A lead from such an article is allowed. Do not follow a link from a
-  leak to a page of its original owner. If a fact has no other source, do not propose it. When you
+  DDoSecrets. Stop when you find a leak. Do not store it. A published article or analysis of a
+  news outlet, a think tank or a research institute is not a leak, also when it uses leaked data.
+  Store it and cite it. The operator decided this: do not ask again. Do not cite the leaked data
+  itself, and do not cite a page that hosts or copies the leaked file. A lead from such an article
+  is allowed. Do not follow a link from a leak to a page of its original owner. If a fact has no other source, do not propose it. When you
   are not sure, ask the skill `expert-panel`.
 - Cite an entry of the OFAC SDN list: `ofac_sdn` stores the whole official file once, as a public
   document with its hash and its date of publication, and gives the line of one entry by its
@@ -76,6 +84,12 @@ session: each proposal waits in the review queue, and the operator decides it th
   keeps its dates and its type, and gets the document.
 - Read the sanctions lists and the movement of a vessel: `sanctions_match`, `vessel_events`.
   Each one stores its answer as a document.
+- Freeze the tankers seen at named anchorages: `gfw_port_visits` takes anchorage ids, an optional
+  vessel type and a date window, and stores the GFW port visits as a document with the CC BY-NC 4.0
+  licence and the AIS-only limit. It then reads the registry IMO and ship types of the vessels in
+  the GFW Vessels API, and `tankersOnly` keeps the oil tankers. A tanker often has an event type
+  that no vessel type selects: for the tanker visits, give no vessel type. The output gives the
+  dates of each kept visit. It needs `GFW_API_TOKEN`.
 - Read the heat detections of one site: `firms_detections` takes a site box and a period, and
   stores the NASA FIRMS answer as a document. It needs a free map key. When the key is not
   set, the tool says so, and the other tools work.
@@ -91,7 +105,7 @@ session: each proposal waits in the review queue, and the operator decides it th
 - Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,
   `read_group`, `read_decided`, `read_leads`.
 - Write: `archive_snapshot`, `fetch_document`, `eu_act`, `ofac_sdn`, `uk_sanctions_list`,
-  `firms_detections`, `comtrade_data`, `sentinel2_pairs`, `site_image`, `store_saved_file`, `telegram_channel`,
+  `firms_detections`, `gfw_port_visits`, `comtrade_data`, `sentinel2_pairs`, `site_image`, `store_saved_file`, `telegram_channel`,
   `enqueue_extract`, `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question.
   `enqueue_extract`, `enqueue_mapping` and `start_lead` spend model credit: call them only when
   the operator asks for it.
@@ -122,7 +136,7 @@ session: each proposal waits in the review queue, and the operator decides it th
   `companies_house` needs a key. When the key is not set, the tool says so, and the other tools
   work.
 - **A sanctions match or a vessel event gives a document to cite.** `sanctions_match` needs a
-  key, and `vessel_events` needs a free token. When one is not set, the tool says so, and the
+  key, and `vessel_events` and `gfw_port_visits` need a free token. When one is not set, the tool says so, and the
   other tools work. OpenSanctions is a repeater: fetch the official entry that the tool names with
   `fetch_document`, and cite that. Events that are matched by an MMSI alone are a lead.
   When an IMO number or an MMSI names more than one identity, `vessel_events` refuses and
@@ -148,7 +162,8 @@ subagents, the reviewer subagent, the code sessions and the close of the step.
    tool stores the page and gives you its document id. Each citation names that id.
 3. **Store each source before you cite it.** Each source is a stored document in the raw store:
    a fetched page, a register answer, or a file that the operator uploads. A source that you
-   cannot store goes on the list of needs of the skill `source-hunt`, and you do not cite it.
+   cannot store goes on the blocked queue or the list of needs of the skill `source-hunt`, and
+   you do not cite it.
 4. **A search result is a lead, and not a source** (ADR 0010). A list of search results is not
    stored, and you must not cite it. Fetch the page that the result points to. Only a fetched
    page is a document. A name search in a register is also a lead: read the record by its
@@ -165,3 +180,5 @@ subagents, the reviewer subagent, the code sessions and the close of the step.
    code finds each value in its excerpt. Free text that you write into Gabriel is in French.
 8. **A refusal tells you what to correct.** It names the field, or the item of a batch, and the
    reason. Correct that part and call the tool again once.
+9. **Stop when the server is absent.** When a `gab` tool is absent or cannot reach the record,
+   stop and say so in one line. Never write a client of your own.

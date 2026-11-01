@@ -9,12 +9,9 @@ test('the page opens with the key in the fragment for pnpm dev', () => {
   expect(openWithKey(LINE, 'dev')).toBe(`/#operator-key=${KEY}`);
 });
 
-test.each(['storybook', 'test', 'preview', undefined])(
-  'the lifecycle %s opens no browser',
-  (lifecycle) => {
-    expect(openWithKey(LINE, lifecycle)).toBe(false);
-  },
-);
+test.each(['test', 'preview', undefined])('the lifecycle %s opens no browser', (lifecycle) => {
+  expect(openWithKey(LINE, lifecycle)).toBe(false);
+});
 
 test('a byte order mark does not hide the first line', () => {
   expect(operatorKeyIn(String.fromCodePoint(0xfeff) + LINE)).toBe(KEY);

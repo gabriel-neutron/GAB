@@ -626,3 +626,76 @@ test('an undo keeps a type change that a later act gave, and its documents', asy
     sources: ['manual', FIXTURE_DOCUMENT],
   });
 });
+
+test('a merge of two companies keeps each relation, identifier, alias and source on the survivor, and an undo gives back both', async () => {
+  const seen = await rolledBack('app', async (ask) => {
+    const keep = await signed(ask, 'create_entity', {
+      type: 'company',
+      label: 'COMPANY KEEP',
+      attrs: { inn: manual('7700000001') },
+      sources: ['manual'],
+    });
+    const gone = await signed(
+      ask,
+      'create_entity',
+      {
+        type: 'company',
+        label: 'COMPANY GONE',
+        attrs: {
+          inn: { v: '7700000001', src: [FIXTURE_DOCUMENT] },
+          ogrn: { v: '1027700000002', src: [FIXTURE_DOCUMENT] },
+        },
+        sources: [FIXTURE_DOCUMENT],
+      },
+      [],
+      [FIXTURE_DOCUMENT],
+    );
+    const owner = await entity(ask, 'company', 'COMPANY OWNER');
+    const sub = await entity(ask, 'company', 'COMPANY SUB');
+    const inbound = await relation(ask, 'owns', owner, gone);
+    const outbound = await relation(ask, 'owns', gone, sub);
+    const before = {
+      keep: await entityRow(ask, keep),
+      gone: await entityRow(ask, gone),
+      relations: await relationsOf(ask, gone),
+    };
+    await merge(ask, keep, gone);
+    const merged = {
+      survivor: await entityRow(ask, keep),
+      relations: await relationsOf(ask, keep),
+      alias: await resolved(ask, gone),
+    };
+    await undo(ask, gone);
+    return {
+      keep,
+      gone,
+      inbound,
+      outbound,
+      before,
+      merged,
+      after: {
+        keep: await entityRow(ask, keep),
+        gone: await entityRow(ask, gone),
+        relations: await relationsOf(ask, gone),
+      },
+      aliasAfter: await resolved(ask, gone),
+    };
+  });
+
+  expect(seen.aliasAfter).toBeUndefined();
+  expect(seen.merged.alias).toBe(seen.keep);
+  expect(seen.merged.survivor?.['attrs']).toStrictEqual({
+    inn: { v: '7700000001', src: ['manual', FIXTURE_DOCUMENT] },
+    ogrn: { v: '1027700000002', src: [FIXTURE_DOCUMENT] },
+  });
+  // The sources of the moved values stay on the values; the row keeps the sources of its label.
+  expect(seen.merged.survivor?.['sources']).toStrictEqual(['manual']);
+  expect(seen.merged.relations.map((row) => row['id']).sort()).toStrictEqual(
+    [seen.inbound, seen.outbound].sort(),
+  );
+  expect(seen.after).toStrictEqual({
+    keep: seen.before.keep,
+    gone: seen.before.gone,
+    relations: seen.before.relations,
+  });
+});

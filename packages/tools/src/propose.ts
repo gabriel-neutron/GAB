@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { day } from '@gab/proposal/day';
 import { attributeEdit } from '@gab/proposal/attribute-value';
 import { GEOLOCATION_WORDS, geolocationMethod } from '@gab/proposal/geolocation-method';
+import { identifierContainment } from '@gab/proposal/identifiers';
 import { machineAct } from '@gab/proposal/machine';
 import { ASSET_KINDS } from '@gab/proposal/mapping';
 import type { ProposalAct } from '@gab/proposal/payload';
@@ -11,10 +12,16 @@ import { z } from 'zod';
 
 import { KEY_ADVICE, keyWarnings } from './attribute-key.ts';
 import { plainText } from './check-answer.ts';
+import { UNIQUE_KEYS } from './duplicate-identifier.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
-import { findExcerpt, MAX_TOLERANT_UNITS, pointSlice, type Span } from './excerpt.ts';
+import { findExcerpt, pointSlice, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
-import { dateInUrl, occurredWeekdays } from './publication-date.ts';
+import {
+  dateInUrl,
+  isUkListDate,
+  occurredWeekdays,
+  withOfacReleaseDate,
+} from './publication-date.ts';
 import {
   daysFromPublication,
   namesProvision,
@@ -207,6 +214,38 @@ const batchAct = z.discriminatedUnion('op', [
         [act.validFrom, act.validTo, act.type].filter((one) => one !== undefined).length === 1,
       { message: 'give validFrom, validTo or type, and only one of them' },
     ),
+  z.strictObject({
+    op: z.literal('create_observation'),
+    measure: z
+      .string()
+      .describe(
+        'the key of the measure: lower case words joined by one underscore, as urals_price',
+      ),
+    value: z.number().describe('the value, as the excerpt writes it, as a JSON number'),
+    unit: z.string().describe('the unit, as USD per barrel or million cubic metres'),
+    period: z
+      .string()
+      .describe(
+        'the period of the figure: a year (2024), a quarter (2024-Q1), a month (2024-03) or an ISO week (2024-W09)',
+      ),
+    reporter: z
+      .string()
+      .describe(
+        'the code of the area that the figure is about: an ISO 3166-1 code as RU, or a group code as EU27 or WORLD',
+      ),
+    partner: z
+      .string()
+      .optional()
+      .describe('the code of the partner area, for a flow between two areas'),
+    method: z.string().describe('how the publisher made the figure, as the page says it'),
+    publisher: z
+      .string()
+      .describe('the body that publishes the figure, as Ministry of Finance of Russia'),
+    subjectId: z
+      .uuid()
+      .optional()
+      .describe('the id of the entity of the record that the figure is about, as a pipeline'),
+  }),
 ]);
 
 const evidence = z.strictObject({
@@ -354,7 +393,7 @@ const cite = async (
     // The words that the AI read stand alone: the OCR text around them does not hold them.
     return {
       document: given.document,
-      fcdoList: page.fcdo_list,
+      fcdoList: page.fcdo_list || isUkListDate(page.uri, given.excerpt),
       textExtractor: page.extractor,
       urlDay: dateInUrl(page.uri),
       postDay: postDayOf(page.text),
@@ -368,27 +407,22 @@ const cite = async (
     findExcerpt(page.text, given.excerpt) ??
     refuse(
       ref,
-      page.text.length > MAX_TOLERANT_UNITS
-        ? `page ${String(given.page)} of ${given.document} holds more than ` +
-            `${String(MAX_TOLERANT_UNITS)} characters, so only an exact copy of its words is ` +
-            'found. Copy the excerpt character for character, with the quotes, the dashes and ' +
-            'the spaces of the page.'
-        : `page ${String(given.page)} of ${given.document} does not hold the excerpt ` +
-            `${JSON.stringify(given.excerpt)}. Copy the words as the page states them.`,
+      `page ${String(given.page)} of ${given.document} does not hold the excerpt ` +
+        `${JSON.stringify(given.excerpt)}. Copy the words as the page states them.`,
     );
+  const passage = pointSlice(page.text, span.start, span.end);
   return {
     document: given.document,
-    fcdoList: page.fcdo_list,
+    fcdoList: page.fcdo_list || isUkListDate(page.uri, passage),
     textExtractor: page.extractor,
     urlDay: dateInUrl(page.uri),
     postDay: postDayOf(page.text),
     page: given.page,
     span,
-    passage: pointSlice(page.text, span.start, span.end),
-    context: pointSlice(
-      page.text,
-      Math.max(0, span.start - CONTEXT_POINTS),
-      span.end + CONTEXT_POINTS,
+    passage: withOfacReleaseDate(page.uri, passage),
+    context: withOfacReleaseDate(
+      page.uri,
+      pointSlice(page.text, Math.max(0, span.start - CONTEXT_POINTS), span.end + CONTEXT_POINTS),
     ),
   };
 };
@@ -406,6 +440,7 @@ const KIND_OF_OP: Readonly<Record<string, Kind | null>> = {
   update_relation: null,
   add_source: null,
   update_entity: null,
+  create_observation: null,
 };
 
 const present = async (session: Session, kind: Kind, id: string): Promise<boolean> =>
@@ -559,6 +594,19 @@ const eventDenialOnRelation = async (
   return { ...given, act: { ...act, targetId: site.id } };
 };
 
+// A figure points at the words of the page that state it (ADR 0031): the span of its one excerpt
+// in the stored text. Words read from an image have no span.
+const checkFigure = async (session: Session, given: ProposeItem): Promise<void> => {
+  const { act } = given;
+  if (act.op !== 'create_observation') return;
+  if (given.evidence.length !== 1)
+    refuse(given.ref, 'a figure cites one excerpt of one page, the excerpt that states its value');
+  if (given.evidence.some((one) => one.fromImage === true))
+    refuse(given.ref, 'a figure cites the stored text, and never words read from an image');
+  if (act.subjectId !== undefined && !(await present(session, 'entity', act.subjectId)))
+    refuse(given.ref, `the subject ${act.subjectId} is no entity of the record`);
+};
+
 const SAME_PLACE = `SELECT public.ST_Equals(public.ST_GeomFromGeoJSON(e.geom::text),
     public.ST_GeomFromGeoJSON($2::text)) AS same
   FROM api.entity e WHERE e.id = $1 AND e.geom IS NOT NULL`;
@@ -576,6 +624,54 @@ const queuedWithNoPlace = async (session: Session, id: string): Promise<boolean>
       [id],
     )
   ).length > 0;
+
+// A new entity with an identifier that the record holds, or that another new entity of the queue
+// holds, is one thing recorded twice. The same name in the queue is a retry of the same batch.
+const HOLDERS = `SELECT id::text AS id, label, 'the entity' AS kind FROM api.entity WHERE attrs @> ANY($1::jsonb[])
+  UNION ALL
+  SELECT id::text, payload->>'label', 'the new entity that waits as proposal' FROM api.proposal
+  WHERE status = 'pending' AND op = 'create_entity' AND payload->>'label' <> $2::text
+    AND payload->'attrs' @> ANY($1::jsonb[])
+  LIMIT 1`;
+
+// An earlier item of the same batch with the same identifier and another name is refused too.
+const checkNewIdentifiers = async (
+  session: Session,
+  ref: string,
+  batch: Map<string, string>,
+  act: WriteRequest,
+): Promise<void> => {
+  if (act.op !== 'create_entity') return;
+  for (const key of UNIQUE_KEYS) {
+    const held = act.attrs?.[key]?.v;
+    for (const value of Array.isArray(held) ? held : [held]) {
+      if (typeof value !== 'string' && typeof value !== 'number') continue;
+      const at = JSON.stringify([key, String(value).replace(/[\s-]/gu, '').toUpperCase()]);
+      const earlier = batch.get(at);
+      if (earlier !== undefined && earlier !== act.label)
+        refuse(
+          ref,
+          `the ${key} ${String(value)} is on another new entity of the batch (${earlier})`,
+        );
+      batch.set(at, act.label);
+      const shapes = identifierContainment(key, String(value)).map((shape) =>
+        JSON.stringify(shape),
+      );
+      const [holder] = await rowsOf(
+        session,
+        z.strictObject({ id: z.string(), label: z.string().nullable(), kind: z.string() }),
+        HOLDERS,
+        [shapes, act.label],
+      );
+      if (holder !== undefined)
+        refuse(
+          ref,
+          `the record holds the ${key} ${String(value)} already, on ${holder.kind} ${holder.id} ` +
+            `(${holder.label ?? 'no name'}): propose attributes for that entity, or give no ${key}`,
+        );
+    }
+  }
+};
 
 const checkTarget = async (session: Session, ref: string, act: WriteRequest): Promise<void> => {
   if (act.op !== 'update_attrs' && act.op !== 'update_relation' && act.op !== 'update_entity')
@@ -859,7 +955,9 @@ export const proposeOf = (modelCallId: string | null) =>
   defineTool({
     name: 'propose',
     description:
-      'Proposes a batch of linked facts: new entities, new relations, attributes to add, and the ' +
+      'Proposes a batch of linked facts: new entities (refused when the record holds the IMO, LEI, INN, ' +
+      'OGRN or IMO company number already, and the refusal names that entity), new relations, ' +
+      'attributes to add, and the ' +
       'end date of an open relation of the record (update_relation, when a page states that an ' +
       'owner, a flag, an operator or an insurer changed), or the start date of a relation of the ' +
       'record that has none (update_relation with validFrom, when a dated page states it), and one ' +
@@ -916,7 +1014,10 @@ export const proposeOf = (modelCallId: string | null) =>
       'observed_on, written as 2026-01-31, only when an excerpt states that exact day; two calls ' +
       'on two days are two facts. A day that no excerpt states, or a value that is not one day, ' +
       'is not proposed, and droppedBounds names it. A ship-to-ship transfer (sts_with) takes the ' +
-      'day in the same way.',
+      'day in the same way. A figure that one page states, such as a monthly price or a monthly ' +
+      'revenue, is a create_observation act with one excerpt that writes its value; the item is ' +
+      'disputed when the excerpt does not hold the value. A table of figures goes through ' +
+      'enqueue_mapping, and never as one act for each row.',
     input: z.strictObject({ items: proposeItems, published_on: publishedOn.optional() }),
     output: z.strictObject({
       proposals: z.array(outcome),
@@ -939,6 +1040,7 @@ export const proposeOf = (modelCallId: string | null) =>
         ),
       );
       const prepared: Prepared[] = [];
+      const batchIdentifiers = new Map<string, string>();
       for (const [index, given] of resolvedItems.entries()) {
         const resolved = withCodedJurisdiction(await resolvedAct(session, given, index, minted));
         const eventFault = eventActRefusal(resolved);
@@ -949,6 +1051,7 @@ export const proposeOf = (modelCallId: string | null) =>
         // A back-end agent reads the stored text only, so it never gives words read from an image.
         if (modelCallId !== null && given.evidence.some((one) => one.fromImage === true))
           refuse(given.ref, 'an agent cites the stored text, and never words read from an image');
+        if (given.act.op === 'create_observation') await checkFigure(session, given);
         const cited: Cited[] = [];
         for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
         // The post date of a stored Telegram post is the day of publication, when every cited
@@ -1002,6 +1105,7 @@ export const proposeOf = (modelCallId: string | null) =>
               `cite the passage that states it, or give no ${lostBound.name}`,
           );
         await checkTarget(session, given.ref, request);
+        await checkNewIdentifiers(session, given.ref, batchIdentifiers, request);
         if (given.act.op === 'add_source')
           await checkSourceNames(session, given.ref, given.act.targetId, cited);
         const act = machineAct(request, documents);

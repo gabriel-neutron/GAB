@@ -16,8 +16,16 @@ describe('the family of a relation type', () => {
     ]);
   });
 
+  it('puts the issuer of an act in the designation family', () => {
+    expect(familyOf('issued_by')).toBe('designation');
+  });
+
   it('puts operates in the operation family', () => {
     expect(familyOf('operates')).toBe('operation');
+  });
+
+  it('puts located_in in the operation family', () => {
+    expect(familyOf('located_in')).toBe('operation');
   });
 
   it('puts a type that no family names in the other family, and so does a key of the prototype', () => {

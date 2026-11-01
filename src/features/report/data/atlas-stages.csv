@@ -1,0 +1,30 @@
+stage,group,share_pct,source,document,note
+identified,United States,67.3,"GUR War & Sanctions census, 6,252 components, 2026-10-30",f11-atlas-gur.csv,Ukrainian government source; maker headquarters
+identified,Not stated,2.3,"GUR War & Sanctions census, 6,252 components, 2026-10-30",f11-atlas-gur.csv,Ukrainian government source; maker headquarters
+identified,"China, Hong Kong",7.3,"GUR War & Sanctions census, 6,252 components, 2026-10-30",f11-atlas-gur.csv,Ukrainian government source; maker headquarters
+identified,Other coalition,12.2,"GUR War & Sanctions census, 6,252 components, 2026-10-30",f11-atlas-gur.csv,Ukrainian government source; maker headquarters
+identified,EU,6.1,"GUR War & Sanctions census, 6,252 components, 2026-10-30",f11-atlas-gur.csv,Ukrainian government source; maker headquarters
+identified,Taiwan,2.8,"GUR War & Sanctions census, 6,252 components, 2026-10-30",f11-atlas-gur.csv,Ukrainian government source; maker headquarters
+identified,Other,2.0,"GUR War & Sanctions census, 6,252 components, 2026-10-30",f11-atlas-gur.csv,Ukrainian government source; maker headquarters
+brand,United States,25.5,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 11, producer headquarters"
+brand,EU,6.1,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 11, producer headquarters"
+brand,Taiwan,7.0,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 11, producer headquarters"
+brand,Other coalition,5.4,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 11, producer headquarters"
+brand,"China, Hong Kong",41.0,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 11, producer headquarters"
+brand,Other,7.0,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 11, producer headquarters"
+brand,Not stated,8.0,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 11, producer headquarters"
+made,United States,4.3,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 12, country of origin; other = Malaysia 5.8, Viet Nam 2.5, other 7.7"
+made,EU,5.3,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 12, country of origin; other = Malaysia 5.8, Viet Nam 2.5, other 7.7"
+made,Taiwan,8.0,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 12, country of origin; other = Malaysia 5.8, Viet Nam 2.5, other 7.7"
+made,Other coalition,3.4,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 12, country of origin; other = Malaysia 5.8, Viet Nam 2.5, other 7.7"
+made,"China, Hong Kong",63.1,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 12, country of origin; other = Malaysia 5.8, Viet Nam 2.5, other 7.7"
+made,Other,16.0,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 12, country of origin; other = Malaysia 5.8, Viet Nam 2.5, other 7.7"
+sold,EU,3.7,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 13, country of seller; other = Turkey 6.9, UAE 3.3, EEU 2.0, other 9.3"
+sold,Other coalition,5.9,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 13, country of seller; other = Turkey 6.9, UAE 3.3, EEU 2.0, other 9.3"
+sold,"China, Hong Kong",68.9,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 13, country of seller; other = Turkey 6.9, UAE 3.3, EEU 2.0, other 9.3"
+sold,Other,21.5,"KSE Institute 2024, Russian customs Jan-Oct 2023, battlefield goods",doc_c5184d052910,"p. 13, country of seller; other = Turkey 6.9, UAE 3.3, EEU 2.0, other 9.3"
+shipped,"China, Hong Kong",88.3,"UN Comtrade mirror data 2025, CHP list (exporter), author calculation",f11-atlas-volumes.csv,4822 million USD of 5462
+shipped,Other,10.6,"UN Comtrade mirror data 2025, CHP list (exporter), author calculation",f11-atlas-volumes.csv,581 million USD of 5462
+shipped,EU,0.5,"UN Comtrade mirror data 2025, CHP list (exporter), author calculation",f11-atlas-volumes.csv,26 million USD of 5462
+shipped,United States,0.5,"UN Comtrade mirror data 2025, CHP list (exporter), author calculation",f11-atlas-volumes.csv,30 million USD of 5462
+shipped,Other coalition,0.0,"UN Comtrade mirror data 2025, CHP list (exporter), author calculation",f11-atlas-volumes.csv,2 million USD of 5462

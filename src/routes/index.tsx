@@ -1,13 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-
-import { ReadingPage } from '@/shared/page/reading-page';
-
-// The report page is empty on purpose: its content is cleared until the operator supplies it.
+import { ReportPage } from '@/features/report/report-page';
+import { reportTitles } from '@/features/report/titles';
 export const Route = createFileRoute('/')({
-  component: () => (
-    <ReadingPage>
-      <h1 className="sr-only">Report</h1>
-    </ReadingPage>
-  ),
-  head: () => ({ meta: [{ title: 'Report · GAB' }] }),
+  component: ReportPage,
+  head: () => ({ meta: [{ title: `${reportTitles.en} · GAB` }] }),
 });

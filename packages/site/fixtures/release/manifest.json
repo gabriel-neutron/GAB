@@ -97,6 +97,20 @@
       }
     ]
   },
+  "undatedDesignations": {
+    "query": "release_relations() where type = 'designated_by' and valid_from is null, split by the label of the end entity (release_entities()): 'Executive Order 14024' is us_eo_14024; a label that starts with 'OFAC action of ' is us_ofac_action; else the regime of the official file that the relation cites (eu_eurlex is eu, uk_sanctions_list is uk); else other",
+    "total": 0,
+    "byAct": {
+      "us_eo_14024": 0,
+      "us_ofac_action": 0,
+      "eu": 0,
+      "uk": 0,
+      "other": 0
+    },
+    "cause": "Note on the source: the OFAC SDN.CSV file holds no designation date. A US designation has a start date only when a page of the OFAC Recent Actions gives it.",
+    "effect": "Note on use: a test of dated facts that reads the start date of a designation cannot count an undated designation. The counts above show how many are left out.",
+    "baselineMetrics": "No baseline metric reads the start date of a designation. The US dates are a declared blind spot of this release; the next release compares these counts."
+  },
   "files": [
     {
       "path": "entities.csv",
@@ -137,6 +151,11 @@
       "path": "volumes.csv",
       "bytes": 4155,
       "sha256": "487760d2ee421c43b130554d13ace96468277d388d0148f8bffcca1d08ca17a4"
+    },
+    {
+      "path": "observations.csv",
+      "bytes": 1926,
+      "sha256": "37908f85b5f5be1b512b77ea42323f6155d8b28b42bb400b15280e8c0c0abb4a"
     },
     {
       "path": "credits.md",

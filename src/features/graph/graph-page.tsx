@@ -18,7 +18,7 @@ import { useScreenQuery } from '@/shared/screen-query';
 import { SelectionPanel } from '@/shared/selection-panel';
 
 import { mountGraph, type GraphController, type GraphView } from './controller';
-import { Legend, StatusBar, ZoomButtons } from './canvas-chrome';
+import { Legend, StatusBar, VariantSwitch, ZoomButtons } from './canvas-chrome';
 import { MarkerMeter } from './marker-meter';
 import type { GraphModel } from './model';
 import { deriveRailRows } from './rail-rows';
@@ -277,6 +277,10 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
           {snapshot === null ? null : (
             <>
               <StatusBar counts={snapshot.view.counts} />
+              <VariantSwitch
+                current={snapshot.view.variant}
+                onPick={(id) => controller.current?.setVariant(id)}
+              />
               <Legend
                 counts={snapshot.view.counts}
                 hueOfType={snapshot.model.hueOfType}

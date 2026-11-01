@@ -19,6 +19,8 @@ docs
 src/routeTree.gen.ts
 # A fixture in windows-1251 must keep its bytes as they are.
 packages/text/fixtures/windows-1251.html
+# A captured OFAC page: a test reads its text, so its line breaks stay as captured.
+packages/text/fixtures/ofac-recent-action-body-date.html
 # The release code writes the fixture of the release, and a test compares each byte.
 packages/site/fixtures
 
@@ -27,3 +29,9 @@ tools/figures/data/basemap.json
 
 # The design system reference. It is a copy of the published artifact, kept byte for byte.
 design
+
+# A fixture of a source file keeps its bytes: 1.10 must stay 1.10.
+packages/tools/fixtures
+
+# The pages of the print design of the report: the markup of the design, kept as it is.
+tools/report-pdf/pages

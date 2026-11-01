@@ -1,0 +1,16 @@
+stage,group,share_pct,document,page,note
+Brand (producer headquarters),Coalition,43.9,doc_c5184d052910,11,"US 25.5, Taiwan 7.0, EU 6.1, other coalition 5.4"
+Brand (producer headquarters),"China, Hong Kong",41.0,doc_c5184d052910,11,China
+Brand (producer headquarters),Other,7.0,doc_c5184d052910,11,
+Brand (producer headquarters),Not identified,8.0,doc_c5184d052910,11,n/d
+Country of manufacture,Coalition,20.9,doc_c5184d052910,12,
+Country of manufacture,"China, Hong Kong",63.1,doc_c5184d052910,12,China
+Country of manufacture,Other,16.0,doc_c5184d052910,12,"Malaysia 5.8, Vietnam 2.5, other 7.7"
+Final seller to Russia,Coalition,9.7,doc_c5184d052910,13,"EU 3.7, other coalition 5.9"
+Final seller to Russia,"China, Hong Kong",68.9,doc_c5184d052910,13,"China 38.0, Hong Kong 30.9"
+Final seller to Russia,Other,21.5,doc_c5184d052910,13,"Turkey 6.9, UAE 3.3, EEU 2.0, other 9.3"
+brand,Intel (US),351,doc_c5184d052910,11,million USD
+brand,Analog Devices (US),269,doc_c5184d052910,11,million USD
+brand,AMD (US),174,doc_c5184d052910,11,million USD
+brand,Texas Instruments (US),140,doc_c5184d052910,11,million USD
+brand,IBM (US),115,doc_c5184d052910,11,million USD

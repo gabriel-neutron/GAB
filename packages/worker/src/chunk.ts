@@ -25,6 +25,8 @@ export const chunkPages = (pages: readonly PageText[], cap: number): Chunk[] => 
 
   const chunks: Chunk[] = [];
   for (const { page, text } of pages) {
+    // A page of blanks holds nothing to read, and each part costs one call to the model.
+    if (text.trim() === '') continue;
     // A string index counts UTF-16 units, and the cap counts code points.
     const points = Array.from(text);
     for (let start = 0; start < points.length; start += cap)

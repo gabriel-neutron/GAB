@@ -18,9 +18,6 @@ const NODE_PACKAGES = [
   'text',
 ] as const;
 
-const CANVAS =
-  'No story mounts a live canvas: a browser drops the oldest WebGL context after about sixteen. Story the panels';
-
 export default defineConfig(
   {
     ignores: [
@@ -28,7 +25,6 @@ export default defineConfig(
       '**/dist',
       '**/build',
       '**/coverage',
-      '**/storybook-static',
       '.scratch',
       '.claude/worktrees',
       // A hook is a script that Claude Code runs in Node, outside the application.
@@ -43,6 +39,26 @@ export default defineConfig(
   { linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: 'error' } },
 
   { files: ['**/*.{js,mjs,cjs,jsx}'], extends: [js.configs.recommended] },
+
+  // A CommonJS hook runs in Node and reads the globals of Node.
+  {
+    files: ['**/*.cjs'],
+    languageOptions: { globals: { process: 'readonly', __dirname: 'readonly' } },
+  },
+
+  // The figure export script runs in Node and sends code to a browser page.
+  {
+    files: ['tools/report/export-figures.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        document: 'readonly',
+        localStorage: 'readonly',
+        getComputedStyle: 'readonly',
+      },
+    },
+  },
 
   {
     files: ['**/*.{ts,mts,cts,tsx}'],
@@ -77,9 +93,14 @@ export default defineConfig(
     files: [
       'src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
       'packages/*/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
-      '.storybook/**/*.{ts,tsx,mts,cts}',
     ],
-    ignores: ['src/main.tsx', 'src/router.tsx', 'src/app-router.tsx', 'src/prerender.tsx'],
+    ignores: [
+      'src/main.tsx',
+      'src/boot.tsx',
+      'src/router.tsx',
+      'src/app-router.tsx',
+      'src/prerender.tsx',
+    ],
     plugins: { boundaries },
     settings: {
       'boundaries/elements': [
@@ -88,8 +109,6 @@ export default defineConfig(
         { type: 'route', pattern: 'src/routes', partialMatch: false },
         { type: 'contract', pattern: 'src/contract', partialMatch: false },
         { type: 'package', pattern: 'packages/*/src', capture: ['pkg'], partialMatch: false },
-        // External constraint: the plugin reads a dot in the last segment as a file name.
-        { type: 'storybook', pattern: '.storybook/**', partialMatch: false },
       ],
       'boundaries/ignore': ['src/index.css', 'tools/probe.ts', 'tools/author-fixture.ts'],
       'import/resolver': { typescript: { alwaysTryTypes: true } },
@@ -121,19 +140,11 @@ export default defineConfig(
               allow: { to: { element: { types: ['contract', 'package'] } } },
             },
             {
-              from: { element: { type: 'storybook' } },
-              allow: { to: { element: { type: 'shared' } } },
-            },
-            {
               from: { element: { type: 'package' } },
               allow: { to: { element: { type: 'package' } } },
             },
             {
-              from: {
-                element: {
-                  types: ['shared', 'feature', 'route', 'storybook', 'contract', 'package'],
-                },
-              },
+              from: { element: { types: ['shared', 'feature', 'route', 'contract', 'package'] } },
               disallow: {
                 to: { element: { type: 'package', captured: { pkg: [...NODE_PACKAGES] } } },
               },
@@ -160,32 +171,10 @@ export default defineConfig(
     },
   },
 
-  // No story mounts a live canvas.
-  {
-    files: ['src/**/*.stories.tsx'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          paths: [
-            { name: 'maplibre-gl', message: CANVAS },
-            { name: 'sigma', message: CANVAS },
-          ],
-          patterns: [
-            {
-              group: ['**/globe', '**/globe-canvas', '**/graph-page'],
-              message: CANVAS,
-            },
-          ],
-        },
-      ],
-    },
-  },
-
   { files: ['src/**/*.{ts,tsx}'], extends: [reactHooks.configs.flat.recommended] },
 
   {
-    files: ['**/*.{test,db-test,e2e-test}.{ts,tsx}', 'src/**/*.stories.tsx'],
+    files: ['**/*.{test,db-test,e2e-test}.{ts,tsx}'],
     plugins: { vitest },
     rules: {
       'vitest/no-focused-tests': 'error',

@@ -4,15 +4,18 @@ import { z } from 'zod';
 
 import { CsvFault, readCsv, readTsv, type CsvRecord } from './csv.ts';
 import { rowsOf } from './fields.ts';
+import { readJsonTable } from './json-table.ts';
 import { ToolRefusal, type Session } from './tool.ts';
 
 /** How the fields of a table page are cut: at a comma with RFC 4180 quotes, or at a tab. */
-export type TableFormat = 'csv' | 'tsv';
+export type TableFormat = 'csv' | 'tsv' | 'json';
 
 /** The format of a table of this media type, or undefined for a type that is no table. An
- * SDMX-CSV table (application/vnd.sdmx.data+csv) is a CSV with a header row. */
+ * SDMX-CSV table (application/vnd.sdmx.data+csv) is a CSV with a header row. A JSON page is a
+ * table when it holds a `data` list of objects, as an answer of UN Comtrade does. */
 export const tableFormatOf = (mime: string | null): TableFormat | undefined => {
   const type = (mime ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
+  if (type === 'application/json' || type.endsWith('+json')) return 'json';
   if (type === 'text/tab-separated-values') return 'tsv';
   if (type === 'text/csv' || type.endsWith('+csv')) return 'csv';
   return undefined;
@@ -24,6 +27,7 @@ export const tableOf = (
   text: string,
   format: TableFormat,
 ): { header: string[]; rows: CsvRecord[] } => {
+  if (format === 'json') return readJsonTable(text);
   let records: CsvRecord[];
   try {
     records = format === 'tsv' ? readTsv(text) : readCsv(text);

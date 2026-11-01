@@ -299,8 +299,10 @@ const stepOf = (cause: unknown): Step => {
     if (status < 300) return again(REASON.unreadable, cause.message);
     return fromStatus(cause, status);
   }
+  // A call that ran out of time can still be billed, and its tokens never reach the budget: the
+  // library counts them only from an answer. One more try could pay the same call again.
   if (cause instanceof Error && ['TimeoutError', 'AbortError'].includes(cause.name))
-    return again(REASON.network, cause.message);
+    return stop(REASON.network, cause.message);
   if (AISDKError.isInstance(cause)) return again(REASON.unreadable, cause.message);
   throw cause;
 };
@@ -445,6 +447,8 @@ export const openModel = (
   ): Promise<Step | { done: 'spent' }> => {
     // Every call starts here, and the cap stops each one: a test at the door alone stops none of
     // the calls after the first.
+    // shortcut: the cap is soft by one call, whose input and maxAnswerTokens can pass it; estimate
+    // the input of the call when a job must never pass its cap.
     if (run.budget.left() <= 0) return { done: 'spent' };
     run.calls += 1;
     const heard: Heard = {};

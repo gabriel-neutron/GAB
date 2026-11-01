@@ -80,6 +80,15 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
     true,
     'A sanctions authority applies a measure to the party that is not an asset freeze, such as a sectoral restriction.',
   ),
+  // The issuer is stated by the title or the header of the act. The act is the source end and the body
+  // is the far end. An act has one issuer relation, and the designation of a party stays designated_by.
+  relationType(
+    'issued_by',
+    'issued by',
+    'issues',
+    false,
+    'A legal act states in its title or header the body that issued it. Source: a legal act. Far end: a state body.',
+  ),
   // A licence and a charter each have a period.
   relationType(
     'exempted_by',
@@ -95,12 +104,43 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
     true,
     'A party hires a vessel from another party for a period.',
   ),
+  // These five types take dates. A date comes only from the date of the activity that the
+  // source gives, never from the date of a designation. An end that the source does not give
+  // stays empty. One fact gets one type only.
   relationType(
     'settles_through',
     'settles through',
     'is the settlement channel of',
-    false,
-    'A party settles its payments through a bank or a payment channel.',
+    true,
+    'A party sends or receives its payments through a bank, a payment system, or the operator of a system such as SPFS or CIPS. The far end is a channel. When the far end is a principal that the party pays for, use pays_for. An EU ban on transactions with a bank is restricted_by. Source: any party. Far end: a bank, a company or a state body that runs a payment system.',
+  ),
+  relationType(
+    'acts_for',
+    'acts for',
+    'has as agent',
+    true,
+    'A source states that the party does business for the far end as its agent, front or proxy. The designation basis alone ("owned or controlled by, or acted for or on behalf of") is not enough. When the party only moves money for the far end, use pays_for. Source: a company, a bank or a person. Far end: a company, a bank, a state body or a person.',
+  ),
+  relationType(
+    'supplies_items_to',
+    'supplies items to',
+    'receives items from',
+    true,
+    'A source states that the party sold, shipped or delivered goods (components, dual-use goods, equipment or arms) to the far end. The class of the goods is an attribute of the relation. Crude oil and refined products keep their own types. "Materially assisted", "customers include", "attempted to supply", "involved in procurement" and "transshipment" are not enough. Source: a company or a facility. Far end: a company, a facility, a state body or a military unit.',
+  ),
+  relationType(
+    'transfers_funds_to',
+    'transfers funds to',
+    'receives funds from',
+    true,
+    'A source states that the party sent money to the far end, the payee. The amount is an attribute when the source gives it. When the party pays for a named principal, use pays_for. Source: any party. Far end: any party.',
+  ),
+  relationType(
+    'pays_for',
+    'makes payments for',
+    'has payments made by',
+    true,
+    'A source states that a bank or a payment agent made or facilitated payments on behalf of the far end, the principal. The designation basis alone ("conducted or facilitated any significant transaction") is not enough. A plan or a scheme ("would facilitate") gets the attribute status: planned. Source: a bank or a company. Far end: any party.',
   ),
   relationType(
     'supplies_crude_to',
@@ -147,6 +187,13 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
     'is the berth of',
     false,
     'A vessel stood at a berth of a port or a terminal.',
+  ),
+  relationType(
+    'located_in',
+    'located in',
+    'contains',
+    false,
+    'A facility, such as a terminal, stands in a port or is part of it. Source: a facility. Far end: a port. Not for a place in a city or a country.',
   ),
   relationType(
     'loads_at',

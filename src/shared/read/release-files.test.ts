@@ -38,3 +38,15 @@ test('a listed file that is missing is a fault, and not an absent release', asyn
   expect(fault).toBeInstanceOf(Error);
   expect(fault).not.toBeInstanceOf(ReleaseAbsent);
 });
+
+test('the page does not fetch a JSON-LD file of the release', async () => {
+  const asked: string[] = [];
+  stubFetch((path) => {
+    asked.push(path);
+    return path.endsWith('manifest.json')
+      ? new Response(JSON.stringify({ files: [{ path: 'dataset.jsonld' }] }))
+      : new Response('no', { status: 500 });
+  });
+  await fetchRelease(FOLDER).catch(() => null);
+  expect(asked).toEqual(['/release/manifest.json']);
+});

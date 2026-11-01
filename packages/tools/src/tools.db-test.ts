@@ -10,7 +10,6 @@ import { z } from 'zod';
 
 import { probe, rolledBack, type Ask } from '../../../tools/probe.ts';
 import { CATALOGUE } from './catalogue.ts';
-import { MAX_TOLERANT_UNITS } from './excerpt.ts';
 import { proposeOf } from './propose.ts';
 import { UK_LIST_CSV } from './uk-sanctions-list.ts';
 import { callTool, type Reach, type Session, type Tool } from './tool.ts';
@@ -598,8 +597,8 @@ test('an excerpt that the page does not hold refuses the whole batch and names t
   expect(found.rows).toStrictEqual([]);
 });
 
-test('an excerpt that is not exact on a page above the tolerant size is refused with a sentence that asks for an exact copy', async () => {
-  const page = `${'a '.repeat(MAX_TOLERANT_UNITS)}he said “no” today`;
+test('an excerpt that is not exact is found at the end of a page above the tolerant size', async () => {
+  const page = `${'a '.repeat(2_500_000)}he said “no” today`;
   const found = await rolledBack('superuser', async (ask) => {
     const outcome = await proposeOnPage(
       ask,
@@ -614,13 +613,7 @@ test('an excerpt that is not exact on a page above the tolerant size is refused 
     );
     return { outcome, rows: await rowsOfDocument(ask) };
   });
-  expect(found.outcome).toMatchObject({
-    ok: false,
-    refusal: expect.stringMatching(
-      /^item quotes: .*holds more than .* characters.*exact/u,
-    ) as string,
-  });
-  expect(found.rows).toStrictEqual([]);
+  expect(found.outcome).toMatchObject({ ok: true });
 });
 
 test('a value that its excerpt does not state marks the item as disputed', async () => {
@@ -1227,7 +1220,7 @@ test('a relation keeps the start and the end that its excerpt states', async () 
 });
 
 test('a slash date is day/month only when each excerpt comes from the FCDO UK Sanctions List', async () => {
-  const page = 'Date Designated: 09/05/2025';
+  let page = 'Designated on 09/05/2025';
   const other = 'e'.repeat(64);
   const proposed = async (setup: (ask: Ask) => Promise<unknown>, mixed = false) =>
     rolledBack('superuser', async (ask) => {
@@ -1280,6 +1273,10 @@ test('a slash date is day/month only when each excerpt comes from the FCDO UK Sa
     expect(found.batch.proposals).toMatchObject([{ droppedBounds: ['validFrom'] }]);
     expect(found.rows[0]?.payload).not.toHaveProperty('valid_from');
   }
+  // The label "Date Designated" gives the order too, at any address.
+  page = 'Date Designated: 09/05/2025';
+  const labelled = await proposed(atAddress('https://example.org/report'));
+  expect(labelled.batch.proposals).toMatchObject([{ droppedBounds: [] }]);
 });
 
 // The claim that the checker reads, for each item of the last batch.
@@ -2599,5 +2596,98 @@ test('read_event_pairs flags a Latin and a Cyrillic event of one site and day', 
     const mine = found.pairs.filter((pair) => pair.day === '2031-01-02');
     expect(mine).toHaveLength(1);
     expect(mine[0]?.events.map((one) => one.id).sort()).toStrictEqual([a, b].sort());
+  });
+});
+
+// ------------------------------------------------ propose: a held identifier ---
+
+const HELD_IDENTIFIERS = [
+  ['imo', 'vessel', '9482137'],
+  ['imo_company_number', 'company', '5012345'],
+  ['tax_id', 'company', '7714117720'],
+  ['registration_number', 'company', '1027700070518'],
+  ['lei', 'company', '5493001KJTIIGC8Y1R12'],
+] as const;
+
+test.each(HELD_IDENTIFIERS)(
+  'propose refuses a new entity whose %s the record holds, and names the holder',
+  async (key, type, value) => {
+    const found = await rolledBack('superuser', async (ask) => {
+      await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+      const [act] = z
+        .array(z.object({ id: z.uuid() }))
+        .parse(
+          await ask(`SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::text[]) AS id`, [
+            'create_entity',
+            JSON.stringify({ type, label: 'Held holder' }),
+          ]),
+        );
+      await ask('RESET SESSION AUTHORIZATION');
+      z.array(z.object({ id: z.uuid() })).parse(
+        await ask(
+          `INSERT INTO public.entities (type, label, attrs, sources, promoted_from)
+             VALUES ($1, 'Held holder', jsonb_build_object($2::text, jsonb_build_object('v', $3::text, 'src', jsonb_build_array('manual'))),
+                     ARRAY['manual']::doc_id[], $4) RETURNING id`,
+          [type, key, value, act?.id],
+        ),
+      );
+      const outcome = await proposeOnPage(ask, [
+        item(
+          'nayara',
+          { op: 'create_entity', type, label: 'Nayara', attrs: { [key]: { v: value } } },
+          'the tanker NAYARA',
+        ),
+      ]);
+      return { outcome };
+    });
+    expect(found.outcome).toMatchObject({
+      ok: false,
+      refusal: expect.stringMatching(/already, on the entity [0-9a-f-]{36} [(]/u) as string,
+    });
+  },
+);
+
+test('propose passes a retry of the same batch that waits already, and refuses another name', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const make = (label: string) => [
+      item(
+        'nayara',
+        { op: 'create_entity', type: 'vessel', label, attrs: { imo: { v: '9111113' } } },
+        'the tanker NAYARA',
+      ),
+    ];
+    const first = await proposeOnPage(ask, make('Nayara'));
+    const retry = await proposeAgain(ask, make('Nayara'));
+    const other = await proposeAgain(ask, make('Other name'));
+    const batch = await proposeAgain(ask, [
+      item(
+        'a',
+        { op: 'create_entity', type: 'vessel', label: 'Alpha', attrs: { imo: { v: '9222226' } } },
+        'the tanker NAYARA',
+      ),
+      item(
+        'b',
+        {
+          op: 'create_entity',
+          type: 'vessel',
+          label: 'Beta',
+          attrs: { imo: { v: ['x', 9222226] } },
+        },
+        'the tanker NAYARA',
+      ),
+    ]);
+    return { first, retry, other, batch };
+  });
+  expect(found.first).toMatchObject({ ok: true });
+  expect(found.retry).toMatchObject({ ok: true });
+  expect(found.other).toMatchObject({
+    ok: false,
+    refusal: expect.stringMatching(
+      /already, on the new entity that waits as proposal [0-9a-f-]{36} [(]Nayara[)]/u,
+    ) as string,
+  });
+  expect(found.batch).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('another new entity of the batch') as string,
   });
 });

@@ -194,11 +194,14 @@ test('the text goes to the model as it is, and each item becomes a proposal with
         entityTypes: z.array(z.string()),
         relationTypes: z.array(z.string()),
         datedRelationTypes: z.array(z.string()),
+        relationDefinitions: z.record(z.string(), z.string()),
       })
       .parse(JSON.parse(asked?.content ?? '{}'));
     expect(words.entityTypes).toEqual(expect.arrayContaining(['vessel', 'state_body']));
     expect(words.entityTypes.at(-1)).toBe('unknown');
     expect(words.relationTypes).toContain('owns');
+    // Each live type of the seed reaches the model with its definition.
+    expect(Object.keys(words.relationDefinitions)).toEqual(words.relationTypes);
     expect(words.datedRelationTypes).toEqual(
       expect.arrayContaining(['owns', 'operates', 'flags', 'insures', 'designated_by']),
     );

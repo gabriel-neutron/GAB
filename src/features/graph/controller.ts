@@ -23,6 +23,10 @@ import {
   type NodeAttrs,
   type NodePosition,
 } from './model';
+import { createLiveLayout } from './live-layout';
+import { morph } from './morph';
+import { layoutInput } from './layout-weights';
+import { DEFAULT_VARIANT, variantOf, type Variant, type VariantId } from './variants';
 import { graphPositions } from './positions';
 import { FAMILIES, lookOf } from './relation-families';
 import { type RelationFilterState } from './relation-filter';
@@ -50,6 +54,8 @@ export interface GraphView {
   readonly unplaced: number;
   /** Whether the canvas draws them. */
   readonly showUnplaced: boolean;
+  /** The identifier of the prototype in view. */
+  readonly variant: VariantId;
   readonly railOpen: boolean;
   readonly railWidth: number;
 }
@@ -66,6 +72,8 @@ export interface GraphController {
   readonly setRelationFilter: (patch: Partial<RelationFilterState>) => void;
   /** Draws or hides the entities that stand on the ring with no place. */
   readonly setShowUnplaced: (show: boolean) => void;
+  /** Switches the prototype of the graph: the weights, the forces and the sizes. */
+  readonly setVariant: (id: VariantId) => void;
   /** The rail was unfolded or folded. The workspace keeps it, so the next open finds it there. */
   readonly setRailOpen: (open: boolean) => void;
   /** The rail edge was dragged. The workspace keeps the width, as it keeps the fold. */
@@ -217,6 +225,7 @@ export function mountGraph(
   let railOpen = stored.railOpen;
   let railWidth = stored.railWidth;
   let showUnplaced = stored.showUnplaced;
+  let variant: Variant = DEFAULT_VARIANT;
 
   // The stored picture is the frame. The camera fits are computed in this frame, so it is fixed
   // here and given to Sigma, and the two never differ.
@@ -405,8 +414,27 @@ export function mountGraph(
     nameReach();
   };
 
+  // Where each node was drawn when its last move began, as the card reads it. The place that Sigma
+  // holds now is where the move ends.
+  const moves = new Map<string, { fromX: number; fromY: number }>();
   // A reducer replaces the datum and does not merge into it. Each one below spreads the original,
   // or Sigma finds no `x` and no `y` and refuses the node with an error.
+  const reduceNode = (node: string, data: NodeAttrs): Partial<NodeDisplayData> => {
+    // The switch hides the ring. Unlike a filter, it takes the node out of the picture.
+    if (!showUnplaced && data.unplaced) return { ...data, hidden: true, label: null };
+    if (litNodes.has(node)) {
+      const hop = hopOf.get(node);
+      // The ring at two steps can hold most of the graph, through a legal act that lists
+      // hundreds of entities. So it dims as the rest does, and the direct neighbours stand out.
+      if (hop === 2) return { ...data, color: dimOf(data.color), zIndex: 1 };
+      if (hop === 1) return { ...data, zIndex: 2 };
+      return { ...data, zIndex: hop === 0 ? 3 : 0 };
+    }
+    // A type that the filter puts out leaves the picture. A selection only dims the rest.
+    if (!passesFilter(data)) return { ...data, hidden: true, label: null };
+    return { ...data, color: dimOf(data.color), label: null };
+  };
+
   const sigma = new Sigma<NodeAttrs, EdgeAttrs>(model.graph, canvas, {
     // The container is measured in the constructor, while the chrome around it is still built.
     // A container of no height throws here. The `ResizeObserver` below gives the true size at the
@@ -464,21 +492,10 @@ export function mountGraph(
     minCameraRatio: NEAREST_RATIO,
     maxCameraRatio: FARTHEST_RATIO,
 
-    nodeReducer: (node: string, data: NodeAttrs): Partial<NodeDisplayData> => {
-      // The switch hides the ring. Unlike a filter, it takes the node out of the picture.
-      if (!showUnplaced && data.unplaced) return { ...data, hidden: true, label: null };
-      if (litNodes.has(node)) {
-        const hop = hopOf.get(node);
-        // The ring at two steps can hold most of the graph, through a legal act that lists
-        // hundreds of entities. So it dims as the rest does, and the direct neighbours stand out.
-        if (hop === 2) return { ...data, color: dimOf(data.color), zIndex: 1 };
-        if (hop === 1) return { ...data, zIndex: 2 };
-        return { ...data, zIndex: hop === 0 ? 3 : 0 };
-      }
-      // A type that the filter puts out leaves the picture. A selection only dims the rest.
-      if (!passesFilter(data)) return { ...data, hidden: true, label: null };
-      return { ...data, color: dimOf(data.color), label: null };
-    },
+    nodeReducer: (node: string, data: NodeAttrs): Partial<NodeDisplayData> => ({
+      ...reduceNode(node, data),
+      ...moves.get(node),
+    }),
 
     edgeReducer: (edge: string, data: EdgeAttrs): Partial<EdgeDisplayData> => {
       // A relation type that the legend switches off is out of the picture, as the ring is when
@@ -741,6 +758,7 @@ export function mountGraph(
     markersOverCap,
     openUnits: folds.open,
     unplaced: placement.unplaced.size,
+    variant: variant.id,
     showUnplaced,
     railOpen,
     railWidth,
@@ -818,6 +836,98 @@ export function mountGraph(
   // first frame. One refresh, after the listener exists, puts the ring and each marker up.
   sigma.on('afterRender', drawOverlay);
   sigma.refresh();
+
+  // The shown nodes and relations pull the layout. A switch of a type or a family starts a new
+  // run from the places the nodes hold, so they move to the new place and do not jump.
+  const raw = new Map(positions);
+  // A move takes this long. It is a little under the time between two answers of the worker.
+  const MOVE_MS = 400;
+  let moveStart = 0;
+  let moveFrame = 0;
+  const stepMove = (now: number): void => {
+    const share = Math.max(0, Math.min(1, (now - moveStart) / MOVE_MS));
+    // Ease out: the nodes are fast at the start and settle at the end.
+    morph.progress = 1 - (1 - share) ** 3;
+    sigma.scheduleRender();
+    moveFrame = share < 1 ? requestAnimationFrame(stepMove) : 0;
+  };
+  const layoutWorker = new Worker(new URL('./layout-worker.ts', import.meta.url), {
+    type: 'module',
+  });
+  const liveLayout = createLiveLayout(
+    raw,
+    { cx: frameX, cy: frameY, span: frameSpan },
+    (places) => {
+      // Each node that moves starts from the place where it is drawn now, which can be on the way
+      // of an earlier move. The card does the move, so a frame of it is as cheap as a pan.
+      const next = new Map<string, { fromX: number; fromY: number }>();
+      for (const node of places.keys()) {
+        const now = sigma.getNodeDisplayData(node);
+        if (now === undefined) continue;
+        const from = moves.get(node);
+        next.set(node, {
+          fromX: from === undefined ? now.x : from.fromX + (now.x - from.fromX) * morph.progress,
+          fromY: from === undefined ? now.y : from.fromY + (now.y - from.fromY) * morph.progress,
+        });
+      }
+      moves.clear();
+      for (const [node, from] of next) moves.set(node, from);
+      // One event for all the nodes: an event for each node would wake Sigma 6000 times. The
+      // event schedules the draw, so no refresh follows: a second one would run the work twice.
+      model.graph.updateEachNodeAttributes((node, attrs) => {
+        const at = places.get(node);
+        return at === undefined ? attrs : Object.assign(attrs, at);
+      });
+      morph.progress = 0;
+      moveStart = performance.now();
+      if (moveFrame === 0) moveFrame = requestAnimationFrame(stepMove);
+    },
+    layoutWorker,
+  );
+  const sectorOf = (index: number, count: number, node: string): { x: number; y: number } => {
+    // A fixed spread inside the sector of the type, from the characters of the identifier.
+    let hash = 7;
+    for (let at = 0; at < node.length; at += 1)
+      hash = (hash * 31 + node.charCodeAt(at)) % 1_000_003;
+    const along = (hash % 1000) / 1000;
+    const out = ((hash >> 3) % 1000) / 1000;
+    const angle = ((index + 0.1 + 0.8 * along) / Math.max(count, 1)) * 2 * Math.PI;
+    const radius = 0.3 + 0.7 * Math.sqrt(out);
+    return { x: radius * Math.cos(angle), y: radius * Math.sin(angle) };
+  };
+  const reseedByType = (): void => {
+    const kinds = [...new Set(model.graph.mapNodes((_node, a) => a.entityType))].sort();
+    model.graph.forEachNode((node, attrs) => {
+      raw.set(node, sectorOf(kinds.indexOf(attrs.entityType), kinds.length, node));
+    });
+  };
+  const relayout = (): void => {
+    const input = layoutInput(
+      model.graph,
+      (node) => passesFilter(model.graph.getNodeAttributes(node)),
+      hiddenRelations,
+      variant.weights,
+    );
+    // The size of a node is its share of the strongest node in view, so a variant reads weight.
+    let strongest = 0;
+    for (const value of input.strength.values()) strongest = Math.max(strongest, value);
+    // A crowd shrinks every node, so 5000 nodes do not cover one another.
+    // 1500 nodes is the count where the largest glyph still leaves room for its neighbours.
+    const crowd = Math.min(1, Math.sqrt(1500 / Math.max(1, input.nodes.length)));
+    const sized = (share: number): number => Math.max(3, variant.sizeOf(share) * crowd);
+    const sizes = new Map<string, number>();
+    for (const node of input.nodes) {
+      const share = strongest === 0 ? 0 : (input.strength.get(node) ?? 0) / strongest;
+      sizes.set(node, sized(share));
+    }
+    for (const node of input.rest) sizes.set(node, sized(0));
+    model.graph.updateEachNodeAttributes((node, attrs) => {
+      const size = sizes.get(node);
+      return size === undefined ? attrs : Object.assign(attrs, { size });
+    });
+    liveLayout.run(input, variant.forces);
+  };
+  relayout();
 
   // Sigma registers no observer of its own: it measures the container in the constructor and
   // never again. A canvas of the wrong size draws correctly and warns about nothing. The sizes
@@ -1026,6 +1136,7 @@ export function mountGraph(
         filter = { hiddenTypes: [...next.hiddenTypes] };
         hidden = new Set(filter.hiddenTypes);
         patchGraphWorkspace({ hiddenTypes: filter.hiddenTypes });
+        relayout();
       }
       // **A filter that excludes the selection drops the selection.**
       settle(acceptable(selection));
@@ -1037,13 +1148,22 @@ export function mountGraph(
       relationFilter = { hiddenRelationTypes: [...next.hiddenRelationTypes] };
       hiddenRelations = new Set(relationFilter.hiddenRelationTypes);
       patchGraphWorkspace({ hiddenRelationTypes: relationFilter.hiddenRelationTypes });
+      relayout();
       // A selected relation of a type that is now off is dropped, as the filter drops a node.
       settle(acceptable(selection));
+    },
+    setVariant: (id) => {
+      if (destroyed || id === variant.id) return;
+      variant = variantOf(id);
+      if (variant.seedByType) reseedByType();
+      relayout();
+      publish();
     },
     setShowUnplaced: (show) => {
       if (destroyed || show === showUnplaced) return;
       showUnplaced = show;
       patchGraphWorkspace({ showUnplaced });
+      relayout();
       settle(acceptable(selection));
     },
     setRailOpen: (open) => {
@@ -1097,6 +1217,10 @@ export function mountGraph(
       return () => selectListeners.delete(listener);
     },
     destroy: () => {
+      liveLayout.destroy();
+      cancelAnimationFrame(moveFrame);
+      morph.progress = 1;
+      layoutWorker.terminate();
       if (destroyed) return;
       // A camera that waits for the trailing store is the camera of the analyst. It is written
       // before the instance dies, and never after it.

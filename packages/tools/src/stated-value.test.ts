@@ -50,6 +50,23 @@ test.each([
 });
 
 test.each([
+  ['OFAC action of 14 August 2025', 'The OFAC action of August 14, 2025 lists it.'],
+  ['OFAC action of August 14, 2025', 'OFAC action of 14 August 2025'],
+  ['OFAC action of 14 August 2025', 'OFAC action of August 14 2025'],
+  ['OFAC action of August 14 2025', 'OFAC action of 14 August, 2025'],
+])('the value %j and the passage %j state the same day', (value, passage) => {
+  expect(unstatedValues(entityWith(value, value), [passage])).toStrictEqual([]);
+});
+
+test.each(['August 15, 2025', '14 September 2025', 'August 14, 2024'])(
+  'a label with the day 14 August 2025 is not stated by %j',
+  (written) => {
+    const label = 'OFAC action of 14 August 2025';
+    expect(unstatedValues(entityWith(label, label), [`OFAC action of ${written}`])).toHaveLength(2);
+  },
+);
+
+test.each([
   ['Listed on 03/04/2024.', '2024-04-03'],
   ['Listed on 03/04/2024.', '2024-03-04'],
   ['On 12 March 2024 the tanker left.', '2024-03-13'],
@@ -967,4 +984,43 @@ test('"yesterday" crosses the end of a month and of a year', () => {
       publishedOn: '2025-01-01',
     }),
   ).toStrictEqual([]);
+});
+
+test('a number that ends a passage never joins the number that starts the next passage', () => {
+  expect(unstatedValues(entityWith('Si He', 243.8), ['Si He 59172', '243.8'])).toStrictEqual([]);
+});
+
+const figureOf = (value: number) =>
+  writeRequest.parse({
+    op: 'create_observation',
+    measure: 'urals_price',
+    value,
+    unit: 'USD per barrel',
+    period: '2024-03',
+    reporter: 'RU',
+    method: 'average of the month',
+    publisher: 'Ministry of Finance of Russia',
+  });
+
+// ADR 0031: the page writes the value with a comma or a point for the decimals, and with spaces
+// between the groups of digits.
+test.each([
+  [46.82, 'Средняя цена нефти Urals составила 46,82 долл. США за баррель.'],
+  [46.82, 'The average Urals price was $46.82 per barrel.'],
+  // The three rows differ only in the space between the groups: U+0020, U+00A0 and U+202F.
+  [1234.5, 'Доход составил 1 234,5 млрд рублей.'],
+  [1234.5, `Доход составил 1${String.fromCodePoint(0xa0)}234,5 млрд рублей.`],
+  [1234.5, `Доход составил 1${String.fromCodePoint(0x202f)}234,5 млрд рублей.`],
+  [1234567, 'Revenue: 1 234 567 roubles.'],
+])('the passage states the figure %d', (value, passage) => {
+  expect(unstatedValues(figureOf(value), [passage])).toStrictEqual([]);
+});
+
+test.each([
+  [46.82, 'Средняя цена нефти Urals составила 46,28 долл. США за баррель.'],
+  [1234.5, 'Доход составил 1234 млрд рублей.'],
+  // A comma before three digits has two readings, so it states no value.
+  [1.234, 'The index was 1,234.'],
+])('the passage does not state the figure %d', (value, passage) => {
+  expect(unstatedValues(figureOf(value), [passage])).toStrictEqual([{ name: 'value', value }]);
 });

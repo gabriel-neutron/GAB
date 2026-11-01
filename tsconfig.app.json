@@ -10,8 +10,8 @@
     "module": "preserve",
 
     // `vite/client` declares the asset modules that Vite resolves, such as the stylesheet that
-    // `main.tsx` imports for its side effect.
-    "types": ["vite/client"],
+    // `main.tsx` imports for its side effect. `node` types the test files under `src/`.
+    "types": ["vite/client", "node"],
     "baseUrl": ".",
     "paths": { "@/*": ["./src/*"] },
 

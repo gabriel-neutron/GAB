@@ -1,0 +1,3453 @@
+:where(.report-page) * {
+  box-sizing: border-box;
+}
+.report-page {
+  scroll-behavior: auto;
+  scroll-padding-top: 32px;
+  background: var(--background);
+  color: var(--foreground);
+}
+.report-page {
+  margin: 0;
+  font-family: Geist, sans-serif;
+  font-size: 18px;
+  line-height: 1.5;
+  font-weight: 400;
+}
+:where(.report-page) button,
+:where(.report-page) a {
+  -webkit-tap-highlight-color: transparent;
+}
+:where(.report-page) button,
+:where(.report-page) input {
+  font: inherit;
+}
+:where(.report-page) button {
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+:where(.report-page) a {
+  color: inherit;
+  text-underline-offset: 5px;
+}
+:where(.report-page) a:hover {
+  text-decoration-thickness: 2px;
+}
+:where(.report-page) button:hover {
+  background: var(--surface-secondary);
+}
+:where(.report-page) :focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+}
+:where(.report-page) h1,
+:where(.report-page) h2,
+:where(.report-page) h3,
+:where(.report-page) p,
+:where(.report-page) figure {
+  margin: 0;
+}
+:where(.report-page) h1,
+:where(.report-page) h2,
+:where(.report-page) h3 {
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+:where(.report-page) h1 {
+  font-size: 72px;
+  letter-spacing: -2.88px;
+}
+:where(.report-page) h2 {
+  font-size: 44px;
+}
+:where(.report-page) h3 {
+  font-size: 28px;
+}
+:where(.report-page) p + p {
+  margin-top: 24px;
+}
+:where(.report-page) p {
+  max-width: 65ch;
+}
+:where(.report-page) button,
+:where(.report-page) a {
+  touch-action: manipulation;
+}
+:where(.report-page) img {
+  display: block;
+  max-width: 100%;
+}
+:where(.report-page) button {
+  min-height: 44px;
+}
+:where(.report-page) section[id],
+:where(.report-page) details[id] {
+  scroll-margin-top: 32px;
+}
+:where(.report-page) .report-document {
+  max-width: 1200px;
+  margin: auto;
+}
+:where(.report-page) .app {
+  background: var(--background);
+  color: var(--foreground);
+  min-height: 100vh;
+}
+:where(.report-page) .meta,
+:where(.report-page) .data,
+:where(.report-page) .unit,
+:where(.report-page) .wordmark,
+:where(.report-page) .chart-axis {
+  font-family: 'Geist Mono', monospace;
+  font-weight: 400;
+  font-size: 12px;
+  letter-spacing: -0.02em;
+}
+:where(.report-page) .meta {
+  color: var(--label);
+  text-transform: uppercase;
+  line-height: 1.5;
+}
+:where(.report-page) .data,
+:where(.report-page) .unit,
+:where(.report-page) .chart-axis {
+  font-variant-numeric: tabular-nums;
+}
+:where(.report-page) .site-header {
+  max-width: 1264px;
+  margin: auto;
+  min-height: 80px;
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+:where(.report-page) .wordmark {
+  font-size: 16px;
+  text-decoration: none;
+}
+:where(.report-page) .wordmark span {
+  color: var(--label);
+  font-size: 12px;
+}
+:where(.report-page) .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  font-size: 14px;
+}
+:where(.report-page) .header-actions a {
+  text-decoration: none;
+}
+:where(.report-page) .theme-button {
+  font-size: 14px;
+  padding: 8px 0 8px 16px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+:where(.report-page) .skip-link {
+  position: fixed;
+  left: 16px;
+  top: -100px;
+  z-index: 100;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 12px;
+}
+:where(.report-page) .skip-link:focus {
+  top: 12px;
+}
+:where(.report-page) .primary {
+  display: inline-flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 40px;
+  min-height: 48px;
+  padding: 12px 20px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: 3px;
+  text-decoration: none;
+  font-size: 14px;
+}
+:where(.report-page) .primary:hover {
+  background: var(--figure);
+  text-decoration: none;
+}
+:where(.report-page) .subtitle {
+  font-size: 24px;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  margin-top: 24px;
+}
+:where(.report-page) .section {
+  margin-top: 120px;
+}
+:where(.report-page) .lead {
+  font-size: 24px;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+}
+:where(.report-page) .summary-copy h2 {
+  margin-bottom: 32px;
+}
+:where(.report-page) .summary-copy .lead + p {
+  margin-top: 32px;
+}
+:where(.report-page) .section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 32px;
+  margin-bottom: 48px;
+}
+:where(.report-page) .chapter-word {
+  font-size: 24px;
+  color: var(--label);
+}
+:where(.report-page) .section-heading h2 {
+  width: 58%;
+}
+:where(.report-page) .split {
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  gap: 0;
+}
+:where(.report-page) .prose {
+  max-width: 64ch;
+}
+:where(.report-page) .source-link {
+  display: inline-block;
+  font-size: 14px;
+  margin-top: 24px;
+}
+:where(.report-page) .reading-nav a {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 0;
+  max-width: 320px;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  font-size: 16px;
+}
+:where(.report-page) .reading-nav .meta {
+  margin-bottom: 16px;
+}
+:where(.report-page) .context-image {
+  width: 100%;
+}
+:where(.report-page) .image-stage {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  aspect-ratio: 1.65;
+}
+:where(.report-page) .image-stage img,
+:where(.report-page) .image-stage canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 65%;
+}
+:where(.report-page) .image-stage canvas {
+  position: absolute;
+  inset: 0;
+  image-rendering: auto;
+}
+:where(.report-page) .mono-photo {
+  filter: grayscale(1);
+}
+:where(.report-page) .context-image figcaption {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-top: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--label);
+}
+:where(.report-page) .context-image figcaption a {
+  text-decoration: none;
+}
+:where(.report-page) .image-switch {
+  display: flex;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+:where(.report-page) .image-switch button {
+  padding: 4px 12px;
+  border-bottom: 2px solid transparent;
+}
+:where(.report-page) .image-switch button[aria-pressed='true'] {
+  border-color: var(--foreground);
+  color: var(--foreground);
+}
+:where(.report-page) .compact .image-stage {
+  aspect-ratio: 3.3;
+}
+:where(.report-page) .cover-top {
+  display: flex;
+  justify-content: space-between;
+  margin: 32px 0 16px;
+}
+:where(.report-page) .cover-grid {
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  padding-top: 32px;
+  gap: 0;
+}
+:where(.report-page) .cover-deck {
+  max-width: 32ch;
+  font-size: 18px;
+  padding-right: 32px;
+}
+:where(.report-page) .cover-grid .primary {
+  margin-top: 32px;
+}
+:where(.report-page) .journal-overview {
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+}
+:where(.report-page) .fleet-finding {
+  max-width: 380px;
+  padding-right: 48px;
+}
+:where(.report-page) .finding-value {
+  font-size: 120px;
+  line-height: 0.95;
+  letter-spacing: -0.065em;
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+:where(.report-page) .finding-value > span {
+  font-size: 48px;
+  letter-spacing: -0.04em;
+}
+:where(.report-page) .fleet-finding p {
+  font-size: 24px;
+  line-height: 1.25;
+  margin-top: 24px;
+  letter-spacing: -0.02em;
+}
+:where(.report-page) .fleet-finding .meta {
+  display: block;
+  margin-top: 24px;
+}
+:where(.report-page) .journal-sea .flow-chart {
+  margin-top: 64px;
+  padding: 48px;
+  background: var(--surface);
+}
+:where(.report-page) .flow-chart h3 {
+  margin-bottom: 12px;
+}
+:where(.report-page) .chart-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-top: 32px;
+  margin-bottom: 24px;
+}
+:where(.report-page) .segmented {
+  display: flex;
+  gap: 4px;
+  background: var(--background);
+  padding: 4px;
+  border-radius: 3px;
+  max-width: max-content;
+}
+:where(.report-page) .segmented button {
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 3px;
+}
+:where(.report-page) .segmented button[aria-pressed='true'] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+:where(.report-page) .chart-axis {
+  display: flex;
+  justify-content: space-between;
+  color: var(--label);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  margin-bottom: 24px;
+}
+:where(.report-page) .bar-row + .bar-row {
+  margin-top: 20px;
+}
+:where(.report-page) .bar-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+:where(.report-page) .bar-label .data {
+  font-size: 14px;
+}
+:where(.report-page) .bar-track {
+  height: 24px;
+  width: 100%;
+}
+:where(.report-page) .bar {
+  width: 100%;
+  height: 100%;
+  background: var(--chart-neutral);
+  transform-origin: left;
+}
+:where(.report-page) .bar.highlight {
+  background: var(--signal);
+}
+:where(.report-page) .chart-note {
+  font-size: 14px;
+  color: var(--label);
+  margin-top: 24px;
+  line-height: 1.5;
+}
+:where(.report-page) .flow-chart details {
+  margin-top: 24px;
+}
+:where(.report-page) details {
+  font-size: 14px;
+  border-top: 1px solid var(--border);
+  padding: 16px 0;
+}
+:where(.report-page) summary {
+  cursor: pointer;
+  min-height: 32px;
+  padding: 4px 0;
+}
+:where(.report-page) details p {
+  margin-top: 16px;
+}
+:where(.report-page) table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 24px;
+  font-size: 14px;
+}
+:where(.report-page) caption {
+  text-align: left;
+  margin-bottom: 12px;
+  color: var(--label);
+}
+:where(.report-page) td,
+:where(.report-page) th {
+  font-weight: 400;
+  padding: 10px 0;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+:where(.report-page) th:first-child {
+  text-align: left;
+}
+:where(.report-page) table td {
+  font-family: 'Geist Mono', monospace;
+}
+:where(.report-page) .margin-statement {
+  font-size: 32px;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  max-width: 11ch;
+  margin-bottom: 24px;
+}
+:where(.report-page) .entity {
+  white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-color: var(--entity-company);
+}
+:where(.report-page) .entity svg {
+  width: 14px;
+  height: 14px;
+  margin-right: 5px;
+  fill: var(--entity-company);
+}
+:where(.report-page) .cap-sequence {
+  margin-top: 64px;
+}
+:where(.report-page) .cap-sequence h3 {
+  margin-bottom: 12px;
+}
+:where(.report-page) .cap-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 32px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+:where(.report-page) .cap-steps button {
+  padding: 24px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-right: 1px solid var(--border);
+}
+:where(.report-page) .cap-steps button:last-child {
+  border-right: 0;
+}
+:where(.report-page) .cap-steps button[aria-pressed='true'] {
+  background: var(--figure);
+  color: var(--on-figure);
+}
+:where(.report-page) .cap-value {
+  font-size: 44px;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+:where(.report-page) .cap-detail {
+  font-size: 16px;
+  margin-top: 20px;
+}
+:where(.report-page) .limits,
+:where(.report-page) .sources {
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  gap: 0;
+}
+:where(.report-page) .limits h2,
+:where(.report-page) .sources h2 {
+  padding-right: 48px;
+}
+:where(.report-page) .limits .lead {
+  margin-bottom: 32px;
+}
+:where(.report-page) .sources {
+  padding-top: 48px;
+  border-top: 1px solid var(--border);
+  font-size: 16px;
+}
+:where(.report-page) .sources details {
+  margin-top: 24px;
+}
+:where(.report-page) .sources ol {
+  padding-left: 20px;
+}
+:where(.report-page) .sources li + li {
+  margin-top: 16px;
+}
+:where(.report-page) .image-credit {
+  font-size: 13px;
+  color: var(--label);
+}
+:where(.report-page) footer {
+  max-width: 1200px;
+  margin: 96px auto 0;
+  padding: 48px 0 32px;
+  display: grid;
+  grid-template-columns: 5fr 4fr 3fr;
+  align-items: end;
+  border-top: 1px solid var(--border);
+  gap: 24px;
+}
+:where(.report-page) .footer-brand {
+  font-size: 72px;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+:where(.report-page) footer p {
+  font-size: 16px;
+}
+:where(.report-page) footer > a {
+  font-size: 14px;
+  text-align: right;
+}
+:where(.report-page) .fleet-strip {
+  display: flex;
+  gap: 4px;
+  height: 16px;
+  margin-top: 40px;
+}
+:where(.report-page) .fleet-strip span:first-child {
+  background: var(--signal);
+}
+:where(.report-page) .fleet-strip span:last-child {
+  background: var(--chart-neutral);
+}
+:where(.report-page) .rail {
+  position: sticky;
+  top: 32px;
+  height: max-content;
+}
+:where(.report-page) .rail a {
+  font-size: 14px;
+}
+:where(.report-page) .evidence-spread {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 48px;
+}
+:where(.report-page) .evidence-spread .flow-chart {
+  align-self: start;
+  background: var(--surface);
+  padding: 24px;
+}
+:where(.report-page) .evidence-spread .prose {
+  font-size: 16px;
+}
+:where(.report-page) .evidence-spread .chart-toolbar {
+  display: block;
+}
+:where(.report-page) .evidence-spread .unit {
+  display: block;
+  margin-top: 16px;
+}
+:where(.report-page) .evidence-spread h3 {
+  font-size: 24px;
+}
+:where(.report-page) .price-board .cap-sequence {
+  margin-top: 0;
+}
+:where(.report-page) .price-board .prose {
+  columns: 2;
+  column-gap: 48px;
+  max-width: none;
+  margin-top: 48px;
+}
+:where(.report-page) .price-board .prose p {
+  break-inside: avoid;
+}
+:where(.report-page) .cover-year {
+  font-size: 120px;
+  letter-spacing: -0.07em;
+  line-height: 0.86;
+  color: var(--label);
+}
+:where(.report-page) .entity-dialog {
+  position: fixed;
+  inset: 0 0 0 auto;
+  max-height: 100dvh;
+  height: 100dvh;
+  width: 440px;
+  max-width: 100%;
+  margin: 0;
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--foreground);
+  padding: 0;
+}
+:where(.report-page) .entity-dialog::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+:where(.report-page) .entity-dialog-content {
+  padding: 32px;
+  font-size: 16px;
+}
+:where(.report-page) .dialog-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 64px;
+}
+:where(.report-page) .dialog-top button {
+  font-size: 14px;
+}
+:where(.report-page) .entity-dialog h2 {
+  font-size: 36px;
+  margin-top: 16px;
+  margin-bottom: 32px;
+}
+:where(.report-page) .entity-dialog h3 {
+  font-size: 24px;
+  margin: 32px 0 24px;
+}
+:where(.report-page) .entity-dialog .primary {
+  margin-top: 48px;
+  width: 100%;
+}
+:where(.report-page) dl {
+  margin: 32px 0;
+}
+:where(.report-page) dt {
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--label);
+  margin-top: 24px;
+}
+:where(.report-page) dd {
+  margin: 8px 0 0;
+}
+:where(.report-page) .company-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--entity-company);
+  margin-right: 8px;
+}
+@media (max-width: 1270px) {
+  :where(.report-page) .report-document {
+    margin-inline: 32px;
+  }
+  :where(.report-page) footer {
+    margin-inline: 32px;
+  }
+  :where(.report-page) .evidence-spread {
+    gap: 24px;
+  }
+}
+@media (max-width: 1000px) {
+  :where(.report-page) .evidence-spread {
+    grid-template-columns: 1fr;
+  }
+  :where(.report-page) .evidence-spread .prose {
+    font-size: 18px;
+  }
+  :where(.report-page) .price-board .prose {
+    columns: 1;
+  }
+  :where(.report-page) .cap-steps button {
+    padding: 20px 12px;
+  }
+  :where(.report-page) .limits h2 {
+    font-size: 36px;
+  }
+  :where(.report-page) .cover-grid h1 {
+    font-size: 60px;
+  }
+  :where(.report-page) .cover-year {
+    font-size: 96px;
+  }
+}
+@media (max-width: 700px) {
+  .report-page {
+    font-size: 18px;
+  }
+  :where(.report-page) .report-document {
+    margin-inline: 20px;
+  }
+  :where(.report-page) .site-header {
+    padding: 12px 20px;
+    min-height: 72px;
+    gap: 12px;
+  }
+  :where(.report-page) .wordmark {
+    font-size: 14px;
+  }
+  :where(.report-page) .wordmark span {
+    display: none;
+  }
+  :where(.report-page) .header-actions {
+    gap: 16px;
+    font-size: 12px;
+  }
+  :where(.report-page) .theme-button {
+    font-size: 12px;
+    padding-left: 0;
+    gap: 8px;
+  }
+  :where(.report-page) .meta {
+    font-size: 12px;
+  }
+  :where(.report-page) h1,
+  :where(.report-page) .cover-grid h1 {
+    font-size: 48px;
+    letter-spacing: -1.92px;
+  }
+  :where(.report-page) h2,
+  :where(.report-page) .limits h2 {
+    font-size: 32px;
+    letter-spacing: -1px;
+  }
+  :where(.report-page) h3 {
+    font-size: 24px;
+  }
+  :where(.report-page) .section {
+    margin-top: 80px;
+  }
+  :where(.report-page) .lead {
+    font-size: 22px;
+  }
+  :where(.report-page) .subtitle {
+    font-size: 22px;
+    margin-top: 20px;
+  }
+  :where(.report-page) .cover-top {
+    margin-top: 16px;
+  }
+  :where(.report-page) .cover-top > span {
+    display: none;
+  }
+  :where(.report-page) .compact .image-stage {
+    aspect-ratio: 1.65;
+  }
+  :where(.report-page) .context-image figcaption {
+    font-size: 11px;
+    gap: 8px;
+  }
+  :where(.report-page) .image-switch button {
+    padding: 4px 8px;
+  }
+  :where(.report-page) .cover-grid {
+    display: flex;
+    flex-direction: column-reverse;
+    padding-top: 24px;
+    gap: 24px;
+  }
+  :where(.report-page) .cover-grid .primary {
+    margin-top: 24px;
+  }
+  :where(.report-page) .cover-deck {
+    max-width: 100%;
+    padding: 0;
+    font-size: 16px;
+  }
+  :where(.report-page) .cover-grid h1 br {
+    display: block;
+  }
+  :where(.report-page) .journal-overview {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+  :where(.report-page) .reading-nav a {
+    max-width: none;
+  }
+  :where(.report-page) .summary-copy h2 {
+    margin-bottom: 24px;
+  }
+  :where(.report-page) .section-heading {
+    display: block;
+    margin-bottom: 32px;
+  }
+  :where(.report-page) .chapter-word {
+    display: block;
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+  :where(.report-page) .section-heading h2 {
+    width: 100%;
+  }
+  :where(.report-page) .split {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+  :where(.report-page) .fleet-finding {
+    padding: 0;
+    max-width: 100%;
+  }
+  :where(.report-page) .finding-value {
+    font-size: 96px;
+  }
+  :where(.report-page) .finding-value > span {
+    font-size: 40px;
+  }
+  :where(.report-page) .fleet-finding p {
+    font-size: 24px;
+    max-width: 22ch;
+  }
+  :where(.report-page) .fleet-finding .meta {
+    margin-top: 20px;
+  }
+  :where(.report-page) .journal-sea .flow-chart {
+    padding: 24px 20px;
+    margin-inline: -20px;
+    margin-top: 48px;
+  }
+  :where(.report-page) .chart-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  :where(.report-page) .chart-axis {
+    margin-top: 24px;
+  }
+  :where(.report-page) .chart-note {
+    font-size: 14px;
+  }
+  :where(.report-page) .unit {
+    font-size: 12px;
+  }
+  :where(.report-page) .bar-track {
+    height: 22px;
+  }
+  :where(.report-page) .bar-row + .bar-row {
+    margin-top: 24px;
+  }
+  :where(.report-page) .margin-statement {
+    font-size: 28px;
+    max-width: 20ch;
+  }
+  :where(.report-page) .cap-sequence {
+    margin-top: 48px;
+  }
+  :where(.report-page) .cap-steps {
+    grid-template-columns: 1fr;
+  }
+  :where(.report-page) .cap-steps button {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 16px;
+  }
+  :where(.report-page) .cap-steps button:last-child {
+    border-bottom: 0;
+  }
+  :where(.report-page) .cap-value {
+    font-size: 36px;
+  }
+  :where(.report-page) .cap-steps .data {
+    font-size: 13px;
+  }
+  :where(.report-page) .limits,
+  :where(.report-page) .sources {
+    display: block;
+  }
+  :where(.report-page) .limits h2,
+  :where(.report-page) .sources h2 {
+    padding: 0;
+    margin-bottom: 32px;
+  }
+  :where(.report-page) .limits .lead {
+    margin-bottom: 24px;
+  }
+  :where(.report-page) .sources {
+    padding-top: 32px;
+  }
+  :where(.report-page) footer {
+    margin: 64px 20px 0;
+    padding-top: 32px;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+  :where(.report-page) .footer-brand {
+    font-size: 60px;
+  }
+  :where(.report-page) footer p {
+    font-size: 14px;
+  }
+  :where(.report-page) footer > a {
+    grid-column: 1/-1;
+    text-align: left;
+  }
+  :where(.report-page) .rail {
+    position: static;
+  }
+  :where(.report-page) .evidence-spread {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+  :where(.report-page) .evidence-spread .flow-chart {
+    width: 100%;
+    padding: 24px 20px;
+  }
+  :where(.report-page) .evidence-spread .chart-toolbar {
+    display: flex;
+  }
+  :where(.report-page) .evidence-spread .unit {
+    margin-top: 0;
+  }
+  :where(.report-page) .price-board .prose {
+    margin-top: 40px;
+  }
+  :where(.report-page) .cover-year {
+    font-size: 72px;
+    line-height: 1;
+  }
+  :where(.report-page) .entity-dialog {
+    width: 100%;
+    height: 90dvh;
+    inset: auto 0 0;
+    max-width: 100%;
+    border: 0;
+    border-top: 1px solid var(--border);
+    border-radius: 10px 10px 0 0;
+  }
+  :where(.report-page) .entity-dialog-content {
+    padding: 20px;
+  }
+  :where(.report-page) .dialog-top {
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    margin-bottom: 32px;
+    padding: 8px 0;
+  }
+  :where(.report-page) .entity-dialog h2 {
+    font-size: 32px;
+  }
+}
+@media (max-width: 360px) {
+  :where(.report-page) .report-document {
+    margin-inline: 16px;
+  }
+  :where(.report-page) .site-header {
+    padding-inline: 16px;
+  }
+  :where(.report-page) .header-actions {
+    gap: 12px;
+  }
+  :where(.report-page) h1,
+  :where(.report-page) .cover-grid h1 {
+    font-size: 42px;
+  }
+  :where(.report-page) .context-image figcaption {
+    flex-direction: column;
+  }
+  :where(.report-page) .image-switch {
+    align-self: flex-end;
+  }
+  :where(.report-page) .journal-sea .flow-chart {
+    margin-inline: -16px;
+  }
+  :where(.report-page) .segmented button {
+    padding-inline: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .report-page {
+    scroll-behavior: auto;
+  }
+  :where(.report-page) *,
+  :where(.report-page) *::before,
+  :where(.report-page) *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+@media print {
+  :where(.report-page) .site-header,
+  :where(.report-page) .image-switch,
+  :where(.report-page) .segmented,
+  :where(.report-page) .primary,
+  :where(.report-page) .reading-nav,
+  :where(.report-page) footer,
+  :where(.report-page) .entity-dialog {
+    display: none !important;
+  }
+  :where(.report-page) .app {
+    --background: #fff;
+    --foreground: #101010;
+    --surface: #eee;
+    --label: #444;
+    color: #101010;
+    background: #fff;
+  }
+  :where(.report-page) .report-document {
+    max-width: none;
+    margin: 0;
+  }
+  :where(.report-page) .section {
+    margin-top: 40px;
+  }
+  :where(.report-page) details {
+    display: block;
+  }
+  :where(.report-page) h1 {
+    font-size: 44px;
+  }
+  :where(.report-page) .context-image {
+    break-inside: avoid;
+  }
+  :where(.report-page) .bar {
+    print-color-adjust: exact;
+  }
+}
+
+:where(.report-page) details:not([open]) > :not(summary) {
+  display: none;
+}
+:where(.report-page) .journal-overview > .reading-nav {
+  padding-right: 40px;
+}
+:where(.report-page) .fleet-waffle {
+  display: grid;
+  grid-template-columns: repeat(20, 1fr);
+  gap: 5px;
+  margin-top: 32px;
+}
+:where(.report-page) .fleet-waffle span {
+  aspect-ratio: 1;
+  background: var(--chart-neutral);
+}
+:where(.report-page) .fleet-waffle .marked {
+  background: var(--signal);
+}
+@media (max-width: 700px) {
+  :where(.report-page) .journal-overview > .reading-nav {
+    padding-right: 0;
+  }
+  :where(.report-page) .fleet-waffle {
+    grid-template-columns: repeat(20, 1fr);
+    gap: 4px;
+  }
+}
+:where(.report-page) .research-treatment > p,
+:where(.report-page) .research-board > .section > p {
+  margin-top: 32px;
+}
+:where(.report-page) .research-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-top: 40px;
+}
+:where(.report-page) .research-pair .image-stage {
+  aspect-ratio: 1.65;
+}
+:where(.report-page) .research-references {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  margin-top: 40px;
+}
+:where(.report-page) .research-references h3 {
+  font-size: 24px;
+  margin-bottom: 24px;
+}
+:where(.report-page) .research-references p {
+  font-size: 16px;
+}
+:where(.report-page) .research-board table {
+  margin-top: 40px;
+  font-family: Geist, sans-serif;
+}
+:where(.report-page) .research-board td {
+  font-family: Geist, sans-serif;
+}
+:where(.report-page) .research-back {
+  margin-top: 64px;
+}
+@media (max-width: 700px) {
+  :where(.report-page) .research-pair,
+  :where(.report-page) .research-references {
+    grid-template-columns: 1fr;
+  }
+  :where(.report-page) .research-board table {
+    font-size: 12px;
+  }
+  :where(.report-page) .research-board td,
+  :where(.report-page) .research-board th {
+    padding: 8px 4px;
+  }
+}
+/* Journal, second study: the investigation as an editorial worktable. */
+.report-page {
+  scroll-padding-top: 88px;
+}
+:where(.report-page) section[id],
+:where(.report-page) details[id] {
+  scroll-margin-top: 88px;
+}
+:where(.report-page) .journal .report-document {
+  max-width: 1200px;
+}
+:where(.report-page) .journal .section {
+  margin-top: 88px;
+}
+:where(.report-page) .compact-index {
+  position: sticky;
+  top: 12px;
+  z-index: 20;
+  background: var(--background);
+  border: 1px solid var(--border);
+  width: 320px;
+  padding: 0;
+  margin: 0 0 -48px auto;
+  font-size: 14px;
+}
+:where(.report-page) .compact-index summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  min-height: 44px;
+  list-style: none;
+}
+:where(.report-page) .compact-index summary::-webkit-details-marker {
+  display: none;
+}
+:where(.report-page) .index-current {
+  color: var(--label);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:where(.report-page) .index-toggle {
+  margin-left: auto;
+}
+:where(.report-page) .compact-index[open] .index-toggle {
+  transform: rotate(45deg);
+}
+:where(.report-page) .compact-index nav {
+  padding: 8px 16px 16px;
+}
+:where(.report-page) .compact-index nav a {
+  display: grid;
+  grid-template-columns: 24px 1fr 16px;
+  gap: 12px;
+  padding: 10px 0;
+  text-decoration: none;
+  border-top: 1px solid var(--border);
+}
+:where(.report-page) .compact-index nav a[aria-current] {
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+:where(.report-page) .compact-index nav a .data {
+  color: var(--label);
+}
+:where(.report-page) .journal-cover {
+  padding-top: 72px;
+}
+:where(.report-page) .journal-cover .cover-top {
+  margin: 0 0 32px;
+}
+:where(.report-page) .journal-cover h1 {
+  font-size: 72px;
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+  max-width: none;
+}
+:where(.report-page) .journal-cover h1 span {
+  padding-left: 16.666%;
+}
+:where(.report-page) .cover-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  margin: 24px 0 32px;
+  gap: 24px;
+}
+:where(.report-page) .cover-line .subtitle {
+  margin: 0;
+}
+:where(.report-page) .contact-sheet {
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+:where(.report-page) .contact-main .image-stage {
+  aspect-ratio: 2.35;
+}
+:where(.report-page) .contact-detail > div {
+  aspect-ratio: 0.79;
+  overflow: hidden;
+  background: var(--surface);
+}
+:where(.report-page) .contact-detail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 76% 50%;
+  filter: grayscale(1) contrast(1.45);
+}
+:where(.report-page) .contact-detail figcaption {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  gap: 4px;
+  padding-top: 12px;
+  color: var(--label);
+}
+:where(.report-page) .contact-detail a {
+  text-decoration: none;
+}
+:where(.report-page) .cover-caption {
+  font-size: 16px;
+  max-width: 62ch;
+  margin-top: 24px !important;
+}
+:where(.report-page) .journal-overview {
+  display: block !important;
+  border-top: 1px solid var(--border);
+  padding-top: 24px;
+}
+:where(.report-page) .journal-overview h2 {
+  font-size: 44px;
+  margin: 24px 0 32px;
+}
+:where(.report-page) .overview-columns {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 64px;
+}
+:where(.report-page) .overview-columns .lead {
+  font-size: 24px;
+}
+:where(.report-page) .overview-columns > p + p {
+  margin: 0;
+  font-size: 16px;
+}
+:where(.report-page) .chapter-heading {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 32px;
+}
+:where(.report-page) .chapter-number {
+  font-size: 72px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: var(--label);
+}
+:where(.report-page) .chapter-heading h2 {
+  font-size: 44px;
+  margin-top: 8px;
+}
+:where(.report-page) .journal-sea > .prose {
+  columns: 2;
+  column-gap: 48px;
+  max-width: none;
+  font-size: 16px;
+}
+:where(.report-page) .journal-sea > .prose p {
+  break-inside: avoid;
+}
+:where(.report-page) .journal-sea > .prose .source-link {
+  margin-top: 16px;
+}
+:where(.report-page) .figure-diptych {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 40px;
+  gap: 32px;
+  align-items: start;
+}
+:where(.report-page) .journal-sea .flow-chart {
+  margin: 0;
+  padding: 32px;
+  background: var(--surface);
+}
+:where(.report-page) .figure-diptych .chart-toolbar {
+  display: block;
+  margin-top: 24px;
+}
+:where(.report-page) .figure-diptych .unit {
+  display: block;
+  margin-top: 12px;
+}
+:where(.report-page) .fleet-plate {
+  padding: 32px 0 24px 8px;
+}
+:where(.report-page) .fleet-plate h3 {
+  margin-bottom: 12px;
+}
+:where(.report-page) .fleet-total {
+  display: flex;
+  align-items: end;
+  gap: 24px;
+  margin: 28px 0;
+}
+:where(.report-page) .fleet-total > span {
+  font-size: 96px;
+  letter-spacing: -0.07em;
+  line-height: 0.9;
+}
+:where(.report-page) .fleet-total > span > span {
+  font-size: 36px;
+  letter-spacing: -0.04em;
+}
+:where(.report-page) .fleet-total p {
+  font-size: 16px;
+  max-width: 23ch;
+}
+:where(.report-page) .cell-field {
+  display: grid;
+  grid-template-columns: repeat(20, 1fr);
+  gap: 5px;
+  margin-bottom: 24px;
+}
+:where(.report-page) .cell-field span {
+  aspect-ratio: 1;
+  background: var(--chart-neutral);
+}
+:where(.report-page) .cell-field .filled {
+  background: var(--signal);
+}
+:where(.report-page) .fleet-explanation {
+  font-size: 14px;
+  color: var(--label);
+  margin-top: 20px;
+  min-height: 84px;
+}
+:where(.report-page) .image-interlude {
+  margin-top: 88px;
+}
+:where(.report-page) .interlude-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 32px;
+  margin-bottom: 24px;
+}
+:where(.report-page) .interlude-title h2 {
+  font-size: 28px;
+}
+:where(.report-page) .interlude-title p {
+  font-size: 16px;
+  max-width: 35ch;
+}
+:where(.report-page) .image-interlude .image-stage {
+  aspect-ratio: 3.4;
+}
+:where(.report-page) .image-interlude .chart-note {
+  margin-top: 12px;
+  font-size: 12px;
+}
+:where(.report-page) .price-spread {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+:where(.report-page) .price-spread .prose {
+  font-size: 16px;
+}
+:where(.report-page) .cap-sequence {
+  margin-top: 0;
+  position: sticky;
+  top: 88px;
+  background: var(--surface);
+  padding: 32px;
+}
+:where(.report-page) .cap-instrument {
+  margin-top: 32px;
+}
+:where(.report-page) .cap-readout {
+  font-size: 72px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+:where(.report-page) .cap-readout span {
+  font-size: 14px;
+  letter-spacing: 0;
+  color: var(--label);
+  margin-left: 16px;
+}
+:where(.report-page) .cap-instrument svg {
+  width: 100%;
+  height: auto;
+  margin-top: 0;
+  font-family: 'Geist Mono', monospace;
+}
+:where(.report-page) .cap-steps {
+  margin-top: 0;
+}
+:where(.report-page) .cap-steps button {
+  padding: 12px 8px;
+  gap: 12px;
+}
+:where(.report-page) .cap-steps .data {
+  font-size: 11px;
+}
+:where(.report-page) .cap-value {
+  font-size: 24px;
+}
+:where(.report-page) .cap-detail {
+  min-height: 72px;
+  font-size: 14px;
+}
+:where(.report-page) .cap-sequence .chart-note {
+  font-size: 13px;
+}
+:where(.report-page) .source-plate {
+  margin-top: 32px;
+  border: 0;
+  background: var(--surface-secondary);
+  padding: 0;
+}
+:where(.report-page) .source-plate summary {
+  display: block;
+  padding: 24px;
+  list-style: none;
+}
+:where(.report-page) .source-title {
+  display: flex;
+  justify-content: space-between;
+  font-size: 24px;
+  margin: 12px 0 24px;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+:where(.report-page) .source-plate summary img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  object-position: 50% 21%;
+  filter: grayscale(1);
+}
+:where(.report-page) .source-unfold {
+  padding: 0 24px 24px;
+}
+:where(.report-page) .source-unfold p {
+  margin: 0 0 16px;
+}
+:where(.report-page) .source-unfold > img {
+  margin-top: 24px;
+  width: 100%;
+}
+:where(.report-page) .source-plate[open] summary > img {
+  display: none;
+}
+:where(.report-page) .journal .limits {
+  display: block;
+  border-top: 1px solid var(--border);
+  padding-top: 32px;
+}
+:where(.report-page) .journal .limits h2 {
+  font-size: 36px;
+  margin-bottom: 24px;
+  padding: 0;
+}
+:where(.report-page) .journal .limits > div {
+  columns: 2;
+  column-gap: 48px;
+}
+:where(.report-page) .journal .limits p {
+  font-size: 16px;
+  break-inside: avoid;
+}
+:where(.report-page) .journal .limits .lead {
+  font-size: 24px;
+  margin-bottom: 24px;
+}
+:where(.report-page) .journal .sources {
+  display: block;
+  padding-top: 32px;
+}
+:where(.report-page) .journal .sources h2 {
+  font-size: 28px;
+  margin-bottom: 24px;
+  padding: 0;
+}
+:where(.report-page) .journal .sources > div {
+  max-width: none;
+}
+:where(.report-page) .journal .sources ol {
+  columns: 2;
+  column-gap: 48px;
+}
+:where(.report-page) .journal .sources li {
+  break-inside: avoid;
+}
+:where(.report-page) button,
+:where(.report-page) a,
+:where(.report-page) summary {
+  transition:
+    background-color 150ms,
+    color 150ms,
+    border-color 150ms;
+}
+:where(.report-page) .context-image canvas {
+  animation: plate-develop 200ms ease-out;
+}
+@keyframes plate-develop {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (min-width: 1000px) {
+  :where(.report-page) .journal-cover h1 {
+    font-size: 72px;
+  }
+  :where(.report-page) .contact-main .image-stage {
+    aspect-ratio: 2.35;
+  }
+}
+@media (max-width: 900px) {
+  :where(.report-page) .price-spread {
+    gap: 32px;
+  }
+  :where(.report-page) .figure-diptych {
+    gap: 24px;
+  }
+  :where(.report-page) .journal-sea .flow-chart,
+  :where(.report-page) .cap-sequence {
+    padding: 24px;
+  }
+  :where(.report-page) .fleet-plate {
+    padding: 24px 0;
+  }
+  :where(.report-page) .fleet-total {
+    display: block;
+  }
+  :where(.report-page) .fleet-total p {
+    margin-top: 20px;
+  }
+  :where(.report-page) .cap-steps {
+    grid-template-columns: 1fr;
+  }
+  :where(.report-page) .cap-steps button {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  :where(.report-page) .overview-columns {
+    gap: 32px;
+  }
+  :where(.report-page) .contact-sheet {
+    grid-template-columns: 3fr 1fr;
+  }
+  :where(.report-page) .contact-main .image-stage {
+    aspect-ratio: 1.8;
+  }
+  :where(.report-page) .contact-detail > div {
+    aspect-ratio: 0.61;
+  }
+  :where(.report-page) .context-image figcaption {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+@media (max-width: 650px) {
+  :where(.report-page) .journal .report-document {
+    margin-inline: 20px;
+  }
+  :where(.report-page) .site-header {
+    padding: 12px 20px;
+    min-height: 64px;
+  }
+  :where(.report-page) .header-actions {
+    gap: 16px;
+  }
+  :where(.report-page) .header-actions a {
+    font-size: 12px;
+  }
+  :where(.report-page) .wordmark span {
+    display: none;
+  }
+  :where(.report-page) .compact-index {
+    width: 100%;
+    top: 8px;
+    margin: 0;
+  }
+  :where(.report-page) .compact-index summary {
+    padding: 8px 12px;
+  }
+  :where(.report-page) .compact-index nav {
+    padding-inline: 12px;
+  }
+  :where(.report-page) .journal-cover {
+    padding-top: 32px;
+  }
+  :where(.report-page) .journal-cover .cover-top {
+    margin-bottom: 24px;
+  }
+  :where(.report-page) .cover-top > span {
+    display: none;
+  }
+  :where(.report-page) .journal-cover h1 {
+    font-size: 48px;
+    line-height: 1.02;
+    letter-spacing: -0.045em;
+  }
+  :where(.report-page) .journal-cover h1 span {
+    padding-left: 0;
+  }
+  :where(.report-page) .cover-line {
+    display: block;
+    margin: 20px 0 24px;
+  }
+  :where(.report-page) .cover-line .subtitle {
+    font-size: 24px;
+    max-width: 20ch;
+  }
+  :where(.report-page) .cover-line .primary {
+    margin-top: 24px;
+  }
+  :where(.report-page) .contact-sheet {
+    gap: 8px;
+    grid-template-columns: 1fr 80px;
+  }
+  :where(.report-page) .contact-main .image-stage {
+    aspect-ratio: 1.05;
+  }
+  :where(.report-page) .contact-detail > div {
+    aspect-ratio: 0.33;
+  }
+  :where(.report-page) .contact-main figcaption {
+    width: calc(100% + 88px);
+    font-size: 11px;
+  }
+  :where(.report-page) .contact-detail figcaption {
+    display: none;
+  }
+  :where(.report-page) .image-switch button {
+    padding: 4px 12px;
+  }
+  :where(.report-page) .cover-caption {
+    margin-top: 16px !important;
+    font-size: 16px;
+  }
+  :where(.report-page) .journal .section,
+  :where(.report-page) .image-interlude {
+    margin-top: 64px;
+  }
+  :where(.report-page) .journal-overview h2 {
+    font-size: 32px;
+    margin: 20px 0 24px;
+  }
+  :where(.report-page) .overview-columns {
+    display: block;
+  }
+  :where(.report-page) .overview-columns .lead {
+    font-size: 22px;
+  }
+  :where(.report-page) .overview-columns > p + p {
+    margin-top: 24px;
+  }
+  :where(.report-page) .chapter-heading {
+    gap: 16px;
+    margin-bottom: 24px;
+    align-items: start;
+  }
+  :where(.report-page) .chapter-number {
+    font-size: 48px;
+  }
+  :where(.report-page) .chapter-heading h2 {
+    font-size: 32px;
+  }
+  :where(.report-page) .chapter-heading .meta {
+    font-size: 11px;
+  }
+  :where(.report-page) .journal-sea > .prose {
+    columns: 1;
+    font-size: 16px;
+  }
+  :where(.report-page) .figure-diptych {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin-top: 32px;
+  }
+  :where(.report-page) .journal-sea .flow-chart {
+    padding: 24px 20px;
+  }
+  :where(.report-page) .fleet-plate {
+    padding: 24px 0 0;
+  }
+  :where(.report-page) .fleet-total {
+    display: flex;
+    gap: 20px;
+  }
+  :where(.report-page) .fleet-total > span {
+    font-size: 80px;
+  }
+  :where(.report-page) .fleet-total p {
+    margin: 0;
+    font-size: 14px;
+  }
+  :where(.report-page) .cell-field {
+    grid-template-columns: repeat(10, 1fr);
+    gap: 5px;
+  }
+  :where(.report-page) .fleet-explanation {
+    min-height: 0;
+  }
+  :where(.report-page) .fleet-plate .segmented button {
+    padding-inline: 12px;
+  }
+  :where(.report-page) .interlude-title {
+    display: block;
+  }
+  :where(.report-page) .interlude-title h2 {
+    font-size: 28px;
+  }
+  :where(.report-page) .interlude-title p {
+    margin-top: 16px;
+  }
+  :where(.report-page) .image-interlude .image-stage {
+    aspect-ratio: 1.6;
+  }
+  :where(.report-page) .price-spread {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  :where(.report-page) .cap-sequence {
+    position: static;
+    padding: 24px 20px;
+  }
+  :where(.report-page) .cap-steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  :where(.report-page) .cap-steps button {
+    flex-direction: column;
+    align-items: start;
+    border-bottom: 0;
+    border-right: 1px solid var(--border);
+    padding: 12px 6px;
+  }
+  :where(.report-page) .cap-steps .data {
+    font-size: 10px;
+  }
+  :where(.report-page) .cap-value {
+    font-size: 24px;
+  }
+  :where(.report-page) .cap-readout {
+    font-size: 64px;
+  }
+  :where(.report-page) .source-title {
+    font-size: 24px;
+  }
+  :where(.report-page) .journal .limits > div,
+  :where(.report-page) .journal .sources ol {
+    columns: 1;
+  }
+  :where(.report-page) .journal .limits h2 {
+    font-size: 32px;
+  }
+  :where(.report-page) .journal .sources {
+    font-size: 14px;
+  }
+  :where(.report-page) .journal footer {
+    margin: 64px 20px 0;
+  }
+}
+@media (max-width: 360px) {
+  :where(.report-page) .journal .report-document {
+    margin-inline: 16px;
+  }
+  :where(.report-page) .journal-cover h1 {
+    font-size: 42px;
+  }
+  :where(.report-page) .contact-sheet {
+    grid-template-columns: 1fr 64px;
+  }
+  :where(.report-page) .contact-main figcaption {
+    width: calc(100% + 72px);
+  }
+  :where(.report-page) .chapter-heading h2 {
+    font-size: 28px;
+  }
+  :where(.report-page) .chapter-number {
+    font-size: 40px;
+  }
+  :where(.report-page) .fleet-total {
+    gap: 12px;
+  }
+  :where(.report-page) .fleet-total > span {
+    font-size: 72px;
+  }
+  :where(.report-page) .segmented button {
+    padding-inline: 10px;
+  }
+  :where(.report-page) .cap-steps .data {
+    font-size: 9px;
+  }
+  :where(.report-page) .cap-steps button {
+    padding: 12px 4px;
+  }
+  :where(.report-page) .cap-value {
+    font-size: 22px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(.report-page) *,
+  :where(.report-page) *::before,
+  :where(.report-page) *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+:where(.report-page) .study-intro {
+  padding: 64px 0;
+}
+:where(.report-page) .study-intro h1 {
+  margin: 24px 0;
+}
+:where(.report-page) .study-intro > p {
+  max-width: 48ch;
+}
+:where(.report-page) .study-intro .primary {
+  margin-top: 24px;
+}
+:where(.report-page) .study-components {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px 64px;
+  margin-top: 32px;
+}
+:where(.report-page) .study-components h3 {
+  font-size: 24px;
+  margin-bottom: 16px;
+}
+:where(.report-page) .study-components p {
+  font-size: 16px;
+}
+@media (max-width: 650px) {
+  :where(.report-page) .study-components {
+    grid-template-columns: 1fr;
+  }
+  :where(.report-page) .study-intro h1 {
+    font-size: 44px;
+  }
+}
+:where(.report-page) .figure-entered .bar-track {
+  animation: bar-arrival 600ms cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: left;
+}
+@keyframes bar-arrival {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(.report-page) .figure-entered .bar-track {
+    animation: none;
+  }
+}
+
+:where(.report-page) .index-symbol {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+/* A modular publication grid: 12 / 6 / 4 columns, 8 px vertical unit. */
+.report-page {
+  --report-gutter: 32px;
+  --report-body: 16px;
+  --report-leading: 24px;
+}
+:where(.report-page) .journal .report-document {
+  position: relative;
+  background: var(--background);
+}
+:where(.report-page) .journal .section,
+:where(.report-page) .image-interlude {
+  margin-top: 96px;
+}
+:where(.report-page) .journal p,
+:where(.report-page) .journal .prose,
+:where(.report-page) .journal .overview-columns > p,
+:where(.report-page) .journal .overview-columns .lead,
+:where(.report-page) .journal .limits p,
+:where(.report-page) .journal .limits .lead {
+  font-size: var(--report-body);
+  line-height: var(--report-leading);
+  letter-spacing: 0;
+}
+:where(.report-page) .journal .meta,
+:where(.report-page) .journal .chart-note,
+:where(.report-page) .journal figcaption p,
+:where(.report-page) .journal .image-credit {
+  font-size: 12px;
+  line-height: 16px;
+}
+:where(.report-page) .journal .cover-caption {
+  font-size: 16px;
+}
+:where(.report-page) .journal .subtitle {
+  font-size: 24px;
+  line-height: 32px;
+}
+:where(.report-page) .journal h1 {
+  line-height: 1;
+}
+:where(.report-page) .journal h2 {
+  font-size: 44px;
+  line-height: 48px;
+}
+:where(.report-page) .journal h3 {
+  font-size: 24px;
+  line-height: 32px;
+  letter-spacing: -0.03em;
+}
+:where(.report-page) .contact-sheet {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--report-gutter);
+}
+:where(.report-page) .contact-main {
+  grid-column: span 9;
+}
+:where(.report-page) .contact-detail {
+  grid-column: span 3;
+}
+:where(.report-page) .contact-detail .image-stage {
+  aspect-ratio: 0.75;
+}
+:where(.report-page) .contact-detail img {
+  filter: none;
+}
+:where(.report-page) .contact-detail > div {
+  aspect-ratio: auto;
+}
+:where(.report-page) .contact-detail figcaption {
+  display: block;
+  font-size: 12px;
+}
+:where(.report-page) .contact-detail .context-image figcaption {
+  display: block;
+}
+:where(.report-page) .overview-columns,
+:where(.report-page) .figure-diptych,
+:where(.report-page) .price-spread {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--report-gutter);
+}
+:where(.report-page) .journal .overview-columns > p,
+:where(.report-page) .journal .overview-columns .lead {
+  margin: 0;
+  max-width: none;
+}
+:where(.report-page) .journal .limits > div {
+  columns: 2;
+  column-gap: var(--report-gutter);
+}
+:where(.report-page) .journal-sea > .prose {
+  column-gap: var(--report-gutter);
+}
+:where(.report-page) .journal .index-current {
+  color: var(--foreground);
+  font: inherit;
+}
+:where(.report-page) .compact-index {
+  width: 256px;
+}
+:where(.report-page) .journal .chapter-heading {
+  margin-bottom: 32px;
+}
+:where(.report-page) .journal .chapter-heading h2 {
+  margin-top: 8px;
+}
+:where(.report-page) .journal .price-spread {
+  margin-top: 40px;
+}
+:where(.report-page) .journal .price-spread .cap-sequence {
+  position: static;
+}
+:where(.report-page) .journal .chart-note {
+  margin-top: 16px;
+}
+:where(.report-page) .journal .fleet-total p {
+  font-size: 14px;
+  line-height: 20px;
+}
+:where(.report-page) .journal .fleet-explanation {
+  font-size: 14px;
+  line-height: 20px;
+}
+:where(.report-page) .node-glyph {
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  vertical-align: -1px;
+  margin-right: 6px;
+  fill: var(--entity-company);
+}
+:where(.report-page) .glyph-port {
+  fill: var(--entity-port);
+}
+:where(.report-page) .glyph-facility {
+  fill: var(--entity-facility);
+}
+:where(.report-page) .glyph-state-body {
+  fill: var(--entity-state-body);
+}
+:where(.report-page) .entity {
+  white-space: normal;
+}
+:where(.report-page) .entity .node-glyph {
+  flex-shrink: 0;
+}
+:where(.report-page) .entity-dialog dd {
+  overflow-wrap: anywhere;
+}
+:where(.report-page) .node-relations {
+  padding-left: 20px;
+}
+:where(.report-page) .node-relations li {
+  margin: 16px 0;
+}
+:where(.report-page) .node-relations li > span {
+  color: var(--label);
+}
+:where(.report-page) .node-relations small {
+  display: block;
+  font:
+    12px 'Geist Mono',
+    monospace;
+  overflow-wrap: anywhere;
+  margin-top: 8px;
+}
+:where(.report-page) .record-id {
+  font:
+    12px 'Geist Mono',
+    monospace;
+  overflow-wrap: anywhere;
+}
+:where(.report-page) .citation {
+  vertical-align: super;
+  line-height: 0;
+  font-size: 11px;
+  margin-left: 2px;
+  white-space: nowrap;
+}
+:where(.report-page) .citation > a {
+  font-family: 'Geist Mono', monospace;
+  text-decoration: none;
+  padding: 4px 3px;
+  color: var(--foreground);
+}
+:where(.report-page) .citation > a:hover {
+  background: var(--surface-secondary);
+  text-decoration: underline;
+}
+:where(.report-page) .citation-popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 24px;
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  line-height: 24px;
+  white-space: normal;
+  font-size: 16px;
+  font-family: Geist, sans-serif;
+  box-shadow: none;
+}
+:where(.report-page) .citation-popover:not(:popover-open) {
+  display: none;
+}
+:where(.report-page) .citation-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+:where(.report-page) .citation-top button {
+  min-width: 44px;
+  font-size: 24px;
+}
+:where(.report-page) .citation-popover p {
+  font-size: 16px !important;
+  line-height: 24px !important;
+  max-width: none;
+}
+:where(.report-page) .citation-popover .citation-note {
+  font-size: 14px !important;
+  line-height: 20px !important;
+  color: var(--label);
+  margin-top: 16px;
+}
+:where(.report-page) .bibliography-link {
+  display: inline-block;
+  font-size: 14px;
+  margin-top: 24px;
+}
+:where(.report-page) .citation-popover a {
+  overflow-wrap: anywhere;
+}
+:where(.report-page) .bibliography-page,
+:where(.report-page) .node-directory {
+  max-width: 1200px;
+  margin: 64px auto 0;
+}
+:where(.report-page) .bibliography-page h1 {
+  margin: 24px 0 32px;
+}
+:where(.report-page) .bibliography-page > p {
+  max-width: 64ch;
+}
+:where(.report-page) .bibliography-page ol {
+  list-style: none;
+  padding: 0;
+  margin-top: 64px;
+}
+:where(.report-page) .bibliography-page li {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 32px;
+  padding: 32px 0;
+  border-top: 1px solid var(--border);
+  scroll-margin-top: 24px;
+}
+:where(.report-page) .bibliography-page li:target {
+  background: var(--surface);
+}
+:where(.report-page) .bibliography-page li p {
+  max-width: 80ch;
+}
+:where(.report-page) .reference-number {
+  font:
+    24px 'Geist Mono',
+    monospace;
+  color: var(--label);
+}
+:where(.report-page) .citation-note {
+  color: var(--label);
+  font-size: 14px;
+  margin-top: 16px;
+}
+:where(.report-page) .node-directory {
+  border-top: 1px solid var(--border);
+  padding-top: 48px;
+}
+:where(.report-page) .node-directory article {
+  padding: 32px 0;
+  max-width: 720px;
+  border-bottom: 1px solid var(--border);
+}
+:where(.report-page) .node-directory article > h2 {
+  font-size: 28px;
+  margin: 16px 0;
+}
+:where(.report-page) .node-directory article:target {
+  background: var(--surface);
+}
+:where(.report-page) .price-figure {
+  padding: 32px;
+  background: var(--surface);
+}
+:where(.report-page) .price-figure figcaption {
+  margin-bottom: 24px;
+}
+:where(.report-page) .price-figure .meta {
+  margin-top: 8px;
+}
+:where(.report-page) .price-svg {
+  width: 100%;
+  display: block;
+  touch-action: pan-y;
+}
+:where(.report-page) .price-svg text {
+  font:
+    12px 'Geist Mono',
+    monospace;
+  fill: var(--label);
+}
+:where(.report-page) .plot-grid {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+}
+:where(.report-page) .price-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+:where(.report-page) .price-line.brent {
+  stroke: var(--foreground);
+}
+:where(.report-page) .price-line.urals {
+  stroke: var(--signal);
+}
+:where(.report-page) .price-dot {
+  fill: var(--signal);
+}
+:where(.report-page) .price-line.cap {
+  stroke: var(--label);
+  stroke-width: 1.5;
+}
+:where(.report-page) .event-rule {
+  stroke: var(--label);
+  stroke-dasharray: 2 5;
+}
+:where(.report-page) .selection-rule {
+  stroke: var(--foreground);
+  opacity: 0.5;
+}
+:where(.report-page) .chart-legend {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+:where(.report-page) .chart-legend button {
+  font-size: 14px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 0;
+}
+:where(.report-page) .chart-legend button[aria-pressed='false'] {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+:where(.report-page) .legend-mark {
+  width: 20px;
+  border-top: 2px solid var(--foreground);
+}
+:where(.report-page) .legend-mark.urals {
+  border-color: var(--signal);
+}
+:where(.report-page) .legend-mark.cap {
+  border-color: var(--label);
+}
+:where(.report-page) .month-control {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  font-size: 14px;
+  margin-top: 16px;
+}
+:where(.report-page) .month-control input {
+  flex: 1;
+  min-width: 40px;
+  accent-color: var(--foreground);
+  height: 32px;
+  cursor: ew-resize;
+}
+:where(.report-page) .month-control output {
+  font:
+    12px 'Geist Mono',
+    monospace;
+}
+:where(.report-page) .price-values {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 16px;
+}
+:where(.report-page) .price-values span {
+  font-size: 12px;
+  color: var(--label);
+}
+:where(.report-page) .price-values b {
+  display: block;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 400;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+:where(.report-page) .price-table {
+  max-height: 360px;
+  overflow: auto;
+}
+:where(.report-page) .price-figure details {
+  margin-top: 24px;
+}
+:where(.report-page) .port-map,
+:where(.report-page) .evidence-graph {
+  background: var(--surface);
+  padding: 32px;
+}
+:where(.report-page) .port-map .meta,
+:where(.report-page) .evidence-graph .meta {
+  margin-top: 8px;
+}
+:where(.report-page) .map-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 24px 0;
+}
+:where(.report-page) .map-controls button {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+:where(.report-page) .map-controls button[aria-pressed='true'] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+:where(.report-page) .map-window {
+  overflow: hidden;
+  background: var(--map-water);
+  border: 1px solid var(--border);
+}
+:where(.report-page) .map-window > svg {
+  width: 100%;
+  display: block;
+}
+:where(.report-page) .map-land {
+  fill: var(--map-land);
+  stroke: var(--map-boundary);
+  stroke-width: 0.6;
+}
+:where(.report-page) .map-marker {
+  cursor: pointer;
+}
+:where(.report-page) .map-marker:focus-visible {
+  outline: 2px solid var(--ring);
+}
+:where(.report-page) .port-list {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 24px;
+  font-size: 14px;
+}
+:where(.report-page) .port-list a {
+  padding: 8px 0;
+}
+:where(.report-page) .network-section > p {
+  max-width: 72ch;
+  margin-bottom: 32px;
+}
+:where(.report-page) .graph-window {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  margin-top: 32px;
+}
+:where(.report-page) .graph-window > svg {
+  width: 100%;
+  min-width: 0;
+  display: block;
+}
+:where(.report-page) .graph-window text {
+  font:
+    14px Geist,
+    sans-serif;
+  fill: var(--foreground);
+}
+:where(.report-page) .graph-window .edge-label {
+  font:
+    11px 'Geist Mono',
+    monospace;
+  fill: var(--label);
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+:where(.report-page) .graph-edge {
+  fill: none;
+  stroke: var(--relation-ownership);
+  stroke-width: 1.5;
+}
+:where(.report-page) .graph-edge.operation {
+  stroke: var(--relation-operation);
+  stroke-dasharray: 5 4;
+}
+:where(.report-page) .graph-edge.designation {
+  stroke: var(--relation-designation);
+  stroke-dasharray: 12 5;
+}
+:where(.report-page) .graph-node {
+  cursor: pointer;
+}
+:where(.report-page) .graph-selection {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  font-size: 14px;
+}
+:where(.report-page) .graph-selection > span:first-child {
+  color: var(--label);
+}
+:where(.report-page) .page-grid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.15;
+}
+:where(.report-page) .app {
+  position: relative;
+}
+:where(.report-page) .site-header,
+:where(.report-page) .report-document,
+:where(.report-page) footer,
+:where(.report-page) .node-directory {
+  position: relative;
+}
+:where(.report-page) .site-header,
+:where(.report-page) footer,
+:where(.report-page) .node-directory {
+  background: var(--background);
+}
+@media (max-width: 1000px) {
+  .report-page {
+    --report-gutter: 24px;
+  }
+  :where(.report-page) .journal .report-document {
+    margin-inline: 32px;
+  }
+  :where(.report-page) .contact-sheet {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  :where(.report-page) .contact-main {
+    grid-column: span 4;
+  }
+  :where(.report-page) .contact-detail {
+    grid-column: span 2;
+  }
+  :where(.report-page) .contact-detail .image-stage {
+    aspect-ratio: 0.87;
+  }
+  :where(.report-page) .bibliography-page,
+  :where(.report-page) .node-directory {
+    margin-inline: 32px;
+  }
+  :where(.report-page) .port-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 650px) {
+  .report-page {
+    --report-gutter: 16px;
+  }
+  :where(.report-page) .journal .report-document {
+    margin-inline: 20px;
+  }
+  :where(.report-page) .journal .section,
+  :where(.report-page) .image-interlude {
+    margin-top: 64px;
+  }
+  :where(.report-page) .journal h2 {
+    font-size: 32px;
+    line-height: 40px;
+  }
+  :where(.report-page) .journal h3 {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  :where(.report-page) .journal .subtitle {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  :where(.report-page) .compact-index {
+    width: 100%;
+  }
+  :where(.report-page) .contact-sheet {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+  :where(.report-page) .contact-main {
+    grid-column: span 3;
+  }
+  :where(.report-page) .contact-detail {
+    grid-column: span 1;
+  }
+  :where(.report-page) .contact-detail .image-stage {
+    aspect-ratio: 0.31;
+  }
+  :where(.report-page) .contact-detail .context-image figcaption {
+    display: none;
+  }
+  :where(.report-page) .contact-main figcaption {
+    width: calc(133.33% + 10px);
+  }
+  :where(.report-page) .overview-columns,
+  :where(.report-page) .price-spread,
+  :where(.report-page) .figure-diptych {
+    grid-template-columns: 1fr;
+  }
+  :where(.report-page) .overview-columns {
+    display: grid;
+  }
+  :where(.report-page) .journal .overview-columns p + p {
+    margin: 0;
+  }
+  :where(.report-page) .journal .limits > div {
+    columns: 1;
+  }
+  :where(.report-page) .journal .limits p + p {
+    margin-top: 24px;
+  }
+  :where(.report-page) .price-figure,
+  :where(.report-page) .port-map,
+  :where(.report-page) .evidence-graph {
+    padding: 24px 16px;
+  }
+  :where(.report-page) .chart-legend {
+    gap: 16px;
+  }
+  :where(.report-page) .chart-legend button {
+    font-size: 12px;
+  }
+  :where(.report-page) .price-values {
+    gap: 8px;
+  }
+  :where(.report-page) .price-values b {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  :where(.report-page) .month-control {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  :where(.report-page) .month-control > span {
+    width: 100%;
+  }
+  :where(.report-page) .map-controls {
+    gap: 0;
+  }
+  :where(.report-page) .map-controls button {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  :where(.report-page) .port-list {
+    gap: 8px;
+  }
+  :where(.report-page) .graph-selection {
+    gap: 12px;
+  }
+  :where(.report-page) .bibliography-page,
+  :where(.report-page) .node-directory {
+    margin: 40px 20px 0;
+  }
+  :where(.report-page) .bibliography-page h1 {
+    font-size: 44px;
+  }
+  :where(.report-page) .bibliography-page li {
+    grid-template-columns: 24px 1fr;
+    gap: 16px;
+  }
+  :where(.report-page) .reference-number {
+    font-size: 16px;
+  }
+  :where(.report-page) .bibliography-page li p {
+    font-size: 16px;
+  }
+  :where(.report-page) .citation-popover {
+    padding: 16px;
+  }
+  :where(.report-page) .citation > a {
+    padding: 6px 4px;
+  }
+  :where(.report-page) .journal .fleet-total p {
+    font-size: 14px;
+    line-height: 20px;
+  }
+}
+@media (max-width: 360px) {
+  :where(.report-page) .journal .report-document {
+    margin-inline: 16px;
+  }
+  :where(.report-page) .journal h2 {
+    font-size: 28px;
+    line-height: 32px;
+  }
+  :where(.report-page) .journal .meta {
+    font-size: 11px;
+  }
+  :where(.report-page) .chart-legend {
+    gap: 8px;
+  }
+  :where(.report-page) .price-values b {
+    font-size: 18px;
+  }
+  :where(.report-page) .port-list {
+    font-size: 12px;
+  }
+}
+
+:where(.report-page) .citation-body,
+:where(.report-page) .citation-note {
+  display: block;
+  margin: 16px 0;
+}
+:where(.report-page) .citation-popover {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@media (max-width: 650px) {
+  :where(.report-page) .graph-window text {
+    font-size: 18px;
+  }
+  :where(.report-page) .graph-window .edge-label {
+    font-size: 14px;
+  }
+}
+
+/* Preserve the reading measure when a modal locks root scrolling. */
+.report-page {
+  scrollbar-gutter: stable;
+}
+:where(.report-page) .journal-cover {
+  position: relative;
+  isolation: isolate;
+}
+:where(.report-page) .current-field {
+  position: absolute;
+  right: 0;
+  top: 56px;
+  width: 43%;
+  height: 230px;
+  overflow: hidden;
+  isolation: isolate;
+  --ascii-ink: var(--label);
+  --ascii-ink-strong: var(--foreground);
+}
+:where(.report-page) .current-poster {
+  font:
+    10px/13px 'Geist Mono',
+    monospace;
+  color: var(--label);
+  opacity: 0.4;
+  margin: 0;
+  pointer-events: none;
+}
+:where(.report-page) .current-field[data-field='ready'] .current-poster {
+  visibility: hidden;
+}
+:where(.report-page) .photo-plane {
+  position: absolute;
+  inset: 0;
+}
+:where(.report-page) .photo-plane img,
+:where(.report-page) .photo-plane canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+:where(.report-page) .photo-plane canvas {
+  position: absolute;
+  inset: 0;
+}
+:where(.report-page) .journal-cover h1 {
+  position: relative;
+}
+:where(.report-page) .journal-cover h1 {
+  animation: cover-arrival 0.7s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+@keyframes cover-arrival {
+  from {
+    clip-path: inset(100% 0 0 0);
+    transform: translateY(20px);
+  }
+  to {
+    clip-path: inset(0);
+    transform: translateY(0);
+  }
+}
+@media (max-width: 800px) {
+  :where(.report-page) .current-field {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
+    height: 96px;
+    margin: 24px 0;
+    order: 2;
+  }
+  :where(.report-page) .journal-cover {
+    display: flex;
+    flex-direction: column;
+  }
+  :where(.report-page) .journal-cover .cover-top {
+    order: 0;
+  }
+  :where(.report-page) .journal-cover h1 {
+    order: 1;
+  }
+  :where(.report-page) .journal-cover .cover-line {
+    order: 3;
+  }
+  :where(.report-page) .journal-cover .contact-sheet {
+    order: 4;
+  }
+  :where(.report-page) .journal-cover .cover-caption {
+    order: 5;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(.report-page) .journal-cover h1 {
+    animation: none;
+  }
+}
+:where(.report-page) .current-field canvas {
+  z-index: 0 !important;
+}
+:where(.report-page) .current-art {
+  position: absolute;
+  right: 0;
+  top: 56px;
+  width: 43%;
+  height: 230px;
+}
+:where(.report-page) .current-art .current-field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+:where(.report-page) .motion-toggle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  font-size: 12px;
+  background: var(--background);
+  padding: 8px 12px;
+  z-index: 1;
+}
+:where(.report-page) .photo-plane canvas {
+  image-rendering: pixelated;
+}
+@media (max-width: 800px) {
+  :where(.report-page) .current-art {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
+    height: 96px;
+    margin: 24px 0;
+    order: 2;
+  }
+  :where(.report-page) .motion-toggle {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+}
+@media (min-width: 801px) {
+  :where(.report-page) .current-art {
+    top: 112px;
+    height: 168px;
+  }
+}
+/* Page-wide, gesture-driven ground; no autonomous loop or hero widget. */
+:where(.report-page) .app.journal {
+  isolation: isolate;
+  background: transparent;
+}
+:where(.report-page) .app.journal > .current-art {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  margin: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+:where(.report-page) .current-art .current-field {
+  --ascii-ink: var(--foreground);
+}
+:where(.report-page) .journal .report-document,
+:where(.report-page) .journal .journal-cover {
+  background: transparent;
+}
+:where(.report-page) .journal .site-header,
+:where(.report-page) .journal footer {
+  background: transparent;
+}
+:where(.report-page) .journal .prose,
+:where(.report-page) .journal .overview-columns,
+:where(.report-page) .journal .cover-caption,
+:where(.report-page) .journal .subtitle,
+:where(.report-page) .journal .limits > div,
+:where(.report-page) .journal .network-section > p {
+  background: color-mix(in srgb, var(--background) 94%, transparent);
+}
+:where(.report-page) .journal-cover h1 {
+  margin-top: 48px;
+}
+:where(.report-page) .figure-diptych {
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 24px;
+  align-items: start;
+}
+:where(.report-page) .figure-diptych .flow-chart,
+:where(.report-page) .figure-diptych .port-map {
+  padding: 24px;
+  margin: 0;
+}
+:where(.report-page) .figure-diptych .bar-track {
+  height: 14px;
+}
+:where(.report-page) .figure-diptych .bar-row {
+  margin-bottom: 18px;
+}
+:where(.report-page) .figure-diptych .chart-toolbar {
+  margin-top: 16px;
+  margin-bottom: 20px;
+}
+:where(.report-page) .figure-diptych .map-controls {
+  margin: 16px 0 8px;
+  gap: 4px;
+}
+:where(.report-page) .figure-diptych .map-controls button {
+  padding: 6px 10px;
+}
+:where(.report-page) .map-tour-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0 16px;
+  font-size: 14px;
+  min-height: 40px;
+}
+:where(.report-page) .tour-button {
+  padding: 8px 0;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+:where(.report-page) .figure-diptych .port-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+:where(.report-page) .figure-diptych .map-window {
+  aspect-ratio: 900/380;
+}
+:where(.report-page) .figure-diptych .map-window > svg {
+  width: 100%;
+  height: 100%;
+}
+:where(.report-page) .journal .fleet-plate {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 32px;
+  max-width: 760px;
+  margin: 32px auto 0;
+  padding: 24px;
+  background: var(--surface);
+}
+:where(.report-page) .journal .fleet-plate figcaption {
+  grid-column: 1;
+}
+:where(.report-page) .journal .fleet-total {
+  grid-column: 1;
+  grid-row: 2;
+  gap: 16px;
+  align-items: center;
+  margin: 0;
+}
+:where(.report-page) .journal .fleet-total > span {
+  font-size: 56px;
+  line-height: 1;
+}
+:where(.report-page) .journal .fleet-total > span > span {
+  font-size: 24px;
+}
+:where(.report-page) .journal .fleet-cells {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  margin: 0;
+}
+:where(.report-page) .journal .cell-field {
+  grid-template-columns: repeat(20, 1fr);
+  gap: 3px;
+}
+:where(.report-page) .journal .cell-field span {
+  aspect-ratio: 1;
+  height: auto;
+}
+:where(.report-page) .journal .fleet-explanation {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  line-height: 20px;
+  margin: 0;
+}
+:where(.report-page) .journal .price-spread {
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 40px;
+}
+:where(.report-page) .journal .cap-sequence {
+  padding: 24px;
+}
+:where(.report-page) .journal .cap-readout {
+  font-size: 56px;
+}
+:where(.report-page) .journal .evidence-graph {
+  max-width: 860px;
+  padding: 24px;
+  margin: 24px auto 0;
+}
+:where(.report-page) .journal .price-figure {
+  padding: 24px;
+}
+:where(.report-page) .journal .price-values b {
+  font-size: 24px;
+}
+:where(.report-page) .journal .image-interlude {
+  margin-top: 64px;
+}
+@media (max-width: 900px) {
+  :where(.report-page) .figure-diptych {
+    grid-template-columns: 1fr;
+  }
+  :where(.report-page) .journal .price-spread {
+    grid-template-columns: 1fr;
+  }
+  :where(.report-page) .journal .cap-sequence {
+    max-width: 440px;
+    width: 100%;
+    justify-self: start;
+  }
+}
+@media (max-width: 650px) {
+  :where(.report-page) .journal .fleet-plate {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 20px;
+  }
+  :where(.report-page) .journal .fleet-cells {
+    grid-column: 1;
+    grid-row: 3;
+    max-width: 300px;
+    width: 100%;
+  }
+  :where(.report-page) .journal .fleet-explanation {
+    grid-row: 4;
+  }
+  :where(.report-page) .figure-diptych .flow-chart,
+  :where(.report-page) .figure-diptych .port-map {
+    padding: 20px 16px;
+  }
+  :where(.report-page) .map-tour-line {
+    font-size: 12px;
+  }
+  :where(.report-page) .journal .evidence-graph {
+    padding: 20px 16px;
+  }
+  :where(.report-page) .journal-cover h1 {
+    margin-top: 24px;
+  }
+}
+:where(.report-page) .journal .context-image figcaption,
+:where(.report-page) .journal .image-interlude .chart-note,
+:where(.report-page) .journal .site-header a,
+:where(.report-page) .journal .site-header button,
+:where(.report-page) .journal footer > *,
+:where(.report-page) .journal .interlude-title p {
+  background: var(--background);
+}
+:where(.report-page) .figure-diptych .bar-row {
+  margin-bottom: 0;
+}
+:where(.report-page) .figure-diptych .bar-row + .bar-row {
+  margin-top: 14px;
+}
+:where(.report-page) .figure-diptych .bar-label {
+  margin-bottom: 6px;
+}
+:where(.report-page) .figure-diptych .chart-axis {
+  margin-bottom: 16px;
+}
+:where(.report-page) .figure-diptych .chart-note {
+  margin-top: 16px;
+  font-size: 13px;
+  line-height: 19px;
+}
+:where(.report-page) .figure-diptych details {
+  margin-top: 16px;
+  padding: 12px 0 0;
+}
+:where(.report-page) .journal .fleet-explanation {
+  min-height: 0;
+}
+:where(.report-page) .journal .cell-field {
+  margin-bottom: 0;
+}
+
+:where(.report-page) .journal h1,
+:where(.report-page) .journal h2 {
+  background: transparent;
+}
+
+.report-page {
+  height: 100%;
+  position: relative;
+  contain: paint;
+  font:
+    400 16px/1.5 Geist,
+    sans-serif;
+  color: var(--foreground);
+  isolation: isolate;
+}
+.report-scroll {
+  height: 100%;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  position: relative;
+}
+.report-page .app {
+  min-height: 100%;
+}
+.report-page .report-document {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 0 48px;
+}
+.report-page .current-art {
+  inset: 0 !important;
+  height: 100% !important;
+}
+.report-page .entity-dialog {
+  max-width: min(440px, 100vw);
+}
+.report-page .compact-index {
+  top: 12px;
+}
+.report-page h1,
+.report-page h2 {
+  background: transparent !important;
+}
+.report-page .journal-cover h1 {
+  margin-top: 32px;
+}
+.report-page .report-bibliography {
+  padding: 32px 0;
+}
+.report-page .report-bibliography .bibliography-page {
+  margin-top: 0;
+}
+@media (max-width: 1264px) {
+  .report-page .report-document {
+    margin-inline: 32px;
+  }
+}
+@media (max-width: 650px) {
+  .report-page .report-document {
+    margin-inline: 20px;
+  }
+}
+/* Method diagram: neutral cards, the money paths as lines, the critical node as the one filled mark. */
+:where(.report-page) .method-diagram svg {
+  width: 100%;
+  display: block;
+}
+:where(.report-page) .method-card {
+  fill: var(--surface);
+  stroke: var(--border);
+}
+:where(.report-page) .method-label {
+  font:
+    12px 'Geist Mono',
+    monospace;
+  text-transform: uppercase;
+  letter-spacing: -0.24px;
+  fill: var(--label);
+}
+:where(.report-page) .method-title {
+  font:
+    20px Geist,
+    sans-serif;
+  letter-spacing: -0.4px;
+}
+:where(.report-page) .method-figure {
+  fill: var(--figure);
+}
+:where(.report-page) .method-rule {
+  stroke: var(--on-figure);
+  opacity: 0.25;
+}
+:where(.report-page) .method-item {
+  font:
+    13px Geist,
+    sans-serif;
+  fill: var(--foreground);
+}
+:where(.report-page) .method-note {
+  font:
+    12px Geist,
+    sans-serif;
+  fill: var(--muted-foreground);
+}
+:where(.report-page) .method-link {
+  fill: none;
+  stroke: var(--foreground);
+  stroke-width: 1.5;
+}
+:where(.report-page) .method-link.dashed {
+  stroke-dasharray: 6 4;
+}
+:where(.report-page) .method-head {
+  fill: var(--foreground);
+}
+:where(.report-page) .method-core {
+  fill: var(--signal);
+}
+:where(.report-page) .method-ring {
+  fill: none;
+  stroke: var(--on-figure);
+}
+:where(.report-page) .method-diagram .on-figure {
+  fill: var(--on-figure);
+}
+/* Line panels of the report figures: old in foreground, new in signal (the one highlight), other in grey. */
+:where(.report-page) .report-chart svg {
+  width: 100%;
+  display: block;
+}
+:where(.report-page) .lp-title {
+  font:
+    13px Geist,
+    sans-serif;
+  fill: var(--foreground);
+}
+:where(.report-page) .lp-axis,
+:where(.report-page) .lp-label {
+  font:
+    11px 'Geist Mono',
+    monospace;
+  fill: var(--label);
+}
+:where(.report-page) .lp-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+:where(.report-page) .lp-line.dashed {
+  stroke-dasharray: 5 4;
+}
+:where(.report-page) .lp-series.old {
+  --tone: var(--foreground);
+}
+:where(.report-page) .lp-series.new {
+  --tone: var(--signal);
+}
+:where(.report-page) .lp-series.other {
+  --tone: var(--chart-axis);
+}
+:where(.report-page) .lp-series .lp-line {
+  stroke: var(--tone);
+}
+:where(.report-page) .lp-series .lp-dot,
+:where(.report-page) .lp-series .lp-label {
+  fill: var(--tone);
+}
+:where(.report-page) .lp-series .lp-dot.hollow {
+  fill: var(--background);
+  stroke: var(--tone);
+  stroke-width: 1.5;
+}
+:where(.report-page) .lp-series .lp-bar {
+  fill: var(--tone);
+}
+:where(.report-page) .lp-series .dumbbell-name {
+  fill: var(--foreground);
+}
+:where(.report-page) .lp-bar.stack {
+  stroke: var(--background);
+  stroke-width: 2;
+}
+:where(.report-page) .lp-series .lp-label.on-bar {
+  fill: var(--background);
+}
+:where(.report-page) .lp-label.total {
+  fill: var(--foreground);
+}
+:where(.report-page) .lp-series.flow-ribbon {
+  fill: var(--tone);
+  opacity: 0.45;
+}
+:where(.report-page) .flow-node {
+  fill: var(--foreground);
+}
+:where(.report-page) .lp-label.flow-name {
+  fill: var(--foreground);
+}
+/* Designated vessels: calls after designation in signal, identity bars pale (leads), unread time hatched grey. */
+:where(.report-page) .vessel-count {
+  font:
+    28px Geist,
+    sans-serif;
+  letter-spacing: -0.8px;
+  fill: var(--foreground);
+}
+:where(.report-page) .vessel-zero {
+  stroke: var(--foreground);
+}
+:where(.report-page) .vessel-identity {
+  fill: var(--chart-neutral);
+}
+:where(.report-page) .vessel-unread {
+  fill: var(--chart-grid);
+  opacity: 0.6;
+}
+:where(.report-page) .vessel-call {
+  stroke: var(--chart-axis);
+  stroke-width: 1.5;
+}
+:where(.report-page) .vessel-call.after {
+  stroke: var(--signal);
+}
+:where(.report-page) .vessel-flag {
+  fill: var(--foreground);
+}
+:where(.report-page) .vessel-flag-text {
+  font:
+    9px 'Geist Mono',
+    monospace;
+  fill: var(--foreground);
+}
+:where(.report-page) .lp-title.vessel-group {
+  font-size: 12px;
+}
+:where(.report-page) .lp-series .venn-circle {
+  fill: var(--tone);
+  fill-opacity: 0.12;
+  stroke: var(--tone);
+  stroke-width: 1.5;
+}
+:where(.report-page) .lp-series .venn-name {
+  font-size: 12px;
+}
+:where(.report-page) .venn-count {
+  font:
+    14px Geist,
+    sans-serif;
+  fill: var(--foreground);
+}
+:where(.report-page) .venn-count.core {
+  font-size: 20px;
+  fill: var(--signal);
+}
+:where(.report-page) .chp-cell {
+  fill: var(--signal);
+  stroke: var(--chart-grid);
+}
+:where(.report-page) .lp-label.chp-value {
+  fill: var(--foreground);
+}
+:where(.report-page) .lp-series.unknown {
+  --tone: var(--chart-neutral);
+}
+/* Case grid of the routes figure: solid cell documented, dashed cell lead, faint cell no source. */
+:where(.report-page) .case-cell {
+  fill: var(--surface);
+  stroke: var(--border);
+}
+:where(.report-page) .case-cell.documented {
+  stroke: var(--foreground);
+}
+:where(.report-page) .case-cell.lead {
+  stroke: var(--foreground);
+  stroke-dasharray: 4 3;
+}
+:where(.report-page) .case-cell.none {
+  fill: none;
+  stroke-dasharray: 1 3;
+}
+:where(.report-page) .case-name {
+  font:
+    11px Geist,
+    sans-serif;
+  fill: var(--foreground);
+}
+:where(.report-page) .case-chain {
+  font-size: 12px;
+}
+:where(.report-page) .case-source {
+  font:
+    9px 'Geist Mono',
+    monospace;
+  fill: var(--label);
+}
+:where(.report-page) .case-source.ua {
+  fill: var(--foreground);
+  text-decoration: underline;
+}
+:where(.report-page) .case-listed {
+  font:
+    9px 'Geist Mono',
+    monospace;
+  fill: var(--signal);
+}
+:where(.report-page) .lp-series.flow-ribbon.lead {
+  opacity: 0.22;
+  stroke: var(--tone);
+  stroke-dasharray: 3 2;
+  stroke-width: 0.8;
+}
+:where(.report-page) .lp-label.case-on-flow {
+  font-size: 10px;
+}
+:where(.report-page) .atlas-land {
+  fill: var(--chart-grid);
+  stroke: var(--background);
+  stroke-width: 0.5;
+}
+:where(.report-page) .atlas-plant path,
+:where(.report-page) .atlas-plant circle {
+  fill: var(--foreground);
+}
+:where(.report-page) .lp-axis.atlas-place {
+  fill: var(--foreground);
+}
+/* Atlas stages: the same tone for a country group in every column; China and Hong Kong in signal. */
+:where(.report-page) .atlas-seg {
+  stroke: var(--background);
+  stroke-width: 1;
+}
+:where(.report-page) .atlas-seg.us {
+  fill: var(--foreground);
+}
+:where(.report-page) .atlas-seg.eu {
+  fill: var(--chart-axis);
+}
+:where(.report-page) .atlas-seg.coal {
+  fill: var(--chart-neutral);
+}
+:where(.report-page) .atlas-seg.cn {
+  fill: var(--signal);
+}
+:where(.report-page) .atlas-seg.rest {
+  fill: var(--surface);
+  stroke: var(--border);
+}
+:where(.report-page) .atlas-seg.nd {
+  fill: var(--chart-grid);
+}
+:where(.report-page) .atlas-band {
+  opacity: 0.22;
+}
+:where(.report-page) .atlas-band.us {
+  fill: var(--foreground);
+}
+:where(.report-page) .atlas-band.eu {
+  fill: var(--chart-axis);
+}
+:where(.report-page) .atlas-band.coal {
+  fill: var(--chart-neutral);
+}
+:where(.report-page) .atlas-band.cn {
+  fill: var(--signal);
+  opacity: 0.3;
+}
+:where(.report-page) .atlas-band.rest,
+:where(.report-page) .atlas-band.nd {
+  fill: var(--chart-grid);
+}
+:where(.report-page) .atlas-pct {
+  font:
+    11px 'Geist Mono',
+    monospace;
+  fill: var(--foreground);
+}
+:where(.report-page) .atlas-pct.us,
+:where(.report-page) .atlas-pct.eu,
+:where(.report-page) .atlas-pct.cn {
+  fill: var(--background);
+}
+:where(.report-page) .atlas-apart {
+  fill: none;
+  stroke: var(--border);
+  stroke-dasharray: 4 3;
+}
+:where(.report-page) .atlas-col {
+  font-size: 14px;
+}
+:where(.report-page) .atlas-num {
+  font:
+    10px 'Geist Mono',
+    monospace;
+  fill: var(--foreground);
+}
+:where(.report-page) .atlas-plant.lead path,
+:where(.report-page) .atlas-plant.lead circle {
+  fill: var(--background);
+  stroke: var(--foreground);
+}

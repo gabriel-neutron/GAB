@@ -136,5 +136,25 @@ export const proposalAct = (request: WriteRequest): ProposalAct => {
         targetKind: request.op === 'delete_entity' ? 'entity' : 'relation',
         targetId: request.targetId,
       };
+
+    case 'create_observation':
+      return {
+        op: request.op,
+        payload: {
+          measure: request.measure,
+          value: request.value,
+          unit: request.unit,
+          period: request.period,
+          reporter: request.reporter,
+          ...(request.partner === undefined ? {} : { partner: request.partner }),
+          method: request.method,
+          publisher: request.publisher,
+          ...(request.subjectId === undefined ? {} : { subject_id: request.subjectId }),
+        },
+        src: [MANUAL],
+        names: [],
+        targetKind: null,
+        targetId: null,
+      };
   }
 };

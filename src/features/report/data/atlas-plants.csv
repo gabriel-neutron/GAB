@@ -1,0 +1,70 @@
+entity,role,city,lat,lon,position_basis,weapon_type,eu,uk,us
+Uralvagonzavod,"defence plant (P01, F9)",Nizhny Tagil,57.9374973,60.1015209,stored,armour,yes,yes,yes
+Omsktransmash,"defence plant (P02, F9)",Omsk,54.99,73.32,lead,armour,yes,no match by name,yes
+Kurganmashzavod,"defence plant (P03, F9)",Kurgan,55.4615143,65.3225609,stored,armour,yes,no match by name,yes
+ChTZ-Uraltrak,"defence plant (P04, F9)",Chelyabinsk,55.1551,61.4725,stored,armour,yes,no match by name,yes
+KBP Shipunov,"defence plant (P05, F9)",Tula,54.2209,37.7131,stored,air defence;other,yes,no match by name,yes
+NPO Splav,"defence plant (P06, F9)",Tula,54.2198,37.6968,lead,other,yes,no match by name,no
+Tulamashzavod,"defence plant (P07, F9)",Tula,54.18,37.6,lead,other,yes,no match by name,yes
+Tula Cartridge Plant,"defence plant (P08, F9)",Tula,54.2,37.55,lead,other,yes,no match by name,yes
+Kalashnikov,"defence plant (P09, F9)",Izhevsk,56.8398696,53.1707303,stored,other;drone,yes,yes,yes
+ZALA Aero / IBS,"defence plant (P10, F9)",Izhevsk,56.85,53.2,lead,drone,yes,yes,yes
+IEMZ Kupol,"defence plant (P11, F9)",Izhevsk,56.859,53.1725,stored,air defence;drone,yes,no match by name,yes
+Izhevsk Mechanical Plant,"defence plant (P12, F9)",Izhevsk,56.830073,53.2435766,stored,other,yes,yes,yes
+Votkinsk Plant,"defence plant (P13, F9)",Votkinsk,57.0444818,53.9872913,stored,ballistic missile,yes,yes,yes
+Motovilikha,"defence plant (P14, F9)",Perm,58.033299,56.2940062,stored,other,yes,yes,yes
+Perm Gunpowder Plant,"defence plant (P15, F9)",Perm,57.9788487,55.8751264,stored,other,yes,yes,yes
+Kazan Gunpowder Plant,"defence plant (P16, F9)",Kazan,55.8167737,49.0275088,stored,other,yes,yes,yes
+Tambov Gunpowder Plant,"defence plant (P17, F9)",Kotovsk,52.5927758,41.5243882,stored,other,yes,yes,yes
+Sverdlov Plant,"defence plant (P18, F9)",Dzerzhinsk,56.259,43.3924,lead,other,yes,yes,yes
+Oleum Biysk (Sverdlov),"defence plant (P19, F9)",Biysk,52.4860456,85.0682964,stored,other,no,no match by name,no
+Promsintez,"defence plant (P20, F9)",Chapayevsk,52.9761483,49.715092,stored,other,yes,no match by name,no
+NAK Azot,"defence plant (P21, F9)",Novomoskovsk,54.0894796,38.2008034,stored,other,no,no match by name,no
+Plastmass,"defence plant (P22, F9)",Kopeysk,55.1473475,61.58957,stored,other,yes,no match by name,yes
+NII Applied Chemistry,"defence plant (P23, F9)",Sergiyev Posad,56.2978172,38.1488719,stored,other,no,yes,yes
+KNIIM / Bazalt,"defence plant (P24, F9)",Krasnoarmeysk,56.1216,38.1424,lead,guided bomb;other,no,no match by name,yes
+NPO Bazalt,"defence plant (P25, F9)",Moscow,55.78,37.65,lead,guided bomb;other,yes,no match by name,yes
+Degtyarev Plant,"defence plant (P26, F9)",Kovrov,56.3697,41.3216,stored,other,yes,no match by name,yes
+Barnaul Cartridge Plant,"defence plant (P27, F9)",Barnaul,53.35,83.75,lead,other,no,no match by name,yes
+Smolensk Aviation Plant,"defence plant (P28, F9)",Smolensk,54.8187262,32.0420273,stored,cruise missile,yes,no match by name,yes
+MKB Raduga,"defence plant (P29, F9)",Dubna,56.7528314,37.1246389,stored,cruise missile,yes,no match by name,yes
+Mayak,"defence plant (P30, F9)",Kirov,58.598746,49.6539754,stored,other,yes,no match by name,yes
+KTRV,"defence plant (P31, F9)",Korolev,55.9108015,37.8482162,stored,cruise missile;guided bomb,yes,yes,yes
+NPO Mashinostroyeniya,"defence plant (P32, F9)",Reutov,55.762038,37.8720739,stored,cruise missile,yes,no match by name,yes
+Obukhov Plant,"defence plant (P33, F9)",St Petersburg,59.8608166,30.4829417,stored,air defence,yes,no match by name,yes
+MMZ Avangard,"defence plant (P34, F9)",Moscow,55.8,37.57,lead,air defence,yes,yes,yes
+Ulyanovsk Mechanical Plant,"defence plant (P35, F9)",Ulyanovsk,54.3118341,48.3486202,stored,air defence,yes,no match by name,no
+Alabuga SEZ,"defence plant (P36, F9)",Yelabuga,55.83755,52.03602,stored,drone,yes,yes,yes
+Kazan Helicopters,"defence plant (P37, F9)",Kazan,55.8567306,49.0372455,stored,aircraft,yes,no match by name,yes
+KnAAZ,"defence plant (P38, F9)",Komsomolsk-on-Amur,50.6031926,137.079125,stored,aircraft,yes,no match by name,yes
+Chkalov Aviation Plant,"defence plant (P39, F9)",Novosibirsk,55.0679,82.9853,stored,aircraft,yes,no match by name,yes
+Irkutsk Aviation Plant,"defence plant (P40, F9)",Irkutsk,52.3646106,104.1893451,stored,aircraft,yes,no match by name,yes
+Kazan Aviation Plant (Gorbunov),"defence plant (P41, F9)",Kazan,55.8645932,49.1269224,stored,aircraft,yes,no match by name,yes
+Aviastar-SP,"defence plant (P42, F9)",Ulyanovsk,54.3666542,48.6196485,stored,aircraft,yes,no match by name,yes
+UEC-Saturn,"defence plant (P43, F9)",Rybinsk,58.0493925,38.8120665,stored,cruise missile;aircraft,yes,no match by name,yes
+Gorky Plant,"defence plant (P44, F9)",Zelenodolsk,55.85,48.52,lead,other,yes,yes,yes
+Sevmash,"defence plant (P45, F9)",Severodvinsk,64.5762031,39.8411768,stored,other,no,no match by name,yes
+Kronstadt,"defence plant (P46, F9)",Dubna,56.7588194,37.1118281,stored,drone,yes,yes,yes
+STC (Special Technological Centre),"defence plant (P47, F9)",St Petersburg,59.902671,30.3150377,stored,drone,yes,yes,yes
+KRET (group),"defence plant (P48, F9)",Moscow,55.75,37.62,lead,communications/EW,yes,no match by name,no
+Ruselectronics (group),"defence plant (P49, F9)",Moscow,55.75,37.6,lead,communications/EW,yes,no match by name,yes
+Tecmash (group),"defence plant (P50, F9)",Moscow,55.7365,37.6363,lead,other,yes,no match by name,yes
+Avitek,"defence plant (P51, F9)",Kirov,58.6392177,49.6034995,stored,air defence,yes,no match by name,yes
+LIMITED LIABILITY COMPANY SMT-ILOGIC,importer for the Orlan maker (STC),,,,none,drone,no,yes,yes
+"TSK VEKTOR, OOO",intermediary importer for IEMZ Kupol,,,,none,drone,not checked,not checked,yes
+APEKSGRUP LIMITED LIABILITY COMPANY,importer of Limbach engines,,,,none,drone,not checked,not checked,not checked
+LIMITED LIABILITY COMPANY ANGAR 22,importer of Limbach engines,,,,none,drone,not checked,not checked,not checked
+TRV ENGINEERING JSC,procurement agent of KTRV,,,,none,cruise missile;guided bomb,not checked,not checked,yes
+OMNITRADE,importer of servomotors for KTRV,,,,none,guided bomb,not checked,not checked,not checked
+SV POLIMER,importer of servomotors for KTRV,,,,none,guided bomb,not checked,not checked,not checked
+AO KB NAVIS,maker of the SN-99 navigation receiver,,,,none,cruise missile,not checked,not checked,yes
+JOINT STOCK COMPANY VNIIR PROGRESS,maker of Kometa navigation modules,Cheboksary,,,none,ballistic missile;cruise missile;guided bomb;drone,not checked,yes,yes
+PEMZ Molot JSC,integrator of UMPB D-30SN,,,,none,guided bomb,not checked,not checked,not checked
+JOINT STOCK COMPANY EXPERIMENTAL DESIGN BUREAU NOVATOR,prime contractor of the 9M727,Yekaterinburg,,,none,cruise missile,not checked,not checked,yes
+KBM (Kolomna),prime contractor of the Iskander-M,Kolomna,,,none,ballistic missile,not checked,not checked,not checked
+LLC Electrocom VPK,supplier of the armed forces,St Petersburg,,,none,,not checked,not checked,BIS Entity List (not SDN)
+ZAO Radiotekhkomplekt (RTKT),distributor of chips of the types found in weapons,,,,none,,not checked,not checked,not checked
+JOINT STOCK COMPANY KUMERTAU AVIATION PRODUCTION ENTERPRISE,"helicopter maker, RTKT client to 2020 at least",Kumertau,,,none,aircraft,not checked,not checked,not checked
+STOCK COMPANY MORION INC,Russian maker of oscillators found in missiles,,,,none,ballistic missile;cruise missile,not checked,not checked,not checked
+"Alabuga-Volokno (Umatex, Rosatom)",carbon fibre maker in the Alabuga SEZ,Yelabuga,,,none,drone,not checked,not checked,not checked
+Rustakt,importer of drone parts,,,,none,drone,not checked,not checked,not checked

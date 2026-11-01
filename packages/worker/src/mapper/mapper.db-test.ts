@@ -409,7 +409,7 @@ test('a file that is not a csv fails with a sentence and asks no model', async (
 
     expect(await held.step(makeMapper(CONFIG), router)).toStrictEqual({ did: 'failed', job });
     expect((await held.job(job)).failure_reason).toBe(
-      `the mapper reads a CSV, TSV or SDMX-CSV table only, and document ${LIST} is ` +
+      `the mapper reads a CSV, TSV, SDMX-CSV or JSON data table only, and document ${LIST} is ` +
         'application/vnd.ms-excel',
     );
     expect(router.chats()).toBe(0);
@@ -706,6 +706,32 @@ test('a second file of the same host and header reuses the mapping and asks no m
       [SECOND],
     );
     expect(queued).toStrictEqual([{ mapping: mapped.mapping, status: 'queued' }]);
+  });
+});
+
+test('two rows with one new identifier create one entity, and the second row reuses it', async () => {
+  await inTransaction(async (held) => {
+    await mappedList(held);
+    const twice = [
+      HEADER,
+      `Twin Hull,${SPARE_IMO},Malta,,`,
+      `Twin Hull,${SPARE_IMO},Malta,,x`,
+    ].join('\n');
+    const job = await seedDocument(held, SECOND, 'https://lists.test/b.csv', twice);
+    expect(await held.step(makeMapper(CONFIG), noModel())).toStrictEqual({ did: 'done', job });
+    const load = await held.idOf(
+      "SELECT id FROM public.jobs WHERE document_id = $1 AND kind = 'load_mapped'",
+      [SECOND],
+    );
+    await held.ask(OLDEST, [load]);
+
+    expect(await held.step(makeLoader({ store: storeOf(held) }), noModel())).toStrictEqual({
+      did: 'done',
+      job: load,
+    });
+
+    const created = (await loadedOf(held, SECOND)).filter((row) => row.op === 'create_entity');
+    expect(created.map((row) => row.label)).toStrictEqual(['Twin Hull']);
   });
 });
 

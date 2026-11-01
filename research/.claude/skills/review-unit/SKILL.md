@@ -17,10 +17,11 @@ decide the unit.
 - **Who decides first.** The rules of the database decide each unit from its sources. A unit
   with strong sources is accepted, an impossible unit is rejected, and a unit with weak sources
   waits for a better source. Only a unit with a doubt comes to a reviewer.
-- **Who decides a doubt.** The operator, in the review page, or you, as an AI reviewer with a
-  new context. **The agent that proposed a unit never decides it.** The agent that proposed
-  starts a new reviewer subagent (or a new session). It gives the subagent only the proposal ids
-  or the unit ids, and the ticket number. It does not give its notes, its reasons or its history.
+- **Who decides a doubt.** You, as an AI reviewer with a new context. The operator does not
+  decide proposals; the review runs at once after each batch, with no request to the operator.
+  **The agent that proposed a unit never decides it.** The agent that proposed starts a new
+  reviewer subagent (or a new session). It gives the subagent only the proposal ids or the unit
+  ids, and the ticket number. It does not give its notes, its reasons or its history.
   The reviewer reads the units from the record, as a stranger to them. The database refuses to
   accept an act in the transaction that proposed it. The tools do not enforce the rest of this
   rule, because all the agents share one role.
@@ -72,8 +73,24 @@ decide the unit.
      reject it. Leave it in the queue, and tell the operator that the relation goes back to be
      retyped as `restricted_by`.
      A person with only a `restricted_by` relation is not a fact for the record.
+   - A supply, agency or payment relation (`supplies_items_to`, `acts_for`, `transfers_funds_to`,
+     `pays_for`, `settles_through`): the passage must state the act itself. These words give no
+     such relation, and the fact stays `associated_with` or `designated_by`: "materially
+     assisted", "provided goods or services to or in support of", "supports the military-industrial
+     complex", "customers include", "attempted to supply", "would facilitate", "scheme to",
+     "involved in procurement", "transshipment" ("procured" gives a relation only in the reverse
+     direction), a FinCEN typology that names no party, and a bare entry of a sanctions list. Do
+     not promote a unit with such a relation: reject the relation with `reject_relation`.
+     The one exception is `pays_for` for a plan or a scheme ("would facilitate ... on behalf
+     of"): promote it only with the attribute `status: planned`.
+     One fact gets one type only. Test `pays_for` against `settles_through`: when the far end is
+     a principal that the bank pays for, it is `pays_for`. When the far end is a channel that
+     the party uses, it is `settles_through`. An EU ban on transactions with a bank is
+     `restricted_by`.
    - A start or an end of a relation of the record (the card reads "Start of a relation" or "End
-     of a relation"): the passage must state that day for that relation. A date of publication,
+     of a relation"): the passage must state that day for that relation. The date of a designation is never the start
+     of a supply, an agency or a payment: the date comes from the activity that the source gives.
+     An end that the source does not give stays empty. A date of publication,
      a date of a later change, or a day of another entry does not support it.
 4. Decide:
    - The passages state each act, and no fault blocks the unit: call `promote_unit`.

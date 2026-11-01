@@ -5,6 +5,7 @@ import { floatColor } from 'sigma/utils';
 import { distanceSource } from './glyph-glsl';
 import { glyphOf, type Glyph } from './glyphs';
 import type { EdgeAttrs, NodeAttrs } from './model';
+import { morph } from './morph';
 
 // External constraint: Sigma ships a disc and a few image programs, and none draws a polygon.
 // This program is the vertex shader of the Sigma disc with one varying added, `v_hollow`. The
@@ -14,6 +15,7 @@ const VERTEX_SHADER = /* glsl */ `
 attribute vec4 a_id;
 attribute vec4 a_color;
 attribute vec2 a_position;
+attribute vec2 a_from;
 attribute float a_size;
 attribute float a_hollow;
 attribute float a_angle;
@@ -21,6 +23,7 @@ attribute float a_angle;
 uniform mat3 u_matrix;
 uniform float u_sizeRatio;
 uniform float u_correctionRatio;
+uniform float u_morph;
 
 varying vec4 v_color;
 varying vec2 v_diffVector;
@@ -32,7 +35,7 @@ const float bias = 255.0 / 254.0;
 void main() {
   float size = a_size * u_correctionRatio / u_sizeRatio * 4.0;
   vec2 diffVector = size * vec2(cos(a_angle), sin(a_angle));
-  gl_Position = vec4((u_matrix * vec3(a_position + diffVector, 1)).xy, 0, 1);
+  gl_Position = vec4((u_matrix * vec3(mix(a_from, a_position, u_morph) + diffVector, 1)).xy, 0, 1);
 
   v_diffVector = diffVector;
   v_radius = size / 2.0;
@@ -106,7 +109,7 @@ export const setGround = (hex: string): void => {
   paint.ground = [((value >> 16) & 0xff) / 255, ((value >> 8) & 0xff) / 255, (value & 0xff) / 255];
 };
 
-const UNIFORMS = ['u_sizeRatio', 'u_correctionRatio', 'u_matrix', 'u_ground'] as const;
+const UNIFORMS = ['u_sizeRatio', 'u_correctionRatio', 'u_matrix', 'u_ground', 'u_morph'] as const;
 type GlyphUniform = (typeof UNIFORMS)[number];
 
 type GraphNodeProgram = NodeProgramType<NodeAttrs, EdgeAttrs>;
@@ -128,6 +131,7 @@ export function createGlyphProgram(type: string): GraphNodeProgram {
         UNIFORMS,
         ATTRIBUTES: [
           { name: 'a_position', size: 2, type: FLOAT },
+          { name: 'a_from', size: 2, type: FLOAT },
           { name: 'a_size', size: 1, type: FLOAT },
           { name: 'a_hollow', size: 1, type: FLOAT },
           { name: 'a_color', size: 4, type: UNSIGNED_BYTE, normalized: true },
@@ -141,12 +145,14 @@ export function createGlyphProgram(type: string): GraphNodeProgram {
     processVisibleItem(
       nodeIndex: number,
       startIndex: number,
-      data: NodeDisplayData & { candidate?: boolean },
+      data: NodeDisplayData & { candidate?: boolean; fromX?: number; fromY?: number },
     ) {
       const array = this.array;
       let at = startIndex;
       array[at++] = data.x;
       array[at++] = data.y;
+      array[at++] = data.fromX ?? data.x;
+      array[at++] = data.fromY ?? data.y;
       array[at++] = data.size;
       array[at++] = data.candidate ? 1 : 0;
       array[at++] = floatColor(data.color);
@@ -158,6 +164,7 @@ export function createGlyphProgram(type: string): GraphNodeProgram {
       gl.uniform1f(uniformLocations.u_sizeRatio, params.sizeRatio);
       gl.uniformMatrix3fv(uniformLocations.u_matrix, false, params.matrix);
       gl.uniform3f(uniformLocations.u_ground, ...paint.ground);
+      gl.uniform1f(uniformLocations.u_morph, morph.progress);
     }
   };
 }

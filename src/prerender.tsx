@@ -5,6 +5,7 @@
 
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router';
 import { renderToString } from 'react-dom/server';
+import { prerender } from 'react-dom/static';
 
 import { SiteReleaseFault } from '@gab/release/site-release-fault';
 
@@ -40,9 +41,8 @@ export async function renderPage(address: string): Promise<RenderedPage> {
     throw new SiteReleaseFault(
       `The page ${address} is not found or has an error, and it has no permanent page.`,
     );
-  // External constraint: the router loads the data of a route on the server and not its code, and
-  // `renderToString` does not wait for code. A page would then hold its loading notice in place of
-  // its text.
+  // External constraint: the router loads the data of a route on the server and not its code. The
+  // code loads first, so the page holds its text and not its loading notice.
   for (const match of router.state.matches) {
     const { options } = router.routesById[match.routeId];
     await Promise.all(
@@ -57,6 +57,10 @@ export async function renderPage(address: string): Promise<RenderedPage> {
   for (const match of router.state.matches)
     for (const tag of match.meta ?? [])
       if (tag?.name === 'description' && typeof tag.content === 'string') description = tag.content;
+  // External constraint: a part of the report loads its code late (report page). The static render
+  // waits for that code, but it writes each late part after the page, with a script that moves it.
+  // So it runs once to load the code, and the plain render then writes each part in its place.
+  await prerender(<RouterProvider router={router} />);
   const html = renderToString(<RouterProvider router={router} />);
   // A boundary that waits for something gives its notice in place of its text.
   if (html.includes('<!--$?-->') || html.includes('<!--$!-->'))

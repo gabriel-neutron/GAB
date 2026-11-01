@@ -124,6 +124,7 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "wikidata_ids: write",
       "sanctions_match: write",
       "vessel_events: write",
+      "gfw_port_visits: write",
       "firms_detections: write",
       "comtrade_data: write",
       "enqueue_extract: write",
@@ -142,7 +143,9 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
 test('no input asks for a value that only the runner knows', async () => {
   const client = await connected(fakePool(() => []).pool);
   const text = JSON.stringify((await client.listTools()).tools.map((tool) => tool.inputSchema));
-  for (const word of ['modelCallId', 'callId', 'idempotency', 'renderBelow', '"render"'])
+  // The input "render" of fetch_document is a choice of the research AI: it asks for the
+  // render of a page that holds some text. The threshold of the automatic render stays hidden.
+  for (const word of ['modelCallId', 'callId', 'idempotency', 'renderBelow'])
     expect(text).not.toContain(word);
 });
 

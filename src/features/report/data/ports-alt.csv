@@ -1,0 +1,55 @@
+panel,series,period,value,unit,document
+oil,Crude oil,2014,187.1,Mt,doc_2c4226ba7a5e
+oil,Oil products,2014,140.8,Mt,doc_2c4226ba7a5e
+oil,Crude oil,2015,202.1,Mt,doc_2c4226ba7a5e
+oil,Oil products,2015,146.1,Mt,doc_2c4226ba7a5e
+oil,Crude oil,2016,228.0,Mt,doc_2c4226ba7a5e
+oil,Oil products,2016,140.8,Mt,doc_2c4226ba7a5e
+oil,Crude oil,2017,253.2,Mt,doc_111241f2113b
+oil,Oil products,2017,141.5,Mt,doc_111241f2113b
+oil,Crude oil,2018,255.4,Mt,doc_a63477343ba7
+oil,Oil products,2018,145.1,Mt,doc_a63477343ba7
+oil,Crude oil,2019,276.1,Mt,doc_2a03e6049413
+oil,Oil products,2019,149.9,Mt,doc_2a03e6049413
+oil,Crude oil,2020,235.1,Mt,doc_3d306ead07c5
+oil,Oil products,2020,142.6,Mt,doc_3d306ead07c5
+oil,Crude oil,2021,238.1,Mt,doc_4fe9067408ba
+oil,Oil products,2021,146.7,Mt,doc_4fe9067408ba
+oil,Crude oil,2022,256.0,Mt,doc_5631eb3e5bfc
+oil,Oil products,2022,138.8,Mt,doc_5631eb3e5bfc
+oil,Crude oil,2023,272.2,Mt,doc_b6e709b39d79
+oil,Oil products,2023,121.5,Mt,doc_b6e709b39d79
+oil,Crude oil,2024,267.5,Mt,doc_f054830f3a66
+oil,Oil products,2024,131.1,Mt,doc_f054830f3a66
+oil,Crude oil,2025,274.9,Mt,doc_f75daa10f310
+oil,Oil products,2025,121.1,Mt,doc_f75daa10f310
+oil,Crude oil,2026-01..2026-04,89.5,Mt,doc_88a6a1f923a6
+oil,Oil products,2026-01..2026-04,38.8,Mt,doc_88a6a1f923a6
+port,Ust-Luga,2025,130.5,Mt,doc_f75daa10f310
+port,Primorsk,2025,63.9,Mt,doc_f75daa10f310
+port,Vysotsk,2025,11.6,Mt,doc_f75daa10f310
+port,Novorossiysk,2025,168.0,Mt,doc_f75daa10f310
+port,Taman,2025,29.5,Mt,doc_f75daa10f310
+port,Tuapse,2025,21.8,Mt,doc_f75daa10f310
+port,Murmansk,2025,47.0,Mt,doc_f75daa10f310
+port,Kozmino,2025,84.7,Mt,doc_f75daa10f310
+port,Ust-Luga,2021,109.2,Mt,doc_4fe9067408ba
+port,Primorsk,2021,53.0,Mt,doc_4fe9067408ba
+port,Vysotsk,2021,16.9,Mt,doc_4fe9067408ba
+port,Novorossiysk,2021,142.8,Mt,doc_4fe9067408ba
+port,Taman,2021,35.8,Mt,doc_4fe9067408ba
+port,Tuapse,2021,24.7,Mt,doc_4fe9067408ba
+port,Murmansk,2021,54.5,Mt,doc_4fe9067408ba
+port,Kozmino,2021,77.7,Mt,doc_4fe9067408ba
+gas,Nord Stream,2021,61267,Mm3,doc_77d9e3bbf907
+gas,Transit par l'Ukraine,2021,40551,Mm3,doc_77d9e3bbf907
+gas,Transit par l'Ukraine,2025,89,Mm3,doc_77d9e3bbf907
+gas,Yamal-Europe (BY-PL),2021,31694,Mm3,doc_77d9e3bbf907
+gas,TurkStream (vers l'UE),2021,12558,Mm3,doc_77d9e3bbf907
+gas,TurkStream (vers l'UE),2025,18071,Mm3,doc_77d9e3bbf907
+gas,UE27 : GNL importé de Russie (G3200),2021,12752,Mm3,doc_f541d1d70e9b
+gas,UE27 : GNL importé de Russie (G3200),2025,12731,Mm3,doc_f541d1d70e9b
+gas,UE27 : pétrole brut importé de Russie (O4100_TOT),2021,112454,kt,doc_d8e2ed084c52
+gas,UE27 : pétrole brut importé de Russie (O4100_TOT),2025,9220,kt,doc_d8e2ed084c52
+gas,UE27 : produits pétroliers importés de Russie (O4600),2021,46715,kt,doc_d8e2ed084c52
+gas,UE27 : produits pétroliers importés de Russie (O4600),2025,319,kt,doc_d8e2ed084c52

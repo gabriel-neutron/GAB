@@ -164,6 +164,22 @@ export const writeRequest = z.discriminatedUnion('op', [
 
   z.strictObject({ op: z.literal('delete_entity'), targetId: z.uuid() }),
   z.strictObject({ op: z.literal('delete_relation'), targetId: z.uuid() }),
+
+  // A figure that one page states (ADR 0031). Only a machine proposes it: the operator door takes
+  // the op from WRITE_OPS, which does not hold it. The reporter and the partner are codes of the
+  // area list, and the database checks them.
+  z.strictObject({
+    op: z.literal('create_observation'),
+    measure: z.string(),
+    value: z.number(),
+    unit: z.string(),
+    period: z.string(),
+    reporter: z.string(),
+    partner: z.string().optional(),
+    method: z.string(),
+    publisher: z.string(),
+    subjectId: z.uuid().optional(),
+  }),
 ]);
 
 export type WriteRequest = z.infer<typeof writeRequest>;

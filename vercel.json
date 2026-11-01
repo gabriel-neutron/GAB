@@ -1,5 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/((?!assets/|write/|write$|private/).*)", "destination": "/index.html" }
-  ]
-}

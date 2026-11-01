@@ -38,7 +38,6 @@ desktop.ini
 node_modules/
 dist/
 build/
-storybook-static/
 coverage/
 *.tsbuildinfo
 npm-debug.log*
@@ -66,9 +65,19 @@ research/.claude/worktrees/
 # TanStack Router plugin scratch folder
 .tanstack/
 
+# Wrangler's local state and deployment output
+.wrangler/
+
 # Local plugin files (Motion), not shared
 .claude/agents/motion-reviewer.md
 .claude/skills/motion/
 
 # Output of the figure tool
 figures-out/
+
+# Local output of the taste skill
+.taste-skill/
+
+# Skills that an agent installs for one operator (the lock file records them)
+.agents/
+skills-lock.json

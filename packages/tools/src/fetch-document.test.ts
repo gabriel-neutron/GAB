@@ -462,6 +462,8 @@ test('a second caller that stored the same bytes at the same instant makes the a
         lookups += 1;
         return Promise.resolve({ rows: lookups === 1 ? [] : [stored] });
       }
+      if (text.includes('fill_document_trace'))
+        return Promise.resolve({ rows: [{ outcome: 'filled' }] });
       if (text.includes('FROM api.document'))
         return Promise.resolve({ rows: [{ title: stored.title, uri: `${base}/page.html` }] });
       return Promise.resolve({

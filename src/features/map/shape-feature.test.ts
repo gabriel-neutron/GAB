@@ -32,13 +32,14 @@ describe('the shape feature of an entity', () => {
       type: 'Feature',
       id: 7,
       geometry: { type: 'MultiLineString', coordinates: ROUTE },
-      properties: { entityType: 'facility' },
+      properties: { entityType: 'facility', entityId: base.id },
     });
   });
 
   it('carries the hue of the stage with the shape', () => {
     expect(shapeFeatureOf({ ...base, route: ROUTE }, true, '#e0c341')?.properties).toStrictEqual({
       entityType: 'facility',
+      entityId: base.id,
       stageColour: '#e0c341',
     });
   });

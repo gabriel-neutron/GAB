@@ -186,6 +186,8 @@ REVOKE ALL ON FUNCTION on_site_of(text,text[])     FROM PUBLIC;
 REVOKE ALL ON FUNCTION passage_words(text,text,int,int,int) FROM PUBLIC;
 REVOKE ALL ON FUNCTION passages_share_run(text[],text[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION citation_source(uuid)       FROM PUBLIC;
+REVOKE ALL ON FUNCTION citation_party(uuid)        FROM PUBLIC;
+REVOKE ALL ON FUNCTION citation_words(uuid)        FROM PUBLIC;
 REVOKE ALL ON FUNCTION citations_independent(uuid,uuid) FROM PUBLIC, gabriel_app;
 REVOKE ALL ON FUNCTION record_act_check(uuid,text,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION record_research_check(uuid,text,text,text,text,text) FROM PUBLIC;
@@ -212,6 +214,7 @@ REVOKE ALL ON FUNCTION release_claims()         FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_documents()      FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_disclaimer()     FROM PUBLIC;
 REVOKE ALL ON FUNCTION release_merges()         FROM PUBLIC;
+REVOKE ALL ON FUNCTION release_observations()   FROM PUBLIC;
 REVOKE ALL ON FUNCTION nato_pair(uuid[])        FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION put_document_text(text,jsonb,text) FROM PUBLIC;
@@ -223,6 +226,7 @@ REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,t
   FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_provider(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_archive(text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fill_document_trace(text,text,boolean) FROM PUBLIC;
 
 -- THE TIER IS HELD BY NO ROLE. The owner of a view does not lend EXECUTE on a function that the
 -- view calls, so the reader role of an export gets the grant together with that export.
@@ -239,6 +243,8 @@ GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,dat
 GRANT EXECUTE ON FUNCTION fill_document_provider(text,text) TO gabriel_agent, gabriel_research;
 -- THE ARCHIVE THAT HELD A FILE goes with the fetched-document door too.
 GRANT EXECUTE ON FUNCTION fill_document_archive(text,text,text) TO gabriel_agent, gabriel_research;
+-- HOW A FETCHED DOCUMENT WAS READ goes with the fetched-document door too.
+GRANT EXECUTE ON FUNCTION fill_document_trace(text,text,boolean) TO gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION put_document(text,text,text,text,text,text,text,text,date,text,numeric,text)
   TO gabriel_app;
 -- THE ADDRESS OF A KNOWN UPLOAD goes with the upload door, so only the operator holds it.
@@ -386,7 +392,7 @@ GRANT EXECUTE ON FUNCTION rating_context(text)     TO gabriel_agent;
 -- whole through the views already, so the grant shows them nothing new. The public read role holds
 -- none: a release is a set of files, and no public reader calls the database for it.
 GRANT EXECUTE ON FUNCTION release_entities(), release_relations(), release_claims(),
-  release_documents(), release_disclaimer(), release_merges()
+  release_documents(), release_disclaimer(), release_merges(), release_observations()
   TO gabriel_app, gabriel_agent, gabriel_research;
 -- THE NATO PAIR IS HELD BY THE OPERATOR ROLE ONLY. A machine role
 -- that read the pair would read the letters and the digits that the rules decide from, and the

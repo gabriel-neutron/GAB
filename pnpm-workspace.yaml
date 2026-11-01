@@ -6,22 +6,23 @@ packages:
 
 # pnpm writes this file itself. Two settings live in it.
 #
-# `allowBuilds` lets two packages run their install script. Each script only selects the
-# prebuilt binary for this platform; neither compiles anything.
+# `allowBuilds` lets three packages run their install script. Each script only selects the
+# prebuilt binary for this platform; none compiles anything.
 #
 # `unrs-resolver` is the resolver that `eslint-import-resolver-typescript` uses to follow the
 # `@/*` alias. Without it the boundaries rules resolve nothing and report a safety they do not
 # give.
 #
-# `esbuild` arrives with Storybook — `@storybook/csf-plugin` and `@storybook/builder-vite` both
-# depend on it (#60). Vite 8 itself uses rolldown and does not. Without the script the binary
-# is absent and every Storybook command fails at startup.
+# `esbuild` is a dependency of the build tools. Without the script the binary is absent.
+#
+# `workerd` is Wrangler's local runtime. Its script selects and checks the platform binary.
 #
 # `tesseract.js` is refused: its script only prints a request for donations.
 allowBuilds:
   esbuild: true
   tesseract.js: false
   unrs-resolver: true
+  workerd: true
 
 # `minimumReleaseAgeExclude` records the packages installed before the age gate would have
 # released them. pnpm added each line.

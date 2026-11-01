@@ -70,16 +70,24 @@ const attribute = (tag: string, name: string): string | undefined => {
   return value === undefined ? undefined : decoded(value);
 };
 
+// Each pattern of an element ends at its close tag or at the end of the text, and a tag stops at
+// the next "<". A start that is never closed is then read once: a hostile part with many open
+// starts costs linear time, not quadratic time.
+
 // The text runs of one string item. A phonetic run (rPh) is a reading aid and not the text.
 const runsOf = (item: string): string =>
-  [...item.replaceAll(/<rPh\b[\s\S]*?<\/rPh>/gu, '').matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/gu)]
+  [
+    ...item
+      .replaceAll(/<rPh\b[\s\S]*?(?:<\/rPh>|$)/gu, '')
+      .matchAll(/<t\b[^<>]*>([\s\S]*?)(?:<\/t>|$)/gu),
+  ]
     .map((one) => decoded(one[1] ?? ''))
     .join('');
 
 const sharedStrings = (xml: string | undefined): string[] =>
   xml === undefined
     ? []
-    : [...xml.matchAll(/<si\b[^>]*?(?:\/>|>([\s\S]*?)<\/si>)/gu)].map((one) =>
+    : [...xml.matchAll(/<si\b[^<>]*?(?:\/>|>([\s\S]*?)(?:<\/si>|$))/gu)].map((one) =>
         runsOf(one[1] ?? ''),
       );
 
@@ -87,18 +95,18 @@ const sharedStrings = (xml: string | undefined): string[] =>
 export const sheetNames = async (input: TableInput): Promise<string[]> => {
   const book = await textOf(await openArchive(input), 'xl/workbook.xml');
   if (book === undefined) throw new WorkbookFault('the archive holds no xl/workbook.xml part');
-  return [...book.matchAll(/<sheet\b[^>]*>/gu)].map((one) => attribute(one[0], 'name') ?? '');
+  return [...book.matchAll(/<sheet\b[^<>]*>/gu)].map((one) => attribute(one[0], 'name') ?? '');
 };
 
 const sheetPart = async (archive: Archive, sheet: string): Promise<string> => {
   const book = (await textOf(archive, 'xl/workbook.xml')) ?? '';
-  const tag = [...book.matchAll(/<sheet\b[^>]*>/gu)]
+  const tag = [...book.matchAll(/<sheet\b[^<>]*>/gu)]
     .map((one) => one[0])
     .find((one) => attribute(one, 'name') === sheet);
   if (tag === undefined) throw new WorkbookFault(`the workbook has no sheet named "${sheet}"`);
   const id = attribute(tag, 'r:id');
   const relations = (await textOf(archive, 'xl/_rels/workbook.xml.rels')) ?? '';
-  const target = [...relations.matchAll(/<Relationship\b[^>]*>/gu)]
+  const target = [...relations.matchAll(/<Relationship\b[^<>]*>/gu)]
     .map((one) => one[0])
     .find((one) => attribute(one, 'Id') === id);
   const path = target === undefined ? undefined : attribute(target, 'Target');
@@ -116,9 +124,17 @@ const columnOf = (letters: string): number => {
   return column - 1;
 };
 
+// The column 27 (counted from 0) is "AB".
+const lettersOf = (column: number): string => {
+  let letters = '';
+  for (let left = column + 1; left > 0; left = Math.floor((left - 1) / 26))
+    letters = String.fromCharCode(65 + ((left - 1) % 26)) + letters;
+  return letters;
+};
+
 const cellText = (tag: string, body: string, strings: readonly string[]): string => {
   const type = attribute(tag, 't') ?? 'n';
-  const value = /<v\b[^>]*>([\s\S]*?)<\/v>/u.exec(body)?.[1];
+  const value = /<v\b[^<>]*>([\s\S]*?)(?:<\/v>|$)/u.exec(body)?.[1];
   if (type === 'inlineStr') return runsOf(body);
   if (value === undefined) return '';
   if (type === 's') return strings[Number(value)] ?? '';
@@ -128,8 +144,14 @@ const cellText = (tag: string, body: string, strings: readonly string[]): string
 };
 
 // The rows of one sheet, read from the inflated stream. The buffer holds the text from the first
-// row that is not complete, so the memory is one row and one chunk, and never the sheet.
-const ROW = /<row\b[^>]*?(?:\/>|>([\s\S]*?)<\/row>)/gu;
+// row that is not complete, so the memory is one row and one chunk, and never the sheet. A row
+// that reaches the end of the buffer before its close tag is not complete yet.
+const ROW = /<row\b[^<>]*?(?:\/>|>([\s\S]*?)(?:<\/row>|$))/gu;
+const ROW_END = '</row>';
+
+// Origin of the number: a drain reads the whole buffer. A buffer with no new close tag is read
+// again only when it is twice as long, so a long row costs linear time and not quadratic time.
+const DRAIN_FLOOR = 1024 * 1024;
 
 async function* sheetRows(
   archive: Archive,
@@ -141,15 +163,25 @@ async function* sheetRows(
   if (entry === undefined) throw new WorkbookFault(`the part ${name} of the sheet is missing`);
   const decoder = new StringDecoder('utf8');
   let held = '';
+  let drained = 0;
   const drain = function* (): Generator<string[]> {
     ROW.lastIndex = 0;
     let used = 0;
     for (let row = ROW.exec(held); row !== null; row = ROW.exec(held)) {
+      if (row[1] !== undefined && !row[0].endsWith(ROW_END)) {
+        held = held.slice(row.index);
+        if (held.length > MAX_TABLE_CHARS)
+          throw new WorkbookFault(
+            `a row of the sheet "${sheet}" is longer than ${String(MAX_TABLE_CHARS)} characters`,
+          );
+        drained = held.length;
+        return;
+      }
       used = ROW.lastIndex;
       const cells: (string | undefined)[] = [];
       // A cell with no reference takes the column after the previous cell.
       let next = 0;
-      for (const cell of (row[1] ?? '').matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/gu)) {
+      for (const cell of (row[1] ?? '').matchAll(/<c\b([^<>]*?)(?:\/>|>([\s\S]*?)(?:<\/c>|$))/gu)) {
         const tag = cell[1] ?? '';
         const reference = attribute(tag, 'r');
         const letters = /^[A-Z]+/u.exec(reference ?? '')?.[0];
@@ -168,10 +200,13 @@ async function* sheetRows(
     }
     const open = held.lastIndexOf('<row', held.length);
     held = open >= used ? held.slice(open) : held.slice(Math.max(used, held.length - 4));
+    drained = held.length;
   };
   for await (const chunk of partChunks(archive.source, entry)) {
+    const from = Math.max(0, held.length - ROW_END.length);
     held += decoder.write(chunk);
-    yield* drain();
+    if (held.includes(ROW_END, from) || held.length >= Math.max(2 * drained, DRAIN_FLOOR))
+      yield* drain();
   }
   held += decoder.end();
   yield* drain();
@@ -192,8 +227,9 @@ export interface TableFilter {
 
 /** The name of a text set. The same sheet and the same filter give the same name, and the name
  * holds the version of the reader. */
-export const textSetName = (sheet: string, filter?: TableFilter): string =>
+export const textSetName = (sheet: string, filter?: TableFilter, skip = 0): string =>
   `${TABLE_READER}|sheet=${sheet}` +
+  (skip === 0 ? '' : `|skip=${String(skip)}`) +
   (filter === undefined ? '' : `|where=${filter.column}=${filter.value}`);
 
 /** The most characters of CSV text that one table read keeps. A read with no filter and no row
@@ -248,14 +284,22 @@ const sheetCsvOf = async (
   filter?: TableFilter,
   maxRows?: number,
   kept = new KeptRows(),
+  skip = 0,
 ): Promise<string> => {
   let header: string[] | undefined;
   let head = '';
   let at = -1;
+  let skipped = 0;
   for await (const row of sheetRows(archive, sheet, strings)) {
+    if (skipped < skip) {
+      skipped += 1;
+      continue;
+    }
     if (header === undefined) {
       header = row.map((name) => name.trim());
       while (header.at(-1) === '') header.pop();
+      // A sheet with title rows (skip) often leaves the first column of its header blank.
+      if (skip > 0) header = header.map((name, column) => (name === '' ? lettersOf(column) : name));
       head = kept.line(header, `sheet "${sheet}"`);
       at = filter === undefined ? -1 : header.indexOf(filter.column);
       if (filter !== undefined && at === -1)
@@ -278,16 +322,18 @@ const sheetCsvOf = async (
  * cut to the width of the header, and a trailing column with no name is dropped. The sheet is
  * read as a stream. The memory is the table of shared strings of the workbook, one chunk, and the
  * lines that are kept (at most MAX_TABLE_CHARS, the header included). `maxRows` stops the read
- * after that many kept rows. */
+ * after that many kept rows. `skip` drops that many rows that are not blank before the header (the
+ * title rows), and a blank cell of that header takes the letters of its column as its name. */
 export const sheetCsv = async (
   input: TableInput,
   sheet: string,
   filter?: TableFilter,
   maxRows?: number,
+  skip = 0,
 ): Promise<string> => {
   const archive = await openArchive(input);
   const strings = sharedStrings(await textOf(archive, 'xl/sharedStrings.xml'));
-  return sheetCsvOf(archive, strings, sheet, filter, maxRows);
+  return sheetCsvOf(archive, strings, sheet, filter, maxRows, new KeptRows(), skip);
 };
 
 /** Every sheet of a workbook as CSV text, in the order of the workbook. The shared strings are

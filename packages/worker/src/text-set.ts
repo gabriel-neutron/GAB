@@ -5,6 +5,7 @@ import { readCsv } from '@gab/tools/csv';
 import { z } from 'zod';
 
 import { CSV_MIMES, csvSetName, headlessCsv, type Extraction } from './csv-set.ts';
+import { findByIdentifier } from './loader/join.ts';
 import type { Queryable } from './queryable.ts';
 
 // A text set is the table of one sheet of a stored workbook, of one GeoJSON layer of a stored
@@ -38,7 +39,14 @@ export type TextSetRequest =
   | ({
       readonly document: string;
       readonly filter?: TableFilter;
-    } & ({ readonly sheet: string } | { readonly layer: string }))
+    } & (
+      | {
+          readonly sheet: string;
+          /** Drops this many rows of the sheet before its header row: the title rows. */
+          readonly skip?: number;
+        }
+      | { readonly layer: string }
+    ))
   | {
       /** A CSV file with no header row: the names of its columns, by position. */
       readonly document: string;
@@ -51,6 +59,9 @@ export type TextSetRequest =
       readonly extract?: readonly Extraction[];
       /** Drops this many records at the start of the file, before the filters. */
       readonly skip?: number;
+      /** Keeps the rows whose cell of the column `imo` is one of these numbers. The command gives
+       * only the numbers that the register holds, so the set never names a vessel of the file alone. */
+      readonly imo?: readonly string[];
     };
 
 export interface TextSetOptions {
@@ -65,6 +76,43 @@ export interface TextSetResult {
   readonly status: 'stored' | 'known' | 'counted';
   readonly rows: number;
 }
+
+/** The IMO numbers of a list: one number of seven digits on each line. A blank line is no number,
+ * and any other line is refused with its line number. */
+export const imoListOf = (text: string): string[] =>
+  text
+    .split(/\r?\n/u)
+    .map((line, index) => ({ value: line.trim(), line: index + 1 }))
+    .filter((one) => one.value !== '')
+    .map((one) => {
+      if (!/^\d{7}$/u.test(one.value))
+        throw new Error(
+          `line ${String(one.line)} of the IMO list is no IMO number of seven digits`,
+        );
+      return one.value;
+    });
+
+const BY_IMO = 'vessel';
+
+/** Splits the IMO numbers of a list into those that the register holds as a vessel and those that
+ * it does not. A number that finds more than one vessel is held, and is counted in `many`. */
+export const registeredImos = async (
+  db: Queryable,
+  imos: readonly string[],
+): Promise<{ readonly held: string[]; readonly absent: string[]; readonly many: number }> => {
+  const held: string[] = [];
+  const absent: string[] = [];
+  let many = 0;
+  for (const imo of [...new Set(imos)].sort()) {
+    const found = await findByIdentifier(db, 'imo', imo, BY_IMO);
+    if (found.kind === 'none') absent.push(imo);
+    else {
+      held.push(imo);
+      if (found.kind === 'many') many += 1;
+    }
+  }
+  return { held, absent, many };
+};
 
 /** Makes the text set of one sheet or one layer of a stored file. It writes nothing when the set
  * exists already with the same text, and it refuses a set that exists with other text. */
@@ -86,9 +134,16 @@ export const makeTextSet = async (
 
   const name =
     'columns' in request
-      ? csvSetName(request.columns, request.tag, request.equals, request.skip, request.extract)
+      ? csvSetName(
+          request.columns,
+          request.tag,
+          request.equals,
+          request.skip,
+          request.extract,
+          request.imo,
+        )
       : 'sheet' in request
-        ? textSetName(request.sheet, request.filter)
+        ? textSetName(request.sheet, request.filter, request.skip)
         : layerSetName(request.layer, request.filter);
   const file = await deps.open(stored.s3_key);
   let text: string;
@@ -102,9 +157,10 @@ export const makeTextSet = async (
             request.equals,
             request.skip,
             request.extract,
+            request.imo,
           )
         : 'sheet' in request
-          ? await sheetCsv(file, request.sheet, request.filter)
+          ? await sheetCsv(file, request.sheet, request.filter, undefined, request.skip)
           : await layerCsv(file, request.layer, request.filter);
   } finally {
     await file.close?.();

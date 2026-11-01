@@ -16,6 +16,20 @@ test('asset-sanctions refuses an --as-of day that the calendar lacks, before it 
   expect(await assetSanctionsCommand(['--as-of', '2026-13-45'])).toBe(2);
 });
 
+test('delete-relation refuses a word that is not an id, before it connects', async () => {
+  const { deleteRelationCommand } = await import('./delete-relation-command.ts');
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  expect(await deleteRelationCommand([])).toBe(2);
+  expect(await deleteRelationCommand(['x'])).toBe(2);
+});
+
+test('undo-merge refuses a word that is not an id, before it connects', async () => {
+  const { undoMergeCommand } = await import('./undo-merge-command.ts');
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  expect(await undoMergeCommand([])).toBe(2);
+  expect(await undoMergeCommand(['x'])).toBe(2);
+});
+
 test('no word gives the usage, and the usage names each sub-command', () => {
   const command = readCommand([]);
   expect(command.kind).toBe('usage');
@@ -38,7 +52,7 @@ test('no word gives the usage, and the usage names each sub-command', () => {
 test('an unknown word gives the usage, and the usage names the word', () => {
   expect(readCommand(['runner'])).toStrictEqual({
     kind: 'usage',
-    text: '"runner" is not a sub-command. Usage: pnpm worker <activity-report|asset-coverage|asset-sanctions|author-names|document-labels|dry-join|firms-sweep|gem-duplicates|geolocation-method|ingest|layout|merge-act|merge-entities|name-candidates|nato-coverage|reconcile|reference-dataset|reference-set|release|requeue-ratings|reread-html|run|sentinel2-pairs|text-set> [arguments]',
+    text: '"runner" is not a sub-command. Usage: pnpm worker <activity-report|asset-coverage|asset-sanctions|audit-coverage|author-names|delete-relation|document-file|document-labels|dry-join|firms-sweep|gem-duplicates|geolocation-method|ingest|layout|merge-act|merge-entities|name-candidates|nato-coverage|reconcile|reference-dataset|reference-set|relation-modality|release|requeue-ratings|reread-html|run|sentinel2-pairs|tanker-port-calls|text-set|undo-merge> [arguments]',
   });
 });
 
@@ -59,6 +73,7 @@ test.each([
   'nato-coverage',
   'reconcile',
   'reference-set',
+  'relation-modality',
   'release',
   'requeue-ratings',
   'reread-html',

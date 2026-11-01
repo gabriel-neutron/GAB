@@ -121,6 +121,7 @@ export const row = {
         'merge_entities',
         'undo_merge',
         'map_document',
+        'create_observation',
       ],
       stated('proposal.op'),
     ),

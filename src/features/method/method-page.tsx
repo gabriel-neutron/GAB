@@ -50,7 +50,7 @@ function Contact({ address }: { readonly address: string }) {
 export function MethodPage({ manifest }: MethodPageProps) {
   if (manifest === null)
     return (
-      <ReadingPage>
+      <ReadingPage grid>
         <PageHeader title="About" />
         <p className="text-muted-foreground">
           This site holds no release, and the About page comes with a release.
@@ -69,7 +69,7 @@ export function MethodPage({ manifest }: MethodPageProps) {
         ] satisfies KeyValueEntry[])),
   ];
   return (
-    <ReadingPage>
+    <ReadingPage grid>
       <PageHeader
         title="About"
         detail="What this dataset holds, what its labels mean, and how to use and cite it."

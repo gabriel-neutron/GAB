@@ -12,6 +12,8 @@ export interface ShapeFeature {
     | { readonly type: 'MultiLineString'; readonly coordinates: readonly Ring[] };
   readonly properties: {
     readonly entityType: string;
+    /** The id of the asset, which the Chain mode reads to keep the shapes of one step. */
+    readonly entityId: string;
     /** The hue of the stage of the asset, which the Chain mode draws. Absent with no stage. */
     readonly stageColour?: string;
   };
@@ -30,6 +32,7 @@ export function shapeFeatureOf(
   const { area, route } = entity;
   const properties = {
     entityType: entity.type,
+    entityId: entity.id,
     ...(stageColour === undefined ? {} : { stageColour }),
   };
   if (route !== null)

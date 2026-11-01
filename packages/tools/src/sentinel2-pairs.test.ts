@@ -51,11 +51,13 @@ const setup = (scenes: Scenes = FULL, options: { token?: number; tokenLife?: num
         ? bytes(JSON.stringify({ access_token: TOKEN, expires_in: options.tokenLife ?? 600 }))
         : bytes('{}', options.token);
     if (path.endsWith('/catalog/1.0.0/search'))
-      return bytes(
-        JSON.stringify({
-          features: scenes.scenes.map(([id, datetime]) => ({ id, properties: { datetime } })),
-        }),
-      );
+      return asked.headers['accept'] !== 'application/geo+json'
+        ? bytes('{}', 406)
+        : bytes(
+            JSON.stringify({
+              features: scenes.scenes.map(([id, datetime]) => ({ id, properties: { datetime } })),
+            }),
+          );
     if (path.endsWith('/statistics'))
       return bytes(
         JSON.stringify({
@@ -248,6 +250,16 @@ test('the client leaves in the body of the token request and never in an address
   expect(
     web.posted.filter((asked) => asked.headers['authorization'] === `Bearer ${TOKEN}`),
   ).toHaveLength(4);
+});
+
+test('the catalogue search asks for GeoJSON', async () => {
+  const { session, reach, web } = setup();
+  await callTool(tool, session, { strikes: [STRIKE] }, reach);
+  const searches = web.posted.filter((asked) =>
+    asked.url.pathname.endsWith('/catalog/1.0.0/search'),
+  );
+  expect(searches.length).toBeGreaterThan(0);
+  for (const asked of searches) expect(asked.headers['accept']).toBe('application/geo+json');
 });
 
 test('the token is read again when it is about to end', async () => {

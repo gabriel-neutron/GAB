@@ -5,6 +5,7 @@ import { machineAct } from '@gab/proposal/machine';
 import {
   isLinkTable,
   isObservationTable,
+  isWideTable,
   mappingPayload,
   type LinkRows,
   type MappingPayload,
@@ -47,6 +48,19 @@ const REPORT_MIME = 'text/csv';
 const PENDING_OWNER = `SELECT id::text AS id FROM public.proposals
   WHERE op = 'create_entity' AND status = 'pending' AND payload->>'type' = $1::text
     AND payload #>> '{attrs,gem_entity_id,v}' = $2::text ORDER BY id LIMIT 20`;
+
+// The entity of a type with this name key: the committed one, or else the one that an earlier load
+// proposed and nobody decided yet.
+// A committed entity wins over a proposal of the same name.
+const ENTITY_NAMED = `SELECT id::text AS id FROM (
+  SELECT id, 0 AS rank FROM api.entity WHERE type = $1::text AND public.name_key(label) = $2::text
+  UNION ALL
+  SELECT id, 1 FROM public.proposals
+   WHERE op = 'create_entity' AND status = 'pending' AND payload->>'type' = $1::text
+     AND public.name_key(payload->>'label') = $2::text
+     AND NOT EXISTS (SELECT 1 FROM api.entity
+                      WHERE type = $1::text AND public.name_key(label) = $2::text)) AS found
+  ORDER BY rank, id LIMIT 2`;
 
 const ENTITY_EXISTS =
   'SELECT id::text AS id FROM api.entity WHERE id = $1::uuid AND type = $2::text';
@@ -291,13 +305,14 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       excluded: number,
       dropped: number,
       lines: readonly Line[],
+      read = table.rows.length,
     ): Promise<void> => {
       const text = reportOf(
         {
           document,
           mapping: job.mappingId,
           job: job.id,
-          read: table.rows.length,
+          read,
           loaded,
           excluded,
           dropped,
@@ -308,14 +323,14 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       const digest = sha256(bytes);
       const key = await options.store.put({ key: `raw/${digest}`, bytes, mime: REPORT_MIME });
       const title =
-        `Load report of ${document} under mapping ${job.mappingId}: ${String(table.rows.length)} ` +
+        `Load report of ${document} under mapping ${job.mappingId}: ${String(read)} ` +
         `rows read, ${String(loaded)} loaded, ${String(excluded)} excluded, ` +
         `${String(dropped)} links dropped`;
       await context.db.query(REPORT, [job.id, title, key, digest, REPORT_MIME]);
     };
 
     // A figure is no entity: the door of a figure writes each row, and no act waits for a decision.
-    if (isObservationTable(mapping.rows)) {
+    if (isObservationTable(mapping.rows) || isWideTable(mapping.rows)) {
       const done = await loadObservations(context.db, {
         job: job.id,
         rows: mapping.rows,
@@ -323,9 +338,9 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         records: table.rows,
         cited: { textSet: page.textSet, page: page.page },
       });
-      if (done.loaded + done.excluded !== table.rows.length)
+      if (done.loaded + done.excluded !== done.read)
         throw new JobStop('the rows loaded and excluded do not add up to the rows read');
-      await putReport(done.loaded, done.excluded, 0, done.lines);
+      await putReport(done.loaded, done.excluded, 0, done.lines, done.read);
       return { refusals: [] };
     }
 
@@ -340,6 +355,10 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
     // finds it here, because the first act may still wait for the operator. A row records its new
     // owners here only after the door accepts the batch of the row.
     const createdOwners = new Map<string, string>();
+    // The entities that the rows of this load create, by `key|value` of an identifier. The record
+    // does not hold them yet, so a second row with the same identifier finds its entity here and
+    // creates no second one.
+    const createdRows = new Map<string, string>();
 
     // The owner of a GEM identifier: the committed entity of the type, or else the entity that an
     // earlier load proposed and the operator did not decide yet.
@@ -369,19 +388,28 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
 
     /** The far ends of a cell of names. A name with a GEM identifier in the table finds its entity
      * in the record. A name that the table gives as a candidate finds its entity too, and the
-     * link carries the mark "unconfirmed", unless the register check confirmed the candidate. An open name gives no link, and the name stays text.
-     * Each name that gives no link goes to `note`. */
+     * link carries the mark "unconfirmed", unless the register check confirmed the candidate. A
+     * new name finds the entity of that name when the record or an earlier load holds one, and
+     * else it is an entity to create (`created`, only when `mint` is set). An open name gives no
+     * link, and the name stays text. Each name that gives no link goes to `note`. */
     const namedEnds = async (
       relation: MappingPayload['relations'][number],
       text: string,
       farType: string,
       note: (reason: string) => void,
-    ): Promise<{ ends: { id: string; extra: Attrs }[]; unresolved: number }> => {
+      mint = false,
+      rowNew: ReadonlyMap<string, string> = new Map(),
+    ): Promise<{
+      ends: { id: string; extra: Attrs }[];
+      unresolved: number;
+      created: { slot: string; id: string; label: string }[];
+    }> => {
       const { names } = relation;
       const table = names === undefined ? undefined : nameTables.get(names.table);
       const ends: { id: string; extra: Attrs }[] = [];
+      const created: { slot: string; id: string; label: string }[] = [];
       let unresolved = 0;
-      if (names === undefined || table === undefined) return { ends, unresolved };
+      if (names === undefined || table === undefined) return { ends, unresolved, created };
       const push = (name: string, end: { id: string; extra: Attrs }): void => {
         // Two names of one entity give one link, and the first name gives its share.
         if (ends.some((one) => one.id === end.id)) {
@@ -411,6 +439,27 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
             });
           continue;
         }
+        if (held.kind === 'new') {
+          const key = nameKey(name);
+          const slot = `${farType}:name:${key}`;
+          const named = idRow.parse((await context.db.query(ENTITY_NAMED, [farType, key])).rows);
+          const [first] = named;
+          const earlier =
+            rowNew.get(slot) ??
+            createdOwners.get(slot) ??
+            created.find((one) => one.slot === slot)?.id;
+          if (named.length > 1) {
+            note(`relation not loaded: the new name "${name}" finds more than one entity`);
+            unresolved += 1;
+          } else if (first !== undefined || earlier !== undefined)
+            push(name, { id: first?.id ?? earlier ?? '', extra });
+          else if (mint) {
+            const id = randomUUID();
+            created.push({ slot, id, label: name });
+            push(name, { id, extra });
+          } else unresolved += 1;
+          continue;
+        }
         const owned = await ownerOf(farType, held.gemId);
         if (owned.kind === 'one') push(name, { id: owned.id, extra });
         else {
@@ -421,7 +470,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           );
         }
       }
-      return { ends, unresolved };
+      return { ends, unresolved, created };
     };
 
     // A link that an earlier edition gave, and that this edition no longer gives, goes to the
@@ -726,9 +775,18 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         return;
       }
 
+      const rowKeys = find.keysOf(record, rows.lookup);
+      const created =
+        found.kind === 'none'
+          ? rowKeys.map((key) => createdRows.get(key)).find((id) => id !== undefined)
+          : undefined;
+      if (created !== undefined)
+        note(
+          `the row gives the identifier of entity ${created}, which an earlier row creates; its own values are not proposed`,
+        );
       // The entity of the row has the identifier that its act is given, so a relation of the row
       // can name it before the operator promotes it.
-      const rowId = found.kind === 'one' ? found.id : randomUUID();
+      const rowId = found.kind === 'one' ? found.id : (created ?? randomUUID());
       // The new owners of this row, recorded in `createdOwners` only if the door accepts the row.
       const rowOwners = new Map<string, string>();
       const requests: { request: unknown; id: string; foundBy: string | null }[] = [];
@@ -736,7 +794,8 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
       // earlier load then adds no act of no effect.
       // The name, the values and the place of the entity that the row finds, read once.
       const entity = found.kind === 'one' ? await entityHeld(context.db, found.id) : null;
-      if (entity === null)
+      const creates = entity === null && created === undefined;
+      if (creates)
         requests.push({
           request: {
             op: 'create_entity',
@@ -748,7 +807,7 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
           id: rowId,
           foundBy: null,
         });
-      else if (found.kind === 'one') {
+      else if (entity !== null && found.kind === 'one') {
         // The load compares values and not sources: a row of a new edition that gives the values
         // of the record writes nothing, and a changed value gives one proposal with the changed
         // values only.
@@ -818,9 +877,19 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         // The far ends of this relation: one entity for a plain cell, and one for each owner of a
         // cell that splits.
         const ends: { id: string; extra: Attrs }[] = [];
-        if (relation.names !== undefined)
-          ends.push(...(await namedEnds(relation, otherText, farType, note)).ends);
-        else if (relation.split === undefined) {
+        if (relation.names !== undefined) {
+          const named = await namedEnds(relation, otherText, farType, note, true, rowOwners);
+          ends.push(...named.ends);
+          // A company that a name creates has no identifier: the label is the name that GEM wrote.
+          for (const one of named.created) {
+            rowOwners.set(one.slot, one.id);
+            requests.push({
+              request: { op: 'create_entity', type: farType, label: one.label },
+              id: one.id,
+              foundBy: null,
+            });
+          }
+        } else if (relation.split === undefined) {
           const end = await find(record, [relation.other], farType);
           if (end.kind === 'none') {
             await skip(NOT_IN_GRAPH);
@@ -931,8 +1000,10 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         }
         items.push(made.item);
       }
-      if (await proposeRow(at, items))
+      if (await proposeRow(at, items)) {
         for (const [slot, id] of rowOwners) createdOwners.set(slot, id);
+        if (creates) for (const key of rowKeys) createdRows.set(key, rowId);
+      }
     };
 
     for (const [index, record] of table.rows.entries()) await loadRow(record, index + 1);

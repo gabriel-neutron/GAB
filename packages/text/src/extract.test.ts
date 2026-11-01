@@ -86,6 +86,8 @@ describe('extractText', () => {
   test('an OFAC page of recent actions gives each SDN section, without the frame of the site', async () => {
     const bytes = await readFile(join(import.meta.dirname, '../fixtures/ofac-recent-action.html'));
     const [page] = (await extractText(bytes, 'text/html')).pages;
+    expect(page?.startsWith('Release Date: 01/10/2025\n\nThe Department')).toBe(true);
+    expect(page?.match(/01\/10\/2025/gu)).toHaveLength(1);
     expect(page).toContain('Determination pursuant to Section 1(a)(i) of Executive Order 14024');
     expect(page).toContain("#### The following individuals have been added to OFAC's SDN List:");
     expect(page).toContain('ALEKPEROV, Yusuf Vagitovich');
@@ -103,6 +105,16 @@ describe('extractText', () => {
       'Privacy Policy',
     ])
       expect(page).not.toContain(frame);
+  });
+
+  // The fixture keeps the structure of https://ofac.treasury.gov/recent-actions/20240612, where the
+  // body states the same day as the field ("on 06/12/2024"). The line of the field stays.
+  test('an OFAC page keeps its Release Date line when the body states the same day', async () => {
+    const bytes = await readFile(
+      join(import.meta.dirname, '../fixtures/ofac-recent-action-body-date.html'),
+    );
+    const [page] = (await extractText(bytes, 'text/html')).pages;
+    expect(page?.startsWith('Release Date: 06/12/2024\n\n')).toBe(true);
   });
 
   // A long list in one paragraph next to a short one: with no split, Readability kept the long

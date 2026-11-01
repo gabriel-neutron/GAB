@@ -9,7 +9,12 @@ const COMMANDS = {
     (await import('./release/asset-coverage-command.ts')).assetCoverageCommand,
   'asset-sanctions': async () =>
     (await import('./release/asset-sanctions-command.ts')).assetSanctionsCommand,
+  'audit-coverage': async () =>
+    (await import('./release/audit-coverage-command.ts')).auditCoverageCommand,
   'author-names': async () => (await import('./author-names-command.ts')).authorNamesCommand,
+  'delete-relation': async () =>
+    (await import('./delete-relation-command.ts')).deleteRelationCommand,
+  'document-file': async () => (await import('./document-file-command.ts')).documentFileCommand,
   'document-labels': async () =>
     (await import('./document-labels-command.ts')).documentLabelsCommand,
   'dry-join': async () => (await import('./dry-join-command.ts')).dryJoinCommand,
@@ -29,6 +34,8 @@ const COMMANDS = {
   'reference-dataset': async () =>
     (await import('./reference-dataset-command.ts')).referenceDatasetCommand,
   'reference-set': async () => (await import('./reference-set-command.ts')).referenceSetCommand,
+  'relation-modality': async () =>
+    (await import('./release/relation-modality-command.ts')).relationModalityCommand,
   release: async () => (await import('./release/release-command.ts')).releaseCommand,
   'requeue-ratings': async () =>
     (await import('./requeue-ratings-command.ts')).requeueRatingsCommand,
@@ -36,7 +43,10 @@ const COMMANDS = {
   run: async () => (await import('./run-command.ts')).runCommand,
   'sentinel2-pairs': async () =>
     (await import('./sentinel2-pairs-command.ts')).sentinel2PairsCommand,
+  'tanker-port-calls': async () =>
+    (await import('./release/tanker-port-calls-command.ts')).tankerPortCallsCommand,
   'text-set': async () => (await import('./text-set-command.ts')).textSetCommand,
+  'undo-merge': async () => (await import('./undo-merge-command.ts')).undoMergeCommand,
 } as const satisfies Record<string, () => Promise<SubCommand>>;
 
 type CommandName = keyof typeof COMMANDS;

@@ -1,0 +1,66 @@
+panel,series,year,value,document
+a,Coalition,2021,5522.2,doc_881438501a10;doc_9e1b86e318de
+a,China,2021,4048.6,doc_9a2bd010a75f
+a,Hong Kong,2021,1477.4,doc_4e0ccfddc2f4
+a,Nine third countries,2021,751.2,doc_0bc4ef54704e;doc_4f5d08282900;doc_678f0e31a462;doc_84c5e6895eb3;doc_8733513b9148;doc_9a487248bb33;doc_a706ad571fa6;doc_a9e0da10d911;doc_edbdb46592d0
+a,Coalition,2022,1295.3,doc_881438501a10;doc_883def691473
+a,China,2022,3770.4,doc_f33052b197c6
+a,Hong Kong,2022,680.0,doc_32831c062a05
+a,Nine third countries,2022,1000.5,doc_2c4637939194;doc_41ef4ca8e88f;doc_494927876ce6;doc_65988763ed00;doc_799b8532595d;doc_79f4d2bb5870;doc_dff741ff2dbe;doc_e863ed2d425f;doc_f7657a0f302c
+a,Coalition,2023,277.3,doc_881438501a10;doc_a7d0bde61b22
+a,China,2023,5287.6,doc_99d1183e4913
+a,Hong Kong,2023,807.9,doc_88c7e95c9b3f
+a,Nine third countries,2023,1431.7,doc_0a689f4b5e5f;doc_0f1da7da1471;doc_4a01c046df1d;doc_59d7e7c09456;doc_62ae13c93c3f;doc_6f2d7537e907;doc_ddbe2c8cb3bb;doc_fad5db71679c;doc_fb51ef318bbd
+a,Coalition,2024,47.6,doc_881438501a10
+a,China,2024,4464.3,doc_aef9e6821b99
+a,Hong Kong,2024,519.5,doc_c5a6f98ba6c4
+a,Nine third countries,2024,1156.9,doc_3ad9ffd40e3e;doc_3fa533808c97;doc_5c735a784354;doc_7d735772798b;doc_8c53ccbe5353;doc_a6820641bc00;doc_ce7cd9b49d00
+a,Coalition,2025,62.8,doc_881438501a10
+a,China,2025,4219.3,doc_96df5716c5ab
+a,Hong Kong,2025,602.9,doc_a31f1ceca94f
+a,Nine third countries,2025,588.1,doc_033cef3cb7d8;doc_36a2ec9bb62a;doc_8006b3f06d91;doc_8e0c3619f909;doc_958371176883;doc_db89ade14405;doc_ef04468e8207
+b,Kazakhstan,2021,62.5,doc_8733513b9148
+b,Kazakhstan,2022,306.0,doc_494927876ce6
+b,Kazakhstan,2023,292.8,doc_6f2d7537e907
+b,Kazakhstan,2024,229.1,doc_8c53ccbe5353
+b,Kazakhstan,2025,186.8,doc_ef04468e8207
+b,Kyrgyzstan,2021,1.8,doc_678f0e31a462
+b,Kyrgyzstan,2022,11.2,doc_65988763ed00
+b,Kyrgyzstan,2023,32.8,doc_ddbe2c8cb3bb
+b,Kyrgyzstan,2024,14.4,doc_7d735772798b
+b,Kyrgyzstan,2025,15.8,doc_8006b3f06d91
+b,Armenia,2021,5.3,doc_a706ad571fa6
+b,Armenia,2022,94.6,doc_79f4d2bb5870
+b,Armenia,2023,73.7,doc_59d7e7c09456
+b,Armenia,2024,14.9,doc_a6820641bc00
+b,Armenia,2025,3.3,doc_033cef3cb7d8
+b,Türkiye,2021,36.2,doc_4f5d08282900
+b,Türkiye,2022,157.9,doc_e863ed2d425f
+b,Türkiye,2023,252.7,doc_0a689f4b5e5f
+b,Türkiye,2024,74.8,doc_3fa533808c97
+b,Türkiye,2025,37.4,doc_958371176883
+b,United Arab Emirates,2021,75.7,doc_a9e0da10d911
+b,United Arab Emirates,2022,155.3,doc_dff741ff2dbe
+b,United Arab Emirates,2023,332.1,doc_62ae13c93c3f
+b,United Arab Emirates,2024,,
+b,United Arab Emirates,2025,,
+b,India,2021,62.5,doc_edbdb46592d0
+b,India,2022,63.0,doc_799b8532595d
+b,India,2023,186.4,doc_4a01c046df1d
+b,India,2024,556.5,doc_3ad9ffd40e3e
+b,India,2025,222.8,doc_36a2ec9bb62a
+b,Malaysia,2021,123.6,doc_9a487248bb33
+b,Malaysia,2022,130.5,doc_f7657a0f302c
+b,Malaysia,2023,161.8,doc_0f1da7da1471
+b,Malaysia,2024,173.7,doc_ce7cd9b49d00
+b,Malaysia,2025,31.9,doc_db89ade14405
+b,Thailand,2021,13.3,doc_84c5e6895eb3
+b,Thailand,2022,8.2,doc_2c4637939194
+b,Thailand,2023,88.3,doc_fb51ef318bbd
+b,Thailand,2024,93.5,doc_5c735a784354
+b,Thailand,2025,90.0,doc_8e0c3619f909
+b,Viet Nam,2021,370.2,doc_0bc4ef54704e
+b,Viet Nam,2022,73.7,doc_41ef4ca8e88f
+b,Viet Nam,2023,11.1,doc_fad5db71679c
+b,Viet Nam,2024,,
+b,Viet Nam,2025,,

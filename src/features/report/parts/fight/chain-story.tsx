@@ -1,0 +1,306 @@
+import { useSyncExternalStore, type ReactNode } from 'react';
+import { cn } from '@/shared/lib/utils';
+import { NodeRef } from '../../node-ref';
+import { StickyScene } from '../../primitives/sticky-scene';
+import { RichText } from '../../rich-text';
+import { useContent, type ReportContent } from '../../use-content';
+import { ValuesTable } from '../ports-fleet/values-table';
+import {
+  arcChains,
+  arcs,
+  brands,
+  chainCount,
+  sites,
+  stages,
+  totalsAt,
+  type Place,
+} from './chain-data';
+import { ChainMap } from './chain-map';
+import { ChainStrips, ChainTotals, useDataName } from './chain-panels';
+import { useReduceMotion } from '../../reduced-motion';
+
+type Copy = ReportContent['fightUi']['chain'];
+const ROUTES = stages.length;
+const BUYERS = stages.length + 1;
+const pad = (n: number) => String(n).padStart(2, '0');
+
+// External constraint: a media query is the one way to read the width of the screen. 1024px is the
+// `lg` break of the stylesheet, where the map gets its own column beside the text.
+const WIDE = '(min-width: 1024px)';
+const onWidth = (listener: () => void) => {
+  const query = window.matchMedia(WIDE);
+  query.addEventListener('change', listener);
+  return () => {
+    query.removeEventListener('change', listener);
+  };
+};
+const isWide = () => window.matchMedia(WIDE).matches;
+// The render at the release has no screen, so it draws the static rows.
+const atRelease = () => false;
+
+const unique = (list: readonly Place[], bare: boolean): Place[] => {
+  const seen = new Map<string, Place>();
+  for (const place of list)
+    if (!seen.has(place.name)) seen.set(place.name, bare ? { ...place, value: undefined } : place);
+  return [...seen.values()];
+};
+const routePlaces = unique(
+  arcs.flatMap((arc) => [arc.from, arc.to]),
+  false,
+);
+// The accent places first: the label placer gives the room to the first labels.
+const byTone = (list: readonly Place[]) =>
+  [...list].sort((a, b) => Number(b.tone === 'accent') - Number(a.tone === 'accent'));
+
+/** The map of one step: its labelled places, its crop, and whether its routes are lit. */
+function StepMap({ step }: { readonly step: number }) {
+  if (step === BUYERS) return <ChainMap crop="russia" places={[]} arcs={[]} lit sites={sites} />;
+  const routes = step === ROUTES;
+  const places = routes ? routePlaces : (stages[step]?.places ?? []);
+  // Only the routes step draws arcs: the other steps give shares by place, not routes of goods.
+  return (
+    <ChainMap
+      crop="world"
+      places={byTone(places)}
+      arcs={routes ? arcs : []}
+      lit={routes}
+      sites={[]}
+    />
+  );
+}
+
+/** The fixed figure of the scene: the map over the strips of the three stages. On a phone it is
+ * a compact opaque band at the top of the view, over the cards, with a fade at its lower edge. On
+ * a wide screen it fills the view right of the cards, inside the text grid of the page. */
+function Scene({ step }: { readonly step: number }) {
+  return (
+    <div className="flex h-[var(--report-view,100svh)] flex-col lg:grid lg:grid-cols-[28rem_minmax(0,1fr)] lg:gap-10">
+      <div aria-hidden="true" className="hidden lg:block" />
+      <div className="pointer-events-auto relative flex min-w-0 flex-col gap-3 border-b border-divider bg-background pt-2 pb-3 lg:gap-6 lg:border-0 lg:bg-transparent lg:py-8">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-full h-10 bg-linear-to-b from-background to-transparent lg:hidden"
+        />
+        <div className="relative h-60 sm:aspect-[2/1] sm:h-auto sm:max-h-[40svh] lg:aspect-auto lg:max-h-none lg:min-h-0 lg:flex-1">
+          <StepMap step={step} />
+        </div>
+        <div className="lg:max-w-[44rem]">
+          <ChainStrips active={step} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** A source of one step: the citation a reader can follow, then the record of the database. */
+function KseSource({ page }: { readonly page: string }) {
+  const copy = useContent().fightUi.chain;
+  return (
+    <div className="mt-6 border-t border-divider pt-2">
+      <p className="font-mono text-report-label uppercase text-label">{copy.source}</p>
+      <p className="mt-1 text-report-small text-muted-foreground">
+        <a
+          href={copy.kse.url}
+          target="_blank"
+          rel="noreferrer"
+          className="underline decoration-divider underline-offset-4 hover:text-foreground"
+        >
+          {copy.kse.text}
+        </a>
+        , {copy.page} {page}
+      </p>
+    </div>
+  );
+}
+
+function Record({ id }: { readonly id: string }) {
+  return (
+    <p className="mt-1 font-mono text-report-label text-label">
+      {useContent().fightUi.chain.record} {id}
+    </p>
+  );
+}
+
+const Head = ({ title }: { readonly title: string }) => (
+  <h4 className="text-report-lead/[1.05] tracking-[-0.03em] text-balance">{title}</h4>
+);
+
+/** The routes that the map draws, for a reader who cannot see the arcs. */
+function RouteTable() {
+  const { chain } = useContent().fightUi;
+  const say = useDataName();
+  const states: Readonly<Record<string, string>> = chain.stateWords;
+  return (
+    <ValuesTable
+      summary={chain.routeTable}
+      head={chain.routeColumns}
+      rows={arcs.map((arc) => [
+        say(arc.from.name),
+        say(arc.to.name),
+        states[arc.state] ?? arc.state,
+        chainCount(arc.weight),
+      ])}
+    />
+  );
+}
+
+/** The text of the steps, one for each step, each with its own source. */
+function cards(
+  sources: string,
+  partSlug: string,
+  copy: Copy,
+  say: (name: string) => string,
+): ReactNode[] {
+  const routeSource = (
+    <div className="mt-6 border-t border-divider pt-2">
+      <p className="font-mono text-report-label uppercase text-label">{copy.source}</p>
+      <p className="mt-1 text-report-small text-muted-foreground">
+        <RichText text={sources} partSlug={partSlug} />
+      </p>
+    </div>
+  );
+  return [
+    ...stages.map((stage, index) => (
+      <div key={stage.name}>
+        <Head title={say(stage.name)} />
+        <p className="mt-3 text-report-small text-muted-foreground">{copy.imports}</p>
+        <dl className="mt-5 grid border-t border-divider">
+          {stage.shares.map((share) => (
+            <div
+              key={share.group}
+              className="grid grid-cols-[1fr_auto] gap-x-3 border-b border-divider py-1.5"
+            >
+              <dt className="text-report-small">{say(share.group)}</dt>
+              <dd className="text-right font-mono text-report-label tabular-nums">{share.text}%</dd>
+              {share.note === '' ? null : (
+                <dd className="col-span-2 font-mono text-report-label text-pretty text-label">
+                  {say(share.note)}
+                </dd>
+              )}
+            </div>
+          ))}
+        </dl>
+        <p className="mt-2 font-mono text-report-label text-label">{copy.unplaced}</p>
+        {index === 0 ? (
+          <div className="mt-4">
+            <p className="font-mono text-report-label uppercase text-label">{copy.brands}</p>
+            <ul className="mt-1 grid gap-0.5 font-mono text-report-label">
+              {brands.map((brand) => (
+                <li key={brand.name} className="flex justify-between gap-3">
+                  <span>{brand.name}</span>
+                  <span className="tabular-nums">{brand.value}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        <KseSource page={stage.page} />
+        <Record id={stage.document} />
+      </div>
+    )),
+    <div key="routes">
+      <Head title={copy.routesTitle} />
+      <p className="mt-4 font-mono text-report-label text-label">{copy.states}</p>
+      <p className="mt-2 font-mono text-report-label text-label">
+        {copy.arcNote
+          .replace('{drawn}', chainCount(arcChains.drawn))
+          .replace('{all}', chainCount(arcChains.all))}
+      </p>
+      <RouteTable />
+      <div className="mt-6">
+        <ChainTotals title={copy.byIntermediary} totals={totalsAt(0)} />
+      </div>
+      {routeSource}
+    </div>,
+    <div key="buyers">
+      <Head title={copy.buyersTitle} />
+      <div className="mt-6 grid gap-6">
+        <ChainTotals title={copy.byBuyer} totals={totalsAt(1)} />
+        <ChainTotals title={copy.byUse} totals={totalsAt(2)} />
+      </div>
+      <p className="mt-6 font-mono text-report-label text-label">
+        <span
+          aria-hidden="true"
+          className="mr-2 inline-block size-2.5 rotate-45 border border-signal bg-background"
+        />
+        {copy.sites} · {copy.siteCount.replace('{n}', String(sites.length))}
+      </p>
+      {/* The orange number is the key of the map, so the list hides the type glyph. */}
+      <ol className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-report-label/5 [&_button>svg]:hidden">
+        {sites.map((site, index) => (
+          <li key={site.id} className="flex gap-2">
+            <span className="font-mono text-report-label text-signal tabular-nums">
+              {pad(index + 1)}
+            </span>
+            <NodeRef id={site.id} />
+          </li>
+        ))}
+      </ol>
+      {routeSource}
+    </div>,
+  ];
+}
+
+/** The chain story: from the brand of a component to the weapon, one step for each scroll card.
+ * The map and the chart follow the step in view. Under reduced motion, and under 1024px where a
+ * fixed map would cover the cards, each step shows as a static row: its text on the left, its own
+ * map and strips on the right (on a phone and a tablet, above the text). */
+export function ChainStory({
+  sources,
+  partSlug,
+}: {
+  /** The sources of the routes: report text with the note marks of `partSlug`. */
+  readonly sources: string;
+  readonly partSlug: string;
+}) {
+  const reduce = useReduceMotion();
+  const wide = useSyncExternalStore(onWidth, isWide, atRelease);
+  const copy = useContent().fightUi.chain;
+  const steps = cards(sources, partSlug, copy, useDataName());
+  return (
+    <section
+      aria-labelledby="fight-chain-title"
+      id="fight-chain"
+      className="mt-28 mb-16 scroll-mt-[calc(var(--report-bar,0px)+3rem)] border-t border-foreground pt-3"
+    >
+      <h3
+        id="fight-chain-title"
+        className="text-report-number/[0.95] tracking-[-0.045em] text-balance"
+      >
+        {copy.title}
+      </h3>
+      <div className="mt-8">
+        {reduce || !wide ? (
+          <ol className="grid gap-16">
+            {steps.map((step, index) => (
+              <li
+                key={`card-${String(index)}`}
+                className="grid gap-6 border-t border-foreground pt-4 lg:grid-cols-[28rem_minmax(0,1fr)] lg:gap-10"
+              >
+                <div className="grid content-start gap-4 lg:order-last lg:gap-6">
+                  <div className="relative h-60 sm:aspect-[2/1] sm:h-auto sm:max-h-[40svh] lg:aspect-auto lg:h-[26rem] lg:max-h-none">
+                    <StepMap step={index} />
+                  </div>
+                  <ChainStrips active={index} />
+                </div>
+                <div className="min-w-0 text-report-small">{step}</div>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <StickyScene
+            steps={steps}
+            tail={false}
+            sceneClassName="pointer-events-none z-10"
+            stepClassName={cn(
+              'w-full border-t border-foreground bg-background pt-4 pb-8 text-report-small',
+              'lg:max-w-[28rem] lg:border-0 lg:bg-transparent lg:pt-0',
+            )}
+          >
+            {(active) => <Scene step={active} />}
+          </StickyScene>
+        )}
+      </div>
+    </section>
+  );
+}

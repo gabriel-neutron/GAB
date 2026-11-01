@@ -5,8 +5,8 @@ import { expect, test } from 'vitest';
 
 import { csvRecords, csvSetName, MAX_CSV_BYTES, headlessCsv, tagsOf } from './csv-set.ts';
 import type { Queryable } from './queryable.ts';
-import { requestOf } from './text-set-command.ts';
-import { makeTextSet } from './text-set.ts';
+import { argsOf, requestOf } from './text-set-command.ts';
+import { imoListOf, makeTextSet, registeredImos } from './text-set.ts';
 
 // A sample in the shape of the SDN list of OFAC. It is a fixture and holds no row of a real file.
 const COLUMNS = ['ent_num', 'name', 'type', 'program', 'vessel_type'];
@@ -361,4 +361,85 @@ test('the command reads --skip as digits only', () => {
   expect(requestOf(['d', '--columns', 'a', '--skip', '2'])).toMatchObject({ skip: 2 });
   for (const bad of ['', 'x', '-1', '0x2'])
     expect(() => requestOf(['d', '--columns', 'a', '--skip', bad])).toThrow();
+});
+
+// A sample of the SDN list whose remarks name the IMO number of each vessel. It holds no real row.
+const REMARKS = ['ent_num', 'name', 'type', 'program', 'remarks'];
+const IMO_EXTRACT = { name: 'imo', from: 'remarks', pattern: 'IMO (\\d{7})' };
+const REMARKS_FILE = [
+  '1,ALPHA,vessel,RUSSIA-EO14024,IMO 9000001',
+  '2,BETA,vessel,RUSSIA-EO14024,IMO 9000002',
+  '3,GAMMA,vessel,RUSSIA-EO14024,IMO 9000003',
+  '4,DELTA,vessel,RUSSIA-EO14024,No IMO number',
+].join('\n');
+const remarksSource = () => bytesSource(new TextEncoder().encode(REMARKS_FILE));
+
+test('the IMO filter keeps the rows whose imo holds a given number, in file order', async () => {
+  const text = await headlessCsv(
+    remarksSource(),
+    REMARKS,
+    undefined,
+    [],
+    0,
+    [IMO_EXTRACT],
+    ['9000003', '9000001'],
+  );
+  expect(text.split('\r\n').map((line) => line.split(',')[0])).toStrictEqual([
+    'ent_num',
+    '1',
+    '3',
+    '',
+  ]);
+  await expect(headlessCsv(source(), COLUMNS, undefined, [], 0, [], ['9000001'])).rejects.toThrow(
+    'needs a column "imo"',
+  );
+});
+
+test('the name of an IMO set holds the count and a digest, and no order of the numbers', () => {
+  const name = csvSetName(REMARKS, undefined, [], 0, [IMO_EXTRACT], ['9000001', '9000003']);
+  expect(name).toMatch(/\|imo-in=2:[0-9a-f]{16}$/u);
+  expect(csvSetName(REMARKS, undefined, [], 0, [IMO_EXTRACT], ['9000003', '9000001'])).toBe(name);
+  expect(csvSetName(REMARKS, undefined, [], 0, [IMO_EXTRACT])).not.toContain('imo-in');
+});
+
+test('the IMO list holds one number of seven digits on each line', () => {
+  expect(imoListOf('9000001\r\n\n 9000002 \n')).toStrictEqual(['9000001', '9000002']);
+  expect(() => imoListOf('9000001\nIMO 9000002\n')).toThrow('line 2 of the IMO list');
+});
+
+test('the register keeps the numbers that hold a vessel, and reports the rest', async () => {
+  const types: unknown[] = [];
+  const db: Queryable = {
+    query: (_sql, params) => {
+      types.push(params?.[1]);
+      const shape = String(params?.[0]);
+      const held = ['9000001', '9000002'].find((imo) => shape.includes(imo));
+      const ids =
+        held === '9000002'
+          ? ['0190a5a0-0000-7000-8000-000000000001', '0190a5a0-0000-7000-8000-000000000002']
+          : ['0190a5a0-0000-7000-8000-000000000001'];
+      return Promise.resolve({ rows: held === undefined ? [] : ids.map((id) => ({ id })) });
+    },
+  };
+  expect(await registeredImos(db, ['9000003', '9000002', '9000001', '9000002'])).toStrictEqual({
+    held: ['9000001', '9000002'],
+    absent: ['9000003'],
+    many: 1,
+  });
+  // Every lookup is limited to the type vessel, never to every type.
+  expect(new Set(types)).toStrictEqual(new Set(['vessel']));
+});
+
+test('the command reads --imo-in with --columns only', () => {
+  expect(argsOf(['doc_x', '--columns', 'a,b', '--imo-in', 'list.txt'])).toStrictEqual({
+    request: { document: 'doc_x', columns: ['a', 'b'] },
+    imoIn: 'list.txt',
+  });
+  expect(requestOf(['doc_x', '--columns', 'a,b'])).toStrictEqual({
+    document: 'doc_x',
+    columns: ['a', 'b'],
+  });
+  expect(() => argsOf(['doc_x', '--sheet', 's', '--imo-in', 'list.txt'])).toThrow(
+    'go with --columns',
+  );
 });

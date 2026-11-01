@@ -306,6 +306,7 @@ interface Piece {
 }
 
 interface Block extends Piece {
+  querySelectorAll(selector: string): ArrayLike<Block>;
   readonly childNodes: ArrayLike<Piece>;
   replaceWith(...pieces: Piece[]): void;
   cloneNode(deep: false): Block;
@@ -378,6 +379,18 @@ const asBlocks = (document: Page): void => {
   }
 };
 
+// Departure: Readability removes the date field of a page, such as the "Release Date" of an OFAC
+// page of recent actions, because the field is a short block outside the body. A Drupal datetime
+// field has a label and an item. Each field whose label and item are not both in the text of
+// Readability is added as a
+// "Label: item" line before the text.
+const datesOf = (document: Page): [string, string][] =>
+  Array.from(document.querySelectorAll('.field--type-datetime')).flatMap((field) => {
+    const label = field.querySelectorAll('.field__label')[0]?.textContent?.trim();
+    const item = field.querySelectorAll('.field__item')[0]?.textContent?.trim();
+    return label && item ? [[label, item] as [string, string]] : [];
+  });
+
 // Readability keeps only one part of a long legal act: on Regulation (EU) 2022/879 it kept Annex IV
 // alone. An XHTML answer is a document that a publisher builds as one whole text, as the official
 // acts of the Publications Office of the EU, so it is read whole, without the frame of a site.
@@ -392,10 +405,16 @@ const htmlPage = (bytes: Uint8Array, mime: string, whole: boolean): string => {
       part.remove();
     });
   asBlocks(document);
+  // Readability removes nodes from the document, so the dates are read first.
+  const dates = datesOf(document);
   // Readability finds nothing in a page with no article, and the whole body is then the text.
   const article = whole ? null : new Readability(document).parse();
   const html = article?.content ?? document.documentElement.outerHTML;
-  return withoutNul(readable().turndown(html).trim());
+  const text = withoutNul(readable().turndown(html).trim());
+  if (article === null) return text;
+  // The body can state the same day (the page of 12 June 2024 does), so the label is tested too.
+  const lost = dates.filter(([label, item]) => !(text.includes(label) && text.includes(item)));
+  return lost.map(([label, item]) => `${label}: ${item}\n\n`).join('') + text;
 };
 
 // External constraint: the types that extractText reads, by the extension that a file name holds.
@@ -550,8 +569,8 @@ const sizeOf = (bytes: Uint8Array): Size | undefined => {
   return pngSize(view) ?? jpegSize(view);
 };
 
-const reasonOf = (fault: unknown): string =>
-  (fault instanceof Error ? fault.message : String(fault)).split('\n')[0] ?? '';
+export const OCR_FAULT =
+  'OCR could not read the image, and the operator reads the fault in the log';
 
 const imagePage = async (bytes: Uint8Array): Promise<string> => {
   const size = sizeOf(bytes);
@@ -583,9 +602,10 @@ const imagePage = async (bytes: Uint8Array): Promise<string> => {
     // new one.
     await closeOcr(held);
     if (fault instanceof RefusedImageError) throw fault;
-    throw new RefusedImageError(`OCR could not read the image: ${reasonOf(fault)}`, {
-      cause: fault,
-    });
+    // A fault of the OCR engine can name a path of the machine. The caller gets a fixed sentence,
+    // and the operator reads the fault in the log.
+    console.error(fault);
+    throw new RefusedImageError(OCR_FAULT, { cause: fault });
   } finally {
     clearTimeout(timer);
   }

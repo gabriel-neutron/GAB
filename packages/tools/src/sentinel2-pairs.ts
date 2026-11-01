@@ -410,7 +410,7 @@ export const sentinel2Pairs = defineTool({
           limit: CATALOGUE_LIMIT,
           fields: { include: ['id', 'properties.datetime'] },
         },
-        'application/json',
+        'application/geo+json',
       );
       const found = catalogueShape.safeParse(parse(bytes));
       // A full page may hide more scenes. The tool does not read the next page, so it says so.

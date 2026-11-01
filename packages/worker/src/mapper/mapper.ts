@@ -68,10 +68,11 @@ export const makeMapper = (config: MapperConfig, options: MapperOptions = {}): R
         `the mapper reads a workbook, layer or CSV text set, and ${textSet} is not one`,
       );
     // A format is mapped when code can give each row a span in a stored page: a CSV, a TSV and
-    // an SDMX-CSV table are each one page of text with a row on each line.
+    // an SDMX-CSV table are each one page of text with a row on each line, and a JSON answer with
+    // a data list gives each element a span.
     if (textSet === undefined && tableFormatOf(held.mime) === undefined)
       throw new JobStop(
-        `the mapper reads a CSV, TSV or SDMX-CSV table only, and document ${document} is ` +
+        `the mapper reads a CSV, TSV, SDMX-CSV or JSON data table only, and document ${document} is ` +
           (held.mime ?? 'of no type'),
       );
 

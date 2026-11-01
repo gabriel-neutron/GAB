@@ -138,12 +138,34 @@ export const hashDatabase = (): Session & { readonly stored: unknown[][] } => {
                 ],
         });
       }
+      if (statement.includes('fill_document_trace'))
+        return Promise.resolve({ rows: [{ outcome: 'filled' }] });
       if (statement.includes('fill_document_provider'))
         return Promise.resolve({ rows: [{ outcome: 'filled' }] });
       stored.push(values);
       const id = `doc_${String(values[3]).slice(0, 12)}`;
       known.set(String(values[3]), id);
       return Promise.resolve({ rows: [{ id, pages: 1 }] });
+    },
+  };
+};
+
+/** A session for a test of fetch_document: it knows a stored answer by its hash, answers the read
+ * of the text, and records the values of each call of fill_document_trace. */
+export const fetchDatabase = (): Session & { readonly traces: unknown[][] } => {
+  const inner = hashDatabase();
+  const traces: unknown[][] = [];
+  return {
+    traces,
+    query: (statement, values) => {
+      if (statement.includes('api.document'))
+        return Promise.resolve({ rows: [{ title: 'held', uri: null }] });
+      if (statement.includes('newest_text_extractor'))
+        return Promise.resolve({
+          rows: [{ extractor: 'text-1', page: 1, text: 'text', last_page: 1 }],
+        });
+      if (statement.includes('fill_document_trace')) traces.push([...values]);
+      return inner.query(statement, values);
     },
   };
 };

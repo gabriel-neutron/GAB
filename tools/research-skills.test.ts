@@ -63,6 +63,12 @@ const RECORD_WORDS = new Set([
   'point_role',
   'berthed_at',
   'loads_at',
+  'supplies_items_to',
+  'acts_for',
+  'transfers_funds_to',
+  'pays_for',
+  'settles_through',
+  'associated_with',
 ]);
 
 const namedTools = (text: string): string[] =>
@@ -107,6 +113,7 @@ test('the Claude Code settings allow each tool of the server, except the ones th
   const settings = z
     .strictObject({
       permissions: z.strictObject({ allow: z.array(z.string()), deny: z.array(z.string()) }),
+      hooks: z.unknown(),
     })
     .parse(JSON.parse(read(path.join(ROOT, 'research', '.claude', 'settings.json'))));
   const allowed = [...RESEARCH]

@@ -38,6 +38,9 @@ const GRACE_MS = 5_000;
 // Chrome keeps a lock on its profile, so one read runs at a time.
 let queue: Promise<unknown> = Promise.resolve();
 
+export const CHROME_FAULT =
+  'the Chrome window could not read the page, and the operator reads the fault in the log';
+
 const PROFILE = join(homedir(), '.cache', 'gab-challenge-profile');
 
 const hostAndPort = (authority: string): [string, number] => {
@@ -151,8 +154,10 @@ const read = async (url: string, options: Guard): Promise<PassedPage | string> =
     }
     return `the filter did not let the Chrome window through within ${String(BUDGET_MS / 1000)} seconds`;
   } catch (fault) {
-    const reason = (fault instanceof Error ? fault.message : String(fault)).split('\n')[0] ?? '';
-    return `the Chrome window could not read the page: ${reason.slice(0, 200)}`;
+    // A fault of the browser can name a path of the machine. The agent gets a fixed sentence, and
+    // the operator reads the fault in the log.
+    console.error(fault);
+    return CHROME_FAULT;
   } finally {
     clearTimeout(timer);
     await context?.close().catch(() => undefined);

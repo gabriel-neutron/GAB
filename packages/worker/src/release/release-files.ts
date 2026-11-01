@@ -15,12 +15,14 @@ import { geojsonExport } from './geojson-export.ts';
 import { geolocationCoverageOf } from './geolocation-coverage.ts';
 import { jsonldExport } from './jsonld-export.ts';
 import { natoCoverageOf } from './nato-coverage.ts';
+import { observationExport } from './observation-export.ts';
 import { assertNoOsmGeometry } from './osm-geometry.ts';
 import type { PreviousRelease } from './previous-release.ts';
 import { releaseHeading } from './release-heading.ts';
 import type { ReleaseManifest } from './release-manifest.ts';
 import { releaseNotes } from './release-notes.ts';
 import type { ReleaseRecord } from './release-record.ts';
+import { undatedDesignations } from './undated-designations.ts';
 import type { VolumeRejection, VolumeTable } from './volume-table.ts';
 
 /** The file that lists each file of a release with its checksum. */
@@ -57,6 +59,7 @@ export const releaseFiles = (
     criticalNodes(record, sheet, preamble),
     assetLinks(record, preamble),
     volumeTable.file,
+    observationExport(record, preamble),
     releaseCredits(heading, claimProviders(record)),
     releaseNotes(
       heading,
@@ -95,6 +98,7 @@ export const releaseFiles = (
     ),
     natoCoverage,
     geolocationCoverage,
+    undatedDesignations: undatedDesignations(record),
     files: listed,
   };
   return {

@@ -1,3 +1,5 @@
+import { isDay } from '@gab/proposal/day';
+
 import { ids, readAlignmentRows, type AlignmentRow } from './alignment-rows.ts';
 import { readReleaseRows } from './release-table.ts';
 import { SiteReleaseFault } from './site-release-fault.ts';
@@ -254,12 +256,13 @@ export const readSiteRelease = (files: ReadonlyMap<string, string>): SiteRelease
     'transcribed',
   ]);
   // A day that a later act gave is not on the relation row: the release gives it as a claim of
-  // its own, with the documents of that act. The relation here still reads the day.
+  // its own, with the documents of that act. The relation here still reads the day. A value that
+  // is not a day is no date of the relation.
   const dayClaims = new Map<string, string>();
   for (const row of claimFileRows)
     if (row['subject_kind'] === 'relation' && row['claim_id']?.endsWith(`/${row['attribute']}`))
       if (row['attribute'] === 'valid_from' || row['attribute'] === 'valid_to')
-        dayClaims.set(cell(row, 'claim_id'), cell(row, 'value'));
+        if (isDay(row['value'])) dayClaims.set(cell(row, 'claim_id'), cell(row, 'value'));
 
   const relations = rows('relations.csv', [
     'id',
