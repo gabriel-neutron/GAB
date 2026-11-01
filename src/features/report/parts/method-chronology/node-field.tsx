@@ -5,11 +5,12 @@ import { recordCounts } from '../../record-counts';
 import { reportGraph } from '../../report-graph';
 import { sources } from '../../source';
 
-const REST = 'bg-foreground/15';
+// The squares with no layer in the page data take a tone of their own.
+const REST = 'bg-foreground/10';
 const TONE: Readonly<Record<string, string>> = {
   Fight: accent.bg,
   Finance: 'bg-foreground/55',
-  Pay: REST,
+  Pay: 'bg-foreground/25',
 };
 // The text gives the count of critical nodes; the page data gives the layer of some of them only.
 const known = ['Fight', 'Finance', 'Pay'].flatMap((layer) =>

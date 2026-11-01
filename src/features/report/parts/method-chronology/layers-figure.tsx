@@ -126,13 +126,20 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
         <p className="font-mono text-report-label text-label tabular-nums">
           {String(index + 1).padStart(2, '0')}
         </p>
-        <p
-          className={cn(
-            'font-mono text-report-number leading-none tracking-[-0.06em] tabular-nums',
-            accent.text,
-          )}
-        >
-          <CountUp value={kept.length} format={(n) => String(Math.round(n))} />
+        <p className="text-right">
+          <span
+            className={cn(
+              'block font-mono text-report-number leading-none tracking-[-0.06em] tabular-nums',
+              accent.text,
+            )}
+          >
+            <CountUp value={kept.length} format={(n) => String(Math.round(n))} />
+          </span>
+          {/* The text gives only the total of critical nodes, so the count of a layer is that of
+              the page data. */}
+          <span className="mt-1 block font-mono text-report-label text-label">
+            {methodUi.layers.inData}
+          </span>
         </p>
       </div>
       <h4 className="mt-2 text-report-heading leading-[0.95] tracking-[-0.045em]">{layer.k}</h4>
