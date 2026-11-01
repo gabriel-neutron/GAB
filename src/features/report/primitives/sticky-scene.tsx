@@ -46,7 +46,8 @@ export function StickyScene({
     );
   return (
     <div className="relative">
-      <div className={cn('sticky flex items-center', layout.top, layout.view, sceneClassName)}>
+      {/* Safe centre: a figure taller than the view starts at the top and never covers the text above. */}
+      <div className={cn('sticky flex items-center-safe', layout.top, layout.view, sceneClassName)}>
         <div className="w-full min-w-0">{children(active)}</div>
       </div>
       <div className="pointer-events-none relative -mt-[var(--report-view,100svh)]">
