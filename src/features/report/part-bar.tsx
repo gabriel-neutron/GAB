@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 
+import { LanguageSwitch } from './language-switch';
 import { accent } from './primitives/accent';
 import { useContent } from './use-content';
 
@@ -122,15 +123,22 @@ export function PartBar() {
             </li>
           ))}
         </ol>
+        {/* The switch goes to the part in view, in the other locale. */}
+        <LanguageSwitch page="report" anchor={parts[current]?.slug} className="-mr-3" />
       </div>
       <div className="relative flex h-8 items-center gap-3 px-4 pb-1 md:hidden">
         <span className="shrink-0 font-mono text-report-label tracking-[0.08em] text-label tabular-nums">
           <span className="text-foreground">{pad(current + 1)}</span> {openingUi.partBar.of}{' '}
           {pad(parts.length)}
         </span>
-        <span className="truncate text-report-small leading-none text-foreground">
+        <span className="min-w-0 flex-1 truncate text-report-small leading-none text-foreground">
           {parts[current]?.title}
         </span>
+        <LanguageSwitch
+          page="report"
+          anchor={parts[current]?.slug}
+          className="-my-2 -mr-3 min-h-8"
+        />
         <span aria-hidden="true" className="absolute inset-x-4 bottom-1 flex h-0.5 gap-0.5">
           {parts.map((one, index) => (
             <span

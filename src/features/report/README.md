@@ -1,8 +1,9 @@
 # Report
 
-The application report lives at `/`; its notes live at `/bibliography`. Both routes use the
-application header, theme, Geist fonts and semantic tokens. The static release writer prerenders
-both routes.
+The application report lives at `/`; its notes live at `/bibliography`. The French report and its
+notes live under `/fr`. All these routes use the application header, theme, Geist fonts and
+semantic tokens. The static release writer prerenders them, writes the language of each page, and
+links each page to its twin in the other language (hreflang).
 
 ## Content
 
@@ -22,8 +23,18 @@ these sentences stops the build.
 The content has one shape and one copy for each locale. A part, a mark or the frame reads the copy
 of the page locale from the content context, not from a direct import. The root gives no copy, so
 the page reads English; the route of another locale gives its copy to the provider. The part slugs,
-the node identifiers and the figure data stay the same in all locales. Some figure components
-still read the English labels directly.
+the node identifiers and the figure data stay the same in all locales. A figure component reads its
+labels from the copy too: the French copy gives each French label of the publication data as it
+is, and the French label for each English name of the data. The frame sets the language of the
+page. A text switch in the part bar and on the notes page goes to the same anchor in the other
+locale.
+
+The French copy holds the French text (V4) of the author, in the blocks, figures and node marks of
+the English page. Its notes keep the ids of the English text: a committed map joins each English
+note to its French twin, and the source module gives each French marker the English id of the same
+place. The French notes page marks an English note with no twin; no machine translation fills it.
+The words of the page itself (controls, table heads) have no French source and are written in the
+French copy.
 
 The text of a part is the final text of the author, word for word. The source folder holds that
 text as the author delivers it, and the heading where each part starts. Only these changes are

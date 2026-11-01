@@ -8,11 +8,11 @@ import { recordCounts } from '../record-counts';
 import { RichText } from '../rich-text';
 import { reportGraph } from '../report-graph';
 import nodes from '../nodes-data';
+import { useContent, type ReportPath } from '../use-content';
 import { sources } from '../source';
-import { useContent } from '../use-content';
 import { ClosingBreak } from './closing-art';
 
-const KEY = /^\*\*(.+?):?\*\*:?\s*/;
+const KEY = /^\*\*(.+?)\s?:?\*\*:?\s*/; // A French key has a space before its colon.
 const CODE = /^(A\.\d+)\s+(.*)$/;
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
@@ -213,7 +213,7 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
           ))}
         </section>
         <Link
-          to="/bibliography"
+          to={`/${ui.paths.notes}` as ReportPath}
           className={cn(
             'group mt-16 flex min-h-11 items-end justify-between gap-6 border-b border-foreground pb-4',
             FOCUS,

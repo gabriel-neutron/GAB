@@ -1,22 +1,14 @@
 import { motion, useMotionValue, useTransform } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
-import { portsFleetUi } from '../../content';
 import { accent } from '../../primitives/accent';
+import { useContent } from '../../use-content';
 import { portVisits } from './port-visits';
 import { TERMINALS } from './terminals';
 
-const copy = portsFleetUi.map.visits;
-const number = new Intl.NumberFormat('en-US');
 // The time cursor runs once through the window of the query in this many seconds. No loop.
 const SECONDS = 12;
 const DAY = 86_400_000;
 const start = Date.parse(portVisits.file.parameters.from);
-const shortDay = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  timeZone: 'UTC',
-});
 const labelOf = new Map(TERMINALS.map((terminal) => [terminal.id, terminal.label]));
 
 interface Point {
@@ -56,6 +48,12 @@ function Pulses({ at }: { readonly at: (terminal: string) => Point | null }) {
 
 /** The time cursor: the day it has reached, and a bar that fills once across the window. */
 function Cursor() {
+  const shortDay = new Intl.DateTimeFormat(useContent().ui.numberLocale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
   const share = useMotionValue(0);
   const day = useTransform(share, (value) =>
     shortDay.format(start + value * portVisits.days * DAY),
@@ -80,6 +78,9 @@ function Cursor() {
 
 /** The visits and the tankers for each port of the query: the text form of the pulses. */
 function Table({ shown }: { readonly shown: boolean }) {
+  const { portsFleetUi, ui } = useContent();
+  const copy = portsFleetUi.map.visits;
+  const number = new Intl.NumberFormat(ui.numberLocale);
   return (
     <table className={cn('w-max text-right tabular-nums', !shown && 'sr-only')}>
       <caption className="sr-only">{copy.label}</caption>

@@ -1,6 +1,12 @@
 import { cn } from '@/shared/lib/utils';
-import { fightUi } from '../../content';
+import { useContent } from '../../use-content';
 import { chainCount, stages, type Share, type Total } from './chain-data';
+
+/** The name of the chain data in the words of the page. */
+export function useDataName(): (name: string) => string {
+  const { chain } = useContent().fightUi;
+  return (name) => chain.dataNames[name] ?? name;
+}
 
 const CELL: Record<Share['tone'], string> = {
   accent: 'bg-signal',
@@ -20,6 +26,8 @@ const cellClass = (share: Share) =>
 export function ChainStrips({ active }: { readonly active: number | 'all' }) {
   const past = active !== 'all' && active >= stages.length;
   const shown = active === 'all' ? 'all' : Math.min(active, stages.length - 1);
+  const { fightUi } = useContent();
+  const say = useDataName();
   return (
     <div className={cn('grid gap-2 lg:gap-3', past && 'hidden')}>
       <p className="flex items-center gap-1.5 font-mono text-report-label uppercase text-label">
@@ -56,7 +64,7 @@ export function ChainStrips({ active }: { readonly active: number | 'all' }) {
                 <span className={cn('mr-2', lit && active !== 'all' && 'text-signal')}>
                   {String(index + 1).padStart(2, '0')}
                 </span>
-                {stage.name}
+                {say(stage.name)}
               </p>
               <div
                 aria-hidden="true"
@@ -82,7 +90,7 @@ export function ChainStrips({ active }: { readonly active: number | 'all' }) {
         {(stages[0]?.shares ?? []).map((share) => (
           <li key={share.group} className="flex items-center gap-1.5 whitespace-nowrap">
             <span aria-hidden="true" className={cn('size-2.5 shrink-0', cellClass(share))} />
-            {share.group}
+            {say(share.group)}
           </li>
         ))}
       </ul>
@@ -104,6 +112,8 @@ export function ChainTotals({
   /** The value at the full width; one max for several lists puts them on one scale. */
   readonly max?: number;
 }) {
+  const { fightUi } = useContent();
+  const say = useDataName();
   return (
     <div className="min-w-0">
       <p className="font-mono text-report-label uppercase text-label">
@@ -116,7 +126,7 @@ export function ChainTotals({
             key={total.name}
             className="grid grid-cols-[minmax(0,8.5rem)_1fr_3rem] sm:grid-cols-[minmax(0,12rem)_1fr_3rem] items-center gap-2 border-b border-divider py-1 text-report-small"
           >
-            <span className="break-words">{total.name}</span>
+            <span className="break-words">{say(total.name)}</span>
             <span className="h-1.5 bg-chart-grid">
               <span
                 className={cn(

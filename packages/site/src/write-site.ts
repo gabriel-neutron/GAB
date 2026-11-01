@@ -53,6 +53,31 @@ const SCRIPT_PAGES: Readonly<Record<string, string>> = {
 const DESCRIPTION_OF_SCRIPT_PAGE =
   'This page of the GAB dataset needs a script to show its data. The pages of the entities, relations and claims hold the same facts as text.';
 
+// The report in two languages: the folder of each page in English and in French. English is the
+// default for a reader whose language is neither.
+const REPORT_TWINS = [
+  { en: '', fr: 'fr' },
+  { en: 'bibliography', fr: 'fr/bibliography' },
+] as const;
+
+/** The language of the page in `folder`: French under `fr/`, English for every other page. */
+export const langOf = (folder: string): 'en' | 'fr' =>
+  folder === 'fr' || folder.startsWith('fr/') ? 'fr' : 'en';
+
+/** The links of a report page to its twin in each language; none for another page. */
+export const alternatesOf = (folder: string): { lang: string; folder: string }[] => {
+  const twin = REPORT_TWINS.find((one) => one.en === folder || one.fr === folder);
+  return twin === undefined
+    ? []
+    : [
+        { lang: 'en', folder: twin.en },
+        { lang: 'fr', folder: twin.fr },
+        { lang: 'x-default', folder: twin.en },
+      ];
+};
+
+const SHELL_LANG = /<html lang="[^"]*"/u;
+
 const fileManifest = z.object({
   files: z.array(z.object({ path: z.string().regex(/^[\w-][\w.-]*$/u) })),
 });
@@ -128,6 +153,7 @@ const pagesOf = (release: SiteRelease): readonly Page[] => {
   const pages: Page[] = [
     { folder: '', kind: 'text' },
     { folder: 'bibliography', kind: 'text' },
+    ...REPORT_TWINS.map((one) => ({ folder: one.fr, kind: 'text' as const })),
     { folder: 'map', kind: 'text' },
     { folder: 'downloads', kind: 'text' },
     { folder: 'method', kind: 'text' },
@@ -387,7 +413,7 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
   try {
     await buildApplication(releaseFolder, partial, base);
     const shell = await readFile(join(partial, 'index.html'), 'utf8');
-    if (!shell.includes(SHELL_ROOT) || !SHELL_TITLE.test(shell))
+    if (!shell.includes(SHELL_ROOT) || !SHELL_TITLE.test(shell) || !SHELL_LANG.test(shell))
       throw new Error('the shell of the application has an unexpected form');
     const rendered = await renderPages(files, pages, base, report);
     const { manifest } = readSiteRelease(files);
@@ -466,12 +492,14 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
                 folder: page.folder,
                 noindex,
                 structured: structuredOf(page.folder, one.title, manifest, site),
+                alternates: alternatesOf(page.folder),
               }),
               page.sendsTo === undefined ? '' : refreshTo(base, page.sendsTo),
               '</head>',
             ].join(''),
           )
-          .replace(SHELL_ROOT, () => `<div id="root">${one.html}</div>`);
+          .replace(SHELL_ROOT, () => `<div id="root">${one.html}</div>`)
+          .replace(SHELL_LANG, `<html lang="${langOf(page.folder)}"`);
       }
       const file = join(partial, page.folder, 'index.html');
       await mkdir(dirname(file), { recursive: true });

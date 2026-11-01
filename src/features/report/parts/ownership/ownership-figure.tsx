@@ -1,17 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useInView } from 'motion/react';
 import { ChevronDown } from 'lucide-react';
 import { EntityGlyph } from '@/shared/entity-glyph';
 import { cn } from '@/shared/lib/utils';
-import { ownershipUi } from '../../content';
+import figures from '../../data/publication-figures.json';
 import { accent } from '../../primitives/accent';
 import { reportGraph } from '../../report-graph';
+import { useContent } from '../../use-content';
 import { useReport } from '../../use-report';
-import { BANDS, english, figure12, type Entity, type Link } from './ownership-graph';
+import { BANDS, ownershipGraph, type Entity, type Link } from './ownership-graph';
 
-const { entities, links } = figure12;
-const nameOf = new Map(entities.map((one) => [one.id, one.name]));
-const copy = ownershipUi.figure;
 const keyOf = (link: Link): string => `${link.from}>${link.to}`;
 // The chain that the figure shows at rest: from the State, through Transneft, to Novoport Holding
 // (the holding of the port of Novorossiysk), and from
@@ -93,6 +91,16 @@ function curve(from: Box, to: Box): string {
  * shows its links in words; a click opens its panel. */
 export function OwnershipFigure() {
   const { openNode } = useReport();
+  const { ownershipUi, figureTexts } = useContent();
+  const copy = ownershipUi.figure;
+  // The words of the page for a French label of the data of the figure.
+  const { entities, links, english } = useMemo(() => {
+    const data: Readonly<Partial<Record<string, string>>> = figureTexts.dataLabels;
+    const figure: Readonly<Partial<Record<string, string>>> = figureTexts.figures['12'].labels;
+    const label = (french: string): string => data[french] ?? figure[french] ?? french;
+    return { ...ownershipGraph(figures.f12, label), english: label };
+  }, [figureTexts]);
+  const nameOf = new Map(entities.map((one) => [one.id, one.name]));
   const [active, setActive] = useState<string | null>(null);
   const [boxes, setBoxes] = useState<ReadonlyMap<string, Box>>(new Map());
   const [openBands, setOpenBands] = useState<ReadonlySet<number>>(new Set());

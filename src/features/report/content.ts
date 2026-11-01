@@ -1915,6 +1915,19 @@ export const figureTexts = {
 // The words of the report page itself: controls, counters, panels and labels.
 export const ui = {
   reportLabel: 'Research report',
+  // The language of the page, and the locale of the numbers of the charts.
+  lang: 'en',
+  numberLocale: 'en-US',
+  // The addresses of the report and of its notes in this locale, from the base of the site.
+  paths: { report: '', notes: 'bibliography' },
+  // The link to the same place in the other locale.
+  switch: {
+    lang: 'fr',
+    text: 'FR',
+    label: 'Lire en français',
+    report: 'fr',
+    notes: 'fr/bibliography',
+  },
   counters: {
     // The accessible name of the counts in the annex.
     label: 'Scale of the research',
@@ -1959,6 +1972,9 @@ export const ui = {
     all: 'All notes',
     documents: 'Documents of the record',
     retrieved: 'retrieved',
+    // The mark of an English note with no French twin, on the French notes page.
+    missing: 'Notes of the English text',
+    noTwin: 'no FR source',
   },
   index: {
     title: 'All nodes of the report',
@@ -2071,6 +2087,8 @@ export const methodUi = {
     examined: 'In the page data, fewer than three conditions documented',
     open: 'Open the nodes of the page data',
     conditions: 'Three conditions of a critical node',
+    // The arrows and the budget path show the argument of the report; no edge of the data backs them.
+    schematic: 'Schematic of the argument of the report, not a measured relation.',
   },
   timeline: {
     label: 'Sanctions, 2014-2026',
@@ -2161,11 +2179,16 @@ export const portsFleetUi = {
       count: 'Visits',
       tankers: 'Tankers',
       limit: 'A presence in port, not a loading.',
+      range: '{from} to {to}',
     },
     flows: 'Seaborne crude by loading basin and fleet, January 2026, kb/d',
     open: 'Open the record of',
     data: 'Data:',
     basemap: 'Basemap:',
+    // The dates of the ban step come from the text of the part. The Pacific step has no note.
+    banSource: 'Dates: text of the report, note 42 (February 2025 to April 2026)',
+    schematic:
+      'Schematic: each column stands above its sea and gives the basin total, not the volume of a terminal.',
     fleetTags: {
       '“Shadow fleet”': 'shadow fleet',
       'IG-insured': 'IG',
@@ -2176,6 +2199,8 @@ export const portsFleetUi = {
     embargoDate: 'Dec. 2022',
     cTitle: 'c. Seaborne crude by fleet category',
     cUnit: 'kb/d',
+    // The three ports that the EU bans from February 2025, as figure 1 names them.
+    bannedPorts: 'Primorsk, Ust-Luga, Novorossiysk',
   },
   flows: {
     table: 'Values of the chart',
@@ -2191,6 +2216,17 @@ export const portsFleetUi = {
     after: 'Port call after the designation',
     label:
       'Timeline of {n} designated ships, from 6 months before to 24 months after their designation',
+    // The data table of the timeline.
+    table: {
+      summary: 'Values of the timeline',
+      ship: 'Ship',
+      group: 'Profile',
+      ids: 'AIS identity: flag, days from the designation',
+      before: 'Port calls before',
+      after: 'Port calls after',
+      span: '{flag} {from} to {to}',
+      kinds: { R: 'Russian', O: 'other', E: 'EU' },
+    },
   },
   waves: {
     regimes: { EU: 'EU', UK: 'UK', OFAC: 'OFAC' },
@@ -2236,6 +2272,18 @@ export const fightUi = {
     noValue: 'Hatch: no declared value',
     noValueShort: 'n/d',
     sanctionYear: 'Band: 2023, the year of Executive Order 14114',
+    // The names of the nine third countries of the data, in the words of the page.
+    countries: {
+      Kazakhstan: 'Kazakhstan',
+      Kyrgyzstan: 'Kyrgyzstan',
+      Armenia: 'Armenia',
+      Türkiye: 'Türkiye',
+      'United Arab Emirates': 'United Arab Emirates',
+      India: 'India',
+      Malaysia: 'Malaysia',
+      Thailand: 'Thailand',
+      'Viet Nam': 'Viet Nam',
+    } as Readonly<Partial<Record<string, string>>>,
   },
   chain: {
     title: 'From the brand to the weapon',
@@ -2278,6 +2326,16 @@ export const fightUi = {
     russia: 'Russia',
     // The unit of the chain counts, as the note of the routes figure gives it: a count can have decimals.
     chainUnit: 'one chain = 1, shared between its routes',
+    arcNote:
+      'Map: arcs join the country of manufacture to the country of the intermediary. Chains with the same country or no named country are not drawn: the arcs carry {drawn} of the {all} chains.',
+    unplaced: 'Map: a group with no single place is not drawn.',
+    // The columns of the data table of the routes flow.
+    from: 'From',
+    to: 'To',
+    fromTo: '{a} to {b}',
+    // The names of the chain data (stages, groups, places, routes) in the words of the page. A name
+    // that is not here shows as the data writes it.
+    dataNames: {} as Readonly<Partial<Record<string, string>>>,
     routeTable: 'All the routes of the map, as a table',
     routeColumns: ['Country of manufacture', 'Country of the intermediary', 'State', 'Chains'],
     // The states of the routes data, for the cells of the route table.
@@ -2419,6 +2477,8 @@ export const closingUi = {
 export const en = {
   report,
   parts,
+  // The English notes that this copy cannot show, because its text has no twin of them.
+  untwinned: [] as readonly string[],
   figureTexts,
   ui,
   openingUi,

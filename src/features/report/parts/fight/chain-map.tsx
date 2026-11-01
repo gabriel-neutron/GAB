@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { motion, useInView, useReducedMotion } from 'motion/react';
-import { fightUi } from '../../content';
+import { useContent } from '../../use-content';
+import { useDataName } from './chain-panels';
 import { cn } from '@/shared/lib/utils';
 import { useReport } from '../../use-report';
 import type { Arc, Place, Tone } from './chain-data';
@@ -143,7 +144,7 @@ export function ChainMap({
   lit,
   sites,
   plants = [],
-  label = fightUi.chain.mapLabel,
+  label,
 }: ChainMapProps) {
   const frame = useRef<HTMLDivElement>(null);
   const near = useInView(frame, { once: true, margin: '600px 0px' });
@@ -153,6 +154,8 @@ export function ChainMap({
   const dots = useId();
   const reduce = useReducedMotion();
   const { openNode } = useReport();
+  const { fightUi } = useContent();
+  const say = useDataName();
 
   // An adapter: the land file loads past React, once, when the map comes near the view.
   useEffect(() => {
@@ -208,7 +211,7 @@ export function ChainMap({
   const merged = new Map<string, { place: Place; text: string }>();
   for (const place of labelled) {
     const at = `${String(place.lon)},${String(place.lat)}`;
-    const text = `${place.name}${place.value === undefined ? '' : ` ${place.value}`}`;
+    const text = `${say(place.name)}${place.value === undefined ? '' : ` ${place.value}`}`;
     const held = merged.get(at);
     merged.set(
       at,
@@ -222,7 +225,7 @@ export function ChainMap({
     const at = `${String(arc.from.lon)},${String(arc.from.lat)}`;
     const raw = x(arc.from.lon);
     if ((raw < 0 || raw > width) && !merged.has(at))
-      merged.set(at, { place: arc.from, text: arc.from.name });
+      merged.set(at, { place: arc.from, text: say(arc.from.name) });
   }
   const all = [...merged.values()].map(({ place, text }) => {
     const raw = x(place.lon);
@@ -319,7 +322,7 @@ export function ChainMap({
       <div className="absolute inset-x-0 top-1/2 -translate-y-1/2" style={{ height }}>
         <svg
           role="img"
-          aria-label={label}
+          aria-label={label ?? fightUi.chain.mapLabel}
           viewBox={`${String(crop.west)} ${String(-crop.north)} ${String(spanX)} ${String(spanY)}`}
           preserveAspectRatio="none"
           className="absolute inset-0 size-full"

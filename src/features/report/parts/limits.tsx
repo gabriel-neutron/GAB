@@ -8,7 +8,7 @@ import { useContent } from '../use-content';
 import { ClosingBreak, OUTLINE } from './closing-art';
 
 // A list item opens with its claim in bold; the rest of the item explains it.
-const KEY = /^\*\*(.+?):?\*\*\s*/;
+const KEY = /^\*\*(.+?)\s?:?\*\*\s*/; // A French key has a space before its colon.
 const PROSE = 'max-w-[64ch] text-report-body/[1.65] ';
 // The widths of the redaction bars of the break: what the data cannot say.
 const BARS = ['w-[38%]', 'w-[62%]', 'w-[24%]', 'w-[48%]'];

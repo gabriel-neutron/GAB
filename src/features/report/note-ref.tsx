@@ -7,7 +7,7 @@ import { cn } from '@/shared/lib/utils';
 import { useMarginScreen } from './margin-screen';
 import { noteDocuments } from './note-documents';
 import { RichText } from './rich-text';
-import { useContent } from './use-content';
+import { useContent, type ReportPath } from './use-content';
 
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
@@ -66,7 +66,7 @@ function NoteBody({ partSlug, id }: NoteRefProps) {
         </blockquote>
       )}
       <Link
-        to="/bibliography"
+        to={`/${ui.paths.notes}` as ReportPath}
         hash={noteAnchor(partSlug, id)}
         className={cn('inline-flex min-h-11 items-center text-report-small', UNDERLINE, FOCUS)}
       >

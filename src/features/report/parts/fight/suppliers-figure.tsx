@@ -1,10 +1,8 @@
 import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
-import { fightUi, figureTexts } from '../../content';
 import figures from '../../data/publication-figures.json';
+import { useContent } from '../../use-content';
 
-const copy = fightUi.suppliers;
-const labels = figureTexts.figures['10'].labels;
 const YEARS = [2021, 2022, 2023, 2024, 2025] as const;
 // The scale runs past the top tick, so the share over the tallest bar stays under the frame.
 const MAX = 14000;
@@ -21,12 +19,13 @@ const HATCH =
 // A hatch of grey: a year with no declared value.
 const GAP = 'bg-[repeating-linear-gradient(135deg,var(--label)_0_1px,transparent_1px_4px)]';
 
-// Bottom to top. The coalition takes the ink, as in the strips of the chain story.
+// Bottom to top. The coalition takes the ink, as in the strips of the chain story. The label is
+// the French name of the publication, which the copy of the page locale gives in its words.
 const SERIES = [
-  { key: 'Coalition', label: labels.Coalition, ink: 'bg-foreground' },
-  { key: 'China', label: labels.Chine, ink: 'bg-signal' },
-  { key: 'Hong Kong', label: labels['Hong Kong'], ink: HATCH },
-  { key: 'Nine third countries', label: labels['Neuf pays tiers'], ink: 'bg-chart-neutral' },
+  { key: 'Coalition', label: 'Coalition', ink: 'bg-foreground' },
+  { key: 'China', label: 'Chine', ink: 'bg-signal' },
+  { key: 'Hong Kong', label: 'Hong Kong', ink: HATCH },
+  { key: 'Nine third countries', label: 'Neuf pays tiers', ink: 'bg-chart-neutral' },
 ] as const;
 
 const SHARE = 'China + Hong Kong share (%)';
@@ -53,8 +52,6 @@ const eventLeft =
     YEARS.length) *
   100;
 
-const fmt = (value: number) => value.toLocaleString('en-US');
-
 function Grow({ share, className }: { readonly share: number; readonly className: string }) {
   const reduce = useReducedMotion();
   return (
@@ -75,6 +72,11 @@ const tick = 'font-mono text-report-label/4 text-label tabular-nums';
  * the share of China and Hong Kong over each year; (b) the nine third countries, on one shared
  * scale, with the value over each bar. A missing value shows as a dotted baseline. */
 export function SuppliersFigure() {
+  const { fightUi, figureTexts, ui } = useContent();
+  const copy = fightUi.suppliers;
+  const labels = figureTexts.figures['10'].labels;
+  const fmt = (value: number) => value.toLocaleString(ui.numberLocale);
+  const countryOf = (name: string) => copy.countries[name] ?? name;
   return (
     <div className="grid gap-14">
       <div>
@@ -85,7 +87,7 @@ export function SuppliersFigure() {
           {SERIES.map((series) => (
             <li key={series.key} className="flex items-center gap-1.5">
               <span aria-hidden="true" className={cn('size-2.5', series.ink)} />
-              {series.label}
+              {labels[series.label]}
             </li>
           ))}
           <li className="text-signal">
@@ -149,7 +151,7 @@ export function SuppliersFigure() {
               <th scope="col">{copy.year}</th>
               {SERIES.map((series) => (
                 <th key={series.key} scope="col">
-                  {series.label}
+                  {labels[series.label]}
                 </th>
               ))}
               <th scope="col">
@@ -199,7 +201,7 @@ export function SuppliersFigure() {
                   <span className="font-mono text-report-label text-label tabular-nums">
                     {String(rank + 1).padStart(2, '0')}
                   </span>
-                  <span className="truncate">{country}</span>
+                  <span className="truncate">{countryOf(country)}</span>
                 </p>
                 <div className="relative mt-5 grid h-16 grid-cols-5 border-b border-chart-axis sm:mt-6 sm:h-20">
                   {YEARS.map((year) => {
@@ -260,7 +262,7 @@ export function SuppliersFigure() {
           <tbody>
             {f10b.map(([country, points]) => (
               <tr key={country}>
-                <th scope="row">{country}</th>
+                <th scope="row">{countryOf(country)}</th>
                 {YEARS.map((year) => (
                   <td key={year}>{valueAt(points, year) ?? copy.noValueShort}</td>
                 ))}

@@ -17,7 +17,7 @@ import { BudgetChart, BuyersChart, PriceChart } from './pay-figures';
 // third.
 const ROW = 'lg:grid lg:grid-cols-12 lg:gap-x-10';
 const TEXT = 'max-w-[64ch] text-report-body/[1.65]  lg:col-span-8 lg:col-start-5';
-const KEY = /^\*\*([^*]+?):?\*\*:?\s*/;
+const KEY = /^\*\*([^*]+?)\s?:?\*\*:?\s*/; // A French key has a space before its colon.
 // A wide figure: past the reading column, up to the width of a large screen.
 const WIDE = cn(layout.bleed, 'px-4 md:px-8');
 const WIDE_INNER = 'mx-auto max-w-[1376px]';

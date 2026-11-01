@@ -205,10 +205,33 @@ describe.each([
       .map((folder) => (folder === '' ? SITE : `${SITE}${folder}/`));
     expect(listed.sort()).toStrictEqual(expected.sort());
     expect(listed).toHaveLength(
-      10 + release.entities.length + release.vesselsByImo.size + release.claims.length,
+      12 + release.entities.length + release.vesselsByImo.size + release.claims.length,
     );
     expect(xml).toContain(`<lastmod>${release.manifest.date}</lastmod>`);
     expect(listed).toContain(`${SITE}ai-use/`);
+  });
+
+  test('the report and its notes hold their language and link their twin in the other language', () => {
+    const { page } = site();
+    const twins = [
+      ['', 'fr/'],
+      ['bibliography/', 'fr/bibliography/'],
+    ] as const;
+    for (const [en, fr] of twins)
+      for (const [folder, lang] of [
+        [en, 'en'],
+        [fr, 'fr'],
+      ] as const) {
+        const html = page(`${folder}index.html`);
+        expect(html).toContain(`<html lang="${lang}"`);
+        expect(html).toContain(`<link rel="alternate" hreflang="en" href="${SITE}${en}" />`);
+        expect(html).toContain(`<link rel="alternate" hreflang="fr" href="${SITE}${fr}" />`);
+        expect(html).toContain(`<link rel="alternate" hreflang="x-default" href="${SITE}${en}" />`);
+      }
+    expect(textOf(page('fr/index.html'))).toContain('Le problème.');
+    expect(page('fr/index.html')).toContain('<title>Les nœuds qui soutiennent');
+    expect(page('help/index.html')).toContain('<html lang="en"');
+    expect(page('help/index.html')).not.toContain('hreflang');
   });
 
   test('robots.txt blocks no file, names the sitemap and gives the same AI policy as the AI page', () => {
