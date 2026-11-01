@@ -14,6 +14,10 @@ export function monthIndex(date: string): number {
   return (year - FIRST_YEAR) * 12 + month - FIRST_MONTH + (day - 1) / days;
 }
 
+/** The month at a place of the month axis of figure 4, as "2025-09". */
+export const monthName = (x: number): string =>
+  new Date(Date.UTC(FIRST_YEAR, FIRST_MONTH - 1 + x, 1)).toISOString().slice(0, 7);
+
 // The last month of the data of figure 4.
 const LAST_INDEX = Math.max(
   ...[...figures.f4.brent, ...figures.f4.urals].map(([date]) =>
@@ -91,6 +95,24 @@ export const payData = {
     defence: yearly(figures.f5.def, 2014, 2025, PLAN, 1000),
   },
 } as const;
+
+/** Urals minus a what-if line for each month: `null` where Urals has no value. Only the months
+ * with a value count, so a missing month is never above or below the line. */
+export function lineGap(
+  urals: readonly Point[],
+  line: number,
+): {
+  readonly months: readonly { readonly x: number; readonly gap: number | null }[];
+  readonly above: readonly number[];
+  readonly known: number;
+} {
+  const months = urals.map((point, x) => ({ x, gap: point === null ? null : point.y - line }));
+  return {
+    months,
+    above: months.flatMap(({ x, gap }) => (gap !== null && gap > 0 ? [x] : [])),
+    known: months.filter(({ gap }) => gap !== null).length,
+  };
+}
 
 /** The first place where line `a` goes from above line `b` to below it, by linear interpolation
  * between two known values of both; undefined when it never does. */

@@ -2238,6 +2238,19 @@ export const payUi = {
         text: 'The gap widened again after October 2025, when OFAC designated [[N-P026|Rosneft]] and [[N-P030|Lukoil]], two large Russian oil groups,[^28] and several Indian refiners stopped buying.[^29] From August 2023 to October 2025, Urals was worth $10 to $16 less than Brent each month; since November 2025, it has been worth $19 to $27 less.[^30]',
       },
     ],
+    // The slider under the chart: a line that the reader moves. It is not a cap and not a model.
+    whatIf: {
+      title: 'What-if line, not a model',
+      slider: 'What-if line, in $ per barrel',
+      line: 'what-if {v} $',
+      above: 'Urals above the line: {n} of {k} months with a value.',
+      none: 'Urals is above the line in no month.',
+      missing: 'Months with no Urals value: {n}. They stay blank.',
+      table: 'Urals minus the what-if line, each month',
+      month: 'Month',
+      urals: 'Urals ($ per barrel)',
+      gap: 'Urals minus the line ($)',
+    },
   },
 } as const;
 

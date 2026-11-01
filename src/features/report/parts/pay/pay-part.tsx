@@ -11,6 +11,7 @@ import { Reveal } from '../../primitives/reveal';
 import { StickyScene } from '../../primitives/sticky-scene';
 import { RichText } from '../../rich-text';
 import { useContent, type ReportContent } from '../../use-content';
+import { CapWhatIf } from './cap-what-if';
 import { BudgetChart, BuyersChart, PriceChart } from './pay-figures';
 
 // The editorial grid: the notes hang in the left third, the text reads in the right two thirds.
@@ -218,44 +219,49 @@ function StepText({
 // chart shows the step in view; on a large screen they are open annotations in the left third.
 const CARD = 'invisible w-full text-report-small lg:visible lg:w-[calc(100%/3-1.5rem)]';
 
-/** Figure 4 as a scroll scene: each step shows one more state of the caps and the gap. Under
- * reduced motion, one chart in its final state; the body text holds the words of the steps. */
+/** Figure 4 as a scroll scene: each step shows one more state of the caps and the gap, then the
+ * chart with the what-if line. Under reduced motion, only the chart with the what-if line; the
+ * body text holds the words of the steps. */
 function PriceScene({ slug }: { readonly slug: string }) {
   const { payUi } = useContent();
   const reduce = useReducedMotion();
-  if (reduce === true) return <PriceChart step={3} />;
+  // Under reduced motion the chart of the what-if line is the one chart in its final state.
+  if (reduce === true) return <CapWhatIf />;
   const steps = payUi.f4.steps;
   return (
-    // The last step ends the scene: no empty view stays after it.
-    <div className="[&>div>div:last-child>div:last-child]:hidden">
-      <StickyScene
-        sceneClassName="pointer-events-none z-10"
-        stepClassName={CARD}
-        steps={steps.map((step) => (
-          <Fragment key={step.text}>
-            <StepText step={step} slug={slug} />
-          </Fragment>
-        ))}
-      >
-        {(active) => {
-          const step = steps[active];
-          return (
-            <div className={cn('flex flex-col bg-background lg:bg-transparent', layout.view)}>
-              <div className="pointer-events-auto flex h-[52%] shrink-0 flex-col bg-background pt-2 pb-2 lg:ml-[calc(100%/3+1rem)] lg:h-full lg:py-8">
-                <PriceChart step={active + 1} focus fill />
-              </div>
-              {step === undefined ? null : (
-                <div
-                  aria-live="polite"
-                  className="pointer-events-auto min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-border pt-3 text-report-small  lg:hidden"
-                >
-                  <StepText step={step} slug={slug} />
+    <>
+      {/* The last step ends the scene: no empty view stays after it. */}
+      <div className="[&>div>div:last-child>div:last-child]:hidden">
+        <StickyScene
+          sceneClassName="pointer-events-none z-10"
+          stepClassName={CARD}
+          steps={steps.map((step) => (
+            <Fragment key={step.text}>
+              <StepText step={step} slug={slug} />
+            </Fragment>
+          ))}
+        >
+          {(active) => {
+            const step = steps[active];
+            return (
+              <div className={cn('flex flex-col bg-background lg:bg-transparent', layout.view)}>
+                <div className="pointer-events-auto flex h-[52%] shrink-0 flex-col bg-background pt-2 pb-2 lg:ml-[calc(100%/3+1rem)] lg:h-full lg:py-8">
+                  <PriceChart step={active + 1} focus fill />
                 </div>
-              )}
-            </div>
-          );
-        }}
-      </StickyScene>
-    </div>
+                {step === undefined ? null : (
+                  <div
+                    aria-live="polite"
+                    className="pointer-events-auto min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-border pt-3 text-report-small  lg:hidden"
+                  >
+                    <StepText step={step} slug={slug} />
+                  </div>
+                )}
+              </div>
+            );
+          }}
+        </StickyScene>
+      </div>
+      <CapWhatIf />
+    </>
   );
 }
