@@ -43,8 +43,9 @@ export function IntroductionPart({ part }: { readonly part: ReportPart }) {
   return (
     <section id={part.slug} aria-label={part.title} className="scroll-mt-12">
       <ChapterBreak number={number} title={part.title}>
-        {/* In the flow on a phone; it fills the empty right half of the break on a wide screen. */}
-        <div className="mt-10 lg:absolute lg:top-16 lg:right-8 lg:bottom-20 lg:mt-0 lg:w-[46%]">
+        {/* In the flow on a phone. On a wide screen, a square in the empty right half of the break,
+            never taller than the break. */}
+        <div className="mt-10 lg:absolute lg:top-16 lg:right-8 lg:mt-0 lg:aspect-square lg:max-h-[calc(100%-9rem)] lg:w-[46%]">
           <img
             src={copy.art}
             alt=""
