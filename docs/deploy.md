@@ -41,8 +41,10 @@ in the HTML, with no script. The home page and the downloads page hold a schema.
 ## Release checklist
 
 A pull request into `main` refers to this list, and each item must be done before the merge. The
-contract of the report holds three blockers:
+contract of the report holds these blockers:
 
+- [ ] A short methods memo for the funder: the evidence standard, and how the report marks an
+      uncertain or unverified claim.
 - [ ] A written legal review of the report and of each data layer that the release shows. A layer
       that the review does not cover stays off.
 - [ ] A documented right of reply: each party that the report names received the claims about it
