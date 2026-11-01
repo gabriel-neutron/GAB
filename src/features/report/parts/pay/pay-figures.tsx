@@ -176,6 +176,18 @@ export function BuyersChart() {
       {panels.map((panel) => (
         <div key={panel.title} className="min-w-0">
           <p className={PANEL_TITLE}>{panel.title}</p>
+          {/* The values of the chosen year, next to the scrubber. */}
+          <dl className="mt-3 grid grid-cols-[1fr_auto] gap-x-4 font-mono text-report-label tabular-nums">
+            {valuesInYear(panel.rows, chosen).map(({ key, point }) => (
+              <div key={key} className="contents">
+                <dt className="border-b border-divider py-1 text-label">{f3Names[key] ?? key}</dt>
+                <dd className="border-b border-divider py-1 text-right">
+                  {point === null ? '' : point.y.toFixed(0)}
+                  {point?.hollow === true ? ` (${copy.estimated})` : ''}
+                </dd>
+              </div>
+            ))}
+          </dl>
           <div className="mt-3">
             <LineChart
               tableLabel={copy.table}
@@ -219,17 +231,6 @@ export function BuyersChart() {
               })}
             />
           </div>
-          <dl className="mt-3 grid grid-cols-[1fr_auto] gap-x-4 font-mono text-report-label tabular-nums">
-            {valuesInYear(panel.rows, chosen).map(({ key, point }) => (
-              <div key={key} className="contents">
-                <dt className="border-b border-divider py-1 text-label">{f3Names[key] ?? key}</dt>
-                <dd className="border-b border-divider py-1 text-right">
-                  {point === null ? '' : point.y.toFixed(0)}
-                  {point?.hollow === true ? ` (${copy.estimated})` : ''}
-                </dd>
-              </div>
-            ))}
-          </dl>
         </div>
       ))}
       <p className={cn(LEGEND, 'md:col-span-2')}>{payUi.estimate}</p>

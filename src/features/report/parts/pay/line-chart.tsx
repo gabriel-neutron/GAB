@@ -162,96 +162,98 @@ export function LineChart({
   }
 
   return (
-    <div
-      ref={box}
-      className={cn('relative w-full min-w-0', fill && 'h-full')}
-      style={fill ? undefined : { height }}
-    >
-      {width === 0 ? null : (
-        <svg
-          width={width}
-          height={height}
-          viewBox={`0 0 ${String(width)} ${String(height)}`}
-          aria-hidden="true"
-          className="block overflow-visible font-mono text-report-label"
-        >
-          <text x={0} y={12} className="fill-label">
-            {spec.unit}
-          </text>
-          {spec.yTicks.map((tick) => (
-            <g key={tick}>
-              <line
-                x1={MARGIN.left}
-                x2={right}
-                y1={scales.y(tick)}
-                y2={scales.y(tick)}
-                className="stroke-chart-grid"
-              />
+    <>
+      <div
+        ref={box}
+        className={cn('relative w-full min-w-0', fill && 'h-full')}
+        style={fill ? undefined : { height }}
+      >
+        {width === 0 ? null : (
+          <svg
+            width={width}
+            height={height}
+            viewBox={`0 0 ${String(width)} ${String(height)}`}
+            aria-hidden="true"
+            className="block overflow-visible font-mono text-report-label"
+          >
+            <text x={0} y={12} className="fill-label">
+              {spec.unit}
+            </text>
+            {spec.yTicks.map((tick) => (
+              <g key={tick}>
+                <line
+                  x1={MARGIN.left}
+                  x2={right}
+                  y1={scales.y(tick)}
+                  y2={scales.y(tick)}
+                  className="stroke-chart-grid"
+                />
+                <text
+                  x={MARGIN.left - 6}
+                  y={scales.y(tick) + 4}
+                  textAnchor="end"
+                  className="fill-label tabular-nums"
+                >
+                  {tick}
+                </text>
+              </g>
+            ))}
+            {spec.xTicks.map((tick) => (
               <text
-                x={MARGIN.left - 6}
-                y={scales.y(tick) + 4}
-                textAnchor="end"
+                key={tick.at}
+                x={scales.x(tick.at)}
+                y={bottom + 20}
+                textAnchor="middle"
                 className="fill-label tabular-nums"
               >
-                {tick}
+                {tick.label}
               </text>
-            </g>
-          ))}
-          {spec.xTicks.map((tick) => (
-            <text
-              key={tick.at}
-              x={scales.x(tick.at)}
-              y={bottom + 20}
-              textAnchor="middle"
-              className="fill-label tabular-nums"
-            >
-              {tick.label}
-            </text>
-          ))}
-          {extra.under}
-          {spec.series.map((one) => (
-            <g key={one.id} className={cn(FADE, shownClass(one.tone, one.shown ?? true))}>
-              <path
-                d={linePath(one.points, scales)}
-                fill="none"
-                strokeWidth={one.tone === 'ink' || one.tone === 'accent' ? 2 : 1.5}
-                strokeDasharray={one.dashed === true ? '5 4' : undefined}
-                className={STROKE[one.tone]}
-              />
-              {one.points.map((point) =>
-                point === null ? null : (
-                  <circle
-                    key={point.x}
-                    cx={scales.x(point.x)}
-                    cy={scales.y(point.y)}
-                    r={point.hollow ? 3.5 : 2.5}
-                    strokeWidth={1.5}
-                    className={cn(
-                      STROKE[one.tone],
-                      point.hollow ? 'fill-background' : TEXT[one.tone],
-                    )}
-                  />
-                ),
-              )}
-            </g>
-          ))}
-          {ends.map((end) => (
-            <text
-              key={end.id}
-              x={end.x}
-              y={end.y}
-              className={cn(FADE, TEXT[end.tone], end.shown ? 'opacity-100' : 'opacity-0')}
-            >
-              {end.text}
-            </text>
-          ))}
-          {extra.over}
-        </svg>
-      )}
-      {extra.html}
-      {tableLabel === undefined ? (
-        <DataTable spec={spec} className="sr-only" />
-      ) : (
+            ))}
+            {extra.under}
+            {spec.series.map((one) => (
+              <g key={one.id} className={cn(FADE, shownClass(one.tone, one.shown ?? true))}>
+                <path
+                  d={linePath(one.points, scales)}
+                  fill="none"
+                  strokeWidth={one.tone === 'ink' || one.tone === 'accent' ? 2 : 1.5}
+                  strokeDasharray={one.dashed === true ? '5 4' : undefined}
+                  className={STROKE[one.tone]}
+                />
+                {one.points.map((point) =>
+                  point === null ? null : (
+                    <circle
+                      key={point.x}
+                      cx={scales.x(point.x)}
+                      cy={scales.y(point.y)}
+                      r={point.hollow ? 3.5 : 2.5}
+                      strokeWidth={1.5}
+                      className={cn(
+                        STROKE[one.tone],
+                        point.hollow ? 'fill-background' : TEXT[one.tone],
+                      )}
+                    />
+                  ),
+                )}
+              </g>
+            ))}
+            {ends.map((end) => (
+              <text
+                key={end.id}
+                x={end.x}
+                y={end.y}
+                className={cn(FADE, TEXT[end.tone], end.shown ? 'opacity-100' : 'opacity-0')}
+              >
+                {end.text}
+              </text>
+            ))}
+            {extra.over}
+          </svg>
+        )}
+        {extra.html}
+        {tableLabel === undefined ? <DataTable spec={spec} className="sr-only" /> : null}
+      </div>
+      {tableLabel === undefined ? null : (
+        // Out of the box of the chart, whose height is fixed.
         <details className="mt-3">
           <summary className="inline-flex min-h-11 cursor-pointer items-center font-mono text-report-label text-label focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid">
             {tableLabel}
@@ -259,12 +261,12 @@ export function LineChart({
           <div className="overflow-x-auto">
             <DataTable
               spec={spec}
-              className="w-full font-mono text-report-label tabular-nums [&_td]:py-1 [&_td]:text-right [&_th]:py-1 [&_th]:text-left [&_th]:font-normal [&_th]:text-label [&_thead_th]:text-right [&_tr]:border-b [&_tr]:border-divider"
+              className="w-full font-mono text-report-label tabular-nums [&_caption]:text-left [&_caption]:text-label [&_td]:py-1 [&_td]:text-right [&_th]:py-1 [&_th]:text-left [&_th]:font-normal [&_th]:text-label [&_thead_th]:text-right [&_tr]:border-b [&_tr]:border-divider"
             />
           </div>
         </details>
       )}
-    </div>
+    </>
   );
 }
 
