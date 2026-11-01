@@ -227,7 +227,7 @@ export function PortMap({ step, sources }: PortMapProps) {
         {one}
       </p>
     ));
-  if (visits) credit.push(<visitLayer.Table key="visits" shown={!sticky} />);
+  if (visits) credit.push(<visitLayer.Table key="visits" />);
   // External constraint: the GFW API terms ask for this line with a link on each page that shows
   // their data, so it stays in view when the other sources fold.
   const gfw = visits ? (

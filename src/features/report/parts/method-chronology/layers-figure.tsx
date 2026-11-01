@@ -124,10 +124,12 @@ interface LayerColumnProps {
 function LayerColumn({ index, layer }: LayerColumnProps) {
   const { openNode } = useReport();
   const { methodUi } = useContent();
-  const nodes = reportGraph.layer(LAYER_KEYS[index] ?? layer.k);
+  const key = LAYER_KEYS[index] ?? layer.k;
+  const nodes = reportGraph.layer(key);
   const kept = nodes.filter((node) => node.kept === 'yes');
   const examined = nodes.filter((node) => node.kept !== 'yes');
-  const count = criticalLayers.get(layer.k) ?? 0;
+  // The French copy names the layer in French; the data keeps the English name.
+  const count = criticalLayers.get(key) ?? 0;
   // The critical nodes of the page data come first; the rest of the count has no page record.
   const rest = Math.max(0, count - kept.length);
   const open = (node: GraphNode, target: HTMLElement) => {

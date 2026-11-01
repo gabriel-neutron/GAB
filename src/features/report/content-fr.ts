@@ -349,6 +349,7 @@ export const fr: ReportContent = {
         port: 'Port',
         count: 'Escales',
         tankers: 'Pétroliers',
+        table: 'Les escales, en tableau',
         limit: 'Une présence au port, pas un chargement.',
         range: 'du {from} au {to}',
       },

@@ -437,6 +437,34 @@ export function SettlementFigure({
       partSlug={partSlug}
     >
       {chart}
+      {/* In the frame, so the figure holds its data table. */}
+      <table className="sr-only">
+        <caption>{copy.tableCaption}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{copy.year}</th>
+            {PANELS.flatMap((panel) =>
+              SERIES.map((series) => (
+                <th key={`${panel}-${series.key}`} scope="col">
+                  {copy[panel]}, {labels[series.labelKey]}
+                </th>
+              )),
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {YEARS.map((one) => (
+            <tr key={one}>
+              <th scope="row">{one}</th>
+              {PANELS.flatMap((panel) =>
+                SERIES.map((series) => (
+                  <td key={`${panel}-${series.key}`}>{percent(value(panel, series.key, one))}</td>
+                )),
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </FigureFrame>
   );
   const chart = (year: number) => <SettlementChart year={year} still={reduce} />;
@@ -466,33 +494,6 @@ export function SettlementFigure({
             {(active) => frame(chart(copy.steps[active] ?? LAST))}
           </StickyScene>
         )}
-        <table className="sr-only">
-          <caption>{copy.tableCaption}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{copy.year}</th>
-              {PANELS.flatMap((panel) =>
-                SERIES.map((series) => (
-                  <th key={`${panel}-${series.key}`} scope="col">
-                    {copy[panel]}, {labels[series.labelKey]}
-                  </th>
-                )),
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {YEARS.map((one) => (
-              <tr key={one}>
-                <th scope="row">{one}</th>
-                {PANELS.flatMap((panel) =>
-                  SERIES.map((series) => (
-                    <td key={`${panel}-${series.key}`}>{percent(value(panel, series.key, one))}</td>
-                  )),
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </div>
   );
