@@ -35,7 +35,7 @@ const GRAIN =
 
 /** The first screen, in the theme of the page. The dithered tanker, black on the accent, fills
  * the screen behind the words, and a scrim keeps every word on the plain ground of the page. The art is
- * decoration: the bibliography page gives its credit. */
+ * decoration: its credit opens from the image marker in the corner, as for all art of the page. */
 export function ReportCover() {
   const { openingUi, parts, report, ui } = useContent();
   const { links } = openingUi;
@@ -125,9 +125,10 @@ export function ReportCover() {
           </span>
         </a>
       </div>
-      {/* The credit of the photograph, as for all art of the page. It sits in the corner of the
-          photograph, so its note opens over the art and not over the words. */}
-      <p className="absolute right-4 bottom-3 w-fit font-mono text-report-label uppercase text-label md:right-8 md:bottom-10 lg:right-12 lg:bottom-12">
+      {/* The marker of the credit sits in the bottom right corner, away from the words. The
+          screen edge is at its right, so its note opens at its left, clear of the words. A
+          ground keeps the caption legible on the photograph. */}
+      <p className="absolute right-4 bottom-3 w-fit bg-background/80 px-1 font-mono text-report-label uppercase text-label md:right-8 md:bottom-10 lg:right-12 lg:bottom-12">
         <span aria-hidden="true">{ui.note.image}</span>
         <ImageCredit src={openingUi.cover.src} />
       </p>
