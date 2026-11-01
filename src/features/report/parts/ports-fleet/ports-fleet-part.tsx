@@ -13,16 +13,17 @@ import { FleetFlows } from './fleet-flows';
 import { REGIMES, selectWaves } from './fleet-waves';
 import { FleetWavesFigure } from './fleet-waves-figure';
 import { PortTraffic } from './port-traffic';
+import { portVisits } from './port-visits';
 import { splitSentences } from './sentences';
 import { VesselLives } from './vessel-lives';
+import { visitLayer } from './visit-layer';
 import './map-scene.css';
 
 import type { MapSources } from './port-map';
 
 const PortMap = lazy(() => import('./port-map').then((module) => ({ default: module.PortMap })));
-const VisitTable = lazy(() =>
-  import('./port-map').then((module) => ({ default: module.VisitTable })),
-);
+// The table of the port visits needs no map, so it loads with the page.
+const VISITS_ON = portVisits.on(import.meta.env);
 
 const PROSE = 'max-w-[64ch] text-report-body/[1.65]  lg:ml-[25%]';
 const census = figureData.lives.census;
@@ -218,15 +219,13 @@ function MapScene({
           )}
         </StickyScene>
       </div>
-      {/* The port visits as a table, out of the sticky map, so it never covers the map or a card.
-        Under 1024px it comes up over the faded room of the map, as the next figure does. */}
-      <div className={cn(PROSE, 'relative bg-background')}>
-        {near ? (
-          <Suspense fallback={null}>
-            <VisitTable />
-          </Suspense>
-        ) : null}
-      </div>
+      {/* The port visits as a table, out of the sticky map, so it never stays over the map. Under
+          1024px it comes up over the faded room of the map, as the next figure did. */}
+      {VISITS_ON ? (
+        <div className={cn(PROSE, 'relative bg-background')}>
+          <visitLayer.Table />
+        </div>
+      ) : null}
     </>
   );
 }
