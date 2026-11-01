@@ -4,7 +4,7 @@ import committed from './data/note-documents.json';
 import { noteDocumentFaults, type NoteDocumentsFile } from './note-documents';
 
 // shortcut: the final English text holds the notes 1 to 127 and is not in the repository; read the
-// ids from the content when #1152 puts the final notes there.
+// ids from the content once it holds the final notes.
 const NOTE_IDS = new Set(Array.from({ length: 127 }, (_, index) => String(index + 1)));
 
 const document = {
@@ -13,14 +13,11 @@ const document = {
   retrievedAt: '2026-10-28',
   url: 'https://example.org/act',
   match: 'exact',
-} as const;
+};
 const excerpt = 'The Council adopts the price cap of 60 US dollars per barrel for crude oil.';
 const fileWith = (note: NoteDocumentsFile['notes'][number]): NoteDocumentsFile => ({
   builtOn: '2026-11-01',
-  notes: [
-    ...committed.notes.filter((held) => held.id !== note.id),
-    note,
-  ] as NoteDocumentsFile['notes'],
+  notes: [...committed.notes.filter((held) => held.id !== note.id), note],
 });
 const quoted = (quote: Partial<NonNullable<NoteDocumentsFile['notes'][number]['quote']>>) =>
   fileWith({
@@ -37,14 +34,14 @@ const quoted = (quote: Partial<NonNullable<NoteDocumentsFile['notes'][number]['q
 
 describe('the note-to-documents file', () => {
   it('holds each note of the final text once, with dated rows and original addresses', () => {
-    expect(noteDocumentFaults(committed as NoteDocumentsFile, NOTE_IDS)).toEqual([]);
+    expect(noteDocumentFaults(committed, NOTE_IDS)).toEqual([]);
   });
 
-  it('holds no address of the private store', () => {
-    const urls = committed.notes.flatMap((note) => note.documents.map((row) => row.url));
-    expect(
-      urls.filter((url) => !/^https?:\/\//u.test(url) || /s3|minio|raw-store/iu.test(url)),
-    ).toEqual([]);
+  it('refuses a row with a field other than the original address, such as an archive', () => {
+    const archived = { ...document, archive: 'raw/doc_0123456789ab.pdf' };
+    expect(noteDocumentFaults(fileWith({ id: '15', documents: [archived] }), NOTE_IDS)).toContain(
+      'note 15: doc_0123456789ab has other fields than id,match,retrievedAt,type,url',
+    );
   });
 
   it('accepts a short quote of an open source that the stored excerpt holds', () => {
