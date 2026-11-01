@@ -201,9 +201,12 @@ export function ChainMap({
   // A route shows only when the step names both of its ends, so no route ends in empty land.
   const named = new Set(places.map((place) => place.name));
   const shown = arcs.filter((arc) => lit || (named.has(arc.from.name) && named.has(arc.to.name)));
+  // On a phone the plants sit too close for their labels: the map shows the points only, and the
+  // table under the map names each plant.
+  const labelled = cropName === 'plants' && size.w < 480 ? [] : places;
   // Places on one point share one label: "EU 12% / Europe".
   const merged = new Map<string, { place: Place; text: string }>();
-  for (const place of places) {
+  for (const place of labelled) {
     const at = `${String(place.lon)},${String(place.lat)}`;
     const text = `${place.name}${place.value === undefined ? '' : ` ${place.value}`}`;
     const held = merged.get(at);

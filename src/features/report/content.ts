@@ -2278,7 +2278,7 @@ export const fightUi = {
     unit: 'one point = one plant or integrator',
     sources: 'GAB record: positions and matches by name on the EU, UK and US sanctions lists',
     mapLabel:
-      'Map of the Russian defence plants and integrators by main weapon; six main plants named; hollow points are approximate',
+      'Map of the Russian defence plants and integrators by main weapon; on a wide screen six main plants are named; hollow points are approximate',
     legend: [
       ['drone', 'Drones'],
       ['cruise missile', 'Missiles'],
