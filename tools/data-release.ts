@@ -26,7 +26,8 @@ export const fetchDataRelease = async (root: string): Promise<string> => {
     throw new Error(`The data release ${DATA_RELEASE_TAG} answered ${answer.status}.`);
   const archive = join(folder, '.release.tar.gz');
   writeFileSync(archive, Buffer.from(await answer.arrayBuffer()));
-  execFileSync('tar', ['-xzf', archive, '-C', folder]);
+  // A relative name: GNU tar reads `C:` in a Windows path as the name of a remote host.
+  execFileSync('tar', ['-xzf', '.release.tar.gz'], { cwd: folder });
   return folder;
 };
 
