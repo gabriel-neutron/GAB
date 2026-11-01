@@ -2061,7 +2061,6 @@ export const methodUi = {
     unit: 'Critical nodes, one square for each node',
     // The figure counts the nodes of the report, so its period is the period of the report.
     period: '2024-2026',
-    critical: 'Critical nodes',
     inData: 'Critical and in the page data',
     examined: 'In the page data, fewer than three conditions documented',
     open: 'Open the nodes of the page data',
@@ -2080,14 +2079,6 @@ export const methodUi = {
     table: 'Events and tankers designated, as a table',
     date: 'Date',
     event: 'Event',
-  },
-  // The critical nodes of each layer. Their sum is the count of critical nodes of the text.
-  numbers: {
-    layers: [
-      { value: '442', label: 'Pay' },
-      { value: '29', label: 'Finance' },
-      { value: '22', label: 'Fight' },
-    ],
   },
 } as const;
 
@@ -2306,8 +2297,16 @@ export const closingUi = {
     checkLabel: 'Check before use',
   },
   annex: {
-    // The date of the counts, as the annex of the final text gives it.
-    dataDate: 'Database as at 27 October 2026',
+    // The format of the numbers and of the date of the strip.
+    locale: 'en-GB',
+    // The counts of the database, read from the final text.
+    record: 'In the database',
+    entities: 'Entities',
+    critical: 'Critical nodes',
+    official: 'Critical nodes on an official source, at least',
+    recordSource: 'Source: the text of this report, counts as at {date}',
+    // The counts of the page data.
+    report: 'In this report',
   },
 } as const;
 

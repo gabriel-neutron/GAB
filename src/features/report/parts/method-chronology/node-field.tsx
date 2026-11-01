@@ -1,20 +1,30 @@
 import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
-import { methodUi } from '../../content';
 import { accent } from '../../primitives/accent';
+import { recordCounts } from '../../record-counts';
+import { reportGraph } from '../../report-graph';
+import { sources } from '../../source';
 
-// The counts of the text of the part, from the smallest layer to the largest.
-const { layers } = methodUi.numbers;
+const REST = 'bg-foreground/15';
 const TONE: Readonly<Record<string, string>> = {
   Fight: accent.bg,
   Finance: 'bg-foreground/55',
-  Pay: 'bg-foreground/15',
+  Pay: REST,
 };
-const squares = [...layers]
-  .reverse()
-  .flatMap((layer) =>
-    Array.from({ length: Number(layer.value) }, () => TONE[layer.label] ?? TONE['Pay']),
-  );
+// The text gives the count of critical nodes; the page data gives the layer of some of them only.
+const known = ['Fight', 'Finance', 'Pay'].flatMap((layer) =>
+  reportGraph
+    .layer(layer)
+    .filter((node) => node.kept === 'yes')
+    .map(() => TONE[layer] ?? REST),
+);
+const squares = [
+  ...known,
+  ...Array.from(
+    { length: Math.max(0, recordCounts(sources.en).critical - known.length) },
+    () => REST,
+  ),
+];
 
 /** The decorative art of the chapter break: one square for each critical node, across the full width behind
  * the numeral, fading into the ground under the title. */
