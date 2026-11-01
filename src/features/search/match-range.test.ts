@@ -18,6 +18,10 @@ describe('matchRange', () => {
     expect(matchRange('Ledger   Shipping', 'ledger shipping')).toEqual({ start: 0, end: 17 });
   });
 
+  it('finds a name with a Cyrillic lookalike letter', () => {
+    expect(matchRange('Gstaad Grace IІ', 'Gstaad Grace II')).toEqual({ start: 0, end: 15 });
+  });
+
   it('trims the query as the search does', () => {
     expect(matchRange('Ledger', '  led ')).toEqual({ start: 0, end: 3 });
   });

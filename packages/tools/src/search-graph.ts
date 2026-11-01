@@ -1,4 +1,5 @@
 import { identifierContainment, identifierKey } from '@gab/proposal/identifiers';
+import { LOOKALIKE_FROM, LOOKALIKE_TO } from '@gab/proposal/lookalikes';
 import { z } from 'zod';
 
 import { entityHit, entityHits, rowsOf } from './fields.ts';
@@ -8,14 +9,19 @@ import { defineTool } from './tool.ts';
 // A percent sign and an underscore are letters in a name, and a backslash escapes them.
 const escaped = (text: string): string => text.replace(/[\\%_]/g, '\\$&');
 
+// The name and the words compare with a Cyrillic lookalike read as its Latin letter. The label
+// that the caller gets does not change.
+const SEEN = (text: string): string =>
+  `translate(lower(${text}), '${LOOKALIKE_FROM}', '${LOOKALIKE_TO}')`;
+
 // One text for each case, so each filter that the caller leaves out is a null that holds for each
 // row.
 const SEARCH = `SELECT id::text AS id, label, type
   FROM api.entity
-  WHERE ($1::text IS NULL OR label ILIKE '%' || $1::text || '%' ESCAPE '\\')
+  WHERE ($1::text IS NULL OR ${SEEN('label')} LIKE ${SEEN("'%' || $1::text || '%'")} ESCAPE '\\')
     AND ($2::text IS NULL OR type = $2::text)
     AND ($4::jsonb[] IS NULL OR attrs @> ANY($4::jsonb[]))
-  ORDER BY COALESCE(label ILIKE $1::text || '%' ESCAPE '\\', false) DESC, label, id
+  ORDER BY COALESCE(${SEEN('label')} LIKE ${SEEN("$1::text || '%'")} ESCAPE '\\', false) DESC, label, id
   LIMIT $3::int`;
 
 export const searchGraph = defineTool({
