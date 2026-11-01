@@ -76,6 +76,26 @@ const GAP = 12;
 const LINE = 18;
 export const FADE = 'transition-opacity duration-500 motion-reduce:transition-none';
 
+/** The x values that have a point in one series or more, in order. */
+export const xsOf = (series: readonly LineSeries[]): number[] =>
+  [...new Set(series.flatMap((one) => one.points.flatMap((p) => (p ? [p.x] : []))))].sort(
+    (a, b) => a - b,
+  );
+
+/** The read-out of the chart at `x`: the name of `x`, then the value and the unit of each shown
+ * series that has a point there. */
+export function readout(spec: ChartSpec, x: number): { name: string; rows: string[] } {
+  return {
+    name: spec.xName(x),
+    rows: spec.series.flatMap((one) => {
+      const point = one.points.find((p) => p?.x === x);
+      return (one.shown ?? true) && point
+        ? [`${one.label}: ${point.y.toFixed(spec.digits ?? 0)} ${spec.unit}`]
+        : [];
+    }),
+  };
+}
+
 /** A line chart on a faint grid, in the one accent and neutrals. A missing value breaks the line.
  * A hollow mark is an estimate or a plan, and its line is dashed. Each line ends in its label. */
 export function LineChart({
@@ -94,6 +114,8 @@ export function LineChart({
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
+  // The x value under the pointer or at the keyboard focus.
+  const [pointed, setPointed] = useState<number | null>(null);
   // An adapter: the browser reports the size of the box.
   useEffect(() => {
     const node = box.current;
@@ -135,6 +157,14 @@ export function LineChart({
     bottom,
   };
   const extra = width === 0 || layers === undefined ? {} : layers(scales);
+  const xs = xsOf(spec.series.filter((one) => one.shown ?? true));
+  const nearest = (px: number) =>
+    xs.reduce<number | null>(
+      (best, x) =>
+        best === null || Math.abs(scales.x(x) - px) < Math.abs(scales.x(best) - px) ? x : best,
+      null,
+    );
+  const read = pointed === null ? null : readout(spec, pointed);
 
   // End labels in value order, pushed apart so that two labels never touch.
   const ends: { id: string; y: number; x: number; text: string; tone: Tone; shown: boolean }[] = [];
@@ -163,10 +193,44 @@ export function LineChart({
 
   return (
     <>
+      {/* A pointer or the arrow keys show the values of all series at one x. */}
       <div
         ref={box}
-        className={cn('relative w-full min-w-0', fill && 'h-full')}
+        tabIndex={0}
+        role="group"
+        aria-label={spec.label}
+        className={cn(
+          'relative w-full min-w-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid',
+          fill && 'h-full',
+        )}
         style={fill ? undefined : { height }}
+        onPointerMove={(event) => {
+          const px = event.clientX - event.currentTarget.getBoundingClientRect().left;
+          setPointed(px < scales.left || px > scales.right ? null : nearest(px));
+        }}
+        onPointerLeave={() => {
+          setPointed(null);
+        }}
+        onBlur={() => {
+          setPointed(null);
+        }}
+        onKeyDown={(event) => {
+          const at = pointed === null ? -1 : xs.indexOf(pointed);
+          const to =
+            event.key === 'ArrowRight'
+              ? Math.min(at + 1, xs.length - 1)
+              : event.key === 'ArrowLeft'
+                ? Math.max(at === -1 ? xs.length - 1 : at - 1, 0)
+                : event.key === 'Home'
+                  ? 0
+                  : event.key === 'End'
+                    ? xs.length - 1
+                    : null;
+          if (event.key === 'Escape') setPointed(null);
+          if (to === null) return;
+          event.preventDefault();
+          setPointed(xs[to] ?? null);
+        }}
       >
         {width === 0 ? null : (
           <svg
@@ -247,9 +311,38 @@ export function LineChart({
               </text>
             ))}
             {extra.over}
+            {pointed === null ? null : (
+              <line
+                x1={scales.x(pointed)}
+                x2={scales.x(pointed)}
+                y1={scales.top}
+                y2={scales.bottom}
+                className="stroke-foreground"
+                strokeDasharray="2 3"
+              />
+            )}
           </svg>
         )}
         {extra.html}
+        <div
+          aria-live="polite"
+          className={cn(
+            'pointer-events-none absolute top-0 z-10 border border-border bg-background px-2 py-1 font-mono text-report-label tabular-nums',
+            read === null && 'sr-only',
+            pointed !== null && scales.x(pointed) > (scales.left + scales.right) / 2
+              ? 'left-10'
+              : 'right-0',
+          )}
+        >
+          {read === null ? null : (
+            <>
+              <p className="text-label">{read.name}</p>
+              {read.rows.map((row) => (
+                <p key={row}>{row}</p>
+              ))}
+            </>
+          )}
+        </div>
         {tableLabel === undefined ? <DataTable spec={spec} className="sr-only" /> : null}
       </div>
       {tableLabel === undefined ? null : (
@@ -287,9 +380,7 @@ function linePath(points: readonly Point[], scales: Scales): string {
 
 /** The values of the chart as a table. */
 function DataTable({ spec, className }: { readonly spec: ChartSpec; readonly className: string }) {
-  const xs = [
-    ...new Set(spec.series.flatMap((one) => one.points.flatMap((p) => (p ? [p.x] : [])))),
-  ].sort((a, b) => a - b);
+  const xs = xsOf(spec.series);
   return (
     <table className={className}>
       <caption>

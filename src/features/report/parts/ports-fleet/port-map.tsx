@@ -12,6 +12,7 @@ import { portVisits } from './port-visits';
 import { TERMINALS } from './terminals';
 import { useSize } from './use-size';
 import { visitLayer } from './visit-layer';
+import { useNarrowScreen } from '@/shared/narrow-screen';
 import { useReduceMotion } from '../../reduced-motion';
 
 const EASE = [0.4, 0, 0.2, 1] as const;
@@ -104,6 +105,8 @@ export function PortMap({ step, sources }: PortMapProps) {
   const headHeight = useSize(head).height;
   const footSize = useSize(foot);
   const reduce = useReduceMotion();
+  // On a phone the map is not sticky: the scene shows each card with its own frame.
+  const narrow = useNarrowScreen();
   const visible = useInView(box, { amount: 0.2 });
   const { openNode } = useReport();
   const { portsFleetUi, figureTexts, ui } = useContent();
@@ -137,7 +140,7 @@ export function PortMap({ step, sources }: PortMapProps) {
   const id = useId();
   const state = MAP_STEPS[step] ?? MAP_STEPS[0];
   if (state === undefined) return null;
-  const sticky = !reduce;
+  const sticky = !reduce && !narrow;
   const flows = state.flows === true;
   const visits = VISITS_ON && state.tag === 'change';
   // Under 1024px the card is a sheet on the lower part of the view, so the map uses the upper part.
@@ -163,12 +166,11 @@ export function PortMap({ step, sources }: PortMapProps) {
   // the step: no label can go into the head.
   const rise = 22 + 16 + 16 + (state.tag === 'change' ? big + 3 : state.tag === undefined ? 0 : 16);
   const top = flows ? baseline + 28 : headHeight + (wide ? 24 : rise + 16);
-  // Under 1024px the card stands from 55% of the view on a phone and from 62% from 768px or for
-  // the flows (map-scene.css). The map starts under the part bar.
+  // From 768px to 1024px the card stands from 62% of the view (map-scene.css). The map starts
+  // under the part bar.
   // shortcut: the part bar is 2rem at a 16px root; read --report-bar if it changes.
   const view = typeof window === 'undefined' ? height : window.innerHeight;
-  const tablet = typeof window !== 'undefined' && window.innerWidth >= 768;
-  const cardTop = view * (flows || tablet ? 0.62 : 0.55) - 32;
+  const cardTop = view * 0.62 - 32;
   const frame: Frame = !sticky
     ? { width, height, left: 24, right: 24, top, bottom: flows ? 24 : 84 }
     : wide

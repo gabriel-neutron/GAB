@@ -411,7 +411,7 @@ function SettlementChart({ year, still }: { readonly year: number; readonly stil
 }
 
 /** Figure 10 as a scroll scene: the year and the chart stick together, and each step of the
- * scroll moves them to one year. Under reduced motion the figure shows its final state at once. A
+ * scroll moves them to one year. Under reduced motion and on a phone, the final state at once. A
  * disclosure under the chart holds the full data as a table. */
 export function SettlementFigure({
   block,
@@ -420,7 +420,9 @@ export function SettlementFigure({
   readonly block: ReportBlock;
   readonly partSlug: string;
 }) {
-  const reduce = useReduceMotion();
+  // On a phone the figure shows its final state too: no scroll step only moves the year.
+  const narrowScreen = useNarrowScreen();
+  const reduce = useReduceMotion() || narrowScreen;
   const { financeUi, figureTexts } = useContent();
   const copy = financeUi.figure;
   const labels = figureTexts.figures['9'].labels;

@@ -20,6 +20,7 @@ import { visitLayer } from './visit-layer';
 import './map-scene.css';
 
 import type { MapSources } from './port-map';
+import { useNarrowScreen } from '@/shared/narrow-screen';
 import { useReduceMotion } from '../../reduced-motion';
 
 const PortMap = lazy(() => import('./port-map').then((module) => ({ default: module.PortMap })));
@@ -79,7 +80,9 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
   const { figureTexts, parts, portsFleetUi: copy } = useContent();
   const texts = figureTexts.figures;
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
-  const scene = useReduceMotion() ? STATIC_SCENE : SCENE;
+  // The scene primitive shows each card with its own frame under reduced motion and on a phone.
+  const narrow = useNarrowScreen();
+  const scene = useReduceMotion() || narrow ? STATIC_SCENE : SCENE;
   const figureOf = (n: number) => part.blocks.find((block) => block.figure?.number === n)?.figure;
   // Figure 6 has one unit for each panel: a, b, then c. Figure 7 has one unit for each kind of
   // panel. The two notes of a figure of the PDF read as one note under the chart.
@@ -205,7 +208,7 @@ function MapScene({
   // up over it, so no empty band stands between the map and the figure.
   return (
     <>
-      <div ref={box} className="pf-scene mt-16 max-lg:motion-safe:-mb-[25svh]">
+      <div ref={box} className="pf-scene mt-16 md:max-lg:motion-safe:-mb-[25svh]">
         <StickyScene steps={steps}>
           {(step) => (
             <>
