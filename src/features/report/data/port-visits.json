@@ -3,7 +3,8 @@
   "tool": {
     "name": "gfw_port_visits",
     "server": "gab",
-    "version": "f7c9295a-dirty"
+    "version": "f7c9295a-dirty",
+    "note": "The version as the server gave it. \"dirty\" says that the server checkout held changes that were not committed; the gfw_port_visits code is the one of that commit."
   },
   "source": "Global Fishing Watch, API v3, dataset public-global-port-visits-events (port visits), and the Vessels API for the registry IMO",
   "licence": "CC BY-NC 4.0",

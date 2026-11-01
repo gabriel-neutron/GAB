@@ -19,8 +19,8 @@ const number = new Intl.NumberFormat('en-US');
 const VISITS_ON = portVisits.on(import.meta.env);
 const { file: visitFile } = portVisits;
 const VISITS_TEXT =
-  `${copy.visits.counted} ${number.format(visitFile.visits.length)} visits by ${number.format(portVisits.tankersSeen)} of the ` +
-  `${number.format(visitFile.imoList.count)} listed tankers, ${visitFile.parameters.from} to ` +
+  `${copy.visits.counted} ${number.format(visitFile.visits.length)} ${copy.visits.by} ${number.format(portVisits.tankersSeen)} ${copy.visits.of} ` +
+  `${number.format(visitFile.imoList.count)} ${copy.visits.listed}, ${visitFile.parameters.from} to ` +
   // The query window excludes its end day, so the text gives the last day it holds.
   `${new Date(Date.parse(visitFile.parameters.to) - 86_400_000).toISOString().slice(0, 10)}. ` +
   copy.visits.limit;

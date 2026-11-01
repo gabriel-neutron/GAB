@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { portVisits } from './port-visits';
+import { TERMINALS } from './terminals';
 
 const { file } = portVisits;
 
@@ -32,7 +33,8 @@ describe('port visits of the tankers named in the report', () => {
       ),
     ).toBe(true);
     expect(new Set(file.visits.map((visit) => visit.event)).size).toBe(file.visits.length);
-    expect(portVisits.visits.every((visit) => visit.terminal !== '')).toBe(true);
+    const terminals = new Set(TERMINALS.map((terminal) => terminal.id));
+    expect(portVisits.ports.every((port) => terminals.has(port.terminal))).toBe(true);
   });
 
   it('is off on a release build', () => {
