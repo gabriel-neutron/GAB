@@ -313,7 +313,8 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
   const free = (column: HTMLElement): number =>
     footOf(column).getBoundingClientRect().top - bodyOf(column).getBoundingClientRect().bottom;
   for (let index = FIXED; index < sheets().length - 1; index += 1) {
-    const column = columnOf(sheets()[index] as HTMLElement);
+    const sheet = sheets()[index];
+    const column = sheet ? columnOf(sheet) : undefined;
     const next = sheets()[index + 1];
     const nextColumn = next ? columnOf(next) : undefined;
     if (!column || !nextColumn || !touched.has(column) || !touched.has(nextColumn)) continue;
@@ -324,7 +325,7 @@ export function layout({ linkLabel, links }: LayoutInput): LayoutResult {
     for (let step = 0; step < 100 && free(column) >= 4 * LINE; step += 1) {
       const body = bodyOf(column);
       const source = bodyOf(nextColumn);
-      const first = figure ? figure.nextElementSibling : source.firstElementChild;
+      const first: Element | null = figure ? figure.nextElementSibling : source.firstElementChild;
       if (first === null) break;
       const last = body.lastElementChild;
       const joins = first.tagName === 'P' && last !== null && goesOn(last, first);
