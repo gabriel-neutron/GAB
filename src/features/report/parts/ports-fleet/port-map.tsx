@@ -451,12 +451,31 @@ export function PortMap({ step, sources }: PortMapProps) {
             })}
           </motion.g>
 
+          {/* The still circles stand under every marker, so a large circle hides no terminal. */}
+          {TERMINALS.map((terminal) => {
+            const traffic =
+              state.tag === 'change' ? throughput.get(CHANGE_NAMES[terminal.id] ?? '') : undefined;
+            if (traffic === undefined) return null;
+            const at = screen(terminal.lon, terminal.lat);
+            // Its area is the traffic of the port, at the scale of the step.
+            return (
+              <motion.circle
+                key={terminal.id}
+                aria-hidden="true"
+                initial={false}
+                animate={{ cx: at.x, cy: at.y }}
+                transition={move}
+                r={big * 1.6 * Math.sqrt(traffic / MAX_THROUGHPUT)}
+                strokeWidth={1}
+                fillOpacity={0.15}
+                className={cn(accent.stroke, accent.fill)}
+              />
+            );
+          })}
           {TERMINALS.map((terminal) => {
             const at = screen(terminal.lon, terminal.lat);
             const order = state.named.indexOf(terminal.id);
             if (order < 0 && hidden(at)) return null;
-            const traffic =
-              state.tag === 'change' ? throughput.get(CHANGE_NAMES[terminal.id] ?? '') : undefined;
             return (
               <motion.g
                 key={terminal.id}
@@ -464,16 +483,6 @@ export function PortMap({ step, sources }: PortMapProps) {
                 animate={{ x: at.x, y: at.y }}
                 transition={move}
               >
-                {traffic === undefined ? null : (
-                  // A still circle: its area is the traffic of the port, at the scale of the step.
-                  <circle
-                    aria-hidden="true"
-                    r={big * 1.6 * Math.sqrt(traffic / MAX_THROUGHPUT)}
-                    strokeWidth={1}
-                    fillOpacity={0.15}
-                    className={cn(accent.stroke, accent.fill)}
-                  />
-                )}
                 {order < 0 ? (
                   <rect x={-2.5} y={-2.5} width={5} height={5} className="fill-label" />
                 ) : (
