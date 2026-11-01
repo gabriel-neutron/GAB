@@ -8,12 +8,12 @@ import { ScrambleText } from './scramble-text';
 import { useContent } from './use-content';
 
 // The build sets this name only when it copied the PDF beside the page, so the link never names
-// a file that is absent.
+// a file that is absent. With no PDF, the link gives the final text of the page locale.
 const pdfName: unknown = import.meta.env['VITE_REPORT_PDF'];
 const pdfHref =
   typeof pdfName === 'string' && pdfName !== '' ? import.meta.env.BASE_URL + pdfName : null;
 
-// The actions of the first screen: 44px boxes. The first one reads the report, so it is solid.
+// The actions of the first screen: 44px boxes. The first one downloads the report, so it is solid.
 const ACTION = cn(
   'inline-flex min-h-11 items-center gap-2 border px-3 font-mono text-report-label tracking-[0.06em] uppercase md:px-4  md:tracking-[0.08em]',
   'transition-colors duration-150',
@@ -102,18 +102,22 @@ export function ReportCover() {
           ))}
         </dl>
         <nav aria-label={links.label} className="mt-6 flex flex-wrap items-center gap-2 md:mt-10">
-          <a href="#summary" className={PRIMARY}>
-            {links.read} <span aria-hidden="true">↓</span>
+          <a href={pdfHref ?? links.text} download className={PRIMARY}>
+            {links.pdf} <span aria-hidden="true">↓</span>
           </a>
           <Link to="/search" className={SECONDARY}>
             {links.data} <span aria-hidden="true">→</span>
           </Link>
-          {pdfHref === null ? null : (
-            <a href={pdfHref} download className={SECONDARY}>
-              {links.pdf} <span aria-hidden="true">↓</span>
-            </a>
-          )}
         </nav>
+        <a
+          href="#summary"
+          className="mt-10 flex min-h-11 flex-col items-center gap-1 self-center font-mono text-report-label tracking-[0.06em] text-muted-foreground uppercase outline-none transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring md:mt-14"
+        >
+          {links.read}
+          <span aria-hidden="true" className="text-report-lead leading-none">
+            ↓
+          </span>
+        </a>
       </div>
     </header>
   );

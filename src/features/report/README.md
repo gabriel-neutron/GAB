@@ -105,8 +105,9 @@ parser splits a text into runs, and the rich text draws each run.
 The art of the page is decoration: it has no label, no caption and an empty alternative text. The
 notes page lists the credit of each image. The PDF is a file of the
 operator and never enters the repository. Set `REPORT_PDF` to its absolute path before a build.
-The build copies it as `report.pdf`, and only then the page shows the download link. A path that
-names no file stops the build.
+The build copies it as `report.pdf`, and the download link of the first screen gives it. A path
+that names no file stops the build. With no PDF, the download link gives the final text of the
+page locale: the Markdown file of the source folder, which the build copies as it is.
 
 ## Motion
 
