@@ -93,10 +93,6 @@ export const sitemapFiles = (
 export const isReleaseBuild = (env: Readonly<Record<string, string | undefined>>): boolean =>
   env['SITE_RELEASE'] === '1' || env['WORKERS_CI_BRANCH'] === 'main';
 
-/** The `robots.txt` of a staging site: no crawler may read it. */
-export const STAGING_ROBOTS_TXT =
-  '# A staging site. No crawler may read it.\nUser-agent: *\nDisallow: /\n';
-
 /** The `_headers` file of a staging build on the host: each response tells a search engine not
  * to index it, the files of the release included. */
 export const STAGING_HEADERS = '/*\n  X-Robots-Tag: noindex\n';

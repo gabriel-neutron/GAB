@@ -6,13 +6,7 @@ import { z } from 'zod';
 
 import { llmsTxt } from '@gab/release/llms-txt';
 import { REPORT_FILES } from '@gab/release/report-files';
-import {
-  isReleaseBuild,
-  robotsTxt,
-  siteAddress,
-  STAGING_ROBOTS_TXT,
-  sitemapFiles,
-} from '@gab/release/site-crawl';
+import { isReleaseBuild, robotsTxt, siteAddress, sitemapFiles } from '@gab/release/site-crawl';
 import { claimPage, entityPage, relationPage, vesselPage } from '@gab/release/site-paths';
 import type { SiteManifest } from '@gab/release/site-manifest';
 import { readSiteRelease, type SiteRelease } from '@gab/release/site-release';
@@ -365,11 +359,9 @@ const writeCrawlFiles = async (
   manifest: SiteManifest,
   site: string | null,
   sitemapFolders: readonly string[],
-  staging: boolean,
 ): Promise<void> => {
-  const files = new Map<string, string>([
-    ['robots.txt', staging ? STAGING_ROBOTS_TXT : robotsTxt(site)],
-  ]);
+  // A staging site allows crawling too: a crawler must read a page to see its noindex tag.
+  const files = new Map<string, string>([['robots.txt', robotsTxt(site)]]);
   if (site !== null) {
     const addresses = sitemapFolders.map((one) => canonicalOf(site, one));
     for (const [name, text] of sitemapFiles(addresses, manifest.date, site)) files.set(name, text);
@@ -485,7 +477,7 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
       await mkdir(dirname(file), { recursive: true });
       await writeFile(file, text);
     }
-    await writeCrawlFiles(partial, manifest, site, sitemap, staging);
+    await writeCrawlFiles(partial, manifest, site, sitemap);
     await renameWithRetry(partial, siteFolder);
   } catch (fault) {
     await rm(partial, { recursive: true, force: true });

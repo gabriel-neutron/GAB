@@ -34,9 +34,9 @@ in the HTML, with no script. The home page and the downloads page hold a schema.
 - `SITE_RELEASE`: set it to `1` only for the build of a release that goes to `main`. A build on
   the host of the branch `main` (Cloudflare Workers Builds sets `WORKERS_CI_BRANCH`) is a release
   build too. Every other build is a staging build: each page holds a noindex tag, the sitemap
-  lists no page, `robots.txt` disallows each crawler, and a `_headers` file tells the host to
-  send `X-Robots-Tag: noindex` on each response. So a staging site never goes into a search
-  result.
+  lists no page, and a `_headers` file tells the host to send `X-Robots-Tag: noindex` on each
+  response. So a staging site never goes into a search result. `robots.txt` still allows
+  crawling, because a crawler must read a page to see its noindex.
 
 ## Release checklist
 
