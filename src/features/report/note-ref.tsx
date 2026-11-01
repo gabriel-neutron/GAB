@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -92,6 +92,10 @@ export function NoteRef({ partSlug, id }: NoteRefProps) {
   const margin = useMarginScreen();
   const [open, setOpen] = useState(false);
   const marker = useRef<HTMLButtonElement>(null);
+  // True when the reader closes the note from the note or its marker: only then the focus goes
+  // back to the marker. A click or a Tab to another control keeps the focus there.
+  const giveBack = useRef(false);
+  const noteId = useId();
   const anchor = useRef({
     getBoundingClientRect: () => besideText(marker.current),
     // The scroll parents of the marker move the note with the text.
@@ -109,10 +113,12 @@ export function NoteRef({ partSlug, id }: NoteRefProps) {
       aria-label={name}
       aria-haspopup="dialog"
       aria-expanded={open}
+      aria-controls={margin && open ? noteId : undefined}
       // The sheet trigger toggles the dialog itself; the margin note has no trigger of the kit.
       onClick={
         margin
           ? () => {
+              giveBack.current = open;
               setOpen(!open);
             }
           : undefined
@@ -142,8 +148,13 @@ export function NoteRef({ partSlug, id }: NoteRefProps) {
             side="right"
             align="start"
             sideOffset={24}
-            collisionPadding={16}
+            // The bottom pad keeps the note clear of the fixed bar at the foot of the page.
+            collisionPadding={{ top: 16, right: 16, bottom: 48, left: 16 }}
+            id={noteId}
             aria-label={name}
+            onEscapeKeyDown={() => {
+              giveBack.current = true;
+            }}
             onInteractOutside={(event) => {
               // A click on the marker toggles the note; it is no click outside.
               if (event.target instanceof Node && marker.current?.contains(event.target) === true)
@@ -151,7 +162,8 @@ export function NoteRef({ partSlug, id }: NoteRefProps) {
             }}
             onCloseAutoFocus={(event) => {
               event.preventDefault();
-              marker.current?.focus();
+              if (giveBack.current) marker.current?.focus();
+              giveBack.current = false;
             }}
             // The margin of a 1280px screen can be narrower than the note: the note takes what is free.
             className="z-40 max-h-[70svh] w-[min(18rem,var(--radix-popper-available-width))] overflow-y-auto overscroll-contain border border-border bg-surface p-3 text-foreground outline-none"

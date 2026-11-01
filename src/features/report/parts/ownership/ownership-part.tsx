@@ -12,7 +12,7 @@ import { OwnershipFigure } from './ownership-figure';
 
 // One body size for all the text of the part. A node reference keeps a thin dotted underline.
 const PROSE = 'max-w-[64ch] text-report-body/[1.65] text-pretty  [&_button]:decoration-dotted';
-// From 1024px, the text reads at the right, and a note opens in the margin at its left.
+// From 1024px, the text reads at the right. From 1280px, a note opens in the margin at its left.
 const ROW = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,64ch)] lg:gap-x-16';
 
 /** The chapter break over the chess set: the decorative ASCII art sits at the top right, behind a

@@ -13,7 +13,8 @@ import { useContent, type ReportContent } from '../../use-content';
 import { CapWhatIf } from './cap-what-if';
 import { BudgetChart, BuyersChart, PriceChart } from './pay-figures';
 
-// The editorial grid: the text reads in the right two thirds, and a note opens in the left third.
+// The editorial grid: the text reads in the right two thirds. From 1280px, a note opens in the left
+// third.
 const ROW = 'lg:grid lg:grid-cols-12 lg:gap-x-10';
 const TEXT = 'max-w-[64ch] text-report-body/[1.65]  lg:col-span-8 lg:col-start-5';
 const KEY = /^\*\*([^*]+?):?\*\*:?\s*/;
