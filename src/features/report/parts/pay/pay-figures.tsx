@@ -357,11 +357,13 @@ export function PriceChart({
                         strokeWidth={1.5}
                         className="stroke-foreground"
                       />
+                      {/* At the left end, clear of the end labels; the halo keeps it legible over a line. */}
                       <text
-                        x={scales.right}
+                        x={scales.left + 4}
                         y={scales.y(whatIf.value) - 6}
-                        textAnchor="end"
-                        className="fill-foreground"
+                        strokeWidth={4}
+                        paintOrder="stroke"
+                        className="fill-foreground stroke-background"
                       >
                         {whatIf.label}
                       </text>

@@ -36,7 +36,7 @@ export function CapWhatIf() {
           onChange={(event) => {
             setLine(Number(event.target.value));
           }}
-          className="h-11 min-w-0 flex-1 accent-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+          className="h-11 min-w-0 grow basis-48 accent-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
         />
         <output htmlFor={id} className="font-mono tabular-nums">
           {value}
@@ -52,8 +52,10 @@ export function CapWhatIf() {
                 .replace('{k}', String(result.known))}
         </p>
         {result.above.length === 0 ? null : (
-          <p className="mt-1 font-mono text-report-label/5 break-words text-muted-foreground">
-            {result.above.map(monthName).join(', ')}
+          <p className="mt-1 flex flex-wrap gap-x-3 font-mono text-report-label/5 text-muted-foreground">
+            {result.above.map((x) => (
+              <span key={x}>{monthName(x)}</span>
+            ))}
           </p>
         )}
       </div>
