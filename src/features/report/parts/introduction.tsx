@@ -42,7 +42,7 @@ export function IntroductionPart({ part }: { readonly part: ReportPart }) {
   if (questions.length > 0) body.push(<ol key="questions-end">{questions}</ol>);
   return (
     <section id={part.slug} aria-label={part.title} className="scroll-mt-12">
-      <ChapterBreak number={number} title={part.title}>
+      <ChapterBreak number={number} title={part.title} credit={copy.art}>
         {/* In the flow on a phone. On a wide screen, a square in the empty right half of the break,
             never taller than the break. */}
         <div className="mt-10 lg:absolute lg:top-16 lg:right-8 lg:mt-0 lg:aspect-square lg:max-h-[calc(100%-9rem)] lg:w-[46%]">
