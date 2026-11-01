@@ -49,6 +49,18 @@ describe('ports and fleet', () => {
     expect(chartLayout.spread([96, 99], 10, 0, 100)).toEqual([90, 100]);
   });
 
+  it('reads the traffic of the four oil ports in the last year of figure 6a', () => {
+    const { year, ports } = figureData.throughput;
+    expect(ports.map((port) => port.name).sort()).toEqual([
+      'Novorossiysk (incl. CPC)',
+      'Primorsk',
+      'Tuapse',
+      'Ust-Luga',
+    ]);
+    expect(ports.every((port) => port.value > 0)).toBe(true);
+    expect(figureData.traffic.every((series) => series.points.at(-1)?.year === year)).toBe(true);
+  });
+
   it('reads the flows of figure 7 with each missing value kept missing', () => {
     const missing = figureData.flows.filter((row) => row.value === null);
     expect(missing.every((row) => row.state === 'not documented')).toBe(true);

@@ -1,0 +1,452 @@
+[
+  {
+    "note": 3,
+    "url": "https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub.",
+    "reason": "stored address ends with a full stop"
+  },
+  {
+    "note": 8,
+    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2014:2025&per_page=20",
+    "reason": "World Bank indicator NY.GDP.DEFL.KD.ZG"
+  },
+  {
+    "note": 8,
+    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2020:2025&per_page=20",
+    "reason": "World Bank indicator NY.GDP.DEFL.KD.ZG"
+  },
+  {
+    "note": 8,
+    "url": "https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub.",
+    "reason": "Ministry of Finance (2026a), op. cit., n. 3"
+  },
+  {
+    "note": 9,
+    "url": "https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub.",
+    "reason": "Ministry of Finance (2026a), op. cit., n. 3"
+  },
+  {
+    "note": 9,
+    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2014:2025&per_page=20",
+    "reason": "World Bank (2026), op. cit., n. 8"
+  },
+  {
+    "note": 9,
+    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2020:2025&per_page=20",
+    "reason": "World Bank (2026), op. cit., n. 8"
+  },
+  {
+    "note": 10,
+    "url": "http://publications.europa.eu/resource/cellar/a71561fd-e339-11ec-a534-01aa75ed71a1.0006.01/DOC_1",
+    "reason": "CELEX 32022R0879"
+  },
+  {
+    "note": 10,
+    "url": "http://publications.europa.eu/resource/cellar/75a2e29c-7345-11ed-9887-01aa75ed71a1.0006.01/DOC_1",
+    "reason": "CELEX 32022R2367"
+  },
+  {
+    "note": 10,
+    "url": "http://publications.europa.eu/resource/cellar/e7927a1b-7344-11ed-9887-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32022R2368"
+  },
+  {
+    "note": 10,
+    "url": "http://publications.europa.eu/resource/cellar/cd24922e-a49d-11ed-b508-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32023R0251"
+  },
+  {
+    "note": 10,
+    "url": "http://publications.europa.eu/resource/cellar/6cb19759-f2a8-11ef-981b-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32025R0395"
+  },
+  {
+    "note": 10,
+    "url": "http://publications.europa.eu/resource/cellar/8e9a2c55-6438-11f0-bf4e-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32025R1494"
+  },
+  {
+    "note": 10,
+    "url": "http://publications.europa.eu/resource/cellar/b87e7fd7-3f1f-11f1-814f-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32026R0506"
+  },
+  {
+    "note": 10,
+    "url": "http://publications.europa.eu/resource/cellar/6ef36f48-f1b4-11f0-8d3c-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32026R0124"
+  },
+  {
+    "note": 10,
+    "url": "https://publications.europa.eu/resource/cellar/38cd25ff-a49e-11ed-b508-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32023R0250 (stored as \"COUNCIL REGULATION (EU) 2023/250\")"
+  },
+  {
+    "note": 11,
+    "url": "https://home.treasury.gov/news/press-releases/jy1795",
+    "reason": "U.S. Department of the Treasury (2023), op. cit., n. 10"
+  },
+  {
+    "note": 12,
+    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.PETR.RT.ZS?format=json&date=2014:2024&per_page=50",
+    "reason": "World Bank indicator NY.GDP.PETR.RT.ZS"
+  },
+  {
+    "note": 12,
+    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.NGAS.RT.ZS?format=json&date=2021:2021",
+    "reason": "World Bank indicator NY.GDP.NGAS.RT.ZS"
+  },
+  {
+    "note": 13,
+    "url": "https://api.worldbank.org/v2/country/RUS/indicator/TX.VAL.FUEL.ZS.UN?format=json&date=2019:2024&per_page=50",
+    "reason": "World Bank indicator TX.VAL.FUEL.ZS.UN"
+  },
+  {
+    "note": 14,
+    "url": "https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub.",
+    "reason": "Ministry of Finance (2026a), op. cit., n. 3"
+  },
+  {
+    "note": 15,
+    "url": "http://publications.europa.eu/resource/cellar/a71561fd-e339-11ec-a534-01aa75ed71a1.0006.01/DOC_1",
+    "reason": "CELEX 32022R0879"
+  },
+  {
+    "note": 16,
+    "url": "http://publications.europa.eu/resource/cellar/0c94b1b3-ffda-11f0-8da5-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32026R0261"
+  },
+  {
+    "note": 23,
+    "url": "http://publications.europa.eu/resource/cellar/75a2e29c-7345-11ed-9887-01aa75ed71a1.0006.01/DOC_1",
+    "reason": "CELEX 32022R2367"
+  },
+  {
+    "note": 24,
+    "url": "https://home.treasury.gov/news/press-releases/jy1795",
+    "reason": "U.S. Department of the Treasury (2023), op. cit., n. 10"
+  },
+  {
+    "note": 25,
+    "url": "http://publications.europa.eu/resource/cellar/75a2e29c-7345-11ed-9887-01aa75ed71a1.0006.01/DOC_1",
+    "reason": "CELEX 32022R2367"
+  },
+  {
+    "note": 25,
+    "url": "http://publications.europa.eu/resource/cellar/e7927a1b-7344-11ed-9887-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32022R2368"
+  },
+  {
+    "note": 25,
+    "url": "http://publications.europa.eu/resource/cellar/8e9a2c55-6438-11f0-bf4e-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32025R1494"
+  },
+  {
+    "note": 25,
+    "url": "http://publications.europa.eu/resource/cellar/6ef36f48-f1b4-11f0-8d3c-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32026R0124"
+  },
+  {
+    "note": 25,
+    "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R1494",
+    "reason": "CELEX 32025R1494"
+  },
+  {
+    "note": 26,
+    "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
+    "reason": "Dodonov et al. (2026), op. cit., n. 2"
+  },
+  {
+    "note": 27,
+    "url": "https://www.kpler.com/blog/rosneft-and-lukoil-sanctions-are-live-how-india-china-and-turkey-adapt-rather-than-exit",
+    "reason": "Kpler (2025), op. cit., n. 18"
+  },
+  {
+    "note": 28,
+    "url": "https://ofac.treasury.gov/recent-actions/20251022",
+    "reason": "OFAC (2025), op. cit., n. 10"
+  },
+  {
+    "note": 29,
+    "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
+    "reason": "Dodonov et al. (2026), op. cit., n. 2"
+  },
+  {
+    "note": 31,
+    "url": "https://www.kpler.com/blog/rosneft-and-lukoil-sanctions-are-live-how-india-china-and-turkey-adapt-rather-than-exit",
+    "reason": "Kpler (2025), op. cit., n. 18"
+  },
+  {
+    "note": 34,
+    "url": "https://econ4ua.org/wp-content/uploads/2026/09/Chinas-Support-for-Russia-Final.pdf",
+    "reason": "Deryugina and Shepotylo (2026), op. cit., n. 32"
+  },
+  {
+    "note": 35,
+    "url": "https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub.",
+    "reason": "Ministry of Finance (2026a), op. cit., n. 3"
+  },
+  {
+    "note": 36,
+    "url": "https://minfin.gov.ru/ru/press-center/?id_4=40677",
+    "reason": "Ministry of Finance (2026b), op. cit., n. 3"
+  },
+  {
+    "note": 37,
+    "url": "https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub.",
+    "reason": "Ministry of Finance (2026a), op. cit., n. 3"
+  },
+  {
+    "note": 37,
+    "url": "https://minfin.gov.ru/ru/press-center/?id_4=40677",
+    "reason": "Ministry of Finance (2026b), op. cit., n. 3"
+  },
+  {
+    "note": 37,
+    "url": "https://ru.themoscowtimes.com/2024/09/30/update-1-traty-rossii-na-oboronu-v-25g-vyrastut-do-135-trln-r-bolee-chem-vdvoe-obognav-sotsialnye-raskhody-a143572",
+    "reason": "Korsunskaya (2024), op. cit., n. 8"
+  },
+  {
+    "note": 37,
+    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2014:2025&per_page=20",
+    "reason": "World Bank (2026), op. cit., n. 8"
+  },
+  {
+    "note": 37,
+    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2020:2025&per_page=20",
+    "reason": "World Bank (2026), op. cit., n. 8"
+  },
+  {
+    "note": 40,
+    "url": "https://home.treasury.gov/news/press-releases/jy1795",
+    "reason": "U.S. Department of the Treasury (2023), op. cit., n. 10"
+  },
+  {
+    "note": 41,
+    "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
+    "reason": "Dodonov et al. (2026), op. cit., n. 2"
+  },
+  {
+    "note": 42,
+    "url": "http://publications.europa.eu/resource/cellar/6cb19759-f2a8-11ef-981b-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32025R0395"
+  },
+  {
+    "note": 42,
+    "url": "http://publications.europa.eu/resource/cellar/b87e7fd7-3f1f-11f1-814f-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32026R0506"
+  },
+  {
+    "note": 43,
+    "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
+    "reason": "See n. 2"
+  },
+  {
+    "note": 44,
+    "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
+    "reason": "See n. 41 (Dodonov et al. (2026), op. cit., n. 2)"
+  },
+  {
+    "note": 47,
+    "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
+    "reason": "Dodonov et al. (2026), op. cit., n. 2"
+  },
+  {
+    "note": 48,
+    "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
+    "reason": "Dodonov et al. (2026), op. cit., n. 2"
+  },
+  {
+    "note": 53,
+    "url": "https://home.treasury.gov/news/press-releases/jy0608",
+    "reason": "Treasury press release jy0608"
+  },
+  {
+    "note": 53,
+    "url": "https://home.treasury.gov/news/press-releases/jy0705",
+    "reason": "Treasury press release jy0705"
+  },
+  {
+    "note": 55,
+    "url": "http://publications.europa.eu/resource/cellar/9c6f9186-9a19-11ec-83e1-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32022R0345"
+  },
+  {
+    "note": 57,
+    "url": "https://cbr.ru/vfs/eng/statistics/credit_statistics/cur_str_new_e.xlsx",
+    "reason": "Central Bank of Russia (2026), op. cit., n. 4"
+  },
+  {
+    "note": 60,
+    "url": "https://econ4ua.org/wp-content/uploads/2026/09/Chinas-Support-for-Russia-Final.pdf",
+    "reason": "Deryugina & Shepotylo (2026), op. cit., n. 32"
+  },
+  {
+    "note": 65,
+    "url": "https://en.thebell.io/the-rise-of-russias-foreign-trade-middlemen/",
+    "reason": "Prokopenko & Kolyandr (2024), op. cit., n. 56"
+  },
+  {
+    "note": 66,
+    "url": "https://home.treasury.gov/news/press-releases/jy2404",
+    "reason": "U.S. Department of the Treasury (2024), op. cit., n. 61 (press release jy2404 of 12 June 2024)"
+  },
+  {
+    "note": 67,
+    "url": "http://publications.europa.eu/resource/cellar/6cb19759-f2a8-11ef-981b-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32025R0395"
+  },
+  {
+    "note": 67,
+    "url": "http://publications.europa.eu/resource/cellar/784dd911-afe3-11f0-b37f-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32025R2033"
+  },
+  {
+    "note": 68,
+    "url": "http://publications.europa.eu/resource/cellar/67350bea-86dd-11f1-bf5e-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32026R1848"
+  },
+  {
+    "note": 69,
+    "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
+    "reason": "CELEX 02014R0833-20250720"
+  },
+  {
+    "note": 69,
+    "url": "http://publications.europa.eu/resource/cellar/b87e7fd7-3f1f-11f1-814f-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32026R0506"
+  },
+  {
+    "note": 72,
+    "url": "http://publications.europa.eu/resource/cellar/784dd911-afe3-11f0-b37f-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32025R2033"
+  },
+  {
+    "note": 72,
+    "url": "http://publications.europa.eu/resource/cellar/b87e7fd7-3f1f-11f1-814f-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32026R0506"
+  },
+  {
+    "note": 73,
+    "url": "https://en.thebell.io/the-rise-of-russias-foreign-trade-middlemen/",
+    "reason": "Prokopenko & Kolyandr (2024), op. cit., n. 56"
+  },
+  {
+    "note": 78,
+    "url": "https://www.fincen.gov/system/files/2026-10/FinCEN-Alert-A7-Network.pdf",
+    "reason": "Financial Crimes Enforcement Network (2026), op. cit., n. 75"
+  },
+  {
+    "note": 79,
+    "url": "http://publications.europa.eu/resource/cellar/b87e7fd7-3f1f-11f1-814f-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32026R0506"
+  },
+  {
+    "note": 82,
+    "url": "https://econ4ua.org/wp-content/uploads/2026/09/Chinas-Support-for-Russia-Final.pdf",
+    "reason": "Deryugina & Shepotylo (2026), op. cit., n. 32"
+  },
+  {
+    "note": 85,
+    "url": "https://sanctions.kse.ua/wp-content/uploads/2026/04/KSE_CHP_tracker_Q1_2026-1.pdf",
+    "reason": "Risinger et al. (2026), op. cit., n. 81"
+  },
+  {
+    "note": 87,
+    "url": "https://sanctions.kse.ua/wp-content/uploads/2026/07/CHP-Q2-2026-Report.pdf",
+    "reason": "Risinger & Hilgenstock (2026), op. cit., n. 83"
+  },
+  {
+    "note": 88,
+    "url": "https://sanctions.kse.ua/wp-content/uploads/2026/04/KSE_CHP_tracker_Q1_2026-1.pdf",
+    "reason": "Risinger et al. (2026), op. cit., n. 81"
+  },
+  {
+    "note": 91,
+    "url": "https://static.rusi.org/RUSI-Silicon-Lifeline-final-updated-web_1.pdf",
+    "reason": "Byrne et al. (2022), op. cit., n. 90"
+  },
+  {
+    "note": 103,
+    "url": "http://publications.europa.eu/resource/cellar/47858cb9-f298-11ef-981b-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32025R0389"
+  },
+  {
+    "note": 104,
+    "url": "https://home.treasury.gov/news/press-releases/jy2777",
+    "reason": "U.S. Department of the Treasury (2025), op. cit., n. 45"
+  },
+  {
+    "note": 105,
+    "url": "https://publications.europa.eu/resource/cellar/11208c18-c333-11f1-bfcb-01aa75ed71a1.0002.03/DOC_1",
+    "reason": "CELEX 02014R0269-20260928 (stored as \"Consolidated TEXT: 32014R0269 — EN — 28.09.2026\")"
+  },
+  {
+    "note": 107,
+    "url": "http://news.bbc.co.uk/2/hi/business/4041551.stm",
+    "reason": "BBC News (2005), op. cit., n. 106"
+  },
+  {
+    "note": 110,
+    "url": "https://home.treasury.gov/news/press-releases/sm0312",
+    "reason": "Treasury press release sm0312"
+  },
+  {
+    "note": 112,
+    "url": "http://news.bbc.co.uk/2/hi/business/4041551.stm",
+    "reason": "See n. 106"
+  },
+  {
+    "note": 112,
+    "url": "https://www.kpbs.org/news/international/2022/03/29/how-putin-conquered-russias-oligarchy",
+    "reason": "See n. 106"
+  },
+  {
+    "note": 113,
+    "url": "https://publications.europa.eu/resource/cellar/11208c18-c333-11f1-bfcb-01aa75ed71a1.0002.03/DOC_1",
+    "reason": "CELEX 02014R0269-20260928 (stored as \"Consolidated TEXT: 32014R0269 — EN — 28.09.2026\")"
+  },
+  {
+    "note": 115,
+    "url": "https://publications.europa.eu/resource/cellar/11208c18-c333-11f1-bfcb-01aa75ed71a1.0002.03/DOC_1",
+    "reason": "CELEX 02014R0269-20260928 (stored as \"Consolidated TEXT: 32014R0269 — EN — 28.09.2026\")"
+  },
+  {
+    "note": 117,
+    "url": "https://publications.europa.eu/resource/cellar/11208c18-c333-11f1-bfcb-01aa75ed71a1.0002.03/DOC_1",
+    "reason": "CELEX 02014R0269-20260928 (stored as \"Consolidated TEXT: 32014R0269 — EN — 28.09.2026\")"
+  },
+  {
+    "note": 118,
+    "url": "https://home.treasury.gov/news/press-releases/jl2369",
+    "reason": "Treasury press release jl2369"
+  },
+  {
+    "note": 120,
+    "url": "https://publications.europa.eu/resource/cellar/11208c18-c333-11f1-bfcb-01aa75ed71a1.0002.03/DOC_1",
+    "reason": "CELEX 02014R0269-20260928 (stored as \"Consolidated TEXT: 32014R0269 — EN — 28.09.2026\")"
+  },
+  {
+    "note": 122,
+    "url": "https://home.treasury.gov/news/press-releases/jy2008",
+    "reason": "U.S. Department of the Treasury (2023), op. cit., n. 102"
+  },
+  {
+    "note": 123,
+    "url": "http://publications.europa.eu/resource/cellar/92d7d609-6438-11f0-bf4e-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32025R1476"
+  },
+  {
+    "note": 124,
+    "url": "https://publications.europa.eu/resource/cellar/11208c18-c333-11f1-bfcb-01aa75ed71a1.0002.03/DOC_1",
+    "reason": "CELEX 02014R0269-20260928 (stored as \"Consolidated TEXT: 32014R0269 — EN — 28.09.2026\")"
+  },
+  {
+    "note": 125,
+    "url": "https://ofac.treasury.gov/faqs/401",
+    "reason": "OFAC (n.d.), op. cit., n. 95"
+  },
+  {
+    "note": 126,
+    "url": "https://sanctions.kse.ua/wp-content/uploads/2026/04/KSE_CHP_tracker_Q1_2026-1.pdf",
+    "reason": "Risinger et al. (2026), op. cit., n. 81"
+  }
+]

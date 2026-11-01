@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 import { llmsTxt } from '@gab/release/llms-txt';
 import { REPORT_FILES } from '@gab/release/report-files';
-import { robotsTxt, siteAddress, sitemapFiles } from '@gab/release/site-crawl';
+import { isReleaseBuild, robotsTxt, siteAddress, sitemapFiles } from '@gab/release/site-crawl';
 import { claimPage, entityPage, relationPage, vesselPage } from '@gab/release/site-paths';
 import type { SiteManifest } from '@gab/release/site-manifest';
 import { readSiteRelease, type SiteRelease } from '@gab/release/site-release';
@@ -360,6 +360,7 @@ const writeCrawlFiles = async (
   site: string | null,
   sitemapFolders: readonly string[],
 ): Promise<void> => {
+  // A staging site allows crawling too: a crawler must read a page to see its noindex tag.
   const files = new Map<string, string>([['robots.txt', robotsTxt(site)]]);
   if (site !== null) {
     const addresses = sitemapFolders.map((one) => canonicalOf(site, one));
@@ -375,6 +376,8 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
       `The site folder ${siteFolder} exists already. A release never writes over another site.`,
     );
   const base = baseOfSite();
+  // A staging build is the default, so a build that is not a release is never in a search result.
+  const staging = !isReleaseBuild(process.env);
   const files = await readReleaseFolder(releaseFolder);
   const report = await readReportFolder();
   const pages = pagesOf(readSiteRelease(files));
@@ -448,7 +451,7 @@ const writeSiteFolder = async (releaseFolder: string, siteFolder: string): Promi
         const one = rendered.get(page.folder);
         if (one === undefined) throw new Error(`the page ${page.folder} was not rendered`);
         const title = uniqueTitle(one.title, used, page.folder);
-        const noindex = page.sendsTo !== undefined;
+        const noindex = staging || page.sendsTo !== undefined;
         if (!noindex) sitemap.push(page.folder);
         text = text
           .replace(SHELL_TITLE, () => `<title>${escapeHtml(title)}</title>`)

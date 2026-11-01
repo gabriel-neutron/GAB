@@ -2247,6 +2247,7 @@ export const portsFleetUi = {
     },
     pacific: 'Crude export ports on the Baltic, the Black Sea and the Pacific',
     change: 'Traffic, January-April 2026 / January-April 2025, change in %',
+    throughput: 'Circle area: all-cargo traffic in',
     flows: 'Seaborne crude by loading basin and fleet, January 2026, kb/d',
     open: 'Open the record of',
     data: 'Data:',
