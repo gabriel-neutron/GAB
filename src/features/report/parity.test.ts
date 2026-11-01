@@ -3,9 +3,9 @@ import { parts, payUi } from './content';
 import { parity, readSource, tokens } from './parity';
 import { sources } from './source';
 
-// The parts that show the final text.
-const FINAL = ['summary', 'introduction', 'method-chronology', 'pay', 'ports-fleet'];
-const final = parts.filter((part) => FINAL.includes(part.slug));
+// All parts show the final text.
+const final = parts;
+const FINAL = sources.en.starts.map(([slug]) => slug);
 
 describe('parity of the report text', () => {
   it('reads the numbers, the months and the notes of a text, not the digits of a node id', () => {
@@ -26,6 +26,11 @@ describe('parity of the report text', () => {
 
   it('keeps the numbers, the dates and the notes of the final English text', () => {
     expect(parity(final, sources.en)).toEqual([]);
+  });
+
+  it('holds each note of the final text once, and no other note', () => {
+    const held = parts.flatMap((part) => part.notes.map((note) => note.id));
+    expect(held).toEqual([...readSource(sources.en).notes.keys()]);
   });
 
   it('fails when one number of a block changes', () => {

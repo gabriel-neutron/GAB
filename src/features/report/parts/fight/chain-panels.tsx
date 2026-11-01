@@ -92,7 +92,7 @@ export function ChainStrips({ active }: { readonly active: number | 'all' }) {
 
 const ACCENT = new Set(['China', 'Hong Kong']);
 
-/** One list of figure 11 chains, as bars, largest first. China and Hong Kong carry
+/** One list of the chains of the routes figure, as bars, largest first. China and Hong Kong carry
  * the accent. */
 export function ChainTotals({
   title,

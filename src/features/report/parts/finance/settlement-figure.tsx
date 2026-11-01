@@ -54,7 +54,7 @@ const edgesOf = (panel: Panel) => {
     const high = YEARS.map((one, index) => {
       const share = value(panel, series.key, one);
       if (share === undefined)
-        throw new Error(`Figure 9: no ${series.key} ${panel} value for ${String(one)}`);
+        throw new Error(`Figure 10: no ${series.key} ${panel} value for ${String(one)}`);
       return (low[index] ?? 0) + share;
     });
     floor = high;
@@ -84,7 +84,7 @@ function useWidth() {
   return [box, width] as const;
 }
 
-/** One panel of figure 9: the shares of the three groups of currencies as stacked bands. The years
+/** One panel of figure 10: the shares of the three groups of currencies as stacked bands. The years
  * after `year` stay under a veil. */
 function SharePanel({ panel, year }: { readonly panel: Panel; readonly year: number }) {
   const reduce = useReducedMotion();
@@ -288,7 +288,7 @@ function YearReadout({ year, still }: { readonly year: number; readonly still: b
   );
 }
 
-/** The chart of figure 9 at one year: the year in the gutter, then the legend and the exports
+/** The chart of figure 10 at one year: the year in the gutter, then the legend and the exports
  * and imports side by side. */
 function SettlementChart({ year, still }: { readonly year: number; readonly still: boolean }) {
   return (
@@ -316,7 +316,7 @@ function SettlementChart({ year, still }: { readonly year: number; readonly stil
   );
 }
 
-/** Figure 9 as a scroll scene: the frame, the year and the chart stick together as one unit, and
+/** Figure 10 as a scroll scene: the frame, the year and the chart stick together as one unit, and
  * each step of the scroll moves them to one year. Under reduced motion the figure shows its final
  * state at once. A screen reader gets the full data as a table. */
 export function SettlementFigure({

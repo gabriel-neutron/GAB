@@ -27,12 +27,14 @@ describe('opening copy', () => {
     ]);
   });
 
-  it('cites for the summary chart a note that covers its whole period', () => {
+  it('cites for the summary chart the note of a figure that covers its whole period', () => {
     const { chart } = openingUi.summary;
-    const note = parts
+    const caption = parts
       .find((part) => part.slug === chart.note.part)
-      ?.notes.find((one) => one.id === chart.note.id);
-    expect(note?.text).toContain(chart.period);
+      ?.blocks.find(
+        (block) => block.kind === 'figure' && block.text.includes(`[^${chart.note.id}]`),
+      );
+    expect(caption?.figure?.period).toBe(chart.period);
     const years = figures.f9.exports.Rouble.map(([year = 0]) => year);
     expect(`${String(Math.min(...years))}-${String(Math.max(...years))}`).toBe(chart.period);
   });

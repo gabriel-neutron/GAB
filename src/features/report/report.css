@@ -3315,7 +3315,7 @@
 :where(.report-page) .lp-series.unknown {
   --tone: var(--chart-neutral);
 }
-/* Case grid of figure 11: solid cell documented, dashed cell lead, faint cell no source. */
+/* Case grid of the routes figure: solid cell documented, dashed cell lead, faint cell no source. */
 :where(.report-page) .case-cell {
   fill: var(--surface);
   stroke: var(--border);

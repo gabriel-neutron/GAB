@@ -21,7 +21,7 @@ const BAR = 8;
 const flow = layoutFlow(flowLinks, HEIGHT, 10);
 const xOf = (column: number) => (column * (1000 - BAR)) / (flow.columns - 1);
 
-/** The routes of figure 11 as one ranked flow, from the country of the component manufacturer to
+/** The routes figure (no number in the final text) as one ranked flow, from the country of the component manufacturer to
  * the end use. The bars and the bands share one scale; the labels of the last column use the
  * gutter at the right. */
 function Flow() {
@@ -102,7 +102,7 @@ function Flow() {
   );
 }
 
-/** Figure 11: one ranked flow of the chains (on a phone, four lists on one scale), and the steps
+/** The routes figure: one ranked flow of the chains (on a phone, four lists on one scale), and the steps
  * of the routes by state, one cell for each step. */
 export function RoutesFigure() {
   const states = Object.entries(routeCounts.hops);
