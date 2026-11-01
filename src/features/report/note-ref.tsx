@@ -111,7 +111,13 @@ export function ImageCredit({ src }: { readonly src: string }) {
     <Marker name={`${ui.note.image} ${mark}`} mark={mark}>
       <a
         href={item.href}
-        className={cn('inline-flex min-h-11 items-center text-report-small', UNDERLINE, FOCUS)}
+        // A credit is words, not a long address: it breaks between words.
+        className={cn(
+          'inline-flex min-h-11 items-center text-report-small',
+          UNDERLINE,
+          'break-normal',
+          FOCUS,
+        )}
       >
         {item.credit}
       </a>

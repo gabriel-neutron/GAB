@@ -98,7 +98,7 @@ function hero(finding: Finding, partSlug: string): ReactNode {
   const note = finding.note === '' ? null : <NoteRef partSlug={partSlug} id={finding.note} />;
   if (value?.kind === 'number')
     return (
-      <p className={cn(NUMBER, accent.text)}>
+      <p className={cn(NUMBER, accent.text, 'w-fit')}>
         <CountUp value={value.value} format={value.format} />
         {note}
       </p>
@@ -171,7 +171,7 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
             // The dither is black on white: it multiplies onto paper, and inverts onto the dark.
             className="block aspect-[16/10] w-full object-cover mix-blend-multiply [image-rendering:pixelated] dark:mix-blend-screen dark:invert"
           />
-          <p className="mt-2 font-mono text-report-label uppercase text-label">
+          <p className="mt-2 w-fit font-mono text-report-label uppercase text-label">
             {ui.note.image}
             <ImageCredit src={copy.art} />
           </p>
