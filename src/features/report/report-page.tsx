@@ -1,3 +1,5 @@
+import { Suspense } from 'react';
+import { HydrateNear } from './hydrate-near';
 import { PartBar } from './part-bar';
 import { PartDefault } from './parts/part-default';
 import { partComponents } from './parts';
@@ -20,9 +22,30 @@ export function ReportPage() {
         <ReportCover />
         <PartBar />
         <article className="mx-auto max-w-[1200px] px-4 md:px-8">
-          {parts.map((part) => {
+          {parts.map((part, index) => {
             const Part = partComponents[part.slug] ?? PartDefault;
-            return <Part key={part.slug} part={part} />;
+            // The browser lays out and paints a part only near the view, and the client hydrates
+            // it only near the view, so the first paint and the hydration do not do the work of
+            // the whole page. The HTML holds the full text all the time. Measure the slot of a
+            // part, not an element in it: a measure in a part far from the view lays it out. The
+            // first part is in the first view, so it paints with the cover.
+            return (
+              <div
+                key={part.slug}
+                data-part={part.slug}
+                className={
+                  index === 0
+                    ? undefined
+                    : '[contain-intrinsic-size:auto_2000px] [content-visibility:auto]'
+                }
+              >
+                <Suspense fallback={null}>
+                  <HydrateNear slug={part.slug}>
+                    <Part part={part} />
+                  </HydrateNear>
+                </Suspense>
+              </div>
+            );
           })}
         </article>
       </div>

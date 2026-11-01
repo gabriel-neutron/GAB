@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useInView, useReducedMotion } from 'motion/react';
+import { useInView } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import { layout } from './layout';
+import { useReduceMotion } from '../reduced-motion';
 
 interface StickySceneProps {
   /** The text cards, in reading order. */
@@ -26,10 +27,10 @@ export function StickyScene({
   stepClassName,
   tail = true,
 }: StickySceneProps) {
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion();
   const [active, setActive] = useState(0);
   // The steps are positional report text with no identity of their own, so their place is their key.
-  if (reduce === true)
+  if (reduce)
     return (
       <div>
         {steps.map((step, index) => (

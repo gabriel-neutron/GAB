@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { useInView, useReducedMotion } from 'motion/react';
+import { useInView } from 'motion/react';
+import { useReduceMotion } from './reduced-motion';
 
 const GLYPHS = '#$%&*+-/<=>?@[]^_{|}~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const DURATION_MS = 450;
@@ -19,14 +20,14 @@ export function ScrambleText({ text }: { readonly text: string }) {
   const box = useRef<HTMLSpanElement>(null);
   const overlay = useRef<HTMLSpanElement>(null);
   const seen = useInView(box, { once: true, amount: 0.5 });
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion();
   const client = useSyncExternalStore(
     noSubscription,
     () => true,
     () => false,
   );
   const [done, setDone] = useState(false);
-  const active = client && reduce !== true && !done;
+  const active = client && !reduce && !done;
 
   // An adapter: the animation frames of the browser write the glyphs past React.
   useEffect(() => {

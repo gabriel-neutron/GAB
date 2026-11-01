@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { prerender } from 'react-dom/static';
 import { describe, expect, it, vi } from 'vitest';
 import { en } from './content';
 import { fr } from './content-fr';
@@ -15,22 +16,23 @@ vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { readonly children: ReactNode }) => <a>{children}</a>,
 }));
 
-const render = (copy: ReportContent, node: ReactNode) =>
-  renderToStaticMarkup(
-    <ContentContext.Provider value={copy}>
-      <ReportContext.Provider value={{ openNode: () => undefined }}>{node}</ReportContext.Provider>
-    </ContentContext.Provider>,
-  );
-
 // The markup of the page. The map of the ports loads only near the view, so it has no map here.
-const pageOf = (copy: ReportContent) =>
-  render(
-    copy,
-    copy.parts.map((part) => {
-      const Part = partComponents[part.slug] ?? PartDefault;
-      return <Part key={part.slug} part={part} />;
-    }),
+// The code of a part loads late: a first render loads it, as the render at the release does.
+const pageOf = async (copy: ReportContent) => {
+  const page = (
+    <ContentContext.Provider value={copy}>
+      <ReportContext.Provider value={{ openNode: () => undefined }}>
+        {copy.parts.map((part) => {
+          const Part = partComponents[part.slug] ?? PartDefault;
+          return <Part key={part.slug} part={part} />;
+        })}
+      </ReportContext.Provider>
+    </ContentContext.Provider>
   );
+  await prerender(page);
+  return renderToStaticMarkup(page);
+};
+const pages = { en: await pageOf(en), fr: await pageOf(fr) };
 
 // The figures of the page, in their order.
 const figuresOf = (html: string) =>
@@ -45,8 +47,8 @@ const LAYERS = ['Pay', 'Finance', 'Fight'];
 describe.each([
   ['en', en],
   ['fr', fr],
-])('the figures of the %s page', (_, copy) => {
-  const html = pageOf(copy);
+] as const)('the figures of the %s page', (lang, copy) => {
+  const html = pages[lang];
   const all = figuresOf(html);
   const numbered = copy.parts.flatMap((part) =>
     part.blocks.flatMap((block) => (block.figure === undefined ? [] : [block.figure])),

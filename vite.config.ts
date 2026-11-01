@@ -76,7 +76,12 @@ export default defineConfig({
   },
 
   // Departure: the bundler warns above 500 kB, and the map chunk is over 900 kB by nature.
-  build: { chunkSizeWarningLimit: Infinity },
+  build: {
+    chunkSizeWarningLimit: Infinity,
+    // A small font file is never inlined: in the stylesheet it delays the first paint of every
+    // page, and a page loads only the fonts of its own text.
+    assetsInlineLimit: (file) => (/\.woff2?$/u.test(file) ? false : undefined),
+  },
 
   // External constraint: pre-bundled by esbuild, the tile worker of `maplibre-gl` never starts.
   // The raster basemap draws, each vector layer stays empty, `isStyleLoaded()` never turns true,

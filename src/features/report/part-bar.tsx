@@ -33,7 +33,10 @@ export function PartBar() {
   useEffect(() => {
     const region = bar.current?.closest('[role="region"]');
     if (!(region instanceof HTMLElement)) return undefined;
-    const sections = parts.map((part) => document.getElementById(part.slug));
+    // The slot of each part (report page): a measure in a part far from the view lays it out.
+    const sections = parts.map((part) =>
+      region.querySelector(`[data-part="${CSS.escape(part.slug)}"]`),
+    );
     let frame = 0;
     const update = () => {
       frame = 0;

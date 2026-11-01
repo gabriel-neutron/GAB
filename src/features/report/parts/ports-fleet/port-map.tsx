@@ -1,5 +1,5 @@
 import { useId, useRef, type ReactNode, type Ref } from 'react';
-import { motion, useInView, useReducedMotion } from 'motion/react';
+import { motion, useInView } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import { accent } from '../../primitives/accent';
 import { layout } from '../../primitives/layout';
@@ -12,6 +12,7 @@ import { portVisits } from './port-visits';
 import { TERMINALS } from './terminals';
 import { useSize } from './use-size';
 import { visitLayer } from './visit-layer';
+import { useReduceMotion } from '../../reduced-motion';
 
 const EASE = [0.4, 0, 0.2, 1] as const;
 const VISITS_ON = portVisits.on(import.meta.env);
@@ -102,7 +103,7 @@ export function PortMap({ step, sources }: PortMapProps) {
   const { width, height } = useSize(box);
   const headHeight = useSize(head).height;
   const footSize = useSize(foot);
-  const reduce = useReducedMotion() === true;
+  const reduce = useReduceMotion();
   const visible = useInView(box, { amount: 0.2 });
   const { openNode } = useReport();
   const { portsFleetUi, figureTexts, ui } = useContent();

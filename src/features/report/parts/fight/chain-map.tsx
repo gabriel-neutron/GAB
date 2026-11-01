@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { motion, useInView, useReducedMotion } from 'motion/react';
+import { motion, useInView } from 'motion/react';
 import { useContent } from '../../use-content';
 import { useDataName } from './chain-panels';
 import { cn } from '@/shared/lib/utils';
@@ -7,6 +7,7 @@ import { useReport } from '../../use-report';
 import type { Arc, Place, Tone } from './chain-data';
 import { fitCrop, placeLabels, ringHolds } from './layouts';
 import { GLYPH, type PlantMark } from './plants-data';
+import { useReduceMotion } from '../../reduced-motion';
 
 interface Site {
   readonly id: string;
@@ -152,7 +153,7 @@ export function ChainMap({
   const [land, setLand] = useState<Land | undefined>(undefined);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const dots = useId();
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion();
   const { openNode } = useReport();
   const { fightUi } = useContent();
   const say = useDataName();
@@ -199,7 +200,7 @@ export function ChainMap({
   // One dot for each 4.5 pixels, at every size.
   const cell = width === 0 ? 1 : (spanX / width) * 4.5;
   const grid = spanX > 100 ? 30 : 5;
-  const fade = reduce === true ? false : { opacity: 0 };
+  const fade = reduce ? false : { opacity: 0 };
 
   // A route shows only when the step names both of its ends, so no route ends in empty land.
   const named = new Set(places.map((place) => place.name));
@@ -445,10 +446,8 @@ export function ChainMap({
               transform={`translate(${String(x(plant.lon))},${String(y(plant.lat))})`}
             >
               <motion.g
-                initial={reduce === true ? false : { opacity: 0, scale: 0 }}
-                animate={
-                  seen || reduce === true ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }
-                }
+                initial={reduce ? false : { opacity: 0, scale: 0 }}
+                animate={seen || reduce ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }}
                 transition={{
                   duration: 0.35,
                   ease: [0.16, 1, 0.3, 1],

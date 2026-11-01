@@ -1,5 +1,5 @@
 import { MotionConfig } from 'motion/react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderToStaticMarkup, renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { CountUp } from './count-up';
 
@@ -15,12 +15,14 @@ describe('CountUp', () => {
     expect(counted(html)).toBe('0%');
   });
 
-  it('shows the final value at once under reduced motion', () => {
-    const html = renderToStaticMarkup(
+  // The client hydrates the release page, so its first render must give the same text as the
+  // release render. The final value under reduced motion comes after the hydration.
+  it('draws the count from zero in the release render, also under reduced motion', () => {
+    const html = renderToString(
       <MotionConfig reducedMotion="always">
         <CountUp value={84} format={format} />
       </MotionConfig>,
     );
-    expect(counted(html)).toBe('84%');
+    expect(counted(html)).toBe('0%');
   });
 });

@@ -60,6 +60,23 @@ entry of the map. Use the block renderer, the rich text and the figure frame, so
 and the figure facts stay the same on all parts. A figure frame always shows the unit, the period
 and the sources of its chart.
 
+## Speed
+
+The release page holds the full text in its HTML, and the browser paints it before any script
+loads. Then the client hydrates that HTML: it does not draw the page again. Each part after the
+first loads its code and hydrates only when it comes near the view, and the browser lays it out
+and paints it only near the view. So the first paint and the start do not pay for the whole page.
+
+These rules keep that true:
+
+- The first render in the browser gives the same markup as the release render. A component reads
+  the screen (reduced motion, a width, the storage) through a store whose release value is fixed,
+  never in its first render.
+- A value that a provider above the parts gives does not change after the start. A new value makes
+  React hydrate every waiting part at once.
+- Code that measures the page measures the slot of a part, not an element in it: a measure in a
+  part far from the view makes the browser lay it out.
+
 ## Marks and references
 
 The text holds three marks: a reference to a node, a note marker, and bold or italic text. One

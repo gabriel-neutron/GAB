@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import { motion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import { useNarrowScreen } from '@/shared/narrow-screen';
 import { type ReportBlock } from '../../content';
@@ -11,6 +11,7 @@ import { StickyScene } from '../../primitives/sticky-scene';
 import { useContent } from '../../use-content';
 import { ValuesTable } from '../ports-fleet/values-table';
 import { settlementShare as value } from './settlement-shares';
+import { useReduceMotion } from '../../reduced-motion';
 
 type Pairs = readonly (readonly number[])[];
 type Panel = 'exports' | 'imports';
@@ -93,7 +94,7 @@ function SharePanel({
   readonly onPoint: (year: number | null) => void;
 }) {
   const labels = useContent().figureTexts.figures['9'].labels;
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion();
   const narrow = useNarrowScreen();
   const hatch = useId();
   const dots = useId();
@@ -215,9 +216,7 @@ function SharePanel({
             fillOpacity="0.8"
             initial={false}
             animate={{ x: x(year) + 6 }}
-            transition={
-              reduce === true ? { duration: 0 } : { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
-            }
+            transition={reduce ? { duration: 0 } : { duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           />
           <line
             x1={x(year)}
@@ -421,7 +420,7 @@ export function SettlementFigure({
   readonly block: ReportBlock;
   readonly partSlug: string;
 }) {
-  const reduce = useReducedMotion() === true;
+  const reduce = useReduceMotion();
   const { financeUi, figureTexts } = useContent();
   const copy = financeUi.figure;
   const labels = figureTexts.figures['9'].labels;

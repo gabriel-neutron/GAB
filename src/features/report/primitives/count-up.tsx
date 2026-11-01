@@ -1,12 +1,6 @@
-import {
-  animate,
-  motion,
-  useInView,
-  useMotionValue,
-  useReducedMotionConfig,
-  useTransform,
-} from 'motion/react';
+import { animate, motion, useInView, useMotionValue, useTransform } from 'motion/react';
 import { useEffect, useRef } from 'react';
+import { useReduceMotion } from '../reduced-motion';
 
 interface CountUpProps {
   readonly value: number;
@@ -16,7 +10,7 @@ interface CountUpProps {
 /** A value that counts up from zero once, when it enters the view. The screen reader reads only
  * the final value. Under reduced motion, the final value shows at once. */
 export function CountUp({ value, format }: CountUpProps) {
-  const reduce = useReducedMotionConfig() === true;
+  const reduce = useReduceMotion();
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.3 });
   const shown = useMotionValue(reduce ? value : 0);

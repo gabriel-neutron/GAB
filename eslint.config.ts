@@ -94,7 +94,13 @@ export default defineConfig(
       'src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
       'packages/*/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
     ],
-    ignores: ['src/main.tsx', 'src/router.tsx', 'src/app-router.tsx', 'src/prerender.tsx'],
+    ignores: [
+      'src/main.tsx',
+      'src/boot.tsx',
+      'src/router.tsx',
+      'src/app-router.tsx',
+      'src/prerender.tsx',
+    ],
     plugins: { boundaries },
     settings: {
       'boundaries/elements': [

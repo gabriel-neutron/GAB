@@ -1,5 +1,4 @@
 import { useSyncExternalStore, type ReactNode } from 'react';
-import { useReducedMotion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import { NodeRef } from '../../node-ref';
 import { StickyScene } from '../../primitives/sticky-scene';
@@ -18,6 +17,7 @@ import {
 } from './chain-data';
 import { ChainMap } from './chain-map';
 import { ChainStrips, ChainTotals, useDataName } from './chain-panels';
+import { useReduceMotion } from '../../reduced-motion';
 
 type Copy = ReportContent['fightUi']['chain'];
 const ROUTES = stages.length;
@@ -253,7 +253,7 @@ export function ChainStory({
   readonly sources: string;
   readonly partSlug: string;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion();
   const wide = useSyncExternalStore(onWidth, isWide, atRelease);
   const copy = useContent().fightUi.chain;
   const steps = cards(sources, partSlug, copy, useDataName());
@@ -270,7 +270,7 @@ export function ChainStory({
         {copy.title}
       </h3>
       <div className="mt-8">
-        {reduce === true || !wide ? (
+        {reduce || !wide ? (
           <ol className="grid gap-16">
             {steps.map((step, index) => (
               <li
