@@ -99,6 +99,7 @@ function SharePanel({
   const hatch = useId();
   const dots = useId();
   const [box, W] = useWidth();
+  // The same shape as the room that the CSS holds before the width is known.
   const H = Math.round(narrow ? W * 0.7 : Math.min(W * 1.1, 460));
   const x = (one: number) =>
     PAD.left + ((one - FIRST) / (LAST - FIRST || 1)) * (W - PAD.left - PAD.right);
@@ -114,7 +115,7 @@ function SharePanel({
       <p className="font-mono text-report-label uppercase text-label">{title}</p>
       {W === 0 ? (
         // The CSS sizes the room before the width is known, so the first render fits every width.
-        <div className="mt-2 aspect-[10/7] md:aspect-square" />
+        <div className="mt-2 aspect-[10/7] md:aspect-[10/11] md:max-h-[460px]" />
       ) : (
         <svg
           viewBox={`0 0 ${String(W)} ${String(H)}`}
