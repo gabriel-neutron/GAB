@@ -12,7 +12,6 @@ import { useContent, type ReportContent } from '../../use-content';
 import { CapWhatIf, WHAT_IF_START, WhatIfControls, WhatIfTable, whatIfLabel } from './cap-what-if';
 import { BudgetChart, BuyersChart, PriceChart } from './pay-figures';
 import { useReduceMotion } from '../../reduced-motion';
-import { useNarrowScreen } from '@/shared/narrow-screen';
 
 // The editorial grid: from 1280px the text reads in the right two thirds, and a note opens in the
 // left third. Under 1280px a note opens in a sheet, so the text keeps the full column.
@@ -200,17 +199,20 @@ const CARD = 'invisible w-full text-report-small lg:visible lg:w-[calc(100%/3-1.
 function PriceScene({ slug }: { readonly slug: string }) {
   const { payUi } = useContent();
   const reduce = useReduceMotion();
-  const narrow = useNarrowScreen();
   const [line, setLine] = useState(WHAT_IF_START);
-  // Under reduced motion and on a phone, the chart of the what-if line is the one chart in its
-  // final state: no scroll step only moves a mark, and the page scroll is never held.
-  if (reduce || narrow) return <CapWhatIf />;
+  // Under reduced motion the chart of the what-if line is the one chart in its final state.
+  if (reduce) return <CapWhatIf />;
   const steps = payUi.f4.steps;
   const controls = <WhatIfControls line={line} onLine={setLine} />;
+  // Under 768px the CSS shows the final chart in place of the scene, so the page scroll is never
+  // held and the HTML is the same at every width.
   return (
     <>
+      <div className="md:hidden">
+        <CapWhatIf />
+      </div>
       {/* The last step ends the scene: no empty view stays after it. */}
-      <div className="[&>div>div:last-child>div:last-child]:hidden">
+      <div className="max-md:hidden [&>div>div:last-child>div:last-child]:hidden">
         <StickyScene
           sceneClassName="pointer-events-none z-10"
           stepClassName={CARD}
@@ -255,7 +257,9 @@ function PriceScene({ slug }: { readonly slug: string }) {
           }}
         </StickyScene>
       </div>
-      <WhatIfTable line={line} />
+      <div className="max-md:hidden">
+        <WhatIfTable line={line} />
+      </div>
     </>
   );
 }

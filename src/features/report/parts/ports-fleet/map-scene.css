@@ -33,8 +33,8 @@
   }
 }
 
-/* port-map.tsx fits the map above the card with the same tops: 62% of the view from 768px to
- * 1024px. On a phone the scene is not sticky (sticky-scene.tsx). */
+/* The map fits above the card with the same top: 62% of the view from 768px to 1024px. Under
+ * 768px the page shows still frames in place of the scene. */
 @media (min-width: 768px) and (max-width: 1023px) and (prefers-reduced-motion: no-preference) {
   .pf-scene {
     --pf-card-top: 62svh;

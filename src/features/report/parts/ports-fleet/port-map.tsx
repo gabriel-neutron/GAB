@@ -12,7 +12,6 @@ import { portVisits } from './port-visits';
 import { TERMINALS } from './terminals';
 import { useSize } from './use-size';
 import { visitLayer } from './visit-layer';
-import { useNarrowScreen } from '@/shared/narrow-screen';
 import { useReduceMotion } from '../../reduced-motion';
 
 const EASE = [0.4, 0, 0.2, 1] as const;
@@ -93,11 +92,13 @@ export interface MapSources {
 interface PortMapProps {
   readonly step: number;
   readonly sources: MapSources;
+  /** True: the map is a still frame in the flow of the page, not the sticky map of a scene. */
+  readonly still?: boolean | undefined;
 }
 
 /** The dark map of the export terminals. The camera, the named terminals and the flows follow the
  * card in view. Every terminal opens its record. */
-export function PortMap({ step, sources }: PortMapProps) {
+export function PortMap({ step, sources, still = false }: PortMapProps) {
   const box = useRef<HTMLDivElement>(null);
   const head = useRef<HTMLDivElement>(null);
   const foot = useRef<HTMLDivElement>(null);
@@ -105,8 +106,6 @@ export function PortMap({ step, sources }: PortMapProps) {
   const headHeight = useSize(head).height;
   const footSize = useSize(foot);
   const reduce = useReduceMotion();
-  // On a phone the map is not sticky: the scene shows each card with its own frame.
-  const narrow = useNarrowScreen();
   const visible = useInView(box, { amount: 0.2 });
   const { openNode } = useReport();
   const { portsFleetUi, figureTexts, ui } = useContent();
@@ -140,7 +139,7 @@ export function PortMap({ step, sources }: PortMapProps) {
   const id = useId();
   const state = MAP_STEPS[step] ?? MAP_STEPS[0];
   if (state === undefined) return null;
-  const sticky = !reduce && !narrow;
+  const sticky = !reduce && !still;
   const flows = state.flows === true;
   const visits = VISITS_ON && state.tag === 'change';
   // Under 1024px the card is a sheet on the lower part of the view, so the map uses the upper part.

@@ -20,7 +20,6 @@ import { visitLayer } from './visit-layer';
 import './map-scene.css';
 
 import type { MapSources } from './port-map';
-import { useNarrowScreen } from '@/shared/narrow-screen';
 import { useReduceMotion } from '../../reduced-motion';
 
 const PortMap = lazy(() => import('./port-map').then((module) => ({ default: module.PortMap })));
@@ -80,9 +79,7 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
   const { figureTexts, parts, portsFleetUi: copy } = useContent();
   const texts = figureTexts.figures;
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
-  // The scene primitive shows each card with its own frame under reduced motion and on a phone.
-  const narrow = useNarrowScreen();
-  const scene = useReduceMotion() || narrow ? STATIC_SCENE : SCENE;
+  const reduce = useReduceMotion();
   const figureOf = (n: number) => part.blocks.find((block) => block.figure?.number === n)?.figure;
   // Figure 6 has one unit for each panel: a, b, then c. Figure 7 has one unit for each kind of
   // panel. The two notes of a figure of the PDF read as one note under the chart.
@@ -106,24 +103,25 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
   };
   const say = (text: string) => <RichText text={text} partSlug={part.slug} />;
   // Each card holds whole sentences of a paragraph, in their order, and sets one state of the map.
-  const cards = scene.map(({ block, from, to }, index) => {
-    const heading = part.blocks[block - 1];
-    return (
-      <div key={`${String(block)}-${String(from)}`} className="pf-step" data-pf-card={index}>
-        {/* The first heading stands over the scene, so no card repeats it. */}
-        {from === 0 && block > 1 && heading?.kind === 'h3' ? (
-          <h3 className="mb-2 text-report-lead text-balance">{heading.text}</h3>
-        ) : null}
-        <p className="text-report-small/[1.5] ">
-          {say(
-            splitSentences(part.blocks[block]?.text ?? '')
-              .slice(from, to)
-              .join(' '),
-          )}
-        </p>
-      </div>
-    );
-  });
+  const cardsOf = (scene: Scene) =>
+    scene.map(({ block, from, to }, index) => {
+      const heading = part.blocks[block - 1];
+      return (
+        <div key={`${String(block)}-${String(from)}`} className="pf-step" data-pf-card={index}>
+          {/* The first heading stands over the scene, so no card repeats it. */}
+          {from === 0 && block > 1 && heading?.kind === 'h3' ? (
+            <h3 className="mb-2 text-report-lead text-balance">{heading.text}</h3>
+          ) : null}
+          <p className="text-report-small/[1.5] ">
+            {say(
+              splitSentences(part.blocks[block]?.text ?? '')
+                .slice(from, to)
+                .join(' '),
+            )}
+          </p>
+        </div>
+      );
+    });
   const opening = part.blocks[0]?.kind === 'h3' ? part.blocks[0].text : undefined;
   const rest = part.blocks.slice(SCENE_END + 1);
   const last = rest.findLastIndex((block) => block.kind === 'p');
@@ -179,8 +177,9 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
       )}
 
       <MapScene
-        scene={scene}
-        steps={cards}
+        reduce={reduce}
+        cards={cardsOf(reduce ? STATIC_SCENE : SCENE)}
+        stillCards={cardsOf(STATIC_SCENE)}
         sources={{
           change: stripNotes(figureOf(6)?.sources ?? ''),
           flows: stripNotes(figureOf(7)?.sources ?? ''),
@@ -192,36 +191,58 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
   );
 }
 
-/** The sticky map scene. The map loads when the scene comes near the view. */
+/** The sticky map scene. The map loads when the scene comes near the view. Under reduced motion,
+ * and by CSS under 768px, each card shows with its own still frame, so the page scroll is never
+ * held and the HTML is the same at every width. */
 function MapScene({
-  scene,
-  steps,
+  reduce,
+  cards,
+  stillCards,
   sources,
 }: {
-  readonly scene: Scene;
-  readonly steps: readonly ReactNode[];
+  readonly reduce: boolean;
+  readonly cards: readonly ReactNode[];
+  readonly stillCards: readonly ReactNode[];
   readonly sources: MapSources;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const near = useInView(box, { once: true, margin: '800px 0px' });
+  // A still frame renders at once, not when the scene comes near: its box has a fixed aspect,
+  // so the drawing of the map moves no text. The sticky map waits until the scene is near.
+  const map = (scene: Scene, step: number, still: boolean) =>
+    still || near ? (
+      <Suspense fallback={null}>
+        <PortMap step={scene[step]?.state ?? 0} sources={sources} still={still} />
+      </Suspense>
+    ) : null;
+  const stack = (
+    <StickyScene steps={stillCards} still>
+      {(step) => map(STATIC_SCENE, step, true)}
+    </StickyScene>
+  );
   // Under 1024px the lower quarter of the map is the faded room of the card: the next figure comes
   // up over it, so no empty band stands between the map and the figure.
   return (
     <>
-      <div ref={box} className="pf-scene mt-16 md:max-lg:motion-safe:-mb-[25svh]">
-        <StickyScene steps={steps}>
-          {(step) => (
-            <>
-              {/* The step in view, for the cards of map-scene.css. */}
-              <span hidden data-pf-active={step} />
-              {near ? (
-                <Suspense fallback={null}>
-                  <PortMap step={scene[step]?.state ?? 0} sources={sources} />
-                </Suspense>
-              ) : null}
-            </>
-          )}
-        </StickyScene>
+      <div ref={box} className="mt-16">
+        {reduce ? (
+          stack
+        ) : (
+          <>
+            <div className="md:hidden">{stack}</div>
+            <div className="pf-scene max-md:hidden md:max-lg:motion-safe:-mb-[25svh]">
+              <StickyScene steps={cards}>
+                {(step) => (
+                  <>
+                    {/* The step in view, for the cards of map-scene.css. */}
+                    <span hidden data-pf-active={step} />
+                    {map(SCENE, step, false)}
+                  </>
+                )}
+              </StickyScene>
+            </div>
+          </>
+        )}
       </div>
       {/* The port visits as a table, out of the sticky map, so it never stays over the map. Under
           1024px it comes up over the faded room of the map, as the next figure did. */}
