@@ -36,7 +36,7 @@ const GRAIN =
  * the screen behind the words, and a scrim keeps every word on the plain ground of the page. The art is
  * decoration: the bibliography page gives its credit. */
 export function ReportCover() {
-  const { openingUi, parts, report } = useContent();
+  const { openingUi, parts, report, ui } = useContent();
   const { links } = openingUi;
   // The key values are the numbers of the summary findings, read from their list items.
   const items = parts
@@ -102,7 +102,12 @@ export function ReportCover() {
           ))}
         </dl>
         <nav aria-label={links.label} className="mt-6 flex flex-wrap items-center gap-2 md:mt-10">
-          <a href={pdfHref ?? links.text} download className={PRIMARY}>
+          <a
+            href={pdfHref ?? links.text}
+            // The build gives the text file a hashed name; the reader saves it under a plain one.
+            download={pdfHref === null ? `gab-report-${ui.lang}.md` : ''}
+            className={PRIMARY}
+          >
             {links.pdf} <span aria-hidden="true">↓</span>
           </a>
           <Link to="/search" className={SECONDARY}>
