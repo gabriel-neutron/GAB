@@ -1,32 +1,13 @@
 import type { ReactNode } from 'react';
 import type { ReportPart } from '../../content';
 import { cn } from '@/shared/lib/utils';
-import { AsciiImage } from '../../primitives/ascii-image';
 import { ChapterBreak } from '../../primitives/chapter-break';
-import { layout } from '../../primitives/layout';
 import { Reveal } from '../../primitives/reveal';
 import { RichText } from '../../rich-text';
 import { useContent } from '../../use-content';
 import { SettlementFigure } from './settlement-figure';
 
 const PROSE = 'max-w-[64ch] text-report-body/[1.65] ';
-
-/** The chapter break: the rouble coin as a decorative ASCII band behind the numeral, down to its
- * baseline. */
-function FinanceBreak({ number, title }: { readonly number: string; readonly title: string }) {
-  const { financeUi } = useContent();
-  return (
-    // The break packs to its content, so the title sits under the numeral at every width.
-    <div className={cn(layout.bleed, 'isolate [&>div]:min-h-0')}>
-      {/* The band ends at the baseline of the numeral: its top padding, 0.78 of its size, and its
-          bottom padding, as the chapter break sets them. */}
-      <div className="absolute inset-x-0 top-0 -z-10 h-[calc(4rem+0.78*clamp(8rem,56vw,26rem))] opacity-70 [mask-image:linear-gradient(to_bottom,black_60%,transparent)] md:h-[calc(5rem+0.78*clamp(8rem,56vw,26rem))] lg:opacity-60">
-        <AsciiImage src={financeUi.image} />
-      </div>
-      <ChapterBreak number={number} title={title} credit={financeUi.image} />
-    </div>
-  );
-}
 
 /** One payment relay: an outlined index and the text. */
 function RelayRow({
@@ -106,7 +87,7 @@ export function FinancePart({ part }: { readonly part: ReportPart }) {
   closeRelays('end');
   return (
     <section id={part.slug} aria-label={part.title} className="scroll-mt-12">
-      <FinanceBreak number={number} title={part.title} />
+      <ChapterBreak number={number} title={part.title} image={financeUi.image} />
       <div className="py-16 md:py-24">{body}</div>
     </section>
   );

@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/utils';
 import type { ReportPart } from '../../content';
 import { FigureFrame } from '../../figure-frame';
-import { AsciiImage } from '../../primitives/ascii-image';
 import { ChapterBreak } from '../../primitives/chapter-break';
 import { layout } from '../../primitives/layout';
 import { Reveal } from '../../primitives/reveal';
@@ -16,36 +15,6 @@ const PROSE = 'max-w-[64ch] text-report-body/[1.65] text-pretty  [&_button]:deco
 // From 1280px the text reads at the right, and a note opens in the margin at its left; under 1280px
 // the note opens in a sheet, so the text keeps the full column.
 const ROW = 'xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,64ch)] xl:gap-x-16';
-
-/** The chapter break over the chess set: the decorative ASCII art sits at the top right, behind a
- * scrim, so the title stays on near-black ground. */
-function Opening({ number, title }: { readonly number: string; readonly title: string }) {
-  const { ownershipUi } = useContent();
-  return (
-    <div
-      className={cn(
-        layout.bleed,
-        'isolate',
-        // On a phone, the numeral is at least as tall as the title block.
-        "max-md:[&_p[aria-hidden='true']]:text-[64vw]",
-      )}
-    >
-      <div className="absolute top-24 right-0 h-[50%] w-full md:top-0 md:h-[78%] md:w-[60%] [&_pre]:text-foreground/70">
-        <AsciiImage src={ownershipUi.image} />
-        {/* The scrims fade the art into the ground at its left and bottom edges. */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 bg-linear-to-t from-background via-background/40 to-background/0"
-        />
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 hidden bg-linear-to-r from-background via-background/30 to-background/0 md:block"
-        />
-      </div>
-      <ChapterBreak number={number} title={title} credit={ownershipUi.image} />
-    </div>
-  );
-}
 
 /** The ownership part: a chapter break over the chess set, the layered graph of figure 12 across the page, then the text with a margin for its notes. */
 export function OwnershipPart({ part }: { readonly part: ReportPart }) {
@@ -106,7 +75,7 @@ export function OwnershipPart({ part }: { readonly part: ReportPart }) {
   });
   return (
     <section id={part.slug} aria-label={part.title} className="scroll-mt-12">
-      <Opening number={number} title={part.title} />
+      <ChapterBreak number={number} title={part.title} image={ownershipUi.image} />
       <div className="py-16 md:py-24">{body}</div>
     </section>
   );
