@@ -41,7 +41,7 @@ in the HTML, with no script. The home page and the downloads page hold a schema.
 ## Release checklist
 
 A pull request into `main` refers to this list, and each item must be done before the merge. The
-contract of the report holds these blockers (issue #747):
+contract of the report holds these blockers:
 
 - [ ] A short methods memo for the funder: the evidence standard, and how the report marks an
       uncertain or unverified claim.
