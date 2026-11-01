@@ -28,7 +28,7 @@ allowed: a paragraph cut, a list item for each item of the text, a short heading
 marks. The notes keep the numbers of the final text. The parity test compares, for each part, the
 numbers, the months and the note markers of the body and of each figure caption with the source,
 and each note with the words of the source. A text change that adds, removes or moves one of
-them fails the test.
+them fails the test. A figure of the page that the final text does not have shows no number.
 
 ## The part contract
 
@@ -85,7 +85,7 @@ Each part has one layout. The layout follows what the reader must learn.
 
 - **summary**: one finding per row on one grid, each with its value and its text. The reader learns the main results.
 - **introduction**: a reading column with the three questions. The reader learns that sanctions started before 2022 and what the report asks.
-- **method-chronology**: a field of squares for the critical nodes, the three layers, the three conditions, and a timeline that moves with the scroll. The reader learns what makes a node critical and when the sanctions came.
+- **method-chronology**: a field of squares for the critical nodes, the three layers, the three conditions, and a timeline that moves with the scroll. A time cursor (the scroll or a slider) chooses an event and shows the tankers designated by each regime to the end of its quarter. The reader learns what makes a node critical and when the sanctions came.
 - **pay**: an editorial grid with notes in the margin, wide figures, and the price cap as a scroll scene. The reader learns that Asia replaces the volumes of Europe, but at a discount.
 - **ports-fleet**: a sticky map with text cards that change the ports and flows in view, then the traffic and fleet figures. The reader learns where crude leaves Russia and which fleet carries it.
 - **finance**: the settlement currencies as a scroll scene with one step for each year, then the payment relays as a numbered list. The reader learns that the rouble and the yuan replace the dollar and the euro.

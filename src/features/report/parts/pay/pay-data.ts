@@ -14,6 +14,10 @@ export function monthIndex(date: string): number {
   return (year - FIRST_YEAR) * 12 + month - FIRST_MONTH + (day - 1) / days;
 }
 
+/** The month at a place of the month axis of figure 4, as "2025-09". */
+export const monthName = (x: number): string =>
+  new Date(Date.UTC(FIRST_YEAR, FIRST_MONTH - 1 + x, 1)).toISOString().slice(0, 7);
+
 // The last month of the data of figure 4.
 const LAST_INDEX = Math.max(
   ...[...figures.f4.brent, ...figures.f4.urals].map(([date]) =>
@@ -92,6 +96,24 @@ export const payData = {
   },
 } as const;
 
+/** Urals minus a what-if line for each month: `null` where Urals has no value. Only the months
+ * with a value count, so a missing month is never above or below the line. */
+export function lineGap(
+  urals: readonly Point[],
+  line: number,
+): {
+  readonly months: readonly { readonly x: number; readonly gap: number | null }[];
+  readonly above: readonly number[];
+  readonly known: number;
+} {
+  const months = urals.map((point, x) => ({ x, gap: point === null ? null : point.y - line }));
+  return {
+    months,
+    above: months.flatMap(({ x, gap }) => (gap !== null && gap > 0 ? [x] : [])),
+    known: months.filter(({ gap }) => gap !== null).length,
+  };
+}
+
 /** The first place where line `a` goes from above line `b` to below it, by linear interpolation
  * between two known values of both; undefined when it never does. */
 export function crossing(
@@ -109,3 +131,23 @@ export function crossing(
   }
   return undefined;
 }
+
+/** The value of each series in one year; a series with no value that year gives null. */
+export function valuesInYear(
+  rows: readonly { readonly key: string; readonly points: readonly Point[] }[],
+  year: number,
+): { key: string; point: Point }[] {
+  return rows.map((row) => ({
+    key: row.key,
+    point: row.points.find((point) => point?.x === year) ?? null,
+  }));
+}
+
+/** The years of figure 3 that hold a value, in order. */
+export const buyerYears: readonly number[] = [
+  ...new Set(
+    [...payData.f3a, ...payData.f3b].flatMap((row) =>
+      row.points.flatMap((point) => (point === null ? [] : [point.x])),
+    ),
+  ),
+].sort((a, b) => a - b);

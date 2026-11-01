@@ -6,11 +6,12 @@ import { NoteRef } from '../note-ref';
 import { accent } from '../primitives/accent';
 import { chapterHead } from '../primitives/chapter-break';
 import { monoLabel } from '../primitives/label';
-import { NumberRoll } from '../primitives/number-roll';
+import { CountUp } from '../primitives/count-up';
 import { Reveal } from '../primitives/reveal';
 import { RichText } from '../rich-text';
 import { ScrambleText } from '../scramble-text';
 import { useContent } from '../use-content';
+import { type SummaryValue, summaryValues } from './summary-values';
 
 /** The bold key and the first sentence of a paragraph, with the space after it. */
 const leadHead = (text: string): string =>
@@ -19,13 +20,13 @@ const SENTENCE = 'text-report-body/[1.55] text-foreground/75 ';
 const WORDS = 'leading-[0.9] tracking-[-0.045em] text-balance';
 
 interface Finding {
-  readonly value: string;
+  readonly value: SummaryValue | undefined;
   readonly sentence: ReactNode;
   /** The finding on the rouble has the small chart of its data. */
   readonly chart: boolean;
 }
 
-/** A small column chart of the rouble share of export settlements, from the data of figure 9.
+/** A small column chart of the rouble share of export settlements, from the data of figure 10.
  * The two years of the text carry the accent and their value. */
 function RoubleChart() {
   const { chart } = useContent().openingUi.summary;
@@ -47,7 +48,7 @@ function RoubleChart() {
               <span className="sr-only">
                 {year}: {Math.round(value)}%
               </span>
-              {/* Every bar prints its value, as figure 9 does; the two years of the text in the accent. */}
+              {/* Every bar prints its value, as figure 10 does; the two years of the text in the accent. */}
               <div
                 aria-hidden="true"
                 className="flex flex-1 flex-col items-center justify-end border-b border-foreground/40"
@@ -91,13 +92,14 @@ function RoubleChart() {
 const NUMBER = 'text-report-display leading-[0.8] tracking-[-0.07em] tabular-nums';
 
 function hero(finding: Finding): ReactNode {
-  if (/\d/.test(finding.value))
+  const { value } = finding;
+  if (value?.kind === 'number')
     return (
       <p className={cn(NUMBER, accent.text)}>
-        <NumberRoll value={finding.value} />
+        <CountUp value={value.value} format={value.format} />
       </p>
     );
-  return <p className={cn('max-w-[10ch] text-report-number', WORDS)}>{finding.value}</p>;
+  return <p className={cn('max-w-[10ch] text-report-number', WORDS)}>{value?.text}</p>;
 }
 
 const layout = (finding: Finding): ReactNode => (
@@ -127,6 +129,10 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
   const [lead, ...rest] = part.blocks.slice(0, first).filter((block) => block.kind === 'p');
   const findings = part.blocks.filter((block) => block.kind === 'li');
   const after = part.blocks.slice(first).filter((block) => block.kind === 'p');
+  const values = summaryValues(
+    findings.map((block) => block.text),
+    copy.values,
+  );
   return (
     <section
       id={part.slug}
@@ -180,13 +186,12 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
       </div>
       <ol className="mt-16 border-t border-foreground lg:mt-24">
         {findings.map((block, index) => {
-          const value = copy.values[index];
           return (
             <li key={block.text} className="border-b border-border py-8 lg:py-12">
               <Reveal>
                 {layout({
-                  value: value?.value ?? '',
-                  chart: value?.note === copy.chart.finding,
+                  value: values[index],
+                  chart: copy.values[index]?.note === copy.chart.finding,
                   sentence: <RichText text={block.text} partSlug={part.slug} />,
                 })}
               </Reveal>

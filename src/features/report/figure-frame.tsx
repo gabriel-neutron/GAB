@@ -3,7 +3,8 @@ import { RichText } from './rich-text';
 import { useContent } from './use-content';
 
 interface FigureFrameProps {
-  readonly number: number;
+  /** No number: a figure of the page that the final text does not have. */
+  readonly number?: number | undefined;
   readonly title: string;
   readonly unit?: string | undefined;
   readonly period?: string | undefined;
@@ -45,11 +46,13 @@ export function FigureFrame({
             : 'text-report-lead text-balance'
         }
       >
-        <span className="mr-3 font-mono text-label tabular-nums">
-          <span className="sr-only">{ui.figure.name} </span>
-          {number}
-          <span className="sr-only">. </span>
-        </span>
+        {number === undefined ? null : (
+          <span className="mr-3 font-mono text-label tabular-nums">
+            <span className="sr-only">{ui.figure.name} </span>
+            {number}
+            <span className="sr-only">. </span>
+          </span>
+        )}
         {title}
       </h3>
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-b border-divider pb-3 md:grid-cols-[auto_auto_1fr]">

@@ -36,3 +36,4 @@ combo,OFAC+UK,,21
 combo,OFAC,,16
 combo,EU+OFAC,,6
 lag,median days first to second regime,,87
+end,last designation,,2026-10-08

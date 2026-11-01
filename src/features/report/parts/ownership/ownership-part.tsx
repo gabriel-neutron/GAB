@@ -96,6 +96,16 @@ export function OwnershipPart({ part }: { readonly part: ReportPart }) {
       );
       return;
     }
+    if (block.kind === 'h3') {
+      body.push(
+        <div key={key} className={cn(ROW, 'mt-16')}>
+          <h3 className={cn(PROSE, 'text-report-lead text-balance lg:col-start-2')}>
+            {block.text}
+          </h3>
+        </div>,
+      );
+      return;
+    }
     body.push(
       <div key={key} className={cn(ROW, block.kind === 'li' ? 'mt-10' : 'my-6')}>
         <Rail text={block.text} part={part} />

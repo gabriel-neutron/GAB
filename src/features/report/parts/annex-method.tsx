@@ -9,12 +9,14 @@ import nodes from '../nodes-data';
 import { useContent } from '../use-content';
 import { ClosingBreak } from './closing-art';
 
-const KEY = /^\*\*(.+?)\*\*:?\s*/;
+const KEY = /^\*\*(.+?):?\*\*:?\s*/;
 const CODE = /^(A\.\d+)\s+(.*)$/;
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
 const count = new Intl.NumberFormat('en-GB');
 const REGISTER_ROWS = 14;
+// The anchor of a section of the annex, from its code: A.1 is "annex-a-1".
+const anchor = (code: string) => `annex-${code.toLowerCase().replace('.', '-')}`;
 
 interface Section {
   readonly heading: string;
@@ -67,6 +69,8 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
     if (block.kind === 'h3') sections.push({ heading: block.text, blocks: [] });
     else sections.at(-1)?.blocks.push(block);
   }
+  // The final text gives the date of the counts in A.1, with no note: the date line links there.
+  const dated = CODE.exec(sections[0]?.heading ?? '')?.[1];
   const { counts } = reportGraph;
   const scale = [
     [ui.counters.nodes, counts.nodes],
@@ -124,8 +128,9 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
           return (
             <Fragment key={section.heading}>
               <div
+                id={match === null ? undefined : anchor(match[1] ?? '')}
                 className={cn(
-                  'grid gap-x-8 py-8 lg:grid-cols-12',
+                  'grid scroll-mt-[calc(var(--report-bar,0px)+3rem)] gap-x-8 py-8 lg:grid-cols-12',
                   // The chapter break above already draws the first rule.
                   sectionIndex > 0 && 'border-t border-border',
                 )}
@@ -159,6 +164,14 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
           </dl>
           <p className="mt-3 max-w-[64ch] font-mono text-report-label text-label">
             {copy.dataDate}
+            {dated === undefined ? null : (
+              <>
+                {' · '}
+                <a href={`#${anchor(dated)}`} className={cn('underline', FOCUS)}>
+                  {dated}
+                </a>
+              </>
+            )}
           </p>
         </section>
         <Link

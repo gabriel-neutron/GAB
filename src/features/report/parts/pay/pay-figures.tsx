@@ -1,8 +1,18 @@
+import { useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 import { figureTexts, payUi } from '../../content';
 import { NodeRef } from '../../node-ref';
+import { useContent } from '../../use-content';
 import { FADE, GLYPH, LineChart, type LineSeries, type Scales } from './line-chart';
-import { crossing, monthIndex, payData, type Point } from './pay-data';
+import {
+  buyerYears,
+  crossing,
+  monthIndex,
+  monthName,
+  payData,
+  valuesInYear,
+  type Point,
+} from './pay-data';
 
 const PANEL_TITLE = 'font-mono text-report-label uppercase text-label';
 const LEGEND = 'mt-2 font-mono text-report-label/4 text-label';
@@ -44,6 +54,11 @@ const f3Names: Record<string, string> = {
   Turkey: f3.labels.Turquie,
   Kazakhstan: f3.labels.Kazakhstan,
   EU27: f3.labels.UE,
+};
+// The first and the last year of a panel that hold a value.
+const span = (rows: readonly { readonly points: readonly Point[] }[]) => {
+  const years = rows.flatMap((row) => row.points.flatMap((point) => (point ? [point.x] : [])));
+  return [Math.min(...years), Math.max(...years)] as const;
 };
 // The accent marks China only, the main point; India is the second step, a tint of the ink.
 const f3Tone = (key: string): LineSeries['tone'] =>
@@ -119,12 +134,14 @@ function Crossings({
 /** Figure 3: two panels side by side, the buyers in dollars and the crude in tonnes. The new
  * buyers carry the accent; an estimate is a hollow point, and an estimated series is dashed. */
 export function BuyersChart() {
+  const copy = useContent().payUi;
+  const [chosen, setChosen] = useState(buyerYears.at(-1) ?? 0);
   const [a, b] = f3.panels;
   const panels = [
     {
       title: a?.title ?? '',
       unit: a?.unit ?? '',
-      x: [2020, 2025] as const,
+      x: span(payData.f3a),
       // Room above the top tick for the label on its leader line.
       y: [0, 340] as const,
       yTicks: [0, 100, 200, 300],
@@ -137,7 +154,7 @@ export function BuyersChart() {
     {
       title: b?.title ?? '',
       unit: b?.unit ?? '',
-      x: [2021, 2025] as const,
+      x: span(payData.f3b),
       y: [0, 120] as const,
       yTicks: [0, 40, 80, 120],
       rows: payData.f3b,
@@ -149,11 +166,44 @@ export function BuyersChart() {
   ];
   return (
     <div className="grid gap-10 md:grid-cols-2 md:gap-8">
+      <div className="flex items-center gap-4 font-mono text-report-label md:col-span-2">
+        <span aria-hidden="true" className="uppercase text-label">
+          {copy.year}
+        </span>
+        <input
+          type="range"
+          aria-label={copy.year}
+          min={buyerYears[0]}
+          max={buyerYears.at(-1)}
+          step={1}
+          value={chosen}
+          onChange={(event) => {
+            setChosen(Number(event.target.value));
+          }}
+          className="h-11 min-w-0 flex-1 cursor-pointer accent-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+        />
+        <output aria-hidden="true" className="text-report-lead tabular-nums">
+          {chosen}
+        </output>
+      </div>
       {panels.map((panel) => (
         <div key={panel.title} className="min-w-0">
           <p className={PANEL_TITLE}>{panel.title}</p>
+          {/* The values of the chosen year, next to the scrubber. */}
+          <dl className="mt-3 grid grid-cols-[1fr_auto] gap-x-4 font-mono text-report-label tabular-nums">
+            {valuesInYear(panel.rows, chosen).map(({ key, point }) => (
+              <div key={key} className="contents">
+                <dt className="border-b border-divider py-1 text-label">{f3Names[key] ?? key}</dt>
+                <dd className="border-b border-divider py-1 text-right">
+                  {point === null ? '' : point.y.toFixed(0)}
+                  {point?.hollow === true ? ` (${copy.estimated})` : ''}
+                </dd>
+              </div>
+            ))}
+          </dl>
           <div className="mt-3">
             <LineChart
+              tableLabel={copy.table}
               spec={{
                 label: panel.title,
                 unit: panel.unit,
@@ -171,7 +221,25 @@ export function BuyersChart() {
                 })),
               }}
               layers={(scales) => ({
-                under: <EventRule at={INVASION} label={f3.labels.invasion} scales={scales} />,
+                under: (
+                  <>
+                    <EventRule at={INVASION} label={f3.labels.invasion} scales={scales} />
+                    {/* The cursor of the scrubber: it slides to the year, and hides before the
+                        first year of the panel. */}
+                    <line
+                      x1={0}
+                      x2={0}
+                      y1={scales.top}
+                      y2={scales.bottom}
+                      strokeWidth={1.5}
+                      style={{ transform: `translateX(${String(scales.x(chosen))}px)` }}
+                      className={cn(
+                        'stroke-signal transition-[transform,opacity] duration-200 motion-reduce:transition-none',
+                        chosen < panel.x[0] ? 'opacity-0' : 'opacity-100',
+                      )}
+                    />
+                  </>
+                ),
                 over: <Crossings rows={panel.rows} pairs={panel.pairs} scales={scales} />,
               })}
             />
@@ -242,10 +310,13 @@ export function PriceChart({
   step,
   focus = false,
   fill = false,
+  whatIf,
 }: {
   readonly step: number;
   readonly focus?: boolean;
   readonly fill?: boolean;
+  /** A what-if line across all months, with its label; the three real caps stay. */
+  readonly whatIf?: { readonly value: number; readonly label: string };
 }) {
   const [first, ...lower] = f4.caps;
   const point = focus ? focusPoint(step) : undefined;
@@ -274,13 +345,14 @@ export function PriceChart({
         <LineChart
           fill={fill}
           spec={{
-            label: payUi.f4.label,
+            // The second chart, with the what-if line, gets its own name.
+            label: whatIf === undefined ? payUi.f4.label : `${payUi.f4.label}, ${whatIf.label}`,
             unit: figureTexts.figures['4'].panels[0]?.unit ?? '',
             x: [0, f4.last],
             y: [0, 125],
             xTicks: firstYearAt.map((at) => ({ at, label: String(2022 + Math.ceil(at / 12)) })),
             yTicks: [0, 25, 50, 75, 100, 125],
-            xName: (x) => new Date(Date.UTC(2022, 11 + x, 1)).toISOString().slice(0, 7),
+            xName: monthName,
             digits: 1,
             series: [
               { id: 'brent', label: f4Labels.Brent, tone: 'muted', points: f4.brent },
@@ -347,6 +419,25 @@ export function PriceChart({
                       className="stroke-foreground"
                     />
                   </g>
+                  {whatIf === undefined ? null : (
+                    <g>
+                      <path
+                        d={capLine(0, f4.last, whatIf.value)}
+                        strokeWidth={1.5}
+                        className="stroke-foreground"
+                      />
+                      {/* At the left end, clear of the end labels; the halo keeps it legible over a line. */}
+                      <text
+                        x={scales.left + 4}
+                        y={scales.y(whatIf.value) - 6}
+                        strokeWidth={4}
+                        paintOrder="stroke"
+                        className="fill-foreground stroke-background"
+                      >
+                        {whatIf.label}
+                      </text>
+                    </g>
+                  )}
                   {point === undefined ? null : (
                     <g key={step}>
                       <circle

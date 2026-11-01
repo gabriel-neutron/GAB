@@ -6,16 +6,16 @@ import { RichText } from '../rich-text';
 import { useContent } from '../use-content';
 
 const PROSE = 'max-w-[64ch] text-report-body/[1.65] ';
-// The third paragraph is the answer: the question, two sentences on the money, one on the goods.
+// The third paragraph: a statement, two sentences on the steps of the EU, one on their delay.
 const SENTENCE = /(?<=[.?])\s+/;
 
-/** The conclusion: the effect and the two ways around it in prose, the answer to the starting
- * question split into its two routes, and the advice. */
+/** The conclusion: the effect and the two ways around it in prose, the steps of the EU sanctions
+ * as a statement over two columns, and the advice. */
 export function ConclusionPart({ part }: { readonly part: ReportPart }) {
   const { parts } = useContent();
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const [effect, around, answer, advice] = part.blocks.map((block) => block.text);
-  const [question, ...routes] = answer === undefined ? [] : answer.split(SENTENCE);
+  const [statement, ...steps] = answer === undefined ? [] : answer.split(SENTENCE);
   const paragraph = (text: string | undefined) =>
     text === undefined ? null : (
       <p className={cn('my-6', PROSE)}>
@@ -31,14 +31,14 @@ export function ConclusionPart({ part }: { readonly part: ReportPart }) {
           {paragraph(around)}
         </div>
       </div>
-      {routes.length === 3 ? (
+      {steps.length === 3 ? (
         <Reveal>
           <div className="border-y border-foreground py-12 md:py-20">
             <p className="max-w-[30ch] text-report-heading leading-[1.08] tracking-[-0.03em] text-balance">
-              {question}
+              {statement}
             </p>
             <div className="mt-12 grid gap-px bg-border md:grid-cols-2">
-              {[routes.slice(0, 2).join(' '), routes[2] ?? ''].map((text) => (
+              {[steps.slice(0, 2).join(' '), steps[2] ?? ''].map((text) => (
                 <p
                   key={text}
                   className="bg-background pt-6 pb-2 text-report-lead leading-[1.3] tracking-[-0.015em] text-balance md:pr-8 md:even:pl-8"
