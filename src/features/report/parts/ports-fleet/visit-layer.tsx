@@ -4,6 +4,7 @@ import { accent } from '../../primitives/accent';
 import { useContent } from '../../use-content';
 import { portVisits } from './port-visits';
 import { TERMINALS } from './terminals';
+import { ValuesTable } from './values-table';
 
 // The time cursor runs once through the window of the query in this many seconds. No loop.
 const SECONDS = 12;
@@ -77,32 +78,20 @@ function Cursor() {
 }
 
 /** The visits and the tankers for each port of the query: the text form of the pulses. */
-function Table({ shown }: { readonly shown: boolean }) {
+function Table() {
   const { portsFleetUi, ui } = useContent();
   const copy = portsFleetUi.map.visits;
   const number = new Intl.NumberFormat(ui.numberLocale);
   return (
-    <table className={cn('w-max text-right tabular-nums', !shown && 'sr-only')}>
-      <caption className="sr-only">{copy.label}</caption>
-      <thead>
-        <tr>
-          <th className="pr-4 text-left font-normal">{copy.port}</th>
-          <th className="pr-4 font-normal">{copy.count}</th>
-          <th className="font-normal">{copy.tankers}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {portVisits.ports.map((port) => (
-          <tr key={port.port}>
-            <th scope="row" className="pr-4 text-left font-normal">
-              {labelOf.get(port.terminal) ?? port.port}
-            </th>
-            <td className="pr-4">{number.format(port.visits)}</td>
-            <td>{number.format(port.tankers)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <ValuesTable
+      summary={copy.table}
+      head={[copy.port, copy.count, copy.tankers]}
+      rows={portVisits.ports.map((port) => [
+        labelOf.get(port.terminal) ?? port.port,
+        number.format(port.visits),
+        number.format(port.tankers),
+      ])}
+    />
   );
 }
 

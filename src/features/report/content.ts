@@ -2178,6 +2178,7 @@ export const portsFleetUi = {
       port: 'Port',
       count: 'Visits',
       tankers: 'Tankers',
+      table: 'The port visits, as a table',
       limit: 'A presence in port, not a loading.',
       range: '{from} to {to}',
     },

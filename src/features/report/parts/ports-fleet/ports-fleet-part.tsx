@@ -13,13 +13,17 @@ import { FleetFlows } from './fleet-flows';
 import { REGIMES, selectWaves } from './fleet-waves';
 import { FleetWavesFigure } from './fleet-waves-figure';
 import { PortTraffic } from './port-traffic';
+import { portVisits } from './port-visits';
 import { splitSentences } from './sentences';
 import { VesselLives } from './vessel-lives';
+import { visitLayer } from './visit-layer';
 import './map-scene.css';
 
 import type { MapSources } from './port-map';
 
 const PortMap = lazy(() => import('./port-map').then((module) => ({ default: module.PortMap })));
+// The table of the port visits needs no map, so it loads with the page.
+const VISITS_ON = portVisits.on(import.meta.env);
 
 const PROSE = 'max-w-[64ch] text-report-body/[1.65]  lg:ml-[25%]';
 const census = figureData.lives.census;
@@ -199,21 +203,30 @@ function MapScene({
   // Under 1024px the lower quarter of the map is the faded room of the card: the next figure comes
   // up over it, so no empty band stands between the map and the figure.
   return (
-    <div ref={box} className="pf-scene mt-16 max-lg:motion-safe:-mb-[25svh]">
-      <StickyScene steps={steps}>
-        {(step) => (
-          <>
-            {/* The step in view, for the cards of map-scene.css. */}
-            <span hidden data-pf-active={step} />
-            {near ? (
-              <Suspense fallback={null}>
-                <PortMap step={scene[step]?.state ?? 0} sources={sources} />
-              </Suspense>
-            ) : null}
-          </>
-        )}
-      </StickyScene>
-    </div>
+    <>
+      <div ref={box} className="pf-scene mt-16 max-lg:motion-safe:-mb-[25svh]">
+        <StickyScene steps={steps}>
+          {(step) => (
+            <>
+              {/* The step in view, for the cards of map-scene.css. */}
+              <span hidden data-pf-active={step} />
+              {near ? (
+                <Suspense fallback={null}>
+                  <PortMap step={scene[step]?.state ?? 0} sources={sources} />
+                </Suspense>
+              ) : null}
+            </>
+          )}
+        </StickyScene>
+      </div>
+      {/* The port visits as a table, out of the sticky map, so it never stays over the map. Under
+          1024px it comes up over the faded room of the map, as the next figure did. */}
+      {VISITS_ON ? (
+        <div className={cn(PROSE, 'relative bg-background')}>
+          <visitLayer.Table />
+        </div>
+      ) : null}
+    </>
   );
 }
 
