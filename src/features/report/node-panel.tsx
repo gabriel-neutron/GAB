@@ -39,7 +39,8 @@ function Section({ title, children }: { readonly title: string; readonly childre
   );
 }
 
-function NodeRecord({ id }: { readonly id: string }) {
+/** The record of one node, as the panel shows it. */
+export function NodeRecord({ id }: { readonly id: string }) {
   const { ui } = useContent();
   const node = reportGraph.node(id);
   if (node === undefined) return null;
