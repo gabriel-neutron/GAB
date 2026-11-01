@@ -47,6 +47,11 @@ const f3Names: Record<string, string> = {
   Kazakhstan: f3.labels.Kazakhstan,
   EU27: f3.labels.UE,
 };
+// The first and the last year of a panel that hold a value.
+const span = (rows: readonly { readonly points: readonly Point[] }[]) => {
+  const years = rows.flatMap((row) => row.points.flatMap((point) => (point ? [point.x] : [])));
+  return [Math.min(...years), Math.max(...years)] as const;
+};
 // The accent marks China only, the main point; India is the second step, a tint of the ink.
 const f3Tone = (key: string): LineSeries['tone'] =>
   key === 'China'
@@ -128,7 +133,7 @@ export function BuyersChart() {
     {
       title: a?.title ?? '',
       unit: a?.unit ?? '',
-      x: [2020, 2025] as const,
+      x: span(payData.f3a),
       // Room above the top tick for the label on its leader line.
       y: [0, 340] as const,
       yTicks: [0, 100, 200, 300],
@@ -141,7 +146,7 @@ export function BuyersChart() {
     {
       title: b?.title ?? '',
       unit: b?.unit ?? '',
-      x: [2021, 2025] as const,
+      x: span(payData.f3b),
       y: [0, 120] as const,
       yTicks: [0, 40, 80, 120],
       rows: payData.f3b,
