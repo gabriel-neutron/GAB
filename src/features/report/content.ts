@@ -2058,9 +2058,10 @@ export const openingUi = {
 export const methodUi = {
   layers: {
     label: 'Layers',
-    unit: 'Nodes of the page data, one square for each node',
+    unit: 'Critical nodes, one square for each node',
     // The figure counts the nodes of the report, so its period is the period of the report.
     period: '2024-2026',
+    critical: 'Critical, no page record',
     inData: 'Critical and in the page data',
     examined: 'In the page data, fewer than three conditions documented',
     open: 'Open the nodes of the page data',
@@ -2216,6 +2217,7 @@ export const financeUi = {
     imports: 'Imports',
     tableCaption: 'Data of figure 10, percentage of total',
     year: 'Year',
+    inspect: 'Shares of one year',
   },
   relays: { label: 'Payment relays' },
 } as const;
@@ -2273,6 +2275,58 @@ export const fightUi = {
     russia: 'Russia',
     // The unit of the chain counts, as the note of the routes figure gives it: a count can have decimals.
     chainUnit: 'one chain = 1, shared between its routes',
+    routeTable: 'All the routes of the map, as a table',
+    routeColumns: ['Country of manufacture', 'Country of the intermediary', 'State', 'Chains'],
+    // The states of the routes data, for the cells of the route table.
+    stateWords: {
+      documented: 'documented',
+      'documented (Ukrainian government source only)':
+        'documented (Ukrainian government source only)',
+      'documented (Russian importer named; foreign intermediary not named)':
+        'documented (Russian importer named; foreign intermediary not named)',
+      lead: 'lead',
+      'no source found': 'no source found',
+    },
+  },
+  // The defence plants of the data file on the chain map, with a table of all of them.
+  plants: {
+    title: 'Russian defence plants and integrators by main weapon',
+    unit: 'one point = one plant or integrator',
+    sources:
+      'GAB record: plant positions (stored or approximate) and the result of the check on the EU, UK and US lists; some plants are not checked',
+    mapLabel:
+      'Map of the Russian defence plants and integrators by main weapon; on a wide screen six main plants are named; hollow points are approximate',
+    legend: [
+      ['drone', 'Drones'],
+      ['cruise missile', 'Missiles'],
+      ['guided bomb', 'Guided bombs'],
+      ['armour', 'Armour'],
+      ['aircraft', 'Aircraft'],
+      ['other', 'Other'],
+    ],
+    approximate: 'Hollow: approximate point',
+    table: 'All the plants and integrators, as a table',
+    columns: ['Plant or integrator', 'City', 'Weapon', 'Point', 'EU', 'UK', 'US'],
+    // The words of the data file, for the cells of the table. A word that is not here shows as the file writes it.
+    words: {
+      stored: 'stored position',
+      lead: 'approximate',
+      none: 'not on the map',
+      yes: 'yes',
+      no: 'no',
+      'not checked': 'not checked',
+      'no match by name': 'no match by name',
+      'BIS Entity List (not SDN)': 'BIS Entity List (not SDN)',
+      drone: 'drone',
+      'cruise missile': 'cruise missile',
+      'ballistic missile': 'ballistic missile',
+      'guided bomb': 'guided bomb',
+      armour: 'armour',
+      aircraft: 'aircraft',
+      'air defence': 'air defence',
+      'communications/EW': 'communications, EW',
+      other: 'other',
+    },
   },
   noPeriod: 'Not given in the source of the figure',
   // The routes of the components: a figure of the page with no number, because the final text

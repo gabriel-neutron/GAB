@@ -5,6 +5,7 @@ import { accent } from '../../primitives/accent';
 import { CountUp } from '../../primitives/count-up';
 import { reportGraph, type GraphNode } from '../../report-graph';
 import { useReport } from '../../use-report';
+import { criticalLayers } from './critical-layers';
 
 const { layers, arrows, conditions, budgetPath } = figureTexts.fig1;
 
@@ -92,12 +93,16 @@ export function LayersFigure() {
 }
 
 function Legend() {
-  const { inData, examined } = methodUi.layers;
+  const { inData, critical, examined } = methodUi.layers;
   return (
     <ul className="flex flex-wrap gap-x-6 gap-y-2 bg-background font-mono text-report-label/4 text-label">
       <li className="flex items-center gap-2">
         <span aria-hidden="true" className={cn('size-2.5', accent.bg)} />
         {inData}
+      </li>
+      <li className="flex items-center gap-2">
+        <span aria-hidden="true" className="size-2.5 bg-foreground/35" />
+        {critical}
       </li>
       <li className="flex items-center gap-2">
         <span aria-hidden="true" className="size-2.5 border border-foreground" />
@@ -117,6 +122,9 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
   const nodes = reportGraph.layer(layer.k);
   const kept = nodes.filter((node) => node.kept === 'yes');
   const examined = nodes.filter((node) => node.kept !== 'yes');
+  const count = criticalLayers.get(layer.k) ?? 0;
+  // The critical nodes of the page data come first; the rest of the count has no page record.
+  const rest = Math.max(0, count - kept.length);
   const open = (node: GraphNode, target: HTMLElement) => {
     openNode(node.node_id, target);
   };
@@ -126,20 +134,13 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
         <p className="font-mono text-report-label text-label tabular-nums">
           {String(index + 1).padStart(2, '0')}
         </p>
-        <p className="text-right">
-          <span
-            className={cn(
-              'block font-mono text-report-number leading-none tracking-[-0.06em] tabular-nums',
-              accent.text,
-            )}
-          >
-            <CountUp value={kept.length} format={(n) => String(Math.round(n))} />
-          </span>
-          {/* The text gives only the total of critical nodes, so the count of a layer is that of
-              the page data. */}
-          <span className="mt-1 block font-mono text-report-label text-label">
-            {methodUi.layers.inData}
-          </span>
+        <p
+          className={cn(
+            'font-mono text-report-number leading-none tracking-[-0.06em] tabular-nums',
+            accent.text,
+          )}
+        >
+          <CountUp value={count} format={(n) => String(Math.round(n))} />
         </p>
       </div>
       <h4 className="mt-2 text-report-heading leading-[0.95] tracking-[-0.045em]">{layer.k}</h4>
@@ -194,6 +195,9 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
       <div aria-hidden="true" className="mt-6 flex flex-wrap content-start gap-[3px]">
         {kept.map((node) => (
           <span key={node.node_id} className={cn('size-2', accent.bg)} />
+        ))}
+        {Array.from({ length: rest }, (_, square) => (
+          <span key={square} className="size-2 bg-foreground/35" />
         ))}
         {examined.map((node, place) => (
           <span
