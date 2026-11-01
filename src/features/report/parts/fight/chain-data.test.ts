@@ -47,7 +47,7 @@ describe('chain data', () => {
     for (const stage of stages) expect(stage.document).not.toBe('');
   });
 
-  it('keeps the counts of figure 11 and draws no arc to a name without a place', () => {
+  it('keeps the counts of the routes figure and draws no arc to a name without a place', () => {
     expect(routeCounts.steps).toBe(Object.values(routeCounts.hops).reduce((a, b) => a + b, 0));
     expect(arcs.every((arc) => arc.from.name !== arc.to.name)).toBe(true);
     expect(arcChains.drawn).toBeLessThanOrEqual(arcChains.all);
@@ -89,7 +89,7 @@ describe('layouts', () => {
       if (box) expect(box.x >= 0 && box.x + box.w <= 100 && box.y >= 0).toBe(true);
   });
 
-  it('stacks the flow of figure 11 on one scale, with every chain in each column', () => {
+  it('stacks the flow of the routes figure on one scale, with every chain in each column', () => {
     const { nodes, bands } = layoutFlow(flowLinks, 400, 4);
     const columns = [0, 1, 2, 3].map((column) =>
       nodes.filter((node) => node.column === column).reduce((sum, node) => sum + node.value, 0),

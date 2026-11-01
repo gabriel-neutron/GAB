@@ -2,7 +2,7 @@ import raw from './data/chp.csv?raw';
 import chainRaw from './data/chp-chain.csv?raw';
 import { readCsv } from './line-panel';
 
-// Figure 10: exports of high-priority (CHP) goods to Russia declared by 17 partners, 2021-2025, million USD.
+// Figure 11: exports of high-priority (CHP) goods to Russia declared by 17 partners, 2021-2025, million USD.
 // (a) stacked bars by supplier, China and Hong Kong in signal. (b) the supply chain of Russia's imports of
 // battlefield goods, Jan-Oct 2023, from Russian customs data (KSE): the share of
 // coalition countries at each stage. KSE: these flows are not necessarily export control violations.

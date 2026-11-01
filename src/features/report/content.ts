@@ -748,7 +748,7 @@ export const parts: ReportPart[] = [
     source: 'report-en.md, 4 Fight',
     slug: 'fight',
     title: 'Fight: the same goods, other sellers',
-    nodeIds: ['N-F097', 'N-F032', 'N-M037'],
+    nodeIds: ['N-F097'],
     blocks: [
       {
         kind: 'p',
@@ -855,22 +855,17 @@ export const parts: ReportPart[] = [
       'N-P025',
       'N-P052',
       'N-P053',
-      'N-O004',
       'N-O003',
       'N-O005',
       'N-O010',
-      'N-O011',
       'N-O015',
       'N-O016',
       'N-O017',
       'N-O019',
       'N-O023',
       'N-O024',
-      'N-O028',
       'N-O032',
       'N-O029',
-      'N-O025',
-      'N-O026',
       'N-O027',
       'N-O030',
       'N-O031',
@@ -881,12 +876,7 @@ export const parts: ReportPart[] = [
       'N-O039',
       'N-O021',
       'N-O049',
-      'N-O058',
-      'N-O050',
       'N-O044',
-      'N-O043',
-      'N-O062',
-      'N-O063',
       'N-O041',
       'N-O042',
     ],
@@ -1238,11 +1228,11 @@ export const parts: ReportPart[] = [
   },
 ];
 
-// English text of the 12 figures of the publication: fig1 and fig2 content, panel titles, notes,
-// and English labels for the French strings of data/publication-figures.json. {x} marks a value read from the data.
-// The keys are the figure numbers of the French publication: on the page, key 9 is figure 10 (the
-// settlement currencies), key 10 is figure 11 (CHP goods) and key 11 is the routes figure, which
-// has no number in the final text.
+// English text of the figures, keyed by their number in the French publication: fig1 and fig2
+// content, panel titles, notes, and English labels for the French strings of
+// data/publication-figures.json. {x} marks a value read from the data. On the page, key 9 is
+// figure 10 (the settlement currencies), key 10 is figure 11 (CHP goods) and key 11 is the routes
+// figure, which has no number in the final text.
 export const figureTexts = {
   fig1: {
     layers: [

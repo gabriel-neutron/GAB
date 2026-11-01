@@ -88,7 +88,7 @@ export function FinancePart({ part }: { readonly part: ReportPart }) {
       body.push(
         <h3
           key={key}
-          className={`mt-16 mb-2 text-balance lg:ml-[calc(100%/6)] ${PROSE} text-report-lead`}
+          className="mt-16 mb-2 max-w-[64ch] text-report-lead text-balance lg:ml-[calc(100%/6)]"
         >
           {block.text}
         </h3>,
