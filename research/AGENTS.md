@@ -84,10 +84,12 @@ operator to accept" a proposal.
   keeps its dates and its type, and gets the document.
 - Read the sanctions lists and the movement of a vessel: `sanctions_match`, `vessel_events`.
   Each one stores its answer as a document.
-- Freeze the tankers seen at named anchorages: `gfw_port_visits` takes anchorage ids, a vessel type
-  and a date window, and stores the GFW port visits as a document with the CC BY-NC 4.0 licence and
-  the AIS-only limit. It then reads the registry IMO and ship types of the vessels in the GFW
-  Vessels API, and `tankersOnly` keeps the oil tankers. It needs `GFW_API_TOKEN`.
+- Freeze the tankers seen at named anchorages: `gfw_port_visits` takes anchorage ids, an optional
+  vessel type and a date window, and stores the GFW port visits as a document with the CC BY-NC 4.0
+  licence and the AIS-only limit. It then reads the registry IMO and ship types of the vessels in
+  the GFW Vessels API, and `tankersOnly` keeps the oil tankers. A tanker often has an event type
+  that no vessel type selects: for the tanker visits, give no vessel type. The output gives the
+  dates of each kept visit. It needs `GFW_API_TOKEN`.
 - Read the heat detections of one site: `firms_detections` takes a site box and a period, and
   stores the NASA FIRMS answer as a document. It needs a free map key. When the key is not
   set, the tool says so, and the other tools work.
