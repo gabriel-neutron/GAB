@@ -2283,6 +2283,20 @@ export const portsFleetUi = {
     label:
       'Timeline of {n} designated ships, from 6 months before to 24 months after their designation',
   },
+  waves: {
+    regimes: { EU: 'EU', UK: 'UK', OFAC: 'OFAC' },
+    unit: 'tankers',
+    filters: 'Regimes shown',
+    aTitle: 'a. New designations, by quarter',
+    aUnit: 'a tanker designated by two regimes counts twice',
+    aLabel: 'New designations of tankers per quarter, by regime',
+    earlier: '{n} designations before 2022 are not drawn.',
+    bTitle: 'b. Tankers, by the regimes that designate them',
+    bUnit: 'each tanker counts once',
+    tankers: '{n} tankers designated by the regimes shown',
+    none: 'No regime is shown. Select EU, UK or OFAC.',
+    quarter: 'Quarter',
+  },
 } as const;
 
 export const financeUi = {
