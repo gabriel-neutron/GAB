@@ -124,7 +124,7 @@ export function OwnersMap() {
                 <span
                   aria-hidden="true"
                   className={cn(
-                    'grid size-4 place-items-center rounded-full font-mono text-[10px] leading-none tabular-nums text-background transition-transform duration-150 group-hover:scale-125 motion-reduce:transition-none',
+                    'grid size-5 place-items-center rounded-full font-mono text-report-label leading-none tabular-nums text-background transition-transform duration-150 group-hover:scale-125 motion-reduce:transition-none',
                     row.controller === STATE ? 'bg-foreground' : accent.bg,
                   )}
                 >

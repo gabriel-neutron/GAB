@@ -94,10 +94,7 @@ export function FleetWavesFigure() {
                 {REGIMES.map((regime) => (
                   <span
                     key={regime}
-                    className={cn(
-                      TONE[regime],
-                      'block transition-[height] duration-100 motion-reduce:transition-none',
-                    )}
+                    className={cn(TONE[regime], 'block')}
                     style={{ height: `${String((one.values[regime] / TOP) * 100)}%` }}
                   />
                 ))}
@@ -157,7 +154,7 @@ export function FleetWavesFigure() {
               </span>
               <span aria-hidden="true" className="relative h-4">
                 <span
-                  className="absolute inset-y-0 left-0 bg-foreground/60 transition-[width] duration-100 motion-reduce:transition-none"
+                  className="absolute inset-y-0 left-0 bg-foreground/60"
                   style={{ width: `${String((group.value / all.tankers) * 100)}%` }}
                 />
               </span>
