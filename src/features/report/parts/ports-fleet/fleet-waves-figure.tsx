@@ -28,6 +28,7 @@ export function FleetWavesFigure() {
   const [shown, setShown] = useState<ReadonlySet<Regime>>(() => new Set(REGIMES));
   const data = selectWaves(shown);
   const visible = REGIMES.filter((regime) => shown.has(regime));
+  const partial = data.quarters.find((one) => one.partial);
   const toggle = (regime: Regime) => {
     setShown((before) => {
       const next = new Set(before);
@@ -81,7 +82,14 @@ export function FleetWavesFigure() {
           ))}
           <div className="absolute inset-0 flex items-end gap-px border-b border-chart-axis sm:gap-1">
             {data.quarters.map((one) => (
-              <div key={one.quarter} className="relative flex h-full flex-1 flex-col-reverse">
+              <div
+                key={one.quarter}
+                className={cn(
+                  'relative flex h-full flex-1 flex-col-reverse',
+                  // A partial quarter: a dashed frame and paler bars, named in the line below.
+                  one.partial && 'border border-dashed border-foreground [&>span]:opacity-50',
+                )}
+              >
                 {REGIMES.map((regime) => (
                   <span
                     key={regime}
@@ -107,10 +115,17 @@ export function FleetWavesFigure() {
         <p className="mt-8 min-h-5 font-mono text-report-label text-muted-foreground">
           {data.earlier > 0 ? copy.earlier.replace('{n}', number.format(data.earlier)) : null}
         </p>
+        {partial === undefined ? null : (
+          <p className="font-mono text-report-label text-muted-foreground">
+            {copy.partial.replace('{q}', partial.quarter).replace('{date}', data.end)}
+          </p>
+        )}
         <ValuesTable
           head={[copy.quarter, ...visible.map((regime) => copy.regimes[regime])]}
           rows={data.quarters.map((one) => [
-            one.quarter,
+            one.partial
+              ? copy.partialRow.replace('{q}', one.quarter).replace('{date}', data.end)
+              : one.quarter,
             ...visible.map((regime) => number.format(one.values[regime])),
           ])}
         />

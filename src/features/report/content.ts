@@ -2296,6 +2296,8 @@ export const portsFleetUi = {
     tankers: '{n} tankers designated by the regimes shown',
     none: 'No regime is shown. Select EU, UK or OFAC.',
     quarter: 'Quarter',
+    partialRow: '{q}, to {date}',
+    partial: 'Dashed column: {q}, designations to {date} only.',
   },
 } as const;
 
