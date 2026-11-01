@@ -200,12 +200,12 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
                 <p className="mt-3 max-w-[64ch] font-mono text-report-label text-label">
                   {copy.recordSource.replace('{date}', date)}
                   {dated === undefined ? null : (
-                    <>
+                    <span className="whitespace-nowrap">
                       {' · '}
                       <a href={`#${anchor(dated)}`} className={cn('underline', FOCUS)}>
                         {dated}
                       </a>
-                    </>
+                    </span>
                   )}
                 </p>
               )}
