@@ -6,6 +6,7 @@ import { FigureFrame } from '../../figure-frame';
 import { ChapterBreak } from '../../primitives/chapter-break';
 import { Reveal } from '../../primitives/reveal';
 import { StickyScene } from '../../primitives/sticky-scene';
+import { reportAddress } from '../../report-context';
 import { RichText } from '../../rich-text';
 import { useContent } from '../../use-content';
 import { figureData } from './figure-data';
@@ -186,6 +187,18 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
           flows: stripNotes(figureOf(7)?.sources ?? ''),
         }}
       />
+
+      <p className={cn(PROSE, 'my-12')}>
+        <a
+          href={reportAddress('map?chain=1')}
+          className="inline-flex min-h-11 items-center border border-foreground px-4 text-report-small transition-colors duration-150 hover:bg-surface-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          {copy.chain.open} ↗
+        </a>
+        <span className="mt-2 block text-report-small text-muted-foreground">
+          {copy.chain.hint}
+        </span>
+      </p>
 
       {body}
     </section>

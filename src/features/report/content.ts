@@ -2175,6 +2175,11 @@ export const payUi = {
 export const portsFleetUi = {
   // The art of the opening: a postcard of the port of Novorossiysk, drawn in ASCII.
   art: import.meta.env.BASE_URL + 'report-media/novorossiysk-postcard-1900-1904.jpg',
+  // The link to the chain mode of the map: the oil goes from the field to the port of exit.
+  chain: {
+    open: 'Open the oil chain on the globe',
+    hint: 'From the oil field to the pipeline, the refinery, the terminal and the port of exit. The map of the GAB record opens full screen.',
+  },
   map: {
     label: 'Map of the oil export terminals of the report',
     named: 'Named in this step',
