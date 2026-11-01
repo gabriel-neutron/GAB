@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { cn } from '@/shared/lib/utils';
 import { ImageCredit } from './note-ref';
+import { reportAddress } from './report-context';
 import { summaryValues } from './parts/summary-values';
 import { accent } from './primitives/accent';
 import { CountUp } from './primitives/count-up';
@@ -21,6 +22,12 @@ const PRIMARY = cn(
 const SECONDARY = cn(
   ACTION,
   'border-foreground/40 bg-background/60 text-foreground hover:border-signal',
+);
+
+const TEXT_LINK = cn(
+  'inline-flex min-h-11 items-center gap-2 font-mono text-report-label tracking-[0.06em] uppercase underline decoration-foreground/40 underline-offset-4',
+  'transition-colors duration-150 hover:decoration-signal',
+  'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring',
 );
 
 // A fixed film grain: fractal noise in an inline SVG.
@@ -108,6 +115,15 @@ export function ReportCover() {
           <Link to="/search" className={SECONDARY}>
             {links.data} <span aria-hidden="true">→</span>
           </Link>
+          {/* The ways into the record: a second row of text links under the actions. */}
+          <span className="flex basis-full flex-wrap gap-x-6">
+            <a href={reportAddress('map?chain=1')} className={TEXT_LINK}>
+              {links.chain} <span aria-hidden="true">↗</span>
+            </a>
+            <Link to="/graph" search={{ entity: '', relation: '' }} className={TEXT_LINK}>
+              {links.graph} <span aria-hidden="true">↗</span>
+            </Link>
+          </span>
         </nav>
         <a
           href="#summary"

@@ -2063,6 +2063,9 @@ export const openingUi = {
     read: 'Scroll down to read',
     data: 'Data',
     pdf: 'Download the report',
+    // The two ways into the record, under the actions.
+    chain: 'See the oil chain',
+    graph: 'Explore the graph',
   },
   summary: {
     // The plate of the summary head on a wide screen: an old chart of the Black Sea, in two tones.
@@ -2277,8 +2280,6 @@ export const portsFleetUi = {
 export const financeUi = {
   image: import.meta.env.BASE_URL + 'report-media/sestroretsk-rouble-1771.jpg',
   figure: {
-    // The years that the steps of the scene show, from the data of figure 10.
-    steps: [2021, 2022, 2023, 2024, 2025],
     stepLabel: 'Rouble share of settlements',
     exports: 'Exports',
     imports: 'Imports',

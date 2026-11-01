@@ -3,6 +3,7 @@ import { useInView } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import type { ReportBlock, ReportPart } from '../../content';
 import { FigureFrame } from '../../figure-frame';
+import { accent } from '../../primitives/accent';
 import { ChapterBreak } from '../../primitives/chapter-break';
 import { Reveal } from '../../primitives/reveal';
 import { StickyScene } from '../../primitives/sticky-scene';
@@ -75,7 +76,7 @@ const stripNotes = (text: string) => text.replace(/\[\^[^\]]+\]/g, '');
 
 /** Exporting through the ports and the fleet: a typographic chapter break, a sticky map of the
  * export terminals under the paragraphs on the ports and the fleet, then the figures of traffic,
- * flows and ships between the paragraphs. The last paragraph closes the part in large type. */
+ * flows and ships between the paragraphs. */
 export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
   const { figureTexts, parts, portsFleetUi: copy } = useContent();
   const texts = figureTexts.figures;
@@ -125,7 +126,6 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
     });
   const opening = part.blocks[0]?.kind === 'h3' ? part.blocks[0].text : undefined;
   const rest = part.blocks.slice(SCENE_END + 1);
-  const last = rest.findLastIndex((block) => block.kind === 'p');
   const body = rest.map((block, index) => {
     // The blocks of a part never move, so their place is their identity.
     const key = `${part.slug}-${String(SCENE_END + 1 + index)}`;
@@ -151,14 +151,6 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
         <h3 key={key} className={cn(PROSE, 'mt-16 text-report-lead text-balance')}>
           {block.text}
         </h3>
-      );
-    if (index === last)
-      return (
-        <Reveal key={key}>
-          <p className="mx-auto max-w-[28ch] py-16 text-center text-report-heading leading-[1.08] tracking-[-0.035em] text-balance md:py-28">
-            {say(block.text)}
-          </p>
-        </Reveal>
       );
     return (
       <Reveal key={key}>
@@ -187,17 +179,30 @@ export function PortsFleetPart({ part }: { readonly part: ReportPart }) {
         }}
       />
 
-      <p className={cn(PROSE, 'my-12')}>
-        <a
-          href={reportAddress('map?chain=1')}
-          className="inline-flex min-h-11 items-center border border-foreground px-4 text-report-small transition-colors duration-150 hover:bg-surface-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
-          {copy.chain.open} ↗
-        </a>
-        <span className="mt-2 block text-report-small text-muted-foreground">
-          {copy.chain.hint}
+      {/* The way to the chain mode of the map: a full card, so the reader sees it after the scene. */}
+      <a
+        href={reportAddress('map?chain=1')}
+        className={cn(
+          PROSE,
+          'group my-16 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 border border-foreground p-5 transition-colors duration-150 hover:bg-surface-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:p-8',
+        )}
+      >
+        <span className="min-w-0">
+          <span className="block text-report-lead text-balance">{copy.chain.open}</span>
+          <span className="mt-2 block text-report-small text-muted-foreground">
+            {copy.chain.hint}
+          </span>
         </span>
-      </p>
+        <span
+          aria-hidden="true"
+          className={cn(
+            'grid size-12 place-items-center text-report-lead text-background transition-transform duration-150 group-hover:translate-x-1 motion-reduce:transition-none',
+            accent.bg,
+          )}
+        >
+          ↗
+        </span>
+      </a>
 
       {body}
     </section>

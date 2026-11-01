@@ -8,8 +8,9 @@ import { nodeSites, owners } from './owners-join';
 
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
-// The box of the sites: equirectangular, with the longitude scaled by cos(57 N) for a true shape near the middle.
-const BOX = { west: 24, east: 80, south: 40, north: 74 };
+// The box of the sites: equirectangular, with the longitude scaled by cos(57 N) for a true shape near
+// the middle. It is wider than the sites, so the map fills its column beside the panel.
+const BOX = { west: 6, east: 100, south: 42, north: 73 };
 const K = Math.cos((57 * Math.PI) / 180);
 const W = (BOX.east - BOX.west) * K * 10;
 const H = (BOX.north - BOX.south) * 10;
@@ -91,70 +92,104 @@ export function OwnersMap() {
       {name}
     </button>
   );
+  const dot = (controller: string) => (controller === STATE ? 'bg-foreground' : accent.bg);
   return (
     <div>
-      <ul className="mb-4 flex flex-wrap gap-x-6 gap-y-2">
-        {controllers.map((controller) => (
-          <li
-            key={controller}
-            className="flex items-center gap-2 text-report-small text-muted-foreground"
-          >
-            <span
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-10">
+        <div className="min-w-0">
+          <div className="relative" style={{ aspectRatio: `${W} / ${H}` }}>
+            <svg
               aria-hidden="true"
-              className={cn(
-                'size-2.5 shrink-0 rounded-full',
-                controller === STATE ? 'bg-foreground' : accent.bg,
-              )}
-            />
-            {label(controller)}
-          </li>
-        ))}
-      </ul>
-      <div className="relative mx-auto max-w-[36rem]" style={{ aspectRatio: `${W} / ${H}` }}>
-        <svg
-          aria-hidden="true"
-          viewBox={`0 0 ${W} ${H}`}
-          className="absolute inset-0 size-full border border-border bg-map-water"
-        >
-          <path d={LAND} fill="var(--map-land)" stroke="var(--map-boundary)" strokeWidth={0.6} />
-        </svg>
-        {/* The points are buttons over the map, so a keyboard reaches each site; the table gives the same rows. */}
-        <ol aria-label={copy.mapLabel}>
-          {rows.map((row) => (
-            <li
-              key={row.nodeId}
-              className="absolute -translate-x-1/2 -translate-y-1/2"
-              style={{ left: `${(row.x / W) * 100}%`, top: `${(row.y / H) * 100}%` }}
+              viewBox={`0 0 ${W} ${H}`}
+              className="absolute inset-0 size-full border border-border bg-map-water"
             >
-              <button
-                type="button"
-                aria-label={`${String(row.number)}. ${row.holder.name} ${relation(row.relation)} ${row.site.name}`}
-                onClick={(event) => {
-                  openNode(row.nodeId, event.currentTarget);
-                }}
-                className={cn('group grid size-6 place-items-center', FOCUS)}
+              <path
+                d={LAND}
+                fill="var(--map-land)"
+                stroke="var(--map-boundary)"
+                strokeWidth={0.6}
+              />
+            </svg>
+            {/* The points are buttons over the map, so a keyboard reaches each site; the table gives the same rows. */}
+            <ol aria-label={copy.mapLabel}>
+              {rows.map((row) => (
+                <li
+                  key={row.nodeId}
+                  className="absolute -translate-x-1/2 -translate-y-1/2"
+                  style={{ left: `${(row.x / W) * 100}%`, top: `${(row.y / H) * 100}%` }}
+                >
+                  <button
+                    type="button"
+                    aria-label={`${String(row.number)}. ${row.holder.name} ${relation(row.relation)} ${row.site.name}`}
+                    onClick={(event) => {
+                      openNode(row.nodeId, event.currentTarget);
+                    }}
+                    className={cn('group grid size-6 place-items-center', FOCUS)}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'grid size-5 place-items-center rounded-full font-mono text-report-label leading-none tabular-nums text-background transition-transform duration-150 group-hover:scale-125 motion-reduce:transition-none',
+                        dot(row.controller),
+                      )}
+                    >
+                      {row.number}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <p className="mt-2 font-mono text-report-label text-label">
+            {land.source} · {copy.checked.replace('{date}', CHECKED)}
+          </p>
+        </div>
+        {/* The panel: the controller classes, then each numbered site with its holder. */}
+        <div className="min-w-0 border-t border-foreground pt-3">
+          <ul className="flex flex-wrap gap-x-5 gap-y-1">
+            {controllers.map((controller) => (
+              <li
+                key={controller}
+                className="flex items-center gap-2 font-mono text-report-label text-label"
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn('size-2.5 shrink-0 rounded-full', dot(controller))}
+                />
+                {label(controller)}
+              </li>
+            ))}
+          </ul>
+          <ol className="mt-3">
+            {rows.map((row) => (
+              <li
+                key={row.nodeId}
+                className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 border-t border-divider py-2"
               >
                 <span
                   aria-hidden="true"
                   className={cn(
-                    'grid size-5 place-items-center rounded-full font-mono text-report-label leading-none tabular-nums text-background transition-transform duration-150 group-hover:scale-125 motion-reduce:transition-none',
-                    row.controller === STATE ? 'bg-foreground' : accent.bg,
+                    'mt-0.5 grid size-5 place-items-center rounded-full font-mono text-report-label leading-none tabular-nums text-background',
+                    dot(row.controller),
                   )}
                 >
                   {row.number}
                 </span>
-              </button>
-            </li>
-          ))}
-        </ol>
+                <div className="min-w-0 text-report-small">
+                  {nodeButton(row.nodeId, row.site.name)}
+                  <span className="block font-mono text-report-label text-label">
+                    {relation(row.relation)} · {row.holder.name}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
       </div>
-      <p className="mt-2 font-mono text-report-label text-label">
-        {land.source} · {copy.checked.replace('{date}', CHECKED)}
-      </p>
-      <details className="group mt-6 border-y border-foreground" open>
+      <details className="group mt-6 border-t border-border pt-1">
         <summary
           className={cn(
-            'flex min-h-12 cursor-pointer list-none items-center gap-3 py-2 text-report-small [&::-webkit-details-marker]:hidden',
+            'flex min-h-11 cursor-pointer list-none items-center gap-3 font-mono text-report-label text-label [&::-webkit-details-marker]:hidden',
             FOCUS,
           )}
         >
@@ -163,7 +198,7 @@ export function OwnersMap() {
             className="size-4 shrink-0 transition-transform group-open:rotate-180"
           />
           <span className="min-w-0 flex-1">{copy.table}</span>
-          <span className="font-mono text-report-label text-label tabular-nums uppercase">
+          <span className="tabular-nums uppercase">
             {copy.rows.replace('{n}', String(rows.length))}
           </span>
         </summary>

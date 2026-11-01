@@ -240,6 +240,8 @@ export const fr: ReportContent = {
       read: 'Faire défiler pour lire',
       data: 'Données',
       pdf: 'Télécharger le rapport',
+      chain: 'Voir la chaîne du pétrole',
+      graph: 'Explorer le graphe',
     },
     summary: {
       ...openingUi.summary,

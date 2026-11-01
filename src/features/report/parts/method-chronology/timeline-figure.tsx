@@ -37,12 +37,13 @@ const periodOf = (period: string): readonly [number, number] => {
 };
 
 // Four bands of labels, so that close dates do not overlap: far above, far below, near above,
-// near below. The offset is from the axis, in px.
+// near below. The offset is from the axis, as a CSS length: the far bands scale with the height of
+// the track, so a label never leaves the view at 720px.
 const BANDS = [
-  { above: true, offset: 150 },
-  { above: false, offset: 150 },
-  { above: true, offset: 40 },
-  { above: false, offset: 40 },
+  { above: true, offset: '26cqh' },
+  { above: false, offset: '26cqh' },
+  { above: true, offset: '40px' },
+  { above: false, offset: '40px' },
 ] as const;
 
 /** Figure 1: the sanctions from 2014 to 2026, with a time cursor on the events and the tankers
@@ -145,17 +146,26 @@ export function TimelineFigure() {
 interface CursorProps {
   readonly index: number;
   readonly onSelect: (index: number) => void;
+  /** One short row for the scroll track, so the track keeps the height of the view. */
+  readonly compact?: boolean;
 }
 
 /** The time cursor: a slider over the events, the event at the cursor and the counters by regime. */
-function Cursor({ index, onSelect }: CursorProps) {
+function Cursor({ index, onSelect, compact = false }: CursorProps) {
   const { figureTexts, methodUi } = useContent();
   const { events } = figureTexts.fig2;
   const event = events[index] ?? events[0];
   if (event === undefined) return null;
   const counts = countsAt(event.date);
   return (
-    <div className="mt-6 grid gap-x-8 border-t border-foreground bg-background pt-3 sm:grid-cols-2">
+    <div
+      className={cn(
+        'grid gap-x-8 border-t border-foreground bg-background pt-3',
+        compact
+          ? 'grid-cols-[minmax(0,1fr)_auto_minmax(0,14rem)] items-start'
+          : 'mt-6 sm:grid-cols-2',
+      )}
+    >
       <div className="min-w-0">
         <label className="block">
           <span className="font-mono text-report-label uppercase text-label">
@@ -181,29 +191,45 @@ function Cursor({ index, onSelect }: CursorProps) {
           {event.title}
         </p>
       </div>
-      <div className="min-w-0">
-        <dl
-          aria-live="polite"
-          aria-atomic="true"
-          aria-label={methodUi.timeline.counters}
-          className="mt-3 grid grid-cols-3 gap-4 sm:mt-0"
-        >
-          {REGIMES.map((regime) => (
-            <div key={regime} className="min-w-0 border-t border-divider pt-1">
-              <dt className="font-mono text-report-label text-label">{regime}</dt>
-              <dd className="font-mono text-report-heading leading-none tabular-nums">
-                {counts[regime]}
-              </dd>
-            </div>
-          ))}
-        </dl>
-        <p className="mt-2 text-report-small text-muted-foreground">{methodUi.timeline.counters}</p>
-      </div>
+      <dl
+        aria-live="polite"
+        aria-atomic="true"
+        aria-label={methodUi.timeline.counters}
+        className={cn('grid grid-cols-3 gap-4', compact ? 'min-w-[16rem]' : 'mt-3 sm:mt-0')}
+      >
+        {REGIMES.map((regime) => (
+          <div key={regime} className="min-w-0 border-t border-divider pt-1">
+            <dt className="font-mono text-report-label text-label">{regime}</dt>
+            <dd
+              className={cn(
+                'font-mono leading-none tabular-nums',
+                compact ? 'text-report-lead' : 'text-report-heading',
+              )}
+            >
+              {counts[regime]}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p
+        className={cn(
+          'text-muted-foreground',
+          compact ? 'text-report-label' : 'mt-2 text-report-small sm:col-start-2',
+        )}
+      >
+        {methodUi.timeline.counters}
+      </p>
     </div>
   );
 }
 
-function EventText({ event }: { readonly event: TimelineEvent }) {
+function EventText({
+  event,
+  compact = false,
+}: {
+  readonly event: TimelineEvent;
+  readonly compact?: boolean;
+}) {
   const { methodUi } = useContent();
   return (
     <>
@@ -215,11 +241,23 @@ function EventText({ event }: { readonly event: TimelineEvent }) {
           {actorName(methodUi.timeline.actors, event.actor)}
         </span>
       </span>
-      <span className="mt-1 block text-report-lead leading-tight tracking-[-0.02em] text-balance">
+      <span
+        className={cn(
+          'mt-1 block leading-tight tracking-[-0.02em] text-balance',
+          compact ? 'text-report-body' : 'text-report-lead',
+        )}
+      >
         {event.title}
       </span>
       {event.detail === '' ? null : (
-        <span className="mt-1 block text-report-small text-muted-foreground">{event.detail}</span>
+        <span
+          className={cn(
+            'mt-1 block text-muted-foreground',
+            compact ? 'text-report-label' : 'text-report-small',
+          )}
+        >
+          {event.detail}
+        </span>
       )}
     </>
   );
@@ -364,10 +402,11 @@ function ScrollTrack({ index, onStep, onMissing }: ScrollTrackProps) {
           {year}
         </motion.p>
         {/* The cursor has a row of its own, so that the event labels never pass under it. */}
-        <div className="relative w-[48rem] max-w-full px-8">
-          <Cursor index={index} onSelect={select} />
+        <div className="relative w-[60rem] max-w-full px-8">
+          <Cursor index={index} onSelect={select} compact />
         </div>
-        <div className="relative flex-1">
+        {/* A size container: the far bands of labels scale with its height. */}
+        <div className="relative flex-1 [container-type:size]">
           <motion.div
             aria-hidden="true"
             style={{ transform: line }}
@@ -470,10 +509,10 @@ function TrackEvent({ event, band }: TrackEventProps) {
         )}
       />
       <span
-        className={cn('absolute left-0 block w-40 pl-2', band.above ? '-translate-y-full' : '')}
-        style={{ top: band.above ? -band.offset : band.offset }}
+        className={cn('absolute left-0 block w-48 pl-2', band.above ? '-translate-y-full' : '')}
+        style={{ top: band.above ? `calc(-1 * ${band.offset})` : band.offset }}
       >
-        <EventText event={event} />
+        <EventText event={event} compact />
       </span>
     </li>
   );
