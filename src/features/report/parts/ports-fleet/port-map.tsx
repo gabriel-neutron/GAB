@@ -36,7 +36,8 @@ const change = new Map(figureData.change.map((row) => [row.name, row.value]));
 // The short line under the position of a named terminal, for each kind of step.
 const notes: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   ban: copy.banDates,
-  pacific: copy.pacificNotes,
+  // The final text gives no words for the terminals of the Pacific step.
+  pacific: {},
 };
 
 interface MapStep {

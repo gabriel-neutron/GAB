@@ -3,7 +3,7 @@ import { parts, payUi } from './content';
 import { parity, readSource, tokens } from './parity';
 import { sources } from './source';
 
-// The parts that show the final text. Ticket #1152 adds the other parts.
+// The parts that show the final text.
 const FINAL = ['summary', 'introduction', 'method-chronology', 'pay', 'ports-fleet'];
 const final = parts.filter((part) => FINAL.includes(part.slug));
 
@@ -33,7 +33,31 @@ describe('parity of the report text', () => {
       ...part,
       blocks: part.blocks.map((block) => ({ ...block, text: block.text.replace('84%', '85%') })),
     }));
-    expect(parity(changed, sources.en)).toEqual([expect.stringMatching(/^summary: body /)]);
+    expect(parity(changed, sources.en)).toEqual([
+      expect.stringMatching(/^summary: body .* 85 \^1 /),
+      'summary: body words differ',
+    ]);
+  });
+
+  it('fails when a word or a figure field changes', () => {
+    const changed = final.map((part) => ({
+      ...part,
+      blocks: part.blocks.map((block) => ({
+        ...block,
+        text: block.text.replace('in roubles rose', 'in roubles fell'),
+        ...(block.figure === undefined
+          ? {}
+          : {
+              figure: {
+                ...block.figure,
+                sources: block.figure.sources.replace('(2026)', '(2025)'),
+              },
+            }),
+      })),
+    }));
+    const issues = parity(changed, sources.en);
+    expect(issues).toContain('pay: body words differ');
+    expect(issues).toContain('pay: figure 3 fields differ');
   });
 
   it('fails when a note moves or its words change', () => {

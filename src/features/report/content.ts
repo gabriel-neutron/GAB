@@ -2246,8 +2246,6 @@ export const portsFleetUi = {
       'N-P009': 'April 2026',
     },
     pacific: 'Crude export ports on the Baltic, the Black Sea and the Pacific',
-    // Words of the text of the part, for the terminals of the Pacific step: the final text has none.
-    pacificNotes: {} as Readonly<Record<string, string>>,
     change: 'Traffic, January-April 2026 / January-April 2025, change in %',
     flows: 'Seaborne crude by loading basin and fleet, January 2026, kb/d',
     open: 'Open the record of',
@@ -2378,7 +2376,7 @@ export const closingUi = {
     checkLabel: 'Check before use',
   },
   annex: {
-    // The date of the counts, as section A.1 of the final text gives it.
+    // The date of the counts, as the annex of the final text gives it.
     dataDate: 'Database as at 27 October 2026',
   },
 } as const;

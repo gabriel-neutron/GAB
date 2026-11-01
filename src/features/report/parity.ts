@@ -79,6 +79,17 @@ export function tokens(text: string): readonly string[] {
   );
 }
 
+/** The words of a text with no mark: no note marker, no node id, no bold or italic star, and no
+ * list dash of the source. */
+export const words = (text: string): string =>
+  text
+    .replace(/\[\^[^\]]+\]/g, '')
+    .replace(/\[\[[^|\]]+\|([^\]]+)\]\]/g, '$1')
+    .replace(/\*/g, '')
+    .replace(/(^|\s)- –/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 const sameList = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((one, index) => one === b[index]);
 
@@ -86,9 +97,10 @@ const noteIds = (text: string) =>
   tokens(text).flatMap((one) => (one.startsWith('^') ? [one.slice(1)] : []));
 
 /** Compare the parts with the source text. Each difference is one line; no line means parity:
- * the body has the same numbers, months and note markers in the same order, each figure caption
- * has those of its source caption, each part holds exactly the notes it cites, with the words of
- * the source, and the parts hold the figures of their source sections. */
+ * the body has the words of the source and the same numbers, months and note markers in the same
+ * order, each figure caption has those of its source caption, the title, period and sources that
+ * the frame shows are pieces of that caption, each part holds exactly the notes it cites, with the
+ * words of the source, and the parts hold the figures of their source sections. */
 export function parity(parts: readonly ReportPart[], source: Source): readonly string[] {
   const read = readSource(source);
   const issues: string[] = [];
@@ -96,18 +108,27 @@ export function parity(parts: readonly ReportPart[], source: Source): readonly s
   for (const part of parts) {
     const isFigure = (block: ReportBlock) => block.kind === 'figure';
     const body = part.blocks.filter((block) => !isFigure(block) && block.kind !== 'h3');
-    const want = tokens((read.body.get(part.slug) ?? []).join(' '));
-    const have = tokens(body.map((block) => block.text).join(' '));
+    const source = (read.body.get(part.slug) ?? []).join(' ');
+    const text = body.map((block) => block.text).join(' ');
+    const [want, have] = [tokens(source), tokens(text)];
     if (!sameList(want, have))
       issues.push(`${part.slug}: body ${have.join(' ')} != source ${want.join(' ')}`);
+    if (words(source) !== words(text)) issues.push(`${part.slug}: body words differ`);
     for (const block of part.blocks.filter(isFigure)) {
       const number = block.figure?.number ?? 0;
       shown.add(number);
       const caption = read.captions.get(number);
       if (caption === undefined)
         issues.push(`${part.slug}: figure ${String(number)} not in source`);
-      else if (!sameList(tokens(caption.text), tokens(block.text)))
+      else if (
+        !sameList(tokens(caption.text), tokens(block.text)) ||
+        words(caption.text) !== words(block.text)
+      )
         issues.push(`${part.slug}: figure ${String(number)} caption differs`);
+      // The frame shows these fields, not the caption: each one is a piece of the caption.
+      const { title = '', period = '', sources = '' } = block.figure ?? {};
+      if (![title, period, sources].every((field) => block.text.includes(field)))
+        issues.push(`${part.slug}: figure ${String(number)} fields differ`);
     }
     const cited = new Set(part.blocks.flatMap((block) => noteIds(block.text)));
     const held = new Set(part.notes.map((note) => note.id));
