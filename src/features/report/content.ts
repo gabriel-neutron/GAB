@@ -2355,6 +2355,40 @@ export const ownershipUi = {
       state: 'State',
     },
   },
+  // The owners map: a figure of the page with no number, because the final text has no such
+  // figure. Each site comes from a committed join that a reviewer checks against the record.
+  owners: {
+    title: 'Who holds the sites on the map',
+    unit: 'one point = one site',
+    sources: 'GAB record: the documents of each row, in the table.',
+    checked: 'checked against the record on {date}',
+    mapLabel: 'Map of the sites of the report, by the controller of their holder',
+    table: 'The sites of the map, as a table',
+    rows: '{n} rows',
+    columns: {
+      site: 'Site',
+      holder: 'Holder',
+      relation: 'Relation',
+      controller: 'Controller',
+      documents: 'Documents',
+    },
+    relations: {
+      owns: 'owns',
+      owns_majority: 'owns the majority of',
+      owns_operator: 'owns the operator of',
+      operates: 'operates',
+    },
+    // The controller classes and holdings of controllers.csv that the map uses.
+    labels: {
+      'Russian federal state': 'Russian federal state',
+      'Private shareholders': 'Private shareholders',
+      Transneft: 'Transneft',
+      Rosneft: 'Rosneft',
+      Rostec: 'Rostec',
+      'Other holdings': 'Other holdings',
+      'Named persons': 'Named persons',
+    },
+  },
 } as const;
 
 export const closingUi = {

@@ -8,6 +8,7 @@ import { layout } from '../../primitives/layout';
 import { Reveal } from '../../primitives/reveal';
 import { RichText } from '../../rich-text';
 import { useContent } from '../../use-content';
+import { OwnersMap } from './owners-map';
 import { OwnershipFigure } from './ownership-figure';
 
 // One body size for all the text of the part. A node reference keeps a thin dotted underline.
@@ -70,7 +71,7 @@ function Opening({ number, title }: { readonly number: string; readonly title: s
 
 /** The ownership part: a chapter break over the chess set, the layered graph of figure 12 across the page, then the text with its notes in a rail. */
 export function OwnershipPart({ part }: { readonly part: ReportPart }) {
-  const { figureTexts, parts } = useContent();
+  const { figureTexts, parts, ownershipUi } = useContent();
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const body: ReactNode[] = [];
   part.blocks.forEach((block, index) => {
@@ -90,6 +91,13 @@ export function OwnershipPart({ part }: { readonly part: ReportPart }) {
               partSlug={part.slug}
             >
               <OwnershipFigure />
+            </FigureFrame>
+            <FigureFrame
+              title={ownershipUi.owners.title}
+              unit={ownershipUi.owners.unit}
+              sources={ownershipUi.owners.sources}
+            >
+              <OwnersMap />
             </FigureFrame>
           </div>
         </div>,
