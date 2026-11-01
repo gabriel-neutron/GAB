@@ -1,5 +1,9 @@
 import { Link } from '@tanstack/react-router';
 import { cn } from '@/shared/lib/utils';
+import { summaryValues } from './parts/summary-values';
+import { accent } from './primitives/accent';
+import { CountUp } from './primitives/count-up';
+import { monoLabel } from './primitives/label';
 import { ScrambleText } from './scramble-text';
 import { useContent } from './use-content';
 
@@ -32,8 +36,16 @@ const GRAIN =
  * the screen behind the words, and a scrim keeps every word on the plain ground of the page. The art is
  * decoration: the bibliography page gives its credit. */
 export function ReportCover() {
-  const { openingUi, report } = useContent();
+  const { openingUi, parts, report } = useContent();
   const { links } = openingUi;
+  // The key values are the numbers of the summary findings, read from their list items.
+  const items = parts
+    .find((part) => part.slug === 'summary')
+    ?.blocks.filter((b) => b.kind === 'li');
+  const values = summaryValues(
+    (items ?? []).map((block) => block.text),
+    openingUi.summary.values,
+  ).flatMap((value) => (value.kind === 'number' ? [value] : []));
   return (
     <header className="relative isolate overflow-hidden border-b border-border bg-background text-foreground">
       <div className="absolute inset-0 -z-10 bg-signal">
@@ -74,6 +86,21 @@ export function ReportCover() {
         <h1 className="text-report-heading md:text-report-number leading-[0.92] tracking-[-0.05em] text-balance">
           <ScrambleText text={report.title} />
         </h1>
+        <dl className="mt-6 grid max-w-3xl grid-cols-2 gap-x-6 gap-y-4 md:mt-10 md:grid-cols-4">
+          {values.map((value) => (
+            <div key={value.label} className="border-t border-foreground/40 pt-2">
+              <dt className={monoLabel}>{value.label}</dt>
+              <dd
+                className={cn(
+                  'mt-1 font-mono text-report-heading leading-none tracking-[-0.04em] tabular-nums',
+                  accent.text,
+                )}
+              >
+                <CountUp value={value.value} format={value.format} />
+              </dd>
+            </div>
+          ))}
+        </dl>
         <nav aria-label={links.label} className="mt-6 flex flex-wrap items-center gap-2 md:mt-10">
           <a href="#summary" className={PRIMARY}>
             {links.read} <span aria-hidden="true">↓</span>
