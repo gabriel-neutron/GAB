@@ -13,6 +13,9 @@ The content file holds every word of the page: the text of each part, its notes,
 names, the figure texts, and the labels of the controls. Do not change a value of the report text
 there; add new labels beside the others. The node and relation files are the data of the report
 graph. The page reads every count from these files, so a count never sits in the text of the page.
+The counts of the database (entities, critical nodes, nodes on an official source, and their
+date) come from the final English text: a parser reads them from its sentences, and a change of
+these sentences stops the build.
 
 ## Locale and final text
 
