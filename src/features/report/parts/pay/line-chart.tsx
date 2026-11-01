@@ -164,7 +164,10 @@ export function LineChart({
         best === null || Math.abs(scales.x(x) - px) < Math.abs(scales.x(best) - px) ? x : best,
       null,
     );
-  const read = pointed === null ? null : readout(spec, pointed);
+  // A point that the shown series no longer have reads as no point.
+  const at = pointed !== null && xs.includes(pointed) ? pointed : null;
+  const read = at === null ? null : readout(spec, at);
+  const text = read === null ? '' : [read.name, ...read.rows].join(', ');
 
   // End labels in value order, pushed apart so that two labels never touch.
   const ends: { id: string; y: number; x: number; text: string; tone: Tone; shown: boolean }[] = [];
@@ -211,16 +214,21 @@ export function LineChart({
         onPointerLeave={() => {
           setPointed(null);
         }}
+        onPointerCancel={() => {
+          setPointed(null);
+        }}
         onBlur={() => {
           setPointed(null);
         }}
         onKeyDown={(event) => {
-          const at = pointed === null ? -1 : xs.indexOf(pointed);
+          // The keys belong to a control in the chart, if there is one.
+          if (event.target !== event.currentTarget) return;
+          const index = at === null ? -1 : xs.indexOf(at);
           const to =
             event.key === 'ArrowRight'
-              ? Math.min(at + 1, xs.length - 1)
+              ? Math.min(index + 1, xs.length - 1)
               : event.key === 'ArrowLeft'
-                ? Math.max(at === -1 ? xs.length - 1 : at - 1, 0)
+                ? Math.max(index === -1 ? xs.length - 1 : index - 1, 0)
                 : event.key === 'Home'
                   ? 0
                   : event.key === 'End'
@@ -311,10 +319,10 @@ export function LineChart({
               </text>
             ))}
             {extra.over}
-            {pointed === null ? null : (
+            {at === null ? null : (
               <line
-                x1={scales.x(pointed)}
-                x2={scales.x(pointed)}
+                x1={scales.x(at)}
+                x2={scales.x(at)}
                 y1={scales.top}
                 y2={scales.bottom}
                 className="stroke-foreground"
@@ -324,25 +332,26 @@ export function LineChart({
           </svg>
         )}
         {extra.html}
-        <div
-          aria-live="polite"
-          className={cn(
-            'pointer-events-none absolute top-0 z-10 border border-border bg-background px-2 py-1 font-mono text-report-label tabular-nums',
-            read === null && 'sr-only',
-            pointed !== null && scales.x(pointed) > (scales.left + scales.right) / 2
-              ? 'left-10'
-              : 'right-0',
-          )}
-        >
-          {read === null ? null : (
-            <>
-              <p className="text-label">{read.name}</p>
-              {read.rows.map((row) => (
-                <p key={row}>{row}</p>
-              ))}
-            </>
-          )}
-        </div>
+        {/* The box stands in the plot, on the side away from the point, under the unit. */}
+        {read === null || at === null ? null : (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute z-10 border border-border bg-background px-2 py-1 font-mono text-report-label tabular-nums"
+            style={
+              scales.x(at) > (scales.left + scales.right) / 2
+                ? { left: scales.left + 4, top: scales.top }
+                : { right: width - scales.right + 4, top: scales.top }
+            }
+          >
+            <p className="text-label">{read.name}</p>
+            {read.rows.map((row) => (
+              <p key={row}>{row}</p>
+            ))}
+          </div>
+        )}
+        <p aria-live="polite" className="sr-only">
+          {text}
+        </p>
         {tableLabel === undefined ? <DataTable spec={spec} className="sr-only" /> : null}
       </div>
       {tableLabel === undefined ? null : (
