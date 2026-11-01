@@ -1,3 +1,4 @@
+import { reportTitles } from './titles';
 import {
   closingUi,
   figureTexts,
@@ -162,7 +163,7 @@ const frFigureTexts = {
  * text, and the words of the page in French. */
 export const fr: ReportContent = {
   // The page shows only the title of this block.
-  report: { ...report, title: 'Les nœuds qui soutiennent la guerre de la Russie en 2026' },
+  report: { ...report, title: reportTitles.fr },
   parts: frParts,
   untwinned: Object.entries(noteTwins).flatMap(([id, twin]) => (twin === null ? [id] : [])),
   figureTexts: frFigureTexts,
@@ -225,7 +226,7 @@ export const fr: ReportContent = {
     },
     bibliography: {
       ...ui.bibliography,
-      title: 'Notes et sources',
+      title: reportTitles.frNotes,
       back: 'Retour au rapport',
       label: 'Notes du rapport',
     },
@@ -620,6 +621,9 @@ export const fr: ReportContent = {
       unit: 'un point = un site',
       sources: 'Fiche GAB : les documents de chaque ligne, dans le tableau.',
       checked: 'contrôlé contre la base le {date}',
+      asOf: 'au {date}',
+      outsideFigure:
+        'La figure 12 n’a aucun nœud de cette couche sous ce groupe ; la base documente ce détenteur.',
       mapLabel: 'Carte des sites du rapport, par le contrôleur de leur détenteur',
       table: 'Les sites de la carte, en tableau',
       rows: '{n} lignes',

@@ -124,7 +124,7 @@ export function OwnersMap() {
                 <span
                   aria-hidden="true"
                   className={cn(
-                    'grid size-4 place-items-center rounded-full font-mono text-[10px] leading-none tabular-nums text-background transition-transform duration-150 group-hover:scale-125 motion-reduce:transition-none',
+                    'grid size-5 place-items-center rounded-full font-mono text-report-label leading-none tabular-nums text-background transition-transform duration-150 group-hover:scale-125 motion-reduce:transition-none',
                     row.controller === STATE ? 'bg-foreground' : accent.bg,
                   )}
                 >
@@ -179,6 +179,7 @@ export function OwnersMap() {
                   <td className="py-2 pr-4 font-mono text-report-label">
                     {relation(row.relation)}
                     {row.sharePct === '' ? '' : ` ${row.sharePct}%`}
+                    {row.shareAsOf === '' ? '' : ` ${copy.asOf.replace('{date}', row.shareAsOf)}`}
                   </td>
                   <td className="py-2 pr-4">
                     <span className={row.controller === STATE ? '' : accent.text}>
@@ -187,6 +188,11 @@ export function OwnersMap() {
                     <span className="block font-mono text-report-label text-label">
                       {label(row.holding)}
                     </span>
+                    {row.outsideFigure ? (
+                      <span className="mt-1 block text-report-label text-muted-foreground">
+                        {copy.outsideFigure}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="py-2 font-mono text-report-label break-all text-label">
                     {row.documents.join(' ')}

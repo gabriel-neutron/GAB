@@ -11,12 +11,17 @@ export interface Owner {
   /** A code: owns, owns_majority, owns_operator or operates. The copy gives its words. */
   readonly relation: string;
   readonly sharePct: string;
+  /** The day of the share in the record, when the record gives one. */
+  readonly shareAsOf: string;
   readonly controller: string;
   readonly holding: string;
   /** The documents of the record that support the chain from the site to the holder. */
   readonly documents: readonly string[];
   /** The day of the check against the record. */
   readonly checked: string;
+  /** True when the owners figure has no node of the site layer under this controller and holding:
+   * the record documents the holder, and the map says that the figure differs. */
+  readonly outsideFigure: boolean;
 }
 
 const RELATIONS = new Set(['owns', 'owns_majority', 'owns_operator', 'operates']);
@@ -28,20 +33,28 @@ export const parseOwners = (raw: string): Owner[] =>
     holderId: row['holder_id'] ?? '',
     relation: row['relation'] ?? '',
     sharePct: row['share_pct'] ?? '',
+    shareAsOf: row['share_as_of'] ?? '',
     controller: row['controller'] ?? '',
     holding: row['holding'] ?? '',
     documents: (row['documents'] ?? '').split(' ').filter((doc) => doc !== ''),
     checked: row['checked'] ?? '',
+    outsideFigure: row['outside_figure'] === 'yes',
   }));
 
 /** The faults of the join: a site or a holder with no node id or an unknown one, a site with no
- * position, a controller and holding that the owners figure does not have, or no document. */
+ * position, a controller and holding that the owners figure does not have in the layer of the
+ * site (unless the row says so), a share date with no share, or no document. */
 export function ownerFaults(
   owners: readonly Owner[],
   controllers: readonly Readonly<Record<string, string>>[],
-  known: ReadonlyMap<string, { readonly lat: string; readonly lon: string }>,
+  known: ReadonlyMap<
+    string,
+    { readonly lat: string; readonly lon: string; readonly layer: string }
+  >,
 ): string[] {
-  const pairs = new Set(controllers.map((row) => `${row['controller']}|${row['holding']}`));
+  const pairs = new Set(
+    controllers.map((row) => `${row['layer']}|${row['controller']}|${row['holding']}`),
+  );
   const seen = new Set<string>();
   return owners.flatMap((owner, index) => {
     const at = `row ${String(index + 1)}`;
@@ -52,8 +65,14 @@ export function ownerFaults(
       seen.has(owner.nodeId) && `${at}: second row for ${owner.nodeId}`,
       !known.has(owner.holderId) && `${at}: unknown holder id "${owner.holderId}"`,
       !RELATIONS.has(owner.relation) && `${at}: unknown relation "${owner.relation}"`,
-      !pairs.has(`${owner.controller}|${owner.holding}`) &&
-        `${at}: "${owner.controller}" / "${owner.holding}" is not in the owners figure`,
+      site !== undefined &&
+        pairs.has(`${site.layer}|${owner.controller}|${owner.holding}`) === owner.outsideFigure &&
+        (owner.outsideFigure
+          ? `${at}: "${owner.controller}" / "${owner.holding}" is in the owners figure for ${site.layer}`
+          : `${at}: "${owner.controller}" / "${owner.holding}" is not in the owners figure for ${site.layer}`),
+      owner.shareAsOf !== '' &&
+        (owner.sharePct === '' || !/^\d{4}-\d{2}-\d{2}$/.test(owner.shareAsOf)) &&
+        `${at}: bad share date`,
       owner.documents.length === 0 && `${at}: no document`,
       owner.documents.some((doc) => !DOC.test(doc)) && `${at}: bad document id`,
       !/^\d{4}-\d{2}-\d{2}$/.test(owner.checked) && `${at}: no check date`,

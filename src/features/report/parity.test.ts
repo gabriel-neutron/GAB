@@ -46,6 +46,16 @@ describe('parity of the report text', () => {
     ]);
   });
 
+  it('fails when a heading is not a subheading of its part in the source', () => {
+    const changed = final.map((part) => ({
+      ...part,
+      blocks: part.blocks.map((block) =>
+        block.kind === 'h3' && block.text === 'The buyers' ? { ...block, text: 'Buyers' } : block,
+      ),
+    }));
+    expect(parity(changed, sources.en)).toEqual(['pay: heading "Buyers" not in source']);
+  });
+
   it('fails when a word or a figure field changes', () => {
     const changed = final.map((part) => ({
       ...part,

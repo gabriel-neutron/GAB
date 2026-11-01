@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { report } from '@/features/report/content';
 import { ReportPage } from '@/features/report/report-page';
+import { reportTitles } from '@/features/report/titles';
 export const Route = createFileRoute('/')({
   component: ReportPage,
-  head: () => ({ meta: [{ title: `${report.title} · GAB` }] }),
+  head: () => ({ meta: [{ title: `${reportTitles.en} · GAB` }] }),
 });

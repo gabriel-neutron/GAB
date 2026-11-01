@@ -13,8 +13,9 @@ import { OwnershipFigure } from './ownership-figure';
 
 // One body size for all the text of the part. A node reference keeps a thin dotted underline.
 const PROSE = 'max-w-[64ch] text-report-body/[1.65] text-pretty  [&_button]:decoration-dotted';
-// From 1024px, the text reads at the right. From 1280px, a note opens in the margin at its left.
-const ROW = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,64ch)] lg:gap-x-16';
+// From 1280px the text reads at the right, and a note opens in the margin at its left; under 1280px
+// the note opens in a sheet, so the text keeps the full column.
+const ROW = 'xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,64ch)] xl:gap-x-16';
 
 /** The chapter break over the chess set: the decorative ASCII art sits at the top right, behind a
  * scrim, so the title stays on near-black ground. */
@@ -84,7 +85,7 @@ export function OwnershipPart({ part }: { readonly part: ReportPart }) {
     if (block.kind === 'h3') {
       body.push(
         <div key={key} className={cn(ROW, 'mt-16')}>
-          <h3 className={cn(PROSE, 'text-report-lead text-balance lg:col-start-2')}>
+          <h3 className={cn(PROSE, 'text-report-lead text-balance xl:col-start-2')}>
             {block.text}
           </h3>
         </div>,
@@ -93,7 +94,7 @@ export function OwnershipPart({ part }: { readonly part: ReportPart }) {
     }
     body.push(
       <div key={key} className={cn(ROW, block.kind === 'li' ? 'mt-10' : 'my-6')}>
-        <div className="lg:col-start-2">
+        <div className="xl:col-start-2">
           <Reveal>
             <p className={cn(PROSE, block.kind === 'li' && 'border-t border-foreground pt-4')}>
               <RichText text={block.text} partSlug={part.slug} />

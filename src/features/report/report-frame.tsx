@@ -56,12 +56,13 @@ export function ReportFrame({ label, children }: ReportFrameProps) {
   return (
     <MotionConfig reducedMotion="user">
       <ReportContext.Provider value={report}>
+        {/* A size container: the report reads the height of its view in cqh. */}
         <div
           role="region"
           lang={lang}
           aria-label={label}
           tabIndex={0}
-          className="h-full overflow-x-clip overflow-y-auto bg-background text-foreground outline-none"
+          className="h-full overflow-x-clip overflow-y-auto bg-background text-foreground outline-none [container-type:size]"
         >
           {children}
         </div>

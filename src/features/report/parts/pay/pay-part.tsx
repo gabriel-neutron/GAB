@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { cn } from '@/shared/lib/utils';
 import type { ReportBlock, ReportPart } from '../../content';
@@ -10,13 +10,13 @@ import { Reveal } from '../../primitives/reveal';
 import { StickyScene } from '../../primitives/sticky-scene';
 import { RichText } from '../../rich-text';
 import { useContent, type ReportContent } from '../../use-content';
-import { CapWhatIf } from './cap-what-if';
+import { CapWhatIf, WHAT_IF_START, WhatIfControls, WhatIfTable, whatIfLabel } from './cap-what-if';
 import { BudgetChart, BuyersChart, PriceChart } from './pay-figures';
 
-// The editorial grid: the text reads in the right two thirds. From 1280px, a note opens in the left
-// third.
-const ROW = 'lg:grid lg:grid-cols-12 lg:gap-x-10';
-const TEXT = 'max-w-[64ch] text-report-body/[1.65]  lg:col-span-8 lg:col-start-5';
+// The editorial grid: from 1280px the text reads in the right two thirds, and a note opens in the
+// left third. Under 1280px a note opens in a sheet, so the text keeps the full column.
+const ROW = 'xl:grid xl:grid-cols-12 xl:gap-x-10';
+const TEXT = 'max-w-[64ch] text-report-body/[1.65] xl:col-span-8 xl:col-start-5';
 const KEY = /^\*\*([^*]+?)\s?:?\*\*:?\s*/; // A French key has a space before its colon.
 // A wide figure: past the reading column, up to the width of a large screen.
 const WIDE = cn(layout.bleed, 'px-4 md:px-8');
@@ -193,15 +193,17 @@ function StepText({
 // chart shows the step in view; on a large screen they are open annotations in the left third.
 const CARD = 'invisible w-full text-report-small lg:visible lg:w-[calc(100%/3-1.5rem)]';
 
-/** Figure 4 as a scroll scene: each step shows one more state of the caps and the gap, then the
- * chart with the what-if line. Under reduced motion, only the chart with the what-if line; the
- * body text holds the words of the steps. */
+/** Figure 4 as a scroll scene: each step shows one more state of the caps and the gap, and the
+ * last step adds the what-if line that the reader moves, in the same chart. Under reduced motion,
+ * only the chart with the what-if line; the body text holds the words of the steps. */
 function PriceScene({ slug }: { readonly slug: string }) {
   const { payUi } = useContent();
   const reduce = useReducedMotion();
+  const [line, setLine] = useState(WHAT_IF_START);
   // Under reduced motion the chart of the what-if line is the one chart in its final state.
   if (reduce === true) return <CapWhatIf />;
   const steps = payUi.f4.steps;
+  const controls = <WhatIfControls line={line} onLine={setLine} />;
   return (
     <>
       {/* The last step ends the scene: no empty view stays after it. */}
@@ -209,33 +211,48 @@ function PriceScene({ slug }: { readonly slug: string }) {
         <StickyScene
           sceneClassName="pointer-events-none z-10"
           stepClassName={CARD}
-          steps={steps.map((step) => (
-            <Fragment key={step.text}>
-              <StepText step={step} slug={slug} />
-            </Fragment>
-          ))}
+          steps={[
+            ...steps.map((step) => (
+              <Fragment key={step.text}>
+                <StepText step={step} slug={slug} />
+              </Fragment>
+            )),
+            <Fragment key="what-if">{controls}</Fragment>,
+          ]}
         >
           {(active) => {
             const step = steps[active];
+            const whatIf = active >= steps.length;
             return (
               <div className={cn('flex flex-col bg-background lg:bg-transparent', layout.view)}>
                 <div className="pointer-events-auto flex h-[52%] shrink-0 flex-col bg-background pt-2 pb-2 lg:ml-[calc(100%/3+1rem)] lg:h-full lg:py-8">
-                  <PriceChart step={active + 1} focus fill />
+                  <PriceChart
+                    step={Math.min(active + 1, steps.length)}
+                    focus={!whatIf}
+                    fill
+                    whatIf={
+                      whatIf
+                        ? { value: line, label: whatIfLabel(payUi.f4.whatIf, line) }
+                        : undefined
+                    }
+                  />
                 </div>
-                {step === undefined ? null : (
-                  <div
-                    aria-live="polite"
-                    className="pointer-events-auto min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-border pt-3 text-report-small  lg:hidden"
-                  >
+                <div
+                  aria-live={whatIf ? undefined : 'polite'}
+                  className="pointer-events-auto min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-border pt-3 text-report-small lg:hidden"
+                >
+                  {whatIf ? (
+                    controls
+                  ) : step === undefined ? null : (
                     <StepText step={step} slug={slug} />
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             );
           }}
         </StickyScene>
       </div>
-      <CapWhatIf />
+      <WhatIfTable line={line} />
     </>
   );
 }

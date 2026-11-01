@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -92,6 +92,21 @@ export function NoteRef({ partSlug, id }: NoteRefProps) {
   const margin = useMarginScreen();
   const [open, setOpen] = useState(false);
   const marker = useRef<HTMLButtonElement>(null);
+  // A note that crosses 1280px closes, because the margin note and the sheet are two trees, and
+  // the marker mounts again in the other one; the count asks the new marker to take the focus.
+  const [shownAt, setShownAt] = useState(margin);
+  const [refocus, setRefocus] = useState(0);
+  if (shownAt !== margin) {
+    setShownAt(margin);
+    if (open) {
+      setOpen(false);
+      setRefocus(refocus + 1);
+    }
+  }
+  // An adapter: the new marker takes the focus that the closed note held.
+  useEffect(() => {
+    if (refocus > 0) marker.current?.focus();
+  }, [refocus]);
   // True when the reader closes the note from the note or its marker: only then the focus goes
   // back to the marker. A click or a Tab to another control keeps the focus there.
   const giveBack = useRef(false);

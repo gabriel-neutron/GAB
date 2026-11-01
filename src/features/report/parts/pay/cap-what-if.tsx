@@ -8,19 +8,24 @@ const prices = f4.urals.flatMap((point) => (point === null ? [] : [point.y]));
 // The slider runs over the range of Urals; it starts on the first real cap.
 const MIN = Math.floor(Math.min(...prices));
 const MAX = Math.ceil(Math.max(...prices));
-const START = Math.round(f4.caps[0]?.value ?? MIN);
+export const WHAT_IF_START = Math.round(f4.caps[0]?.value ?? MIN);
 
-/** Figure 4 in its final state with a what-if line that the reader moves. For each month it
- * shows Urals minus the line, and it names the months where Urals is above the line. */
-export function CapWhatIf() {
+/** The slider of the what-if line, and for each month Urals minus the line: the count of the
+ * months where Urals is above the line, their names, and the months with no value. */
+export function WhatIfControls({
+  line,
+  onLine,
+}: {
+  readonly line: number;
+  readonly onLine: (line: number) => void;
+}) {
   const { payUi } = useContent();
   const words = payUi.f4.whatIf;
-  const [line, setLine] = useState(START);
   const id = useId();
   const result = lineGap(f4.urals, line);
   const value = words.line.replace('{v}', String(line));
   return (
-    <div className="mt-10 border-t border-border pt-6">
+    <div>
       <p className="font-mono text-report-label uppercase text-label">{words.title}</p>
       <label htmlFor={id} className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <span className="text-report-small">{words.slider}</span>
@@ -33,7 +38,7 @@ export function CapWhatIf() {
           value={line}
           aria-valuetext={value}
           onChange={(event) => {
-            setLine(Number(event.target.value));
+            onLine(Number(event.target.value));
           }}
           className="h-11 min-w-0 grow basis-48 accent-signal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
         />
@@ -41,7 +46,6 @@ export function CapWhatIf() {
           {value}
         </output>
       </label>
-      <PriceChart step={3} whatIf={{ value: line, label: value }} />
       <div className="mt-4 text-report-small">
         {/* Only the count is live: the list of months is too long to hear at each key press. */}
         <p aria-live="polite">
@@ -62,38 +66,67 @@ export function CapWhatIf() {
       <p className="mt-1 text-report-small text-muted-foreground">
         {words.missing.replace('{n}', String(result.months.length - result.known))}
       </p>
-      <details className="mt-4">
-        <summary className="cursor-pointer text-report-small">{words.table}</summary>
-        <table className="mt-2 font-mono text-report-label tabular-nums">
-          <caption className="sr-only">
-            {words.table}, {value}
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col" className="pr-6 text-left font-normal text-label">
-                {words.month}
+    </div>
+  );
+}
+
+/** The label of the what-if line in the chart, for example "what-if 60 $". */
+export const whatIfLabel = (words: { readonly line: string }, line: number) =>
+  words.line.replace('{v}', String(line));
+
+/** The values of figure 4 at the what-if line, as a table in a disclosure. */
+export function WhatIfTable({ line }: { readonly line: number }) {
+  const { payUi } = useContent();
+  const words = payUi.f4.whatIf;
+  const result = lineGap(f4.urals, line);
+  return (
+    <details className="mt-4">
+      <summary className="flex min-h-11 cursor-pointer items-center text-report-small">
+        {words.table}
+      </summary>
+      <table className="mt-2 font-mono text-report-label tabular-nums">
+        <caption className="sr-only">
+          {words.table}, {whatIfLabel(words, line)}
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col" className="pr-6 text-left font-normal text-label">
+              {words.month}
+            </th>
+            <th scope="col" className="pr-6 text-right font-normal text-label">
+              {words.urals}
+            </th>
+            <th scope="col" className="text-right font-normal text-label">
+              {words.gap}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {result.months.map(({ x, gap }) => (
+            <tr key={x}>
+              <th scope="row" className="pr-6 text-left font-normal">
+                {monthName(x)}
               </th>
-              <th scope="col" className="pr-6 text-right font-normal text-label">
-                {words.urals}
-              </th>
-              <th scope="col" className="text-right font-normal text-label">
-                {words.gap}
-              </th>
+              <td className="pr-6 text-right">{f4.urals[x]?.y.toFixed(2) ?? ''}</td>
+              <td className="text-right">{gap === null ? '' : gap.toFixed(2)}</td>
             </tr>
-          </thead>
-          <tbody>
-            {result.months.map(({ x, gap }) => (
-              <tr key={x}>
-                <th scope="row" className="pr-6 text-left font-normal">
-                  {monthName(x)}
-                </th>
-                <td className="pr-6 text-right">{f4.urals[x]?.y.toFixed(2) ?? ''}</td>
-                <td className="text-right">{gap === null ? '' : gap.toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </details>
+          ))}
+        </tbody>
+      </table>
+    </details>
+  );
+}
+
+/** Figure 4 in its final state with the what-if line, for a reader with reduced motion: the
+ * slider, the one chart and its table. */
+export function CapWhatIf() {
+  const { payUi } = useContent();
+  const [line, setLine] = useState(WHAT_IF_START);
+  return (
+    <div>
+      <WhatIfControls line={line} onLine={setLine} />
+      <PriceChart step={3} whatIf={{ value: line, label: whatIfLabel(payUi.f4.whatIf, line) }} />
+      <WhatIfTable line={line} />
     </div>
   );
 }

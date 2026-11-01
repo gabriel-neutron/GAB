@@ -483,8 +483,11 @@ export function PortMap({ step, sources }: PortMapProps) {
               <motion.circle
                 key={terminal.id}
                 aria-hidden="true"
+                // The circle moves with a transform, not with its centre attributes.
+                cx={0}
+                cy={0}
                 initial={false}
-                animate={{ cx: at.x, cy: at.y }}
+                animate={{ x: at.x, y: at.y }}
                 transition={move}
                 r={big * 1.6 * Math.sqrt(traffic / MAX_THROUGHPUT)}
                 strokeWidth={1}

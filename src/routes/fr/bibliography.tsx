@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { BibliographyPage } from '@/features/report/bibliography-page';
 import { fr } from '@/features/report/content-fr';
+import { reportTitles } from '@/features/report/titles';
 import { ContentContext } from '@/features/report/use-content';
 
 // The notes of the French report, with the French copy of the content.
@@ -10,5 +11,5 @@ export const Route = createFileRoute('/fr/bibliography')({
       <BibliographyPage />
     </ContentContext.Provider>
   ),
-  head: () => ({ meta: [{ title: `${fr.ui.bibliography.title} · GAB` }] }),
+  head: () => ({ meta: [{ title: `${reportTitles.frNotes} · GAB` }] }),
 });
