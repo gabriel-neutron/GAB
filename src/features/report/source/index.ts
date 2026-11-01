@@ -28,12 +28,29 @@ const figureOf = (key: string): string => {
 
 /** The French text in the form of the English text: the note ids of the English text (through
  * their twins), the figure numbers of the page, and one caption line and one note line for each
- * figure, with no blockquote mark and no layout comment. The words stay the words of the author. The n-th marker of a French note gets the n-th
- * English note that has it as twin; the last one when the English text has fewer. */
+ * figure, with no blockquote mark and no layout comment. The words stay the words of the author.
+ * The n-th marker of a French note gets the n-th English note that has it as twin; the last one
+ * when the English text has fewer. A cross-reference "op. cit., n. N" of a French note counts the
+ * notes in the order of their first marker (the numbers of the French publication): it gets the
+ * page id of the first English twin of that note. */
 export function rekey(text: string, twins: Readonly<Record<string, string | null>>): string {
   const english = new Map<string, string[]>();
   for (const [id, twin] of Object.entries(twins))
     if (twin !== null) english.set(twin, [...(english.get(twin) ?? []), id]);
+  // The French notes in the order of their first marker: note N of the French publication.
+  const order = [
+    ...new Set(
+      text
+        .split('\n')
+        .filter((line) => !/^\[\^[^\]]+\]: /.test(line))
+        .flatMap((line) => [...line.matchAll(/\[\^([^\]]+)\]/g)].map((match) => match[1] ?? '')),
+    ),
+  ];
+  const reference = (number: string): string => {
+    const id = english.get(order[Number(number) - 1] ?? '')?.[0];
+    if (id === undefined) throw new Error(`A French note cites n. ${number}, which has no note.`);
+    return id;
+  };
   const seen = new Map<string, number>();
   const marker = (id: string): string => {
     const ids = english.get(id);
@@ -50,7 +67,10 @@ export function rekey(text: string, twins: Readonly<Record<string, string | null
       if (line.startsWith('<!--')) return [];
       const note = /^\[\^([^\]]+)\]: (.*)$/.exec(line);
       if (note !== null)
-        return (english.get(note[1] ?? '') ?? []).map((id) => `[^${id}]: ${note[2] ?? ''}`);
+        return (english.get(note[1] ?? '') ?? []).map(
+          (id) =>
+            `[^${id}]: ${(note[2] ?? '').replace(/(op\. cit\., n\. )(\d+)/g, (_, cite: string, number: string) => `${cite}${reference(number)}`)}`,
+        );
       const body = line
         .replace(/^> /, '')
         .replace(/\[\^([^\]]+)\]/g, (_, id: string) => `[^${marker(id)}]`);

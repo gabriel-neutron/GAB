@@ -118,7 +118,7 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '9',
-        text: 'Calculs de l’auteur d’après Ministère des Finances de Russie (2026a), op. cit., n. 3, ligne 1.1 ; Banque mondiale (2026), op. cit., n. 9.',
+        text: 'Calculs de l’auteur d’après Ministère des Finances de Russie (2026a), op. cit., n. 3, ligne 1.1 ; Banque mondiale (2026), op. cit., n. 8.',
       },
     ],
     nodeIds: [],
@@ -227,7 +227,7 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '11',
-        text: 'Département du Trésor des États-Unis (2023), op. cit., n. 8.',
+        text: 'Département du Trésor des États-Unis (2023), op. cit., n. 10.',
       },
     ],
     nodeIds: [],
@@ -393,7 +393,7 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '24',
-        text: 'Département du Trésor des États-Unis (2023), op. cit., n. 8.',
+        text: 'Département du Trésor des États-Unis (2023), op. cit., n. 10.',
       },
       {
         id: '25',
@@ -409,7 +409,7 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '28',
-        text: 'Office of Foreign Assets Control (2025), op. cit., n. 8.',
+        text: 'Office of Foreign Assets Control (2025), op. cit., n. 10.',
       },
       {
         id: '29',
@@ -445,7 +445,7 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '37',
-        text: 'Calculs de l’auteur d’après Ministère des Finances de Russie (2026a), op. cit., n. 3, lignes 1, 1.1 et 2.2 ; Ministère des Finances de Russie (2026b), op. cit., n. 3 ; Korsounskaïa (2024), op. cit., n. 9 ; Banque mondiale (2026), op. cit., n. 9.',
+        text: 'Calculs de l’auteur d’après Ministère des Finances de Russie (2026a), op. cit., n. 3, lignes 1, 1.1 et 2.2 ; Ministère des Finances de Russie (2026b), op. cit., n. 3 ; Korsounskaïa (2024), op. cit., n. 8 ; Banque mondiale (2026), op. cit., n. 8.',
       },
       {
         id: '38',
@@ -553,7 +553,7 @@ export const frParts: ReportPart[] = [
     notes: [
       {
         id: '40',
-        text: 'Département du Trésor des États-Unis (2023), op. cit., n. 8 ; S&P Global Commodity Insights. (2024, 10 janvier). *Russian Kozmino crude exports jump 9.4% in 2023 amid sanctions*. https://www.spglobal.com.',
+        text: 'Département du Trésor des États-Unis (2023), op. cit., n. 10 ; S&P Global Commodity Insights. (2024, 10 janvier). *Russian Kozmino crude exports jump 9.4% in 2023 amid sanctions*. https://www.spglobal.com.',
       },
       {
         id: '41',
@@ -589,7 +589,7 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '49',
-        text: 'Calculs de l’auteur d’après Office of Foreign Assets Control (2026), op. cit., n. 45 ; CELEX 32014R0833 ; https://eur-lex.europa.eu.',
+        text: 'Calculs de l’auteur d’après Office of Foreign Assets Control (2026), op. cit., n. 46 ; CELEX 32014R0833 ; https://eur-lex.europa.eu.',
       },
       {
         id: '50',
@@ -597,11 +597,11 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '51',
-        text: 'Calculs de l’auteur d’après GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua ; OFAC (2026), op. cit., n. 45 ; FCDO (2026), op. cit., n. 45 ; CELEX 32014R0833 ; https://eur-lex.europa.eu.',
+        text: 'Calculs de l’auteur d’après GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua ; OFAC (2026), op. cit., n. 46 ; FCDO (2026), op. cit., n. 46 ; CELEX 32014R0833 ; https://eur-lex.europa.eu.',
       },
       {
         id: '52',
-        text: 'Calculs de l’auteur d’après Office of Foreign Assets Control (2026), op. cit., n. 45 ; Foreign, Commonwealth & Development Office (2026), op. cit., n. 45 ; CELEX 32014R0833, lue le 30 octobre 2026 ; https://eur-lex.europa.eu.',
+        text: 'Calculs de l’auteur d’après Office of Foreign Assets Control (2026), op. cit., n. 46 ; Foreign, Commonwealth & Development Office (2026), op. cit., n. 46 ; CELEX 32014R0833, lue le 30 octobre 2026 ; https://eur-lex.europa.eu.',
       },
     ],
     nodeIds: ['N-P001', 'N-P002', 'N-P005', 'N-P011', 'N-P007', 'N-P025'],
@@ -686,7 +686,7 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '54',
-        text: 'Foreign, Commonwealth & Development Office (2026), op. cit., n. 45.',
+        text: 'Foreign, Commonwealth & Development Office (2026), op. cit., n. 46.',
       },
       {
         id: '55',
@@ -730,11 +730,11 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '65',
-        text: 'Prokopenko et Kolyandr (2024), op. cit., n. 53.',
+        text: 'Prokopenko et Kolyandr (2024), op. cit., n. 56.',
       },
       {
         id: '66',
-        text: 'Département du Trésor des États-Unis (2024), op. cit., n. 58.',
+        text: 'Département du Trésor des États-Unis (2024), op. cit., n. 61.',
       },
       {
         id: '67',
@@ -762,7 +762,7 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '73',
-        text: 'Prokopenko et Kolyandr (2024), op. cit., n. 53.',
+        text: 'Prokopenko et Kolyandr (2024), op. cit., n. 56.',
       },
       {
         id: '74',
@@ -778,11 +778,11 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '77',
-        text: 'Bianco, C. (2026). *Little Venice, little Sparta*. European Council on Foreign Relations. https://ecfr.eu ; Institute for Financial Integrity. (2026). *August monthly sanctions and export controls report*. https://finintegrity.org ; The Moscow Times (2024), op. cit., n. 60.',
+        text: 'Bianco, C. (2026). *Little Venice, little Sparta*. European Council on Foreign Relations. https://ecfr.eu ; Institute for Financial Integrity. (2026). *August monthly sanctions and export controls report*. https://finintegrity.org ; The Moscow Times (2024), op. cit., n. 63.',
       },
       {
         id: '78',
-        text: 'Financial Crimes Enforcement Network (2026), op. cit., n. 72, p. 5.',
+        text: 'Financial Crimes Enforcement Network (2026), op. cit., n. 75, p. 5.',
       },
       {
         id: '79',
@@ -871,7 +871,7 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '85',
-        text: 'Calculs de l’auteur d’après UN Comtrade (2026), op. cit., n. 5 ; Risinger et al. (2026), op. cit., n. 78, p. 3.',
+        text: 'Calculs de l’auteur d’après UN Comtrade (2026), op. cit., n. 5 ; Risinger et al. (2026), op. cit., n. 81, p. 3.',
       },
       {
         id: '86',
@@ -879,11 +879,11 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '87',
-        text: 'Risinger et Hilgenstock (2026), op. cit., n. 81, p. 5-6.',
+        text: 'Risinger et Hilgenstock (2026), op. cit., n. 83, p. 5-6.',
       },
       {
         id: '88',
-        text: 'Risinger et al. (2026), op. cit., n. 78, p. 7.',
+        text: 'Risinger et al. (2026), op. cit., n. 81, p. 7.',
       },
       {
         id: '89',
@@ -895,7 +895,7 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '91',
-        text: 'Calculs de l’auteur d’après Conflict Armament Research, & Hayes, D. (2025). *Tracking the Components of Missiles and UAVs Used by Russia in Ukraine* IISS. https://www.iiss.org ; Byrne et al. (2022), op. cit., n. 87 ; GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua.',
+        text: 'Calculs de l’auteur d’après Conflict Armament Research, & Hayes, D. (2025). *Tracking the Components of Missiles and UAVs Used by Russia in Ukraine* IISS. https://www.iiss.org ; Byrne et al. (2022), op. cit., n. 90 ; GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua.',
       },
       {
         id: '92',
@@ -1027,7 +1027,7 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '101',
-        text: 'Rosneft (2021) et Gazprom (2024), op. cit., n. 95 ; Gazprombank (2022), op. cit., n. 97 ; TASS (2024), op. cit., n. 96.',
+        text: 'Rosneft (2021) et Gazprom (2024), op. cit., n. 97 ; Gazprombank (2022), op. cit., n. 99 ; TASS (2024), op. cit., n. 98.',
       },
       {
         id: '102',
@@ -1039,7 +1039,7 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '104',
-        text: 'Département du Trésor des États-Unis (2025), op. cit., n. 44, annexe 2.',
+        text: 'Département du Trésor des États-Unis (2025), op. cit., n. 45, annexe 2.',
       },
       {
         id: '105',
@@ -1051,7 +1051,7 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '107',
-        text: 'BBC News. (2004, 23 décembre). *Putin backs state grab for Yukos*. http://news.bbc.co.uk/2/hi/business/4120339.stm ; BBC News (2005), op. cit., n. 103.',
+        text: 'BBC News. (2004, 23 décembre). *Putin backs state grab for Yukos*. http://news.bbc.co.uk/2/hi/business/4120339.stm ; BBC News (2005), op. cit., n. 106.',
       },
       {
         id: '108',
@@ -1079,7 +1079,7 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '114',
-        text: 'Foreign, Commonwealth & Development Office (2026), op. cit., n. 45, entrée RUS1126 ; Interfax. (2022, 21 mars). *Mikhelson transfers around 14% stake in Novatek to direct ownership, eliminates Cyprus ‘layer’*. https://interfax.com/newsroom/top-stories/77137/, p. 1.',
+        text: 'Foreign, Commonwealth & Development Office (2026), op. cit., n. 46, entrée RUS1126 ; Interfax. (2022, 21 mars). *Mikhelson transfers around 14% stake in Novatek to direct ownership, eliminates Cyprus ‘layer’*. https://interfax.com/newsroom/top-stories/77137/, p. 1.',
       },
       {
         id: '115',
@@ -1111,11 +1111,11 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '122',
-        text: 'Département du Trésor des États-Unis (2023), op. cit., n. 99, p. 1, section « Under-the-radar traders of Russian oil ».',
+        text: 'Département du Trésor des États-Unis (2023), op. cit., n. 102, p. 1, section « Under-the-radar traders of Russian oil ».',
       },
       {
         id: '123',
-        text: 'CELEX 32025R1476, annexe, entrées 625 « 2Rivers DMCC » et 626 « 2Rivers PTE Ltd », p. 25 ; FCDO (2026), op. cit., n. 45, entrée RUS2541 ; https://eur-lex.europa.eu.',
+        text: 'CELEX 32025R1476, annexe, entrées 625 « 2Rivers DMCC » et 626 « 2Rivers PTE Ltd », p. 25 ; FCDO (2026), op. cit., n. 46, entrée RUS2541 ; https://eur-lex.europa.eu.',
       },
       {
         id: '124',
@@ -1123,7 +1123,7 @@ export const frParts: ReportPart[] = [
       },
       {
         id: '125',
-        text: 'Office of Foreign Assets Control (2014), op. cit., n. 92 ; Office of Foreign Assets Control (s. d.), op. cit., n. 92.',
+        text: 'Office of Foreign Assets Control (2014), op. cit., n. 95 ; Office of Foreign Assets Control (s. d.), op. cit., n. 95.',
       },
     ],
     nodeIds: [
@@ -1224,11 +1224,11 @@ export const frParts: ReportPart[] = [
     notes: [
       {
         id: '126',
-        text: 'UN Comtrade (2026), op. cit., n. 5 ; Risinger et al. (2026), op. cit., n. 78, p. 3.',
+        text: 'UN Comtrade (2026), op. cit., n. 5 ; Risinger et al. (2026), op. cit., n. 81, p. 3.',
       },
       {
         id: '127',
-        text: 'Direction principale du renseignement du ministère de la Défense de l’Ukraine (GUR) (2026), op. cit., n. 49 ; Global Fishing Watch (2026), op. cit., n. 45.',
+        text: 'Direction principale du renseignement du ministère de la Défense de l’Ukraine (GUR) (2026), op. cit., n. 51 ; Global Fishing Watch (2026), op. cit., n. 46.',
       },
     ],
     nodeIds: ['N-M037'],
