@@ -331,6 +331,10 @@ export const fr: ReportContent = {
   },
   portsFleetUi: {
     ...portsFleetUi,
+    chain: {
+      open: 'Ouvrir la chaîne du pétrole sur le globe',
+      hint: 'Du gisement à l’oléoduc, à la raffinerie, au terminal et au port de sortie. La carte du registre GAB s’ouvre en plein écran.',
+    },
     map: {
       ...portsFleetUi.map,
       label: 'Carte des terminaux d’exportation de pétrole du rapport',
