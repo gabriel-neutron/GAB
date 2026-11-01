@@ -5,7 +5,7 @@ import { Reveal } from '../primitives/reveal';
 import { RichText } from '../rich-text';
 import { useContent } from '../use-content';
 
-/** The introduction: a typographic chapter break with a dithered illustration in its empty half,
+/** The introduction: a chapter break over the tanker photograph in ASCII,
  * then a calm reading column with the three questions. */
 export function IntroductionPart({ part }: { readonly part: ReportPart }) {
   const { openingUi, parts } = useContent();
