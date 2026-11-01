@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useInView } from 'motion/react';
 import { asciiRows } from './ascii-art';
 
-// One column for each 7 CSS pixels by default; Geist Mono draws a glyph 0.6em wide.
+// One column for each 7 CSS pixels; Geist Mono draws a glyph 0.6em wide.
 const COLUMN_PX = 7;
 const GLYPH_WIDTH = 0.6;
 
@@ -14,14 +14,7 @@ interface Art {
 /** A monochrome ASCII drawing of an image that covers its box. It loads the image only near the
  * view, and draws once, in the ink of the theme. It is decoration, so assistive technology skips
  * it. */
-export function AsciiImage({
-  src,
-  column = COLUMN_PX,
-}: {
-  readonly src: string;
-  /** The width of one glyph in CSS pixels: a larger glyph draws fewer, coarser marks. */
-  readonly column?: number;
-}) {
+export function AsciiImage({ src }: { readonly src: string }) {
   const box = useRef<HTMLDivElement>(null);
   const near = useInView(box, { once: true, margin: '400px 0px' });
   const [art, setArt] = useState<Art | null>(null);
@@ -40,7 +33,7 @@ export function AsciiImage({
       frame = 0;
       const { width, height } = node.getBoundingClientRect();
       if (!live || !loaded || width === 0 || height === 0) return;
-      const cols = Math.max(40, Math.round(width / column));
+      const cols = Math.max(40, Math.round(width / COLUMN_PX));
       const fontSize = width / cols / GLYPH_WIDTH;
       const rows = Math.ceil(height / fontSize);
       const canvas = document.createElement('canvas');
@@ -89,7 +82,7 @@ export function AsciiImage({
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [near, src, column]);
+  }, [near, src]);
 
   return (
     <div ref={box} aria-hidden="true" className="absolute inset-0 overflow-hidden">

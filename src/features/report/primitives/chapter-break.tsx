@@ -42,8 +42,7 @@ export function ChapterBreak({ number, title, image, credit, children }: Chapter
     >
       {image === undefined ? null : (
         <>
-          {/* Large glyphs: a fine grid of repeated marks moires on a screen and in compression. */}
-          <AsciiImage src={image} column={12} />
+          <AsciiImage src={image} />
           {/* The scrim keeps the words clear of the art. */}
           <div
             aria-hidden="true"
