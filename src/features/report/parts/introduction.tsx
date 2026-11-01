@@ -43,8 +43,9 @@ export function IntroductionPart({ part }: { readonly part: ReportPart }) {
   return (
     <section id={part.slug} aria-label={part.title} className="scroll-mt-12">
       <ChapterBreak number={number} title={part.title}>
-        {/* In the flow on a phone; in the empty right half of the break on a wide screen. */}
-        <div className="mt-10 lg:absolute lg:top-16 lg:right-8 lg:mt-0 lg:w-[46%]">
+        {/* In the flow on a phone. On a wide screen, a square in the empty right half of the break,
+            never taller than the break. */}
+        <div className="mt-10 lg:absolute lg:top-16 lg:right-8 lg:mt-0 lg:aspect-square lg:max-h-[calc(100%-9rem)] lg:w-[46%]">
           <img
             src={copy.art}
             alt=""
@@ -53,8 +54,9 @@ export function IntroductionPart({ part }: { readonly part: ReportPart }) {
             height={546}
             loading="lazy"
             decoding="async"
-            // The dither is black on white: it multiplies onto paper, and inverts onto the dark.
-            className="block h-auto w-full mix-blend-multiply [image-rendering:pixelated] dark:mix-blend-screen dark:invert"
+            // The dither is black on white: it multiplies onto paper, and inverts onto the dark. The
+            // browser smooths it: a pixelated scale at a zoom that is not whole draws bands.
+            className="block h-auto w-full object-cover mix-blend-multiply lg:h-full dark:mix-blend-screen dark:invert"
           />
         </div>
       </ChapterBreak>

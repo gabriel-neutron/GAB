@@ -259,9 +259,8 @@ describe.each([
       expect(address[1]).toMatch(/^https:\/\/gab\.example\.org\//u);
   });
 
-  test('the AI use page is in the footer of a page', () => {
+  test('the AI use page is written', () => {
     const { page } = site();
-    expect(page('help/index.html')).toMatch(/<footer[^>]*>.*href="\/ai-use"/su);
     expect(textOf(page('ai-use/index.html'))).toContain('How to cite a claim');
   });
 

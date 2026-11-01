@@ -1,3 +1,4 @@
+import textFile from './source/report-en.md?url';
 import { reportTitles } from './titles';
 
 export const report = {
@@ -2045,7 +2046,14 @@ export const openingUi = {
   },
   partBar: { label: 'Parts of the report', of: '/' },
   // The actions of the first screen, one row. The PDF action shows only when the build copied it.
-  links: { label: 'Report links', read: 'Read', data: 'Data', pdf: 'Download PDF' },
+  links: {
+    label: 'Report links',
+    read: 'Scroll down to read',
+    data: 'Data',
+    pdf: 'Download the report',
+    // The final text of this locale: the download when the build has no PDF.
+    text: textFile,
+  },
   summary: {
     // The plate of the summary head on a wide screen: an old chart of the Black Sea, in two tones.
     art: import.meta.env.BASE_URL + 'report-media/black-sea-map-1829-dither.png',
