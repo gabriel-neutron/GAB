@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { prerender } from 'react-dom/static';
@@ -108,22 +110,58 @@ describe.each([
     // A closed note is not in the markup; a note printed in full beside its text is.
     for (const note of copy.parts.flatMap((part) => part.notes))
       expect(html).not.toContain(note.text.replaceAll('*', ''));
-    const markers = (html.match(/<button[^>]*>/g) ?? []).filter((one) =>
-      one.includes(`aria-label="${copy.ui.note.label} `),
+    // Each control that opens a dialog is the shared marker, except the card of a node reference.
+    const markers = (html.match(/<button[^>]*>/g) ?? []).filter(
+      (one) =>
+        one.includes('aria-haspopup="dialog"') && !one.includes('data-slot="popover-trigger"'),
     );
     expect(markers.length).toBeGreaterThan(0);
     for (const marker of markers) expect(marker).toContain('note-ref');
+    // Each part with a note mark in its text draws at least one marker.
+    // A part ends where the next part starts.
+    const starts = copy.parts.map((part) => html.indexOf(`<section id="${part.slug}"`));
+    copy.parts.forEach((part, index) => {
+      if (!part.blocks.some((block) => block.text.includes('[^'))) return;
+      expect(starts[index]).toBeGreaterThanOrEqual(0);
+      expect(html.slice(starts[index], starts[index + 1])).toContain('note-ref');
+    });
   });
 
   it('gives each summary value with a note the marker of that note', () => {
     for (const { note } of copy.openingUi.summary.values.filter((one) => one.note !== ''))
-      expect(html.split(`aria-label="${copy.ui.note.label} ${note}"`).length - 1).toBe(2);
+      expect(html).toMatch(
+        new RegExp(
+          `<p class="[^"]*text-report-(?:display|number)[^"]*">(?:(?!</p>).)*aria-label="${copy.ui.note.label} ${note}"`,
+          's',
+        ),
+      );
   });
 
-  it('gives each image of the page a credit', () => {
+  it('gives each image of the page a credit and its marker', () => {
+    const { items } = copy.ui.bibliography.images;
     const files = new Set(JSON.stringify(copy).match(/report-media\/[\w.-]+/g) ?? []);
     expect(files.size).toBeGreaterThan(0);
-    for (const file of files)
-      expect(copy.ui.bibliography.images.items.some((item) => file.includes(item.file))).toBe(true);
+    for (const file of files) expect(items.some((item) => file.includes(item.file))).toBe(true);
+    // Each credit names a file of the credits record.
+    const credits = JSON.parse(
+      readFileSync(join(import.meta.dirname, '../../../public/report-media/credits.json'), 'utf8'),
+    ) as readonly { readonly file: string }[];
+    for (const item of items)
+      expect(credits.some((one) => one.file.includes(item.file))).toBe(true);
+    // The art that the parts draw shows the marker of its credit.
+    const art = [
+      copy.openingUi.summary.art,
+      copy.openingUi.introduction.art,
+      copy.payUi.image,
+      copy.portsFleetUi.art,
+      copy.financeUi.image,
+      copy.fightUi.image,
+      copy.ownershipUi.image,
+    ];
+    for (const src of art) {
+      const mark = items.findIndex((item) => src.includes(item.file)) + 1;
+      expect(mark).toBeGreaterThan(0);
+      expect(html).toContain(`aria-label="${copy.ui.note.image} ${String(mark)}"`);
+    }
   });
 });

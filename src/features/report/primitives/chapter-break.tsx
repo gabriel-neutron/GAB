@@ -66,7 +66,7 @@ export function ChapterBreak({ number, title, image, credit, children }: Chapter
         </div>
         {art === undefined ? null : (
           <p className="mt-4 w-fit font-mono text-report-label uppercase text-label">
-            {ui.note.image}
+            <span aria-hidden="true">{ui.note.image}</span>
             <ImageCredit src={art} />
           </p>
         )}

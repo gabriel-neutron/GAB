@@ -172,7 +172,7 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
             className="block aspect-[16/10] w-full object-cover mix-blend-multiply [image-rendering:pixelated] dark:mix-blend-screen dark:invert"
           />
           <p className="mt-2 w-fit font-mono text-report-label uppercase text-label">
-            {ui.note.image}
+            <span aria-hidden="true">{ui.note.image}</span>
             <ImageCredit src={copy.art} />
           </p>
         </div>
