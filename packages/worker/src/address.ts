@@ -53,7 +53,13 @@ export const roleAddress = (role: string, variable: string): string => {
 };
 
 /** The URL a hand-taken command of this package signs with. It throws when the secret is absent. */
-export const agentAddress = (): string => roleAddress(AGENT_ROLE, 'GABRIEL_AGENT_PASSWORD');
+export const agentAddress = (): string => {
+  // The planner overrates the lookups of the loader, and PostgreSQL compiles each one: 1273 ms
+  // with JIT, 3 ms without. Each connection of this role turns JIT off for its session only.
+  const address = new URL(roleAddress(AGENT_ROLE, 'GABRIEL_AGENT_PASSWORD'));
+  address.searchParams.set('options', '-c jit=off');
+  return address.toString();
+};
 
 /** The URL of the command that stores a file. It throws when the secret is absent. */
 export const appAddress = (): string => roleAddress(APP_ROLE, 'GABRIEL_APP_PASSWORD');
