@@ -30,3 +30,39 @@ test.each([
 ])('no recipe answers for %s', (_name, address, header) => {
   expect(recipeOf(address, header)).toBeUndefined();
 });
+
+const EUROSTAT = [
+  'DATAFLOW',
+  'LAST UPDATE',
+  'freq',
+  'siec',
+  'partner',
+  'unit',
+  'geo',
+  'TIME_PERIOD',
+  'OBS_VALUE',
+  'OBS_FLAG',
+  'CONF_STATUS',
+];
+const EUROSTAT_ADDRESS =
+  'https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/nrg_ti_gas/A.G3000.RU.MIO_M3.' +
+  '?format=SDMX-CSV&startPeriod=2021&endPeriod=2025';
+const EUROSTAT_OIL =
+  'https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/nrg_ti_oil/' +
+  'A.O4100_TOT_4200-4500.RU.THS_T.?format=SDMX-CSV&startPeriod=2021&endPeriod=2025';
+
+test('the recipe of the Eurostat import tables gives a valid mapping for gas and crude', () => {
+  expect(mappingDraft.safeParse(recipeOf(EUROSTAT_ADDRESS, EUROSTAT)).success).toBe(true);
+  const oil = recipeOf(EUROSTAT_OIL, EUROSTAT);
+  expect(mappingDraft.safeParse(oil).success).toBe(true);
+  expect(oil?.table).toBe('nrg_ti_oil');
+});
+
+test.each([
+  ['the monthly gas table', EUROSTAT_ADDRESS.replace('nrg_ti_gas', 'nrg_ti_gasm'), EUROSTAT],
+  ['another dataset', EUROSTAT_ADDRESS.replace('nrg_ti_gas', 'nrg_ti_coal'), EUROSTAT],
+  ['oil products of another code', EUROSTAT_OIL.replace('O4100_TOT_4200-4500', 'O4600'), EUROSTAT],
+  ['a header that changed', EUROSTAT_ADDRESS, [...EUROSTAT, 'extra']],
+])('no Eurostat recipe answers for %s', (_name, address, header) => {
+  expect(recipeOf(address, header)).toBeUndefined();
+});
