@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 
-import { legendOf } from './legend';
+import { greyCountsOf, legendOf } from './legend';
 import type { ShownCounts } from './shown-counts';
 
 const counts = (byType: [string, number][], byRelationType: [string, number][]): ShownCounts => ({
@@ -39,4 +39,14 @@ it('counts a type with no glyph as unknown', () => {
     ),
   );
   expect(legend.types).toEqual([{ key: 'unknown', count: 3 }]);
+});
+
+it('counts the grey nodes: a node with no place counts as unplaced and not as an isolate', () => {
+  expect(
+    greyCountsOf([
+      { isolate: true, unplaced: true },
+      { isolate: true, unplaced: false },
+      { isolate: false, unplaced: false },
+    ]),
+  ).toEqual({ isolates: 1, unplaced: 1 });
 });

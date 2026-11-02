@@ -79,6 +79,7 @@ export function deriveRailRows(
       label: model.labelOfType(type),
       initial: model.labelOfType(type).slice(0, 1).toUpperCase(),
       count,
+      share: total === 0 ? 0 : count / total,
       figure: `${String(count)} of ${String(total)}${filtering ? ' match' : ''}`,
       on,
       open: openTypes.includes(type),

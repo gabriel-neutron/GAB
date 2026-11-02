@@ -40,3 +40,23 @@ export function legendOf(counts: ShownCounts): Legend {
     ),
   };
 }
+
+export interface GreyCounts {
+  /** Nodes with no relation in view. */
+  readonly isolates: number;
+  /** Nodes that stand on the ring with no place. A node with no place counts here only. */
+  readonly unplaced: number;
+}
+
+/** The nodes the canvas paints grey: the legend must name both greys. */
+export function greyCountsOf(
+  nodes: Iterable<{ readonly isolate: boolean; readonly unplaced: boolean }>,
+): GreyCounts {
+  let isolates = 0;
+  let unplaced = 0;
+  for (const node of nodes) {
+    if (node.unplaced) unplaced += 1;
+    else if (node.isolate) isolates += 1;
+  }
+  return { isolates, unplaced };
+}

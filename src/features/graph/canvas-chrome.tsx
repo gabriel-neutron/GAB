@@ -1,7 +1,7 @@
 import { cn } from '@/shared/lib/utils';
 
 import { glyphSvg } from './glyph-svg';
-import { legendOf } from './legend';
+import { legendOf, type GreyCounts } from './legend';
 import { VARIANTS, type VariantId } from './variants';
 import { lookOf } from './relation-families';
 import type { ShownCounts, ShownOfTotal } from './shown-counts';
@@ -38,6 +38,7 @@ interface LegendProps {
   readonly counts: ShownCounts;
   readonly hueOfType: ReadonlyMap<string, string>;
   readonly labelOfType: (type: string) => string;
+  readonly greys: GreyCounts;
 }
 
 /** The dash of a family as an SVG `stroke-dasharray`: none for a solid line. */
@@ -45,9 +46,18 @@ const dashArray = (dash: readonly [number, number, number, number]): string | un
   dash[1] === 0 ? undefined : (dash[2] === 0 ? dash.slice(0, 2) : dash).join(' ');
 
 /** The legend at the bottom left: only the types and the families in view. */
-export function Legend({ counts, hueOfType, labelOfType }: LegendProps) {
+export function Legend({ counts, hueOfType, labelOfType, greys }: LegendProps) {
   const { types, families } = legendOf(counts);
   if (types.length === 0 && families.length === 0) return null;
+  const greyRows = [
+    {
+      key: 'isolate',
+      label: 'No relation',
+      hue: 'var(--relation-ownership)',
+      count: greys.isolates,
+    },
+    { key: 'unplaced', label: 'No place', hue: 'var(--entity-unknown)', count: greys.unplaced },
+  ].filter(({ count }) => count > 0);
   return (
     <div
       className={cn(
@@ -60,6 +70,17 @@ export function Legend({ counts, hueOfType, labelOfType }: LegendProps) {
           <li key={key} className="flex items-center gap-2">
             <Glyph type={key} colour={hueOfType.get(key) ?? 'currentColor'} />
             <span className="min-w-0 flex-1 truncate">{labelOfType(key)}</span>
+            <span className="font-mono tabular-nums">{count}</span>
+          </li>
+        ))}
+        {greyRows.map(({ key, label, hue, count }) => (
+          <li key={key} className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="size-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: hue }}
+            />
+            <span className="min-w-0 flex-1 truncate">{label}</span>
             <span className="font-mono tabular-nums">{count}</span>
           </li>
         ))}
