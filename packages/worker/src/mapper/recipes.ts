@@ -109,9 +109,10 @@ const EUROSTAT_HEADER = [
   'CONF_STATUS',
 ];
 
-const MEASURE_OF_EUROSTAT: Readonly<Record<string, string>> = {
-  nrg_ti_gas: 'imports_natural_gas',
-  nrg_ti_oil: 'imports_crude_oil',
+// The oil table holds other products under other codes, so the measure of crude names its code.
+const MEASURE_OF_EUROSTAT: Readonly<Record<string, { measure: string; key: string }>> = {
+  nrg_ti_gas: { measure: 'imports_natural_gas', key: '.G3000.' },
+  nrg_ti_oil: { measure: 'imports_crude_oil', key: '.O4100_TOT_4200-4500.' },
 };
 
 const same = (a: readonly string[], b: readonly string[]): boolean =>
@@ -134,11 +135,12 @@ export const recipeOf = (
     const dataset = url.pathname.startsWith(EUROSTAT_DATA)
       ? url.pathname.slice(EUROSTAT_DATA.length).split('/')[0]
       : undefined;
-    const measure = MEASURE_OF_EUROSTAT[dataset ?? ''];
-    if (measure === undefined || dataset === undefined || !same(header, EUROSTAT_HEADER))
+    const held = MEASURE_OF_EUROSTAT[dataset ?? ''];
+    if (held === undefined || !url.pathname.includes(held.key) || !same(header, EUROSTAT_HEADER))
       return undefined;
+    const { measure } = held;
     return {
-      table: dataset,
+      table: dataset ?? '',
       modality: 'asserts',
       publisher: 'Eurostat',
       rows: {
