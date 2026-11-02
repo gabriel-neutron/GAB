@@ -110,9 +110,10 @@ const EUROSTAT_HEADER = [
 ];
 
 // The oil table holds other products under other codes, so the measure of crude names its code.
+// O4100_TOT is crude oil alone: the composite O4100_TOT_4200-4500 adds NGL, feedstocks and additives.
 const MEASURE_OF_EUROSTAT: Readonly<Record<string, { measure: string; key: string }>> = {
   nrg_ti_gas: { measure: 'imports_natural_gas', key: '.G3000.' },
-  nrg_ti_oil: { measure: 'imports_crude_oil', key: '.O4100_TOT_4200-4500.' },
+  nrg_ti_oil: { measure: 'imports_crude_oil', key: '.O4100_TOT.' },
 };
 
 const same = (a: readonly string[], b: readonly string[]): boolean =>
@@ -151,7 +152,8 @@ export const recipeOf = (
         reporter: { column: 'geo', codes: 'eurostat' },
         partner: { column: 'partner', codes: 'eurostat' },
         product: { column: 'siec', system: 'siec' },
-        method: 'imports reported by the importer',
+        method:
+          'imports reported by the importer; a row of a group (EU27, EA21) is the total of its member states',
         flag: 'OBS_FLAG',
       },
       relations: [],
