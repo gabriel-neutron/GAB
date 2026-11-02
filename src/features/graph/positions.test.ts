@@ -59,6 +59,12 @@ describe('the places of the graph', () => {
     expect(Math.hypot(positions.get('n')?.x ?? 0, positions.get('n')?.y ?? 0)).toBeGreaterThan(20);
   });
 
+  it('marks no entity unplaced while the layout run placed none', () => {
+    const { unplaced } = graphPositions([entity('a'), entity('b')], new Map(), []);
+
+    expect(unplaced.size).toBe(0);
+  });
+
   it('ignores a relation that has a relation at one end', () => {
     const { unplaced } = graphPositions([entity('a'), entity('n')], STORED, [
       { srcKind: 'relation', srcId: 'a', dstKind: 'entity', dstId: 'n' },

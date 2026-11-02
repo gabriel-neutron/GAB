@@ -25,6 +25,8 @@ export interface RailTypeRow {
   // Departure: the wide row shows these words, and the strip shows the count alone. The caller
   // states whether the count is a part of a whole, so the words say what the figure means.
   readonly figure: string;
+  /** The part of the type that the count holds, from 0 to 1. Where it is set, the row draws a bar and the figure goes to a reader of words only. */
+  readonly share?: number;
   readonly on: boolean;
   readonly open: boolean;
   // Departure: the map hides a layer and the graph dims one, and a struck-out eye claims the
@@ -339,7 +341,23 @@ export function Rail({ rows, onAct, index, className }: RailProps) {
                   </span>
                   {/* Departure: the count carries on the graph the weight a hue carries on the
                       map. */}
-                  <span className={cn(FIGURE, 'text-muted-foreground')}>{row.figure}</span>
+                  {row.share === undefined ? (
+                    <span className={cn(FIGURE, 'text-muted-foreground')}>{row.figure}</span>
+                  ) : (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        title={row.figure}
+                        className="h-1.5 w-12 shrink-0 bg-muted"
+                      >
+                        <span
+                          className="block h-full bg-muted-foreground"
+                          style={{ width: `${String(Math.round(row.share * 100))}%` }}
+                        />
+                      </span>
+                      <span className="sr-only">{row.figure}</span>
+                    </>
+                  )}
                   {/* Departure: a glyph alone does not say the state of a switch, so the
                       words carry it. */}
                   <span className="sr-only">{row.stateWord}</span>

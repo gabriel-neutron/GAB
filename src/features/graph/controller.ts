@@ -24,6 +24,7 @@ import {
   type NodePosition,
 } from './model';
 import { createLiveLayout } from './live-layout';
+import { keptNames } from './name-overlap';
 import { morph } from './morph';
 import { layoutInput } from './layout-weights';
 import { DEFAULT_VARIANT, variantOf, type Variant, type VariantId } from './variants';
@@ -622,20 +623,39 @@ export function mountGraph(
     element.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%)`;
   };
 
-  // A name stands above its node. The names of the first ring can meet; the hover label still
-  // names each node one at a time.
+  // A name stands above its node. A name that meets a name of a higher rank is hidden, and the
+  // hover label still names each node one at a time.
   const drawNames = (): void => {
-    shownNames.forEach((id, index) => {
+    const spots = shownNames.map((id, index) => {
       const element = names[index];
-      if (element === undefined) return;
       const spot = viewportOf(id);
-      if (spot === null || outsideOf(spot)) {
-        element.hidden = true;
+      if (element === undefined || spot === null || outsideOf(spot)) return null;
+      const radius = sigma.scaleSize(sigma.getNodeDisplayData(id)?.size ?? 0) + NAME_OFFSET;
+      // A hidden element has no size, so it is shown before it is measured.
+      element.hidden = false;
+      return { element, x: spot.x, y: spot.y - radius };
+    });
+    // The box of a name is read before the transform is set: the transform does not change it.
+    const kept = keptNames(
+      spots.map((at) =>
+        at === null
+          ? null
+          : {
+              x: at.x - at.element.offsetWidth / 2,
+              y: at.y - at.element.offsetHeight,
+              width: at.element.offsetWidth,
+              height: at.element.offsetHeight,
+            },
+      ),
+    );
+    spots.forEach((at, index) => {
+      if (at === null) {
+        const element = names[index];
+        if (element !== undefined) element.hidden = true;
         return;
       }
-      element.hidden = false;
-      const radius = sigma.scaleSize(sigma.getNodeDisplayData(id)?.size ?? 0) + NAME_OFFSET;
-      element.style.transform = `translate(${spot.x}px, ${spot.y - radius}px) translate(-50%, -100%)`;
+      at.element.hidden = !kept[index];
+      at.element.style.transform = `translate(${at.x}px, ${at.y}px) translate(-50%, -100%)`;
     });
   };
 

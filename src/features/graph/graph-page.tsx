@@ -20,7 +20,8 @@ import { SelectionPanel } from '@/shared/selection-panel';
 import { mountGraph, type GraphController, type GraphView } from './controller';
 import { Legend, StatusBar, VariantSwitch, ZoomButtons } from './canvas-chrome';
 import { MarkerMeter } from './marker-meter';
-import type { GraphModel } from './model';
+import { greyCountsOf } from './legend';
+import type { GraphModel, NodeAttrs } from './model';
 import { deriveRailRows } from './rail-rows';
 import { stepAfterTypeOpen, stepShowingWholeList, type RailStep } from './rail-step';
 import { IndexRows } from './row';
@@ -166,6 +167,16 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     return shown.sort((one, two) => two.degree - one.degree || one.label.localeCompare(two.label));
   }, [model, filter, showUnplaced]);
 
+  const greys = useMemo(() => {
+    if (model === null || filter === null) return { isolates: 0, unplaced: 0 };
+    const hidden = new Set(filter.hiddenTypes);
+    const drawn: NodeAttrs[] = [];
+    model.graph.forEachNode((_node, attrs) => {
+      if (isShown(attrs, hidden, showUnplaced)) drawn.push(attrs);
+    });
+    return greyCountsOf(drawn);
+  }, [model, filter, showUnplaced]);
+
   // `GraphCanvas` is memoised on two refs, so a new filter does not render the live element.
   const query = useScreenQuery({ named, choose: reach });
 
@@ -285,6 +296,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
                 counts={snapshot.view.counts}
                 hueOfType={snapshot.model.hueOfType}
                 labelOfType={snapshot.model.labelOfType}
+                greys={greys}
               />
               <ZoomButtons
                 onZoom={(direction) => {

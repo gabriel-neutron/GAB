@@ -112,7 +112,8 @@ export function graphPositions(
     }
     const ring = reach * (RING_INNER + RING_DEPTH * unitOf(entity.id, 2));
     positions.set(entity.id, { x: ring * Math.cos(angle), y: ring * Math.sin(angle) });
-    unplaced.add(entity.id);
+    // With no stored place at all, the live layout places every entity, so none stands unplaced.
+    if (stored.size > 0) unplaced.add(entity.id);
   }
 
   return { positions, unplaced };
