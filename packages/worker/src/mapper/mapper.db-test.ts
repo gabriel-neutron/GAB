@@ -851,3 +851,34 @@ test('a recipe maps the tracker port file with no model, and the load gives a fi
     expect((await reportsOf(held, LIST))[0]?.title).toMatch(/5 rows read, 3 loaded, 2 excluded/u);
   });
 });
+
+// Two files of the tracker share a host and a header and differ in the measure. The second file
+// takes the mapping of its own recipe, and never the accepted mapping of the first one.
+const CREA_CRUDE_URI = CREA_URI.replace('oil_products', 'crude_oil');
+
+test('a recipe file never takes the accepted mapping of another file of the same host and header', async () => {
+  await inTransaction(async (held) => {
+    await recorded(held, 'port', 'Port of Primorsk', { unlocode: 'RUPRI' });
+    const first = await seedDocument(held, LIST, CREA_URI, CREA_TEXT);
+    expect(await held.step(makeMapper(CONFIG), noModel())).toStrictEqual({
+      did: 'done',
+      job: first,
+    });
+    const [products] = await mappingsOf(held, LIST);
+    await promote(held, products?.id ?? '');
+
+    const second = await seedDocument(
+      held,
+      SECOND,
+      CREA_CRUDE_URI,
+      CREA_TEXT + CREA_ROW('Primorsk', 'RU', '9', '2021-01-03') + '\r\n',
+    );
+    expect(await held.step(makeMapper(CONFIG), noModel())).toStrictEqual({
+      did: 'done',
+      job: second,
+    });
+    const [crude] = await mappingsOf(held, SECOND);
+    expect(crude?.payload.table).toBe('crea_departures_by_port_crude_oil');
+    expect(crude?.id).not.toBe(products?.id);
+  });
+});

@@ -329,6 +329,29 @@ test('enqueue_mapped_load returns the open load of a document, and queues no sec
   expect(second).toBe(first);
 });
 
+test('enqueue_mapped_load with p_own_only takes no mapping of another document', async () => {
+  const [shared, own] = await rolledBack('superuser', async (ask) => {
+    await acceptedMapping(ask);
+    await runningMapJob(ask, SECOND);
+    const door = (only: boolean): Promise<string | null> =>
+      asRole(ask, 'gabriel_agent', async () => {
+        const [row] = z
+          .array(z.object({ id: z.string().nullable() }))
+          .parse(
+            await ask('SELECT public.enqueue_mapped_load($1, $2, $3)::text AS id', [
+              SECOND,
+              SIG,
+              only,
+            ]),
+          );
+        return row?.id ?? null;
+      });
+    return [await door(true), await door(false)];
+  });
+  expect(shared).toBeNull();
+  expect(own).not.toBeNull();
+});
+
 const NO_REUSE: readonly (readonly [string, string, string, boolean])[] = [
   ['another host', ELSEWHERE, SIG, true],
   ['a file with no address', UPLOADED, SIG, true],
