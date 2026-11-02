@@ -66,3 +66,12 @@ hue means the stage and nothing else.
 - **The marker meter.** When the cap cuts markers, a small bar on the graph shows the part that is
   drawn and the number that is not. It has the shape and the colour of a marker, so it needs no
   legend. It is absent when the cap cuts nothing.
+- **The first view of the graph.** The relations of a legal act (designated by, restricted by,
+  exempted by, issued by) start off: they are more than half of the record, and drawn they hide
+  the operational links. The legend switches them on. An entity with no shown link is dust. It
+  stays on the canvas, dim, in rings at the edge, so the reader sees how many there are. The
+  linked core is in full colour, with the names of its twelve strongest nodes, and its links are
+  faint until a selection lights them.
+- **No critical node yet.** The release table of critical nodes had no row in release 2026-10-28.
+  The graph marks no node as critical until a release lists them with their identifiers.
+

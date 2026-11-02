@@ -8,7 +8,7 @@ import type { ForceSettings } from './variants';
 // The nodes with no link stand in rings at the edge of the frame. This is the gap between two of
 // them, as a share of the frame, and the radius at which the rings stop. A set of nodes that
 // the rings cannot hold at this gap keeps the places it held.
-const RING_GAP = 0.016;
+const RING_GAP = 0.01;
 const RING_INNER = 0.08;
 // The least radius of the linked picture, as a share of the frame.
 const CORE_MIN = 0.12;

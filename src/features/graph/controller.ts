@@ -109,6 +109,10 @@ const MAX_ASPECT = 1.7;
 // neighbours. A hover still names each node.
 const NAME_CAP = 15;
 
+// The first view names this many hubs. Origin: tuned on a screen, fewer than the cap above so the
+// names of a crowded core stay apart.
+const HUB_NAMES = 12;
+
 // The space between a node and its name, beside the radius of the node, in pixels.
 const NAME_OFFSET = 4;
 
@@ -267,6 +271,10 @@ export function mountGraph(
   let lit = 0;
   let dimmed = 0;
   let counts: ShownCounts = countShown(model.graph, new Set(), hiddenRelations);
+  // What the last layout run read: the pull of each node that holds a shown link, and the nodes
+  // that hold none. The second set is the dust, and the first one names the hubs.
+  let hubStrength: ReadonlyMap<string, number> = new Map();
+  let dust: ReadonlySet<string> = new Set();
 
   /** The elements that carry a marker on this frame, and how many get none. */
   let markerTargets: readonly string[] = [];
@@ -347,7 +355,15 @@ export function mountGraph(
 
   function nameReach(): void {
     const degreeOf = (node: string): number => model.graph.getNodeAttribute(node, 'degree');
-    shownNames = nearOf()
+    // With no selection the canvas names the strongest hubs, so the first view reads as a map.
+    shownNames =
+      hopOf.size === 0
+        ? [...hubStrength]
+            .sort(([one, a], [two, b]) => b - a || one.localeCompare(two))
+            .map(([node]) => node)
+            .filter((node) => litNodes.has(node))
+            .slice(0, HUB_NAMES)
+        : nearOf()
       .sort(
         (one, two) =>
           (hopOf.get(one) ?? 0) - (hopOf.get(two) ?? 0) ||
@@ -423,6 +439,10 @@ export function mountGraph(
   const reduceNode = (node: string, data: NodeAttrs): Partial<NodeDisplayData> => {
     // The switch hides the ring. Unlike a filter, it takes the node out of the picture.
     if (!showUnplaced && data.unplaced) return { ...data, hidden: true, label: null };
+    // An entity with no shown link is dust: drawn, so the reader sees how many there are, and dim,
+    // so the linked core stands out. A selection lights it as it lights any node.
+    if (hopOf.size === 0 && dust.has(node) && litNodes.has(node))
+      return { ...data, color: dimOf(data.color), zIndex: -1 };
     if (litNodes.has(node)) {
       const hop = hopOf.get(node);
       // The ring at two steps can hold most of the graph, through a legal act that lists
@@ -515,7 +535,9 @@ export function mountGraph(
           (selection?.kind === 'relation' && selection.id === edge) ||
           hopOf.get(model.graph.source(edge)) === 0 ||
           hopOf.get(model.graph.target(edge)) === 0;
-        return { ...data, size: touches && hopOf.size > 0 ? 2 : 1 };
+        // At rest the links are faint, so the hubs and the dust read before the lines do.
+        if (hopOf.size === 0) return { ...data, color: dimEdgeOf(data.color), size: 1 };
+        return { ...data, size: touches ? 2 : 1 };
       }
       // A line whose end the filter puts out has nothing to join.
       if (
@@ -933,9 +955,10 @@ export function mountGraph(
     let strongest = 0;
     for (const value of input.strength.values()) strongest = Math.max(strongest, value);
     // A crowd shrinks every node, so 5000 nodes do not cover one another.
-    // 1500 nodes is the count where the largest glyph still leaves room for its neighbours.
-    const crowd = Math.min(1, Math.sqrt(1500 / Math.max(1, input.nodes.length)));
-    const sized = (share: number): number => Math.max(3, variant.sizeOf(share) * crowd);
+    // 600 nodes is the count where the largest glyph still leaves room for its neighbours. The
+    // linked core of the record holds about 2500, and at 1500 its glyphs fused into one blob.
+    const crowd = Math.min(1, Math.sqrt(600 / Math.max(1, input.nodes.length)));
+    const sized = (share: number): number => Math.max(2, variant.sizeOf(share) * crowd);
     const sizes = new Map<string, number>();
     for (const node of input.nodes) {
       const share = strongest === 0 ? 0 : (input.strength.get(node) ?? 0) / strongest;
@@ -946,7 +969,10 @@ export function mountGraph(
       const size = sizes.get(node);
       return size === undefined ? attrs : Object.assign(attrs, { size });
     });
+    hubStrength = input.strength;
+    dust = new Set(input.rest);
     liveLayout.run(input, variant.forces);
+    nameReach();
   };
   relayout();
 

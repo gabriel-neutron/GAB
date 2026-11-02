@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { readGraphWorkspace } from './workspace';
+import { DEFAULT_GRAPH_WORKSPACE, readGraphWorkspace } from './workspace';
 
 const store = (value: unknown): void => {
   const held = new Map([['gab.graph.v1', JSON.stringify(value)]]);
@@ -29,7 +29,7 @@ describe('the saved workspace of the graph', () => {
       railOpen: false,
       railWidth: 300,
       showUnplaced: true,
-      hiddenRelationTypes: [],
+      hiddenRelationTypes: DEFAULT_GRAPH_WORKSPACE.hiddenRelationTypes,
     });
   });
 
@@ -67,6 +67,6 @@ describe('the saved workspace of the graph', () => {
       hiddenRelationTypes: [3],
     });
 
-    expect(readGraphWorkspace().hiddenRelationTypes).toEqual([]);
+    expect(readGraphWorkspace().hiddenRelationTypes).toEqual(DEFAULT_GRAPH_WORKSPACE.hiddenRelationTypes);
   });
 });

@@ -29,7 +29,9 @@ export const DEFAULT_GRAPH_WORKSPACE: GraphWorkspace = {
   railOpen: true,
   railWidth: 256,
   showUnplaced: true,
-  hiddenRelationTypes: [],
+  // The relations of a legal act join each entity to its act, and they are more than half of the
+  // record. Drawn, they fill the canvas and hide the operational links, so they start off.
+  hiddenRelationTypes: ['designated_by', 'restricted_by', 'exempted_by', 'issued_by'],
 };
 
 // A record saved before a switch existed has no key for it. It stays valid, so the camera, the
