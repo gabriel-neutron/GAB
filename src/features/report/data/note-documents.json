@@ -419,20 +419,6 @@
           "retrievedAt": "2026-10-25",
           "type": "other",
           "url": "https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=X&Partners=643&Reporters=97,842,392,410,490,826&period=2019-2025&AggregateBy=none&BreakdownMode=plus"
-        },
-        {
-          "id": "doc_0bd2f37c4e7a",
-          "match": "manual",
-          "retrievedAt": "2026-11-02",
-          "type": "other",
-          "url": "https://api.russiafossiltracker.com/"
-        },
-        {
-          "id": "doc_8386a931da4a",
-          "match": "manual",
-          "retrievedAt": "2026-10-30",
-          "type": "other",
-          "url": "https://api.russiafossiltracker.com/v0/counter?format=csv&date_from=2021-01-01&date_to=2025-12-31&commodity=crude_oil,oil_products,pipeline_oil&destination_iso2=CN,IN,TR&aggregate_by=destination_country,commodity,year&pricing_scenario=default"
         }
       ]
     },

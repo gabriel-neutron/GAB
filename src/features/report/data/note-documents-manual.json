@@ -141,28 +141,18 @@
   },
   {
     "note": 17,
-    "url": "https://api.russiafossiltracker.com/",
-    "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
-  },
-  {
-    "note": 17,
-    "url": "https://api.russiafossiltracker.com/v0/counter?format=csv&date_from=2021-01-01&date_to=2025-12-31&commodity=crude_oil,oil_products,pipeline_oil&destination_iso2=CN,IN,TR&aggregate_by=destination_country,commodity,year&pricing_scenario=default",
-    "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
-  },
-  {
-    "note": 17,
     "url": "https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=X&Partners=643&Reporters=97,842,392,410,490,826&period=2019-2025&AggregateBy=none&BreakdownMode=plus",
-    "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
+    "reason": "Bruegel and UN Comtrade data"
   },
   {
     "note": 17,
     "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
-    "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
+    "reason": "Bruegel and UN Comtrade data"
   },
   {
     "note": 17,
     "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx",
-    "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
+    "reason": "Bruegel and UN Comtrade data"
   },
   {
     "note": 21,
