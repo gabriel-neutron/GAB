@@ -30,3 +30,20 @@ test.each([
 ])('no recipe answers for %s', (_name, address, header) => {
   expect(recipeOf(address, header)).toBeUndefined();
 });
+
+const EUROSTAT =
+  [
+    'DATAFLOW,LAST UPDATE,freq,siec,partner,unit,geo,TIME_PERIOD,OBS_VALUE,OBS_FLAG,CONF_STATUS',
+  ][0]?.split(',') ?? [];
+const EUROSTAT_ADDRESS =
+  'https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/nrg_ti_gas/A.G3000.RU.MIO_M3.' +
+  '?format=SDMX-CSV&startPeriod=2021&endPeriod=2025';
+
+test('the recipe of the Eurostat import tables gives a valid mapping for gas and crude', () => {
+  expect(mappingDraft.safeParse(recipeOf(EUROSTAT_ADDRESS, EUROSTAT)).success).toBe(true);
+  expect(recipeOf(EUROSTAT_ADDRESS.replace('nrg_ti_gas', 'nrg_ti_oil'), EUROSTAT)?.table).toBe(
+    'nrg_ti_oil',
+  );
+  expect(recipeOf(EUROSTAT_ADDRESS.replace('nrg_ti_gas', 'nrg_ti_coal'), EUROSTAT)).toBeUndefined();
+  expect(recipeOf(EUROSTAT_ADDRESS, [...EUROSTAT, 'extra'])).toBeUndefined();
+});

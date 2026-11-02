@@ -90,6 +90,30 @@ const MEASURE_OF_COUNTER: Readonly<Record<string, string>> = {
   natural_gas: 'russian_pipeline_gas_exports',
 };
 
+const EUROSTAT_HOST = 'ec.europa.eu';
+const EUROSTAT_DATA = '/eurostat/api/dissemination/sdmx/2.1/data/';
+
+// The annual tables of the imports by partner, as the SDMX-CSV answer of the Eurostat API gives
+// them: one row for each reporter, product, unit and year.
+const EUROSTAT_HEADER = [
+  'DATAFLOW',
+  'LAST UPDATE',
+  'freq',
+  'siec',
+  'partner',
+  'unit',
+  'geo',
+  'TIME_PERIOD',
+  'OBS_VALUE',
+  'OBS_FLAG',
+  'CONF_STATUS',
+];
+
+const MEASURE_OF_EUROSTAT: Readonly<Record<string, string>> = {
+  nrg_ti_gas: 'imports_natural_gas',
+  nrg_ti_oil: 'imports_crude_oil',
+};
+
 const same = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && a.every((name, at) => name === b[at]);
 
@@ -105,6 +129,31 @@ export const recipeOf = (
     url = new URL(address);
   } catch {
     return undefined;
+  }
+  if (url.hostname === EUROSTAT_HOST) {
+    const dataset = url.pathname.startsWith(EUROSTAT_DATA)
+      ? url.pathname.slice(EUROSTAT_DATA.length).split('/')[0]
+      : undefined;
+    const measure = MEASURE_OF_EUROSTAT[dataset ?? ''];
+    if (measure === undefined || dataset === undefined || !same(header, EUROSTAT_HEADER))
+      return undefined;
+    return {
+      table: dataset,
+      modality: 'asserts',
+      publisher: 'Eurostat',
+      rows: {
+        measure,
+        value: { column: 'OBS_VALUE' },
+        unit: { column: 'unit' },
+        period: { column: 'TIME_PERIOD', length: 'year' },
+        reporter: { column: 'geo', codes: 'eurostat' },
+        partner: { column: 'partner', codes: 'eurostat' },
+        product: { column: 'siec', system: 'siec' },
+        method: 'imports reported by the importer',
+        flag: 'OBS_FLAG',
+      },
+      relations: [],
+    };
   }
   if (url.hostname !== CREA_HOST) return undefined;
   const commodity = url.searchParams.get('commodity') ?? '';
