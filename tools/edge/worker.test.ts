@@ -74,6 +74,34 @@ describe('the edge worker', () => {
     expect(catalog.entries.length).toBeGreaterThan(0);
   });
 
+  it('answers 404, not an error, for a name from Object.prototype', async () => {
+    expect((await get('/constructor')).status).toBe(404);
+    expect((await get('/.well-known/agent-skills/constructor/SKILL.md')).status).toBe(404);
+  });
+
+  it('serves the markdown twin of an application page', async () => {
+    const response = await get('/nodes.md');
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('text/markdown');
+  });
+
+  it('answers a missing file with a JSON body', async () => {
+    const response = await get('/release/nope.csv');
+    expect(response.status).toBe(404);
+    expect(((await response.json()) as { error: string }).error).toContain('nope.csv');
+  });
+
+  it('copies the noindex header of the host to a generated response', async () => {
+    const closed = {
+      ASSETS: {
+        fetch: (): Promise<Response> =>
+          Promise.resolve(new Response('x', { headers: { 'x-robots-tag': 'noindex' } })),
+      },
+    };
+    const response = await worker.fetch(new Request('https://example.org/llms.txt'), closed);
+    expect(response.headers.get('x-robots-tag')).toBe('noindex');
+  });
+
   it('serves the crawl files', async () => {
     expect(await (await get('/robots.txt')).text()).toContain(
       'Sitemap: https://example.org/sitemap.xml',

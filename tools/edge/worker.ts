@@ -4,6 +4,8 @@
 // the files for crawlers, markdown for the agents, the Link headers, the data of the page head
 // and a true 404. It adds no state and no data: the facts come from the manifest of the release.
 
+import { z } from 'zod';
+
 import { AI_CRAWLERS } from '@gab/release/ai-policy';
 import { MAIN_PAGES } from '@gab/release/llms-txt';
 import { robotsTxt, sitemapFiles } from '@gab/release/site-crawl';
@@ -37,15 +39,19 @@ const markdown = (body: string): Response => text(body, 'text/markdown');
 const json = (value: unknown, type = 'application/json'): Response =>
   text(JSON.stringify(value, null, 2), type);
 
+// The worker reads only these members of the manifest. The contact must be a mail or a web address,
+// because it goes into a link.
+const manifestShape = z.object({
+  version: z.string(),
+  date: z.string(),
+  contacts: z.object({ reportError: z.string().regex(/^(mailto:|https:\/\/)\S+$/u) }),
+  files: z.array(z.object({ path: z.string() })),
+});
+
 const readRelease = async (env: Env, origin: string): Promise<Release> => {
   try {
     const response = await env.ASSETS.fetch(new Request(`${origin}/release/manifest.json`));
-    const manifest = (await response.json()) as {
-      version: string;
-      date: string;
-      contacts: { reportError: string };
-      files: { path: string }[];
-    };
+    const manifest = manifestShape.parse(await response.json());
     return {
       version: manifest.version,
       date: manifest.date,
@@ -248,9 +254,11 @@ const generated = async (
     default:
   }
   const skill = /^\.well-known\/agent-skills\/([\w-]+)\/SKILL\.md$/u.exec(slug)?.[1];
-  if (skill !== undefined && skill in SKILLS) return markdown(skillFile(skill, site));
+  if (skill !== undefined && Object.hasOwn(SKILLS, skill)) return markdown(skillFile(skill, site));
   const wanted = slug.replace(/\.md$/u, '');
-  const page = STATIC_PAGES[wanted];
+  if (slug.endsWith('.md') && wanted !== '' && isAppPath(`/${wanted}`))
+    return markdown(appMarkdown(site, wanted.split('/')[0] ?? wanted));
+  const page = Object.hasOwn(STATIC_PAGES, wanted) ? STATIC_PAGES[wanted] : undefined;
   if (page === undefined) return null;
   const body = page.markdown(site, await r());
   return slug.endsWith('.md')
@@ -259,20 +267,22 @@ const generated = async (
 };
 
 const skillFile = (name: string, site: string): string => {
-  const skill = SKILLS[name];
+  const skill = Object.hasOwn(SKILLS, name) ? SKILLS[name] : undefined;
   if (skill === undefined) return '';
   return `---\nname: ${name}\ndescription: ${skill.description}\n---\n\n${skill.body(site)}\n`;
 };
 
 /** True when a reader that sends this request wants markdown, by header or as a known AI agent. */
-const wantsMarkdown = (request: Request): boolean => {
+const wantsMarkdown = (request: Request, shell: boolean): boolean => {
   const accept = request.headers.get('accept') ?? '';
   const markdownRank = accept
     .split(',')
     .findIndex((part) => part.trim().startsWith('text/markdown'));
   const htmlRank = accept.split(',').findIndex((part) => /^(text\/html|\*\/\*)/u.test(part.trim()));
   if (markdownRank !== -1 && (htmlRank === -1 || markdownRank < htmlRank)) return true;
-  return AI_AGENT.test(request.headers.get('user-agent') ?? '');
+  // A known AI crawler gets markdown only for a page with no text of its own: a prerendered page
+  // already holds its text for the crawler.
+  return shell && AI_AGENT.test(request.headers.get('user-agent') ?? '');
 };
 
 const isAppPath = (path: string): boolean => {
@@ -284,16 +294,19 @@ const isAppPath = (path: string): boolean => {
 const notFound = (request: Request, path: string): Response => {
   const hint = 'Start at /llms.txt for the pages and the files of the site.';
   const accept = request.headers.get('accept') ?? '';
-  const body = accept.includes('application/json')
-    ? JSON.stringify({ error: `No page or file at ${path}.`, hint })
-    : `# 404: not found\n\nNo page or file exists at \`${path}\`. ${hint}\n\n[Markdown home page](/index.md)\n`;
+  // A request for a file (a name with an extension) or for JSON gets the JSON body that docs.md
+  // promises. Every other request gets markdown.
+  const asJson = accept.includes('application/json') || /\.\w+$/u.test(path);
+  const shown = path.replace(/[`\s]/gu, '');
+  const body = asJson
+    ? JSON.stringify({ error: `No page or file at ${shown}.`, hint })
+    : `# 404: not found\n\nNo page or file exists at \`${shown}\`. ${hint}\n\n[Markdown home page](/index.md)\n`;
   return new Response(body, {
     status: 404,
     headers: {
-      'content-type': accept.includes('application/json')
-        ? 'application/json'
-        : 'text/markdown; charset=utf-8',
+      'content-type': asJson ? 'application/json' : 'text/markdown; charset=utf-8',
       vary: 'Accept',
+      'x-content-type-options': 'nosniff',
     },
   });
 };
@@ -359,6 +372,8 @@ const structuredData = (site: string, r: Release): string =>
 /** The head tags and the text for a reader with no script. The root stays empty, because the
  * application hydrates a root that holds text and an extra text would break the hydration. */
 const decorate = (html: string, site: string, path: string, r: Release): string => {
+  // A page that the release build wrote holds its own head and its own text already.
+  if (!html.includes('<div id="root"></div>') || html.includes('rel="canonical"')) return html;
   const home = path === '/';
   const twin = home ? 'index.md' : `${path.replace(/^\//u, '').replace(/\/$/u, '')}.md`;
   const head = [
@@ -390,10 +405,16 @@ export default {
     const site = `${url.origin}/`;
     if (request.method !== 'GET' && request.method !== 'HEAD') return env.ASSETS.fetch(request);
 
-    const made = await generated(url.pathname, site, env, url.origin);
+    const made = await generated(url.pathname, site, env, url.origin).catch(() => null);
     if (made !== null) {
       made.headers.set('link', LINKS(site));
-      return made;
+      made.headers.set('x-content-type-options', 'nosniff');
+      // A staging build tells search engines not to index any response. The worker copies that
+      // header from a file of the host, so a generated response never opens what staging closes.
+      const closed = await env.ASSETS.fetch(new Request(`${url.origin}/favicon.svg`));
+      const robots = closed.headers.get('x-robots-tag');
+      if (robots !== null) made.headers.set('x-robots-tag', robots);
+      return request.method === 'HEAD' ? new Response(null, made) : made;
     }
 
     const response = await env.ASSETS.fetch(request);
@@ -403,7 +424,9 @@ export default {
     if (!type.includes('text/html')) return response;
     if (!isAppPath(url.pathname)) return notFound(request, url.pathname);
 
-    if (wantsMarkdown(request)) {
+    const html = await response.text();
+    const shell = html.includes('<div id="root"></div>');
+    if (wantsMarkdown(request, shell)) {
       const folder = url.pathname.replace(/^\//u, '').replace(/\/$/u, '');
       return markdown(
         folder === '' ? homeMarkdown(site) : appMarkdown(site, folder.split('/')[0] ?? folder),
@@ -412,13 +435,17 @@ export default {
     const headers = new Headers(response.headers);
     headers.set('link', LINKS(site));
     headers.append('vary', 'Accept');
-    const html = decorate(
-      await response.text(),
-      site,
-      url.pathname,
-      await readRelease(env, url.origin),
-    );
     headers.delete('content-length');
-    return new Response(html, { status: response.status, headers });
+    headers.delete('etag');
+    // Only the home page uses the data of the release, so the other pages skip the extra read.
+    const release =
+      shell && url.pathname === '/'
+        ? await readRelease(env, url.origin)
+        : { version: '', date: '', contact: FALLBACK_CONTACT, files: [] };
+    const out = decorate(html, site, url.pathname, release);
+    return new Response(request.method === 'HEAD' ? null : out, {
+      status: response.status,
+      headers,
+    });
   },
 };
