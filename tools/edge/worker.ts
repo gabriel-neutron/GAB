@@ -35,7 +35,16 @@ const AI_AGENT = new RegExp(AI_CRAWLERS.join('|'), 'iu');
 
 const text = (body: string, type: string): Response =>
   new Response(body, { headers: { 'content-type': `${type}; charset=utf-8`, vary: 'Accept' } });
-const markdown = (body: string): Response => text(body, 'text/markdown');
+/** Markdown. With `meta`, a front matter block gives agents the title, the description, the
+ * canonical address and the date of the release. */
+const markdown = (body: string, meta?: { canonical: string; date: string }): Response => {
+  if (meta === undefined) return text(body, 'text/markdown');
+  const title = /^# (.+)$/mu.exec(body)?.[1] ?? 'GAB dataset';
+  const first = body.split('\n').find((line) => line !== '' && !line.startsWith('#')) ?? title;
+  const description = first.replace(/^> /u, '').replaceAll('"', "'");
+  const front = `---\ntitle: "${title.replaceAll('"', "'")}"\ndescription: "${description}"\ncanonical: ${meta.canonical}\nlast-updated: ${meta.date}\n---\n\n`;
+  return text(front + body, 'text/markdown');
+};
 const json = (value: unknown, type = 'application/json'): Response =>
   text(JSON.stringify(value, null, 2), type);
 
@@ -194,7 +203,7 @@ const generated = async (
       return text(reportLlms(site), 'text/plain');
     case 'index.md':
     case 'llms.md':
-      return markdown(homeMarkdown(site));
+      return markdown(homeMarkdown(site), { canonical: site, date: (await r()).date });
     case 'openapi.json':
       return json(openApi(site, await r()), 'application/openapi+json');
     case '.well-known/api-catalog':
@@ -257,12 +266,16 @@ const generated = async (
   if (skill !== undefined && Object.hasOwn(SKILLS, skill)) return markdown(skillFile(skill, site));
   const wanted = slug.replace(/\.md$/u, '');
   if (slug.endsWith('.md') && wanted !== '' && isAppPath(`/${wanted}`))
-    return markdown(appMarkdown(site, wanted.split('/')[0] ?? wanted));
+    return markdown(appMarkdown(site, wanted.split('/')[0] ?? wanted), {
+      canonical: `${site}${wanted}/`,
+      date: (await r()).date,
+    });
   const page = Object.hasOwn(STATIC_PAGES, wanted) ? STATIC_PAGES[wanted] : undefined;
   if (page === undefined) return null;
-  const body = page.markdown(site, await r());
+  const release = await r();
+  const body = page.markdown(site, release);
   return slug.endsWith('.md')
-    ? markdown(body)
+    ? markdown(body, { canonical: `${site}${wanted}`, date: release.date })
     : staticPage(site, wanted, page.title, page.description, body);
 };
 
@@ -331,6 +344,8 @@ const structuredData = (site: string, r: Release): string =>
         '@id': `${site}#org`,
         name: 'Gabriel',
         url: site,
+        description:
+          'An open-source investigation graph project that publishes the GAB dataset: sourced claims about sanctions, trade and shipping.',
         logo: `${site}icon-512.png`,
         sameAs: [REPOSITORY_URL, 'https://github.com/gabriel-neutron'],
         contactPoint: {
@@ -392,7 +407,9 @@ const decorate = (html: string, site: string, path: string, r: Release): string 
       : []),
   ].join('');
   const fallback = home
-    ? `<noscript><main><h1>GAB dataset</h1>${toHtml(homeMarkdown(site))}<p>Gabriel is an open-source investigation graph. The pages above need a script. The files of the release are plain files: see <a href="${site}docs">the documentation</a>.</p></main></noscript>`
+    ? // Outside the root, so the hydration never sees it. Hidden, because the application draws
+      // the same facts for a reader with a script.
+      `<div id="static-content" hidden><main><h1>GAB dataset</h1>${toHtml(homeMarkdown(site))}<p>Gabriel is an open-source investigation graph. The pages above need a script. The files of the release are plain files: see <a href="${site}docs">the documentation</a>.</p></main></div>`
     : '';
   return html
     .replace('</head>', `${head}</head>`)
@@ -426,10 +443,28 @@ export default {
 
     const html = await response.text();
     const shell = html.includes('<div id="root"></div>');
+    if (url.pathname === '/' && url.searchParams.get('mode') === 'agent') {
+      return json({
+        name: 'GAB dataset',
+        description: 'Sourced claims about sanctions, trade and shipping, as open files.',
+        authentication: 'none',
+        endpoints: {
+          manifest: `${site}release/manifest.json`,
+          openapi: `${site}openapi.json`,
+          llms: `${site}llms.txt`,
+          skills: `${site}.well-known/agent-skills/index.json`,
+        },
+        licence: LICENCE_URL,
+      });
+    }
     if (wantsMarkdown(request, shell)) {
       const folder = url.pathname.replace(/^\//u, '').replace(/\/$/u, '');
       return markdown(
         folder === '' ? homeMarkdown(site) : appMarkdown(site, folder.split('/')[0] ?? folder),
+        {
+          canonical: `${site}${folder === '' ? '' : `${folder}/`}`,
+          date: (await readRelease(env, url.origin)).date,
+        },
       );
     }
     const headers = new Headers(response.headers);
