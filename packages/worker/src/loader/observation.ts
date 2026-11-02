@@ -296,7 +296,8 @@ export const subjectFinder = (db: Queryable, rows: ObservationRows, header: read
       translate === undefined || at < 0 || !Object.hasOwn(translate, given)
         ? record
         : { ...record, fields: record.fields.with(at, translate[given] ?? given) };
-    const found = await findEnd(read, rows.subject);
+    // A port and a terminal can hold one UN/LOCODE: the figure is about the type that the mapping names.
+    const found = await findEnd(read, rows.subject, true);
     if (found.kind === 'one' && found.key !== 'label') return found.id;
     return {
       refused:

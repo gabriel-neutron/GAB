@@ -66,9 +66,15 @@ export type ColumnCasts = Readonly<
 
 /** Finds an entity of a row of a table under a mapping: the entity of the row, or an end of a
  * relation. `entityType` is the type that a lookup by the name finds. It reads the record and
- * writes nothing, so the load and the dry join give the same answer for the same row. */
+ * writes nothing, so the load and the dry join give the same answer for the same row. A lookup by
+ * an identifier looks at every type, unless `ofType` limits it to `entityType`. */
 export interface Finder {
-  (record: CsvRecord, given: readonly Lookup[], entityType: string): Promise<Found>;
+  (
+    record: CsvRecord,
+    given: readonly Lookup[],
+    entityType: string,
+    ofType?: boolean,
+  ): Promise<Found>;
   /** The identifier values of a row as the lookups read them, one `key|value` text each. A name
    * is no key, so it gives none. */
   keysOf(record: CsvRecord, given: readonly Lookup[]): string[];
@@ -100,7 +106,12 @@ export const makeFinder = (
     return typeof cell.value === 'string' ? cell.value : text;
   };
 
-  const lookedUp = async (lookup: Lookup, value: string, entityType: string): Promise<Found> => {
+  const lookedUp = async (
+    lookup: Lookup,
+    value: string,
+    entityType: string,
+    ofType: boolean,
+  ): Promise<Found> => {
     if (lookup.key === 'label') {
       const { rows } = await db.query(BY_LABEL, [entityType, value]);
       return foundOf(
@@ -108,18 +119,19 @@ export const makeFinder = (
         lookup.key,
       );
     }
-    return findByIdentifier(db, lookup.key, value, null);
+    return findByIdentifier(db, lookup.key, value, ofType ? entityType : null);
   };
 
   const find = async (
     record: CsvRecord,
     given: readonly Lookup[],
     entityType: string,
+    ofType = false,
   ): Promise<Found> => {
     for (const one of lookupOrder(given)) {
       const value = valueOf(record, one);
       if (value === null) continue;
-      const found = await lookedUp(one, value, entityType);
+      const found = await lookedUp(one, value, entityType, ofType);
       if (found.kind !== 'none') return found;
     }
     return { kind: 'none' };
