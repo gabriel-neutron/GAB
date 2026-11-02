@@ -1,9 +1,10 @@
+import type { IdentifierKey } from '@gab/proposal/identifiers';
 import { isWideTable, type ObservationRows, type WideRows } from '@gab/proposal/mapping';
 import type { CsvRecord } from '@gab/tools/csv';
 import { z } from 'zod';
 
 import type { Queryable } from '../queryable.ts';
-import { makeEndFinder } from './link.ts';
+import { findByIdentifier, type Found } from './join.ts';
 
 const PERIOD_SHAPE: Readonly<Record<ObservationRows['period']['length'], RegExp>> = {
   year: /^\d{4}$/u,
@@ -285,26 +286,37 @@ export interface ReportLine {
 /** The subject of a row: the entity that an identifier finds, or the sentence that says why the
  * row has none. */
 export const subjectFinder = (db: Queryable, rows: ObservationRows, header: readonly string[]) => {
-  const findEnd = makeEndFinder(db, header);
+  // A figure is about an entity of the type that the mapping names: a port and a terminal can hold
+  // one UN/LOCODE, and the lookup must not find both. A source repeats a cell for each row, so the
+  // answer of a lookup is kept.
+  const kept = new Map<string, Promise<Found>>();
+  const find = (key: IdentifierKey, value: string, type: string): Promise<Found> => {
+    const id = `${key}|${value}|${type}`;
+    const held = kept.get(id) ?? findByIdentifier(db, key, value, type);
+    kept.set(id, held);
+    return held;
+  };
   return async (record: CsvRecord): Promise<string | { refused: string }> => {
-    if (rows.subject === undefined) return { refused: 'the mapping names no subject' };
-    // The list of the mapping is read before the lookup, and a cell that it does not name stays.
-    const { translate } = rows.subject;
-    const at = header.indexOf(rows.subject.lookup[0]?.column ?? '');
-    const given = record.fields[at]?.trim() ?? '';
-    const read =
-      translate === undefined || at < 0 || !Object.hasOwn(translate, given)
-        ? record
-        : { ...record, fields: record.fields.with(at, translate[given] ?? given) };
-    const found = await findEnd(read, rows.subject);
-    if (found.kind === 'one' && found.key !== 'label') return found.id;
+    const { subject } = rows;
+    if (subject === undefined) return { refused: 'the mapping names no subject' };
+    let found: Found = { kind: 'none' };
+    for (const [place, one] of subject.lookup.entries()) {
+      const cell = record.fields[header.indexOf(one.column)]?.trim() ?? '';
+      // The list of the mapping is read before the lookup, and a cell that it does not name stays.
+      const value =
+        place === 0 && subject.translate !== undefined && Object.hasOwn(subject.translate, cell)
+          ? (subject.translate[cell] ?? cell)
+          : cell;
+      if (value === '') continue;
+      found = await find(one.key, value, subject.entity_type);
+      if (found.kind !== 'none') break;
+    }
+    if (found.kind === 'one') return found.id;
     return {
       refused:
         found.kind === 'none'
           ? 'the subject is not in the record'
-          : found.kind === 'many'
-            ? `the lookup of the subject by ${found.key} finds ${String(found.count)} entities`
-            : `the subject finds entity ${found.id} by its name only`,
+          : `the lookup of the subject by ${found.key} finds ${String(found.count)} entities`,
     };
   };
 };

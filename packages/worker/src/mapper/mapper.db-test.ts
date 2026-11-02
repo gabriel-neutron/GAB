@@ -882,3 +882,26 @@ test('a recipe file never takes the accepted mapping of another file of the same
     expect(crude?.id).not.toBe(products?.id);
   });
 });
+
+test('the subject of a figure is found among the entities of the type that the mapping names', async () => {
+  await inTransaction(async (held) => {
+    const port = await recorded(held, 'port', 'Port of Primorsk', { unlocode: 'RUPRI' });
+    // A terminal of the same code is no port, and it must not make the lookup ambiguous.
+    await recorded(held, 'facility', 'Primorsk export terminal', { unlocode: 'RUPRI' });
+    await seedDocument(held, LIST, CREA_URI, CREA_TEXT);
+    await held.step(makeMapper(CONFIG), noModel());
+    const [mapping] = await mappingsOf(held, LIST);
+    const load = await promote(held, mapping?.id ?? '');
+    await held.ask(OLDEST, [load]);
+    await held.step(makeLoader({ store: storeOf(held) }), noModel());
+    const figures = figureRows.parse(
+      await held.ask(
+        `SELECT period, value::text AS value, reporter, subject_id::text AS port
+           FROM public.observation WHERE document_id = $1 AND reporter = 'RU'
+            AND value = 100.5`,
+        [LIST],
+      ),
+    );
+    expect(figures.map((one) => one.port)).toStrictEqual([port]);
+  });
+});
