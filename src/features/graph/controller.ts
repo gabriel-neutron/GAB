@@ -113,6 +113,10 @@ const NAME_CAP = 15;
 // names of a crowded core stay apart.
 const HUB_NAMES = 12;
 
+// A node with this many shown links is a hub, and the first view draws it in full. Origin: measured
+// on release 2026-10-28, where 318 of 2,840 linked nodes reach it, a core that a screen can hold.
+const HUB_LINKS = 3;
+
 // The space between a node and its name, beside the radius of the node, in pixels.
 const NAME_OFFSET = 4;
 
@@ -536,7 +540,13 @@ export function mountGraph(
           hopOf.get(model.graph.source(edge)) === 0 ||
           hopOf.get(model.graph.target(edge)) === 0;
         // At rest the links are faint, so the hubs and the dust read before the lines do.
-        if (hopOf.size === 0) return { ...data, color: dimEdgeOf(data.color), size: 1 };
+        if (hopOf.size === 0) {
+          const [from, to] = model.graph.extremities(edge);
+          // A link between two hubs keeps its colour: it is the skeleton of the picture.
+          return dust.has(from) || dust.has(to)
+            ? { ...data, color: dimEdgeOf(data.color), size: 1 }
+            : { ...data, size: 1 };
+        }
         return { ...data, size: touches ? 2 : 1 };
       }
       // A line whose end the filter puts out has nothing to join.
@@ -960,9 +970,17 @@ export function mountGraph(
     const crowd = Math.min(1, Math.sqrt(600 / Math.max(1, input.nodes.length)));
     const sized = (share: number): number => Math.max(2, variant.sizeOf(share) * crowd);
     const sizes = new Map<string, number>();
+    // A node with fewer than HUB_LINKS shown links is a leaf. It joins the dust, small and dim, so the hubs and the
+    // links between them are what the reader sees first. A selection lights it again.
+    const links = new Map<string, number>();
+    for (const { source, target } of input.links) {
+      links.set(source, (links.get(source) ?? 0) + 1);
+      links.set(target, (links.get(target) ?? 0) + 1);
+    }
+    const leaves = input.nodes.filter((node) => (links.get(node) ?? 0) < HUB_LINKS);
     for (const node of input.nodes) {
       const share = strongest === 0 ? 0 : (input.strength.get(node) ?? 0) / strongest;
-      sizes.set(node, sized(share));
+      sizes.set(node, (links.get(node) ?? 0) < HUB_LINKS ? 2 : sized(share));
     }
     for (const node of input.rest) sizes.set(node, sized(0));
     model.graph.updateEachNodeAttributes((node, attrs) => {
@@ -970,7 +988,7 @@ export function mountGraph(
       return size === undefined ? attrs : Object.assign(attrs, { size });
     });
     hubStrength = input.strength;
-    dust = new Set(input.rest);
+    dust = new Set([...input.rest, ...leaves]);
     liveLayout.run(input, variant.forces);
     nameReach();
   };
