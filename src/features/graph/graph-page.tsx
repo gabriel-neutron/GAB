@@ -289,7 +289,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
           <GraphCanvas canvas={canvas} overlay={overlay} />
           {snapshot === null ? null : (
             <>
-              <StatusBar counts={snapshot.view.counts} />
+              <StatusBar counts={snapshot.view.counts} dust={snapshot.view.dust} />
               <VariantSwitch
                 current={snapshot.view.variant}
                 onPick={(id) => controller.current?.setVariant(id)}

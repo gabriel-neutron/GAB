@@ -14,10 +14,17 @@ const of = (part: ShownOfTotal, noun: string): string =>
     : `${String(part.shown)} of ${String(part.total)} ${noun}`;
 
 /** The status bar at the top left of the canvas. */
-export function StatusBar({ counts }: { readonly counts: ShownCounts }) {
+export function StatusBar({
+  counts,
+  dust,
+}: {
+  readonly counts: ShownCounts;
+  readonly dust: number;
+}) {
   return (
     <p role="status" className={cn('absolute top-2 left-2 z-10 px-1 font-mono', CAPTION)}>
       {of(counts.entities, 'entities')} · {of(counts.relations, 'relations')}
+      {dust === 0 ? null : ` · ${String(dust)} faint: fewer than 3 links`}
     </p>
   );
 }

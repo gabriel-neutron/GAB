@@ -55,6 +55,8 @@ export interface GraphView {
   readonly unplaced: number;
   /** Whether the canvas draws them. */
   readonly showUnplaced: boolean;
+  /** How many entities the first view draws as faint dust: fewer than three shown links. */
+  readonly dust: number;
   /** The identifier of the prototype in view. */
   readonly variant: VariantId;
   readonly railOpen: boolean;
@@ -116,6 +118,10 @@ const HUB_NAMES = 12;
 // A node with this many shown links is a hub, and the first view draws it in full. Origin: measured
 // on release 2026-10-28, where 318 of 2,840 linked nodes reach it, a core that a screen can hold.
 const HUB_LINKS = 3;
+
+// The least size of a hub, in the units Sigma scales to pixels. Origin: tuned on a screen, the
+// size at which the shape of a glyph can be told from a disc.
+const HUB_FLOOR = 8;
 
 // The space between a node and its name, beside the radius of the node, in pixels.
 const NAME_OFFSET = 4;
@@ -811,6 +817,7 @@ export function mountGraph(
     markersOverCap,
     openUnits: folds.open,
     unplaced: placement.unplaced.size,
+    dust: dust.size,
     variant: variant.id,
     showUnplaced,
     railOpen,
@@ -964,25 +971,27 @@ export function mountGraph(
     // The size of a node is its share of the strongest node in view, so a variant reads weight.
     let strongest = 0;
     for (const value of input.strength.values()) strongest = Math.max(strongest, value);
-    // A crowd shrinks every node, so 5000 nodes do not cover one another.
-    // 600 nodes is the count where the largest glyph still leaves room for its neighbours. The
-    // linked core of the record holds about 2500, and at 1500 its glyphs fused into one blob.
-    const crowd = Math.min(1, Math.sqrt(600 / Math.max(1, input.nodes.length)));
-    const sized = (share: number): number => Math.max(2, variant.sizeOf(share) * crowd);
-    const sizes = new Map<string, number>();
-    // A node with fewer than HUB_LINKS shown links is a leaf. It joins the dust, small and dim, so the hubs and the
-    // links between them are what the reader sees first. A selection lights it again.
+    // A node with fewer than HUB_LINKS shown links is a leaf. It joins the dust, small and dim, so
+    // the hubs and the links between them are what the reader sees first. A selection lights it.
     const links = new Map<string, number>();
     for (const { source, target } of input.links) {
       links.set(source, (links.get(source) ?? 0) + 1);
       links.set(target, (links.get(target) ?? 0) + 1);
     }
-    const leaves = input.nodes.filter((node) => (links.get(node) ?? 0) < HUB_LINKS);
+    const isLeaf = (node: string): boolean => (links.get(node) ?? 0) < HUB_LINKS;
+    const leaves = input.nodes.filter(isLeaf);
+    // A crowd shrinks the hubs, so they do not cover one another. The leaves do not count: they
+    // are 2px dust. 1500 hubs is the count where the largest glyph still leaves room.
+    const crowd = Math.min(1, Math.sqrt(1500 / Math.max(1, input.nodes.length - leaves.length)));
+    // A hub never draws under HUB_FLOOR, or its glyph reads as a dot and the type is lost.
+    const sized = (share: number): number =>
+      Math.max(HUB_FLOOR, variant.sizeOf(share) * crowd);
+    const sizes = new Map<string, number>();
     for (const node of input.nodes) {
       const share = strongest === 0 ? 0 : (input.strength.get(node) ?? 0) / strongest;
-      sizes.set(node, (links.get(node) ?? 0) < HUB_LINKS ? 2 : sized(share));
+      sizes.set(node, isLeaf(node) ? 2 : sized(share));
     }
-    for (const node of input.rest) sizes.set(node, sized(0));
+    for (const node of input.rest) sizes.set(node, 2);
     model.graph.updateEachNodeAttributes((node, attrs) => {
       const size = sizes.get(node);
       return size === undefined ? attrs : Object.assign(attrs, { size });
