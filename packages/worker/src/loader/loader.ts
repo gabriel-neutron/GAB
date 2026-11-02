@@ -319,6 +319,17 @@ export const makeLoader = (options: LoaderOptions): RunnerAgent => {
         },
         lines,
       );
+      // The report holds the reasons, but a runner that excluded every row must say why where the
+      // operator looks first: the most frequent reasons go to the log, with their count.
+      if (excluded > 0) {
+        const counts = new Map<string, number>();
+        for (const line of lines) counts.set(line.reason, (counts.get(line.reason) ?? 0) + 1);
+        const top = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 3);
+        console.error(
+          `load ${job.id} of ${document}: ${String(excluded)} rows excluded; most frequent reasons: ` +
+            top.map(([reason, n]) => `${String(n)} x "${reason.slice(0, 200)}"`).join('; '),
+        );
+      }
       const bytes = new TextEncoder().encode(text);
       const digest = sha256(bytes);
       const key = await options.store.put({ key: `raw/${digest}`, bytes, mime: REPORT_MIME });
