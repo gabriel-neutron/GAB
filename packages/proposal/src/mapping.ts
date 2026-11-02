@@ -201,6 +201,9 @@ const observations = z.strictObject({
             'that this list names is read as its value, for example a port name as its UN/LOCODE',
         ),
     })
+    .refine((held) => held.translate === undefined || held.lookup.length === 1, {
+      message: 'a subject with a translate list has one lookup, and the list reads its column',
+    })
     .optional()
     .describe('the entity of the record that the figure is about, for example a pipeline'),
   method: z

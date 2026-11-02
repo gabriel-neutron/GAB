@@ -1,7 +1,7 @@
 import type { MappingDraft } from '@gab/proposal/mapping';
 
 /** A recipe is the mapping of a table that code knows by its address and its header, so no model
- * reads it and no credit is spent. A reviewer decides the mapping as any other (ADR 0030). A recipe
+ * reads it and no credit is spent. A reviewer decides the mapping as any other. A recipe
  * answers only for the exact header that it lists: a change of the source falls through to the
  * model, and never to a guess. */
 export const RECIPE_AGENT = { name: 'deterministic_mapper', version: 'v1' } as const;

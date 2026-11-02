@@ -15,7 +15,7 @@ The expert panel (software-architect, osint-expert, skeptic) decided on 2 Novemb
 
 - **The mapper has a recipe step before the model.** A recipe is code that returns the mapping of
   one table that it knows by the host and path of the document, the query that fetched it, and the
-  exact list of header columns. A table that no recipe knows goes to the model as before.
+  exact list of header columns. A table that no recipe knows goes to the model as before: the mapper sends it to the model.
 - **The call is honest.** A recipe records a call with the agent `deterministic_mapper`, the
   endpoint `none`, the model `none` and 0 tokens. The door `propose_mapping` and its checks do not
   change. A reviewer decides the mapping as any other mapping.
@@ -31,6 +31,7 @@ The expert panel (software-architect, osint-expert, skeptic) decided on 2 Novemb
 
 ## Cost
 
-- Each recipe is code for one publisher and needs a test. A change of the header of the source
-  makes the recipe silent, and the table falls to the model.
+- Each recipe is code for one publisher and needs a test. When the header of the source changes, or
+  a commodity has no measure, the recipe does not apply and the mapper sends the table to the
+  model. That step spends credit, so check a new file against its recipe before you enqueue it.
 - A daily figure is one row for each day: about 20,000 rows for the port tables of five years.

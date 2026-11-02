@@ -293,9 +293,9 @@ export const subjectFinder = (db: Queryable, rows: ObservationRows, header: read
     const at = header.indexOf(rows.subject.lookup[0]?.column ?? '');
     const given = record.fields[at]?.trim() ?? '';
     const read =
-      translate === undefined || at < 0 || translate[given] === undefined
+      translate === undefined || at < 0 || !Object.hasOwn(translate, given)
         ? record
-        : { ...record, fields: record.fields.with(at, translate[given]) };
+        : { ...record, fields: record.fields.with(at, translate[given] ?? given) };
     const found = await findEnd(read, rows.subject);
     if (found.kind === 'one' && found.key !== 'label') return found.id;
     return {
