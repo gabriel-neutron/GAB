@@ -5620,8 +5620,13 @@ END $$;
 -- host, so it always gets a mapping of its own. The caller runs the map_structured job of the
 -- document. The loader reads the header of the file again and stops on a header that differs, so
 -- a caller that states a false header loads nothing. A load that is open already for the document
--- is returned, so a job that runs again queues no second one.
-CREATE OR REPLACE FUNCTION enqueue_mapped_load(p_document text, p_header_sig text)
+-- is returned, so a job that runs again queues no second one. The mapping of the document itself
+-- comes first. A caller that holds a recipe for the table asks for the mapping of its own
+-- document only (p_own_only), because two files of one host can share a header and differ in the
+-- measure that their recipes give.
+DROP FUNCTION IF EXISTS enqueue_mapped_load(text, text);
+CREATE OR REPLACE FUNCTION enqueue_mapped_load(
+  p_document text, p_header_sig text, p_own_only boolean DEFAULT false)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -5659,11 +5664,12 @@ BEGIN
    WHERE p.op = 'map_document' AND p.status = 'accepted'
      AND p.payload->>'header_sig' = p_header_sig
      AND v_host IS NOT NULL AND public.uri_host(d.uri) = v_host
+     AND (NOT p_own_only OR p.src[1] = p_document::doc_id)
      -- Two sheets of one workbook, or two filters of one sheet, can give the same header. The
      -- mapping applies again only to the same sheet or layer and the same filter.
      AND public.text_set_shape(public.mapping_text_set(p.id))
          IS NOT DISTINCT FROM public.text_set_shape(v_set)
-   ORDER BY p.decided_at DESC, p.id
+   ORDER BY (p.src[1] = p_document::doc_id) DESC, p.decided_at DESC, p.id
    LIMIT 1;
   IF NOT FOUND THEN
     RETURN NULL;

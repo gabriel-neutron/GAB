@@ -47,7 +47,7 @@ const MIME = 'SELECT mime, uri FROM public.documents WHERE id = $1::text';
 const RECIPE_CALL = `SELECT public.record_model_call($1::text, $2::text, 'none', 'none',
   encode(sha256(convert_to($3::text, 'UTF8')), 'hex'), 0, 'ok', $4::uuid, NULL, 0, 0)::text AS id`;
 
-const REUSE = 'SELECT public.enqueue_mapped_load($1::text, $2::text)::text AS id';
+const REUSE = 'SELECT public.enqueue_mapped_load($1::text, $2::text, $3::boolean)::text AS id';
 
 /** The mapper. It reads the header and the first rows of one table, and the model proposes how
  * the columns map. A second file of the same header from the same host takes the mapping that the
@@ -86,13 +86,17 @@ export const makeMapper = (config: MapperConfig, options: MapperOptions = {}): R
     const { headerSig, header } = sampled.parse(read.output);
 
     // A file that an accepted mapping already fits is loaded with no model. A job that runs again
-    // meets the load that its first run queued, and the door returns it.
-    const [reused] = loadRow.parse((await context.db.query(REUSE, [document, headerSig])).rows);
+    // meets the load that its first run queued, and the door returns it. A table that a recipe
+    // knows takes only the mapping of its own document: two files of one host can share a header
+    // and give another measure.
+    const recipe = recipeOf(held.uri, header);
+    const [reused] = loadRow.parse(
+      (await context.db.query(REUSE, [document, headerSig, recipe !== undefined])).rows,
+    );
     if (reused !== undefined && reused.id !== null) return { refusals: [] };
 
     // A table that a recipe knows is mapped by code and costs no credit. A refusal of the recipe
     // stops the job: the model never gets a table that a recipe claims.
-    const recipe = recipeOf(held.uri, header);
     if (recipe !== undefined) {
       const [call] = z
         .array(z.object({ id: z.uuid() }))
