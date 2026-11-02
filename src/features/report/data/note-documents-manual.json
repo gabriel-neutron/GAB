@@ -1,10 +1,35 @@
 [
   {
+    "note": 1,
+    "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
+    "reason": "Bruegel Russian foreign trade tracker, page and workbook"
+  },
+  {
+    "note": 1,
+    "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx",
+    "reason": "Bruegel Russian foreign trade tracker, page and workbook"
+  },
+  {
     "note": 3,
     "url": "https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub.",
     "reason": "stored address ends with a full stop"
   },
   {
+    "note": 5,
+    "url": "https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=X&Partners=643&Reporters=97,842,392,410,490,826&period=2019-2025&AggregateBy=none&BreakdownMode=plus",
+    "reason": "UN Comtrade CHP export download"
+  },
+  {
+    "note": 6,
+    "url": "http://publications.europa.eu/resource/cellar/4295095e-ae10-11e3-86f9-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "EU Regulations 269/2014 and 833/2014"
+  },
+  {
+    "note": 6,
+    "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
+    "reason": "EU Regulations 269/2014 and 833/2014"
+  },
+  {
     "note": 8,
     "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2014:2025&per_page=20",
     "reason": "World Bank indicator NY.GDP.DEFL.KD.ZG"
@@ -21,11 +46,6 @@
   },
   {
     "note": 9,
-    "url": "https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub.",
-    "reason": "Ministry of Finance (2026a), op. cit., n. 3"
-  },
-  {
-    "note": 9,
     "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2014:2025&per_page=20",
     "reason": "World Bank (2026), op. cit., n. 8"
   },
@@ -35,24 +55,9 @@
     "reason": "World Bank (2026), op. cit., n. 8"
   },
   {
-    "note": 10,
-    "url": "http://publications.europa.eu/resource/cellar/a71561fd-e339-11ec-a534-01aa75ed71a1.0006.01/DOC_1",
-    "reason": "CELEX 32022R0879"
-  },
-  {
-    "note": 10,
-    "url": "http://publications.europa.eu/resource/cellar/75a2e29c-7345-11ed-9887-01aa75ed71a1.0006.01/DOC_1",
-    "reason": "CELEX 32022R2367"
-  },
-  {
-    "note": 10,
-    "url": "http://publications.europa.eu/resource/cellar/e7927a1b-7344-11ed-9887-01aa75ed71a1.0006.03/DOC_1",
-    "reason": "CELEX 32022R2368"
-  },
-  {
-    "note": 10,
-    "url": "http://publications.europa.eu/resource/cellar/cd24922e-a49d-11ed-b508-01aa75ed71a1.0006.03/DOC_1",
-    "reason": "CELEX 32023R0251"
+    "note": 9,
+    "url": "https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub.",
+    "reason": "Ministry of Finance (2026a), op. cit., n. 3"
   },
   {
     "note": 10,
@@ -61,8 +66,23 @@
   },
   {
     "note": 10,
+    "url": "http://publications.europa.eu/resource/cellar/6ef36f48-f1b4-11f0-8d3c-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32026R0124"
+  },
+  {
+    "note": 10,
+    "url": "http://publications.europa.eu/resource/cellar/75a2e29c-7345-11ed-9887-01aa75ed71a1.0006.01/DOC_1",
+    "reason": "CELEX 32022R2367"
+  },
+  {
+    "note": 10,
     "url": "http://publications.europa.eu/resource/cellar/8e9a2c55-6438-11f0-bf4e-01aa75ed71a1.0006.03/DOC_1",
     "reason": "CELEX 32025R1494"
+  },
+  {
+    "note": 10,
+    "url": "http://publications.europa.eu/resource/cellar/a71561fd-e339-11ec-a534-01aa75ed71a1.0006.01/DOC_1",
+    "reason": "CELEX 32022R0879"
   },
   {
     "note": 10,
@@ -71,8 +91,13 @@
   },
   {
     "note": 10,
-    "url": "http://publications.europa.eu/resource/cellar/6ef36f48-f1b4-11f0-8d3c-01aa75ed71a1.0006.03/DOC_1",
-    "reason": "CELEX 32026R0124"
+    "url": "http://publications.europa.eu/resource/cellar/cd24922e-a49d-11ed-b508-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32023R0251"
+  },
+  {
+    "note": 10,
+    "url": "http://publications.europa.eu/resource/cellar/e7927a1b-7344-11ed-9887-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32022R2368"
   },
   {
     "note": 10,
@@ -86,13 +111,13 @@
   },
   {
     "note": 12,
-    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.PETR.RT.ZS?format=json&date=2014:2024&per_page=50",
-    "reason": "World Bank indicator NY.GDP.PETR.RT.ZS"
+    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.NGAS.RT.ZS?format=json&date=2021:2021",
+    "reason": "World Bank indicator NY.GDP.NGAS.RT.ZS"
   },
   {
     "note": 12,
-    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.NGAS.RT.ZS?format=json&date=2021:2021",
-    "reason": "World Bank indicator NY.GDP.NGAS.RT.ZS"
+    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.PETR.RT.ZS?format=json&date=2014:2024&per_page=50",
+    "reason": "World Bank indicator NY.GDP.PETR.RT.ZS"
   },
   {
     "note": 13,
@@ -115,6 +140,56 @@
     "reason": "CELEX 32026R0261"
   },
   {
+    "note": 17,
+    "url": "https://api.russiafossiltracker.com/",
+    "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
+  },
+  {
+    "note": 17,
+    "url": "https://api.russiafossiltracker.com/v0/counter?format=csv&date_from=2021-01-01&date_to=2025-12-31&commodity=crude_oil,oil_products,pipeline_oil&destination_iso2=CN,IN,TR&aggregate_by=destination_country,commodity,year&pricing_scenario=default",
+    "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
+  },
+  {
+    "note": 17,
+    "url": "https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=X&Partners=643&Reporters=97,842,392,410,490,826&period=2019-2025&AggregateBy=none&BreakdownMode=plus",
+    "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
+  },
+  {
+    "note": 17,
+    "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
+    "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
+  },
+  {
+    "note": 17,
+    "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx",
+    "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
+  },
+  {
+    "note": 21,
+    "url": "https://api.russiafossiltracker.com/",
+    "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
+  },
+  {
+    "note": 21,
+    "url": "https://api.russiafossiltracker.com/v0/counter?format=csv&date_from=2021-01-01&date_to=2025-12-31&commodity=crude_oil,oil_products,pipeline_oil&destination_iso2=CN,IN,TR&aggregate_by=destination_country,commodity,year&pricing_scenario=default",
+    "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
+  },
+  {
+    "note": 21,
+    "url": "https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=X&Partners=643&Reporters=97,842,392,410,490,826&period=2019-2025&AggregateBy=none&BreakdownMode=plus",
+    "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
+  },
+  {
+    "note": 21,
+    "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
+    "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
+  },
+  {
+    "note": 21,
+    "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx",
+    "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
+  },
+  {
     "note": 23,
     "url": "http://publications.europa.eu/resource/cellar/75a2e29c-7345-11ed-9887-01aa75ed71a1.0006.01/DOC_1",
     "reason": "CELEX 32022R2367"
@@ -126,13 +201,13 @@
   },
   {
     "note": 25,
-    "url": "http://publications.europa.eu/resource/cellar/75a2e29c-7345-11ed-9887-01aa75ed71a1.0006.01/DOC_1",
-    "reason": "CELEX 32022R2367"
+    "url": "http://publications.europa.eu/resource/cellar/6ef36f48-f1b4-11f0-8d3c-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32026R0124"
   },
   {
     "note": 25,
-    "url": "http://publications.europa.eu/resource/cellar/e7927a1b-7344-11ed-9887-01aa75ed71a1.0006.03/DOC_1",
-    "reason": "CELEX 32022R2368"
+    "url": "http://publications.europa.eu/resource/cellar/75a2e29c-7345-11ed-9887-01aa75ed71a1.0006.01/DOC_1",
+    "reason": "CELEX 32022R2367"
   },
   {
     "note": 25,
@@ -141,13 +216,18 @@
   },
   {
     "note": 25,
-    "url": "http://publications.europa.eu/resource/cellar/6ef36f48-f1b4-11f0-8d3c-01aa75ed71a1.0006.03/DOC_1",
-    "reason": "CELEX 32026R0124"
+    "url": "http://publications.europa.eu/resource/cellar/e7927a1b-7344-11ed-9887-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32022R2368"
   },
   {
     "note": 25,
     "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R1494",
     "reason": "CELEX 32025R1494"
+  },
+  {
+    "note": 25,
+    "url": "https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx",
+    "reason": "World Bank Pink Sheet monthly workbook"
   },
   {
     "note": 26,
@@ -168,6 +248,11 @@
     "note": 29,
     "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
     "reason": "Dodonov et al. (2026), op. cit., n. 2"
+  },
+  {
+    "note": 30,
+    "url": "https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx",
+    "reason": "World Bank Pink Sheet monthly workbook"
   },
   {
     "note": 31,
@@ -191,6 +276,16 @@
   },
   {
     "note": 37,
+    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2014:2025&per_page=20",
+    "reason": "World Bank (2026), op. cit., n. 8"
+  },
+  {
+    "note": 37,
+    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2020:2025&per_page=20",
+    "reason": "World Bank (2026), op. cit., n. 8"
+  },
+  {
+    "note": 37,
     "url": "https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub.",
     "reason": "Ministry of Finance (2026a), op. cit., n. 3"
   },
@@ -205,14 +300,9 @@
     "reason": "Korsunskaya (2024), op. cit., n. 8"
   },
   {
-    "note": 37,
-    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2014:2025&per_page=20",
-    "reason": "World Bank (2026), op. cit., n. 8"
-  },
-  {
-    "note": 37,
-    "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2020:2025&per_page=20",
-    "reason": "World Bank (2026), op. cit., n. 8"
+    "note": 38,
+    "url": "https://www.nalog.gov.ru/rn91/ifns/ifns7/info/16590442/",
+    "reason": "stored regional tax page with the same VAT rate; the cited page is not stored"
   },
   {
     "note": 40,
@@ -245,14 +335,89 @@
     "reason": "See n. 41 (Dodonov et al. (2026), op. cit., n. 2)"
   },
   {
+    "note": 46,
+    "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
+    "reason": "OFAC SDN list, UK Sanctions List and Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+    "reason": "OFAC SDN list, UK Sanctions List and Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+    "reason": "OFAC SDN list, UK Sanctions List and Regulation 833/2014"
+  },
+  {
     "note": 47,
     "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
     "reason": "Dodonov et al. (2026), op. cit., n. 2"
   },
   {
     "note": 48,
+    "url": "https://energyandcleanair.org/january-2026-monthly-analysis-of-russian-fossil-fuel-exports-and-sanctions/",
+    "reason": "CREA monthly analysis, January 2026"
+  },
+  {
+    "note": 48,
     "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
     "reason": "Dodonov et al. (2026), op. cit., n. 2"
+  },
+  {
+    "note": 49,
+    "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
+    "reason": "OFAC SDN list and Regulation 833/2014"
+  },
+  {
+    "note": 49,
+    "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+    "reason": "OFAC SDN list and Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
+    "reason": "same sources as note 46"
+  },
+  {
+    "note": 50,
+    "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+    "reason": "same sources as note 46"
+  },
+  {
+    "note": 50,
+    "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+    "reason": "same sources as note 46"
+  },
+  {
+    "note": 51,
+    "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
+    "reason": "OFAC SDN list, UK Sanctions List and Regulation 833/2014"
+  },
+  {
+    "note": 51,
+    "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+    "reason": "OFAC SDN list, UK Sanctions List and Regulation 833/2014"
+  },
+  {
+    "note": 51,
+    "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+    "reason": "OFAC SDN list, UK Sanctions List and Regulation 833/2014"
+  },
+  {
+    "note": 52,
+    "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
+    "reason": "OFAC SDN list, UK Sanctions List and Regulation 833/2014"
+  },
+  {
+    "note": 52,
+    "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+    "reason": "OFAC SDN list, UK Sanctions List and Regulation 833/2014"
+  },
+  {
+    "note": 52,
+    "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+    "reason": "OFAC SDN list, UK Sanctions List and Regulation 833/2014"
   },
   {
     "note": 53,
@@ -263,6 +428,11 @@
     "note": 53,
     "url": "https://home.treasury.gov/news/press-releases/jy0705",
     "reason": "Treasury press release jy0705"
+  },
+  {
+    "note": 54,
+    "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+    "reason": "UK Sanctions List"
   },
   {
     "note": 55,
@@ -278,6 +448,21 @@
     "note": 60,
     "url": "https://econ4ua.org/wp-content/uploads/2026/09/Chinas-Support-for-Russia-Final.pdf",
     "reason": "Deryugina & Shepotylo (2026), op. cit., n. 32"
+  },
+  {
+    "note": 63,
+    "url": "https://www.bloomberg.com/news/articles/2024-01-17/turkish-banks-tighten-screws-on-russia-over-fear-of-us-sanctions",
+    "reason": "Bloomberg and Moscow Times articles of the note"
+  },
+  {
+    "note": 63,
+    "url": "https://www.themoscowtimes.com/2024/02/19/uae-banks-limit-payments-with-russia-over-secondary-sanctions-threat-vedomosti-a84143",
+    "reason": "Bloomberg and Moscow Times articles of the note"
+  },
+  {
+    "note": 64,
+    "url": "https://www.thestandard.com.hk/china/article/219959/Russia-payment-hurdles-with-China-partners-intensified-in-August-sources-say",
+    "reason": "Reuters article in The Standard"
   },
   {
     "note": 65,
@@ -306,13 +491,23 @@
   },
   {
     "note": 69,
+    "url": "http://publications.europa.eu/resource/cellar/b87e7fd7-3f1f-11f1-814f-01aa75ed71a1.0006.03/DOC_1",
+    "reason": "CELEX 32026R0506"
+  },
+  {
+    "note": 69,
     "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
     "reason": "CELEX 02014R0833-20250720"
   },
   {
-    "note": 69,
-    "url": "http://publications.europa.eu/resource/cellar/b87e7fd7-3f1f-11f1-814f-01aa75ed71a1.0006.03/DOC_1",
-    "reason": "CELEX 32026R0506"
+    "note": 71,
+    "url": "https://24.kg/english/325722_New_procedure_for_Russian_ruble_transactions_to_be_introduced_in_Kyrgyzstan/",
+    "reason": "24.kg and Times of Central Asia articles"
+  },
+  {
+    "note": 71,
+    "url": "https://timesca.com/kyrgyz-president-denounces-politicized-sanctions-on-banks/",
+    "reason": "24.kg and Times of Central Asia articles"
   },
   {
     "note": 72,
@@ -330,6 +525,16 @@
     "reason": "Prokopenko & Kolyandr (2024), op. cit., n. 56"
   },
   {
+    "note": 74,
+    "url": "https://ofac.treasury.gov/media/933656/download?inline",
+    "reason": "Bank of Russia annual report 2025 and OFAC guidance"
+  },
+  {
+    "note": 74,
+    "url": "https://www.cbr.ru/collection/collection/file/59814/ar_2025_e.pdf",
+    "reason": "Bank of Russia annual report 2025 and OFAC guidance"
+  },
+  {
     "note": 78,
     "url": "https://www.fincen.gov/system/files/2026-10/FinCEN-Alert-A7-Network.pdf",
     "reason": "Financial Crimes Enforcement Network (2026), op. cit., n. 75"
@@ -343,6 +548,16 @@
     "note": 82,
     "url": "https://econ4ua.org/wp-content/uploads/2026/09/Chinas-Support-for-Russia-Final.pdf",
     "reason": "Deryugina & Shepotylo (2026), op. cit., n. 32"
+  },
+  {
+    "note": 84,
+    "url": "https://www.info.gov.hk/gia/general/201901/23/P2019012300436.htm",
+    "reason": "Hong Kong government answer and USCC report"
+  },
+  {
+    "note": 84,
+    "url": "https://www.uscc.gov/research/chinas-facilitation-sanctions-and-export-control-evasion",
+    "reason": "Hong Kong government answer and USCC report"
   },
   {
     "note": 85,
@@ -360,9 +575,114 @@
     "reason": "Risinger et al. (2026), op. cit., n. 81"
   },
   {
+    "note": 89,
+    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2021&flowCode=X&cmdCode=8542&partnerCode=643",
+    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+  },
+  {
+    "note": 89,
+    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2022&flowCode=X&cmdCode=8542&partnerCode=643",
+    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+  },
+  {
+    "note": 89,
+    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2023&flowCode=X&cmdCode=8542&partnerCode=643",
+    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+  },
+  {
+    "note": 89,
+    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2024&flowCode=X&cmdCode=8542&partnerCode=643",
+    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+  },
+  {
+    "note": 89,
+    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2025&flowCode=X&cmdCode=8542&partnerCode=643",
+    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+  },
+  {
+    "note": 89,
+    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2021&flowCode=X&cmdCode=8542&partnerCode=643",
+    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+  },
+  {
+    "note": 89,
+    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2022&flowCode=X&cmdCode=8542&partnerCode=643",
+    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+  },
+  {
+    "note": 89,
+    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2023&flowCode=X&cmdCode=8542&partnerCode=643",
+    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+  },
+  {
+    "note": 89,
+    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2024&flowCode=X&cmdCode=8542&partnerCode=643",
+    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+  },
+  {
+    "note": 89,
+    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2025&flowCode=X&cmdCode=8542&partnerCode=643",
+    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+  },
+  {
     "note": 91,
     "url": "https://static.rusi.org/RUSI-Silicon-Lifeline-final-updated-web_1.pdf",
     "reason": "Byrne et al. (2022), op. cit., n. 90"
+  },
+  {
+    "note": 94,
+    "url": "https://kse.ua/en/news/challenges-of-export-controls-enforcement-how-russia-continues-to-import-components-for-its-military-production/",
+    "reason": "KSE export control enforcement report"
+  },
+  {
+    "note": 97,
+    "url": "https://web.archive.org/web/20250518165637id_/https://www.gazprom.com/investors/stock/structure/",
+    "reason": "Rosneft and Gazprom shareholder pages"
+  },
+  {
+    "note": 97,
+    "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
+    "reason": "Rosneft and Gazprom shareholder pages"
+  },
+  {
+    "note": 98,
+    "url": "https://tass.com/economy/1810035",
+    "reason": "TASS article on Gazprom Neft dividends"
+  },
+  {
+    "note": 99,
+    "url": "https://web.archive.org/web/20220218053856id_/https://www.gazprombank.ru/about/shareholders/",
+    "reason": "archived Gazprombank shareholder pages"
+  },
+  {
+    "note": 99,
+    "url": "https://web.archive.org/web/20220613220804id_/https://www.gazprombank.ru/about/shareholders/",
+    "reason": "archived Gazprombank shareholder pages"
+  },
+  {
+    "note": 101,
+    "url": "https://tass.com/economy/1810035",
+    "reason": "sources of notes 97 to 99"
+  },
+  {
+    "note": 101,
+    "url": "https://web.archive.org/web/20220218053856id_/https://www.gazprombank.ru/about/shareholders/",
+    "reason": "sources of notes 97 to 99"
+  },
+  {
+    "note": 101,
+    "url": "https://web.archive.org/web/20220613220804id_/https://www.gazprombank.ru/about/shareholders/",
+    "reason": "sources of notes 97 to 99"
+  },
+  {
+    "note": 101,
+    "url": "https://web.archive.org/web/20250518165637id_/https://www.gazprom.com/investors/stock/structure/",
+    "reason": "sources of notes 97 to 99"
+  },
+  {
+    "note": 101,
+    "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
+    "reason": "sources of notes 97 to 99"
   },
   {
     "note": 103,
@@ -383,6 +703,16 @@
     "note": 107,
     "url": "http://news.bbc.co.uk/2/hi/business/4041551.stm",
     "reason": "BBC News (2005), op. cit., n. 106"
+  },
+  {
+    "note": 108,
+    "url": "https://pca-cpa.org/en/cases/61/",
+    "reason": "PCA award notice and Yukos Universal case page"
+  },
+  {
+    "note": 108,
+    "url": "https://pca-cpa.org/en/news/final-awards-issued-in-3-arbitrations-between-former-shareholders-of-yukos-and-the-russian-federation/",
+    "reason": "PCA award notice and Yukos Universal case page"
   },
   {
     "note": 110,
@@ -418,6 +748,11 @@
     "note": 118,
     "url": "https://home.treasury.gov/news/press-releases/jl2369",
     "reason": "Treasury press release jl2369"
+  },
+  {
+    "note": 119,
+    "url": "https://carnegieendowment.org/russia-eurasia/posts/2020/02/unconsolidated-the-five-russian-elites-shaping-putins-transition",
+    "reason": "Carnegie article by Stanovaya"
   },
   {
     "note": 120,

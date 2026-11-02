@@ -22,7 +22,7 @@ describe('noteDocuments', () => {
     expect(noteDocuments('2')?.documents.map((document) => document.id)).toEqual([
       'doc_f42628ac12e6',
     ]);
-    expect(noteDocuments('1')?.documents).toEqual([]);
+    expect(noteDocuments('127')?.documents).toEqual([]);
     expect(noteDocuments('999')).toBeUndefined();
   });
 });
