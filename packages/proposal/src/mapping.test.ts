@@ -414,10 +414,10 @@ const REFUSED_OBSERVATIONS: readonly (readonly [string, unknown])[] = [
     { ...OBSERVATIONS, rows: { ...OBSERVATIONS.rows, licence: 'free' } },
   ],
   [
-    'a period of a day',
+    'a period of a decade',
     {
       ...OBSERVATIONS,
-      rows: { ...OBSERVATIONS.rows, period: { column: 'TIME_PERIOD', length: 'day' } },
+      rows: { ...OBSERVATIONS.rows, period: { column: 'TIME_PERIOD', length: 'decade' } },
     },
   ],
   [
@@ -434,7 +434,7 @@ test.each(REFUSED_OBSERVATIONS)('an observation table with %s is refused', (_nam
 test('a refused observation table words the issues of its own branch', () => {
   const read = mappingDraft.safeParse({
     ...OBSERVATIONS,
-    rows: { ...OBSERVATIONS.rows, period: { column: 'TIME_PERIOD', length: 'day' } },
+    rows: { ...OBSERVATIONS.rows, period: { column: 'TIME_PERIOD', length: 'decade' } },
   });
   expect(read.success).toBe(false);
   expect(JSON.stringify(read.error?.issues)).toContain('period');

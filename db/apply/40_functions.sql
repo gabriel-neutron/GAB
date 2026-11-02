@@ -6158,9 +6158,12 @@ BEGIN
 
       v_cell := coalesce(v_fields[array_position(v_header, v_rows->'period'->>'column')], '');
       v_period := CASE v_rows->'period'->>'length'
-        WHEN 'year' THEN substring(v_cell FROM '^([0-9]{4})$')
+        -- A bin of a year may be named by its first day, as the CREA tracker names it.
+        WHEN 'year' THEN substring(v_cell FROM '^([0-9]{4})(?:-01-01(?:T00:00:00)?)?$')
         WHEN 'quarter' THEN substring(v_cell FROM '^([0-9]{4}-Q[1-4])$')
         WHEN 'week' THEN substring(v_cell FROM '^([0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3]))$')
+        WHEN 'day' THEN CASE WHEN v_cell ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+                              AND pg_input_is_valid(v_cell, 'date') THEN v_cell END
         WHEN 'month' THEN coalesce(substring(v_cell FROM '^([0-9]{4}-(0[1-9]|1[0-2]))$'),
                                    regexp_replace(substring(v_cell FROM '^([0-9]{4}M?(0[1-9]|1[0-2]))$'),
                                                   '^([0-9]{4})M?', '\1-'))

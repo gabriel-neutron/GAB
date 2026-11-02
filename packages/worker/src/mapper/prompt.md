@@ -95,7 +95,7 @@ each entry gives the number of the row and its values. `vocabulary` gives the wo
     - `value`: `{"column": "<column>"}`, the column of the number (`OBS_VALUE` in SDMX-CSV).
     - `unit`: `{"column": "<column>"}` when a column gives the unit, or `{"constant": "<unit>"}`.
     - `period`: `{"column": "<column>", "length": "month"}`. The length is `year`, `quarter`,
-      `month` or `week`, as the cells state it (`TIME_PERIOD` in SDMX-CSV).
+      `month`, `week` or `day`, as the cells state it (`TIME_PERIOD` in SDMX-CSV).
     - `reporter`: `{"column": "<column>", "codes": "eurostat"}`, the country that reports the
       figure (`geo` in Eurostat). `codes` is `eurostat` for a table of Eurostat, `m49` for the
       numeric codes of UN Comtrade (`reporterCode`, `partnerCode`), and `iso3166` for two-letter
