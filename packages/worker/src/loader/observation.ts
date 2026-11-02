@@ -10,7 +10,10 @@ const PERIOD_SHAPE: Readonly<Record<ObservationRows['period']['length'], RegExp>
   quarter: /^\d{4}-Q[1-4]$/u,
   month: /^\d{4}-(0[1-9]|1[0-2])$/u,
   week: /^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/u,
+  day: /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/u,
 };
+
+const YEAR_FIRST_DAY = /^(\d{4})-01-01(T00:00:00)?$/u;
 
 // UN Comtrade writes a month as six digits, and the Pink Sheet of the World Bank as 2024M03.
 const COMPACT_MONTH = /^(\d{4})M?(0[1-9]|1[0-2])$/u;
@@ -21,7 +24,14 @@ export const periodOf = (
   text: string,
   length: ObservationRows['period']['length'],
 ): string | null => {
-  if (PERIOD_SHAPE[length].test(text)) return text;
+  if (PERIOD_SHAPE[length].test(text))
+    // A day must be a real date: 2021-02-30 has the shape of a day and is none.
+    return length === 'day' && new Date(`${text}T00:00:00Z`).toISOString().slice(0, 10) !== text
+      ? null
+      : text;
+  // The CREA tracker names the bin of a year by its first day: 2021-01-01.
+  const first = length === 'year' ? YEAR_FIRST_DAY.exec(text) : null;
+  if (first !== null) return first[1] ?? null;
   const compact = length === 'month' ? COMPACT_MONTH.exec(text) : null;
   return compact === null ? null : `${compact[1] ?? ''}-${compact[2] ?? ''}`;
 };
@@ -278,7 +288,15 @@ export const subjectFinder = (db: Queryable, rows: ObservationRows, header: read
   const findEnd = makeEndFinder(db, header);
   return async (record: CsvRecord): Promise<string | { refused: string }> => {
     if (rows.subject === undefined) return { refused: 'the mapping names no subject' };
-    const found = await findEnd(record, rows.subject);
+    // The list of the mapping is read before the lookup, and a cell that it does not name stays.
+    const { translate } = rows.subject;
+    const at = header.indexOf(rows.subject.lookup[0]?.column ?? '');
+    const given = record.fields[at]?.trim() ?? '';
+    const read =
+      translate === undefined || at < 0 || !Object.hasOwn(translate, given)
+        ? record
+        : { ...record, fields: record.fields.with(at, translate[given] ?? given) };
+    const found = await findEnd(read, rows.subject);
     if (found.kind === 'one' && found.key !== 'label') return found.id;
     return {
       refused:

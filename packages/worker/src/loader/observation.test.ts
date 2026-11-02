@@ -17,6 +17,12 @@ test.each([
   ['2024-03', 'year', null],
   ['202403', 'year', null],
   ['2024-W54', 'week', null],
+  ['2024-01-01', 'year', '2024'],
+  ['2024-01-01T00:00:00', 'year', '2024'],
+  ['2024-02-01', 'year', null],
+  ['2024-03-17', 'day', '2024-03-17'],
+  ['2024-02-30', 'day', null],
+  ['2024-03', 'day', null],
 ] as const)('the period %s of one %s reads as %s', (text, length, period) => {
   expect(periodOf(text, length)).toBe(period);
 });

@@ -162,8 +162,8 @@ export type LinkEnd = z.infer<typeof linkEnd>;
 export const AREA_CODES = ['iso3166', 'eurostat', 'm49'] as const;
 
 /** The length of the period of a figure. A cell gives the ISO form: 2024, 2024-Q1, 2024-03 or
- * 2024-W05. A month can also be written 202403, as UN Comtrade writes it. */
-export const PERIODS = ['year', 'quarter', 'month', 'week'] as const;
+ * 2024-W05, and a day 2024-03-17. A month can also be written 202403, as UN Comtrade writes it. */
+export const PERIODS = ['year', 'quarter', 'month', 'week', 'day'] as const;
 
 /** The code lists of a product scope: SIEC (energy products), HS (customs) and CHPL. */
 export const PRODUCT_SYSTEMS = ['siec', 'hs', 'chpl'] as const;
@@ -192,6 +192,18 @@ const observations = z.strictObject({
   partner: area.optional().describe('the other country or group of a flow'),
   product: z.strictObject({ column, system: z.enum(PRODUCT_SYSTEMS) }).optional(),
   subject: linkEnd
+    .extend({
+      translate: z
+        .record(z.string().min(1), z.string().min(1))
+        .optional()
+        .describe(
+          'the identifier that the source writes under another name: a cell of the lookup column ' +
+            'that this list names is read as its value, for example a port name as its UN/LOCODE',
+        ),
+    })
+    .refine((held) => held.translate === undefined || held.lookup.length === 1, {
+      message: 'a subject with a translate list has one lookup, and the list reads its column',
+    })
     .optional()
     .describe('the entity of the record that the figure is about, for example a pipeline'),
   method: z
