@@ -65,6 +65,12 @@ describe('the places of the graph', () => {
     expect(unplaced.size).toBe(0);
   });
 
+  it('still marks an entity unplaced while the layout run placed some others', () => {
+    const { unplaced } = graphPositions([entity('a'), entity('n')], STORED, []);
+
+    expect([...unplaced]).toEqual(['n']);
+  });
+
   it('ignores a relation that has a relation at one end', () => {
     const { unplaced } = graphPositions([entity('a'), entity('n')], STORED, [
       { srcKind: 'relation', srcId: 'a', dstKind: 'entity', dstId: 'n' },

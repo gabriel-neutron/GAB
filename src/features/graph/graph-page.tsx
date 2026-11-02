@@ -167,6 +167,8 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
     return shown.sort((one, two) => two.degree - one.degree || one.label.localeCompare(two.label));
   }, [model, filter, showUnplaced]);
 
+  // An isolate has no relation in the record, so the count does not follow the switches of the
+  // relation families.
   const greys = useMemo(() => {
     if (model === null || filter === null) return { isolates: 0, unplaced: 0 };
     const hidden = new Set(filter.hiddenTypes);

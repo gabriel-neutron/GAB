@@ -625,6 +625,7 @@ export function mountGraph(
 
   // A name stands above its node. A name that meets a name of a higher rank is hidden, and the
   // hover label still names each node one at a time.
+  // `NAME_CAP` bounds the names, so the measure of each name is cheap.
   const drawNames = (): void => {
     const spots = shownNames.map((id, index) => {
       const element = names[index];
