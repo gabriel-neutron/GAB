@@ -37,6 +37,7 @@ the worker serves what the files lack:
   `/openapi.json`, which describes the open files of the release.
 - The pages About, Contact, Privacy, Docs, Developers, Pricing and Agents, as HTML and markdown.
   The contact address comes from the manifest of the release at the time of the request.
+- A limit of 120 requests a minute for each address on `/mcp` and `/api/v1/files` (the binding `RATE_LIMIT` in `wrangler.jsonc`). The interface needs no key and no sign-up, because the data is public. The limit answers 429 with a `Retry-After` header. The release files have no limit.
 - A Link header, the canonical address, the preview image and the structured data in the head, and
   a true 404 for an address that is no page and no file.
 

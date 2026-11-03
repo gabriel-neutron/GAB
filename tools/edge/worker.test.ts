@@ -212,3 +212,13 @@ describe('the faults of the MCP server', () => {
     expect(response.status).toBe(503);
   });
 });
+
+describe('the rate limit', () => {
+  it('answers 429 with Retry-After when the limiter refuses', async () => {
+    const limited = { ...env, RATE_LIMIT: { limit: () => Promise.resolve({ success: false }) } };
+    const response = await worker.fetch(new Request('https://example.org/api/v1/files'), limited);
+    expect(response.status).toBe(429);
+    expect(response.headers.get('retry-after')).toBe('60');
+    expect(((await response.json()) as { code: string }).code).toBe('rate_limited');
+  });
+});
