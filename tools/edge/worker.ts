@@ -29,6 +29,8 @@ import {
 
 interface Env {
   readonly ASSETS: { fetch(request: Request): Promise<Response> };
+  /** The rate limiter of the host (`wrangler.jsonc`). A run with no binding, as a test, has none. */
+  readonly RATE_LIMIT?: { limit(options: { key: string }): Promise<{ success: boolean }> };
 }
 
 const FALLBACK_CONTACT = `${REPOSITORY_URL}/issues`;
@@ -368,6 +370,21 @@ const dynamic = async (
   const isFiles = url.pathname === '/api/v1/files';
   if (!isMcp && !isFiles) return null;
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+  // The interface is open and holds no key. A limit for each address keeps one client from
+  // using all of it. The limit is generous, because an agent pages through the list.
+  const allowed = await env.RATE_LIMIT?.limit({
+    key: request.headers.get('cf-connecting-ip') ?? 'unknown',
+  });
+  if (allowed?.success === false) {
+    const limited = failure(
+      429,
+      'rate_limited',
+      'Too many requests.',
+      'Wait one minute and send the request again. The release files are plain downloads with no limit.',
+    );
+    limited.headers.set('retry-after', '60');
+    return limited;
+  }
   const release = await readRelease(env, url.origin);
   // A manifest that cannot be read must not look like an empty release.
   if (release.files.length === 0)
