@@ -31,7 +31,12 @@ export const registerWebMcp = (): void => {
         'Returns the manifest of the GAB dataset release: its version, its date and its open files with their checksums.',
       inputSchema: { type: 'object', properties: {} },
       annotations: { readOnlyHint: true },
-      execute: async () => reply(await (await fetch('/release/manifest.json')).json()),
+      execute: async () => {
+        const response = await fetch('/release/manifest.json');
+        return reply(
+          response.ok ? await response.json() : { error: 'The manifest cannot be read.' },
+        );
+      },
     });
     context.registerTool({
       name: 'open_page',

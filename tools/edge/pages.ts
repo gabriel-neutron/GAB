@@ -127,7 +127,7 @@ export const STATIC_PAGES: Readonly<
       [
         '# GAB dataset documentation',
         '',
-        'The GAB dataset is a release: a dated folder of open files that any client reads with a plain GET request. A small read-only interface lists the files and an MCP server answers questions about them. No key, no sign-in and no rate plan is needed.',
+        'The GAB dataset is a release: a dated folder of open files that any client reads with a plain GET request. A small read-only interface lists the files and an MCP server gives the manifest, the file addresses and a citation text. No key, no sign-in and no rate plan is needed.',
         '',
         '## Entry points',
         '',

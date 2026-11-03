@@ -349,6 +349,8 @@ const failure = (status: number, code: string, error: string, hint: string): Res
     headers: { 'content-type': 'application/json; charset=utf-8', ...CORS },
   });
 
+const MAX_BODY = 64 * 1024;
+
 const filesQuery = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(5),
   cursor: z.string().regex(/^\d+$/u).default('0'),
@@ -367,6 +369,14 @@ const dynamic = async (
   if (!isMcp && !isFiles) return null;
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   const release = await readRelease(env, url.origin);
+  // A manifest that cannot be read must not look like an empty release.
+  if (release.files.length === 0)
+    return failure(
+      503,
+      'release_unavailable',
+      'The manifest of the release cannot be read.',
+      'Try again later, or fetch /release/manifest.json.',
+    );
 
   if (isFiles) {
     if (request.method !== 'GET')
@@ -400,7 +410,36 @@ const dynamic = async (
       'Use POST with a JSON-RPC message.',
       `The server card is at ${site}.well-known/mcp/server-card.json.`,
     );
-  const message: unknown = await request.json().catch(() => null);
+  // A message of this server is a few hundred bytes, so a large body is refused before it is read.
+  const length = Number(request.headers.get('content-length') ?? '0');
+  if (length > MAX_BODY)
+    return failure(
+      413,
+      'too_large',
+      'The body is too large.',
+      `Send at most ${String(MAX_BODY)} bytes.`,
+    );
+  const raw = await request.text();
+  if (raw.length > MAX_BODY)
+    return failure(
+      413,
+      'too_large',
+      'The body is too large.',
+      `Send at most ${String(MAX_BODY)} bytes.`,
+    );
+  let message: unknown;
+  try {
+    message = JSON.parse(raw);
+  } catch {
+    return new Response(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: null,
+        error: { code: -32700, message: 'Parse error.' },
+      }),
+      { headers: { 'content-type': 'application/json; charset=utf-8', ...CORS } },
+    );
+  }
   const answer = handleMcp(message, { site, release });
   if (answer === null) return new Response(null, { status: 202, headers: CORS });
   return new Response(JSON.stringify(answer), {

@@ -166,3 +166,49 @@ describe('the MCP server and the versioned list', () => {
     expect(card.remotes[0]?.url).toBe('https://example.org/mcp');
   });
 });
+
+describe('the faults of the MCP server', () => {
+  const post = (body: string): Promise<Response> =>
+    worker.fetch(new Request('https://example.org/mcp', { method: 'POST', body }), env);
+
+  it('answers a body that is no JSON with -32700', async () => {
+    const answer = (await (await post('{nope')).json()) as { error: { code: number } };
+    expect(answer.error.code).toBe(-32700);
+  });
+
+  it('answers an unknown tool with -32602 and refuses a large body', async () => {
+    const call = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'nope' },
+    });
+    expect(((await (await post(call)).json()) as { error: { code: number } }).error.code).toBe(
+      -32602,
+    );
+    expect((await post('x'.repeat(70_000))).status).toBe(413);
+  });
+
+  it('cites a claim identifier that holds a slash, encoded', async () => {
+    const call = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'cite', arguments: { kind: 'claim', identifier: '0a1f/valid to' } },
+    });
+    const answer = (await (await post(call)).json()) as {
+      result: { structuredContent: { address: string } };
+    };
+    expect(answer.result.structuredContent.address).toBe(
+      'https://example.org/claim/0a1f/valid%20to',
+    );
+  });
+
+  it('answers 503, not an empty list, when the manifest cannot be read', async () => {
+    const broken = {
+      ASSETS: { fetch: (): Promise<Response> => Promise.resolve(new Response('x')) },
+    };
+    const response = await worker.fetch(new Request('https://example.org/api/v1/files'), broken);
+    expect(response.status).toBe(503);
+  });
+});

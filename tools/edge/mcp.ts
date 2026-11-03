@@ -36,25 +36,33 @@ const object = (properties: object, required: string[] = []): object => ({
   additionalProperties: false,
 });
 
-const listInput = z.object({
-  limit: z.number().int().min(1).max(50).optional(),
-  cursor: z.string().regex(/^\d+$/u).optional(),
-});
-const fileInput = z.object({ file: z.string().min(1) });
-const citeInput = z.object({
-  kind: z.enum(['dataset', 'claim', 'entity']),
-  identifier: z
-    .string()
-    .regex(/^[\w.:~-]+$/u)
-    .optional(),
-});
+// Each schema is strict, because the schema sent to the client says no other member is allowed.
+const listInput = z
+  .object({
+    limit: z.number().int().min(1).max(50).optional(),
+    cursor: z.string().regex(/^\d+$/u).optional(),
+  })
+  .strict();
+const fileInput = z.object({ file: z.string().min(1) }).strict();
+// A claim identifier can hold a slash, so the only rule is a length and no control character.
+const citeInput = z
+  .object({
+    kind: z.enum(['dataset', 'claim', 'entity']),
+    identifier: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => ![...value].some((char) => (char.codePointAt(0) ?? 0) < 32))
+      .optional(),
+  })
+  .strict();
 
 export const TOOLS: Readonly<Record<string, Tool>> = {
   get_release_manifest: {
     title: 'Get the release manifest',
     description:
       'Returns the version and the date of the current GAB dataset release, the address of its manifest and the licence. Use it first, to know which snapshot you read.',
-    input: z.object({}),
+    input: z.object({}).strict(),
     schema: object({}),
     run: (_args, { site, release }) => ({
       version: release.version,
@@ -103,7 +111,7 @@ export const TOOLS: Readonly<Record<string, Tool>> = {
   cite: {
     title: 'Get the citation of the dataset, a claim or an entity',
     description:
-      'Returns the citation text and the permanent address to use when you quote the GAB dataset, one claim or one entity. Keep the label of a claim when you copy it.',
+      'Returns the citation text and the address on this site to use when you quote the GAB dataset, one claim or one entity. It does not check that the identifier exists. Keep the label of a claim when you copy it.',
     input: citeInput,
     schema: object(
       {
@@ -115,8 +123,9 @@ export const TOOLS: Readonly<Record<string, Tool>> = {
     run: (args: z.infer<typeof citeInput>, { site, release }) => {
       if (args.kind !== 'dataset' && args.identifier === undefined)
         throw new ToolFault('Give the identifier of the claim or the entity.');
-      const address =
-        args.kind === 'dataset' ? site : `${site}${args.kind}/${args.identifier ?? ''}/`;
+      // Each segment is encoded, as the application does for a claim identifier that holds a slash.
+      const path = (args.identifier ?? '').split('/').map(encodeURIComponent).join('/');
+      const address = args.kind === 'dataset' ? site : `${site}${args.kind}/${path}`;
       return {
         address,
         citation: `GAB dataset, release ${release.version}, ${release.date}. ${address}`,
@@ -142,11 +151,11 @@ const requestShape = z.object({
   params: z.record(z.string(), z.unknown()).optional(),
 });
 
-const callTool = (params: Record<string, unknown> | undefined, context: Context): object => {
-  const name = typeof params?.['name'] === 'string' ? params['name'] : '';
-  const tool = Object.hasOwn(TOOLS, name) ? TOOLS[name] : undefined;
-  if (tool === undefined)
-    return { isError: true, content: [{ type: 'text', text: `Unknown tool ${name}.` }] };
+const callTool = (
+  tool: Tool,
+  params: Record<string, unknown> | undefined,
+  context: Context,
+): object => {
   const args = tool.input.safeParse(params?.['arguments'] ?? {});
   if (!args.success)
     return {
@@ -193,8 +202,17 @@ export const handle = (message: unknown, context: Context): object | null => {
           annotations: { title: tool.title, ...READ_ONLY },
         })),
       });
-    case 'tools/call':
-      return reply(id, callTool(params, context));
+    case 'tools/call': {
+      const name = typeof params?.['name'] === 'string' ? params['name'] : '';
+      const tool = Object.hasOwn(TOOLS, name) ? TOOLS[name] : undefined;
+      // An unknown tool is a fault of the protocol; a bad argument is a result with isError.
+      if (tool === undefined) return fault(id, -32602, `Unknown tool: ${name}.`);
+      try {
+        return reply(id, callTool(tool, params, context));
+      } catch {
+        return fault(id, -32603, 'Internal error.');
+      }
+    }
     default:
       return fault(id, -32601, `Method not found: ${method}.`);
   }
