@@ -36,6 +36,12 @@ const object = (properties: object, required: string[] = []): object => ({
   additionalProperties: false,
 });
 
+const hasControl = (value: string): boolean => {
+  for (let index = 0; index < value.length; index += 1)
+    if (value.charCodeAt(index) < 32) return true;
+  return false;
+};
+
 // Each schema is strict, because the schema sent to the client says no other member is allowed.
 const listInput = z
   .object({
@@ -52,7 +58,7 @@ const citeInput = z
       .string()
       .min(1)
       .max(200)
-      .refine((value) => ![...value].some((char) => (char.codePointAt(0) ?? 0) < 32))
+      .refine((value) => !hasControl(value))
       .optional(),
   })
   .strict();
