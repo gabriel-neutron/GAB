@@ -8,6 +8,8 @@ import type { ForceSettings } from './variants';
 // The nodes with no link stand in rings at the edge of the frame. This is the gap between two of
 // them, as a share of the frame, and the radius at which the rings stop. A set of nodes that
 // the rings cannot hold at this gap keeps the places it held.
+// Origin: tuned on a screen. At 0.016 the rings of 4,000 faint entities left the linked core a
+// tenth of the frame.
 const RING_GAP = 0.01;
 const RING_INNER = 0.08;
 // The least radius of the linked picture, as a share of the frame.

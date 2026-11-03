@@ -24,29 +24,23 @@ interface Link {
 }
 
 /**
- * The entities of the focus: the seeds and their direct neighbours. The seeds are the `keys` that
- * a release names, or, when it names none, the entities with the most operational links. A legal
- * act lists hundreds of entities, so a link of designation does not rank a seed.
+ * The entities of the focus: the seeds and their direct neighbours. The seeds are the entities
+ * with the most operational links. A legal act lists hundreds of entities, so a link of
+ * designation does not rank a seed.
  */
-export function focusOf(
-  links: readonly Link[],
-  keys: ReadonlySet<string> = new Set(),
-): ReadonlySet<string> {
+export function focusOf(links: readonly Link[]): ReadonlySet<string> {
   const degree = new Map<string, number>();
   for (const { source, target, family } of links) {
     if (family === 'designation' || source === target) continue;
     degree.set(source, (degree.get(source) ?? 0) + 1);
     degree.set(target, (degree.get(target) ?? 0) + 1);
   }
-  const seeds =
-    keys.size > 0
-      ? keys
-      : new Set(
-          [...degree]
-            .sort(([one, a], [two, b]) => b - a || one.localeCompare(two))
-            .slice(0, FOCUS_SEEDS)
-            .map(([node]) => node),
-        );
+  const seeds = new Set(
+    [...degree]
+      .sort(([one, a], [two, b]) => b - a || one.localeCompare(two))
+      .slice(0, FOCUS_SEEDS)
+      .map(([node]) => node),
+  );
   const kept = new Set(seeds);
   for (const { source, target } of links) {
     if (seeds.has(source)) kept.add(target);

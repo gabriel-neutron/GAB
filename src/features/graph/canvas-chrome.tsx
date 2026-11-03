@@ -23,7 +23,10 @@ export function StatusBar({
   readonly dust: number;
 }) {
   return (
-    <p role="status" className={cn('absolute top-2 left-2 z-10 px-1 font-mono', CAPTION)}>
+    <p
+      role="status"
+      className={cn('absolute top-2 left-2 z-10 bg-background px-1 font-mono', CAPTION)}
+    >
       {of(counts.entities, 'entities')} · {of(counts.relations, 'relations')}
       {dust === 0 ? null : ` · ${String(dust)} faint: fewer than 3 links`}
     </p>
@@ -156,7 +159,7 @@ export function ZoomButtons({ onZoom }: { readonly onZoom: (direction: 'in' | 'o
   );
 }
 
-/** The row of prototypes at the top of the canvas, one square button for each. */
+/** The two presets at the top left of the canvas: the key entities, or the whole corpus. */
 export function PresetSwitch({
   current,
   onPick,
@@ -168,7 +171,8 @@ export function PresetSwitch({
     <div
       role="group"
       aria-label="View"
-      className="absolute top-8 left-2 z-10 flex border border-border bg-surface"
+      // The status line wraps to two lines on a phone, so the switch stands lower there.
+      className="absolute top-12 left-2 z-10 flex border border-border bg-surface md:top-8"
     >
       {PRESETS.map(({ id, label, reading }) => (
         <button
@@ -192,6 +196,7 @@ export function PresetSwitch({
   );
 }
 
+/** The row of prototypes at the top of the canvas, one square button for each. */
 export function VariantSwitch({
   current,
   onPick,

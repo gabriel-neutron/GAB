@@ -267,6 +267,7 @@ export function mountGraph(
   // A switch of preset moves the nodes to new places, so the camera follows them while the layout
   // runs. The layout stops within this time, and the camera is then the reader's again.
   let refitting = false;
+  let refitTimer: number | null = null;
   const REFIT_MS = 6000;
 
   // The stored picture is the frame. The camera fits are computed in this frame, so it is fixed
@@ -401,13 +402,13 @@ export function mountGraph(
             .filter((node) => litNodes.has(node))
             .slice(0, HUB_NAMES)
         : nearOf()
-      .sort(
-        (one, two) =>
-          (hopOf.get(one) ?? 0) - (hopOf.get(two) ?? 0) ||
-          degreeOf(two) - degreeOf(one) ||
-          one.localeCompare(two),
-      )
-      .slice(0, NAME_CAP);
+            .sort(
+              (one, two) =>
+                (hopOf.get(one) ?? 0) - (hopOf.get(two) ?? 0) ||
+                degreeOf(two) - degreeOf(one) ||
+                one.localeCompare(two),
+            )
+            .slice(0, NAME_CAP);
     sizeLabelPool(names, shownNames.length, NEIGHBOUR_NAME);
     shownNames.forEach((node, index) => {
       const element = names[index];
@@ -1015,8 +1016,7 @@ export function mountGraph(
     // are 2px dust. 1500 hubs is the count where the largest glyph still leaves room.
     const crowd = Math.min(1, Math.sqrt(1500 / Math.max(1, input.nodes.length - leaves.length)));
     // A hub never draws under HUB_FLOOR, or its glyph reads as a dot and the type is lost.
-    const sized = (share: number): number =>
-      Math.max(HUB_FLOOR, variant.sizeOf(share) * crowd);
+    const sized = (share: number): number => Math.max(HUB_FLOOR, variant.sizeOf(share) * crowd);
     const sizes = new Map<string, number>();
     for (const node of input.nodes) {
       const share = strongest === 0 ? 0 : (input.strength.get(node) ?? 0) / strongest;
@@ -1263,8 +1263,10 @@ export function mountGraph(
       patchGraphWorkspace({ preset });
       applyPreset();
       refitting = true;
-      setTimeout(() => {
+      if (refitTimer !== null) window.clearTimeout(refitTimer);
+      refitTimer = window.setTimeout(() => {
         refitting = false;
+        refitTimer = null;
       }, REFIT_MS);
       relayout();
       settle(acceptable(selection));
@@ -1334,6 +1336,7 @@ export function mountGraph(
       return () => selectListeners.delete(listener);
     },
     destroy: () => {
+      if (refitTimer !== null) window.clearTimeout(refitTimer);
       liveLayout.destroy();
       cancelAnimationFrame(moveFrame);
       morph.progress = 1;
