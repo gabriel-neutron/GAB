@@ -15,6 +15,9 @@ const PERIOD_SHAPE: Readonly<Record<ObservationRows['period']['length'], RegExp>
 
 const YEAR_FIRST_DAY = /^(\d{4})-01-01(T00:00:00)?$/u;
 
+// ENTSOG names a gas day by its start: the gas day of 2021-01-01 runs from 06:00 to 06:00.
+const GAS_DAY_START = /^(\d{4}-\d{2}-\d{2}) 06:00$/u;
+
 // UN Comtrade writes a month as six digits, and the Pink Sheet of the World Bank as 2024M03.
 const COMPACT_MONTH = /^(\d{4})M?(0[1-9]|1[0-2])$/u;
 
@@ -24,6 +27,10 @@ export const periodOf = (
   text: string,
   length: ObservationRows['period']['length'],
 ): string | null => {
+  if (length === 'day') {
+    const gasDay = GAS_DAY_START.exec(text);
+    if (gasDay !== null) return periodOf(gasDay[1] ?? '', length);
+  }
   if (PERIOD_SHAPE[length].test(text))
     // A day must be a real date: 2021-02-30 has the shape of a day and is none.
     return length === 'day' && new Date(`${text}T00:00:00Z`).toISOString().slice(0, 10) !== text
