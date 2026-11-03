@@ -286,6 +286,8 @@ const generated = async (
   if (page === undefined) return null;
   const release = await r();
   const body = page.markdown(site, release);
+  // The spec of auth.md starts the file with its title, so that one file has no front matter.
+  if (slug === 'auth.md') return markdown(body);
   return slug.endsWith('.md')
     ? markdown(body, { canonical: `${site}${wanted}`, date: release.date })
     : staticPage(site, wanted, page.title, page.description, body);
