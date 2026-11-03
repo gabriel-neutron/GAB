@@ -3,7 +3,6 @@ import { StrictMode } from 'react';
 import { RouterProvider } from '@tanstack/react-router';
 import { router } from './router';
 import { loadCorpus } from './shared/read/corpus';
-import { registerWebMcp } from './shared/web-mcp';
 import { probeWriter } from './shared/write/writer-status';
 
 const container = document.getElementById('root');
@@ -11,8 +10,6 @@ if (container === null) throw new Error('The element #root is absent from index.
 
 // The first read of the write service starts here, so the entries know it before they draw.
 void probeWriter();
-
-registerWebMcp();
 
 // The first read of the record starts here too. A read that finds the service down loads the
 // release, which sets the release note on a page that reads no record. A fault shows on the page that
