@@ -115,3 +115,100 @@ describe('toHtml', () => {
     expect(toHtml('<b> [a](b)')).toBe('<p>&lt;b&gt; <a href="b">a</a></p>');
   });
 });
+
+describe('the MCP server and the versioned list', () => {
+  const rpc = (method: string, params?: object): Promise<Response> =>
+    worker.fetch(
+      new Request('https://example.org/mcp', {
+        method: 'POST',
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+      }),
+      env,
+    );
+
+  it('lists the tools and calls one', async () => {
+    const list = (await (await rpc('tools/list')).json()) as {
+      result: { tools: { name: string }[] };
+    };
+    expect(list.result.tools.map((tool) => tool.name)).toContain('cite');
+    const call = (await (
+      await rpc('tools/call', { name: 'get_file_url', arguments: { file: 'entities.csv' } })
+    ).json()) as { result: { structuredContent: { url: string } } };
+    expect(call.result.structuredContent.url).toBe('https://example.org/release/entities.csv');
+  });
+
+  it('reports a tool fault as an error result, not a crash', async () => {
+    const call = (await (
+      await rpc('tools/call', { name: 'get_file_url', arguments: { file: 'nope' } })
+    ).json()) as { result: { isError: boolean } };
+    expect(call.result.isError).toBe(true);
+    expect(
+      ((await (await rpc('constructor')).json()) as { error: { code: number } }).error.code,
+    ).toBe(-32601);
+  });
+
+  it('pages the file list and refuses a bad parameter with a JSON error', async () => {
+    const page = (await (await get('/api/v1/files?limit=1')).json()) as {
+      data: unknown[];
+      next: string | null;
+    };
+    expect(page.data).toHaveLength(1);
+    expect(page.next).toBeNull();
+    const bad = await get('/api/v1/files?limit=0');
+    expect(bad.status).toBe(400);
+    expect(((await bad.json()) as { code: string }).code).toBe('invalid_parameter');
+  });
+
+  it('serves the server card', async () => {
+    const card = (await (await get('/.well-known/mcp/server-card.json')).json()) as {
+      remotes: { url: string }[];
+    };
+    expect(card.remotes[0]?.url).toBe('https://example.org/mcp');
+  });
+});
+
+describe('the faults of the MCP server', () => {
+  const post = (body: string): Promise<Response> =>
+    worker.fetch(new Request('https://example.org/mcp', { method: 'POST', body }), env);
+
+  it('answers a body that is no JSON with -32700', async () => {
+    const answer = (await (await post('{nope')).json()) as { error: { code: number } };
+    expect(answer.error.code).toBe(-32700);
+  });
+
+  it('answers an unknown tool with -32602 and refuses a large body', async () => {
+    const call = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'nope' },
+    });
+    expect(((await (await post(call)).json()) as { error: { code: number } }).error.code).toBe(
+      -32602,
+    );
+    expect((await post('x'.repeat(70_000))).status).toBe(413);
+  });
+
+  it('cites a claim identifier that holds a slash, encoded', async () => {
+    const call = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'cite', arguments: { kind: 'claim', identifier: '0a1f/valid to' } },
+    });
+    const answer = (await (await post(call)).json()) as {
+      result: { structuredContent: { address: string } };
+    };
+    expect(answer.result.structuredContent.address).toBe(
+      'https://example.org/claim/0a1f/valid%20to',
+    );
+  });
+
+  it('answers 503, not an empty list, when the manifest cannot be read', async () => {
+    const broken = {
+      ASSETS: { fetch: (): Promise<Response> => Promise.resolve(new Response('x')) },
+    };
+    const response = await worker.fetch(new Request('https://example.org/api/v1/files'), broken);
+    expect(response.status).toBe(503);
+  });
+});
