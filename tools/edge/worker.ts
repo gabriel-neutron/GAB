@@ -493,7 +493,6 @@ const structuredData = (site: string, r: Release): string =>
         contactPoint: {
           '@type': 'ContactPoint',
           contactType: 'error reports and right of reply',
-          email: r.contact.replace(/^mailto:/u, ''),
           url: `${site}contact`,
         },
       },

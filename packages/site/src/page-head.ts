@@ -23,10 +23,12 @@ const FORMATS: Readonly<Record<string, string>> = {
 const formatOf = (path: string): string =>
   FORMATS[path.slice(path.lastIndexOf('.') + 1)] ?? 'application/octet-stream';
 
-const contactPoint = (name: string, address: string): Record<string, string> =>
-  address.startsWith('mailto:')
-    ? { '@type': 'ContactPoint', contactType: name, email: address.slice('mailto:'.length) }
-    : { '@type': 'ContactPoint', contactType: name, url: address };
+// A mail address is not printed, to limit spam: the contact point links to the page that shows it.
+const contactPoint = (name: string, address: string, site: string): Record<string, string> => ({
+  '@type': 'ContactPoint',
+  contactType: name,
+  url: address.startsWith('mailto:') ? `${site}method/#errors` : address,
+});
 
 /** The structured data of the site: a schema.org `Dataset` with the licence, the date, the files
  * of the release and its contact addresses. */
@@ -54,8 +56,8 @@ export const datasetOf = (manifest: SiteManifest, site: string): Record<string, 
     '@type': 'Organization',
     name: SITE_NAME,
     contactPoint: [
-      contactPoint('Report an error', manifest.contacts.reportError),
-      contactPoint('Right of reply', manifest.contacts.rightOfReply),
+      contactPoint('Report an error', manifest.contacts.reportError, site),
+      contactPoint('Right of reply', manifest.contacts.rightOfReply, site),
     ],
   },
 });
