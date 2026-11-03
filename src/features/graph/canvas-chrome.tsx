@@ -4,6 +4,7 @@ import { glyphSvg } from './glyph-svg';
 import { legendOf, type GreyCounts } from './legend';
 import { VARIANTS, type VariantId } from './variants';
 import { lookOf } from './relation-families';
+import { PRESETS, type PresetId } from './presets';
 import type { ShownCounts, ShownOfTotal } from './shown-counts';
 
 const CAPTION = 'text-caption tracking-caps text-label uppercase';
@@ -14,10 +15,20 @@ const of = (part: ShownOfTotal, noun: string): string =>
     : `${String(part.shown)} of ${String(part.total)} ${noun}`;
 
 /** The status bar at the top left of the canvas. */
-export function StatusBar({ counts }: { readonly counts: ShownCounts }) {
+export function StatusBar({
+  counts,
+  dust,
+}: {
+  readonly counts: ShownCounts;
+  readonly dust: number;
+}) {
   return (
-    <p role="status" className={cn('absolute top-2 left-2 z-10 px-1 font-mono', CAPTION)}>
+    <p
+      role="status"
+      className={cn('absolute top-2 left-2 z-10 bg-background px-1 font-mono', CAPTION)}
+    >
       {of(counts.entities, 'entities')} · {of(counts.relations, 'relations')}
+      {dust === 0 ? null : ` · ${String(dust)} faint: fewer than 3 links`}
     </p>
   );
 }
@@ -144,6 +155,43 @@ export function ZoomButtons({ onZoom }: { readonly onZoom: (direction: 'in' | 'o
       >
         −
       </button>
+    </div>
+  );
+}
+
+/** The two presets at the top left of the canvas: the key entities, or the whole corpus. */
+export function PresetSwitch({
+  current,
+  onPick,
+}: {
+  readonly current: PresetId;
+  readonly onPick: (id: PresetId) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="View"
+      // The status line wraps to two lines on a phone, so the switch stands lower there.
+      className="absolute top-12 left-2 z-10 flex border border-border bg-surface md:top-8"
+    >
+      {PRESETS.map(({ id, label, reading }) => (
+        <button
+          key={id}
+          type="button"
+          title={reading}
+          aria-label={`${label}: ${reading}`}
+          aria-pressed={id === current}
+          onClick={() => {
+            onPick(id);
+          }}
+          className={cn(
+            'px-3 py-1.5 text-data focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1',
+            id === current ? 'bg-muted text-foreground underline underline-offset-4' : 'text-label',
+          )}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 }

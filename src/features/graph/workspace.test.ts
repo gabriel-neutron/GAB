@@ -30,6 +30,7 @@ describe('the saved workspace of the graph', () => {
       railWidth: 300,
       showUnplaced: true,
       hiddenRelationTypes: [],
+      preset: 'all',
     });
   });
 
@@ -68,5 +69,23 @@ describe('the saved workspace of the graph', () => {
     });
 
     expect(readGraphWorkspace().hiddenRelationTypes).toEqual([]);
+  });
+
+  it('keeps a saved preset', () => {
+    store({ camera: null, hiddenTypes: [], railOpen: true, railWidth: 256, preset: 'focus' });
+
+    expect(readGraphWorkspace().preset).toBe('focus');
+  });
+
+  it('drops a record whose preset is not one of the two', () => {
+    store({ camera: null, hiddenTypes: [], railOpen: true, railWidth: 256, preset: 'bogus' });
+
+    expect(readGraphWorkspace().preset).toBe('all');
+  });
+
+  it('reads a record saved before the presets as the whole corpus', () => {
+    store({ camera: null, hiddenTypes: [], railOpen: true, railWidth: 256 });
+
+    expect(readGraphWorkspace().preset).toBe('all');
   });
 });

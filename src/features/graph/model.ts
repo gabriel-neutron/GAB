@@ -34,6 +34,8 @@ export interface NodeAttrs {
   readonly isolate: boolean;
   /** The layout run gave it no place, and it stands on the ring. */
   readonly unplaced: boolean;
+  /** The preset leaves it out of the picture. The controller sets it, and the model never does. */
+  readonly outOfFocus?: boolean;
 }
 
 export interface EdgeAttrs {

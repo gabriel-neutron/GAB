@@ -66,3 +66,14 @@ hue means the stage and nothing else.
 - **The marker meter.** When the cap cuts markers, a small bar on the graph shows the part that is
   drawn and the number that is not. It has the shape and the colour of a marker, so it needs no
   legend. It is absent when the cap cuts nothing.
+- **The presets of the graph.** One switch gives two readings of one corpus. `All` draws every
+  entity and every relation. An entity with fewer than three links is small and dim, and its
+  links stay drawn. `Focus` draws the twelve most connected entities and what they touch at one
+  step, with the relations among the entities it draws. A drawn neighbour can hold more relations
+  than the focus shows, because its other end is out of the picture. The status line states the
+  shown count against the total, so the reader sees the cut. The legend switches a family of
+  relations off in both.
+- **The key entities.** The release 2026-10-28 lists no critical entity, so the focus takes the
+  twelve entities with the most operational links. A link of designation does not rank them,
+  because a legal act lists hundreds of entities. The page says "most connected" and never
+  "critical" until a release names them, and the focus then takes the named entities.
