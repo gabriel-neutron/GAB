@@ -204,6 +204,13 @@ describe('the faults of the MCP server', () => {
     );
   });
 
+  it('prints no mail address in the contact page or the structured data', async () => {
+    const page = await (await get('/contact.md')).text();
+    const home = await (await get('/', { accept: 'text/html' })).text();
+    expect(page).not.toContain('a@example.org');
+    expect(home).not.toContain('a@example.org');
+  });
+
   it('answers 503, not an empty list, when the manifest cannot be read', async () => {
     const broken = {
       ASSETS: { fetch: (): Promise<Response> => Promise.resolve(new Response('x')) },

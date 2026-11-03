@@ -116,11 +116,21 @@ export function MethodPage({ manifest }: MethodPageProps) {
               entries={[
                 {
                   key: 'Report an error',
-                  value: <ContactAddress address={manifest.contacts.reportError} />,
+                  value: (
+                    <ContactAddress
+                      address={manifest.contacts.reportError}
+                      label="report an error"
+                    />
+                  ),
                 },
                 {
                   key: 'Right of reply',
-                  value: <ContactAddress address={manifest.contacts.rightOfReply} />,
+                  value: (
+                    <ContactAddress
+                      address={manifest.contacts.rightOfReply}
+                      label="right of reply"
+                    />
+                  ),
                 },
               ]}
             />

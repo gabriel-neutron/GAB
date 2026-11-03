@@ -72,10 +72,12 @@ export function AiUsePage({ manifest }: AiUsePageProps) {
         <PageSection title="Contact">
           <ul className={`${PROSE} flex flex-col gap-1`}>
             <li>
-              Report an error: <ContactAddress address={manifest.contacts.reportError} />
+              Report an error:{' '}
+              <ContactAddress address={manifest.contacts.reportError} label="report an error" />
             </li>
             <li>
-              Right of reply: <ContactAddress address={manifest.contacts.rightOfReply} />
+              Right of reply:{' '}
+              <ContactAddress address={manifest.contacts.rightOfReply} label="right of reply" />
             </li>
           </ul>
         </PageSection>

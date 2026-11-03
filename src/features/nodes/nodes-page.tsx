@@ -205,7 +205,7 @@ export function NodesPage({ release, entityHref, vesselHref, claimHref }: NodesP
       )}
 
       <PageSection title="The labels">
-        <DisclaimerText markdown={manifest.disclaimer} />
+        <DisclaimerText markdown={manifest.disclaimer} withoutContacts />
       </PageSection>
 
       <PageSection title="Critical nodes">
