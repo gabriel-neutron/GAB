@@ -1,13 +1,13 @@
 import { Link } from '@tanstack/react-router';
 import type { SiteManifest } from '@gab/release/site-manifest';
 
+import { ContactAddress } from '@/shared/page/contact-address';
 import { DisclaimerText } from '@/shared/page/disclaimer-text';
 import { KeyValue, type KeyValueEntry } from '@/shared/page/key-value';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
 import { READING_LINK } from '@/shared/page/reading-link';
 import { ReadingPage } from '@/shared/page/reading-page';
-import { safeHref } from '@gab/release/safe-href';
 import { typeLabel } from '@/shared/type-label';
 
 export interface MethodPageProps {
@@ -32,18 +32,6 @@ const LICENCES = [
     meaning: 'GAB read a fact in a source. The release does not give the source data again.',
   },
 ] as const;
-
-function Contact({ address }: { readonly address: string }) {
-  const href = safeHref(address);
-  const shown = address.replace(/^mailto:/u, '');
-  return href === null ? (
-    <span className="break-all">{shown}</span>
-  ) : (
-    <a href={href} className={`${READING_LINK} break-all`}>
-      {shown}
-    </a>
-  );
-}
 
 /** The About page: what the dataset is, what its labels mean, how to report an error, and the
  * licence with the way to cite it. Every count, date and address comes from the release. */
@@ -128,11 +116,11 @@ export function MethodPage({ manifest }: MethodPageProps) {
               entries={[
                 {
                   key: 'Report an error',
-                  value: <Contact address={manifest.contacts.reportError} />,
+                  value: <ContactAddress address={manifest.contacts.reportError} />,
                 },
                 {
                   key: 'Right of reply',
-                  value: <Contact address={manifest.contacts.rightOfReply} />,
+                  value: <ContactAddress address={manifest.contacts.rightOfReply} />,
                 },
               ]}
             />

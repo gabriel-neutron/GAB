@@ -108,7 +108,7 @@ export const STATIC_PAGES: Readonly<
   contact: {
     title: 'Contact',
     description: 'How to report an error in the GAB dataset or to use the right of reply.',
-    markdown: (_site, r) =>
+    markdown: (site) =>
       [
         '# Contact',
         '',
@@ -116,7 +116,7 @@ export const STATIC_PAGES: Readonly<
         '',
         '## Report an error or use the right of reply',
         '',
-        `- Write to [${r.contact.replace(/^mailto:/u, '')}](${r.contact}). Name the page or the claim identifier and say what is wrong.`,
+        `- Write to the maintainer. The page does not print the address, to limit spam. Open [${at(site, 'method')}](${at(site, 'method')}#errors) and press "Show the address", or read \`contacts.reportError\` in [the manifest](${at(site, 'release/manifest.json')}). Name the page or the claim identifier and say what is wrong.`,
         `- Or open an issue on [GitHub](${REPOSITORY_URL}/issues). An issue is public, so do not put private data in it.`,
         '',
         'The maintainer reads each message. A party that the report names has the right to reply, and the project keeps each reply with the claim it concerns. A confirmed error is corrected in the next release, and the changelog of the release lists the change.',
