@@ -98,6 +98,7 @@ test('the role matrix of the doors', async () => {
       "public.release_documents": "agent app research",
       "public.release_entities": "agent app research",
       "public.release_merges": "agent app research",
+      "public.release_observations": "agent app research",
       "public.release_relations": "agent app research",
       "public.requeue_failed_ratings": "app",
       "public.requeue_running_jobs": "agent",

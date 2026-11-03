@@ -124,7 +124,7 @@ REVOKE ALL ON FUNCTION restore_entity(uuid,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION value_act(uuid,text)      FROM PUBLIC;
 REVOKE ALL ON FUNCTION claim_job()                 FROM PUBLIC;
 REVOKE ALL ON FUNCTION propose_mapping(text,jsonb,uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION enqueue_mapped_load(text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION enqueue_mapped_load(text,text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_load_report(uuid,text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_observations(uuid,jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION area_of(text,text) FROM PUBLIC;
@@ -315,7 +315,7 @@ GRANT EXECUTE ON FUNCTION claim_job()              TO gabriel_agent;
 -- table, or queues the load of a file under a mapping that the operator already promoted. The
 -- loader stores the report of the rows it excluded. None of them writes the graph.
 GRANT EXECUTE ON FUNCTION propose_mapping(text,jsonb,uuid) TO gabriel_agent;
-GRANT EXECUTE ON FUNCTION enqueue_mapped_load(text,text)   TO gabriel_agent;
+GRANT EXECUTE ON FUNCTION enqueue_mapped_load(text,text,boolean)   TO gabriel_agent;
 GRANT EXECUTE ON FUNCTION put_load_report(uuid,text,text,text,text) TO gabriel_agent;
 -- The loader writes the figures of a promoted observation mapping (ADR 0030).
 GRANT EXECUTE ON FUNCTION put_observations(uuid,jsonb) TO gabriel_agent;

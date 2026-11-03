@@ -24,8 +24,10 @@ import {
   type NodePosition,
 } from './model';
 import { createLiveLayout } from './live-layout';
+import { keptNames } from './name-overlap';
 import { morph } from './morph';
 import { layoutInput } from './layout-weights';
+import { focusOf, type PresetId } from './presets';
 import { DEFAULT_VARIANT, variantOf, type Variant, type VariantId } from './variants';
 import { graphPositions } from './positions';
 import { FAMILIES, lookOf } from './relation-families';
@@ -54,6 +56,10 @@ export interface GraphView {
   readonly unplaced: number;
   /** Whether the canvas draws them. */
   readonly showUnplaced: boolean;
+  /** The preset in view. */
+  readonly preset: PresetId;
+  /** How many entities the first view draws as faint dust: fewer than three shown links. */
+  readonly dust: number;
   /** The identifier of the prototype in view. */
   readonly variant: VariantId;
   readonly railOpen: boolean;
@@ -74,6 +80,8 @@ export interface GraphController {
   readonly setShowUnplaced: (show: boolean) => void;
   /** Switches the prototype of the graph: the weights, the forces and the sizes. */
   readonly setVariant: (id: VariantId) => void;
+  /** Switches the preset: the key entities and what they touch, or the whole corpus. */
+  readonly setPreset: (id: PresetId) => void;
   /** The rail was unfolded or folded. The workspace keeps it, so the next open finds it there. */
   readonly setRailOpen: (open: boolean) => void;
   /** The rail edge was dragged. The workspace keeps the width, as it keeps the fold. */
@@ -107,6 +115,18 @@ const MAX_ASPECT = 1.7;
 // names of a hub cover each other and none can be read, so a hub names its most connected
 // neighbours. A hover still names each node.
 const NAME_CAP = 15;
+
+// The first view names this many hubs. Origin: tuned on a screen, fewer than the cap above so the
+// names of a crowded core stay apart.
+const HUB_NAMES = 12;
+
+// A node with this many shown links is a hub, and the first view draws it in full. Origin: measured
+// on release 2026-10-28, where 318 of 2,840 linked nodes reach it, a core that a screen can hold.
+const HUB_LINKS = 3;
+
+// The least size of a hub, in the units Sigma scales to pixels. Origin: tuned on a screen, the
+// size at which the shape of a glyph can be told from a disc.
+const HUB_FLOOR = 8;
 
 // The space between a node and its name, beside the radius of the node, in pixels.
 const NAME_OFFSET = 4;
@@ -226,6 +246,29 @@ export function mountGraph(
   let railWidth = stored.railWidth;
   let showUnplaced = stored.showUnplaced;
   let variant: Variant = DEFAULT_VARIANT;
+  let preset: PresetId = stored.preset;
+  // The focus leaves the other entities out of the picture, as a switched-off type does.
+  const applyPreset = (): void => {
+    const kept =
+      preset === 'focus'
+        ? focusOf(
+            model.graph.mapEdges((_edge, attrs, source, target) => ({
+              source,
+              target,
+              family: attrs.type,
+            })),
+          )
+        : null;
+    model.graph.updateEachNodeAttributes((node, attrs) =>
+      Object.assign(attrs, { outOfFocus: kept !== null && !kept.has(node) }),
+    );
+  };
+  applyPreset();
+  // A switch of preset moves the nodes to new places, so the camera follows them while the layout
+  // runs. The layout stops within this time, and the camera is then the reader's again.
+  let refitting = false;
+  let refitTimer: number | null = null;
+  const REFIT_MS = 6000;
 
   // The stored picture is the frame. The camera fits are computed in this frame, so it is fixed
   // here and given to Sigma, and the two never differ.
@@ -266,6 +309,10 @@ export function mountGraph(
   let lit = 0;
   let dimmed = 0;
   let counts: ShownCounts = countShown(model.graph, new Set(), hiddenRelations);
+  // What the last layout run read: the pull of each node that holds a shown link, and the nodes
+  // that hold none. The second set is the dust, and the first one names the hubs.
+  let hubStrength: ReadonlyMap<string, number> = new Map();
+  let dust: ReadonlySet<string> = new Set();
 
   /** The elements that carry a marker on this frame, and how many get none. */
   let markerTargets: readonly string[] = [];
@@ -346,14 +393,22 @@ export function mountGraph(
 
   function nameReach(): void {
     const degreeOf = (node: string): number => model.graph.getNodeAttribute(node, 'degree');
-    shownNames = nearOf()
-      .sort(
-        (one, two) =>
-          (hopOf.get(one) ?? 0) - (hopOf.get(two) ?? 0) ||
-          degreeOf(two) - degreeOf(one) ||
-          one.localeCompare(two),
-      )
-      .slice(0, NAME_CAP);
+    // With no selection the canvas names the strongest hubs, so the first view reads as a map.
+    shownNames =
+      hopOf.size === 0
+        ? [...hubStrength]
+            .sort(([one, a], [two, b]) => b - a || one.localeCompare(two))
+            .map(([node]) => node)
+            .filter((node) => litNodes.has(node))
+            .slice(0, HUB_NAMES)
+        : nearOf()
+            .sort(
+              (one, two) =>
+                (hopOf.get(one) ?? 0) - (hopOf.get(two) ?? 0) ||
+                degreeOf(two) - degreeOf(one) ||
+                one.localeCompare(two),
+            )
+            .slice(0, NAME_CAP);
     sizeLabelPool(names, shownNames.length, NEIGHBOUR_NAME);
     shownNames.forEach((node, index) => {
       const element = names[index];
@@ -422,6 +477,10 @@ export function mountGraph(
   const reduceNode = (node: string, data: NodeAttrs): Partial<NodeDisplayData> => {
     // The switch hides the ring. Unlike a filter, it takes the node out of the picture.
     if (!showUnplaced && data.unplaced) return { ...data, hidden: true, label: null };
+    // An entity with no shown link is dust: drawn, so the reader sees how many there are, and dim,
+    // so the linked core stands out. A selection lights it as it lights any node.
+    if (hopOf.size === 0 && dust.has(node) && litNodes.has(node))
+      return { ...data, color: dimOf(data.color), zIndex: -1 };
     if (litNodes.has(node)) {
       const hop = hopOf.get(node);
       // The ring at two steps can hold most of the graph, through a legal act that lists
@@ -514,7 +573,15 @@ export function mountGraph(
           (selection?.kind === 'relation' && selection.id === edge) ||
           hopOf.get(model.graph.source(edge)) === 0 ||
           hopOf.get(model.graph.target(edge)) === 0;
-        return { ...data, size: touches && hopOf.size > 0 ? 2 : 1 };
+        // At rest the links are faint, so the hubs and the dust read before the lines do.
+        if (hopOf.size === 0) {
+          const [from, to] = model.graph.extremities(edge);
+          // A link between two hubs keeps its colour: it is the skeleton of the picture.
+          return dust.has(from) || dust.has(to)
+            ? { ...data, color: dimEdgeOf(data.color), size: 1 }
+            : { ...data, size: 1 };
+        }
+        return { ...data, size: touches ? 2 : 1 };
       }
       // A line whose end the filter puts out has nothing to join.
       if (
@@ -622,20 +689,40 @@ export function mountGraph(
     element.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%)`;
   };
 
-  // A name stands above its node. The names of the first ring can meet; the hover label still
-  // names each node one at a time.
+  // A name stands above its node. A name that meets a name of a higher rank is hidden, and the
+  // hover label still names each node one at a time.
+  // `NAME_CAP` bounds the names, so the measure of each name is cheap.
   const drawNames = (): void => {
-    shownNames.forEach((id, index) => {
+    const spots = shownNames.map((id, index) => {
       const element = names[index];
-      if (element === undefined) return;
       const spot = viewportOf(id);
-      if (spot === null || outsideOf(spot)) {
-        element.hidden = true;
+      if (element === undefined || spot === null || outsideOf(spot)) return null;
+      const radius = sigma.scaleSize(sigma.getNodeDisplayData(id)?.size ?? 0) + NAME_OFFSET;
+      // A hidden element has no size, so it is shown before it is measured.
+      element.hidden = false;
+      return { element, x: spot.x, y: spot.y - radius };
+    });
+    // The box of a name is read before the transform is set: the transform does not change it.
+    const kept = keptNames(
+      spots.map((at) =>
+        at === null
+          ? null
+          : {
+              x: at.x - at.element.offsetWidth / 2,
+              y: at.y - at.element.offsetHeight,
+              width: at.element.offsetWidth,
+              height: at.element.offsetHeight,
+            },
+      ),
+    );
+    spots.forEach((at, index) => {
+      if (at === null) {
+        const element = names[index];
+        if (element !== undefined) element.hidden = true;
         return;
       }
-      element.hidden = false;
-      const radius = sigma.scaleSize(sigma.getNodeDisplayData(id)?.size ?? 0) + NAME_OFFSET;
-      element.style.transform = `translate(${spot.x}px, ${spot.y - radius}px) translate(-50%, -100%)`;
+      at.element.hidden = !kept[index];
+      at.element.style.transform = `translate(${at.x}px, ${at.y}px) translate(-50%, -100%)`;
     });
   };
 
@@ -758,6 +845,8 @@ export function mountGraph(
     markersOverCap,
     openUnits: folds.open,
     unplaced: placement.unplaced.size,
+    dust: dust.size,
+    preset,
     variant: variant.id,
     showUnplaced,
     railOpen,
@@ -878,6 +967,7 @@ export function mountGraph(
         const at = places.get(node);
         return at === undefined ? attrs : Object.assign(attrs, at);
       });
+      if (refitting) fitCamera(model.graph.filterNodes((node) => nodeConsidered(node)));
       morph.progress = 0;
       moveStart = performance.now();
       if (moveFrame === 0) moveFrame = requestAnimationFrame(stepMove);
@@ -911,21 +1001,36 @@ export function mountGraph(
     // The size of a node is its share of the strongest node in view, so a variant reads weight.
     let strongest = 0;
     for (const value of input.strength.values()) strongest = Math.max(strongest, value);
-    // A crowd shrinks every node, so 5000 nodes do not cover one another.
-    // 1500 nodes is the count where the largest glyph still leaves room for its neighbours.
-    const crowd = Math.min(1, Math.sqrt(1500 / Math.max(1, input.nodes.length)));
-    const sized = (share: number): number => Math.max(3, variant.sizeOf(share) * crowd);
+    // A node with fewer than HUB_LINKS shown links is a leaf. It joins the dust, small and dim, so
+    // the hubs and the links between them are what the reader sees first. A selection lights it.
+    const links = new Map<string, number>();
+    for (const { source, target } of input.links) {
+      links.set(source, (links.get(source) ?? 0) + 1);
+      links.set(target, (links.get(target) ?? 0) + 1);
+    }
+    // The focus draws every entity it keeps in full: it is small enough to read.
+    const isLeaf = (node: string): boolean =>
+      preset !== 'focus' && (links.get(node) ?? 0) < HUB_LINKS;
+    const leaves = input.nodes.filter(isLeaf);
+    // A crowd shrinks the hubs, so they do not cover one another. The leaves do not count: they
+    // are 2px dust. 1500 hubs is the count where the largest glyph still leaves room.
+    const crowd = Math.min(1, Math.sqrt(1500 / Math.max(1, input.nodes.length - leaves.length)));
+    // A hub never draws under HUB_FLOOR, or its glyph reads as a dot and the type is lost.
+    const sized = (share: number): number => Math.max(HUB_FLOOR, variant.sizeOf(share) * crowd);
     const sizes = new Map<string, number>();
     for (const node of input.nodes) {
       const share = strongest === 0 ? 0 : (input.strength.get(node) ?? 0) / strongest;
-      sizes.set(node, sized(share));
+      sizes.set(node, isLeaf(node) ? 2 : sized(share));
     }
-    for (const node of input.rest) sizes.set(node, sized(0));
+    for (const node of input.rest) sizes.set(node, 2);
     model.graph.updateEachNodeAttributes((node, attrs) => {
       const size = sizes.get(node);
       return size === undefined ? attrs : Object.assign(attrs, { size });
     });
+    hubStrength = input.strength;
+    dust = new Set([...input.rest, ...leaves]);
     liveLayout.run(input, variant.forces);
+    nameReach();
   };
   relayout();
 
@@ -1152,6 +1257,20 @@ export function mountGraph(
       // A selected relation of a type that is now off is dropped, as the filter drops a node.
       settle(acceptable(selection));
     },
+    setPreset: (id) => {
+      if (destroyed || id === preset) return;
+      preset = id;
+      patchGraphWorkspace({ preset });
+      applyPreset();
+      refitting = true;
+      if (refitTimer !== null) window.clearTimeout(refitTimer);
+      refitTimer = window.setTimeout(() => {
+        refitting = false;
+        refitTimer = null;
+      }, REFIT_MS);
+      relayout();
+      settle(acceptable(selection));
+    },
     setVariant: (id) => {
       if (destroyed || id === variant.id) return;
       variant = variantOf(id);
@@ -1217,6 +1336,7 @@ export function mountGraph(
       return () => selectListeners.delete(listener);
     },
     destroy: () => {
+      if (refitTimer !== null) window.clearTimeout(refitTimer);
       liveLayout.destroy();
       cancelAnimationFrame(moveFrame);
       morph.progress = 1;

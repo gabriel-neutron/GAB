@@ -162,6 +162,7 @@ describe('the counter of each type in the graph rail', () => {
 
     expect(row?.count).toBe(totalOf(first.type));
     expect(row?.figure).toBe(`${String(totalOf(first.type))} of ${String(totalOf(first.type))}`);
+    expect(row?.share).toBe(1);
   });
 
   it('follows the nodes the drawing shows, so a type switched off counts none', () => {

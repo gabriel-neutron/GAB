@@ -3,7 +3,22 @@
   "notes": [
     {
       "id": "1",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_6745482a92a4",
+          "match": "manual",
+          "retrievedAt": "2026-10-31",
+          "type": "ngo_publication",
+          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker"
+        },
+        {
+          "id": "doc_43c40cb36e1e",
+          "match": "manual",
+          "retrievedAt": "2026-10-25",
+          "type": "ngo_publication",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx"
+        }
+      ]
     },
     {
       "id": "2",
@@ -64,11 +79,34 @@
     },
     {
       "id": "5",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_881438501a10",
+          "match": "manual",
+          "retrievedAt": "2026-10-25",
+          "type": "other",
+          "url": "https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=X&Partners=643&Reporters=97,842,392,410,490,826&period=2019-2025&AggregateBy=none&BreakdownMode=plus"
+        }
+      ]
     },
     {
       "id": "6",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_ab0ccaaffabc",
+          "match": "manual",
+          "retrievedAt": "2026-10-09",
+          "type": "legal_act",
+          "url": "http://publications.europa.eu/resource/cellar/4295095e-ae10-11e3-86f9-01aa75ed71a1.0006.03/DOC_1"
+        },
+        {
+          "id": "doc_463a3a9c003e",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "legal_act",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1"
+        }
+      ]
     },
     {
       "id": "7",
@@ -360,7 +398,29 @@
     },
     {
       "id": "17",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_6745482a92a4",
+          "match": "manual",
+          "retrievedAt": "2026-10-31",
+          "type": "ngo_publication",
+          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker"
+        },
+        {
+          "id": "doc_43c40cb36e1e",
+          "match": "manual",
+          "retrievedAt": "2026-10-25",
+          "type": "ngo_publication",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx"
+        },
+        {
+          "id": "doc_881438501a10",
+          "match": "manual",
+          "retrievedAt": "2026-10-25",
+          "type": "other",
+          "url": "https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=X&Partners=643&Reporters=97,842,392,410,490,826&period=2019-2025&AggregateBy=none&BreakdownMode=plus"
+        }
+      ]
     },
     {
       "id": "18",
@@ -400,7 +460,43 @@
     },
     {
       "id": "21",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_6745482a92a4",
+          "match": "manual",
+          "retrievedAt": "2026-10-31",
+          "type": "ngo_publication",
+          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker"
+        },
+        {
+          "id": "doc_43c40cb36e1e",
+          "match": "manual",
+          "retrievedAt": "2026-10-25",
+          "type": "ngo_publication",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx"
+        },
+        {
+          "id": "doc_881438501a10",
+          "match": "manual",
+          "retrievedAt": "2026-10-25",
+          "type": "other",
+          "url": "https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=X&Partners=643&Reporters=97,842,392,410,490,826&period=2019-2025&AggregateBy=none&BreakdownMode=plus"
+        },
+        {
+          "id": "doc_0bd2f37c4e7a",
+          "match": "manual",
+          "retrievedAt": "2026-11-02",
+          "type": "other",
+          "url": "https://api.russiafossiltracker.com/"
+        },
+        {
+          "id": "doc_8386a931da4a",
+          "match": "manual",
+          "retrievedAt": "2026-10-30",
+          "type": "other",
+          "url": "https://api.russiafossiltracker.com/v0/counter?format=csv&date_from=2021-01-01&date_to=2025-12-31&commodity=crude_oil,oil_products,pipeline_oil&destination_iso2=CN,IN,TR&aggregate_by=destination_country,commodity,year&pricing_scenario=default"
+        }
+      ]
     },
     {
       "id": "22",
@@ -503,6 +599,13 @@
           "retrievedAt": "2026-10-09",
           "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R1494",
           "match": "manual"
+        },
+        {
+          "id": "doc_ea1c35082787",
+          "match": "manual",
+          "retrievedAt": "2026-10-25",
+          "type": "other",
+          "url": "https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx"
         }
       ]
     },
@@ -619,6 +722,13 @@
           "retrievedAt": "2026-10-21",
           "url": "https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/",
           "match": "exact"
+        },
+        {
+          "id": "doc_ea1c35082787",
+          "match": "manual",
+          "retrievedAt": "2026-10-25",
+          "type": "other",
+          "url": "https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx"
         }
       ]
     },
@@ -757,6 +867,13 @@
           "retrievedAt": "2026-10-27",
           "url": "https://www.nalog.gov.ru/rn27/news/tax_doc_news/15617353/",
           "match": "exact"
+        },
+        {
+          "id": "doc_8b6ed8007a40",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://www.nalog.gov.ru/rn91/ifns/ifns7/info/16590442/"
         }
       ]
     },
@@ -881,7 +998,29 @@
     },
     {
       "id": "46",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_5f240bed79d5",
+          "match": "manual",
+          "retrievedAt": "2026-10-28",
+          "type": "register_entry",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV"
+        },
+        {
+          "id": "doc_aedb38de5d38",
+          "match": "manual",
+          "retrievedAt": "2026-10-30",
+          "type": "register_entry",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv"
+        },
+        {
+          "id": "doc_463a3a9c003e",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "legal_act",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1"
+        }
+      ]
     },
     {
       "id": "47",
@@ -904,24 +1043,112 @@
           "retrievedAt": "2026-10-25",
           "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
           "match": "manual"
+        },
+        {
+          "id": "doc_beb00e8408c1",
+          "match": "manual",
+          "retrievedAt": "2026-10-18",
+          "type": "ngo_publication",
+          "url": "https://energyandcleanair.org/january-2026-monthly-analysis-of-russian-fossil-fuel-exports-and-sanctions/"
         }
       ]
     },
     {
       "id": "49",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_5f240bed79d5",
+          "match": "manual",
+          "retrievedAt": "2026-10-28",
+          "type": "register_entry",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV"
+        },
+        {
+          "id": "doc_463a3a9c003e",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "legal_act",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1"
+        }
+      ]
     },
     {
       "id": "50",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_5f240bed79d5",
+          "match": "manual",
+          "retrievedAt": "2026-10-28",
+          "type": "register_entry",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV"
+        },
+        {
+          "id": "doc_aedb38de5d38",
+          "match": "manual",
+          "retrievedAt": "2026-10-30",
+          "type": "register_entry",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv"
+        },
+        {
+          "id": "doc_463a3a9c003e",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "legal_act",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1"
+        }
+      ]
     },
     {
       "id": "51",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_5f240bed79d5",
+          "match": "manual",
+          "retrievedAt": "2026-10-28",
+          "type": "register_entry",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV"
+        },
+        {
+          "id": "doc_aedb38de5d38",
+          "match": "manual",
+          "retrievedAt": "2026-10-30",
+          "type": "register_entry",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv"
+        },
+        {
+          "id": "doc_463a3a9c003e",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "legal_act",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1"
+        }
+      ]
     },
     {
       "id": "52",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_5f240bed79d5",
+          "match": "manual",
+          "retrievedAt": "2026-10-28",
+          "type": "register_entry",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV"
+        },
+        {
+          "id": "doc_aedb38de5d38",
+          "match": "manual",
+          "retrievedAt": "2026-10-30",
+          "type": "register_entry",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv"
+        },
+        {
+          "id": "doc_463a3a9c003e",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "legal_act",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1"
+        }
+      ]
     },
     {
       "id": "53",
@@ -965,7 +1192,15 @@
     },
     {
       "id": "54",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_aedb38de5d38",
+          "match": "manual",
+          "retrievedAt": "2026-10-30",
+          "type": "register_entry",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv"
+        }
+      ]
     },
     {
       "id": "55",
@@ -1121,11 +1356,34 @@
     },
     {
       "id": "63",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_30dabe2de98a",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "news_article",
+          "url": "https://www.bloomberg.com/news/articles/2024-01-17/turkish-banks-tighten-screws-on-russia-over-fear-of-us-sanctions"
+        },
+        {
+          "id": "doc_69768fcf7a7e",
+          "match": "manual",
+          "retrievedAt": "2026-10-24",
+          "type": "other",
+          "url": "https://www.themoscowtimes.com/2024/02/19/uae-banks-limit-payments-with-russia-over-secondary-sanctions-threat-vedomosti-a84143"
+        }
+      ]
     },
     {
       "id": "64",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_d85790099e6b",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://www.thestandard.com.hk/china/article/219959/Russia-payment-hurdles-with-China-partners-intensified-in-August-sources-say"
+        }
+      ]
     },
     {
       "id": "65",
@@ -1257,7 +1515,22 @@
     },
     {
       "id": "71",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_0fbc76165294",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://24.kg/english/325722_New_procedure_for_Russian_ruble_transactions_to_be_introduced_in_Kyrgyzstan/"
+        },
+        {
+          "id": "doc_e81875c4c110",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://timesca.com/kyrgyz-president-denounces-politicized-sanctions-on-banks/"
+        }
+      ]
     },
     {
       "id": "72",
@@ -1299,7 +1572,22 @@
     },
     {
       "id": "74",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_fec711ce9743",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "report",
+          "url": "https://www.cbr.ru/collection/collection/file/59814/ar_2025_e.pdf"
+        },
+        {
+          "id": "doc_5c77d4e8fff3",
+          "match": "manual",
+          "retrievedAt": "2026-10-09",
+          "type": "register_entry",
+          "url": "https://ofac.treasury.gov/media/933656/download?inline"
+        }
+      ]
     },
     {
       "id": "75",
@@ -1453,7 +1741,22 @@
     },
     {
       "id": "84",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_048e33ea2882",
+          "match": "manual",
+          "retrievedAt": "2026-10-31",
+          "type": "other",
+          "url": "https://www.info.gov.hk/gia/general/201901/23/P2019012300436.htm"
+        },
+        {
+          "id": "doc_3a30672b551b",
+          "match": "manual",
+          "retrievedAt": "2026-10-31",
+          "type": "other",
+          "url": "https://www.uscc.gov/research/chinas-facilitation-sanctions-and-export-control-evasion"
+        }
+      ]
     },
     {
       "id": "85",
@@ -1505,7 +1808,78 @@
     },
     {
       "id": "89",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_6167f6627ff8",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2025&flowCode=X&cmdCode=8542&partnerCode=643"
+        },
+        {
+          "id": "doc_1cc5e0fe77d1",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2024&flowCode=X&cmdCode=8542&partnerCode=643"
+        },
+        {
+          "id": "doc_b9eba610af6f",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2023&flowCode=X&cmdCode=8542&partnerCode=643"
+        },
+        {
+          "id": "doc_1fd6b9a944d0",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2022&flowCode=X&cmdCode=8542&partnerCode=643"
+        },
+        {
+          "id": "doc_59be7acc5efb",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2021&flowCode=X&cmdCode=8542&partnerCode=643"
+        },
+        {
+          "id": "doc_3361e071206d",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2025&flowCode=X&cmdCode=8542&partnerCode=643"
+        },
+        {
+          "id": "doc_97acfcf86975",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2024&flowCode=X&cmdCode=8542&partnerCode=643"
+        },
+        {
+          "id": "doc_3e55da5ac1a9",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2023&flowCode=X&cmdCode=8542&partnerCode=643"
+        },
+        {
+          "id": "doc_9ac54fb3c222",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2022&flowCode=X&cmdCode=8542&partnerCode=643"
+        },
+        {
+          "id": "doc_e4a1a7ab94ef",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2021&flowCode=X&cmdCode=8542&partnerCode=643"
+        }
+      ]
     },
     {
       "id": "90",
@@ -1599,7 +1973,15 @@
     },
     {
       "id": "94",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_089cf534d24b",
+          "match": "manual",
+          "retrievedAt": "2026-10-25",
+          "type": "ngo_publication",
+          "url": "https://kse.ua/en/news/challenges-of-export-controls-enforcement-how-russia-continues-to-import-components-for-its-military-production/"
+        }
+      ]
     },
     {
       "id": "95",
@@ -1634,15 +2016,53 @@
     },
     {
       "id": "97",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_af591c81e658",
+          "match": "manual",
+          "retrievedAt": "2026-10-25",
+          "type": "company_publication",
+          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/"
+        },
+        {
+          "id": "doc_1483275a97ec",
+          "match": "manual",
+          "retrievedAt": "2026-10-09",
+          "type": "other",
+          "url": "https://web.archive.org/web/20250518165637id_/https://www.gazprom.com/investors/stock/structure/"
+        }
+      ]
     },
     {
       "id": "98",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_6dcfd29e5085",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://tass.com/economy/1810035"
+        }
+      ]
     },
     {
       "id": "99",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_3ee21e47ef56",
+          "match": "manual",
+          "retrievedAt": "2026-10-26",
+          "type": "other",
+          "url": "https://web.archive.org/web/20220218053856id_/https://www.gazprombank.ru/about/shareholders/"
+        },
+        {
+          "id": "doc_7e821d039948",
+          "match": "manual",
+          "retrievedAt": "2026-10-26",
+          "type": "other",
+          "url": "https://web.archive.org/web/20220613220804id_/https://www.gazprombank.ru/about/shareholders/"
+        }
+      ]
     },
     {
       "id": "100",
@@ -1658,7 +2078,43 @@
     },
     {
       "id": "101",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_af591c81e658",
+          "match": "manual",
+          "retrievedAt": "2026-10-25",
+          "type": "company_publication",
+          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/"
+        },
+        {
+          "id": "doc_1483275a97ec",
+          "match": "manual",
+          "retrievedAt": "2026-10-09",
+          "type": "other",
+          "url": "https://web.archive.org/web/20250518165637id_/https://www.gazprom.com/investors/stock/structure/"
+        },
+        {
+          "id": "doc_3ee21e47ef56",
+          "match": "manual",
+          "retrievedAt": "2026-10-26",
+          "type": "other",
+          "url": "https://web.archive.org/web/20220218053856id_/https://www.gazprombank.ru/about/shareholders/"
+        },
+        {
+          "id": "doc_7e821d039948",
+          "match": "manual",
+          "retrievedAt": "2026-10-26",
+          "type": "other",
+          "url": "https://web.archive.org/web/20220613220804id_/https://www.gazprombank.ru/about/shareholders/"
+        },
+        {
+          "id": "doc_6dcfd29e5085",
+          "match": "manual",
+          "retrievedAt": "2026-10-27",
+          "type": "other",
+          "url": "https://tass.com/economy/1810035"
+        }
+      ]
     },
     {
       "id": "102",
@@ -1825,7 +2281,22 @@
     },
     {
       "id": "108",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_4de2924f0caf",
+          "match": "manual",
+          "retrievedAt": "2026-10-31",
+          "type": "other",
+          "url": "https://pca-cpa.org/en/news/final-awards-issued-in-3-arbitrations-between-former-shareholders-of-yukos-and-the-russian-federation/"
+        },
+        {
+          "id": "doc_e154eb99f86f",
+          "match": "manual",
+          "retrievedAt": "2026-10-31",
+          "type": "other",
+          "url": "https://pca-cpa.org/en/cases/61/"
+        }
+      ]
     },
     {
       "id": "109",
@@ -2005,7 +2476,15 @@
     },
     {
       "id": "119",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_6be62defd70a",
+          "match": "manual",
+          "retrievedAt": "2026-10-31",
+          "type": "other",
+          "url": "https://carnegieendowment.org/russia-eurasia/posts/2020/02/unconsolidated-the-five-russian-elites-shaping-putins-transition"
+        }
+      ]
     },
     {
       "id": "120",

@@ -17,6 +17,7 @@
     "./geolocation-method": "./src/geolocation-method.ts",
     "./geometry-positions": "./src/geometry-positions.ts",
     "./key-words": "./src/key-words.ts",
+    "./lookalikes": "./src/lookalikes.ts",
     "./identifiers": "./src/identifiers.ts",
     "./machine": "./src/machine.ts",
     "./mapping": "./src/mapping.ts",

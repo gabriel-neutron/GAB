@@ -772,3 +772,136 @@ test('a load of a file whose header differs fails with a sentence and writes not
     expect(await loadedOf(held, SECOND)).toStrictEqual([]);
   });
 });
+
+// The port file of the CREA tracker: a recipe maps it with no model, and the load gives one figure
+// for each port and day. "Nakhodka" of the products file is the Port of Nakhodka, a name that no
+// port of the record has is refused, and a cargo of another country is a figure of its own.
+const CREA_HEADER = [
+  'origin_name,origin_port_name,origin_zone_name,origin_iso2,origin_country,origin_region,',
+  'origin_area,commodity_origin_iso2,commodity_origin_country,commodity_origin_region,',
+  'pricing_scenario,value_tonne,value_m3,value_gas_m3,trade_count,avg_vessel_age,',
+  'avg_n_inspections_2y,avg_deficiencies_per_inspection_2y,avg_detentions_per_inspection_2y,',
+  'avg_n_detentions_2y,value_eur,value_usd,departure_date',
+].join('');
+const CREA_ROW = (port: string, origin: string, tonne: string, day: string): string =>
+  `${port},${port},${port},RU,Russia,Others,Baltic,${origin},x,Others,default,${tonne},1,1,1,5,,,,,1,1,${day}`;
+const CREA_TEXT =
+  [
+    CREA_HEADER,
+    CREA_ROW('Primorsk', 'RU', '100.5', '2021-01-02'),
+    CREA_ROW('Nakhodka', 'RU', '7', '2021-01-02'),
+    CREA_ROW('Nowhere', 'RU', '1', '2021-01-02'),
+    CREA_ROW('Primorsk', 'KZ', '3', '2021-01-02'),
+    CREA_ROW('Primorsk', 'RU', '4', '2021-02-30'),
+  ].join('\r\n') + '\r\n';
+const CREA_URI =
+  'https://api.russiafossiltracker.com/v0/chart/departure_by_port?format=csv&commodity=oil_products' +
+  '&departure_date_from=2021-01-01&departure_date_to=2025-12-31';
+
+const callRows = z.array(
+  z.object({ agent: z.string(), endpoint: z.string(), input_tokens: z.number() }),
+);
+const figureRows = z.array(
+  z.object({
+    period: z.string(),
+    value: z.string(),
+    reporter: z.string(),
+    port: z.string(),
+  }),
+);
+
+test('a recipe maps the tracker port file with no model, and the load gives a figure for each port and day', async () => {
+  await inTransaction(async (held) => {
+    const primorsk = await recorded(held, 'port', 'Port of Primorsk', { unlocode: 'RUPRI' });
+    const nakhodka = await recorded(held, 'port', 'Port of Nakhodka', { unlocode: 'RUNJK' });
+    const job = await seedDocument(held, LIST, CREA_URI, CREA_TEXT);
+    const router = noModel();
+
+    expect(await held.step(makeMapper(CONFIG), router)).toStrictEqual({ did: 'done', job });
+    expect(router.chats()).toBe(0);
+    const [mapping] = await mappingsOf(held, LIST);
+    expect(mapping?.payload.table).toBe('crea_departures_by_port_oil_products');
+    const calls = callRows.parse(
+      await held.ask(`SELECT agent, endpoint, input_tokens FROM public.model_call WHERE id = $1`, [
+        mapping?.model_call_id,
+      ]),
+    );
+    expect(calls).toStrictEqual([
+      { agent: 'deterministic_mapper', endpoint: 'none', input_tokens: 0 },
+    ]);
+
+    const load = await promote(held, mapping?.id ?? '');
+    await held.ask(OLDEST, [load]);
+    expect(await held.step(makeLoader({ store: storeOf(held) }), noModel())).toStrictEqual({
+      did: 'done',
+      job: load,
+    });
+    const figures = figureRows.parse(
+      await held.ask(
+        `SELECT period, value::text AS value, reporter, subject_id::text AS port
+           FROM public.observation WHERE document_id = $1 ORDER BY value::numeric`,
+        [LIST],
+      ),
+    );
+    expect(figures).toStrictEqual([
+      { period: '2021-01-02', value: '3', reporter: 'KZ', port: primorsk },
+      { period: '2021-01-02', value: '7', reporter: 'RU', port: nakhodka },
+      { period: '2021-01-02', value: '100.5', reporter: 'RU', port: primorsk },
+    ]);
+    expect((await reportsOf(held, LIST))[0]?.title).toMatch(/5 rows read, 3 loaded, 2 excluded/u);
+  });
+});
+
+// Two files of the tracker share a host and a header and differ in the measure. The second file
+// takes the mapping of its own recipe, and never the accepted mapping of the first one.
+const CREA_CRUDE_URI = CREA_URI.replace('oil_products', 'crude_oil');
+
+test('a recipe file never takes the accepted mapping of another file of the same host and header', async () => {
+  await inTransaction(async (held) => {
+    await recorded(held, 'port', 'Port of Primorsk', { unlocode: 'RUPRI' });
+    const first = await seedDocument(held, LIST, CREA_URI, CREA_TEXT);
+    expect(await held.step(makeMapper(CONFIG), noModel())).toStrictEqual({
+      did: 'done',
+      job: first,
+    });
+    const [products] = await mappingsOf(held, LIST);
+    await promote(held, products?.id ?? '');
+
+    const second = await seedDocument(
+      held,
+      SECOND,
+      CREA_CRUDE_URI,
+      CREA_TEXT + CREA_ROW('Primorsk', 'RU', '9', '2021-01-03') + '\r\n',
+    );
+    expect(await held.step(makeMapper(CONFIG), noModel())).toStrictEqual({
+      did: 'done',
+      job: second,
+    });
+    const [crude] = await mappingsOf(held, SECOND);
+    expect(crude?.payload.table).toBe('crea_departures_by_port_crude_oil');
+    expect(crude?.id).not.toBe(products?.id);
+  });
+});
+
+test('the subject of a figure is found among the entities of the type that the mapping names', async () => {
+  await inTransaction(async (held) => {
+    const port = await recorded(held, 'port', 'Port of Primorsk', { unlocode: 'RUPRI' });
+    // A terminal of the same code is no port, and it must not make the lookup ambiguous.
+    await recorded(held, 'facility', 'Primorsk export terminal', { unlocode: 'RUPRI' });
+    await seedDocument(held, LIST, CREA_URI, CREA_TEXT);
+    await held.step(makeMapper(CONFIG), noModel());
+    const [mapping] = await mappingsOf(held, LIST);
+    const load = await promote(held, mapping?.id ?? '');
+    await held.ask(OLDEST, [load]);
+    await held.step(makeLoader({ store: storeOf(held) }), noModel());
+    const figures = figureRows.parse(
+      await held.ask(
+        `SELECT period, value::text AS value, reporter, subject_id::text AS port
+           FROM public.observation WHERE document_id = $1 AND reporter = 'RU'
+            AND value = 100.5`,
+        [LIST],
+      ),
+    );
+    expect(figures.map((one) => one.port)).toStrictEqual([port]);
+  });
+});

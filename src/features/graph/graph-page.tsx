@@ -18,9 +18,10 @@ import { useScreenQuery } from '@/shared/screen-query';
 import { SelectionPanel } from '@/shared/selection-panel';
 
 import { mountGraph, type GraphController, type GraphView } from './controller';
-import { Legend, StatusBar, VariantSwitch, ZoomButtons } from './canvas-chrome';
+import { Legend, PresetSwitch, StatusBar, VariantSwitch, ZoomButtons } from './canvas-chrome';
 import { MarkerMeter } from './marker-meter';
-import type { GraphModel } from './model';
+import { greyCountsOf } from './legend';
+import type { GraphModel, NodeAttrs } from './model';
 import { deriveRailRows } from './rail-rows';
 import { stepAfterTypeOpen, stepShowingWholeList, type RailStep } from './rail-step';
 import { IndexRows } from './row';
@@ -142,6 +143,8 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   const railWidth = snapshot?.view.railWidth ?? DEFAULT_GRAPH_WORKSPACE.railWidth;
   const openUnits = snapshot?.view.openUnits ?? null;
   const showUnplaced = snapshot?.view.showUnplaced ?? true;
+  // The preset leaves entities out of the picture, so the lists below read it.
+  const preset = snapshot?.view.preset;
   const counts = snapshot?.view.counts ?? null;
 
   const reach = useCallback((id: string) => {
@@ -155,7 +158,8 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
   // A node folded in the list stays, because a choice of it opens the units above it. The hubs
   // come first, and the name is the tie-break, as in the lists of the rail.
   const named = useMemo(() => {
-    if (model === null || filter === null) return [];
+    // `preset` is read here because `isShown` reads `outOfFocus`, which a switch of preset sets.
+    if (model === null || filter === null || preset === undefined) return [];
     const hidden = new Set(filter.hiddenTypes);
     const shown: { id: string; label: string; degree: number }[] = [];
     model.graph.forEachNode((node, attrs) => {
@@ -164,7 +168,21 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
       }
     });
     return shown.sort((one, two) => two.degree - one.degree || one.label.localeCompare(two.label));
-  }, [model, filter, showUnplaced]);
+  }, [model, filter, showUnplaced, preset]);
+
+  // An isolate has no relation in the record, so the count does not follow the switches of the
+  // relation families.
+  const greys = useMemo(() => {
+    if (model === null || filter === null || preset === undefined) {
+      return { isolates: 0, unplaced: 0 };
+    }
+    const hidden = new Set(filter.hiddenTypes);
+    const drawn: NodeAttrs[] = [];
+    model.graph.forEachNode((_node, attrs) => {
+      if (isShown(attrs, hidden, showUnplaced)) drawn.push(attrs);
+    });
+    return greyCountsOf(drawn);
+  }, [model, filter, showUnplaced, preset]);
 
   // `GraphCanvas` is memoised on two refs, so a new filter does not render the live element.
   const query = useScreenQuery({ named, choose: reach });
@@ -276,7 +294,11 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
           <GraphCanvas canvas={canvas} overlay={overlay} />
           {snapshot === null ? null : (
             <>
-              <StatusBar counts={snapshot.view.counts} />
+              <StatusBar counts={snapshot.view.counts} dust={snapshot.view.dust} />
+              <PresetSwitch
+                current={snapshot.view.preset}
+                onPick={(id) => controller.current?.setPreset(id)}
+              />
               <VariantSwitch
                 current={snapshot.view.variant}
                 onPick={(id) => controller.current?.setVariant(id)}
@@ -285,6 +307,7 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
                 counts={snapshot.view.counts}
                 hueOfType={snapshot.model.hueOfType}
                 labelOfType={snapshot.model.labelOfType}
+                greys={greys}
               />
               <ZoomButtons
                 onZoom={(direction) => {

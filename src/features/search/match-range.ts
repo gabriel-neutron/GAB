@@ -1,3 +1,5 @@
+import { foldLookalikes } from '@gab/proposal/lookalikes';
+
 import { folded } from '@/shared/text-fold';
 
 export interface MatchRange {
@@ -35,7 +37,7 @@ export function matchRange(text: string, query: string): MatchRange | null {
         continue;
       }
       spaced = false;
-      for (const char of piece.toLowerCase()) {
+      for (const char of foldLookalikes(piece.toLowerCase())) {
         flat += char;
         starts.push(offset);
         ends.push(next);

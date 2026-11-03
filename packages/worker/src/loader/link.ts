@@ -117,14 +117,14 @@ export const foundWords = (found: Found, none: string): [string, string, string]
 export const makeEndFinder = (
   db: Queryable,
   header: readonly string[],
-): ((record: CsvRecord, end: LinkEnd) => Promise<Found>) => {
-  return (record, end) => {
+): ((record: CsvRecord, end: LinkEnd, ofType?: boolean) => Promise<Found>) => {
+  return (record, end, ofType = false) => {
     const casts: Record<string, { column: string; cast: Cast }> = {};
     for (const one of end.lookup)
       if (one.key === 'tax_id' || one.key === 'registration_number')
         casts[one.key] = { column: one.column, cast: { type: 'ru_register' } };
     const typed: ColumnCasts = casts;
-    return makeFinder(db, typed, header)(record, end.lookup, end.entity_type);
+    return makeFinder(db, typed, header)(record, end.lookup, end.entity_type, ofType);
   };
 };
 

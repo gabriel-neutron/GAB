@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { JobStop, type AgentContext, type AgentResult, type RunnerAgent } from '../agents.ts';
 import { readMapperConfig, type MapperConfig } from '../reader-config.ts';
 import { promptOf, withinBudget } from '../tool-turn.ts';
+import { RECIPE_AGENT, recipeOf } from './recipes.ts';
 
 const MAPPER_NAME = 'mapper';
 const VERSION = 'v4';
@@ -30,9 +31,9 @@ interface MapperOptions {
 
 const answer = z.strictObject({ mapping: mappingDraft });
 
-const sampled = z.object({ headerSig: z.string() });
+const sampled = z.object({ headerSig: z.string(), header: z.array(z.string()) });
 
-const documentRow = z.array(z.object({ mime: z.string().nullable() }));
+const documentRow = z.array(z.object({ mime: z.string().nullable(), uri: z.string().nullable() }));
 
 const textSetRow = z.array(z.object({ text_set: z.string().nullable() }));
 
@@ -40,9 +41,13 @@ const TEXT_SET = 'SELECT text_set FROM public.jobs WHERE id = $1::uuid';
 
 const loadRow = z.array(z.object({ id: z.uuid().nullable() }));
 
-const MIME = 'SELECT mime FROM public.documents WHERE id = $1::text';
+const MIME = 'SELECT mime, uri FROM public.documents WHERE id = $1::text';
 
-const REUSE = 'SELECT public.enqueue_mapped_load($1::text, $2::text)::text AS id';
+// The call of a recipe is a call of no model: no endpoint, no model name and no token.
+const RECIPE_CALL = `SELECT public.record_model_call($1::text, $2::text, 'none', 'none',
+  encode(sha256(convert_to($3::text, 'UTF8')), 'hex'), 0, 'ok', $4::uuid, NULL, 0, 0)::text AS id`;
+
+const REUSE = 'SELECT public.enqueue_mapped_load($1::text, $2::text, $3::boolean)::text AS id';
 
 /** The mapper. It reads the header and the first rows of one table, and the model proposes how
  * the columns map. A second file of the same header from the same host takes the mapping that the
@@ -78,12 +83,42 @@ export const makeMapper = (config: MapperConfig, options: MapperOptions = {}): R
 
     const read = await callTool(tools.fileSchemaSample, session, { document, textSet });
     if (!read.ok) throw new JobStop(read.refusal);
-    const { headerSig } = sampled.parse(read.output);
+    const { headerSig, header } = sampled.parse(read.output);
 
     // A file that an accepted mapping already fits is loaded with no model. A job that runs again
-    // meets the load that its first run queued, and the door returns it.
-    const [reused] = loadRow.parse((await context.db.query(REUSE, [document, headerSig])).rows);
+    // meets the load that its first run queued, and the door returns it. A table that a recipe
+    // knows takes only the mapping of its own document: two files of one host can share a header
+    // and give another measure.
+    const recipe = recipeOf(held.uri, header);
+    const [reused] = loadRow.parse(
+      (await context.db.query(REUSE, [document, headerSig, recipe !== undefined])).rows,
+    );
     if (reused !== undefined && reused.id !== null) return { refusals: [] };
+
+    // A table that a recipe knows is mapped by code and costs no credit. A refusal of the recipe
+    // stops the job: the model never gets a table that a recipe claims.
+    if (recipe !== undefined) {
+      const [call] = z
+        .array(z.object({ id: z.uuid() }))
+        .parse(
+          (
+            await context.db.query(RECIPE_CALL, [
+              RECIPE_AGENT.name,
+              RECIPE_AGENT.version,
+              recipe.table,
+              job.id,
+            ])
+          ).rows,
+        );
+      if (call === undefined) throw new JobStop('the record kept no call for the recipe');
+      const made = await callTool(tools.proposeMapping(call.id), session, {
+        document,
+        textSet,
+        mapping: recipe,
+      });
+      if (!made.ok) throw new JobStop(`the tool refused the recipe: ${made.refusal}`);
+      return { refusals: [] };
+    }
 
     // A refusal of the tool goes back to the model once, with its sentence, and the model gives
     // the mapping again. The second refusal ends the job with that sentence.

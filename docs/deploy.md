@@ -23,6 +23,26 @@ of the site folder it writes:
 Each page also holds its title, description, canonical address, preview tags and structured data
 in the HTML, with no script. The home page and the downloads page hold a schema.org `Dataset`.
 
+## What the edge worker adds
+
+The host runs the worker `tools/edge/worker.ts` in front of the static files (`wrangler.jsonc`
+names it). The static build answers every unknown address with the shell of the application, so
+the worker serves what the files lack:
+
+- `robots.txt`, `sitemap.xml`, `llms.txt` and the section files of `llms.txt`. They use the same
+  functions as the release command, so the policy for AI systems stays in `ai-policy.ts`.
+- A markdown twin of each page (`/index.md`, `/about.md`), and markdown for a request with
+  `Accept: text/markdown` or the user agent of a known AI crawler.
+- The files for agents under `/.well-known/` (AI catalog, skills index, API catalog) and
+  `/openapi.json`, which describes the open files of the release.
+- The pages About, Contact, Privacy, Docs, Developers, Pricing and Agents, as HTML and markdown.
+  The contact address comes from the manifest of the release at the time of the request.
+- A Link header, the canonical address, the preview image and the structured data in the head, and
+  a true 404 for an address that is no page and no file.
+
+`APP_SEGMENTS` in `tools/edge/pages.ts` lists the pages of the application. A test compares the
+list with `src/routes/`, so add a route and the test tells you to change the list.
+
 ## What the operator sets
 
 - The public address: the `iriBase` of the release manifest. The origin of the address starts

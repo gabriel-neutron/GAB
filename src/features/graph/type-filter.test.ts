@@ -21,4 +21,9 @@ describe('what the canvas draws', () => {
   it('leaves out a node whose type is switched off, whatever the switch for the ring says', () => {
     expect(isShown(placed, new Set(['vessel']), true)).toBe(false);
   });
+
+  it('leaves out a node that the preset leaves out', () => {
+    expect(isShown({ ...placed, outOfFocus: true }, new Set(), true)).toBe(false);
+    expect(isShown({ ...placed, outOfFocus: false }, new Set(), true)).toBe(true);
+  });
 });
