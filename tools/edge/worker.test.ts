@@ -222,3 +222,12 @@ describe('the rate limit', () => {
     expect(((await response.json()) as { code: string }).code).toBe('rate_limited');
   });
 });
+
+describe('the pages for agents', () => {
+  it('serves /auth.md as markdown and states the content signals in robots.txt', async () => {
+    const auth = await get('/auth.md');
+    expect(auth.headers.get('content-type')).toContain('text/markdown');
+    expect(await auth.text()).toContain('needs no authentication');
+    expect(await (await get('/robots.txt')).text()).toContain('Content-Signal:');
+  });
+});
