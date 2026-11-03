@@ -185,6 +185,9 @@ jobs:
 
       - run: pnpm run db:drift
 
+      # The tests of the render mode of the fetch tool drive a real browser.
+      - run: pnpm exec playwright install --with-deps chromium
+
       - run: pnpm run test
 
       - name: the logs of the stack
