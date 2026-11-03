@@ -1,4 +1,8 @@
 import './index.css';
+import { registerWebMcp } from './shared/web-mcp';
+
+// The tools are offered from the entry file, which loads first and holds no heavy code.
+registerWebMcp();
 
 // A page of the release holds its text in the root already, so the browser loads and paints it
 // with its images first, and only then loads the script of the application. The script never

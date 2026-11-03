@@ -33,6 +33,7 @@ export const IDENTIFIER_KEY = [
   'gem_unit_id',
   'gem_project_id',
   'wikidata_id',
+  'entsog_point_key',
 ] as const;
 
 export type IdentifierKey = (typeof IDENTIFIER_KEY)[number];
@@ -77,7 +78,15 @@ export const IDENTIFIER_KEYS = {
     'gem_entity_id',
   ],
   port: ['unlocode', 'osm_id', 'osm_version'],
-  facility: ['unlocode', 'osm_id', 'osm_version', 'gem_unit_id', 'gem_project_id', 'wikidata_id'],
+  facility: [
+    'unlocode',
+    'osm_id',
+    'osm_version',
+    'gem_unit_id',
+    'gem_project_id',
+    'wikidata_id',
+    'entsog_point_key',
+  ],
 } as const satisfies Readonly<Record<string, readonly IdentifierKey[]>>;
 
 const SEVEN_DIGITS = /^\d{7}$/;
