@@ -6,6 +6,10 @@
     "command": "pnpm run build",
   },
   "previews": {},
+  // Logs on, so an abuse of the open interface shows. Keep this in step with the dashboard.
+  "observability": {
+    "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": true, "persist": true },
+  },
   "main": "tools/edge/worker.ts",
   // 120 requests a minute for each address on /mcp and /api/v1/files. The files have no limit.
   "ratelimits": [
