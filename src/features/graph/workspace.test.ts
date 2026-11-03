@@ -30,6 +30,7 @@ describe('the saved workspace of the graph', () => {
       railWidth: 300,
       showUnplaced: true,
       hiddenRelationTypes: DEFAULT_GRAPH_WORKSPACE.hiddenRelationTypes,
+      preset: 'all',
     });
   });
 

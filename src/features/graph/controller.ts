@@ -27,6 +27,7 @@ import { createLiveLayout } from './live-layout';
 import { keptNames } from './name-overlap';
 import { morph } from './morph';
 import { layoutInput } from './layout-weights';
+import { focusOf, type PresetId } from './presets';
 import { DEFAULT_VARIANT, variantOf, type Variant, type VariantId } from './variants';
 import { graphPositions } from './positions';
 import { FAMILIES, lookOf } from './relation-families';
@@ -55,6 +56,8 @@ export interface GraphView {
   readonly unplaced: number;
   /** Whether the canvas draws them. */
   readonly showUnplaced: boolean;
+  /** The preset in view. */
+  readonly preset: PresetId;
   /** How many entities the first view draws as faint dust: fewer than three shown links. */
   readonly dust: number;
   /** The identifier of the prototype in view. */
@@ -77,6 +80,8 @@ export interface GraphController {
   readonly setShowUnplaced: (show: boolean) => void;
   /** Switches the prototype of the graph: the weights, the forces and the sizes. */
   readonly setVariant: (id: VariantId) => void;
+  /** Switches the preset: the key entities and what they touch, or the whole corpus. */
+  readonly setPreset: (id: PresetId) => void;
   /** The rail was unfolded or folded. The workspace keeps it, so the next open finds it there. */
   readonly setRailOpen: (open: boolean) => void;
   /** The rail edge was dragged. The workspace keeps the width, as it keeps the fold. */
@@ -241,6 +246,28 @@ export function mountGraph(
   let railWidth = stored.railWidth;
   let showUnplaced = stored.showUnplaced;
   let variant: Variant = DEFAULT_VARIANT;
+  let preset: PresetId = stored.preset;
+  // The focus leaves the other entities out of the picture, as a switched-off type does.
+  const applyPreset = (): void => {
+    const kept =
+      preset === 'focus'
+        ? focusOf(
+            model.graph.mapEdges((_edge, attrs, source, target) => ({
+              source,
+              target,
+              family: attrs.type,
+            })),
+          )
+        : null;
+    model.graph.updateEachNodeAttributes((node, attrs) =>
+      Object.assign(attrs, { outOfFocus: kept !== null && !kept.has(node) }),
+    );
+  };
+  applyPreset();
+  // A switch of preset moves the nodes to new places, so the camera follows them while the layout
+  // runs. The layout stops within this time, and the camera is then the reader's again.
+  let refitting = false;
+  const REFIT_MS = 6000;
 
   // The stored picture is the frame. The camera fits are computed in this frame, so it is fixed
   // here and given to Sigma, and the two never differ.
@@ -818,6 +845,7 @@ export function mountGraph(
     openUnits: folds.open,
     unplaced: placement.unplaced.size,
     dust: dust.size,
+    preset,
     variant: variant.id,
     showUnplaced,
     railOpen,
@@ -938,6 +966,7 @@ export function mountGraph(
         const at = places.get(node);
         return at === undefined ? attrs : Object.assign(attrs, at);
       });
+      if (refitting) fitCamera(model.graph.filterNodes((node) => nodeConsidered(node)));
       morph.progress = 0;
       moveStart = performance.now();
       if (moveFrame === 0) moveFrame = requestAnimationFrame(stepMove);
@@ -978,7 +1007,9 @@ export function mountGraph(
       links.set(source, (links.get(source) ?? 0) + 1);
       links.set(target, (links.get(target) ?? 0) + 1);
     }
-    const isLeaf = (node: string): boolean => (links.get(node) ?? 0) < HUB_LINKS;
+    // The focus draws every entity it keeps in full: it is small enough to read.
+    const isLeaf = (node: string): boolean =>
+      preset !== 'focus' && (links.get(node) ?? 0) < HUB_LINKS;
     const leaves = input.nodes.filter(isLeaf);
     // A crowd shrinks the hubs, so they do not cover one another. The leaves do not count: they
     // are 2px dust. 1500 hubs is the count where the largest glyph still leaves room.
@@ -1224,6 +1255,18 @@ export function mountGraph(
       patchGraphWorkspace({ hiddenRelationTypes: relationFilter.hiddenRelationTypes });
       relayout();
       // A selected relation of a type that is now off is dropped, as the filter drops a node.
+      settle(acceptable(selection));
+    },
+    setPreset: (id) => {
+      if (destroyed || id === preset) return;
+      preset = id;
+      patchGraphWorkspace({ preset });
+      applyPreset();
+      refitting = true;
+      setTimeout(() => {
+        refitting = false;
+      }, REFIT_MS);
+      relayout();
       settle(acceptable(selection));
     },
     setVariant: (id) => {

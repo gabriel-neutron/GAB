@@ -66,12 +66,12 @@ hue means the stage and nothing else.
 - **The marker meter.** When the cap cuts markers, a small bar on the graph shows the part that is
   drawn and the number that is not. It has the shape and the colour of a marker, so it needs no
   legend. It is absent when the cap cuts nothing.
-- **The first view of the graph.** The relations of a legal act (designated by, restricted by,
-  exempted by, issued by) start off: they are more than half of the record, and drawn they hide
-  the operational links. The legend switches them on. An entity with no shown link is dust. It
-  stays on the canvas, dim, in rings at the edge, so the reader sees how many there are. The
-  linked core is in full colour, with the names of its twelve strongest nodes, and its links are
-  faint until a selection lights them.
-- **No critical node yet.** The release table of critical nodes had no row in release 2026-10-28.
-  The graph marks no node as critical until a release lists them with their identifiers.
-
+- **The presets of the graph.** One switch gives two readings of one corpus. `All` draws every
+  entity and every relation. An entity with fewer than three links is small and dim, and its
+  links stay drawn. `Focus` draws the key entities and what they touch at one step, with every
+  relation among them. The graph hides no link of an entity it draws, so no entity reads as
+  unlinked when it is not. The legend still switches a family of relations off.
+- **The key entities.** The focus takes the entities that a release lists as critical. The release
+  2026-10-28 lists none, so the focus takes the twelve entities with the most operational links. A
+  link of designation does not rank them, because a legal act lists hundreds of entities. The
+  page says "most connected" and never "critical" until a release names them.

@@ -4,6 +4,7 @@ import { glyphSvg } from './glyph-svg';
 import { legendOf, type GreyCounts } from './legend';
 import { VARIANTS, type VariantId } from './variants';
 import { lookOf } from './relation-families';
+import { PRESETS, type PresetId } from './presets';
 import type { ShownCounts, ShownOfTotal } from './shown-counts';
 
 const CAPTION = 'text-caption tracking-caps text-label uppercase';
@@ -156,6 +157,41 @@ export function ZoomButtons({ onZoom }: { readonly onZoom: (direction: 'in' | 'o
 }
 
 /** The row of prototypes at the top of the canvas, one square button for each. */
+export function PresetSwitch({
+  current,
+  onPick,
+}: {
+  readonly current: PresetId;
+  readonly onPick: (id: PresetId) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="View"
+      className="absolute top-8 left-2 z-10 flex border border-border bg-surface"
+    >
+      {PRESETS.map(({ id, label, reading }) => (
+        <button
+          key={id}
+          type="button"
+          title={reading}
+          aria-label={`${label}: ${reading}`}
+          aria-pressed={id === current}
+          onClick={() => {
+            onPick(id);
+          }}
+          className={cn(
+            'px-3 py-1.5 text-data focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1',
+            id === current ? 'bg-muted text-foreground underline underline-offset-4' : 'text-label',
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function VariantSwitch({
   current,
   onPick,

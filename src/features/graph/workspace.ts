@@ -1,5 +1,7 @@
 import { holdsOnlyDeclaredKeys, readWorkspace, writeWorkspace } from '@/shared/storage';
 
+import { DEFAULT_PRESET, PRESETS, type PresetId } from './presets';
+
 const FEATURE = 'graph';
 
 // `ratio` is the zoom of Sigma, and a larger ratio is further out.
@@ -21,6 +23,8 @@ export interface GraphWorkspace {
   readonly showUnplaced: boolean;
   /** The relation types that are switched OFF, on the same rule as `hiddenTypes`. */
   readonly hiddenRelationTypes: readonly string[];
+  /** The way the canvas reads the corpus: the key entities, or all of it. */
+  readonly preset: PresetId;
 }
 
 export const DEFAULT_GRAPH_WORKSPACE: GraphWorkspace = {
@@ -29,14 +33,14 @@ export const DEFAULT_GRAPH_WORKSPACE: GraphWorkspace = {
   railOpen: true,
   railWidth: 256,
   showUnplaced: true,
-  // The relations of a legal act join each entity to its act, and they are more than half of the
-  // record. Drawn, they fill the canvas and hide the operational links, so they start off.
-  hiddenRelationTypes: ['designated_by', 'restricted_by', 'exempted_by', 'issued_by'],
+  hiddenRelationTypes: [],
+  preset: DEFAULT_PRESET,
 };
 
 // A record saved before a switch existed has no key for it. It stays valid, so the camera, the
 // filters and the rail of that reader are kept, and the switch takes its default.
-type StoredWorkspace = Omit<GraphWorkspace, 'showUnplaced' | 'hiddenRelationTypes'> & {
+type StoredWorkspace = Omit<GraphWorkspace, 'showUnplaced' | 'hiddenRelationTypes' | 'preset'> & {
+  readonly preset?: PresetId;
   readonly showUnplaced?: boolean;
   readonly hiddenRelationTypes?: readonly string[];
 };
@@ -63,6 +67,7 @@ const DECLARED_KEYS: Readonly<Record<keyof GraphWorkspace, true>> = {
   railWidth: true,
   showUnplaced: true,
   hiddenRelationTypes: true,
+  preset: true,
 };
 
 // A record saved while the graph had a focus holds `hops`. The guard accepts the key, and the read
@@ -82,6 +87,7 @@ const isWorkspace = (value: unknown): value is StoredWorkspace => {
     typeof w['railWidth'] === 'number' &&
     Number.isFinite(w['railWidth']) &&
     (w['showUnplaced'] === undefined || typeof w['showUnplaced'] === 'boolean') &&
+    (w['preset'] === undefined || PRESETS.some(({ id }) => id === w['preset'])) &&
     (w['hiddenRelationTypes'] === undefined ||
       (Array.isArray(w['hiddenRelationTypes']) &&
         w['hiddenRelationTypes'].every((type) => typeof type === 'string')))
@@ -97,6 +103,7 @@ export function readGraphWorkspace(): GraphWorkspace {
     railWidth: stored.railWidth,
     showUnplaced: stored.showUnplaced ?? DEFAULT_GRAPH_WORKSPACE.showUnplaced,
     hiddenRelationTypes: stored.hiddenRelationTypes ?? DEFAULT_GRAPH_WORKSPACE.hiddenRelationTypes,
+    preset: stored.preset ?? DEFAULT_GRAPH_WORKSPACE.preset,
   };
 }
 

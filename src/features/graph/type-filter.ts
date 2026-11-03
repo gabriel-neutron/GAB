@@ -15,13 +15,18 @@ export function hiddenAfterSwitch(
   return [...hidden];
 }
 
-/** The one rule of what the canvas draws: a node passes unless its type is switched off, or it
- * stands on the ring and the switch for the ring is off. The selection and the lists both read
+/** The one rule of what the canvas draws: a node passes unless its type is switched off, the preset
+ * leaves it out, or it stands on the ring and the switch for the ring is off. The selection and the lists both read
  * this rule, so a node that is not drawn is never selected. */
 export const isShown = (
-  node: { readonly entityType: string; readonly unplaced: boolean },
+  node: {
+    readonly entityType: string;
+    readonly unplaced: boolean;
+    readonly outOfFocus?: boolean;
+  },
   hiddenTypes: ReadonlySet<string>,
   showUnplaced: boolean,
-): boolean => !hiddenTypes.has(node.entityType) && (showUnplaced || !node.unplaced);
+): boolean =>
+  !hiddenTypes.has(node.entityType) && (showUnplaced || !node.unplaced) && node.outOfFocus !== true;
 
 export const everyTypeShown = (): readonly string[] => DEFAULT_GRAPH_WORKSPACE.hiddenTypes;
