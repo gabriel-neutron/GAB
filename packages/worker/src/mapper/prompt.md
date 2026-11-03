@@ -106,7 +106,10 @@ each entry gives the number of the row and its values. `vocabulary` gives the wo
     - `product`: optional, `{"column": "<column>", "system": "siec"}`. The system is `siec` (the
       energy products of Eurostat, column `siec`), `hs` (customs codes) or `chpl`.
     - `subject`: optional, the entity of the record that the figure is about, for example a
-      pipeline: an `entity_type` and a `lookup` by an identifier, as an end in rule 12.
+      pipeline: an `entity_type` and a `lookup` by an identifier, as an end in rule 12. Give it
+      when each row names its installation or point by a column that holds an identifier key of
+      an entity type (for example the column `pointKey` of ENTSOG, the key `entsog_point_key` of
+      a `facility`). Without it, the figures of two points share one key.
     - `method`: how the source makes the figure, in a few words, for example `imports reported
       by the importer`. When the reporter is not the country of the flow that you study, the
       figure is a mirror figure: write `mirror figure reported by the partner`.
