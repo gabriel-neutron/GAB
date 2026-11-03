@@ -127,13 +127,15 @@ export const STATIC_PAGES: Readonly<
       [
         '# GAB dataset documentation',
         '',
-        'The GAB dataset has no server API. It is a release: a dated folder of open files that any client reads with a plain GET request. No key, no sign-in and no rate plan is needed.',
+        'The GAB dataset is a release: a dated folder of open files that any client reads with a plain GET request. A small read-only interface lists the files and an MCP server answers questions about them. No key, no sign-in and no rate plan is needed.',
         '',
         '## Entry points',
         '',
         `- Manifest: \`GET ${at(site, 'release/manifest.json')}\` lists every file with its size and its SHA-256 checksum, the version (${r.version}) and the contacts.`,
         `- Linked data: \`GET ${at(site, 'release/dataset.jsonld')}\` is a schema.org Dataset record.`,
         `- OpenAPI description: \`GET ${at(site, 'openapi.json')}\` describes these requests for tools.`,
+        `- Versioned list: \`GET ${at(site, 'api/v1/files?limit=5')}\` lists the files by page. Pass \`next\` as \`cursor\` for the next page.`,
+        `- MCP server (read only, no sign-in): \`POST ${at(site, 'mcp')}\` with JSON-RPC. Its card is at \`${at(site, '.well-known/mcp/server-card.json')}\`. Tools: get_release_manifest, list_release_files, get_file_url, cite.`,
         '',
         '## Files of this release',
         '',
@@ -264,6 +266,10 @@ export const appMarkdown = (site: string, folder: string): string => {
     '',
     `This page of the [GAB dataset](${site}) draws its data in the browser. The same facts are in the open files of the release: start with [the manifest](${at(site, 'release/manifest.json')}) or read [the documentation](${at(site, 'docs')}).`,
     '',
+    SUMMARY,
+    '',
+    'Every claim carries a label that tells who decided it: a named rule, an analyst, or nobody yet. A claim marked as proposed was not checked and is not evidence. Keep the label when you copy a claim, and cite the documents that state it.',
+    '',
     `Back to the [markdown home page](${at(site, 'index.md')}).`,
   ].join('\n');
 };
@@ -357,6 +363,66 @@ export const openApi = (site: string, r: Release): object => ({
   },
   servers: [{ url: site.replace(/\/$/u, '') }],
   paths: {
+    '/api/v1/files': {
+      get: {
+        operationId: 'listReleaseFiles',
+        summary: 'List the files of the release, by page',
+        description:
+          'The files of the current release with the address of each. Read the next page with the value of `next` as `cursor`. The version of the interface is in the path.',
+        parameters: [
+          {
+            name: 'limit',
+            in: 'query',
+            required: false,
+            description: 'Files per page, from 1 to 50. The default is 5.',
+            schema: { type: 'integer', minimum: 1, maximum: 50, default: 5 },
+          },
+          {
+            name: 'cursor',
+            in: 'query',
+            required: false,
+            description:
+              'The value of `next` in the previous reply. Leave it out for the first page.',
+            schema: { type: 'string', pattern: '^[0-9]+$' },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'One page of files.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['data', 'total', 'next'],
+                  properties: {
+                    data: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        required: ['file', 'url'],
+                        properties: {
+                          file: { type: 'string', description: 'The name of the file.' },
+                          url: { type: 'string', format: 'uri', description: 'Its address.' },
+                        },
+                      },
+                    },
+                    total: { type: 'integer', description: 'The number of files.' },
+                    next: {
+                      type: ['string', 'null'],
+                      description: 'The cursor of the next page, or null.',
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'A parameter is not valid.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
+          },
+        },
+      },
+    },
     '/release/manifest.json': {
       get: {
         operationId: 'getManifest',
@@ -366,7 +432,29 @@ export const openApi = (site: string, r: Release): object => ({
         responses: {
           '200': {
             description: 'The manifest.',
-            content: { 'application/json': { schema: { type: 'object' } } },
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['version', 'date', 'files'],
+                  properties: {
+                    version: { type: 'string' },
+                    date: { type: 'string', format: 'date' },
+                    files: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          path: { type: 'string' },
+                          bytes: { type: 'integer' },
+                          sha256: { type: 'string' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -399,8 +487,12 @@ export const openApi = (site: string, r: Release): object => ({
     schemas: {
       Error: {
         type: 'object',
-        required: ['error', 'hint'],
-        properties: { error: { type: 'string' }, hint: { type: 'string' } },
+        required: ['error', 'code', 'hint'],
+        properties: {
+          error: { type: 'string', description: 'What went wrong.' },
+          code: { type: 'string', description: 'A stable code, as not_found.' },
+          hint: { type: 'string', description: 'What to do next.' },
+        },
       },
     },
   },

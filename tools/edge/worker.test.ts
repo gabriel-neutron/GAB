@@ -115,3 +115,54 @@ describe('toHtml', () => {
     expect(toHtml('<b> [a](b)')).toBe('<p>&lt;b&gt; <a href="b">a</a></p>');
   });
 });
+
+describe('the MCP server and the versioned list', () => {
+  const rpc = (method: string, params?: object): Promise<Response> =>
+    worker.fetch(
+      new Request('https://example.org/mcp', {
+        method: 'POST',
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+      }),
+      env,
+    );
+
+  it('lists the tools and calls one', async () => {
+    const list = (await (await rpc('tools/list')).json()) as {
+      result: { tools: { name: string }[] };
+    };
+    expect(list.result.tools.map((tool) => tool.name)).toContain('cite');
+    const call = (await (
+      await rpc('tools/call', { name: 'get_file_url', arguments: { file: 'entities.csv' } })
+    ).json()) as { result: { structuredContent: { url: string } } };
+    expect(call.result.structuredContent.url).toBe('https://example.org/release/entities.csv');
+  });
+
+  it('reports a tool fault as an error result, not a crash', async () => {
+    const call = (await (
+      await rpc('tools/call', { name: 'get_file_url', arguments: { file: 'nope' } })
+    ).json()) as { result: { isError: boolean } };
+    expect(call.result.isError).toBe(true);
+    expect(
+      ((await (await rpc('constructor')).json()) as { error: { code: number } }).error.code,
+    ).toBe(-32601);
+  });
+
+  it('pages the file list and refuses a bad parameter with a JSON error', async () => {
+    const page = (await (await get('/api/v1/files?limit=1')).json()) as {
+      data: unknown[];
+      next: string | null;
+    };
+    expect(page.data).toHaveLength(1);
+    expect(page.next).toBeNull();
+    const bad = await get('/api/v1/files?limit=0');
+    expect(bad.status).toBe(400);
+    expect(((await bad.json()) as { code: string }).code).toBe('invalid_parameter');
+  });
+
+  it('serves the server card', async () => {
+    const card = (await (await get('/.well-known/mcp/server-card.json')).json()) as {
+      remotes: { url: string }[];
+    };
+    expect(card.remotes[0]?.url).toBe('https://example.org/mcp');
+  });
+});

@@ -10,6 +10,8 @@ import { AI_CRAWLERS } from '@gab/release/ai-policy';
 import { MAIN_PAGES } from '@gab/release/llms-txt';
 import { robotsTxt, sitemapFiles } from '@gab/release/site-crawl';
 
+import { handle as handleMcp, serverCard } from './mcp.ts';
+
 import {
   APP_SEGMENTS,
   appMarkdown,
@@ -206,6 +208,8 @@ const generated = async (
       return markdown(homeMarkdown(site), { canonical: site, date: (await r()).date });
     case 'openapi.json':
       return json(openApi(site, await r()), 'application/openapi+json');
+    case '.well-known/mcp/server-card.json':
+      return json(serverCard(site, await r()));
     case '.well-known/api-catalog':
       return json(
         {
@@ -238,6 +242,12 @@ const generated = async (
             displayName: 'Open files of the release (OpenAPI)',
             type: 'application/openapi+json',
             url: `${site}openapi.json`,
+          },
+          {
+            identifier: `urn:air:${new URL(site).host}:mcp:gab`,
+            displayName: 'GAB dataset MCP server (read only)',
+            type: 'application/mcp-server-card+json',
+            url: `${site}.well-known/mcp/server-card.json`,
           },
           {
             identifier: `urn:air:${new URL(site).host}:skills:gab`,
@@ -309,10 +319,11 @@ const notFound = (request: Request, path: string): Response => {
   const accept = request.headers.get('accept') ?? '';
   // A request for a file (a name with an extension) or for JSON gets the JSON body that docs.md
   // promises. Every other request gets markdown.
-  const asJson = accept.includes('application/json') || /\.\w+$/u.test(path);
+  const asJson =
+    accept.includes('application/json') || /\.\w+$/u.test(path) || path.startsWith('/api/');
   const shown = path.replace(/[`\s]/gu, '');
   const body = asJson
-    ? JSON.stringify({ error: `No page or file at ${shown}.`, hint })
+    ? JSON.stringify({ error: `No page or file at ${shown}.`, code: 'not_found', hint })
     : `# 404: not found\n\nNo page or file exists at \`${shown}\`. ${hint}\n\n[Markdown home page](/index.md)\n`;
   return new Response(body, {
     status: 404,
@@ -321,6 +332,79 @@ const notFound = (request: Request, path: string): Response => {
       vary: 'Accept',
       'x-content-type-options': 'nosniff',
     },
+  });
+};
+
+const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET, POST, OPTIONS',
+  'access-control-allow-headers': 'content-type, accept, mcp-protocol-version',
+  'x-content-type-options': 'nosniff',
+} as const;
+
+/** A JSON error with the one shape of the open interfaces: `error`, `code` and `hint`. */
+const failure = (status: number, code: string, error: string, hint: string): Response =>
+  new Response(JSON.stringify({ error, code, hint }), {
+    status,
+    headers: { 'content-type': 'application/json; charset=utf-8', ...CORS },
+  });
+
+const filesQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(5),
+  cursor: z.string().regex(/^\d+$/u).default('0'),
+});
+
+/** The addresses that read the request: the MCP server and the versioned file list. Null for any
+ * other address. */
+const dynamic = async (
+  request: Request,
+  url: URL,
+  env: Env,
+  site: string,
+): Promise<Response | null> => {
+  const isMcp = url.pathname === '/mcp';
+  const isFiles = url.pathname === '/api/v1/files';
+  if (!isMcp && !isFiles) return null;
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+  const release = await readRelease(env, url.origin);
+
+  if (isFiles) {
+    if (request.method !== 'GET')
+      return failure(405, 'method_not_allowed', 'Use GET.', 'This address only reads.');
+    const query = filesQuery.safeParse(Object.fromEntries(url.searchParams));
+    if (!query.success)
+      return failure(
+        400,
+        'invalid_parameter',
+        'The parameter limit or cursor is not valid.',
+        'limit is an integer from 1 to 50. cursor is the value of next in the previous reply.',
+      );
+    const from = Number(query.data.cursor);
+    const next = from + query.data.limit;
+    return new Response(
+      JSON.stringify({
+        data: release.files
+          .slice(from, next)
+          .map((file) => ({ file, url: `${site}release/${file}` })),
+        total: release.files.length,
+        next: next < release.files.length ? String(next) : null,
+      }),
+      { headers: { 'content-type': 'application/json; charset=utf-8', ...CORS } },
+    );
+  }
+
+  if (request.method !== 'POST')
+    return failure(
+      405,
+      'method_not_allowed',
+      'Use POST with a JSON-RPC message.',
+      `The server card is at ${site}.well-known/mcp/server-card.json.`,
+    );
+  const message: unknown = await request.json().catch(() => null);
+  const answer = handleMcp(message, { site, release });
+  if (answer === null) return new Response(null, { status: 202, headers: CORS });
+  return new Response(JSON.stringify(answer), {
+    headers: { 'content-type': 'application/json; charset=utf-8', ...CORS },
   });
 };
 
@@ -375,6 +459,23 @@ const structuredData = (site: string, r: Release): string =>
         })),
       },
       {
+        '@type': 'DataCatalog',
+        '@id': `${site}#catalog`,
+        name: 'GAB dataset files',
+        url: `${site}release/manifest.json`,
+        dataset: { '@id': `${site}#dataset` },
+      },
+      {
+        '@type': 'WebAPI',
+        '@id': `${site}#api`,
+        name: 'GAB dataset open files interface',
+        description:
+          'Read-only list of the files of the release, and an MCP server. No key is needed.',
+        url: `${site}api/v1/files`,
+        documentation: `${site}docs`,
+        provider: { '@id': `${site}#org` },
+      },
+      {
         '@type': 'SoftwareSourceCode',
         name: 'Gabriel',
         codeRepository: REPOSITORY_URL,
@@ -406,11 +507,12 @@ const decorate = (html: string, site: string, path: string, r: Release): string 
         ]
       : []),
   ].join('');
-  const fallback = home
-    ? // Outside the root, so the hydration never sees it. Hidden, because the application draws
-      // the same facts for a reader with a script.
-      `<div id="static-content" hidden><main><h1>GAB dataset</h1>${toHtml(homeMarkdown(site))}<p>Gabriel is an open-source investigation graph. The pages above need a script. The files of the release are plain files: see <a href="${site}docs">the documentation</a>.</p></main></div>`
-    : '';
+  // Outside the root, so the hydration never sees it. Hidden, because the application draws the
+  // same facts for a reader with a script.
+  const body = home
+    ? `<h1>GAB dataset</h1>${toHtml(homeMarkdown(site))}<p>Gabriel is an open-source investigation graph. The pages above need a script. The files of the release are plain files: see <a href="${site}docs">the documentation</a>.</p>`
+    : toHtml(appMarkdown(site, path.replace(/^\//u, '').split('/')[0] ?? ''));
+  const fallback = `<div id="static-content" hidden><main>${body}</main></div>`;
   return html
     .replace('</head>', `${head}</head>`)
     .replace('<div id="root"></div>', `<div id="root"></div>${fallback}`);
@@ -420,6 +522,8 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const site = `${url.origin}/`;
+    const open = await dynamic(request, url, env, site);
+    if (open !== null) return open;
     if (request.method !== 'GET' && request.method !== 'HEAD') return env.ASSETS.fetch(request);
 
     const made = await generated(url.pathname, site, env, url.origin).catch(() => null);
