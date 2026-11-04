@@ -56,3 +56,18 @@ describe('the description of the node panel', () => {
     expect(description('N-O002')).toBe('');
   });
 });
+
+describe('the relations of the node panel', () => {
+  it('ends no line of a relation with a separator', () => {
+    // Nord Axis has relations with no document in the data.
+    const html = renderToStaticMarkup(
+      <ReportContext value={{ openNode: () => undefined }}>
+        <Dialog.Root open>
+          <NodeRecord id="N-O049" />
+        </Dialog.Root>
+      </ReportContext>,
+    );
+    expect(reportGraph.relations('N-O049').length).toBeGreaterThan(0);
+    expect(html).not.toMatch(/ · <\/span>/);
+  });
+});

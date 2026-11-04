@@ -112,7 +112,9 @@ export function NodeRecord({ id }: { readonly id: string }) {
                   </span>{' '}
                   {name(edge.target)}
                   <span className="block font-mono text-report-label text-label">
-                    {edge.state} · {edge.document_ids.split(';').filter(Boolean).join(' · ')}
+                    {[edge.state, ...edge.document_ids.split(';')]
+                      .filter((part) => part !== '')
+                      .join(' · ')}
                   </span>
                 </li>
               );
