@@ -11,6 +11,9 @@ test.each([
   '\\o |id',
   "\\copy t to program 'id'",
   '\\i other.sql',
+  "-- it's\n\\! id\n-- don't",
+  "select E'\\'';\n\\! id\nselect 'x'",
+  'select "a\\c";\n\\! id',
 ])('the script %j is refused', (script) => {
   expect(hasRefusedMetaCommand(script)).toBe(true);
 });
@@ -22,6 +25,9 @@ test.each([
   '-- see \\c\nselect 1',
   '\\x\nselect 1',
   '\\dt+',
+  'select $$a\\c$$',
+  'select $f$ \\! $f$',
+  "select 'it''s \\c'",
 ])('the script %j runs', (script) => {
   expect(hasRefusedMetaCommand(script)).toBe(false);
 });
