@@ -1,7 +1,7 @@
 import { mappingDraft } from '@gab/proposal/mapping';
 import { expect, test } from 'vitest';
 
-import { recipeOf } from './recipes.ts';
+import { isRecipeHost, recipeOf } from './recipes.ts';
 
 const COUNTER = [
   'destination_iso2,destination_country,destination_region,destination_regions,commodity,',
@@ -102,6 +102,19 @@ test.each([
   ['another path', COMTRADE_ADDRESS.replace('/get/C/A/HS', '/getDA/C/A/HS'), COMTRADE],
   ['a header that changed', COMTRADE_ADDRESS, [...COMTRADE, 'extra']],
   ['a table with a row for each breakdown', COMTRADE_ADDRESS.replace('&motCode=0', ''), COMTRADE],
+  ['a list of modes', COMTRADE_ADDRESS.replace('motCode=0', 'motCode=0,2100'), COMTRADE],
+  ['a list of customs codes', COMTRADE_ADDRESS.replace('C00', 'C00,C01'), COMTRADE],
+  ['a second value', `${COMTRADE_ADDRESS}&partner2Code=251`, COMTRADE],
 ])('no Comtrade recipe answers for %s', (_name, address, header) => {
   expect(recipeOf(address, header)).toBeUndefined();
+});
+
+test('a recipe host is known also for a table that no recipe knows', () => {
+  expect(isRecipeHost(COMTRADE_ADDRESS.replace('motCode=0', 'motCode=0,2100'))).toBe(true);
+  expect(
+    isRecipeHost('https://api.russiafossiltracker.com/v0/chart/departure_by_port?commodity=lng'),
+  ).toBe(true);
+  expect(isRecipeHost('https://example.org/table.csv')).toBe(false);
+  expect(isRecipeHost('not an address')).toBe(false);
+  expect(isRecipeHost(null)).toBe(false);
 });
