@@ -184,7 +184,11 @@ export const recipeOf = (
   if (url.hostname === COMTRADE_HOST) {
     const frequency = COMTRADE_PATH.exec(url.pathname)?.[1];
     const flow = COMTRADE_FLOW[url.searchParams.get('flowCode') ?? ''];
-    if (frequency === undefined || flow === undefined || !same(header, COMTRADE_HEADER))
+    // A table without the total filters holds a row for each breakdown, so it is not mapped.
+    const total = ['customsCode=C00', 'motCode=0', 'partner2Code=0'].every((one) =>
+      url.search.includes(one),
+    );
+    if (frequency === undefined || flow === undefined || !total || !same(header, COMTRADE_HEADER))
       return undefined;
     return {
       table: 'comtrade',

@@ -64,6 +64,9 @@ test('one reporter, one period and one HS code are read and stored as a document
     flowCode: 'X',
     cmdCode: '2709',
     partnerCode: '156',
+    customsCode: 'C00',
+    motCode: '0',
+    partner2Code: '0',
     maxRecords: '100000',
   });
   expect(store.puts).toHaveLength(1);
@@ -87,7 +90,7 @@ test('the key is in the header only, and not in the stored address, body, output
   expect(JSON.stringify(first)).not.toContain(KEY);
   expect(new TextDecoder().decode(store.puts[0]?.bytes)).not.toContain(KEY);
   expect(session.stored[0]?.[2]).toBe(
-    'https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=643&period=2023&flowCode=X&cmdCode=2709&partnerCode=156',
+    'https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=643&period=2023&flowCode=X&cmdCode=2709&partnerCode=156&customsCode=C00&motCode=0&partner2Code=0',
   );
 
   const second = await callTool(tool, session, INPUT, reach);

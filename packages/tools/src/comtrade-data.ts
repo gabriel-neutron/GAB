@@ -82,6 +82,11 @@ export const comtradeData = defineTool({
       flowCode: input.flow,
       cmdCode: input.hsCode,
       partnerCode: input.partner,
+      // Without these three, the answer holds a row for each customs procedure, transport mode and
+      // second partner, and each row repeats the total: they would load as duplicates.
+      customsCode: 'C00',
+      motCode: '0',
+      partner2Code: '0',
     });
     // The stored address has no key and no cap: it names the read and nothing else.
     const frequency = input.period.length === 4 ? 'A' : 'M';

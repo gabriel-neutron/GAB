@@ -82,7 +82,7 @@ const COMTRADE = (
 ).split(',');
 const COMTRADE_ADDRESS =
   'https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2024&flowCode=X&' +
-  'cmdCode=8541&partnerCode=643';
+  'cmdCode=8541&partnerCode=643&customsCode=C00&motCode=0&partner2Code=0';
 
 test('the recipe of Comtrade gives a valid mapping, with the measure of the flow in the address', () => {
   const exported = recipeOf(COMTRADE_ADDRESS, COMTRADE);
@@ -101,6 +101,7 @@ test.each([
   ['no flow', COMTRADE_ADDRESS.replace('flowCode=X&', ''), COMTRADE],
   ['another path', COMTRADE_ADDRESS.replace('/get/C/A/HS', '/getDA/C/A/HS'), COMTRADE],
   ['a header that changed', COMTRADE_ADDRESS, [...COMTRADE, 'extra']],
+  ['a table with a row for each breakdown', COMTRADE_ADDRESS.replace('&motCode=0', ''), COMTRADE],
 ])('no Comtrade recipe answers for %s', (_name, address, header) => {
   expect(recipeOf(address, header)).toBeUndefined();
 });
