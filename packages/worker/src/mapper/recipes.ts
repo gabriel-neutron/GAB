@@ -117,6 +117,8 @@ const MEASURE_OF_EUROSTAT: Readonly<Record<string, { measure: string; key: strin
 };
 
 const COMTRADE_HOST = 'comtradeapi.un.org';
+// The filter values of a table that holds the totals only. A list of values gives a breakdown.
+const COMTRADE_TOTAL = { customsCode: 'C00', motCode: '0', partner2Code: '0' } as const;
 const COMTRADE_PATH = /^\/data\/v1\/get\/C\/([AM])\/HS$/u;
 
 // The columns of the answer that the tool comtrade_data stores. A change of the answer falls
@@ -140,6 +142,17 @@ const COMTRADE_FLOW: Readonly<Record<string, { measure: string; method: string }
 
 const same = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && a.every((name, at) => name === b[at]);
+
+/** True when the address is on a host that a recipe reads. A recipe mapping fits only its own
+ * address: another table of the host can have the same header and another measure. */
+export const isRecipeHost = (address: string | null): boolean => {
+  if (address === null) return false;
+  try {
+    return [EUROSTAT_HOST, COMTRADE_HOST, CREA_HOST].includes(new URL(address).hostname);
+  } catch {
+    return false;
+  }
+};
 
 /** The mapping of a table that a recipe knows, or undefined. The address is the one that the
  * document was fetched from. */
@@ -185,8 +198,8 @@ export const recipeOf = (
     const frequency = COMTRADE_PATH.exec(url.pathname)?.[1];
     const flow = COMTRADE_FLOW[url.searchParams.get('flowCode') ?? ''];
     // A table without the total filters holds a row for each breakdown, so it is not mapped.
-    const total = ['customsCode=C00', 'motCode=0', 'partner2Code=0'].every((one) =>
-      url.search.includes(one),
+    const total = Object.entries(COMTRADE_TOTAL).every(
+      ([name, value]) => url.searchParams.getAll(name).join() === value,
     );
     if (frequency === undefined || flow === undefined || !total || !same(header, COMTRADE_HEADER))
       return undefined;
