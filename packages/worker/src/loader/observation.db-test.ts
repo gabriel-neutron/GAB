@@ -1025,3 +1025,48 @@ test.each(['97', '490', '250', '99999', 'CN'])(
     expect(rows).toStrictEqual([]);
   },
 );
+
+const PUBLIC_READ_OF_MONTH = `SELECT period, value::text AS value, licence FROM api.observation
+  WHERE reporter = 'DE' AND publisher = 'Eurostat' AND period = $1`;
+
+// M12: a subject that a merge absorbed reads as its survivor, so an older edition of the absorbed
+// subject and a newer edition of the survivor are two editions of one figure.
+test('the public read shows one edition of a figure after a merge of its two subjects', async () => {
+  await inTransaction(async (held) => {
+    const { mapping, load } = await mappedFile(held);
+    await runLoad(held, load);
+    const survivor = await held.idOf(
+      'SELECT id::text AS id FROM public.entities ORDER BY id LIMIT 1',
+    );
+    const absorbed = await held.idOf('SELECT gen_random_uuid()::text AS id');
+    await held.ask(
+      `UPDATE public.observation SET subject_id = $2::uuid
+        WHERE document_id = $1 AND reporter = 'DE' AND period = '2022-01'`,
+      [FILE, survivor],
+    );
+    await storeFile(held, 'doc_estat_gasm_old', TEXT.replace('4771.900', '4700.000'), '2026-01-05');
+    await held.ask(
+      `INSERT INTO public.observation
+         (measure, value, unit, period, method, publisher, reporter_system, reporter,
+          partner_system, partner, product_system, product, licence, document_id, text_extractor,
+          page, span_start, span_end, mapping_id, job_id, subject_id)
+       SELECT measure, 4700, unit, period, method, publisher, reporter_system, reporter,
+              partner_system, partner, product_system, product, licence, 'doc_estat_gasm_old',
+              text_extractor, page, span_start, span_end, mapping_id, job_id, $2::uuid
+         FROM public.observation WHERE document_id = $1 AND reporter = 'DE' AND period = '2022-01'`,
+      [FILE, absorbed],
+    );
+    // The merge writes the alias. The test writes it as the merge does.
+    await held.ask(
+      'INSERT INTO public.entity_alias (absorbed_id, survivor_id, merged_by) VALUES ($1, $2, $3)',
+      [absorbed, survivor, mapping],
+    );
+    expect(
+      z
+        .array(readRow)
+        .parse(
+          await held.asRole('gabriel_agent', () => held.ask(PUBLIC_READ_OF_MONTH, ['2022-01'])),
+        ),
+    ).toStrictEqual([{ period: '2022-01', value: '4771.900', licence: 'eu-reuse' }]);
+  });
+});
