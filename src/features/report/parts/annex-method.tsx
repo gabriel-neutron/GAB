@@ -9,7 +9,7 @@ import { RichText } from '../rich-text';
 import { reportGraph } from '../report-graph';
 import nodes from '../nodes-data';
 import { useContent, type ReportPath } from '../use-content';
-import { sources } from '../source';
+import { englishSource } from '../source/english';
 import { ClosingBreak } from './closing-art';
 
 const KEY = /^\*\*(.+?)\s?:?\*\*:?\s*/; // A French key has a space before its colon.
@@ -18,7 +18,7 @@ const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
 const REGISTER_ROWS = 14;
 // The spec takes the record counts from the final English text in every locale.
-const record = recordCounts(sources.en);
+const record = recordCounts(englishSource);
 // The anchor of a section of the annex, from its code: A.1 is "annex-a-1".
 const anchor = (code: string) => `annex-${code.toLowerCase().replace('.', '-')}`;
 

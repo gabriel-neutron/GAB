@@ -14,11 +14,11 @@ const SENTENCE = /(?<=[.?])\s+/;
 export function ConclusionPart({ part }: { readonly part: ReportPart }) {
   const { parts } = useContent();
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
-  const [effect, around, answer, advice] = part.blocks.map((block) => block.text);
+  const [effect, around, answer, advice, ...rest] = part.blocks.map((block) => block.text);
   const [statement, ...steps] = answer === undefined ? [] : answer.split(SENTENCE);
-  const paragraph = (text: string | undefined) =>
+  const paragraph = (text: string | undefined, key?: string) =>
     text === undefined ? null : (
-      <p className={cn('my-6', PROSE)}>
+      <p key={key} className={cn('my-6', PROSE)}>
         <RichText text={text} partSlug={part.slug} />
       </p>
     );
@@ -35,7 +35,7 @@ export function ConclusionPart({ part }: { readonly part: ReportPart }) {
         <Reveal>
           <div className="border-y border-foreground py-12 md:py-20">
             <p className="max-w-[30ch] text-report-heading leading-[1.08] tracking-[-0.03em] text-balance">
-              {statement}
+              <RichText text={statement ?? ''} partSlug={part.slug} />
             </p>
             <div className="mt-12 grid gap-px bg-border md:grid-cols-2">
               {[steps.slice(0, 2).join(' '), steps[2] ?? ''].map((text) => (
@@ -43,7 +43,7 @@ export function ConclusionPart({ part }: { readonly part: ReportPart }) {
                   key={text}
                   className="bg-background pt-6 pb-2 text-report-lead leading-[1.3] tracking-[-0.015em] text-balance md:pr-8 md:even:pl-8"
                 >
-                  {text}
+                  <RichText text={text} partSlug={part.slug} />
                 </p>
               ))}
             </div>
@@ -53,7 +53,10 @@ export function ConclusionPart({ part }: { readonly part: ReportPart }) {
         paragraph(answer)
       )}
       <div className="pt-10 pb-24 md:pt-14 md:pb-32 lg:grid lg:grid-cols-12 lg:gap-8">
-        <div className="lg:col-span-8 lg:col-start-3">{paragraph(advice)}</div>
+        <div className="lg:col-span-8 lg:col-start-3">
+          {paragraph(advice)}
+          {rest.map((text, index) => paragraph(text, String(index)))}
+        </div>
       </div>
     </section>
   );
