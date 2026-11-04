@@ -173,7 +173,7 @@ export const STATIC_PAGES: Readonly<
         '',
         '## Licence',
         '',
-        `The data is under [CC-BY 4.0](${LICENCE_URL}). Cite the dataset and keep the label of each claim.`,
+        `The data is under [CC-BY 4.0](${LICENCE_URL}), except a row whose \`licence\` column names another licence. Cite the dataset and keep the label of each claim.`,
       ].join('\n'),
   },
   developers: {
@@ -220,7 +220,7 @@ export const STATIC_PAGES: Readonly<
         '| --- | --- | --- |',
         '| Open | 0 EUR | Every page, every file of the release and the source code |',
         '',
-        `The data is under [CC-BY 4.0](${LICENCE_URL}): you may copy and reuse it, including for a commercial use, if you cite it.`,
+        `The data is under [CC-BY 4.0](${LICENCE_URL}): you may copy and reuse it if you cite it. Each row shows its own licence in its \`licence\` column, and a row under CC-BY-NC 4.0 is not for a commercial use.`,
       ].join('\n'),
   },
   agents: {
@@ -343,7 +343,7 @@ export const llmsIndex = (site: string, r: Release): string =>
     '',
     '## Licence',
     '',
-    `- The dataset is under [CC-BY 4.0](${LICENCE_URL}).`,
+    `- The dataset is under [CC-BY 4.0](${LICENCE_URL}). Each row shows its own licence.`,
     '',
   ].join('\n');
 
@@ -554,7 +554,7 @@ export const SKILLS: Readonly<
         '- Keep the label that tells who decided the claim.',
         '- Name the documents that the page of the claim lists as its sources.',
         '- Say that a claim tells what its sources say and is not proof.',
-        '- Credit the dataset under CC-BY 4.0.',
+        '- Credit the dataset under CC-BY 4.0, and keep the licence of each row that you copy.',
       ].join('\n'),
   },
 };
