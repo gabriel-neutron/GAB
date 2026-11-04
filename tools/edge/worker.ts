@@ -594,11 +594,24 @@ const guarded = async (response: Response, env: Env, origin: string): Promise<Re
     if (!out.headers.has(name)) out.headers.set(name, value);
   }
   if (!out.headers.has('x-robots-tag')) {
-    const closed = await env.ASSETS.fetch(new Request(`${origin}/favicon.svg`));
-    const robots = closed.headers.get('x-robots-tag');
+    const robots = await robotsOf(env, origin);
     if (robots !== null) out.headers.set('x-robots-tag', robots);
   }
   return out;
+};
+
+// The header is fixed for one build, so the worker reads it once for each binding. A failed read
+// gives no header and no error.
+const robotsRead = new WeakMap<Env['ASSETS'], Promise<string | null>>();
+const robotsOf = (env: Env, origin: string): Promise<string | null> => {
+  const known = robotsRead.get(env.ASSETS);
+  if (known !== undefined) return known;
+  const read = env.ASSETS.fetch(new Request(`${origin}/favicon.svg`)).then(
+    (closed) => closed.headers.get('x-robots-tag'),
+    () => null,
+  );
+  robotsRead.set(env.ASSETS, read);
+  return read;
 };
 
 const answer = async (request: Request, env: Env): Promise<Response> => {

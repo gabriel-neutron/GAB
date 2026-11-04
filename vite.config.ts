@@ -49,14 +49,15 @@ export default defineConfig({
     tailwindcss(),
     // Departure: the release is the one input that the build takes from the environment, because
     // a release is a folder of the operator and not a file of the repository.
-    // A folder with a manifest publishes only the files that the manifest lists.
+    // A folder with a manifest publishes only the files that the manifest lists. Only a build
+    // checks their checksums, so a dev start reads no large file.
     fetched === undefined
       ? releaseFolder(
           releaseDir,
           releaseDir !== undefined &&
             releaseDir !== '' &&
             existsSync(path.join(releaseDir, 'manifest.json'))
-            ? listedFiles(releaseDir)
+            ? listedFiles(releaseDir, process.argv.includes('build'))
             : undefined,
         )
       : [releaseFolder(fetched, servedFiles(fetched)), largeFileRedirects(fetched)],

@@ -69,13 +69,14 @@ const manifestFiles = z.object({
 
 /** The files that manifest.json of the folder lists, and manifest.json. Only these are published: a
  * file beside them that the release writer did not write never reaches the site. Throws when the
- * manifest is absent, or when a listed file is absent or has another checksum. */
-export const listedFiles = (folder: string): readonly string[] => {
+ * manifest is absent. With `verify`, it also throws when a listed file is absent or has another
+ * checksum. */
+export const listedFiles = (folder: string, verify = true): readonly string[] => {
   const at = join(folder, 'manifest.json');
   if (!existsSync(at))
     throw new Error(`The release folder ${folder} has no manifest.json at its top.`);
   const { files } = manifestFiles.parse(JSON.parse(readFileSync(at, 'utf8')));
-  for (const { path, sha256 } of files) {
+  for (const { path, sha256 } of verify ? files : []) {
     const file = join(folder, path);
     if (!existsSync(file) || sha256Of(readFileSync(file)) !== sha256)
       throw new Error(`The release file ${path} is absent or does not match its manifest.`);
@@ -84,16 +85,18 @@ export const listedFiles = (folder: string): readonly string[] => {
 };
 
 /** The listed files of the folder that the host can serve. */
-export const servedFiles = (folder: string): readonly string[] =>
-  listedFiles(folder).filter((name) => statSync(join(folder, name)).size <= HOST_FILE_LIMIT);
+export const servedFiles = (folder: string, verify = true): readonly string[] =>
+  listedFiles(folder, verify).filter(
+    (name) => statSync(join(folder, name)).size <= HOST_FILE_LIMIT,
+  );
 
 /** The `_redirects` file that sends each file too large for the host to its GitHub release. */
 export const largeFileRedirects = (folder: string): Plugin => ({
   name: 'gab-large-file-redirects',
   apply: 'build',
   generateBundle() {
-    const served = new Set(servedFiles(folder));
-    const large = listedFiles(folder).filter((name) => !served.has(name));
+    const served = new Set(servedFiles(folder, false));
+    const large = listedFiles(folder, false).filter((name) => !served.has(name));
     if (large.length === 0) return;
     const source = large.map((name) => `/release/${name} ${ASSETS}${name} 302\n`).join('');
     this.emitFile({ type: 'asset', fileName: '_redirects', source });
