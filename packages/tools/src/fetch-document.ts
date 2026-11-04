@@ -523,7 +523,8 @@ export const fetchDocument = defineTool({
       if (key !== null && isBlockPage(got.bytes)) got = await viaProxy(key);
     } catch (fault) {
       if (!(fault instanceof FetchRefusal)) throw fault;
-      if (key === null) got = await throughChrome(fault);
+      // A refusal of the guard holds for every route, so it never spends credits of the proxy.
+      if (key === null || fault.fault?.kind === 'guard') got = await throughChrome(fault);
       else {
         // The Chrome window is free, so a bot filter meets it first; the proxy costs credits.
         try {

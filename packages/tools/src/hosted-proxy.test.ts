@@ -40,6 +40,8 @@ beforeAll(async () => {
       response
         .writeHead(proxyAnswer.status, { 'content-type': 'text/html; charset=utf-8' })
         .end(proxyAnswer.body);
+    } else if (url === '/loop') {
+      response.writeHead(302, { location: '/loop' }).end();
     } else if (url === '/block') {
       response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(BLOCK);
     } else {
@@ -117,6 +119,14 @@ describe('a Russian host that refuses the direct read', () => {
     seen.length = 0;
     const outcome = await run(`http://www.example.com:${port}/gone`, reachWith(memoryStore(), KEY));
     expect(outcome.ok).toBe(false);
+    expect(seen.some((path) => path.startsWith('/proxy'))).toBe(false);
+  });
+
+  test('a refusal of the guard itself calls no proxy, because the proxy meets the same rule', async () => {
+    seen.length = 0;
+    const outcome = await run(`http://www.cbr.ru:${port}/loop`, reachWith(memoryStore(), KEY));
+    if (outcome.ok) throw new Error('the tool had to refuse');
+    expect(outcome.refusal).toContain('redirects');
     expect(seen.some((path) => path.startsWith('/proxy'))).toBe(false);
   });
 
