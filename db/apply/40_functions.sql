@@ -7967,17 +7967,6 @@ BEGIN
   THEN
     RETURN;
   END IF;
-  -- A unit that is blocked, or that waits for another unit, is not weak: the rules read it again
-  -- when it is free. A search adds sources to a fact of a known author only, so a unit with an
-  -- act of no author (a mapping, an act of the operator) gets no search.
-  IF EXISTS (SELECT 1 FROM public.unit_faults(ARRAY[p_unit]) AS f
-                CROSS JOIN LATERAL jsonb_array_elements(f.faults) AS x
-               WHERE x->>'level' IN ('blocks', 'waits'))
-     OR EXISTS (SELECT 1 FROM public.proposals a
-                 WHERE a.unit_id = p_unit AND a.status = 'pending'
-                   AND (a.originator IS NULL OR a.op = 'map_document')) THEN
-    RETURN;
-  END IF;
   IF EXISTS (SELECT 1 FROM public.proposals a
               WHERE a.unit_id = p_unit AND a.status = 'pending' AND a.originator IS NOT NULL
                 AND NOT EXISTS (SELECT 1 FROM public.act_check k WHERE k.proposal_id = a.id)) THEN
@@ -7990,6 +7979,20 @@ BEGIN
                         AND NOT EXISTS (SELECT 1 FROM public.lead_document l
                                           JOIN public.deepening d ON d.job_id = l.job_id
                                          WHERE l.document_id = c.doc_id)) THEN
+    RETURN;
+  END IF;
+  -- A search adds sources to a fact of a known author only, so a unit with an act of no author
+  -- (a mapping, an act of the operator) gets no search.
+  IF EXISTS (SELECT 1 FROM public.proposals a
+              WHERE a.unit_id = p_unit AND a.status = 'pending'
+                AND (a.originator IS NULL OR a.op = 'map_document')) THEN
+    RETURN;
+  END IF;
+  -- The costly test last. A unit that is blocked, or that waits for another unit, is not weak:
+  -- the rules read it again when it is free.
+  IF EXISTS (SELECT 1 FROM public.unit_faults(ARRAY[p_unit]) AS f
+                CROSS JOIN LATERAL jsonb_array_elements(f.faults) AS x
+               WHERE x->>'level' IN ('blocks', 'waits')) THEN
     RETURN;
   END IF;
   SELECT left('Find a better source for these acts: ' ||
