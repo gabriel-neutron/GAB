@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { Dialog } from 'radix-ui';
 
+import { BUSY_BUTTON } from '@/shared/busy-button';
 import { SaidLine } from '@/shared/said-line';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -43,8 +44,11 @@ export function CreateEntityDialog({ onCreated, onOpenEntity }: CreateEntityDial
 
   // Each opening starts at a blank form. A name typed three days ago and left in a closed
   // dialog is worse than one that was lost, because nothing on the screen says how old it is.
+  // While an act is in flight, the form is kept: a reopen shows it with its guard, and the answer
+  // lands on the form that sent it. A write that never answers still lets the dialog close.
   const onOpenChange = (next: boolean): void => {
     setOpen(next);
+    if (working) return;
     setForm(BLANK);
     setState(IDLE);
   };
@@ -111,7 +115,14 @@ export function CreateEntityDialog({ onCreated, onOpenEntity }: CreateEntityDial
 
           <div className="flex items-center gap-2">
             {made === null ? (
-              <Button type="button" size="xs" disabled={!draft.ready || working} onClick={onCreate}>
+              <Button
+                type="button"
+                size="xs"
+                disabled={!draft.ready}
+                aria-disabled={working}
+                className={BUSY_BUTTON}
+                onClick={onCreate}
+              >
                 Create
               </Button>
             ) : (

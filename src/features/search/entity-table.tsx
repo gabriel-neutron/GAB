@@ -22,6 +22,9 @@ import {
 interface EntityTableProps {
   readonly rows: readonly EntityRow[];
   readonly hrefOf: (entityId: string) => string;
+  /** The lines that each saved file holds before its rows: the dataset, the licence, the
+   * disclaimer. */
+  readonly heading: readonly string[];
 }
 
 // A page shows this many rows, and a button adds as many. A few thousand rows stay fast, and
@@ -45,12 +48,15 @@ function save(text: string, name: string, type: string): void {
   link.href = address;
   link.download = name;
   link.click();
-  URL.revokeObjectURL(address);
+  // External constraint: Safari reads the address after the click returns, so the revoke waits.
+  setTimeout(() => {
+    URL.revokeObjectURL(address);
+  }, 1000);
 }
 
 /** A table of every entity: sort by a header, narrow by text and type, tick rows and save them
  * as CSV or JSON in the browser. */
-export function EntityTable({ rows, hrefOf }: EntityTableProps) {
+export function EntityTable({ rows, hrefOf, heading }: EntityTableProps) {
   const [text, setText] = useState('');
   const [type, setType] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>({ key: 'label', direction: 'ascending' });
@@ -160,7 +166,7 @@ export function EntityTable({ rows, hrefOf }: EntityTableProps) {
           disabled={chosen.length === 0}
           onClick={() => {
             save(
-              csvOf(chosen, commonKeys(chosen, Infinity)),
+              csvOf(chosen, commonKeys(chosen, Infinity), heading),
               'selection.csv',
               'text/csv;charset=utf-8',
             );
@@ -173,7 +179,7 @@ export function EntityTable({ rows, hrefOf }: EntityTableProps) {
           className={ACTION}
           disabled={chosen.length === 0}
           onClick={() => {
-            save(jsonOf(chosen), 'selection.json', 'application/json');
+            save(jsonOf(chosen, heading), 'selection.json', 'application/json');
           }}
         >
           Download selection (JSON)

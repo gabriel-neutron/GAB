@@ -6,12 +6,16 @@ export interface MatchPart {
 }
 
 const MARK = /^\p{M}$/u;
+
+// A capital sigma folds to the final form at the end of a slice, and to the plain form inside the
+// whole text. The comparison takes both forms as one letter.
+const sigma = (text: string): string => text.replaceAll('ς', 'σ');
 const SPACE = /^\s$/u;
 
 /** Splits a name into the text before, in and after the first match of the query. The match
  * ignores case and accents, as the filter does. A name with no match is one unmarked part. */
 export function matchParts(name: string, query: string): readonly MatchPart[] {
-  const needle = folded(query);
+  const needle = sigma(folded(query));
   const whole: readonly MatchPart[] = [{ text: name, matched: false }];
   if (needle === '') return whole;
   // Departure: `folded` works on a whole text, so a match is a slice of the name whose own fold
@@ -30,7 +34,7 @@ export function matchParts(name: string, query: string): readonly MatchPart[] {
     if (SPACE.test(first) || MARK.test(first)) continue;
     for (let end = start + 1; end <= points.length; end += 1) {
       const slice = name.slice(at[start], at[end]);
-      const seen = folded(slice);
+      const seen = sigma(folded(slice));
       if (seen.length > needle.length) break;
       if (seen !== needle) continue;
       let last = end;
