@@ -24,11 +24,10 @@ if (
   exit(1);
 }
 
-// psql runs a meta-command from the script too. `\c` would reach another database past the check
-// above, and `\!` runs a shell, so the command refuses both.
+// A meta-command could go past the check above (tools/db-sql-guard.ts).
 if (hasRefusedMetaCommand(script)) {
   console.error(
-    'db:sql refuses the meta-commands \\c, \\connect and \\!. Name the database as the second argument.',
+    'db:sql refuses each meta-command that does not only show a result. Name the database as the second argument.',
   );
   exit(1);
 }

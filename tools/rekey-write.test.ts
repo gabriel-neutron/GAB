@@ -60,6 +60,18 @@ describe('groupsOf', () => {
     expect(groupsOf([copy('a'), copy('b')]).map((one) => one.held)).not.toContain(null);
   });
 
+  it('holds two drifted entities with one label and one identifier', () => {
+    const twin = (id: string) =>
+      act(id, {
+        payload: {
+          type: 'vessel',
+          label: 'NS Leader',
+          attrs: { dwt_t: { v: 9000 }, imo: { v: '9074729' } },
+        },
+      });
+    expect(groupsOf([twin('a'), twin('b')]).map((one) => one.held)).not.toContain(null);
+  });
+
   it('sends again an entity whose re-keyed copy waits after a run that stopped', () => {
     const old = act('a', {
       payload: {
@@ -72,7 +84,7 @@ describe('groupsOf', () => {
       payload: {
         type: 'vessel',
         label: 'NS Leader',
-        attrs: { deadweight_tonnage: { v: 9000 }, imo: { v: '9074729' } },
+        attrs: { capacity_dwt: { v: 9000 }, imo: { v: '9074729' } },
       },
     });
     const [group] = groupsOf([old, copy]);
