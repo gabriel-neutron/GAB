@@ -1,12 +1,12 @@
-// An apply file runs in one transaction. A file that fails halfway leaves no object, and the roles
-// that it set do not hold after the failure.
+// The apply files run in one transaction. A file that fails halfway leaves no object of any file,
+// and the roles that it set do not hold after the failure.
 
 import { randomUUID } from 'node:crypto';
 
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { applyFile } from './db-apply.ts';
+import { applyFile, applyFiles } from './db-apply.ts';
 import { probe } from './probe.ts';
 
 const exists = async (name: string): Promise<boolean> =>
@@ -50,4 +50,18 @@ test('a file that succeeds is committed', async () => {
   );
   expect(await exists(name)).toBe(true);
   await applyFile(`DROP FUNCTION public.${name}();\n`, 'gabriel_test');
+});
+
+test('a later file that fails leaves nothing of an earlier file', async () => {
+  const name = probeName();
+  await expect(
+    applyFiles(
+      [
+        `CREATE FUNCTION public.${name}() RETURNS int LANGUAGE sql AS 'SELECT 1';\n`,
+        'SELECT 1/0;\n',
+      ],
+      'gabriel_test',
+    ),
+  ).rejects.toThrow();
+  expect(await exists(name)).toBe(false);
 });

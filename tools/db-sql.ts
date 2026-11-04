@@ -3,6 +3,7 @@
 
 import { argv, exit } from 'node:process';
 
+import { hasRefusedMetaCommand } from './db-sql-guard.ts';
 import { runScriptAsSuperuser } from './db-runtime.ts';
 import { SESSION_PREFIX } from './stack-plan.ts';
 
@@ -20,6 +21,15 @@ if (
   !(process.env['COMPOSE_PROJECT_NAME'] ?? '').startsWith(SESSION_PREFIX)
 ) {
   console.error('db:sql reaches the database gabriel only in a session stack (`pnpm stack:up`).');
+  exit(1);
+}
+
+// psql runs a meta-command from the script too. `\c` would reach another database past the check
+// above, and `\!` runs a shell, so the command refuses both.
+if (hasRefusedMetaCommand(script)) {
+  console.error(
+    'db:sql refuses the meta-commands \\c, \\connect and \\!. Name the database as the second argument.',
+  );
   exit(1);
 }
 
