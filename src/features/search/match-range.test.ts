@@ -42,6 +42,7 @@ describe('matchRange', () => {
 
   it('marks a final sigma as the fold of the whole text does', () => {
     expect(matchRange('ΟΔΥΣΣΕΥΣ', 'οδυσσευς')).toEqual({ start: 0, end: 8 });
+    expect(matchRange('ΟΔΥΣΣΕΥΣ', 'οδυσ')).toEqual({ start: 0, end: 4 });
   });
 
   it('returns null for an empty query or no match', () => {

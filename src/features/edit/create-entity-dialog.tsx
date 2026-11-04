@@ -44,10 +44,11 @@ export function CreateEntityDialog({ onCreated, onOpenEntity }: CreateEntityDial
 
   // Each opening starts at a blank form. A name typed three days ago and left in a closed
   // dialog is worse than one that was lost, because nothing on the screen says how old it is.
-  // The dialog stays open while an act is in flight, so its answer cannot land on a new form.
+  // While an act is in flight, the form is kept: a reopen shows it with its guard, and the answer
+  // lands on the form that sent it. A write that never answers still lets the dialog close.
   const onOpenChange = (next: boolean): void => {
-    if (!next && working) return;
     setOpen(next);
+    if (working) return;
     setForm(BLANK);
     setState(IDLE);
   };

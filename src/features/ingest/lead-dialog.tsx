@@ -40,10 +40,11 @@ export function LeadDialog() {
   };
 
   // Each opening reads the leads again, so the dialog shows what the worker stored since.
-  // The dialog stays open while a request is in flight, so its answer cannot land on a new form.
+  // While a request is in flight, the form is kept: a reopen shows it with its guard, and the answer
+  // lands on the form that sent it. A write that never answers still lets the dialog close.
   const onOpenChange = (next: boolean): void => {
-    if (!next && working) return;
     setOpen(next);
+    if (working) return;
     setText('');
     setView(UNREAD);
     if (next) run(() => readLeadState());

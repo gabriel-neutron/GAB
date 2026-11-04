@@ -53,10 +53,11 @@ export function UploadDocumentDialog({ providers, onStored }: UploadDocumentDial
   const done = state.step === 'done';
 
   // Each opening starts at a blank form, so a file chosen days ago is never sent by mistake.
-  // The dialog stays open while an upload is in flight, so its answer cannot land on a new form.
+  // While an upload is in flight, the form is kept: a reopen shows it with its guard, and the answer
+  // lands on the form that sent it. A write that never answers still lets the dialog close.
   const onOpenChange = (next: boolean): void => {
-    if (!next && working) return;
     setOpen(next);
+    if (working) return;
     setForm(BLANK_UPLOAD);
     setState(IDLE);
   };
