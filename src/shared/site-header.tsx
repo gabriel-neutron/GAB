@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 
 import { carriedSelection } from '@/shared/carried-selection';
 import { cn } from '@/shared/lib/utils';
+import { pagePath } from '@/shared/page-path';
 
 export interface SiteHeaderProps {
   /** True only when the write service answered. Each page that writes is hidden otherwise. */
@@ -45,8 +46,7 @@ export function SiteHeader({ writerOnline, filter, actions }: SiteHeaderProps) {
   // so each new address of the router builds the two links again, and each one names the
   // selection of that moment. The graph writes past the router, and its click reads the address.
   const address = useLocation({ select: (location) => location.searchStr });
-  // A page of the release opens at its folder address, with an end slash; its render had none.
-  const path = useLocation({ select: (location) => location.pathname.replace(/(.)\/$/u, '$1') });
+  const path = useLocation({ select: (location) => pagePath(location.pathname) });
   const section = ABOUT.includes(path)
     ? 'about'
     : DATA.some((prefix) => path.startsWith(prefix))

@@ -2,6 +2,8 @@ import type { DocId, DocumentKind, DocumentRow, DocumentType } from '@/shared/re
 
 import { folded } from '@/shared/text-fold';
 
+import { foldedOnce } from './folded-once';
+
 export interface DocumentHit {
   readonly documentId: DocId;
   readonly title: string;
@@ -51,7 +53,7 @@ export function searchByDocument(
   const starts: DocumentHit[] = [];
   const holds: DocumentHit[] = [];
   for (const document of documents) {
-    const at = folded(document.title).indexOf(asked);
+    const at = foldedOnce(document.title).indexOf(asked);
     if (at === -1) continue;
     const hit = {
       documentId: document.id,

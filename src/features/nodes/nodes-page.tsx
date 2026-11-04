@@ -215,20 +215,26 @@ export function NodesPage({ release, entityHref, vesselHref, claimHref }: NodesP
         </p>
         <p>{summary}</p>
         {retained.length === 0 ? null : (
-          <DataTable
-            name="Retained nodes"
-            columns={columns}
-            rows={retained.map((row) => ({ id: row.id, row }))}
-            empty=""
-          />
+          <>
+            <h3 className="text-body-sm text-label">Retained nodes</h3>
+            <DataTable
+              name="Retained nodes"
+              columns={columns}
+              rows={retained.map((row) => ({ id: row.id, row }))}
+              empty=""
+            />
+          </>
         )}
         {others.length === 0 ? null : (
-          <DataTable
-            name="Other candidate nodes"
-            columns={columns}
-            rows={others.map((row) => ({ id: row.id, row }))}
-            empty=""
-          />
+          <>
+            <h3 className="text-body-sm text-label">Other candidate nodes</h3>
+            <DataTable
+              name="Other candidate nodes"
+              columns={columns}
+              rows={others.map((row) => ({ id: row.id, row }))}
+              empty=""
+            />
+          </>
         )}
       </PageSection>
     </ReadingPage>

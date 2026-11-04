@@ -1,3 +1,5 @@
+import { pagePath } from './page-path';
+
 /** The two surfaces that hold a selection in the address. */
 const SURFACES: ReadonlySet<string> = new Set(['/map', '/graph']);
 
@@ -11,11 +13,12 @@ export const carriedSelection = (
   search: string,
   to: '/map' | '/graph',
 ): { readonly entity: string; readonly relation: string } => {
-  if (!SURFACES.has(pathname)) return { entity: '', relation: '' };
+  const page = pagePath(pathname);
+  if (!SURFACES.has(page)) return { entity: '', relation: '' };
   const params = new URLSearchParams(search);
   const entity = params.get('entity') ?? '';
   const relation = params.get('relation') ?? '';
   // The map holds both keys, so a link to it carries both.
   if (to === '/map') return { entity, relation };
-  return { entity: relation === '' || pathname === to ? entity : '', relation };
+  return { entity: relation === '' || page === to ? entity : '', relation };
 };
