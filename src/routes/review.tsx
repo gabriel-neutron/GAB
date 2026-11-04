@@ -229,7 +229,8 @@ function ReviewRoute() {
     const after = afterDecision(now.pages, decided, mode);
     // The operator can open another unit while the decision is on the way. The screen then stays
     // on that unit, so the next click acts on the unit the operator sees.
-    const shown: unknown = Reflect.get(router.state.location.search, 'unit');
+    // `latestLocation` holds a navigation that has not committed yet, as a click just before.
+    const shown = router.latestLocation.search.unit;
     if (shown === decided || shown === '' || shown === undefined) select(after.next);
     const read = await readUnits(after.after, filter);
     if (read.state !== 'held') return;
@@ -364,8 +365,7 @@ function ReviewRoute() {
       setGroupAction({ ...result, groupId, name });
       const next = nextGroup(rail, groupId);
       // The operator who opened another group in the meantime stays on it.
-      const shown: unknown = Reflect.get(router.state.location.search, 'group');
-      if (shown !== groupId) {
+      if (router.latestLocation.search.group !== groupId) {
         await router.invalidate();
         return;
       }

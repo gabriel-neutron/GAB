@@ -393,6 +393,10 @@ export function mountGraph(
   // A name changes its size only here, so it is measured once and not on each frame: a measure
   // forces a layout of the page.
   const nameBoxes = new Map<HTMLElement, { readonly width: number; readonly height: number }>();
+  // A web font that loads after the first measure changes each width.
+  void document.fonts.ready.then(() => {
+    nameBoxes.clear();
+  });
 
   function nameReach(): void {
     const degreeOf = (node: string): number => model.graph.getNodeAttribute(node, 'degree');
@@ -931,11 +935,10 @@ export function mountGraph(
     preset = 'all';
     applyPreset();
     selection = acceptable(restored);
+    // The stored preset stays the choice of the reader: the next open without a link is in focus.
     if (selection === null) {
       preset = 'focus';
       applyPreset();
-    } else {
-      patchGraphWorkspace({ preset });
     }
   }
   if (!sameSelection(restored, selection)) {
@@ -1125,6 +1128,18 @@ export function mountGraph(
   };
 
   // The picking layer of Sigma answers with a dimmed node as well, so the guard is in the call.
+  // A drag or a wheel on the canvas is a camera move of the reader as well.
+  for (const event of [
+    'downStage',
+    'downNode',
+    'downEdge',
+    'wheelStage',
+    'wheelNode',
+    'wheelEdge',
+  ] as const) {
+    sigma.on(event, stopRefit);
+  }
+
   sigma.on('clickNode', ({ node }) => {
     selectEntity(node);
   });
