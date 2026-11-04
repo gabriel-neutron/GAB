@@ -14,6 +14,9 @@ test.each([
   "-- it's\n\\! id\n-- don't",
   "select E'\\'';\n\\! id\nselect 'x'",
   'select "a\\c";\n\\! id',
+  'select 1; -- x\r\\! id',
+  "\\echo 'x\\'' \\! id",
+  '\\echo hi -- \\! id\n',
 ])('the script %j is refused', (script) => {
   expect(hasRefusedMetaCommand(script)).toBe(true);
 });
@@ -28,6 +31,7 @@ test.each([
   'select $$a\\c$$',
   'select $f$ \\! $f$',
   "select 'it''s \\c'",
+  '\\echo done\nselect 1',
 ])('the script %j runs', (script) => {
   expect(hasRefusedMetaCommand(script)).toBe(false);
 });
