@@ -99,3 +99,7 @@ test.each(['<!--', '<![CDATA[', '<?', '<!', '<a b="', "<a b='"])(
     expect(performance.now() - begun).toBeLessThan(5_000);
   },
 );
+
+test('a name that is no entity stays as it stands, also the name of an object member', () => {
+  expect(xmlText('<a>x &constructor; &amp; y</a>')).toBe('a: x &constructor; & y');
+});
