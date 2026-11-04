@@ -137,7 +137,8 @@ export const createServer = (pool: SessionPool, reach?: Reach, check?: SecondChe
   });
   const context: Context = {
     pool,
-    reach,
+    // The HTTP mode builds one server for each session, so each session holds its own upload parts.
+    reach: reach === undefined ? undefined : { ...reach, uploadParts: new Map() },
     check,
     readerFamily: () => readerFamilyOf(mcp.server.getClientVersion()?.name, process.env),
   };

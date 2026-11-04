@@ -133,6 +133,17 @@ export interface Reach {
    * checker says its passages do not support: any other item is written with no dispute, and it
    * waits for a passed check. */
   readonly checkMarks?: 'dispute' | 'refuted';
+  /** The parts of the uploads that came in more than one call, by the address of the page. Each
+   * MCP session gives its own map, so the parts of two sessions do not mix. */
+  readonly uploadParts?: Map<string, HeldParts>;
+}
+
+/** The parts of one upload that the server holds until its last part comes. */
+export interface HeldParts {
+  readonly parts: number;
+  readonly type: string;
+  readonly chunks: Buffer[];
+  size: number;
 }
 
 /** A check that no model could run on a batch, with the one sentence that says why. */

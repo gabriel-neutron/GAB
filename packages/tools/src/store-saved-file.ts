@@ -26,7 +26,7 @@ import { addressTitle, htmlTitle } from './fetch-document.ts';
 import { holdsLayers, skippedFileShape, storeArchive, storedFileShape } from './store-archive.ts';
 import { refusedSource } from './refused-source.ts';
 import { storeAnswer } from './store-answer.ts';
-import { defineTool, ToolRefusal } from './tool.ts';
+import { defineTool, type HeldParts, ToolRefusal } from './tool.ts';
 import { isHtml, unreadablePage } from './unreadable-page.ts';
 
 // A browser saves a page as a PDF or as HTML, and an image as a PNG or a JPEG file. A data file of
@@ -135,14 +135,11 @@ const readInboxFile = async (inbox: string, name: string): Promise<Uint8Array> =
   }
 };
 
-// The parts of a file that came in more than one call, by the address of the page. One server
-// serves one session, so the parts of two pages do not mix.
-// shortcut: the parts of an upload that never ends stay in memory until the server stops (each
-// is capped at the upload limit); add an expiry if a session leaves many of them.
-const heldParts = new Map<
-  string,
-  { parts: number; type: string; chunks: Buffer[]; size: number }
->();
+// The parts of a file that came in more than one call, by the address of the page, when the
+// surface gives no map of its own session (a direct call or a test).
+// shortcut: the parts of an upload that never ends stay in memory until the session or the server
+// stops (each is capped at the upload limit); add an expiry if a session leaves many of them.
+const heldParts = new Map<string, HeldParts>();
 
 interface Content {
   readonly url: string;
@@ -155,6 +152,7 @@ interface Content {
 // The whole file when this call gives its last part, or the count of the parts held so far.
 const bytesOfContent = (
   input: Content,
+  held: Map<string, HeldParts>,
 ): { bytes: Buffer } | { received: number; parts: number } => {
   const bytes = Buffer.from(input.content, 'base64');
   const { url, type, part = 1, parts = 1 } = input;
@@ -163,24 +161,24 @@ const bytesOfContent = (
       throw new ToolRefusal(`the content is larger than ${String(UPLOAD_FILE_BYTES)} bytes`);
     return { bytes };
   }
-  if (part === 1) heldParts.set(url, { parts, type, chunks: [], size: 0 });
-  const held = heldParts.get(url);
-  if (held?.parts !== parts || held.type !== type || held.chunks.length !== part - 1) {
-    heldParts.delete(url);
+  if (part === 1) held.set(url, { parts, type, chunks: [], size: 0 });
+  const entry = held.get(url);
+  if (entry?.parts !== parts || entry.type !== type || entry.chunks.length !== part - 1) {
+    held.delete(url);
     throw new ToolRefusal(
       `part ${String(part)} of ${String(parts)} is not the next part of ${url}: send the parts ` +
         'again from part 1',
     );
   }
-  held.chunks.push(bytes);
-  held.size += bytes.length;
-  if (held.size > UPLOAD_FILE_BYTES) {
-    heldParts.delete(url);
+  entry.chunks.push(bytes);
+  entry.size += bytes.length;
+  if (entry.size > UPLOAD_FILE_BYTES) {
+    held.delete(url);
     throw new ToolRefusal(`the content is larger than ${String(UPLOAD_FILE_BYTES)} bytes`);
   }
   if (part < parts) return { received: part, parts };
-  heldParts.delete(url);
-  return { bytes: Buffer.concat(held.chunks) };
+  held.delete(url);
+  return { bytes: Buffer.concat(entry.chunks) };
 };
 
 const titleOf = (
@@ -295,7 +293,10 @@ export const storeSavedFile = defineTool({
     // the charset of its origin in a meta element, and the charset of the type comes first.
     let decodeAs: string;
     if (input.content !== undefined && input.type !== undefined) {
-      const got = bytesOfContent({ ...input, content: input.content, type: input.type });
+      const got = bytesOfContent(
+        { ...input, content: input.content, type: input.type },
+        reach.uploadParts ?? heldParts,
+      );
       if (!('bytes' in got)) return { status: 'waiting' as const, ...got };
       // The agent copies the base64 text by hand, so the hash of the browser proves the copy.
       if (createHash('sha256').update(got.bytes).digest('hex') !== input.sha256)
