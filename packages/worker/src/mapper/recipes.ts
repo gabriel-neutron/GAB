@@ -116,6 +116,28 @@ const MEASURE_OF_EUROSTAT: Readonly<Record<string, { measure: string; key: strin
   nrg_ti_oil: { measure: 'imports_crude_oil', key: '.O4100_TOT.' },
 };
 
+const COMTRADE_HOST = 'comtradeapi.un.org';
+const COMTRADE_PATH = /^\/data\/v1\/get\/C\/([AM])\/HS$/u;
+
+// The columns of the answer that the tool comtrade_data stores. A change of the answer falls
+// through to the model.
+const COMTRADE_HEADER = (
+  'typeCode,freqCode,refPeriodId,refYear,refMonth,period,reporterCode,reporterISO,reporterDesc,' +
+  'flowCode,flowDesc,partnerCode,partnerISO,partnerDesc,partner2Code,partner2ISO,partner2Desc,' +
+  'classificationCode,classificationSearchCode,isOriginalClassification,cmdCode,cmdDesc,aggrLevel,' +
+  'isLeaf,customsCode,customsDesc,mosCode,motCode,motDesc,qtyUnitCode,qtyUnitAbbr,qty,' +
+  'isQtyEstimated,altQtyUnitCode,altQtyUnitAbbr,altQty,isAltQtyEstimated,netWgt,' +
+  'isNetWgtEstimated,grossWgt,isGrossWgtEstimated,cifvalue,fobvalue,primaryValue,' +
+  'legacyEstimationFlag,isReported,isAggregate'
+).split(',');
+
+// The flow is in the stored address, not in a column that the mapping can read, so each flow has
+// its own measure.
+const COMTRADE_FLOW: Readonly<Record<string, { measure: string; method: string }>> = {
+  X: { measure: 'exports', method: 'exports reported by the exporter' },
+  M: { measure: 'imports', method: 'imports reported by the importer' },
+};
+
 const same = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && a.every((name, at) => name === b[at]);
 
@@ -155,6 +177,33 @@ export const recipeOf = (
         method:
           'imports reported by the importer; a row of a group (EU27, EA21) is the total of its member states',
         flag: 'OBS_FLAG',
+      },
+      relations: [],
+    };
+  }
+  if (url.hostname === COMTRADE_HOST) {
+    const frequency = COMTRADE_PATH.exec(url.pathname)?.[1];
+    const flow = COMTRADE_FLOW[url.searchParams.get('flowCode') ?? ''];
+    // A table without the total filters holds a row for each breakdown, so it is not mapped.
+    const total = ['customsCode=C00', 'motCode=0', 'partner2Code=0'].every((one) =>
+      url.search.includes(one),
+    );
+    if (frequency === undefined || flow === undefined || !total || !same(header, COMTRADE_HEADER))
+      return undefined;
+    return {
+      table: 'comtrade',
+      modality: 'asserts',
+      publisher: 'UN Comtrade',
+      rows: {
+        measure: flow.measure,
+        value: { column: 'primaryValue' },
+        unit: { constant: 'usd' },
+        period: { column: 'period', length: frequency === 'A' ? 'year' : 'month' },
+        reporter: { column: 'reporterCode', codes: 'm49' },
+        partner: { column: 'partnerCode', codes: 'm49' },
+        product: { column: 'cmdCode', system: 'hs' },
+        method: flow.method,
+        flag: 'legacyEstimationFlag',
       },
       relations: [],
     };
