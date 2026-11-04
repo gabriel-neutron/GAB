@@ -52,6 +52,11 @@ describe('classify', () => {
     expect(classify(lost).kind).toBe('doubtful');
   });
 
+  it('doubts a relation whose act names no originator', () => {
+    const blank = make('Annex XLV of 833/2014', { originator: ' ' });
+    expect(classify(blank).reason).toMatch(/no originator/);
+  });
+
   it('doubts a relation that has another open relation of the same pair', () => {
     const twin = make('Annex XLV of 833/2014', { collides: true });
     expect(classify(twin).reason).toMatch(/same ends/);

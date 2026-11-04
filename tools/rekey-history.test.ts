@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import type { Doors } from './rekey-write.ts';
+
 import {
   planAllHistory,
   planBare,
   planHistory,
+  replace,
   type Carrier,
   type Fix,
   type Recorded,
@@ -357,5 +360,54 @@ describe('planBare', () => {
       reason: 'another entity of the record holds this number',
     });
     expect(planBare(vessel, [given('9441489')], new Map()).kind).toBe('send');
+  });
+});
+
+describe('replace', () => {
+  const NEW = '22222222-2222-4222-8222-222222222222';
+  const fix = (): Fix =>
+    sent(
+      planHistory(
+        act({ mmsi_history: '273456789' }),
+        record({ mmsi_history: { v: ['215000111'], src: ['doc_old'] } }),
+        OLD_PAGES,
+      ),
+    );
+  const doorsOf = (weak: boolean, failOld: boolean, rejected: string[]): Doors => ({
+    send: () =>
+      Promise.resolve({
+        ok: true,
+        proposals: [
+          { ref: 'a1', proposalId: NEW, unstated: weak ? ['build_year'] : [], droppedBounds: [] },
+        ],
+      }),
+    waiting: (ids) => Promise.resolve(ids.length),
+    rejectRelation: () => Promise.resolve(),
+    rejectUnit: (id) => {
+      if (failOld && id !== NEW) return Promise.reject(new Error('lock timeout'));
+      rejected.push(id);
+      return Promise.resolve();
+    },
+  });
+
+  it('withdraws the new act when it holds a value that no excerpt states', async () => {
+    const rejected: string[] = [];
+    const done = await replace(fix(), doorsOf(true, false, rejected));
+    expect(done.status).toBe('refused');
+    expect(rejected).toEqual([NEW]);
+  });
+
+  it('withdraws the new act when the first rejection of an old act fails', async () => {
+    const rejected: string[] = [];
+    const done = await replace(fix(), doorsOf(false, true, rejected));
+    expect(done.status).toBe('refused');
+    expect(rejected).toEqual([NEW]);
+  });
+
+  it('rejects the old act and keeps the new act when all goes well', async () => {
+    const rejected: string[] = [];
+    const done = await replace(fix(), doorsOf(false, false, rejected));
+    expect(done.status).toBe('done');
+    expect(rejected).toEqual(['a1']);
   });
 });

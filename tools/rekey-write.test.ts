@@ -60,6 +60,26 @@ describe('groupsOf', () => {
     expect(groupsOf([copy('a'), copy('b')]).map((one) => one.held)).not.toContain(null);
   });
 
+  it('sends again an entity whose re-keyed copy waits after a run that stopped', () => {
+    const old = act('a', {
+      payload: {
+        type: 'vessel',
+        label: 'NS Leader',
+        attrs: { dwt_t: { v: 9000 }, imo: { v: '9074729' } },
+      },
+    });
+    const copy = act('b', {
+      payload: {
+        type: 'vessel',
+        label: 'NS Leader',
+        attrs: { deadweight_tonnage: { v: 9000 }, imo: { v: '9074729' } },
+      },
+    });
+    const [group] = groupsOf([old, copy]);
+    expect(group?.moved.map((one) => one.id)).toEqual(['a']);
+    expect(group?.held).toBeNull();
+  });
+
   it('holds a group with an act that has no originator, and invents none', () => {
     expect(groupsOf([act('a', { originator: null })])[0]?.held).toBe('no originator');
     const company = act('b', { payload: { type: 'company', label: 'b' }, originator: null });
