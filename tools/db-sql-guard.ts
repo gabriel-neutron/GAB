@@ -5,6 +5,7 @@
 
 const SHOWN = /^(?:x|timing|echo|pset|conninfo|l|d[a-zA-Z]*\+?)$/u;
 const WORD = /[\w$]/u;
+const IDENTIFIER_START = /[A-Za-z_\u0080-￿]/u;
 
 /** The names of the meta-commands of a script, outside each comment, string and quoted body. */
 export const metaCommands = (script: string): string[] => {
@@ -47,7 +48,10 @@ export const metaCommands = (script: string): string[] => {
       while (at < script.length && !(script[at] === '"' && script[at + 1] !== '"'))
         at += script[at] === '"' ? 2 : 1;
       at += 1;
-    } else if (char === '$' && !WORD.test(before)) {
+    } else if (IDENTIFIER_START.test(char)) {
+      // A name is one token, and a $ in a name is no quote. A $ after a digit starts a quote.
+      at += /^[\w$\u0080-￿]*/u.exec(script.slice(at))?.[0].length ?? 1;
+    } else if (char === '$') {
       const tag = /^\$(?:[A-Za-z_]\w*)?\$/u.exec(script.slice(at))?.[0];
       at = tag === undefined ? at + 1 : skipTo(tag, at + tag.length);
     } else if (char === '\\') {
