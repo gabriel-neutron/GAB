@@ -65,7 +65,12 @@ const request = z.strictObject({
     .refine(
       (value) => WEB_SCHEMES.has(URL.parse(value.trim())?.protocol ?? ''),
       'the address is not an http or an https address',
-    ),
+    )
+    // The record publishes the address, so it holds no user name and no password.
+    .refine((value) => {
+      const parsed = URL.parse(value.trim());
+      return parsed === null || (parsed.username === '' && parsed.password === '');
+    }, 'the address holds no user name and no password'),
   providerId: z
     .string()
     .refine((value) => !blank(value), 'the provider is blank')
