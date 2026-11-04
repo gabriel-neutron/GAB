@@ -77,6 +77,55 @@ describe('parity of the report text', () => {
     expect(issues).toContain('pay: figure 3 fields differ');
   });
 
+  it('fails when a frame field drops a part of its caption', () => {
+    const edits = [
+      { number: 4, field: 'period', to: '2023' },
+      { number: 12, field: 'title', to: 'Who owns oil' },
+      { number: 10, field: 'sources', to: 'Central Bank of Russia (2026).' },
+    ] as const;
+    for (const { number, field, to } of edits) {
+      const changed = final.map((part) => ({
+        ...part,
+        blocks: part.blocks.map((block) =>
+          block.figure?.number === number
+            ? { ...block, figure: { ...block.figure, [field]: to } }
+            : block,
+        ),
+      }));
+      expect(parity(changed, sources.en)).toEqual([
+        expect.stringMatching(new RegExp(`figure ${String(number)} fields differ$`)),
+      ]);
+    }
+  });
+
+  it('fails when a figure moves to another part', () => {
+    const figure = final
+      .find((part) => part.slug === 'fight')
+      ?.blocks.find((block) => block.figure?.number === 11);
+    if (figure === undefined) throw new Error('No figure 11');
+    const changed = final.map((part) => ({
+      ...part,
+      blocks:
+        part.slug === 'fight'
+          ? part.blocks.filter((block) => block !== figure)
+          : part.slug === 'ownership'
+            ? [...part.blocks, figure]
+            : part.blocks,
+      notes:
+        part.slug === 'fight'
+          ? part.notes.filter((note) => note.id !== '85')
+          : part.slug === 'ownership'
+            ? [
+                ...part.notes,
+                ...(final.find((one) => one.slug === 'fight')?.notes ?? []).filter(
+                  (note) => note.id === '85',
+                ),
+              ]
+            : part.notes,
+    }));
+    expect(parity(changed, sources.en)).toContain('ownership: figure 11 not in its source part');
+  });
+
   it('fails when a note moves or its words change', () => {
     const [summary] = final;
     if (summary === undefined) throw new Error('No summary');

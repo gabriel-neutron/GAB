@@ -223,7 +223,12 @@ export const fr: ReportContent = {
     },
     index: {
       title: 'Tous les nœuds du rapport',
-      layers: ['Payer', 'Financer', 'Combattre', 'Possession'],
+      layers: [
+        { layer: 'Pay', label: 'Payer' },
+        { layer: 'Finance', label: 'Financer' },
+        { layer: 'Fight', label: 'Combattre' },
+        { layer: 'Ownership', label: 'Possession' },
+      ],
     },
     bibliography: {
       ...ui.bibliography,

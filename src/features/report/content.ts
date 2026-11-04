@@ -1984,7 +1984,13 @@ export const ui = {
   },
   index: {
     title: 'All nodes of the report',
-    layers: ['Pay', 'Finance', 'Fight', 'Ownership'],
+    // The layer of the data, and its name on the page.
+    layers: [
+      { layer: 'Pay', label: 'Pay' },
+      { layer: 'Finance', label: 'Finance' },
+      { layer: 'Fight', label: 'Fight' },
+      { layer: 'Ownership', label: 'Ownership' },
+    ],
   },
   bibliography: {
     title: 'Notes and sources',
