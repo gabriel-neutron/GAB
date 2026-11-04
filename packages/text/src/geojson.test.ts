@@ -116,3 +116,19 @@ test('the door text of an archive is the head of each layer', async () => {
   expect(pages).toHaveLength(1);
   expect(pages[0]).toContain('P3,Gamma,Russia,no route,');
 });
+
+test('a property that only some features hold reads as blank, also with the name of an object member', async () => {
+  const archive = geojsonArchiveOf({
+    'layer.geojson': [
+      { properties: { ProjectID: 'P1', constructor: 'Saipem' }, geometry: null },
+      { properties: { ProjectID: 'P2' }, geometry: null },
+    ],
+  });
+  const text = await layerCsv(archive, 'layer.geojson');
+
+  expect(text.split('\r\n').slice(0, 3)).toStrictEqual([
+    'ProjectID,constructor,geometry',
+    'P1,Saipem,',
+    'P2,,',
+  ]);
+});
