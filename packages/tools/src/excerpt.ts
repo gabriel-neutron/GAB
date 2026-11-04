@@ -171,8 +171,8 @@ export const findExcerpt = (page: string, excerpt: string): Span | null => {
 
 const TOKEN_MARK = /^[\p{L}\p{N}]$/u;
 const DIGIT = /^\p{Nd}$/u;
-// A script that writes no space between words. Each character can start a word, so an edge
-// between two of its characters cuts nothing that the check can see.
+// A script that writes no space between words. Each of its characters can start or end a word, so
+// an edge next to one of its characters cuts nothing that the check can see.
 const NO_SPACE_SCRIPT =
   /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]$/u;
 // Two characters of one word or one number: a letter or a digit on each side of the edge.

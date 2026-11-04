@@ -665,6 +665,8 @@ const checkNewIdentifiers = async (
       batch.set(at, act.label);
       // The value as given and in its plain form ("HE 123456" and "HE123456"), so a held plain
       // value is found. Each shape reaches the GIN index on the attributes.
+      // shortcut: a held value that has a space or a hyphen ("HE-123456") is not found here, and
+      // the report of duplicates finds it; normalize the stored identifiers if the gap shows.
       const shapes = [...new Set([String(value), plain])].flatMap((one) =>
         identifierContainment(key, one).map((shape) => JSON.stringify(shape)),
       );

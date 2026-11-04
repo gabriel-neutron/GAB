@@ -224,7 +224,7 @@ const SECRET_KEYS = new Set([
 ]);
 
 /** True when the address holds a user name, a password or a secret query key. The record publishes
-// the address of each document, so such an address is never stored. */
+ * the address of each document, so such an address is never stored. */
 export const holdsSecret = (address: string): boolean => {
   const url = new URL(address);
   return (
