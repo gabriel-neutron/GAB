@@ -36,3 +36,23 @@ describe('the node panel of the owners map', () => {
     expect(graphLink('N-P034')).toBe(true);
   });
 });
+
+describe('the description of the node panel', () => {
+  const description = (id: string) =>
+    /<p id="[^"]*"[^>]*>([^<]*)<\/p>/.exec(
+      renderToStaticMarkup(
+        <ReportContext value={{ openNode: () => undefined }}>
+          <Dialog.Root open>
+            <NodeRecord id={id} />
+          </Dialog.Root>
+        </ReportContext>,
+      ),
+    )?.[1];
+
+  it('leaves out an empty country and an empty score', () => {
+    // VEB.RF has no country and no score in the data.
+    const blank = reportGraph.node('N-O002');
+    expect([blank?.country, blank?.evidence_score_0_11]).toEqual(['', '']);
+    expect(description('N-O002')).toBe('');
+  });
+});

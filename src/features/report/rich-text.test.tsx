@@ -13,4 +13,13 @@ describe('RichText', () => {
     expect(html).toMatch(/^<span>the Agency <\/span><span class="whitespace-nowrap[^"]*">\(/);
     expect(html).toMatch(/Rosneft<\/button>\),<\/span><span> which<\/span>$/);
   });
+
+  it('keeps a note marker after a node reference in the box of the reference', () => {
+    const html = renderToStaticMarkup(
+      <ReportContext.Provider value={{ openNode: () => undefined }}>
+        <RichText text="through [[N-M007|India VTB]].[^68] Then" />
+      </ReportContext.Provider>,
+    );
+    expect(html).toMatch(/VTB<\/button>\.<sup[^>]*>68<\/sup><\/span><span> Then<\/span>$/);
+  });
 });
