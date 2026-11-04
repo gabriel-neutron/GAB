@@ -38,6 +38,14 @@ DROP VIEW IF EXISTS api.document_provider;
 DROP VIEW IF EXISTS public.proposal_reading;
 DROP VIEW IF EXISTS public.person_ref;
 DROP VIEW IF EXISTS public.public_document;
+DROP VIEW IF EXISTS public.open_licence;
+
+
+-- THE LICENCES THAT LET THE PUBLIC READ SHOW A FIGURE OR A DOCUMENT. One list for api.observation,
+-- api.proposal and document_tier, so the rules fail closed in the same way.
+CREATE VIEW public.open_licence AS
+  SELECT unnest(ARRAY['public-domain', 'eu-reuse', 'ogl-v3', 'cc0', 'cc-by-4.0', 'copernicus',
+                      'own']) AS licence;
 
 
 -- ---------------------------------------------------------------------- PU1, a person fact ---
@@ -152,6 +160,7 @@ CREATE VIEW public.proposal_reading AS
    CROSS JOIN LATERAL (
      SELECT ARRAY(SELECT x::uuid
                     FROM unnest(ARRAY[p.payload->>'src_id', p.payload->>'dst_id',
+                                      p.payload->>'subject_id',
                                       p.prior_value->>'src_id', p.prior_value->>'dst_id']) x
                    WHERE pg_input_is_valid(x, 'uuid'))
             || p.names
@@ -160,7 +169,34 @@ CREATE VIEW public.proposal_reading AS
                     ELSE '{}'::uuid[] END
             || coalesce((SELECT ARRAY[l.src_id, l.dst_id] FROM public.relations l
                           WHERE p.target_kind = 'relation' AND l.id = p.target_id),
-                        '{}'::uuid[]) AS named
+                        '{}'::uuid[])
+            -- A relation that a delete or a merge removed still has its ends: the act that made
+            -- it, the copy of the delete, or the copy of the merge. Else an older act on it
+            -- names no person, and the rule does not hide it.
+            || CASE WHEN p.target_kind = 'relation'
+                     AND NOT EXISTS (SELECT 1 FROM public.relations l WHERE l.id = p.target_id)
+                    THEN ARRAY(
+                 SELECT x::uuid
+                   FROM (SELECT q.payload->>'src_id' AS a, q.payload->>'dst_id' AS b
+                           FROM public.proposals q
+                          WHERE q.id = p.target_id AND q.op = 'create_relation'
+                         UNION ALL
+                         SELECT q.prior_value->>'src_id', q.prior_value->>'dst_id'
+                           FROM public.proposals q
+                          WHERE q.target_kind = 'relation' AND q.target_id = p.target_id
+                            AND q.op = 'delete_relation' AND q.status = 'accepted'
+                         UNION ALL
+                         SELECT r->>'src_id', r->>'dst_id'
+                           FROM public.proposals q
+                          CROSS JOIN LATERAL jsonb_array_elements(
+                                  CASE WHEN jsonb_typeof(q.prior_value->'relations') = 'array'
+                                       THEN q.prior_value->'relations'
+                                       ELSE '[]'::jsonb END) AS r
+                          WHERE q.op = 'merge_entities' AND q.status = 'accepted'
+                            AND r->>'id' = p.target_id::text) AS w
+                  CROSS JOIN LATERAL unnest(ARRAY[w.a, w.b]) AS x
+                  WHERE pg_input_is_valid(x, 'uuid'))
+               ELSE '{}'::uuid[] END AS named
    ) AS m
    CROSS JOIN LATERAL (
      SELECT count(*) > 0 AS person, coalesce(bool_and(r.open), true) AS open
@@ -307,7 +343,15 @@ CREATE VIEW api.proposal AS
           OR current_user IN ('gabriel_app', 'gabriel_agent', 'gabriel_research'))
      -- PU1: an act about a person is public only when each person that it names is public and
      -- its citation holds a public document.
-     AND (SELECT r.reading FROM public.proposal_reading r WHERE r.id = p.id) <> 'none';
+     AND (SELECT r.reading FROM public.proposal_reading r WHERE r.id = p.id) <> 'none'
+     -- ADR 0031: a figure whose licence is not open is not public, also in the act that
+     -- proposed it. The promotion takes the licence of the provider of the cited document.
+     AND (op <> 'create_observation'
+          OR current_user IN ('gabriel_app', 'gabriel_agent', 'gabriel_research')
+          OR EXISTS (SELECT 1 FROM public.documents d
+                       JOIN public.document_provider v ON v.id = d.provider_id
+                      WHERE d.id = ANY (p.src)
+                        AND v.licence IN (SELECT l.licence FROM public.open_licence l)));
 COMMENT ON VIEW api.proposal IS
   'The candidate layer AND the record of every change; `status` tells them apart. The public '
   'read shows no rejected act. It shows an act about a person only when its citation holds a '
@@ -380,6 +424,7 @@ CREATE VIEW api.entity AS
          coalesce((SELECT u.origin_label FROM api.proposal u
                     WHERE u.status = 'accepted' AND u.op = 'update_entity'
                       AND u.target_kind = 'entity' AND u.target_id = e.id
+                      AND u.payload ?| ARRAY['label', 'type']
                     ORDER BY u.decided_at DESC, u.id DESC LIMIT 1),
                   (SELECT c.origin_label FROM api.proposal c WHERE c.id = e.promoted_from))
            AS origin_label,
@@ -626,8 +671,8 @@ COMMENT ON VIEW api.area_code IS
 -- The newest edition is the document retrieved last, and the identifier breaks a tie. The
 -- publisher is part of the key, so the edition of one publisher never hides another publisher.
 -- THE LICENCE IS THE PUBLIC FILTER. The three roles that run a tool read every figure. Every
--- other role reads a figure only when its licence is open. The list is the allow-list of
--- document_tier, so the two rules fail closed in the same way, and a test holds them equal.
+-- other role reads a figure only when its licence is open (public.open_licence, which
+-- document_tier also reads).
 -- A subject that the reader cannot read, for example a person with no public source (PU1), is
 -- not named. A subject that a merge absorbed reads as its survivor (M12).
 CREATE VIEW api.observation AS
@@ -647,14 +692,17 @@ CREATE VIEW api.observation AS
                  row_number() OVER (
                    PARTITION BY x.measure, x.unit, x.period, x.reporter_system, x.reporter,
                                 x.partner_system, x.partner, x.product_system, x.product,
-                                x.method, x.publisher, x.subject_id
+                                x.method, x.publisher,
+                                -- M12: two editions of one key with the absorbed and the
+                                -- surviving subject are one key.
+                                coalesce(al.survivor_id, x.subject_id)
                    ORDER BY d.retrieved_at DESC NULLS LAST, d.id DESC) AS edition
             FROM public.observation x
-            JOIN public.documents d ON d.id = x.document_id) AS o
+            JOIN public.documents d ON d.id = x.document_id
+            LEFT JOIN public.entity_alias al ON al.absorbed_id = x.subject_id) AS o
    WHERE o.edition = 1
      AND (current_user IN ('gabriel_app', 'gabriel_agent', 'gabriel_research')
-          OR o.licence IN ('public-domain', 'eu-reuse', 'ogl-v3', 'cc0', 'cc-by-4.0',
-                           'copernicus', 'own'));
+          OR o.licence IN (SELECT l.licence FROM public.open_licence l));
 COMMENT ON VIEW api.observation IS
   'An aggregated figure of a stored table: a measure, its value and unit, a period (a year '
   '2024, a quarter 2024-Q1, a month 2024-03 or a week 2024-W05), the reporter and the partner '
