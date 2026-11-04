@@ -2,6 +2,8 @@ import type { Entity } from '@/shared/read/model';
 
 import { folded } from '@/shared/text-fold';
 
+import { foldedOnce } from './folded-once';
+
 export interface NameHit {
   readonly entityId: string;
   readonly label: string;
@@ -23,7 +25,7 @@ export function searchByName(entities: readonly Entity[], query: string): NameSe
   const starts: NameHit[] = [];
   const holds: NameHit[] = [];
   for (const entity of entities) {
-    const name = folded(entity.label);
+    const name = foldedOnce(entity.label);
     const at = name.indexOf(asked);
     if (at === -1) continue;
     const hit = { entityId: entity.id, label: entity.label, type: entity.type };

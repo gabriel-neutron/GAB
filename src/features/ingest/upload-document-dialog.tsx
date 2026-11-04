@@ -3,6 +3,7 @@ import { Dialog } from 'radix-ui';
 
 import type { DocumentProvider } from '@/shared/read/model';
 import { ExtractionControl } from '@/shared/extraction-control';
+import { BUSY_BUTTON } from '@/shared/busy-button';
 import { SaidLine } from '@/shared/said-line';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -52,7 +53,9 @@ export function UploadDocumentDialog({ providers, onStored }: UploadDocumentDial
   const done = state.step === 'done';
 
   // Each opening starts at a blank form, so a file chosen days ago is never sent by mistake.
+  // The dialog stays open while an upload is in flight, so its answer cannot land on a new form.
   const onOpenChange = (next: boolean): void => {
+    if (!next && working) return;
     setOpen(next);
     setForm(BLANK_UPLOAD);
     setState(IDLE);
@@ -67,7 +70,7 @@ export function UploadDocumentDialog({ providers, onStored }: UploadDocumentDial
   // A second click while one upload is in flight sends the file twice, so the step guards as
   // well as the button.
   const onUpload = (): void => {
-    if (!draft.ready || working) return;
+    if (!draft.ready || working || done) return;
     setState({ step: 'working' });
     void sendUpload(draft.file, draft.fields).then(async (answer) => {
       setState(answer);
@@ -207,7 +210,9 @@ export function UploadDocumentDialog({ providers, onStored }: UploadDocumentDial
             <Button
               type="button"
               size="xs"
-              disabled={!draft.ready || working || done}
+              disabled={!draft.ready}
+              aria-disabled={working || done}
+              className={BUSY_BUTTON}
               onClick={onUpload}
             >
               Upload

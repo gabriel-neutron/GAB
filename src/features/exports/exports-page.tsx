@@ -5,6 +5,7 @@ import { Button } from '@/shared/ui/button';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
 import { ReadingPage } from '@/shared/page/reading-page';
+import { siteAddress } from '@/shared/site-address';
 
 import { BudgetShareFigure } from './budget-share-figure';
 import { CriticalityMatrix } from './criticality-matrix';
@@ -76,7 +77,7 @@ export function ExportsPage({ text, release, figures, links }: ExportsPageProps)
             ))}
             <a href="#limites">{text.limits.title}</a>
           </nav>
-          <a href="/nodes">Critical nodes ↗</a>
+          <a href={siteAddress('/nodes')}>Critical nodes ↗</a>
         </aside>
         <article className="publication-document">
           <PageHeader

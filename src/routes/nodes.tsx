@@ -3,7 +3,6 @@ import { claimHref, entityHref, vesselHref } from '@/features/detail/address';
 import { NodesPage } from '@/features/nodes/nodes-page';
 import { claimText } from '@gab/release/claim-text';
 import { pairRating } from '@gab/release/site-release';
-import { loadCorpus } from '@/shared/read/corpus';
 import { ReleaseAbsent } from '@/shared/read/release-files';
 import { loadRelease } from '@/shared/read/release-record';
 
@@ -11,7 +10,6 @@ import { loadRelease } from '@/shared/read/release-record';
 // whether the read service answers or not. A site with no release files shows one sentence.
 export const Route = createFileRoute('/nodes')({
   loader: async () => {
-    await loadCorpus().catch(() => undefined);
     try {
       const release = await loadRelease();
       return {
