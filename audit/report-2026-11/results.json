@@ -1,0 +1,1105 @@
+{
+ "note": "Partial backup of the report audit workflow. Raw results of finished agents only (source auditor, journalist, sanctions lawyer, skeptic, judge). Not reviewed. Not for merge.",
+ "started": [
+  "audit:A",
+  "journalist:A",
+  "lawyer:A",
+  "skeptic:A",
+  "audit:B",
+  "journalist:B"
+ ],
+ "results": [
+  {
+   "type": "result",
+   "key": "v2:aed94de17b2ec5410b54f24cc1ec06f49664cdc26d14a6836f67b286fd646afd",
+   "agentId": "adec58def25c8c7a0",
+   "result": {
+    "findings": [
+     {
+      "sentence_fr": "La Russie résiste, et le rapport l’explique par de nouvelles relations commerciales avec des pays non alignés sur la coalition, qui usent de leur autonomie stratégique tout en tirant parti de leur position de force dans les négociations avec la Russie.",
+      "note": "(Synthèse, Le résultat; pas de note)",
+      "category": "overclaim_causal",
+      "severity": "major",
+      "problem": "Cause unique pour la résistance de la Russie. Le corps du rapport donne une autre cause pour le financement de la guerre : les autres impôts et le déficit. Un lecteur hostile cite ces pages contre la Synthèse. \"Position de force\" et \"autonomie stratégique\" sont des lectures de Kpler et de Vakulenko, présentées ici comme le résultat du rapport.",
+      "evidence": "Rapport FR, 2.3 : « Selon l’hypothèse du rapport, une défense de plus en plus chère repose donc de plus en plus sur les autres impôts et sur le déficit » ; impôt sur les bénéfices 20 à 25 % en 2025, TVA 20 à 22 % en 2026 (note o58). Conclusion : « La guerre coûte donc plus cher à mener, mais elle reste finançable. » Kpler (https://www.kpler.com/blog/rosneft-and-lukoil-sanctions-are-live-how-india-china-and-turkey-adapt-rather-than-exit) ne traite que la réaction après octobre 2025.",
+      "proposed_fr": "La Russie résiste, et le rapport l’explique en partie par de nouvelles relations commerciales avec des pays non alignés sur la coalition, qui usent de leur autonomie stratégique tout en tirant parti de leur position de force dans les négociations avec la Russie ; la hausse des autres impôts et le déficit y contribuent aussi.",
+      "proposed_en": "Russia holds out, and the report explains this in part by new trade relations with countries that are not aligned with the coalition. These countries use their strategic autonomy and, at the same time, take advantage of their strong position in negotiations with Russia. Higher non-oil taxes and the deficit also contribute.",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Les partenaires en profitent : la Chine achète le brut russe avec une remise et vend les composants des armes avec une forte prime.",
+      "note": "(Synthèse, Prix; pas de note; corps : o51, o111, o112)",
+      "category": "unsupported_claim",
+      "severity": "major",
+      "problem": "Le gain des partenaires est affirmé sans réserve dans la Synthèse. La Conclusion le présente comme une hypothèse du rapport. \"La Chine\" (l'État) est nommée comme vendeuse, alors que les vendeurs sont des sociétés. \"Composants des armes\" va plus loin que la liste CHP du corps du texte (\"biens prioritaires pour l'armement\"). La source de la prime (KSE) n'est pas nommée.",
+      "evidence": "Rapport FR, Conclusion : « Une partie du coût des sanctions pour la Russie devient ainsi, selon l’hypothèse du rapport, un gain pour ses nouveaux partenaires. » Section 4.2 : la prime est tirée de Risinger et Hilgenstock (KSE), note o112. KSE CHP Tracker Q1 2026, p. 1 (https://sanctions.kse.ua/wp-content/uploads/2026/04/KSE_CHP_tracker_Q1_2026-1.pdf) : « In subsequent editions, we will take a closer look at volumes and, thus, the prices that Russia has to pay » (la prime n'est pas dans cette édition ; l'édition Q2 2026 citée en o112 n'a pas été lue).",
+      "proposed_fr": "Selon l’hypothèse du rapport, les partenaires en profitent : la Chine paie le brut russe avec une remise et, d’après KSE, ses fournisseurs lui vendent les biens prioritaires pour l’armement avec une prime.",
+      "proposed_en": "On the report's hypothesis, Russia's partners benefit: China pays a discount for Russian crude and, according to KSE, its suppliers sell Russia the priority goods for weapons at a premium.",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "et le rouble et le yuan règlent presque tous les paiements avec la Chine.",
+      "note": "(Synthèse, Monnaie; pas de note ; corps 3.1 = o81)",
+      "category": "missing_attribution",
+      "severity": "major",
+      "problem": "Propos d'un responsable d'une partie au conflit, repris à la voix du rapport. La Synthèse n'a pas de note pour cette phrase. La source du corps (o81) est TASS, agence d'État russe, qui cite le vice-ministre des Finances. Le rapport nomme le GUR comme partie au conflit mais pas ce responsable russe.",
+      "evidence": "TASS, 23 octobre (https://tass.com/economy/2206739) : le vice-ministre russe des Finances Ivan Chebeskov, en entretien à TASS : « the share of national currencies in our settlements with China has already reached almost 100% ». La recherche web ne montre pas de chiffre confirmé par un émetteur chinois ou indépendant.",
+      "proposed_fr": "et, selon le vice-ministre russe des Finances, le rouble et le yuan règlent presque tous les paiements avec la Chine.",
+      "proposed_en": "and, according to the Russian deputy finance minister, the rouble and the yuan settle almost all payments with China.",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "Pour vendre le gaz de la péninsule de Yamal, que l’Europe n’achète plus, la Russie n’a qu’un client possible",
+      "note": "o40",
+      "category": "unsupported_claim",
+      "severity": "major",
+      "problem": "Faux à la date du rapport pour le GNL de Yamal. L'UE a acheté un volume record de GNL de Yamal au premier semestre 2026. Le règlement 2026/261 interdit les contrats de long terme seulement à partir du 1er janvier 2027. Vakulenko parle du marché européen par gazoduc, et son avis sur \"un seul client\" est une analyse, pas un fait.",
+      "evidence": "Marine Insight (https://www.marineinsight.com/eu-paid-6-82-billion-for-russian-yamal-lng-during-first-six-months-of-2026-ahead-of-import-ban/), d'après Urgewald et les données Kpler : « 136 cargoes carrying 9.97 million tonnes were delivered to EU ports » ; « deliveries under long-term contracts can continue until January 1, 2027 ». Carnegie (https://carnegieendowment.org/russia-eurasia/politika/2025/09/russia-china-gas-deals) : « replace the European market it lost following the full-scale invasion of Ukraine » ; « in this instance, Russia does not have any alternative ».",
+      "proposed_fr": "Pour vendre le gaz de la péninsule de Yamal, que l’Europe n’achète plus par gazoduc et dont elle doit cesser d’acheter le GNL sous contrat de long terme en 2027, la Russie n’a, selon Vakulenko, qu’un client possible",
+      "proposed_en": "To sell the gas of the Yamal peninsula, which Europe no longer buys by pipeline and whose LNG it must stop buying under long-term contracts in 2027, Russia has, according to Vakulenko, only one possible customer",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Deux raisons expliquent ce report :",
+      "note": "o38",
+      "category": "overclaim_causal",
+      "severity": "major",
+      "problem": "La note o38 (Kpler, 2 déc. 2025) ne traite pas le report vers l'Asie de 2022 à 2025. Elle traite la réaction à partir d'octobre 2025, et ses deux raisons sont des prévisions de Kpler. Le texte les donne comme des faits de GAB. Il dit aussi des dirigeants de Chine et d'Inde qu'ils ne veulent pas paraître céder, sans nommer la source. Kpler cite aussi la Turquie.",
+      "evidence": "Kpler (https://www.kpler.com/blog/rosneft-and-lukoil-sanctions-are-live-how-india-china-and-turkey-adapt-rather-than-exit) : « Political leaders from China, India and Turkey, will not want to be seen as bending down to US sanctions. » ; « Russian barrels remain highly cost-competitive, and workarounds to maintain flows are likely to emerge. » L'article couvre la période après octobre 2025 seulement.",
+      "proposed_fr": "Selon Kpler, deux raisons expliquent que ces pays continuent d’acheter :",
+      "proposed_en": "According to Kpler, two reasons explain why these countries keep buying:",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "La Chine et l’Inde n’appliquent pas les sanctions, et leurs dirigeants ne veulent pas paraître céder aux États-Unis.",
+      "note": "o38",
+      "category": "missing_attribution",
+      "severity": "minor",
+      "problem": "Intention prêtée à des dirigeants nommés par leur fonction, sans attribution dans le texte. C'est une analyse de Kpler (\"Xi, Modi, and Erdoğan all cultivate an image of strong, autonomous global leaders\"), pas un fait documenté.",
+      "evidence": "Kpler, même URL : « Political leaders from China, India and Turkey, will not want to be seen as bending down to US sanctions. »",
+      "proposed_fr": "La Chine et l’Inde n’appliquent pas les sanctions, et leurs dirigeants, selon Kpler, ne veulent pas paraître céder aux États-Unis.",
+      "proposed_en": "China and India do not apply the sanctions, and their leaders, according to Kpler, do not want to look as if they yield to the United States.",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "en 2025, Gazprom livre pour la première fois plus de gaz par gazoduc à la Chine qu’à l’Europe.",
+      "note": "o39",
+      "category": "missing_attribution",
+      "severity": "minor",
+      "problem": "Chiffre de la société, donné comme fait. Interfax rapporte une déclaration préliminaire de Gazprom. Le périmètre n'est pas \"l'Europe\" : l'article dit les pays européens non limitrophes, Turquie comprise.",
+      "evidence": "Interfax (https://interfax.com/newsroom/top-stories/115552/) : Gazprom \"exported more pipeline gas to China than to non-neighboring European countries (including Turkey)\" ; l'article cite les « preliminary data » de la société et donne 38,8 milliards de m³ vers la Chine, aucun chiffre pour l'Europe.",
+      "proposed_fr": "en 2025, selon Gazprom, le groupe livre pour la première fois plus de gaz par gazoduc à la Chine qu’aux pays européens non limitrophes, Turquie comprise.",
+      "proposed_en": "in 2025, according to Gazprom, the group delivered for the first time more gas by pipeline to China than to non-neighbouring European countries, Turkey included.",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "Mais c’est la Chine qui fixe les conditions. [...] la Chine ne veut pas trop dépendre d’un seul fournisseur, et elle sait que la Russie n’a pas d’autre acheteur.",
+      "note": "o40",
+      "category": "missing_attribution",
+      "severity": "minor",
+      "problem": "Les intentions et les connaissances de la Chine sont des analyses d'un auteur nommé, présentées comme des faits. Vakulenko juge aussi que le risque de dépendance est facile à exagérer. Un mémorandum Gazprom-CNPC contraignant a été signé le 2 sept. 2025, sans prix (lu seulement dans des sources secondaires, voir la recherche web), ce que le texte omet.",
+      "evidence": "Carnegie (https://carnegieendowment.org/russia-eurasia/politika/2025/09/russia-china-gas-deals) : « There is no cost to Beijing for dragging its feet » ; « it also needs multiple suppliers in case of a geopolitical crisis » ; la dépendance est « easy to exaggerate ». Aucun accord de prix signé n'apparaît dans les sources trouvées pour 2026.",
+      "proposed_fr": "Mais, selon Vakulenko, c’est la Chine qui fixe les conditions. [...] la Chine ne veut pas trop dépendre d’un seul fournisseur, et elle sait que la Russie n’a pas d’autre acheteur.",
+      "proposed_en": "But, according to Vakulenko, it is China that sets the terms. [...] China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer.",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Les pétroliers dits de la « flotte fantôme », liés à un pays hors de la coalition et sans assurance occidentale, transportent 79 % du brut exporté par mer en janvier 2026.",
+      "note": "o63",
+      "category": "terminology_or_voice",
+      "severity": "minor",
+      "problem": "Le terme chargé \"flotte fantôme\" est entre guillemets mais l'émetteur n'est pas nommé. C'est une catégorie de KSE (institut de Kyiv). Sa définition porte sur l'assurance des clubs P&I du Groupe international, pas sur une assurance \"occidentale\". Le chiffre est correct : 2 738 / (2 738 + 690 + 30) = 79 % (flows.csv).",
+      "evidence": "KSE ROT février 2026, p. 3 (https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf) : « Shadow fleet: tankers affiliated with jurisdictions outside sanctions coalition and lacking “IG” P&I insurance. »",
+      "proposed_fr": "Les pétroliers que l’institut KSE (Kyiv) appelle la « flotte fantôme », liés à un pays hors de la coalition et sans assurance des clubs P&I du Groupe international, transportent 79 % du brut exporté par mer en janvier 2026.",
+      "proposed_en": "The tankers that the KSE Institute (Kyiv) calls the \"shadow fleet\", tied to a country outside the coalition and without International Group P&I insurance, carried 79% of the crude exported by sea in January 2026.",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Enfin, la Chine fournit 77 % des biens prioritaires pour l’armement vendus à la Russie en 2025, et Hong Kong 11 %.",
+      "note": "o14",
+      "category": "unsupported_claim",
+      "severity": "minor",
+      "problem": "Les parts sont calculées sur les exportations déclarées par les pays dont les données existent. Les Émirats et le Viêt Nam n'ont pas de valeur 2025 dans chp.csv. KSE dit que ces données sous-comptent le contournement. \"Vendus\" donne l'idée d'un total. La Chine et Hong Kong sont un même État : la somme est 88 %.",
+      "evidence": "chp.csv 2025 : Chine 4219,3 ; Hong Kong 602,9 ; coalition 62,8 ; neuf pays tiers 588,1 ; total 5 473,1, soit 77,1 % et 11,0 %. KSE CHP Tracker Q1 2026, p. 2-3 (https://sanctions.kse.ua/wp-content/uploads/2026/04/KSE_CHP_tracker_Q1_2026-1.pdf) : « systematically undercounts the circumvention of CHP export controls » ; la Chine n'avait pas encore déposé ses données 2025 à UN Comtrade (KSE utilise les douanes chinoises).",
+      "proposed_fr": "Enfin, parmi les exportations de biens prioritaires pour l’armement déclarées vers la Russie en 2025, la Chine en fournit 77 % et Hong Kong 11 %.",
+      "proposed_en": "Finally, of the exports of priority goods for weapons reported to Russia in 2025, China supplied 77% and Hong Kong 11%.",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "La part du pétrole et du gaz dans les recettes fédérales passe de la moitié en 2014 à moins d’un cinquième en 2026, en partie parce que ces recettes reculent.",
+      "note": "o10",
+      "category": "number_mismatch",
+      "severity": "minor",
+      "problem": "La part de 2026 vient de janvier à septembre seulement. L'année 2025 complète est à 22,7 %. Un lecteur hostile y voit une année partielle présentée comme une année.",
+      "evidence": "budget.csv : 2014 = 51,28 % ; 2025 = 22,74 % ; « Oil and gas share, January-September » 2026-01/2026-09 = 18,46 % (doc_db17d11afa00).",
+      "proposed_fr": "La part du pétrole et du gaz dans les recettes fédérales passe de la moitié en 2014 à moins d’un cinquième de janvier à septembre 2026, en partie parce que ces recettes reculent.",
+      "proposed_en": "The share of oil and gas in federal revenue falls from one half in 2014 to less than one fifth from January to September 2026, partly because that revenue is shrinking.",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "alors que, sur la même période, les recettes du pétrole et du gaz baissent de 36 %.",
+      "note": "o19",
+      "category": "number_mismatch",
+      "severity": "minor",
+      "problem": "La baisse de 36 % est en prix constants de 2021. En roubles courants, la baisse est d'environ 6 %. Sans \"à prix constants\", la phrase est exposée à une contestation.",
+      "evidence": "budget.csv, panel b : 2021 = 9 056,5 ; 2025 = 5 793,9 (milliards de roubles de 2021, déflateur 146,306), soit -36,0 % ; en nominal, 5 793,9 × 1,46306 ≈ 8 477 contre 9 056,5.",
+      "proposed_fr": "alors que, sur la même période et à prix constants, les recettes du pétrole et du gaz baissent de 36 %.",
+      "proposed_en": "while over the same period, at constant prices, oil and gas revenue falls by 36%.",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "Si ces recettes reculent tandis que la dépense de guerre augmente, par où passent donc l’argent et les biens de la guerre ?",
+      "note": "o18",
+      "category": "terminology_or_voice",
+      "severity": "minor",
+      "problem": "La série est la ligne \"Défense nationale\" du budget (plan 2025 de 13,5 mille milliards de roubles, tiré d'une dépense prévue en sept. 2024). Elle est appelée \"dépense de guerre\". Elle peut contenir des dépenses hors guerre, et le plan n'est pas la dépense exécutée.",
+      "evidence": "budget.csv : « National defence », 2025 = 9 278,4 (style \"plan\") ; note o18 : ligne 2.2 « Национальная оборона » et Korsounskaïa (2024). La recherche web signale un chiffre exécuté 2025 d'environ 13 mille milliards (présentation Belousov, rapportée par Meduza, https://meduza.io/en/news/2025/12/17/russia-discloses-direct-war-spending-for-the-first-time-estimating-over-137-billion-in-2025) : non vérifié.",
+      "proposed_fr": "Si ces recettes reculent tandis que la dépense de défense augmente, par où passent donc l’argent et les biens de la guerre ?",
+      "proposed_en": "If that revenue shrinks while defence spending rises, which channels carry the money and the goods of the war?",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Quels nœuds (sociétés, ports, flottes, banques) permettent de financer la guerre ? Qui les possède ? Comment contournent-ils les sanctions ?",
+      "note": "(Introduction, question; pas de note)",
+      "category": "terminology_or_voice",
+      "severity": "major",
+      "problem": "\"Contournent\" impute la fraude aux nœuds, à la voix de GAB. Les critères de la Méthode n'établissent pas de violation : un nœud d'un pays tiers peut agir légalement. La Conclusion le dit (\"de façon légale\"). Cela expose le rapport pour des sociétés nommées dans le corps du texte.",
+      "evidence": "Rapport FR, Conclusion : « D’autre part, et de façon légale, elle se tourne vers des partenaires qui n’appliquent pas les sanctions. » Section 1.2 : le critère 3 est un siège, un pavillon ou une contrepartie dans un pays qui n'applique pas les sanctions. Section 2.5 : les pavillons de complaisance « ne signalent pas, à eux seuls, un contournement ».",
+      "proposed_fr": "Quels nœuds (sociétés, ports, flottes, banques) permettent de financer la guerre ? Qui les possède ? Comment l’activité continue-t-elle malgré les sanctions ?",
+      "proposed_en": "Which nodes (companies, ports, fleets, banks) make it possible to finance the war? Who owns them? How does their activity continue despite the sanctions?",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Ces conditions désignent les nœuds où les sanctions sont en place mais où l’activité continue par un pays tiers : là où le contournement se voit, et là où une nouvelle mesure pourrait porter.",
+      "note": "(1.2; pas de note)",
+      "category": "terminology_or_voice",
+      "severity": "minor",
+      "problem": "Même défaut : les trois conditions décrivent une exposition et un lien avec un pays tiers, pas un contournement établi.",
+      "evidence": "Rapport FR, 1.2 (les trois conditions) et Conclusion (\"de façon légale\").",
+      "proposed_fr": "Ces conditions désignent les nœuds où les sanctions sont en place mais où l’activité continue par un pays tiers : là où les sanctions perdent prise, et là où une nouvelle mesure pourrait porter.",
+      "proposed_en": "These conditions single out the nodes where the sanctions are in place but the activity continues through a third country: where the sanctions lose their hold, and where a new measure could have an effect.",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "puis les premières désignations d’armateurs qui ne respectent pas ce plafond.",
+      "note": "o20",
+      "category": "missing_attribution",
+      "severity": "major",
+      "problem": "Une accusation du Trésor américain contre deux sociétés nommées est donnée comme fait. \"Premières\" n'est pas dans la source citée. Le communiqué cite des prestataires américains et des prix au-dessus du plafond.",
+      "evidence": "Trésor des États-Unis, jy1795 (https://home.treasury.gov/news/press-releases/jy1795) : Lumber Marine SA (Émirats arabes unis) et Ice Pearl Navigation Corp (Türkiye) désignées ; les navires « carried Russian crude oil above the Coalition-agreed price cap » en utilisant des prestataires américains. Le mot « first » n'apparaît nulle part dans la page.",
+      "proposed_fr": "puis des désignations d’armateurs que le Trésor américain accuse de ne pas respecter ce plafond (octobre 2023).",
+      "proposed_en": "and then designations of shipowners that the U.S. Treasury accuses of not respecting that cap (October 2023).",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "ou une personne désignée le détient à 50 % ou plus ;",
+      "note": "(1.2 et A.3; pas de note ; corps : o122, o123)",
+      "category": "internal_inconsistency",
+      "severity": "minor",
+      "problem": "Le seuil de 50 % ou plus est la règle de l'OFAC. Le corps du rapport dit que l'UE et le Royaume-Uni retiennent plus de 50 % et le contrôle. Le critère est présenté sans cette différence.",
+      "evidence": "Rapport FR, section 5 : « Aux États-Unis, une société détenue à 50 % ou plus, en cumul, par des personnes désignées est bloquée elle aussi. L’UE et le Royaume-Uni retiennent une propriété de plus de 50 % et y ajoutent le contrôle. »",
+      "proposed_fr": "l’Union européenne (UE), l’Office of Foreign Assets Control (OFAC) américain ou le Royaume-Uni le désigne, ou une personne désignée le détient à plus de 50 % (50 % ou plus pour l’OFAC) ;",
+      "proposed_en": "the European Union (EU), the American Office of Foreign Assets Control (OFAC) or the United Kingdom designates it, or a designated person owns more than 50% of it (50% or more for OFAC);",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Les données viennent d’une base de près de 5 200 entités (sociétés, navires, sites, ports, banques, personnes et actes juridiques)",
+      "note": "(1.3 et Synthèse; pas de note)",
+      "category": "internal_inconsistency",
+      "severity": "minor",
+      "problem": "La Synthèse et la Méthode donnent près de 5 200 entités pour la base. L'annexe A.1 donne 6 327 entités dans la base, dont près de 5 200 testées.",
+      "evidence": "Rapport FR, A.1 : « Au 27 octobre 2026, la base compte 6 327 entités ; comme la sélection n’utilise pas les 1 165 unités militaires, près de 5 200 entités sont testées. »",
+      "proposed_fr": "Les données viennent d’une base de plus de 6 300 entités, dont près de 5 200 sont testées (sociétés, navires, sites, ports, banques, personnes et actes juridiques)",
+      "proposed_en": "The data come from a database of more than 6,300 entities, of which nearly 5,200 are tested (companies, ships, sites, ports, banks, people and legal acts)",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Ces faits sont tirés des listes officielles de sanctions, des registres de sociétés et d’enquêtes publiées, et chacun renvoie au document archivé qui l’établit.",
+      "note": "(1.3; pas de note)",
+      "category": "unsupported_claim",
+      "severity": "minor",
+      "problem": "La phrase donne une garantie forte (\"l'établit\"). L'annexe A.4 dit qu'aucun fait n'a été relu par une personne et que d'autres attendent un contrôle. Cette limite n'est pas dans le corps du texte.",
+      "evidence": "Rapport FR, A.4 : « Aucun fait n’a été relu par une personne : c’est un choix de méthode. [...] D’autres faits attendent encore un contrôle ou une meilleure source. »",
+      "proposed_fr": "Ces faits sont tirés des listes officielles de sanctions, des registres de sociétés et d’enquêtes publiées, et chacun renvoie au document archivé qui l’établit selon des agents d’IA, sans relecture humaine (annexe A.4).",
+      "proposed_en": "These facts are taken from the official sanctions lists, company registers and published investigations, and each one points to the archived document that establishes it, according to AI agents, with no human review (Annex A.4).",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "La couche payer en compte le plus, parce que les listes de navires désignés sont longues et bien documentées.",
+      "note": "(1.3; pas de note)",
+      "category": "overclaim_causal",
+      "severity": "minor",
+      "problem": "Explication sans source. La répartition (442 Payer, 29 Financer, 22 Combattre) peut être un effet de la sélection par désignation. Ce n'est pas marqué comme hypothèse.",
+      "evidence": "critical-layers.csv : Pay 438 + 4, Finance 5 + 24, Fight 7 + 15 (total 493). Section 1.2 : le critère 1 est la désignation par l'UE, l'OFAC ou le Royaume-Uni.",
+      "proposed_fr": "La couche payer en compte le plus, probablement parce que les listes de navires désignés sont longues et bien documentées.",
+      "proposed_en": "The pay layer holds the most, probably because the lists of designated ships are long and well documented.",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "la Chine devient le premier client russe et l’Inde multiplie par vingt ses achats de brut russe.",
+      "note": "o36 / o37",
+      "category": "number_mismatch",
+      "severity": "minor",
+      "problem": "La Chine était déjà le premier client par pays en 2021 (78,4 milliards de dollars contre 29,0 pour la Turquie). Elle ne passe devant l'UE prise en bloc qu'en 2023. \"Devient\" sans comparaison peut se contester.",
+      "evidence": "buyers.csv (Bruegel, fig. 2) : UE27 2022 = 215,12 contre Chine 112,22 ; 2023 = 54,88 contre 127,65. Inde brut : 4,5 Mt (2021) à 88,7 Mt (2025), soit 19,7 fois.",
+      "proposed_fr": "la Chine devient, en 2023, le premier client russe devant l’UE prise dans son ensemble, et l’Inde multiplie par vingt ses achats de brut russe.",
+      "proposed_en": "China became, in 2023, Russia's first customer ahead of the EU as a whole, and India bought twenty times as much Russian crude.",
+      "confidence": "low"
+     },
+     {
+      "sentence_fr": "Figure V2. Chronologie des principales sanctions, 2014-2026. Note. Données : Règlement (UE) n° 269/2014 ; Règlement (UE) n° 833/2014 ; Règlements (UE) 2022/879, 2022/2367, 2023/250, 2025/395 et 2026/506 ; Règlement d’exécution (UE) 2026/124 [...]",
+      "note": "o21",
+      "category": "fr_en_mismatch",
+      "severity": "minor",
+      "problem": "La note de la figure en FR omet 2025/1494, 2022/2368 et 2023/251, que la note EN cite. Or 2025/1494 est la base du plafond de 47,6 $ de la figure. La note FR o21 n'a pas non plus 2023/251 ni 2025/1494.",
+      "evidence": "Rapport EN, note de la figure 1 : « Regulations (EU) 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494 and 2026/506; Implementing Regulations (EU) 2022/2368, 2023/251 and 2026/124 » et note [^10].",
+      "proposed_fr": "Règlements (UE) 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494 et 2026/506 ; Règlements d’exécution (UE) 2022/2368, 2023/251 et 2026/124",
+      "proposed_en": "Regulations (EU) 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494 and 2026/506; Implementing Regulations (EU) 2022/2368, 2023/251 and 2026/124",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "Figure V2 (entrées 3 sept. 2025 « Plafond abaissé 47,6 $ » et 1 févr. 2026 « 44,1 $ », acteur « coalition »)",
+      "note": "o21",
+      "category": "figure_data_mismatch",
+      "severity": "major",
+      "problem": "L'étiquette \"coalition\" couvre les États-Unis selon la définition du rapport (1.2). Les États-Unis n'ont pas baissé le plafond : seuls l'UE, le Royaume-Uni et d'autres alliés l'ont fait. La figure (texte de l'EN) donne un acteur trop large.",
+      "evidence": "Interfax, 3 sept. 2025 (https://interfax.com/newsroom/top-stories/113602/), selon la recherche web : Washington n'a pas rejoint la baisse. Interfax, 15 janv. 2026 (https://www.interfax.com/newsroom/top-stories/115615/) : baisse à 44,10 $ par l'UE et le Royaume-Uni. Le maintien du plafond américain à 60 $ en 2026 n'a pas été vérifié dans une source primaire.",
+      "proposed_fr": "3 sept. 2025 · UE, Royaume-Uni | Plafond abaissé | 47,6 $ le baril ; 1 févr. 2026 · UE, Royaume-Uni | Plafond abaissé | 44,1 $ le baril",
+      "proposed_en": "3 Sep. 2025 · EU, UK | Cap lowered | $47.6 a barrel; 1 Feb. 2026 · EU, UK | Cap lowered | $44.1 a barrel",
+      "confidence": "medium"
+     }
+    ],
+    "coverage": [
+     {
+      "note": "o36",
+      "status": "internal_calc_checked",
+      "comment": "buyers.csv (Bruegel fig. 2): EU27 192,76 (2021) to 31,31 (2025) = -83,8 %. Bruegel file itself not opened."
+     },
+     {
+      "note": "o63",
+      "status": "supported",
+      "comment": "KSE ROT Feb 2026 p. 3 read; flows.csv 2738/(2738+690+30) = 79 %. Definition of shadow fleet is KSE's (see finding)."
+     },
+     {
+      "note": "o10",
+      "status": "internal_calc_checked",
+      "comment": "budget.csv: 51,28 % (2014), 18,46 % Jan-Sep 2026 (partial year). Minfin files not opened. See finding."
+     },
+     {
+      "note": "o11",
+      "status": "partly_supported",
+      "comment": "currencies.csv has 53,14 % (2025) and 14,34 % (2021). The CBR xlsx could not be decoded by the fetch tool, so the cells were not read at the source."
+     },
+     {
+      "note": "o14",
+      "status": "internal_calc_checked",
+      "comment": "chp.csv 2025: China 77,1 %, Hong Kong 11,0 % of reported total; UAE and Viet Nam empty. UN Comtrade not queried."
+     },
+     {
+      "note": "o15",
+      "status": "supported",
+      "comment": "21 persons on 17 March 2014 (ASIL, Steamship Mutual via web search); five state banks, 90 days (secondary press). EUR-Lex pages did not render. No finding."
+     },
+     {
+      "note": "o16",
+      "status": "supported",
+      "comment": "Treasury jl0688 fetched: the US will « maintain sanctions until Russia fully implements its commitments under the Minsk agreements »."
+     },
+     {
+      "note": "o18",
+      "status": "internal_calc_checked",
+      "comment": "budget.csv: 9278,4 / 3573,6 = 2,60. The 2025 value is a plan (style plan). Outturn not verified; see finding on wording."
+     },
+     {
+      "note": "o19",
+      "status": "internal_calc_checked",
+      "comment": "budget.csv: 9056,5 to 5793,9 = -36,0 % in 2021 roubles; about -6 % nominal."
+     },
+     {
+      "note": "o21",
+      "status": "partly_supported",
+      "comment": "Figure V2 entries checked by web search: 16th package ports (Primorsk, Novorossiysk, Ust-Luga) in Reg 2025/395; Tuapse and Murmansk in Reg 2026/506 (23-24 April 2026); caps 47,6 and 44,1 $. EUR-Lex not readable. Two findings (FR/EN mismatch; actor 'coalition')."
+     },
+     {
+      "note": "o20",
+      "status": "partly_supported",
+      "comment": "Treasury jy1795 fetched; supports the above-cap allegation, not 'first'. See finding."
+     },
+     {
+      "note": "o29",
+      "status": "supported",
+      "comment": "World Bank API: oil rents 9,67 % + gas rents 5,86 % = 15,5 % of GDP in 2021 (about a sixth)."
+     },
+     {
+      "note": "o30",
+      "status": "supported",
+      "comment": "World Bank API: fuel exports 43,1 % of merchandise exports in 2021."
+     },
+     {
+      "note": "o31",
+      "status": "internal_calc_checked",
+      "comment": "budget.csv: 35,82 % in 2021 (more than a third). Minfin file not opened."
+     },
+     {
+      "note": "o34",
+      "status": "not_checked",
+      "comment": "CELEX 32022R0879 art. 3m: EUR-Lex returned empty content to the fetch tool."
+     },
+     {
+      "note": "o35",
+      "status": "partly_supported",
+      "comment": "Secondary sources (web search): Reg 2026/261 adopted 26 Jan 2026, published 2 Feb 2026; LNG long-term ban 1 Jan 2027. Recitals 1 and 10 not read."
+     },
+     {
+      "note": "o37",
+      "status": "internal_calc_checked",
+      "comment": "buyers.csv: India crude 4,5 Mt (2021) to 88,7 Mt (2025) = 19,7 times. Comtrade not queried."
+     },
+     {
+      "note": "o38",
+      "status": "not_supported",
+      "comment": "Kpler article fetched: it covers only the post-October 2025 reaction and gives forecasts. See findings."
+     },
+     {
+      "note": "o39",
+      "status": "partly_supported",
+      "comment": "Interfax fetched: Gazprom data, perimeter 'non-neighboring European countries (including Turkey)'."
+     },
+     {
+      "note": "o40",
+      "status": "partly_supported",
+      "comment": "Carnegie fetched: author's analysis; 'Europe no longer buys Yamal gas' contradicted for LNG by 2026 import data."
+     },
+     {
+      "note": "o32",
+      "status": "internal_calc_unchecked",
+      "comment": "Figure V3 data (buyers.csv) cross-checked for Bruegel and Comtrade panels only. Eurostat and CREA inputs not checked. Database-derived 'n-' notes: none in this chunk."
+     }
+    ],
+    "not_checked": "Not checked: (1) the 493 and 416 critical-node counts and the 6 327 / 1 165 entity counts, since the gab database is down (critical-layers.csv gives 442 / 29 / 22 = 493 but no 416 figure; 450 'record' nodes is a different number, so the 416 cannot be reconciled from the files); (2) the CBR xlsx cells for o11, Minfin annex 3.1 and the January-September 2026 release (not opened); (3) UN Comtrade and the Bruegel tracker at the source; (4) EUR-Lex texts (fetch returned empty): recitals of 2026/261, art. 3m of 2022/879, the date of Reg 2025/395 (figure says 25 Feb 2025, press says adopted 24 Feb 2025); (5) the KSE Q2 2026 CHP tracker cited in o112 for the premium; (6) whether the US cap stayed at 60 dollars after Feb 2026 (only secondary sources); (7) later events after 27 Oct 2026: web search found nothing on delisting or correction for Rosneft, Lukoil, Gazprom or the cited data, but results after mid-July 2026 were sparse. Outside the chunk, but seen: note n-biais cites a GUR page dated 28 October 2026, after the 27 October record date; section 2.2 says the Rosneft/Lukoil effect is 'probable' while the series shows only a coincidence of dates; Figure V4 data come from Russian state bodies (tax service, finance and economy ministries) and the text does not say so; ADMIRALTY grade A for 'official issuer' is not explained for Russian state sources. Also not assessed: whether Russian official budget and central bank series (Minfin, CBR) should carry an in-text mention that the issuer is a party to the conflict, as GUR does in the body.\""
+   },
+   "remoteControlDeviceReport": false,
+   "toolsUsed": [
+    "Read",
+    "Grep",
+    "Glob",
+    "Bash",
+    "WebFetch",
+    "WebSearch",
+    "StructuredOutput"
+   ]
+  },
+  {
+   "type": "result",
+   "key": "v2:6b20ebb493fa82cffeac58874015983f9c044c074be3867ef198dc4052bcb0da",
+   "agentId": "ae80d802674ffcc25",
+   "result": {
+    "findings": [
+     {
+      "sentence_fr": "Selon l’hypothèse du rapport, le gaz vendu à la Chine remplace donc les volumes perdus en Europe, mais pas leurs recettes.",
+      "note": "o40 / EN n.20 (sentence follows o39 / EN n.19)",
+      "category": "unsupported_claim",
+      "severity": "major",
+      "problem": "The hypothesis says that China takes the place of the gas volumes lost in Europe. The cited figures show the opposite: in 2025 China took 38.8 bcm, but Gazprom sold about 177 bcm to Europe and Turkey in 2021. China replaces only a small part of the lost volume. Carnegie (o40) gives no volume comparison.",
+      "evidence": "Interfax, 13 Jan 2026, https://interfax.com/newsroom/top-stories/115552/: Gazprom supplied \"38.8 billion cubic meters of gas to China via the Power of Siberia pipeline\" in 2025 (31.12 bcm in 2024). World Oil (Bloomberg), 3 Jan 2022, https://worldoil.com/news/2022/1/3/gazprom-misses-2021-gas-export-targets-straining-european-markets/: \"Deliveries to Europe and Turkey were about 177 billion cubic meters last year\" (2021; Bloomberg/BCS estimate from Gazprom data). Carnegie, 22 Sep 2025 (o40): no price or volume comparison with Europe.",
+      "proposed_fr": "Selon l’hypothèse du rapport, le gaz vendu à la Chine ne remplace donc qu’une petite partie des volumes perdus en Europe, et encore moins leurs recettes.",
+      "proposed_en": "The report's hypothesis is that the gas sold to China therefore replaces only a small part of the volumes lost in Europe, and even less of their revenue.",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "La fiabilité de chaque source officielle suit l’échelle ADMIRALTY qui note l’émetteur par une lettre, de A pour un émetteur officiel (liste de sanctions, registre de sociétés, journal officiel) à F quand rien ne permet de le juger.",
+      "note": "No marker (section 1.3). Checked against docs/decisions.md S1 and S3.",
+      "category": "internal_inconsistency",
+      "severity": "major",
+      "problem": "The sentence does not agree with rule S1. (1) S1 gives a letter to the author of EVERY source, not only to official sources. An 'official source' that gets a letter down to F is a contradiction, and the annex (FR l.268, EN l.632) says 'l’émetteur de chaque source'. (2) S1 keeps A for the issuer of an official record, and only on its own record. S1 also gives a party to the conflict B at most, so a Russian company register or a Russian ministry is never A. The words 'A pour un émetteur officiel' make A wider than the rule allows. S3 rule 4 also accepts one A source alone only when the document is on that author's own site.",
+      "evidence": "docs/decisions.md, S1: \"A letter from A to F rates the reliability of the author: the person or the body that first gives the information.\" \"A is only for the issuer of an official record, on its own record: a register, a gazette, a court, a sanctions act. One source A counts alone only when the cited document is on a site of that author.\" \"A party to the conflict, of either side, is B at most, and only about its own side.\" S3 rule 4: \"each fact has either one source A on a site of its author, or two independent sources\". Report annex FR l.268: \"La fiabilité de l’émetteur de chaque source suit l’échelle ADMIRALTY\".",
+      "proposed_fr": "La fiabilité de l’émetteur de chaque source suit l’échelle ADMIRALTY, qui le note par une lettre, de A, réservé à l’émetteur d’un acte officiel sur son propre acte (liste de sanctions, registre de sociétés, journal officiel), à F quand rien ne permet de le juger ; une partie au conflit reçoit au plus B.",
+      "proposed_en": "The reliability of the issuer of each source follows the ADMIRALTY scale, which rates it with a letter, from A, kept for the issuer of an official record on its own record (sanctions list, company register, official journal), to F when the issuer cannot be judged; a party to the conflict gets B at most.",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "Figure V2. Chronologie des principales sanctions, 2014-2026. Note. Données : Règlement (UE) n° 269/2014 ; Règlement (UE) n° 833/2014 ; Règlements (UE) 2022/879, 2022/2367, 2023/250, 2025/395 et 2026/506 ; Règlement d’exécution (UE) 2026/124 ; […]",
+      "note": "o21 / EN n.10",
+      "category": "fr_en_mismatch",
+      "severity": "minor",
+      "problem": "The figure shows the $60 cap (Implementing Reg. 2022/2368), the product caps (Implementing Reg. 2023/251) and the $47.6 cap (Reg. 2025/1494). The French caption does not give these three acts, and the French note o21 does not give 2023/251 or 2025/1494. The English caption gives all three. Both notes (o21 and EN n.10) list 2022/2368 and 2023/251 as 'Regulations (EU)', but they are Commission Implementing Regulations. The French notes o21 and o20 also give only a domain (home.treasury.gov, eur-lex.europa.eu), where EN n.10 gives the exact URLs.",
+      "evidence": "Publications Office (http://publications.europa.eu/resource/celex/32022R2368): \"COMMISSION IMPLEMENTING REGULATION (EU) 2022/2368 of 3 December 2022 … Price per barrel (USD) … 60 5 December 2022\"; celex/32023R0251: \"COMMISSION IMPLEMENTING REGULATION (EU) 2023/251 of 4 February 2023\"; celex/32025R1494: \"COUNCIL REGULATION (EU) 2025/1494 of 18 July 2025 … 47,6 3 September 2025\". EN caption: \"Regulations (EU) 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494 and 2026/506; Implementing Regulations (EU) 2022/2368, 2023/251 and 2026/124\".",
+      "proposed_fr": "Figure V2. Chronologie des principales sanctions, 2014-2026. Note. Données : Règlement (UE) n° 269/2014 ; Règlement (UE) n° 833/2014 ; Règlements (UE) 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494 et 2026/506 ; Règlements d’exécution (UE) 2022/2368, 2023/251 et 2026/124 ; Département du Trésor des États-Unis (2023) ; Office of Foreign Assets Control (2025). — and in o21: « Règlements (UE) 269/2014, 833/2014, 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494, 2026/506 ; Règlements d’exécution (UE) 2022/2368, 2023/251, 2026/124 », with the EUR-Lex and Treasury URLs of EN n.10.",
+      "proposed_en": "(caption unchanged) n.10: EU. (2014–2026). Regulations (EU) No 269/2014, No 833/2014, 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494, 2026/506; Implementing Regulations (EU) 2022/2368, 2023/251, 2026/124. [URLs unchanged]",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "Ensuite, en décembre 2016, les États-Unis maintiennent leurs sanctions jusqu’à ce que la Russie applique les accords de Minsk, signés en 2014 et 2015 pour arrêter les combats dans l’est de l’Ukraine.",
+      "note": "o16 / EN n.7",
+      "category": "fr_en_mismatch",
+      "severity": "minor",
+      "problem": "The source gives a commitment for the future ('remains steadfast in our commitment to maintain sanctions until…'). The English twin uses a completed past tense ('kept its sanctions in place until Russia implemented'). This tells the reader that Russia did implement the Minsk agreements. The French present tense is ambiguous in the same way, and it leaves out 'fully'.",
+      "evidence": "U.S. Treasury, press release jl0688, 20 Dec 2016, https://home.treasury.gov/news/press-releases/jl0688: \"The United States remains steadfast in our commitment to maintain sanctions until Russia fully implements its commitments under the Minsk agreements.\"",
+      "proposed_fr": "Ensuite, en décembre 2016, les États-Unis s’engagent à maintenir leurs sanctions jusqu’à ce que la Russie applique pleinement les accords de Minsk, signés en 2014 et 2015 pour arrêter les combats dans l’est de l’Ukraine.",
+      "proposed_en": "Later, in December 2016, the United States committed to keep its sanctions until Russia fully implements the Minsk agreements, signed in 2014 and 2015 to stop the fighting in eastern Ukraine.",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "(EN only, figure 1 text) \"- 3 Sep. 2025 · coalition | Cap lowered | $47.6 a barrel\" and \"- 1 Feb. 2026 · coalition | Cap lowered | $44.1 a barrel\"",
+      "note": "o21 / EN n.10 (figure V2 / figure 1 timeline)",
+      "category": "misattribution",
+      "severity": "minor",
+      "problem": "The English timeline text gives the two lower caps to the 'coalition'. The cited acts are EU acts, and the figure code (content.ts fig2 events) gives actor 'EU' for both entries. The cited sources do not show that the whole coalition lowered the cap.",
+      "evidence": "celex/32026R0124: \"COMMISSION IMPLEMENTING REGULATION (EU) 2026/124 of 14 January 2026 … Price for crude oil … 47,6 3 September 2025 31 January 2026 … 44,1 1 February 2026\"; celex/32025R1494: Council Regulation (EU) 2025/1494 sets \"47,6 3 September 2025\". src/features/report/content.ts fig2: {date: '2025-09-03', actor: 'EU', title: 'Cap lowered'} and {date: '2026-02-01', actor: 'EU', title: 'Cap lowered'}.",
+      "proposed_fr": "(Pas de changement : le texte français de la figure suit content.ts, acteur UE.)",
+      "proposed_en": "- 3 Sep. 2025 · EU | Cap lowered | $47.6 a barrel … - 1 Feb. 2026 · EU | Cap lowered | $44.1 a barrel",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "Enfin, la Chine fournit 77 % des biens prioritaires pour l’armement vendus à la Russie en 2025, et Hong Kong 11 %.",
+      "note": "o14 / EN n.5",
+      "category": "unsupported_claim",
+      "severity": "minor",
+      "problem": "The 77% and the 11% are shares of the sellers that the report measures: the coalition, China, Hong Kong and nine third countries, as the sellers declare them. In 2025 the UAE and Viet Nam have no value. The figures are not shares of all CHP goods sold to Russia. The sentence states them as world totals. The numbers match the data file: 4,219.3 / 5,473.1 = 77.1%, and 602.9 / 5,473.1 = 11.0%.",
+      "evidence": "src/features/report/data/chp.csv, 2025 rows: \"a,Coalition,2025,62.8\", \"a,China,2025,4219.3\", \"a,Hong Kong,2025,602.9\", \"a,Nine third countries,2025,588.1\"; \"b,United Arab Emirates,2025,,\" and \"b,Viet Nam,2025,,\" (empty). Report 4.1: \"Le rapport mesure ces ventes par les déclarations des pays vendeurs.\" UN Comtrade database not queried for the CHP list (not checked at source).",
+      "proposed_fr": "Enfin, la Chine fournit 77 % des biens prioritaires pour l’armement que les pays étudiés déclarent vendre à la Russie en 2025, et Hong Kong 11 %.",
+      "proposed_en": "Finally, China supplied 77% of the priority goods for weapons that the countries in the study report as sold to Russia in 2025, and Hong Kong 11%.",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "La part du pétrole et du gaz dans les recettes fédérales passe de la moitié en 2014 à moins d’un cinquième en 2026, en partie parce que ces recettes reculent.",
+      "note": "o10 / EN n.3",
+      "category": "date_mismatch",
+      "severity": "minor",
+      "problem": "The 2026 value is for January to September 2026 only (Minfin preliminary estimate, o10 part b), not for the full year 2026. The figure data file gives the period. The 2014 value (51.3%) is correct.",
+      "evidence": "src/features/report/data/budget.csv: \"a,\"Oil and gas share, January-September\",2026-01/2026-09,18.46,% of federal revenue,fact,doc_db17d11afa00\". Minfin preliminary estimate as reported by MarketPower, 9 Oct 2026, https://marketpower.pro/publications/defitsit-federalnogo-biudzheta-rossii-dostig-518-trln-za-deviat-mesiatsev-2026-goda: \"объем доходов … за январь-сентябрь достиг ₽29 639 млрд\"; \"нефтегазовые доходы снизились на 17,2% и составили ₽5 471 млрд\" (5,471/29,639 = 18.5%). minfin.gov.ru itself returned HTTP 503 \"Доступ временно ограничен\".",
+      "proposed_fr": "La part du pétrole et du gaz dans les recettes fédérales passe de la moitié en 2014 à moins d’un cinquième sur les neuf premiers mois de 2026, en partie parce que ces recettes reculent.",
+      "proposed_en": "The share of oil and gas in federal revenue falls from one half in 2014 to less than one fifth in the first nine months of 2026, partly because that revenue is shrinking.",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "Les données viennent d’une base de près de 5 200 entités (sociétés, navires, sites, ports, banques, personnes et actes juridiques) et des relations entre elles, […]",
+      "note": "No marker (section 1.3; same claim in the Synthèse 'La méthode')",
+      "category": "internal_inconsistency",
+      "severity": "minor",
+      "problem": "Section 1.3 and the summary give the database as 'nearly 5,200 entities'. The annex gives 6,327 entities in the database and about 5,200 tested, because the selection leaves out the 1,165 military units (6,327 - 1,165 = 5,162).",
+      "evidence": "report-fr.md l.257 (annex A): \"Au 27 octobre 2026, la base compte 6 327 entités ; comme la sélection n’utilise pas les 1 165 unités militaires, près de 5 200 entités sont testées.\" EN l.616 same.",
+      "proposed_fr": "Les données viennent de près de 5 200 entités testées d’une base (sociétés, navires, sites, ports, banques, personnes et actes juridiques) et des relations entre elles, […] — Synthèse : « Parmi près de 5 200 entités d’une base dont chaque fait renvoie à un document archivé, le rapport cherche les nœuds […] »",
+      "proposed_en": "The data come from nearly 5,200 tested entities of a database (companies, ships, sites, ports, banks, people and legal acts) and the relations between them, […] — Summary: \"The report searches nearly 5,200 entities of a database where every fact points to an archived document.\"",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "[^o18]: Calculs de l’auteur d’après Ministère des Finances de Russie (2026a), op. cit., n. 3, ligne 2.2 « Национальная оборона » ; Korsounskaïa, D. (2024). https://ru.themoscowtimes.com ; Banque mondiale (2026). https://api.worldbank.org.",
+      "note": "o18 / EN n.8 (same pattern in o10 / EN n.3)",
+      "category": "citation_details",
+      "severity": "minor",
+      "problem": "The French note gives no title, date or exact URL for the Korsunskaya article or for the World Bank series (NY.GDP.DEFL.KD.ZG). It gives only the domains, and the year of the Minfin line (2021) is missing. EN n.8 gives all of these. The French o10 also gives Minfin 2026a only as '[Exécution du budget fédéral, annexe 3.1]. minfin.gov.ru', where EN n.3 gives the title and the URL. The source supports the content: the article (30.09.2024, Дарья Корсунская) says defence will rise to 13.5 trillion roubles in 2025. The World Bank deflator gives a 2025 index of 146.306 (2021 = 100), the same as budget.csv. 13.5/1.463 / 3,573.6 = 2.58, which rounds to 2.6.",
+      "evidence": "https://ru.themoscowtimes.com/2024/09/30/update-1-traty-rossii-na-oboronu-v-25g-vyrastut-do-135-trln-r-bolee-chem-vdvoe-obognav-sotsialnye-raskhody-a143572: \"Расходы по разделу «Национальная оборона» в следующем году вырастут до 13,5 триллиона рублей\" (30.09.2024). https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json: 2022 18.23, 2023 6.66, 2024 10.65, 2025 4.85 (last updated 2026-10-08).",
+      "proposed_fr": "[^o18]: Calculs de l’auteur d’après Ministère des Finances de Russie (2026a), op. cit., n. 3, ligne 2.2 « Национальная оборона », année 2021 ; Korsounskaïa, D. (2024, 30 septembre). *Траты России на оборону в 25г вырастут до 13,5 трлн р, более чем вдвое обогнав социальные расходы*. Reuters, dans The Moscow Times (service russe). https://ru.themoscowtimes.com/2024/09/30/update-1-traty-rossii-na-oboronu-v-25g-vyrastut-do-135-trln-r-bolee-chem-vdvoe-obognav-sotsialnye-raskhody-a143572 ; Banque mondiale. (2026). *Inflation, GDP deflator (annual %) – Russian Federation (NY.GDP.DEFL.KD.ZG)*. https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG.",
+      "proposed_en": "(No change: EN n.8 already gives these details.)",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "[^o38]: Kpler. (2025, 2 décembre). *Rosneft and Lukoil sanctions are live*. Kpler. https://www.kpler.com.",
+      "note": "o38 / EN n.18",
+      "category": "citation_details",
+      "severity": "minor",
+      "problem": "The French note shortens the title and gives only the domain. EN n.18 gives the full title and the exact URL. The page also names an author, which neither note gives. The content supports both reasons (price and politics).",
+      "evidence": "https://www.kpler.com/blog/rosneft-and-lukoil-sanctions-are-live-how-india-china-and-turkey-adapt-rather-than-exit (December 2, 2025, Johannes Rauball): \"Political leaders from China, India and Turkey, will not want to be seen as bending down to US sanctions.\" \"At the same time, Russian barrels remain highly cost-competitive\".",
+      "proposed_fr": "[^o38]: Rauball, J. (2025, 2 décembre). *Rosneft and Lukoil sanctions are live: how India, China and Turkey adapt rather than exit*. Kpler. https://www.kpler.com/blog/rosneft-and-lukoil-sanctions-are-live-how-india-china-and-turkey-adapt-rather-than-exit.",
+      "proposed_en": "[^18]: Rauball, J. (2025, December 2). *Rosneft and Lukoil sanctions are live: how India, China and Turkey adapt rather than exit*. Kpler. https://www.kpler.com/blog/rosneft-and-lukoil-sanctions-are-live-how-india-china-and-turkey-adapt-rather-than-exit.",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "[^o36]: Calculs de l’auteur d’après Bahí Esteba, A. et al. (2026, 21 septembre). *Russian foreign trade tracker* (35ᵉ éd.) [Données]. Bruegel. https://www.bruegel.org, fig. 2.",
+      "note": "o36 / EN n.1 (cited again by o37, o32 / EN n.17, n.21)",
+      "category": "citation_details",
+      "severity": "minor",
+      "problem": "The URL is only the Bruegel home page, not the dataset. The workbook gives the exact page to cite. The content is supported: EU27 imports were 192.76 bn USD in 2021 and 31.31 bn USD in 2025 (-83.8%, which rounds to 84%). The 35th release is dated 21 September 2026.",
+      "evidence": "Bruegel workbook https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx, sheet READ ME: \"35th release date: 21 September 2026\"; \"available at https://www.bruegel.org/dataset/russian-foreign-trade-tracker\". Sheet 'Figure 2', row 9 (EU27, Total): monthly sums 2021 = 192.76, 2025 = 31.31.",
+      "proposed_fr": "[^o36]: Calculs de l’auteur d’après Bahí Esteba, A. et al. (2026, 21 septembre). *Russian foreign trade tracker* (35ᵉ éd.) [Données]. Bruegel. https://www.bruegel.org/dataset/russian-foreign-trade-tracker, fig. 2.",
+      "proposed_en": "[^1]: Author's calculations based on Bahí Esteba, A. et al. (2026, September 21). *Russian foreign trade tracker* (35th ed.) [Data]. Bruegel. https://www.bruegel.org/dataset/russian-foreign-trade-tracker, fig. 2.",
+      "confidence": "high"
+     }
+    ],
+    "coverage": [
+     {
+      "note": "o36 / EN 1 (EU purchases -84%, 2021-2025)",
+      "status": "supported",
+      "comment": "Bruegel workbook fig. 2 row 9: 192.76 to 31.31 bn USD = -83.8%. URL is domain only (finding)."
+     },
+     {
+      "note": "o63 / EN 2 (shadow fleet 79% of seaborne crude, Jan 2026)",
+      "status": "supported",
+      "comment": "KSE ROT_FEB26.pdf p. 3 chart: Jan 2026 shadow fleet 2,738 kbd, IG 690 kbd (IG 20% of crude). Shadow fleet = about 79-80%. The definition matches the sentence."
+     },
+     {
+      "note": "o10 / EN 3 (oil-gas share 1/2 in 2014 to <1/5 in 2026)",
+      "status": "partly_supported",
+      "comment": "budget.csv 2014 51.28%, Jan-Sep 2026 18.46%. Jan-Sep 2026 figures confirmed through a press report of the Minfin estimate (5,471/29,639). minfin.gov.ru returns 503. The period is 9 months only (finding). FR note has no title or URL."
+     },
+     {
+      "note": "o11 / EN 4 (rouble 53% of exports 2025 vs 14% 2021)",
+      "status": "supported",
+      "comment": "CBR cur_str_new_e.xlsx, sheet 'Exports annually', Total/Russian Rubles: 2021 14.34, 2025 53.14."
+     },
+     {
+      "note": "o14 / EN 5 (China 77%, Hong Kong 11% of CHP goods 2025)",
+      "status": "internal_calc_checked",
+      "comment": "chp.csv 2025: 4,219.3 and 602.9 of 5,473.1 = 77.1% and 11.0%. Comtrade CHP queries not re-run. The scope is the measured sellers only (finding)."
+     },
+     {
+      "note": "o15 / EN 6 (2014: 21 persons frozen; 5 banks, >90 days; oil tech; dual use)",
+      "status": "supported",
+      "comment": "Reg. 269/2014 Annex I lists 21 persons (17.3.2014). Reg. 833/2014: Art. 2 (dual use for military), Art. 3 (oil technology authorisation), Art. 5 (>90 days, Annex III: 5 banks)."
+     },
+     {
+      "note": "o16 / EN 7 (US Dec 2016, Minsk)",
+      "status": "supported",
+      "comment": "jl0688 supports the commitment. The EN past tense changes the meaning (finding)."
+     },
+     {
+      "note": "o21 / EN 10 (figure V2 sources and timeline)",
+      "status": "partly_supported",
+      "comment": "All dates and values checked on the Publications Office texts: 25.2.2025 ports Ust-Luga, Primorsk, Novorossiysk; $60 on 5.12.2022; $47.6 on 3.9.2025; $44.1 on 1.2.2026; Murmansk, Tuapse on 24.4.2026; jy1795 12.10.2023; OFAC 20251022 Rosneft/Lukoil. The FR caption and o21 leave out 2025/1494 and 2023/251. 2022/2368 and 2023/251 have the wrong act type. The EN timeline says 'coalition' for the EU caps (findings)."
+     },
+     {
+      "note": "o18 / EN 8 (defence 2025 plan = 2.6x 2021, constant prices)",
+      "status": "internal_calc_checked",
+      "comment": "Moscow Times/Reuters 30.09.2024: 13.5 trn RUB. WB deflator index 2025 = 146.306, the same as budget.csv. 2021 = 3,573.6 bn (Minfin line not reachable). Ratio 2.58-2.60. FR note gives no title or URLs (finding)."
+     },
+     {
+      "note": "o19 / EN 9 (oil-gas revenue -36%, 2021-2025, real)",
+      "status": "internal_calc_checked",
+      "comment": "budget.csv: 9,056.5 to 5,793.9 bn RUB of 2021 = -36.0%. The deflator was checked against the World Bank API. The Minfin nominal values were not checked (503)."
+     },
+     {
+      "note": "o20 / EN 11 (first designations of shipowners not respecting cap)",
+      "status": "supported",
+      "comment": "jy1795 (12 Oct 2023): OFAC designates Lumber Marine SA and Ice Pearl Navigation Corp, registered owners of vessels that carried crude above the cap. The release itself does not say 'first'."
+     },
+     {
+      "note": "o29 / EN 12 (rent ~1/6 of GDP in 2021)",
+      "status": "supported",
+      "comment": "WB API 2021: oil rents 9.67% + gas rents 5.86% = 15.5% of GDP."
+     },
+     {
+      "note": "o30 / EN 13 (fuels >40% of goods exports 2021)",
+      "status": "supported",
+      "comment": "WB TX.VAL.FUEL.ZS.UN 2021 = 43.15%."
+     },
+     {
+      "note": "o31 / EN 14 (oil-gas >1/3 of federal revenue 2021)",
+      "status": "internal_calc_checked",
+      "comment": "budget.csv 2021 = 35.82%. Minfin annex 3.1 not reachable (HTTP 503)."
+     },
+     {
+      "note": "o34 / EN 15 (EU embargo seaborne crude, then products)",
+      "status": "supported",
+      "comment": "Reg. 2022/879 Art. 3m: ban on crude (until 5.12.2022) and products CN 2710 (until 5.2.2023). Pipeline crude exempt (3(d))."
+     },
+     {
+      "note": "o35 / EN 16 (EU decides Jan 2026 to stop gas in stages)",
+      "status": "supported",
+      "comment": "Regulation (EU) 2026/261 of 26 January 2026 'on phasing out Russian natural gas imports'. Recitals 1 and 10 support the claim."
+     },
+     {
+      "note": "o37 / EN 17 (China first customer; India 20x crude 2021-2025)",
+      "status": "supported",
+      "comment": "Bruegel fig. 2: China 127.65 > EU27 54.88 from 2023. UN Comtrade public API, India imports HS 2709 from Russia: 4.543 Mt (2021) to 88.72 Mt (2025) = 19.5x."
+     },
+     {
+      "note": "o38 / EN 18 (two reasons: price, politics)",
+      "status": "supported",
+      "comment": "Kpler blog 2 Dec 2025 supports both reasons. FR citation shortened (finding)."
+     },
+     {
+      "note": "o32 / EN 21 (figure V3 sources)",
+      "status": "partly_supported",
+      "comment": "Bruegel and Comtrade values match buyers.csv. Eurostat DS-045409 API: EU crude from RU 1,143,563,025 x100 kg (114.4 Mt, 2021) and 97,355,470 x100 kg (9.7 Mt, 2025), the same as the data. CREA Turkey estimates not checked."
+     },
+     {
+      "note": "o39 / EN 19 (2025: more pipeline gas to China than to Europe, first time)",
+      "status": "supported",
+      "comment": "Interfax 13 Jan 2026: 38.8 bcm to China, 'more pipeline gas to China than to non-neighboring European countries'. 'First time' is in the headline. The comparison includes Turkey."
+     },
+     {
+      "note": "o40 / EN 20 (China sets terms; no hurry on PoS-2; one supplier; Russia has no other buyer)",
+      "status": "supported",
+      "comment": "Carnegie (Vakulenko, 22 Sep 2025) supports each point. It does not support the report's hypothesis on volumes, which the volume data contradict (finding)."
+     },
+     {
+      "note": "ADMIRALTY letter (section 1.3) vs docs/decisions.md S1/S3",
+      "status": "not_supported",
+      "comment": "'chaque source officielle' and 'A pour un émetteur officiel' conflict with S1: every author gets a letter, A only for an issuer on its own record, a party to the conflict B at most (finding)."
+     },
+     {
+      "note": "Counts 493 critical / at least 416 official (section 1.3)",
+      "status": "internal_calc_unchecked",
+      "comment": "critical-layers.csv: 438+5+7 record + 4+24+15 list_only = 493. The figure 416 is in no data file. Database down."
+     }
+    ],
+    "not_checked": "Database computations (gab MCP server down): the count of 416 nodes with an official source, the selection of 493 critical nodes, and all doc_ ids in the data files. minfin.gov.ru (annex 3.1 and press release 40677) returned HTTP 503 ('Доступ временно ограничен') and Wayback returned 429. So the nominal Minfin lines 1, 1.1, 1.2 and 2.2 (2014-2025) were not read at source. Only the Jan-Sep 2026 totals were confirmed, through a press report. Not re-run: the UN Comtrade CHP extraction behind 77%/11%, and the CREA Russia Fossil Tracker estimates for Turkey (figure V3 panel b). Not verified: the CBR file date '15 October 2026' and the Bruegel URL for the defence 2025 data cell (doc_bd7f85af2fdc, value 13,574.8 bn nominal vs 13.5 trn in the article). Summary sentences with no marker (price discount, rouble/yuan with China) were only checked for consistency with the body and figure data. EUR-Lex itself returned 202 challenges. All EU acts were read on publications.europa.eu (the official Publications Office copy)."
+   },
+   "remoteControlDeviceReport": false,
+   "toolsUsed": [
+    "Bash",
+    "ToolSearch",
+    "Read",
+    "WebFetch",
+    "WebSearch",
+    "StructuredOutput"
+   ]
+  },
+  {
+   "type": "result",
+   "key": "v2:7b344eb6bc3e2db96467b7ba9df6620037764ac3d092eed8c353995ec75156e1",
+   "agentId": "ad8874218b1d4b1cc",
+   "result": {
+    "findings": [
+     {
+      "sentence_fr": "Selon l’hypothèse du rapport, le gaz vendu à la Chine remplace donc les volumes perdus en Europe, mais pas leurs recettes.",
+      "note": "o39, o40 (2.1, FR line 77; EN line 148)",
+      "category": "unsupported_claim",
+      "severity": "major",
+      "problem": "The volume part of this hypothesis goes against the cited figures. Pipeline deliveries to China in 2025 (38.8 bcm) are smaller than the deliveries to Europe and Turkey of 2021 (about 177 bcm). China takes back at most about one fifth of the lost volume, so it does not replace it. Only the revenue part can stay a hypothesis.",
+      "evidence": "Interfax (o39), https://interfax.com/newsroom/top-stories/115552/: \"Gazprom supplies 38.8 bcm of gas to China in 2025, for first time more than towards west\"; \"The company therefore exported more pipeline gas to China than to non-neighboring European countries (including Turkey)\". World Oil (Bloomberg/BCS estimate from Gazprom data), https://www.worldoil.com/news/2022/1/3/gazprom-misses-2021-gas-export-targets-straining-european-markets: \"Deliveries to Europe and Turkey were about 177 billion cubic meters last year\" (2021). Vakulenko (o40) gives no volume or revenue comparison with Europe.",
+      "proposed_fr": "Le gaz vendu à la Chine ne remplace donc qu’une petite partie des volumes perdus en Europe (38,8 milliards de m³ en 2025, contre environ 177 milliards livrés à l’Europe et à la Turquie en 2021) et, selon l’hypothèse du rapport, encore moins leurs recettes.",
+      "proposed_en": "The gas sold to China therefore replaces only a small part of the volumes lost in Europe (38.8 bcm in 2025, against about 177 bcm delivered to Europe and Turkey in 2021) and, as the report's hypothesis, even less of their revenue.",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "Les partenaires en profitent : la Chine achète le brut russe avec une remise et vend les composants des armes avec une forte prime.",
+      "note": "Synthèse, bullet Prix (FR line 11; EN line 13). No note.",
+      "category": "overclaim_causal",
+      "severity": "major",
+      "problem": "The Summary gives the partners' gain as a fact. The Conclusion gives the same gain only as the report's hypothesis. The discount (o51) and the premium (o112) have sources, but the step 'the partners profit' is the report's inference.",
+      "evidence": "report-fr.md line 247 (Conclusion): \"Une partie du coût des sanctions pour la Russie devient ainsi, selon l’hypothèse du rapport, un gain pour ses nouveaux partenaires.\" Same idea in EN Conclusion.",
+      "proposed_fr": "Selon l’hypothèse du rapport, les partenaires en profitent : la Chine achète le brut russe avec une remise et vend les composants des armes avec une forte prime.",
+      "proposed_en": "As the report's hypothesis, Russia's partners benefit: China buys Russian crude at a discount and sells the components of weapons at a high premium.",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "Deux raisons expliquent ce report :[^o38]",
+      "note": "o38 (2.1, FR line 70; EN line 123, note 18)",
+      "category": "misattribution",
+      "severity": "minor",
+      "problem": "Wrong period. The text uses the source to explain why buyers moved from the EU to Asia in 2022-2025. The Kpler post (2 December 2025) explains why India, China and Turkey keep buying after the US sanctions on Rosneft and Lukoil, which took effect on 21 November 2025. It does not analyse the 2022 shift. The two reasons are in the source, but for a different question.",
+      "evidence": "Kpler, https://www.kpler.com/blog/rosneft-and-lukoil-sanctions-are-live-how-india-china-and-turkey-adapt-rather-than-exit: \"the 21 November wind-down deadline has now passed\"; \"Russian barrels remain highly cost-competitive, and workarounds to maintain flows are likely to emerge\"; \"Political leaders from China, India and Turkey, will not want to be seen as bending down to US sanctions.\"",
+      "proposed_fr": "Selon Kpler, deux raisons expliquent que ces acheteurs restent fidèles, même après les sanctions américaines de 2025 :[^o38]",
+      "proposed_en": "According to Kpler, two reasons explain why these buyers stay, even after the American sanctions of 2025:[^18]",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Pourtant, la guerre continue, et elle coûte de plus en plus cher : à prix constants, le budget de défense prévu pour 2025 vaut 2,6 fois la dépense de 2021.",
+      "note": "Synthèse (FR line 3; EN line 3); same idea in Conclusion line 245 (« une défense toujours plus chère »)",
+      "category": "overclaim_causal",
+      "severity": "minor",
+      "problem": "The evidence (2021 compared with the 2025 plan) supports 'much more expensive than before the invasion'. It does not support 'more and more expensive' in 2026. The 2026 budget plans a small nominal cut in defence, so a larger cut in real terms. The 2.6 ratio is correct: 9,278.4 / 3,573.6 = 2.596 (budget.csv). The fix is only to the qualifier.",
+      "evidence": "Reuters via ThePrint, 29 September 2025, https://theprint.in/world/russian-defence-spending-set-to-fall-slightly-in-2026-draft-budget-shows/2753844: \"planned defence spending of 13 trillion roubles ($157 billion) in 2026\", \"below this year's post-Soviet high of 13.5 trillion roubles\".",
+      "proposed_fr": "Pourtant, la guerre continue, et elle coûte bien plus cher qu’avant l’invasion : à prix constants, le budget de défense prévu pour 2025 vaut 2,6 fois la dépense de 2021.",
+      "proposed_en": "Yet the war goes on, and it costs far more than before the invasion: at constant prices, the defence budget planned for 2025 is 2.6 times the spending of 2021.",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Enfin, la Chine fournit 77 % des biens prioritaires pour l’armement vendus à la Russie en 2025, et Hong Kong 11 %.[^o14]",
+      "note": "o14 (Synthèse, FR line 14; EN line 19)",
+      "category": "overclaim_causal",
+      "severity": "minor",
+      "problem": "I recomputed the shares from chp.csv: China 4,219.3 / 5,473.1 = 77.1 %, Hong Kong 602.9 / 5,473.1 = 11.0 %. Both are correct. But the base is only the exports that the coalition, China, Hong Kong and seven third countries declare. The UAE and Viet Nam declare nothing, and the report says itself that mirror data give a minimum. The Summary gives the share as one of all CHP goods sold to Russia.",
+      "evidence": "src/features/report/data/chp.csv rows 18-21 (2025): Coalition 62.8; China 4219.3; Hong Kong 602.9; Nine third countries 588.1; rows 46 and 66: United Arab Emirates 2025 and Viet Nam 2025 empty. report-fr.md line 229: \"Les Émirats arabes unis et le Viêt Nam ne déclarent aucun bien prioritaire pour l’armement en 2024-2025\".",
+      "proposed_fr": "Enfin, d’après les déclarations des pays vendeurs, la Chine fournit 77 % des biens prioritaires pour l’armement vendus à la Russie en 2025, et Hong Kong 11 %.[^o14]",
+      "proposed_en": "Finally, according to the declarations of the selling countries, China supplied 77% of the priority goods for weapons sold to Russia in 2025, and Hong Kong 11%.[^5]",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "La part du pétrole et du gaz dans les recettes fédérales passe de la moitié en 2014 à moins d’un cinquième en 2026, en partie parce que ces recettes reculent.[^o10]",
+      "note": "o10 (Synthèse, FR line 12; EN line 15)",
+      "category": "date_mismatch",
+      "severity": "minor",
+      "problem": "The 2026 value covers January to September only (18.46 %). The 2014 value is a full year (51.28 %). The text says 'en 2026' with no qualifier. The direction is not misleading (in 2025 the full year, 22.74 %, was lower than January-September, 24.52 %), but the period must be stated.",
+      "evidence": "src/features/report/data/budget.csv: row 2 \"2014,51.28\" (\"rows 1 and 1.1, column 2014\"); row 15 \"2026-01/2026-09,18.46\" (doc_db17d11afa00, \"column 2026-09\"); rows 13-14: 2025 full year 22.74, 2025-01/2025-09 24.52.",
+      "proposed_fr": "La part du pétrole et du gaz dans les recettes fédérales passe de la moitié en 2014 à moins d’un cinquième de janvier à septembre 2026, en partie parce que ces recettes reculent.[^o10]",
+      "proposed_en": "The share of oil and gas in federal revenue falls from one half in 2014 to less than one fifth in January–September 2026, partly because that revenue is shrinking.[^3]",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "Les pétroliers dits de la « flotte fantôme », liés à un pays hors de la coalition et sans assurance occidentale, transportent 79 % du brut exporté par mer en janvier 2026.[^o63]",
+      "note": "o63 (Synthèse, FR line 10; EN line 11)",
+      "category": "citation_details",
+      "severity": "minor",
+      "problem": "79 % is not printed in KSE. It comes from the bar labels on p. 3: shadow fleet 2,738 kb/d, with IG cover 690 kb/d, and a small 'without IG' part. 2,738 / about 3,450 = about 79 %, so the value is consistent. Because it is a computation, the note must say 'Calculs de l’auteur', as the other derived figures in the report do.",
+      "evidence": "KSE Russian Oil Tracker, https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf, p. 3, chart \"Russian seaborne crude oil exports, kbd\", bar Jan 26: labels 2,738 (Shadow Fleet) and 690 (With 'IG' P&I); p. 2: \"Tankers with International Group (IG) P&I insurance coverage shipped 20% of crude\"; p. 3 legend: \"Shadow fleet: tankers affiliated with jurisdictions outside sanctions coalition and lacking 'IG' P&I insurance.\"",
+      "proposed_fr": "[^o63]: Calculs de l’auteur d’après Dodonov, B., Hilgenstock, B. et al. (2026, 2 mars). *Russian Oil Tracker*. KSE Institute. https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf, p. 3.",
+      "proposed_en": "[^2]: Author's calculations based on Dodonov, B., Hilgenstock, B. et al. (2026, March 2). *Russian Oil Tracker*. KSE Institute. https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf, p. 3.",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Figure V2. Chronologie des principales sanctions, 2014-2026. Note. Données : Règlement (UE) n° 269/2014 ; Règlement (UE) n° 833/2014 ; Règlements (UE) 2022/879, 2022/2367, 2023/250, 2025/395 et 2026/506 ; Règlement d’exécution (UE) 2026/124 ; […]",
+      "note": "o21 (FR line 24 and note o21; EN line 38 and note 10; also parts-fr.ts lines 200, 207, 226 and content.ts line 253)",
+      "category": "fr_en_mismatch",
+      "severity": "minor",
+      "problem": "The FR caption and note give fewer acts than the EN. They leave out Regulation 2025/1494, which is the source of the 3 Sep. 2025 cap of $47.6 in the timeline. They also leave out Implementing Regulations 2022/2368 (the $60 crude cap) and 2023/251. Note o21 also gives 2022/2368 as a regulation, but it is an implementing regulation.",
+      "evidence": "report-en.md line 38: \"Regulations (EU) 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494 and 2026/506; Implementing Regulations (EU) 2022/2368, 2023/251 and 2026/124\"; EN timeline line 68: \"3 Sep. 2025 · coalition | Cap lowered | $47.6 a barrel\"; prices-data.ts line 458 cites \"Council Regulation 2025/1494, annex VII\". Web search (Covington, WR, apren.pt) on 2022/2368: it is the implementing regulation that set the US$60 crude cap on 3 December 2022.",
+      "proposed_fr": "Note. Données : Règlement (UE) n° 269/2014 ; Règlement (UE) n° 833/2014 ; Règlements (UE) 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494 et 2026/506 ; Règlements d’exécution (UE) 2022/2368, 2023/251 et 2026/124 ; Département du Trésor des États-Unis (2023) ; Office of Foreign Assets Control (2025).[^o21] (et, dans o21 : « Règlements (UE) 269/2014, 833/2014, 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494, 2026/506 ; Règlements d’exécution (UE) 2022/2368, 2023/251, 2026/124 »)",
+      "proposed_en": "No change to the EN caption. In EN note 10, list 2022/2368 and 2023/251 as Implementing Regulations, as the caption does.",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "La fiabilité de chaque source officielle suit l’échelle ADMIRALTY qui note l’émetteur par une lettre, de A pour un émetteur officiel (liste de sanctions, registre de sociétés, journal officiel) à F quand rien ne permet de le juger.",
+      "note": "1.3 (FR line 60; EN line 113)",
+      "category": "terminology_or_voice",
+      "severity": "minor",
+      "problem": "On the ADMIRALTY scale, A means 'completely reliable', not 'official issuer'. Giving A to official issuers is the author's choice. The sentence also contradicts itself: only official sources get a grade (6.1), and an official issuer gets A, so grades B to F are never used.",
+      "evidence": "Wikipedia, Admiralty code, https://en.wikipedia.org/wiki/Admiralty_code: \"A: Completely reliable\" ... \"F: Reliability cannot be judged: No basis exists for evaluating the reliability of the source\". report-fr.md line 228: \"Seules les sources officielles reçoivent une note de fiabilité.\"",
+      "proposed_fr": "La fiabilité de chaque source officielle est notée sur l’échelle ADMIRALTY, qui va de A (entièrement fiable) à F (impossible à juger) ; le rapport donne A à un émetteur officiel (liste de sanctions, registre de sociétés, journal officiel).",
+      "proposed_en": "The reliability of each official source is rated on the ADMIRALTY scale, from A (completely reliable) to F (reliability cannot be judged); the report gives A to an official issuer (sanctions list, company register, official journal).",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Les données viennent d’une base de près de 5 200 entités (sociétés, navires, sites, ports, banques, personnes et actes juridiques) et des relations entre elles,",
+      "note": "1.3 (FR line 60; also Synthèse line 5 « Dans une base de près de 5 200 entités »; EN lines 5 and 113)",
+      "category": "internal_inconsistency",
+      "severity": "minor",
+      "problem": "Annex A says the database holds 6,327 entities and that about 5,200 of them are tested. The Summary and 1.3 give 5,200 as the size of the database.",
+      "evidence": "report-fr.md line 257: \"Au 27 octobre 2026, la base compte 6 327 entités ; comme la sélection n’utilise pas les 1 165 unités militaires, près de 5 200 entités sont testées.\" (6,327 − 1,165 = 5,162).",
+      "proposed_fr": "Les données viennent d’une base d’entités (sociétés, navires, sites, ports, banques, personnes et actes juridiques), dont près de 5 200 sont testées, et des relations entre elles, (Synthèse : « Parmi près de 5 200 entités d’une base dont chaque fait renvoie à un document archivé, le rapport cherche… »)",
+      "proposed_en": "The data come from a database of entities (companies, ships, sites, ports, banks, people and legal acts), of which nearly 5,200 are tested, and the relations between them, (Summary: \"The report searches nearly 5,200 entities of a database where every fact points to an archived document.\")",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "la Chine devient le premier client de la Russie, et l’Inde achète vingt fois plus de brut russe en 2025 qu’en 2021.[^o37]",
+      "note": "o37, o32 (2.1 FR line 70; Synthèse line 9; EN lines 9, 123)",
+      "category": "other",
+      "severity": "minor",
+      "problem": "Both figures are correct on the data: India crude 88.7 / 4.5 Mt = 19.7, about 20; EU decrease 1 − 31.31 / 192.76 = 83.8 %, about 84 %. But China 'becomes' the first customer only when the EU27 counts as one buyer. The Bruegel series puts China against the EU27 bloc, not against single countries.",
+      "evidence": "src/features/report/data/buyers.csv panel a: EU27 2021 192.76, 2025 31.31; China 2021 78.37, 2025 124.8 (\"Figure 2, row 9 / row 13\"); panel b: India 2021 4.5 Mt, 2025 88.7 Mt.",
+      "proposed_fr": "la Chine passe devant l’UE comme premier client de la Russie, et l’Inde achète vingt fois plus de brut russe en 2025 qu’en 2021.[^o37]",
+      "proposed_en": "China overtook the EU as Russia's first customer, and India bought twenty times as much Russian crude in 2025 as in 2021.[^17]",
+      "confidence": "low"
+     },
+     {
+      "sentence_fr": "[^o18]: Calculs de l’auteur d’après Ministère des Finances de Russie (2026a), op. cit., n. 3, ligne 2.2 « Национальная оборона » ; Korsounskaïa, D. (2024). https://ru.themoscowtimes.com ; Banque mondiale (2026). https://api.worldbank.org.",
+      "note": "o18 (FR) vs EN note 8",
+      "category": "fr_en_mismatch",
+      "severity": "minor",
+      "problem": "The FR note does not say that line 2.2 is used only for 2021, and it does not name the deflator series. A reader can think that the 2025 value also comes from Minfin line 2.2, but it comes from the planned budget reported by Korsounskaïa (budget.csv: 2025 'plan', doc_bd7f85af2fdc). The deflator chain checks: the World Bank GDP deflator gives 146.306 for 2025 (base 2021 = 100).",
+      "evidence": "EN note 8: \"line 2.2 'Национальная оборона' [National defence], year 2021; … World Bank. (2026). Inflation, GDP deflator (annual %) – Russian Federation (NY.GDP.DEFL.KD.ZG)\". World Bank API, https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2020:2025: 2022 18.2296; 2023 6.6589; 2024 10.6528; 2025 4.8521 (lastupdated 2026-10-08).",
+      "proposed_fr": "[^o18]: Calculs de l’auteur d’après Ministère des Finances de Russie (2026a), op. cit., n. 3, ligne 2.2 « Национальная оборона », année 2021 ; Korsounskaïa, D. (2024). https://ru.themoscowtimes.com ; Banque mondiale. (2026). *Inflation, GDP deflator (annual %) – Russian Federation (NY.GDP.DEFL.KD.ZG)*. https://api.worldbank.org.",
+      "proposed_en": "No change.",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "Mais c’est la Chine qui fixe les conditions. Pour vendre le gaz de la péninsule de Yamal, que l’Europe n’achète plus, la Russie n’a qu’un client possible, et ce client n’est pas pressé de conclure le nouveau gazoduc Force de Sibérie 2",
+      "note": "EN layout (report-en.md lines 129-148)",
+      "category": "other",
+      "severity": "minor",
+      "problem": "In the EN source, the sentence breaks after 'on the new'. Note definitions [^12] to [^19] come before 'Power of Siberia 2 pipeline: …' continues on line 148. In Markdown this gives two paragraphs and a broken sentence. The FR text has no break.",
+      "evidence": "report-en.md line 129 ends: \"That customer is in no hurry to seal a deal on the new\"; line 148 starts: \"Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier\".",
+      "proposed_fr": "No change.",
+      "proposed_en": "Join lines 129 and 148 into one paragraph: \"… That customer is in no hurry to seal a deal on the new Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer.[^20]\" Put the note definitions after the paragraph.",
+      "confidence": "low"
+     }
+    ],
+    "coverage": [
+     {
+      "note": "o36",
+      "status": "internal_calc_checked",
+      "comment": "buyers.csv EU27 192.76 (2021) to 31.31 (2025) = -83.8 %, about 84 %. I did not open the Bruegel XLSX."
+     },
+     {
+      "note": "o63",
+      "status": "partly_supported",
+      "comment": "KSE p. 3 bars (2,738 / about 3,450) give about 79 %. This is a derived value, so the note needs 'Calculs de l’auteur'."
+     },
+     {
+      "note": "o10",
+      "status": "internal_calc_checked",
+      "comment": "budget.csv: 51.28 % (2014), 18.46 % (Jan-Sep 2026). The period is not stated in the text. I did not reach Minfin."
+     },
+     {
+      "note": "o11",
+      "status": "internal_calc_checked",
+      "comment": "currencies.csv: rouble 14.34 % (2021) and 53.14 % (2025). Matches the text. I did not download the CBR XLSX."
+     },
+     {
+      "note": "o14",
+      "status": "internal_calc_checked",
+      "comment": "chp.csv 2025: China 77.1 %, HK 11.0 % of 5,473.1. The base leaves out the UAE and Viet Nam."
+     },
+     {
+      "note": "o15",
+      "status": "not_checked",
+      "comment": "EUR-Lex pages came back empty. From memory, the 21 persons of 269/2014 Annex I and the 5 banks with a 90-day maturity limit in 833/2014 art. 5 match, but I did not fetch the act."
+     },
+     {
+      "note": "o16",
+      "status": "supported",
+      "comment": "jl0688: \"maintain sanctions until Russia fully implements its commitments under the Minsk agreements\"."
+     },
+     {
+      "note": "o21",
+      "status": "partly_supported",
+      "comment": "The FR caption and note leave out 2025/1494 and 2023/251, and they misclassify 2022/2368. The EN is complete."
+     },
+     {
+      "note": "o18",
+      "status": "internal_calc_checked",
+      "comment": "9,278.4 / 3,573.6 = 2.596. The WB deflator chain (146.306) checks. I did not fetch Minfin line 2.2 or the Moscow Times article. With 13.5 trn nominal the ratio is 2.58, so it still rounds to 2.6. The plan for 2025 is set against actual 2021 spending, and the text says so correctly ('prévu')."
+     },
+     {
+      "note": "o19",
+      "status": "internal_calc_checked",
+      "comment": "5,793.9 / 9,056.5 = 0.640, so -36.0 %. The nominal 2025 value (8,477 bn) agrees with the reported 8.48 trn. Same period and same deflator as o18."
+     },
+     {
+      "note": "o20",
+      "status": "not_checked",
+      "comment": "The jy1795 title (EN note 10) says it designates shipowners for the price cap (Oct. 2023). I did not fetch it."
+     },
+     {
+      "note": "o29",
+      "status": "supported",
+      "comment": "WB 2021: oil rents 9.67 % + gas rents 5.86 % = 15.5 % of GDP. 'Environ un sixième' (16.7 %) is at the edge but acceptable. 2021 is a peak year for gas rents."
+     },
+     {
+      "note": "o30",
+      "status": "supported",
+      "comment": "WB TX.VAL.FUEL.ZS.UN 2021 = 43.1 %, so 'plus de 40 %' holds."
+     },
+     {
+      "note": "o31",
+      "status": "internal_calc_checked",
+      "comment": "budget.csv 2021 = 35.82 %, so 'plus du tiers' holds."
+     },
+     {
+      "note": "o34",
+      "status": "not_checked",
+      "comment": "EUR-Lex page came back empty. Art. 3m of 2022/879 (crude Dec. 2022, products Feb. 2023) is consistent from memory only."
+     },
+     {
+      "note": "o35",
+      "status": "supported",
+      "comment": "Web search: Regulation (EU) 2026/261 adopted 26 January 2026 (phase-out of Russian gas). I did not read the recitals."
+     },
+     {
+      "note": "o37",
+      "status": "internal_calc_checked",
+      "comment": "buyers.csv India crude 4.5 to 88.7 Mt = x19.7, about twenty. China passes the EU27 bloc from 2023."
+     },
+     {
+      "note": "o38",
+      "status": "partly_supported",
+      "comment": "Both reasons are in Kpler, but for the buyers who stay after the sanctions of Nov. 2025, not for the shift of 2022-2025."
+     },
+     {
+      "note": "o32",
+      "status": "internal_calc_checked",
+      "comment": "The figure V3 data agree with the text. Panel b begins in 2021, the caption says 2020-2025 (panel a only)."
+     },
+     {
+      "note": "o39",
+      "status": "supported",
+      "comment": "Interfax: more pipeline gas to China than to non-neighbouring Europe including Turkey."
+     },
+     {
+      "note": "o40",
+      "status": "supported",
+      "comment": "Vakulenko supports China's leverage and its policy of not depending on one supplier. It gives no volume or revenue comparison. The volume part of the hypothesis is contradicted (see finding)."
+     },
+     {
+      "note": "Synthèse 'presque doublé' (décote)",
+      "status": "not_checked",
+      "comment": "From the body ranges, the midpoints go from 13 to 23 USD (x1.77). I did not recompute from prices-data.ts. This belongs to chunk B."
+     },
+     {
+      "note": "1.3 counts 493 / 416",
+      "status": "partly_supported",
+      "comment": "critical-layers.csv: 450 record + 43 list_only = 493. No data file gives 416, and I could not check it without the database."
+     }
+    ],
+    "not_checked": "The gab database is down, so I could not check these: the count of 416 critical nodes with an official document; the 5,200 and 6,327 entity counts; and any n-... computation. I could not read EUR-Lex (the pages came back empty), so I did not verify o15 (21 persons, 5 banks, 90 days), o34 (art. 3m) or the recitals of 2026/261 (o35) against the acts. I did not open the Bruegel, CBR or Minfin XLSX files: for o36, o11, o10, o18, o19 and o31 I checked only the repository data files, which agree with the text. I did not fetch the Moscow Times source for the 2025 plan of 13.5 trn: budget.csv implies about 13.57 trn nominal, and both values give 2.6. I did not recompute the 'presque doublé' discount from prices-data.ts, which is chunk B. Not done: Comtrade queries for o14 and o37 (only the data files checked)."
+   },
+   "remoteControlDeviceReport": false,
+   "toolsUsed": [
+    "Read",
+    "Grep",
+    "Glob",
+    "WebFetch",
+    "WebSearch",
+    "StructuredOutput"
+   ]
+  },
+  {
+   "type": "result",
+   "key": "v2:85273c297ed78b70a360214705c2c24b17338b114d5dc4341e02044113276841",
+   "agentId": "af9804f752ff26e81",
+   "result": {
+    "findings": [
+     {
+      "sentence_fr": "**Exposé aux sanctions :** L’Union européenne (UE), l’Office of Foreign Assets Control (OFAC) américain ou le Royaume-Uni le désigne, ou une personne désignée le détient à 50 % ou plus ;",
+      "note": "§1.2 (figure V1 label identical)",
+      "category": "legal_error",
+      "severity": "minor",
+      "problem": "The ownership test is stated as one rule for the three authorities. It is the OFAC 50 Percent Rule (ownership only, aggregated). The UK test is different: more than 50 % of shares or voting rights, with no automatic aggregation. The UK and the EU also freeze on control (not only ownership), and the EU 50 % or more test comes from non-binding Best Practices (3 July 2024), not from the regulation text. If the database applies '50 % or more' to UK-only cases, a holder with exactly 50 % is wrongly counted as exposed.",
+      "evidence": "OFAC FAQ 401, https://ofac.treasury.gov/faqs/topic/1521: 'directly or indirectly owned 50 percent or more in the aggregate by one or more blocked persons'; FAQ 398: 'OFAC’s 50 Percent Rule speaks only to ownership and not to control.' UK, https://www.gov.uk/government/publications/uk-financial-sanctions-faqs/uk-financial-sanctions-faqs (Russia FAQ 4): 'OFSI would not aggregate different designated persons’ shareholdings in a company'; 'each of the designated persons’ shareholdings is at 50% or falls below the 50% threshold'. UK reg. 7, https://www.legislation.gov.uk/uksi/2019/855/regulation/7: ownership = more than half of shares or voting rights, or right to appoint a board majority; second limb = reasonable to expect that P could get C's affairs conducted as P wishes (control). EU: Skadden, https://skadden.com/insights/publications/2024/09/eu-updates-sanctions-best-practices: 'being in possession of 50% or more of the proprietary rights of an entity'; 'nonbinding recommendations'; Reg. 269/2014 art. 2(1): 'belonging to, owned, held or controlled by'.",
+      "proposed_fr": "**Exposé aux sanctions :** L’Union européenne (UE), l’Office of Foreign Assets Control (OFAC) américain ou le Royaume-Uni le désigne, ou une personne désignée le détient à 50 % ou plus (seuil de l’OFAC ; le Royaume-Uni exige plus de 50 % ; l’UE et le Royaume-Uni retiennent aussi le contrôle) ;",
+      "proposed_en": "**Exposed to sanctions:** The European Union (EU), the American Office of Foreign Assets Control (OFAC) or the United Kingdom designates it, or a designated person owns 50% or more of it (the OFAC threshold; the United Kingdom requires more than 50%; the EU and the United Kingdom also count control);",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Figure V2 … Note. Données : Règlement (UE) n° 269/2014 ; Règlement (UE) n° 833/2014 ; Règlements (UE) 2022/879, 2022/2367, 2023/250, 2025/395 et 2026/506 ; Règlement d’exécution (UE) 2026/124 ; …",
+      "note": "o21 (FR figure note) and EN note 10",
+      "category": "fr_en_mismatch",
+      "severity": "minor",
+      "problem": "The FR figure note and FR note o21 omit acts that the EN twin lists and that the figure needs. Regulation (EU) 2025/1494 (dynamic cap, source of the 3 Sep 2025 line at USD 47.6) is missing in FR. Implementing Regulations 2022/2368 (USD 60) and 2023/251 (USD 45 and 100) are missing from the FR caption, and 2023/251 is missing from FR o21. Also 2022/2368 and 2026/124 are Commission implementing acts, listed in FR o21 under 'Règlements'.",
+      "evidence": "Cellar copy of OJ text, https://publications.europa.eu/resource/cellar/8e9a2c55-6438-11f0-bf4e-01aa75ed71a1.0006.03/DOC_1: 'Council Regulation (EU) 2025/1494 of 18 July 2025, amending Regulation (EU) No 833/2014' (Art. 3n(11) dynamic mechanism). https://publications.europa.eu/resource/cellar/e7927a1b-7344-11ed-9887-01aa75ed71a1.0006.03/DOC_1: 'Commission Implementing Regulation (EU) 2022/2368 … price cap of 60 USD per barrel … Application date: 5 December 2022'. https://publications.europa.eu/resource/cellar/cd24922e-a49d-11ed-b508-01aa75ed71a1.0006.03/DOC_1: 'Commission Implementing Regulation (EU) 2023/251 of 4 February 2023 … 45 USD … 100 USD … from 5 February 2023'. https://publications.europa.eu/resource/cellar/6ef36f48-f1b4-11f0-8d3c-01aa75ed71a1.0006.03/DOC_1: 'Commission Implementing Regulation (EU) 2026/124 of 14 January 2026 … 44,1 … 1 February 2026'.",
+      "proposed_fr": "Données : Règlements (UE) n° 269/2014 et n° 833/2014 ; Règlements (UE) 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494 et 2026/506 ; Règlements d’exécution (UE) 2022/2368, 2023/251 et 2026/124 ; Département du Trésor des États-Unis (2023) ; Office of Foreign Assets Control (2025). (Même liste dans la note o21.)",
+      "proposed_en": "Data: Regulations (EU) No 269/2014 and No 833/2014; Regulations (EU) 2022/879, 2022/2367, 2023/250, 2025/395, 2025/1494 and 2026/506; Implementing Regulations (EU) 2022/2368, 2023/251 and 2026/124; U.S. Department of the Treasury (2023); Office of Foreign Assets Control (2025). (No change in EN.)",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "Figure V2, ligne « 3 juin 2022 · UE | Embargo pétrolier | brut par mer » (EN: 3 Jun. 2022 · EU | Oil embargo | crude by sea)",
+      "note": "o21 / o34 (figure V2 timeline, data in content.ts, date 2022-06-03)",
+      "category": "date_mismatch",
+      "severity": "minor",
+      "problem": "3 June 2022 is the adoption date of Regulation 2022/879. It entered into force on 4 June 2022. The import ban on crude applies from 5 December 2022 (contracts concluded before 4 June 2022 may run until then) and on petroleum products from 5 February 2023. The other lines of the same figure (5 Dec 2022, 5 Feb 2023, 25 Feb 2025, 1 Feb 2026, 24 Apr 2026) use the date of effect, so this line mixes two conventions and shows the embargo six months early.",
+      "evidence": "https://publications.europa.eu/resource/cellar/a71561fd-e339-11ec-a534-01aa75ed71a1.0006.03/DOC_1: 'Council Regulation (EU) 2022/879 of 3 June 2022' (OJ L 153, 3.6.2022); Art. 3m(3) dates '5 December 2022 … 5 February 2023'. Commission FAQ, https://finance.ec.europa.eu/system/files/2023-08/faqs-sanctions-russia-oil-imports_en.pdf, Q12: 'prohibited from the entry into force of the Regulation (4 June 2022)'; 'For petroleum products (CN 2710) … the prohibition only applies as of 5 February 2023'.",
+      "proposed_fr": "3 juin 2022 · UE | Embargo pétrolier | adopté ; brut par mer interdit dès le 5 déc. 2022",
+      "proposed_en": "3 Jun. 2022 · EU | Oil embargo | adopted; seaborne crude banned from 5 Dec. 2022",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Figure V2, ligne « 5 févr. 2023 · coalition | Produits pétroliers | embargo et plafonds » (EN: 5 Feb. 2023 · coalition | Oil products | embargo and caps)",
+      "note": "o21 (figure V2 timeline, actor COAL = « coalition (plafond de prix) »)",
+      "category": "misattribution",
+      "severity": "minor",
+      "problem": "The actor 'coalition (price cap)' is attached to 'embargo and caps'. The embargo on petroleum products is an EU measure (Art. 3m of Regulation 833/2014). Only the caps (USD 100 and USD 45) belong to the coalition.",
+      "evidence": "Commission FAQ, https://finance.ec.europa.eu/system/files/2023-08/faqs-sanctions-russia-oil-imports_en.pdf, Q12: 'For petroleum products (CN 2710) obtained from such crude oil, the prohibition only applies as of 5 February 2023'. Implementing Regulation 2023/251, https://publications.europa.eu/resource/cellar/cd24922e-a49d-11ed-b508-01aa75ed71a1.0006.03/DOC_1: caps '45 USD' (discount) and '100 USD' (premium), applying from 5 February 2023.",
+      "proposed_fr": "5 févr. 2023 · coalition | Produits pétroliers | plafonds de prix (embargo de l’UE)",
+      "proposed_en": "5 Feb. 2023 · coalition | Oil products | price caps (EU embargo)",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Dès 2022, l’UE ferme presque son marché au pétrole russe, par un embargo sur le brut transporté par mer, puis sur les produits pétroliers.",
+      "note": "o34",
+      "category": "legal_error",
+      "severity": "minor",
+      "problem": "Article 3m does not limit the crude ban to sea transport. It bans purchase, import or transfer of Russian-origin or Russian-exported crude and products. Crude delivered by pipeline is an exemption (Art. 3m(3)(d)), and this is why the EU market is only 'almost' closed. The words 'par mer' describe the effect, not the text of the act.",
+      "evidence": "Cellar copy of Reg. 2022/879, https://publications.europa.eu/resource/cellar/a71561fd-e339-11ec-a534-01aa75ed71a1.0006.03/DOC_1, Art. 3m(1): 'It shall be prohibited to purchase, import or transfer, directly or indirectly, crude oil or petroleum products, as listed in Annex XXV, if they originate in Russia or are exported from Russia.' Commission FAQ, https://finance.ec.europa.eu/system/files/2023-08/faqs-sanctions-russia-oil-imports_en.pdf, Q2: 'subject to certain exceptions and derogations'; Q1 and Q3 on 'Article 3m(3)(d) (crude imports by pipeline)'.",
+      "proposed_fr": "Dès 2022, l’UE ferme presque son marché au pétrole russe, par un embargo sur le brut (sauf celui livré par oléoduc), puis sur les produits pétroliers.",
+      "proposed_en": "From 2022, the EU almost closed its market to Russian oil, with an embargo on crude (except crude delivered by pipeline), then on oil products.",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "**La politique :** La Chine et l’Inde n’appliquent pas les sanctions, et leurs dirigeants ne veulent pas paraître céder aux États-Unis.",
+      "note": "o38",
+      "category": "overclaim_causal",
+      "severity": "minor",
+      "problem": "True as law (neither state has adopted the EU, US or UK sanctions). But the cited Kpler source does not say it. It says the leaders do not want to be seen as bending to US sanctions, and it expects Indian and Chinese state refiners to cut direct dealings with designated entities (Rosneft, Lukoil) and to shift to non-designated sellers. 'Do not apply' is too broad for the source and for the 2025-2026 facts.",
+      "evidence": "Kpler, https://www.kpler.com/blog/rosneft-and-lukoil-sanctions-are-live-how-india-china-and-turkey-adapt-rather-than-exit: 'Political leaders from China, India and Turkey, will not want to be seen as bending down to US sanctions.'; 'none of these governments are inclined to let Western sanctions dictate their energy security choices'; Indian refiners other than Nayara expected to 'pause direct purchases'; 'State-owned Chinese refiners are treading more cautiously.'",
+      "proposed_fr": "**La politique :** La Chine et l’Inde n’ont pas adopté les sanctions occidentales, et leurs dirigeants ne veulent pas paraître céder aux États-Unis.",
+      "proposed_en": "**Politics:** China and India have not adopted the Western sanctions, and their leaders do not want to look as if they yield to the United States.",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "puis les premières désignations d’armateurs qui ne respectent pas ce plafond.[^o20]",
+      "note": "o20",
+      "category": "citation_details",
+      "severity": "minor",
+      "problem": "Note o20 (Treasury press release jy1795, 12 Oct 2023) supports the designation of two shipowners under E.O. 14024 for oil sold above the cap. It does not say these were the first. The word 'premières' needs a second source. The release is also US only, so the first-ever claim is for the US action.",
+      "evidence": "https://home.treasury.gov/news/press-releases/jy1795: 'Treasury Sanctions Entities for Transporting Oil Sold Above the Coalition Price Cap to Restrict Russia’s War Machine' (12 Oct 2023; Lumber Marine SA and Ice Pearl Navigation Corp, E.O. 14024); no 'first' in the text. World Oil, https://worldoil.com/news/2023/10/12/u-s-imposes-first-sanctions-for-russian-oil-price-cap-violations/: 'The U.S. imposed the first sanctions for violations of the price cap on Russian oil introduced by the Group of Seven'.",
+      "proposed_fr": "puis les premières désignations américaines d’armateurs qui ne respectent pas ce plafond.[^o20] (ajouter à la note o20 : World Oil (2023, 12 octobre). *U.S. imposes first sanctions for Russian oil price cap violations*. https://worldoil.com/news/2023/10/12/u-s-imposes-first-sanctions-for-russian-oil-price-cap-violations/)",
+      "proposed_en": "and then the first American designations of shipowners that do not respect that cap.[^11] (add to note 11: World Oil. (2023, October 12). U.S. imposes first sanctions for Russian oil price cap violations. https://worldoil.com/news/2023/10/12/u-s-imposes-first-sanctions-for-russian-oil-price-cap-violations/)",
+      "confidence": "medium"
+     },
+     {
+      "sentence_fr": "Figure V2, ligne « 25 févr. 2025 · UE | Ports interdits | Primorsk, Novorossiisk, Oust-Louga »",
+      "note": "o21 / o15 area (figure V2 timeline, Reg. 2025/395)",
+      "category": "other",
+      "severity": "minor",
+      "problem": "Date is right (adopted 24 Feb 2025, entry into force the day after publication = 25 Feb 2025). But Annex XLVII Part A, inserted by Article 5ae, lists five ports, not three: Astrakhan and Makhachkala (Caspian Sea) are also banned. The line reads as if only the three oil export ports were banned.",
+      "evidence": "Cellar copy of Reg. 2025/395, https://publications.europa.eu/resource/cellar/6cb19759-f2a8-11ef-981b-01aa75ed71a1.0006.03/DOC_1, Annex XLVII Part A: '1. Astrakhan 2. Makhachkala 3. Ust-Luga 4. Primorsk 5. Novorossiysk'; Art. 5ae(1): 'It shall be prohibited to engage in any transaction, directly or indirectly, with ports and locks listed in Part A of Annex XLVII.'; Art. 2: 'shall enter into force on the day following that of its publication'. Reg. 2026/506 then adds entries 6 Murmansk and 7 Tuapse (Annex XVI), in force 24 April 2026.",
+      "proposed_fr": "25 févr. 2025 · UE | Ports interdits | Primorsk, Novorossiisk, Oust-Louga et deux ports de la Caspienne",
+      "proposed_en": "25 Feb. 2025 · EU | Ports banned | Primorsk, Novorossiysk, Ust-Luga and two Caspian ports",
+      "confidence": "high"
+     },
+     {
+      "sentence_fr": "Elle réduit aussi ses achats de gaz russe, puis décide en janvier 2026 de les arrêter par étapes.[^o35]",
+      "note": "o35",
+      "category": "citation_details",
+      "severity": "minor",
+      "problem": "Facts are right: Regulation (EU) 2026/261 is dated 26 January 2026 and phases out Russian gas in stages. But the note cites only recitals 1 and 10 (the aim and the impact assessment), not the operative articles that state the ban and its dates. The act is also not a CFSP sanction: it is a trade and energy regulation (Art. 194(2) and 207 TFEU, ordinary legislative procedure). The text should not let the reader take it for a sanction.",
+      "evidence": "Cellar copy, https://publications.europa.eu/resource/cellar/0c94b1b3-ffda-11f0-8da5-01aa75ed71a1.0006.03/DOC_1: 'Regulation (EU) 2026/261 of the European Parliament and of the Council' of 26 January 2026, legal basis 'Article 194(2) and Article 207' TFEU; Art. 4: 'shall apply as of 17 June 2026' (short-term pipeline), '25 April 2026' (short-term LNG), '30 September 2027' (long-term pipeline), '1 January 2027' (long-term LNG); Art. 14: 'Article 3 shall apply from 18 March 2026'.",
+      "proposed_fr": "Elle réduit aussi ses achats de gaz russe, puis adopte en janvier 2026 un règlement (hors sanctions) qui les interdit par étapes, jusqu’en 2027.[^o35] (note o35 : CELEX 32026R0261, art. 3, 4 et 14 ; considérants 1 et 10)",
+      "proposed_en": "It also cut its purchases of Russian gas, then adopted in January 2026 a regulation (outside the sanctions) that bans them in stages, up to 2027.[^16] (note 16: CELEX 32026R0261, Arts. 3, 4 and 14; recitals 1 and 10)",
+      "confidence": "medium"
+     }
+    ],
+    "coverage": [
+     {
+      "note": "o15 / EN 6 (2014 measures: 21 persons, five banks, 90 days, oil technology, dual use)",
+      "status": "supported",
+      "comment": "Reg. 269/2014 of 17 March 2014, Annex I: 21 natural persons, in force on publication. Reg. 833/2014 of 31 July 2014, Art. 5: 90 days, Annex III = Sberbank, VTB, Gazprombank, VEB, Rosselkhozbank (>50 % public ownership or control). Art. 2 bans dual-use for military end-use, Art. 3 needs authorisation for Annex II oil technology. Read in the OJ text on the Publications Office Cellar. Nuance: Reg. 960/2014 cut 90 days to 30 days after 12 Sept 2014; not fetched, no finding raised."
+     },
+     {
+      "note": "o16 / EN 7 (US, 20 Dec 2016, Minsk)",
+      "status": "supported",
+      "comment": "https://home.treasury.gov/news/press-releases/jl0688: 'The United States remains steadfast in our commitment to maintain sanctions until Russia fully implements its commitments under the Minsk agreements.'"
+     },
+     {
+      "note": "o21 / EN 10 and figure V2 timeline (all dates and acts)",
+      "status": "partly_supported",
+      "comment": "Checked: 17 Mar 2014, 31 Jul 2014, 5 Dec 2022 (USD 60, Reg. 2022/2367 + Impl. 2022/2368), 5 Feb 2023 (Impl. 2023/251), 12 Oct 2023 (jy1795), 25 Feb 2025, 3 Sep 2025 (USD 47.6; EU and UK, Canada followed; US stayed at USD 60), 22 Oct 2025 (OFAC, E.O. 14024 tag in Recent Actions 20251022), 1 Feb 2026 (Impl. 2026/124, USD 44.1), 24 Apr 2026 (Reg. 2026/506 of 23 Apr 2026, Annex XVI: Murmansk, Tuapse). Findings raised on the 3 Jun 2022 date, the 5 Feb 2023 actor, the ports list and the FR/EN caption mismatch. Figure actors for the two cap cuts are EU in content.ts, so the 'coalition' label is not an issue there."
+     },
+     {
+      "note": "o34 / EN 15 (Art. 3m of Reg. 2022/879)",
+      "status": "partly_supported",
+      "comment": "Art. 3m exists and bans crude and products of Russian origin or export; pipeline crude is exempt. 'Par mer' is shorthand (finding raised)."
+     },
+     {
+      "note": "o35 / EN 16 (Reg. 2026/261)",
+      "status": "partly_supported",
+      "comment": "CELEX id, date (26 Jan 2026), recitals 1 and 10 confirmed. Nature of the act and operative articles added (finding raised)."
+     },
+     {
+      "note": "o20 / EN 11 (Treasury jy1795)",
+      "status": "partly_supported",
+      "comment": "12 Oct 2023, Lumber Marine SA and Ice Pearl Navigation Corp, E.O. 14024, confirmed. 'First' is not in the release (finding raised)."
+     },
+     {
+      "note": "o38 / EN 18 (Kpler, 2 Dec 2025)",
+      "status": "partly_supported",
+      "comment": "Price and political reasons are in the source. 'Do not apply the sanctions' goes further than the source (finding raised)."
+     },
+     {
+      "note": "Synthèse bullet 'Prix' (US sanctions on Rosneft and Lukoil)",
+      "status": "supported",
+      "comment": "OFAC Recent Actions 20251022 (https://ofac.treasury.gov/recent-actions/20251022): entries tagged [RUSSIA-EO14024], GL 126 and 127 wind-down. Wind-down end date (21 Nov 2025) is from law-firm sources only, not from the OFAC page; no claim in the report depends on it."
+     },
+     {
+      "note": "§1.2 ownership test (50 % or more)",
+      "status": "partly_supported",
+      "comment": "Correct for OFAC (FAQ 398, 401); different for UK (more than 50 %, no aggregation, control limb) and for EU (control; 50 % or more only in non-binding Best Practices of 3 July 2024). Finding raised. EU Best Practices text itself was not fetched (Skadden and Pinsent Masons summaries only)."
+     },
+     {
+      "note": "o36, o63, o10, o11, o14, o18, o19, o29, o30, o31, o37, o32, o39, o40 (Bruegel, KSE, Minfin, Bank of Russia, Comtrade, World Bank, Eurostat, CREA, Interfax, Carnegie)",
+      "status": "not_checked",
+      "comment": "Statistical or database notes, outside the legal lens. Calculs de l'auteur and the CSV/JSON figure data not checked here (database unreachable)."
+     },
+     {
+      "note": "§1.3 'Au total, 493 nœuds sont critiques' / 'au moins 416' / 'près de 5 200 entités'",
+      "status": "not_checked",
+      "comment": "Database counts, no legal content."
+     }
+    ],
+    "not_checked": "EUR-Lex itself returned empty pages to WebFetch. I read the Official Journal texts through the Publications Office Cellar XHTML copies (publications.europa.eu/resource/cellar/...), so wording rests on the fetch tool's extraction of those copies and not on the EUR-Lex layout. For the long acts I read only the parts I name (Reg. 2025/395 Art. 5ae, Art. 2 and Annex XLVII Part A; Reg. 2026/506 Art. 2 and Annex XVI; Reg. 2025/1494 Art. 3n(11) but not the USD 47.6 annex line or its 3 Sept 2025 date, which I confirmed from gov.uk and Interfax/Brookings). Not fetched: EU Best Practices (Council PDF), Reg. 960/2014, OFAC press release sb0290 and the text of GL 126/127, UK OFSI General Guidance (gov.uk page 404), Council timeline page (403). The wind-down date of 21 Nov 2025 and the US USD 60 position are from secondary sources (WTTL, Brookings Feb 2026), not from an OFAC document. No database note (n-...) and no 'Calculs de l'auteur' note was checked. No listed-person status check (delisting, General Court annulment) was needed in this chunk, as it names no person or entity beyond Rosneft and Lukoil. The 'Des 2022 ... gaz' and Chinese or Indian company compliance facts were not checked against OFAC or Chinese or Indian official texts. I did not edit any file.\""
+   },
+   "remoteControlDeviceReport": false,
+   "toolsUsed": [
+    "Read",
+    "Grep",
+    "Bash",
+    "WebFetch",
+    "WebSearch",
+    "Glob",
+    "StructuredOutput"
+   ]
+  }
+ ]
+}
