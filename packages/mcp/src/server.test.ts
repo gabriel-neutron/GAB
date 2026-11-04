@@ -281,6 +281,31 @@ test('fetch_document runs with the reach that the server was given', async () =>
   expect(puts).toStrictEqual([]);
 });
 
+test('two sessions that upload parts of the same page do not mix their parts', async () => {
+  const reach: Reach = {
+    store: { put: (object) => Promise.resolve(object.key) },
+    now: () => new Date(),
+  };
+  const first = await connected(fakePool(() => []).pool, reach);
+  const second = await connected(fakePool(() => []).pool, reach);
+  const part = (part: number, parts: number) => ({
+    name: 'store_saved_file',
+    arguments: {
+      url: 'https://example.org/a.pdf',
+      content: Buffer.from(`part ${String(part)}`).toString('base64'),
+      type: 'application/pdf',
+      sha256: '0'.repeat(64),
+      part,
+      parts,
+    },
+  });
+  await first.callTool(part(1, 3));
+  await second.callTool(part(1, 2));
+  const result = await first.callTool(part(2, 3));
+  expect(textOf(result)).toContain('"status":"waiting"');
+  expect(isErrorOf(result)).toBe(false);
+});
+
 test('with no reach, fetch_document refuses and names the object store', async () => {
   const client = await connected(fakePool(() => []).pool);
   const result = await client.callTool({
