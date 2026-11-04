@@ -206,6 +206,34 @@ const parsed = (raw: string, base?: URL): URL => {
  * FetchRefusal for an address that is never fetched. */
 export const pageAddress = (raw: string): string => parsed(raw.trim()).href;
 
+// External constraint: the query keys that carry a secret or a signature in the address of an
+// object store or an API (AWS, Google Cloud, Azure, CloudFront, a plain key or token).
+const SECRET_KEYS = new Set([
+  'x-amz-signature',
+  'x-amz-credential',
+  'x-amz-security-token',
+  'x-goog-signature',
+  'x-goog-credential',
+  'googleaccessid',
+  'signature',
+  'sig',
+  'key-pair-id',
+  'api_key',
+  'apikey',
+  'access_token',
+]);
+
+/** True when the address holds a user name, a password or a secret query key. The record publishes
+// the address of each document, so such an address is never stored. */
+export const holdsSecret = (address: string): boolean => {
+  const url = new URL(address);
+  return (
+    url.username !== '' ||
+    url.password !== '' ||
+    [...url.searchParams.keys()].some((key) => SECRET_KEYS.has(key.toLowerCase()))
+  );
+};
+
 /** Refuses a name when one of its addresses is on the machine or on a private network. */
 export const checkHost = async (
   host: string,

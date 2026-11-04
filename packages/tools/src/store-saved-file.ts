@@ -26,6 +26,7 @@ import { addressTitle, htmlTitle } from './fetch-document.ts';
 import { holdsLayers, skippedFileShape, storeArchive, storedFileShape } from './store-archive.ts';
 import { refusedSource } from './refused-source.ts';
 import { storeAnswer } from './store-answer.ts';
+import { holdsSecret } from './fetch-guard.ts';
 import { defineTool, type HeldParts, ToolRefusal } from './tool.ts';
 import { isHtml, unreadablePage } from './unreadable-page.ts';
 
@@ -91,11 +92,13 @@ const fileName = z
   });
 
 // The address of the page in the browser. It names the source of the bytes, and a stored address
-// never holds a user name or a password.
-const sourceAddress = z.url({ protocol: /^https?$/u }).refine((url) => {
-  const parsed = new URL(url);
-  return parsed.username === '' && parsed.password === '';
-}, 'the address holds no user name and no password');
+// never holds a user name, a password or a key.
+const sourceAddress = z
+  .url({ protocol: /^https?$/u })
+  .refine(
+    (url) => !holdsSecret(url),
+    'the address holds no user name, no password and no key: give the address with no secret',
+  );
 
 // A file is read through one open handle, so a file that changes after the checks is not read.
 // A second hard link can name a file outside the inbox, so a file with more than one link is

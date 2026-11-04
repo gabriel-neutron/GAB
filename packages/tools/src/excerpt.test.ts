@@ -90,6 +90,8 @@ describe('cutsToken', () => {
     ['the pro-Kremlin channel', 'Kremlin channel'],
     ['(IMO 9074729)', 'IMO 9074729'],
     ['Rosneft', 'Rosneft'],
+    ['俄罗斯向印度出口石油', '向印度出口'],
+    ['ロシアの石油輸出', 'の石油'],
   ])('a span of whole tokens passes: %s', (page, excerpt) => {
     expect(cut(page, excerpt)).toBe(false);
   });

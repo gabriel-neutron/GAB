@@ -171,8 +171,19 @@ export const findExcerpt = (page: string, excerpt: string): Span | null => {
 
 const TOKEN_MARK = /^[\p{L}\p{N}]$/u;
 const DIGIT = /^\p{Nd}$/u;
+// A script that writes no space between words. Each character can start a word, so an edge
+// between two of its characters cuts nothing that the check can see.
+const NO_SPACE_SCRIPT =
+  /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]$/u;
+// Two characters of one word or one number: a letter or a digit on each side of the edge.
+const joined = (left: string, right: string): boolean =>
+  TOKEN_MARK.test(left) &&
+  TOKEN_MARK.test(right) &&
+  !NO_SPACE_SCRIPT.test(left) &&
+  !NO_SPACE_SCRIPT.test(right);
 // A sign that groups the digits of one number: "12,500", "12.03.2024", "1'000", "1 000" with a
-// no-break space. A plain space is left out, because it also stands between two numbers.
+// no-break space. A plain space is left out, because it also stands between two numbers. A list
+// such as "9074729,9074730" reads as one number too, so its second item is cited with the first.
 const DIGIT_GROUP = /^[.,'\u00A0\u202F]$/u;
 
 /** True when the span starts or ends inside a word or a number of the page: "500" in "12,500",
@@ -186,8 +197,7 @@ export const cutsToken = (page: string, span: Span): boolean => {
   const before = behind.at(-1) ?? '';
   const farBefore = behind.length === 2 ? (behind[0] ?? '') : '';
   const [after = '', farAfter = ''] = Array.from(pointSlice(page, span.end, span.end + 2));
-  if (TOKEN_MARK.test(before) && TOKEN_MARK.test(first)) return true;
-  if (TOKEN_MARK.test(after) && TOKEN_MARK.test(last)) return true;
+  if (joined(before, first) || joined(last, after)) return true;
   if (DIGIT_GROUP.test(before) && DIGIT.test(farBefore) && DIGIT.test(first)) return true;
   return DIGIT_GROUP.test(after) && DIGIT.test(farAfter) && DIGIT.test(last);
 };

@@ -20,6 +20,7 @@ import { checkedRange, documentText, nextShape } from './document-text.ts';
 import {
   FetchRefusal,
   guardedGet,
+  holdsSecret,
   pageAddress,
   type FetchFault,
   type GetOptions,
@@ -402,34 +403,6 @@ const outputShape = z.strictObject({
     .nullable(),
 });
 
-// External constraint: the query keys that carry a secret or a signature in the address of an
-// object store or an API (AWS, Google Cloud, Azure, CloudFront, a plain key or token).
-const SECRET_KEYS = new Set([
-  'x-amz-signature',
-  'x-amz-credential',
-  'x-amz-security-token',
-  'x-goog-signature',
-  'x-goog-credential',
-  'googleaccessid',
-  'signature',
-  'sig',
-  'key-pair-id',
-  'api_key',
-  'apikey',
-  'access_token',
-]);
-
-// True when the address holds a user name, a password or a secret query key. The record publishes
-// the address of each document, so such an address is never stored.
-const holdsSecret = (address: string): boolean => {
-  const url = new URL(address);
-  return (
-    url.username !== '' ||
-    url.password !== '' ||
-    [...url.searchParams.keys()].some((key) => SECRET_KEYS.has(key.toLowerCase()))
-  );
-};
-
 export const fetchDocument = defineTool({
   name: 'fetch_document',
   description:
@@ -499,7 +472,8 @@ export const fetchDocument = defineTool({
     if (URL.canParse(input.url) && holdsSecret(input.url))
       throw new ToolRefusal(
         'the address holds a user name, a password or a key, and the record publishes the ' +
-          'address of each document: give the address with no secret',
+          'address of each document: give the address with no secret, or read the source with ' +
+          'its register tool, which keeps its key out of the address',
       );
 
     const day = reach.now().toISOString().slice(0, 10);
@@ -558,7 +532,9 @@ export const fetchDocument = defineTool({
     } catch (fault) {
       if (!(fault instanceof FetchRefusal)) throw fault;
       // A refusal of the guard holds for every route, so it never spends credits of the proxy.
-      if (key === null || fault.fault?.kind === 'guard') got = await throughChrome(fault);
+      if (fault.fault?.kind === 'guard')
+        throw new ToolRefusal(refusalOfFetch(fault.message, fault.fault));
+      if (key === null) got = await throughChrome(fault);
       else {
         // The Chrome window is free, so a bot filter meets it first; the proxy costs credits.
         try {
