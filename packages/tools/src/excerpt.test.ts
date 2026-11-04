@@ -1,9 +1,9 @@
 // The finder of an excerpt. The span counts code points of the stored page, so the passage that
 // the span cuts from the page is the passage that the excerpt quoted.
 
-import { expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
-import { findExcerpt, MAX_TOLERANT_UNITS, pointSlice } from './excerpt.ts';
+import { cutsToken, findExcerpt, MAX_TOLERANT_UNITS, pointSlice } from './excerpt.ts';
 
 const cut = (page: string, excerpt: string): string | null => {
   const span = findExcerpt(page, excerpt);
@@ -62,4 +62,35 @@ test('a page above the tolerant size keeps the accent rule at a window end and t
   expect(findExcerpt(accent, '“cafe')).toBeNull();
   const astral = `${'😀'.repeat(MAX_TOLERANT_UNITS)}said “no”`;
   expect(findExcerpt(astral, 'said "no"')?.start).toBe(MAX_TOLERANT_UNITS);
+});
+
+describe('cutsToken', () => {
+  const cut = (page: string, excerpt: string): boolean => {
+    const span = findExcerpt(page, excerpt);
+    if (span === null) throw new Error('the page does not hold the excerpt');
+    return cutsToken(page, span);
+  };
+
+  test.each([
+    ['processed 12,500 tonnes', '500 tonnes'],
+    ['Rosneftegaz holds it', 'Rosneft'],
+    ['listed on 12.03.2024', '2.03.2024'],
+    ['a stake of 1.5 million', 'a stake of 1'],
+    ['IMO 19074729', '9074729'],
+    ['the bank Sberbankа', 'Sberbank'],
+  ])('a span cut from a longer token is found: %s', (page, excerpt) => {
+    expect(cut(page, excerpt)).toBe(true);
+  });
+
+  test.each([
+    ['processed 12,500 tonnes', '12,500 tonnes'],
+    ['Rosneftegaz holds it', 'Rosneftegaz'],
+    ['listed on 12.03.2024.', '12.03.2024'],
+    ['in 2024 500 ships sailed', '500 ships'],
+    ['the pro-Kremlin channel', 'Kremlin channel'],
+    ['(IMO 9074729)', 'IMO 9074729'],
+    ['Rosneft', 'Rosneft'],
+  ])('a span of whole tokens passes: %s', (page, excerpt) => {
+    expect(cut(page, excerpt)).toBe(false);
+  });
 });

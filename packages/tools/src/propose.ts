@@ -13,7 +13,7 @@ import { KEY_ADVICE, keyWarnings } from './attribute-key.ts';
 import { plainText } from './check-answer.ts';
 import { UNIQUE_KEYS } from './duplicate-identifier.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
-import { findExcerpt, pointSlice, type Span } from './excerpt.ts';
+import { cutsToken, findExcerpt, pointSlice, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import {
   dateInUrl,
@@ -408,6 +408,14 @@ const cite = async (
       ref,
       `page ${String(given.page)} of ${given.document} does not hold the excerpt ` +
         `${JSON.stringify(given.excerpt)}. Copy the words as the page states them.`,
+    );
+  // A value check reads the passage alone, so a passage cut from a longer word or number would
+  // state what the page does not: "500 tonnes" in "12,500 tonnes".
+  if (cutsToken(page.text, span))
+    refuse(
+      ref,
+      `the excerpt ${JSON.stringify(given.excerpt)} starts or ends inside a word or a number of ` +
+        `page ${String(given.page)} of ${given.document}. Copy whole words and whole numbers.`,
     );
   const passage = pointSlice(page.text, span.start, span.end);
   return {
