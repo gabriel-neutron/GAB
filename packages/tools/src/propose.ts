@@ -809,6 +809,19 @@ const SOURCE_NAMES = `SELECT s.attrs->'imo'->>'v' AS imo, n.name
 
 const squeezed = (text: string): string => text.replace(/\s+/gu, ' ').trim().toLowerCase();
 
+const WORD_MARK = /[\p{L}\p{N}]/u;
+
+// True when the text holds the word whole: "ural" is not in "urals", and 9074729 is not in
+// 19074729.
+const holdsWhole = (text: string, word: string): boolean => {
+  for (let at = text.indexOf(word); at !== -1; at = text.indexOf(word, at + 1)) {
+    const before = text.slice(0, at).at(-1) ?? '';
+    const after = text.slice(at + word.length)[0] ?? '';
+    if (!WORD_MARK.test(before) && !WORD_MARK.test(after)) return true;
+  }
+  return false;
+};
+
 // A name under this length is too short to prove that an excerpt is about the relation.
 const MIN_NAME = 4;
 
@@ -838,7 +851,9 @@ const checkSourceNames = async (
         .map((one) => one.passage)
         .join(' '),
     );
-    return (imo !== undefined && text.includes(imo)) || names.some((name) => text.includes(name));
+    return (
+      (imo !== undefined && holdsWhole(text, imo)) || names.some((name) => holdsWhole(text, name))
+    );
   };
   if ([...new Set(cited.map((one) => one.document))].every(namesIt)) return;
   refuse(
