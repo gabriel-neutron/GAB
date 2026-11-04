@@ -179,3 +179,27 @@ describe('the headers of a part of a page', () => {
     });
   });
 });
+
+describe('a body that stops', () => {
+  test('a body that does not end in time is refused for the time, not as an unreachable address', async () => {
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { 'content-type': 'text/plain', 'content-length': '100' });
+      response.write('partial');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    try {
+      await expect(
+        guardedGet(`http://127.0.0.1:${String(port)}/`, {
+          maxBytes: 1024,
+          timeoutMs: 300,
+          maxRedirects: 0,
+          refuses: () => false,
+        }),
+      ).rejects.toThrow(/gave no whole answer within 0.3 seconds/u);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+});
