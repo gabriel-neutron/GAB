@@ -378,7 +378,8 @@ export const guardedGet = async (raw: string, options: GetOptions): Promise<Got>
         bytes,
       };
     } catch (fault) {
-      throw asRefusal(fault, options.timeoutMs);
+      // Node ends a body that the timeout stops with ECONNRESET, so the signal names the cause.
+      throw asRefusal(signal.aborted ? signal.reason : fault, options.timeoutMs);
     }
   }
 };
