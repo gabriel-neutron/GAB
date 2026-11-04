@@ -394,9 +394,11 @@ export function mountGraph(
   // forces a layout of the page.
   const nameBoxes = new Map<HTMLElement, { readonly width: number; readonly height: number }>();
   // A web font that loads after the first measure changes each width.
-  void document.fonts.ready.then(() => {
+  const onFontLoaded = (): void => {
+    if (destroyed) return;
     nameBoxes.clear();
-  });
+    sigma.scheduleRender();
+  };
 
   function nameReach(): void {
     const degreeOf = (node: string): number => model.graph.getNodeAttribute(node, 'degree');
@@ -957,6 +959,7 @@ export function mountGraph(
   // The first render occurs inside the constructor of Sigma, so this listener never hears that
   // first frame. One refresh, after the listener exists, puts the ring and each marker up.
   sigma.on('afterRender', drawOverlay);
+  document.fonts.addEventListener('loadingdone', onFontLoaded);
   sigma.refresh();
 
   // The shown nodes and relations pull the layout. A switch of a type or a family starts a new
@@ -1127,7 +1130,6 @@ export function mountGraph(
     fitCamera(nearOf(), SELECT_RATIO);
   };
 
-  // The picking layer of Sigma answers with a dimmed node as well, so the guard is in the call.
   // A drag or a wheel on the canvas is a camera move of the reader as well.
   for (const event of [
     'downStage',
@@ -1140,6 +1142,7 @@ export function mountGraph(
     sigma.on(event, stopRefit);
   }
 
+  // The picking layer of Sigma answers with a dimmed node as well, so the guard is in the call.
   sigma.on('clickNode', ({ node }) => {
     selectEntity(node);
   });
@@ -1311,9 +1314,11 @@ export function mountGraph(
       settle(acceptable(selection));
     },
     setPreset: (id) => {
-      if (destroyed || id === preset) return;
+      if (destroyed) return;
+      // A link can show All for this open only, so a click on the preset on screen still stores it.
+      patchGraphWorkspace({ preset: id });
+      if (id === preset) return;
       preset = id;
-      patchGraphWorkspace({ preset });
       applyPreset();
       refitting = true;
       if (refitTimer !== null) window.clearTimeout(refitTimer);
@@ -1390,6 +1395,7 @@ export function mountGraph(
       return () => selectListeners.delete(listener);
     },
     destroy: () => {
+      document.fonts.removeEventListener('loadingdone', onFontLoaded);
       if (refitTimer !== null) window.clearTimeout(refitTimer);
       liveLayout.destroy();
       cancelAnimationFrame(moveFrame);
