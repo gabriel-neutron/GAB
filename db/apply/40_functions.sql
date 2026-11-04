@@ -1014,7 +1014,12 @@ BEGIN
     SELECT a.absorbed_id, a.survivor_id INTO v_absorbed, v_survivor
       FROM public.entity_alias a
      WHERE a.absorbed_id = v_target OR a.absorbed_id = ANY (v_names)
-        OR a.absorbed_id::text IN (v_payload::jsonb->>'src_id', v_payload::jsonb->>'dst_id')
+        -- As uuid and not as text: the shape accepts each spelling of a uuid. The cast is in the
+        -- select list, so an end that is no uuid reaches the refusal of the shape.
+        OR a.absorbed_id IN (SELECT x::uuid
+                               FROM unnest(ARRAY[v_payload::jsonb->>'src_id',
+                                                 v_payload::jsonb->>'dst_id']) AS x
+                              WHERE pg_input_is_valid(x, 'uuid'))
      LIMIT 1;
     IF FOUND THEN
       RAISE EXCEPTION 'item %: a merge absorbed the entity % into the entity %, so the act names '
@@ -1719,8 +1724,11 @@ BEGIN
                 AND ((o.target_kind = 'entity' AND o.target_id = p_absorbed)
                      OR (o.target_kind = 'relation' AND o.target_id = ANY (v_dropped))
                      OR p_absorbed = ANY (o.names)
-                     OR o.payload->>'src_id' = p_absorbed::text
-                     OR o.payload->>'dst_id' = p_absorbed::text)) THEN
+                     -- As uuid and not as text: the shape accepts each spelling of a uuid.
+                     OR p_absorbed IN (SELECT x::uuid
+                                         FROM unnest(ARRAY[o.payload->>'src_id',
+                                                           o.payload->>'dst_id']) AS x
+                                        WHERE pg_input_is_valid(x, 'uuid')))) THEN
     RAISE EXCEPTION 'an act that waits names the absorbed entity, or a relation that the merge '
                     'removes: decide it first, and then merge the two entities'
       USING CONSTRAINT = 'merge_absorbed_free', HINT = 'absorbedId';
@@ -2500,7 +2508,8 @@ BEGIN
               UNION SELECT c.doc_id::text FROM public.citation c WHERE c.claim_id = v_twin.id));
       UPDATE public.proposals
          SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
-             decided_as = 'rule', reject_reason = 'duplicate',
+             -- The mode of the promotion: 'rule' only when a named rule promoted the act.
+             decided_as = p_mode, reject_reason = 'duplicate',
              reject_note = 'the same fact as the act ' || p.id || ', which is promoted',
              decision_origin = 'closed when the act ' || p.id || ' was promoted'
        WHERE id = v_twin.id;
@@ -6746,7 +6755,13 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'job % is not running, and only a running job completes', p_id;
   END IF;
-  PERFORM public.run_rules(public.units_of_job(p_id));
+  -- As in fail_job: a rule that raises must not undo the end of the job, because the runner then
+  -- fails a job whose proposals are written. The rules read the units again at the next decision.
+  BEGIN
+    PERFORM public.run_rules(public.units_of_job(p_id));
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'the rules of the completed job % raised: %', p_id, SQLERRM;
+  END;
   RETURN v_status;
 END $$;
 
@@ -6807,8 +6822,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
              JOIN public.document_provider p ON p.id = d.provider_id
             WHERE d.id = p_document
               AND d.id <> 'inherited'
-              AND p.licence IN ('public-domain', 'eu-reuse', 'ogl-v3', 'cc0', 'cc-by-4.0',
-                                'copernicus', 'own'))
+              AND p.licence IN (SELECT l.licence FROM public.open_licence l))
          THEN 'cc-by' ELSE 'internal' END
 $$;
 
@@ -6835,7 +6849,9 @@ SET search_path = pg_catalog, public, pg_temp AS $$
       JOIN api.relation r
         ON r.src_kind = 'entity' AND r.dst_kind = 'entity'
        AND (r.src_id = w.entity_id OR r.dst_id = w.entity_id)
-     WHERE w.hop < depth
+     -- A cap on the depth: the walk keeps no visited set, so its cost grows with the depth.
+     -- The agent tool asks for 3 at most.
+     WHERE w.hop < least(depth, 6)
   )
   SELECT entity_id, min(hop) FROM walk GROUP BY entity_id;
 $$;
@@ -7949,6 +7965,17 @@ BEGIN
     FROM public.rule_config c WHERE c.rule = 'weak_sources';
   IF coalesce(v_tokens, 0) <= 0 OR EXISTS (SELECT 1 FROM public.deepening WHERE unit_id = p_unit)
   THEN
+    RETURN;
+  END IF;
+  -- A unit that is blocked, or that waits for another unit, is not weak: the rules read it again
+  -- when it is free. A search adds sources to a fact of a known author only, so a unit with an
+  -- act of no author (a mapping, an act of the operator) gets no search.
+  IF EXISTS (SELECT 1 FROM public.unit_faults(ARRAY[p_unit]) AS f
+                CROSS JOIN LATERAL jsonb_array_elements(f.faults) AS x
+               WHERE x->>'level' IN ('blocks', 'waits'))
+     OR EXISTS (SELECT 1 FROM public.proposals a
+                 WHERE a.unit_id = p_unit AND a.status = 'pending'
+                   AND (a.originator IS NULL OR a.op = 'map_document')) THEN
     RETURN;
   END IF;
   IF EXISTS (SELECT 1 FROM public.proposals a
