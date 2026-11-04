@@ -600,18 +600,20 @@ const guarded = async (response: Response, env: Env, origin: string): Promise<Re
   return out;
 };
 
-// The header is fixed for one build, so the worker reads it once for each binding. A failed read
-// gives no header and no error.
-const robotsRead = new WeakMap<Env['ASSETS'], Promise<string | null>>();
-const robotsOf = (env: Env, origin: string): Promise<string | null> => {
-  const known = robotsRead.get(env.ASSETS);
-  if (known !== undefined) return known;
-  const read = env.ASSETS.fetch(new Request(`${origin}/favicon.svg`)).then(
-    (closed) => closed.headers.get('x-robots-tag'),
-    () => null,
-  );
-  robotsRead.set(env.ASSETS, read);
-  return read;
+// The header is fixed for one build, so the worker keeps the answer of one good read for each
+// binding. A failed read gives no header for this answer only, and the next answer reads again.
+const robotsRead = new WeakMap<Env['ASSETS'], string | null>();
+const robotsOf = async (env: Env, origin: string): Promise<string | null> => {
+  if (robotsRead.has(env.ASSETS)) return robotsRead.get(env.ASSETS) ?? null;
+  try {
+    const closed = await env.ASSETS.fetch(new Request(`${origin}/favicon.svg`));
+    if (!closed.ok) return null;
+    const robots = closed.headers.get('x-robots-tag');
+    robotsRead.set(env.ASSETS, robots);
+    return robots;
+  } catch {
+    return null;
+  }
 };
 
 const answer = async (request: Request, env: Env): Promise<Response> => {
