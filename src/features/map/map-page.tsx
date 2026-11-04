@@ -182,9 +182,11 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation, mapRef }: M
         >
           Types
         </button>
-        {mapReady ? <GroundControl key={mounts} map={mapRef} /> : null}
+        {mapReady ? <GroundControl key={`ground ${String(mounts)}`} map={mapRef} /> : null}
         <FamilyLegend links={projection.links} />
-        {mapReady ? <ChainControl key={mounts} map={mapRef} steps={chain.steps} /> : null}
+        {mapReady ? (
+          <ChainControl key={`chain ${String(mounts)}`} map={mapRef} steps={chain.steps} />
+        ) : null}
       </div>
     </div>
   );
