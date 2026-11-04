@@ -22,8 +22,16 @@ export const metaCommands = (script: string): string[] => {
     const char = script[at] ?? '';
     const before = at === 0 ? '' : (script[at - 1] ?? '');
     if (script.startsWith('--', at)) at = lineEnd(at);
-    else if (script.startsWith('/*', at)) at = skipTo('*/', at + 2);
-    else if (char === "'") {
+    else if (script.startsWith('/*', at)) {
+      // A block comment nests, as in PostgreSQL.
+      let depth = 1;
+      at += 2;
+      while (at < script.length && depth > 0) {
+        if (script.startsWith('/*', at)) [depth, at] = [depth + 1, at + 2];
+        else if (script.startsWith('*/', at)) [depth, at] = [depth - 1, at + 2];
+        else at += 1;
+      }
+    } else if (char === "'") {
       // An E string takes a backslash as an escape. In each string, two quotes are one quote.
       const escapes = /[eE]/u.test(before) && !WORD.test(script[at - 2] ?? '');
       at += 1;
@@ -46,9 +54,10 @@ export const metaCommands = (script: string): string[] => {
       const name = /^[a-zA-Z!?]*\+?/u.exec(script.slice(at + 1))?.[0] ?? '';
       found.push(name);
       // The arguments of a meta-command take other rules: a quote takes a backslash as an escape,
-      // and a second backslash starts a new meta-command. So the guard refuses each backslash there.
+      // a second backslash starts a new meta-command, and a backtick runs a shell. So the guard
+      // refuses each backslash and each backtick there.
       const end = lineEnd(at);
-      if (script.slice(at + 1 + name.length, end).includes('\\')) found.push('\\');
+      if (/[\\`]/u.test(script.slice(at + 1 + name.length, end))) found.push('\\');
       at = end;
     } else at += 1;
   }
