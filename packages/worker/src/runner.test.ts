@@ -315,6 +315,38 @@ describe('the runner and the lock that keeps one runner alive', () => {
     expect(fake.released).toHaveLength(1);
   });
 
+  it('waits for the lock that the dead session still holds after a lost connection', async () => {
+    const fake = scripted([
+      () => {
+        throw fault('ECONNRESET');
+      },
+      () => EMPTY,
+    ]);
+    // The first try after the lost connection finds the lock still held, and the next try takes it.
+    let tries = 0;
+    const lock = async () => {
+      const inner = await fake.lock();
+      return {
+        ...inner,
+        query: async (text: string) => {
+          const answer = await inner.query(text);
+          tries += 1;
+          return tries === 3 ? { rows: [{ locked: false }] } : answer;
+        },
+      };
+    };
+    const runner = await openRunner({
+      db: fake.db,
+      lock,
+      agents: [agentOf(() => Promise.resolve({ refusals: [] }))],
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    });
+    await expect(runner.run(fake.stop.signal)).resolves.toBeUndefined();
+    expect(fake.count('pg_try_advisory_lock')).toBe(4);
+    expect(fake.count('claim_job')).toBe(2);
+  });
+
   it('stops when the lock was lost with no sign and another runner holds it', async () => {
     const holder: { take?: () => void } = {};
     const fake = scripted([
