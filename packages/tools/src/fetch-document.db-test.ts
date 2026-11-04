@@ -127,6 +127,14 @@ beforeAll(async () => {
     '/photo.jpg': { headers: { 'content-type': 'image/jpeg' }, body: jpeg },
     '/entry.html': { headers: { 'content-type': 'text/html; charset=utf-8' }, body: HTML },
     '/moved': { status: 301, headers: { location: '/entry.html' } },
+    '/signed-redirect': {
+      status: 302,
+      headers: { location: '/signed.txt?X-Amz-Security-Token=secret&X-Amz-Signature=abc' },
+    },
+    '/signed.txt?X-Amz-Security-Token=secret&X-Amz-Signature=abc': {
+      headers: { 'content-type': 'text/plain' },
+      body: `A signed answer of run ${RUN}.`,
+    },
     '/app': { headers: { 'content-type': 'text/html' }, body: SHORT },
     [ENTSOG_QUERY]: {
       headers: { 'content-type': 'application/json; charset=utf-8' },
@@ -252,6 +260,17 @@ test('an HTML page is stored with its text, and a second call returns it as know
     expect(store.puts).toHaveLength(1);
     const [again] = z.array(documentRow).parse(await ask(ROW, [sha]));
     expect(again).toStrictEqual(row);
+  });
+});
+
+test('a redirect to a signed address stores the address that was asked for, and no secret', async () => {
+  const sha = shaOf(`A signed answer of run ${RUN}.`);
+  await rolledBack('research', async (ask) => {
+    const got = await fetched(ask, `${base}/signed-redirect`, fixtureReach(memoryStore()));
+    expect(got.status).toBe('stored');
+    expect(got.url).toBe(`${base}/signed-redirect`);
+    const [row] = z.array(documentRow).parse(await ask(ROW, [sha]));
+    expect(row?.uri).toBe(`${base}/signed-redirect`);
   });
 });
 

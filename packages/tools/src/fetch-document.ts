@@ -20,6 +20,8 @@ import { checkedRange, documentText, nextShape } from './document-text.ts';
 import {
   FetchRefusal,
   guardedGet,
+  holdsSecret,
+  pageAddress,
   type FetchFault,
   type GetOptions,
   type Got,
@@ -467,6 +469,12 @@ export const fetchDocument = defineTool({
     const toPage = checkedRange(input.fromPage, input.toPage);
     const refused = refusedSource(input.url);
     if (refused !== null) throw new ToolRefusal(refused);
+    if (URL.canParse(input.url) && holdsSecret(input.url))
+      throw new ToolRefusal(
+        'the address holds a user name, a password or a key, and the record publishes the ' +
+          'address of each document: give the address with no secret, or read the source with ' +
+          'its register tool, which keeps its key out of the address',
+      );
 
     const day = reach.now().toISOString().slice(0, 10);
     const getOptions: GetOptions = {
@@ -523,6 +531,9 @@ export const fetchDocument = defineTool({
       if (key !== null && isBlockPage(got.bytes)) got = await viaProxy(key);
     } catch (fault) {
       if (!(fault instanceof FetchRefusal)) throw fault;
+      // A refusal of the guard holds for every route, so it never spends credits of the proxy.
+      if (fault.fault?.kind === 'guard')
+        throw new ToolRefusal(refusalOfFetch(fault.message, fault.fault));
       if (key === null) got = await throughChrome(fault);
       else {
         // The Chrome window is free, so a bot filter meets it first; the proxy costs credits.
@@ -544,6 +555,9 @@ export const fetchDocument = defineTool({
     // A redirect can lead to an address that is no source.
     const redirected = refusedSource(got.url);
     if (redirected !== null) throw new ToolRefusal(redirected);
+    // A redirect to a signed address (an object store) gives a secret that expires: the record
+    // keeps the address that was asked for.
+    if (holdsSecret(got.url)) got = { ...got, url: pageAddress(input.url) };
     // The stored bytes are the page that the server encoded, not its compressed form, so their
     // text is read and an excerpt is checked on them.
     got = {

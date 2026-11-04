@@ -24,7 +24,13 @@ export interface Resolved {
 
 /** What made the fetch fail: an answer that is not a success (with its status), or no answer. */
 export type FetchFault =
-  { readonly kind: 'status'; readonly status: number } | { readonly kind: 'silent' };
+  | { readonly kind: 'status'; readonly status: number }
+  | { readonly kind: 'silent' }
+  // The guard refused the read by its own rule (an address, a scheme, the size, the redirects).
+  // Another route to the same address meets the same rule, so no fallback takes such a read.
+  | { readonly kind: 'guard' };
+
+const GUARD: FetchFault = { kind: 'guard' };
 
 /** A fetch that this module declines, with the one sentence that says why. */
 export class FetchRefusal extends Error {
@@ -175,6 +181,7 @@ const systemLookup = async (host: string): Promise<readonly Resolved[]> =>
 const refusedSentence = (address: string): FetchRefusal =>
   new FetchRefusal(
     `the address ${address} is on the machine or on a private network, and it is refused`,
+    GUARD,
   );
 
 const parsed = (raw: string, base?: URL): URL => {
@@ -182,11 +189,12 @@ const parsed = (raw: string, base?: URL): URL => {
   try {
     url = new URL(raw, base);
   } catch {
-    throw new FetchRefusal(`"${raw}" is not an address`);
+    throw new FetchRefusal(`"${raw}" is not an address`, GUARD);
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:')
     throw new FetchRefusal(
       `only an http or an https address is fetched, and this one is ${url.protocol.replace(/:$/u, '')}`,
+      GUARD,
     );
   // A client never sends the fragment, so two addresses that differ only in it give one page, and
   // the page is stored under one address.
@@ -197,6 +205,34 @@ const parsed = (raw: string, base?: URL): URL => {
 /** The address under which a fetch stores the page of `raw`, before any redirect. It throws a
  * FetchRefusal for an address that is never fetched. */
 export const pageAddress = (raw: string): string => parsed(raw.trim()).href;
+
+// External constraint: the query keys that carry a secret or a signature in the address of an
+// object store or an API (AWS, Google Cloud, Azure, CloudFront, a plain key or token).
+const SECRET_KEYS = new Set([
+  'x-amz-signature',
+  'x-amz-credential',
+  'x-amz-security-token',
+  'x-goog-signature',
+  'x-goog-credential',
+  'googleaccessid',
+  'signature',
+  'sig',
+  'key-pair-id',
+  'api_key',
+  'apikey',
+  'access_token',
+]);
+
+/** True when the address holds a user name, a password or a secret query key. The record publishes
+ * the address of each document, so such an address is never stored. */
+export const holdsSecret = (address: string): boolean => {
+  const url = new URL(address);
+  return (
+    url.username !== '' ||
+    url.password !== '' ||
+    [...url.searchParams.keys()].some((key) => SECRET_KEYS.has(key.toLowerCase()))
+  );
+};
 
 /** Refuses a name when one of its addresses is on the machine or on a private network. */
 export const checkHost = async (
@@ -284,7 +320,10 @@ const opened = (url: URL, options: RequestOptions): Promise<IncomingMessage> =>
   });
 
 const overCap = (maxBytes: number): FetchRefusal =>
-  new FetchRefusal(`the answer is larger than the cap of ${maxBytes} bytes, and nothing is kept`);
+  new FetchRefusal(
+    `the answer is larger than the cap of ${maxBytes} bytes, and nothing is kept`,
+    GUARD,
+  );
 
 const bodyOf = (response: IncomingMessage, maxBytes: number): Promise<Uint8Array> =>
   new Promise((resolve, reject) => {
@@ -356,7 +395,10 @@ export const guardedGet = async (raw: string, options: GetOptions): Promise<Got>
         if (location === undefined || location === '')
           throw new FetchRefusal(`the server answered ${status} and named no new address`);
         if (hop >= options.maxRedirects)
-          throw new FetchRefusal(`the address gave more than ${options.maxRedirects} redirects`);
+          throw new FetchRefusal(
+            `the address gave more than ${options.maxRedirects} redirects`,
+            GUARD,
+          );
         url = parsed(location, url);
         continue;
       }
@@ -378,7 +420,8 @@ export const guardedGet = async (raw: string, options: GetOptions): Promise<Got>
         bytes,
       };
     } catch (fault) {
-      throw asRefusal(fault, options.timeoutMs);
+      // Node ends a body that the timeout stops with ECONNRESET, so the signal names the cause.
+      throw asRefusal(signal.aborted ? signal.reason : fault, options.timeoutMs);
     }
   }
 };

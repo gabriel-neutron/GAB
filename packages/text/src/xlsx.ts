@@ -61,7 +61,9 @@ const decoded = (text: string): string =>
       const point = Number.parseInt(name.slice(hex ? 2 : 1), hex ? 16 : 10);
       return point <= LAST_CODE_POINT ? String.fromCodePoint(point) : whole;
     }
-    return ENTITIES[name.toLowerCase()] ?? whole;
+    // An own name only: "&constructor;" names no entity, not a member of every object.
+    const key = name.toLowerCase();
+    return Object.hasOwn(ENTITIES, key) ? (ENTITIES[key] ?? whole) : whole;
   });
 
 const attribute = (tag: string, name: string): string | undefined => {

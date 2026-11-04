@@ -14,7 +14,7 @@ import { KEY_ADVICE, keyWarnings } from './attribute-key.ts';
 import { plainText } from './check-answer.ts';
 import { UNIQUE_KEYS } from './duplicate-identifier.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
-import { findExcerpt, pointSlice, type Span } from './excerpt.ts';
+import { cutsToken, findExcerpt, pointSlice, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import {
   dateInUrl,
@@ -410,6 +410,14 @@ const cite = async (
       `page ${String(given.page)} of ${given.document} does not hold the excerpt ` +
         `${JSON.stringify(given.excerpt)}. Copy the words as the page states them.`,
     );
+  // A value check reads the passage alone, so a passage cut from a longer word or number would
+  // state what the page does not: "500 tonnes" in "12,500 tonnes".
+  if (cutsToken(page.text, span))
+    refuse(
+      ref,
+      `the excerpt ${JSON.stringify(given.excerpt)} starts or ends inside a word or a number of ` +
+        `page ${String(given.page)} of ${given.document}. Copy whole words and whole numbers.`,
+    );
   const passage = pointSlice(page.text, span.start, span.end);
   return {
     document: given.document,
@@ -646,7 +654,8 @@ const checkNewIdentifiers = async (
     const held = act.attrs?.[key]?.v;
     for (const value of Array.isArray(held) ? held : [held]) {
       if (typeof value !== 'string' && typeof value !== 'number') continue;
-      const at = JSON.stringify([key, String(value).replace(/[\s-]/gu, '').toUpperCase()]);
+      const plain = String(value).replace(/[\s-]/gu, '').toUpperCase();
+      const at = JSON.stringify([key, plain]);
       const earlier = batch.get(at);
       if (earlier !== undefined && earlier !== act.label)
         refuse(
@@ -654,8 +663,12 @@ const checkNewIdentifiers = async (
           `the ${key} ${String(value)} is on another new entity of the batch (${earlier})`,
         );
       batch.set(at, act.label);
-      const shapes = identifierContainment(key, String(value)).map((shape) =>
-        JSON.stringify(shape),
+      // The value as given and in its plain form ("HE 123456" and "HE123456"), so a held plain
+      // value is found. Each shape reaches the GIN index on the attributes.
+      // shortcut: a held value that has a space or a hyphen ("HE-123456") is not found here, and
+      // the report of duplicates finds it; normalize the stored identifiers if the gap shows.
+      const shapes = [...new Set([String(value), plain])].flatMap((one) =>
+        identifierContainment(key, one).map((shape) => JSON.stringify(shape)),
       );
       const [holder] = await rowsOf(
         session,
@@ -809,6 +822,19 @@ const SOURCE_NAMES = `SELECT s.attrs->'imo'->>'v' AS imo, n.name
 
 const squeezed = (text: string): string => text.replace(/\s+/gu, ' ').trim().toLowerCase();
 
+const WORD_MARK = /[\p{L}\p{N}]/u;
+
+// True when the text holds the word whole: "ural" is not in "urals", and 9074729 is not in
+// 19074729.
+const holdsWhole = (text: string, word: string): boolean => {
+  for (let at = text.indexOf(word); at !== -1; at = text.indexOf(word, at + 1)) {
+    const before = text.slice(0, at).at(-1) ?? '';
+    const after = text.slice(at + word.length)[0] ?? '';
+    if (!WORD_MARK.test(before) && !WORD_MARK.test(after)) return true;
+  }
+  return false;
+};
+
 // A name under this length is too short to prove that an excerpt is about the relation.
 const MIN_NAME = 4;
 
@@ -838,7 +864,9 @@ const checkSourceNames = async (
         .map((one) => one.passage)
         .join(' '),
     );
-    return (imo !== undefined && text.includes(imo)) || names.some((name) => text.includes(name));
+    return (
+      (imo !== undefined && holdsWhole(text, imo)) || names.some((name) => holdsWhole(text, name))
+    );
   };
   if ([...new Set(cited.map((one) => one.document))].every(namesIt)) return;
   refuse(

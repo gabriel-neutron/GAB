@@ -139,6 +139,10 @@ async function* features(input: TableInput, layer: string): AsyncGenerator<Featu
   }
 }
 
+// A feature with no such property gives no value: "constructor" is not read from the prototype.
+const ownValue = (properties: Readonly<Record<string, unknown>>, key: string): unknown =>
+  Object.hasOwn(properties, key) ? properties[key] : undefined;
+
 const cellOf = (value: unknown): string => {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') return value;
@@ -178,10 +182,16 @@ export const layerCsv = async (
 
   const kept = new KeptRows();
   for await (const feature of features(input, layer)) {
-    if (filter !== undefined && cellOf(feature.properties[filter.column]).trim() !== filter.value)
+    if (
+      filter !== undefined &&
+      cellOf(ownValue(feature.properties, filter.column)).trim() !== filter.value
+    )
       continue;
     kept.add(
-      [...[...keys].map((key) => cellOf(feature.properties[key])), cellOf(feature.geometry)],
+      [
+        ...[...keys].map((key) => cellOf(ownValue(feature.properties, key))),
+        cellOf(feature.geometry),
+      ],
       `layer "${layer}"`,
     );
     if (maxRows !== undefined && kept.length >= maxRows) break;
