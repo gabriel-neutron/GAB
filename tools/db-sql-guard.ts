@@ -10,6 +10,10 @@ const WORD = /[\w$]/u;
 export const metaCommands = (script: string): string[] => {
   const found: string[] = [];
   let at = 0;
+  const lineEnd = (from: number): number => {
+    const next = script.slice(from).search(/[\n\r]/u);
+    return next === -1 ? script.length : from + next + 1;
+  };
   const skipTo = (end: string, from: number): number => {
     const next = script.indexOf(end, from);
     return next === -1 ? script.length : next + end.length;
@@ -17,7 +21,7 @@ export const metaCommands = (script: string): string[] => {
   while (at < script.length) {
     const char = script[at] ?? '';
     const before = at === 0 ? '' : (script[at - 1] ?? '');
-    if (script.startsWith('--', at)) at = skipTo('\n', at);
+    if (script.startsWith('--', at)) at = lineEnd(at);
     else if (script.startsWith('/*', at)) at = skipTo('*/', at + 2);
     else if (char === "'") {
       // An E string takes a backslash as an escape. In each string, two quotes are one quote.
@@ -41,7 +45,11 @@ export const metaCommands = (script: string): string[] => {
     } else if (char === '\\') {
       const name = /^[a-zA-Z!?]*\+?/u.exec(script.slice(at + 1))?.[0] ?? '';
       found.push(name);
-      at += 1 + Math.max(name.length, 1);
+      // The arguments of a meta-command take other rules: a quote takes a backslash as an escape,
+      // and a second backslash starts a new meta-command. So the guard refuses each backslash there.
+      const end = lineEnd(at);
+      if (script.slice(at + 1 + name.length, end).includes('\\')) found.push('\\');
+      at = end;
     } else at += 1;
   }
   return found;
