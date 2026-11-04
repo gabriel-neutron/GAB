@@ -347,6 +347,33 @@ describe('the runner and the lock that keeps one runner alive', () => {
     expect(fake.count('claim_job')).toBe(2);
   });
 
+  it('stops after a lost connection when the lock stays held for longer than the wait', async () => {
+    const holder: { take?: () => void } = {};
+    const fake = scripted([
+      () => {
+        holder.take?.();
+        throw fault('ECONNRESET');
+      },
+      () => EMPTY,
+    ]);
+    holder.take = fake.takeAway;
+    const sleeps: number[] = [];
+    const runner = await openRunner({
+      db: fake.db,
+      lock: fake.lock,
+      agents: [agentOf(() => Promise.resolve({ refusals: [] }))],
+      sleep: (ms) => {
+        sleeps.push(ms);
+        return Promise.resolve();
+      },
+      now: () => 0,
+    });
+    await expect(runner.run(fake.stop.signal)).rejects.toThrow('Another runner is running');
+    expect(fake.count('claim_job')).toBe(1);
+    // The waits of the lock end after about 8,000 s, at one wait of one second each.
+    expect(sleeps.reduce((sum, ms) => sum + ms, 0)).toBeGreaterThanOrEqual(8_000_000);
+  });
+
   it('stops when the lock was lost with no sign and another runner holds it', async () => {
     const holder: { take?: () => void } = {};
     const fake = scripted([

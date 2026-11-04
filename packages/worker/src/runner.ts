@@ -20,10 +20,10 @@ import { layoutRefresher } from './layout-refresh.ts';
 import type { Queryable } from './queryable.ts';
 import type { ModelConfig } from './reader-config.ts';
 
-// Origin of the number: a dead session holds its lock until the server sees that it is dead. The
-// tries cover that time when the server checks its idle connections every few minutes; a runner
-// that still finds the lock held after them stops, as at its start.
-const LOCK_RECOVERY_TRIES = 30;
+// A dead session holds its lock until the server sees that it is dead. Origin of the number: with
+// the default TCP keepalive of Linux, the server sees it after 7,200 s of idle time and 9 probes of
+// 75 s, that is 7,875 s. The runner waits a little longer, and then it stops, as at its start.
+const LOCK_RECOVERY_MS = 8_000_000;
 const SETTINGS = 'SELECT empty_wait_seconds FROM public.runner_settings()';
 const TRY_LOCK = 'SELECT pg_try_advisory_lock($1::bigint) AS locked';
 const REQUEUE = 'SELECT public.requeue_running_jobs()';
@@ -378,10 +378,11 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
         } catch (error) {
           // After a lost connection, the dead session of this runner can keep the lock until the
           // server sees that it is dead. The runner waits for it, and claims nothing in the wait.
-          if (lost && error instanceof LockBusy && busy < LOCK_RECOVERY_TRIES) {
+          const wait = settings.empty_wait_seconds * MS;
+          if (lost && error instanceof LockBusy && busy * wait < LOCK_RECOVERY_MS) {
             busy += 1;
             console.error('the lock is still held after a lost connection, and the runner waits');
-            await deps.sleep(settings.empty_wait_seconds * MS);
+            await deps.sleep(wait);
             continue;
           }
           if (!isConnectionFault(error)) throw error;
