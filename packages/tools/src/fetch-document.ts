@@ -20,6 +20,7 @@ import { checkedRange, documentText, nextShape } from './document-text.ts';
 import {
   FetchRefusal,
   guardedGet,
+  pageAddress,
   type FetchFault,
   type GetOptions,
   type Got,
@@ -401,6 +402,34 @@ const outputShape = z.strictObject({
     .nullable(),
 });
 
+// External constraint: the query keys that carry a secret or a signature in the address of an
+// object store or an API (AWS, Google Cloud, Azure, CloudFront, a plain key or token).
+const SECRET_KEYS = new Set([
+  'x-amz-signature',
+  'x-amz-credential',
+  'x-amz-security-token',
+  'x-goog-signature',
+  'x-goog-credential',
+  'googleaccessid',
+  'signature',
+  'sig',
+  'key-pair-id',
+  'api_key',
+  'apikey',
+  'access_token',
+]);
+
+// True when the address holds a user name, a password or a secret query key. The record publishes
+// the address of each document, so such an address is never stored.
+const holdsSecret = (address: string): boolean => {
+  const url = new URL(address);
+  return (
+    url.username !== '' ||
+    url.password !== '' ||
+    [...url.searchParams.keys()].some((key) => SECRET_KEYS.has(key.toLowerCase()))
+  );
+};
+
 export const fetchDocument = defineTool({
   name: 'fetch_document',
   description:
@@ -467,6 +496,11 @@ export const fetchDocument = defineTool({
     const toPage = checkedRange(input.fromPage, input.toPage);
     const refused = refusedSource(input.url);
     if (refused !== null) throw new ToolRefusal(refused);
+    if (URL.canParse(input.url) && holdsSecret(input.url))
+      throw new ToolRefusal(
+        'the address holds a user name, a password or a key, and the record publishes the ' +
+          'address of each document: give the address with no secret',
+      );
 
     const day = reach.now().toISOString().slice(0, 10);
     const getOptions: GetOptions = {
@@ -545,6 +579,9 @@ export const fetchDocument = defineTool({
     // A redirect can lead to an address that is no source.
     const redirected = refusedSource(got.url);
     if (redirected !== null) throw new ToolRefusal(redirected);
+    // A redirect to a signed address (an object store) gives a secret that expires: the record
+    // keeps the address that was asked for.
+    if (holdsSecret(got.url)) got = { ...got, url: pageAddress(input.url) };
     // The stored bytes are the page that the server encoded, not its compressed form, so their
     // text is read and an excerpt is checked on them.
     got = {

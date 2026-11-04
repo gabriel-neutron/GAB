@@ -239,6 +239,16 @@ describe('an address of the machine or of a private network is refused before an
 });
 
 describe('the other refusals store nothing', () => {
+  test.each([
+    'https://user:secret@example.org/a.pdf',
+    'https://example.org/a.csv?X-Amz-Signature=abc',
+    'https://example.org/a.json?api_key=abc',
+  ])('an address with a user name, a password or a key: %s', async (url) => {
+    const before = fixture.requests.length;
+    expect(await refusalOf(url, fixtureReach(memoryStore()))).toMatch(/no secret/u);
+    expect(fixture.requests.length).toBe(before);
+  });
+
   test.each(['ftp://example.org/file', 'file:///etc/passwd', 'data:text/plain,hello'])(
     'a scheme other than http and https: %s',
     async (url) => {
