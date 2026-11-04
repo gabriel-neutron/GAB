@@ -2662,6 +2662,46 @@ test.each(HELD_IDENTIFIERS)(
   },
 );
 
+test('propose refuses a new entity whose identifier the record holds in another spacing', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+    const [act] = z
+      .array(z.object({ id: z.uuid() }))
+      .parse(
+        await ask(`SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::text[]) AS id`, [
+          'create_entity',
+          JSON.stringify({ type: 'company', label: 'Held holder' }),
+        ]),
+      );
+    await ask('RESET SESSION AUTHORIZATION');
+    await ask(
+      `INSERT INTO public.entities (type, label, attrs, sources, promoted_from)
+         VALUES ('company', 'Held holder',
+                 '{"registration_number":{"v":"HE123456","src":["manual"]}}'::jsonb,
+                 ARRAY['manual']::doc_id[], $1)`,
+      [act?.id],
+    );
+    return proposeOnPage(ask, [
+      item(
+        'nayara',
+        {
+          op: 'create_entity',
+          type: 'company',
+          label: 'Nayara',
+          attrs: { registration_number: { v: 'he 123-456' } },
+        },
+        'the tanker NAYARA',
+      ),
+    ]);
+  });
+  expect(found).toMatchObject({
+    ok: false,
+    refusal: expect.stringMatching(
+      /already, on the entity [0-9a-f-]{36} [(]Held holder[)]/u,
+    ) as string,
+  });
+});
+
 test('propose passes a retry of the same batch that waits already, and refuses another name', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const make = (label: string) => [

@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto';
 import { day } from '@gab/proposal/day';
 import { attributeEdit } from '@gab/proposal/attribute-value';
 import { GEOLOCATION_WORDS, geolocationMethod } from '@gab/proposal/geolocation-method';
-import { identifierContainment } from '@gab/proposal/identifiers';
 import { machineAct } from '@gab/proposal/machine';
 import { ASSET_KINDS } from '@gab/proposal/mapping';
 import type { ProposalAct } from '@gab/proposal/payload';
@@ -627,11 +626,20 @@ const queuedWithNoPlace = async (session: Session, id: string): Promise<boolean>
 
 // A new entity with an identifier that the record holds, or that another new entity of the queue
 // holds, is one thing recorded twice. The same name in the queue is a retry of the same batch.
-const HOLDERS = `SELECT id::text AS id, label, 'the entity' AS kind FROM api.entity WHERE attrs @> ANY($1::jsonb[])
+// A value matches with no space, no hyphen and in capitals, as the batch and the report of
+// duplicates compare it: "HE 123456" is the value "HE123456".
+const HELD_VALUE = (attrs: string) => `${attrs} ? $1::text AND EXISTS (
+    SELECT 1 FROM jsonb_array_elements_text(
+      CASE WHEN jsonb_typeof(${attrs}->$1::text->'v') = 'array' THEN ${attrs}->$1::text->'v'
+           ELSE jsonb_build_array(${attrs}->$1::text->'v') END) AS held(value)
+    WHERE upper(regexp_replace(held.value, '[[:space:]-]', '', 'g')) = $2::text)`;
+
+const HOLDERS = `SELECT id::text AS id, label, 'the entity' AS kind FROM api.entity
+  WHERE ${HELD_VALUE('attrs')}
   UNION ALL
   SELECT id::text, payload->>'label', 'the new entity that waits as proposal' FROM api.proposal
-  WHERE status = 'pending' AND op = 'create_entity' AND payload->>'label' <> $2::text
-    AND payload->'attrs' @> ANY($1::jsonb[])
+  WHERE status = 'pending' AND op = 'create_entity' AND payload->>'label' <> $3::text
+    AND ${HELD_VALUE("payload->'attrs'")}
   LIMIT 1`;
 
 // An earlier item of the same batch with the same identifier and another name is refused too.
@@ -646,7 +654,8 @@ const checkNewIdentifiers = async (
     const held = act.attrs?.[key]?.v;
     for (const value of Array.isArray(held) ? held : [held]) {
       if (typeof value !== 'string' && typeof value !== 'number') continue;
-      const at = JSON.stringify([key, String(value).replace(/[\s-]/gu, '').toUpperCase()]);
+      const plain = String(value).replace(/[\s-]/gu, '').toUpperCase();
+      const at = JSON.stringify([key, plain]);
       const earlier = batch.get(at);
       if (earlier !== undefined && earlier !== act.label)
         refuse(
@@ -654,14 +663,11 @@ const checkNewIdentifiers = async (
           `the ${key} ${String(value)} is on another new entity of the batch (${earlier})`,
         );
       batch.set(at, act.label);
-      const shapes = identifierContainment(key, String(value)).map((shape) =>
-        JSON.stringify(shape),
-      );
       const [holder] = await rowsOf(
         session,
         z.strictObject({ id: z.string(), label: z.string().nullable(), kind: z.string() }),
         HOLDERS,
-        [shapes, act.label],
+        [key, plain, act.label],
       );
       if (holder !== undefined)
         refuse(
