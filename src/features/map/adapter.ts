@@ -33,6 +33,7 @@ import {
 import { glyphImage, glyphImageId, glyphPath, hasGlyph } from './glyph-image';
 import { EVERY_FAMILY, FAMILY_DASH, familyOfLink, mapTokens, type LinkFamily } from './map-tokens';
 import './map.css';
+import { planeBearing } from './bearing';
 import type { ChainView } from './chain-view';
 import type { Imagery } from './imagery';
 import type { NatoSymbol } from './nato-symbol';
@@ -390,7 +391,7 @@ const collectArrows = (
       id: link.fid,
       geometry: { type: 'Point', coordinates: [to.lon, to.lat] },
       properties: {
-        bearing: (Math.atan2(to.lon - from.lon, to.lat - from.lat) * 180) / Math.PI,
+        bearing: planeBearing(from, to),
         family: familyOfLink(link.type),
       },
     };
@@ -1005,6 +1006,12 @@ export function mountMap({
   // selected point of a type that is switched off. A mark on such a point shows a point that the
   // map does not draw. Such a selection is dropped as well.
   let selected: string | null = restored === null || !draws(restored) ? null : restored.id;
+  // The stored camera can stand far from a selection that a link carries. The point is then put in
+  // the middle of the view, at the stored zoom.
+  if (restored !== null && selected !== null) {
+    const point: [number, number] = [restored.lon, restored.lat];
+    if (!map.getBounds().contains(point)) map.jumpTo({ center: point });
+  }
 
   // The chosen relation is dropped under the same rules as a selected point: a panel that names a
   // relation which this canvas draws nowhere is a lie on the screen. The route then corrects the
@@ -1104,8 +1111,14 @@ export function mountMap({
   // A zoom changes how many pixels one degree covers, so a circle held at a fixed pixel radius
   // moves every point it spreads apart. `zoomend` fires once a gesture or a `flyTo` settles, and
   // not on every frame of it, which a `setData` on every frame would cost.
+  // Under SPREAD_MIN_ZOOM no point is spread, so a zoom that stays there moves nothing.
+  let paintedZoom = map.getZoom();
   subscriptions.push(
     map.on('zoomend', () => {
+      const zoom = map.getZoom();
+      const unmoved = slots.size === 0 || Math.max(zoom, paintedZoom) < SPREAD_MIN_ZOOM;
+      paintedZoom = zoom;
+      if (unmoved) return;
       paintEntities();
       paintBaseLinks();
       paintActiveLinks();
@@ -1225,7 +1238,7 @@ export function mountMap({
   // The wait leaves the style clean for a short time, so an `idle` listener can still fire.
   let pulseFrame = 0;
   const pulse = (now: number): void => {
-    if (destroyed || !chainOn) {
+    if (destroyed || !chainOn || linksHidden) {
       pulseFrame = 0;
       return;
     }
@@ -1236,7 +1249,8 @@ export function mountMap({
     pulseFrame = requestAnimationFrame(pulse);
   };
   const startPulse = (): void => {
-    if (!still && chainOn && pulseFrame === 0) pulseFrame = requestAnimationFrame(pulse);
+    if (!still && chainOn && !linksHidden && pulseFrame === 0)
+      pulseFrame = requestAnimationFrame(pulse);
   };
   startPulse();
 
@@ -1502,7 +1516,9 @@ export function mountMap({
   subscriptions.push(
     map.on('mousemove', (event) => {
       const hit = hitAt(event.point);
-      coords.textContent = coordinateWords(event.lngLat.lat, event.lngLat.lng);
+      // A world copy east or west of the first one answers past 180 degrees.
+      const at = event.lngLat.wrap();
+      coords.textContent = coordinateWords(at.lat, at.lng);
       if (hit.kind === 'entity') {
         const { entity } = hit;
         const count = (projection.linksByEntity.get(entity.id) ?? []).length;
@@ -1724,7 +1740,7 @@ export function mountMap({
       map.setPaintProperty(SELECTION_LAYER, 'circle-color', tokens.ring);
       map.setPaintProperty(SELECTION_LAYER, 'circle-stroke-color', tokens.ring);
       map.setPaintProperty(CHAIN_CASING_LAYER, 'line-color', tokens.casing);
-      map.setPaintProperty(CHAIN_POINT_LAYER, 'circle-stroke-color', tokens.casing);
+      map.setPaintProperty(CHAIN_POINT_LAYER, 'circle-stroke-color', tokens.water);
       // The registered rasters hold a colour, so each one is drawn again in place.
       for (const id of [...symbolVariants.keys(), ...EVERY_FAMILY.map(arrowImageOf)]) {
         const image = map.hasImage(id) ? imageData(id) : null;
@@ -1838,6 +1854,7 @@ export function mountMap({
       });
       // The arcs of the chain are relations too, so the same switch hides them.
       paintChainLayers();
+      startPulse();
       // A switch that hides each line ends the choice. The rail must name no relation that the
       // map draws nowhere.
       if (!visible) setChosenLink(null);

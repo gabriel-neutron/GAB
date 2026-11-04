@@ -390,6 +390,9 @@ export function mountGraph(
 
   /** The names the canvas draws: the selection, then the first ring by degree, to the cap. */
   let shownNames: readonly string[] = [];
+  // A name changes its size only here, so it is measured once and not on each frame: a measure
+  // forces a layout of the page.
+  const nameBoxes = new Map<HTMLElement, { readonly width: number; readonly height: number }>();
 
   function nameReach(): void {
     const degreeOf = (node: string): number => model.graph.getNodeAttribute(node, 'degree');
@@ -399,7 +402,7 @@ export function mountGraph(
         ? [...hubStrength]
             .sort(([one, a], [two, b]) => b - a || one.localeCompare(two))
             .map(([node]) => node)
-            .filter((node) => litNodes.has(node))
+            .filter((node) => litNodes.has(node) && !dust.has(node))
             .slice(0, HUB_NAMES)
         : nearOf()
             .sort(
@@ -410,6 +413,7 @@ export function mountGraph(
             )
             .slice(0, NAME_CAP);
     sizeLabelPool(names, shownNames.length, NEIGHBOUR_NAME);
+    nameBoxes.clear();
     shownNames.forEach((node, index) => {
       const element = names[index];
       if (element === undefined) return;
@@ -651,12 +655,24 @@ export function mountGraph(
   // `getNodeDisplayData` answers in the framed coordinate system. Its answer is paired with
   // `framedGraphToViewport` below, and never with `graphToViewport`. The wrong pair puts every
   // overlay element near the middle of the canvas, and it looks correct for a node near the origin.
-  const framedPointOf = (id: string): Coordinates | null => {
+  // The display data holds the end of a move. The node program draws the node on the way, at the
+  // same mix of the two places, so an overlay element stays on its node during the layout.
+  const drawnPointOf = (id: string): Coordinates | undefined => {
     const node = sigma.getNodeDisplayData(id);
-    if (node !== undefined) return { x: node.x, y: node.y };
+    if (node === undefined) return undefined;
+    const from = moves.get(id);
+    if (from === undefined) return { x: node.x, y: node.y };
+    return {
+      x: from.fromX + (node.x - from.fromX) * morph.progress,
+      y: from.fromY + (node.y - from.fromY) * morph.progress,
+    };
+  };
+  const framedPointOf = (id: string): Coordinates | null => {
+    const node = drawnPointOf(id);
+    if (node !== undefined) return node;
     if (!model.graph.hasEdge(id)) return null;
-    const source = sigma.getNodeDisplayData(model.graph.source(id));
-    const target = sigma.getNodeDisplayData(model.graph.target(id));
+    const source = drawnPointOf(model.graph.source(id));
+    const target = drawnPointOf(model.graph.target(id));
     if (source === undefined || target === undefined) return null;
     // The middle of two framed points is a framed point, because the frame is linear.
     return { x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 };
@@ -691,7 +707,6 @@ export function mountGraph(
 
   // A name stands above its node. A name that meets a name of a higher rank is hidden, and the
   // hover label still names each node one at a time.
-  // `NAME_CAP` bounds the names, so the measure of each name is cheap.
   const drawNames = (): void => {
     const spots = shownNames.map((id, index) => {
       const element = names[index];
@@ -699,21 +714,23 @@ export function mountGraph(
       if (element === undefined || spot === null || outsideOf(spot)) return null;
       const radius = sigma.scaleSize(sigma.getNodeDisplayData(id)?.size ?? 0) + NAME_OFFSET;
       // A hidden element has no size, so it is shown before it is measured.
-      element.hidden = false;
+      if (!nameBoxes.has(element)) element.hidden = false;
       return { element, x: spot.x, y: spot.y - radius };
     });
     // The box of a name is read before the transform is set: the transform does not change it.
+    const boxOf = (element: HTMLElement): { readonly width: number; readonly height: number } => {
+      const known = nameBoxes.get(element);
+      if (known !== undefined) return known;
+      const box = { width: element.offsetWidth, height: element.offsetHeight };
+      if (box.width > 0) nameBoxes.set(element, box);
+      return box;
+    };
     const kept = keptNames(
-      spots.map((at) =>
-        at === null
-          ? null
-          : {
-              x: at.x - at.element.offsetWidth / 2,
-              y: at.y - at.element.offsetHeight,
-              width: at.element.offsetWidth,
-              height: at.element.offsetHeight,
-            },
-      ),
+      spots.map((at) => {
+        if (at === null) return null;
+        const { width, height } = boxOf(at.element);
+        return { x: at.x - width / 2, y: at.y - height, width, height };
+      }),
     );
     spots.forEach((at, index) => {
       if (at === null) {
@@ -908,6 +925,19 @@ export function mountGraph(
   const restored = readSelectionAddress();
   reveal(restored);
   selection = acceptable(restored);
+  // A link names an entity on purpose. Where only the focus leaves it out, the preset gives way,
+  // because a link that opens on nothing drops the evidence in silence.
+  if (selection === null && restored !== null && preset === 'focus') {
+    preset = 'all';
+    applyPreset();
+    selection = acceptable(restored);
+    if (selection === null) {
+      preset = 'focus';
+      applyPreset();
+    } else {
+      patchGraphWorkspace({ preset });
+    }
+  }
   if (!sameSelection(restored, selection)) {
     // The address named an element that this graph does not mark. The address is corrected, so
     // that the picture and the address never state two different things.
@@ -1078,8 +1108,16 @@ export function mountGraph(
   camera.on('updated', onCameraUpdated);
 
   // The selection and the camera move together: the reader sees the entity and its first ring.
+  // A camera move of the reader ends the follow of a preset switch, or the next layout step undoes it.
+  const stopRefit = (): void => {
+    refitting = false;
+    if (refitTimer !== null) window.clearTimeout(refitTimer);
+    refitTimer = null;
+  };
+
   const selectEntity = (id: string): void => {
     if (destroyed || !nodeConsidered(id)) return;
+    stopRefit();
     const next: GraphSelection = { kind: 'entity', id };
     reveal(next);
     settle(next);
@@ -1311,6 +1349,7 @@ export function mountGraph(
     },
     zoom: (direction) => {
       if (destroyed) return;
+      stopRefit();
       const state = camera.getState();
       const ratio = state.ratio * (direction === 'in' ? 0.5 : 2);
       moveCamera({
