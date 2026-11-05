@@ -56,6 +56,7 @@
       "mcp__gab__uk_sanctions_list",
       "mcp__gab__vessel_events",
       "mcp__gab__gfw_port_visits",
+      "mcp__gab__gfw_presence_grid",
       "mcp__gab__web_search",
       "mcp__gab__wikidata_ids",
       "mcp__Claude_Browser__*",

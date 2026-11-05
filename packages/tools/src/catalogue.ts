@@ -42,6 +42,7 @@ import { storeSavedFile } from './store-saved-file.ts';
 import { telegramChannel } from './telegram-channel.ts';
 import { ukSanctionsList } from './uk-sanctions-list.ts';
 import { gfwPortVisits } from './gfw-port-visits.ts';
+import { gfwPresenceGrid } from './gfw-presence-grid.ts';
 import { vesselEvents } from './vessel-events.ts';
 import { webSearch } from './web-search.ts';
 import { wikidataIds } from './wikidata-ids.ts';
@@ -84,6 +85,7 @@ export const CATALOGUE = [
   ukSanctionsList,
   vesselEvents,
   gfwPortVisits,
+  gfwPresenceGrid,
   firmsDetections,
   comtradeData,
   enqueueExtract,

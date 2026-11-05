@@ -90,6 +90,10 @@ operator to accept" a proposal.
   the GFW Vessels API, and `tankersOnly` keeps the oil tankers. A tanker often has an event type
   that no vessel type selects: for the tanker visits, give no vessel type. The output gives the
   dates of each kept visit. It needs `GFW_API_TOKEN`.
+- Read the density of named vessels: `gfw_presence_grid` takes 1 to 100 GFW vessel ids, a date window
+  and two resolutions, and stores the 4Wings presence grid as one internal document with the
+  CC BY-NC 4.0 licence and the AIS-only limit. The output gives the count of cells, the hours and the
+  document id, and no row. Put no grid row in a public file. It needs `GFW_API_TOKEN`.
 - Read the heat detections of one site: `firms_detections` takes a site box and a period, and
   stores the NASA FIRMS answer as a document. It needs a free map key. When the key is not
   set, the tool says so, and the other tools work.
@@ -105,7 +109,7 @@ operator to accept" a proposal.
 - Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,
   `read_group`, `read_decided`, `read_leads`.
 - Write: `archive_snapshot`, `fetch_document`, `eu_act`, `ofac_sdn`, `uk_sanctions_list`,
-  `firms_detections`, `gfw_port_visits`, `comtrade_data`, `sentinel2_pairs`, `site_image`, `store_saved_file`, `telegram_channel`,
+  `firms_detections`, `gfw_port_visits`, `gfw_presence_grid`, `comtrade_data`, `sentinel2_pairs`, `site_image`, `store_saved_file`, `telegram_channel`,
   `enqueue_extract`, `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question.
   `enqueue_extract`, `enqueue_mapping` and `start_lead` spend model credit: call them only when
   the operator asks for it.
@@ -136,7 +140,7 @@ operator to accept" a proposal.
   `companies_house` needs a key. When the key is not set, the tool says so, and the other tools
   work.
 - **A sanctions match or a vessel event gives a document to cite.** `sanctions_match` needs a
-  key, and `vessel_events` and `gfw_port_visits` need a free token. When one is not set, the tool says so, and the
+  key, and `vessel_events`, `gfw_port_visits` and `gfw_presence_grid` need a free token. When one is not set, the tool says so, and the
   other tools work. OpenSanctions is a repeater: fetch the official entry that the tool names with
   `fetch_document`, and cite that. Events that are matched by an MMSI alone are a lead.
   When an IMO number or an MMSI names more than one identity, `vessel_events` refuses and

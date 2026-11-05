@@ -142,6 +142,13 @@ export const RESEARCH_TOOLS = {
     openWorldHint: true,
   },
   // Each call reads and stores one answer, so a second call writes nothing.
+  gfw_presence_grid: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
+  // Each call reads and stores one answer, so a second call writes nothing.
   firms_detections: {
     readOnlyHint: false,
     destructiveHint: false,
