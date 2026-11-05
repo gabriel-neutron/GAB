@@ -1,7 +1,7 @@
 // The Baltic AIS collector, offline: a web that answers from a table, a store in memory and a
 // database that is a map of hashes. No test reaches the source.
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { appendFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -11,7 +11,7 @@ import type { WebAnswer } from '@gab/tools/tool';
 import { hashDatabase, stubWeb, text, type Asked } from '@gab/tools/web-stub';
 import { afterAll, expect, test } from 'vitest';
 
-import { pull, report, type Line } from './ais-collector.ts';
+import { lineShape, pull, report, type Line } from './ais-collector.ts';
 
 const folder = mkdtempSync(join(tmpdir(), 'ais-collector-'));
 afterAll(() => {
@@ -35,7 +35,7 @@ const linesOf = (own: string) =>
   readFileSync(join(own, 'ais-checkpoint.jsonl'), 'utf8')
     .trim()
     .split('\n')
-    .map((line) => JSON.parse(line) as Line);
+    .map((line) => lineShape.parse(JSON.parse(line)));
 
 const pulled = async (name: string, answer: (asked: Asked) => WebAnswer | Error) => {
   const own = join(folder, name);
@@ -85,6 +85,15 @@ test('a fault of the database logs its code and not its text', async () => {
   const file = readFileSync(join(own, 'ais-checkpoint.jsonl'), 'utf8');
   expect(file).toContain('ECONNREFUSED');
   expect(file).not.toContain('secret');
+});
+
+test('a cut last line does not take the next line with it', async () => {
+  const own = join(folder, 'cut');
+  await pull(hashDatabase(), reachOf(answers), own);
+  appendFileSync(join(own, 'ais-checkpoint.jsonl'), '\n{"at":"2026-');
+  await pull(hashDatabase(), reachOf(answers), own);
+  const file = readFileSync(join(own, 'ais-checkpoint.jsonl'), 'utf8').split('\n');
+  expect(file.filter((line) => line.endsWith('}'))).toHaveLength(4);
 });
 
 const NOW = new Date('2026-11-05T12:00:00Z');
