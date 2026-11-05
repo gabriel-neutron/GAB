@@ -125,6 +125,11 @@ export const comtradeData = defineTool({
       throw new ToolRefusal(
         `${REGISTER} refused the request as bad: check the codes of the reporter, the partner and the HS code, and the period`,
       );
+    // A spent quota also answers 403, and the key is valid in that case.
+    if (answer.status === 403 && /volume quota/iu.test(answer.body))
+      throw new ToolRefusal(
+        `${REGISTER} stopped the call: the daily quota is spent. The quota comes back later, so try again later.`,
+      );
     if (answer.status === 401 || answer.status === 403)
       throw new ToolRefusal(`${REGISTER} refused the key: check COMTRADE_API_KEY`);
     if (answer.status < 200 || answer.status > 299)
