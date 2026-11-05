@@ -78,9 +78,9 @@ export const gfwPresenceGrid = defineTool({
     'last report of the user and sets recovered. That answer names no request, so run no other ' +
     'report during the call. The GFW documentation does not list a vessel_id filter for this ' +
     'dataset. When a cell holds more vessels than the list, GFW did not apply the filter: the ' +
-    'tool refuses and stores nothing. filterChecked is false when the answer gives no vessel ' +
-    'count, and then the grid can hold other vessels. The window holds the day from and excludes ' +
-    'the day to.',
+    'tool refuses and stores nothing. vesselCountChecked says only that each cell gave a count ' +
+    'within the list. It does not prove that GFW applied the filter, and it is false for an ' +
+    'empty grid or an answer with no count. The window holds the day from and excludes the day to.',
   input: z
     .strictObject({
       vesselIds: z
@@ -104,7 +104,7 @@ export const gfwPresenceGrid = defineTool({
     status: z.enum(['known', 'stored']),
     cells: z.number().int(),
     hours: z.number(),
-    filterChecked: z.boolean(),
+    vesselCountChecked: z.boolean(),
     recovered: z.boolean(),
     licence: z.string(),
     citation: z.string(),
@@ -160,14 +160,18 @@ export const gfwPresenceGrid = defineTool({
           throw new ToolRefusal(`${REGISTER} holds no last report: call this tool again`);
         if (got.status < 200 || got.status > 299) throw refusalOf(got.status, got.body);
         const json = parsed(got.body);
-        const state = lastReportShape.safeParse(json);
-        if (state.success && state.data.status === 'running') continue;
-        if (state.success && typeof state.data.status === 'number')
-          throw refusalOf(state.data.status, got.body);
+        const { status } = shaped(REGISTER, lastReportShape, json);
+        if (status === 'running') continue;
+        // A finished report has no status, so any other status is the end of a failed report.
+        if (status !== undefined)
+          throw new ToolRefusal(
+            `${REGISTER} ended the last report with status ${String(status)}: ` +
+              clipped(got.body.split(token).join('[token]'), ERROR_BODY),
+          );
         return json;
       }
       throw new ToolRefusal(
-        `${REGISTER} still runs the report: call this tool again in a few minutes`,
+        `${REGISTER} gave no finished report: call this tool again in a few minutes`,
       );
     };
 
@@ -244,7 +248,8 @@ export const gfwPresenceGrid = defineTool({
         title:
           `Global Fishing Watch presence grid of ${String(vesselIds.length)} vessels, first id ` +
           `${vesselIds[0] ?? ''}, from ${input.from} to ${input.to}, ` +
-          `${input.spatialResolution} ${input.temporalResolution}`,
+          `${input.spatialResolution} ${input.temporalResolution}` +
+          (recovered ? ', read from the last report, so the request is not confirmed' : ''),
       },
       { body, json },
     );
@@ -252,7 +257,8 @@ export const gfwPresenceGrid = defineTool({
       ...stored,
       cells: new Set(cells.map((cell) => `${String(cell.lat)},${String(cell.lon)}`)).size,
       hours: Math.round(cells.reduce((sum, cell) => sum + cell.hours, 0) * 100) / 100,
-      filterChecked: cells.every((cell) => typeof cell.vesselIDs === 'number'),
+      vesselCountChecked:
+        cells.length > 0 && cells.every((cell) => typeof cell.vesselIDs === 'number'),
       recovered,
       licence: LICENCE,
       citation: CITATION,

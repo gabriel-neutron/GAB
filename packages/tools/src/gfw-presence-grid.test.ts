@@ -80,7 +80,7 @@ test('the tool posts the region, filters the vessels and stores one document wit
       status: 'stored',
       cells: 2,
       hours: 7.75,
-      filterChecked: true,
+      vesselCountChecked: true,
       recovered: false,
       licence: 'CC BY-NC 4.0',
       citation: 'Global Fishing Watch',
@@ -155,12 +155,12 @@ test('a cell with more vessels than the list stores nothing, as the filter did n
   expect(store.puts).toHaveLength(0);
 });
 
-test('an answer with no vessel count says that the filter has no check', async () => {
+test('an answer with no vessel count says that the count has no check', async () => {
   const flat = { entries: [{ lat: 1, lon: 2, hours: 3 }] };
   const { session, reach } = setup(() => bytes(JSON.stringify(flat)));
   expect(await callTool(tool, session, INPUT, reach)).toMatchObject({
     ok: true,
-    output: { cells: 1, hours: 3, filterChecked: false },
+    output: { cells: 1, hours: 3, vesselCountChecked: false },
   });
 });
 
@@ -208,7 +208,7 @@ test('a report that still runs after the polls is a refusal that says to call ag
     () => json({ status: 'running' }),
   );
   const result = await callTool(tool, session, INPUT, reach);
-  expect(refusalOf(result)).toContain('still runs');
+  expect(refusalOf(result)).toContain('no finished report');
   expect(store.puts).toHaveLength(0);
 });
 
@@ -218,8 +218,66 @@ test('a last report that ended with an error is a refusal', async () => {
     () => json({ message: { statusCode: 422, error: 'bad' }, status: 422 }),
   );
   const result = await callTool(tool, session, INPUT, reach);
-  expect(refusalOf(result)).toContain('answered 422');
+  expect(refusalOf(result)).toContain('with status 422');
   expect(store.puts).toHaveLength(0);
+});
+
+test('an empty grid is stored and says that the count has no check', async () => {
+  const { store, session, reach } = setup(() => bytes(JSON.stringify({ entries: [] })));
+  expect(await callTool(tool, session, INPUT, reach)).toMatchObject({
+    ok: true,
+    output: { cells: 0, hours: 0, vesselCountChecked: false },
+  });
+  expect(store.puts).toHaveLength(1);
+});
+
+test('a part of the grid is a refusal', async () => {
+  const part = { entries: [{ lat: 1, lon: 2, hours: 3, vesselIDs: 1 }], nextOffset: 100 };
+  const { store, session, reach } = setup(() => bytes(JSON.stringify(part)));
+  expect(refusalOf(await callTool(tool, session, INPUT, reach))).toContain('a part of the grid');
+  expect(store.puts).toHaveLength(0);
+});
+
+test('a missing last report is a refusal', async () => {
+  const { session, reach } = setup(() => bytes('timeout', 524));
+  expect(refusalOf(await callTool(tool, session, INPUT, reach))).toContain('no last report');
+});
+
+test('a 429 of the last report keeps the polls going', async () => {
+  const answers = [json({}, 429), json(GRID)];
+  const { session, reach } = setup(
+    () => bytes('timeout', 524),
+    () => answers.shift() ?? text('absent', 404),
+  );
+  expect(await callTool(tool, session, INPUT, reach)).toMatchObject({
+    ok: true,
+    output: { recovered: true },
+  });
+});
+
+test('a recovered document says in its title that the request is not confirmed', async () => {
+  const { session, reach } = setup(
+    () => bytes('timeout', 524),
+    () => json(GRID),
+  );
+  await callTool(tool, session, INPUT, reach);
+  expect(JSON.stringify(session.stored)).toContain('the request is not confirmed');
+});
+
+test('a fault of the POST other than the time limit is a refusal that names the cap', async () => {
+  const { web, session, reach } = setup(() => new Error('the answer is too long'));
+  expect(refusalOf(await callTool(tool, session, INPUT, reach))).toContain('larger than the cap');
+  expect(web.asked).toHaveLength(0);
+});
+
+test('a failed last report shows its reason and never the token', async () => {
+  const { session, reach } = setup(
+    () => bytes('timeout', 524),
+    () => json({ message: `bad ${TOKEN}`, status: 'error' }),
+  );
+  const result = refusalOf(await callTool(tool, session, INPUT, reach));
+  expect(result).toContain('with status error');
+  expect(result).not.toContain(TOKEN);
 });
 
 test('a refusal of the API shows its reason and never the token', async () => {
