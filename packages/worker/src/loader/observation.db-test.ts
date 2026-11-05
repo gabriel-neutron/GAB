@@ -10,7 +10,6 @@ import { z } from 'zod';
 import { roleAddress } from '../address.ts';
 import type { RunnerAgent } from '../agents.ts';
 import { makeMapper } from '../mapper/mapper.ts';
-import { recipeOf } from '../mapper/recipes.ts';
 import type { MapperConfig } from '../reader-config.ts';
 import { completionOf, depsOf, routerOf, READER, type StubRouter } from '../runner-fixture.ts';
 import { openRunner, type Step } from '../runner.ts';
@@ -161,8 +160,9 @@ const storeFile = async (
   text: string,
   day: string,
   mime: string = SDMX_CSV,
+  uri: string = URI,
 ): Promise<void> => {
-  await held.ask(PUT, [id, `raw/${id}.csv`, URI, sha256(text), mime, day]);
+  await held.ask(PUT, [id, `raw/${id}.csv`, uri, sha256(text), mime, day]);
   await held.ask('SELECT public.put_document_text($1, $2::jsonb, $3)', [
     id,
     JSON.stringify([text]),
@@ -186,8 +186,9 @@ const mappedFile = async (
   provider: string | null = 'eurostat',
   text: string = TEXT,
   mime: string = SDMX_CSV,
+  uri: string = URI,
 ): Promise<{ mapping: string; load: string }> => {
-  await storeFile(held, FILE, text, '2026-10-25', mime);
+  await storeFile(held, FILE, text, '2026-10-25', mime, uri);
   // fetch_document names the provider of a file of the Eurostat API.
   if (provider !== null)
     await held.ask('SELECT public.fill_document_provider($1, $2)', [FILE, provider]);
@@ -913,21 +914,22 @@ test('a stored Comtrade JSON answer is mapped, shows a dry run, loads once and s
   });
 });
 
-// The recipe of a table that the tool comtrade_data stores, with an answer of the shape that the
-// live API gives for the total row (a total row only, so one row for one key).
+// The address that the tool comtrade_data stores for the total row of one key, and the columns of
+// the live answer. The mapper takes the recipe from them, and no model reads the table.
 const RECIPE_ADDRESS =
   'https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2024&flowCode=X&' +
   'cmdCode=8541&partnerCode=643&customsCode=C00&motCode=0&partner2Code=0';
-const RECIPE_HEADER = [
-  ...'typeCode,freqCode,refPeriodId,refYear,refMonth,period,reporterCode,reporterISO,reporterDesc,flowCode,flowDesc,partnerCode,partnerISO,partnerDesc,partner2Code,partner2ISO,partner2Desc,classificationCode,classificationSearchCode,isOriginalClassification,cmdCode,cmdDesc,aggrLevel,isLeaf,customsCode,customsDesc,mosCode,motCode,motDesc,qtyUnitCode,qtyUnitAbbr,qty,isQtyEstimated,altQtyUnitCode,altQtyUnitAbbr,altQty,isAltQtyEstimated,netWgt,isNetWgtEstimated,grossWgt,isGrossWgtEstimated,cifvalue,fobvalue,primaryValue,legacyEstimationFlag,isReported,isAggregate'.split(
-    ',',
-  ),
-];
+const RECIPE_COLUMNS =
+  'typeCode,freqCode,refPeriodId,refYear,refMonth,period,reporterCode,reporterISO,reporterDesc,' +
+  'flowCode,flowDesc,partnerCode,partnerISO,partnerDesc,partner2Code,partner2ISO,partner2Desc,' +
+  'classificationCode,classificationSearchCode,isOriginalClassification,cmdCode,cmdDesc,aggrLevel,' +
+  'isLeaf,customsCode,customsDesc,mosCode,motCode,motDesc,qtyUnitCode,qtyUnitAbbr,qty,' +
+  'isQtyEstimated,altQtyUnitCode,altQtyUnitAbbr,altQty,isAltQtyEstimated,netWgt,' +
+  'isNetWgtEstimated,grossWgt,isGrossWgtEstimated,cifvalue,fobvalue,primaryValue,' +
+  'legacyEstimationFlag,isReported,isAggregate';
 
-test('the recipe of a Comtrade table loads its total row once, as a restricted figure in USD', async () => {
-  const draft = recipeOf(RECIPE_ADDRESS, RECIPE_HEADER);
-  expect(draft).toBeDefined();
-  const row = Object.fromEntries(RECIPE_HEADER.map((name) => [name, '']));
+test('the mapper takes the recipe of a Comtrade table, and the loader loads its row as a restricted figure in USD', async () => {
+  const row = Object.fromEntries(RECIPE_COLUMNS.split(',').map((name) => [name, null]));
   Object.assign(row, {
     period: 2024,
     reporterCode: 156,
@@ -940,34 +942,35 @@ test('the recipe of a Comtrade table loads its total row once, as a restricted f
     primaryValue: 202893074,
     legacyEstimationFlag: 4,
   });
-  const answer = JSON.stringify({ data: [row] }, null, 2);
+  const answer = JSON.stringify({ elapsedTime: '0.31 secs', count: 1, data: [row] }, null, 2);
   await inTransaction(async (held) => {
-    const { load } = await mappedFile(held, draft, 'un_comtrade', answer, 'application/json');
-    const start = answer.indexOf('{', answer.indexOf('['));
-    const span = {
-      subject_id: null,
-      text_extractor: TEXT_SET,
-      page: 1,
-      start,
-      end: answer.lastIndexOf('}', answer.lastIndexOf(']')) + 1,
-    };
-    await held.asRole('gabriel_agent', () => held.ask('SELECT job_id FROM public.claim_job()'));
-    expect(await putAsAgent(held, load, [span])).toStrictEqual([{ item: 1, outcome: 'written' }]);
-    // A second load of the same row adds no figure.
-    expect(await putAsAgent(held, load, [span])).toStrictEqual([{ item: 1, outcome: 'held' }]);
-    expect(await held.ask('SELECT count(*)::int AS n FROM public.observation')).toStrictEqual([
-      { n: 1 },
-    ]);
+    const { load } = await mappedFile(
+      held,
+      undefined,
+      'un_comtrade',
+      answer,
+      'application/json',
+      RECIPE_ADDRESS,
+    );
+    await runLoad(held, load);
     const figures = await figuresOf(held);
     expect(
-      figures.map(({ product, value, unit, period, licence }) => [
+      figures.map(({ reporter_system, reporter, partner, product, value, unit, flag, licence }) => [
+        reporter_system,
+        reporter,
+        partner,
         product,
         value,
         unit,
-        period,
+        flag,
         licence,
       ]),
-    ).toStrictEqual([['8541', '202893074', 'usd', '2024', 'restricted']]);
+    ).toStrictEqual([['iso3166', 'CN', 'RU', '8541', '202893074', 'usd', '4', 'restricted']]);
+    expect(
+      await held.ask('SELECT measure, period FROM public.observation WHERE document_id = $1', [
+        FILE,
+      ]),
+    ).toStrictEqual([{ measure: 'exports', period: '2024' }]);
   });
 });
 
