@@ -11,7 +11,7 @@ import { stubWeb, text, type Asked } from '@gab/tools/web-stub';
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
-import { pull, type Line } from './ais-collector.ts';
+import { lineShape, pull } from './ais-collector.ts';
 import { rolledBack } from './probe.ts';
 
 const RUN = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -46,7 +46,7 @@ test('other bytes give another document, the same bytes give one, and the text i
       const lines = readFileSync(join(folder, 'ais-checkpoint.jsonl'), 'utf8')
         .trim()
         .split('\n')
-        .map((line) => JSON.parse(line) as Line)
+        .map((line) => lineShape.parse(JSON.parse(line)))
         .filter((line) => line.endpoint === 'vessels');
       expect(lines.map((line) => line.status)).toEqual(['stored', 'stored', 'known']);
       expect(lines[1]?.document).not.toBe(lines[0]?.document);

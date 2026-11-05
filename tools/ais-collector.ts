@@ -3,7 +3,7 @@
 // one line for each answer to a checkpoint file outside the repository. A failed answer adds its
 // reason, so the report can tell a gap with a reason from a gap with none.
 
-import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { argv, env } from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -30,6 +30,8 @@ const ENDPOINTS = {
 
 type Endpoint = keyof typeof ENDPOINTS;
 
+const NAMES: readonly Endpoint[] = ['vessels', 'locations'];
+
 const CHECKPOINT = 'ais-checkpoint.jsonl';
 
 // The period of the scheduled task. A vessel crosses the Gulf of Finland in hours, so a shorter
@@ -39,7 +41,7 @@ const PERIOD_MS = 60 * 60 * 1000;
 const GRACE_MS = 5 * 60 * 1000;
 const LONGEST_MS = 2 * PERIOD_MS + GRACE_MS;
 
-const lineShape = z.object({
+export const lineShape = z.object({
   at: z.iso.datetime(),
   endpoint: z.enum(['vessels', 'locations']),
   status: z.enum(['stored', 'known', 'failed']),
@@ -56,7 +58,8 @@ export type Line = z.infer<typeof lineShape>;
 const reasonOf = (fault: unknown): string => {
   if (fault instanceof ToolRefusal) return fault.message;
   if (typeof fault === 'object' && fault !== null && 'code' in fault) return String(fault.code);
-  return fault instanceof Error ? fault.name : 'an unknown fault';
+  // A fault of the web is a refusal, so what stays is a fault of the record or of the store.
+  return `the record or the store failed (${fault instanceof Error ? fault.name : 'no name'})`;
 };
 
 // The API gives an array of vessels, or a feature collection of locations. An answer with no row
@@ -100,9 +103,10 @@ const pullOne = async (session: Session, reach: Reach, endpoint: Endpoint): Prom
 export const pull = async (session: Session, reach: Reach, folder: string): Promise<boolean> => {
   mkdirSync(folder, { recursive: true });
   let clean = true;
-  for (const endpoint of Object.keys(ENDPOINTS) as Endpoint[]) {
+  for (const endpoint of NAMES) {
     const line = await pullOne(session, reach, endpoint);
-    appendFileSync(join(folder, CHECKPOINT), `${JSON.stringify(line)}\n`);
+    // The newline comes first: a line that a power loss cut must not take this line with it.
+    appendFileSync(join(folder, CHECKPOINT), `\n${JSON.stringify(line)}`);
     clean &&= line.status !== 'failed';
   }
   return clean;
@@ -148,7 +152,7 @@ export const report = (lines: readonly Line[], hours: number, now: Date) => {
     const time = Date.parse(line.at);
     return time >= from && time <= to;
   });
-  const endpoints = (Object.keys(ENDPOINTS) as Endpoint[]).map((endpoint) => {
+  const endpoints = NAMES.map((endpoint) => {
     const own = inWindow.filter((line) => line.endpoint === endpoint);
     const count = (status: Line['status']) => own.filter((line) => line.status === status).length;
     return {
@@ -168,7 +172,7 @@ export const report = (lines: readonly Line[], hours: number, now: Date) => {
 };
 
 const linesIn = (folder: string): Line[] =>
-  readFileSync(join(folder, CHECKPOINT), 'utf8')
+  (existsSync(join(folder, CHECKPOINT)) ? readFileSync(join(folder, CHECKPOINT), 'utf8') : '')
     .split('\n')
     .flatMap((line) => {
       // A power loss can cut the last line. It is no pull that ended, so the report sees a gap.
