@@ -83,6 +83,21 @@ test database, `gabriel_test`, again.
 Nothing is bound to a public address. Each published port comes from a `GAB_*_PORT` variable in
 `.env`, and an absent variable gives the port in this table.
 
+## The AIS collector
+
+Digitraffic Marine keeps no archive, so a per-user Task Scheduler task pulls the AIS answers on a
+fixed schedule, with no model, and stores each answer as a document in the record. A line for each
+answer goes to a checkpoint file in a folder outside the repository. The task runs only while the
+operator is signed in, so a time with the PC off is lost and it is a gap with no reason.
+
+Run the task from a checkout that nothing changes, so a branch switch cannot stop it. The two paths
+are absolute: the folder of the checkpoint, and the environment file of the research workspace.
+
+| You want | Run, in that checkout |
+|---|---|
+| Add or change the task | `powershell -File tools/ais-collector-task.ps1 -Folder <folder> -EnvFile <file>` |
+| Read the checkpoint of the last 48 hours | `node tools/ais-collector.ts report <folder> 48` |
+
 ## The stack of a session
 
 Many sessions can run on one machine at the same time. When they share one stack, a reset in one
