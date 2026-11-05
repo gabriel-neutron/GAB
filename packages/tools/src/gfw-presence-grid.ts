@@ -54,7 +54,7 @@ const cellShape = z.object({
 });
 
 const lastReportShape = z.object({
-  status: z.union([z.string(), z.number()]).optional(),
+  status: z.union([z.string(), z.number()]).nullish(),
 });
 
 const parsed = (body: string): unknown => {
@@ -163,10 +163,10 @@ export const gfwPresenceGrid = defineTool({
         const { status } = shaped(REGISTER, lastReportShape, json);
         if (status === 'running') continue;
         // A finished report has no status, so any other status is the end of a failed report.
-        if (status !== undefined)
+        if (status !== undefined && status !== null)
           throw new ToolRefusal(
-            `${REGISTER} ended the last report with status ${String(status)}: ` +
-              clipped(got.body.split(token).join('[token]'), ERROR_BODY),
+            `${REGISTER} ended the last report with status ` +
+              clipped(`${String(status)}: ${got.body}`.split(token).join('[token]'), ERROR_BODY),
           );
         return json;
       }

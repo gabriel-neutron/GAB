@@ -273,10 +273,10 @@ test('a fault of the POST other than the time limit is a refusal that names the 
 test('a failed last report shows its reason and never the token', async () => {
   const { session, reach } = setup(
     () => bytes('timeout', 524),
-    () => json({ message: `bad ${TOKEN}`, status: 'error' }),
+    () => json({ message: `bad ${TOKEN}`, status: `error ${TOKEN}` }),
   );
   const result = refusalOf(await callTool(tool, session, INPUT, reach));
-  expect(result).toContain('with status error');
+  expect(result).toContain('with status error [token]');
   expect(result).not.toContain(TOKEN);
 });
 
