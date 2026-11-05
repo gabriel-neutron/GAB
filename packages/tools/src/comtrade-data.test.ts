@@ -175,6 +175,21 @@ test('a 429 names both causes', async () => {
   expect(refusalOf(outcome)).toContain('one call a second');
 });
 
+test('a 403 for a spent quota names the quota, and any other 403 names the key', async () => {
+  const quota = setup({
+    answer: () => text('Out of call volume quota. Quota will be replenished in 02:00:00', 403),
+  });
+  const spent = refusalOf(await callTool(tool, quota.session, INPUT, quota.reach));
+  expect(spent).toContain('daily quota is spent');
+  expect(spent).toContain('comes back later');
+  expect(spent).not.toContain('COMTRADE_API_KEY');
+  expect(spent).not.toContain('Quota will be');
+
+  const denied = setup({ answer: () => text('denied', 403) });
+  const refused = refusalOf(await callTool(tool, denied.session, INPUT, denied.reach));
+  expect(refused).toContain('refused the key');
+});
+
 test('a code or a period of a wrong shape is refused before any call', async () => {
   const { web, session, reach } = setup();
   const bad = await callTool(tool, session, { ...INPUT, period: '23' }, reach);
