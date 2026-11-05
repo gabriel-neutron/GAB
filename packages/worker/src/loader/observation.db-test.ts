@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { roleAddress } from '../address.ts';
 import type { RunnerAgent } from '../agents.ts';
 import { makeMapper } from '../mapper/mapper.ts';
+import { recipeOf } from '../mapper/recipes.ts';
 import type { MapperConfig } from '../reader-config.ts';
 import { completionOf, depsOf, routerOf, READER, type StubRouter } from '../runner-fixture.ts';
 import { openRunner, type Step } from '../runner.ts';
@@ -909,6 +910,64 @@ test('a stored Comtrade JSON answer is mapped, shows a dry run, loads once and s
     expect(figures.every(({ licence }) => licence === 'restricted')).toBe(true);
     expect(figures[0]?.passage).toMatch(/^\{[^]*"cmdCode": "2709"[^]*\}$/u);
     expect(reportText(held)).toContain('read 3; loaded 2; excluded 1; dropped 0');
+  });
+});
+
+// The recipe of a table that the tool comtrade_data stores, with an answer of the shape that the
+// live API gives for the total row (a total row only, so one row for one key).
+const RECIPE_ADDRESS =
+  'https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2024&flowCode=X&' +
+  'cmdCode=8541&partnerCode=643&customsCode=C00&motCode=0&partner2Code=0';
+const RECIPE_HEADER = [
+  ...'typeCode,freqCode,refPeriodId,refYear,refMonth,period,reporterCode,reporterISO,reporterDesc,flowCode,flowDesc,partnerCode,partnerISO,partnerDesc,partner2Code,partner2ISO,partner2Desc,classificationCode,classificationSearchCode,isOriginalClassification,cmdCode,cmdDesc,aggrLevel,isLeaf,customsCode,customsDesc,mosCode,motCode,motDesc,qtyUnitCode,qtyUnitAbbr,qty,isQtyEstimated,altQtyUnitCode,altQtyUnitAbbr,altQty,isAltQtyEstimated,netWgt,isNetWgtEstimated,grossWgt,isGrossWgtEstimated,cifvalue,fobvalue,primaryValue,legacyEstimationFlag,isReported,isAggregate'.split(
+    ',',
+  ),
+];
+
+test('the recipe of a Comtrade table loads its total row once, as a restricted figure in USD', async () => {
+  const draft = recipeOf(RECIPE_ADDRESS, RECIPE_HEADER);
+  expect(draft).toBeDefined();
+  const row = Object.fromEntries(RECIPE_HEADER.map((name) => [name, '']));
+  Object.assign(row, {
+    period: 2024,
+    reporterCode: 156,
+    flowCode: 'X',
+    partnerCode: 643,
+    cmdCode: '8541',
+    customsCode: 'C00',
+    motCode: 0,
+    partner2Code: 0,
+    primaryValue: 202893074,
+    legacyEstimationFlag: 4,
+  });
+  const answer = JSON.stringify({ data: [row] }, null, 2);
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(held, draft, 'un_comtrade', answer, 'application/json');
+    const start = answer.indexOf('{', answer.indexOf('['));
+    const span = {
+      subject_id: null,
+      text_extractor: TEXT_SET,
+      page: 1,
+      start,
+      end: answer.lastIndexOf('}', answer.lastIndexOf(']')) + 1,
+    };
+    await held.asRole('gabriel_agent', () => held.ask('SELECT job_id FROM public.claim_job()'));
+    expect(await putAsAgent(held, load, [span])).toStrictEqual([{ item: 1, outcome: 'written' }]);
+    // A second load of the same row adds no figure.
+    expect(await putAsAgent(held, load, [span])).toStrictEqual([{ item: 1, outcome: 'held' }]);
+    expect(await held.ask('SELECT count(*)::int AS n FROM public.observation')).toStrictEqual([
+      { n: 1 },
+    ]);
+    const figures = await figuresOf(held);
+    expect(
+      figures.map(({ product, value, unit, period, licence }) => [
+        product,
+        value,
+        unit,
+        period,
+        licence,
+      ]),
+    ).toStrictEqual([['8541', '202893074', 'usd', '2024', 'restricted']]);
   });
 });
 
