@@ -14,6 +14,7 @@ import { readRegister, storeRegister } from '@gab/tools/register-answer';
 import { ToolRefusal, type Reach, type Session } from '@gab/tools/tool';
 import { webOf } from '@gab/tools/web';
 import pg from 'pg';
+import { z } from 'zod';
 
 const REGISTER = 'Digitraffic Marine';
 
@@ -38,16 +39,18 @@ const PERIOD_MS = 60 * 60 * 1000;
 const GRACE_MS = 5 * 60 * 1000;
 const LONGEST_MS = 2 * PERIOD_MS + GRACE_MS;
 
-export interface Line {
-  readonly at: string;
-  readonly endpoint: Endpoint;
-  readonly status: 'stored' | 'known' | 'failed';
-  readonly document?: string;
-  readonly sha256?: string;
-  readonly bytes?: number;
-  readonly rows?: number;
-  readonly reason?: string;
-}
+const lineShape = z.object({
+  at: z.iso.datetime(),
+  endpoint: z.enum(['vessels', 'locations']),
+  status: z.enum(['stored', 'known', 'failed']),
+  document: z.string().optional(),
+  sha256: z.string().optional(),
+  bytes: z.number().optional(),
+  rows: z.number().optional(),
+  reason: z.string().optional(),
+});
+
+export type Line = z.infer<typeof lineShape>;
 
 // A fault of the database can hold its address, so only its code goes in the file.
 const reasonOf = (fault: unknown): string => {
@@ -59,8 +62,10 @@ const reasonOf = (fault: unknown): string => {
 // The API gives an array of vessels, or a feature collection of locations. An answer with no row
 // is a fault of the source, and it is no snapshot.
 const rowsOf = (json: unknown): number => {
-  const rows = Array.isArray(json) ? json : (json as { features?: unknown } | null)?.features;
-  return Array.isArray(rows) ? rows.length : 0;
+  const list = z.array(z.unknown()).safeParse(json);
+  if (list.success) return list.data.length;
+  const collection = z.object({ features: z.array(z.unknown()) }).safeParse(json);
+  return collection.success ? collection.data.features.length : 0;
 };
 
 const pullOne = async (session: Session, reach: Reach, endpoint: Endpoint): Promise<Line> => {
@@ -74,6 +79,8 @@ const pullOne = async (session: Session, reach: Reach, endpoint: Endpoint): Prom
     if (rows === 0) throw new ToolRefusal(`${REGISTER} gave an answer with no row`);
     const title = `Fintraffic Digitraffic Marine, AIS ${endpoint}, ${at.slice(0, 16)}Z`;
     const stored = await storeRegister(session, reach, { ...request, title }, answer);
+    // shortcut: the web gives text, so an invalid UTF-8 byte of the source does not stay as it came.
+    // The answers are UTF-8 JSON today. Upgrade if the web gives the bytes of a GET.
     const bytes = new TextEncoder().encode(answer.body);
     return {
       at,
@@ -103,7 +110,9 @@ export const pull = async (session: Session, reach: Reach, folder: string): Prom
 
 const isoOf = (ms: number): string => new Date(ms).toISOString();
 
-const gapsOf = (lines: readonly Line[], from: number, to: number) => {
+const gapsOf = (unsorted: readonly Line[], from: number, to: number) => {
+  // A change of the clock can put a line out of order, and that must not hide a gap.
+  const lines = unsorted.toSorted((a, b) => Date.parse(a.at) - Date.parse(b.at));
   const times = lines.map((line) => Date.parse(line.at));
   // Each line is a pull that ran, also a failed pull. A longer time between two lines has no reason.
   const marks = [from, ...times, to];
@@ -131,7 +140,7 @@ const gapsOf = (lines: readonly Line[], from: number, to: number) => {
 };
 
 /** The checkpoint of the last hours, by endpoint. `clean` is true only when the lines cover the
- * whole window and each gap over two periods has a logged reason. */
+ * whole window, each gap over two periods has a logged reason, and each endpoint has a snapshot. */
 export const report = (lines: readonly Line[], hours: number, now: Date) => {
   const to = now.getTime();
   const from = to - hours * 60 * 60 * 1000;
@@ -153,7 +162,7 @@ export const report = (lines: readonly Line[], hours: number, now: Date) => {
   return {
     from: isoOf(from),
     to: isoOf(to),
-    clean: endpoints.every((own) => own.noReason.length === 0),
+    clean: endpoints.every((own) => own.noReason.length === 0 && own.stored + own.known > 0),
     endpoints,
   };
 };
@@ -161,16 +170,32 @@ export const report = (lines: readonly Line[], hours: number, now: Date) => {
 const linesIn = (folder: string): Line[] =>
   readFileSync(join(folder, CHECKPOINT), 'utf8')
     .split('\n')
-    .filter((line) => line !== '')
-    .map((line) => JSON.parse(line) as Line);
+    .flatMap((line) => {
+      // A power loss can cut the last line. It is no pull that ended, so the report sees a gap.
+      try {
+        const read = lineShape.safeParse(JSON.parse(line));
+        return read.success ? [read.data] : [];
+      } catch {
+        return [];
+      }
+    });
+
+// Opened inside a pull, so a store with no credential gives a line with a reason, and no gap. The
+// sentence of the store names no secret.
+const storeOf = (): ReturnType<typeof openStore> => {
+  try {
+    return openStore();
+  } catch (fault) {
+    throw new ToolRefusal(fault instanceof Error ? fault.message : 'no object store');
+  }
+};
 
 const runPull = async (folder: string): Promise<void> => {
   const pool = new pg.Pool({ connectionString: env['GAB_RESEARCH_DATABASE_URL'], max: 1 });
   // A dropped connection fails the next query, and the pull logs it. It must not end the process.
   pool.on('error', () => undefined);
-  const store = openStore();
   const reach: Reach = {
-    store: { put: (object) => putObject(store, object) },
+    store: { put: (object) => putObject(storeOf(), object) },
     web: webOf(env),
     now: () => new Date(),
   };
@@ -180,10 +205,12 @@ const runPull = async (folder: string): Promise<void> => {
 };
 
 if (argv[1] === fileURLToPath(import.meta.url)) {
-  const [command, folder, hours] = argv.slice(2);
+  const [command, folder, given] = argv.slice(2);
+  const hours = Number(given ?? 48);
+  if (!(hours > 0)) throw new Error('the hours must be a number above 0');
   if (folder === undefined) throw new Error('usage: ais-collector pull|report <folder> [hours]');
   if (command === 'pull') await runPull(folder);
   else if (command === 'report')
-    console.log(JSON.stringify(report(linesIn(folder), Number(hours ?? 48), new Date()), null, 2));
+    console.log(JSON.stringify(report(linesIn(folder), hours, new Date()), null, 2));
   else throw new Error(`no command ${String(command)}`);
 }

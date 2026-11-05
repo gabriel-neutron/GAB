@@ -129,3 +129,24 @@ test('failed pulls with a reason keep the report clean and name the gap', () => 
     reasons: Array<string>(4).fill('the server is down'),
   });
 });
+
+test('a gap is over two periods only past the grace', () => {
+  const at = (minutes: number): Line[] =>
+    line(0).map((own) => ({
+      ...own,
+      at: new Date(NOW.getTime() - minutes * 60_000).toISOString(),
+    }));
+  const around = (gap: number) => [...hourly(48, 3), ...at(180 - gap), ...hourly(0, 0)];
+  expect(report(around(125), 48, NOW).endpoints[0]?.noReason).toEqual([]);
+  expect(report(around(126), 48, NOW).endpoints[0]?.noReason).toHaveLength(1);
+});
+
+test('lines out of order do not hide a gap', () => {
+  const lines = [...hourly(10, 0), ...hourly(48, 20)];
+  expect(report(lines, 48, NOW).endpoints[0]?.noReason).toHaveLength(1);
+});
+
+test('a window of failed pulls alone is not clean', () => {
+  const failed = Array.from({ length: 49 }, (_, hours) => line(hours, 'failed', 'down')).flat();
+  expect(report(failed, 48, NOW).clean).toBe(false);
+});
