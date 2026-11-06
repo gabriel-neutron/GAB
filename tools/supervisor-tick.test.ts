@@ -53,6 +53,7 @@ const main = async () => {
   if (word === 'bad') return console.log(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'An inner tool error.' }));
   if (word === 'signin') { console.log(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'OAuth session expired' })); process.exit(1); }
   if (word === 'limit') { console.log(JSON.stringify({ type: 'result', is_error: true, result: 'Usage limit reached' })); process.exit(1); }
+  if (word === 'badquote') { console.log(JSON.stringify({ type: 'result', is_error: false, result: 'Done.\\n{"result":"' + extra + '","newFacts":2,"gaps":["g"],"reason":"read("gate") ok"}' })); return; }
   if (word === 'sleepfail') { await new Promise((r) => setTimeout(r, Number(extra))); return good({ result: 'failed', reason: step }); }
   if (word === 'dns') { console.log(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: "API Error: Can't reach the API server (ENOTFOUND)" })); process.exit(1); }
   if (word === 'envfile') { require('fs').writeFileSync(extra.replaceAll('+', ':'), String(process.env.GATE_FAKE)); return good({ result: 'pass' }); }
@@ -1072,6 +1073,22 @@ setTimeout(() => process.exit(0), 30000);`,
       } finally {
         await close(second);
       }
+    },
+    LONG,
+  );
+
+  test(
+    'a verdict line with a bad quote in its reason counts, but a reopen needs its gaps',
+    async () => {
+      const dir = folder();
+      seed(dir, 'T-A', 'badquote:pass,badquote:pass,badquote:close', { forecast: 1 });
+      await ticks(dir, 4);
+      expect(ticket(dir, 'T-A')).toMatchObject({ state: 'closed', attempts: 0, noPass: 0 });
+
+      const other = folder();
+      seed(other, 'T-B', 'badquote:reopen');
+      await ticks(other, 2);
+      expect(ticket(other, 'T-B')).toMatchObject({ state: 'working', attempts: 1 });
     },
     LONG,
   );

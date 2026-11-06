@@ -138,6 +138,13 @@ function Read-Outcome([string]$base) {
   }
   $last = @("$($result.result)" -split "`n" | Where-Object { $_.Trim().StartsWith('{') }) | Select-Object -Last 1
   try { $verdict = $last | ConvertFrom-Json } catch { $verdict = $null }
+  # A model can leave a quote with no escape in its reason, after the worker did its work. The other
+  # fields come first in the format. A reopen stays a failure here, because it needs its gaps.
+  if (-not $verdict -and "$last" -match '^\s*\{\s*"result"\s*:\s*"(pass|close|failed|hold|exhausted|stop_source)"') {
+    $verdict = [pscustomobject]@{ result = $Matches[1]; hold = $null; newFacts = $null; reason = 'a verdict line with a bad quote' }
+    if ("$last" -match '"hold"\s*:\s*"(\w+)"') { $verdict.hold = $Matches[1] }
+    if ("$last" -match '"newFacts"\s*:\s*(\d+)') { $verdict.newFacts = $Matches[1] }
+  }
   if (-not $verdict.result) { return @{ kind = 'failed'; reason = 'no verdict line' } }
   $goodDate = $true
   if ($verdict.until) { try { [void][datetime]"$($verdict.until)" } catch { $goodDate = $false } }
@@ -429,7 +436,7 @@ try {
       Save-Ticket $t # Before the start: a crash after it must not give a new worker the paths of this one.
       $gaps = if ($t.gaps) { "Gaps to fix: $(@($t.gaps) -join '; ')`n" } else { '' }
       $prompt = "$($t.prompt)`n`nTicket: $($t.id). State: $($t.state). Run: $($t.runs).`n$gaps" +
-      'End with one line of JSON: {"result":"pass|close|reopen|failed|hold|exhausted|stop_source","hold":"<waiting state>","newFacts":0,"gaps":[],"reason":"<one sentence>"}'
+      'End with one line of JSON, with no double quote inside a value: {"result":"pass|close|reopen|failed|hold|exhausted|stop_source","hold":"<waiting state>","newFacts":0,"gaps":[],"reason":"<one sentence>"}'
       $t.worker = Start-Worker "$($t.id)-$($t.runs)" $prompt
       Save-Ticket $t
       $running++
