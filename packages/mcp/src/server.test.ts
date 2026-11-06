@@ -1,6 +1,8 @@
 // An MCP client talks to the server in the same process. The pool is a fake, so the test proves
 // the list and the dispatch and reaches no database.
 
+import { createServer as createNetServer } from 'node:net';
+
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { CATALOGUE } from '@gab/tools/catalogue';
@@ -8,6 +10,7 @@ import type { Reach } from '@gab/tools/tool';
 import { expect, test } from 'vitest';
 import { z } from 'zod';
 
+import { openPool } from './pool.ts';
 import { createServer, type SessionPool } from './server.ts';
 
 interface Seen {
@@ -53,6 +56,37 @@ const isErrorOf = (result: unknown): boolean =>
   z.object({ isError: z.boolean().optional() }).parse(result).isError === true;
 
 const SEARCH = { name: 'search_graph', arguments: { query: 'Regulation' } };
+
+// The bytes of the protocol that tell a client the login is complete: AuthenticationOk, then
+// ReadyForQuery.
+const LOGIN_DONE = Buffer.from([0x52, 0, 0, 0, 8, 0, 0, 0, 0, 0x5a, 0, 0, 0, 5, 0x49]);
+
+test('a lost connection fails that one call, and the server stays up', async () => {
+  // A database that accepts each login and drops the socket at the first statement.
+  const database = createNetServer((socket) => {
+    socket.once('data', () => {
+      socket.write(LOGIN_DONE);
+      socket.once('data', () => {
+        socket.destroy();
+      });
+    });
+  });
+  await new Promise<void>((done) => {
+    database.listen(0, '127.0.0.1', done);
+  });
+  const { port } = z.object({ port: z.number() }).parse(database.address());
+  const pool = openPool({
+    connectionString: `postgresql://test:test@127.0.0.1:${String(port)}/test`,
+  });
+  const client = await connected(pool);
+  for (const call of [1, 2]) {
+    const result = await client.callTool(SEARCH);
+    expect(isErrorOf(result), `call ${String(call)}`).toBe(true);
+    expect(textOf(result)).toContain('the connection to the database stopped');
+  }
+  await pool.end();
+  database.close();
+});
 
 test('the server names the version of its code, and its instructions name it too', async () => {
   const client = await connected(fakePool(() => []).pool);
