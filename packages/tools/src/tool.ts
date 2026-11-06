@@ -47,6 +47,8 @@ export interface Web {
   /** A POST, for an API that takes its question in a body. The tool that uses it checks that the
    * surface gives it. */
   post?(url: string, request: WebPost): Promise<WebBytes>;
+  /** A GET of a file, as bytes, because a text decode breaks a PDF. A redirect is an answer. */
+  getBytes?(url: string, request: WebRequest): Promise<WebBytes>;
   /** The address of the local SearXNG. It is an http address on the machine itself. */
   readonly searxngUrl?: string;
   /** The key of the Brave Search API. It leaves in a header and in no address. */
@@ -68,6 +70,9 @@ export interface Web {
   readonly cdseClientId?: string;
   readonly cdseClientSecret?: string;
 }
+
+/** Waits for the one turn of a host, and gives the function that ends the turn. */
+export type AcquireHost = (host: string) => Promise<() => void>;
 
 /** One passage that an item cites: the words that code found in the page, and the words around
  * them. */
@@ -107,6 +112,8 @@ export interface Reach {
   readonly now: () => Date;
   /** Waits this many milliseconds. The default is a timer. A test gives a wait that ends at once. */
   readonly sleep?: (ms: number) => Promise<void>;
+  /** The turn on a rate-limited host. With no value, the tool uses its own gate in this process. */
+  readonly acquireHost?: AcquireHost;
   /** The folder where a browser saves a page for the research AI to store. */
   readonly inbox?: string;
   /** Every address of a name. The default asks the resolver of the system. */

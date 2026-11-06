@@ -128,6 +128,7 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "gfw_presence_grid: write",
       "firms_detections: write",
       "comtrade_data: write",
+      "egrul_extract: write",
       "enqueue_extract: write",
       "enqueue_mapping: write",
       "start_lead: write",

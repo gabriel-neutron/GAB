@@ -8,6 +8,7 @@ import { fetchDocument } from './fetch-document.ts';
 import { fileSchemaSample } from './file-schema-sample.ts';
 import { findDocument } from './find-document.ts';
 import { comtradeData } from './comtrade-data.ts';
+import { egrulExtract } from './egrul-extract.ts';
 import { firmsDetections } from './firms-detections.ts';
 import { gleifLookup } from './gleif-lookup.ts';
 import { jobStatus } from './job-status.ts';
@@ -88,6 +89,7 @@ export const CATALOGUE = [
   gfwPresenceGrid,
   firmsDetections,
   comtradeData,
+  egrulExtract,
   enqueueExtract,
   enqueueMapping,
   startLead,

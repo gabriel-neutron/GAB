@@ -66,7 +66,8 @@ export interface Answer {
     | 'un_comtrade'
     | 'world_bank'
     | 'bruegel'
-    | 'eurostat';
+    | 'eurostat'
+    | 'egrul';
   /** The type of the document. A tool names it only when it knows the type better than the
    * address and the title say. Without it, the rules of document-type decide. */
   readonly docType?: DocumentType;

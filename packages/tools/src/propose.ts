@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { KEY_ADVICE, keyWarnings } from './attribute-key.ts';
 import { plainText } from './check-answer.ts';
 import { UNIQUE_KEYS } from './duplicate-identifier.ts';
+import { egrulExcerptRefusal, isEgrulAddress } from './egrul-text.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
 import { cutsToken, findExcerpt, pointSlice, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
@@ -320,6 +321,11 @@ const pageRow = z.strictObject({
   uri: z.string().nullable(),
 });
 
+// All the pages of a register extract, for the rule on natural persons.
+const ALL_PAGES = `SELECT t.text FROM public.document_text t
+  WHERE t.document_id = $1::text AND t.extractor = public.newest_text_extractor($1::text)
+  ORDER BY t.page`;
+
 // The types of an image whose OCR text is the stored page; the door holds the same list.
 const IMAGE = `SELECT 1 AS one FROM public.documents d
   WHERE d.id = $1::text AND lower(split_part(d.mime, ';', 1)) IN ('image/png', 'image/jpeg')`;
@@ -381,6 +387,16 @@ const cite = async (
   given: z.output<typeof evidence>,
 ): Promise<Cited> => {
   const page = await pageOf(session, ref, given.document, given.page);
+  if (isEgrulAddress(page.uri)) {
+    const pages = await rowsOf(session, z.strictObject({ text: z.string() }), ALL_PAGES, [
+      given.document,
+    ]);
+    const refusal = egrulExcerptRefusal(
+      given.excerpt,
+      pages.map((one) => one.text),
+    );
+    if (refusal !== null) refuse(ref, refusal);
+  }
   if (given.fromImage === true) {
     const image = await rowsOf(session, z.strictObject({ one: z.number() }), IMAGE, [
       given.document,
