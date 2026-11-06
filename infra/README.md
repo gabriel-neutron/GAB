@@ -146,8 +146,10 @@ The host leases and the ceiling of the paid proxy are files in one folder (`pack
 The gate proves that the loop recovers with no person: one clean run and one run for each fault (the
 database, the `gab` server, DNS for the worker only, a bad token), each with real workers and real `gab`
 tools. It calls the model, so it is not part of the test suite. It refuses a checkout with no session
-stack, so a fault never reaches the record. A worker reaches only the test server, and the gate fails if it calls a tool other than its two reads. A research
-session can write to the record during the gate, so the summary lists each writer of that time.
+stack, so a fault never reaches the record. A worker has only the test server as its `gab` server, and
+the gate fails if it calls a tool of that server other than its two reads. The gate does not check its
+`node` command for the wait. A research session can write to the record during the gate, so the summary
+lists each writer of that time.
 
 ## The stack of a session
 
