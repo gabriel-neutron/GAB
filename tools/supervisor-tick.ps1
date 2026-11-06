@@ -44,11 +44,14 @@ $WORK = @('pilot', 'working', 'reviewing', 'closing', 'needs_panel')
 # The minutes to the next try of a hold. A try after a hold costs no attempt. A signature has no timer.
 $HOLDS = @{ waiting_quota = 1440; waiting_source = 1440; waiting_ceiling = 1440; waiting_token = 30; waiting_limit = 30; waiting_signature = 0 }
 $BLOCK_ALL = @('waiting_token', 'waiting_limit')
-$ALARM_HOLDS = @('waiting_token', 'waiting_ceiling')
+$ALARM_HOLDS = @('waiting_token', 'waiting_ceiling', 'waiting_signature')
+$WORKER_HOURS = 12 # A hung worker must not hold its slot for good. The longest run so far took under one hour.
+$MAX_HOLD_DAYS = 7 # A worker gives the retry time of a hold, and a false date must not hide the ticket.
 $STATES = @('ready', 'reopened', 'parked', 'closed', 'closed_exhausted', 'closed_parked') + $WORK + @($HOLDS.Keys)
 # shortcut: these words come from the errors that the CLI shows today, add a word when a new wording appears.
-$SIGN_IN = 'OAuth|session expired|not logged in|/login|failed to authenticate|authentication_error|invalid api key|invalid bearer'
+$SIGN_IN = 'OAuth session|session expired|not logged in|please run /login|failed to authenticate|authentication_error|invalid api key|invalid bearer'
 $LIMIT = 'usage limit|rate limit|limit reached|out of extra usage'
+$SHORT_RESULT = 300 # A sign-in or limit error is short. A long result is the prose of the worker, and it can hold these words.
 
 $time = if ($Now) { [datetime]$Now } else { Get-Date }
 $tickets_dir, $inbox_dir, $workers_dir, $history_dir = 'tickets', 'inbox', 'workers', 'history' | ForEach-Object {
@@ -70,6 +73,7 @@ function Save-Ticket($t) { Save-State (Join-Path $tickets_dir "$($t.id).json") $
 
 function Complete-Ticket($t) {
   if ($t.id -notmatch '^[A-Za-z0-9_-]+$' -or $STATES -notcontains $t.state) { throw 'bad id or state' }
+  if ($t.until) { [void][datetime]$t.until }
   $fields = @{ attempts = 0; noPass = 0; runs = 0; gaps = @(); heldFrom = $null; panelFrom = $null; until = $null; worker = $null; outcome = $null; reason = '' }
   foreach ($k in $fields.Keys) {
     if ($t.PSObject.Properties.Name -notcontains $k) { $t | Add-Member -NotePropertyName $k -NotePropertyValue $fields[$k] }
@@ -80,8 +84,8 @@ function Complete-Ticket($t) {
 function Test-Running($w) {
   if (Test-Path "$($w.base).exit") { return $false }
   $p = Get-Process -Id $w.pid -ErrorAction SilentlyContinue
-  # A process of another account can hold a used pid, and its start time is refused.
-  try { [bool]($p -and $p.StartTime.Ticks -eq $w.started) } catch { $false }
+  # A process of another account can hold a used pid, and its start time is refused. Start time 0 is not known.
+  try { [bool]($p -and ($w.started -eq 0 -or $p.StartTime.Ticks -eq $w.started)) } catch { $false }
 }
 
 function Start-Worker([string]$name, [string]$prompt) {
@@ -92,7 +96,7 @@ function Start-Worker([string]$name, [string]$prompt) {
   $p = Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList $self -WindowStyle Hidden -PassThru
   $started = try { $p.StartTime.Ticks } catch { 0 }
   Write-Log "start $name pid $($p.Id)"
-  @{ pid = $p.Id; started = $started; base = $base }
+  @{ pid = $p.Id; started = $started; base = $base; startedAt = $time.ToString('o') }
 }
 
 # A pass needs exit 0, a result with is_error false, and a verdict line. "subtype success" alone is
@@ -109,8 +113,10 @@ function Read-Outcome([string]$base) {
   }
   if ($code -ne 0 -or -not $result -or $result.is_error -isnot [bool] -or $result.is_error) {
     $err = if (Test-Path "$base.err") { [IO.File]::ReadAllText("$base.err") } else { '' }
-    $text = if ($result) { "$($result.result) $err" } else { "$(($out | Select-Object -Last 5) -join ' ') $err" }
-    $reason = "exit $code, is_error $($result.is_error): " + $text.Substring(0, [Math]::Min(200, $text.Length)).Trim()
+    $own = if ($result) { "$($result.result)" } else { ($out | Select-Object -Last 5) -join ' ' }
+    $text = if ($own.Length -le $SHORT_RESULT) { "$own $err" } else { $err }
+    $all = "$own $err"
+    $reason = "exit $code, is_error $($result.is_error): " + $all.Substring(0, [Math]::Min(200, $all.Length)).Trim()
     if ($result.api_error_status -eq 401 -or $text -match $SIGN_IN) { return @{ kind = 'token'; reason = $reason } }
     if ($result.api_error_status -eq 429 -or $text -match $LIMIT) { return @{ kind = 'limit'; reason = $reason } }
     return @{ kind = 'failed'; reason = $reason }
@@ -118,6 +124,11 @@ function Read-Outcome([string]$base) {
   $last = @("$($result.result)" -split "`n" | Where-Object { $_.Trim().StartsWith('{') }) | Select-Object -Last 1
   try { $verdict = $last | ConvertFrom-Json } catch { $verdict = $null }
   if (-not $verdict.result) { return @{ kind = 'failed'; reason = 'no verdict line' } }
+  $goodDate = $true
+  if ($verdict.until) { try { [void][datetime]"$($verdict.until)" } catch { $goodDate = $false } }
+  if (-not $goodDate -or ($null -ne $verdict.newFacts -and "$($verdict.newFacts)" -notmatch '^\d+$')) {
+    return @{ kind = 'failed'; reason = 'bad value in the verdict line' }
+  }
   @{ kind = 'verdict'; verdict = $verdict; reason = "$($verdict.reason)" }
 }
 
@@ -129,7 +140,9 @@ function Set-Panel($t) { $t.panelFrom = $t.state; $t.state = 'needs_panel' }
 function Set-Hold($t, [string]$hold, $until) {
   $t.heldFrom = $t.state
   $t.state = $hold
-  $t.until = if ($until) { "$until" } elseif ($HOLDS[$hold]) { $time.AddMinutes($HOLDS[$hold]).ToString('o') } else { $null }
+  $latest = $time.AddDays($MAX_HOLD_DAYS)
+  $t.until = if ($until) { $(if ([datetime]"$until" -gt $latest) { $latest } else { [datetime]"$until" }).ToString('o') }
+  elseif ($HOLDS[$hold]) { $time.AddMinutes($HOLDS[$hold]).ToString('o') } else { $null }
 }
 function Add-Failure($t) {
   $t.attempts++
@@ -140,7 +153,7 @@ function Add-Failure($t) {
 function Move-ByOutcome($t) {
   $o = $t.outcome
   $t.outcome = $null
-  $t.reason = "$($o.reason)"
+  $t.reason = "$($o.reason)" -replace '\s+', ' ' # The reason comes from a worker, and a queue line is one line.
   if ($o.kind -eq 'token') { return Set-Hold $t 'waiting_token' }
   if ($o.kind -eq 'limit') { return Set-Hold $t 'waiting_limit' }
   $v = $o.verdict
@@ -168,10 +181,11 @@ function Move-ByOutcome($t) {
 }
 
 # A request of the inbox is the one way into the state from outside. Each other request is refused.
+# shortcut: each process of this user can write the inbox, the role allow lists of BLD-04 close this for a worker.
 function Move-ByRequest($file) {
   $r = [IO.File]::ReadAllText($file.FullName) | ConvertFrom-Json
   if ($r.ticket) {
-    $new = Complete-Ticket $r.ticket
+    $new = Complete-Ticket ($r.ticket | Select-Object id, state, prompt, pilot, forecast, dependsOn)
     if ($new.state -ne 'ready' -or (Test-Path (Join-Path $tickets_dir "$($new.id).json"))) { throw 'not a new ready ticket' }
     return $new
   }
@@ -183,8 +197,23 @@ function Move-ByRequest($file) {
     'waiting_signature>release' { $t.state = $t.heldFrom }
     default { throw "refused move $_" }
   }
-  $t.reason = "$($r.reason)"
+  $t.reason = "$($r.reason)" -replace '\s+', ' '
   $t
+}
+
+function Send-Alarm($lines) {
+  $title = "GAB: $(@($lines).Count) open line(s) for the operator"
+  try {
+    if ($config.notifyFile) { [IO.File]::AppendAllText($config.notifyFile, "$title | $(@($lines)[0])`r`n", $utf8); return }
+    [void][Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+    $xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent('ToastText02')
+    $nodes = $xml.GetElementsByTagName('text')
+    [void]$nodes.Item(0).AppendChild($xml.CreateTextNode($title))
+    [void]$nodes.Item(1).AppendChild($xml.CreateTextNode(@($lines)[0]))
+    $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
+    $toast.Tag = 'gab-tick' # A new toast replaces the last one, so the list does not grow.
+    [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe').Show($toast)
+  } catch { Write-Log "notification failed: $_" }
 }
 
 $lock = $null
@@ -192,7 +221,7 @@ try { $lock = [IO.File]::Open((Join-Path $StateDir 'tick.lock'), 'OpenOrCreate',
 catch [IO.IOException] { Write-Output 'lock held: another tick runs'; exit 0 }
 
 try {
-  if ($config.holdMs) { Start-Sleep -Milliseconds $config.holdMs } # For the test of the lock.
+  if ($env:GAB_TICK_TEST_HOLD_MS) { Start-Sleep -Milliseconds $env:GAB_TICK_TEST_HOLD_MS } # For the test of the lock.
   $alarms = @()
   $tickets = @()
   foreach ($file in @(Get-ChildItem $tickets_dir -Filter '*.json' | Sort-Object Name)) {
@@ -202,15 +231,19 @@ try {
 
   # Step 1: read the ended workers.
   foreach ($t in $tickets) {
-    if ($t.worker -and -not (Test-Running $t.worker)) {
+    if (-not $t.worker) { continue }
+    if (-not (Test-Running $t.worker)) {
       $t.outcome = Read-Outcome $t.worker.base
-      $t.worker = $null
-      Save-Ticket $t
-    }
+    } elseif ($time -ge ([datetime]$t.worker.startedAt).AddHours($WORKER_HOURS)) {
+      & taskkill.exe /T /F /PID $t.worker.pid 2>&1 | Out-Null
+      $t.outcome = @{ kind = 'failed'; reason = "worker over the limit of $WORKER_HOURS hours" }
+    } else { continue }
+    $t.worker = $null
+    Save-Ticket $t
   }
 
   $resumeFile = Join-Path $StateDir 'resume.json'
-  $resume = if (Test-Path $resumeFile) { [IO.File]::ReadAllText($resumeFile) | ConvertFrom-Json } else { [pscustomobject]@{ worker = $null; stateTicks = 0; retryAt = $null } }
+  $resume = if (Test-Path $resumeFile) { [IO.File]::ReadAllText($resumeFile) | ConvertFrom-Json } else { [pscustomobject]@{ worker = $null; stateTicks = 0; retryAt = $null; runs = 0 } }
   if ($resume.worker -and -not (Test-Running $resume.worker)) {
     $o = Read-Outcome $resume.worker.base
     $resume.worker = $null
@@ -228,11 +261,12 @@ try {
   $running = @($tickets | Where-Object { $_.worker }).Count + [int][bool]$resume.worker
   $cap = if ($config.cap) { [int]$config.cap } else { 1 }
   $moved = $null
+  $request = $null
   $from = ''
   $t = $tickets | Where-Object { $_.outcome } | Select-Object -First 1
   if ($t) {
     $from = $t.state
-    Move-ByOutcome $t
+    try { Move-ByOutcome $t } catch { $t.outcome = $null; $t.reason = "bad outcome: $_"; Add-Failure $t }
     $moved = $t
   }
   if (-not $moved) {
@@ -241,7 +275,7 @@ try {
         $t = $tickets | Where-Object { $_.id -eq ([IO.File]::ReadAllText($file.FullName) | ConvertFrom-Json).id }
         $from = if ($t) { $t.state } else { 'new' }
         $moved = Move-ByRequest $file
-        Remove-Item $file.FullName
+        $request = $file.FullName
         if ($from -eq 'new') { $tickets += $moved }
         break
       } catch {
@@ -265,7 +299,8 @@ try {
   }
   if ($moved) {
     Save-Ticket $moved
-    Copy-Item (Join-Path $tickets_dir "$($moved.id).json") (Join-Path $history_dir "$($moved.id).$($time.Ticks).$($moved.state).json") -Force
+    Copy-Item (Join-Path $tickets_dir "$($moved.id).json") (Join-Path $history_dir "$($moved.id).$([datetime]::Now.Ticks).$($moved.state).json") -Force
+    if ($request) { Remove-Item $request } # After the save: a crash before it repeats the request, and loses nothing.
     Write-Log "move $($moved.id) $from > $($moved.state): $($moved.reason)"
   }
   $blocked = @($tickets | Where-Object { $BLOCK_ALL -contains $_.state }).Count -gt 0
@@ -281,9 +316,13 @@ try {
       $alarms += '- wave-start has no change after its resume worker'
     } elseif (-not $closed -and $stale -and -not ($resume.retryAt -and [datetime]$resume.retryAt -gt $time)) {
       # The attended session or its driver still runs when a step takes longer than the limit.
+      # With no setting the tick cannot know, so it asks and starts nothing.
       $alive = $wave.liveMatch -and @(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*$($wave.liveMatch)*" }).Count -gt 0
-      if (-not $alive) {
-        $resume.worker = Start-Worker "wave-start-$($time.Ticks)" $wave.prompt
+      if (-not $wave.liveMatch) { $alarms += '- the setting waveStart.liveMatch is missing, so no resume worker starts' }
+      elseif (-not $alive) {
+        $resume.runs++
+        Save-State $resumeFile $resume
+        $resume.worker = Start-Worker "wave-start-$($resume.runs)" $wave.prompt
         $resume.stateTicks = $item.LastWriteTimeUtc.Ticks
         $resume.retryAt = $null
         Save-State $resumeFile $resume
@@ -298,6 +337,7 @@ try {
     $t = $tickets | Where-Object { $WORK -contains $_.state -and -not $_.worker -and -not $_.outcome } | Select-Object -First 1
     if ($t) {
       $t.runs++
+      Save-Ticket $t # Before the start: a crash after it must not give a new worker the paths of this one.
       $gaps = if ($t.gaps) { "Gaps to fix: $(@($t.gaps) -join '; ')`n" } else { '' }
       $prompt = "$($t.prompt)`n`nTicket: $($t.id). State: $($t.state). Run: $($t.runs).`n$gaps" +
       'End with one line of JSON: {"result":"pass|close|reopen|failed|hold|exhausted|stop_source","hold":"<waiting state>","newFacts":0,"gaps":[],"reason":"<one sentence>"}'
@@ -317,24 +357,12 @@ try {
     alarms  = @($alarms)
     tickets = @($tickets | ForEach-Object { @{ id = $_.id; state = $_.state; attempts = $_.attempts; reason = $_.reason } })
   }
-  if ($alarms.Count) {
-    $title = "GAB: $($alarms.Count) open line(s) for the operator"
-    try {
-      if ($config.notifyFile) { [IO.File]::AppendAllText($config.notifyFile, "$title | $($alarms[0])`r`n", $utf8) }
-      else {
-        [void][Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
-        $xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent('ToastText02')
-        $nodes = $xml.GetElementsByTagName('text')
-        [void]$nodes.Item(0).AppendChild($xml.CreateTextNode($title))
-        [void]$nodes.Item(1).AppendChild($xml.CreateTextNode($alarms[0]))
-        $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
-        $toast.Tag = 'gab-tick' # A new toast replaces the last one, so the list does not grow.
-        [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe').Show($toast)
-      }
-    } catch { Write-Log "notification failed: $_" }
-  }
+  if ($alarms.Count) { Send-Alarm $alarms }
 } catch {
-  Write-Log "tick failed: $_ at line $($_.InvocationInfo.ScriptLineNumber)"
+  $failure = "- the tick failed: $_ at line $($_.InvocationInfo.ScriptLineNumber)"
+  Write-Log $failure
+  Save-State (Join-Path $StateDir 'status.json') @{ at = $time.ToString('o'); alarms = @($failure); tickets = @() }
+  Send-Alarm @($failure)
   throw
 } finally {
   $lock.Close()

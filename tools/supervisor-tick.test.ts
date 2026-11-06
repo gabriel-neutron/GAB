@@ -20,6 +20,9 @@ import { promisify } from 'node:util';
 import { afterAll, describe, expect, test } from 'vitest';
 
 const LONG = 180_000;
+// A fixed clock before the freeze, so a later date does not change a state move.
+const CLOCK = '2026-11-10T12:00:00';
+const after = (minutes: number) => new Date(Date.parse(CLOCK) + minutes * 60_000).toISOString();
 const TICK = join(import.meta.dirname, 'supervisor-tick.ps1');
 const root = mkdtempSync(join(tmpdir(), 'supervisor-tick-'));
 afterAll(() => {
@@ -47,6 +50,11 @@ const main = async () => {
   if (word === 'limit') { console.log(JSON.stringify({ type: 'result', is_error: true, result: 'Usage limit reached' })); process.exit(1); }
   if (word === 'exit') { console.log('{"type":"result","is_error":false,"result":"{\\\\"result\\\\":\\\\"pass\\\\"}"}'); process.exit(3); }
   if (word === 'noverdict') return console.log(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: 'Done.' }));
+  if (word === 'baduntil') return good({ result: 'hold', hold: 'waiting_quota', until: 'soon' });
+  if (word === 'farhold') return good({ result: 'hold', hold: 'waiting_quota', until: '2099-01-01' });
+  if (word === 'badfacts') return good({ result: 'pass', newFacts: 'many' });
+  if (word === 'prose') { console.log(JSON.stringify({ type: 'result', is_error: true, result: 'The rate limit of OAuth is the topic. '.repeat(20) })); return; }
+  if (word === 'lines') return good({ result: 'stop_source', reason: 'one\\n- injected' });
   if (word === 'noresult') return console.log('plain text');
   if (word === 'rogue') {
     await new Promise((r) => setTimeout(r, 2000));
@@ -103,7 +111,7 @@ const seed = (dir: string, id: string, plan: string, fields: Record<string, unkn
   );
 };
 
-const tickArguments = (dir: string, now?: string) => [
+const tickArguments = (dir: string, now = CLOCK) => [
   '-NoProfile',
   '-ExecutionPolicy',
   'Bypass',
@@ -111,7 +119,8 @@ const tickArguments = (dir: string, now?: string) => [
   TICK,
   '-StateDir',
   dir,
-  ...(now === undefined ? [] : ['-Now', now]),
+  '-Now',
+  now,
 ];
 
 const ticket = (dir: string, id: string) =>
@@ -191,7 +200,7 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       ]);
       expect(ticket(dir, 'T-A').gaps).toEqual(['gap1']);
       expect(ticket(dir, 'T-A').attempts).toBe(1);
-      expect(readdirSync(join(dir, 'history')).length).toBeGreaterThanOrEqual(12);
+      expect(readdirSync(join(dir, 'history'))).toHaveLength(13);
     },
     LONG,
   );
@@ -199,9 +208,11 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
   test(
     'a second tick during a first tick exits at the lock and changes nothing',
     async () => {
-      const dir = folder({ holdMs: 8000 });
+      const dir = folder();
       seed(dir, 'T-L', 'pass');
-      const first = promisify(execFile)('powershell.exe', tickArguments(dir));
+      const first = promisify(execFile)('powershell.exe', tickArguments(dir), {
+        env: { ...process.env, GAB_TICK_TEST_HOLD_MS: '8000' },
+      });
       while (!existsSync(join(dir, 'tick.lock')))
         await new Promise((resolve) => setTimeout(resolve, 50));
       const second = execFileSync('powershell.exe', tickArguments(dir), { timeout: 30_000 });
@@ -237,6 +248,9 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
     ['failed', 'a failed verdict'],
     ['close', 'a verdict that only a closer can give'],
     ['pass:0', 'no new counted fact on a ticket with a forecast'],
+    ['baduntil', 'a hold with a false date'],
+    ['badfacts', 'a count that is not a number'],
+    ['prose', 'an error with long text that names a sign-in or a limit'],
   ])(
     'the failure %s (%s) costs one attempt',
     async (step) => {
@@ -266,13 +280,54 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       expect(ticket(dir, 'T-Z').state).toBe('ready');
       expect(workerFiles(dir, '.spec.json')).toHaveLength(1);
 
-      const later = new Date(Date.now() + 31 * 60_000).toISOString();
+      const later = after(31);
       await tick(dir, later);
       expect(ticket(dir, 'T-S').state).toBe('working');
       expect(ticket(dir, 'T-S').attempts).toBe(0);
       await tick(dir, later);
       expect(ticket(dir, 'T-S').state).toBe('reviewing');
       expect(status(dir).alarms).toEqual([]);
+    },
+    LONG,
+  );
+
+  test(
+    'a far date of a hold has a limit, and a reason stays one queue line',
+    async () => {
+      const dir = folder();
+      seed(dir, 'T-D', 'farhold');
+      await ticks(dir, 2);
+      expect(ticket(dir, 'T-D').until).toContain('2026-11-17');
+
+      const lines = folder();
+      seed(lines, 'T-M', 'stop_source,lines');
+      await ticks(lines, 3);
+      expect(ticket(lines, 'T-M').state).toBe('parked');
+      const queue = readFileSync(join(lines, 'operator-queue.md'), 'utf8');
+      expect(queue.trim().split('\n')).toHaveLength(1);
+    },
+    LONG,
+  );
+
+  test(
+    'a hung worker ends at the time limit and costs one attempt, and a tick that fails fires the alarm',
+    () => {
+      const dir = folder();
+      seed(dir, 'T-O', 'sleep:40000,failed');
+      execFileSync('powershell.exe', tickArguments(dir));
+      const pid = (ticket(dir, 'T-O').worker as { pid: number }).pid;
+      execFileSync('powershell.exe', tickArguments(dir, after(13 * 60)));
+      expect(ticket(dir, 'T-O').attempts).toBe(1);
+      expect(ticket(dir, 'T-O').reason).toContain('over the limit');
+      expect(() => process.kill(pid, 0)).toThrow();
+
+      const broken = folder({ cap: 'x' });
+      seed(broken, 'T-C', 'pass');
+      expect(() =>
+        execFileSync('powershell.exe', tickArguments(broken), { stdio: 'pipe' }),
+      ).toThrow();
+      expect(status(broken).alarms.join()).toContain('the tick failed');
+      expect(readFileSync(join(broken, 'notified.txt'), 'utf8')).toContain('the tick failed');
     },
     LONG,
   );
@@ -297,7 +352,7 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       await ticks(dir, 2);
       expect(ticket(dir, 'T-H').state).toBe(hold);
       expect(ticket(dir, 'T-H').attempts).toBe(0);
-      const later = new Date(Date.now() + 25 * 3_600_000).toISOString();
+      const later = after(25 * 60);
       if (hold === 'waiting_signature') {
         await tick(dir, later);
         expect(ticket(dir, 'T-H').state).toBe(hold);
@@ -381,10 +436,16 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       ask(dir, 'a', { ticket: { id: 'T-N', state: 'ready', prompt: 'PLAN:pass' } });
       ask(dir, 'b', { id: 'T-R', to: 'working' });
       ask(dir, 'c', { ticket: { id: '../evil', state: 'ready', prompt: 'PLAN:pass' } });
+      ask(dir, 'c2', {
+        ticket: { id: 'T-O', state: 'ready', prompt: 'PLAN:pass', outcome: { kind: 'verdict' } },
+      });
       ask(dir, 'd', { id: 'T-R', to: 'reopened', gaps: ['g'] });
       await tick(dir);
       expect(ticket(dir, 'T-N').state).toBe('ready');
       expect(ticket(dir, 'T-R').state).toBe('closed');
+      await tick(dir);
+      expect(ticket(dir, 'T-O').state).toBe('ready');
+      expect(JSON.stringify(ticket(dir, 'T-O'))).not.toContain('verdict');
       await tick(dir);
       expect(ticket(dir, 'T-R').state).toBe('reopened');
       await tick(dir);
@@ -400,8 +461,8 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
     'the cap holds each extra worker, a worker that runs stays through a tick, and a lost worker fails',
     async () => {
       const dir = folder({ cap: 2 });
-      seed(dir, 'T-1', 'sleep:9000');
-      seed(dir, 'T-2', 'sleep:9000');
+      seed(dir, 'T-1', 'sleep:15000');
+      seed(dir, 'T-2', 'sleep:15000');
       seed(dir, 'T-3', 'pass');
       execFileSync('powershell.exe', tickArguments(dir));
       execFileSync('powershell.exe', tickArguments(dir));
@@ -410,11 +471,14 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       expect(ticket(dir, 'T-1').worker).not.toBeNull();
       expect(ticket(dir, 'T-2').worker).not.toBeNull();
       expect(ticket(dir, 'T-3').state).toBe('ready');
+      expect(ticket(dir, 'T-1').attempts).toBe(0);
+      expect(workerFiles(dir, '.spec.json')).toHaveLength(2);
 
       const lost = folder();
       seed(lost, 'T-4', 'pass', {
         state: 'working',
-        worker: { pid: 2_000_000, started: 0, base: join(lost, 'workers', 'gone') },
+        // A pid that lives, with another start time: the pid has a new owner.
+        worker: { pid: process.pid, started: 1, base: join(lost, 'workers', 'gone') },
       });
       await ticks(lost, 1);
       expect(ticket(lost, 'T-4').attempts).toBe(1);
@@ -470,7 +534,7 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
   const staleState = (dir: string, body: unknown, minutes: number) => {
     const file = join(dir, 'wave-start.json');
     writeFileSync(file, JSON.stringify(body));
-    const when = new Date(Date.now() - minutes * 60_000);
+    const when = new Date(Date.parse(CLOCK) - minutes * 60_000);
     utimesSync(file, when, when);
     return file;
   };
@@ -483,6 +547,7 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
         ...settings,
         waveStart: {
           stateFile: join(dir, 'wave-start.json'),
+          liveMatch: 'no-process-has-this-text',
           prompt: 'PLAN:sleep:1 Resume wave-start.',
           ...extra,
         },
@@ -532,12 +597,40 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
   );
 
   test(
+    'a resume worker that still runs gets no second one, and a missing live setting starts none',
+    async () => {
+      const dir = waveFolder();
+      const settings = JSON.parse(readFileSync(join(dir, 'supervisor.json'), 'utf8')) as {
+        waveStart: { prompt: string };
+      };
+      settings.waveStart.prompt = 'PLAN:sleep:6000';
+      writeFileSync(join(dir, 'supervisor.json'), JSON.stringify(settings));
+      staleState(dir, { closed: [] }, 31);
+      execFileSync('powershell.exe', tickArguments(dir));
+      execFileSync('powershell.exe', tickArguments(dir));
+      expect(workerFiles(dir, '.spec.json')).toHaveLength(1);
+      await tick(dir);
+
+      const blind = folder({
+        waveStart: { stateFile: join(root, 'blind.json'), prompt: 'PLAN:pass' },
+      });
+      writeFileSync(join(root, 'blind.json'), '{}');
+      const when = new Date(Date.parse(CLOCK) - 90 * 60_000);
+      utimesSync(join(root, 'blind.json'), when, when);
+      await tick(blind);
+      expect(workerFiles(blind, '.spec.json')).toHaveLength(0);
+      expect(status(blind).alarms.join()).toContain('liveMatch');
+    },
+    LONG,
+  );
+
+  test(
     'a changed state file that goes stale again gets a new resume worker',
     async () => {
       const dir = waveFolder();
       staleState(dir, { closed: [] }, 31);
       await ticks(dir, 2);
-      staleState(dir, { closed: ['BLD-01'] }, 31);
+      staleState(dir, { closed: ['BLD-01'] }, 40);
       await ticks(dir, 2);
       expect(workerFiles(dir, '.spec.json')).toHaveLength(2);
     },
@@ -556,7 +649,7 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       staleState(dir, { closed: [] }, 31);
       await ticks(dir, 3);
       expect(workerFiles(dir, '.spec.json')).toHaveLength(1);
-      const later = new Date(Date.now() + 31 * 60_000).toISOString();
+      const later = after(31);
       await tick(dir, later);
       expect(workerFiles(dir, '.spec.json')).toHaveLength(2);
     },
