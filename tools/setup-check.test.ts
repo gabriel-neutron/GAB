@@ -73,6 +73,26 @@ describe('the setup check', () => {
     expect(items.find((row) => row.item === 5)?.status).toBe('waiting_signature');
   });
 
+  test('a list that the panel approved under the delegation of the operator is not on hold', async () => {
+    const { items } = await checkSetup(({ name }) =>
+      name === 'signed_list'
+        ? Promise.resolve("Status: APPROVED by the panel under the operator's delegation.")
+        : fake()({ name }),
+    );
+    expect(items.find((row) => row.item === 5)?.status).toBe('ok');
+  });
+
+  test('a quoted approval of the panel in a draft does not count', async () => {
+    const { items } = await checkSetup(({ name }) =>
+      name === 'signed_list'
+        ? Promise.resolve(
+            'To approve, write "Status: APPROVED by the panel under the operator\'s delegation".',
+          )
+        : fake()({ name }),
+    );
+    expect(items.find((row) => row.item === 5)?.status).toBe('waiting_signature');
+  });
+
   test('a list file that is absent also reports waiting_signature', async () => {
     const { missing, items } = await checkSetup(({ name }) =>
       name === 'signed_list' ? Promise.reject(new Error('no file')) : fake()({ name }),
@@ -120,6 +140,7 @@ describe('the setup check', () => {
     'To sign, write "Status: SIGNED" in the status line.\nDate: 2026-11-06. Status: DRAFT.',
     'To sign, write "Status: SIGNED" in the status line.',
     'Status: SIGNED-OFF is not a status of this list.',
+    'Status: APPROVED by the panel, with no delegation.',
   ])('a list with the text %j is not signed', async (text) => {
     const { items } = await checkSetup(({ name }) =>
       name === 'signed_list' ? Promise.resolve(text) : fake()({ name }),

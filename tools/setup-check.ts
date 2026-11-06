@@ -21,7 +21,9 @@ const RUN_APPROVED = String.raw`HKCU\Software\Microsoft\Windows\CurrentVersion\E
 const DOCKER_ENTRY = 'Docker Desktop';
 
 // A draft can quote the words of the signature, so a quoted status or any draft status is not signed.
-const SIGNED = /(?<!["'`])\bStatus: SIGNED\b(?![-/])/u;
+// The operator can delegate this approval to the panel, and the list then states that in place of a signature.
+const SIGNED =
+  /(?<!["'`])\bStatus: (?:SIGNED|APPROVED by the panel under the operator's delegation)(?![-/\w])/u;
 const DRAFT = /\bStatus: DRAFT\b/u;
 const NO_SETTING = 'no such setting';
 
@@ -124,7 +126,7 @@ export const SETTINGS: readonly Setting[] = [
     item: 5,
     source: { signedList: true },
     on: (value) => value !== null && SIGNED.test(value) && !DRAFT.test(value),
-    need: 'On the notification, sign the list: write "Status: SIGNED" in its status line.',
+    need: 'On the notification, sign the list: write "Status: SIGNED" in its status line. If the operator delegates this to the panel, the panel writes "Status: APPROVED by the panel under the operator\'s delegation".',
     notAFault: 'waiting_signature',
   },
   freeKey('CLEARSPENDING_API_KEY', 'Create the key, with a researcher request.'),
