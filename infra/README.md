@@ -98,6 +98,29 @@ are absolute: the folder of the checkpoint, and the environment file of the rese
 | Add or change the task | `powershell -File tools/ais-collector-task.ps1 -Folder <folder> -EnvFile <file>` |
 | Read the checkpoint of the last 48 hours | `node tools/ais-collector.ts report <folder> 48` |
 
+## The supervisor tick
+
+The tenfold wave has no long-lived orchestrator, because a long-lived process can die and then a
+person must restart it. A per-user Task Scheduler task starts one short tick at logon and each 5
+minutes. The tick holds no model. It reads the ended workers, moves one ticket, starts one worker
+up to the cap, writes the status file, and sends a Windows notification while an alarm is open. It
+also starts one resume worker when the state file of the start session says "not closed" and has
+no change for 30 minutes.
+
+Only the tick writes state, and a state file stays read-only between ticks. Each change from
+outside, such as an operator answer or a new ticket, is a request file in the inbox of the state
+folder. The tick accepts it or refuses it. A worker gets no state: it prints a verdict, and the tick
+reads it.
+
+The state folder is outside the repository. It holds the settings file `supervisor.json`: the worker
+`command`, `args` and `workDir`, the `cap`, and `waveStart` with `stateFile`, `prompt` and
+`liveMatch`. Run the task from a checkout that nothing changes.
+
+| You want | Run, in that checkout |
+|---|---|
+| Add or change the task | `powershell -File tools/supervisor-tick-task.ps1 -StateDir <folder>` |
+| Run one tick now | `powershell -File tools/supervisor-tick.ps1 -StateDir <folder>` |
+
 ## The stack of a session
 
 Many sessions can run on one machine at the same time. When they share one stack, a reset in one

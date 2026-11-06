@@ -1,0 +1,341 @@
+# One tick of the supervisor. It holds no model, it takes a lock, and it ends, so nothing long-lived
+# can die. Task Scheduler starts it (supervisor-tick-task.ps1). Only this script writes the state.
+# Each step: read the ended workers, move one ticket, start one worker up to the cap, write the
+# status file, send a notification while an alarm is open.
+# StateDir holds: supervisor.json (settings), tickets/, inbox/ (requests to the tick), workers/,
+# history/, status.json, resume.json, tick.log and operator-queue.md.
+param(
+  [Parameter(Mandatory)][string]$StateDir,
+  [string]$Now,      # A fixed clock, for a test.
+  [string]$RunWorker # Internal: the start of the paths of one worker, in the process that waits for it.
+)
+$ErrorActionPreference = 'Stop'
+$utf8 = New-Object Text.UTF8Encoding($false)
+
+# Windows PowerShell joins an argument list with no quotes.
+function Format-Argument([string]$a) { '"' + (($a -replace '(\\*)"', '$1$1\"') -replace '(\\+)$', '$1$1') + '"' }
+
+function Save-File([string]$path, [string]$text) {
+  [IO.File]::WriteAllText("$path.tmp", $text, $utf8)
+  if (Test-Path $path) { (Get-Item $path).IsReadOnly = $false }
+  Move-Item -Force "$path.tmp" $path
+}
+
+if ($RunWorker) {
+  # This process stays with the worker, because the tick ends and cannot read an exit code later.
+  $spec = [IO.File]::ReadAllText("$RunWorker.spec.json") | ConvertFrom-Json
+  try {
+    $code = (Start-Process -FilePath $spec.command -ArgumentList (@($spec.args) | ForEach-Object { Format-Argument $_ }) `
+        -WorkingDirectory $spec.workDir -NoNewWindow -Wait -PassThru -RedirectStandardInput "$RunWorker.prompt" `
+        -RedirectStandardOutput "$RunWorker.out" -RedirectStandardError "$RunWorker.err").ExitCode
+  } catch {
+    [IO.File]::WriteAllText("$RunWorker.err", "$_", $utf8)
+    $code = 127
+  }
+  Save-File "$RunWorker.exit" "$code"
+  exit 0
+}
+
+$FREEZE = [datetime]'2026-11-20' # Method, section 5. The supervisor uses this one value.
+$MAX_ATTEMPTS = 3
+$STALE_MINUTES = 30
+$NEXT = @{ pilot = 'working'; working = 'reviewing'; reviewing = 'closing'; closing = 'closed' }
+$WORK = @('pilot', 'working', 'reviewing', 'closing', 'needs_panel')
+# The minutes to the next try of a hold. A try after a hold costs no attempt. A signature has no timer.
+$HOLDS = @{ waiting_quota = 1440; waiting_source = 1440; waiting_ceiling = 1440; waiting_token = 30; waiting_limit = 30; waiting_signature = 0 }
+$BLOCK_ALL = @('waiting_token', 'waiting_limit')
+$ALARM_HOLDS = @('waiting_token', 'waiting_ceiling')
+$STATES = @('ready', 'reopened', 'parked', 'closed', 'closed_exhausted', 'closed_parked') + $WORK + @($HOLDS.Keys)
+# shortcut: these words come from the errors that the CLI shows today, add a word when a new wording appears.
+$SIGN_IN = 'OAuth|session expired|not logged in|/login|failed to authenticate|authentication_error|invalid api key|invalid bearer'
+$LIMIT = 'usage limit|rate limit|limit reached|out of extra usage'
+
+$time = if ($Now) { [datetime]$Now } else { Get-Date }
+$tickets_dir, $inbox_dir, $workers_dir, $history_dir = 'tickets', 'inbox', 'workers', 'history' | ForEach-Object {
+  $d = Join-Path $StateDir $_
+  [void][IO.Directory]::CreateDirectory($d)
+  $d
+}
+$queue = Join-Path $StateDir 'operator-queue.md'
+$config = [IO.File]::ReadAllText((Join-Path $StateDir 'supervisor.json')) | ConvertFrom-Json
+
+function Write-Log([string]$line) { [IO.File]::AppendAllText((Join-Path $StateDir 'tick.log'), "$($time.ToString('s')) $line`r`n", $utf8) }
+
+# The read-only flag stops a stray write of a worker. This function is the one writer of a state file.
+function Save-State([string]$path, $value) {
+  Save-File $path ($value | ConvertTo-Json -Depth 8)
+  (Get-Item $path).IsReadOnly = $true
+}
+function Save-Ticket($t) { Save-State (Join-Path $tickets_dir "$($t.id).json") $t }
+
+function Complete-Ticket($t) {
+  if ($t.id -notmatch '^[A-Za-z0-9_-]+$' -or $STATES -notcontains $t.state) { throw 'bad id or state' }
+  $fields = @{ attempts = 0; noPass = 0; runs = 0; gaps = @(); heldFrom = $null; panelFrom = $null; until = $null; worker = $null; outcome = $null; reason = '' }
+  foreach ($k in $fields.Keys) {
+    if ($t.PSObject.Properties.Name -notcontains $k) { $t | Add-Member -NotePropertyName $k -NotePropertyValue $fields[$k] }
+  }
+  $t
+}
+
+function Test-Running($w) {
+  if (Test-Path "$($w.base).exit") { return $false }
+  $p = Get-Process -Id $w.pid -ErrorAction SilentlyContinue
+  # A process of another account can hold a used pid, and its start time is refused.
+  try { [bool]($p -and $p.StartTime.Ticks -eq $w.started) } catch { $false }
+}
+
+function Start-Worker([string]$name, [string]$prompt) {
+  $base = Join-Path $workers_dir $name
+  Save-File "$base.prompt" $prompt
+  Save-File "$base.spec.json" (@{ command = $config.command; args = @($config.args); workDir = $config.workDir } | ConvertTo-Json -Depth 4)
+  $self = "-NoProfile -ExecutionPolicy Bypass -File $(Format-Argument $PSCommandPath) -StateDir $(Format-Argument $StateDir) -RunWorker $(Format-Argument $base)"
+  $p = Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList $self -WindowStyle Hidden -PassThru
+  $started = try { $p.StartTime.Ticks } catch { 0 }
+  Write-Log "start $name pid $($p.Id)"
+  @{ pid = $p.Id; started = $started; base = $base }
+}
+
+# A pass needs exit 0, a result with is_error false, and a verdict line. "subtype success" alone is
+# not a pass: a failed sign-in gives it with is_error true (P1 of the plan).
+function Read-Outcome([string]$base) {
+  if (-not (Test-Path "$base.exit")) { return @{ kind = 'failed'; reason = 'worker lost: no exit code' } }
+  $code = [int][IO.File]::ReadAllText("$base.exit")
+  $result = $null
+  $out = @(if (Test-Path "$base.out") { [IO.File]::ReadAllLines("$base.out") })
+  foreach ($line in $out) {
+    if ($line -match '"type"\s*:\s*"result"') {
+      try { $e = $line | ConvertFrom-Json; if ($e.type -eq 'result') { $result = $e } } catch { Write-Log "bad result line in $base" }
+    }
+  }
+  if ($code -ne 0 -or -not $result -or $result.is_error -isnot [bool] -or $result.is_error) {
+    $err = if (Test-Path "$base.err") { [IO.File]::ReadAllText("$base.err") } else { '' }
+    $text = if ($result) { "$($result.result) $err" } else { "$(($out | Select-Object -Last 5) -join ' ') $err" }
+    $reason = "exit $code, is_error $($result.is_error): " + $text.Substring(0, [Math]::Min(200, $text.Length)).Trim()
+    if ($result.api_error_status -eq 401 -or $text -match $SIGN_IN) { return @{ kind = 'token'; reason = $reason } }
+    if ($result.api_error_status -eq 429 -or $text -match $LIMIT) { return @{ kind = 'limit'; reason = $reason } }
+    return @{ kind = 'failed'; reason = $reason }
+  }
+  $last = @("$($result.result)" -split "`n" | Where-Object { $_.Trim().StartsWith('{') }) | Select-Object -Last 1
+  try { $verdict = $last | ConvertFrom-Json } catch { $verdict = $null }
+  if (-not $verdict.result) { return @{ kind = 'failed'; reason = 'no verdict line' } }
+  @{ kind = 'verdict'; verdict = $verdict; reason = "$($verdict.reason)" }
+}
+
+function Set-Park($t) {
+  $t.state = 'parked'
+  [IO.File]::AppendAllText($queue, "- $($t.id) is parked: $($t.reason)`r`n", $utf8)
+}
+function Set-Panel($t) { $t.panelFrom = $t.state; $t.state = 'needs_panel' }
+function Set-Hold($t, [string]$hold, $until) {
+  $t.heldFrom = $t.state
+  $t.state = $hold
+  $t.until = if ($until) { "$until" } elseif ($HOLDS[$hold]) { $time.AddMinutes($HOLDS[$hold]).ToString('o') } else { $null }
+}
+function Add-Failure($t) {
+  $t.attempts++
+  $t.noPass++
+  if ($t.attempts -ge $MAX_ATTEMPTS) { Set-Park $t } elseif ($t.noPass -ge 2) { Set-Panel $t }
+}
+
+function Move-ByOutcome($t) {
+  $o = $t.outcome
+  $t.outcome = $null
+  $t.reason = "$($o.reason)"
+  if ($o.kind -eq 'token') { return Set-Hold $t 'waiting_token' }
+  if ($o.kind -eq 'limit') { return Set-Hold $t 'waiting_limit' }
+  $v = $o.verdict
+  $word = "$($v.result)"
+  if ($o.kind -eq 'verdict' -and $word -eq 'hold' -and $HOLDS.ContainsKey("$($v.hold)")) { return Set-Hold $t "$($v.hold)" $v.until }
+  if ($o.kind -eq 'verdict' -and $word -eq 'exhausted') { $t.state = 'closed_exhausted'; return }
+  if ($t.state -eq 'needs_panel') {
+    if ($word -eq 'pass') { $t.state = $t.panelFrom } else { Set-Park $t }
+    return
+  }
+  if ($o.kind -eq 'verdict' -and $word -eq 'stop_source') { return Set-Panel $t }
+  if ($o.kind -eq 'verdict' -and $word -eq 'reopen' -and $t.state -eq 'closing') {
+    $gaps = @($v.gaps)
+    $returned = @($gaps | Where-Object { $t.gaps -contains $_ }).Count -gt 0
+    $t.gaps = @(@($t.gaps) + $gaps | Where-Object { $_ } | Select-Object -Unique)
+    $t.attempts++
+    $t.state = 'reopened'
+    if ($t.attempts -ge $MAX_ATTEMPTS) { Set-Park $t } elseif ($returned) { Set-Panel $t }
+    return
+  }
+  # Only a closer closes, and a research worker with no new counted fact did not pass.
+  $want = if ($t.state -eq 'closing') { 'close' } else { 'pass' }
+  $noFact = $t.state -eq 'working' -and $t.forecast -gt 0 -and [int]$v.newFacts -eq 0
+  if ($o.kind -eq 'verdict' -and $word -eq $want -and -not $noFact) { $t.state = $NEXT[$t.state] } else { Add-Failure $t }
+}
+
+# A request of the inbox is the one way into the state from outside. Each other request is refused.
+function Move-ByRequest($file) {
+  $r = [IO.File]::ReadAllText($file.FullName) | ConvertFrom-Json
+  if ($r.ticket) {
+    $new = Complete-Ticket $r.ticket
+    if ($new.state -ne 'ready' -or (Test-Path (Join-Path $tickets_dir "$($new.id).json"))) { throw 'not a new ready ticket' }
+    return $new
+  }
+  $t = $tickets | Where-Object { $_.id -eq $r.id }
+  if (-not $t) { throw 'no such ticket' }
+  switch ("$($t.state)>$($r.to)") {
+    'parked>ready' { $t.state = 'ready'; $t.attempts = 0; $t.noPass = 0 }
+    'closed>reopened' { $t.state = 'reopened'; $t.gaps = @(@($t.gaps) + @($r.gaps) | Where-Object { $_ } | Select-Object -Unique) }
+    'waiting_signature>release' { $t.state = $t.heldFrom }
+    default { throw "refused move $_" }
+  }
+  $t.reason = "$($r.reason)"
+  $t
+}
+
+$lock = $null
+try { $lock = [IO.File]::Open((Join-Path $StateDir 'tick.lock'), 'OpenOrCreate', 'ReadWrite', 'None') }
+catch [IO.IOException] { Write-Output 'lock held: another tick runs'; exit 0 }
+
+try {
+  if ($config.holdMs) { Start-Sleep -Milliseconds $config.holdMs } # For the test of the lock.
+  $alarms = @()
+  $tickets = @()
+  foreach ($file in @(Get-ChildItem $tickets_dir -Filter '*.json' | Sort-Object Name)) {
+    try { $tickets += Complete-Ticket ([IO.File]::ReadAllText($file.FullName) | ConvertFrom-Json) }
+    catch { $alarms += "- broken state file: $($file.Name)" }
+  }
+
+  # Step 1: read the ended workers.
+  foreach ($t in $tickets) {
+    if ($t.worker -and -not (Test-Running $t.worker)) {
+      $t.outcome = Read-Outcome $t.worker.base
+      $t.worker = $null
+      Save-Ticket $t
+    }
+  }
+
+  $resumeFile = Join-Path $StateDir 'resume.json'
+  $resume = if (Test-Path $resumeFile) { [IO.File]::ReadAllText($resumeFile) | ConvertFrom-Json } else { [pscustomobject]@{ worker = $null; stateTicks = 0; retryAt = $null } }
+  if ($resume.worker -and -not (Test-Running $resume.worker)) {
+    $o = Read-Outcome $resume.worker.base
+    $resume.worker = $null
+    # A hold costs no attempt: the same state file can have a new resume worker after the wait.
+    if ($o.kind -in 'token', 'limit') {
+      $resume.stateTicks = 0
+      $resume.retryAt = $time.AddMinutes($HOLDS["waiting_$($o.kind)"]).ToString('o')
+    }
+    Write-Log "resume worker ended: $($o.kind) $($o.reason)"
+    Save-State $resumeFile $resume
+  }
+
+  # Step 2: move one ticket, and copy its state.
+  $blocked = @($tickets | Where-Object { $BLOCK_ALL -contains $_.state }).Count -gt 0
+  $running = @($tickets | Where-Object { $_.worker }).Count + [int][bool]$resume.worker
+  $cap = if ($config.cap) { [int]$config.cap } else { 1 }
+  $moved = $null
+  $from = ''
+  $t = $tickets | Where-Object { $_.outcome } | Select-Object -First 1
+  if ($t) {
+    $from = $t.state
+    Move-ByOutcome $t
+    $moved = $t
+  }
+  if (-not $moved) {
+    foreach ($file in @(Get-ChildItem $inbox_dir -Filter '*.json' | Sort-Object Name)) {
+      try {
+        $t = $tickets | Where-Object { $_.id -eq ([IO.File]::ReadAllText($file.FullName) | ConvertFrom-Json).id }
+        $from = if ($t) { $t.state } else { 'new' }
+        $moved = Move-ByRequest $file
+        Remove-Item $file.FullName
+        if ($from -eq 'new') { $tickets += $moved }
+        break
+      } catch {
+        Write-Log "refused request $($file.Name): $_"
+        Move-Item -Force $file.FullName "$($file.FullName).refused"
+      }
+    }
+  }
+  if (-not $moved) {
+    $done = @($tickets | Where-Object { $_.state -in 'closed', 'closed_exhausted' } | ForEach-Object { $_.id })
+    foreach ($t in $tickets) {
+      $from = $t.state
+      if ($t.state -eq 'parked' -and $time -ge $FREEZE) { $t.state = 'closed_parked' }
+      elseif ($HOLDS.ContainsKey($t.state) -and $t.until -and [datetime]$t.until -le $time) { $t.state = $t.heldFrom; $t.until = $null }
+      elseif (-not $blocked -and $running -lt $cap -and $t.state -eq 'reopened') { $t.state = 'working' }
+      elseif (-not $blocked -and $running -lt $cap -and $t.state -eq 'ready' -and -not @($t.dependsOn | Where-Object { $_ -and $done -notcontains $_ })) {
+        $t.state = if ($t.pilot) { 'pilot' } else { 'working' }
+      }
+      if ($t.state -ne $from) { $moved = $t; break }
+    }
+  }
+  if ($moved) {
+    Save-Ticket $moved
+    Copy-Item (Join-Path $tickets_dir "$($moved.id).json") (Join-Path $history_dir "$($moved.id).$($time.Ticks).$($moved.state).json") -Force
+    Write-Log "move $($moved.id) $from > $($moved.state): $($moved.reason)"
+  }
+  $blocked = @($tickets | Where-Object { $BLOCK_ALL -contains $_.state }).Count -gt 0
+
+  # Step 3: a stale wave-start gets one resume worker for each version of its state file.
+  $started = $false
+  $wave = $config.waveStart
+  if ($wave -and -not $resume.worker -and (Test-Path $wave.stateFile)) {
+    $item = Get-Item $wave.stateFile
+    $closed = try { ([IO.File]::ReadAllText($wave.stateFile) | ConvertFrom-Json).end -eq 'closed' } catch { $alarms += '- the wave-start state file is broken'; $true }
+    $stale = ($time - $item.LastWriteTime).TotalMinutes -ge $STALE_MINUTES
+    if (-not $closed -and $stale -and $resume.stateTicks -eq $item.LastWriteTimeUtc.Ticks) {
+      $alarms += '- wave-start has no change after its resume worker'
+    } elseif (-not $closed -and $stale -and -not ($resume.retryAt -and [datetime]$resume.retryAt -gt $time)) {
+      # The attended session or its driver still runs when a step takes longer than the limit.
+      $alive = $wave.liveMatch -and @(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*$($wave.liveMatch)*" }).Count -gt 0
+      if (-not $alive) {
+        $resume.worker = Start-Worker "wave-start-$($time.Ticks)" $wave.prompt
+        $resume.stateTicks = $item.LastWriteTimeUtc.Ticks
+        $resume.retryAt = $null
+        Save-State $resumeFile $resume
+        $running++
+        $started = $true
+      }
+    }
+  }
+
+  # Step 3: start one worker, up to the cap. A blocked tick starts none.
+  if (-not $started -and -not $blocked -and $running -lt $cap) {
+    $t = $tickets | Where-Object { $WORK -contains $_.state -and -not $_.worker -and -not $_.outcome } | Select-Object -First 1
+    if ($t) {
+      $t.runs++
+      $gaps = if ($t.gaps) { "Gaps to fix: $(@($t.gaps) -join '; ')`n" } else { '' }
+      $prompt = "$($t.prompt)`n`nTicket: $($t.id). State: $($t.state). Run: $($t.runs).`n$gaps" +
+      'End with one line of JSON: {"result":"pass|close|reopen|failed|hold|exhausted|stop_source","hold":"<waiting state>","newFacts":0,"gaps":[],"reason":"<one sentence>"}'
+      $t.worker = Start-Worker "$($t.id)-$($t.runs)" $prompt
+      Save-Ticket $t
+      $running++
+    }
+  }
+
+  # Step 4: write the status file, and send a notification while an alarm is open.
+  if (Test-Path $queue) { $alarms += @([IO.File]::ReadAllLines($queue, $utf8) | Where-Object { $_ -match '^- (?!\[x\])' }) }
+  $alarms += @($tickets | Where-Object { $ALARM_HOLDS -contains $_.state } | ForEach-Object { "- $($_.id) is in $($_.state): the operator must act" })
+  Save-State (Join-Path $StateDir 'status.json') @{
+    at      = $time.ToString('o')
+    cap     = $cap
+    running = $running
+    alarms  = @($alarms)
+    tickets = @($tickets | ForEach-Object { @{ id = $_.id; state = $_.state; attempts = $_.attempts; reason = $_.reason } })
+  }
+  if ($alarms.Count) {
+    $title = "GAB: $($alarms.Count) open line(s) for the operator"
+    try {
+      if ($config.notifyFile) { [IO.File]::AppendAllText($config.notifyFile, "$title | $($alarms[0])`r`n", $utf8) }
+      else {
+        [void][Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+        $xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent('ToastText02')
+        $nodes = $xml.GetElementsByTagName('text')
+        [void]$nodes.Item(0).AppendChild($xml.CreateTextNode($title))
+        [void]$nodes.Item(1).AppendChild($xml.CreateTextNode($alarms[0]))
+        $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
+        $toast.Tag = 'gab-tick' # A new toast replaces the last one, so the list does not grow.
+        [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe').Show($toast)
+      }
+    } catch { Write-Log "notification failed: $_" }
+  }
+} catch {
+  Write-Log "tick failed: $_ at line $($_.InvocationInfo.ScriptLineNumber)"
+  throw
+} finally {
+  $lock.Close()
+}
