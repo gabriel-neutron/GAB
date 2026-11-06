@@ -20,8 +20,9 @@ const RUN = String.raw`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`;
 const RUN_APPROVED = String.raw`HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run`;
 const DOCKER_ENTRY = 'Docker Desktop';
 
-// The first status of the file decides, because a later line can quote the words of the signature.
-const STATUS = /\bStatus: (\w+)/u;
+// A draft can quote the words of the signature, so a quoted status or any draft status is not signed.
+const SIGNED = /(?<!["'`])\bStatus: SIGNED\b(?![-/])/u;
+const DRAFT = /\bStatus: DRAFT\b/u;
 const NO_SETTING = 'no such setting';
 
 const bothZero = (value: string | null) => value === '0 0';
@@ -122,7 +123,7 @@ export const SETTINGS: readonly Setting[] = [
     name: 'signed_list',
     item: 5,
     source: { signedList: true },
-    on: (value) => value !== null && STATUS.exec(value)?.[1] === 'SIGNED',
+    on: (value) => value !== null && SIGNED.test(value) && !DRAFT.test(value),
     need: 'On the notification, sign the list: write "Status: SIGNED" in its status line.',
     notAFault: 'waiting_signature',
   },

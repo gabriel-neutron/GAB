@@ -115,11 +115,14 @@ describe('the setup check', () => {
     expect(missing).toEqual(['no_sleep']);
   });
 
-  test('a draft that quotes the words of the signature is not signed', async () => {
+  test.each([
+    'Status: DRAFT.\nTo sign, write "Status: SIGNED" in the status line.',
+    'To sign, write "Status: SIGNED" in the status line.\nDate: 2026-11-06. Status: DRAFT.',
+    'To sign, write "Status: SIGNED" in the status line.',
+    'Status: SIGNED-OFF is not a status of this list.',
+  ])('a list with the text %j is not signed', async (text) => {
     const { items } = await checkSetup(({ name }) =>
-      name === 'signed_list'
-        ? Promise.resolve('Status: DRAFT.\nTo sign, write "Status: SIGNED" in the status line.')
-        : fake()({ name }),
+      name === 'signed_list' ? Promise.resolve(text) : fake()({ name }),
     );
     expect(items.find((row) => row.item === 5)?.status).toBe('waiting_signature');
   });
