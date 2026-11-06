@@ -230,9 +230,13 @@ const FILTER_STATUSES: ReadonlySet<number> = new Set([403, 429, 503]);
 // The Chrome window and the proxy can run after the direct read, and the lease covers both.
 const LATER_ROUTES_MS = 120_000;
 
-// Assumption: a page that only asks for a CAPTCHA is short and holds little text. A longer page can
-// name the word in an article, a form or a script.
+// A panel ruled this limit final for the wave: a page that only asks for a CAPTCHA is short and holds
+// little text, and a longer page can name the word in an article, a form or a script.
+// shortcut: a large challenge page gets no hold; add a test of it when a real one is stored.
 const CAPTCHA_PAGE_BYTES = 32 * 1024;
+
+// Assumption: no measure supports this time. A panel accepted it as a short wait.
+const REFUSED_HOLD_MS = 15 * 60 * 1000;
 
 const visibleLength = (html: string): number =>
   html
@@ -652,15 +656,22 @@ export const fetchDocument = defineTool({
             throw new ToolRefusal(refusalOfFetch(fault.message, fault.fault));
           }
         }
-        if (key === null) got = await throughChrome(fault);
-        else {
-          // The Chrome window is free, so a bot filter meets it first; the proxy costs credits.
-          try {
-            got = await throughChrome(fault);
-          } catch (refusal) {
-            if (!(refusal instanceof ToolRefusal)) throw refusal;
-            got = await viaProxy(key);
+        try {
+          if (key === null) got = await throughChrome(fault);
+          else {
+            // The Chrome window is free, so a bot filter meets it first; the proxy costs credits.
+            try {
+              got = await throughChrome(fault);
+            } catch (refusal) {
+              if (!(refusal instanceof ToolRefusal)) throw refusal;
+              got = await viaProxy(key);
+            }
           }
+        } catch (refusal) {
+          // Each route of this read failed, so the next read waits a short time.
+          if (fault.fault?.kind === 'status' && fault.fault.status === 403)
+            await holdHost(lastHost, 'refused', reach.now().getTime() + REFUSED_HOLD_MS);
+          throw refusal;
         }
       }
       // A state authority can intercept a read that the Russian root signs.
@@ -797,7 +808,21 @@ export const fetchDocument = defineTool({
         );
         // The render comes before any write, so a page with no text, also after the render, leaves
         // no object behind. A fault of the browser gives a notice, and the plain page stays.
-        page = await renderedOf(got, mime, getOptions, notices);
+        // A part of the page on a Russian host that this read holds no turn on gets no call.
+        const renderOptions: GetOptions = {
+          ...getOptions,
+          beforeHop: (next) => {
+            const partHost = russianHostOf(next);
+            return partHost !== null && !turns.has(partHost)
+              ? Promise.reject(
+                  new FetchRefusal('a part of a page on another Russian host gets no call', {
+                    kind: 'guard',
+                  }),
+                )
+              : Promise.resolve();
+          },
+        };
+        page = await renderedOf(got, mime, renderOptions, notices);
       }
       // A render that gives a challenge or a missing page is no record of the source. When the plain
       // page holds no text but its title, it is the shell of that page, and nothing is stored. When

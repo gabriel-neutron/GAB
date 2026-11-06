@@ -123,26 +123,30 @@ export const comtradeData = defineTool({
         headers: { accept: 'application/json', 'Ocp-Apim-Subscription-Key': key },
       });
     } catch (fault) {
+      await endTurn?.();
       if (fault instanceof UpstreamFault) throw new ToolRefusal(`${REGISTER}: ${fault.message}`);
       throw fault;
-    } finally {
-      await endTurn?.();
     }
     // A limit or a CAPTCHA holds for each worker. A time that the server states is the wait. With no
     // such time, a spent daily quota waits longer than a rate limit.
     const limit = classOfAnswer(answer, reach.now().getTime());
-    if (limit.kind === 'captcha') {
-      await reach.hostLease?.hold(HOST, 'captcha', limit.retryAt ?? reach.now().getTime());
-      throw new ToolRefusal(`${REGISTER} asks for a CAPTCHA, and nothing solves it`);
+    // The hold comes before the end of the turn, so the next worker meets it.
+    try {
+      if (limit.kind === 'captcha') {
+        await reach.hostLease?.hold(HOST, 'captcha', limit.retryAt ?? reach.now().getTime());
+        throw new ToolRefusal(`${REGISTER} asks for a CAPTCHA, and nothing solves it`);
+      }
+      if (limit.kind === 'quota')
+        await reach.hostLease?.hold(
+          HOST,
+          'quota',
+          answer.headers['retry-after'] !== undefined || /volume/iu.test(answer.body)
+            ? (limit.retryAt ?? reach.now().getTime())
+            : reach.now().getTime() + RATE_LIMIT_HOLD_MS,
+        );
+    } finally {
+      await endTurn?.();
     }
-    if (limit.kind === 'quota')
-      await reach.hostLease?.hold(
-        HOST,
-        'quota',
-        answer.headers['retry-after'] !== undefined || /volume/iu.test(answer.body)
-          ? (limit.retryAt ?? reach.now().getTime())
-          : reach.now().getTime() + RATE_LIMIT_HOLD_MS,
-      );
     // A sentence below never repeats the body: the body is the words of the server.
     if (answer.status === 429)
       throw new ToolRefusal(
