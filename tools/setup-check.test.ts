@@ -96,9 +96,32 @@ describe('the setup check', () => {
 
   test('a PC with no lid does not fault on the lid action', async () => {
     const { missing } = await checkSetup(({ name }) =>
-      Promise.resolve(name === 'lid_action_none' ? null : (GOOD[name] ?? SECRET)),
+      Promise.resolve(name === 'lid_action_none' ? 'no such setting' : (GOOD[name] ?? SECRET)),
     );
     expect(missing).toEqual([]);
+  });
+
+  test('a failed read of the lid action counts as off', async () => {
+    const { missing } = await checkSetup(({ name }) =>
+      name === 'lid_action_none' ? Promise.reject(new Error('no answer')) : fake()({ name }),
+    );
+    expect(missing).toEqual(['lid_action_none']);
+  });
+
+  test('a power setting that the PC does not show counts as off', async () => {
+    const { missing } = await checkSetup(({ name }) =>
+      Promise.resolve(name === 'no_sleep' ? 'no such setting' : (GOOD[name] ?? SECRET)),
+    );
+    expect(missing).toEqual(['no_sleep']);
+  });
+
+  test('a draft that quotes the words of the signature is not signed', async () => {
+    const { items } = await checkSetup(({ name }) =>
+      name === 'signed_list'
+        ? Promise.resolve('Status: DRAFT.\nTo sign, write "Status: SIGNED" in the status line.')
+        : fake()({ name }),
+    );
+    expect(items.find((row) => row.item === 5)?.status).toBe('waiting_signature');
   });
 
   test('the report holds no value of a setting', async () => {

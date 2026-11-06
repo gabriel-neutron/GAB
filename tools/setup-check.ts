@@ -20,7 +20,9 @@ const RUN = String.raw`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`;
 const RUN_APPROVED = String.raw`HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run`;
 const DOCKER_ENTRY = 'Docker Desktop';
 
-const SIGNED = /\bStatus: SIGNED\b/u;
+// The first status of the file decides, because a later line can quote the words of the signature.
+const STATUS = /\bStatus: (\w+)/u;
+const NO_SETTING = 'no such setting';
 
 const bothZero = (value: string | null) => value === '0 0';
 const isSet = (value: string | null) => value !== null;
@@ -84,7 +86,7 @@ export const SETTINGS: readonly Setting[] = [
     item: 2,
     source: { power: ['SUB_BUTTONS', 'LIDACTION'] },
     // External constraint: a PC with no lid does not show this setting.
-    on: (value) => value === null || bothZero(value),
+    on: (value) => value === NO_SETTING || bothZero(value),
     need: 'Set the lid action to "do nothing", on mains and on battery.',
   },
   {
@@ -120,7 +122,7 @@ export const SETTINGS: readonly Setting[] = [
     name: 'signed_list',
     item: 5,
     source: { signedList: true },
-    on: (value) => value !== null && SIGNED.test(value),
+    on: (value) => value !== null && STATUS.exec(value)?.[1] === 'SIGNED',
     need: 'On the notification, sign the list: write "Status: SIGNED" in its status line.',
     notAFault: 'waiting_signature',
   },
@@ -232,7 +234,7 @@ export const readSetting = async (setting: Setting, signedList: string): Promise
     ['/query', 'SCHEME_CURRENT', group, name],
     { timeout: WAIT_MS, windowsHide: true },
   );
-  return powerIndexes(stdout);
+  return powerIndexes(stdout) ?? NO_SETTING;
 };
 
 interface Row {
