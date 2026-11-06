@@ -32,6 +32,9 @@ const retryAfter = (value: string | undefined, now: number): number | null => {
   return Number.isNaN(stated) ? null : Math.min(stated, now + LONGEST_HOLD_MS);
 };
 
+// The Russian word as a whole word, because a name can start with the same letters.
+const CHALLENGE_WORD = /captcha|(?<!\p{L})капч(?:а|и|е|у|ей|ам|ами|ах)?(?!\p{L})/iu;
+
 /** The class of an answer. */
 export const classOfAnswer = (
   answer: {
@@ -46,7 +49,7 @@ export const classOfAnswer = (
   // A page of another status can name the word in a form or a script, and that is no challenge.
   const canChallenge =
     (answer.status >= 200 && answer.status <= 299) || [401, 403, 429, 503].includes(answer.status);
-  if (canChallenge && /captcha|капч/iu.test(body))
+  if (canChallenge && CHALLENGE_WORD.test(body))
     return { kind: 'captcha', holdState: 'waiting_source', retryAt: now + HOLD_MS };
   if (answer.status === 429 || /volume quota|quota exceeded|rate limit/iu.test(body))
     return {

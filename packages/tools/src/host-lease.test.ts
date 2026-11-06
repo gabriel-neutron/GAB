@@ -233,6 +233,11 @@ test.each([
   });
 });
 
+test('a name that starts with the letters of the Russian word is no CAPTCHA', () => {
+  const answer = { status: 200, body: 'ИП Капчук, Капчагайский завод', headers: {} };
+  expect(classOfAnswer(answer, START).kind).toBe('ok');
+});
+
 test('a stated wait has a limit, so a wrong value does not stop a host for ever', () => {
   const answer = { status: 429, body: '', headers: { 'retry-after': '10000000000000' } };
   expect(classOfAnswer(answer, START).retryAt).toBe(START + 24 * 60 * 60 * 1000);
