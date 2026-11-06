@@ -19,12 +19,12 @@ Ticket: BLD-13. Sources of the facts: `research/out/v3-plan/rulings.md` and `res
 | Source and dataset | Edition | Level | Basis | Conditions |
 |---|---|---|---|---|
 | OFAC SDN file, recent actions, enforcement PDFs | Current | A | 17 USC 105, read at Cornell LII (no sentence on the Treasury pages) | A settlement PDF that a private party signs: short excerpt only |
-| Federal Register, BIS rules (govinfo copy) | Current; 123 rules | A | "There are no restrictions regarding what is reproduced" (1 CFR 2.6) | Cite govinfo. wave-bis ruling on `restricted_by` |
+| Federal Register, BIS rules (govinfo copy) | Current; 123 rules | A | "There are no restrictions regarding what is reproduced" (federalregister.gov, which cites 1 CFR 2.6) | Cite govinfo. wave-bis ruling on `restricted_by` |
 | BIS aircraft list | Current | n.v. | Page loads by script; content and author not read. BIS disclaimer has no reuse term | Say "potential violation" |
-| US Consolidated Screening List file | Current | C | API terms are a contract with a key; file has no terms | Lead. Cite the Federal Register |
+| US Consolidated Screening List file | Current | C | API terms are a contract; file has no terms | Lead. Cite the Federal Register |
 | US DOJ press releases | Current | A | "in the public domain" (justice.gov legal policies) | An exhibit is out. An indictment is an allegation |
 | CourtListener RECAP | Current | C | Terms page 403, not read. Token, 125 calls a day | Lead. Not cited when justice.gov has the copy |
-| EUR-Lex, Official Journal acts and consolidated texts | Consolidated 269/2014 of 2026-09-28; other acts current | A | Legal notice read: re-use of legal documents for commercial or non-commercial purposes; consolidated texts CC BY 4.0 | Legal persons only (notice: clear rights for identifiable private individuals). A robot gets an empty 202 at EUR-Lex, so the fetch origin is Cellar, and the fact gives the CELEX number, for the same document. Cellar has its own "contact us": the A rests on the EUR-Lex notice for that document, and the panel approval accepts this reading |
+| EUR-Lex, Official Journal acts and consolidated texts | Consolidated 269/2014 of 2026-09-28; other acts current | A | Legal notice read: re-use of legal documents for commercial or non-commercial purposes; consolidated texts CC BY 4.0 | Credit the source and state each change. Legal persons only (notice: clear rights for identifiable private individuals). A robot gets an empty 202 at EUR-Lex, so the fetch origin is Cellar, and the fact gives the CELEX number, for the same document. Cellar has its own "contact us": the A rests on the EUR-Lex notice for that document, and the panel approval accepts this reading |
 | EU FSF file | Current | n.v. | Host loops; terms not read | Join key only |
 | CJEU judgments | Current | A | "can be reproduced provided the source is acknowledged" (curia copyright) | Third-party works out. Natural persons out |
 | UK Sanctions List and its notices | Files of 2026-10-12 and 2026-11-03; current | A | OGL 3.0 | Legal persons and ships only: OGL excludes personal data. Never export the raw file. wave-uk rulings |
@@ -36,7 +36,7 @@ Ticket: BLD-13. Sources of the facts: `research/out/v3-plan/rulings.md` and `res
 | Ukraine NSDC, decrees | n/a | out | Blocked (403), terms not read | Blocked queue |
 | GLEIF Level 1 and 2 | Current, per key | A | LEI Data Terms: CC0 | "declared to GLEIF". wave-gleif ruling |
 | GLEIF BIC-to-LEI file | Current | A | Licence for any purpose, with a SWIFT notice on each copy | Join key. Notice on any copy |
-| SEC EDGAR | Current | A | sec.gov: "may be copied or further distributed by users of the web site without the SEC's permission". Fails the standing rule, so this signed line is needed | What an issuer states about itself only. Third-party exhibits out. Officer names out. SEC fair-access limit |
+| SEC EDGAR | Current | A | sec.gov: "may be copied or further distributed by users of the web site without the SEC's permission". Fails the standing rule, so this approved line is needed | What an issuer states about itself only. Third-party exhibits out. Officer names out. SEC fair-access limit |
 
 ## 2. Registers and Russian state hosts
 
