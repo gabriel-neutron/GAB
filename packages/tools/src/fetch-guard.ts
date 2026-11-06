@@ -24,7 +24,13 @@ export interface Resolved {
 
 /** What made the fetch fail: an answer that is not a success (with its status), or no answer. */
 export type FetchFault =
-  | { readonly kind: 'status'; readonly status: number }
+  | {
+      readonly kind: 'status';
+      readonly status: number;
+      /** The head of the body, for the class of the answer. No message repeats it. */
+      readonly head?: string;
+      readonly retryAfter?: string;
+    }
   | { readonly kind: 'silent' }
   // The guard refused the read by its own rule (an address, a scheme, the size, the redirects).
   // Another route to the same address meets the same rule, so no fallback takes such a read.
@@ -103,6 +109,8 @@ export interface GetOptions {
   /** The fetch metadata of a part of a page (a script, a style, an image, a call of a script),
    * which Chrome sends in place of the metadata of a page that a person opens. */
   readonly subresource?: FetchMetadata;
+  /** Runs before a redirect opens its address. A refusal here ends the read with no connection. */
+  readonly beforeHop?: (url: string) => Promise<void>;
   /** One more root certificate, accepted for the listed hosts only. The default is the Russian
    * root. A host outside the list keeps the roots of Node. */
   readonly extraRoot?: ExtraRoot;
@@ -373,6 +381,25 @@ const fingerprintOf = (response: IncomingMessage, extra: ExtraRoot): string | nu
   return chainHolds(leaf, fingerprintOfPem(extra.pem)) ? fingerprint256 : null;
 };
 
+// The start of the body of a refused answer. A body that does not come ends with no head.
+const HEAD_BYTES = 8192;
+
+const headOf = async (response: IncomingMessage): Promise<string> => {
+  const parts: Buffer[] = [];
+  let size = 0;
+  try {
+    for await (const part of response as AsyncIterable<Buffer>) {
+      parts.push(part);
+      size += part.length;
+      if (size >= HEAD_BYTES) break;
+    }
+  } catch {
+    // The head is a hint only.
+  }
+  response.destroy();
+  return Buffer.concat(parts).subarray(0, HEAD_BYTES).toString('utf8');
+};
+
 /** One GET, with its redirects. Each refusal is a FetchRefusal, and each comes before a write. */
 export const guardedGet = async (raw: string, options: GetOptions): Promise<Got> => {
   const refuses = options.refuses ?? refusedAddress;
@@ -412,13 +439,17 @@ export const guardedGet = async (raw: string, options: GetOptions): Promise<Got>
             GUARD,
           );
         url = parsed(location, url);
+        await options.beforeHop?.(url.href);
         continue;
       }
       if (status < 200 || status > 299) {
-        response.destroy();
+        const head = await headOf(response);
+        const retryAfter = response.headers['retry-after'];
         throw new FetchRefusal(`the server answered ${status}, and only a success is kept`, {
           kind: 'status',
           status,
+          head,
+          ...(retryAfter === undefined ? {} : { retryAfter }),
         });
       }
       const bytes = await bodyOf(response, options.maxBytes);

@@ -31,6 +31,9 @@ export const proxyKey = (given: string | undefined): string | null => {
   return key === '' ? null : key;
 };
 
+/** The proxy gave a page that asks for a CAPTCHA. The caller holds the host. */
+export class ProxyCaptcha extends FetchRefusal {}
+
 const refused = (reason: string): FetchRefusal =>
   new FetchRefusal(`the hosted proxy gave no page: ${reason}`);
 
@@ -105,7 +108,9 @@ export const readThroughProxy = async (
   endpoint: string = ENDPOINT,
 ): Promise<Got> => {
   try {
-    await ledger.reserve(`read of ${new URL(url).hostname}`);
+    // A worker of the supervisor names its ticket in this variable.
+    const ticket = process.env['GAB_TICKET']?.trim() ?? '';
+    await ledger.reserve(`${ticket === '' ? 'read' : ticket} of ${new URL(url).hostname}`);
   } catch (fault) {
     if (fault instanceof ProxyCeiling) throw new FetchRefusal(fault.message);
     throw fault;
@@ -119,7 +124,9 @@ export const readThroughProxy = async (
       throw new FetchRefusal('the hosted proxy also got the block page of the host');
     const head = new TextDecoder('utf-8').decode(bytes.subarray(0, 8192));
     if (classOfAnswer({ status: 200, body: head, headers: {} }, 0).kind === 'captcha')
-      throw refused('the page asks for a CAPTCHA, and nothing solves it');
+      throw new ProxyCaptcha(
+        'the hosted proxy gave a page that asks for a CAPTCHA, and nothing solves it',
+      );
     return {
       url,
       status: response.status,

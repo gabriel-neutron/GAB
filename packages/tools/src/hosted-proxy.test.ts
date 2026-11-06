@@ -59,6 +59,16 @@ beforeAll(async () => {
       });
     } else if (url === '/limit') {
       response.writeHead(429).end('slow');
+    } else if (url === '/later') {
+      response.writeHead(429, { 'retry-after': '7200' }).end('slow');
+    } else if (url === '/captcha') {
+      response
+        .writeHead(200, { 'content-type': 'text/html' })
+        .end('<html><body>Введите captcha</body></html>');
+    } else if (url === '/captcha403') {
+      response.writeHead(403, { 'content-type': 'text/html' }).end('<html>captcha</html>');
+    } else if (url === '/hop') {
+      response.writeHead(302, { location: `http://www.gibdd.ru:${String(port)}/ok` }).end();
     } else if (url === '/loop') {
       response.writeHead(302, { location: '/loop' }).end();
     } else if (url === '/block') {
@@ -217,10 +227,61 @@ describe('a Russian host that refuses the direct read', () => {
     expect(seen).toStrictEqual(['/limit']);
   });
 
+  const fileOf = (host: string): string =>
+    readFileSync(join(stateDir, `lease-${host}.json`), 'utf8');
+
+  test('a CAPTCHA page of the host holds it, is not stored, and the next call sends nothing', async () => {
+    seen.length = 0;
+    const store = memoryStore();
+    const outcome = await run(`http://www.fsb.ru:${port}/captcha`, reachWith(store, undefined));
+    if (outcome.ok) throw new Error('the tool had to refuse');
+    expect(outcome.refusal).toContain('CAPTCHA');
+    expect(store.puts).toStrictEqual([]);
+    expect(fileOf('www.fsb.ru')).toContain('"captcha"');
+    await run(`http://www.fsb.ru:${port}/captcha`, reachWith(store, undefined));
+    expect(seen).toStrictEqual(['/captcha']);
+  });
+
+  test('a 403 page with a CAPTCHA holds the host, and no proxy goes to it', async () => {
+    seen.length = 0;
+    const outcome = await run(
+      `http://www.mvd.ru:${port}/captcha403`,
+      reachWith(memoryStore(), KEY),
+    );
+    expect(outcome.ok).toBe(false);
+    expect(fileOf('www.mvd.ru')).toContain('"captcha"');
+    expect(seen).toStrictEqual(['/captcha403']);
+  });
+
+  test('a CAPTCHA through the proxy holds the host, so a repeat costs nothing', async () => {
+    proxyAnswer = { status: 200, body: '<html>captcha</html>' };
+    seen.length = 0;
+    const reach = reachWith(memoryStore(), KEY);
+    await run(`http://www.mil.ru:${port}/gone`, reach);
+    await run(`http://www.mil.ru:${port}/gone`, reach);
+    expect(seen.filter((path) => path.startsWith('/proxy'))).toHaveLength(1);
+    expect(seen.filter((path) => path === '/gone')).toHaveLength(1);
+  });
+
+  test('a redirect to a held Russian host opens no connection to it', async () => {
+    seen.length = 0;
+    await hostLease(clock).hold('www.gibdd.ru', 'captcha', FETCH_DAY.getTime() + 60_000);
+    const outcome = await run(`http://www.example.com:${port}/hop`, reachWith(memoryStore(), KEY));
+    if (outcome.ok) throw new Error('the tool had to refuse');
+    expect(outcome.refusal).toContain('hold');
+    expect(seen).toStrictEqual(['/hop']);
+  });
+
+  test('a stated Retry-After is the time of the hold', async () => {
+    await run(`http://www.rosneft.ru:${port}/later`, reachWith(memoryStore(), undefined));
+    const file = JSON.parse(fileOf('www.rosneft.ru')) as { hold: { until: number } };
+    expect(file.hold.until).toBe(FETCH_DAY.getTime() + 7_200_000);
+  });
+
   test('a CAPTCHA from the proxy is a refusal, and nothing is stored', async () => {
     proxyAnswer = { status: 200, body: '<html>captcha</html>' };
     const store = memoryStore();
-    const outcome = await run(`http://www.cbr.ru:${port}/gone`, reachWith(store, KEY));
+    const outcome = await run(`http://www.fas.ru:${port}/gone`, reachWith(store, KEY));
     if (outcome.ok) throw new Error('the tool had to refuse');
     expect(outcome.refusal).toContain('CAPTCHA');
     expect(store.puts).toStrictEqual([]);

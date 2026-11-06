@@ -160,6 +160,8 @@ operator to accept" a proposal.
   with the scene, the date and the cloud share. It needs a free Copernicus Data Space client.
   The image states no damage. When the client is not set, the tool says so, and the other tools
   work.
+- A read that the ceiling of the proxy stops has a line in `blocked.md` of the state folder
+  (`GAB_STATE_DIR`), and its ticket takes `waiting_ceiling`.
 - Read one extract of the Russian register: `egrul_extract` takes the 10-digit tax number of a
   company, stores the signed PDF as an internal document, and gives the owner section. On a CAPTCHA
   it gives status `hold` with the wait time: wait, and solve nothing. An excerpt of an extract can

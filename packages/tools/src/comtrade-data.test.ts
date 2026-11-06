@@ -218,3 +218,30 @@ test('a limit holds for each worker through the lease, and the next call sends n
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a stated Retry-After is the time of the hold, and a CAPTCHA holds the host', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gab-comtrade-'));
+  try {
+    const { session, reach } = setup({
+      answer: () => text('slow down', 429, { 'retry-after': '900' }),
+    });
+    const leased = { ...reach, hostLease: hostLease({ dir, now: reach.now, sleep: reach.sleep }) };
+    await callTool(tool, session, INPUT, leased);
+    expect(refusalOf(await callTool(tool, session, INPUT, leased))).toContain('10:15:00');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  const other = mkdtempSync(join(tmpdir(), 'gab-comtrade-'));
+  try {
+    const { web, session, reach } = setup({ answer: () => text('<form>captcha</form>') });
+    const leased = {
+      ...reach,
+      hostLease: hostLease({ dir: other, now: reach.now, sleep: reach.sleep }),
+    };
+    expect(refusalOf(await callTool(tool, session, INPUT, leased))).toContain('CAPTCHA');
+    expect(refusalOf(await callTool(tool, session, INPUT, leased))).toContain('captcha hold');
+    expect(web.asked).toHaveLength(1);
+  } finally {
+    rmSync(other, { recursive: true, force: true });
+  }
+});

@@ -128,13 +128,18 @@ export const comtradeData = defineTool({
     } finally {
       await endTurn?.();
     }
-    // A limit holds for each worker. A spent daily quota waits longer than a rate limit.
+    // A limit or a CAPTCHA holds for each worker. A time that the server states is the wait. With no
+    // such time, a spent daily quota waits longer than a rate limit.
     const limit = classOfAnswer(answer, reach.now().getTime());
+    if (limit.kind === 'captcha') {
+      await reach.hostLease?.hold(HOST, 'captcha', limit.retryAt ?? reach.now().getTime());
+      throw new ToolRefusal(`${REGISTER} asks for a CAPTCHA, and nothing solves it`);
+    }
     if (limit.kind === 'quota')
       await reach.hostLease?.hold(
         HOST,
         'quota',
-        /volume/iu.test(answer.body)
+        answer.headers['retry-after'] !== undefined || /volume/iu.test(answer.body)
           ? (limit.retryAt ?? reach.now().getTime())
           : reach.now().getTime() + RATE_LIMIT_HOLD_MS,
       );
