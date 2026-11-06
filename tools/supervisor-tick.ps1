@@ -325,7 +325,7 @@ try {
   $started = $false
   $wave = $config.waveStart
   if ($resume.retryAt -and [datetime]$resume.retryAt -gt $time) { $alarms += '- the wave-start resume worker waits for a sign-in or a limit' }
-  if ($wave -and -not $blocked -and $running -lt $cap -and -not $resume.worker -and (Test-Path $wave.stateFile)) {
+  if ($wave -and -not $resume.worker -and (Test-Path $wave.stateFile)) {
     $item = Get-Item $wave.stateFile
     $closed = try { ([IO.File]::ReadAllText($wave.stateFile) | ConvertFrom-Json).end -eq 'closed' } catch { $alarms += '- the wave-start state file is broken'; $true }
     $stale = ($time - $item.LastWriteTime).TotalMinutes -ge $STALE_MINUTES
@@ -336,7 +336,7 @@ try {
       # With no setting the tick cannot know, so it asks and starts nothing.
       $alive = $wave.liveMatch -and @(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*$($wave.liveMatch)*" }).Count -gt 0
       if (-not $wave.liveMatch) { $alarms += '- the setting waveStart.liveMatch is missing, so no resume worker starts' }
-      elseif (-not $alive) {
+      elseif (-not $alive -and -not $blocked -and $running -lt $cap) {
         $resume.runs++
         Save-State $resumeFile $resume
         $resume.worker = Start-Worker "wave-start-$($resume.runs)" $wave.prompt

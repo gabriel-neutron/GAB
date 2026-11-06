@@ -655,12 +655,13 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
     'a stale wave-start starts no resume worker at the cap or on a blocked tick',
     async () => {
       const full = waveFolder();
-      seed(full, 'T-1', 'sleep:9000');
+      seed(full, 'T-1', 'sleep:20000');
       execFileSync('powershell.exe', tickArguments(full));
       staleState(full, { closed: [] }, 31);
       execFileSync('powershell.exe', tickArguments(full));
       expect(workerFiles(full, '.spec.json')).toEqual(['T-1-1.spec.json']);
       expect(status(full).running).toBe(1);
+      expect(status(full).alarms).toEqual([]);
       await tick(full);
 
       const blocked = waveFolder();
@@ -670,6 +671,14 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       staleState(blocked, { closed: [] }, 31);
       await tick(blocked);
       expect(workerFiles(blocked, '.spec.json')).toEqual(['T-2-1.spec.json']);
+
+      // An alarm of wave-start does not wait for a free slot.
+      const broken = waveFolder();
+      seed(broken, 'T-3', 'sleep:15000');
+      execFileSync('powershell.exe', tickArguments(broken));
+      writeFileSync(join(broken, 'wave-start.json'), 'not json');
+      execFileSync('powershell.exe', tickArguments(broken));
+      expect(status(broken).alarms.join()).toContain('state file is broken');
     },
     LONG,
   );
