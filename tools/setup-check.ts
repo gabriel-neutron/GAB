@@ -21,7 +21,8 @@ const RUN_APPROVED = String.raw`HKCU\Software\Microsoft\Windows\CurrentVersion\E
 const DOCKER_ENTRY = 'Docker Desktop';
 
 // A draft can quote the words of the signature, so a quoted status or any draft status is not signed.
-const SIGNED = /(?<!["'`])\bStatus: SIGNED\b(?![-/])/u;
+// The operator can delegate this approval to the panel, and the list then states that in place of a signature.
+const SIGNED = /(?<!["'`])\bStatus: (?:SIGNED|APPROVED by the panel)\b(?![-/])/u;
 const DRAFT = /\bStatus: DRAFT\b/u;
 const NO_SETTING = 'no such setting';
 
