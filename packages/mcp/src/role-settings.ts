@@ -2,9 +2,11 @@
 // file, its turn cap and its first words. The server holds the gab tools of each role (roles.ts), and
 // these settings are the same list seen from the client.
 //
-// shortcut: a role with a shell can run any program that node starts, and Windows gives this user no
-// sandbox. The commands of its allow list, its empty database address and the deny rules bound it, and
-// only the closing check and the reviewer see what it did. Upgrade with a separate Windows account.
+// shortcut: a role with a shell runs under the Windows account of the record, and Windows gives it no
+// sandbox. A program that it starts through a script of the repository can call /mcp, which holds each
+// tool, or read a file of this account. Its allow list has no `node -e`, and its blank variables and the
+// deny rules bound it, but no refusal of the server stops such a call. Only the closing check and the
+// reviewer see it. Upgrade with a separate Windows account for these two roles (operator queue).
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -39,6 +41,12 @@ const NO_REWRITE = [
   'Bash(docker:*)',
 ];
 const NO_WRITE_OF_GIT = ['Bash(git push:*)', 'Bash(git commit:*)', 'Bash(git merge:*)'];
+// A package script or a file of the repository, and no program from a line of the shell.
+const NO_FREE_PROGRAM = ['Bash(pnpm exec:*)', 'Bash(pnpm dlx:*)', 'Bash(node -:*)'];
+// The variables of the tick that a worker with a shell must not inherit. The coder needs its GitHub
+// sign-in, and the build closer needs none.
+const BLANK_FOR_SHELL = ['GAB_RESEARCH_DATABASE_URL', 'OPENROUTER_API_KEY', 'BRIGHTDATA_API_KEY'];
+const BLANK_FOR_CLOSER = ['GH_TOKEN', 'GITHUB_TOKEN'];
 const READS = ['Read', 'Glob', 'Grep'];
 
 const VERDICT =
@@ -94,7 +102,7 @@ const ROLE_SETTINGS: Readonly<Record<Role, RoleSettings>> = {
   },
   build_closer: {
     builtin: [...READS, 'Bash'],
-    bash: ['Bash(git:*)', 'Bash(pnpm:*)', 'Bash(node:*)'],
+    bash: ['Bash(git:*)', 'Bash(pnpm:*)', 'Bash(node tools:*)', 'Bash(node packages:*)'],
     turns: 200,
     restricted: true,
     home: 'room',
@@ -111,7 +119,13 @@ const ROLE_SETTINGS: Readonly<Record<Role, RoleSettings>> = {
   },
   coder: {
     builtin: [...READS, 'Write', 'Edit', 'Agent', 'Skill', 'Bash'],
-    bash: ['Bash(git:*)', 'Bash(gh:*)', 'Bash(pnpm:*)', 'Bash(node:*)'],
+    bash: [
+      'Bash(git:*)',
+      'Bash(gh:*)',
+      'Bash(pnpm:*)',
+      'Bash(node tools:*)',
+      'Bash(node packages:*)',
+    ],
     turns: 300,
     restricted: false,
     home: 'checkout',
@@ -133,7 +147,7 @@ export const roleArgs = (role: Role, mcpFile: string, model: string): readonly s
   const allowed = toolsOfRole(role).filter((tool) => tool !== 'Bash');
   const deny = [
     ...NO_SECRET,
-    ...(bash.length === 0 ? [] : NO_REWRITE),
+    ...(bash.length === 0 ? [] : [...NO_REWRITE, ...NO_FREE_PROGRAM]),
     ...(role === 'build_closer' ? NO_WRITE_OF_GIT : []),
   ];
   return [
@@ -192,8 +206,12 @@ export const writeRoles = (
       prompt:
         role === 'build_closer' ? `${settings.words}\n\nThe checkout: ${checkout}` : settings.words,
       workDir: homes[settings.home],
-      // A worker with a shell gets no address of the record in its environment.
-      env: settings.bash.length === 0 ? {} : { GAB_RESEARCH_DATABASE_URL: '' },
+      env: Object.fromEntries(
+        [
+          ...(settings.bash.length === 0 ? [] : BLANK_FOR_SHELL),
+          ...(role === 'build_closer' ? BLANK_FOR_CLOSER : []),
+        ].map((name) => [name, '']),
+      ),
     };
     return [role, entry] as const;
   });

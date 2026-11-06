@@ -111,14 +111,18 @@ function Get-Role($t) {
   'proposer'
 }
 
-# A read-only copy of each file that a check names. Code gives the copy, so a closer cannot change the
-# real file, and a secret never goes with it.
+# A read-only copy of each file that a check names. Code gives the copy, so a closer does not open the
+# real file. The name of a secret file gets no copy, and a link can hide one. The number keeps two
+# files of one name apart.
 function Copy-CheckFile($t, [string]$folder) {
   [void][IO.Directory]::CreateDirectory($folder)
+  $n = 0
   foreach ($file in @($t.checkFiles)) {
-    if (-not $file -or $file -match '\.env($|\.)' -or -not (Test-Path -LiteralPath $file -PathType Leaf)) { Write-Log "no copy of a check file of $($t.id)"; continue }
-    $copy = Join-Path $folder (Split-Path $file -Leaf)
-    Copy-Item -LiteralPath $file $copy -Force
+    $n++
+    $item = if ($file -and "$file" -notmatch '(?i)\.env($|\.)|secret|credential|password|token|id_rsa|\.pem$|\.key$') { Get-Item -LiteralPath $file -ErrorAction SilentlyContinue }
+    if (-not $item -or $item.PSIsContainer -or $item.LinkType) { Write-Log "no copy of check file $n of $($t.id)"; continue }
+    $copy = Join-Path $folder "$n-$($item.Name)"
+    Copy-Item -LiteralPath $item.FullName $copy -Force
     (Get-Item -LiteralPath $copy).IsReadOnly = $true
   }
 }
@@ -133,7 +137,10 @@ function Start-Worker([string]$name, [string]$prompt, [string]$role, [string[]]$
     if (-not $from) { throw "the settings hold no role $role" }
   }
   $workDir = if ($from.workDir) { $from.workDir } else { $config.workDir }
-  Save-File "$base.spec.json" (@{ command = $config.command; args = @($from.args) + $extra; workDir = $workDir; env = $from.env } | ConvertTo-Json -Depth 4)
+  # A variable of the role wins over the same variable of the settings.
+  $vars = @{}
+  foreach ($source in $config, $from) { foreach ($e in @($source.env.PSObject.Properties)) { if ($e) { $vars[$e.Name] = $e.Value } } }
+  Save-File "$base.spec.json" (@{ command = $config.command; args = @($from.args) + $extra; workDir = $workDir; env = $vars } | ConvertTo-Json -Depth 4)
   $self = "-NoProfile -ExecutionPolicy Bypass -File $(Format-Argument $PSCommandPath) -StateDir $(Format-Argument $StateDir) -RunWorker $(Format-Argument $base)"
   $p = Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList $self -WindowStyle Hidden -PassThru
   $started = try { $p.StartTime.Ticks } catch { 0 }

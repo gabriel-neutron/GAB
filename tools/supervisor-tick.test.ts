@@ -1221,17 +1221,17 @@ setTimeout(() => process.exit(0), 30000);`,
       seed(dir, 'T-A', 'close', { state: 'closing', closer: 'build', checkFiles: [named, secret] });
       await ticks(dir, 1);
       const copies = join(dir, 'workers', 'T-A-1.files');
-      expect(readdirSync(copies)).toEqual(['named.log']);
+      expect(readdirSync(copies)).toEqual(['1-named.log']);
       expect(() => {
-        writeFileSync(join(copies, 'named.log'), 'changed');
+        writeFileSync(join(copies, '1-named.log'), 'changed');
       }).toThrow();
-      expect(readFileSync(join(copies, 'named.log'), 'utf8')).toBe('held');
+      expect(readFileSync(join(copies, '1-named.log'), 'utf8')).toBe('held');
       expect(promptOf(dir, 'T-A-1')).toContain(copies);
       const spec = JSON.parse(readFileSync(join(dir, 'workers', 'T-A-1.spec.json'), 'utf8')) as {
         args: string[];
       };
       expect(spec.args).toEqual([FAKE, '--role=build_closer', '--add-dir', copies]);
-      chmodSync(join(copies, 'named.log'), 0o666);
+      chmodSync(join(copies, '1-named.log'), 0o666);
     },
     LONG,
   );
