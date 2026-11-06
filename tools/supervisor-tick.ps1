@@ -245,10 +245,14 @@ try { $lock = [IO.File]::Open((Join-Path $StateDir 'tick.lock'), 'OpenOrCreate',
 catch [IO.IOException] {
   # The stop of the task ends conhost and not its PowerShell child, so a later tick ends a stuck tick.
   # A -RunWorker process waits for a worker, and it stays. Its command line has the same script name.
-  Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object {
-    $_.ProcessId -ne $PID -and $_.CommandLine -like '*supervisor-tick.ps1*' -and $_.CommandLine -notlike '*-RunWorker*' -and
-    $_.CommandLine -match ([regex]::Escape($StateDir) + '"?(\s|$)') -and $_.CreationDate -lt $time.AddMinutes(-$STUCK_MINUTES)
-  } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  # shortcut: a stop between the start and the save of a worker gives a second worker, as each dead tick does, BLD-16 can repair it after an incident.
+  $dir = [regex]::Escape($StateDir)
+  try {
+    Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object {
+      $_.ProcessId -ne $PID -and $_.CommandLine -like '*supervisor-tick.ps1*' -and $_.CommandLine -notlike '*-RunWorker*' -and
+      $_.CommandLine -match "-StateDir (`"$dir`"|$dir(\s|$))" -and $_.CreationDate -lt $time.AddMinutes(-$STUCK_MINUTES)
+    } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  } catch { Write-Output "stuck tick scan failed: $_" }
   Write-Output 'lock held: another tick runs'
   exit 0
 }

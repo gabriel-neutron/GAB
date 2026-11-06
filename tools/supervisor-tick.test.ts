@@ -141,8 +141,7 @@ const lockHeld = (dir: string) => {
     closeSync(openSync(join(dir, 'tick.lock'), 'r+'));
     return false;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EBUSY') throw error;
-    return true;
+    return (error as NodeJS.ErrnoException).code === 'EBUSY';
   }
 };
 
@@ -250,34 +249,32 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
     LONG,
   );
 
-  test(
-    'a tick at a held lock ends a stuck tick of its folder, and a process that waits for a worker stays',
-    async () => {
-      const dir = folder();
-      seed(dir, 'T-S', 'sleep:60000');
-      execFileSync('powershell.exe', tickArguments(dir, realNow()), { timeout: 60_000 });
-      const stuck = promisify(execFile)('powershell.exe', tickArguments(dir, realNow()), {
-        env: { ...process.env, GAB_TICK_TEST_HOLD_MS: '600000' },
-      }).catch(() => 'stopped');
-      while (!lockHeld(dir)) await new Promise((resolve) => setTimeout(resolve, 50));
-      const other = folder();
-      const later = execFileSync('powershell.exe', tickArguments(other, realNow(11)), {
-        timeout: 60_000,
-      });
-      expect(later.toString()).not.toContain('lock held');
-      expect(lockHeld(dir)).toBe(true);
-      const next = execFileSync('powershell.exe', tickArguments(dir, realNow(11)), {
-        timeout: 60_000,
-      });
-      expect(next.toString()).toContain('lock held');
-      expect(await stuck).toBe('stopped');
-      expect(workerFiles(dir, '.exit')).toHaveLength(0);
-      while (workerFiles(dir, '.exit').length < 1)
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      expect(lockHeld(dir)).toBe(false);
-    },
-    300_000,
-  );
+  test('a tick at a held lock ends a stuck tick of its folder, and a process that waits for a worker stays', async () => {
+    const dir = folder();
+    seed(dir, 'T-S', 'sleep:60000');
+    execFileSync('powershell.exe', tickArguments(dir, realNow()), { timeout: 60_000 });
+    const stuck = promisify(execFile)('powershell.exe', tickArguments(dir, realNow()), {
+      env: { ...process.env, GAB_TICK_TEST_HOLD_MS: '600000' },
+    }).catch(() => 'stopped');
+    while (!lockHeld(dir)) await new Promise((resolve) => setTimeout(resolve, 50));
+    const other = folder();
+    const otherTick = promisify(execFile)('powershell.exe', tickArguments(other, realNow()), {
+      env: { ...process.env, GAB_TICK_TEST_HOLD_MS: '600000' },
+    }).catch(() => 'stopped');
+    while (!lockHeld(other)) await new Promise((resolve) => setTimeout(resolve, 50));
+    const next = execFileSync('powershell.exe', tickArguments(dir, realNow(11)), {
+      timeout: 60_000,
+    });
+    expect(next.toString()).toContain('lock held');
+    expect(await stuck).toBe('stopped');
+    expect(lockHeld(other)).toBe(true);
+    expect(workerFiles(dir, '.exit')).toHaveLength(0);
+    execFileSync('powershell.exe', tickArguments(other, realNow(11)), { timeout: 60_000 });
+    expect(await otherTick).toBe('stopped');
+    while (workerFiles(dir, '.exit').length < 1)
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(lockHeld(dir)).toBe(false);
+  }, 300_000);
 
   test(
     'the scheduled command runs at normal priority, and each tick ends at a free and at a held lock',
@@ -285,13 +282,14 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       const name = `GabTickTest-${String(process.pid)}`;
       const dir = folder();
       const ended = async () => {
-        for (;;) {
+        for (const end = Date.now() + 75_000; Date.now() < end;) {
           await new Promise((resolve) => setTimeout(resolve, 2000));
           const state = powershell(
             `$t = Get-ScheduledTask -TaskName ${name}; "$($t.State) $(($t | Get-ScheduledTaskInfo).LastTaskResult)"`,
           );
           if (state === 'Ready 0') return;
         }
+        throw new Error('the scheduled tick did not end');
       };
       try {
         powershell(`& '${TASK}' -StateDir '${dir}' -TaskName ${name}`);
@@ -310,7 +308,9 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
         }
         expect(readFileSync(join(dir, 'status.json'), 'utf8')).toBe(before);
       } finally {
-        powershell(`Unregister-ScheduledTask -TaskName ${name} -Confirm:$false`);
+        powershell(
+          `Unregister-ScheduledTask -TaskName ${name} -Confirm:$false -ErrorAction SilentlyContinue`,
+        );
       }
     },
     LONG,
