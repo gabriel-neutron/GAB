@@ -5,9 +5,11 @@ import { execFile, execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   chmodSync,
+  closeSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readdirSync,
   readFileSync,
   rmSync,
@@ -25,6 +27,7 @@ const LONG = 180_000;
 const CLOCK = '2026-11-10T12:00:00';
 const after = (minutes: number) => new Date(Date.parse(CLOCK) + minutes * 60_000).toISOString();
 const TICK = join(import.meta.dirname, 'supervisor-tick.ps1');
+const TASK = join(import.meta.dirname, 'supervisor-tick-task.ps1');
 const root = mkdtempSync(join(tmpdir(), 'supervisor-tick-'));
 afterAll(() => {
   rmSync(root, { recursive: true, force: true });
@@ -125,6 +128,23 @@ const tickArguments = (dir: string, now = CLOCK) => [
   now,
 ];
 
+// A stuck tick is old on the clock of the process list, so its test needs the true time.
+const realNow = (minutes = 0) => new Date(Date.now() + minutes * 60_000).toISOString();
+
+const powershell = (command: string) =>
+  execFileSync('powershell.exe', ['-NoProfile', '-Command', command], { timeout: 60_000 })
+    .toString()
+    .trim();
+
+const lockHeld = (dir: string) => {
+  try {
+    closeSync(openSync(join(dir, 'tick.lock'), 'r+'));
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EBUSY';
+  }
+};
+
 const ticket = (dir: string, id: string) =>
   JSON.parse(readFileSync(join(dir, 'tickets', `${id}.json`), 'utf8')) as Ticket;
 
@@ -217,12 +237,81 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       });
       while (!existsSync(join(dir, 'tick.lock')))
         await new Promise((resolve) => setTimeout(resolve, 50));
-      const second = execFileSync('powershell.exe', tickArguments(dir), { timeout: 30_000 });
+      const second = execFileSync('powershell.exe', tickArguments(dir, realNow()), {
+        timeout: 30_000,
+      });
       expect(second.toString()).toContain('lock held');
       expect(existsSync(join(dir, 'status.json'))).toBe(false);
       expect((await first).stdout).not.toContain('lock held');
       expect(ticket(dir, 'T-L').state).toBe('working');
       expect(workerFiles(dir, '.spec.json')).toHaveLength(1);
+    },
+    LONG,
+  );
+
+  test('a tick at a held lock ends a stuck tick of its folder, and a process that waits for a worker stays', async () => {
+    const dir = folder();
+    seed(dir, 'T-S', 'sleep:60000');
+    execFileSync('powershell.exe', tickArguments(dir, realNow()), { timeout: 60_000 });
+    const stuck = promisify(execFile)('powershell.exe', tickArguments(dir, realNow()), {
+      env: { ...process.env, GAB_TICK_TEST_HOLD_MS: '600000' },
+    }).catch(() => 'stopped');
+    while (!lockHeld(dir)) await new Promise((resolve) => setTimeout(resolve, 50));
+    const other = folder();
+    const otherTick = promisify(execFile)('powershell.exe', tickArguments(other, realNow()), {
+      env: { ...process.env, GAB_TICK_TEST_HOLD_MS: '600000' },
+    }).catch(() => 'stopped');
+    while (!lockHeld(other)) await new Promise((resolve) => setTimeout(resolve, 50));
+    const next = execFileSync('powershell.exe', tickArguments(dir, realNow(11)), {
+      timeout: 60_000,
+    });
+    expect(next.toString()).toContain('lock held');
+    expect(await stuck).toBe('stopped');
+    expect(lockHeld(other)).toBe(true);
+    expect(workerFiles(dir, '.exit')).toHaveLength(0);
+    execFileSync('powershell.exe', tickArguments(other, realNow(11)), { timeout: 60_000 });
+    expect(await otherTick).toBe('stopped');
+    while (workerFiles(dir, '.exit').length < 1)
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(lockHeld(dir)).toBe(false);
+  }, 300_000);
+
+  test(
+    'the scheduled command runs at normal priority, and each tick ends at a free and at a held lock',
+    async () => {
+      const name = `GabTickTest-${String(process.pid)}`;
+      const dir = folder();
+      const ended = async () => {
+        for (const end = Date.now() + 75_000; Date.now() < end;) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          const state = powershell(
+            `$t = Get-ScheduledTask -TaskName ${name}; "$($t.State) $(($t | Get-ScheduledTaskInfo).LastTaskResult)"`,
+          );
+          if (state === 'Ready 0') return;
+        }
+        throw new Error('the scheduled tick did not end');
+      };
+      try {
+        powershell(`& '${TASK}' -StateDir '${dir}' -TaskName ${name}`);
+        expect(powershell(`(Get-ScheduledTask -TaskName ${name}).Settings.Priority`)).toBe('4');
+        powershell(`Start-ScheduledTask -TaskName ${name}`);
+        await ended();
+        expect(status(dir).running).toBe(0);
+        const before = readFileSync(join(dir, 'status.json'), 'utf8');
+        const holder = openSync(join(dir, 'tick.lock'), 'r+');
+        try {
+          powershell(`Start-ScheduledTask -TaskName ${name}`);
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+          await ended();
+        } finally {
+          closeSync(holder);
+        }
+        expect(readFileSync(join(dir, 'status.json'), 'utf8')).toBe(before);
+      } finally {
+        powershell(
+          `Unregister-ScheduledTask -TaskName ${name} -Confirm:$false -ErrorAction SilentlyContinue`,
+        );
+      }
     },
     LONG,
   );
@@ -539,6 +628,21 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       expect(ticket(dir, 'T-Y').state).toBe('parked');
       await tick(dir, '2026-11-20T00:00:00');
       expect(ticket(dir, 'T-Y').state).toBe('closed_parked');
+    },
+    LONG,
+  );
+
+  test(
+    'after the freeze the inbox opens no ticket and returns no parked ticket',
+    async () => {
+      const dir = folder();
+      seed(dir, 'T-P', 'pass', { state: 'parked' });
+      ask(dir, 'a', { id: 'T-P', to: 'ready' });
+      ask(dir, 'b', { ticket: { id: 'T-N', state: 'ready', prompt: 'PLAN:pass' } });
+      await tick(dir, '2026-11-20T00:00:00');
+      expect(ticket(dir, 'T-P').state).toBe('closed_parked');
+      expect(existsSync(join(dir, 'tickets', 'T-N.json'))).toBe(false);
+      expect(readdirSync(join(dir, 'inbox')).sort()).toEqual(['a.json.refused', 'b.json.refused']);
     },
     LONG,
   );

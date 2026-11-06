@@ -127,7 +127,13 @@ const run = async (context: Context, name: string, raw: unknown): Promise<CallTo
     const outcome =
       tool.name === 'propose' && check !== undefined
         ? await proposeChecked(tool, session, raw ?? {}, reach, check, context.readerFamily())
-        : await callTool(tool, session, raw ?? {}, reach);
+        : await callTool(
+            tool,
+            // A session of this pool is one connection until its release.
+            { query: (text, values) => session.query(text, values), pinned: true },
+            raw ?? {},
+            reach,
+          );
     if (!outcome.ok) return toolError(outcome.refusal);
     return { content: [{ type: 'text', text: JSON.stringify(outcome.output) }] };
   } catch (cause) {

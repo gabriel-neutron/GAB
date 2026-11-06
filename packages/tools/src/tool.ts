@@ -10,6 +10,9 @@ import type { ExtraRoot } from './russian-root.ts';
 /** What a tool needs from a connection. The caller opens it and decides its role. */
 export interface Session {
   query(text: string, values: unknown[]): Promise<{ readonly rows: readonly unknown[] }>;
+  /** Each query of this session runs on one connection. A pool session has no such promise, so a
+   * setting of the connection does not reach its next query. */
+  readonly pinned?: boolean;
 }
 
 /** What one web request asks of the surface: the headers, and the two caps of the answer. */
