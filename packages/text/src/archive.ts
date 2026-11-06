@@ -82,7 +82,9 @@ const checkedEntries = (entries: Map<string, ZipEntry>): ZipEntry[] => {
       );
     const limit = TABLE_NAME.test(entry.name) ? MAX_TABLE_FILE_BYTES : MAX_FILE_BYTES;
     if (entry.size > limit)
-      throw new ArchiveRefusal(`the file ${entry.name} inflates to more than ${String(limit)} bytes`);
+      throw new ArchiveRefusal(
+        `the file ${entry.name} inflates to more than ${String(limit)} bytes`,
+      );
     if (entry.size > RATIO_FROM_BYTES && entry.size > MAX_RATIO * Math.max(1, entry.compressed))
       throw new ArchiveRefusal(
         `the file ${entry.name} inflates to more than ${String(MAX_RATIO)} times its compressed ` +
