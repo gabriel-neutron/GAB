@@ -87,8 +87,9 @@ operator to accept" a proposal.
   INN, an OGRN, an IMO number or a LEI; it flags, and you send each group to a reviewer).
   `read_event_pairs` (the events with one kind, one day and one site in two scripts; it flags, and
   you send each group to a reviewer).
-- Read the documents: `find_document`, `document_text`, `file_schema_sample` (the header and the
-  first rows of a stored CSV table), `job_status`.
+- Read the documents: `find_document`, `document_text`, `find_line` (the lines of a large
+  stored file that hold a key, to cite one line), `file_schema_sample` (the header and the first
+  rows of a stored CSV table), `job_status`.
 - Find leads on the web: `web_search`, `news_search`.
 - Read a register: `gleif_lookup`, `companies_house`, `wikidata_ids`. Each one stores its answer
   as a document.
