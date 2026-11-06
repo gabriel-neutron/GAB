@@ -1,6 +1,6 @@
 import type { Cast } from '@gab/proposal/mapping';
 import { isDay } from '@gab/proposal/day';
-import { isValidImo, isValidLei } from '@gab/proposal/identifiers';
+import { isValidImo, isValidLei, isValidRuBic, swiftBicOf } from '@gab/proposal/identifiers';
 
 /** One cell as an attribute value, or the sentence that says why the cell is not one. A refused
  * cell excludes its row. A skipped cell holds no value of its key, and the row keeps its other
@@ -83,6 +83,14 @@ export const castCell = (cast: Cast, key: string, text: string): Cell => {
           ? { ok: true, value: lei }
           : { ok: 'skip', reason: `"${text}" is not a LEI in its legal form` };
       }
+      if (key === 'swift_bic') {
+        const bic = swiftBicOf(text);
+        return bic !== null
+          ? { ok: true, value: bic }
+          : { ok: 'skip', reason: `"${text}" is not a BIC in its legal form` };
+      }
+      if (key === 'ru_bic' && !isValidRuBic(text))
+        return { ok: 'skip', reason: `"${text}" is not a Russian BIC of nine digits` };
       return { ok: true, value: text };
     case 'ru_register':
       return registerCell(key, text);

@@ -383,3 +383,44 @@ test('the key function and the list of port-call types name the same types', asy
   for (const [bare, dated] of read.listed) expect(dated).not.toBe(bare);
   expect(read.other[1]).toBe(read.other[0]);
 });
+
+// BLD-10: the forms that the wave needs. Each one is a row of the vocabulary and no migration.
+test.each(PORT_CALL_TYPES)(
+  '%s takes a day, and an old act with no day keeps its key',
+  async (type) => {
+    await rolledBack('superuser', async (ask) => {
+      const ends = await endsOf(ask);
+      const doc = await post(ask, 31, TEXT);
+      const undated = { ...callAct(ends), type };
+      const dated = { ...callAct(ends, '2026-05-19'), type };
+      const old = await idOf(ask, [item('call', undated, doc, FIRST, name())]);
+      const keyBefore = await keyOf(ask, old);
+      const next = await idOf(ask, [item('call', dated, doc, FIRST, name())]);
+      expect(await keyOf(ask, next)).not.toBe(keyBefore);
+      expect(await keyOf(ask, old)).toBe(keyBefore);
+    });
+  },
+);
+
+test('propose accepts a found_in fact of a live type that takes no dates', async () => {
+  await rolledBack('superuser', async (ask) => {
+    const live = z
+      .array(z.object({ takes_interval: z.boolean() }))
+      .parse(
+        await ask(
+          `SELECT takes_interval FROM public.relation_type WHERE key = 'found_in' AND NOT retired`,
+        ),
+      );
+    expect(live).toStrictEqual([{ takes_interval: false }]);
+    const ends = await endsOf(ask);
+    const doc = await post(ask, 32, 'A part of Nayara was found in Sikka.');
+    const act = { op: 'create_relation', type: 'found_in', srcId: ends.vessel, dstId: ends.port };
+    const made = await idOf(ask, [item('call', act, doc, 'found in Sikka', name())]);
+    const [row] = z
+      .array(z.object({ type: z.string() }))
+      .parse(
+        await ask(`SELECT payload->>'type' AS type FROM public.proposals WHERE id = $1`, [made]),
+      );
+    expect(row?.type).toBe('found_in');
+  });
+});

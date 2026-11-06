@@ -142,6 +142,15 @@ export const SEEDED_RELATION_TYPES: readonly SeededRelationType[] = [
     true,
     'A source states that a bank or a payment agent made or facilitated payments on behalf of the far end, the principal. The designation basis alone ("conducted or facilitated any significant transaction") is not enough. A plan or a scheme ("would facilitate") gets the attribute status: planned. Source: a bank or a company. Far end: any party.',
   ),
+  // Set apart from supplies_items_to on purpose. A part in a weapon does not show who sold it, so
+  // the words of this type name no sale, and no intent. The source gives the date of the statement.
+  relationType(
+    'found_in',
+    'found in',
+    'holds a part of',
+    false,
+    'A source states that a part of the party was found in the far end, such as a weapon or a machine. The statement shows no sale, no delivery and no intent. Source: a company or a part. Far end: a weapon, a machine or a vessel.',
+  ),
   relationType(
     'supplies_crude_to',
     'supplies crude to',
