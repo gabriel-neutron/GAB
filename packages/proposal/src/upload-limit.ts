@@ -16,9 +16,9 @@ export const UPLOAD_FILE_BYTES = 20 * 1024 * 1024;
 // dataset passes this cap.
 export const BULK_FILE_BYTES = 256 * 1024 * 1024;
 
-// Origin of the number: measured once, on a test stack on a busy machine. One door call writes the
-// whole text in one statement, and the research role stops a statement at 30 s. 64 MiB took about 19
-// s, and 128 MiB passed the 30 s and was cancelled.
+// Origin of the number: measured on test stacks on a busy machine. One door call writes the whole
+// text in one statement. A store of about 64 MiB took 11 s to 163 s, under its limit of 180 s
+// (store-answer.ts), so a larger file has no margin.
 // shortcut: the tool holds the whole file in memory and writes it in one statement, upgrade to a
 // streamed read and a door for each page when a source needs a larger file.
 export const BULK_TEXT_BYTES = 64 * 1024 * 1024;

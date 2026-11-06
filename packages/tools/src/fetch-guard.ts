@@ -232,8 +232,10 @@ const PUBLIC_KEYS = new Set([
   'serieskey',
 ]);
 
+// shortcut: a name with no such end, such as ?k= or ?appid=, is not caught, and the list of names has
+// no end; add a name when a source shows one.
 const isSecretKey = (name: string): boolean => {
-  const plain = name.toLowerCase().replace(/[-_.$]/gu, '');
+  const plain = name.toLowerCase().replace(/\[[^\]]*\]|[-_.$]/gu, '');
   return SECRET_KEYS.has(plain) || (SECRET_NAME.test(plain) && !PUBLIC_KEYS.has(plain));
 };
 
@@ -241,9 +243,11 @@ const isSecretKey = (name: string): boolean => {
  * the address of each document, so such an address is never stored. */
 export const holdsSecret = (address: string): boolean => {
   const url = new URL(address);
-  return (
-    url.username !== '' || url.password !== '' || [...url.searchParams.keys()].some(isSecretKey)
-  );
+  // A server can read `;` as `&`, and a page can hold a key in its fragment. A fragment with no `=`
+  // is an anchor or a route, and it is part of the address of the page.
+  const fragment = url.hash.includes('=') ? url.hash.slice(1) : '';
+  const names = new URLSearchParams(`${url.search}&${fragment}`.replaceAll(';', '&')).keys();
+  return url.username !== '' || url.password !== '' || [...names].some(isSecretKey);
 };
 
 /** Refuses a name when one of its addresses is on the machine or on a private network. */
