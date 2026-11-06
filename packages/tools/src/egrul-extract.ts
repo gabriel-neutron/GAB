@@ -96,7 +96,9 @@ const shape = <Shape extends z.ZodType>(found: Shape, json: unknown): z.output<S
 };
 
 const token = z.object({ t: z.string().regex(/^[\w-]+$/u) });
-const row = z.object({ i: z.string().optional(), k: z.string().regex(/^[\w-]+$/u) });
+// External constraint, read on a real answer of 6 November 2026: the field t of a row names the
+// extract, and the field k is something else, so the service answers 500 to it.
+const row = z.object({ i: z.string().optional(), t: z.string().regex(/^[\w-]+$/u) });
 const result = z.object({ rows: z.array(row).optional(), status: z.string().optional() });
 const state = z.object({ status: z.string() });
 
@@ -202,7 +204,7 @@ const readExtract = async (
   if (match === undefined) return null;
   const request = shape(
     token,
-    await getJson(web, reach, stamped(reach, `/vyp-request/${match.k}`)),
+    await getJson(web, reach, stamped(reach, `/vyp-request/${match.t}`)),
   ).t;
   await waitFor(
     reach,

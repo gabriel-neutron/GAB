@@ -242,7 +242,7 @@ const setup = (script: Script = {}) => {
       const path = asked.url.pathname;
       if (path.startsWith('/search-result/'))
         // A real search row names a director: the tool never repeats it.
-        return json({ rows: [{ i: TAX, k: 'rowkey', g: 'ДИРЕКТОР: КРАСНОВ' }] });
+        return json({ rows: [{ i: TAX, k: 'ul', t: 'rowtoken', g: 'ДИРЕКТОР: КРАСНОВ' }] });
       if (path.startsWith('/vyp-request/')) return json({ t: 'request', captchaRequired: false });
       if (path.startsWith('/vyp-status/')) return json({ status: 'ready' });
       return new Error(`no answer for ${path}`);
@@ -306,7 +306,7 @@ test('one tax number runs the whole flow, and the document is stored under the p
   expect(world.web.posted[0]?.body).toContain('vyp3CaptchaToken=&');
   expect(world.web.asked.map((asked) => asked.url.pathname)).toStrictEqual([
     '/search-result/search',
-    '/vyp-request/rowkey',
+    '/vyp-request/rowtoken',
     '/vyp-status/request',
     '/vyp-download/request',
   ]);
