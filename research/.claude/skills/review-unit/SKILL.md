@@ -69,10 +69,15 @@ decide the unit.
      Executive Order 13662 or 14024, or another annex or article of Council Regulation (EU) No
      833/2014. The passage
      must name the exact provision: the directive, the annex or the article. A `designated_by`
-     relation for a sectoral measure has the wrong type: do not promote the unit, and do not
-     reject it. Leave it in the queue, and tell the operator that the relation goes back to be
-     retyped as `restricted_by`.
-     A person with only a `restricted_by` relation is not a fact for the record.
+     relation for a sectoral measure has the wrong type: do not promote it. Do not ask a person.
+     A new relation that waits in a unit has no type change: call `reject_relation` with the
+     reason "wrong_type", and name the provision and the type `restricted_by` in `why`. Write the
+     relation and the document in your result, and the proposer session sends a new
+     `restricted_by` item with the same passage. A relation of the record keeps its identifier:
+     the proposer session sends the type change (skill `cite-claim`), and a reviewer decides that
+     act from its passage, which must name the provision.
+     A new natural person with no `designated_by` relation is not a fact for the record: a
+     `restricted_by` relation, a public filing or an article is not enough. Reject that unit.
    - A supply, agency or payment relation (`supplies_items_to`, `acts_for`, `transfers_funds_to`,
      `pays_for`, `settles_through`): the passage must state the act itself. These words give no
      such relation, and the fact stays `associated_with` or `designated_by`: "materially

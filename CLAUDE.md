@@ -1,7 +1,7 @@
 Write every document, code comment, commit, pull request, issue and GitHub comment in ASD-STE100 Simplified Technical English. Keep replies to the operator short.
 The repository is public: never write a local path, a user name or private data in GitHub, a commit or a file (docs/agents/issue-tracker.md, section "Privacy").
 Docs map: docs/README.md. Read docs/authoring.md before you write a document. The code is the source of truth: a document never copies a name, a count or a command output.
-Develop on the VPS (infra/vps/README.md). In a worktree, run `pnpm stack:up` before a database test and `pnpm stack:down` at the end, also in a subagent (infra/README.md).
+Develop on the VPS (infra/vps/README.md, which also gives the exception of the tenfold wave). In a worktree, run `pnpm stack:up` before a database test and `pnpm stack:down` at the end, also in a subagent (infra/README.md).
 Use the Matt Pocock skills (`/to-spec`, `/to-tickets`, `/implement-spec`). Fix a small detail in the current work with no ticket.
 Do each action yourself when you can: never ask the operator to run a command, and never say you "cannot" before you try. Decide each technical detail yourself. Send each question about the direction of the project, a method, a source or a technical choice to the skill `expert-panel` and act on its verdict.
 Do each step that git can undo without asking: fix, test, commit, push, open the PR, review it with a separate agent (add `visual-qa` when the diff changes the user interface), apply the findings, merge into `staging`.

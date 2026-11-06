@@ -9,11 +9,61 @@ This file is the one source of the research rules. `CLAUDE.md` imports it.
 Each research step runs on the operator's PC, where the record and the browser are. A site that
 refuses this address goes to the skill `source-hunt`: the steps of the skill in order, then the
 blocked queue `research/out/blocked.md`. A residential proxy of a third party runs as one batch
-pass for each topic, over that queue, after the operator approves the count and the cost. The
-list of needs is for what only the operator can get.
+pass for each topic, over that queue, after the operator approves the count and the cost (a worker
+reads "A run with no person"). The list of needs is for what only the operator can get.
 
 Send each question of method, source, data model or unit in doubt to the skill `expert-panel`, and
 act on its verdict. The operator answers only the critical questions that it defines.
+
+## A run with no person
+
+The tenfold wave (#1270) runs with no person until its freeze. A worker is a session that the
+supervisor starts. **No person reads the output of a worker, so a worker never asks a question and
+never stops to wait for a person.** Each rule or skill that needs the operator reads as below for a
+worker. When no line below answers, send the question to the skill `expert-panel`. When the panel
+does not agree, the ticket parks, one line goes to the operator queue, and the other tickets go on.
+
+- **The freeze is 2026-11-20.** This is the limit of the panel verdict, and the supervisor uses this
+  one value. No new ticket opens after it, and each parked ticket then closes as parked. A later
+  date is not a way to get more facts. The report text and the legal read use the days after the
+  freeze, and they are outside the wave.
+- **Two acts replace the approvals of the operator.** The operator signs them once: the signed list
+  (one dated list of datasets, editions and levels) and the standing rule below.
+
+  | Approval in the other rules | What a worker does |
+  |---|---|
+  | Use a source or an edition | It needs a line of the signed list, or the standing rule. Before the signature, a ticket on a level A source with its terms read runs. Each other ticket holds in waiting_signature, and the hold costs no attempt. |
+  | Call `enqueue_extract` or `enqueue_mapping` | A line of the signed list that names the dataset and its edition is the approval. With no such line, a worker does not call them. A source that enters by the standing rule never uses them. |
+  | Start a batch pass of a third-party proxy | The ceiling that the operator set, in the supervisor state, is the approval. A worker logs the count and the cost of each batch. At the ceiling, the ticket goes to the blocked queue, and a line goes to the operator queue only if the case is critical. No batch runs before the lease and the ceiling exist in code. |
+  | Call `start_lead` | Nothing replaces this approval. A worker does not call it. |
+  | Promote a mapping, or approve an edition as a reference dataset | Nothing replaces these acts: `docs/decisions.md` keeps them with the operator. A worker does not do them. It adds one line to the operator queue, the ticket holds, and the other tickets go on. |
+
+- **The standing rule for a new source.** A pilot adds a source to the signed list with no new
+  signature only if all of these are true:
+  - the source is level A, and a stored terms text names the dataset;
+  - a separate agent read that text;
+  - the host is not a Russian state host, a leak host, or a host of a party to the war;
+  - the source has no personal data, and it needs no login, key, quota or enqueued job;
+  - the new line adds no new legal question, and a new edition with changed terms needs a new line.
+
+  Each line is logged, the operator can revoke it, and the end report shows it. A pilot never widens
+  this class. Each other source goes to the panel and to a signature. With no signature, that source
+  stays out, and nothing else waits.
+- **The panel role can create a ticket.** When a pilot closes, the tick starts a panel worker with
+  the output of the pilot. That worker can write a new ticket in the same format, for at most 60
+  facts, on a source of the signed list. The supervisor accepts it only if the ticket check passes:
+  complete fields, no missing reference, no cycle. Each new ticket is logged and takes its forecast
+  from its pilot. While the count is below the aim of the wave and no ticket is ready, the panel role
+  also opens tickets from the source catalogue, until the freeze. Each counting stop of the wave
+  applies, and each new ticket has a pilot. A proposer, a reviewer and a closer create no ticket.
+- **The wave has two paths.** Path 1 has no person: Task Scheduler, the tick and headless workers.
+  Path 2 is the declared fallback, with a lower count: one attended session stays open and runs the
+  Workflow tool. It breaks the goal of no person, because a person keeps the session open and
+  restarts it. It takes first the tickets that need no new register tool and no new parser. The wave
+  takes path 2 if the first test shows that a headless worker fails with a new token, or if the gate
+  ticket has not passed by 2026-11-09. A later pass of the gate moves the wave back to path 1. A
+  scheduled task of the app is not a path, because an automated turn cannot start a session. The
+  rules of this section apply on the two paths.
 
 ## The tools
 
@@ -112,7 +162,7 @@ operator to accept" a proposal.
   `firms_detections`, `gfw_port_visits`, `gfw_presence_grid`, `comtrade_data`, `sentinel2_pairs`, `site_image`, `store_saved_file`, `telegram_channel`,
   `enqueue_extract`, `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question.
   `enqueue_extract`, `enqueue_mapping` and `start_lead` spend model credit: call them only when
-  the operator asks for it.
+  the operator asks for it. A worker reads "A run with no person".
 - Decide as an AI reviewer: `promote_unit`, `reject_unit`, `reject_relation`, `join_unit`,
   `promote_clean_proposals`. Follow the skill `review-unit`.
 
@@ -124,16 +174,16 @@ operator to accept" a proposal.
   the write, a model of another family checks each batch, in one call with a token cap.
 - **The extractor is the back-end AI.** It reads a whole stored document and proposes each claim
   that it finds, also the facts outside your layer. Queue it (`enqueue_extract`) only when the
-  operator asks for it.
+  operator asks for it, or for a worker when a line of the signed list allows it.
 - **The mapper is the back-end AI for a table.** A stored CSV, TSV or SDMX-CSV table has columns that
-  Gabriel does not know. Queue its mapping (`enqueue_mapping`) only when the operator asks for it. Follow it
+  Gabriel does not know. Queue its mapping (`enqueue_mapping`) only when the operator asks for it, or for a worker when a line of the signed list allows it. Follow it
   with `job_status`, and read the mapping with `list_proposals`. The operator promotes the
   mapping, and then code loads the rows. You do not propose the rows of a table by hand.
 - **The lead agent finds sources for a lead.** For a broad lead, such as a company and its
   vessels, call `start_lead` with a short text. The back-end AI searches the web and the news,
   stores each new page and queues its extraction, with its own tokens. It proposes nothing. Later,
   find the stored pages with `find_document` and their proposals with `list_proposals`. The lead
-  queues the extraction of each page, so start a lead only when the operator asks for it.
+  queues the extraction of each page, so start a lead only when the operator asks for it. A worker never starts a lead.
 - **A register lookup gives a document to cite.** When you hold an LEI, a UK company number or a
   Wikidata item id, call `gleif_lookup`, `companies_house` or `wikidata_ids`. Read the stored
   text with `document_text`, and call `propose` with the document id and the excerpt.
