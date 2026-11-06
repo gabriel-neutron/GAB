@@ -199,7 +199,7 @@ const normal = (text: string): string =>
 const PERSON_WORD =
   /(?<![\p{L}])(?:ФАМИЛИЯ|ИМЯ|ОТЧЕСТВО|ДОЛЖНОСТЬ|ПОЛ|ГРАЖДАНСТВО|ДИРЕКТОР|ГЕНЕРАЛЬНЫЙ|ПРЕЗИДЕНТ|ЛИКВИДАТОР|ИП|ИНДИВИДУАЛЬНЫЙ)(?![\p{L}])/u;
 const PATRONYMIC =
-  /\p{L}{2,}(?:ОВИЧ|ЕВИЧ|ЬИЧ|ОВНА|ЕВНА|ИЧНА|ИНИЧНА|ОГЛЫ|КЫЗЫ|ГЫЗЫ|УУЛУ)(?![\p{L}])/u;
+  /\p{L}{2,}(?:(?:ОВИЧ|ЕВИЧ|ЬИЧ)(?:А|У|ЕМ|Е)?|(?:ОВН|ЕВН|ИЧН|ИНИЧН)(?:А|Ы|Е|У|ОЙ)|ОГЛЫ|КЫЗЫ|ГЫЗЫ|УУЛУ)(?![\p{L}])/u;
 const PERSON_TAX_NUMBER = /(?<!\d)\d{12}(?!\d)/u;
 const COMPANY_NUMBER = /(?<!\d)(?:\d{10}|\d{13})(?!\d)/u;
 const COMPANY_WORD =
@@ -258,31 +258,41 @@ export const egrulExcerptRefusal = (excerpt: string, pages: readonly string[]): 
   return null;
 };
 
-// Two capital words in a row, after the name of a company is taken out.
-const COMPANY_NAME =
-  /(?:\p{Lu}[\p{L}-]*\s+)*(?:LLC|LTD|Ltd|Limited|Inc|GmbH|Corp|Corporation|Company|Bank|ООО|АО|ПАО)(?![\p{L}])/gu;
-const NAME_PAIR = /\p{Lu}\p{Ll}+\s+\p{Lu}\p{Ll}+/u;
-const INITIALS = /(?<![\p{L}])\p{Lu}\.\s?\p{Lu}\./u;
-const TITLE = /(?<![\p{L}])(?:Mr|Mrs|Ms|Dr|Judge|Судья|судья|гражданин|гражданка)(?![\p{L}])/u;
+// A legal person in the words of an excerpt: a form with its name in quotes, or a run of Latin capital
+// words on one line before a Latin form. A comma or a small word ends a run.
+const FORM_FIRST =
+  /(?<![\p{L}])(?:ООО|АО|ПАО|ОАО|ЗАО|НАО|Общество с ограниченной ответственностью|Акционерное общество|Публичное акционерное общество)(?:\s*["«“][^"»”\n]{1,80}["»”])?/giu;
+const FORM_LAST =
+  /(?:(?<![\p{L}])\p{Lu}[\p{Script=Latin}&'-]* ){0,5}(?<![\p{L}])(?:LLC|LTD|Ltd|Limited|Inc|GmbH|Corp|Corporation|Bank|JSC|PJSC)(?![\p{L}])/gu;
+const NUMBER_LABEL = /(?<![\p{L}])(?:ОГРН|ИНН|КПП|OGRN|INN|LEI)(?![\p{L}])/gu;
+const PERSON_TITLE =
+  /(?<![\p{L}])(?:Mr|Mrs|Ms|Dr|Judge|mr|mrs|ms|judge|судья|гражданин|гражданка)(?![\p{L}])/iu;
 
 /** The sentence that refuses an excerpt of a restricted document with no person blocks to read (a
- * court act, a bank statement), or null. The rule fails closed: the excerpt must hold the form of a
- * legal person, and no sign of a natural person. A person that an act designates is refused too,
- * because the signed list allows legal persons only.
- * shortcut: a name in capital letters with no patronymic passes (IVAN IVANOV), add the persons of
- * the record to this test if a review finds one. */
+ * court act, a bank statement), or null. The rule fails closed: a capital letter outside the name
+ * of a legal person can start the name of a person, and code reads no name in a script with no
+ * capitals, so both are refused, also at the start of the excerpt. Cut the excerpt to the name of
+ * the firm and to words with no capital. A person that an act designates is refused too, because
+ * the signed list allows legal persons only.
+ * shortcut: a name in small letters only passes, and a name directly before a Latin form joins the
+ * run of the firm. An excerpt is a verbatim copy, so such a page is rare. The reviewer and the closer
+ * read each person. A tool that knows the names of a page is the upgrade. */
 export const restrictedExcerptRefusal = (excerpt: string): string | null => {
   const text = normal(excerpt);
-  const words = excerpt.normalize('NFC').replace(COMPANY_NAME, ' ');
+  const rest = excerpt
+    .normalize('NFC')
+    .replace(FORM_FIRST, ' ')
+    .replace(FORM_LAST, ' ')
+    .replace(NUMBER_LABEL, ' ');
   if (
     PERSON_WORD.test(text) ||
     PATRONYMIC.test(text) ||
     PERSON_TAX_NUMBER.test(text) ||
-    NAME_PAIR.test(words) ||
-    INITIALS.test(words) ||
-    TITLE.test(words)
+    PERSON_TITLE.test(excerpt) ||
+    /\p{Lu}/u.test(rest) ||
+    /(?![\p{Script=Latin}\p{Script=Cyrillic}])\p{L}/u.test(rest)
   )
-    return 'an excerpt of a restricted document can name a legal person only, and this excerpt holds the sign of a natural person';
+    return 'an excerpt of a restricted document can name a legal person only, and this excerpt holds the sign of a natural person or a capital letter outside the name of a firm';
   if (!COMPANY_NUMBER.test(text) && !COMPANY_WORD.test(text))
     return 'an excerpt of a restricted document must hold the form of a legal person: its full name or its number';
   return null;
