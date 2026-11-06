@@ -679,6 +679,7 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       writeFileSync(join(broken, 'wave-start.json'), 'not json');
       execFileSync('powershell.exe', tickArguments(broken));
       expect(status(broken).alarms.join()).toContain('state file is broken');
+      await tick(broken);
     },
     LONG,
   );
