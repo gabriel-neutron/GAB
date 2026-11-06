@@ -5,6 +5,7 @@ import type { GraphView } from './controller';
 import { openEntityList, type EntityMatch, type RailOpenList } from './entity-list';
 import type { GraphModel } from './model';
 import type { RailStep } from './rail-step';
+import { isShown } from './type-filter';
 
 interface GraphRailRows {
   readonly rail: RailRows;
@@ -13,7 +14,7 @@ interface GraphRailRows {
 
 export type RailView = Pick<
   GraphView,
-  'filter' | 'counts' | 'selection' | 'openUnits' | 'railOpen' | 'railWidth'
+  'filter' | 'counts' | 'selection' | 'openUnits' | 'railOpen' | 'railWidth' | 'showUnplaced'
 >;
 
 // The controller already drops a selection the filter excludes. The test below states that rule a
@@ -24,7 +25,7 @@ export function deriveRailRows(
   step: RailStep,
   query: string,
 ): GraphRailRows {
-  const { filter, counts: shownCounts, selection, openUnits } = view;
+  const { filter, counts: shownCounts, selection, openUnits, showUnplaced } = view;
   const hidden = new Set(filter.hiddenTypes);
 
   // Departure: a type row counts every node of its type, and a fold of the list does not change
@@ -52,7 +53,7 @@ export function deriveRailRows(
   // each one, and every type may stand open at the same moment.
   if (matching.size > 0) {
     model.graph.forEachNode((node, attrs) => {
-      if (!nameHoldsQuery(attrs.label, query)) return;
+      if (!isShown(attrs, hidden, showUnplaced) || !nameHoldsQuery(attrs.label, query)) return;
       matching.get(attrs.entityType)?.push({ id: node, label: attrs.label, degree: attrs.degree });
     });
   }

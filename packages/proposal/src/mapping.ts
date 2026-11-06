@@ -42,6 +42,9 @@ export const cast = z.discriminatedUnion('type', [
  * keeps only the numbers of its own length. */
 const RU_REGISTER_KEYS = ['tax_id', 'registration_number'] as const;
 
+// A number cast would drop the first zero of a Russian BIC, and a text cast would skip the check.
+const IDENTIFIER_CAST_KEYS = ['lei', 'swift_bic', 'ru_bic'] as const;
+
 export type Cast = z.infer<typeof cast>;
 
 /** A lookup reads one column and finds the entity that holds its value under one key. `label`
@@ -334,10 +337,11 @@ const entityRows = z
     { message: `the cast ru_register fills ${RU_REGISTER_KEYS.join(' and ')} from one column` },
   )
   .refine(
-    (held) => held.attrs['lei'] === undefined || held.attrs['lei'].cast.type === 'identifier',
-    {
-      message: 'lei takes the cast identifier',
-    },
+    (held) =>
+      IDENTIFIER_CAST_KEYS.every(
+        (name) => held.attrs[name] === undefined || held.attrs[name].cast.type === 'identifier',
+      ),
+    { message: `${IDENTIFIER_CAST_KEYS.join(', ')} take the cast identifier` },
   );
 
 /** The rows of a table: each row is one entity, one relation (a relation table) or one figure

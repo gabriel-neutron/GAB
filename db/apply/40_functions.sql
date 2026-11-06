@@ -1014,7 +1014,12 @@ BEGIN
     SELECT a.absorbed_id, a.survivor_id INTO v_absorbed, v_survivor
       FROM public.entity_alias a
      WHERE a.absorbed_id = v_target OR a.absorbed_id = ANY (v_names)
-        OR a.absorbed_id::text IN (v_payload::jsonb->>'src_id', v_payload::jsonb->>'dst_id')
+        -- As uuid and not as text: the shape accepts each spelling of a uuid. The cast is in the
+        -- select list, so an end that is no uuid reaches the refusal of the shape.
+        OR a.absorbed_id IN (SELECT x::uuid
+                               FROM unnest(ARRAY[v_payload::jsonb->>'src_id',
+                                                 v_payload::jsonb->>'dst_id']) AS x
+                              WHERE pg_input_is_valid(x, 'uuid'))
      LIMIT 1;
     IF FOUND THEN
       RAISE EXCEPTION 'item %: a merge absorbed the entity % into the entity %, so the act names '
@@ -1719,8 +1724,11 @@ BEGIN
                 AND ((o.target_kind = 'entity' AND o.target_id = p_absorbed)
                      OR (o.target_kind = 'relation' AND o.target_id = ANY (v_dropped))
                      OR p_absorbed = ANY (o.names)
-                     OR o.payload->>'src_id' = p_absorbed::text
-                     OR o.payload->>'dst_id' = p_absorbed::text)) THEN
+                     -- As uuid and not as text: the shape accepts each spelling of a uuid.
+                     OR p_absorbed IN (SELECT x::uuid
+                                         FROM unnest(ARRAY[o.payload->>'src_id',
+                                                           o.payload->>'dst_id']) AS x
+                                        WHERE pg_input_is_valid(x, 'uuid')))) THEN
     RAISE EXCEPTION 'an act that waits names the absorbed entity, or a relation that the merge '
                     'removes: decide it first, and then merge the two entities'
       USING CONSTRAINT = 'merge_absorbed_free', HINT = 'absorbedId';
@@ -2500,7 +2508,8 @@ BEGIN
               UNION SELECT c.doc_id::text FROM public.citation c WHERE c.claim_id = v_twin.id));
       UPDATE public.proposals
          SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
-             decided_as = 'rule', reject_reason = 'duplicate',
+             -- The mode of the promotion: 'rule' only when a named rule promoted the act.
+             decided_as = p_mode, reject_reason = 'duplicate',
              reject_note = 'the same fact as the act ' || p.id || ', which is promoted',
              decision_origin = 'closed when the act ' || p.id || ' was promoted'
        WHERE id = v_twin.id;
@@ -5095,15 +5104,14 @@ $$;
 -- rules stand in rule_of_faults, which takes the faults as an argument, and a list of units checks
 -- its faults once in one call of unit_faults. unit_rule is the rule of one unit. No role holds
 -- rule_of_faults.
-CREATE OR REPLACE FUNCTION rule_of_faults(p_unit uuid, p_faults jsonb)
+--
+-- THE FIRST TWO RULES ARE IN THIS FUNCTION. It gives 'impossible', 'doubt', or NULL when a later rule decides. The
+-- lane of a unit reads only these two, so a read of the queue does not judge the sources of each
+-- fact. No role holds this step.
+CREATE OR REPLACE FUNCTION rule_before_sources(p_unit uuid, p_faults jsonb)
 RETURNS text
 LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_all_f  boolean;
-  v_single text;
-  v_pair   text;
-  v_other  text;
 BEGIN
   IF p_faults IS NULL THEN
     RETURN NULL;
@@ -5115,12 +5123,13 @@ BEGIN
   -- A contradiction or a reported claim from an author F is no doubt: the unit waits, and the card
   -- shows the conflict. A reported claim reads the author of its act. A contradiction has no
   -- single act, so it reads every act of the unit: it waits only when each one is from an author F.
-  v_all_f := NOT EXISTS (SELECT 1 FROM public.proposals a
-                          WHERE a.unit_id = p_unit AND a.status = 'pending'
-                            AND (a.originator IS NULL OR public.letter_of(a.originator) <> 'F'));
   IF EXISTS (SELECT 1 FROM jsonb_array_elements(p_faults) AS x
               WHERE x->>'level' = 'not_clean'
-                AND NOT (x->>'kind' = 'contradiction' AND v_all_f)
+                AND NOT (x->>'kind' = 'contradiction'
+                         AND NOT EXISTS (SELECT 1 FROM public.proposals a
+                                          WHERE a.unit_id = p_unit AND a.status = 'pending'
+                                            AND (a.originator IS NULL
+                                                 OR public.letter_of(a.originator) <> 'F')))
                 AND NOT (x->>'kind' = 'reported_claim'
                          AND EXISTS (SELECT 1 FROM public.proposals r
                                       WHERE r.id = (x->>'act')::uuid AND r.originator IS NOT NULL
@@ -5128,6 +5137,26 @@ BEGIN
      OR public.unit_doubt_cause(p_unit) IS NOT NULL
   THEN
     RETURN 'doubt';
+  END IF;
+  RETURN NULL;
+END $$;
+
+CREATE OR REPLACE FUNCTION rule_of_faults(p_unit uuid, p_faults jsonb)
+RETURNS text
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_first  text;
+  v_single text;
+  v_pair   text;
+  v_other  text;
+BEGIN
+  IF p_faults IS NULL THEN
+    RETURN NULL;
+  END IF;
+  v_first := public.rule_before_sources(p_unit, p_faults);
+  IF v_first IS NOT NULL THEN
+    RETURN v_first;
   END IF;
   IF EXISTS (SELECT 1 FROM jsonb_array_elements(p_faults) AS x
               WHERE x->>'level' IN ('blocks', 'waits')) THEN
@@ -5316,11 +5345,13 @@ SET search_path = pg_catalog, public, pg_temp AS $$
     SELECT f.unit_id, f.state, f.faults
       FROM public.unit_faults(ARRAY(SELECT h.unit_id FROM heads h)) AS f
   ), ruled AS (
-    -- The rule that matches each unit that waits. The doubt rule makes the lane "doubt", and any
-    -- other result is the lane "waiting".
+    -- The doubt rule makes the lane "doubt", and any other result is the lane "waiting". So the
+    -- read runs only the rules before the sources: the later rules cost the most and change no
+    -- lane. OFFSET 0 stops the planner from copying the call into the rule and the lane, so the
+    -- rule runs once for each unit and not twice.
     SELECT r.unit_id, r.rule, CASE WHEN r.rule = 'doubt' THEN 'doubt' ELSE 'waiting' END AS lane
-      FROM (SELECT f.unit_id, public.rule_of_faults(f.unit_id, f.faults) AS rule
-              FROM faulted f) AS r
+      FROM (SELECT f.unit_id, public.rule_before_sources(f.unit_id, f.faults) AS rule
+              FROM faulted f OFFSET 0) AS r
   ), groups AS (
     SELECT q.batch_id, q.subject, q.sort_key AS group_key FROM public.queue_groups() AS q
   ), tree (start, at, path, depth) AS (
@@ -6746,7 +6777,13 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'job % is not running, and only a running job completes', p_id;
   END IF;
-  PERFORM public.run_rules(public.units_of_job(p_id));
+  -- As in fail_job: a rule that raises must not undo the end of the job, because the runner then
+  -- fails a job whose proposals are written. The rules read the units again at the next decision.
+  BEGIN
+    PERFORM public.run_rules(public.units_of_job(p_id));
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'the rules of the completed job % raised: %', p_id, SQLERRM;
+  END;
   RETURN v_status;
 END $$;
 
@@ -6807,10 +6844,56 @@ SET search_path = pg_catalog, public, pg_temp AS $$
              JOIN public.document_provider p ON p.id = d.provider_id
             WHERE d.id = p_document
               AND d.id <> 'inherited'
-              AND p.licence IN ('public-domain', 'eu-reuse', 'ogl-v3', 'cc0', 'cc-by-4.0',
-                                'copernicus', 'own'))
+              AND p.licence IN (SELECT l.licence FROM public.open_licence l))
          THEN 'cc-by' ELSE 'internal' END
 $$;
+
+
+-- THE LEVEL AND THE CLASS OF A DOCUMENT, for a tool (migration 0097). SECURITY DEFINER, because a
+-- tool role holds no grant on the view. An id that names no document is below level A.
+CREATE OR REPLACE FUNCTION document_level(p_document text)
+RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce((SELECT m.level FROM public.document_mark m WHERE m.id = p_document),
+                  'not_verified')
+$$;
+
+CREATE OR REPLACE FUNCTION document_restricted(p_document text)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce((SELECT m.restricted FROM public.document_mark m WHERE m.id = p_document), true)
+$$;
+
+-- AN ADDRESS RULE SETS THE MARK ON THE ROW. public_document stands in each read of the public role,
+-- so it reads a column and no pattern. A pattern on each row of that view took each read past its
+-- limit, as measured on the test stack on 6 November 2026.
+CREATE OR REPLACE FUNCTION document_restricted_by_rule()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.document_level_rule r
+              WHERE r.restricted AND NEW.uri ~* r.pattern) THEN
+    NEW.restricted := true;
+  END IF;
+  RETURN NEW;
+END $$;
+
+-- THE MARK GOES ONE WAY: no function removes it.
+CREATE OR REPLACE FUNCTION fill_document_restricted(p_document text)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  UPDATE public.documents SET restricted = true WHERE id = p_document::doc_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  RETURN 'filled';
+END $$;
 
 
 -- ============================================================================== THE TRAVERSAL =
@@ -6835,7 +6918,9 @@ SET search_path = pg_catalog, public, pg_temp AS $$
       JOIN api.relation r
         ON r.src_kind = 'entity' AND r.dst_kind = 'entity'
        AND (r.src_id = w.entity_id OR r.dst_id = w.entity_id)
-     WHERE w.hop < depth
+     -- A cap on the depth: the walk keeps no visited set, so its cost grows with the depth.
+     -- The agent tool asks for 3 at most.
+     WHERE w.hop < least(depth, 6)
   )
   SELECT entity_id, min(hop) FROM walk GROUP BY entity_id;
 $$;
@@ -7965,6 +8050,20 @@ BEGIN
                                          WHERE l.document_id = c.doc_id)) THEN
     RETURN;
   END IF;
+  -- A search adds sources to a fact of a known author only, so a unit with an act of no author
+  -- (a mapping, an act of the operator) gets no search.
+  IF EXISTS (SELECT 1 FROM public.proposals a
+              WHERE a.unit_id = p_unit AND a.status = 'pending'
+                AND (a.originator IS NULL OR a.op = 'map_document')) THEN
+    RETURN;
+  END IF;
+  -- The costly test last. A unit that is blocked, or that waits for another unit, is not weak:
+  -- the rules read it again when it is free.
+  IF EXISTS (SELECT 1 FROM public.unit_faults(ARRAY[p_unit]) AS f
+                CROSS JOIN LATERAL jsonb_array_elements(f.faults) AS x
+               WHERE x->>'level' IN ('blocks', 'waits')) THEN
+    RETURN;
+  END IF;
   SELECT left('Find a better source for these acts: ' ||
               string_agg(a.op || ' ' || a.payload::text, '; ' ORDER BY a.id), 1900)
     INTO v_lead
@@ -8136,8 +8235,9 @@ END $$;
 -- PU1: no rejected act, no value of a person with no public source, no person with no public
 -- source. The functions then add the rules of a release:
 --
---   - a row stays only when one of its sources is a public document, and a row names only its
---     public documents (a bought file and an internal document are never named);
+--   - a row stays only when one of its sources is a public document at level A
+--     (public.export_document), and a row names only such documents (a bought file, an internal
+--     document and a document below level A are never named);
 --   - a person stays only when the record holds a relation "designated by" from the person to an
 --     element that is not a person, with a public source;
 --   - a relation stays only when both of its ends are entities of the release.
@@ -8182,7 +8282,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
     SELECT e.id, e.type, e.label, e.origin_label, e.geom,
            CASE WHEN e.geom IS NULL THEN NULL ELSE e.geom_method END AS geom_method,
            ARRAY(SELECT s.id::text FROM unnest(e.sources) AS s(id)
-                  WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = s.id)
+                  WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = s.id)
                   ORDER BY 1) AS sources,
            CASE WHEN e.geom IS NULL THEN '{}'::text[] ELSE ARRAY(
              SELECT DISTINCT s.id FROM unnest(coalesce(
@@ -8201,22 +8301,25 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
                   CROSS JOIN LATERAL unnest(g.docs) AS a(src)
                  WHERE x.id = e.id),
                e.sources::text[])) AS s(id)
-              WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id::text = s.id)
+              WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id::text = s.id)
               ORDER BY 1) END AS geom_sources
       FROM api.entity e
   ), sourced AS (
     SELECT * FROM shown WHERE cardinality(sources) > 0
   )
   SELECT h.id, h.type, h.label, h.origin_label, h.sources,
-         public.ST_AsGeoJSON(public.ST_ForcePolygonCCW(public.ST_SetSRID(
-           public.ST_GeomFromGeoJSON(h.geom), 4326)), 6)::jsonb,
-         h.geom_sources, h.geom_method
+         -- A geometry that no document of the release gives does not leave.
+         CASE WHEN cardinality(h.geom_sources) > 0
+              THEN public.ST_AsGeoJSON(public.ST_ForcePolygonCCW(public.ST_SetSRID(
+                     public.ST_GeomFromGeoJSON(h.geom), 4326)), 6)::jsonb END,
+         h.geom_sources,
+         CASE WHEN cardinality(h.geom_sources) > 0 THEN h.geom_method END
     FROM sourced h
    WHERE h.type <> 'person'
       OR EXISTS (SELECT 1 FROM api.relation r JOIN sourced t ON t.id = r.dst_id
                   WHERE r.type = 'designated_by' AND r.src_kind = 'entity'
                     AND r.dst_kind = 'entity' AND r.src_id = h.id AND t.type <> 'person'
-                    AND EXISTS (SELECT 1 FROM public.public_document d
+                    AND EXISTS (SELECT 1 FROM public.export_document d
                                  WHERE d.id = ANY (r.sources)))
 $$;
 
@@ -8228,12 +8331,12 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   WITH held AS (SELECT e.id FROM public.release_entities() e)
   SELECT r.id, r.type, r.src_id, r.dst_id, r.valid_from, r.valid_to, r.origin_label,
          ARRAY(SELECT s.id::text FROM unnest(r.sources) AS s(id)
-                WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = s.id)
+                WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = s.id)
                 ORDER BY 1)
     FROM api.relation r
    WHERE r.src_kind = 'entity' AND r.dst_kind = 'entity'
      AND r.src_id IN (SELECT h.id FROM held h) AND r.dst_id IN (SELECT h.id FROM held h)
-     AND EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = ANY (r.sources))
+     AND EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = ANY (r.sources))
 $$;
 
 -- The identifier of a value is the identifier of its element, a slash and the key, so it stays
@@ -8320,7 +8423,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
            ARRAY(SELECT s.id FROM jsonb_array_elements_text(
                                     CASE jsonb_typeof(c.src) WHEN 'array' THEN c.src
                                          ELSE '[]'::jsonb END) AS s(id)
-                  WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = s.id)
+                  WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = s.id)
                   ORDER BY 1) AS public_sources,
            CASE WHEN jsonb_typeof(c.value) IN ('string', 'number', 'boolean')
                 THEN btrim(lower(regexp_replace(c.value #>> '{}', '[^[:alnum:]]+', ' ', 'g')))
@@ -8357,7 +8460,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
    WHERE cardinality(k.public_sources) > 0
 $$;
 
--- Each public document, with its provider and the licence of its provider. A document with no
+-- Each document that a release can name, with its provider and the licence of its provider. A document with no
 -- provider has none. The alignment matrix reads the regime of a designation from the provider.
 CREATE FUNCTION release_documents()
 RETURNS TABLE (id text, title text, uri text, retrieved_at date, licence text, provider text,
@@ -8367,13 +8470,14 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   SELECT d.id::text, d.title, d.uri, d.retrieved_at, p.licence, p.id, d.doc_type
     FROM public.documents d
     LEFT JOIN public.document_provider p ON p.id = d.provider_id
-   WHERE d.id IN (SELECT o.id FROM public.public_document o)
+   WHERE d.id IN (SELECT o.id FROM public.export_document o)
 $$;
 
 -- THE FIGURES OF A RELEASE (ADR 0030). Each figure of the newest edition for its key, with the same
 -- licence filter as the public read. The function reads api.observation as its owner, and that view
 -- shows the owner only the figures with an open licence, so a figure with a restricted licence is
 -- not in a release. The view also hides a subject that the public read does not show.
+-- A figure whose document is below level A is not in a release either.
 CREATE FUNCTION release_observations()
 RETURNS TABLE (id uuid, measure text, value numeric, unit text, period text, method text,
                publisher text, reporter text, partner text, product text, subject_id uuid,
@@ -8383,6 +8487,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   SELECT o.id, o.measure, o.value, o.unit, o.period, o.method, o.publisher, o.reporter, o.partner,
          o.product, o.subject_id, o.licence, o.document_id::text, o.page, o.span_start, o.span_end
     FROM api.observation o
+   WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = o.document_id)
 $$;
 
 -- THE LOG OF THE MERGES (M12): each merge and each undo, with its label, and the entity that each

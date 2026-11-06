@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { open, realpath } from 'node:fs/promises';
 import { join, sep } from 'node:path';
 
-import { UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
+import { BULK_TEXT_BYTES, isBulkTextType, UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
 import {
   extractText,
   mimeOfFileName,
@@ -25,8 +25,9 @@ import { z } from 'zod';
 import { addressTitle, htmlTitle } from './fetch-document.ts';
 import { holdsLayers, skippedFileShape, storeArchive, storedFileShape } from './store-archive.ts';
 import { refusedSource } from './refused-source.ts';
-import { storeAnswer } from './store-answer.ts';
-import { defineTool, ToolRefusal } from './tool.ts';
+import { markRestricted, storeAnswer } from './store-answer.ts';
+import { holdsSecret } from './fetch-guard.ts';
+import { defineTool, type HeldParts, ToolRefusal } from './tool.ts';
 import { isHtml, unreadablePage } from './unreadable-page.ts';
 
 // A browser saves a page as a PDF or as HTML, and an image as a PNG or a JPEG file. A data file of
@@ -91,16 +92,18 @@ const fileName = z
   });
 
 // The address of the page in the browser. It names the source of the bytes, and a stored address
-// never holds a user name or a password.
-const sourceAddress = z.url({ protocol: /^https?$/u }).refine((url) => {
-  const parsed = new URL(url);
-  return parsed.username === '' && parsed.password === '';
-}, 'the address holds no user name and no password');
+// never holds a user name, a password or a key.
+const sourceAddress = z
+  .url({ protocol: /^https?$/u })
+  .refine(
+    (url) => !holdsSecret(url),
+    'the address holds no user name, no password and no key: give the address with no secret',
+  );
 
 // A file is read through one open handle, so a file that changes after the checks is not read.
 // A second hard link can name a file outside the inbox, so a file with more than one link is
 // refused.
-const readInboxFile = async (inbox: string, name: string): Promise<Uint8Array> => {
+const readInboxFile = async (inbox: string, name: string, limit: number): Promise<Uint8Array> => {
   let root: string;
   try {
     root = await realpath(inbox);
@@ -124,8 +127,7 @@ const readInboxFile = async (inbox: string, name: string): Promise<Uint8Array> =
     const held = await handle.stat();
     if (!held.isFile()) throw new ToolRefusal(`${name} is not a plain file of the inbox`);
     if (held.nlink !== 1) throw new ToolRefusal(`${name} has more than one link`);
-    if (held.size > UPLOAD_FILE_BYTES)
-      throw new ToolRefusal(`${name} is larger than ${String(UPLOAD_FILE_BYTES)} bytes`);
+    if (held.size > limit) throw new ToolRefusal(`${name} is larger than ${String(limit)} bytes`);
     const bytes = new Uint8Array(held.size);
     const { bytesRead } = await handle.read(bytes, 0, held.size, 0);
     if (bytesRead !== held.size) throw new ToolRefusal(`${name} changed while it was read`);
@@ -135,14 +137,11 @@ const readInboxFile = async (inbox: string, name: string): Promise<Uint8Array> =
   }
 };
 
-// The parts of a file that came in more than one call, by the address of the page. One server
-// serves one session, so the parts of two pages do not mix.
-// shortcut: the parts of an upload that never ends stay in memory until the server stops (each
-// is capped at the upload limit); add an expiry if a session leaves many of them.
-const heldParts = new Map<
-  string,
-  { parts: number; type: string; chunks: Buffer[]; size: number }
->();
+// The parts of a file that came in more than one call, by the address of the page, when the
+// surface gives no map of its own session (a direct call or a test).
+// shortcut: the parts of an upload that never ends stay in memory until the session or the server
+// stops (each is capped at the upload limit); add an expiry if a session leaves many of them.
+const heldParts = new Map<string, HeldParts>();
 
 interface Content {
   readonly url: string;
@@ -155,6 +154,7 @@ interface Content {
 // The whole file when this call gives its last part, or the count of the parts held so far.
 const bytesOfContent = (
   input: Content,
+  held: Map<string, HeldParts>,
 ): { bytes: Buffer } | { received: number; parts: number } => {
   const bytes = Buffer.from(input.content, 'base64');
   const { url, type, part = 1, parts = 1 } = input;
@@ -163,24 +163,24 @@ const bytesOfContent = (
       throw new ToolRefusal(`the content is larger than ${String(UPLOAD_FILE_BYTES)} bytes`);
     return { bytes };
   }
-  if (part === 1) heldParts.set(url, { parts, type, chunks: [], size: 0 });
-  const held = heldParts.get(url);
-  if (held?.parts !== parts || held.type !== type || held.chunks.length !== part - 1) {
-    heldParts.delete(url);
+  if (part === 1) held.set(url, { parts, type, chunks: [], size: 0 });
+  const entry = held.get(url);
+  if (entry?.parts !== parts || entry.type !== type || entry.chunks.length !== part - 1) {
+    held.delete(url);
     throw new ToolRefusal(
       `part ${String(part)} of ${String(parts)} is not the next part of ${url}: send the parts ` +
         'again from part 1',
     );
   }
-  held.chunks.push(bytes);
-  held.size += bytes.length;
-  if (held.size > UPLOAD_FILE_BYTES) {
-    heldParts.delete(url);
+  entry.chunks.push(bytes);
+  entry.size += bytes.length;
+  if (entry.size > UPLOAD_FILE_BYTES) {
+    held.delete(url);
     throw new ToolRefusal(`the content is larger than ${String(UPLOAD_FILE_BYTES)} bytes`);
   }
   if (part < parts) return { received: part, parts };
-  heldParts.delete(url);
-  return { bytes: Buffer.concat(held.chunks) };
+  held.delete(url);
+  return { bytes: Buffer.concat(entry.chunks) };
 };
 
 const titleOf = (
@@ -211,7 +211,8 @@ export const storeSavedFile = defineTool({
     'whole file; give a large file in ' +
     'parts, in order, with `part` and `parts` (each part but the last has a length that is a ' +
     'multiple of 4). Or give `file`, the name of a file that the operator saved into the inbox ' +
-    'folder. The bytes are what the browser held after the scripts of the page ran, not the ' +
+    'folder; a CSV, TSV or text file, a workbook or a ZIP file there can be up to 64 MiB. ' +
+    'The bytes are what the browser held after the scripts of the page ran, not the ' +
     'answer of the server, and the title of the document says "saved by the browser". The text ' +
     'is checked as a fetch checks it. A Nominatim, Overpass or geocoder answer and a search ' +
     'result page are refused. The text of an image is what OCR read in it. The same ' +
@@ -241,6 +242,12 @@ export const storeSavedFile = defineTool({
         .enum(PROVIDERS)
         .optional()
         .describe('the publisher of an official file; its licence gives the tier of the document'),
+      restricted: z
+        .boolean()
+        .default(false)
+        .describe(
+          'mark a file that names natural persons, such as a bank statement: it never leaves, and an excerpt of it names a legal person only',
+        ),
     })
     .superRefine((given, context) => {
       const fault = (message: string) => context.addIssue({ code: 'custom', message });
@@ -295,7 +302,10 @@ export const storeSavedFile = defineTool({
     // the charset of its origin in a meta element, and the charset of the type comes first.
     let decodeAs: string;
     if (input.content !== undefined && input.type !== undefined) {
-      const got = bytesOfContent({ ...input, content: input.content, type: input.type });
+      const got = bytesOfContent(
+        { ...input, content: input.content, type: input.type },
+        reach.uploadParts ?? heldParts,
+      );
       if (!('bytes' in got)) return { status: 'waiting' as const, ...got };
       // The agent copies the base64 text by hand, so the hash of the browser proves the copy.
       if (createHash('sha256').update(got.bytes).digest('hex') !== input.sha256)
@@ -318,7 +328,11 @@ export const storeSavedFile = defineTool({
         );
       mime = named;
       decodeAs = named;
-      bytes = await readInboxFile(reach.inbox, file);
+      bytes = await readInboxFile(
+        reach.inbox,
+        file,
+        isBulkTextType(named) ? BULK_TEXT_BYTES : UPLOAD_FILE_BYTES,
+      );
       label = file;
     }
 
@@ -344,6 +358,7 @@ export const storeSavedFile = defineTool({
       throw new ToolRefusal(`no text is read from ${label}`);
     }
     if (mime === ZIP_MIME && !holdsLayers(pages)) {
+      if (input.restricted) throw new ToolRefusal('a restricted file is not a ZIP archive');
       const unpacked = await storeArchive(session, reach.store, {
         kind: 'url',
         bytes,
@@ -374,6 +389,7 @@ export const storeSavedFile = defineTool({
       day: reach.now().toISOString().slice(0, 10),
       ...(input.provider === undefined ? {} : { provider: input.provider }),
     });
+    if (input.restricted) await markRestricted(session, stored.id);
     return { document: stored.id, status: stored.status, title: stored.title, pages: pages.length };
   },
 });

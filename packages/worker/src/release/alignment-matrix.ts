@@ -2,6 +2,7 @@ import { isDay } from '@gab/proposal/day';
 import { isValidImo } from '@gab/proposal/identifiers';
 
 import type { ReleaseFile } from './csv-export.ts';
+import { imoOf } from './asset-claims.ts';
 import { csvFile } from './csv-file.ts';
 import { releaseLookup } from './release-lookup.ts';
 import type { ReleaseManifest } from './release-manifest.ts';
@@ -99,16 +100,6 @@ const HEADER = [
   'ofac_or_uk_not_eu',
   'eu_not_ofac',
 ];
-
-// An IMO number is seven digits. A writer can give it as a number, or with the prefix "IMO". A
-// list or any other shape gives no number. The check of the faults reads the number with the
-// same rule.
-const imoOf = (value: unknown): string | null => {
-  const text =
-    typeof value === 'number' ? String(value) : typeof value === 'string' ? value.trim() : '';
-  const digits = text.replace(/^IMO\s*/iu, '');
-  return /^\d{7}$/u.test(digits) ? digits : null;
-};
 
 // The first listing with a date comes first. A tie goes to the lower claim identifier, so two
 // releases of one record give one row.
@@ -273,7 +264,10 @@ export const alignmentMatrix = (
       return {
         dateFrom: 'designation_start',
         listedOn: relation.valid_from,
-        dateClaimId: claim.claim_id,
+        // A start date that a later act set is a claim of its own, and that claim holds the date.
+        dateClaimId: claims.has(`${relation.id}/valid_from`)
+          ? `${relation.id}/valid_from`
+          : claim.claim_id,
       };
     switch (rule) {
       case 'entry_into_force':

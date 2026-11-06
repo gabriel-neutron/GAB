@@ -78,6 +78,19 @@ export const webOf = (env: Environment, fetcher: typeof fetch = fetch): Web => {
         bytes: await bytesOf(response, request.maxBytes),
       };
     },
+    getBytes: async (url, request) => {
+      const response = await fetcher(url, {
+        method: 'GET',
+        redirect: 'manual',
+        headers: { 'user-agent': USER_AGENT, ...request.headers },
+        signal: AbortSignal.timeout(request.timeoutMs),
+      });
+      return {
+        status: response.status,
+        headers: Object.fromEntries(response.headers),
+        bytes: await bytesOf(response, request.maxBytes),
+      };
+    },
     get: async (url, request) => {
       const response = await fetcher(url, {
         method: 'GET',

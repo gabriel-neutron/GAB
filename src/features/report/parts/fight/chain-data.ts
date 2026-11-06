@@ -235,3 +235,14 @@ export const flowLinks = (() => {
 
 /** A count of chains as a reader reads it: the data splits a chain in parts, so 13.0001 is 13. */
 export const chainCount = (value: number) => Number(value.toFixed(1)).toLocaleString('en-US');
+
+/** A share of the data, with its percent sign, in the number format of the locale. It keeps the
+ * decimals of the data: 41.0 stays 41.0. */
+export const shareText = (text: string, locale: string) => {
+  const decimals = text.split('.')[1]?.length ?? 0;
+  return (Number(text) / 100).toLocaleString(locale, {
+    style: 'percent',
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+};

@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { Dialog } from 'radix-ui';
 
+import { BUSY_BUTTON } from '@/shared/busy-button';
 import { SaidLine } from '@/shared/said-line';
 import { Button } from '@/shared/ui/button';
 import { Textarea } from '@/shared/ui/textarea';
@@ -39,8 +40,11 @@ export function LeadDialog() {
   };
 
   // Each opening reads the leads again, so the dialog shows what the worker stored since.
+  // While a request is in flight, the form is kept: a reopen shows it with its guard, and the answer
+  // lands on the form that sent it. A write that never answers still lets the dialog close.
   const onOpenChange = (next: boolean): void => {
     setOpen(next);
+    if (working) return;
     setText('');
     setView(UNREAD);
     if (next) run(() => readLeadState());
@@ -84,7 +88,9 @@ export function LeadDialog() {
             <Button
               type="button"
               size="xs"
-              disabled={!screen.canStart}
+              disabled={!screen.canStart && !working}
+              aria-disabled={working}
+              className={BUSY_BUTTON}
               onClick={() => {
                 run(() => giveLead(text));
               }}
@@ -95,7 +101,8 @@ export function LeadDialog() {
               type="button"
               variant="secondary"
               size="xs"
-              disabled={working}
+              aria-disabled={working}
+              className={BUSY_BUTTON}
               onClick={() => {
                 run(() => readLeadState());
               }}

@@ -40,7 +40,19 @@ const SERIES = [
   },
 ] as const;
 
-const percent = (share: number | undefined) => (share === undefined ? '' : share.toFixed(1));
+// A share with one decimal in the number format of the page: bare, or with its percent sign.
+const percent = (share: number | undefined, locale: string) =>
+  share === undefined
+    ? ''
+    : share.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const percentSign = (share: number | undefined, locale: string) =>
+  share === undefined
+    ? ''
+    : (share / 100).toLocaleString(locale, {
+        style: 'percent',
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      });
 
 // The lower and upper edge of each band, year by year. A missing value is a data fault, not a
 // share of zero, so it stops the build of the chart.
@@ -92,7 +104,9 @@ function SharePanel({
   readonly year: number;
   readonly onPoint: (year: number | null) => void;
 }) {
-  const labels = useContent().figureTexts.figures['9'].labels;
+  const { figureTexts, ui } = useContent();
+  const labels = figureTexts.figures['9'].labels;
+  const locale = ui.numberLocale;
   const reduce = useReduceMotion();
   const narrow = useNarrowScreen();
   const hatch = useId();
@@ -252,7 +266,7 @@ function SharePanel({
                 strokeWidth="5"
                 strokeLinejoin="round"
               >
-                {percent(share)}
+                {percent(share, locale)}
               </text>
             );
           })}
@@ -282,7 +296,7 @@ function SharePanel({
 /** The shares of one year: the year as an editorial numeral, the two rouble shares under it, and
  * the shares of the other groups of currencies. */
 function YearReadout({ year, still }: { readonly year: number; readonly still: boolean }) {
-  const { financeUi, figureTexts } = useContent();
+  const { financeUi, figureTexts, ui } = useContent();
   const copy = financeUi.figure;
   const labels = figureTexts.figures['9'].labels;
   return (
@@ -308,7 +322,7 @@ function YearReadout({ year, still }: { readonly year: number; readonly still: b
             <div key={panel}>
               <dt className="font-mono text-report-label uppercase text-label">{copy[panel]}</dt>
               <dd className="font-mono text-report-lead leading-none tracking-[-0.04em] tabular-nums">
-                {percent(value(panel, 'Rouble', year))}%
+                {percentSign(value(panel, 'Rouble', year), ui.numberLocale)}
               </dd>
               {/* On a phone the bands carry these values, so the readout stays short enough to stick. */}
               {SERIES.slice(1).map((series) => (
@@ -316,7 +330,8 @@ function YearReadout({ year, still }: { readonly year: number; readonly still: b
                   key={series.key}
                   className="mt-1 hidden font-mono text-report-label tabular-nums text-label lg:block"
                 >
-                  {labels[series.labelKey]} {percent(value(panel, series.key, year))}%
+                  {labels[series.labelKey]}{' '}
+                  {percentSign(value(panel, series.key, year), ui.numberLocale)}
                 </dd>
               ))}
             </div>
@@ -331,7 +346,7 @@ function YearReadout({ year, still }: { readonly year: number; readonly still: b
  * and imports side by side. A pointer on a year, or the focus on its button, shows that year in
  * place of the step. */
 function SettlementChart({ year, still }: { readonly year: number; readonly still: boolean }) {
-  const { financeUi, figureTexts } = useContent();
+  const { financeUi, figureTexts, ui } = useContent();
   const copy = financeUi.figure;
   const labels = figureTexts.figures['9'].labels;
   const describe = useId();
@@ -381,7 +396,7 @@ function SettlementChart({ year, still }: { readonly year: number; readonly stil
                   (panel) =>
                     `${copy[panel]}: ${SERIES.map(
                       (series) =>
-                        `${labels[series.labelKey]} ${percent(value(panel, series.key, one))}%`,
+                        `${labels[series.labelKey]} ${percentSign(value(panel, series.key, one), ui.numberLocale)}`,
                     ).join(', ')}.`,
                 ).join(' ')}
               </span>
@@ -421,7 +436,7 @@ export function SettlementFigure({
   readonly partSlug: string;
 }) {
   const reduce = useReduceMotion();
-  const { financeUi, figureTexts } = useContent();
+  const { financeUi, figureTexts, ui } = useContent();
   const copy = financeUi.figure;
   const labels = figureTexts.figures['9'].labels;
   const figure = block.figure;
@@ -450,7 +465,7 @@ export function SettlementFigure({
         rows={YEARS.map((one) => [
           String(one),
           ...PANELS.flatMap((panel) =>
-            SERIES.map((series) => percent(value(panel, series.key, one))),
+            SERIES.map((series) => percent(value(panel, series.key, one), ui.numberLocale)),
           ),
         ])}
       />

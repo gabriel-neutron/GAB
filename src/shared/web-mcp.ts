@@ -1,6 +1,8 @@
 // WebMCP: a browser that offers in-page tools to an agent (a proposed standard) finds two read-only
 // tools here. A browser without the standard ignores this file.
 
+import { siteAddress } from './site-address';
+
 interface ModelContext {
   registerTool(tool: {
     name: string;
@@ -32,10 +34,14 @@ export const registerWebMcp = (): void => {
       inputSchema: { type: 'object', properties: {} },
       annotations: { readOnlyHint: true },
       execute: async () => {
-        const response = await fetch('/release/manifest.json');
-        return reply(
-          response.ok ? await response.json() : { error: 'The manifest cannot be read.' },
-        );
+        const refused = { error: 'The manifest cannot be read.' };
+        try {
+          const response = await fetch(siteAddress('/release/manifest.json'));
+          // A host can answer a missing file with its page, which is not JSON.
+          return reply(response.ok ? await response.json() : refused);
+        } catch {
+          return reply(refused);
+        }
       },
     });
     context.registerTool({
@@ -50,7 +56,7 @@ export const registerWebMcp = (): void => {
       execute: (input) => {
         const path = typeof input['path'] === 'string' ? input['path'] : '';
         if (!PATH.test(path)) return Promise.resolve(reply({ error: 'Bad path.' }));
-        location.assign(path);
+        location.assign(siteAddress(path));
         return Promise.resolve(reply({ opened: path }));
       },
     });

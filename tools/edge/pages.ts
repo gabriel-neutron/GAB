@@ -79,10 +79,36 @@ export const STATIC_PAGES: Readonly<
         `- [Contact](${at(site, 'contact')}): how to report an error or to ask for a reply.`,
       ].join('\n'),
   },
+  auth: {
+    title: 'Authentication',
+    description: 'The GAB dataset needs no sign-in: how an agent reads it and what to do on a 429.',
+    markdown: (site) =>
+      [
+        '# Authentication for agents',
+        '',
+        'The GAB dataset needs no authentication. Every page, every file of the release, the MCP server and the file list are public, and no key, token or account exists. An agent does not register, claim or exchange anything.',
+        '',
+        '## Discover',
+        '',
+        `Read [llms.txt](${at(site, 'llms.txt')}) for the map of the site, ${at(site, '.well-known/ai-catalog.json')} for the catalog and ${at(site, '.well-known/mcp/server-card.json')} for the MCP server.`,
+        '',
+        '## Use',
+        '',
+        `Send a plain GET request to a file under ${at(site, 'release/')}, or a POST request with a JSON-RPC message to ${at(site, 'mcp')}. Send no Authorization header.`,
+        '',
+        '## Errors',
+        '',
+        'The interface answers 429 when one address sends many requests in a few seconds. The answer carries a Retry-After header: wait that long and send the request again. The release files are plain downloads and do not return 429.',
+        '',
+        '## Revocation',
+        '',
+        'There is no credential to revoke.',
+      ].join('\n'),
+  },
   contact: {
     title: 'Contact',
     description: 'How to report an error in the GAB dataset or to use the right of reply.',
-    markdown: (_site, r) =>
+    markdown: (site) =>
       [
         '# Contact',
         '',
@@ -90,7 +116,7 @@ export const STATIC_PAGES: Readonly<
         '',
         '## Report an error or use the right of reply',
         '',
-        `- Write to [${r.contact.replace(/^mailto:/u, '')}](${r.contact}). Name the page or the claim identifier and say what is wrong.`,
+        `- Write to the maintainer. The page does not print the address, to limit spam. Open [${at(site, 'method')}](${at(site, 'method')}#errors) and press "Show the address", or read \`contacts.reportError\` in [the manifest](${at(site, 'release/manifest.json')}). Name the page or the claim identifier and say what is wrong.`,
         `- Or open an issue on [GitHub](${REPOSITORY_URL}/issues). An issue is public, so do not put private data in it.`,
         '',
         'The maintainer reads each message. A party that the report names has the right to reply, and the project keeps each reply with the claim it concerns. A confirmed error is corrected in the next release, and the changelog of the release lists the change.',
@@ -147,7 +173,7 @@ export const STATIC_PAGES: Readonly<
         '',
         '## Licence',
         '',
-        `The data is under [CC-BY 4.0](${LICENCE_URL}). Cite the dataset and keep the label of each claim.`,
+        `The data is under [CC-BY 4.0](${LICENCE_URL}), except a row whose \`licence\` column names another licence. Cite the dataset and keep the label of each claim.`,
       ].join('\n'),
   },
   developers: {
@@ -194,7 +220,7 @@ export const STATIC_PAGES: Readonly<
         '| --- | --- | --- |',
         '| Open | 0 EUR | Every page, every file of the release and the source code |',
         '',
-        `The data is under [CC-BY 4.0](${LICENCE_URL}): you may copy and reuse it, including for a commercial use, if you cite it.`,
+        `The data is under [CC-BY 4.0](${LICENCE_URL}): you may copy and reuse it if you cite it. Each row shows its own licence in its \`licence\` column, and a row under CC-BY-NC 4.0 is not for a commercial use.`,
       ].join('\n'),
   },
   agents: {
@@ -317,7 +343,7 @@ export const llmsIndex = (site: string, r: Release): string =>
     '',
     '## Licence',
     '',
-    `- The dataset is under [CC-BY 4.0](${LICENCE_URL}).`,
+    `- The dataset is under [CC-BY 4.0](${LICENCE_URL}). Each row shows its own licence.`,
     '',
   ].join('\n');
 
@@ -528,7 +554,7 @@ export const SKILLS: Readonly<
         '- Keep the label that tells who decided the claim.',
         '- Name the documents that the page of the claim lists as its sources.',
         '- Say that a claim tells what its sources say and is not proof.',
-        '- Credit the dataset under CC-BY 4.0.',
+        '- Credit the dataset under CC-BY 4.0, and keep the licence of each row that you copy.',
       ].join('\n'),
   },
 };

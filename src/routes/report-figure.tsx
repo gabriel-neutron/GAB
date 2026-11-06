@@ -49,7 +49,7 @@ export const Route = createFileRoute('/report-figure')({
   }),
   component: function ReportFigure() {
     const { name } = Route.useSearch();
-    const Figure = name in figures ? figures[name as keyof typeof figures] : undefined;
+    const Figure = Object.hasOwn(figures, name) ? figures[name as keyof typeof figures] : undefined;
     return (
       <div className="report-page" style={{ width: 640, padding: 0 }}>
         {Figure ? <Figure /> : <p>Unknown figure {name}</p>}

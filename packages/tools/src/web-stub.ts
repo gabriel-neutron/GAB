@@ -50,8 +50,9 @@ export const text = (
 
 export const stubWeb = (
   answer: Answerer,
-  settings: Omit<Web, 'get' | 'post'> = {},
+  settings: Omit<Web, 'get' | 'post' | 'getBytes'> = {},
   poster?: PostAnswerer,
+  downloader?: (asked: Asked) => WebBytes | Error,
 ): StubWeb => {
   const asked: Asked[] = [];
   const posted: AskedPost[] = [];
@@ -71,6 +72,16 @@ export const stubWeb = (
             };
             posted.push(entry);
             const given = poster(entry);
+            return given instanceof Error ? Promise.reject(given) : Promise.resolve(given);
+          },
+        }),
+    ...(downloader === undefined
+      ? {}
+      : {
+          getBytes: (url: string, request: WebRequest) => {
+            const entry: Asked = { url: new URL(url), headers: request.headers ?? {}, request };
+            asked.push(entry);
+            const given = downloader(entry);
             return given instanceof Error ? Promise.reject(given) : Promise.resolve(given);
           },
         }),

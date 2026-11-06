@@ -6,6 +6,8 @@ import {
   identifierContainment,
   identifierKey,
   isValidImo,
+  isValidRuBic,
+  swiftBicOf,
 } from './identifiers.ts';
 
 // ------------------------------------------------------------- isValidImo ---
@@ -59,4 +61,28 @@ test('a value in the plain form of a number also matches that number', () => {
     { imo: { v: [9074729] } },
   ]);
   expect(identifierContainment('imo', '09074729')).toHaveLength(2);
+});
+
+test('a BIC of ISO 9362 has one form: capitals, and eight characters for a head office', () => {
+  expect(swiftBicOf('asanru8x')).toBe('ASANRU8X');
+  expect(swiftBicOf('ASANRU8XXXX')).toBe('ASANRU8X');
+  expect(swiftBicOf('ASANRU8XABC')).toBe('ASANRU8XABC');
+  expect(swiftBicOf('ASANRU8')).toBeNull();
+  expect(swiftBicOf('ASAN118X')).toBeNull();
+  expect(swiftBicOf('044525225')).toBeNull();
+});
+
+test('a Russian BIC is exactly nine digits', () => {
+  expect(isValidRuBic('044525225')).toBe(true);
+  expect(isValidRuBic('44525225')).toBe(false);
+  expect(isValidRuBic('ASANRU8X')).toBe(false);
+});
+
+test('the search for a head office BIC finds its two forms', () => {
+  expect(identifierContainment('swift_bic', 'asanru8xxxx')).toStrictEqual([
+    { swift_bic: { v: 'ASANRU8X' } },
+    { swift_bic: { v: ['ASANRU8X'] } },
+    { swift_bic: { v: 'ASANRU8XXXX' } },
+    { swift_bic: { v: ['ASANRU8XXXX'] } },
+  ]);
 });

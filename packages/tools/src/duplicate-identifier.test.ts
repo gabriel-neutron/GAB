@@ -79,3 +79,19 @@ test('flags two companies with the same IMO company number', () => {
     ['imo_company_number', ['a', 'b']],
   ]);
 });
+
+test('two forms of one head office BIC are one group, and a branch is another value', () => {
+  const bank = (id: string, code: string) => ({
+    id,
+    label: id,
+    type: 'bank',
+    attrs: { swift_bic: { v: code } },
+  });
+  const groups = duplicateIdentifiers([
+    bank('a', 'ASANRU8X'),
+    bank('b', 'ASANRU8XXXX'),
+    bank('c', 'ASANRU8XABC'),
+  ]);
+  expect(groups.map((one) => one.value)).toStrictEqual(['ASANRU8X']);
+  expect(groups[0]?.entities.map((one) => one.id)).toStrictEqual(['a', 'b']);
+});

@@ -4,11 +4,16 @@ import type { Queryable } from '../queryable.ts';
  * same record. The snapshot writes nothing, so it ends with a roll back. */
 export const inOneSnapshot = async <T>(db: Queryable, work: () => Promise<T>): Promise<T> => {
   await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+  let result: T;
   try {
-    return await work();
-  } finally {
-    await db.query('ROLLBACK');
+    result = await work();
+  } catch (error) {
+    // A failed roll back on a dead connection must not hide the error of the work.
+    await db.query('ROLLBACK').catch(() => undefined);
+    throw error;
   }
+  await db.query('ROLLBACK');
+  return result;
 };
 
 const TIMEOUT_FORM = /^\d+(ms|s|min|h)$/;

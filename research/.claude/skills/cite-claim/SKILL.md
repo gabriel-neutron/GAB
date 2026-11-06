@@ -23,7 +23,7 @@ that state it.
   SDN list or of the UK Sanctions List, and give the text or the line of one entry.
 - `document_text`: read the stored text of a document again, page by page.
 - `search_graph`: find the entity that already holds an identifier.
-- `list_proposals`: find the proposals that wait for the operator.
+- `list_proposals`: find the proposals that wait for a decision.
 - `propose`: propose a batch of new entities, new relations and new attributes.
 
 ## Steps
@@ -62,7 +62,7 @@ misread a number, so the text can miss a fact that the image shows clearly.
 3. Read the image. Write in `excerpt` the words that state the fact, as the image writes them,
    for example the parent, the line to the child, the child and its number. Set `fromImage: true`
    on that evidence. The page is the page of the OCR text, most often 1.
-4. Code marks each such item as disputed, so the operator compares the words with the image. Give
+4. Code marks each such item as disputed, so a reviewer compares the words with the image. Give
    only the words that you read with no doubt. A label with a "?" stays as the image writes it.
 
 ## A register record
@@ -88,6 +88,11 @@ misread a number, so the text can miss a fact that the image shows clearly.
   put the words that state the end day in an excerpt. The relation keeps its documents and gets
   the documents of your act. The record refuses an end on a relation that ended already, on a
   type that takes no interval, and before the first day of the relation.
+- When a relation of the record has the type `designated_by` for a sectoral measure, do not create
+  it again. Propose its new type with
+  `{"op": "update_relation", "targetId": "<id of the relation>", "type": "restricted_by"}`, and put
+  the words that name the provision (a directive, an annex or an article, by its number) in an
+  excerpt. No other type change exists.
 - When a relation is in the record with no start, do not create it again either. Read it with
   `read_entity`: it has `validFrom` null. Propose its start with
   `{"op": "update_relation", "targetId": "<id of the relation>", "validFrom": "2024-02-23"}`, and
@@ -108,7 +113,7 @@ misread a number, so the text can miss a fact that the image shows clearly.
   such as `5940N 02819E`, or the Latitude and Longitude of a GEM row. A coordinate that no excerpt
   states (to within one minute) marks the item as disputed. The record refuses the place that the
   entity has already. A place that differs from the place that the record holds waits as a doubt
-  for the operator.
+  for a reviewer.
 - Each `geom`, in a new entity and in a change of place, needs `geomMethod`: how the source found
   the place. The tool refuses a geom with no method. The list is closed: "register_address" (the
   address of a register entry), "operator_statement" (the

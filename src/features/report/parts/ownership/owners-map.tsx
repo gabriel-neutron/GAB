@@ -72,7 +72,7 @@ const COLUMNS = ['site', 'holder', 'relation', 'controller', 'documents'] as con
  * controller class of its holder. A point or a name opens the panel of its node. */
 export function OwnersMap() {
   const { openNode } = useReport();
-  const { ownershipUi } = useContent();
+  const { ownershipUi, ui } = useContent();
   const copy = ownershipUi.owners;
   // The join test makes sure that the copy has each word; a missing one shows its key.
   const words = (map: Readonly<Record<string, string>>) => (key: string) => map[key] ?? key;
@@ -226,7 +226,9 @@ export function OwnersMap() {
                   <td className="py-2 pr-4">{nodeButton(row.holderId, row.holder.name)}</td>
                   <td className="py-2 pr-4 font-mono text-report-label">
                     {relation(row.relation)}
-                    {row.sharePct === '' ? '' : ` ${row.sharePct}%`}
+                    {row.sharePct === ''
+                      ? ''
+                      : ` ${(Number(row.sharePct) / 100).toLocaleString(ui.numberLocale, { style: 'percent', maximumFractionDigits: 2 })}`}
                     {row.shareAsOf === '' ? '' : ` ${copy.asOf.replace('{date}', row.shareAsOf)}`}
                   </td>
                   <td className="py-2 pr-4">

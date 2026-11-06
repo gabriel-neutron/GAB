@@ -2,6 +2,7 @@ import { setTimeout as timer } from 'node:timers/promises';
 
 import { z } from 'zod';
 
+import { deniedHostRefusal } from './denied-host.ts';
 import { defineTool, ToolRefusal, type Reach, type Web, type WebAnswer } from './tool.ts';
 import { anyAnswerOf, UpstreamFault, webFromReach } from './web-access.ts';
 
@@ -90,6 +91,8 @@ const isoOf = (stamp: string): string =>
 // machine. A secret in an address would otherwise go to the archive, and be public there.
 const checked = (raw: string): { readonly given: string; readonly href: string } => {
   const given = raw.trim();
+  const denied = deniedHostRefusal(given);
+  if (denied !== null) throw new ToolRefusal(denied);
   let url: URL;
   try {
     url = new URL(given);

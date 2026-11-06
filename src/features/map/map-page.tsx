@@ -46,7 +46,7 @@ interface MapPageProps {
   readonly mapRef: RefObject<MapHandle | null>;
 }
 
-// Two React values sit in an ancestor of the canvas: `mapReady` and `railFrame`. Neither is the
+// Two React values sit in an ancestor of the canvas: `mounts` and `railFrame`. Neither is the
 // instance, the camera, the style or the selection, and the element that carries the canvas is
 // memoised on an empty list. So no render of these two can reach the live element.
 export function MapPage({ corpus, types, onSelect, onChooseRelation, mapRef }: MapPageProps) {
@@ -60,7 +60,10 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation, mapRef }: M
   // A child runs its effect before its parent: a rail mounted at the first render would read a
   // ref that the mount effect had not filled. So the rail renders at the render after the map
   // exists. The element below is memoised on an empty list, so this state reaches no render.
-  const [mapReady, setMapReady] = useState(false);
+  // A new record mounts a new map in the same commit. The count is the key of each child that
+  // subscribes, so each one subscribes again to the new map and not to the destroyed one.
+  const [mounts, setMounts] = useState(0);
+  const mapReady = mounts > 0;
 
   // The rail takes this as a prop, so the rail reads no `localStorage` and stays storiable. This
   // file patches the workspace: the record has four writers, and a writer that holds a partial
@@ -94,7 +97,7 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation, mapRef }: M
 
     const map = mountMap({ container, projection, chain });
     mapRef.current = map;
-    setMapReady(true);
+    setMounts((count) => count + 1);
     const unsubscribe = map.onSelect(onSelect);
     // `onChooseLink` calls its listener at once with the choice of that moment, as `onSelect`
     // does. So this subscription needs no second seeding path.
@@ -109,7 +112,6 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation, mapRef }: M
       // A cleanup of an older mount must not drop the handle of a newer mount.
       if (mapRef.current !== map) return;
       mapRef.current = null;
-      setMapReady(false);
     };
   }, [projection, chain, onSelect, onChooseRelation, mapRef]);
 
@@ -147,6 +149,7 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation, mapRef }: M
           )}
         >
           <Rail
+            key={mounts}
             projection={projection}
             map={mapRef}
             frame={narrow ? { ...railFrame, open: true } : railFrame}
@@ -179,9 +182,11 @@ export function MapPage({ corpus, types, onSelect, onChooseRelation, mapRef }: M
         >
           Types
         </button>
-        {mapReady ? <GroundControl map={mapRef} /> : null}
+        {mapReady ? <GroundControl key={`ground ${String(mounts)}`} map={mapRef} /> : null}
         <FamilyLegend links={projection.links} />
-        {mapReady ? <ChainControl map={mapRef} steps={chain.steps} /> : null}
+        {mapReady ? (
+          <ChainControl key={`chain ${String(mounts)}`} map={mapRef} steps={chain.steps} />
+        ) : null}
       </div>
     </div>
   );

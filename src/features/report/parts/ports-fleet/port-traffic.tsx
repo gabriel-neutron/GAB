@@ -53,7 +53,10 @@ export function PortTraffic() {
           head={['', ...YEARS.map(String)]}
           rows={figureData.traffic.map((one) => [
             one.name,
-            ...one.points.map((point) => number.format(point.value)),
+            ...YEARS.map((year) => {
+              const point = one.points.find((each) => each.year === year);
+              return point === undefined ? '' : number.format(point.value);
+            }),
           ])}
         />
       </Panel>
@@ -95,7 +98,10 @@ function Panel({ title, unit, className, children }: PanelProps) {
   );
 }
 
-const YEARS = figureData.traffic[0]?.points.map((point) => point.year) ?? [];
+// The series do not all start in the same year: the table takes every year of the data.
+const YEARS = [
+  ...new Set(figureData.traffic.flatMap((one) => one.points.map((point) => point.year))),
+].sort((a, b) => a - b);
 // The value axis of figure 6a: the data range, out to whole tens.
 const allValues = figureData.traffic.flatMap((one) => one.points.map((point) => point.value));
 const LOW = Math.floor(Math.min(...allValues) / 10) * 10;

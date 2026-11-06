@@ -113,6 +113,7 @@ const rowsOf = (view: string): readonly unknown[] => {
   if (view === 'entity') return entityRows;
   if (view === 'relation') return [RELATION_ROW];
   if (view === 'relation_type') return [RELATION_TYPE_ROW];
+  if (view === 'document_provider') return [{ id: 'p1', name: 'Provider one', licence: 'CC-BY' }];
   // The view answers for every entity, so its rows follow the entity rows of the moment.
   if (view === 'full_map') return entityRows.map((row) => placedAt(row));
   return [PROPOSAL_ROW];
@@ -276,6 +277,21 @@ test('a service that comes back is read again after a refresh', async () => {
   });
 
   expect(seen[0]?.entities.map((entity) => entity.label)).toStrictEqual(['MV Northern Ledger']);
+});
+
+test('a service that comes back gives its providers after a refresh', async () => {
+  serviceDown = true;
+  const { loadCorpus, refreshCorpus } = await import('./corpus');
+  const { loadProviders } = await import('./providers');
+  await loadCorpus();
+  expect(await loadProviders()).toStrictEqual([]);
+
+  serviceDown = false;
+  await refreshCorpus(async () => {
+    await loadCorpus();
+  });
+
+  expect((await loadProviders()).map((one) => one.name)).toStrictEqual(['Provider one']);
 });
 
 test('with the service down, the history of decided acts is empty and does not fail', async () => {

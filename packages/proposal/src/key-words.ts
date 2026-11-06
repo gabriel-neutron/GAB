@@ -50,10 +50,14 @@ export function keyLabel(key: string): string {
 /** The label and the short help of an attribute key. A screen prints the key itself in a
  * secondary place. */
 export function keyWords(key: string): KeyWords {
-  return KNOWN[key] ?? { label: keyLabel(key), help: null };
+  // An own key only: "constructor" is an attribute key, not a member of every object.
+  return (
+    (Object.hasOwn(KNOWN, key) ? KNOWN[key] : undefined) ?? { label: keyLabel(key), help: null }
+  );
 }
 
 /** The short help of a word that an attribute states, such as "approximate", or null. */
 export function valueHelp(key: string, value: string): string | null {
-  return VALUE_HELP[key]?.[value] ?? null;
+  const values = Object.hasOwn(VALUE_HELP, key) ? VALUE_HELP[key] : undefined;
+  return values !== undefined && Object.hasOwn(values, value) ? (values[value] ?? null) : null;
 }

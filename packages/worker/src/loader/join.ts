@@ -18,6 +18,8 @@ const FIRST_KEYS: readonly LookupKey[] = [
   'tax_id',
   'registration_number',
   'lei',
+  'swift_bic',
+  'ru_bic',
   'unlocode',
   'osm_id',
 ];
@@ -93,11 +95,11 @@ export const makeFinder = (
     const text = (record.fields[column.get(lookup.column) ?? -1] ?? '').trim();
     if (text === '') return null;
     const rule = lookup.key === 'label' ? undefined : casts[lookup.key];
-    // A LEI is checked even in a column that fills no attribute.
+    // A LEI or a bank code is checked even in a column that fills no attribute.
     const cast =
       rule?.column === lookup.column
         ? rule.cast
-        : lookup.key === 'lei'
+        : lookup.key === 'lei' || lookup.key === 'swift_bic' || lookup.key === 'ru_bic'
           ? ({ type: 'identifier' } as const)
           : undefined;
     if (cast === undefined) return text;

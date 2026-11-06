@@ -44,7 +44,7 @@ export function RichText({ text, partSlug }: RichTextProps) {
   const runs = glue(parseMarks(text));
   const out: ReactNode[] = [];
   // The runs of one text never move, so their place is their identity.
-  const draw = (run: Run, key: string): ReactNode => {
+  const draw = (run: Run, key: string, notes: ReactNode = null): ReactNode => {
     if (run.kind === 'note')
       return partSlug === undefined ? (
         <sup key={key} className="font-mono text-report-label text-label">
@@ -60,6 +60,7 @@ export function RichText({ text, partSlug }: RichTextProps) {
           {run.before}
           {styled(run.bold, run.italic, <NodeRef id={run.id}>{run.text}</NodeRef>)}
           {run.after}
+          {notes}
         </span>
       );
     return <span key={key}>{styled(run.bold, run.italic, run.text)}</span>;
@@ -68,6 +69,17 @@ export function RichText({ text, partSlug }: RichTextProps) {
     const run = runs[index];
     if (run === undefined) continue;
     let end = index + 1;
+    if (run.kind === 'node') {
+      // The markers after a reference, and the empty text that its punctuation left, go in its box.
+      const notes: ReactNode[] = [];
+      for (let next = runs[end]; next !== undefined; next = runs[++end]) {
+        if (next.kind === 'note') notes.push(draw(next, `note-${String(end)}`));
+        else if (next.kind !== 'text' || next.text !== '') break;
+      }
+      out.push(draw(run, `node-${String(index)}`, notes));
+      index = end - 1;
+      continue;
+    }
     while (runs[end]?.kind === 'note') end++;
     if (run.kind !== 'text' || end === index + 1) {
       out.push(draw(run, `${run.kind}-${String(index)}`));

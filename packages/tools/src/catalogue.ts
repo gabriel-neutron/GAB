@@ -6,8 +6,10 @@ import { euAct } from './eu-act.ts';
 import { enqueueMapping } from './enqueue-mapping.ts';
 import { fetchDocument } from './fetch-document.ts';
 import { fileSchemaSample } from './file-schema-sample.ts';
+import { findLine } from './find-line.ts';
 import { findDocument } from './find-document.ts';
 import { comtradeData } from './comtrade-data.ts';
+import { egrulExtract } from './egrul-extract.ts';
 import { firmsDetections } from './firms-detections.ts';
 import { gleifLookup } from './gleif-lookup.ts';
 import { jobStatus } from './job-status.ts';
@@ -29,6 +31,7 @@ import { readEntity } from './read-entity.ts';
 import { readGroup } from './read-group.ts';
 import { readGroups } from './read-groups.ts';
 import { readLeads } from './read-leads.ts';
+import { readPage } from './read-page.ts';
 import { readUnit } from './read-unit.ts';
 import { readWaiting } from './read-waiting.ts';
 import { rejectRelation } from './reject-relation.ts';
@@ -42,6 +45,7 @@ import { storeSavedFile } from './store-saved-file.ts';
 import { telegramChannel } from './telegram-channel.ts';
 import { ukSanctionsList } from './uk-sanctions-list.ts';
 import { gfwPortVisits } from './gfw-port-visits.ts';
+import { gfwPresenceGrid } from './gfw-presence-grid.ts';
 import { vesselEvents } from './vessel-events.ts';
 import { webSearch } from './web-search.ts';
 import { wikidataIds } from './wikidata-ids.ts';
@@ -58,6 +62,7 @@ export const CATALOGUE = [
   listProposals,
   findDocument,
   documentText,
+  findLine,
   fileSchemaSample,
   jobStatus,
   readDoubts,
@@ -69,6 +74,7 @@ export const CATALOGUE = [
   readLeads,
   webSearch,
   newsSearch,
+  readPage,
   archiveSnapshot,
   fetchDocument,
   euAct,
@@ -84,8 +90,10 @@ export const CATALOGUE = [
   ukSanctionsList,
   vesselEvents,
   gfwPortVisits,
+  gfwPresenceGrid,
   firmsDetections,
   comtradeData,
+  egrulExtract,
   enqueueExtract,
   enqueueMapping,
   startLead,

@@ -12,7 +12,8 @@ choice, use only `research-method`. The operator places the point, as `research-
 only helps to find the site and to read the place that the operator chose. The cited document is
 the stored open image, and the point is the operator's own placement, never a stored geocoder
 answer. A Yandex point waits in review as a proposal, with a doubt
-for the reviewer. It is never a decided fact.
+for the reviewer. It is never a decided fact. A worker of a run with no person never uses this
+skill, because no operator is there to place the point.
 
 ## What works
 
