@@ -40,3 +40,13 @@ test('a long line gives the part around the text', () => {
   expect(line?.text.length).toBe(2000);
   expect(page).toContain(line?.text);
 });
+
+test('a long line is cut between two characters, so the part is a quote of the page', () => {
+  const emoji = '\u{1F600}';
+  for (const before of [1000, 1001, 999]) {
+    const page = `${emoji.repeat(1000)}${'y'.repeat(before)}KEY1${'y'.repeat(5000)}`;
+    const [line] = linesHolding(page, 'KEY1', 1, 10).lines;
+    expect(line?.text.isWellFormed()).toBe(true);
+    expect(page).toContain(line?.text);
+  }
+});

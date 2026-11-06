@@ -16,25 +16,24 @@ export const UPLOAD_FILE_BYTES = 20 * 1024 * 1024;
 // dataset passes this cap.
 export const BULK_FILE_BYTES = 256 * 1024 * 1024;
 
-// Origin of the number: decided, not calibrated. The tools store a data file whole, so a fact cites
-// a line of the file as it came. The door of the text is one JSONB value, and PostgreSQL holds one
-// at 256 MiB. Half of that leaves room for the escapes of the JSON text.
-// shortcut: the tool holds the whole file in memory, upgrade to a streamed read and a door for each
-// page when a source needs a larger file.
-export const BULK_TEXT_BYTES = 128 * 1024 * 1024;
+// Origin of the number: measured once, on a test stack on a busy machine. One door call writes the
+// whole text in one statement, and the research role stops a statement at 30 s. 64 MiB took about 19
+// s, and 128 MiB passed the 30 s and was cancelled.
+// shortcut: the tool holds the whole file in memory and writes it in one statement, upgrade to a
+// streamed read and a door for each page when a source needs a larger file.
+export const BULK_TEXT_BYTES = 64 * 1024 * 1024;
 
+// JSON stays out: its indented view can be some times larger than the file. XML stays out: its
+// reader is not measured at this size.
 const BULK_TEXT_TYPES: ReadonlySet<string> = new Set([
   'application/zip',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/json',
-  'application/xml',
-  'text/xml',
   'text/csv',
   'text/tab-separated-values',
   'text/plain',
 ]);
 
-/** A data file takes the bulk limit of the tools. A page, a PDF and an image do not. */
+/** A data file takes the bulk limit of the tools. A page, a PDF, JSON and an image do not. */
 export const isBulkTextType = (mime: string): boolean => BULK_TEXT_TYPES.has(mime);
 
 // The files that a published dataset comes in: a workbook and a zip archive of GeoJSON layers.

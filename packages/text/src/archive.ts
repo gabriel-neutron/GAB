@@ -22,11 +22,14 @@ export interface ArchiveFile {
 }
 
 // Origin of the numbers: decided, not calibrated. A bulk file of OpenSanctions or of Eurostat
-// Comext holds some tens of files. One file can be the whole of the archive, up to the bulk limit
-// of the tools. The total is held in memory while the store reads the text of each file.
+// Comext holds some tens of files. A file is a document, so it takes the 20 MiB of a fetch or an
+// upload, and a table or a plain text takes the 64 MiB of a bulk read. The total is held in memory
+// while the store reads the text of each file.
 export const MAX_ARCHIVE_FILES = 500;
 export const MAX_ARCHIVE_BYTES = 128 * 1024 * 1024;
-export const MAX_FILE_BYTES = MAX_ARCHIVE_BYTES;
+export const MAX_FILE_BYTES = 20 * 1024 * 1024;
+export const MAX_TABLE_FILE_BYTES = 64 * 1024 * 1024;
+const TABLE_NAME = /\.(?:csv|tsv|txt)$/iu;
 /** The most folders above a file. */
 export const MAX_FOLDER_DEPTH = 8;
 /** A text file deflates to a tenth or a twentieth of its size. A file that inflates to more than
@@ -77,10 +80,9 @@ const checkedEntries = (entries: Map<string, ZipEntry>): ZipEntry[] => {
       throw new ArchiveRefusal(
         `the file ${entry.name} is an archive inside the archive, and only one level is unpacked`,
       );
-    if (entry.size > MAX_FILE_BYTES)
-      throw new ArchiveRefusal(
-        `the file ${entry.name} inflates to more than ${String(MAX_FILE_BYTES)} bytes`,
-      );
+    const limit = TABLE_NAME.test(entry.name) ? MAX_TABLE_FILE_BYTES : MAX_FILE_BYTES;
+    if (entry.size > limit)
+      throw new ArchiveRefusal(`the file ${entry.name} inflates to more than ${String(limit)} bytes`);
     if (entry.size > RATIO_FROM_BYTES && entry.size > MAX_RATIO * Math.max(1, entry.compressed))
       throw new ArchiveRefusal(
         `the file ${entry.name} inflates to more than ${String(MAX_RATIO)} times its compressed ` +

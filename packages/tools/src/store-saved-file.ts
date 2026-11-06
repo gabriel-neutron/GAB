@@ -211,7 +211,8 @@ export const storeSavedFile = defineTool({
     'whole file; give a large file in ' +
     'parts, in order, with `part` and `parts` (each part but the last has a length that is a ' +
     'multiple of 4). Or give `file`, the name of a file that the operator saved into the inbox ' +
-    'folder; a data file, a workbook or a ZIP file there can be up to 128 MiB. The bytes are what the browser held after the scripts of the page ran, not the ' +
+    'folder; a CSV, TSV or text file, a workbook or a ZIP file there can be up to 64 MiB. ' +
+    'The bytes are what the browser held after the scripts of the page ran, not the ' +
     'answer of the server, and the title of the document says "saved by the browser". The text ' +
     'is checked as a fetch checks it. A Nominatim, Overpass or geocoder answer and a search ' +
     'result page are refused. The text of an image is what OCR read in it. The same ' +

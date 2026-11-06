@@ -1,4 +1,4 @@
-// BLD-08: a fact cites one line of a stored file, and the excerpt check passes. Each file is stored
+// A fact cites one line of a stored file, and the excerpt check passes. Each file is stored
 // whole. Each test runs inside a transaction that rolls back.
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -108,6 +108,9 @@ test('a file above the fetch cap is stored whole with bulk, and a fact cites one
   const store = memoryStore();
   const url = `http://${FIXTURE_HOST}:${String(fixture.port)}/large.csv`;
   await rolledBack('research', async (ask) => {
+    // Stacks of other sessions share this machine, and under their load this one write of some 20
+    // MiB passed the 30 s limit of the role. The limit is not what this test checks.
+    await ask(`SET LOCAL statement_timeout = '120s'`);
     const plain = await callTool(fetchDocument, sessionOf(ask), { url }, fixtureReach(store));
     expect(plain).toMatchObject({ ok: false });
     const bulk = await callTool(
@@ -120,6 +123,10 @@ test('a file above the fetch cap is stored whole with bulk, and a fact cites one
     const { document } = stored.parse(bulk.output);
     const { page } = await citesTheLine(ask, document);
     expect(page).toBeGreaterThan(1);
+    const uris = z
+      .array(z.object({ uri: z.string() }))
+      .parse(await ask('SELECT uri FROM api.document WHERE id = $1', [document]));
+    expect(uris).toStrictEqual([{ uri: url }]);
     expect(Buffer.from(store.puts[0]?.bytes ?? []).toString()).toBe(LARGE);
   });
   // A file of some 20 MiB goes through the store and the text door, on a machine that many stacks share.
