@@ -1,4 +1,4 @@
-// The hosts that hold leaked data (research/AGENTS.md and the panel verdict of BLD-07). The contract of
+// The hosts that hold leaked data (research/AGENTS.md and a panel verdict). The contract of
 // the report ends if the record uses such data, so a read of one of them opens no connection. The
 // whole address is read, also in its percent-decoded form, so a copy in a web archive of such a page
 // is refused too. A host name can end in a dot, and it is the same host. Only a collection enters
