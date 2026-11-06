@@ -249,3 +249,24 @@ test.each([
 ])('an address with the query name %s holds no secret', (name) => {
   expect(holdsSecret(`https://data.example/file.csv?${name}=abc`)).toBe(false);
 });
+
+test.each([
+  'file.csv?key[]=abc',
+  'file.csv?api_key[0]=abc',
+  'file.csv?a=1;key=abc',
+  'page#access_token=abc',
+  'page#a=1&token=abc',
+])('the address %s holds a secret', (path) => {
+  expect(holdsSecret(`https://data.example/${path}`)).toBe(true);
+});
+
+test.each([
+  'page#key',
+  'page#public-key',
+  'page#/vessel/123',
+  'page#page=2',
+  'file.csv?a=1;page=2',
+  'file.csv?pageToken[]=1',
+])('the address %s holds no secret', (path) => {
+  expect(holdsSecret(`https://data.example/${path}`)).toBe(false);
+});

@@ -60,17 +60,17 @@ export const linesHolding = (
   return { lines, nextLine: null };
 };
 
-// One page at a time: a page is up to 16 MiB, and a file has many.
-const PAGE = `SELECT t.page::int AS page, t.text
+// One statement reads one page, so the cost of a statement does not grow with the file: the limit of
+// the role is for each statement. A page is up to 16 MiB, and a file has many. The door numbers the
+// pages from 1 with no gap, so no row means the end of the set. A page with no match gives no text.
+const PAGE = `SELECT t.page::int AS page,
+                     CASE WHEN strpos(t.text, $4::text) > 0 THEN t.text END AS text
   FROM public.document_text t
  WHERE t.document_id = $1::text
    AND t.extractor = coalesce($2::text, public.newest_text_extractor($1::text))
-   AND t.page >= $3::int
-   AND strpos(t.text, $4::text) > 0
- ORDER BY t.page
- LIMIT 1`;
+   AND t.page = $3::int`;
 
-const pageRow = z.strictObject({ page: z.number().int(), text: z.string() });
+const pageRow = z.strictObject({ page: z.number().int(), text: z.string().nullable() });
 
 const nextShape = z
   .strictObject({ page: z.number().int().min(1), line: z.number().int().min(1) })
@@ -111,7 +111,7 @@ export const findLine = defineTool({
   async run(session, input) {
     if (input.text.includes('\n'))
       throw new ToolRefusal('give the words of one line: the text holds a line end');
-    const pageFrom = async (page: number) =>
+    const pageAt = async (page: number) =>
       (
         await rowsOf(session, pageRow, PAGE, [
           input.document,
@@ -121,16 +121,17 @@ export const findLine = defineTool({
         ])
       )[0];
     const lines: { page: number; line: number; text: string; cut: boolean }[] = [];
-    for (let held = await pageFrom(input.fromPage); held !== undefined;) {
-      const { page } = held;
-      const fromLine = page === input.fromPage ? input.fromLine : 1;
+    for (let page = input.fromPage; ; page += 1) {
+      const held = await pageAt(page);
+      if (held === undefined) break;
+      if (held.text === null) continue;
       if (lines.length === input.limit)
         return { document: input.document, lines, next: { page, line: 1 } };
+      const fromLine = page === input.fromPage ? input.fromLine : 1;
       const found = linesHolding(held.text, input.text, fromLine, input.limit - lines.length);
       lines.push(...found.lines.map((one) => ({ page, ...one })));
       if (found.nextLine !== null)
         return { document: input.document, lines, next: { page, line: found.nextLine } };
-      held = await pageFrom(page + 1);
     }
     return { document: input.document, lines, next: null };
   },
