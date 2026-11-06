@@ -72,12 +72,19 @@ const bodyOf = async (response: Response, maxBytes: number): Promise<Uint8Array>
     throw refused('the page is larger than the cap');
   }
   const parts: Uint8Array[] = [];
+  if (response.body === null) return new Uint8Array();
+  const reader = response.body.getReader();
   let size = 0;
   try {
-    for await (const part of (response.body ?? []) as AsyncIterable<Uint8Array>) {
-      size += part.length;
-      if (size > maxBytes) throw refused('the page is larger than the cap');
-      parts.push(part);
+    for (;;) {
+      const part = (await reader.read()) as { done: boolean; value: Uint8Array };
+      if (part.done) break;
+      size += part.value.length;
+      if (size > maxBytes) {
+        await reader.cancel();
+        throw refused('the page is larger than the cap');
+      }
+      parts.push(part.value);
     }
   } catch (fault) {
     if (fault instanceof FetchRefusal) throw fault;
