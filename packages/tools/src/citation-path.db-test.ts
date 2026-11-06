@@ -108,9 +108,8 @@ test('a file above the fetch cap is stored whole with bulk, and a fact cites one
   const store = memoryStore();
   const url = `http://${FIXTURE_HOST}:${String(fixture.port)}/large.csv`;
   await rolledBack('research', async (ask) => {
-    // Stacks of other sessions share this machine, and under their load this one write of some 20
-    // MiB passed the 30 s limit of the role. The limit is not what this test checks.
-    await ask(`SET LOCAL statement_timeout = '120s'`);
+    const limit = z.array(z.object({ statement_timeout: z.string() }));
+    const before = limit.parse(await ask('SHOW statement_timeout'));
     const plain = await callTool(fetchDocument, sessionOf(ask), { url }, fixtureReach(store));
     expect(plain).toMatchObject({ ok: false });
     const bulk = await callTool(
@@ -120,6 +119,7 @@ test('a file above the fetch cap is stored whole with bulk, and a fact cites one
       fixtureReach(store),
     );
     if (!bulk.ok) throw new Error(bulk.refusal);
+    expect(limit.parse(await ask('SHOW statement_timeout'))).toStrictEqual(before);
     const { document } = stored.parse(bulk.output);
     const { page } = await citesTheLine(ask, document);
     expect(page).toBeGreaterThan(1);
