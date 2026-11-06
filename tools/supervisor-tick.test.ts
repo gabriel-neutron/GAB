@@ -4,6 +4,7 @@
 import { execFile, execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -418,6 +419,67 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       await tick(dir);
       expect(ticket(dir, 'T-Q').state).toBe('ready');
       expect(ticket(dir, 'T-Q').attempts).toBe(0);
+    },
+    LONG,
+  );
+
+  test(
+    'a crash of a panel worker is no disagreement: it costs no attempt and a new panel worker runs',
+    async () => {
+      const dir = folder();
+      seed(dir, 'T-C', 'stop_source,bad,exit,pass');
+      expect(await statesOf(dir, 'T-C', 5)).toEqual([
+        'working',
+        'needs_panel',
+        'needs_panel',
+        'needs_panel',
+        'working',
+      ]);
+      expect(ticket(dir, 'T-C').attempts).toBe(0);
+      expect(existsSync(join(dir, 'operator-queue.md'))).toBe(false);
+    },
+    LONG,
+  );
+
+  test(
+    'a panel worker that crashes 3 times parks the ticket, and the count starts again after an answer',
+    async () => {
+      const dir = folder();
+      seed(dir, 'T-D', 'stop_source,bad,bad,bad,stop_source,bad,pass');
+      await ticks(dir, 5);
+      expect(ticket(dir, 'T-D').state).toBe('parked');
+      expect(readFileSync(join(dir, 'operator-queue.md'), 'utf8')).toContain(
+        'the panel worker failed 3 times',
+      );
+
+      ask(dir, 'answer', { id: 'T-D', to: 'ready', reason: 'operator answer' });
+      await ticks(dir, 4);
+      expect(ticket(dir, 'T-D').state).toBe('needs_panel');
+      await tick(dir);
+      expect(ticket(dir, 'T-D').state).toBe('working');
+    },
+    LONG,
+  );
+
+  test(
+    'a queue line that cannot be written in needs_panel costs no attempt, and the panel runs again',
+    async () => {
+      const dir = folder();
+      seed(dir, 'T-W', 'stop_source,failed,pass');
+      const queue = join(dir, 'operator-queue.md');
+      writeFileSync(queue, '');
+      chmodSync(queue, 0o444);
+      try {
+        expect(await statesOf(dir, 'T-W', 4)).toEqual([
+          'working',
+          'needs_panel',
+          'needs_panel',
+          'working',
+        ]);
+        expect(ticket(dir, 'T-W').attempts).toBe(0);
+      } finally {
+        chmodSync(queue, 0o666);
+      }
     },
     LONG,
   );
