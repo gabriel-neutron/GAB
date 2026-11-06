@@ -19,6 +19,7 @@ decide the unit.
   waits for a better source. Only a unit with a doubt comes to a reviewer.
 - **Who decides a doubt.** You, as an AI reviewer with a new context. The operator does not
   decide proposals; the review runs at once after each batch, with no request to the operator.
+  A batch whose answer gives `checkFailure` waits for its check first (skill `research-method`).
   **The agent that proposed a unit never decides it.** The agent that proposed starts a new
   reviewer subagent (or a new session). It gives the subagent only the proposal ids or the unit
   ids, and the ticket number. It does not give its notes, its reasons or its history.
@@ -97,7 +98,8 @@ decide the unit.
      of a supply, an agency or a payment: the date comes from the activity that the source gives.
      An end that the source does not give stays empty. A date of publication,
      a date of a later change, or a day of another entry does not support it.
-4. Decide:
+4. Decide. A unit that has no check of a second model is not ready: do not promote it, leave it in
+   the queue, and write its id in your result. Otherwise:
    - The passages state each act, and no fault blocks the unit: call `promote_unit`.
    - The unit is wrong as a whole: call `reject_unit` with the reason and, if necessary, a note.
    - Only one relation is wrong: call `reject_relation` with the id of its act. The rest of the

@@ -76,7 +76,8 @@ line for each question or signature. The level of a source is on the signed list
 The MCP server `gab` gives each tool. A read changes nothing. A write needs no approval in the
 session: each proposal waits in the review queue (P12). **The operator never decides a proposal.**
 After each batch, the session that proposed starts at once a new AI reviewer (subagent or
-session, skill `review-unit`) on the units of the batch. Never end a step with "waits for the
+session, skill `review-unit`) on the units of the batch. A batch whose answer gives `checkFailure`
+waits for its check first (skill `research-method`). Never end a step with "waits for the
 operator to accept" a proposal.
 
 - Read the record: `search_graph`, `read_entity` (the relations come in pages; the filters `relationType` and `undated`, and

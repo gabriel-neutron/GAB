@@ -128,7 +128,7 @@ Use the highest source that gives the point. A published point never comes from 
    the operator places it on the image, and the review of such a point is a later ticket.
 
 **This rule stays in a run with no person.** A plant that has no official point and no exact GEM
-row stays with no point. A worker places no point and proposes no point. It writes the gap in its
+row stays with no point. A worker places no point on it and proposes no point for it. It writes the gap in its
 notes and goes on, and it does not wait for the operator. Only a panel ruling can change this rule.
 The dissent D17 of the panel of the tenfold wave (#1270) stays open, and this text keeps it
 visible. One expert asks for two
