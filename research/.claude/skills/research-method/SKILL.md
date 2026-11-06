@@ -8,11 +8,11 @@ description: The method of a research layer in Gabriel. What a fact is, what to 
 ## The goal
 
 Gabriel is a record of facts that each cite a stored source. The rules of the database decide
-each proposal from its sources. A proposal with a doubt goes to a reviewer: the operator, or an AI
-reviewer with a new context (the skill `review-unit`). The agent that proposed a fact never
+each proposal from its sources. A proposal with a doubt goes to an AI reviewer with a new context
+(the skill `review-unit`). The agent that proposed a fact never
 decides it: it starts a new reviewer subagent. Thus a good session proposes few facts, each one
 on the subject of its layer, each one with the best source that exists, and each one ready to
-promote. A proposal that the operator must reject costs more than a fact that you leave out.
+promote. A proposal that a reviewer must reject costs more than a fact that you leave out.
 
 The app is strict. Code refuses a batch when an excerpt is not on its page, when a type is not a
 word of the vocabulary, or when a relation names an entity that does not exist. Code marks an item
@@ -57,14 +57,15 @@ JPEG image whose OCR text misses the fact, the skill `cite-claim` says how to ci
   a share of exports, a price. An aggregated figure enters only as an observation (ADR 0030):
   store the original file of the source with `fetch_document` (for example the SDMX-CSV file of a
   Eurostat dataset), and queue its mapping with `enqueue_mapping`. The operator promotes the
-  mapping, and code loads each row. Never store or map a CSV file that you made. Cite a Bruegel
+  mapping, and code loads each row. A worker reads "A run with no person" of `research/AGENTS.md`. Never store or map a CSV file that you made. Cite a Bruegel
   table as a document only, and never map it: its licence forbids a change of the figures.
 - The metadata of a source: its authors, their e-mail addresses, the publisher, the journal, the
   institute that paid for it. An author becomes an entity only when the author is the subject.
-- A person, unless a sanctions act designates the person (`designated_by`), or a public filing
-  names the person as a director, an owner or an officer. A sectoral measure (`restricted_by`) is
-  not enough. Never an address, a telephone number or an e-mail address
-  of a person.
+- A natural person, unless a sanctions act designates the person (`designated_by`). A sectoral
+  measure (`restricted_by`) is not enough. A public filing, a register, a court act or an article
+  that names a person as a director, an owner or an officer is not enough: propose the company, and
+  leave the person out. A person that the record holds with no designation stays, and gets no new
+  fact. Never an address, a telephone number or an e-mail address of a person.
 - A fact that the record holds, or that a pending proposal holds. Check first with `search_graph`,
   `read_entity` and `list_proposals`.
 - A fact outside the layer of the ticket. Write it in your notes as a lead for a later layer.
@@ -126,6 +127,14 @@ Use the highest source that gives the point. A published point never comes from 
    a gate is not visible. Store the image for the reviewer. An agent does not place the point:
    the operator places it on the image, and the review of such a point is a later ticket.
 
+**This rule stays in a run with no person.** A plant that has no official point and no exact GEM
+row stays with no point. A worker places no point and proposes no point. It writes the gap in its
+notes and goes on, and it does not wait for the operator. Only a panel ruling can change this rule.
+The dissent D17 of the panel of the tenfold wave (#1270) stays open, and this text keeps it
+visible. One expert asks for two
+blind agents and a third agent that rejects, with a pilot. Other experts refuse: the precision of
+a point on a defence plant is a dual-use risk, and a match on a name gives a false point.
+
 A geocoder (ArcGIS, Yandex, 2GIS, HERE, Google, Nominatim) is only a check of an address. Its
 licence forbids storage or binds the record, and an address point marks an entrance, not a
 plant. Run a query that is not stored, and never store or propose its coordinate. Your notes can
@@ -162,7 +171,7 @@ gives the gap too.
 
 - One node in each batch: the entity, its attributes, and its relations to entities that the
   record already holds or that the same batch creates. A batch of 5 to 20 items is a good size.
-  The operator decides each entity together with the relations that depend on it. A wrong entity
+  A reviewer decides each entity together with the relations that depend on it. A wrong entity
   takes its relations with it, so check each entity before you send the batch.
 - One fact in each item. Never two facts in one item.
 - An excerpt is short: the sentence or the line that states the values. Each value of the item
@@ -177,10 +186,14 @@ gives the gap too.
   the batch again one time. When the answer marks an item as disputed, read its excerpt again. If
   the excerpt does not state the value, the fact has no source yet: leave it out next time.
 - When the answer gives `checkFailure`, no model checked the batch. Its facts wait with no check,
-  and no rule accepts them. If the reason names the token cap, send the same items again in
-  smaller batches. For any other reason, tell the operator, and send the same batch again when
-  the operator says that the checker is up: a batch sent again writes nothing twice and gets its
-  check.
+  and no rule accepts them, so do not send them to a reviewer. A batch sent again writes nothing
+  twice and gets its check. Do not ask a person, and do not wait for one:
+  - The reason names the token cap: send the same items again in smaller batches.
+  - The reason says that the model account has no credit: propose no more. Write the reason in your
+    result. The supervisor sets the hold waiting_ceiling, which costs no attempt.
+  - Any other reason: go on with the other lots, and send the same batch again one time at the end
+    of the session. If it fails again, write the batch and the reason in your result. The next
+    session sends the same batch first.
 
 ## Never
 
