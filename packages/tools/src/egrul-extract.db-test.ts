@@ -143,6 +143,32 @@ test('an extract is no source of a new natural person', async () => {
   expect(outcome.ok ? '' : outcome.refusal).toMatch(/no source of a natural person/u);
 });
 
+test('a file with the heading of an extract has the rule at any address', async () => {
+  const outcome = await rolledBack('superuser', async (ask) => {
+    const sha = (69).toString(16).padStart(2, '0').repeat(32);
+    const id = `doc_${sha.slice(0, 12)}`;
+    await as(ask, 'gabriel_research', async () => {
+      await ask(STORE, [
+        'api',
+        'A copy',
+        `raw/${sha}`,
+        'https://mirror.example/1',
+        sha,
+        'application/pdf',
+        TODAY,
+        null,
+      ]);
+      await ask(WRITE_TEXT, [
+        id,
+        JSON.stringify([`ВЫПИСКА\nиз Единого государственного реестра юридических лиц\n${TEXT}`]),
+        'egrul-test-1',
+      ]);
+    });
+    return propose(ask, id, PERSON);
+  });
+  expect(outcome.ok ? '' : outcome.refusal).toMatch(/sign of a natural person/u);
+});
+
 test('the same words pass in a document of another host', async () => {
   const outcome = await rolledBack('superuser', async (ask) => {
     const document = await store(ask, 66, 'https://example.org/page', null);

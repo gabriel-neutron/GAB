@@ -175,6 +175,11 @@ test('a block of a person in another layout refuses each excerpt of the document
   expect(egrulExcerptRefusal('ОГРН 5000000000001', other)).toMatch(/could not read/u);
 });
 
+test('a label in capitals is the same label', () => {
+  const other = ['19 ФАМИЛИЯ\nИМЯ\nОТЧЕСТВО\nКРАСНОВ\nПЁТР\nСИДОРОВИЧ'];
+  expect(egrulExcerptRefusal('ООО КРАСНОВ', other)).toMatch(/sign of a natural person/u);
+});
+
 test('an excerpt with no form of a legal person is refused, because the rule fails closed', () => {
   expect(egrulExcerptRefusal('Размер доли (в процентах) 49', PAGES)).toMatch(/form of a legal/u);
 });
@@ -191,7 +196,13 @@ test('only the host of the register has this rule', () => {
   expect(isEgrulAddress(`https://egrul.nalog.ru/index.html#${TAX}`)).toBe(true);
   expect(isEgrulAddress('https://www.egrul.nalog.ru/x')).toBe(true);
   expect(isEgrulAddress('https://web.archive.org/web/2026/https://egrul.nalog.ru/x')).toBe(true);
-  expect(isEgrulAddress('https://example.org/egrul.nalog.ru')).toBe(false);
+  expect(isEgrulAddress('https://egrul.nalog.ru./x')).toBe(true);
+  expect(isEgrulAddress('https://user@egrul.nalog.ru/x')).toBe(true);
+  expect(isEgrulAddress('https://web.archive.org/web/2026/egrul.nalog.ru/x')).toBe(true);
+  expect(isEgrulAddress('https://web.archive.org/web/2026/https%3A%2F%2Fegrul.nalog.ru%2Fx')).toBe(
+    true,
+  );
+  expect(isEgrulAddress('https://notegrul.nalog.ru/x')).toBe(false);
   expect(isEgrulAddress('https://egrul.nalog.ru.example.org/')).toBe(false);
   expect(isEgrulAddress(null)).toBe(false);
 });

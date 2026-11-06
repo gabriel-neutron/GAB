@@ -160,10 +160,19 @@ export const extractSubject = (pages: readonly string[]): ExtractSubject => {
   };
 };
 
+const decoded = (uri: string): string => {
+  try {
+    return decodeURIComponent(uri);
+  } catch {
+    return uri;
+  }
+};
+
 /** True for a document that the register gave: the rule on natural persons applies to it, also
- * when another tool stored it, and also for a copy in a web archive, whose address holds the first. */
+ * when another tool stored it, and also for a copy in a web archive, whose address holds the first.
+ * The test is wide on purpose: a wrong true refuses an excerpt, and a wrong false can let a name out. */
 export const isEgrulAddress = (uri: string | null): boolean =>
-  uri !== null && /\/\/(?:www\.)?egrul\.nalog\.ru(?:[:/#?]|$)/iu.test(uri);
+  uri !== null && /(?:^|[/@.])egrul\.nalog\.ru\.?(?:[:/#?]|$)/iu.test(decoded(uri));
 
 // One form for each compare: a soft hyphen and a line break do not hide a word, and a letter with a
 // separate mark is one letter.
@@ -190,13 +199,13 @@ const personValues = (pages: readonly string[]): { values: readonly string[]; re
   const values: string[] = [];
   let blocks = 0;
   lines.forEach((line, index) => {
-    if (!/^\d+ Фамилия$/u.test(line)) return;
+    if (!/^\d+ Фамилия$/iu.test(line)) return;
     blocks += 1;
     let labels = 1;
-    while (['Имя', 'Отчество'].includes(lines[index + labels] ?? '')) labels += 1;
+    while (['ИМЯ', 'ОТЧЕСТВО'].includes((lines[index + labels] ?? '').toUpperCase())) labels += 1;
     values.push(...lines.slice(index + labels, index + labels + labels));
   });
-  const labelled = lines.filter((line) => line.includes('Фамилия')).length;
+  const labelled = lines.filter((line) => /фамилия/iu.test(line)).length;
   return {
     values: values.map(normal).filter((value) => value.length >= 2),
     read: labelled === blocks,

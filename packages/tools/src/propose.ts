@@ -309,7 +309,11 @@ const doorRow = z.strictObject({
 const PAGE = `SELECT t.extractor, t.text, EXISTS (SELECT 1 FROM public.documents d
       WHERE d.id = t.document_id AND (d.uri = $3::text OR d.provider_id = 'uk_sanctions_list'))
     AS fcdo_list,
-    (SELECT d.uri FROM public.documents d WHERE d.id = t.document_id) AS uri
+    (SELECT d.uri FROM public.documents d WHERE d.id = t.document_id) AS uri,
+    EXISTS (SELECT 1 FROM public.document_text f
+      WHERE f.document_id = t.document_id AND f.extractor = t.extractor AND f.page = 1
+        AND f.text ~ '^\\s*ВЫПИСКА\\s+из\\s+Единого\\s+государственного\\s+реестра\\s+юридических\\s+лиц')
+    AS register_extract
   FROM public.document_text t
   WHERE t.document_id = $1::text AND t.page = $2::int
     AND t.extractor = public.newest_text_extractor($1::text)`;
@@ -319,6 +323,7 @@ const pageRow = z.strictObject({
   text: z.string(),
   fcdo_list: z.boolean(),
   uri: z.string().nullable(),
+  register_extract: z.boolean(),
 });
 
 // All the pages of a register extract, for the rule on natural persons.
@@ -389,7 +394,7 @@ const cite = async (
   given: z.output<typeof evidence>,
 ): Promise<Cited> => {
   const page = await pageOf(session, ref, given.document, given.page);
-  const egrul = isEgrulAddress(page.uri);
+  const egrul = isEgrulAddress(page.uri) || page.register_extract;
   // An extract names natural persons, and an excerpt of it can name a legal person only.
   const checkExtract = async (words: string): Promise<void> => {
     if (!egrul) return;
