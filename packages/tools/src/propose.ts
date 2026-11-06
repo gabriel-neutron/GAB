@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { KEY_ADVICE, keyWarnings } from './attribute-key.ts';
 import { plainText } from './check-answer.ts';
 import { plainIdentifier, UNIQUE_KEYS } from './duplicate-identifier.ts';
-import { egrulExcerptRefusal, isEgrulAddress } from './egrul-text.ts';
+import { egrulExcerptRefusal, isEgrulAddress, restrictedExcerptRefusal } from './egrul-text.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
 import { cutsToken, findExcerpt, pointSlice, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
@@ -313,7 +313,8 @@ const PAGE = `SELECT t.extractor, t.text, EXISTS (SELECT 1 FROM public.documents
     EXISTS (SELECT 1 FROM public.document_text f
       WHERE f.document_id = t.document_id AND f.extractor = t.extractor AND f.page = 1
         AND f.text ~ '^\\s*ВЫПИСКА\\s+из\\s+Единого\\s+государственного\\s+реестра\\s+юридических\\s+лиц')
-    AS register_extract
+    AS register_extract,
+    public.document_restricted($1::text) AS restricted
   FROM public.document_text t
   WHERE t.document_id = $1::text AND t.page = $2::int
     AND t.extractor = public.newest_text_extractor($1::text)`;
@@ -324,6 +325,7 @@ const pageRow = z.strictObject({
   fcdo_list: z.boolean(),
   uri: z.string().nullable(),
   register_extract: z.boolean(),
+  restricted: z.boolean(),
 });
 
 // All the pages of a register extract, for the rule on natural persons.
@@ -354,8 +356,8 @@ const refusalOf = (cause: Error, refs: readonly string[]): string => {
 
 interface Cited {
   readonly document: string;
-  /** The document is an extract of the Russian register. */
-  readonly egrul: boolean;
+  /** An excerpt of the document can name a legal person only. */
+  readonly legalPersonsOnly: boolean;
   /** The document is the FCDO UK Sanctions List. */
   readonly fcdoList: boolean;
   readonly textExtractor: string;
@@ -397,7 +399,11 @@ const cite = async (
   const egrul = isEgrulAddress(page.uri) || page.register_extract;
   // An extract names natural persons, and an excerpt of it can name a legal person only.
   const checkExtract = async (words: string): Promise<void> => {
-    if (!egrul) return;
+    if (!egrul) {
+      const refusal = page.restricted ? restrictedExcerptRefusal(words) : null;
+      if (refusal !== null) refuse(ref, refusal);
+      return;
+    }
     const pages = await rowsOf(session, z.strictObject({ text: z.string() }), ALL_PAGES, [
       given.document,
     ]);
@@ -420,7 +426,7 @@ const cite = async (
     // The words that the AI read stand alone: the OCR text around them does not hold them.
     return {
       document: given.document,
-      egrul,
+      legalPersonsOnly: egrul || page.restricted,
       fcdoList: page.fcdo_list || isUkListDate(page.uri, given.excerpt),
       textExtractor: page.extractor,
       urlDay: dateInUrl(page.uri),
@@ -451,7 +457,7 @@ const cite = async (
   await checkExtract(passage);
   return {
     document: given.document,
-    egrul,
+    legalPersonsOnly: egrul || page.restricted,
     fcdoList: page.fcdo_list || isUkListDate(page.uri, passage),
     textExtractor: page.extractor,
     urlDay: dateInUrl(page.uri),
@@ -1116,9 +1122,12 @@ export const proposeOf = (modelCallId: string | null) =>
         if (
           given.act.op === 'create_entity' &&
           given.act.type === 'person' &&
-          cited.some((one) => one.egrul)
+          cited.some((one) => one.legalPersonsOnly)
         )
-          refuse(given.ref, 'a register extract is no source of a natural person');
+          refuse(
+            given.ref,
+            'a register extract or a restricted document is no source of a natural person',
+          );
         // The post date of a stored Telegram post is the day of publication, when every cited
         // document is a post of one day.
         const postDays = new Set(cited.map((one) => one.postDay));

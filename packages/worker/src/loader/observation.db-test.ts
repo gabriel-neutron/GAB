@@ -434,6 +434,8 @@ test.each([
     const { load } = await mappedFile(held, DRAFT, provider);
     await runLoad(held, load);
     expect(await figuresOf(held)).toHaveLength(5);
+    // This test reads the licence, so each provider stands at level A.
+    await held.ask("UPDATE public.document_provider SET level = 'A' WHERE id = $1", [provider]);
     expect(
       await held.asRole('gabriel_app', () =>
         held.ask('SELECT count(*)::int AS shown FROM public.release_observations()'),
@@ -520,6 +522,13 @@ test('a release does not give a subject that the public read hides', async () =>
     await putAsAgent(held, job, [WIDE_CELL]);
     // A subject has no foreign key. An entity that api.entity does not show reads as no subject.
     await held.ask('UPDATE public.observation SET subject_id = gen_random_uuid()');
+    // Eurostat is below level A until a tag splits its carve-outs, so its figures do not leave.
+    expect(
+      await held.asRole('gabriel_app', () =>
+        held.ask('SELECT subject_id FROM public.release_observations()'),
+      ),
+    ).toStrictEqual([]);
+    await held.ask("UPDATE public.document_provider SET level = 'A' WHERE id = 'eurostat'");
     expect(
       await held.asRole('gabriel_app', () =>
         held.ask('SELECT subject_id FROM public.release_observations()'),

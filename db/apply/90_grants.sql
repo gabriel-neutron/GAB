@@ -228,6 +228,9 @@ REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,t
 REVOKE ALL ON FUNCTION fill_document_provider(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_archive(text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_trace(text,text,boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fill_document_restricted(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION document_level(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION document_restricted(text) FROM PUBLIC;
 
 -- THE TIER IS HELD BY NO ROLE. The owner of a view does not lend EXECUTE on a function that the
 -- view calls, so the reader role of an export gets the grant together with that export.
@@ -242,6 +245,10 @@ GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,dat
   TO gabriel_agent, gabriel_research;
 -- THE PROVIDER OF A KNOWN OFFICIAL FILE goes with the fetched-document door.
 GRANT EXECUTE ON FUNCTION fill_document_provider(text,text) TO gabriel_agent, gabriel_research;
+-- THE LEVEL AND THE CLASS OF A DOCUMENT go with the fetched-document door.
+GRANT EXECUTE ON FUNCTION fill_document_restricted(text) TO gabriel_agent, gabriel_research;
+GRANT EXECUTE ON FUNCTION document_level(text) TO gabriel_agent, gabriel_research;
+GRANT EXECUTE ON FUNCTION document_restricted(text) TO gabriel_agent, gabriel_research;
 -- THE ARCHIVE THAT HELD A FILE goes with the fetched-document door too.
 GRANT EXECUTE ON FUNCTION fill_document_archive(text,text,text) TO gabriel_agent, gabriel_research;
 -- HOW A FETCHED DOCUMENT WAS READ goes with the fetched-document door too.

@@ -42,3 +42,11 @@ Facts about EU sanctions cite acts of the Official Journal of the European Union
 https://eur-lex.europa.eu, reused under Commission Decision 2011/833/EU. The release holds
 derived facts and citations, and does not hold the acts. The European Union does not
 endorse GAB or this release.
+
+## Pages of public bodies
+
+Some facts cite pages at the address that each row gives: the US Department of Justice, the
+Federal Register and the US Treasury (works of the US government, in the public domain), the
+Court of Justice of the EU and EUR-Lex (reused with the source named), and the bank of acts of
+kremlin.ru (CC BY 4.0). The release holds derived facts and citations, and does not hold the
+pages. No such body endorses GAB or this release.

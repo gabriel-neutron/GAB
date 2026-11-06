@@ -9,6 +9,7 @@ import { request as requestHttps } from 'node:https';
 import { BlockList, isIP, type LookupFunction } from 'node:net';
 import type { TLSSocket } from 'node:tls';
 
+import { deniedHostRefusal } from './denied-host.ts';
 import {
   chainHolds,
   fingerprintOfPem,
@@ -263,6 +264,8 @@ export const checkHost = async (
   host: string,
   options: Pick<GetOptions, 'lookup' | 'refuses'>,
 ): Promise<void> => {
+  const denied = deniedHostRefusal(`//${host}`);
+  if (denied !== null) throw new FetchRefusal(denied, GUARD);
   const refuses = options.refuses ?? refusedAddress;
   const bare = host.replace(/^\[(.*)\]$/u, '$1');
   const found =
@@ -276,7 +279,12 @@ export const checkHost = async (
 export const guardedLookup =
   (lookup: GetOptions['lookup'], refuses: (address: string) => boolean): LookupFunction =>
   (host, options, callback) => {
-    (lookup ?? systemLookup)(host)
+    // The Chrome window opens each address through this function, so a redirect in it is held too.
+    const denied = deniedHostRefusal(`//${host}`);
+    (denied === null
+      ? (lookup ?? systemLookup)(host)
+      : Promise.reject(new FetchRefusal(denied, GUARD))
+    )
       .then((found) => {
         if (found.length === 0) throw new FetchRefusal(`the name ${host} resolves to no address`);
         const refused = found.find((entry) => refuses(entry.address));
@@ -412,6 +420,8 @@ export const guardedGet = async (raw: string, options: GetOptions): Promise<Got>
   let url = parsed(raw);
   let seen: string | null = null;
   for (let hop = 0; ; hop += 1) {
+    const denied = deniedHostRefusal(url.href);
+    if (denied !== null) throw new FetchRefusal(denied, GUARD);
     // A literal address opens no lookup, so it is checked here.
     const host = url.hostname.replace(/^\[(.*)\]$/u, '$1');
     if (isIP(host) !== 0 && refuses(host)) throw refusedSentence(host);

@@ -125,7 +125,18 @@ const UNDONE = '00000000-0000-4000-8000-00000000e00b';
 const BOUGHT_SHIP = '00000000-0000-4000-8000-00000000e00c';
 const BOUGHT_TWIN = '00000000-0000-4000-8000-00000000e00d';
 
+// This fixture tests the masks and the licences, so its documents stand at level A. The test of the
+// level gate has its own documents, with no such line.
+const atLevelA = async (ask: Ask) => {
+  await ask("UPDATE public.document_provider SET level = 'A' WHERE id IN ('gfw', 'datalastic')");
+  await ask(
+    `INSERT INTO public.document_level_rule (pattern, level, line)
+     VALUES ('^https://example\\.org/', 'A', 'test')`,
+  );
+};
+
 const documents = async (ask: Ask) => {
+  await atLevelA(ask);
   await ask(
     `INSERT INTO public.documents (id, kind, title, uri, retrieved_at, cost_eur, provider_id) VALUES
        ($1, 'url', 'OFAC SDN list', 'https://example.org/sdn.csv', '2026-10-01', NULL, 'ofac_sdn'),
@@ -1974,6 +1985,7 @@ test('the lane of events reads what a real release holds: the precision, the den
   const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
   await inTransaction(async (held) => {
     const { ask } = held;
+    await atLevelA(ask);
     await ask(
       `INSERT INTO public.documents (id, kind, title, uri, retrieved_at, cost_eur, provider_id) VALUES
          ($1, 'url', 'A post', 'https://example.org/post', '2026-10-01', NULL, NULL),
@@ -2109,4 +2121,100 @@ test('a relation claim reads the passages of an accepted act that added a source
       ],
     },
   ]);
+});
+
+test('a release lets out only level A: no other document, and no row with no such document', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gab-release-level-'));
+  const GATE = {
+    A: 'doc_level_a',
+    RULE_A: 'doc_level_rule_a',
+    B: 'doc_level_b',
+    C: 'doc_level_c',
+    NOT_VERIFIED: 'doc_level_nv',
+    RESTRICTED: 'doc_level_restricted',
+    MARKED: 'doc_level_marked',
+    COPY: 'doc_level_copy',
+  };
+  const WORDS = 'TEST GATE FIRM is a firm.';
+  const firm = (n: number) => `00000000-0000-4000-8000-0000000007${String(n).padStart(2, '0')}`;
+  const made = await inTransaction(async (held) => {
+    const { ask } = held;
+    await ask(
+      `INSERT INTO public.documents (id, kind, title, uri, retrieved_at, provider_id, restricted) VALUES
+         ($1, 'url', 'Gate level A', 'https://list.test/a', '2026-10-01', 'ofac_sdn', false),
+         ($2, 'url', 'Gate rule A', 'https://www.justice.gov/opa/pr/one', '2026-10-01', NULL, false),
+         ($3, 'api', 'Gate level B', 'https://list.test/b', '2026-10-01', 'gfw', false),
+         ($4, 'url', 'Gate level C', 'https://list.test/c', '2026-10-01', 'osm', false),
+         ($5, 'url', 'Gate not verified', 'https://list.test/nv', '2026-10-01', NULL, false),
+         ($6, 'url', 'Gate restricted', 'https://sudact.ru/arbitral/doc/one/', '2026-10-01', NULL, false),
+         ($7, 'url', 'Gate marked', 'https://list.test/marked', '2026-10-01', 'ofac_sdn', true),
+         ($8, 'url', 'Gate copy', 'https://web.archive.org/web/2024/https://www.justice.gov/opa/pr/one',
+          '2026-10-01', NULL, false)`,
+      Object.values(GATE),
+    );
+    const ids = Object.values(GATE);
+    for (const [index, id] of ids.entries()) {
+      await ask(
+        'INSERT INTO public.document_text (document_id, extractor, page, text) VALUES ($1, $2, 1, $3)',
+        [id, EXTRACTOR, WORDS],
+      );
+      const act = await entity(held, firm(index), 'company', `TEST GATE FIRM ${String(index)}`, [
+        id,
+      ]);
+      await ask(
+        `INSERT INTO public.citation (claim_id, doc_id, page, start, "end", modality, text_extractor)
+         VALUES ($1, $2, 1, 0, $3, 'asserts', $4)`,
+        [act, id, WORDS.length, EXTRACTOR],
+      );
+    }
+    // A row with a level A document and a document below it keeps the first alone.
+    await entity(held, firm(20), 'company', 'TEST GATE MIXED', [GATE.A, GATE.NOT_VERIFIED]);
+    const written = await writeRelease(held.as('gabriel_app'), MANIFEST, root);
+    const read = await readReleaseRecord(held.as('gabriel_app'), { natoPair: false });
+    const levels = await ask(
+      `SELECT d.id::text AS id, public.document_level(d.id::text) AS level,
+              public.document_restricted(d.id::text) AS restricted
+         FROM public.documents d WHERE d.id = ANY ($1::text[]::doc_id[]) ORDER BY d.id`,
+      [ids],
+    );
+    return { written, read, levels };
+  });
+  expect(made.levels).toStrictEqual([
+    { id: GATE.A, level: 'A', restricted: false },
+    { id: GATE.B, level: 'B', restricted: false },
+    { id: GATE.C, level: 'C', restricted: false },
+    { id: GATE.COPY, level: 'not_verified', restricted: false },
+    { id: GATE.MARKED, level: 'A', restricted: true },
+    { id: GATE.NOT_VERIFIED, level: 'not_verified', restricted: false },
+    { id: GATE.RESTRICTED, level: 'not_verified', restricted: true },
+    { id: GATE.RULE_A, level: 'A', restricted: false },
+  ]);
+  const gate = new Set(Object.values(GATE));
+  expect([...made.read.documents.keys()].filter((id) => gate.has(id)).sort()).toStrictEqual(
+    [GATE.A, GATE.RULE_A].sort(),
+  );
+  const named = made.read.entities.filter((one) => one.label.startsWith('TEST GATE'));
+  expect(named.map((one) => one.label).sort()).toStrictEqual([
+    'TEST GATE FIRM 0',
+    'TEST GATE FIRM 1',
+    'TEST GATE MIXED',
+  ]);
+  expect(named.find((one) => one.label === 'TEST GATE MIXED')?.sources).toStrictEqual([GATE.A]);
+  const files = await Promise.all(
+    (await readdir(made.written.folder)).map((name) =>
+      readFile(join(made.written.folder, name), 'utf8'),
+    ),
+  );
+  for (const title of [
+    'Gate level B',
+    'Gate level C',
+    'Gate not verified',
+    'Gate restricted',
+    'Gate marked',
+    'Gate copy',
+    'sudact.ru',
+  ])
+    for (const text of files) expect(text).not.toContain(title);
+  expect(files.join('\n')).toContain('Gate level A');
+  expect(files.join('\n')).toContain('Gate rule A');
 });

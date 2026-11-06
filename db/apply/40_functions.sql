@@ -6849,6 +6849,53 @@ SET search_path = pg_catalog, public, pg_temp AS $$
 $$;
 
 
+-- THE LEVEL AND THE CLASS OF A DOCUMENT, for a tool (migration 0097). SECURITY DEFINER, because a
+-- tool role holds no grant on the view. An id that names no document is below level A.
+CREATE OR REPLACE FUNCTION document_level(p_document text)
+RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce((SELECT m.level FROM public.document_mark m WHERE m.id = p_document),
+                  'not_verified')
+$$;
+
+CREATE OR REPLACE FUNCTION document_restricted(p_document text)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce((SELECT m.restricted FROM public.document_mark m WHERE m.id = p_document), true)
+$$;
+
+-- AN ADDRESS RULE SETS THE MARK ON THE ROW. public_document stands in each read of the public role,
+-- so it reads a column and no pattern. A pattern on each row of that view took each read past its
+-- limit, as measured on the test stack on 6 November 2026.
+CREATE OR REPLACE FUNCTION document_restricted_by_rule()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.document_level_rule r
+              WHERE r.restricted AND NEW.uri ~* r.pattern) THEN
+    NEW.restricted := true;
+  END IF;
+  RETURN NEW;
+END $$;
+
+-- THE MARK GOES ONE WAY: no function removes it.
+CREATE OR REPLACE FUNCTION fill_document_restricted(p_document text)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  UPDATE public.documents SET restricted = true WHERE id = p_document::doc_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  RETURN 'filled';
+END $$;
+
+
 -- ============================================================================== THE TRAVERSAL =
 -- T4 and docs/spec.md: complex read logic lives in a SQL function and never in the client.
 -- The join requires an entity at BOTH ends. Without that, the walk returns the identifier of an
@@ -8188,8 +8235,9 @@ END $$;
 -- PU1: no rejected act, no value of a person with no public source, no person with no public
 -- source. The functions then add the rules of a release:
 --
---   - a row stays only when one of its sources is a public document, and a row names only its
---     public documents (a bought file and an internal document are never named);
+--   - a row stays only when one of its sources is a public document at level A
+--     (public.export_document), and a row names only such documents (a bought file, an internal
+--     document and a document below level A are never named);
 --   - a person stays only when the record holds a relation "designated by" from the person to an
 --     element that is not a person, with a public source;
 --   - a relation stays only when both of its ends are entities of the release.
@@ -8234,7 +8282,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
     SELECT e.id, e.type, e.label, e.origin_label, e.geom,
            CASE WHEN e.geom IS NULL THEN NULL ELSE e.geom_method END AS geom_method,
            ARRAY(SELECT s.id::text FROM unnest(e.sources) AS s(id)
-                  WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = s.id)
+                  WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = s.id)
                   ORDER BY 1) AS sources,
            CASE WHEN e.geom IS NULL THEN '{}'::text[] ELSE ARRAY(
              SELECT DISTINCT s.id FROM unnest(coalesce(
@@ -8253,22 +8301,25 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
                   CROSS JOIN LATERAL unnest(g.docs) AS a(src)
                  WHERE x.id = e.id),
                e.sources::text[])) AS s(id)
-              WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id::text = s.id)
+              WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id::text = s.id)
               ORDER BY 1) END AS geom_sources
       FROM api.entity e
   ), sourced AS (
     SELECT * FROM shown WHERE cardinality(sources) > 0
   )
   SELECT h.id, h.type, h.label, h.origin_label, h.sources,
-         public.ST_AsGeoJSON(public.ST_ForcePolygonCCW(public.ST_SetSRID(
-           public.ST_GeomFromGeoJSON(h.geom), 4326)), 6)::jsonb,
-         h.geom_sources, h.geom_method
+         -- A geometry that no document of the release gives does not leave.
+         CASE WHEN cardinality(h.geom_sources) > 0
+              THEN public.ST_AsGeoJSON(public.ST_ForcePolygonCCW(public.ST_SetSRID(
+                     public.ST_GeomFromGeoJSON(h.geom), 4326)), 6)::jsonb END,
+         h.geom_sources,
+         CASE WHEN cardinality(h.geom_sources) > 0 THEN h.geom_method END
     FROM sourced h
    WHERE h.type <> 'person'
       OR EXISTS (SELECT 1 FROM api.relation r JOIN sourced t ON t.id = r.dst_id
                   WHERE r.type = 'designated_by' AND r.src_kind = 'entity'
                     AND r.dst_kind = 'entity' AND r.src_id = h.id AND t.type <> 'person'
-                    AND EXISTS (SELECT 1 FROM public.public_document d
+                    AND EXISTS (SELECT 1 FROM public.export_document d
                                  WHERE d.id = ANY (r.sources)))
 $$;
 
@@ -8280,12 +8331,12 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   WITH held AS (SELECT e.id FROM public.release_entities() e)
   SELECT r.id, r.type, r.src_id, r.dst_id, r.valid_from, r.valid_to, r.origin_label,
          ARRAY(SELECT s.id::text FROM unnest(r.sources) AS s(id)
-                WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = s.id)
+                WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = s.id)
                 ORDER BY 1)
     FROM api.relation r
    WHERE r.src_kind = 'entity' AND r.dst_kind = 'entity'
      AND r.src_id IN (SELECT h.id FROM held h) AND r.dst_id IN (SELECT h.id FROM held h)
-     AND EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = ANY (r.sources))
+     AND EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = ANY (r.sources))
 $$;
 
 -- The identifier of a value is the identifier of its element, a slash and the key, so it stays
@@ -8372,7 +8423,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
            ARRAY(SELECT s.id FROM jsonb_array_elements_text(
                                     CASE jsonb_typeof(c.src) WHEN 'array' THEN c.src
                                          ELSE '[]'::jsonb END) AS s(id)
-                  WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = s.id)
+                  WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = s.id)
                   ORDER BY 1) AS public_sources,
            CASE WHEN jsonb_typeof(c.value) IN ('string', 'number', 'boolean')
                 THEN btrim(lower(regexp_replace(c.value #>> '{}', '[^[:alnum:]]+', ' ', 'g')))
@@ -8409,7 +8460,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
    WHERE cardinality(k.public_sources) > 0
 $$;
 
--- Each public document, with its provider and the licence of its provider. A document with no
+-- Each document that a release can name, with its provider and the licence of its provider. A document with no
 -- provider has none. The alignment matrix reads the regime of a designation from the provider.
 CREATE FUNCTION release_documents()
 RETURNS TABLE (id text, title text, uri text, retrieved_at date, licence text, provider text,
@@ -8419,13 +8470,14 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   SELECT d.id::text, d.title, d.uri, d.retrieved_at, p.licence, p.id, d.doc_type
     FROM public.documents d
     LEFT JOIN public.document_provider p ON p.id = d.provider_id
-   WHERE d.id IN (SELECT o.id FROM public.public_document o)
+   WHERE d.id IN (SELECT o.id FROM public.export_document o)
 $$;
 
 -- THE FIGURES OF A RELEASE (ADR 0030). Each figure of the newest edition for its key, with the same
 -- licence filter as the public read. The function reads api.observation as its owner, and that view
 -- shows the owner only the figures with an open licence, so a figure with a restricted licence is
 -- not in a release. The view also hides a subject that the public read does not show.
+-- A figure whose document is below level A is not in a release either.
 CREATE FUNCTION release_observations()
 RETURNS TABLE (id uuid, measure text, value numeric, unit text, period text, method text,
                publisher text, reporter text, partner text, product text, subject_id uuid,
@@ -8435,6 +8487,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   SELECT o.id, o.measure, o.value, o.unit, o.period, o.method, o.publisher, o.reporter, o.partner,
          o.product, o.subject_id, o.licence, o.document_id::text, o.page, o.span_start, o.span_end
     FROM api.observation o
+   WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = o.document_id)
 $$;
 
 -- THE LOG OF THE MERGES (M12): each merge and each undo, with its label, and the entity that each

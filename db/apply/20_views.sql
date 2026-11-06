@@ -37,7 +37,9 @@ DROP VIEW IF EXISTS api.document;
 DROP VIEW IF EXISTS api.document_provider;
 DROP VIEW IF EXISTS public.proposal_reading;
 DROP VIEW IF EXISTS public.person_ref;
+DROP VIEW IF EXISTS public.export_document;
 DROP VIEW IF EXISTS public.public_document;
+DROP VIEW IF EXISTS public.document_mark;
 DROP VIEW IF EXISTS public.open_licence;
 
 
@@ -62,6 +64,21 @@ CREATE VIEW public.open_licence AS
 -- them with the rights of its owner. A function cannot do it: a function that a view calls runs
 -- with the rights of the caller, and gabriel_read holds nothing on public.
 
+-- THE LEVEL OF EACH DOCUMENT, READ AND NEVER STORED (migration 0097). The provider gives it. A
+-- document with no provider takes the worst address rule that matches. All else is `not_verified`,
+-- so the rule fails closed. The class is the mark of the row (a trigger reads the address rules) or
+-- the class of the provider.
+CREATE VIEW public.document_mark AS
+  SELECT d.id,
+         coalesce(p.level,
+                  (SELECT r.level FROM public.document_level_rule r
+                    WHERE NOT r.restricted AND d.uri ~* r.pattern
+                    ORDER BY r.level COLLATE "C" DESC LIMIT 1),
+                  'not_verified') AS level,
+         d.restricted OR coalesce(p.restricted, false) AS restricted
+    FROM public.documents d
+    LEFT JOIN public.document_provider p ON p.id = d.provider_id;
+
 -- A PUBLIC DOCUMENT IS ONE THAT ANYONE CAN OPEN AT A PUBLIC ADDRESS: a web page (`url`), a
 -- public registry or API (`api`), or a file that the operator uploaded (`file`), each with its
 -- address. The ruling of 9 October 2026 after #403: a file that the operator uploads comes from
@@ -71,18 +88,26 @@ CREATE VIEW public.open_licence AS
 -- the source page, so its address can be the page of a bought file with no recorded cost. A
 -- load report and a hand-entered value are not public. A bought file is not public. A document
 -- is a bought file when it has a cost, or when its provider sells its filings: a NULL cost means
--- that the cost is unknown, and not that the file is free. A register extract of the provider
--- `egrul` is not public either: the signed file names natural persons, and the panel ruling on
--- the tool egrul_extract keeps it internal.
+-- that the cost is unknown, and not that the file is free. A restricted document (a register
+-- extract, a court act, a bank statement) is not public either: the file names natural persons,
+-- and the panel rulings keep it internal.
 CREATE VIEW public.public_document AS
   SELECT d.id FROM public.documents d
    WHERE d.kind IN ('url','api','file')
      AND btrim(coalesce(d.uri, ''), E' \t\n\r\f\v') <> ''
      AND NOT d.uri_before_pu1
      AND coalesce(d.cost_eur, 0) = 0
+     AND NOT d.restricted
      AND NOT EXISTS (SELECT 1 FROM public.document_provider v
-                      WHERE v.id = d.provider_id
-                        AND (v.licence = 'paid-filing' OR v.id = 'egrul'));
+                      WHERE v.id = d.provider_id AND (v.licence = 'paid-filing' OR v.restricted));
+
+-- A DOCUMENT THAT A RELEASE CAN NAME: public and at level A. research/signed-list.md, "Below A": the
+-- export refuses each other document, so its title, its address and its excerpts do not leave. The
+-- facts stay in the record. public_document keeps its own meaning for the masks of the public read.
+CREATE VIEW public.export_document AS
+  SELECT d.id FROM public.public_document d
+    JOIN public.document_mark m ON m.id = d.id
+   WHERE m.level = 'A' AND NOT m.restricted;
 
 -- EACH IDENTIFIER THAT NAMES A PERSON, AND WHETHER THAT PERSON IS PUBLIC (`open`). A person is:
 -- a live entity of the type `person`; the entity that an act proposes as a person, before or

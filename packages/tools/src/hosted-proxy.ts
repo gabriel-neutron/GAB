@@ -4,6 +4,7 @@
 // document. The call asks for nothing on a CAPTCHA, and an answer with a CAPTCHA is a refusal.
 
 import { classOfAnswer } from './answer-class.ts';
+import { deniedHostRefusal } from './denied-host.ts';
 import { FetchRefusal, type GetOptions, type Got } from './fetch-guard.ts';
 import { ProxyCeiling, type ProxyLedger } from './proxy-ledger.ts';
 
@@ -107,6 +108,8 @@ export const readThroughProxy = async (
   ledger: ProxyLedger,
   endpoint: string = ENDPOINT,
 ): Promise<Got> => {
+  const denied = deniedHostRefusal(url);
+  if (denied !== null) throw new FetchRefusal(denied, { kind: 'guard' });
   try {
     // A worker of the supervisor names its ticket in this variable.
     const ticket = process.env['GAB_TICKET']?.trim() ?? '';

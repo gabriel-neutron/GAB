@@ -39,7 +39,7 @@ import { classOfAnswer, HOST_LIMIT_HOLD_MS, type HoldClass } from './answer-clas
 import { refusedSource } from './refused-source.ts';
 import { renderPage } from './render-page.ts';
 import { holdsLayers, skippedFileShape, storeArchive, storedFileShape } from './store-archive.ts';
-import { knownAnswer, noteTrace, storeAnswer } from './store-answer.ts';
+import { knownAnswer, markRestricted, noteTrace, storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 import { CHALLENGE_PAGE, isHtml, SHORT_PAGE, unreadablePage } from './unreadable-page.ts';
 
@@ -473,7 +473,8 @@ export const fetchDocument = defineTool({
     'status) is refused. A text above 16 MiB is cut into pages at the end of a line, and a ' +
     'table repeats its header line on each page. A PNG or a JPEG image is stored as ' +
     'its bytes, and its pages are the text that OCR read in it (English, Ukrainian and ' +
-    'Russian). A Nominatim, Overpass or geocoder answer and a search result page are refused, ' +
+    'Russian). A host on the leak deny list opens no connection, also after a redirect. ' +
+    'A Nominatim, Overpass or geocoder answer and a search result page are refused, ' +
     'and nothing is stored: a geocoder is a check of an address only, and a search lists ' +
     'pages. OCR can misread a sign: cite an excerpt as the stored text gives it, and ' +
     'compare it with the image. An image in which OCR reads no text is refused. A ZIP archive ' +
@@ -499,6 +500,12 @@ export const fetchDocument = defineTool({
     proxy: z.boolean().default(false),
     render: z.boolean().default(false),
     bulk: z.boolean().default(false),
+    restricted: z
+      .boolean()
+      .default(false)
+      .describe(
+        'mark a file that names natural persons, such as a bank statement: it never leaves, and an excerpt of it names a legal person only',
+      ),
   }),
   output: outputShape,
   async run(session, input, reach) {
@@ -749,6 +756,7 @@ export const fetchDocument = defineTool({
 
       // An archive with no GeoJSON layer gives no text of its own: each of its files is a document.
       if (known === undefined && mime === ZIP_MIME && !holdsLayers(pages)) {
+        if (input.restricted) throw new ToolRefusal('a restricted file is not a ZIP archive');
         const metadata = await metadataOf(got.bytes, mime);
         const unpacked = await storeArchive(session, reach.store, {
           kind: 'url',
@@ -857,6 +865,7 @@ export const fetchDocument = defineTool({
           ...(provider === undefined ? {} : { provider }),
         }));
 
+      if (input.restricted) await markRestricted(session, plain.id);
       await noteTrace(session, plain.id, got.certFingerprint, false);
       let rendered: { id: string; status: 'known' | 'stored'; title: string } | null = null;
       if (usable !== null) {
@@ -870,6 +879,7 @@ export const fetchDocument = defineTool({
           day,
         });
         rendered = { id: stored.id, status: stored.status, title: stored.title };
+        if (input.restricted) await markRestricted(session, stored.id);
         await noteTrace(session, stored.id, got.certFingerprint, true);
       }
       // The notice is about the page that is cited: the render when it is stored, else the plain page.

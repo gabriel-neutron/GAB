@@ -257,3 +257,33 @@ export const egrulExcerptRefusal = (excerpt: string, pages: readonly string[]): 
     return 'an excerpt of a register extract must hold the form of a legal person: its full name, its OGRN or its 10-digit INN';
   return null;
 };
+
+// Two capital words in a row, after the name of a company is taken out.
+const COMPANY_NAME =
+  /(?:\p{Lu}[\p{L}-]*\s+)*(?:LLC|LTD|Ltd|Limited|Inc|GmbH|Corp|Corporation|Company|Bank|ООО|АО|ПАО)(?![\p{L}])/gu;
+const NAME_PAIR = /\p{Lu}\p{Ll}+\s+\p{Lu}\p{Ll}+/u;
+const INITIALS = /(?<![\p{L}])\p{Lu}\.\s?\p{Lu}\./u;
+const TITLE = /(?<![\p{L}])(?:Mr|Mrs|Ms|Dr|Judge|Судья|судья|гражданин|гражданка)(?![\p{L}])/u;
+
+/** The sentence that refuses an excerpt of a restricted document with no person blocks to read (a
+ * court act, a bank statement), or null. The rule fails closed: the excerpt must hold the form of a
+ * legal person, and no sign of a natural person. A person that an act designates is refused too,
+ * because the signed list allows legal persons only.
+ * shortcut: a name in capital letters with no patronymic passes (IVAN IVANOV), add the persons of
+ * the record to this test if a review finds one. */
+export const restrictedExcerptRefusal = (excerpt: string): string | null => {
+  const text = normal(excerpt);
+  const words = excerpt.normalize('NFC').replace(COMPANY_NAME, ' ');
+  if (
+    PERSON_WORD.test(text) ||
+    PATRONYMIC.test(text) ||
+    PERSON_TAX_NUMBER.test(text) ||
+    NAME_PAIR.test(words) ||
+    INITIALS.test(words) ||
+    TITLE.test(words)
+  )
+    return 'an excerpt of a restricted document can name a legal person only, and this excerpt holds the sign of a natural person';
+  if (!COMPANY_NUMBER.test(text) && !COMPANY_WORD.test(text))
+    return 'an excerpt of a restricted document must hold the form of a legal person: its full name or its number';
+  return null;
+};
