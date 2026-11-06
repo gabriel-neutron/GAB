@@ -469,14 +469,17 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       const queue = join(dir, 'operator-queue.md');
       writeFileSync(queue, '');
       chmodSync(queue, 0o444);
-      expect(await statesOf(dir, 'T-W', 4)).toEqual([
-        'working',
-        'needs_panel',
-        'needs_panel',
-        'working',
-      ]);
-      expect(ticket(dir, 'T-W').attempts).toBe(0);
-      chmodSync(queue, 0o666);
+      try {
+        expect(await statesOf(dir, 'T-W', 4)).toEqual([
+          'working',
+          'needs_panel',
+          'needs_panel',
+          'working',
+        ]);
+        expect(ticket(dir, 'T-W').attempts).toBe(0);
+      } finally {
+        chmodSync(queue, 0o666);
+      }
     },
     LONG,
   );
