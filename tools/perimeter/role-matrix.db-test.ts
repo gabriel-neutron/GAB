@@ -191,6 +191,7 @@ const RULE_STEPS = [
   'units_of_author',
   'fact_is_strong',
   'unit_doubt_cause',
+  'rule_before_sources',
   'rule_of_faults',
   'unit_said',
   'letter_of',
