@@ -16,10 +16,10 @@ export const DENIED_HOSTS = [
   'data.occrp.org',
 ] as const;
 
-// A name with no letter, digit or hyphen before it, and with any count of dots after it. The end also
+// A name with no letter, digit, underscore or hyphen before it, and with any count of dots after it. The end also
 // holds the separators of a query, so an address in a query of another page is refused.
 const DENIED = new RegExp(
-  String.raw`(?<![\p{L}\p{N}-])(?:${DENIED_HOSTS.map((host) => host.replaceAll('.', String.raw`\.`)).join('|')})\.*(?:[:/?#&;=]|$)`,
+  String.raw`(?<![\p{L}\p{N}_-])(?:${DENIED_HOSTS.map((host) => host.replaceAll('.', String.raw`\.`)).join('|')})\.*(?:[:/?#&;=]|$)`,
   'iu',
 );
 

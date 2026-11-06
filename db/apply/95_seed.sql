@@ -104,7 +104,10 @@ ON CONFLICT (id) DO UPDATE SET
 -- web archive copy does not match, and it stays `not_verified`. A line whose address cannot split
 -- what the list allows from what it refuses has no rule: sec.gov (exhibits), Eurostat (carve-outs).
 -- A restricted rule reads the whole address, so it also holds a web archive copy.
-DELETE FROM document_level_rule WHERE line <> 'the committed fixture';
+-- The first form of three restricted patterns. An old row must not stay beside the new one.
+DELETE FROM document_level_rule
+ WHERE pattern IN ('[/.]sudact\.ru([:/?#]|$)', 'govinfo\.gov/[^?#]*USCOURTS',
+                   '[/.]reyestr\.court\.gov\.ua([:/?#]|$)');
 INSERT INTO document_level_rule (pattern, level, restricted, line) VALUES
   ('^https?://(www\.)?justice\.gov/(opa|usao-[a-z0-9-]+)/pr/', 'A', false, 'US DOJ press releases'),
   ('^https?://(www\.)?federalregister\.gov/documents/', 'A', false, 'Federal Register'),
@@ -113,9 +116,9 @@ INSERT INTO document_level_rule (pattern, level, restricted, line) VALUES
   ('^https?://eur-lex\.europa\.eu/legal-content/', 'A', false, 'EUR-Lex'),
   ('^https?://curia\.europa\.eu/juris/', 'A', false, 'CJEU judgments'),
   ('^https?://(www\.)?kremlin\.ru/acts/bank/', 'A', false, 'Kremlin bank of acts'),
-  ('([/.]|%2f)sudact\.ru\.*([:/?#]|%2f|$)', 'not_verified', true, 'Sudact arbitral acts'),
-  ('govinfo\.gov\.*(/|%2f)[^?#]*USCOURTS', 'not_verified', true, 'GovInfo USCOURTS'),
-  ('([/.]|%2f)reyestr\.court\.gov\.ua\.*([:/?#]|%2f|$)', 'C', true, 'Ukrainian court register')
+  ('([/.@]|%(25)*2f)sudact\.ru\.*([:/?#]|%|$)', 'not_verified', true, 'Sudact arbitral acts'),
+  ('govinfo\.gov\.*(/|%(25)*2f)[^?#]*USCOURTS', 'not_verified', true, 'GovInfo USCOURTS'),
+  ('([/.@]|%(25)*2f)reyestr\.court\.gov\.ua\.*([:/?#]|%|$)', 'C', true, 'Ukrainian court register')
 ON CONFLICT (pattern) DO UPDATE SET
   level = EXCLUDED.level,
   restricted = EXCLUDED.restricted,

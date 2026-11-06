@@ -64,6 +64,13 @@ test.each([
   'Test Plant LLC and Testov I.',
   'Сидоров А. и ООО "Ромашка"',
   'Ivan Testov, Test Plant LLC',
+  'Test Plant LLC; 张伟 signed',
+  'Test Plant LLC delivered to Mr Smith Bank',
+  'Test Plant LLC и Иван Test Inc',
+  'Ivan Testov\nTest Plant LLC',
+  'ООО Иванов',
+  'John Smith Company',
+  'ООО "Ромашка" в лице иванова ивановича',
 ])('the rule refuses an excerpt that names a person: %s', (excerpt) => {
   expect(restrictedExcerptRefusal(excerpt)).toMatch(sign);
 });
@@ -89,8 +96,9 @@ test('an excerpt that names a person is refused, on each way to the class', asyn
     const encoded = await store(
       ask,
       79,
-      'https://web.archive.org/web/2024/https%3A%2F%2Fsudact.ru%2Farbitral%2Fdoc%2Fx%2F',
+      'https://web.archive.org/web/2024/https%253A%252F%252Fsudact.ru%252Farbitral%252Fdoc%252Fx%252F',
     );
+    const userinfo = await store(ask, 80, 'https://x@sudact.ru/arbitral/doc/y/');
     await as(ask, 'gabriel_research', () =>
       ask('SELECT public.fill_document_restricted($1) AS outcome', [marked]),
     );
@@ -100,6 +108,7 @@ test('an excerpt that names a person is refused, on each way to the class', asyn
       await propose(ask, marked, NAMED),
       await propose(ask, dotted, NAMED),
       await propose(ask, encoded, NAMED),
+      await propose(ask, userinfo, NAMED),
     ];
   });
   for (const outcome of outcomes) {

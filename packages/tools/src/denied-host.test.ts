@@ -45,6 +45,7 @@ test.each([
   'https://notwikileaks.org/page',
   'https://wikileaks.org.example.com/page',
   'https://example.com/an-article-on-wikileaks.org-and-the-law',
+  'https://example.com/my-wikileaks.org.html',
 ])('the rule leaves an article or another host alone: %s', (address) => {
   expect(deniedHostRefusal(address)).toBeNull();
 });
