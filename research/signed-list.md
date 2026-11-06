@@ -8,11 +8,11 @@ Ticket: BLD-13. Sources of the facts: `research/out/v3-plan/rulings.md` and `res
 - **Levels.** A: terms read, reuse allowed. B: terms read, no redistribution of raw data; also a law or a policy that was read and gives no clear right to reuse. C: lead only, no citation. n.v.: terms not read. "out": not used in this wave.
 - **A level rests on words read.** A paraphrase or a search summary is not a read. "Terms not found" is n.v.
 - **A non-commercial term gives B.** The open dataset carries CC BY 4.0 (ADR 0015), so a non-commercial source cannot give A. A share-alike term or a no-derivatives term also gives B.
-- **Below A.** The document stays internal and the export refuses it. A fact can cite a document at B or n.v., with its level shown. A document at C is a lead only: no fact cites it. Its raw data does not leave the store. A row is in a release only with a public document (`docs/spec.md`), and BLD-07 sets the licence value of each row.
+- **Below A.** The document stays internal and the export refuses it. A fact can cite a document at B or n.v., with its level shown. A document at C is a lead only: no fact cites it. Its raw data does not leave the store. BLD-07 has merged: a row is in a release only with a public document at level A (`docs/spec.md`), so a row with no such document stays in the record and out of the release.
 - **Edition.** "Current" means the edition on the date of the read. A new edition with the same terms stays on its line. A new edition with changed terms needs a new line.
 - **`enqueue_*`.** No line of this list approves `enqueue_extract` or `enqueue_mapping`, because no ticket asks for them. `start_lead`, a promotion of a mapping and the approval of a reference edition stay with the operator.
 - **All lines.** No natural person unless a sanctions act designates that person. No personal address, telephone or e-mail. No leaked, hacked or stolen data. No login, no CAPTCHA, no bypass of a block. Direct exit.
-- **Restricted class** (EGRUL PDF, court acts, bank statements). Store a file only with its id logged first for BLD-07. Propose no fact from it until BLD-07 merges. Excerpts name legal persons only.
+- **Restricted class** (EGRUL PDF, court acts, bank statements). Store a file only with its id logged first for BLD-07. Excerpts name legal persons only.
 
 ## 1. Lists, acts and US government documents
 

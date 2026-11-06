@@ -118,6 +118,9 @@ operator to accept" a proposal.
   source "UN Comtrade".
 - The licences of OpenCorporates and OCCRP Aleph do not fit the open dataset. Use them only as a
   lead, or cite a fact from them. Never use a leak collection of Aleph (see the rule on leaked data).
+- A document has a level and a class. `find_document` gives `level` and `restricted`. A release
+  names level A only. Store a file that names natural persons with `restricted: true`, when no rule
+  of the record holds its host: an excerpt of it names a legal person only.
 - Never cite leaked, hacked or stolen data. The contract of the report forbids unlawfully obtained
   data. A page is a leak when it holds the leaked data, or when its publisher calls its own data
   leaked, hacked or stolen. Examples: the leak collections of Aleph, Offshore Leaks, WikiLeaks and

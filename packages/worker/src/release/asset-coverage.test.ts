@@ -197,7 +197,7 @@ test('the providers of the documents that the claims cite give the credits', () 
       ['c', { ...GEM, id: 'c', provider: 'gleif' }],
     ]),
   };
-  expect([...claimProviders(record)]).toStrictEqual(['ofac_sdn']);
+  expect([...claimProviders(record)]).toStrictEqual(['ofac_sdn', 'no_provider']);
 });
 
 test('a geometry that cites an OpenStreetMap document stops the release', () => {

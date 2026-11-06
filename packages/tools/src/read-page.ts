@@ -76,8 +76,6 @@ export const readPage = defineTool({
       got = await guardedGet(input.url, {
         ...options,
         beforeHop: async (next) => {
-          const refused = deniedHostRefusal(next);
-          if (refused !== null) throw new FetchRefusal(refused, { kind: 'guard' });
           lastHost = russianHostOf(next);
           if (lastHost !== null) await takeTurn(lastHost);
         },

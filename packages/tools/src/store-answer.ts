@@ -44,6 +44,8 @@ const RESTORE_LIMIT = `SELECT set_config('statement_timeout', $1, false)`;
 
 const heldLimit = z.object({ held: z.string() });
 
+const FILL_RESTRICTED = 'SELECT public.fill_document_restricted($1) AS outcome';
+
 const FILL_TRACE = 'SELECT public.fill_document_trace($1, $2, $3) AS outcome';
 
 const knownRow = z.object({
@@ -169,6 +171,12 @@ export const storeAnswer = async (
   if (answer.provider !== undefined && known.provider_id === null)
     await rowsOf(session, filledRow, FILL_PROVIDER, [known.id, answer.provider]);
   return answerOf(known, status);
+};
+
+/** Marks a document as restricted: it never leaves, and an excerpt of it names a legal person only.
+ * The mark goes one way. */
+export const markRestricted = async (session: Session, document: string): Promise<void> => {
+  await rowsOf(session, filledRow, FILL_RESTRICTED, [document]);
 };
 
 /** Records how a fetched document was read: the fingerprint of the certificate that the server

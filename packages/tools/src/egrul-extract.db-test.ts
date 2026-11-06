@@ -71,11 +71,11 @@ test('a release holds no extract of the provider egrul', async () => {
     return {
       extract: ids.has(extract) || open.some((row) => row.id === extract),
       free: ids.has(free),
-      // This ticket changes the rule of no other provider. BLD-07 decides the other restricted ones.
+      // Comtrade is below level A, so the export refuses it too.
       comtrade: ids.has(comtrade),
     };
   });
-  expect(found).toStrictEqual({ extract: false, free: true, comtrade: true });
+  expect(found).toStrictEqual({ extract: false, free: true, comtrade: false });
 });
 
 const propose = (ask: Ask, document: string, excerpt: string) =>

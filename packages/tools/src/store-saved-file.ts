@@ -25,7 +25,7 @@ import { z } from 'zod';
 import { addressTitle, htmlTitle } from './fetch-document.ts';
 import { holdsLayers, skippedFileShape, storeArchive, storedFileShape } from './store-archive.ts';
 import { refusedSource } from './refused-source.ts';
-import { storeAnswer } from './store-answer.ts';
+import { markRestricted, storeAnswer } from './store-answer.ts';
 import { holdsSecret } from './fetch-guard.ts';
 import { defineTool, type HeldParts, ToolRefusal } from './tool.ts';
 import { isHtml, unreadablePage } from './unreadable-page.ts';
@@ -242,6 +242,12 @@ export const storeSavedFile = defineTool({
         .enum(PROVIDERS)
         .optional()
         .describe('the publisher of an official file; its licence gives the tier of the document'),
+      restricted: z
+        .boolean()
+        .default(false)
+        .describe(
+          'mark a file that names natural persons, such as a bank statement: it never leaves, and an excerpt of it names a legal person only',
+        ),
     })
     .superRefine((given, context) => {
       const fault = (message: string) => context.addIssue({ code: 'custom', message });
@@ -352,6 +358,7 @@ export const storeSavedFile = defineTool({
       throw new ToolRefusal(`no text is read from ${label}`);
     }
     if (mime === ZIP_MIME && !holdsLayers(pages)) {
+      if (input.restricted) throw new ToolRefusal('a restricted file is not a ZIP archive');
       const unpacked = await storeArchive(session, reach.store, {
         kind: 'url',
         bytes,
@@ -382,6 +389,7 @@ export const storeSavedFile = defineTool({
       day: reach.now().toISOString().slice(0, 10),
       ...(input.provider === undefined ? {} : { provider: input.provider }),
     });
+    if (input.restricted) await markRestricted(session, stored.id);
     return { document: stored.id, status: stored.status, title: stored.title, pages: pages.length };
   },
 });
