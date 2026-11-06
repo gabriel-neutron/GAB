@@ -222,6 +222,9 @@ test.each([
     3_600_000,
   ],
   [{ status: 403, body: 'no', headers: {} }, 'refused', 'waiting_source', 3_600_000],
+  [{ status: 200, body: 'Введите капчу', headers: {} }, 'captcha', 'waiting_source', 3_600_000],
+  [{ status: 401, body: 'captcha', headers: {} }, 'captcha', 'waiting_source', 3_600_000],
+  [{ status: 503, body: 'captcha', headers: {} }, 'captcha', 'waiting_source', 3_600_000],
 ])('an answer gets its class and its hold state: %j', (answer, kind, holdState, wait) => {
   expect(classOfAnswer(answer, START)).toStrictEqual({
     kind,

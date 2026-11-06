@@ -71,6 +71,8 @@ beforeAll(async () => {
         .end(
           `<html><body><p>${'Текст страницы. '.repeat(200)}</p><div class="g-recaptcha"></div></body></html>`,
         );
+    } else if (url === '/plain403') {
+      response.writeHead(403).end('no');
     } else if (url === '/captcha403') {
       response.writeHead(403, { 'content-type': 'text/html' }).end('<html>captcha</html>');
     } else if (url === '/hop') {
@@ -257,6 +259,51 @@ describe('a Russian host that refuses the direct read', () => {
     );
     expect(outcome.ok).toBe(true);
     expect(fileOf('www.rgo.ru')).toContain('"hold":null');
+  });
+
+  test('a plain 403 holds the host a short time after each route failed', async () => {
+    seen.length = 0;
+    const reach = reachWith(memoryStore(), undefined);
+    await run(`http://www.rosstat.ru:${port}/plain403`, reach);
+    const file = JSON.parse(fileOf('www.rosstat.ru')) as { hold: { kind: string; until: number } };
+    expect(file.hold.kind).toBe('refused');
+    expect(file.hold.until).toBe(FETCH_DAY.getTime() + 15 * 60 * 1000);
+    const next = await run(`http://www.rosstat.ru:${port}/plain403`, reach);
+    expect(next.ok).toBe(false);
+    expect(seen).toStrictEqual(['/plain403']);
+  });
+
+  test('the short hold of a 403 only delays a later read with the proxy', async () => {
+    proxyAnswer = { status: 200, body: LONG };
+    seen.length = 0;
+    await run(`http://www.rosreestr.ru:${port}/plain403`, reachWith(memoryStore(), undefined));
+    const later = new Date(FETCH_DAY.getTime() + 16 * 60 * 1000);
+    const lateClock = { ...clock, now: () => later };
+    const outcome = await callTool(
+      fetchDocument,
+      fetchDatabase(),
+      { url: `http://www.rosreestr.ru:${port}/plain403`, proxy: true },
+      {
+        ...reachWith(memoryStore(), KEY),
+        now: () => later,
+        hostLease: hostLease(lateClock),
+        proxyLedger: proxyLedger(lateClock, 0),
+      },
+    );
+    expect(outcome.ok).toBe(true);
+    expect(seen.filter((path) => path.startsWith('/proxy'))).toHaveLength(1);
+  });
+
+  test('a read that the proxy serves after a plain 403 sets no hold', async () => {
+    proxyAnswer = { status: 200, body: LONG };
+    const outcome = await callTool(
+      fetchDocument,
+      fetchDatabase(),
+      { url: `http://www.rzd.ru:${port}/plain403`, proxy: true },
+      reachWith(memoryStore(), KEY),
+    );
+    expect(outcome.ok).toBe(true);
+    expect(fileOf('www.rzd.ru')).toContain('"hold":null');
   });
 
   test('a 403 page with a CAPTCHA holds the host, and no proxy goes to it', async () => {
