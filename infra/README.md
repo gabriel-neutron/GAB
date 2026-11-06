@@ -132,7 +132,8 @@ A service of the settings has a `name`, an `address` (`host:port`) and an option
 `args`, `workDir`). While a service does not answer, the tick starts no worker and starts its repair. A
 worker that fails because of the stop, or because of a failed DNS name or network, costs no attempt:
 the ticket holds and tries again. The alarm fires only if a service stays down or the same ticket holds
-again and again, because the first stop of a service needs no person.
+again and again, because the first stop of a service needs no person. Put no secret in `env`: the tick
+copies it to a file of each worker.
 
 | You want | Run, in that checkout |
 |---|---|

@@ -294,10 +294,12 @@ const lastWorkerUsedTools = (dir: string) => {
 
 // A research session of the operator can write to the record during this gate, so a count of rows
 // proves nothing. A worker here holds no write tool and only the test server, and this shows each
-// writer of the record in the time of the gate, for the closer.
-const recordWriters = (from: Date) =>
-  run('docker', [
+// writer of the record in the time of the gate, for the closer. The session cannot write.
+const recordWriters = (from: Date) => {
+  const read = run('docker', [
     'exec',
+    '-e',
+    'PGOPTIONS=-c default_transaction_read_only=on',
     REAL_DB_CONTAINER,
     'psql',
     '-U',
@@ -306,9 +308,9 @@ const recordWriters = (from: Date) =>
     'gabriel',
     '-tAc',
     `select author_role, left(originator, 60), count(*) from public.proposals where created_at >= '${from.toISOString()}' group by 1, 2`,
-  ])
-    .stdout.trim()
-    .split(/\r?\n/u);
+  ]);
+  return read.status === 0 ? read.stdout.trim().split(/\r?\n/u) : null;
+};
 
 const runScenario = async (name: Scenario) => {
   const dir = stateFolder(
@@ -428,11 +430,21 @@ const gateStart = new Date();
 const before = realState(checkpointSize);
 const realGabUp = await portAnswers(REAL_GAB_PORT);
 const results = [];
+let failure = '';
 try {
   if (await portAnswers(TEST_GAB_PORT)) throw new Error('The port of the test server is held.');
   await startTestGab();
   for (const name of chosen) {
-    const result = await runScenario(name);
+    // A run that throws is a gap. The next runs and the summary still come.
+    const result = await runScenario(name).catch((error: unknown) => ({
+      name,
+      state: 'no end',
+      attempts: -1,
+      workers: -1,
+      states: [],
+      alarms: [],
+      gaps: [String(error)],
+    }));
     results.push(result);
     console.log(JSON.stringify(result));
     // The next run starts on a sound stack, also after a gap.
@@ -440,7 +452,10 @@ try {
     await waitForPort(Number(DB_PORT), true);
     if (!(await portAnswers(TEST_GAB_PORT))) await startTestGab();
   }
+} catch (error) {
+  failure = String(error);
 } finally {
+  run('docker', compose('start', 'db'));
   stopTestGab();
   rmSync(scratch, { recursive: true, force: true });
 }
@@ -448,13 +463,20 @@ const after = realState(checkpointSize);
 const realUntouched =
   JSON.stringify(before) === JSON.stringify(after) &&
   realGabUp === (await portAnswers(REAL_GAB_PORT));
-const pass = realUntouched && results.every((r) => r.gaps.length === 0);
+const writers = recordWriters(gateStart);
+const pass =
+  failure === '' &&
+  writers !== null &&
+  realUntouched &&
+  results.length === chosen.length &&
+  results.every((r) => r.gaps.length === 0);
 const summary = {
   pass,
+  failure,
   realUntouched,
   before,
   after,
-  recordWriters: recordWriters(gateStart),
+  recordWriters: writers ?? 'the read failed',
   results,
 };
 writeFileSync(join(OUT, 'summary.json'), JSON.stringify(summary, null, 2));

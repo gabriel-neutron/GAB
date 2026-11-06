@@ -288,7 +288,8 @@ try {
     catch { $alarms += "- broken state file: $($file.Name)" }
   }
 
-  # A service of the settings that is down stops each start, and the tick starts its repair and ends.
+  # A service of the settings that is down stops each start, and the tick starts its repair.
+  # Each tick starts it again: a second start of a service that runs fails and changes nothing.
   $servicesFile = Join-Path $StateDir 'services.json'
   $services = if (Test-Path $servicesFile) { [IO.File]::ReadAllText($servicesFile) | ConvertFrom-Json } else { [pscustomobject]@{ downSince = $null; lastDown = $null } }
   $down = @(@($config.services) | Where-Object { $_ -and -not (Test-Port $_.address) })
