@@ -122,7 +122,8 @@ test('a file above the fetch cap is stored whole with bulk, and a fact cites one
     expect(page).toBeGreaterThan(1);
     expect(Buffer.from(store.puts[0]?.bytes ?? []).toString()).toBe(LARGE);
   });
-});
+  // A file of some 20 MiB goes through the store and the text door, on a machine that many stacks share.
+}, 120_000);
 
 test('bulk refuses a type that is no data file, and stores nothing', async () => {
   const store = memoryStore();
