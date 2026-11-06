@@ -3,7 +3,7 @@
 # Each step: read the ended workers, move one ticket, start one worker up to the cap, write the
 # status file, send a notification while an alarm is open.
 # StateDir holds: supervisor.json (settings), tickets/, inbox/ (requests to the tick), workers/,
-# history/, status.json, resume.json, tick.log and operator-queue.md.
+# history/, status.json, resume.json, services.json, tick.log and operator-queue.md.
 param(
   [Parameter(Mandatory)][string]$StateDir,
   [string]$Now,      # A fixed clock, for a test.
@@ -24,6 +24,7 @@ function Save-File([string]$path, [string]$text) {
 if ($RunWorker) {
   # This process stays with the worker, because the tick ends and cannot read an exit code later.
   $spec = [IO.File]::ReadAllText("$RunWorker.spec.json") | ConvertFrom-Json
+  foreach ($e in @($spec.env.PSObject.Properties)) { if ($e) { [Environment]::SetEnvironmentVariable($e.Name, "$($e.Value)") } }
   try {
     $code = (Start-Process -FilePath $spec.command -ArgumentList (@($spec.args) | ForEach-Object { Format-Argument $_ }) `
         -WorkingDirectory $spec.workDir -NoNewWindow -Wait -PassThru -RedirectStandardInput "$RunWorker.prompt" `
@@ -43,8 +44,8 @@ $STUCK_MINUTES = 10 # Over the 4-minute limit of the task: no tick that works is
 $NEXT = @{ pilot = 'working'; working = 'reviewing'; reviewing = 'closing'; closing = 'closed' }
 $WORK = @('pilot', 'working', 'reviewing', 'closing', 'needs_panel')
 # The minutes to the next try of a hold. A try after a hold costs no attempt. A signature has no timer.
-$HOLDS = @{ waiting_quota = 1440; waiting_source = 1440; waiting_ceiling = 1440; waiting_token = 30; waiting_limit = 30; waiting_signature = 0 }
-$BLOCK_ALL = @('waiting_token', 'waiting_limit')
+$HOLDS = @{ waiting_quota = 1440; waiting_source = 1440; waiting_ceiling = 1440; waiting_token = 30; waiting_limit = 30; waiting_service = 10; waiting_signature = 0 }
+$BLOCK_ALL = @('waiting_token', 'waiting_limit', 'waiting_service')
 $ALARM_HOLDS = @('waiting_token', 'waiting_ceiling', 'waiting_signature')
 $WORKER_HOURS = 12 # The longest run so far took under one hour.
 $MAX_HOLD_DAYS = 7 # A worker gives the retry time of a hold, and a false date must not hide the ticket.
@@ -52,6 +53,9 @@ $STATES = @('ready', 'reopened', 'parked', 'closed', 'closed_exhausted', 'closed
 # shortcut: these words come from the errors that the CLI shows today, add a word when a new wording appears.
 $SIGN_IN = 'OAuth session|session expired|not logged in|please run /login|failed to authenticate|authentication_error|invalid api key|invalid bearer'
 $LIMIT = 'usage limit|rate limit|limit reached|out of extra usage'
+$SERVICE = 'ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|reach the API server|connection error'
+$SERVICE_ALARM_HOLDS = 3 # Three holds of 10 minutes with no worker that ends: a person must see this.
+$SERVICE_ALARM_MINUTES = 30 # A repair takes under one minute, and a stop of the engine does not end with one.
 $SHORT_RESULT = 300 # A sign-in or limit error is short. A long result is the prose of the worker, and it can hold these words.
 
 $time = if ($Now) { [datetime]$Now } else { Get-Date }
@@ -74,7 +78,7 @@ function Save-Ticket($t) { Save-State (Join-Path $tickets_dir "$($t.id).json") $
 function Complete-Ticket($t) {
   if ($t.id -notmatch '^[A-Za-z0-9_-]+$' -or $STATES -notcontains $t.state) { throw 'bad id or state' }
   if ($t.until) { [void][datetime]$t.until }
-  $fields = @{ attempts = 0; noPass = 0; panelCrashes = 0; runs = 0; gaps = @(); heldFrom = $null; panelFrom = $null; until = $null; worker = $null; outcome = $null; reason = '' }
+  $fields = @{ attempts = 0; noPass = 0; panelCrashes = 0; serviceHolds = 0; runs = 0; gaps = @(); heldFrom = $null; panelFrom = $null; until = $null; worker = $null; outcome = $null; reason = '' }
   foreach ($k in $fields.Keys) {
     if ($t.PSObject.Properties.Name -notcontains $k) { $t | Add-Member -NotePropertyName $k -NotePropertyValue $fields[$k] }
   }
@@ -101,7 +105,7 @@ function Stop-Overdue($w) {
 function Start-Worker([string]$name, [string]$prompt) {
   $base = Join-Path $workers_dir $name
   Save-File "$base.prompt" $prompt
-  Save-File "$base.spec.json" (@{ command = $config.command; args = @($config.args); workDir = $config.workDir } | ConvertTo-Json -Depth 4)
+  Save-File "$base.spec.json" (@{ command = $config.command; args = @($config.args); workDir = $config.workDir; env = $config.env } | ConvertTo-Json -Depth 4)
   $self = "-NoProfile -ExecutionPolicy Bypass -File $(Format-Argument $PSCommandPath) -StateDir $(Format-Argument $StateDir) -RunWorker $(Format-Argument $base)"
   $p = Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList $self -WindowStyle Hidden -PassThru
   $started = try { $p.StartTime.Ticks } catch { 0 }
@@ -129,6 +133,7 @@ function Read-Outcome([string]$base) {
     $reason = "exit $code, is_error $($result.is_error): " + $all.Substring(0, [Math]::Min(200, $all.Length)).Trim()
     if ($result.api_error_status -eq 401 -or $text -match $SIGN_IN) { return @{ kind = 'token'; reason = $reason } }
     if ($result.api_error_status -eq 429 -or $text -match $LIMIT) { return @{ kind = 'limit'; reason = $reason } }
+    if ($text -match $SERVICE) { return @{ kind = 'service'; reason = $reason } }
     return @{ kind = 'failed'; reason = $reason }
   }
   $last = @("$($result.result)" -split "`n" | Where-Object { $_.Trim().StartsWith('{') }) | Select-Object -Last 1
@@ -175,6 +180,8 @@ function Move-ByOutcome($t) {
   $o = $t.outcome
   $t.outcome = $null
   $t.reason = "$($o.reason)" -replace '\s+', ' ' # The reason comes from a worker, and a queue line is one line.
+  $t.serviceHolds = if ($o.kind -eq 'service' -or "$($o.verdict.hold)" -eq 'waiting_service') { $t.serviceHolds + 1 } else { 0 }
+  if ($o.kind -eq 'service') { return Set-Hold $t 'waiting_service' }
   if ($o.kind -eq 'token') { return Set-Hold $t 'waiting_token' }
   if ($o.kind -eq 'limit') { return Set-Hold $t 'waiting_limit' }
   $v = $o.verdict
@@ -225,6 +232,20 @@ function Move-ByRequest($file) {
   $t
 }
 
+function Test-Port([string]$address) {
+  $h, $p = $address -split ':'
+  $c = New-Object Net.Sockets.TcpClient
+  try { $c.ConnectAsync($h, [int]$p).Wait(2000) } catch { $false } finally { $c.Close() }
+}
+
+# A failure while a service is down, or was down during the run, is the fault of the service. It costs no attempt.
+function Set-ServiceFault($o, $w) {
+  $failed = $o.kind -eq 'failed' -or "$($o.verdict.result)" -eq 'failed'
+  $during = $services.lastDown -and $w.startedAt -and [datetime]$services.lastDown -ge [datetime]$w.startedAt
+  if ($failed -and ($down.Count -or $during)) { return @{ kind = 'service'; reason = "a service was down: $($o.reason)" } }
+  $o
+}
+
 function Send-Alarm($lines) {
   $title = "GAB: $(@($lines).Count) open line(s) for the operator"
   try {
@@ -267,11 +288,30 @@ try {
     catch { $alarms += "- broken state file: $($file.Name)" }
   }
 
+  # A service of the settings that is down stops each start, and the tick starts its repair and ends.
+  $servicesFile = Join-Path $StateDir 'services.json'
+  $services = if (Test-Path $servicesFile) { [IO.File]::ReadAllText($servicesFile) | ConvertFrom-Json } else { [pscustomobject]@{ downSince = $null; lastDown = $null } }
+  $down = @(@($config.services) | Where-Object { $_ -and -not (Test-Port $_.address) })
+  if ($down.Count) {
+    if (-not $services.downSince) { $services.downSince = $time.ToString('o') }
+    $services.lastDown = $time.ToString('o')
+    foreach ($s in $down) {
+      Write-Log "service down: $($s.name)"
+      # A hidden new window: the tick ends and the service stays.
+      if ($s.repair) { try { Start-Process -FilePath $s.repair.command -ArgumentList (@($s.repair.args) | ForEach-Object { Format-Argument $_ }) -WorkingDirectory $s.repair.workDir -WindowStyle Hidden } catch { Write-Log "repair failed: $_" } }
+    }
+    if ($time -ge ([datetime]$services.downSince).AddMinutes($SERVICE_ALARM_MINUTES)) { $alarms += "- service down for over $SERVICE_ALARM_MINUTES minutes: $(@($down | ForEach-Object { $_.name }) -join ', ')" }
+    Save-State $servicesFile $services
+  } elseif ($services.downSince) {
+    $services.downSince = $null
+    Save-State $servicesFile $services
+  }
+
   # Step 1: read the ended workers.
   foreach ($t in $tickets) {
     if (-not $t.worker) { continue }
     if (-not (Test-Running $t.worker)) {
-      $t.outcome = Read-Outcome $t.worker.base
+      $t.outcome = Set-ServiceFault (Read-Outcome $t.worker.base) $t.worker
     } elseif (Stop-Overdue $t.worker) {
       $t.outcome = @{ kind = 'failed'; reason = "worker over the limit of $WORKER_HOURS hours" }
     } else { continue }
@@ -288,10 +328,10 @@ try {
     Save-State $resumeFile $resume
   }
   if ($resume.worker -and -not (Test-Running $resume.worker)) {
-    $o = Read-Outcome $resume.worker.base
+    $o = Set-ServiceFault (Read-Outcome $resume.worker.base) $resume.worker
     $resume.worker = $null
     # A hold costs no attempt: the same state file can have a new resume worker after the wait.
-    if ($o.kind -in 'token', 'limit') {
+    if ($o.kind -in 'token', 'limit', 'service') {
       $resume.stateTicks = 0
       $resume.retryAt = $time.AddMinutes($HOLDS["waiting_$($o.kind)"]).ToString('o')
     }
@@ -300,7 +340,7 @@ try {
   }
 
   # Step 2: move one ticket, and copy its state.
-  $blocked = @($tickets | Where-Object { $BLOCK_ALL -contains $_.state }).Count -gt 0
+  $blocked = $down.Count -or @($tickets | Where-Object { $BLOCK_ALL -contains $_.state }).Count -gt 0
   $running = @($tickets | Where-Object { $_.worker }).Count + [int][bool]$resume.worker
   $cap = if ($null -ne $config.cap) { [int]$config.cap } else { 1 }
   $moved = $null
@@ -350,7 +390,7 @@ try {
     if ($request) { Remove-Item $request } # After the save: a crash before it repeats the request, and loses nothing.
     Write-Log "move $($moved.id) $from > $($moved.state): $($moved.reason)"
   }
-  $blocked = @($tickets | Where-Object { $BLOCK_ALL -contains $_.state }).Count -gt 0
+  $blocked = $down.Count -or @($tickets | Where-Object { $BLOCK_ALL -contains $_.state }).Count -gt 0
 
   # Step 3: a stale wave-start gets one resume worker for each version of its state file.
   $started = $false
@@ -398,6 +438,7 @@ try {
   # Step 4: write the status file, and send a notification while an alarm is open.
   if (Test-Path $queue) { $alarms += @([IO.File]::ReadAllLines($queue, $utf8) | Where-Object { $_ -match '^- (?!\[x\])' }) }
   $alarms += @($tickets | Where-Object { $ALARM_HOLDS -contains $_.state } | ForEach-Object { "- $($_.id) is in $($_.state): the operator must act" })
+  $alarms += @($tickets | Where-Object { $_.state -eq 'waiting_service' -and $_.serviceHolds -ge $SERVICE_ALARM_HOLDS } | ForEach-Object { "- $($_.id) has $($_.serviceHolds) holds for a service or the network: $($_.reason)" })
   Save-State (Join-Path $StateDir 'status.json') @{
     at      = $time.ToString('o')
     cap     = $cap

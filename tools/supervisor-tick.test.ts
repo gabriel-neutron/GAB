@@ -16,6 +16,7 @@ import {
   utimesSync,
   writeFileSync,
 } from 'node:fs';
+import { createServer, type AddressInfo, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -52,6 +53,9 @@ const main = async () => {
   if (word === 'bad') return console.log(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'An inner tool error.' }));
   if (word === 'signin') { console.log(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'OAuth session expired' })); process.exit(1); }
   if (word === 'limit') { console.log(JSON.stringify({ type: 'result', is_error: true, result: 'Usage limit reached' })); process.exit(1); }
+  if (word === 'sleepfail') { await new Promise((r) => setTimeout(r, Number(extra))); return good({ result: 'failed', reason: step }); }
+  if (word === 'dns') { console.log(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: "API Error: Can't reach the API server (ENOTFOUND)" })); process.exit(1); }
+  if (word === 'envfile') { require('fs').writeFileSync(extra.replaceAll('+', ':'), String(process.env.GATE_FAKE)); return good({ result: 'pass' }); }
   if (word === 'exit') { console.log('{"type":"result","is_error":false,"result":"{\\\\"result\\\\":\\\\"pass\\\\"}"}'); process.exit(3); }
   if (word === 'noverdict') return console.log(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: 'Done.' }));
   if (word === 'baduntil') return good({ result: 'hold', hold: 'waiting_quota', until: 'soon' });
@@ -941,6 +945,145 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       const later = after(31);
       await tick(dir, later);
       expect(workerFiles(dir, '.spec.json')).toHaveLength(2);
+    },
+    LONG,
+  );
+
+  test(
+    'a failed DNS name costs no attempt, holds each start for 10 minutes, and the worker runs again',
+    async () => {
+      const dir = folder();
+      seed(dir, 'T-A', 'dns,pass,pass,close');
+      seed(dir, 'T-B', 'pass,pass,close');
+      await ticks(dir, 2);
+      expect(ticket(dir, 'T-A')).toMatchObject({
+        state: 'waiting_service',
+        attempts: 0,
+        noPass: 0,
+      });
+      expect(ticket(dir, 'T-B').state).toBe('ready');
+      expect(status(dir).alarms).toEqual([]);
+      await tick(dir, after(9));
+      expect(workerFiles(dir, '.spec.json')).toHaveLength(1);
+      await ticks(dir, 2, after(11));
+      expect(ticket(dir, 'T-A')).toMatchObject({ state: 'reviewing', attempts: 0 });
+    },
+    LONG,
+  );
+
+  test(
+    'a third hold for the network fires the alarm, with no attempt lost',
+    async () => {
+      const dir = folder();
+      seed(dir, 'T-A', 'dns');
+      await ticks(dir, 2);
+      await ticks(dir, 2, after(11));
+      expect(status(dir).alarms).toEqual([]);
+      await ticks(dir, 2, after(22));
+      expect(ticket(dir, 'T-A')).toMatchObject({ state: 'waiting_service', attempts: 0 });
+      expect(status(dir).alarms.join()).toContain('3 holds');
+    },
+    LONG,
+  );
+
+  test(
+    'a stopped service stops each start, a failed worker loses no attempt, and the repair clears it',
+    async () => {
+      const up = createServer();
+      await new Promise<void>((resolve) => up.listen(0, '127.0.0.1', resolve));
+      const { port } = up.address() as AddressInfo;
+      up.close();
+      await new Promise((resolve) => up.once('close', resolve));
+      const marker = join(root, `repair-${String(++serial)}.txt`);
+      const repairScript = join(root, `repair-${String(serial)}.cjs`);
+      writeFileSync(
+        repairScript,
+        `require('fs').appendFileSync(${JSON.stringify(marker)}, 'x');
+require('net').createServer().listen(${String(port)}, '127.0.0.1');
+setTimeout(() => process.exit(0), 30000);`,
+      );
+      const dir = folder({
+        services: [
+          {
+            name: 'store',
+            address: `127.0.0.1:${String(port)}`,
+            repair: { command: 'node', args: [repairScript], workDir: tmpdir() },
+          },
+        ],
+      });
+      seed(dir, 'T-A', 'pass,pass,close');
+      await tick(dir);
+      expect(ticket(dir, 'T-A').state).toBe('ready');
+      expect(workerFiles(dir, '.spec.json')).toEqual([]);
+      expect(readFileSync(join(dir, 'tick.log'), 'utf8')).toContain('service down: store');
+      for (let i = 0; i < 100 && !existsSync(marker); i++)
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(existsSync(marker)).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await tick(dir, after(5));
+      expect(ticket(dir, 'T-A').state).toBe('working');
+      expect(status(dir).alarms).toEqual([]);
+    },
+    LONG,
+  );
+
+  test(
+    'a service that stays down starts no worker, and it fires the alarm after 30 minutes',
+    async () => {
+      const dir = folder({ services: [{ name: 'store', address: '127.0.0.1:1' }] });
+      seed(dir, 'T-A', 'pass');
+      await tick(dir);
+      await tick(dir, after(29));
+      expect(status(dir).alarms).toEqual([]);
+      await tick(dir, after(31));
+      expect(status(dir).alarms.join()).toContain('service down for over 30 minutes: store');
+      expect(workerFiles(dir, '.spec.json')).toEqual([]);
+    },
+    LONG,
+  );
+
+  test(
+    'a failure during a stop of a service costs no attempt, and the same failure with the service up does',
+    async () => {
+      const listen = async (at: number) => {
+        const server = createServer();
+        await new Promise<void>((resolve) => server.listen(at, '127.0.0.1', resolve));
+        return server;
+      };
+      const close = (server: Server) =>
+        new Promise((resolve) => {
+          server.close(resolve);
+        });
+      const first = await listen(0);
+      const { port } = first.address() as AddressInfo;
+      const dir = folder({ services: [{ name: 'store', address: `127.0.0.1:${String(port)}` }] });
+      seed(dir, 'T-A', 'sleepfail:30000,failed');
+      execFileSync('powershell.exe', tickArguments(dir), { timeout: 60_000 });
+      await close(first);
+      // A tick sees the stop during the run, and the service is up again when the worker ends.
+      execFileSync('powershell.exe', tickArguments(dir, after(1)), { timeout: 60_000 });
+      const second = await listen(port);
+      try {
+        await tick(dir, after(2));
+        await tick(dir, after(3));
+        expect(ticket(dir, 'T-A')).toMatchObject({ state: 'waiting_service', attempts: 0 });
+        await ticks(dir, 2, after(14));
+        expect(ticket(dir, 'T-A').attempts).toBe(1);
+      } finally {
+        await close(second);
+      }
+    },
+    LONG,
+  );
+
+  test(
+    'the setting env reaches the worker',
+    async () => {
+      const dir = folder({ env: { GATE_FAKE: 'from-settings' } });
+      const seen = join(dir, 'seen.txt').replaceAll(':', '+');
+      seed(dir, 'T-A', `envfile:${seen}`);
+      await ticks(dir, 1);
+      expect(readFileSync(join(dir, 'seen.txt'), 'utf8')).toBe('from-settings');
     },
     LONG,
   );

@@ -125,15 +125,28 @@ folder. The tick accepts it or refuses it. A worker gets no state: it prints a v
 reads it.
 
 The state folder is outside the repository. It holds the settings file `supervisor.json`: the worker
-`command`, `args` and `workDir`, the `cap`, and `waveStart` with `stateFile`, `prompt` and
-`liveMatch`. Run the task from a checkout that nothing changes.
+`command`, `args`, `workDir` and `env`, the `cap`, the `services`, and `waveStart` with `stateFile`,
+`prompt` and `liveMatch`. Run the task from a checkout that nothing changes.
+
+A service of the settings has a `name`, an `address` (`host:port`) and an optional `repair` (`command`,
+`args`, `workDir`). While a service does not answer, the tick starts no worker and starts its repair. A
+worker that fails because of the stop, or because of a failed DNS name or network, costs no attempt:
+the ticket holds and tries again. The alarm fires only if a service stays down or the same ticket holds
+again and again, because the first stop of a service needs no person.
 
 | You want | Run, in that checkout |
 |---|---|
 | Add or change the task | `powershell -File tools/supervisor-tick-task.ps1 -StateDir <folder>` |
 | Run one tick now | `powershell -File tools/supervisor-tick.ps1 -StateDir <folder>` |
+| Run the gate on the session stack of a worktree | `node tools/supervisor-gate.ts --out <new folder> --checkpoint <file of the collector>` |
 
 The host leases and the ceiling of the paid proxy are files in one folder (`packages/tools/src/host-lease.ts`). Set `GAB_STATE_DIR` to the state folder for the `gab` server and each worker, so each process reads the same state. The ledger stops each call to the proxy at the ceiling, and a stopped ticket gets a line in `blocked.md` in that folder. The proxy reads `BRIGHTDATA_API_KEY` and `BRIGHTDATA_ZONE`.
+
+The gate proves that the loop recovers with no person: one clean run and one run for each fault (the
+database, the `gab` server, DNS for the worker only, a bad token), each with real workers and real `gab`
+tools. It calls the model, so it is not part of the test suite. It refuses a checkout with no session
+stack, so a fault never reaches the record. A worker holds only read tools of a test server. A research
+session can write to the record during the gate, so the summary lists each writer of that time.
 
 ## The stack of a session
 
