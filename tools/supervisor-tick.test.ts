@@ -423,6 +423,44 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
   );
 
   test(
+    'a crash of a panel worker is no disagreement: it costs no attempt and a new panel worker runs',
+    async () => {
+      const dir = folder();
+      seed(dir, 'T-C', 'stop_source,bad,exit,pass');
+      expect(await statesOf(dir, 'T-C', 5)).toEqual([
+        'working',
+        'needs_panel',
+        'needs_panel',
+        'needs_panel',
+        'working',
+      ]);
+      expect(ticket(dir, 'T-C').attempts).toBe(0);
+      expect(existsSync(join(dir, 'operator-queue.md'))).toBe(false);
+    },
+    LONG,
+  );
+
+  test(
+    'a panel worker that crashes 3 times parks the ticket, and the count starts again after an answer',
+    async () => {
+      const dir = folder();
+      seed(dir, 'T-D', 'stop_source,bad,bad,bad,stop_source,bad,pass');
+      await ticks(dir, 5);
+      expect(ticket(dir, 'T-D').state).toBe('parked');
+      expect(readFileSync(join(dir, 'operator-queue.md'), 'utf8')).toContain(
+        'the panel worker failed 3 times',
+      );
+
+      ask(dir, 'answer', { id: 'T-D', to: 'ready', reason: 'operator answer' });
+      await ticks(dir, 4);
+      expect(ticket(dir, 'T-D').state).toBe('needs_panel');
+      await tick(dir);
+      expect(ticket(dir, 'T-D').state).toBe('working');
+    },
+    LONG,
+  );
+
+  test(
     'a gap that returns twice goes to the panel, and the last attempt parks the ticket',
     async () => {
       const dir = folder();

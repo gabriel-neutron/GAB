@@ -73,7 +73,7 @@ function Save-Ticket($t) { Save-State (Join-Path $tickets_dir "$($t.id).json") $
 function Complete-Ticket($t) {
   if ($t.id -notmatch '^[A-Za-z0-9_-]+$' -or $STATES -notcontains $t.state) { throw 'bad id or state' }
   if ($t.until) { [void][datetime]$t.until }
-  $fields = @{ attempts = 0; noPass = 0; runs = 0; gaps = @(); heldFrom = $null; panelFrom = $null; until = $null; worker = $null; outcome = $null; reason = '' }
+  $fields = @{ attempts = 0; noPass = 0; panelCrashes = 0; runs = 0; gaps = @(); heldFrom = $null; panelFrom = $null; until = $null; worker = $null; outcome = $null; reason = '' }
   foreach ($k in $fields.Keys) {
     if ($t.PSObject.Properties.Name -notcontains $k) { $t | Add-Member -NotePropertyName $k -NotePropertyValue $fields[$k] }
   }
@@ -145,7 +145,12 @@ function Set-Park($t) {
   $t.state = 'parked'
   [IO.File]::AppendAllText($queue, "- $($t.id) is parked: $($t.reason -replace '\s+', ' ')`r`n", $utf8)
 }
-function Set-Panel($t) { $t.panelFrom = $t.state; $t.state = 'needs_panel' }
+function Set-Panel($t) {
+  if ($t.state -eq 'needs_panel') { return } # panelFrom keeps the state to return to.
+  $t.panelFrom = $t.state
+  $t.state = 'needs_panel'
+  $t.panelCrashes = 0
+}
 function Set-Hold($t, [string]$hold, $until) {
   $t.heldFrom = $t.state
   $t.state = $hold
@@ -173,7 +178,11 @@ function Move-ByOutcome($t) {
   # shortcut: the closer does not see the claim or the sources tried, BLD-04 adds both to the closer prompt.
   if ($o.kind -eq 'verdict' -and $word -eq 'exhausted') { $t.state = if ($t.state -eq 'closing') { 'closed_exhausted' } else { 'closing' }; return }
   if ($t.state -eq 'needs_panel') {
-    if ($word -eq 'pass') { $t.state = $t.panelFrom } else { Set-Park $t }
+    # A crash is not a disagreement of the panel, and a ticket here often has no attempt left. Panel verdict on BLD-02.
+    if ($o.kind -eq 'failed') {
+      $t.panelCrashes++
+      if ($t.panelCrashes -ge $MAX_ATTEMPTS) { $t.reason = "the panel worker failed $MAX_ATTEMPTS times: $($t.reason)"; Set-Park $t }
+    } elseif ($word -eq 'pass') { $t.state = $t.panelFrom } else { Set-Park $t }
     return
   }
   if ($o.kind -eq 'verdict' -and $word -eq 'stop_source') { return Set-Panel $t }
