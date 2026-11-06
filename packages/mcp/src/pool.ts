@@ -7,8 +7,8 @@ export const openPool = (config: pg.PoolConfig): pg.Pool => {
     console.error(fault);
   };
   pool.on('error', log);
-  // External constraint: pg takes the listener of the pool off a client at each checkout, and an
-  // 'error' event that nobody hears ends the process. The call then fails on its next statement.
+  // External constraint: pg removes the listener of the pool from a client at each checkout, and an
+  // 'error' event with no listener stops the process. The call then fails on its next statement.
   pool.on('connect', (client) => {
     client.on('error', log);
   });

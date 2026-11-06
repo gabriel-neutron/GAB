@@ -1,5 +1,6 @@
 // An MCP client talks to the server in the same process. The pool is a fake, so the test proves
-// the list and the dispatch and reaches no database.
+// the list and the dispatch and reaches no database. Only the test of a lost connection uses a real
+// pool, on a local socket that acts as a database.
 
 import { createServer as createNetServer } from 'node:net';
 
@@ -7,7 +8,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { CATALOGUE } from '@gab/tools/catalogue';
 import type { Reach } from '@gab/tools/tool';
-import { expect, test } from 'vitest';
+import { expect, onTestFinished, test } from 'vitest';
 import { z } from 'zod';
 
 import { openPool } from './pool.ts';
@@ -74,18 +75,36 @@ test('a lost connection fails that one call, and the server stays up', async () 
   await new Promise<void>((done) => {
     database.listen(0, '127.0.0.1', done);
   });
+  onTestFinished(() => {
+    database.close();
+  });
   const { port } = z.object({ port: z.number() }).parse(database.address());
   const pool = openPool({
     connectionString: `postgresql://test:test@127.0.0.1:${String(port)}/test`,
   });
+  onTestFinished(() => pool.end());
   const client = await connected(pool);
   for (const call of [1, 2]) {
     const result = await client.callTool(SEARCH);
     expect(isErrorOf(result), `call ${String(call)}`).toBe(true);
-    expect(textOf(result)).toContain('the connection to the database stopped');
+    expect(textOf(result)).toContain('a connection of the server stopped');
   }
-  await pool.end();
-  database.close();
+});
+
+// A connection that stops between two statements, as in a slow fetch: the next statement fails.
+test('a statement on a client that lost its connection gives the same sentence', async () => {
+  const dead: SessionPool = {
+    connect: () =>
+      Promise.resolve({
+        query: () =>
+          Promise.reject(
+            new Error('Client has encountered a connection error and is not queryable'),
+          ),
+        release: () => undefined,
+      }),
+  };
+  const result = await (await connected(dead)).callTool(SEARCH);
+  expect(textOf(result)).toContain('a connection of the server stopped');
 });
 
 test('the server names the version of its code, and its instructions name it too', async () => {
