@@ -699,6 +699,7 @@ INSERT INTO relation_type (key, label, inverse_label, takes_interval) VALUES
   ('supplies_items_to',  'supplies items to',  'receives items from',          true),
   ('transfers_funds_to', 'transfers funds to', 'receives funds from',          true),
   ('pays_for',           'makes payments for', 'has payments made by',         true),
+  ('found_in',           'found in',           'holds a part of',              false),
   ('supplies_crude_to',  'supplies crude to',  'receives crude from',          false),
   ('sells_products_to',  'sells products to',  'buys products from',           false),
   ('crude_flows_to',     'crude flows to',     'is fed crude by',              true),
