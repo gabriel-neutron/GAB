@@ -22,8 +22,9 @@ operator a prompt to paste, and you do not stop for a step that an agent can do.
    `source-hunt`).
 4. **Correct.** A refusal names the field and the reason. Correct it and send the item again. An
    item that you send again and that waits in the queue is checked again.
-5. **Review.** Start a new reviewer subagent. Give it only the ticket number and the proposal ids
-   or the unit ids. It follows the skill `review-unit`. Never decide a unit yourself, and never
+5. **Review.** Start a new reviewer subagent, except for a batch whose answer gives `checkFailure`:
+   it is sent again first (skill `research-method`). Give the reviewer only the ticket number and
+   the proposal ids or the unit ids. It follows the skill `review-unit`. Never decide a unit yourself, and never
    give the reviewer your notes or your reasons.
 6. **Close.** Use the skill `carto-step`, and post its text on the ticket with
    `gh issue comment <n> --body-file <file>`. Before the post, run `gh api user --jq .login`
