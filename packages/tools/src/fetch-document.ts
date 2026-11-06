@@ -27,9 +27,15 @@ import {
   type GetOptions,
   type Got,
 } from './fetch-guard.ts';
-import { isBlockPage, PROXY_NOTICE, proxyKey, readThroughProxy } from './hosted-proxy.ts';
+import {
+  isBlockPage,
+  ProxyCaptcha,
+  PROXY_NOTICE,
+  proxyKey,
+  readThroughProxy,
+} from './hosted-proxy.ts';
 import { HostHeld, isRussianHost, russianHostOf } from './host-lease.ts';
-import { HOST_LIMIT_HOLD_MS } from './answer-class.ts';
+import { classOfAnswer, HOST_LIMIT_HOLD_MS, type HoldClass } from './answer-class.ts';
 import { refusedSource } from './refused-source.ts';
 import { renderPage } from './render-page.ts';
 import { holdsLayers, skippedFileShape, storeArchive, storedFileShape } from './store-archive.ts';
@@ -223,6 +229,17 @@ const FILTER_STATUSES: ReadonlySet<number> = new Set([403, 429, 503]);
 // Qrator and DataDome refuse a robot with a 401, so the browser also reads a page that gave one.
 // The Chrome window and the proxy can run after the direct read, and the lease covers both.
 const LATER_ROUTES_MS = 120_000;
+
+// Assumption: a page that only asks for a CAPTCHA is short and holds little text. A longer page can
+// name the word in an article, a form or a script.
+const CAPTCHA_PAGE_BYTES = 32 * 1024;
+
+const visibleLength = (html: string): number =>
+  html
+    .replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/giu, ' ')
+    .replace(/<[^>]*>/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim().length;
 
 const BROWSER_STATUSES: ReadonlySet<number> = new Set([401, ...FILTER_STATUSES]);
 
@@ -473,320 +490,406 @@ export const fetchDocument = defineTool({
   async run(session, input, reach) {
     if (reach?.store === undefined)
       throw new ToolRefusal('this surface gives no object store, so it fetches no page');
-    const toPage = checkedRange(input.fromPage, input.toPage);
-    // The proxy costs credits, and a large answer through it has no bound that the type can check.
-    if (input.bulk && input.proxy) throw new ToolRefusal('bulk does not go with proxy');
-    const refused = refusedSource(input.url);
-    if (refused !== null) throw new ToolRefusal(refused);
-    if (URL.canParse(input.url) && holdsSecret(input.url))
-      throw new ToolRefusal(
-        'the address holds a user name, a password or a key, and the record publishes the ' +
-          'address of each document: give the address with no secret, or read the source with ' +
-          'its register tool, which keeps its key out of the address',
-      );
-
-    const day = reach.now().toISOString().slice(0, 10);
-    const getOptions: GetOptions = {
-      maxBytes: input.bulk ? BULK_TEXT_BYTES : MAX_BYTES,
-      timeoutMs: reach.fetchTimeoutMs ?? (input.bulk ? BULK_TIMEOUT_MS : TIMEOUT_MS),
-      maxRedirects: MAX_REDIRECTS,
-      ...(reach.lookup === undefined ? {} : { lookup: reach.lookup }),
-      ...(reach.refuses === undefined ? {} : { refuses: reach.refuses }),
-      ...(reach.extraRoot === undefined ? {} : { extraRoot: reach.extraRoot }),
-    };
-    const notices: string[] = [];
-    let got: Got;
-    let throughFilter = false as boolean; // set in a closure, so the type stays wide
-    // A Russian host that refuses the direct read is read once through the hosted proxy.
-    const { proxyLedger } = reach;
-    const key =
-      input.proxy && isRussianHost(input.url) && proxyLedger !== undefined
-        ? proxyKey(reach.hostedProxyKey)
-        : null;
-    const viaProxy = async (key: string): Promise<Got> => {
-      try {
-        if (proxyLedger === undefined) throw new FetchRefusal('this surface has no proxy ceiling');
-        const read = await readThroughProxy(
-          input.url,
-          key,
-          getOptions,
-          proxyLedger,
-          reach.hostedProxyEndpoint,
-        );
-        notices.push(PROXY_NOTICE);
-        return read;
-      } catch (fault) {
-        if (!(fault instanceof FetchRefusal)) throw fault;
-        throw new ToolRefusal(`${fault.message}, and nothing is stored`);
-      }
-    };
-    const throughChrome = async (fault: FetchRefusal): Promise<Got> => {
-      const passed =
-        fault.fault?.kind === 'status' &&
-        BROWSER_STATUSES.has(fault.fault.status) &&
-        reach.readThroughFilter !== undefined
-          ? await reach.readThroughFilter(input.url, getOptions)
-          : null;
-      if (passed === null || typeof passed === 'string') {
-        const tried = passed === null ? '' : ` The Chrome window was also tried: ${passed}.`;
-        throw new ToolRefusal(`${refusalOfFetch(fault.message, fault.fault)}${tried}`);
-      }
-      notices.push(
-        `${fault.message.replace(/, and only a success is kept$/u, '')} to the plain request, so ` +
-          'the page was read in a Chrome window; the stored bytes are the HTML that the browser shows',
-      );
-      throughFilter = true;
-      return {
-        url: passed.url,
-        status: 200,
-        contentType: 'text/html; charset=utf-8',
-        contentEncoding: null,
-        lastModified: null,
-        certFingerprint: null,
-        bytes: new TextEncoder().encode(passed.html),
-      };
-    };
-    // A Russian state host takes one worker at a time, at its pace, on each route of this read.
-    const host = russianHostOf(input.url);
-    let endTurn: (() => Promise<void>) | null = null;
-    if (host !== null) {
-      if (reach.hostLease === undefined)
+    // Each Russian state host of this read takes one worker at a time, at its pace, on each route
+    // and also during the render, so each turn ends only at the end of the tool.
+    const turns = new Map<string, () => Promise<void>>();
+    try {
+      const toPage = checkedRange(input.fromPage, input.toPage);
+      // The proxy costs credits, and a large answer through it has no bound that the type can check.
+      if (input.bulk && input.proxy) throw new ToolRefusal('bulk does not go with proxy');
+      const refused = refusedSource(input.url);
+      if (refused !== null) throw new ToolRefusal(refused);
+      if (URL.canParse(input.url) && holdsSecret(input.url))
         throw new ToolRefusal(
-          'this surface gives no host lease, so it reads no Russian state host',
+          'the address holds a user name, a password or a key, and the record publishes the ' +
+            'address of each document: give the address with no secret, or read the source with ' +
+            'its register tool, which keeps its key out of the address',
         );
+
+      const day = reach.now().toISOString().slice(0, 10);
+      const getOptions: GetOptions = {
+        maxBytes: input.bulk ? BULK_TEXT_BYTES : MAX_BYTES,
+        timeoutMs: reach.fetchTimeoutMs ?? (input.bulk ? BULK_TIMEOUT_MS : TIMEOUT_MS),
+        maxRedirects: MAX_REDIRECTS,
+        ...(reach.lookup === undefined ? {} : { lookup: reach.lookup }),
+        ...(reach.refuses === undefined ? {} : { refuses: reach.refuses }),
+        ...(reach.extraRoot === undefined ? {} : { extraRoot: reach.extraRoot }),
+      };
+      const notices: string[] = [];
+      let got: Got;
+      let throughFilter = false as boolean; // set in a closure, so the type stays wide
+      // A Russian host that refuses the direct read is read once through the hosted proxy.
+      const { proxyLedger } = reach;
+      const key =
+        input.proxy && isRussianHost(input.url) && proxyLedger !== undefined
+          ? proxyKey(reach.hostedProxyKey)
+          : null;
+      const viaProxy = async (key: string): Promise<Got> => {
+        try {
+          if (proxyLedger === undefined)
+            throw new FetchRefusal('this surface has no proxy ceiling');
+          const read = await readThroughProxy(
+            input.url,
+            key,
+            getOptions,
+            proxyLedger,
+            reach.hostedProxyEndpoint,
+          );
+          notices.push(PROXY_NOTICE);
+          return read;
+        } catch (fault) {
+          if (!(fault instanceof FetchRefusal)) throw fault;
+          if (fault instanceof ProxyCaptcha)
+            await reach.hostLease?.hold(
+              new URL(input.url).hostname,
+              'captcha',
+              reach.now().getTime() + HOST_LIMIT_HOLD_MS,
+            );
+          throw new ToolRefusal(`${fault.message}, and nothing is stored`);
+        }
+      };
+      const throughChrome = async (fault: FetchRefusal): Promise<Got> => {
+        const passed =
+          fault.fault?.kind === 'status' &&
+          BROWSER_STATUSES.has(fault.fault.status) &&
+          reach.readThroughFilter !== undefined
+            ? await reach.readThroughFilter(input.url, getOptions)
+            : null;
+        if (passed === null || typeof passed === 'string') {
+          const tried = passed === null ? '' : ` The Chrome window was also tried: ${passed}.`;
+          throw new ToolRefusal(`${refusalOfFetch(fault.message, fault.fault)}${tried}`);
+        }
+        notices.push(
+          `${fault.message.replace(/, and only a success is kept$/u, '')} to the plain request, so ` +
+            'the page was read in a Chrome window; the stored bytes are the HTML that the browser shows',
+        );
+        // The browser follows a redirect by itself, so this check comes after its read: a page of a
+        // held host is not kept.
+        const browserHost = russianHostOf(passed.url);
+        if (browserHost !== null) {
+          try {
+            await takeTurn(browserHost);
+          } catch (refusal) {
+            if (refusal instanceof FetchRefusal) throw new ToolRefusal(refusal.message);
+            throw refusal;
+          }
+        }
+        throughFilter = true;
+        return {
+          url: passed.url,
+          status: 200,
+          contentType: 'text/html; charset=utf-8',
+          contentEncoding: null,
+          lastModified: null,
+          certFingerprint: null,
+          bytes: new TextEncoder().encode(passed.html),
+        };
+      };
+      const leaseTime = getOptions.timeoutMs + LATER_ROUTES_MS + RENDER_BUDGET_MS;
+      const { hostLease: lease } = reach;
+      const takeTurn = async (next: string): Promise<void> => {
+        if (turns.has(next)) return;
+        if (lease === undefined)
+          throw new FetchRefusal(
+            'this surface gives no host lease, so it reads no Russian state host',
+            {
+              kind: 'guard',
+            },
+          );
+        try {
+          turns.set(next, await lease.acquire(next, leaseTime));
+        } catch (fault) {
+          if (fault instanceof HostHeld)
+            throw new FetchRefusal(`${fault.message}, so try again then`, { kind: 'guard' });
+          throw fault;
+        }
+      };
+      const firstHost = russianHostOf(input.url);
+      // The host that the last request reached: a redirect can lead to another one.
+      let lastHost = firstHost;
+      const withHops: GetOptions = {
+        ...getOptions,
+        beforeHop: async (next) => {
+          lastHost = russianHostOf(next);
+          if (lastHost !== null) await takeTurn(lastHost);
+        },
+      };
+      const holdHost = async (
+        next: string | null,
+        kind: HoldClass,
+        until: number,
+      ): Promise<void> => {
+        if (next !== null) await lease?.hold(next, kind, until);
+      };
       try {
-        endTurn = await reach.hostLease.acquire(host, getOptions.timeoutMs + LATER_ROUTES_MS);
+        if (firstHost !== null) await takeTurn(firstHost);
       } catch (fault) {
-        if (fault instanceof HostHeld) throw new ToolRefusal(`${fault.message}, so try again then`);
+        if (fault instanceof FetchRefusal) throw new ToolRefusal(fault.message);
         throw fault;
       }
-    }
-    try {
-      got = await guardedGet(input.url, getOptions);
-      if (key !== null && isBlockPage(got.bytes)) got = await viaProxy(key);
-    } catch (fault) {
-      if (!(fault instanceof FetchRefusal)) throw fault;
-      // A refusal of the guard holds for every route, so it never spends credits of the proxy.
-      if (fault.fault?.kind === 'guard')
-        throw new ToolRefusal(refusalOfFetch(fault.message, fault.fault));
-      // A limit of the host holds for each worker, so no worker meets it twice.
-      if (host !== null && fault.fault?.kind === 'status' && fault.fault.status === 429) {
-        await reach.hostLease?.hold(host, 'quota', reach.now().getTime() + HOST_LIMIT_HOLD_MS);
-        // No browser and no proxy goes to a host that the worker just held.
-        throw new ToolRefusal(refusalOfFetch(fault.message, fault.fault));
-      }
-      if (key === null) got = await throughChrome(fault);
-      else {
-        // The Chrome window is free, so a bot filter meets it first; the proxy costs credits.
-        try {
-          got = await throughChrome(fault);
-        } catch (refusal) {
-          if (!(refusal instanceof ToolRefusal)) throw refusal;
-          got = await viaProxy(key);
+      try {
+        got = await guardedGet(input.url, withHops);
+        if (key !== null && isBlockPage(got.bytes)) got = await viaProxy(key);
+      } catch (fault) {
+        if (!(fault instanceof FetchRefusal)) throw fault;
+        // A refusal of the guard holds for every route, so it never spends credits of the proxy.
+        if (fault.fault?.kind === 'guard')
+          throw new ToolRefusal(refusalOfFetch(fault.message, fault.fault));
+        // A limit or a CAPTCHA of the host holds for each worker, so no worker meets it twice, and no
+        // browser and no proxy goes to a host that the worker just held.
+        if (lastHost !== null && fault.fault?.kind === 'status') {
+          const { status, head, retryAfter } = fault.fault;
+          const found = classOfAnswer(
+            {
+              status,
+              body: head ?? '',
+              headers: retryAfter === undefined ? {} : { 'retry-after': retryAfter },
+            },
+            reach.now().getTime(),
+          );
+          if (found.kind === 'quota' || found.kind === 'captcha') {
+            await holdHost(lastHost, found.kind, found.retryAt ?? reach.now().getTime());
+            throw new ToolRefusal(refusalOfFetch(fault.message, fault.fault));
+          }
+        }
+        if (key === null) got = await throughChrome(fault);
+        else {
+          // The Chrome window is free, so a bot filter meets it first; the proxy costs credits.
+          try {
+            got = await throughChrome(fault);
+          } catch (refusal) {
+            if (!(refusal instanceof ToolRefusal)) throw refusal;
+            got = await viaProxy(key);
+          }
         }
       }
-    } finally {
-      await endTurn?.();
-    }
-    // A state authority can intercept a read that the Russian root signs.
-    if (got.certFingerprint !== null)
-      notices.push(
-        'the server showed a certificate that the Russian root authority signed, which this tool accepts ' +
-          `for this host alone (SHA-256 ${got.certFingerprint}); a state authority can intercept ` +
-          'this read, so cross-check the content',
-      );
-    // A redirect can lead to an address that is no source.
-    const redirected = refusedSource(got.url);
-    if (redirected !== null) throw new ToolRefusal(redirected);
-    // A redirect to a signed address (an object store) gives a secret that expires: the record
-    // keeps the address that was asked for.
-    if (holdsSecret(got.url)) got = { ...got, url: pageAddress(input.url) };
-    // The stored bytes are the page that the server encoded, not its compressed form, so their
-    // text is read and an excerpt is checked on them.
-    got = {
-      ...got,
-      bytes: decodedBody(
-        got.bytes,
-        got.contentEncoding,
-        got.contentType,
-        input.bulk ? BULK_TEXT_BYTES : MAX_BYTES,
-      ),
-    };
-
-    let mime = mimeOf(got.contentType, got.bytes);
-    // A workbook is a zip container too, so the parts of the container decide its type. Another
-    // office document has no reader, and it is not unpacked into its XML parts.
-    if (mime === ZIP_MIME) {
-      const container = await zipContainerType(got.bytes);
-      if (container === 'workbook') mime = XLSX_MIME;
-      if (container === 'office')
-        throw new ToolRefusal(
-          'the answer is an office document (a text document or a slide set) that no reader ' +
-            'takes, and nothing is stored',
+      // A state authority can intercept a read that the Russian root signs.
+      if (got.certFingerprint !== null)
+        notices.push(
+          'the server showed a certificate that the Russian root authority signed, which this tool accepts ' +
+            `for this host alone (SHA-256 ${got.certFingerprint}); a state authority can intercept ` +
+            'this read, so cross-check the content',
         );
-    }
-    if (input.bulk && !isBulkTextType(mime)) {
-      throw new ToolRefusal(
-        `bulk reads a CSV, TSV or text file, a workbook or a ZIP file, and this is ${mime}`,
-      );
-    }
-    // Bytes that are not text give a text of noise, and an excerpt of it could never be checked.
-    if (textType(mime) && binaryBytes(got.bytes, got.contentType))
-      throw new ToolRefusal(
-        `the answer of type ${mime} holds no readable text: its bytes are compressed in a format ` +
-          `that this tool does not decode, or they are binary. Nothing is stored. ${BROWSER_STEP}.`,
-      );
-    // The type with its parameters, so the charset that the server names decodes an HTML page.
-    const type = isHtml(mime) && got.contentType !== null ? got.contentType : mime;
-    // OCR of an image takes seconds, and bytes that are already stored have their text already.
-    const known = OCR_TYPES.has(mime) ? await knownAnswer(session, got.bytes) : undefined;
-    const pages = known === undefined ? await checkedPages(got.bytes, mime, type) : [];
+      // A redirect can lead to an address that is no source.
+      const redirected = refusedSource(got.url);
+      if (redirected !== null) throw new ToolRefusal(redirected);
+      // A redirect to a signed address (an object store) gives a secret that expires: the record
+      // keeps the address that was asked for.
+      if (holdsSecret(got.url)) got = { ...got, url: pageAddress(input.url) };
+      // The stored bytes are the page that the server encoded, not its compressed form, so their
+      // text is read and an excerpt is checked on them.
+      got = {
+        ...got,
+        bytes: decodedBody(
+          got.bytes,
+          got.contentEncoding,
+          got.contentType,
+          input.bulk ? BULK_TEXT_BYTES : MAX_BYTES,
+        ),
+      };
+      // A short page of a Russian host that asks for a CAPTCHA is no source, and it stops each worker.
+      const answeredBy = russianHostOf(got.url);
+      const pageText = new TextDecoder('utf-8').decode(got.bytes.subarray(0, CAPTCHA_PAGE_BYTES));
+      if (
+        answeredBy !== null &&
+        got.bytes.length < CAPTCHA_PAGE_BYTES &&
+        visibleLength(pageText) <= SHORT_PAGE
+      ) {
+        const found = classOfAnswer(
+          {
+            status: got.status,
+            body: pageText,
+            headers: {},
+          },
+          reach.now().getTime(),
+        );
+        if (found.kind === 'captcha') {
+          const until = found.retryAt ?? reach.now().getTime();
+          await holdHost(answeredBy, 'captcha', until);
+          throw new ToolRefusal(
+            `the page of ${answeredBy} asks for a CAPTCHA, and nothing solves it: all workers wait ` +
+              `until ${new Date(until).toISOString()}, and nothing is stored`,
+          );
+        }
+      }
 
-    // An archive with no GeoJSON layer gives no text of its own: each of its files is a document.
-    if (known === undefined && mime === ZIP_MIME && !holdsLayers(pages)) {
+      let mime = mimeOf(got.contentType, got.bytes);
+      // A workbook is a zip container too, so the parts of the container decide its type. Another
+      // office document has no reader, and it is not unpacked into its XML parts.
+      if (mime === ZIP_MIME) {
+        const container = await zipContainerType(got.bytes);
+        if (container === 'workbook') mime = XLSX_MIME;
+        if (container === 'office')
+          throw new ToolRefusal(
+            'the answer is an office document (a text document or a slide set) that no reader ' +
+              'takes, and nothing is stored',
+          );
+      }
+      if (input.bulk && !isBulkTextType(mime)) {
+        throw new ToolRefusal(
+          `bulk reads a CSV, TSV or text file, a workbook or a ZIP file, and this is ${mime}`,
+        );
+      }
+      // Bytes that are not text give a text of noise, and an excerpt of it could never be checked.
+      if (textType(mime) && binaryBytes(got.bytes, got.contentType))
+        throw new ToolRefusal(
+          `the answer of type ${mime} holds no readable text: its bytes are compressed in a format ` +
+            `that this tool does not decode, or they are binary. Nothing is stored. ${BROWSER_STEP}.`,
+        );
+      // The type with its parameters, so the charset that the server names decodes an HTML page.
+      const type = isHtml(mime) && got.contentType !== null ? got.contentType : mime;
+      // OCR of an image takes seconds, and bytes that are already stored have their text already.
+      const known = OCR_TYPES.has(mime) ? await knownAnswer(session, got.bytes) : undefined;
+      const pages = known === undefined ? await checkedPages(got.bytes, mime, type) : [];
+
+      // An archive with no GeoJSON layer gives no text of its own: each of its files is a document.
+      if (known === undefined && mime === ZIP_MIME && !holdsLayers(pages)) {
+        const metadata = await metadataOf(got.bytes, mime);
+        const unpacked = await storeArchive(session, reach.store, {
+          kind: 'url',
+          bytes: got.bytes,
+          uri: got.url,
+          title: titleOf(mime, type, got.bytes, metadata, got.url),
+          day,
+        });
+        await noteTrace(session, unpacked.archive.id, got.certFingerprint, false);
+        const text = await documentText.run(session, {
+          document: unpacked.archive.id,
+          fromPage: input.fromPage,
+          fromCharacter: 0,
+          toPage,
+        });
+        return {
+          document: unpacked.archive.id,
+          status: unpacked.archive.status,
+          title: unpacked.archive.title,
+          mime: unpacked.archive.mime ?? mime,
+          url: got.url,
+          retrievedAt: unpacked.archive.retrieved_at ?? day,
+          metadata: { author: metadata.author, created: metadata.created },
+          pages: text.pages,
+          lastPage: text.lastPage,
+          truncated: text.truncated,
+          next: text.next,
+          notice: notices.length === 0 ? null : notices.join('; '),
+          files: unpacked.files,
+          skipped: unpacked.skipped,
+          certificate: got.certFingerprint,
+          rendered: null,
+        };
+      }
+
+      let page: Awaited<ReturnType<typeof renderedOf>> = null;
+      const allText = pages.join('').trim().length;
+      // Bytes that are all blank hold no script to run, so the render can add nothing to them.
+      const renders =
+        known === undefined &&
+        !throughFilter &&
+        !notices.includes(PROXY_NOTICE) &&
+        mime === 'text/html' &&
+        (input.render || allText < RENDER_BELOW) &&
+        !blankBytes(got.bytes);
+      if (renders) {
+        notices.push(
+          input.render
+            ? 'the render was asked for, so the page was rendered with JavaScript'
+            : `the page gave ${allText} characters of text, so it was rendered with JavaScript`,
+        );
+        // The render comes before any write, so a page with no text, also after the render, leaves
+        // no object behind. A fault of the browser gives a notice, and the plain page stays.
+        page = await renderedOf(got, mime, getOptions, notices);
+      }
+      // A render that gives a challenge or a missing page is no record of the source. When the plain
+      // page holds no text but its title, it is the shell of that page, and nothing is stored. When
+      // the plain page holds its own text, that text stays, and only the render is not stored.
+      const unreadableRender = page === null ? null : unreadablePage('text/html', page.pages);
+      if (unreadableRender !== null && shellOnly(got.bytes, type, pages))
+        throw new ToolRefusal(unreadableRefusal(unreadableRender));
+      if (unreadableRender !== null)
+        notices.push(
+          'the render was not stored: it shows a challenge of a bot filter or a missing page, ' +
+            'and the text comes from the plain page',
+        );
+      const usable = page !== null && unreadableRender === null && !blank(page.pages) ? page : null;
+
+      // An answer with no text is no record of the source: no plain page and no render is stored.
+      if (known === undefined && allText === 0 && usable === null) {
+        const render: RenderState = page !== null ? 'rendered' : renders ? 'failed' : 'none';
+        throw new ToolRefusal(emptyRefusal(got.status, mime, render));
+      }
+      if (page !== null && unreadableRender === null && usable === null)
+        notices.push('the render was not stored: it holds no text');
+
+      // The bytes of the origin are stored also when their text is empty and the render has text.
+      // They are the record of what the server gave, and the render is a copy that the browser made
+      // from them. The page as a whole is not empty: its text is in the render, which is cited.
       const metadata = await metadataOf(got.bytes, mime);
-      const unpacked = await storeArchive(session, reach.store, {
-        kind: 'url',
-        bytes: got.bytes,
-        uri: got.url,
-        title: titleOf(mime, type, got.bytes, metadata, got.url),
-        day,
-      });
-      await noteTrace(session, unpacked.archive.id, got.certFingerprint, false);
+      const provider = fetchedProvider(got.url);
+      const plain =
+        known ??
+        (await storeAnswer(session, reach.store, {
+          kind: 'url',
+          bytes: got.bytes,
+          mime,
+          uri: got.url,
+          title: titleOf(mime, type, got.bytes, metadata, got.url),
+          pages,
+          day,
+          ...(provider === undefined ? {} : { provider }),
+        }));
+
+      await noteTrace(session, plain.id, got.certFingerprint, false);
+      let rendered: { id: string; status: 'known' | 'stored'; title: string } | null = null;
+      if (usable !== null) {
+        const stored = await storeAnswer(session, reach.store, {
+          kind: 'url',
+          bytes: usable.bytes,
+          mime: 'text/html',
+          uri: got.url,
+          title: `${plain.title} (rendered)`.slice(0, MAX_TITLE),
+          pages: usable.pages,
+          day,
+        });
+        rendered = { id: stored.id, status: stored.status, title: stored.title };
+        await noteTrace(session, stored.id, got.certFingerprint, true);
+      }
+      // The notice is about the page that is cited: the render when it is stored, else the plain page.
+      const captcha =
+        usable === null
+          ? isHtml(mime) && allText <= SHORT_PAGE && CAPTCHA.test(decodeHtml(got.bytes, type))
+          : usable.pages.join('').trim().length <= SHORT_PAGE && CAPTCHA.test(usable.html);
+      if (captcha)
+        notices.push('the stored page looks like a CAPTCHA page, and nothing on it was solved');
+
       const text = await documentText.run(session, {
-        document: unpacked.archive.id,
+        document: rendered?.id ?? plain.id,
         fromPage: input.fromPage,
         fromCharacter: 0,
         toPage,
       });
       return {
-        document: unpacked.archive.id,
-        status: unpacked.archive.status,
-        title: unpacked.archive.title,
-        mime: unpacked.archive.mime ?? mime,
+        document: plain.id,
+        status: plain.status,
+        title: plain.title,
+        mime: plain.mime ?? mime,
         url: got.url,
-        retrievedAt: unpacked.archive.retrieved_at ?? day,
+        retrievedAt: plain.retrieved_at ?? day,
         metadata: { author: metadata.author, created: metadata.created },
         pages: text.pages,
         lastPage: text.lastPage,
         truncated: text.truncated,
         next: text.next,
         notice: notices.length === 0 ? null : notices.join('; '),
-        files: unpacked.files,
-        skipped: unpacked.skipped,
+        files: null,
+        skipped: null,
         certificate: got.certFingerprint,
-        rendered: null,
+        rendered:
+          rendered === null
+            ? null
+            : { document: rendered.id, status: rendered.status, title: rendered.title },
       };
+    } finally {
+      for (const endTurn of turns.values()) await endTurn();
     }
-
-    let page: Awaited<ReturnType<typeof renderedOf>> = null;
-    const allText = pages.join('').trim().length;
-    // Bytes that are all blank hold no script to run, so the render can add nothing to them.
-    const renders =
-      known === undefined &&
-      !throughFilter &&
-      !notices.includes(PROXY_NOTICE) &&
-      mime === 'text/html' &&
-      (input.render || allText < RENDER_BELOW) &&
-      !blankBytes(got.bytes);
-    if (renders) {
-      notices.push(
-        input.render
-          ? 'the render was asked for, so the page was rendered with JavaScript'
-          : `the page gave ${allText} characters of text, so it was rendered with JavaScript`,
-      );
-      // The render comes before any write, so a page with no text, also after the render, leaves
-      // no object behind. A fault of the browser gives a notice, and the plain page stays.
-      page = await renderedOf(got, mime, getOptions, notices);
-    }
-    // A render that gives a challenge or a missing page is no record of the source. When the plain
-    // page holds no text but its title, it is the shell of that page, and nothing is stored. When
-    // the plain page holds its own text, that text stays, and only the render is not stored.
-    const unreadableRender = page === null ? null : unreadablePage('text/html', page.pages);
-    if (unreadableRender !== null && shellOnly(got.bytes, type, pages))
-      throw new ToolRefusal(unreadableRefusal(unreadableRender));
-    if (unreadableRender !== null)
-      notices.push(
-        'the render was not stored: it shows a challenge of a bot filter or a missing page, ' +
-          'and the text comes from the plain page',
-      );
-    const usable = page !== null && unreadableRender === null && !blank(page.pages) ? page : null;
-
-    // An answer with no text is no record of the source: no plain page and no render is stored.
-    if (known === undefined && allText === 0 && usable === null) {
-      const render: RenderState = page !== null ? 'rendered' : renders ? 'failed' : 'none';
-      throw new ToolRefusal(emptyRefusal(got.status, mime, render));
-    }
-    if (page !== null && unreadableRender === null && usable === null)
-      notices.push('the render was not stored: it holds no text');
-
-    // The bytes of the origin are stored also when their text is empty and the render has text.
-    // They are the record of what the server gave, and the render is a copy that the browser made
-    // from them. The page as a whole is not empty: its text is in the render, which is cited.
-    const metadata = await metadataOf(got.bytes, mime);
-    const provider = fetchedProvider(got.url);
-    const plain =
-      known ??
-      (await storeAnswer(session, reach.store, {
-        kind: 'url',
-        bytes: got.bytes,
-        mime,
-        uri: got.url,
-        title: titleOf(mime, type, got.bytes, metadata, got.url),
-        pages,
-        day,
-        ...(provider === undefined ? {} : { provider }),
-      }));
-
-    await noteTrace(session, plain.id, got.certFingerprint, false);
-    let rendered: { id: string; status: 'known' | 'stored'; title: string } | null = null;
-    if (usable !== null) {
-      const stored = await storeAnswer(session, reach.store, {
-        kind: 'url',
-        bytes: usable.bytes,
-        mime: 'text/html',
-        uri: got.url,
-        title: `${plain.title} (rendered)`.slice(0, MAX_TITLE),
-        pages: usable.pages,
-        day,
-      });
-      rendered = { id: stored.id, status: stored.status, title: stored.title };
-      await noteTrace(session, stored.id, got.certFingerprint, true);
-    }
-    // The notice is about the page that is cited: the render when it is stored, else the plain page.
-    const captcha =
-      usable === null
-        ? isHtml(mime) && allText <= SHORT_PAGE && CAPTCHA.test(decodeHtml(got.bytes, type))
-        : usable.pages.join('').trim().length <= SHORT_PAGE && CAPTCHA.test(usable.html);
-    if (captcha)
-      notices.push('the stored page looks like a CAPTCHA page, and nothing on it was solved');
-
-    const text = await documentText.run(session, {
-      document: rendered?.id ?? plain.id,
-      fromPage: input.fromPage,
-      fromCharacter: 0,
-      toPage,
-    });
-    return {
-      document: plain.id,
-      status: plain.status,
-      title: plain.title,
-      mime: plain.mime ?? mime,
-      url: got.url,
-      retrievedAt: plain.retrieved_at ?? day,
-      metadata: { author: metadata.author, created: metadata.created },
-      pages: text.pages,
-      lastPage: text.lastPage,
-      truncated: text.truncated,
-      next: text.next,
-      notice: notices.length === 0 ? null : notices.join('; '),
-      files: null,
-      skipped: null,
-      certificate: got.certFingerprint,
-      rendered:
-        rendered === null
-          ? null
-          : { document: rendered.id, status: rendered.status, title: rendered.title },
-    };
   },
 });

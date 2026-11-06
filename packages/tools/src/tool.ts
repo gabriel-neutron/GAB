@@ -132,7 +132,7 @@ export interface Reach {
   /** One more root certificate and the hosts that accept it. A test gives its own; the default is
    * the Russian root and its list of hosts. */
   readonly extraRoot?: ExtraRoot;
-  /** The key of the hosted proxy for Russian hosts. The default is the variable SCRAPINGBEE_KEY. */
+  /** The key of the hosted proxy for Russian hosts. The default is the variable BRIGHTDATA_API_KEY. */
   readonly hostedProxyKey?: string;
   /** The address of the hosted proxy. A test gives its own; the default is the real service. */
   readonly hostedProxyEndpoint?: string;

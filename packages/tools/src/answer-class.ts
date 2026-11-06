@@ -21,12 +21,15 @@ const HOLD_MS = 60 * 60 * 1000;
 /** The wait after a limit of a host that states no time. */
 export const HOST_LIMIT_HOLD_MS = HOLD_MS;
 
+// A host states the wait, and a wrong value must not stop a host for ever.
+const LONGEST_HOLD_MS = 24 * 60 * 60 * 1000;
+
 const retryAfter = (value: string | undefined, now: number): number | null => {
   if (value === undefined) return null;
   const seconds = Number(value);
-  if (Number.isFinite(seconds) && seconds >= 0) return now + seconds * 1000;
-  const day = Date.parse(value);
-  return Number.isNaN(day) ? null : day;
+  const stated =
+    Number.isFinite(seconds) && seconds >= 0 ? now + seconds * 1000 : Date.parse(value);
+  return Number.isNaN(stated) ? null : Math.min(stated, now + LONGEST_HOLD_MS);
 };
 
 /** The class of an answer. */
@@ -40,7 +43,12 @@ export const classOfAnswer = (
 ): AnswerClass => {
   // A normal answer of the register holds this field with the value false, and that is no CAPTCHA.
   const body = answer.body.replace(/"captchaRequired"\s*:\s*false/gu, '');
-  if (/captcha/iu.test(body))
+  // A page of another status can name the word in a form or a script, and that is no challenge.
+  const canChallenge =
+    (answer.status >= 200 && answer.status <= 299) ||
+    answer.status === 403 ||
+    answer.status === 429;
+  if (canChallenge && /captcha/iu.test(body))
     return { kind: 'captcha', holdState: 'waiting_source', retryAt: now + HOLD_MS };
   if (answer.status === 429 || /volume quota|quota exceeded|rate limit/iu.test(body))
     return {
