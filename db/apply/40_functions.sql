@@ -5105,7 +5105,7 @@ $$;
 -- its faults once in one call of unit_faults. unit_rule is the rule of one unit. No role holds
 -- rule_of_faults.
 --
--- THE FIRST TWO RULES STAND ALONE: 'impossible', 'doubt', or NULL when the later rules decide. The
+-- THE FIRST TWO RULES ARE IN THIS FUNCTION. It gives 'impossible', 'doubt', or NULL when a later rule decides. The
 -- lane of a unit reads only these two, so a read of the queue does not judge the sources of each
 -- fact. No role holds this step.
 CREATE OR REPLACE FUNCTION rule_before_sources(p_unit uuid, p_faults jsonb)
@@ -5345,9 +5345,10 @@ SET search_path = pg_catalog, public, pg_temp AS $$
     SELECT f.unit_id, f.state, f.faults
       FROM public.unit_faults(ARRAY(SELECT h.unit_id FROM heads h)) AS f
   ), ruled AS (
-    -- The doubt rule makes the lane "doubt", and any other result is the lane "waiting". So the read
-    -- runs only the rules before the sources: the rules after them cost the most and change no lane. OFFSET 0 stops the planner from copying the call into
-    -- the rule and the lane, so the rule runs once for each unit and not twice.
+    -- The doubt rule makes the lane "doubt", and any other result is the lane "waiting". So the
+    -- read runs only the rules before the sources: the later rules cost the most and change no
+    -- lane. OFFSET 0 stops the planner from copying the call into the rule and the lane, so the
+    -- rule runs once for each unit and not twice.
     SELECT r.unit_id, r.rule, CASE WHEN r.rule = 'doubt' THEN 'doubt' ELSE 'waiting' END AS lane
       FROM (SELECT f.unit_id, public.rule_before_sources(f.unit_id, f.faults) AS rule
               FROM faulted f OFFSET 0) AS r
