@@ -132,6 +132,66 @@ describe('a failure is never an empty list', () => {
     expect(await refusalOf(stubWeb(() => new Error('socket hang up')))).toBeTruthy();
   });
 
+  test('SearXNG answers when GDELT fails, and an empty SearXNG list stays a refusal', async () => {
+    const web = stubWeb(
+      ({ url }) =>
+        url.hostname === 'searxng.test'
+          ? json({
+              results: [
+                { title: 'No date', url: 'https://news.example/a', publishedDate: null },
+                {
+                  title: 'Last hour',
+                  url: 'https://news.example/c',
+                  publishedDate: '2026-09-30T23:30:00',
+                },
+                {
+                  title: 'Day after',
+                  url: 'https://news.example/d',
+                  publishedDate: '2026-10-01T00:30:00',
+                },
+                {
+                  title: 'Too old',
+                  url: 'https://news.example/b',
+                  publishedDate: '2026-01-01T00:00:00',
+                },
+              ],
+            })
+          : text('', 429),
+      { searxngUrl: 'http://searxng.test' },
+    );
+    expect(await run(web)).toStrictEqual({
+      ok: true,
+      output: {
+        articles: [
+          {
+            title: 'No date',
+            url: 'https://news.example/a',
+            date: null,
+            domain: 'news.example',
+            language: null,
+          },
+          {
+            title: 'Last hour',
+            url: 'https://news.example/c',
+            date: '2026-09-30T23:30:00.000Z',
+            domain: 'news.example',
+            language: null,
+          },
+        ],
+        notice:
+          'GDELT failed (the server answered 429), so this list comes from SearXNG: a row with a null date can be outside the two days',
+      },
+    });
+    expect(web.asked[0]?.request.timeoutMs).toBe(30_000);
+    expect(web.asked[1]?.url.searchParams.get('categories')).toBe('news');
+
+    const empty = stubWeb(
+      ({ url }) => (url.hostname === 'searxng.test' ? json({ results: [] }) : text('', 429)),
+      { searxngUrl: 'http://searxng.test' },
+    );
+    expect(await refusalOf(empty)).toContain('429');
+  });
+
   test('with no web in the reach, the tool refuses', async () => {
     expect((await callTool(newsSearch, noSql, INPUT, undefined)).ok).toBe(false);
   });
