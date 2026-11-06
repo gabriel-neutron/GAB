@@ -3,22 +3,25 @@
 // across processes. No test reaches the network or a database.
 
 import { execFile } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { afterEach, beforeEach, expect, test } from 'vitest';
 
-import {
-  classOfAnswer,
-  hostLease,
-  HostHeld,
-  policyOf,
-  ProxyCeiling,
-  proxyLedger,
-  type StateClock,
-} from './host-lease.ts';
+import { classOfAnswer } from './answer-class.ts';
+import { hostLease, HostHeld, isRussianHost, policyOf } from './host-lease.ts';
+import { ProxyCeiling, proxyLedger } from './proxy-ledger.ts';
+import type { StateClock } from './state-file.ts';
 
 const START = Date.parse('2026-11-06T10:00:00Z');
 const HOST = 'egrul.nalog.ru';
@@ -53,6 +56,9 @@ test('each host with a known limit has its pace, and each Russian host has a lea
   expect(policyOf('www.cbr.ru')?.gapMs).toBeGreaterThan(0);
   expect(policyOf('xn--80aa.xn--p1ai')).not.toBeNull();
   expect(policyOf('example.com')).toBeNull();
+  // A name that ends in a dot is the same host.
+  expect(policyOf('egrul.nalog.ru.')?.gapMs).toBe(30_000);
+  expect(isRussianHost('https://egrul.nalog.ru./x')).toBe(true);
 });
 
 test('a second worker waits until the first ends its turn, and then waits the pace', async () => {
@@ -132,6 +138,34 @@ test('a hold stops each worker until its time, with the class and the retry time
   await (
     await other.acquire(HOST)
   )();
+});
+
+test('a shorter hold does not replace a longer one', async () => {
+  const lease = hostLease(state());
+  const until = START + 3_600_000;
+  await lease.hold(HOST, 'quota', until);
+  await lease.hold(HOST, 'quota', START + 60_000);
+  await expect(lease.acquire(HOST)).rejects.toMatchObject({ until });
+});
+
+test('a lock of a dead process stops no caller', async () => {
+  mkdirSync(dir, { recursive: true });
+  const lock = join(dir, `lease-${HOST}.lock`);
+  mkdirSync(lock);
+  const old = new Date(Date.now() - 60_000);
+  utimesSync(lock, old, old);
+  await (
+    await hostLease(state()).acquire(HOST)
+  )();
+  expect(existsSync(lock)).toBe(false);
+});
+
+test('the end of a turn never throws', async () => {
+  const end = await hostLease(state()).acquire(HOST);
+  rmSync(dir, { recursive: true, force: true });
+  writeFileSync(dir, 'a file in place of the folder');
+  await expect(end()).resolves.toBeUndefined();
+  rmSync(dir, { force: true });
 });
 
 test('the daily cap gives a quota hold until the next day, and the count starts again', async () => {
@@ -215,5 +249,7 @@ test('at the ceiling the batch stops, and the ticket goes to blocked.md', async 
   await ledger.reserve('O2-01');
   await ledger.settle(true);
   await expect(ledger.reserve('O2-01')).rejects.toBeInstanceOf(ProxyCeiling);
-  expect(readFileSync(join(dir, 'blocked.md'), 'utf8')).toContain('O2-01');
+  await expect(ledger.reserve('O2-01')).rejects.toBeInstanceOf(ProxyCeiling);
+  // One read stopped two times is one line.
+  expect(readFileSync(join(dir, 'blocked.md'), 'utf8').match(/O2-01/gu)).toHaveLength(1);
 });

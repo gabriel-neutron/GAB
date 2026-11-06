@@ -27,14 +27,9 @@ import {
   type GetOptions,
   type Got,
 } from './fetch-guard.ts';
-import {
-  isBlockPage,
-  isRussianHost,
-  PROXY_NOTICE,
-  proxyKey,
-  readThroughProxy,
-} from './hosted-proxy.ts';
-import { HOST_LIMIT_HOLD_MS, HostHeld } from './host-lease.ts';
+import { isBlockPage, PROXY_NOTICE, proxyKey, readThroughProxy } from './hosted-proxy.ts';
+import { HostHeld, isRussianHost, russianHostOf } from './host-lease.ts';
+import { HOST_LIMIT_HOLD_MS } from './answer-class.ts';
 import { refusedSource } from './refused-source.ts';
 import { renderPage } from './render-page.ts';
 import { holdsLayers, skippedFileShape, storeArchive, storedFileShape } from './store-archive.ts';
@@ -549,7 +544,7 @@ export const fetchDocument = defineTool({
       };
     };
     // A Russian state host takes one worker at a time, at its pace, on each route of this read.
-    const host = isRussianHost(input.url) ? new URL(input.url).hostname : null;
+    const host = russianHostOf(input.url);
     let endTurn: (() => Promise<void>) | null = null;
     if (host !== null) {
       if (reach.hostLease === undefined)
@@ -572,8 +567,11 @@ export const fetchDocument = defineTool({
       if (fault.fault?.kind === 'guard')
         throw new ToolRefusal(refusalOfFetch(fault.message, fault.fault));
       // A limit of the host holds for each worker, so no worker meets it twice.
-      if (host !== null && fault.fault?.kind === 'status' && fault.fault.status === 429)
+      if (host !== null && fault.fault?.kind === 'status' && fault.fault.status === 429) {
         await reach.hostLease?.hold(host, 'quota', reach.now().getTime() + HOST_LIMIT_HOLD_MS);
+        // No browser and no proxy goes to a host that the worker just held.
+        throw new ToolRefusal(refusalOfFetch(fault.message, fault.fault));
+      }
       if (key === null) got = await throughChrome(fault);
       else {
         // The Chrome window is free, so a bot filter meets it first; the proxy costs credits.

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-import { classOfAnswer, HostHeld } from './host-lease.ts';
+import { classOfAnswer } from './answer-class.ts';
+import { HostHeld } from './host-lease.ts';
 import { storeRegister, type RegisterRequest } from './register-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 import { anyAnswerOf, UpstreamFault, webFromReach } from './web-access.ts';

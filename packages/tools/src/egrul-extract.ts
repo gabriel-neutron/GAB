@@ -3,15 +3,17 @@
 // for the extract, a wait, and a download of a signed PDF.
 //
 // The panel ruling on this source holds for each line below. The tool keeps one session and never
-// opens a new one to reset a limit. A CAPTCHA stops the calls of each worker: the tool gives a hold
-// with the wait time, and it solves nothing. The lease of the host holds the pace. The file names natural persons, so it is stored under the provider
-// `egrul`, stays internal, and no release publishes it.
+// opens a new one to reset a limit. The lease of the host holds the pace. A CAPTCHA stops the calls
+// of each worker: the tool gives a hold with the wait time, and it solves nothing. The file names
+// natural persons, so it is stored under the provider `egrul`, stays internal, and no release
+// publishes it.
 
 import { extractText } from '@gab/text';
 import { z } from 'zod';
 
 import { extractSubject, ownerSection } from './egrul-text.ts';
-import { classOfAnswer, HostHeld, type HoldClass } from './host-lease.ts';
+import { classOfAnswer, type HoldClass } from './answer-class.ts';
+import { HostHeld, LEASE_MS } from './host-lease.ts';
 import { storeAnswer } from './store-answer.ts';
 import { defineTool, ToolRefusal, type Reach, type Web, type WebAnswer } from './tool.ts';
 import { anyAnswerOf, UpstreamFault, webFromReach } from './web-access.ts';
@@ -23,7 +25,6 @@ const MIME = 'application/pdf';
 
 // Assumption, from the access test: an extract is ready in some seconds.
 const POLL_MS = 1000;
-const POLLS = 30;
 const TIMEOUT_MS = 30_000;
 // Assumption: the longest stored extract has 114 pages and is below this size.
 const MAX_PDF_BYTES = 32 * 1024 * 1024;
@@ -145,19 +146,21 @@ const postForm = async (web: Web, reach: Reach, taxNumber: string): Promise<stri
   return shape(token, parsed(answer.status, text)).t;
 };
 
+// The whole read ends inside the lease of the host, so a second worker never meets a read that runs.
+const READ_BUDGET_MS = LEASE_MS - 2 * TIMEOUT_MS;
+
 const waitFor = async <Answer>(
   reach: Reach,
+  deadline: number,
   ask: () => Promise<Answer>,
   ready: (answer: Answer) => boolean,
 ): Promise<Answer> => {
-  for (let poll = 0; poll < POLLS; poll += 1) {
+  while (reach.now().getTime() < deadline) {
     const answer = await ask();
     if (ready(answer)) return answer;
     await sleepOf(reach)(POLL_MS);
   }
-  throw new ToolRefusal(
-    `${REGISTER} did not finish in ${String((POLLS * POLL_MS) / 1000)} seconds`,
-  );
+  throw new ToolRefusal(`${REGISTER} did not finish in time`);
 };
 
 const downloadOf = async (web: Web, reach: Reach, requestToken: string): Promise<Uint8Array> => {
@@ -186,9 +189,11 @@ const readExtract = async (
   reach: Reach,
   taxNumber: string,
 ): Promise<Uint8Array | null> => {
+  const deadline = reach.now().getTime() + READ_BUDGET_MS;
   const search = await postForm(web, reach, taxNumber);
   const found = await waitFor(
     reach,
+    deadline,
     async () =>
       shape(result, await getJson(web, reach, stamped(reach, `/search-result/${search}`))),
     (answer) => answer.status !== 'wait',
@@ -201,6 +206,7 @@ const readExtract = async (
   ).t;
   await waitFor(
     reach,
+    deadline,
     async () => shape(state, await getJson(web, reach, stamped(reach, `/vyp-status/${request}`))),
     (answer) => answer.status === 'ready',
   );

@@ -11,8 +11,10 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { CATALOGUE } from './catalogue.ts';
 import { endMetadata } from './fetch-document.ts';
 import { FETCH_DAY, memoryStore } from './fetch-fixture.ts';
-import { hostLease, proxyLedger, type StateClock } from './host-lease.ts';
-import { isBlockPage, isRussianHost } from './hosted-proxy.ts';
+import { hostLease, isRussianHost } from './host-lease.ts';
+import { isBlockPage } from './hosted-proxy.ts';
+import { proxyLedger } from './proxy-ledger.ts';
+import type { StateClock } from './state-file.ts';
 import { callTool, type Reach, type Session } from './tool.ts';
 import { fetchDatabase } from './web-stub.ts';
 
@@ -55,6 +57,8 @@ beforeAll(async () => {
           .writeHead(proxyAnswer.status, { 'content-type': 'text/html; charset=utf-8' })
           .end(proxyAnswer.body);
       });
+    } else if (url === '/limit') {
+      response.writeHead(429).end('slow');
     } else if (url === '/loop') {
       response.writeHead(302, { location: '/loop' }).end();
     } else if (url === '/block') {
@@ -178,6 +182,39 @@ describe('a Russian host that refuses the direct read', () => {
     if (outcome.ok) throw new Error('the tool had to refuse');
     expect(outcome.refusal).toContain('block page');
     expect(store.puts).toStrictEqual([]);
+  });
+
+  test('a block page that the proxy answered with a success stays in the ledger', async () => {
+    proxyAnswer = { status: 200, body: BLOCK };
+    const spent = mkdtempSync(join(tmpdir(), 'gab-spent-'));
+    try {
+      await run(`http://www.cbr.ru:${port}/gone`, {
+        ...reachWith(memoryStore(), KEY),
+        proxyLedger: proxyLedger({ ...clock, dir: spent }, 1),
+      });
+      expect(readFileSync(join(spent, 'proxy-log.md'), 'utf8')).toContain('1 pages, 1.0000 USD');
+    } finally {
+      rmSync(spent, { recursive: true, force: true });
+    }
+  });
+
+  test('a 429 of the host holds the host, and no browser and no proxy goes to it', async () => {
+    seen.length = 0;
+    let browser = 0;
+    const outcome = await run(`http://www.fns.ru:${port}/limit`, {
+      ...reachWith(memoryStore(), KEY),
+      readThroughFilter: () => {
+        browser += 1;
+        return Promise.resolve('no');
+      },
+    });
+    expect(outcome.ok).toBe(false);
+    expect(browser).toBe(0);
+    expect(seen).toStrictEqual(['/limit']);
+    const next = await run(`http://www.fns.ru:${port}/limit`, reachWith(memoryStore(), KEY));
+    if (next.ok) throw new Error('the tool had to refuse');
+    expect(next.refusal).toContain('quota hold');
+    expect(seen).toStrictEqual(['/limit']);
   });
 
   test('a CAPTCHA from the proxy is a refusal, and nothing is stored', async () => {

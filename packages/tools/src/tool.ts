@@ -1,4 +1,5 @@
-import type { HostLease, ProxyLedger } from './host-lease.ts';
+import type { HostLease } from './host-lease.ts';
+import type { ProxyLedger } from './proxy-ledger.ts';
 import type { RawObject } from '@gab/store';
 import { z } from 'zod';
 

@@ -13,7 +13,8 @@ import { rolledBack, type Ask } from '../../../tools/probe.ts';
 import { CATALOGUE } from './catalogue.ts';
 import { endMetadata } from './fetch-document.ts';
 import { FETCH_DAY, memoryStore } from './fetch-fixture.ts';
-import { hostLease, proxyLedger } from './host-lease.ts';
+import { hostLease } from './host-lease.ts';
+import { proxyLedger } from './proxy-ledger.ts';
 import { PROXY_NOTICE } from './hosted-proxy.ts';
 import { callTool, type Reach, type Session } from './tool.ts';
 

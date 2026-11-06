@@ -3,10 +3,9 @@
 // call costs nothing. The key stays in this module: it is in a header, and in no address, message or
 // document. The call asks for nothing on a CAPTCHA, and an answer with a CAPTCHA is a refusal.
 
+import { classOfAnswer } from './answer-class.ts';
 import { FetchRefusal, type GetOptions, type Got } from './fetch-guard.ts';
-import { classOfAnswer, isRussianHost, ProxyCeiling, type ProxyLedger } from './host-lease.ts';
-
-export { isRussianHost };
+import { ProxyCeiling, type ProxyLedger } from './proxy-ledger.ts';
 
 // A premium exit is slower than a direct read.
 const PROXY_TIMEOUT_MS = 60_000;
@@ -40,14 +39,14 @@ const zone = (): string => {
   return given === '' ? DEFAULT_ZONE : given;
 };
 
+// The call of the proxy. Only an answer with a success can cost money.
 const callProxy = async (
   url: string,
   key: string,
   options: GetOptions,
   endpoint: string,
-): Promise<Got> => {
+): Promise<Response> => {
   let response: Response;
-  let bytes: Uint8Array;
   try {
     response = await fetch(endpoint, {
       method: 'POST',
@@ -56,27 +55,35 @@ const callProxy = async (
       body: JSON.stringify({ zone: zone(), url, format: 'raw', country: 'ru' }),
       signal: AbortSignal.timeout(Math.max(options.timeoutMs, PROXY_TIMEOUT_MS)),
     });
-    bytes = new Uint8Array(await response.arrayBuffer());
   } catch {
     throw refused('no whole answer came');
   }
-  if (response.status < 200 || response.status > 299)
+  if (response.status < 200 || response.status > 299) {
+    await response.body?.cancel();
     throw refused(`the proxy answered ${String(response.status)}`);
-  if (bytes.length > options.maxBytes) throw refused('the page is larger than the cap');
-  if (isBlockPage(bytes))
-    throw new FetchRefusal('the hosted proxy also got the block page of the host');
-  const head = new TextDecoder('utf-8').decode(bytes.subarray(0, 8192));
-  if (classOfAnswer({ status: 200, body: head, headers: {} }, 0).kind === 'captcha')
-    throw refused('the page asks for a CAPTCHA, and nothing solves it');
-  return {
-    url,
-    status: response.status,
-    contentType: response.headers.get('content-type'),
-    contentEncoding: response.headers.get('content-encoding'),
-    lastModified: response.headers.get('last-modified'),
-    certFingerprint: null,
-    bytes,
-  };
+  }
+  return response;
+};
+
+// The read stops at the cap, so a large answer does not fill the memory.
+const bodyOf = async (response: Response, maxBytes: number): Promise<Uint8Array> => {
+  if (Number(response.headers.get('content-length')) > maxBytes) {
+    await response.body?.cancel();
+    throw refused('the page is larger than the cap');
+  }
+  const parts: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for await (const part of (response.body ?? []) as AsyncIterable<Uint8Array>) {
+      size += part.length;
+      if (size > maxBytes) throw refused('the page is larger than the cap');
+      parts.push(part);
+    }
+  } catch (fault) {
+    if (fault instanceof FetchRefusal) throw fault;
+    throw refused('no whole answer came');
+  }
+  return Buffer.concat(parts);
 };
 
 /**
@@ -96,12 +103,27 @@ export const readThroughProxy = async (
     if (fault instanceof ProxyCeiling) throw new FetchRefusal(fault.message);
     throw fault;
   }
-  let ok = false;
+  let charged = false;
   try {
-    const got = await callProxy(url, key, options, endpoint);
-    ok = true;
-    return got;
+    const response = await callProxy(url, key, options, endpoint);
+    charged = true;
+    const bytes = await bodyOf(response, options.maxBytes);
+    if (isBlockPage(bytes))
+      throw new FetchRefusal('the hosted proxy also got the block page of the host');
+    const head = new TextDecoder('utf-8').decode(bytes.subarray(0, 8192));
+    if (classOfAnswer({ status: 200, body: head, headers: {} }, 0).kind === 'captcha')
+      throw refused('the page asks for a CAPTCHA, and nothing solves it');
+    return {
+      url,
+      status: response.status,
+      contentType: response.headers.get('content-type'),
+      // fetch gives the decoded body, so the bytes have no encoding left.
+      contentEncoding: null,
+      lastModified: response.headers.get('last-modified'),
+      certFingerprint: null,
+      bytes,
+    };
   } finally {
-    await ledger.settle(ok);
+    await ledger.settle(charged);
   }
 };

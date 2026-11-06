@@ -3,15 +3,13 @@
 // a lease survives a stop of the database and each process of the machine reads the same state.
 // Only this module and the supervisor write that folder. No file here holds a key or a full address.
 
-import { appendFile, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-export type HoldClass = 'quota' | 'captcha' | 'refused';
-
-/** The state of a ticket on a hold of the host. The tick owns these words. */
-export type HoldState = 'waiting_quota' | 'waiting_source';
+import type { HoldClass } from './answer-class.ts';
+import { proxyLedger, type ProxyLedger } from './proxy-ledger.ts';
+import { locked, readState, saved, type StateClock } from './state-file.ts';
 
 interface Policy {
   readonly gapMs: number;
@@ -28,26 +26,32 @@ const POLICIES: Readonly<Record<string, Policy>> = {
 };
 const RUSSIAN_POLICY: Policy = { gapMs: 5000, dailyCap: null };
 
-// Assumption: no read holds a host for longer. A worker that died gives the host back after this.
-const LEASE_MS = 5 * 60 * 1000;
+/** A read of a host ends inside this time. A worker that died gives the host back after it, so
+ * each tool keeps its read shorter. */
+export const LEASE_MS = 5 * 60 * 1000;
 const POLL_MS = 500;
-// Assumption: one write of the state takes far less. A lock of a dead process ends after this.
-const STALE_LOCK_MS = 15_000;
-const LOCK_TRIES = 200;
 
-/** True for a host in .ru or in .рф (xn--p1ai). */
-export const isRussianHost = (url: string): boolean => {
-  try {
-    const { hostname } = new URL(url);
-    return hostname.endsWith('.ru') || hostname.endsWith('.xn--p1ai');
-  } catch {
-    return false;
-  }
+// A name can end in a dot, and it is the same host.
+const plainHost = (host: string): string => host.replace(/\.$/u, '').toLowerCase();
+
+const isRussianName = (host: string): boolean => host.endsWith('.ru') || host.endsWith('.xn--p1ai');
+
+/** The host of a Russian address, in the form that the lease names it, or null for another address. */
+export const russianHostOf = (url: string): string | null => {
+  const parsed = URL.parse(url);
+  if (parsed === null) return null;
+  const host = plainHost(parsed.hostname);
+  return isRussianName(host) ? host : null;
 };
 
+/** True for a host in .ru or in .рф (xn--p1ai). */
+export const isRussianHost = (url: string): boolean => russianHostOf(url) !== null;
+
 /** The pace of a host, or null for a host that needs no lease. */
-export const policyOf = (host: string): Policy | null =>
-  POLICIES[host] ?? (host.endsWith('.ru') || host.endsWith('.xn--p1ai') ? RUSSIAN_POLICY : null);
+export const policyOf = (given: string): Policy | null => {
+  const host = plainHost(given);
+  return POLICIES[host] ?? (isRussianName(host) ? RUSSIAN_POLICY : null);
+};
 
 /** The host stops the calls until the time that this error holds. */
 export class HostHeld extends Error {
@@ -62,9 +66,10 @@ export class HostHeld extends Error {
 
 export interface HostLease {
   /** Waits for the one turn of the host and its pace, and gives the function that ends the turn.
-   * It throws HostHeld during a hold or above the daily cap. */
+   * It throws HostHeld during a hold or above the daily cap. The end of a turn never throws: a turn
+   * that a fault keeps ends with the time of its lease. */
   acquire(host: string): Promise<() => Promise<void>>;
-  /** Stops the calls to the host until this time, for each worker. */
+  /** Stops the calls to the host until this time, for each worker. A longer hold stays. */
   hold(host: string, hold: HoldClass, until: number): Promise<void>;
 }
 
@@ -84,58 +89,6 @@ const EMPTY: LeaseFile = {
   day: '',
   count: 0,
   hold: null,
-};
-
-export interface StateClock {
-  readonly dir: string;
-  readonly now: () => Date;
-  readonly sleep: (ms: number) => Promise<void>;
-}
-
-const isFault = (fault: unknown, code: string): boolean =>
-  typeof fault === 'object' && fault !== null && 'code' in fault && fault.code === code;
-
-// The lock is a folder, because the creation of a folder is atomic on each platform.
-const locked = async <Result>(
-  state: StateClock,
-  name: string,
-  work: () => Promise<Result>,
-): Promise<Result> => {
-  await mkdir(state.dir, { recursive: true });
-  const lock = join(state.dir, `${name}.lock`);
-  for (let tries = 0; tries < LOCK_TRIES; tries += 1) {
-    try {
-      await mkdir(lock);
-      try {
-        return await work();
-      } finally {
-        await rm(lock, { recursive: true, force: true });
-      }
-    } catch (fault) {
-      if (!isFault(fault, 'EEXIST')) throw fault;
-      const made = await stat(lock).catch(() => null);
-      if (made !== null && Date.now() - made.mtimeMs > STALE_LOCK_MS)
-        await rm(lock, { recursive: true, force: true });
-      // This wait is a real wait, also in a test: another process holds the lock.
-      await new Promise((done) => setTimeout(done, 10));
-    }
-  }
-  throw new Error('the state of the host stayed locked');
-};
-
-const saved = async (path: string, value: unknown): Promise<void> => {
-  const part = `${path}.${randomUUID()}.tmp`;
-  await writeFile(part, JSON.stringify(value), 'utf8');
-  await rename(part, path);
-};
-
-const readState = async <Value>(path: string, empty: Value): Promise<Value> => {
-  try {
-    return { ...empty, ...(JSON.parse(await readFile(path, 'utf8')) as Value) };
-  } catch (fault) {
-    if (isFault(fault, 'ENOENT')) return empty;
-    throw fault;
-  }
 };
 
 const nextDay = (now: Date): number =>
@@ -172,7 +125,8 @@ export const hostLease = (state: StateClock): HostLease => {
       return { wait: slot - ms, taken: true };
     });
   return {
-    acquire: async (host) => {
+    acquire: async (given) => {
+      const host = plainHost(given);
       const policy = policyOf(host) ?? RUSSIAN_POLICY;
       const token = randomUUID();
       for (;;) {
@@ -184,137 +138,16 @@ export const hostLease = (state: StateClock): HostLease => {
         await locked(state, `lease-${host}`, async () => {
           const file = await readState<LeaseFile>(fileOf(host), EMPTY);
           if (file.holder === token) await saved(fileOf(host), { ...file, holder: null });
-        });
+        }).catch(() => undefined);
       };
     },
-    hold: async (host, hold, until) => {
+    hold: async (given, hold, until) => {
+      const host = plainHost(given);
       await locked(state, `lease-${host}`, async () => {
         const file = await readState<LeaseFile>(fileOf(host), EMPTY);
-        await saved(fileOf(host), { ...file, hold: { kind: hold, until } });
-      });
-    },
-  };
-};
-
-/** The class of one answer of a host. */
-export interface AnswerClass {
-  readonly kind: 'ok' | 'not_found' | 'server' | HoldClass;
-  /** The state of the ticket. A class with no hold gives null. */
-  readonly holdState: HoldState | null;
-  /** The time to ask again, for a class with a hold. */
-  readonly retryAt: number | null;
-}
-
-// Assumption of the first build: the reset of the CAPTCHA and of a quota with no stated time are not
-// measured. The first pilot measures each, and this value then changes.
-const HOLD_MS = 60 * 60 * 1000;
-
-/** The wait after a limit of a host that states no time. */
-export const HOST_LIMIT_HOLD_MS = HOLD_MS;
-
-const retryAfter = (value: string | undefined, now: number): number | null => {
-  if (value === undefined) return null;
-  const seconds = Number(value);
-  if (Number.isFinite(seconds) && seconds >= 0) return now + seconds * 1000;
-  const day = Date.parse(value);
-  return Number.isNaN(day) ? null : day;
-};
-
-/** The class of an answer. No code in this project solves a CAPTCHA: this class stops the calls. */
-export const classOfAnswer = (
-  answer: {
-    readonly status: number;
-    readonly body: string;
-    readonly headers: Readonly<Record<string, string>>;
-  },
-  now: number,
-): AnswerClass => {
-  // A normal answer of the register holds this field with the value false, and that is no CAPTCHA.
-  const body = answer.body.replace(/"captchaRequired"\s*:\s*false/gu, '');
-  if (/captcha/iu.test(body))
-    return { kind: 'captcha', holdState: 'waiting_source', retryAt: now + HOLD_MS };
-  if (answer.status === 429 || /volume quota|quota exceeded|rate limit/iu.test(body))
-    return {
-      kind: 'quota',
-      holdState: 'waiting_quota',
-      retryAt: retryAfter(answer.headers['retry-after'], now) ?? now + HOLD_MS,
-    };
-  if (answer.status === 403)
-    return { kind: 'refused', holdState: 'waiting_source', retryAt: now + HOLD_MS };
-  if (answer.status === 404) return { kind: 'not_found', holdState: null, retryAt: null };
-  if (answer.status >= 200 && answer.status <= 299)
-    return { kind: 'ok', holdState: null, retryAt: null };
-  return { kind: 'server', holdState: null, retryAt: null };
-};
-
-/** The ceiling of the operator on the paid proxy, in USD. The state file holds the value in use. */
-export const PROXY_CEILING_USD = 25;
-
-// External constraint: the list price of the Web Unlocker of Bright Data is 1.50 USD per 1000 pages.
-// Not checked against an invoice. The pilot of about 100 pages measures the true cost.
-export const PROXY_PAGE_USD = 0.0015;
-
-interface Ledger {
-  ceilingUsd: number;
-  spentUsd: number;
-  pages: number;
-  failed: number;
-}
-
-export interface ProxyLedger {
-  /** Reserves the cost of one call before the call. It throws ProxyCeiling with no room, and the
-   * ticket then goes to blocked.md. */
-  reserve(ticket: string): Promise<void>;
-  /** Ends a reserved call. A failed call costs nothing, and the reserved cost returns. */
-  settle(ok: boolean): Promise<void>;
-}
-
-/** The ceiling of the paid proxy is used up. */
-export class ProxyCeiling extends Error {}
-
-/** The ledger of the paid proxy in the state folder. The log holds the count and the cost, and no
- * key and no address. */
-export const proxyLedger = (state: StateClock, costUsd: number = PROXY_PAGE_USD): ProxyLedger => {
-  const file = join(state.dir, 'proxy-ledger.json');
-  const empty: Ledger = { ceilingUsd: PROXY_CEILING_USD, spentUsd: 0, pages: 0, failed: 0 };
-  const log = (line: string): Promise<void> =>
-    appendFile(join(state.dir, 'proxy-log.md'), `${state.now().toISOString()} ${line}\n`, 'utf8');
-  return {
-    reserve: async (ticket) => {
-      await locked(state, 'proxy', async () => {
-        const ledger = await readState<Ledger>(file, empty);
-        if (ledger.spentUsd + costUsd > ledger.ceilingUsd) {
-          await appendFile(
-            join(state.dir, 'blocked.md'),
-            `- ${ticket}: the proxy reached its ceiling of ${String(ledger.ceilingUsd)} USD\n`,
-            'utf8',
-          );
-          throw new ProxyCeiling(
-            `the hosted proxy reached its ceiling of ${String(ledger.ceilingUsd)} USD`,
-          );
-        }
-        await saved(file, {
-          ...ledger,
-          spentUsd: ledger.spentUsd + costUsd,
-          pages: ledger.pages + 1,
-        });
-      });
-    },
-    settle: async (ok) => {
-      await locked(state, 'proxy', async () => {
-        const ledger = await readState<Ledger>(file, empty);
-        const next = ok
-          ? ledger
-          : {
-              ...ledger,
-              spentUsd: Math.max(0, ledger.spentUsd - costUsd),
-              pages: Math.max(0, ledger.pages - 1),
-              failed: ledger.failed + 1,
-            };
-        await saved(file, next);
-        await log(
-          `${ok ? 'page' : 'failed'}: ${String(next.pages)} pages, ${next.spentUsd.toFixed(4)} USD of ${String(next.ceilingUsd)}, ${String(next.failed)} failed`,
-        );
+        const kept =
+          file.hold !== null && file.hold.until > until ? file.hold : { kind: hold, until };
+        await saved(fileOf(host), { ...file, hold: kept });
       });
     },
   };
