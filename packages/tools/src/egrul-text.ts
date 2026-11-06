@@ -5,7 +5,8 @@
 
 /** One entry of the owner section. A natural person is counted, and no field of that person is kept. */
 export interface OwnerEntry {
-  readonly kind: 'legal_person' | 'natural_person' | 'hidden' | 'other';
+  /** `state_body` is a state founder with the state body that acts for it: the fields name the body. */
+  readonly kind: 'legal_person' | 'natural_person' | 'state_body' | 'hidden' | 'other';
   readonly name: string | null;
   readonly ogrn: string | null;
   readonly inn: string | null;
@@ -46,7 +47,7 @@ const FOOT = [
   /^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2} ОГРН \d+$/u,
 ];
 
-const SECTION_START = /^Сведения об? (?:участниках|учредителях)/u;
+const SECTION_START = /^Сведения об? (?:участниках|учредителях|единственном акционере)/u;
 
 // The next section of the extract. A heading inside an owner entry, such as the holder of a pledge
 // on a share, is not on this list.
@@ -55,6 +56,7 @@ const SECTION_END =
 
 // A part of an entry that describes another party, such as the holder of a pledge.
 const INNER_HEADING = /^(?:Сведения |Обременение)/u;
+const STATE_BODY = 'Сведения об органе';
 
 const ROW = /^\d+ /u;
 const ENTRY_NUMBER = /^\d{1,4}$/u;
@@ -83,7 +85,11 @@ const valueOf = (lines: readonly string[], label: RegExp): string | null => {
     if (ROW.test(line) || INNER_HEADING.test(line)) break;
     parts.push(line);
   }
-  const value = parts.filter((part) => part !== '').join(' ');
+  // A line that ends in a hyphen goes on in the same word of the next line.
+  const value = parts
+    .filter((part) => part !== '')
+    .join(' ')
+    .replace(/(\p{L})- (?=\p{L})/gu, '$1-');
   return value === '' ? null : value;
 };
 
@@ -107,8 +113,15 @@ const entryOf = (lines: readonly string[]): OwnerEntry => {
   if (text.includes('Фамилия') || /^\d+ ИНН \d{12}$/mu.test(text))
     return { kind: 'natural_person', ...empty };
   const name = valueOf(head, FULL_NAME);
-  if (name === null)
+  if (name === null) {
+    // A state founder has no name of its own in this layout, and a state body acts for it.
+    const body = lines.findIndex((line) => line.startsWith(STATE_BODY));
+    if (body !== -1) {
+      const inner = entryOf(lines.slice(body + 1));
+      if (inner.kind === 'legal_person') return { ...inner, kind: 'state_body' };
+    }
     return { kind: lines.some((line) => line.includes(HIDDEN)) ? 'hidden' : 'other', ...empty };
+  }
   return {
     kind: 'legal_person',
     name,
