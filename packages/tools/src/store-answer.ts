@@ -32,13 +32,17 @@ const STORE = `WITH stored AS (
     SELECT public.put_fetched_document($9, $1, $2, $3, $4, $5, $6::date, NULL, $10, $11)::text AS id)
   SELECT s.id, public.put_document_text(s.id, $7::jsonb, $8) AS pages FROM stored s`;
 
-// Origin of the numbers: a table of 63 MiB took 83 s on a test stack on a busy machine, under the
-// 30 s of the research role. A page is up to 16 MiB, so above it a store is a bulk file. Each tool
-// call has its own connection, so this limit holds for this write alone.
+// Origin of the numbers: a table of 63 MiB took 83 s on a test stack on a busy machine, over the 30 s
+// of the research role. A page is up to 16 MiB, so above it a store is a bulk file. Only a session
+// on one connection can hold a limit for this write alone. The worker has no such session, and its
+// reads stay under the 20 MiB of a fetch.
 const LARGE_TEXT_BYTES = 16 * 1024 * 1024;
-const LARGE_STORE_LIMIT = 'SELECT set_config($1, $2, false)';
 const LARGE_STORE_TIMEOUT = '180s';
-const STATEMENT_TIMEOUT = 'statement_timeout';
+const SET_LIMIT = `SELECT current_setting('statement_timeout') AS held,
+                          set_config('statement_timeout', $1, false)`;
+const RESTORE_LIMIT = `SELECT set_config('statement_timeout', $1, false)`;
+
+const heldLimit = z.object({ held: z.string() });
 
 const FILL_TRACE = 'SELECT public.fill_document_trace($1, $2, $3) AS outcome';
 
@@ -128,9 +132,11 @@ export const storeAnswer = async (
     // The key holds the hash alone, as the worker writes it, so the two paths name one object.
     const title = readableTitle(answer.title, answer.pages, answer.uri);
     const key = await store.put({ key: `raw/${sha256}`, bytes: answer.bytes, mime: answer.mime });
-    const large = answer.bytes.length > LARGE_TEXT_BYTES;
+    const large = session.pinned === true && answer.bytes.length > LARGE_TEXT_BYTES;
+    const [before] = large
+      ? await rowsOf(session, heldLimit, SET_LIMIT, [LARGE_STORE_TIMEOUT])
+      : [];
     try {
-      if (large) await session.query(LARGE_STORE_LIMIT, [STATEMENT_TIMEOUT, LARGE_STORE_TIMEOUT]);
       await rowsOf(session, storedRow, STORE, [
         title,
         key,
@@ -150,9 +156,10 @@ export const storeAnswer = async (
       // A second caller stored the same bytes at the same instant.
       if (!isUniqueViolation(fault)) throw fault;
     } finally {
-      // The connection goes back to its pool with the limit of its role. A failed transaction of a
-      // caller refuses this command, and its end restores the limit.
-      if (large) await session.query(`RESET ${STATEMENT_TIMEOUT}`, []).catch(() => undefined);
+      // The connection goes back to its pool with the limit it had. A failed transaction of a caller
+      // refuses this command, and its rollback restores the limit.
+      if (before !== undefined)
+        await session.query(RESTORE_LIMIT, [before.held]).catch(() => undefined);
     }
     known = await knownOf(session, sha256);
     if (known === undefined) throw new Error('the door stored a document and no row holds it');

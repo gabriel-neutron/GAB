@@ -208,9 +208,8 @@ export const pageAddress = (raw: string): string => parsed(raw.trim()).href;
 
 // External constraint: the query keys that carry a secret or a signature in the address of an
 // object store or an API. Each provider has its own name, so the rule reads the end of the name in
-// a plain form: subscription-key, MAP_KEY, x-amz-security-token, X-Goog-Credential. A word such as
-// "keyword" stays allowed. A public address with a key of this form is refused too: it can be given
-// with no key.
+// a plain form: subscription-key, MAP_KEY, x-amz-security-token, X-Goog-Credential. An unknown name
+// with this end is refused, and the names of a page or a column of a public API stay allowed.
 const SECRET_NAME = /(?:key|token|secret|password|passwd|pwd|signature|credential)$/u;
 const SECRET_KEYS = new Set([
   'sig',
@@ -218,12 +217,24 @@ const SECRET_KEYS = new Set([
   'authorization',
   'keypairid',
   'googleaccessid',
+  'awsaccesskeyid',
   'pass',
+  'jwt',
+]);
+const PUBLIC_KEYS = new Set([
+  'pagetoken',
+  'nextpagetoken',
+  'continuationtoken',
+  'skiptoken',
+  'sortkey',
+  'primarykey',
+  'partitionkey',
+  'serieskey',
 ]);
 
 const isSecretKey = (name: string): boolean => {
-  const plain = name.toLowerCase().replace(/[-_.]/gu, '');
-  return SECRET_KEYS.has(plain) || SECRET_NAME.test(plain);
+  const plain = name.toLowerCase().replace(/[-_.$]/gu, '');
+  return SECRET_KEYS.has(plain) || (SECRET_NAME.test(plain) && !PUBLIC_KEYS.has(plain));
 };
 
 /** True when the address holds a user name, a password or a secret query key. The record publishes

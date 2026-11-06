@@ -33,6 +33,7 @@ const fetchDocument = toolNamed('fetch_document');
 
 const sessionOf = (ask: Ask): Session => ({
   query: async (statement, values) => ({ rows: await ask(statement, values) }),
+  pinned: true,
 });
 
 // Each run gets other bytes, so no row of an earlier run makes the file known.

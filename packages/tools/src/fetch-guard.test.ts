@@ -227,13 +227,25 @@ test.each([
   'X-Goog-Credential',
   'GoogleAccessId',
   'Key-Pair-Id',
+  'AWSAccessKeyId',
+  'jwt',
 ])('an address with the query name %s holds a secret', (name) => {
   expect(holdsSecret(`https://data.example/file.csv?${name}=abc`)).toBe(true);
 });
 
-test.each(['keyword', 'page', 'q', 'tokens_used', 'id', 'format'])(
-  'an address with the query name %s holds no secret',
-  (name) => {
-    expect(holdsSecret(`https://data.example/file.csv?${name}=abc`)).toBe(false);
-  },
-);
+test.each([
+  'keyword',
+  'page',
+  'q',
+  'tokens_used',
+  'id',
+  'format',
+  'pageToken',
+  'nextPageToken',
+  '$skiptoken',
+  'continuationToken',
+  'sortKey',
+  'series_key',
+])('an address with the query name %s holds no secret', (name) => {
+  expect(holdsSecret(`https://data.example/file.csv?${name}=abc`)).toBe(false);
+});
