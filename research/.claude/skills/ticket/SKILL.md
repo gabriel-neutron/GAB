@@ -38,19 +38,19 @@ software. A research session never edits code, so:
 1. Send the gap to the skill `expert-panel` when it is a question of the data model.
 2. Start a new code session yourself, where the build rules of the root `CLAUDE.md` put the
    code work, with a short brief: the gap, the refusal text, the ticket number and what done
-   looks like. Continue the other lots. A worker with no right to start a session writes the gap,
-   the refusal and the ticket number in its result.
-3. When the code session says that its pull request is merged into `staging`, update the
-   checkout: run `git -C .. pull --ff-only origin staging`, then `pnpm -C .. db:migrate` and
-   `pnpm -C .. db:apply`. The `gab` server keeps its old code until it starts again, so when the
-   pull changed `packages/`, ask the operator to reconnect `gab` with `/mcp`. Then check the
-   commit that the server gives.
-
-   **A worker does not do this step, and it never asks for `/mcp`.** The supervisor pulls, migrates
+   looks like. Continue the other lots. A worker (any session that the supervisor starts) does not
+   start a session: it writes the gap, the refusal and the ticket number in its result.
+3. **A worker does not do this step, and it never asks for `/mcp`.** The supervisor pulls, migrates
    and restarts the server. A worker that needs the new tool writes its blocked items in its result
    and ends. The next worker is a new process: it checks the commit that the server gives, and it
    sends the blocked items only if the tool is there. If the commit is old, it ends with the same
    result, and the hold costs no attempt.
+
+   In an attended session, when the code session says that its pull request is merged into
+   `staging`, update the checkout: run `git -C .. pull --ff-only origin staging`, then `pnpm -C .. db:migrate` and
+   `pnpm -C .. db:apply`. The `gab` server keeps its old code until it starts again, so when the
+   pull changed `packages/`, ask the operator to reconnect `gab` with `/mcp`. Then check the
+   commit that the server gives.
 4. Send the blocked items again.
 
 ## A different day for a date that the record holds

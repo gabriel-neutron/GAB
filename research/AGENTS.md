@@ -23,6 +23,12 @@ never stops to wait for a person.** Each rule or skill that needs the operator r
 worker. When no line below answers, send the question to the skill `expert-panel`. When the panel
 does not agree, the ticket parks, one line goes to the operator queue, and the other tickets go on.
 
+The words of the wave are in #1270, and they are not words of the record. A ticket state, a hold
+(such as waiting_signature) and the ceiling are in the supervisor state, outside the checkout. A
+worker does not write them: it writes the reason in its result, and the supervisor sets them. The
+operator queue is one local file, `research/out/v3-plan/wave-start/operator-queue.md`, with one
+line for each question or signature. The level of a source is on the signed list.
+
 - **The freeze is 2026-11-20.** This is the limit of the panel verdict, and the supervisor uses this
   one value. No new ticket opens after it, and each parked ticket then closes as parked. A later
   date is not a way to get more facts. The report text and the legal read use the days after the
@@ -176,8 +182,8 @@ operator to accept" a proposal.
   that it finds, also the facts outside your layer. Queue it (`enqueue_extract`) only when the
   operator asks for it, or for a worker when a line of the signed list allows it.
 - **The mapper is the back-end AI for a table.** A stored CSV, TSV or SDMX-CSV table has columns that
-  Gabriel does not know. Queue its mapping (`enqueue_mapping`) only when the operator asks for it, or for a worker when a line of the signed list allows it. Follow it
-  with `job_status`, and read the mapping with `list_proposals`. The operator promotes the
+  Gabriel does not know. Queue its mapping (`enqueue_mapping`) only when the operator asks for it, or for a
+  worker when a line of the signed list allows it. Follow it with `job_status`, and read the mapping with `list_proposals`. The operator promotes the
   mapping, and then code loads the rows. You do not propose the rows of a table by hand.
 - **The lead agent finds sources for a lead.** For a broad lead, such as a company and its
   vessels, call `start_lead` with a short text. The back-end AI searches the web and the news,
