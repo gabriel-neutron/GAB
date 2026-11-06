@@ -173,31 +173,6 @@ test('search_graph finds a hull by its imo, and the next proposal on it is updat
   expect(found.made.proposals).toHaveLength(1);
 });
 
-test.each([
-  ['swift_bic', 'ASANRU8X'],
-  ['ru_bic', '044525225'],
-])('propose takes a bank code under %s, and search_graph takes the key', async (key, value) => {
-  const found = await rolledBack('research', async (ask) => {
-    await withDocument(ask, ['page one']);
-    const made = proposed.parse(
-      await output(
-        ask,
-        'propose',
-        citedOnPageOne({
-          op: 'create_entity',
-          type: 'bank',
-          label: `Bank ${value}`,
-          attrs: { [key]: { v: value } },
-        }),
-      ),
-    );
-    const result = hits.parse(await output(ask, 'search_graph', { identifier: { key, value } }));
-    return { made, result };
-  });
-  expect(found.made.proposals).toHaveLength(1);
-  expect(found.result.entities).toBeDefined();
-});
-
 test('search_graph finds nothing for an imo that no entity holds', async () => {
   const found = await rolledBack('research', async (ask) =>
     hits.parse(await output(ask, 'search_graph', { identifier: { key: 'imo', value: '9074729' } })),

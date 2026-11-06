@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { as, OWN_SITE, rate, reference } from '../../../tools/author-fixture.ts';
 import { rolledBack, type Ask } from '../../../tools/probe.ts';
 import { proposeOf } from './propose.ts';
+import { searchGraph } from './search-graph.ts';
 import { PORT_CALL_TYPES } from './stated-value.ts';
 import { callTool, type Session } from './tool.ts';
 
@@ -424,3 +425,36 @@ test('propose accepts a found_in fact of a live type that takes no dates', async
     expect(row?.type).toBe('found_in');
   });
 });
+
+test.each([
+  ['swift_bic', 'ASANRU8X', 'ASANRU8XXXX'],
+  ['ru_bic', '044525225', '044525225'],
+])(
+  'a bank is found by its %s, and a second bank with that code is refused',
+  async (key, code, copy) => {
+    await rolledBack('superuser', async (ask) => {
+      const doc = await post(ask, 33, `Bank A has the code ${code}. Bank B has the code ${copy}.`);
+      const bank = (label: string, value: string) => ({
+        op: 'create_entity',
+        type: 'bank',
+        label,
+        attrs: { [key]: { v: value } },
+      });
+      const first = await idOf(ask, [item('call', bank('Bank A', code), doc, 'Bank A', name())]);
+      await ask(
+        `INSERT INTO public.entities (type, label, sources, promoted_from, attrs)
+       VALUES ('bank', 'Bank A', ARRAY['manual']::doc_id[], $1, $2::jsonb)`,
+        [first, JSON.stringify({ [key]: { v: code, src: ['manual'] } })],
+      );
+      const found = await as(ask, 'gabriel_research', () =>
+        callTool(searchGraph, sessionOf(ask), { identifier: { key, value: copy } }),
+      );
+      expect(found).toMatchObject({ ok: true, output: { entities: [{ label: 'Bank A' }] } });
+      const second = await proposed(ask, [
+        item('call', bank('Bank B', copy), doc, 'Bank B', name()),
+      ]);
+      expect(second).toMatchObject({ ok: false });
+      expect(JSON.stringify(second)).toContain('holds the');
+    });
+  },
+);

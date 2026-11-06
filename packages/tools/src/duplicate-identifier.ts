@@ -1,6 +1,9 @@
+import { swiftBicOf } from '@gab/proposal/identifiers';
+
 /** The keys that name one legal or physical thing: an INN (tax_id), an OGRN (registration_number),
- * an IMO number, an IMO company number, a LEI and a bank code (swift_bic, ru_bic). Two entities, of any type, with the same value are one thing recorded
- * twice, or a wrong value. */
+ * an IMO number, an IMO company number, a LEI and a bank code (swift_bic, ru_bic). Two entities, of
+ * any type, with the same value are one thing recorded twice, or a wrong value. A branch has a bank
+ * code of its own, so a shared code is no branch. */
 export const UNIQUE_KEYS = [
   'imo',
   'imo_company_number',
@@ -27,10 +30,17 @@ export interface DuplicateGroup {
   readonly entities: { readonly id: string; readonly label: string; readonly type: string }[];
 }
 
-const valuesOf = (held: unknown): string[] =>
+/** The form of a value that two copies of one identifier share: no space, no hyphen, capitals, and
+ * one form of a head office BIC. */
+export const plainIdentifier = (key: string, value: string | number): string => {
+  const plain = String(value).replace(/[\s-]/gu, '').toUpperCase();
+  return key === 'swift_bic' ? (swiftBicOf(plain) ?? plain) : plain;
+};
+
+const valuesOf = (key: string, held: unknown): string[] =>
   (Array.isArray(held) ? held : [held])
     .filter((one): one is string | number => typeof one === 'string' || typeof one === 'number')
-    .map((one) => String(one).replace(/[\s-]/gu, '').toUpperCase())
+    .map((one) => plainIdentifier(key, one))
     .filter((one) => one !== '');
 
 /** The groups of two or more entities that hold the same value of a unique key. It
@@ -43,7 +53,7 @@ export const duplicateIdentifiers = (entities: readonly EntityIdentifiers[]): Du
   >();
   for (const entity of entities) {
     for (const key of UNIQUE_KEYS) {
-      for (const value of new Set(valuesOf(entity.attrs[key]?.v))) {
+      for (const value of new Set(valuesOf(key, entity.attrs[key]?.v))) {
         const at = JSON.stringify([key, value]);
         const group = groups.get(at) ?? { key, value, entities: [] };
         if (!group.entities.some((one) => one.id === entity.id)) {

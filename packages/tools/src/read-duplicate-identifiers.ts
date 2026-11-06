@@ -30,7 +30,7 @@ export const readDuplicateIdentifiers = defineTool({
   name: 'read_duplicate_identifiers',
   description:
     'Lists the groups of two or more entities that hold the same value of an INN (tax_id), an ' +
-    'OGRN (registration_number), an IMO number (imo), an IMO company number (imo_company_number) ' +
+    'OGRN (registration_number), an IMO number (imo), an IMO company number (imo_company_number), ' +
     'a LEI (lei) or a bank code (swift_bic, ru_bic), whatever their type. One ' +
     'group is one thing recorded twice, or a wrong value, and it splits the chain of ownership. ' +
     'It reads the record and the new entities that wait in the review queue (pending: true), so ' +

@@ -151,13 +151,7 @@ export const identifierContainment = (
 ): readonly Readonly<Record<string, { readonly v: unknown }>>[] => {
   const asNumber = Number(value);
   const bic = key === 'swift_bic' ? swiftBicOf(value) : null;
-  const values: unknown[] =
-    bic !== null
-      ? bic.length === 8
-        ? [bic, `${bic}XXX`]
-        : [bic]
-      : value.trim() !== '' && String(asNumber) === value
-        ? [value, asNumber]
-        : [value];
+  const plain = value.trim() !== '' && String(asNumber) === value ? [value, asNumber] : [value];
+  const values: unknown[] = bic === null ? plain : bic.length === 8 ? [bic, `${bic}XXX`] : [bic];
   return values.flatMap((held) => [{ [key]: { v: held } }, { [key]: { v: [held] } }]);
 };
