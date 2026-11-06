@@ -39,6 +39,7 @@ if ($RunWorker) {
 $FREEZE = [datetime]'2026-11-20' # Method, section 5. The supervisor uses this one value.
 $MAX_ATTEMPTS = 3
 $STALE_MINUTES = 30
+$STUCK_MINUTES = 10 # Over the 4-minute limit of the task: no tick that works is this old.
 $NEXT = @{ pilot = 'working'; working = 'reviewing'; reviewing = 'closing'; closing = 'closed' }
 $WORK = @('pilot', 'working', 'reviewing', 'closing', 'needs_panel')
 # The minutes to the next try of a hold. A try after a hold costs no attempt. A signature has no timer.
@@ -206,6 +207,7 @@ function Move-ByOutcome($t) {
 # shortcut: each process of this user can write the inbox, the role allow lists of BLD-04 close this for a worker.
 function Move-ByRequest($file) {
   $r = [IO.File]::ReadAllText($file.FullName) | ConvertFrom-Json
+  if ($time -ge $FREEZE -and ($r.ticket -or $r.to -eq 'ready')) { throw 'after the freeze no ticket opens or returns' }
   if ($r.ticket) {
     $new = Complete-Ticket ($r.ticket | Select-Object id, state, prompt, pilot, forecast, dependsOn)
     if ($new.state -ne 'ready' -or (Test-Path (Join-Path $tickets_dir "$($new.id).json"))) { throw 'not a new ready ticket' }
@@ -240,7 +242,16 @@ function Send-Alarm($lines) {
 
 $lock = $null
 try { $lock = [IO.File]::Open((Join-Path $StateDir 'tick.lock'), 'OpenOrCreate', 'ReadWrite', 'None') }
-catch [IO.IOException] { Write-Output 'lock held: another tick runs'; exit 0 }
+catch [IO.IOException] {
+  # The stop of the task ends conhost and not its PowerShell child, so a later tick ends a stuck tick.
+  # A -RunWorker process waits for a worker, and it stays. Its command line has the same script name.
+  Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object {
+    $_.ProcessId -ne $PID -and $_.CommandLine -like '*supervisor-tick.ps1*' -and $_.CommandLine -notlike '*-RunWorker*' -and
+    $_.CommandLine -match ([regex]::Escape($StateDir) + '"?(\s|$)') -and $_.CreationDate -lt $time.AddMinutes(-$STUCK_MINUTES)
+  } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  Write-Output 'lock held: another tick runs'
+  exit 0
+}
 
 try {
   if ($env:GAB_TICK_TEST_HOLD_MS) { Start-Sleep -Milliseconds $env:GAB_TICK_TEST_HOLD_MS } # For the test of the lock.
