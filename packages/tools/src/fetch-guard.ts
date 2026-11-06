@@ -403,7 +403,7 @@ const headOf = async (response: IncomingMessage): Promise<string> => {
 /** One GET, with its redirects. Each refusal is a FetchRefusal, and each comes before a write. */
 export const guardedGet = async (raw: string, options: GetOptions): Promise<Got> => {
   const refuses = options.refuses ?? refusedAddress;
-  const signal = AbortSignal.timeout(options.timeoutMs);
+  let signal = AbortSignal.timeout(options.timeoutMs);
   const lookup = guardedLookup(options.lookup, refuses);
   let url = parsed(raw);
   let seen: string | null = null;
@@ -439,7 +439,11 @@ export const guardedGet = async (raw: string, options: GetOptions): Promise<Got>
             GUARD,
           );
         url = parsed(location, url);
-        await options.beforeHop?.(url.href);
+        if (options.beforeHop !== undefined) {
+          await options.beforeHop(url.href);
+          // A wait for the turn of a host is no time of the request.
+          signal = AbortSignal.timeout(options.timeoutMs);
+        }
         continue;
       }
       if (status < 200 || status > 299) {

@@ -230,8 +230,15 @@ test.each([
   });
 });
 
+test('a stated wait has a limit, so a wrong value does not stop a host for ever', () => {
+  const answer = { status: 429, body: '', headers: { 'retry-after': '10000000000000' } };
+  expect(classOfAnswer(answer, START).retryAt).toBe(START + 24 * 60 * 60 * 1000);
+});
+
 test.each([
   [{ status: 404, body: 'gone', headers: {} }, 'not_found'],
+  [{ status: 404, body: 'a form with captcha', headers: {} }, 'not_found'],
+  [{ status: 500, body: 'a form with captcha', headers: {} }, 'server'],
   [{ status: 200, body: '{"captchaRequired":false}', headers: {} }, 'ok'],
   [{ status: 503, body: 'down', headers: {} }, 'server'],
 ])('an answer with no hold: %j', (answer, kind) => {

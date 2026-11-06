@@ -230,8 +230,16 @@ const FILTER_STATUSES: ReadonlySet<number> = new Set([403, 429, 503]);
 // The Chrome window and the proxy can run after the direct read, and the lease covers both.
 const LATER_ROUTES_MS = 120_000;
 
-// Assumption: a page that only asks for a CAPTCHA is short. A long article can name the word.
+// Assumption: a page that only asks for a CAPTCHA is short and holds little text. A longer page can
+// name the word in an article, a form or a script.
 const CAPTCHA_PAGE_BYTES = 32 * 1024;
+
+const visibleLength = (html: string): number =>
+  html
+    .replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/giu, ' ')
+    .replace(/<[^>]*>/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim().length;
 
 const BROWSER_STATUSES: ReadonlySet<number> = new Set([401, ...FILTER_STATUSES]);
 
@@ -555,6 +563,17 @@ export const fetchDocument = defineTool({
           `${fault.message.replace(/, and only a success is kept$/u, '')} to the plain request, so ` +
             'the page was read in a Chrome window; the stored bytes are the HTML that the browser shows',
         );
+        // The browser follows a redirect by itself, so this check comes after its read: a page of a
+        // held host is not kept.
+        const browserHost = russianHostOf(passed.url);
+        if (browserHost !== null) {
+          try {
+            await takeTurn(browserHost);
+          } catch (refusal) {
+            if (refusal instanceof FetchRefusal) throw new ToolRefusal(refusal.message);
+            throw refusal;
+          }
+        }
         throughFilter = true;
         return {
           url: passed.url,
@@ -670,11 +689,16 @@ export const fetchDocument = defineTool({
       };
       // A short page of a Russian host that asks for a CAPTCHA is no source, and it stops each worker.
       const answeredBy = russianHostOf(got.url);
-      if (answeredBy !== null && got.bytes.length < CAPTCHA_PAGE_BYTES) {
+      const pageText = new TextDecoder('utf-8').decode(got.bytes.subarray(0, CAPTCHA_PAGE_BYTES));
+      if (
+        answeredBy !== null &&
+        got.bytes.length < CAPTCHA_PAGE_BYTES &&
+        visibleLength(pageText) <= SHORT_PAGE
+      ) {
         const found = classOfAnswer(
           {
             status: got.status,
-            body: new TextDecoder('utf-8').decode(got.bytes.subarray(0, CAPTCHA_PAGE_BYTES)),
+            body: pageText,
             headers: {},
           },
           reach.now().getTime(),

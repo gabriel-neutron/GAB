@@ -65,6 +65,12 @@ beforeAll(async () => {
       response
         .writeHead(200, { 'content-type': 'text/html' })
         .end('<html><body>Введите captcha</body></html>');
+    } else if (url === '/article') {
+      response
+        .writeHead(200, { 'content-type': 'text/html' })
+        .end(
+          `<html><body><p>${'Текст страницы. '.repeat(200)}</p><div class="g-recaptcha"></div></body></html>`,
+        );
     } else if (url === '/captcha403') {
       response.writeHead(403, { 'content-type': 'text/html' }).end('<html>captcha</html>');
     } else if (url === '/hop') {
@@ -240,6 +246,17 @@ describe('a Russian host that refuses the direct read', () => {
     expect(fileOf('www.fsb.ru')).toContain('"captcha"');
     await run(`http://www.fsb.ru:${port}/captcha`, reachWith(store, undefined));
     expect(seen).toStrictEqual(['/captcha']);
+  });
+
+  test('a page with text and a CAPTCHA widget is kept, and the host is not held', async () => {
+    const outcome = await callTool(
+      fetchDocument,
+      fetchDatabase(),
+      { url: `http://www.rgo.ru:${port}/article` },
+      reachWith(memoryStore(), undefined),
+    );
+    expect(outcome.ok).toBe(true);
+    expect(fileOf('www.rgo.ru')).toContain('"hold":null');
   });
 
   test('a 403 page with a CAPTCHA holds the host, and no proxy goes to it', async () => {
