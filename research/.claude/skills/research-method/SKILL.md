@@ -57,7 +57,8 @@ JPEG image whose OCR text misses the fact, the skill `cite-claim` says how to ci
   a share of exports, a price. An aggregated figure enters only as an observation (ADR 0030):
   store the original file of the source with `fetch_document` (for example the SDMX-CSV file of a
   Eurostat dataset), and queue its mapping with `enqueue_mapping`. The operator promotes the
-  mapping, and code loads each row. A worker reads "A run with no person" of `research/AGENTS.md`. Never store or map a CSV file that you made. Cite a Bruegel
+  mapping, and code loads each row. A worker reads "A run with no person"
+  of `research/AGENTS.md`. Never store or map a CSV file that you made. Cite a Bruegel
   table as a document only, and never map it: its licence forbids a change of the figures.
 - The metadata of a source: its authors, their e-mail addresses, the publisher, the journal, the
   institute that paid for it. An author becomes an entity only when the author is the subject.
