@@ -60,7 +60,6 @@ $tickets_dir, $inbox_dir, $workers_dir, $history_dir = 'tickets', 'inbox', 'work
   $d
 }
 $queue = Join-Path $StateDir 'operator-queue.md'
-$config = [IO.File]::ReadAllText((Join-Path $StateDir 'supervisor.json')) | ConvertFrom-Json
 
 function Write-Log([string]$line) { [IO.File]::AppendAllText((Join-Path $StateDir 'tick.log'), "$($time.ToString('s')) $line`r`n", $utf8) }
 
@@ -134,7 +133,7 @@ function Read-Outcome([string]$base) {
 
 function Set-Park($t) {
   $t.state = 'parked'
-  [IO.File]::AppendAllText($queue, "- $($t.id) is parked: $($t.reason)`r`n", $utf8)
+  [IO.File]::AppendAllText($queue, "- $($t.id) is parked: $($t.reason -replace '\s+', ' ')`r`n", $utf8)
 }
 function Set-Panel($t) { $t.panelFrom = $t.state; $t.state = 'needs_panel' }
 function Set-Hold($t, [string]$hold, $until) {
@@ -222,6 +221,7 @@ catch [IO.IOException] { Write-Output 'lock held: another tick runs'; exit 0 }
 
 try {
   if ($env:GAB_TICK_TEST_HOLD_MS) { Start-Sleep -Milliseconds $env:GAB_TICK_TEST_HOLD_MS } # For the test of the lock.
+  $config = [IO.File]::ReadAllText((Join-Path $StateDir 'supervisor.json')) | ConvertFrom-Json
   $alarms = @()
   $tickets = @()
   foreach ($file in @(Get-ChildItem $tickets_dir -Filter '*.json' | Sort-Object Name)) {
@@ -234,8 +234,11 @@ try {
     if (-not $t.worker) { continue }
     if (-not (Test-Running $t.worker)) {
       $t.outcome = Read-Outcome $t.worker.base
-    } elseif ($time -ge ([datetime]$t.worker.startedAt).AddHours($WORKER_HOURS)) {
-      & taskkill.exe /T /F /PID $t.worker.pid 2>&1 | Out-Null
+    } elseif ($t.worker.startedAt -and $time -ge ([datetime]$t.worker.startedAt).AddHours($WORKER_HOURS)) {
+      # With no start time, the pid can have a new owner, so the tick kills nothing.
+      if ($t.worker.started -ne 0) {
+        try { & taskkill.exe /T /F /PID $t.worker.pid 2>&1 | Out-Null } catch { Write-Log "taskkill failed: $_" }
+      }
       $t.outcome = @{ kind = 'failed'; reason = "worker over the limit of $WORKER_HOURS hours" }
     } else { continue }
     $t.worker = $null

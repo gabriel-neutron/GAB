@@ -321,6 +321,13 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       expect(ticket(dir, 'T-O').reason).toContain('over the limit');
       expect(() => process.kill(pid, 0)).toThrow();
 
+      const noSettings = folder();
+      rmSync(join(noSettings, 'supervisor.json'));
+      expect(() =>
+        execFileSync('powershell.exe', tickArguments(noSettings), { stdio: 'pipe' }),
+      ).toThrow();
+      expect(status(noSettings).alarms.join()).toContain('the tick failed');
+
       const broken = folder({ cap: 'x' });
       seed(broken, 'T-C', 'pass');
       expect(() =>
@@ -603,12 +610,16 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       const settings = JSON.parse(readFileSync(join(dir, 'supervisor.json'), 'utf8')) as {
         waveStart: { prompt: string };
       };
-      settings.waveStart.prompt = 'PLAN:sleep:6000';
+      settings.waveStart.prompt = 'PLAN:sleep:15000';
       writeFileSync(join(dir, 'supervisor.json'), JSON.stringify(settings));
       staleState(dir, { closed: [] }, 31);
       execFileSync('powershell.exe', tickArguments(dir));
       execFileSync('powershell.exe', tickArguments(dir));
       expect(workerFiles(dir, '.spec.json')).toHaveLength(1);
+      const resume = JSON.parse(readFileSync(join(dir, 'resume.json'), 'utf8')) as {
+        worker: { pid: number } | null;
+      };
+      expect(resume.worker?.pid).toBeGreaterThan(0);
       await tick(dir);
 
       const blind = folder({
