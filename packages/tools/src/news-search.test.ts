@@ -140,6 +140,16 @@ describe('a failure is never an empty list', () => {
               results: [
                 { title: 'No date', url: 'https://news.example/a', publishedDate: null },
                 {
+                  title: 'Last hour',
+                  url: 'https://news.example/c',
+                  publishedDate: '2026-09-30T23:30:00',
+                },
+                {
+                  title: 'Day after',
+                  url: 'https://news.example/d',
+                  publishedDate: '2026-10-01T00:30:00',
+                },
+                {
                   title: 'Too old',
                   url: 'https://news.example/b',
                   publishedDate: '2026-01-01T00:00:00',
@@ -160,8 +170,16 @@ describe('a failure is never an empty list', () => {
             domain: 'news.example',
             language: null,
           },
+          {
+            title: 'Last hour',
+            url: 'https://news.example/c',
+            date: '2026-09-30T23:30:00.000Z',
+            domain: 'news.example',
+            language: null,
+          },
         ],
-        notice: 'GDELT failed (the server answered 429), so this list comes from SearXNG',
+        notice:
+          'GDELT failed (the server answered 429), so this list comes from SearXNG: a row with a null date can be outside the two days',
       },
     });
     expect(web.asked[0]?.request.timeoutMs).toBe(30_000);

@@ -2,14 +2,16 @@ import { day } from '@gab/proposal/day';
 import { z } from 'zod';
 
 import {
+  answerOf,
   clipped,
   isWebAddress,
   jsonOf,
+  plain,
+  searxRows,
+  searxSearch,
   UpstreamFault,
-  answerOf,
   webFromReach,
 } from './web-access.ts';
-import { plain, searxRows, searxSearch } from './web-search.ts';
 import { defineTool, ToolRefusal, type Web } from './tool.ts';
 
 // External constraint: GDELT DOC 2.0 has one host, and its list holds at most 250 rows. The cap
@@ -17,7 +19,7 @@ import { defineTool, ToolRefusal, type Web } from './tool.ts';
 const GDELT = 'https://api.gdeltproject.org/api/v2/doc/doc';
 const MAX_ARTICLES = 25;
 const MAX_TITLE = 300;
-// External constraint: the TLS handshake of GDELT alone can take more than ten seconds.
+// External constraint: a GDELT call took 11 to 13 seconds when it was measured.
 const GDELT_TIMEOUT_MS = 30_000;
 
 const article = z.object({
@@ -57,8 +59,11 @@ const searxArticle = z.object({
   publishedDate: z.string().nullish(),
 });
 
+// SearXNG often writes a date with no time zone. Read it as UTC, so that the day does not change
+// with the time zone of the server.
 const isoOf = (raw: string | null | undefined): string | null => {
-  const date = new Date(raw ?? '');
+  if (raw === null || raw === undefined || !/^\d{4}-\d{2}-\d{2}T/u.test(raw)) return null;
+  const date = new Date(/(?:Z|[+-]\d{2}:?\d{2})$/u.test(raw) ? raw : `${raw}Z`);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 };
 
@@ -125,11 +130,14 @@ export const newsSearch = defineTool({
       const articles =
         setting === undefined || setting === ''
           ? []
-          : await fromSearx(web, setting, input).catch(() => []);
+          : await fromSearx(web, setting, input).catch((late: unknown) => {
+              if (late instanceof UpstreamFault) return [];
+              throw late;
+            });
       if (articles.length === 0) throw new ToolRefusal(`the news search failed: ${fault.message}`);
       return {
         articles,
-        notice: `GDELT failed (${fault.message}), so this list comes from SearXNG`,
+        notice: `GDELT failed (${fault.message}), so this list comes from SearXNG: a row with a null date can be outside the two days`,
       };
     }
 

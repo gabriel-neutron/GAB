@@ -1,6 +1,15 @@
 import { z } from 'zod';
 
-import { clipped, isWebAddress, jsonOf, UpstreamFault, webFromReach } from './web-access.ts';
+import {
+  clipped,
+  isWebAddress,
+  jsonOf,
+  plain,
+  searxRows,
+  searxSearch,
+  UpstreamFault,
+  webFromReach,
+} from './web-access.ts';
 import { defineTool, ToolRefusal, type Web } from './tool.ts';
 
 const MAX_RESULTS = 20;
@@ -29,7 +38,6 @@ const outputShape = z.strictObject({
 
 type Hit = z.output<typeof hit>;
 
-export const searxRows = z.object({ results: z.array(z.unknown()) });
 const searxRow = z.object({
   title: z.string(),
   url: z.string(),
@@ -45,30 +53,6 @@ const braveRow = z.object({
   url: z.string(),
   description: z.string().optional(),
 });
-
-export const plain = (html: string): string =>
-  html
-    .replace(/<[^>]*>/gu, '')
-    .replace(/\s+/gu, ' ')
-    .trim();
-
-export const searxSearch = (setting: string, query: string): string => {
-  let base: URL;
-  try {
-    base = new URL(setting);
-  } catch {
-    throw new UpstreamFault('the SearXNG address is not an address');
-  }
-  if (base.protocol !== 'http:' && base.protocol !== 'https:')
-    throw new UpstreamFault('the SearXNG address is not an http address');
-  const url = new URL(base.href);
-  url.pathname = `${url.pathname.replace(/\/+$/u, '')}/search`;
-  url.search = '';
-  url.hash = '';
-  url.searchParams.set('q', query);
-  url.searchParams.set('format', 'json');
-  return url.href;
-};
 
 const fromSearx = async (web: Web, setting: string, query: string, count: number) => {
   const body = searxRows.safeParse(await jsonOf(web, searxSearch(setting, query)));
