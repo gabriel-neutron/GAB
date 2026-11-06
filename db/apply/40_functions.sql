@@ -5326,10 +5326,11 @@ SET search_path = pg_catalog, public, pg_temp AS $$
       FROM public.unit_faults(ARRAY(SELECT h.unit_id FROM heads h)) AS f
   ), ruled AS (
     -- The rule that matches each unit that waits. The doubt rule makes the lane "doubt", and any
-    -- other result is the lane "waiting".
+    -- other result is the lane "waiting". OFFSET 0 stops the planner from copying the call into
+    -- the rule and the lane, so the rule runs once for each unit and not twice.
     SELECT r.unit_id, r.rule, CASE WHEN r.rule = 'doubt' THEN 'doubt' ELSE 'waiting' END AS lane
       FROM (SELECT f.unit_id, public.rule_of_faults(f.unit_id, f.faults) AS rule
-              FROM faulted f) AS r
+              FROM faulted f OFFSET 0) AS r
   ), groups AS (
     SELECT q.batch_id, q.subject, q.sort_key AS group_key FROM public.queue_groups() AS q
   ), tree (start, at, path, depth) AS (
