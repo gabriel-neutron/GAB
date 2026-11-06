@@ -2,14 +2,20 @@
 // written by hand in the layout of the register. Each name and number below is invented. No test
 // reaches the network.
 
-import { beforeEach, expect, test } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { afterEach, beforeEach, expect, test } from 'vitest';
 
 import { egrulExtractWith, resetEgrulState } from './egrul-extract.ts';
 import { egrulExcerptRefusal, extractSubject, isEgrulAddress, ownerSection } from './egrul-text.ts';
 import { memoryStore } from './fetch-fixture.ts';
+import { hostLease } from './host-lease.ts';
 import { storeAnswer } from './store-answer.ts';
 import {
   callTool,
+  type Reach,
   type ToolOutcome,
   type WebAnswer,
   type WebBytes,
@@ -210,7 +216,12 @@ test('only the host of the register has this rule', () => {
 // The flow, offline.
 
 const PDF = new TextEncoder().encode('%PDF-1.7 signed extract');
+// A reach of a surface that gives no such guard.
+const without = (reach: Reach, name: 'hostLease' | 'proxyLedger'): Reach =>
+  Object.fromEntries(Object.entries(reach).filter(([key]) => key !== name)) as unknown as Reach;
+
 const NOW = Date.parse('2026-11-06T10:00:00Z');
+let stateDir = '';
 
 const tool = egrulExtractWith(() => Promise.resolve(PAGES));
 
@@ -245,15 +256,21 @@ const setup = (script: Script = {}) => {
     () => script.download?.() ?? bytes(PDF),
   );
   const session = hashDatabase();
-  const reach = {
-    store: memoryStore(),
-    web,
+  const clock = {
+    dir: stateDir,
     now: () => new Date(now),
     sleep: (ms: number) => {
       sleeps.push(ms);
       now += ms;
       return Promise.resolve();
     },
+  };
+  const reach = {
+    store: memoryStore(),
+    web,
+    now: clock.now,
+    sleep: clock.sleep,
+    hostLease: hostLease(clock),
   };
   return { web, session, reach, sleeps, advance: (ms: number) => (now += ms) };
 };
@@ -263,7 +280,14 @@ const call = (
   taxNumber = TAX,
 ): Promise<ToolOutcome> => callTool(tool, session, { taxNumber }, reach);
 
-beforeEach(resetEgrulState);
+beforeEach(() => {
+  resetEgrulState();
+  stateDir = mkdtempSync(join(tmpdir(), 'gab-egrul-'));
+});
+
+afterEach(() => {
+  rmSync(stateDir, { recursive: true, force: true });
+});
 
 test('one tax number runs the whole flow, and the document is stored under the provider egrul', async () => {
   const world = setup();
@@ -391,23 +415,36 @@ test('two callers take turns', async () => {
   expect(order).toStrictEqual(['start', 'end', 'start', 'end']);
 });
 
-test('a lease that the caller gives replaces the gate, and it ends on a fault', async () => {
+test('the turn of the lease ends on a fault, and the next call waits only the pace', async () => {
   const world = setup({ download: () => bytes('not a pdf', 500) });
-  const events: string[] = [];
-  const outcome = await callTool(
-    tool,
+  expect((await call(world)).ok).toBe(false);
+  const started = Date.now();
+  expect((await call(world)).ok).toBe(false);
+  expect(Date.now() - started).toBeLessThan(5000);
+  expect(world.sleeps).toStrictEqual([30_000]);
+});
+
+test('a hold survives a new process of the server, because the lease holds it', async () => {
+  const world = setup({ post: () => bytes(JSON.stringify({ t: 'x', captchaRequired: true })) });
+  await call(world);
+  resetEgrulState();
+  const posts = world.web.posted.length;
+  const again = await callTool(
+    egrulExtractWith(() => Promise.resolve(PAGES)),
     world.session,
     { taxNumber: TAX },
-    {
-      ...world.reach,
-      acquireHost: (host) => {
-        events.push(`acquire ${host}`);
-        return Promise.resolve(() => events.push('release'));
-      },
-    },
+    world.reach,
   );
-  expect(outcome.ok).toBe(false);
-  expect(events).toStrictEqual(['acquire egrul.nalog.ru', 'release']);
+  expect(again).toMatchObject({ ok: true, output: { status: 'hold', holdKind: 'captcha' } });
+  expect(world.web.posted).toHaveLength(posts);
+});
+
+test('a surface with no lease reaches no host', async () => {
+  const world = setup();
+  const reach = without(world.reach, 'hostLease');
+  const outcome = await callTool(tool, world.session, { taxNumber: TAX }, reach);
+  expect(outcome).toMatchObject({ ok: false });
+  expect(world.web.posted).toHaveLength(0);
 });
 
 test('a refusal repeats no part of a body', async () => {

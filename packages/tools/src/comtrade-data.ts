@@ -1,10 +1,15 @@
 import { z } from 'zod';
 
+import { classOfAnswer } from './answer-class.ts';
+import { HostHeld } from './host-lease.ts';
 import { storeRegister, type RegisterRequest } from './register-answer.ts';
 import { defineTool, ToolRefusal } from './tool.ts';
 import { anyAnswerOf, UpstreamFault, webFromReach } from './web-access.ts';
 
-const BASE = 'https://comtradeapi.un.org';
+const HOST = 'comtradeapi.un.org';
+const BASE = `https://${HOST}`;
+// Assumption: one minute ends a rate limit of one call a second.
+const RATE_LIMIT_HOLD_MS = 60_000;
 const REGISTER = 'UN Comtrade';
 
 // External constraints of the free key: 500 calls a day, one call a second and 100 000 rows a
@@ -92,13 +97,24 @@ export const comtradeData = defineTool({
     const frequency = input.period.length === 4 ? 'A' : 'M';
     const url = `${BASE}/data/v1/get/C/${frequency}/HS?${query.toString()}`;
 
-    // The slot is reserved before the wait, so calls that run together take slots one after the
-    // other.
-    const now = reach.now().getTime();
-    const slot = Math.max(now, lastCallAt + MIN_GAP_MS);
-    lastCallAt = slot;
-    if (slot > now)
-      await (reach.sleep ?? ((ms) => new Promise((done) => setTimeout(done, ms))))(slot - now);
+    // The lease of the host holds the pace and the daily cap across processes. With no lease, the
+    // slot is reserved before the wait, so calls that run together take slots one after the other.
+    let endTurn: (() => Promise<void>) | undefined;
+    if (reach.hostLease === undefined) {
+      const now = reach.now().getTime();
+      const slot = Math.max(now, lastCallAt + MIN_GAP_MS);
+      lastCallAt = slot;
+      if (slot > now)
+        await (reach.sleep ?? ((ms) => new Promise((done) => setTimeout(done, ms))))(slot - now);
+    } else {
+      try {
+        endTurn = await reach.hostLease.acquire(HOST);
+      } catch (fault) {
+        if (fault instanceof HostHeld)
+          throw new ToolRefusal(`${REGISTER}: ${fault.message}, so try again then`);
+        throw fault;
+      }
+    }
 
     query.set('maxRecords', String(MAX_ROWS));
     let answer;
@@ -109,7 +125,19 @@ export const comtradeData = defineTool({
     } catch (fault) {
       if (fault instanceof UpstreamFault) throw new ToolRefusal(`${REGISTER}: ${fault.message}`);
       throw fault;
+    } finally {
+      await endTurn?.();
     }
+    // A limit holds for each worker. A spent daily quota waits longer than a rate limit.
+    const limit = classOfAnswer(answer, reach.now().getTime());
+    if (limit.kind === 'quota')
+      await reach.hostLease?.hold(
+        HOST,
+        'quota',
+        /volume/iu.test(answer.body)
+          ? (limit.retryAt ?? reach.now().getTime())
+          : reach.now().getTime() + RATE_LIMIT_HOLD_MS,
+      );
     // A sentence below never repeats the body: the body is the words of the server.
     if (answer.status === 429)
       throw new ToolRefusal(

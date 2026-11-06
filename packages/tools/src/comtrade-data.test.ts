@@ -1,11 +1,16 @@
 // The UN Comtrade tool, offline: a web that answers from recorded answers, a store in memory and a
 // database that is a map of hashes. No test reaches the network and no test spends a call.
 
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { expect, test } from 'vitest';
 
 import { CATALOGUE } from './catalogue.ts';
 import { resetComtradeClock } from './comtrade-data.ts';
 import { memoryStore } from './fetch-fixture.ts';
+import { hostLease } from './host-lease.ts';
 import { callTool, type ToolOutcome, type WebAnswer } from './tool.ts';
 import { hashDatabase, json, stubWeb, text, type Asked } from './web-stub.ts';
 
@@ -195,4 +200,21 @@ test('a code or a period of a wrong shape is refused before any call', async () 
   const bad = await callTool(tool, session, { ...INPUT, period: '23' }, reach);
   expect(bad.ok).toBe(false);
   expect(web.asked).toHaveLength(0);
+});
+
+test('a limit holds for each worker through the lease, and the next call sends nothing', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gab-comtrade-'));
+  try {
+    const { web, session, reach } = setup({ answer: () => text('slow down', 429) });
+    const leased = {
+      ...reach,
+      hostLease: hostLease({ dir, now: reach.now, sleep: reach.sleep }),
+    };
+    expect((await callTool(tool, session, INPUT, leased)).ok).toBe(false);
+    const outcome = await callTool(tool, session, INPUT, leased);
+    expect(refusalOf(outcome)).toContain('quota hold');
+    expect(web.asked).toHaveLength(1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

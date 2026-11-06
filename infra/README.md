@@ -121,6 +121,8 @@ The state folder is outside the repository. It holds the settings file `supervis
 | Add or change the task | `powershell -File tools/supervisor-tick-task.ps1 -StateDir <folder>` |
 | Run one tick now | `powershell -File tools/supervisor-tick.ps1 -StateDir <folder>` |
 
+The host leases and the ceiling of the paid proxy are files in one folder (`packages/tools/src/host-lease.ts`). Set `GAB_STATE_DIR` to the state folder for the `gab` server and each worker, so each process reads the same state. The ledger stops each call to the proxy at the ceiling, and a stopped ticket gets a line in `blocked.md` in that folder. The proxy reads `BRIGHTDATA_API_KEY` and `BRIGHTDATA_ZONE`.
+
 ## The stack of a session
 
 Many sessions can run on one machine at the same time. When they share one stack, a reset in one
