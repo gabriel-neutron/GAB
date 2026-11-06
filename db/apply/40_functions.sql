@@ -5104,15 +5104,14 @@ $$;
 -- rules stand in rule_of_faults, which takes the faults as an argument, and a list of units checks
 -- its faults once in one call of unit_faults. unit_rule is the rule of one unit. No role holds
 -- rule_of_faults.
-CREATE OR REPLACE FUNCTION rule_of_faults(p_unit uuid, p_faults jsonb)
+--
+-- THE FIRST TWO RULES ARE IN THIS FUNCTION. It gives 'impossible', 'doubt', or NULL when a later rule decides. The
+-- lane of a unit reads only these two, so a read of the queue does not judge the sources of each
+-- fact. No role holds this step.
+CREATE OR REPLACE FUNCTION rule_before_sources(p_unit uuid, p_faults jsonb)
 RETURNS text
 LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_all_f  boolean;
-  v_single text;
-  v_pair   text;
-  v_other  text;
 BEGIN
   IF p_faults IS NULL THEN
     RETURN NULL;
@@ -5124,12 +5123,13 @@ BEGIN
   -- A contradiction or a reported claim from an author F is no doubt: the unit waits, and the card
   -- shows the conflict. A reported claim reads the author of its act. A contradiction has no
   -- single act, so it reads every act of the unit: it waits only when each one is from an author F.
-  v_all_f := NOT EXISTS (SELECT 1 FROM public.proposals a
-                          WHERE a.unit_id = p_unit AND a.status = 'pending'
-                            AND (a.originator IS NULL OR public.letter_of(a.originator) <> 'F'));
   IF EXISTS (SELECT 1 FROM jsonb_array_elements(p_faults) AS x
               WHERE x->>'level' = 'not_clean'
-                AND NOT (x->>'kind' = 'contradiction' AND v_all_f)
+                AND NOT (x->>'kind' = 'contradiction'
+                         AND NOT EXISTS (SELECT 1 FROM public.proposals a
+                                          WHERE a.unit_id = p_unit AND a.status = 'pending'
+                                            AND (a.originator IS NULL
+                                                 OR public.letter_of(a.originator) <> 'F')))
                 AND NOT (x->>'kind' = 'reported_claim'
                          AND EXISTS (SELECT 1 FROM public.proposals r
                                       WHERE r.id = (x->>'act')::uuid AND r.originator IS NOT NULL
@@ -5137,6 +5137,26 @@ BEGIN
      OR public.unit_doubt_cause(p_unit) IS NOT NULL
   THEN
     RETURN 'doubt';
+  END IF;
+  RETURN NULL;
+END $$;
+
+CREATE OR REPLACE FUNCTION rule_of_faults(p_unit uuid, p_faults jsonb)
+RETURNS text
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_first  text;
+  v_single text;
+  v_pair   text;
+  v_other  text;
+BEGIN
+  IF p_faults IS NULL THEN
+    RETURN NULL;
+  END IF;
+  v_first := public.rule_before_sources(p_unit, p_faults);
+  IF v_first IS NOT NULL THEN
+    RETURN v_first;
   END IF;
   IF EXISTS (SELECT 1 FROM jsonb_array_elements(p_faults) AS x
               WHERE x->>'level' IN ('blocks', 'waits')) THEN
@@ -5325,11 +5345,12 @@ SET search_path = pg_catalog, public, pg_temp AS $$
     SELECT f.unit_id, f.state, f.faults
       FROM public.unit_faults(ARRAY(SELECT h.unit_id FROM heads h)) AS f
   ), ruled AS (
-    -- The rule that matches each unit that waits. The doubt rule makes the lane "doubt", and any
-    -- other result is the lane "waiting". OFFSET 0 stops the planner from copying the call into
-    -- the rule and the lane, so the rule runs once for each unit and not twice.
+    -- The doubt rule makes the lane "doubt", and any other result is the lane "waiting". So the
+    -- read runs only the rules before the sources: the later rules cost the most and change no
+    -- lane. OFFSET 0 stops the planner from copying the call into the rule and the lane, so the
+    -- rule runs once for each unit and not twice.
     SELECT r.unit_id, r.rule, CASE WHEN r.rule = 'doubt' THEN 'doubt' ELSE 'waiting' END AS lane
-      FROM (SELECT f.unit_id, public.rule_of_faults(f.unit_id, f.faults) AS rule
+      FROM (SELECT f.unit_id, public.rule_before_sources(f.unit_id, f.faults) AS rule
               FROM faulted f OFFSET 0) AS r
   ), groups AS (
     SELECT q.batch_id, q.subject, q.sort_key AS group_key FROM public.queue_groups() AS q

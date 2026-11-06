@@ -199,6 +199,7 @@ REVOKE ALL ON FUNCTION fact_is_strong(text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION units_of_author(uuid)       FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_rule(uuid)             FROM PUBLIC, gabriel_app;
 REVOKE ALL ON FUNCTION unit_doubt_cause(uuid)      FROM PUBLIC;
+REVOKE ALL ON FUNCTION rule_before_sources(uuid,jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION rule_of_faults(uuid,jsonb)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_said(uuid,text,jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION apply_rules(uuid)           FROM PUBLIC;
