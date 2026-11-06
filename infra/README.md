@@ -98,6 +98,18 @@ are absolute: the folder of the checkpoint, and the environment file of the rese
 | Add or change the task | `powershell -File tools/ais-collector-task.ps1 -Folder <folder> -EnvFile <file>` |
 | Read the checkpoint of the last 48 hours | `node tools/ais-collector.ts report <folder> 48` |
 
+## The setup check
+
+The operator connects once and then does nothing, so a silent missing item would look like a dead
+wave. A read-only check names each missing item of the person steps of the wave, and it changes no
+setting. It prints only names and statuses, never a value, and it exits with 1 when an item is
+missing. An item that only a person can do has the words "a person only". An unsigned list reports
+`waiting_signature`, and a missing proxy key reports `not_set`: neither one is a fault.
+
+| You want | Run |
+|---|---|
+| Read the setup | `node --env-file=<research environment file> tools/setup-check.ts <signed list file>` |
+
 ## The supervisor tick
 
 The tenfold wave has no long-lived orchestrator, because a long-lived process can die and then a
