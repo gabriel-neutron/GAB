@@ -88,6 +88,15 @@ test('a worker that died gives the host back after the time of its lease', async
   expect(now - START).toBeGreaterThanOrEqual(5 * 60 * 1000);
 });
 
+test('a read that names a longer time keeps its turn for that time', async () => {
+  const lease = hostLease(state());
+  await lease.acquire(HOST, 20 * 60 * 1000);
+  await (
+    await lease.acquire(HOST)
+  )();
+  expect(now - START).toBeGreaterThanOrEqual(20 * 60 * 1000);
+});
+
 test('the lease survives a new process of the tool, because a file holds it', async () => {
   const end = await hostLease(state()).acquire(HOST);
   const file = JSON.parse(readFileSync(join(dir, `lease-${HOST}.json`), 'utf8')) as {

@@ -67,8 +67,9 @@ export class HostHeld extends Error {
 export interface HostLease {
   /** Waits for the one turn of the host and its pace, and gives the function that ends the turn.
    * It throws HostHeld during a hold or above the daily cap. The end of a turn never throws: a turn
-   * that a fault keeps ends with the time of its lease. */
-  acquire(host: string): Promise<() => Promise<void>>;
+   * that a fault keeps ends with the time of its lease. A read that can last longer than LEASE_MS
+   * names its longest time. */
+  acquire(host: string, readMs?: number): Promise<() => Promise<void>>;
   /** Stops the calls to the host until this time, for each worker. A longer hold stays. */
   hold(host: string, hold: HoldClass, until: number): Promise<void>;
 }
@@ -101,6 +102,7 @@ export const hostLease = (state: StateClock): HostLease => {
     host: string,
     policy: Policy,
     token: string,
+    leaseMs: number,
   ): Promise<{ wait: number; taken: boolean }> =>
     locked(state, `lease-${host}`, async () => {
       const file = await readState<LeaseFile>(fileOf(host), EMPTY);
@@ -116,7 +118,7 @@ export const hostLease = (state: StateClock): HostLease => {
       const slot = Math.max(ms, file.lastStart + policy.gapMs);
       await saved(fileOf(host), {
         holder: token,
-        leaseUntil: slot + LEASE_MS,
+        leaseUntil: slot + leaseMs,
         lastStart: slot,
         day,
         count: count + 1,
@@ -125,12 +127,12 @@ export const hostLease = (state: StateClock): HostLease => {
       return { wait: slot - ms, taken: true };
     });
   return {
-    acquire: async (given) => {
+    acquire: async (given, readMs = LEASE_MS) => {
       const host = plainHost(given);
       const policy = policyOf(host) ?? RUSSIAN_POLICY;
       const token = randomUUID();
       for (;;) {
-        const { wait, taken } = await take(host, policy, token);
+        const { wait, taken } = await take(host, policy, token, Math.max(LEASE_MS, readMs));
         if (wait > 0) await state.sleep(wait);
         if (taken) break;
       }

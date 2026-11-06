@@ -221,6 +221,9 @@ const NEEDS_STEP =
 const FILTER_STATUSES: ReadonlySet<number> = new Set([403, 429, 503]);
 
 // Qrator and DataDome refuse a robot with a 401, so the browser also reads a page that gave one.
+// The Chrome window and the proxy can run after the direct read, and the lease covers both.
+const LATER_ROUTES_MS = 120_000;
+
 const BROWSER_STATUSES: ReadonlySet<number> = new Set([401, ...FILTER_STATUSES]);
 
 /** The refusal of a failed fetch, with the step for a bot filter or a server that is silent. */
@@ -552,7 +555,7 @@ export const fetchDocument = defineTool({
           'this surface gives no host lease, so it reads no Russian state host',
         );
       try {
-        endTurn = await reach.hostLease.acquire(host);
+        endTurn = await reach.hostLease.acquire(host, getOptions.timeoutMs + LATER_ROUTES_MS);
       } catch (fault) {
         if (fault instanceof HostHeld) throw new ToolRefusal(`${fault.message}, so try again then`);
         throw fault;
