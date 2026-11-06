@@ -257,7 +257,13 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       env: { ...process.env, GAB_TICK_TEST_HOLD_MS: '600000' },
     }).catch(() => 'stopped');
     while (!lockHeld(dir)) await new Promise((resolve) => setTimeout(resolve, 50));
-    const other = folder();
+    // The path of this folder starts with the path of the first folder, so the match must be exact.
+    const other = `${dir} 2`;
+    mkdirSync(join(other, 'tickets'), { recursive: true });
+    writeFileSync(
+      join(other, 'supervisor.json'),
+      readFileSync(join(dir, 'supervisor.json'), 'utf8'),
+    );
     const otherTick = promisify(execFile)('powershell.exe', tickArguments(other, realNow()), {
       env: { ...process.env, GAB_TICK_TEST_HOLD_MS: '600000' },
     }).catch(() => 'stopped');
