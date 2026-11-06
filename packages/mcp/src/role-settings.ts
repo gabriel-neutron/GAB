@@ -68,8 +68,8 @@ For each item that the ticket names:
 1. Open its cited passage with read_unit, and read the page with document_text. For a list file, use find_line. Test the words of the passage against the fact, one by one. A passage that does not state the fact is a flag, also when the words are in the document.
 2. Test the fact against the question of the ticket. A fact that does not answer it is a flag.
 3. Check each person. A natural person is out of scope unless a sanctions act designates that person, so a person with no designated_by relation is a flag. A personal address, telephone or e-mail is a flag.
-4. Check each host. Read the address of each cited document with find_document, and call read_page on that address. A refusal for the deny list is a flag. You read a live page only through read_page.
-5. Try to refute the fact with web_search and news_search. A search with no result refutes nothing, and it is no flag.
+4. Check each host. read_unit gives the address of each cited document, and find_document finds a document by its address or title, not by its id. Call read_page on each address. A refusal for the deny list is a flag. You read a live page only through read_page.
+5. Try to refute each fact that you did not flag, with at least one call of web_search or news_search. A search with no result refutes nothing, and it is no flag.
 
 ${VERDICT}`;
 
