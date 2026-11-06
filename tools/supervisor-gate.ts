@@ -357,7 +357,7 @@ const runScenario = async (name: Scenario) => {
   const want = (ok: boolean, gap: string) => {
     if (!ok) gaps.push(gap);
   };
-  want(ticket.attempts === 0 && ticket.noPass === 0, 'the fault cost an attempt');
+  want(ticket.attempts === 0 && ticket.noPass === 0, 'an attempt was lost: read tick.log');
   if (name === 'token') {
     want(ticket.state === 'waiting_token', `state is ${ticket.state}, not waiting_token`);
     want(workerFiles(dir, '.spec.json').length === 1, 'a worker started during the token hold');
@@ -416,10 +416,18 @@ const realState = (checkpointSize: number): RealState => ({
     '--filter',
     `label=com.docker.compose.project=${REAL_PROJECT}`,
     '--format',
-    '{{.ID}} {{.Names}} {{.State}} {{.RunningFor}}',
+    '{{.ID}}',
   ])
-    .stdout.split(/\r?\n/u)
-    .map((line) => line.split(' ').slice(0, 3).join(' '))
+    .stdout.split(/\s+/u)
+    .filter(Boolean)
+    .map((id) =>
+      run('docker', [
+        'inspect',
+        '--format',
+        '{{.Name}} {{.Id}} {{.State.StartedAt}} {{.RestartCount}}',
+        id,
+      ]).stdout.trim(),
+    )
     .sort(),
   checkpoint: checkpointPrefix(checkpointSize),
 });
@@ -431,8 +439,8 @@ const before = realState(checkpointSize);
 const realGabUp = await portAnswers(REAL_GAB_PORT);
 const results = [];
 let failure = '';
+if (await portAnswers(TEST_GAB_PORT)) throw new Error('The port of the test server is held.');
 try {
-  if (await portAnswers(TEST_GAB_PORT)) throw new Error('The port of the test server is held.');
   await startTestGab();
   for (const name of chosen) {
     // A run that throws is a gap. The next runs and the summary still come.
