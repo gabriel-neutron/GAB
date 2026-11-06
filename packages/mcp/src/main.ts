@@ -26,6 +26,7 @@ import {
 import { serveHttp, HTTP_HOST, HTTP_PATH } from './http.ts';
 import { checkEnvOf, readSecondCheck, type SecondCheck } from './second-check.ts';
 import { createServer } from './server.ts';
+import { hostGuards } from '@gab/tools/host-lease';
 import { webOf } from '@gab/tools/web';
 
 // The research environment file fills each value that the process does not set.
@@ -71,11 +72,13 @@ const INBOX = resolve(GIVEN_INBOX === '' ? CONFIG_FILES.inbox : GIVEN_INBOX);
 
 const reachOf = (): Reach => {
   const web = webOf(process.env);
+  const guards = hostGuards(process.env);
   try {
     const store = openStore();
     return {
       store: { put: (object) => putObject(store, object) },
       web,
+      ...guards,
       inbox: INBOX,
       readThroughFilter,
       now: () => new Date(),
@@ -84,7 +87,7 @@ const reachOf = (): Reach => {
     console.error(
       `the tools that store are off: ${cause instanceof Error ? cause.message : 'no object store'}`,
     );
-    return { web, now: () => new Date() };
+    return { web, ...guards, now: () => new Date() };
   }
 };
 

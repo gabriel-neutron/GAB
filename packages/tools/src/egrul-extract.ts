@@ -3,23 +3,17 @@
 // for the extract, a wait, and a download of a signed PDF.
 //
 // The panel ruling on this source holds for each line below. The tool keeps one session and never
-// opens a new one to reset a limit. A CAPTCHA stops the calls: the tool gives a hold with the wait
-// time, and it solves nothing. The file names natural persons, so it is stored under the provider
+// opens a new one to reset a limit. A CAPTCHA stops the calls of each worker: the tool gives a hold
+// with the wait time, and it solves nothing. The lease of the host holds the pace. The file names natural persons, so it is stored under the provider
 // `egrul`, stays internal, and no release publishes it.
 
 import { extractText } from '@gab/text';
 import { z } from 'zod';
 
 import { extractSubject, ownerSection } from './egrul-text.ts';
+import { classOfAnswer, HostHeld, type HoldClass } from './host-lease.ts';
 import { storeAnswer } from './store-answer.ts';
-import {
-  defineTool,
-  ToolRefusal,
-  type AcquireHost,
-  type Reach,
-  type Web,
-  type WebAnswer,
-} from './tool.ts';
+import { defineTool, ToolRefusal, type Reach, type Web, type WebAnswer } from './tool.ts';
 import { anyAnswerOf, UpstreamFault, webFromReach } from './web-access.ts';
 
 const HOST = 'egrul.nalog.ru';
@@ -27,12 +21,6 @@ const BASE = `https://${HOST}`;
 const REGISTER = 'The Russian register';
 const MIME = 'application/pdf';
 
-// The panel ruling gives this first pace: one extract per 30 s. A faster pace needs a passed test of
-// one session at 30 s for 60 extracts.
-const GAP_MS = 30_000;
-// Assumption of the first build: the reset of the CAPTCHA is not measured. The pilot of the first
-// research ticket measures it, and this value then changes.
-const HOLD_MS = 60 * 60 * 1000;
 // Assumption, from the access test: an extract is ready in some seconds.
 const POLL_MS = 1000;
 const POLLS = 30;
@@ -43,55 +31,39 @@ const MAX_PDF_BYTES = 32 * 1024 * 1024;
 const SENTENCE =
   'A register extract names natural persons, so this document stays internal and no release publishes it. An excerpt can name a legal person only.';
 
-// The state of this process. A later lease of the supervisor replaces the gate through
-// `reach.acquireHost`, and the hold stays here.
-let turn: Promise<unknown> = Promise.resolve();
-let lastStart = 0;
-let heldUntil = 0;
+// The session of this process. The lease of the host holds the turn, the pace and the hold, in a file
+// that each process reads, so a new process starts no call during a hold.
 let cookie = '';
 
-/** Clears the gate, the hold and the session. A test calls it. */
+/** Clears the session. A test calls it. */
 export const resetEgrulState = (): void => {
-  turn = Promise.resolve();
-  lastStart = 0;
-  heldUntil = 0;
   cookie = '';
 };
 
 const sleepOf = (reach: Reach): ((ms: number) => Promise<void>) =>
   reach.sleep ?? ((ms) => new Promise((done) => setTimeout(done, ms)));
 
-// One caller at a time, and one start per gap. The slot is reserved before the wait.
-const pacedGate =
-  (reach: Reach): AcquireHost =>
-  async () => {
-    const before = turn;
-    let release = (): void => undefined;
-    turn = new Promise<void>((done) => {
-      release = done;
-    });
-    await before;
-    try {
-      const now = reach.now().getTime();
-      const slot = Math.max(now, lastStart + GAP_MS);
-      lastStart = slot;
-      // A hold that started while this caller waited makes no call, so it does not wait a gap.
-      if (slot > now && heldUntil <= now) await sleepOf(reach)(slot - now);
-    } catch (fault) {
-      release();
-      throw fault;
-    }
-    return release;
-  };
-
 /** A CAPTCHA, or a refusal of the service that only a wait can end. */
-class Hold extends Error {}
+class Hold extends Error {
+  readonly kind: HoldClass;
+  readonly until: number;
+  constructor(kind: HoldClass, until: number) {
+    super(kind);
+    this.kind = kind;
+    this.until = until;
+  }
+}
 
-// Each normal answer holds the field captchaRequired with the value false, and that is no CAPTCHA.
-const isHold = (status: number, body: string): boolean =>
-  status === 403 ||
-  status === 429 ||
-  /captcha/iu.test(body.replace(/"captchaRequired"\s*:\s*false/gu, ''));
+const throwOnHold = (
+  reach: Reach,
+  status: number,
+  body: string,
+  headers: Readonly<Record<string, string>>,
+): void => {
+  const found = classOfAnswer({ status, body, headers }, reach.now().getTime());
+  if (found.kind === 'captcha' || found.kind === 'quota' || found.kind === 'refused')
+    throw new Hold(found.kind, found.retryAt ?? reach.now().getTime());
+};
 
 const remember = (headers: Readonly<Record<string, string>>): void => {
   const found = /JSESSIONID=([^;,\s]+)/u.exec(headers['set-cookie'] ?? '');
@@ -107,18 +79,12 @@ const headersOf = (): Record<string, string> => ({
 
 // A sentence below repeats no part of a body: a search row can name a natural person.
 const parsed = (status: number, body: string): unknown => {
-  if (isHold(status, body)) throw new Hold();
   if (status < 200 || status > 299) throw new ToolRefusal(`${REGISTER} answered ${String(status)}`);
-  let json: unknown;
   try {
-    json = JSON.parse(body) as unknown;
+    return JSON.parse(body) as unknown;
   } catch {
     throw new ToolRefusal(`${REGISTER} gave an answer that is not JSON`);
   }
-  if (typeof json === 'object' && json !== null && 'captchaRequired' in json) {
-    if (json.captchaRequired === true) throw new Hold();
-  }
-  return json;
 };
 
 const shape = <Shape extends z.ZodType>(found: Shape, json: unknown): z.output<Shape> => {
@@ -138,7 +104,7 @@ const stamped = (reach: Reach, path: string): string => {
   return `${BASE}${path}?r=${now}&_=${now}`;
 };
 
-const getJson = async (web: Web, url: string): Promise<unknown> => {
+const getJson = async (web: Web, reach: Reach, url: string): Promise<unknown> => {
   let answer: WebAnswer;
   try {
     answer = await anyAnswerOf(web, url, { headers: headersOf(), timeoutMs: TIMEOUT_MS });
@@ -147,10 +113,11 @@ const getJson = async (web: Web, url: string): Promise<unknown> => {
     throw fault;
   }
   remember(answer.headers);
+  throwOnHold(reach, answer.status, answer.body, answer.headers);
   return parsed(answer.status, answer.body);
 };
 
-const postForm = async (web: Web, taxNumber: string): Promise<string> => {
+const postForm = async (web: Web, reach: Reach, taxNumber: string): Promise<string> => {
   if (web.post === undefined)
     throw new ToolRefusal('this surface gives no POST, so this tool reads no extract');
   // The field of the CAPTCHA stays empty. No code fills it.
@@ -174,6 +141,7 @@ const postForm = async (web: Web, taxNumber: string): Promise<string> => {
   }
   remember(answer.headers);
   const text = new TextDecoder().decode(answer.bytes);
+  throwOnHold(reach, answer.status, text, answer.headers);
   return shape(token, parsed(answer.status, text)).t;
 };
 
@@ -192,7 +160,7 @@ const waitFor = async <Answer>(
   );
 };
 
-const downloadOf = async (web: Web, requestToken: string): Promise<Uint8Array> => {
+const downloadOf = async (web: Web, reach: Reach, requestToken: string): Promise<Uint8Array> => {
   if (web.getBytes === undefined)
     throw new ToolRefusal('this surface gives no download, so this tool reads no extract');
   let answer;
@@ -208,7 +176,7 @@ const downloadOf = async (web: Web, requestToken: string): Promise<Uint8Array> =
   remember(answer.headers);
   if (Buffer.from(answer.bytes.subarray(0, 5)).toString('latin1') === '%PDF-') return answer.bytes;
   const text = new TextDecoder().decode(answer.bytes);
-  if (isHold(answer.status, text)) throw new Hold();
+  throwOnHold(reach, answer.status, text, answer.headers);
   throw new ToolRefusal(`${REGISTER} answered ${String(answer.status)} and gave no PDF`);
 };
 
@@ -218,21 +186,25 @@ const readExtract = async (
   reach: Reach,
   taxNumber: string,
 ): Promise<Uint8Array | null> => {
-  const search = await postForm(web, taxNumber);
+  const search = await postForm(web, reach, taxNumber);
   const found = await waitFor(
     reach,
-    async () => shape(result, await getJson(web, stamped(reach, `/search-result/${search}`))),
+    async () =>
+      shape(result, await getJson(web, reach, stamped(reach, `/search-result/${search}`))),
     (answer) => answer.status !== 'wait',
   );
   const match = found.rows?.find((candidate) => candidate.i === taxNumber);
   if (match === undefined) return null;
-  const request = shape(token, await getJson(web, stamped(reach, `/vyp-request/${match.k}`))).t;
+  const request = shape(
+    token,
+    await getJson(web, reach, stamped(reach, `/vyp-request/${match.k}`)),
+  ).t;
   await waitFor(
     reach,
-    async () => shape(state, await getJson(web, stamped(reach, `/vyp-status/${request}`))),
+    async () => shape(state, await getJson(web, reach, stamped(reach, `/vyp-status/${request}`))),
     (answer) => answer.status === 'ready',
   );
-  return downloadOf(web, request);
+  return downloadOf(web, reach, request);
 };
 
 const ownerShape = z.strictObject({
@@ -258,6 +230,7 @@ const outputShape = z.strictObject({
   ownerPages: z.array(z.number().int()),
   owners: z.array(ownerShape),
   /** The time to wait, for a hold. */
+  holdKind: z.enum(['captcha', 'quota', 'refused']).nullable(),
   holdSeconds: z.number().int().nullable(),
   retryAt: z.string().nullable(),
   licence: z.string(),
@@ -275,16 +248,18 @@ const nothing = (taxNumber: string): Output => ({
   ownerSection: null,
   ownerPages: [],
   owners: [],
+  holdKind: null,
   holdSeconds: null,
   retryAt: null,
   licence: SENTENCE,
 });
 
-const holdOf = (taxNumber: string, reach: Reach): Output => ({
+const holdOf = (taxNumber: string, reach: Reach, kind: HoldClass, until: number): Output => ({
   ...nothing(taxNumber),
   status: 'hold',
-  holdSeconds: Math.ceil((heldUntil - reach.now().getTime()) / 1000),
-  retryAt: new Date(heldUntil).toISOString(),
+  holdKind: kind,
+  holdSeconds: Math.ceil((until - reach.now().getTime()) / 1000),
+  retryAt: new Date(until).toISOString(),
 });
 
 type PageReader = (bytes: Uint8Array) => Promise<readonly string[]>;
@@ -302,7 +277,7 @@ export const egrulExtractWith = (readPages: PageReader) =>
       'legal persons with OGRN, INN, country, share and the day of the register entry. A natural ' +
       'person is only counted as one owner of kind natural_person, with no field. An absent section is no statement ' +
       'that the company has no owner: a joint-stock company often has none. The day of an entry ' +
-      'is not a deal date. The tool reads one extract per 30 s, one caller at a time, so a call ' +
+      'is not a deal date. The tool reads one extract per 30 s, one worker at a time on the machine, so a call ' +
       'can wait. On a CAPTCHA it gives status hold with holdSeconds and retryAt: wait, and call ' +
       'again after that time. It solves no CAPTCHA and it opens no new session to avoid a limit. ' +
       'An excerpt of this document can name a legal person only: propose refuses each other excerpt.',
@@ -317,18 +292,26 @@ export const egrulExtractWith = (readPages: PageReader) =>
       const web = webFromReach(reach);
       if (reach?.store === undefined)
         throw new ToolRefusal('this surface gives no object store, so it stores no answer');
-      if (reach.now().getTime() < heldUntil) return holdOf(input.taxNumber, reach);
-      const release = await (reach.acquireHost ?? pacedGate(reach))(HOST);
+      if (reach.hostLease === undefined)
+        throw new ToolRefusal(
+          'this surface gives no host lease, so it reads no Russian state host',
+        );
+      let endTurn;
       try {
-        // A caller that waited at the gate can meet a hold that started during its wait.
-        if (reach.now().getTime() < heldUntil) return holdOf(input.taxNumber, reach);
+        endTurn = await reach.hostLease.acquire(HOST);
+      } catch (fault) {
+        if (fault instanceof HostHeld)
+          return holdOf(input.taxNumber, reach, fault.hold, fault.until);
+        throw fault;
+      }
+      try {
         let bytes;
         try {
           bytes = await readExtract(web, reach, input.taxNumber);
         } catch (fault) {
           if (!(fault instanceof Hold)) throw fault;
-          heldUntil = reach.now().getTime() + HOLD_MS;
-          return holdOf(input.taxNumber, reach);
+          await reach.hostLease.hold(HOST, fault.kind, fault.until);
+          return holdOf(input.taxNumber, reach, fault.kind, fault.until);
         }
         if (bytes === null) return nothing(input.taxNumber);
         const pages = await readPages(bytes);
@@ -363,7 +346,7 @@ export const egrulExtractWith = (readPages: PageReader) =>
           owners: [...section.entries],
         };
       } finally {
-        release();
+        await endTurn();
       }
     },
   });

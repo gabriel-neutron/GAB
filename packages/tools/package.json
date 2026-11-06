@@ -6,6 +6,7 @@
   "exports": {
     "./attribute-key": "./src/attribute-key.ts",
     "./catalogue": "./src/catalogue.ts",
+    "./host-lease": "./src/host-lease.ts",
     "./challenge-page": "./src/challenge-page.ts",
     "./egrul-text": "./src/egrul-text.ts",
     "./check-answer": "./src/check-answer.ts",

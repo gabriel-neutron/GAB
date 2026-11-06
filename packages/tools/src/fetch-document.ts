@@ -34,6 +34,7 @@ import {
   proxyKey,
   readThroughProxy,
 } from './hosted-proxy.ts';
+import { HOST_LIMIT_HOLD_MS, HostHeld } from './host-lease.ts';
 import { refusedSource } from './refused-source.ts';
 import { renderPage } from './render-page.ts';
 import { holdsLayers, skippedFileShape, storeArchive, storedFileShape } from './store-archive.ts';
@@ -456,7 +457,8 @@ export const fetchDocument = defineTool({
     '"bulk" does not go with "proxy". ' +
     'With "proxy" true, a .ru or .рф host whose plain read fails (or gives the block page of ' +
     'the host) is read once through a paid hosted proxy with a Russian exit, when the ' +
-    'operator set its key; 10 credits for each page that it reads, and "notice" says so. ' +
+    'operator set its key, and only below the ceiling of the operator; "notice" says so. ' +
+    'A Russian host takes one worker at a time at its pace, so a call can wait. ' +
     'Set "proxy" only after the other ways failed, for one source that a fact needs. A few ' +
     'Russian hosts have a certificate of the Russian root authority. The tool accepts that ' +
     'root for those hosts alone, and "certificate" gives the fingerprint that the server ' +
@@ -498,10 +500,21 @@ export const fetchDocument = defineTool({
     let got: Got;
     let throughFilter = false as boolean; // set in a closure, so the type stays wide
     // A Russian host that refuses the direct read is read once through the hosted proxy.
-    const key = input.proxy && isRussianHost(input.url) ? proxyKey(reach.hostedProxyKey) : null;
+    const { proxyLedger } = reach;
+    const key =
+      input.proxy && isRussianHost(input.url) && proxyLedger !== undefined
+        ? proxyKey(reach.hostedProxyKey)
+        : null;
     const viaProxy = async (key: string): Promise<Got> => {
       try {
-        const read = await readThroughProxy(input.url, key, getOptions, reach.hostedProxyEndpoint);
+        if (proxyLedger === undefined) throw new FetchRefusal('this surface has no proxy ceiling');
+        const read = await readThroughProxy(
+          input.url,
+          key,
+          getOptions,
+          proxyLedger,
+          reach.hostedProxyEndpoint,
+        );
         notices.push(PROXY_NOTICE);
         return read;
       } catch (fault) {
@@ -535,6 +548,21 @@ export const fetchDocument = defineTool({
         bytes: new TextEncoder().encode(passed.html),
       };
     };
+    // A Russian state host takes one worker at a time, at its pace, on each route of this read.
+    const host = isRussianHost(input.url) ? new URL(input.url).hostname : null;
+    let endTurn: (() => Promise<void>) | null = null;
+    if (host !== null) {
+      if (reach.hostLease === undefined)
+        throw new ToolRefusal(
+          'this surface gives no host lease, so it reads no Russian state host',
+        );
+      try {
+        endTurn = await reach.hostLease.acquire(host);
+      } catch (fault) {
+        if (fault instanceof HostHeld) throw new ToolRefusal(`${fault.message}, so try again then`);
+        throw fault;
+      }
+    }
     try {
       got = await guardedGet(input.url, getOptions);
       if (key !== null && isBlockPage(got.bytes)) got = await viaProxy(key);
@@ -543,6 +571,9 @@ export const fetchDocument = defineTool({
       // A refusal of the guard holds for every route, so it never spends credits of the proxy.
       if (fault.fault?.kind === 'guard')
         throw new ToolRefusal(refusalOfFetch(fault.message, fault.fault));
+      // A limit of the host holds for each worker, so no worker meets it twice.
+      if (host !== null && fault.fault?.kind === 'status' && fault.fault.status === 429)
+        await reach.hostLease?.hold(host, 'quota', reach.now().getTime() + HOST_LIMIT_HOLD_MS);
       if (key === null) got = await throughChrome(fault);
       else {
         // The Chrome window is free, so a bot filter meets it first; the proxy costs credits.
@@ -553,6 +584,8 @@ export const fetchDocument = defineTool({
           got = await viaProxy(key);
         }
       }
+    } finally {
+      await endTurn?.();
     }
     // A state authority can intercept a read that the Russian root signs.
     if (got.certFingerprint !== null)

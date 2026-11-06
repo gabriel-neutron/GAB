@@ -1,3 +1,4 @@
+import type { HostLease, ProxyLedger } from './host-lease.ts';
 import type { RawObject } from '@gab/store';
 import { z } from 'zod';
 
@@ -71,9 +72,6 @@ export interface Web {
   readonly cdseClientSecret?: string;
 }
 
-/** Waits for the one turn of a host, and gives the function that ends the turn. */
-export type AcquireHost = (host: string) => Promise<() => void>;
-
 /** One passage that an item cites: the words that code found in the page, and the words around
  * them. */
 export interface CheckedPassage {
@@ -112,9 +110,11 @@ export interface Reach {
   readonly now: () => Date;
   /** Waits this many milliseconds. The default is a timer. A test gives a wait that ends at once. */
   readonly sleep?: (ms: number) => Promise<void>;
-  /** The turn on a rate-limited host, and it also holds the pace of the host. With no value, the
-   * tool uses its own gate in this process. */
-  readonly acquireHost?: AcquireHost;
+  /** The shared turn, pace and hold of a rate-limited host, in the state of the supervisor. A tool
+   * that needs a Russian state host refuses with no value. */
+  readonly hostLease?: HostLease;
+  /** The ceiling of the paid proxy. With no value, no call goes to the proxy. */
+  readonly proxyLedger?: ProxyLedger;
   /** The folder where a browser saves a page for the research AI to store. */
   readonly inbox?: string;
   /** Every address of a name. The default asks the resolver of the system. */
