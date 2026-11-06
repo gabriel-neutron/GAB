@@ -293,8 +293,9 @@ const lastWorkerUsedTools = (dir: string) => {
 };
 
 // A research session of the operator can write to the record during this gate, so a count of rows
-// proves nothing. A worker here holds no write tool and only the test server, and this shows each
-// writer of the record in the time of the gate, for the closer. The session cannot write.
+// proves nothing. A worker here reaches only the test server, and a call of a write tool is a gap.
+// This shows each writer of the record in the time of the gate, for the closer. The session
+// cannot write.
 const recordWriters = (from: Date) => {
   const read = run('docker', [
     'exec',
