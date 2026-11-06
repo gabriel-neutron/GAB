@@ -153,7 +153,7 @@ const start = async (): Promise<void> => {
     console.error('the MCP server runs as gabriel_research over stdio');
     return;
   }
-  const http = await serveHttp(() => createServer(pool, reach, check), port);
+  const http = await serveHttp((role) => createServer(pool, reach, check, role), port);
   closeHttp = () => {
     http.close();
     http.closeAllConnections();

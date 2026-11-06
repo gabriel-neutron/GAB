@@ -151,6 +151,17 @@ the gate fails if it calls a tool of that server other than its two reads. The g
 `node` command for the wait. A research session can write to the record during the gate, so the summary
 lists each writer of that time.
 
+Each worker has one of six roles. `packages/mcp/src/roles.ts` holds the `gab` tools of each role, and the
+server lists and runs only those tools at the address `/mcp/<role>`. `packages/mcp/src/role-settings.ts`
+holds the built-in tools, the shell commands, the turn cap and the first words. Each closer ends with the
+fixed JSON of the tick: a reopen names its gaps, and a close has none. A role with a shell runs under the same
+Windows account as the record, so its allow list bounds it and no sandbox does.
+
+| You want | Run |
+|---|---|
+| Give the tick its roles, when the `gab` server runs this code | `node packages/mcp/src/install-roles.ts --state <folder> --gab <address> --checkout <folder> --second-check <ticket>=<issue>,...` |
+| Run the closing check of the roles on a session stack: each forbidden call, the CLI of each role, and a real fact closer on planted facts | `pnpm closer:gate --out <new folder>` |
+
 ## The stack of a session
 
 Many sessions can run on one machine at the same time. When they share one stack, a reset in one

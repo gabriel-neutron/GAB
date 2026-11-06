@@ -35,6 +35,7 @@
       "mcp__gab__read_event_pairs",
       "mcp__gab__neighbourhood",
       "mcp__gab__news_search",
+      "mcp__gab__read_page",
       "mcp__gab__ofac_sdn",
       "mcp__gab__promote_clean_proposals",
       "mcp__gab__promote_unit",

@@ -10,6 +10,7 @@ import { callTool, inputSchemaOf, type Reach, type Session, type Tool } from '@g
 
 import { proposeChecked } from './checked-propose.ts';
 import { codeVersion } from './code-version.ts';
+import { WORKER_ROLES, type Role } from './roles.ts';
 import { readerFamilyOf, type SecondCheck } from './second-check.ts';
 import { RESEARCH_TOOLS } from './surface.ts';
 
@@ -39,14 +40,20 @@ const SURFACE = Object.entries(RESEARCH_TOOLS).map(([name, annotations]) => ({
   annotations,
 }));
 
-const TOOLS: readonly Tool[] = SURFACE.map(({ tool }) => tool);
+// The whole surface with no role, and only the tools of the role with one.
+const surfaceOf = (role: Role | undefined): typeof SURFACE => {
+  if (role === undefined) return SURFACE;
+  const own: readonly string[] = WORKER_ROLES[role];
+  return SURFACE.filter(({ tool }) => own.includes(tool.name));
+};
 
-const LISTED: readonly ListedTool[] = SURFACE.map(({ tool, annotations }) => ({
-  name: tool.name,
-  description: tool.description,
-  inputSchema: { ...inputSchemaOf(tool), type: 'object' as const },
-  annotations,
-}));
+const listedOf = (surface: typeof SURFACE): ListedTool[] =>
+  surface.map(({ tool, annotations }) => ({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: { ...inputSchemaOf(tool), type: 'object' as const },
+    annotations,
+  }));
 
 const toolError = (text: string): CallToolResult => ({
   content: [{ type: 'text', text }],
@@ -101,6 +108,7 @@ const faultSentence = (cause: unknown): string => {
 };
 
 interface Context {
+  readonly tools: readonly Tool[];
   readonly pool: SessionPool;
   readonly reach: Reach | undefined;
   readonly check: SecondCheck | undefined;
@@ -109,11 +117,11 @@ interface Context {
 }
 
 const run = async (context: Context, name: string, raw: unknown): Promise<CallToolResult> => {
-  const { pool, reach, check } = context;
-  const tool = TOOLS.find((entry) => entry.name === name);
+  const { tools, pool, reach, check } = context;
+  const tool = tools.find((entry) => entry.name === name);
   if (tool === undefined)
     return toolError(
-      `the server holds no tool named ${name}; it holds ${TOOLS.map((one) => one.name).join(', ')}`,
+      `the server holds no tool named ${name}; it holds ${tools.map((one) => one.name).join(', ')}`,
     );
 
   let session: PooledSession;
@@ -148,13 +156,21 @@ const run = async (context: Context, name: string, raw: unknown): Promise<CallTo
 // catalogue builds it, and the refusal of a bad input is the sentence of the tool.
 /** The MCP server of the research workspace. With no reach, each tool that stores or reads the
  * web refuses its call. With a check, a model of another family than the research AI reads each
- * proposed item with its passages; with none, code alone checks a proposal. */
-export const createServer = (pool: SessionPool, reach?: Reach, check?: SecondCheck): McpServer => {
+ * proposed item with its passages; with none, code alone checks a proposal. With a role, the
+ * server lists and runs only the tools of that role. */
+export const createServer = (
+  pool: SessionPool,
+  reach?: Reach,
+  check?: SecondCheck,
+  role?: Role,
+): McpServer => {
   const mcp = new McpServer(SERVER, {
     capabilities: { tools: {} },
     instructions: INSTRUCTIONS,
   });
+  const surface = surfaceOf(role);
   const context: Context = {
+    tools: surface.map(({ tool }) => tool),
     pool,
     // The HTTP mode builds one server for each session, so each session holds its own upload parts.
     reach: reach === undefined ? undefined : { ...reach, uploadParts: new Map() },
@@ -162,7 +178,7 @@ export const createServer = (pool: SessionPool, reach?: Reach, check?: SecondChe
     readerFamily: () => readerFamilyOf(mcp.server.getClientVersion()?.name, process.env),
   };
 
-  mcp.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: [...LISTED] }));
+  mcp.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: listedOf(surface) }));
 
   mcp.server.setRequestHandler(CallToolRequestSchema, (request) =>
     run(context, request.params.name, request.params.arguments),

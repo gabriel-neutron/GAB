@@ -38,6 +38,8 @@ export const RESEARCH_TOOLS = {
   read_leads: READ_RECORD,
   web_search: READ_WEB,
   news_search: READ_WEB,
+  // The read route of a closer stores nothing.
+  read_page: READ_WEB,
   // A capture asks the archive to keep a copy of a page, which is a write outside the record.
   archive_snapshot: {
     readOnlyHint: false,

@@ -90,7 +90,9 @@ operator to accept" a proposal.
 - Read the documents: `find_document`, `document_text`, `find_line` (the lines of a large
   stored file that hold a key, to cite one line), `file_schema_sample` (the header and the first
   rows of a stored CSV table), `job_status`.
-- Find leads on the web: `web_search`, `news_search`.
+- Find leads on the web: `web_search`, `news_search`. A closer also reads a live page with
+  `read_page`, which stores nothing and refuses a host on the deny list. A worker has only the
+  tools of its role (`packages/mcp/src/roles.ts`).
 - Read a register: `gleif_lookup`, `companies_house`, `wikidata_ids`. Each one stores its answer
   as a document.
 - Read the official text of an EU act from its CELEX number: `eu_act`. It stores the file of the
