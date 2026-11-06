@@ -13,9 +13,11 @@ $triggers = @(
   (New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)),
   (New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME)
 )
+# Priority 4 is normal. The default 7 also lowers the memory priority, and with little free memory a
+# tick then does not end in its 4 minutes.
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries `
   -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew `
-  -ExecutionTimeLimit (New-TimeSpan -Minutes 4)
+  -ExecutionTimeLimit (New-TimeSpan -Minutes 4) -Priority 4
 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive
 Register-ScheduledTask -TaskName $TaskName -Force -Action $action -Trigger $triggers `
   -Settings $settings -Principal $principal | Out-Null
