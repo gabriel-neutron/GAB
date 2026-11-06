@@ -141,9 +141,10 @@ function Read-Outcome([string]$base) {
   # A model can leave a quote with no escape in its reason, after the worker did its work. The other
   # fields come first in the format. A reopen stays a failure here, because it needs its gaps.
   if (-not $verdict -and "$last" -match '^\s*\{\s*"result"\s*:\s*"(pass|close|failed|hold|exhausted|stop_source)"') {
-    $verdict = [pscustomobject]@{ result = $Matches[1]; hold = $null; newFacts = $null; reason = 'a verdict line with a bad quote' }
+    $verdict = [pscustomobject]@{ result = $Matches[1]; hold = $null; until = $null; newFacts = $null; reason = 'a verdict line with a bad quote' }
     if ("$last" -match '"hold"\s*:\s*"(\w+)"') { $verdict.hold = $Matches[1] }
-    if ("$last" -match '"newFacts"\s*:\s*(\d+)') { $verdict.newFacts = $Matches[1] }
+    if ("$last" -match '"until"\s*:\s*"([^"]+)"') { $verdict.until = $Matches[1] }
+    if ("$last" -match '"newFacts"\s*:\s*(\d+)') { $verdict.newFacts = [int]$Matches[1] }
   }
   if (-not $verdict.result) { return @{ kind = 'failed'; reason = 'no verdict line' } }
   $goodDate = $true
