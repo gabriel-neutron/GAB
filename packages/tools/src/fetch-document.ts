@@ -9,6 +9,7 @@ import {
   RefusedTextError,
   UnsupportedTypeError,
 } from '@gab/text';
+import { BULK_TEXT_BYTES, isBulkTextType } from '@gab/proposal/upload-limit';
 import { zipContainerType } from '@gab/text/archive';
 import { ZIP_MIME } from '@gab/text/geojson';
 import { XLSX_MIME } from '@gab/text/xlsx';
@@ -44,6 +45,8 @@ import { CHALLENGE_PAGE, isHtml, SHORT_PAGE, unreadablePage } from './unreadable
 // megabytes, and a slow server answers inside twenty seconds or it is a server to read later.
 export const MAX_BYTES = 20 * 1024 * 1024;
 const TIMEOUT_MS = 20_000;
+// Origin: decided, not calibrated. A bulk file of 64 MiB on a slow server of a state body.
+const BULK_TIMEOUT_MS = 300_000;
 // External constraint: the dissemination API of Eurostat. A file read at this address is a file of
 // Eurostat, so it takes the provider and the licence of Eurostat.
 const EUROSTAT_API = 'https://ec.europa.eu/eurostat/api/dissemination/';
@@ -448,6 +451,9 @@ export const fetchDocument = defineTool({
     'and "files" names one more document for each file that a reader takes, each linked to the ' +
     'archive; cite the document of the file. "skipped" names each other file and the reason. A ' +
     'hostile archive (too large, too deep, a path that leaves it, a zip bomb) is refused. ' +
+    'With "bulk" true, a CSV, TSV or text file, a workbook or a ZIP file can be up to 64 MiB, and ' +
+    'any other type is refused, after the read; find_line then finds a line of it to cite. ' +
+    '"bulk" does not go with "proxy". ' +
     'With "proxy" true, a .ru or .рф host whose plain read fails (or gives the block page of ' +
     'the host) is read once through a paid hosted proxy with a Russian exit, when the ' +
     'operator set its key; 10 credits for each page that it reads, and "notice" says so. ' +
@@ -461,12 +467,15 @@ export const fetchDocument = defineTool({
     toPage: z.number().int().min(1).optional(),
     proxy: z.boolean().default(false),
     render: z.boolean().default(false),
+    bulk: z.boolean().default(false),
   }),
   output: outputShape,
   async run(session, input, reach) {
     if (reach?.store === undefined)
       throw new ToolRefusal('this surface gives no object store, so it fetches no page');
     const toPage = checkedRange(input.fromPage, input.toPage);
+    // The proxy costs credits, and a large answer through it has no bound that the type can check.
+    if (input.bulk && input.proxy) throw new ToolRefusal('bulk does not go with proxy');
     const refused = refusedSource(input.url);
     if (refused !== null) throw new ToolRefusal(refused);
     if (URL.canParse(input.url) && holdsSecret(input.url))
@@ -478,8 +487,8 @@ export const fetchDocument = defineTool({
 
     const day = reach.now().toISOString().slice(0, 10);
     const getOptions: GetOptions = {
-      maxBytes: MAX_BYTES,
-      timeoutMs: reach.fetchTimeoutMs ?? TIMEOUT_MS,
+      maxBytes: input.bulk ? BULK_TEXT_BYTES : MAX_BYTES,
+      timeoutMs: reach.fetchTimeoutMs ?? (input.bulk ? BULK_TIMEOUT_MS : TIMEOUT_MS),
       maxRedirects: MAX_REDIRECTS,
       ...(reach.lookup === undefined ? {} : { lookup: reach.lookup }),
       ...(reach.refuses === undefined ? {} : { refuses: reach.refuses }),
@@ -562,7 +571,12 @@ export const fetchDocument = defineTool({
     // text is read and an excerpt is checked on them.
     got = {
       ...got,
-      bytes: decodedBody(got.bytes, got.contentEncoding, got.contentType, MAX_BYTES),
+      bytes: decodedBody(
+        got.bytes,
+        got.contentEncoding,
+        got.contentType,
+        input.bulk ? BULK_TEXT_BYTES : MAX_BYTES,
+      ),
     };
 
     let mime = mimeOf(got.contentType, got.bytes);
@@ -576,6 +590,11 @@ export const fetchDocument = defineTool({
           'the answer is an office document (a text document or a slide set) that no reader ' +
             'takes, and nothing is stored',
         );
+    }
+    if (input.bulk && !isBulkTextType(mime)) {
+      throw new ToolRefusal(
+        `bulk reads a CSV, TSV or text file, a workbook or a ZIP file, and this is ${mime}`,
+      );
     }
     // Bytes that are not text give a text of noise, and an excerpt of it could never be checked.
     if (textType(mime) && binaryBytes(got.bytes, got.contentType))

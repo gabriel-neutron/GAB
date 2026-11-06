@@ -99,6 +99,7 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "list_proposals: read",
       "find_document: read",
       "document_text: read",
+      "find_line: read",
       "file_schema_sample: read",
       "job_status: read",
       "read_doubts: read",

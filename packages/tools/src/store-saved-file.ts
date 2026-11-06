@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { open, realpath } from 'node:fs/promises';
 import { join, sep } from 'node:path';
 
-import { UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
+import { BULK_TEXT_BYTES, isBulkTextType, UPLOAD_FILE_BYTES } from '@gab/proposal/upload-limit';
 import {
   extractText,
   mimeOfFileName,
@@ -103,7 +103,7 @@ const sourceAddress = z
 // A file is read through one open handle, so a file that changes after the checks is not read.
 // A second hard link can name a file outside the inbox, so a file with more than one link is
 // refused.
-const readInboxFile = async (inbox: string, name: string): Promise<Uint8Array> => {
+const readInboxFile = async (inbox: string, name: string, limit: number): Promise<Uint8Array> => {
   let root: string;
   try {
     root = await realpath(inbox);
@@ -127,8 +127,7 @@ const readInboxFile = async (inbox: string, name: string): Promise<Uint8Array> =
     const held = await handle.stat();
     if (!held.isFile()) throw new ToolRefusal(`${name} is not a plain file of the inbox`);
     if (held.nlink !== 1) throw new ToolRefusal(`${name} has more than one link`);
-    if (held.size > UPLOAD_FILE_BYTES)
-      throw new ToolRefusal(`${name} is larger than ${String(UPLOAD_FILE_BYTES)} bytes`);
+    if (held.size > limit) throw new ToolRefusal(`${name} is larger than ${String(limit)} bytes`);
     const bytes = new Uint8Array(held.size);
     const { bytesRead } = await handle.read(bytes, 0, held.size, 0);
     if (bytesRead !== held.size) throw new ToolRefusal(`${name} changed while it was read`);
@@ -212,7 +211,8 @@ export const storeSavedFile = defineTool({
     'whole file; give a large file in ' +
     'parts, in order, with `part` and `parts` (each part but the last has a length that is a ' +
     'multiple of 4). Or give `file`, the name of a file that the operator saved into the inbox ' +
-    'folder. The bytes are what the browser held after the scripts of the page ran, not the ' +
+    'folder; a CSV, TSV or text file, a workbook or a ZIP file there can be up to 64 MiB. ' +
+    'The bytes are what the browser held after the scripts of the page ran, not the ' +
     'answer of the server, and the title of the document says "saved by the browser". The text ' +
     'is checked as a fetch checks it. A Nominatim, Overpass or geocoder answer and a search ' +
     'result page are refused. The text of an image is what OCR read in it. The same ' +
@@ -322,7 +322,11 @@ export const storeSavedFile = defineTool({
         );
       mime = named;
       decodeAs = named;
-      bytes = await readInboxFile(reach.inbox, file);
+      bytes = await readInboxFile(
+        reach.inbox,
+        file,
+        isBulkTextType(named) ? BULK_TEXT_BYTES : UPLOAD_FILE_BYTES,
+      );
       label = file;
     }
 
