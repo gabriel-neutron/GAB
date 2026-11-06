@@ -115,6 +115,34 @@ test('propose takes an excerpt with the name of a legal person', async () => {
   expect(outcome.ok ? '' : outcome.refusal).not.toMatch(/register extract/u);
 });
 
+test('an excerpt that hides a name with a soft hyphen is refused by the words of the page', async () => {
+  const outcome = await rolledBack('superuser', async (ask) => {
+    const document = await store(ask, 67, EGRUL, 'egrul');
+    return propose(ask, document, `КРАС\u00ADНОВ`);
+  });
+  expect(outcome.ok ? '' : outcome.refusal).toMatch(/sign of a natural person/u);
+});
+
+test('an extract is no source of a new natural person', async () => {
+  const outcome = await rolledBack('superuser', async (ask) => {
+    const document = await store(ask, 68, EGRUL, 'egrul');
+    return as(ask, 'gabriel_research', () =>
+      callTool(proposeOf(null), sessionOf(ask), {
+        items: [
+          {
+            ref: 'person',
+            act: { op: 'create_entity', type: 'person', label: 'Somebody' },
+            originator: 'The Russian register',
+            modality: 'asserts',
+            evidence: [{ document, page: 1, excerpt: OWNER }],
+          },
+        ],
+      }),
+    );
+  });
+  expect(outcome.ok ? '' : outcome.refusal).toMatch(/no source of a natural person/u);
+});
+
 test('the same words pass in a document of another host', async () => {
   const outcome = await rolledBack('superuser', async (ask) => {
     const document = await store(ask, 66, 'https://example.org/page', null);

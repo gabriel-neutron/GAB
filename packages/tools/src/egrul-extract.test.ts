@@ -7,6 +7,7 @@ import { beforeEach, expect, test } from 'vitest';
 import { egrulExtractWith, resetEgrulState } from './egrul-extract.ts';
 import { egrulExcerptRefusal, extractSubject, isEgrulAddress, ownerSection } from './egrul-text.ts';
 import { memoryStore } from './fetch-fixture.ts';
+import { storeAnswer } from './store-answer.ts';
 import {
   callTool,
   type ToolOutcome,
@@ -156,6 +157,24 @@ test.each([
   expect(egrulExcerptRefusal(excerpt, PAGES)).not.toMatch(/КРАСНОВ|ИВАНОВ|770000000012/u);
 });
 
+test.each([
+  ['a soft hyphen', 'ООО КРАС\u00ADНОВ'],
+  ['a letter with a separate mark', 'ООО П\u0415\u0308ТР'],
+  ['a longer word first', 'ООО КРАСНОВСКОЕ КРАСНОВ'],
+])('an excerpt with %s does not hide a name', (_case, excerpt) => {
+  expect(egrulExcerptRefusal(excerpt, PAGES)).toMatch(/sign of a natural person/u);
+});
+
+test('a longer word alone passes', () => {
+  expect(egrulExcerptRefusal('ООО КРАСНОВСКОЕ', PAGES)).toBeNull();
+});
+
+test('a block of a person in another layout refuses each excerpt of the document', () => {
+  const other = ['19 Фамилия КРАСНОВ\n20 Имя ПЁТР'];
+  expect(egrulExcerptRefusal('ООО КРАСНОВ', other)).toMatch(/could not read/u);
+  expect(egrulExcerptRefusal('ОГРН 5000000000001', other)).toMatch(/could not read/u);
+});
+
 test('an excerpt with no form of a legal person is refused, because the rule fails closed', () => {
   expect(egrulExcerptRefusal('Размер доли (в процентах) 49', PAGES)).toMatch(/form of a legal/u);
 });
@@ -170,7 +189,10 @@ test.each([
 
 test('only the host of the register has this rule', () => {
   expect(isEgrulAddress(`https://egrul.nalog.ru/index.html#${TAX}`)).toBe(true);
+  expect(isEgrulAddress('https://www.egrul.nalog.ru/x')).toBe(true);
+  expect(isEgrulAddress('https://web.archive.org/web/2026/https://egrul.nalog.ru/x')).toBe(true);
   expect(isEgrulAddress('https://example.org/egrul.nalog.ru')).toBe(false);
+  expect(isEgrulAddress('https://egrul.nalog.ru.example.org/')).toBe(false);
   expect(isEgrulAddress(null)).toBe(false);
 });
 
@@ -389,4 +411,18 @@ test('an extract of another tax number is not stored', async () => {
   const outcome = await callTool(other, world.session, { taxNumber: TAX }, world.reach);
   expect(outcome.ok).toBe(false);
   expect(world.session.stored).toHaveLength(0);
+});
+
+test('each route that stores a file of the register gives it the internal provider', async () => {
+  const session = hashDatabase();
+  await storeAnswer(session, memoryStore(), {
+    kind: 'url',
+    bytes: PDF,
+    mime: 'application/pdf',
+    uri: 'https://egrul.nalog.ru/vyp-download/abc',
+    title: 'An extract',
+    pages: ['text'],
+    day: '2026-11-06',
+  });
+  expect(session.stored[0]?.[9]).toBe('egrul');
 });

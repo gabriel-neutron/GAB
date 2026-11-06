@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 import { readableTitle } from './document-title.ts';
 import { documentType, type DocumentType } from './document-type.ts';
+import { isEgrulAddress } from './egrul-text.ts';
 import { rowsOf } from './fields.ts';
 import { refusedSource } from './refused-source.ts';
 import { ToolRefusal, type Reach, type Session } from './tool.ts';
@@ -105,8 +106,10 @@ export const knownAnswer = async (session: Session, bytes: Uint8Array) => {
 export const storeAnswer = async (
   session: Session,
   store: NonNullable<Reach['store']>,
-  answer: Answer,
+  given: Answer,
 ) => {
+  // Each route that stores an extract of the Russian register gives it the internal provider.
+  const answer: Answer = isEgrulAddress(given.uri) ? { ...given, provider: 'egrul' } : given;
   // A search page lists pages and states no fact, so no door of the record keeps it as a source.
   const refused = refusedSource(answer.uri);
   if (refused !== null) throw new ToolRefusal(refused);

@@ -71,11 +71,16 @@ const pacedGate =
       release = done;
     });
     await before;
-    const now = reach.now().getTime();
-    const slot = Math.max(now, lastStart + GAP_MS);
-    lastStart = slot;
-    // A hold that started while this caller waited makes no call, so it does not wait a gap.
-    if (slot > now && heldUntil <= now) await sleepOf(reach)(slot - now);
+    try {
+      const now = reach.now().getTime();
+      const slot = Math.max(now, lastStart + GAP_MS);
+      lastStart = slot;
+      // A hold that started while this caller waited makes no call, so it does not wait a gap.
+      if (slot > now && heldUntil <= now) await sleepOf(reach)(slot - now);
+    } catch (fault) {
+      release();
+      throw fault;
+    }
     return release;
   };
 

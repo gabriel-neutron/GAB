@@ -112,7 +112,8 @@ export interface Reach {
   readonly now: () => Date;
   /** Waits this many milliseconds. The default is a timer. A test gives a wait that ends at once. */
   readonly sleep?: (ms: number) => Promise<void>;
-  /** The turn on a rate-limited host. With no value, the tool uses its own gate in this process. */
+  /** The turn on a rate-limited host, and it also holds the pace of the host. With no value, the
+   * tool uses its own gate in this process. */
   readonly acquireHost?: AcquireHost;
   /** The folder where a browser saves a page for the research AI to store. */
   readonly inbox?: string;

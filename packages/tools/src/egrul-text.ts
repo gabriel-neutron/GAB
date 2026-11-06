@@ -161,9 +161,18 @@ export const extractSubject = (pages: readonly string[]): ExtractSubject => {
 };
 
 /** True for a document that the register gave: the rule on natural persons applies to it, also
- * when another tool stored it. */
+ * when another tool stored it, and also for a copy in a web archive, whose address holds the first. */
 export const isEgrulAddress = (uri: string | null): boolean =>
-  uri !== null && URL.parse(uri)?.hostname === 'egrul.nalog.ru';
+  uri !== null && /\/\/(?:www\.)?egrul\.nalog\.ru(?:[:/#?]|$)/iu.test(uri);
+
+// One form for each compare: a soft hyphen and a line break do not hide a word, and a letter with a
+// separate mark is one letter.
+const normal = (text: string): string =>
+  text
+    .normalize('NFC')
+    .replace(/\u00AD/gu, '')
+    .replace(/\s+/gu, ' ')
+    .toUpperCase();
 
 const PERSON_WORD =
   /(?<![\p{L}])(?:ФАМИЛИЯ|ИМЯ|ОТЧЕСТВО|ДОЛЖНОСТЬ|ПОЛ|ГРАЖДАНСТВО|ДИРЕКТОР|ГЕНЕРАЛЬНЫЙ|ПРЕЗИДЕНТ|ЛИКВИДАТОР|ИП|ИНДИВИДУАЛЬНЫЙ)(?![\p{L}])/u;
@@ -174,38 +183,52 @@ const COMPANY_NUMBER = /(?<!\d)(?:\d{10}|\d{13})(?!\d)/u;
 const COMPANY_WORD =
   /(?<![\p{L}])(?:ОБЩЕСТВО|ООО|АО|ПАО|ОАО|ЗАО|НАО|ТОВАРИЩЕСТВО|КООПЕРАТИВ|КОМПАНИЯ|КОРПОРАЦИЯ|ПРЕДПРИЯТИЕ|УЧРЕЖДЕНИЕ|ПРАВИТЕЛЬСТВО|МИНИСТЕРСТВО|АГЕНТСТВО|ФЕДЕРАЦИЯ|ФЕДЕРАЦИИ|ФОНД|БАНК|ХОЛДИНГ|ЛИМИТЕД|ЛТД|LIMITED|LTD|LLC|INC|GMBH|CORP)(?![\p{L}])/u;
 
-// The values of each block of a natural person in the extract. They stay in this function and its
-// caller: no message repeats them.
-const personValues = (pages: readonly string[]): readonly string[] => {
+// The values of each block of a natural person in the extract, and whether code read each block.
+// The values stay in this function and its caller: no message repeats them.
+const personValues = (pages: readonly string[]): { values: readonly string[]; read: boolean } => {
   const lines = linesOf(pages).map((line) => line.text);
   const values: string[] = [];
+  let blocks = 0;
   lines.forEach((line, index) => {
     if (!/^\d+ Фамилия$/u.test(line)) return;
+    blocks += 1;
     let labels = 1;
     while (['Имя', 'Отчество'].includes(lines[index + labels] ?? '')) labels += 1;
     values.push(...lines.slice(index + labels, index + labels + labels));
   });
-  return values.map((value) => value.toUpperCase()).filter((value) => value.length >= 2);
+  const labelled = lines.filter((line) => line.includes('Фамилия')).length;
+  return {
+    values: values.map(normal).filter((value) => value.length >= 2),
+    read: labelled === blocks,
+  };
 };
 
 const holdsWord = (text: string, word: string): boolean => {
-  const at = text.indexOf(word);
-  if (at === -1) return false;
-  const before = text.slice(0, at).at(-1) ?? ' ';
-  const after = text[at + word.length] ?? ' ';
-  return !/\p{L}/u.test(before) && !/\p{L}/u.test(after);
+  let at = text.indexOf(word);
+  while (at !== -1) {
+    const before = text.slice(0, at).at(-1) ?? ' ';
+    const after = text[at + word.length] ?? ' ';
+    if (!/\p{L}/u.test(before) && !/\p{L}/u.test(after)) return true;
+    at = text.indexOf(word, at + 1);
+  }
+  return false;
 };
 
 /** The sentence that refuses an excerpt of an extract, or null. The rule fails closed: an excerpt
- * passes only when it holds the form of a legal person and no sign of a natural person. The
- * sentence repeats no word of the excerpt, because the excerpt can hold a name. */
+ * passes only when code read each person block of the extract, and the excerpt holds the form of a
+ * legal person and no sign of a natural person. A caller gives the words of the excerpt and the
+ * words of the page that the excerpt found, because the search of an excerpt ignores some marks.
+ * The sentence repeats no word of the excerpt, because the excerpt can hold a name. */
 export const egrulExcerptRefusal = (excerpt: string, pages: readonly string[]): string | null => {
-  const text = excerpt.replace(/\s+/gu, ' ').toUpperCase();
+  const text = normal(excerpt);
+  const persons = personValues(pages);
+  if (!persons.read)
+    return 'an excerpt of this register extract is refused, because code could not read its blocks of natural persons';
   const person =
     PERSON_WORD.test(text) ||
     PATRONYMIC.test(text) ||
     PERSON_TAX_NUMBER.test(text) ||
-    personValues(pages).some((value) => holdsWord(text, value));
+    persons.values.some((value) => holdsWord(text, value));
   if (person)
     return 'an excerpt of a register extract can name a legal person only, and this excerpt holds the sign of a natural person';
   if (!COMPANY_NUMBER.test(text) && !COMPANY_WORD.test(text))

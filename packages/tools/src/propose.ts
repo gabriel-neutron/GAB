@@ -349,6 +349,8 @@ const refusalOf = (cause: Error, refs: readonly string[]): string => {
 
 interface Cited {
   readonly document: string;
+  /** The document is an extract of the Russian register. */
+  readonly egrul: boolean;
   /** The document is the FCDO UK Sanctions List. */
   readonly fcdoList: boolean;
   readonly textExtractor: string;
@@ -387,16 +389,20 @@ const cite = async (
   given: z.output<typeof evidence>,
 ): Promise<Cited> => {
   const page = await pageOf(session, ref, given.document, given.page);
-  if (isEgrulAddress(page.uri)) {
+  const egrul = isEgrulAddress(page.uri);
+  // An extract names natural persons, and an excerpt of it can name a legal person only.
+  const checkExtract = async (words: string): Promise<void> => {
+    if (!egrul) return;
     const pages = await rowsOf(session, z.strictObject({ text: z.string() }), ALL_PAGES, [
       given.document,
     ]);
     const refusal = egrulExcerptRefusal(
-      given.excerpt,
+      words,
       pages.map((one) => one.text),
     );
     if (refusal !== null) refuse(ref, refusal);
-  }
+  };
+  await checkExtract(given.excerpt);
   if (given.fromImage === true) {
     const image = await rowsOf(session, z.strictObject({ one: z.number() }), IMAGE, [
       given.document,
@@ -409,6 +415,7 @@ const cite = async (
     // The words that the AI read stand alone: the OCR text around them does not hold them.
     return {
       document: given.document,
+      egrul,
       fcdoList: page.fcdo_list || isUkListDate(page.uri, given.excerpt),
       textExtractor: page.extractor,
       urlDay: dateInUrl(page.uri),
@@ -435,8 +442,11 @@ const cite = async (
         `page ${String(given.page)} of ${given.document}. Copy whole words and whole numbers.`,
     );
   const passage = pointSlice(page.text, span.start, span.end);
+  // The search of an excerpt ignores some marks, so the words of the page get the same check.
+  await checkExtract(passage);
   return {
     document: given.document,
+    egrul,
     fcdoList: page.fcdo_list || isUkListDate(page.uri, passage),
     textExtractor: page.extractor,
     urlDay: dateInUrl(page.uri),
@@ -1098,6 +1108,12 @@ export const proposeOf = (modelCallId: string | null) =>
         if (given.act.op === 'create_observation') await checkFigure(session, given);
         const cited: Cited[] = [];
         for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
+        if (
+          given.act.op === 'create_entity' &&
+          given.act.type === 'person' &&
+          cited.some((one) => one.egrul)
+        )
+          refuse(given.ref, 'a register extract is no source of a natural person');
         // The post date of a stored Telegram post is the day of publication, when every cited
         // document is a post of one day.
         const postDays = new Set(cited.map((one) => one.postDay));
