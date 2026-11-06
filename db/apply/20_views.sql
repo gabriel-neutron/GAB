@@ -71,7 +71,9 @@ CREATE VIEW public.open_licence AS
 -- the source page, so its address can be the page of a bought file with no recorded cost. A
 -- load report and a hand-entered value are not public. A bought file is not public. A document
 -- is a bought file when it has a cost, or when its provider sells its filings: a NULL cost means
--- that the cost is unknown, and not that the file is free.
+-- that the cost is unknown, and not that the file is free. A register extract of the provider
+-- `egrul` is not public either: the signed file names natural persons, and the panel ruling on
+-- the tool egrul_extract keeps it internal.
 CREATE VIEW public.public_document AS
   SELECT d.id FROM public.documents d
    WHERE d.kind IN ('url','api','file')
@@ -79,7 +81,8 @@ CREATE VIEW public.public_document AS
      AND NOT d.uri_before_pu1
      AND coalesce(d.cost_eur, 0) = 0
      AND NOT EXISTS (SELECT 1 FROM public.document_provider v
-                      WHERE v.id = d.provider_id AND v.licence = 'paid-filing');
+                      WHERE v.id = d.provider_id
+                        AND (v.licence = 'paid-filing' OR v.id = 'egrul'));
 
 -- EACH IDENTIFIER THAT NAMES A PERSON, AND WHETHER THAT PERSON IS PUBLIC (`open`). A person is:
 -- a live entity of the type `person`; the entity that an act proposes as a person, before or

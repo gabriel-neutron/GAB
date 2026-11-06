@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { KEY_ADVICE, keyWarnings } from './attribute-key.ts';
 import { plainText } from './check-answer.ts';
 import { plainIdentifier, UNIQUE_KEYS } from './duplicate-identifier.ts';
+import { egrulExcerptRefusal, isEgrulAddress } from './egrul-text.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
 import { cutsToken, findExcerpt, pointSlice, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
@@ -308,7 +309,11 @@ const doorRow = z.strictObject({
 const PAGE = `SELECT t.extractor, t.text, EXISTS (SELECT 1 FROM public.documents d
       WHERE d.id = t.document_id AND (d.uri = $3::text OR d.provider_id = 'uk_sanctions_list'))
     AS fcdo_list,
-    (SELECT d.uri FROM public.documents d WHERE d.id = t.document_id) AS uri
+    (SELECT d.uri FROM public.documents d WHERE d.id = t.document_id) AS uri,
+    EXISTS (SELECT 1 FROM public.document_text f
+      WHERE f.document_id = t.document_id AND f.extractor = t.extractor AND f.page = 1
+        AND f.text ~ '^\\s*ВЫПИСКА\\s+из\\s+Единого\\s+государственного\\s+реестра\\s+юридических\\s+лиц')
+    AS register_extract
   FROM public.document_text t
   WHERE t.document_id = $1::text AND t.page = $2::int
     AND t.extractor = public.newest_text_extractor($1::text)`;
@@ -318,7 +323,13 @@ const pageRow = z.strictObject({
   text: z.string(),
   fcdo_list: z.boolean(),
   uri: z.string().nullable(),
+  register_extract: z.boolean(),
 });
+
+// All the pages of a register extract, for the rule on natural persons.
+const ALL_PAGES = `SELECT t.text FROM public.document_text t
+  WHERE t.document_id = $1::text AND t.extractor = public.newest_text_extractor($1::text)
+  ORDER BY t.page`;
 
 // The types of an image whose OCR text is the stored page; the door holds the same list.
 const IMAGE = `SELECT 1 AS one FROM public.documents d
@@ -343,6 +354,8 @@ const refusalOf = (cause: Error, refs: readonly string[]): string => {
 
 interface Cited {
   readonly document: string;
+  /** The document is an extract of the Russian register. */
+  readonly egrul: boolean;
   /** The document is the FCDO UK Sanctions List. */
   readonly fcdoList: boolean;
   readonly textExtractor: string;
@@ -381,6 +394,20 @@ const cite = async (
   given: z.output<typeof evidence>,
 ): Promise<Cited> => {
   const page = await pageOf(session, ref, given.document, given.page);
+  const egrul = isEgrulAddress(page.uri) || page.register_extract;
+  // An extract names natural persons, and an excerpt of it can name a legal person only.
+  const checkExtract = async (words: string): Promise<void> => {
+    if (!egrul) return;
+    const pages = await rowsOf(session, z.strictObject({ text: z.string() }), ALL_PAGES, [
+      given.document,
+    ]);
+    const refusal = egrulExcerptRefusal(
+      words,
+      pages.map((one) => one.text),
+    );
+    if (refusal !== null) refuse(ref, refusal);
+  };
+  await checkExtract(given.excerpt);
   if (given.fromImage === true) {
     const image = await rowsOf(session, z.strictObject({ one: z.number() }), IMAGE, [
       given.document,
@@ -393,6 +420,7 @@ const cite = async (
     // The words that the AI read stand alone: the OCR text around them does not hold them.
     return {
       document: given.document,
+      egrul,
       fcdoList: page.fcdo_list || isUkListDate(page.uri, given.excerpt),
       textExtractor: page.extractor,
       urlDay: dateInUrl(page.uri),
@@ -419,8 +447,11 @@ const cite = async (
         `page ${String(given.page)} of ${given.document}. Copy whole words and whole numbers.`,
     );
   const passage = pointSlice(page.text, span.start, span.end);
+  // The search of an excerpt ignores some marks, so the words of the page get the same check.
+  await checkExtract(passage);
   return {
     document: given.document,
+    egrul,
     fcdoList: page.fcdo_list || isUkListDate(page.uri, passage),
     textExtractor: page.extractor,
     urlDay: dateInUrl(page.uri),
@@ -1082,6 +1113,12 @@ export const proposeOf = (modelCallId: string | null) =>
         if (given.act.op === 'create_observation') await checkFigure(session, given);
         const cited: Cited[] = [];
         for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
+        if (
+          given.act.op === 'create_entity' &&
+          given.act.type === 'person' &&
+          cited.some((one) => one.egrul)
+        )
+          refuse(given.ref, 'a register extract is no source of a natural person');
         // The post date of a stored Telegram post is the day of publication, when every cited
         // document is a post of one day.
         const postDays = new Set(cited.map((one) => one.postDay));

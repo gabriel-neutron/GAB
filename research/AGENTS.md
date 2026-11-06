@@ -160,6 +160,10 @@ operator to accept" a proposal.
   with the scene, the date and the cloud share. It needs a free Copernicus Data Space client.
   The image states no damage. When the client is not set, the tool says so, and the other tools
   work.
+- Read one extract of the Russian register: `egrul_extract` takes the 10-digit tax number of a
+  company, stores the signed PDF as an internal document, and gives the owner section. On a CAPTCHA
+  it gives status `hold` with the wait time: wait, and solve nothing. An excerpt of an extract can
+  name a legal person only, and `propose` refuses each other excerpt.
 - Read official trade statistics: `comtrade_data` takes a reporter, a period, a flow, an HS code
   and a partner, and stores the UN Comtrade answer as a document. It needs a free key. The
   provider has a restricted licence, so the document stays internal. When the key is not set, the
@@ -167,7 +171,7 @@ operator to accept" a proposal.
 - Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,
   `read_group`, `read_decided`, `read_leads`.
 - Write: `archive_snapshot`, `fetch_document`, `eu_act`, `ofac_sdn`, `uk_sanctions_list`,
-  `firms_detections`, `gfw_port_visits`, `gfw_presence_grid`, `comtrade_data`, `sentinel2_pairs`, `site_image`, `store_saved_file`, `telegram_channel`,
+  `firms_detections`, `gfw_port_visits`, `gfw_presence_grid`, `comtrade_data`, `egrul_extract`, `sentinel2_pairs`, `site_image`, `store_saved_file`, `telegram_channel`,
   `enqueue_extract`, `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question.
   `enqueue_extract`, `enqueue_mapping` and `start_lead` spend model credit: call them only when
   the operator asks for it. A worker reads "A run with no person".

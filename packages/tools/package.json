@@ -7,6 +7,7 @@
     "./attribute-key": "./src/attribute-key.ts",
     "./catalogue": "./src/catalogue.ts",
     "./challenge-page": "./src/challenge-page.ts",
+    "./egrul-text": "./src/egrul-text.ts",
     "./check-answer": "./src/check-answer.ts",
     "./comtrade-data": "./src/comtrade-data.ts",
     "./csv": "./src/csv.ts",

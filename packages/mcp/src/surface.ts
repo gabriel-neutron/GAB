@@ -163,6 +163,13 @@ export const RESEARCH_TOOLS = {
     idempotentHint: true,
     openWorldHint: true,
   },
+  // Each call asks the register for a new signed file, so a second call can store a second file.
+  egrul_extract: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
   // A second call meets the open job and is refused.
   enqueue_extract: {
     readOnlyHint: false,
