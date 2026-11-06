@@ -24,6 +24,12 @@ const FORMS = (host: string): readonly string[] => [
   `https://web.archive.org/web/2020/https://${host}/page`,
   `https://web.archive.org/web/2020/${host}/page`,
   `https://web.archive.org/web/2020/https%3A%2F%2F${host}%2Fpage`,
+  `https://web.archive.org/web/2020/https%253A%252F%252F${host}%252Fpage`,
+  `https://web.archive.org/web/2020/https%3A%2F%2F${host}%2Fp%ZZ`,
+  `https://web.archive.org/web/2020/https%3A%2F%2F${host}%2Fp%FF`,
+  `https://example.com/read?url=${host}`,
+  `https://${host}../page`,
+  `https://${host}...:8443/page`,
 ];
 
 test.each(DENIED_HOSTS)('the rule denies each form of an address on %s', (host) => {

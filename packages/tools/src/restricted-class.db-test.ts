@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { as } from '../../../tools/author-fixture.ts';
 import { rolledBack, type Ask } from '../../../tools/probe.ts';
+import { restrictedExcerptRefusal } from './egrul-text.ts';
 import { proposeOf } from './propose.ts';
 import { callTool, type Session } from './tool.ts';
 
@@ -53,6 +54,30 @@ const propose = (ask: Ask, document: string, excerpt: string) =>
   );
 
 const sign = /sign of a natural person/u;
+
+test.each([
+  'IVAN TESTOV signed for TEST PLANT LLC.',
+  'Testov signed for Test Plant LLC.',
+  'Иван Иванов ООО "Ромашка".',
+  'ООО "Ромашка" в лице Иванова',
+  'I. Testov and Test Plant LLC',
+  'Test Plant LLC and Testov I.',
+  'Сидоров А. и ООО "Ромашка"',
+  'Ivan Testov, Test Plant LLC',
+])('the rule refuses an excerpt that names a person: %s', (excerpt) => {
+  expect(restrictedExcerptRefusal(excerpt)).toMatch(sign);
+});
+
+test.each([
+  'Test Plant LLC delivered the goods.',
+  'TEST PLANT LLC delivered the goods.',
+  'ООО "Ромашка" поставило станки АО «Завод»',
+  'поставщик Общество с ограниченной ответственностью "Ромашка"',
+  'the goods of Test Bank went to Second Plant Ltd.',
+  'ОГРН 1027700132195',
+])('the rule takes an excerpt on a legal person: %s', (excerpt) => {
+  expect(restrictedExcerptRefusal(excerpt)).toBeNull();
+});
 const SUDACT = 'https://sudact.ru/arbitral/doc/test1/';
 
 test('an excerpt that names a person is refused, on each way to the class', async () => {
@@ -60,6 +85,12 @@ test('an excerpt that names a person is refused, on each way to the class', asyn
     const byRule = await store(ask, 71, SUDACT);
     const copy = await store(ask, 72, `https://web.archive.org/web/2024id_/${SUDACT}`);
     const marked = await store(ask, 73, 'https://bank.example/statement.pdf');
+    const dotted = await store(ask, 78, 'https://sudact.ru./arbitral/doc/x/');
+    const encoded = await store(
+      ask,
+      79,
+      'https://web.archive.org/web/2024/https%3A%2F%2Fsudact.ru%2Farbitral%2Fdoc%2Fx%2F',
+    );
     await as(ask, 'gabriel_research', () =>
       ask('SELECT public.fill_document_restricted($1) AS outcome', [marked]),
     );
@@ -67,6 +98,8 @@ test('an excerpt that names a person is refused, on each way to the class', asyn
       await propose(ask, byRule, NAMED),
       await propose(ask, copy, NAMED),
       await propose(ask, marked, NAMED),
+      await propose(ask, dotted, NAMED),
+      await propose(ask, encoded, NAMED),
     ];
   });
   for (const outcome of outcomes) {
