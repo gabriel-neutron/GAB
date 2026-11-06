@@ -29,7 +29,7 @@ const outputShape = z.strictObject({
 
 type Hit = z.output<typeof hit>;
 
-const searxRows = z.object({ results: z.array(z.unknown()) });
+export const searxRows = z.object({ results: z.array(z.unknown()) });
 const searxRow = z.object({
   title: z.string(),
   url: z.string(),
@@ -46,13 +46,13 @@ const braveRow = z.object({
   description: z.string().optional(),
 });
 
-const plain = (html: string): string =>
+export const plain = (html: string): string =>
   html
     .replace(/<[^>]*>/gu, '')
     .replace(/\s+/gu, ' ')
     .trim();
 
-const searxSearch = (setting: string, query: string): string => {
+export const searxSearch = (setting: string, query: string): string => {
   let base: URL;
   try {
     base = new URL(setting);
