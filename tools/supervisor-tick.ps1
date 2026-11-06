@@ -169,7 +169,9 @@ function Move-ByOutcome($t) {
   $v = $o.verdict
   $word = "$($v.result)"
   if ($o.kind -eq 'verdict' -and $word -eq 'hold' -and $HOLDS.ContainsKey("$($v.hold)")) { return Set-Hold $t "$($v.hold)" $v.until }
-  if ($o.kind -eq 'verdict' -and $word -eq 'exhausted') { $t.state = 'closed_exhausted'; return }
+  # Only a closer closes, so the word of another worker goes to a closer. Panel verdict on BLD-02.
+  # shortcut: the closer does not see the claim or the sources tried, BLD-04 adds both to the closer prompt.
+  if ($o.kind -eq 'verdict' -and $word -eq 'exhausted') { $t.state = if ($t.state -eq 'closing') { 'closed_exhausted' } else { 'closing' }; return }
   if ($t.state -eq 'needs_panel') {
     if ($word -eq 'pass') { $t.state = $t.panelFrom } else { Set-Park $t }
     return
@@ -275,7 +277,7 @@ try {
   # Step 2: move one ticket, and copy its state.
   $blocked = @($tickets | Where-Object { $BLOCK_ALL -contains $_.state }).Count -gt 0
   $running = @($tickets | Where-Object { $_.worker }).Count + [int][bool]$resume.worker
-  $cap = if ($config.cap) { [int]$config.cap } else { 1 }
+  $cap = if ($null -ne $config.cap) { [int]$config.cap } else { 1 }
   $moved = $null
   $request = $null
   $from = ''
