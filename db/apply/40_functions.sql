@@ -8477,6 +8477,7 @@ $$;
 -- licence filter as the public read. The function reads api.observation as its owner, and that view
 -- shows the owner only the figures with an open licence, so a figure with a restricted licence is
 -- not in a release. The view also hides a subject that the public read does not show.
+-- A figure whose document is below level A is not in a release either.
 CREATE FUNCTION release_observations()
 RETURNS TABLE (id uuid, measure text, value numeric, unit text, period text, method text,
                publisher text, reporter text, partner text, product text, subject_id uuid,
@@ -8486,6 +8487,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   SELECT o.id, o.measure, o.value, o.unit, o.period, o.method, o.publisher, o.reporter, o.partner,
          o.product, o.subject_id, o.licence, o.document_id::text, o.page, o.span_start, o.span_end
     FROM api.observation o
+   WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = o.document_id)
 $$;
 
 -- THE LOG OF THE MERGES (M12): each merge and each undo, with its label, and the entity that each

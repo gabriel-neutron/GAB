@@ -474,7 +474,7 @@ export const fetchDocument = defineTool({
     'table repeats its header line on each page. A PNG or a JPEG image is stored as ' +
     'its bytes, and its pages are the text that OCR read in it (English, Ukrainian and ' +
     'Russian). A host on the leak deny list opens no connection, also after a redirect. ' +
-    'Russian). A Nominatim, Overpass or geocoder answer and a search result page are refused, ' +
+    'A Nominatim, Overpass or geocoder answer and a search result page are refused, ' +
     'and nothing is stored: a geocoder is a check of an address only, and a search lists ' +
     'pages. OCR can misread a sign: cite an excerpt as the stored text gives it, and ' +
     'compare it with the image. An image in which OCR reads no text is refused. A ZIP archive ' +
