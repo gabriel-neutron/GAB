@@ -1157,7 +1157,7 @@ setTimeout(() => process.exit(0), 30000);`,
       expect(promptOf(dir, 'T-A-2')).toContain('Gaps to fix: gap1');
       expect(promptOf(dir, 'T-A-3')).toContain('ROLE:reviewer');
       expect(promptOf(dir, 'T-A-4')).toContain('ROLE:fact_closer');
-      expect(promptOf(dir, 'T-A-4')).not.toContain('gap1');
+      expect(promptOf(dir, 'T-A-4')).not.toContain('Gaps to fix');
     },
     LONG,
   );
