@@ -164,6 +164,7 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "read_leads: read",
       "web_search: read",
       "news_search: read",
+      "read_page: read",
       "archive_snapshot: write",
       "fetch_document: write",
       "store_saved_file: write",

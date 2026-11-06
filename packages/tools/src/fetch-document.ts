@@ -245,6 +245,16 @@ const visibleLength = (html: string): number =>
     .replace(/\s+/gu, ' ')
     .trim().length;
 
+/** The host and the end of the hold when a short page of a Russian host asks for a CAPTCHA, or null. */
+export const captchaHoldOf = (got: Got, now: number): { host: string; until: number } | null => {
+  const host = russianHostOf(got.url);
+  if (host === null || got.bytes.length >= CAPTCHA_PAGE_BYTES) return null;
+  const body = new TextDecoder('utf-8').decode(got.bytes);
+  if (visibleLength(body) > SHORT_PAGE) return null;
+  const found = classOfAnswer({ status: got.status, body, headers: {} }, now);
+  return found.kind === 'captcha' ? { host, until: found.retryAt ?? now } : null;
+};
+
 const BROWSER_STATUSES: ReadonlySet<number> = new Set([401, ...FILTER_STATUSES]);
 
 /** The refusal of a failed fetch, with the step for a bot filter or a server that is silent. */
@@ -699,29 +709,13 @@ export const fetchDocument = defineTool({
         ),
       };
       // A short page of a Russian host that asks for a CAPTCHA is no source, and it stops each worker.
-      const answeredBy = russianHostOf(got.url);
-      const pageText = new TextDecoder('utf-8').decode(got.bytes.subarray(0, CAPTCHA_PAGE_BYTES));
-      if (
-        answeredBy !== null &&
-        got.bytes.length < CAPTCHA_PAGE_BYTES &&
-        visibleLength(pageText) <= SHORT_PAGE
-      ) {
-        const found = classOfAnswer(
-          {
-            status: got.status,
-            body: pageText,
-            headers: {},
-          },
-          reach.now().getTime(),
+      const captchaHold = captchaHoldOf(got, reach.now().getTime());
+      if (captchaHold !== null) {
+        await holdHost(captchaHold.host, 'captcha', captchaHold.until);
+        throw new ToolRefusal(
+          `the page of ${captchaHold.host} asks for a CAPTCHA, and nothing solves it: all workers wait ` +
+            `until ${new Date(captchaHold.until).toISOString()}, and nothing is stored`,
         );
-        if (found.kind === 'captcha') {
-          const until = found.retryAt ?? reach.now().getTime();
-          await holdHost(answeredBy, 'captcha', until);
-          throw new ToolRefusal(
-            `the page of ${answeredBy} asks for a CAPTCHA, and nothing solves it: all workers wait ` +
-              `until ${new Date(until).toISOString()}, and nothing is stored`,
-          );
-        }
       }
 
       let mime = mimeOf(got.contentType, got.bytes);

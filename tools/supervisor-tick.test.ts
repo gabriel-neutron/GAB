@@ -58,6 +58,8 @@ const main = async () => {
   if (word === 'dns') { console.log(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: "API Error: Can't reach the API server (ENOTFOUND)" })); process.exit(1); }
   if (word === 'envfile') { require('fs').writeFileSync(extra.replaceAll('+', ':'), String(process.env.GATE_FAKE)); return good({ result: 'pass' }); }
   if (word === 'exit') { console.log('{"type":"result","is_error":false,"result":"{\\\\"result\\\\":\\\\"pass\\\\"}"}'); process.exit(3); }
+  if (word === 'emptyreopen') return good({ result: 'reopen', gaps: [], reason: step });
+  if (word === 'closegaps') return good({ result: 'close', gaps: ['g'], reason: step });
   if (word === 'noverdict') return console.log(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: 'Done.' }));
   if (word === 'baduntil') return good({ result: 'hold', hold: 'waiting_quota', until: 'soon' });
   if (word === 'farhold') return good({ result: 'hold', hold: 'waiting_quota', until: '2099-01-01' });
@@ -1089,6 +1091,160 @@ setTimeout(() => process.exit(0), 30000);`,
       seed(other, 'T-B', 'badquote:reopen');
       await ticks(other, 2);
       expect(ticket(other, 'T-B')).toMatchObject({ state: 'working', attempts: 1 });
+    },
+    LONG,
+  );
+
+  // Each role has its own fake arguments, so the spec file of a worker shows which role it got.
+  const ROLE_NAMES = ['proposer', 'reviewer', 'fact_closer', 'build_closer', 'panel', 'coder'];
+  const withRoles = () =>
+    folder({
+      roles: Object.fromEntries(
+        ROLE_NAMES.map((role) => [
+          role,
+          { args: [FAKE, `--role=${role}`], prompt: `ROLE:${role}`, workDir: root },
+        ]),
+      ),
+    });
+  const rolesOf = (dir: string) =>
+    workerFiles(dir, '.spec.json')
+      .sort()
+      .map(
+        (file) =>
+          (JSON.parse(readFileSync(join(dir, 'workers', file), 'utf8')) as { args: string[] })
+            .args[1],
+      );
+  const promptOf = (dir: string, name: string) =>
+    readFileSync(join(dir, 'workers', `${name}.prompt`), 'utf8');
+
+  // Each tick moves one ticket or starts one worker, so a test waits for a state and not for a count.
+  const tickTo = async (dir: string, id: string, state: string) => {
+    for (let i = 0; i < 16 && ticket(dir, id).state !== state; i++) await tick(dir);
+    expect(ticket(dir, id).state).toBe(state);
+  };
+
+  test(
+    'each state starts the worker of its role, and the closer of the ticket closes',
+    async () => {
+      const dir = withRoles();
+      seed(dir, 'T-A', 'pass,pass,close');
+      seed(dir, 'T-B', 'pass,pass,close', { closer: 'build' });
+      await tickTo(dir, 'T-A', 'closed');
+      await tickTo(dir, 'T-B', 'closed');
+      expect(rolesOf(dir)).toEqual([
+        '--role=proposer',
+        '--role=reviewer',
+        '--role=fact_closer',
+        '--role=coder',
+        '--role=coder',
+        '--role=build_closer',
+      ]);
+      expect(promptOf(dir, 'T-A-3')).toContain('ROLE:fact_closer');
+      expect(promptOf(dir, 'T-A-3')).toContain('Seed: T-A-3.');
+    },
+    LONG,
+  );
+
+  test(
+    'a closer gets no notes, and a worker after its reopen gets the gaps',
+    async () => {
+      const dir = withRoles();
+      seed(dir, 'T-A', 'reopen:gap1,pass,pass,close', { state: 'closing' });
+      await tickTo(dir, 'T-A', 'reopened');
+      expect(ticket(dir, 'T-A').gaps).toEqual(['gap1']);
+      await tickTo(dir, 'T-A', 'closed');
+      expect(promptOf(dir, 'T-A-2')).toContain('ROLE:proposer');
+      expect(promptOf(dir, 'T-A-2')).toContain('Gaps to fix: gap1');
+      expect(promptOf(dir, 'T-A-3')).toContain('ROLE:reviewer');
+      expect(promptOf(dir, 'T-A-4')).toContain('ROLE:fact_closer');
+      expect(promptOf(dir, 'T-A-4')).not.toContain('gap1');
+    },
+    LONG,
+  );
+
+  test(
+    'a closer sees the claim of an exhausted ticket',
+    async () => {
+      const dir = withRoles();
+      seed(dir, 'T-A', 'exhausted,exhausted');
+      await tickTo(dir, 'T-A', 'closed_exhausted');
+      expect(promptOf(dir, 'T-A-1')).not.toContain('Its words');
+      expect(promptOf(dir, 'T-A-2')).toContain('exhausted. Its words: exhausted');
+    },
+    LONG,
+  );
+
+  test.each([
+    ['emptyreopen', 'a reopen with no gaps'],
+    ['closegaps', 'a close with gaps'],
+  ])(
+    'the verdict %s (%s) is not fixed JSON, and it costs one attempt',
+    async (step) => {
+      const dir = withRoles();
+      seed(dir, 'T-A', step, { state: 'closing' });
+      await ticks(dir, 2);
+      expect(ticket(dir, 'T-A')).toMatchObject({ state: 'closing', attempts: 1 });
+    },
+    LONG,
+  );
+
+  test(
+    'a second check starts at the closer, and a failed check reopens the ticket',
+    async () => {
+      const dir = withRoles();
+      ask(dir, 'a', {
+        ticket: {
+          id: 'T-S',
+          state: 'ready',
+          secondCheck: true,
+          closer: 'build',
+          prompt: 'PLAN:reopen:gap2',
+        },
+      });
+      await tick(dir);
+      expect(ticket(dir, 'T-S').state).toBe('closing');
+      await tickTo(dir, 'T-S', 'reopened');
+      expect(promptOf(dir, 'T-S-1')).toContain('ROLE:build_closer');
+      expect(ticket(dir, 'T-S').gaps).toEqual(['gap2']);
+    },
+    LONG,
+  );
+
+  test(
+    'a build closer gets a read-only copy of a file of its check, and never a secret',
+    async () => {
+      const dir = withRoles();
+      const named = join(dir, 'named.log');
+      const secret = join(dir, 'x.env');
+      writeFileSync(named, 'held');
+      writeFileSync(secret, 'SECRET=1');
+      seed(dir, 'T-A', 'close', { state: 'closing', closer: 'build', checkFiles: [named, secret] });
+      await ticks(dir, 1);
+      const copies = join(dir, 'workers', 'T-A-1.files');
+      expect(readdirSync(copies)).toEqual(['named.log']);
+      expect(() => {
+        writeFileSync(join(copies, 'named.log'), 'changed');
+      }).toThrow();
+      expect(readFileSync(join(copies, 'named.log'), 'utf8')).toBe('held');
+      expect(promptOf(dir, 'T-A-1')).toContain(copies);
+      const spec = JSON.parse(readFileSync(join(dir, 'workers', 'T-A-1.spec.json'), 'utf8')) as {
+        args: string[];
+      };
+      expect(spec.args).toEqual([FAKE, '--role=build_closer', '--add-dir', copies]);
+      chmodSync(join(copies, 'named.log'), 0o666);
+    },
+    LONG,
+  );
+
+  test(
+    'a tick with roles starts no worker for a role that the settings do not hold',
+    async () => {
+      const dir = folder({ roles: { reviewer: { args: [FAKE], prompt: '', workDir: root } } });
+      seed(dir, 'T-A', 'pass');
+      await tick(dir).catch(() => undefined);
+      await tick(dir).catch(() => undefined);
+      expect(workerFiles(dir, '.spec.json')).toEqual([]);
+      expect(status(dir).alarms.join(' ')).toContain('no role proposer');
     },
     LONG,
   );

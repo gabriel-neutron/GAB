@@ -78,7 +78,7 @@ function Save-Ticket($t) { Save-State (Join-Path $tickets_dir "$($t.id).json") $
 function Complete-Ticket($t) {
   if ($t.id -notmatch '^[A-Za-z0-9_-]+$' -or $STATES -notcontains $t.state) { throw 'bad id or state' }
   if ($t.until) { [void][datetime]$t.until }
-  $fields = @{ attempts = 0; noPass = 0; panelCrashes = 0; serviceHolds = 0; runs = 0; gaps = @(); heldFrom = $null; panelFrom = $null; until = $null; worker = $null; outcome = $null; reason = '' }
+  $fields = @{ attempts = 0; noPass = 0; panelCrashes = 0; serviceHolds = 0; runs = 0; gaps = @(); heldFrom = $null; panelFrom = $null; until = $null; worker = $null; outcome = $null; reason = ''; claim = $null }
   foreach ($k in $fields.Keys) {
     if ($t.PSObject.Properties.Name -notcontains $k) { $t | Add-Member -NotePropertyName $k -NotePropertyValue $fields[$k] }
   }
@@ -102,10 +102,38 @@ function Stop-Overdue($w) {
   $true
 }
 
-function Start-Worker([string]$name, [string]$prompt) {
+# The worker role of a ticket in this state (method, section 4). `closer` in the ticket names its closer.
+function Get-Role($t) {
+  if ($t.state -eq 'needs_panel') { return 'panel' }
+  if ($t.state -eq 'closing') { return $(if ($t.closer -eq 'build') { 'build_closer' } else { 'fact_closer' }) }
+  if ($t.closer -eq 'build') { return 'coder' }
+  if ($t.state -eq 'reviewing') { return 'reviewer' }
+  'proposer'
+}
+
+# A read-only copy of each file that a check names. Code gives the copy, so a closer cannot change the
+# real file, and a secret never goes with it.
+function Copy-CheckFile($t, [string]$folder) {
+  [void][IO.Directory]::CreateDirectory($folder)
+  foreach ($file in @($t.checkFiles)) {
+    if (-not $file -or $file -match '\.env($|\.)' -or -not (Test-Path -LiteralPath $file -PathType Leaf)) { Write-Log "no copy of a check file of $($t.id)"; continue }
+    $copy = Join-Path $folder (Split-Path $file -Leaf)
+    Copy-Item -LiteralPath $file $copy -Force
+    (Get-Item -LiteralPath $copy).IsReadOnly = $true
+  }
+}
+
+function Start-Worker([string]$name, [string]$prompt, [string]$role, [string[]]$extra = @()) {
   $base = Join-Path $workers_dir $name
   Save-File "$base.prompt" $prompt
-  Save-File "$base.spec.json" (@{ command = $config.command; args = @($config.args); workDir = $config.workDir; env = $config.env } | ConvertTo-Json -Depth 4)
+  # A tick with roles never falls back to the wide arguments.
+  $from = $config
+  if ($role -and $config.roles) {
+    $from = $config.roles.$role
+    if (-not $from) { throw "the settings hold no role $role" }
+  }
+  $workDir = if ($from.workDir) { $from.workDir } else { $config.workDir }
+  Save-File "$base.spec.json" (@{ command = $config.command; args = @($from.args) + $extra; workDir = $workDir; env = $from.env } | ConvertTo-Json -Depth 4)
   $self = "-NoProfile -ExecutionPolicy Bypass -File $(Format-Argument $PSCommandPath) -StateDir $(Format-Argument $StateDir) -RunWorker $(Format-Argument $base)"
   $p = Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList $self -WindowStyle Hidden -PassThru
   $started = try { $p.StartTime.Ticks } catch { 0 }
@@ -195,19 +223,25 @@ function Move-ByOutcome($t) {
   $v = $o.verdict
   $word = "$($v.result)"
   if ($o.kind -eq 'verdict' -and $word -eq 'hold' -and $HOLDS.ContainsKey("$($v.hold)")) { return Set-Hold $t "$($v.hold)" $v.until }
-  # Only a closer closes, so the word of another worker goes to a closer. Panel verdict on BLD-02.
-  # shortcut: the closer does not see the claim or the sources tried, BLD-04 adds both to the closer prompt.
-  if ($o.kind -eq 'verdict' -and $word -eq 'exhausted') { $t.state = if ($t.state -eq 'closing') { 'closed_exhausted' } else { 'closing' }; return }
+  # Only a closer closes, so the word of another worker goes to a closer, with the words of its claim. Panel verdict on BLD-02.
+  if ($o.kind -eq 'verdict' -and $word -eq 'exhausted') {
+    if ($t.state -eq 'closing') { $t.state = 'closed_exhausted' } else { $t.claim = $t.reason; $t.state = 'closing' }
+    return
+  }
   if ($t.state -eq 'needs_panel') {
     if ($o.kind -eq 'failed') { Add-PanelCrash $t } elseif ($word -eq 'pass') { $t.state = $t.panelFrom } else { Set-Park $t }
     return
   }
   if ($o.kind -eq 'verdict' -and $word -eq 'stop_source') { return Set-Panel $t }
+  # The fixed JSON of a closer: a reopen names its gaps, and a close has none.
+  $named = @($v.gaps | Where-Object { $_ })
+  if ($t.state -eq 'closing' -and (($word -eq 'reopen' -and -not $named.Count) -or ($word -eq 'close' -and $named.Count))) { return Add-Failure $t }
   if ($o.kind -eq 'verdict' -and $word -eq 'reopen' -and $t.state -eq 'closing') {
     $gaps = @($v.gaps)
     $returned = @($gaps | Where-Object { $t.gaps -contains $_ }).Count -gt 0
     $t.gaps = @(@($t.gaps) + $gaps | Where-Object { $_ } | Select-Object -Unique)
     $t.attempts++
+    $t.claim = $null
     $t.state = 'reopened'
     if ($t.attempts -ge $MAX_ATTEMPTS) { Set-Park $t } elseif ($returned) { Set-Panel $t }
     return
@@ -219,13 +253,15 @@ function Move-ByOutcome($t) {
 }
 
 # A request of the inbox is the one way into the state from outside. Each other request is refused.
-# shortcut: each process of this user can write the inbox, the role allow lists of BLD-04 close this for a worker.
+# shortcut: a role with a shell (coder, build closer) can still write the inbox, a separate Windows account would close this.
 function Move-ByRequest($file) {
   $r = [IO.File]::ReadAllText($file.FullName) | ConvertFrom-Json
   if ($time -ge $FREEZE -and ($r.ticket -or $r.to -eq 'ready')) { throw 'after the freeze no ticket opens or returns' }
   if ($r.ticket) {
-    $new = Complete-Ticket ($r.ticket | Select-Object id, state, prompt, pilot, forecast, dependsOn)
+    $new = Complete-Ticket ($r.ticket | Select-Object id, state, prompt, pilot, forecast, dependsOn, closer, checkFiles)
     if ($new.state -ne 'ready' -or (Test-Path (Join-Path $tickets_dir "$($new.id).json"))) { throw 'not a new ready ticket' }
+    # The second check of a closed build ticket starts at its closer (method, section 7).
+    if ($r.ticket.secondCheck) { $new.state = 'closing' }
     return $new
   }
   $t = $tickets | Where-Object { $_.id -eq $r.id }
@@ -435,10 +471,25 @@ try {
     if ($t) {
       $t.runs++
       Save-Ticket $t # Before the start: a crash after it must not give a new worker the paths of this one.
-      $gaps = if ($t.gaps) { "Gaps to fix: $(@($t.gaps) -join '; ')`n" } else { '' }
-      $prompt = "$($t.prompt)`n`nTicket: $($t.id). State: $($t.state). Run: $($t.runs).`n$gaps" +
+      $name = "$($t.id)-$($t.runs)"
+      $role = Get-Role $t
+      # A closer gets the standard, the ids and a seed. It does not get the notes (method, section 7).
+      $isCloser = $t.state -eq 'closing'
+      $notes = if ($isCloser) {
+        if ($t.claim) { "The last worker claims that the sources of this ticket are exhausted. Its words: $($t.claim)`n" } else { '' }
+      } elseif ($t.gaps) { "Gaps to fix: $(@($t.gaps) -join '; ')`n" } else { '' }
+      $first = if ($config.roles) { "$($config.roles.$role.prompt)`n`n" } else { '' }
+      $seed = if ($isCloser) { "Seed: $name.`n" } else { '' }
+      $extra = @()
+      if ($role -eq 'build_closer' -and $t.checkFiles) {
+        $folder = Join-Path $workers_dir "$name.files"
+        Copy-CheckFile $t $folder
+        $extra = @('--add-dir', $folder)
+        $seed += "The read-only copies of the files of the check: $folder`n"
+      }
+      $prompt = "$first$($t.prompt)`n`nTicket: $($t.id). State: $($t.state). Run: $($t.runs).`n$seed$notes" +
       'End with one line of JSON, with no double quote inside a value: {"result":"pass|close|reopen|failed|hold|exhausted|stop_source","hold":"<waiting state>","newFacts":0,"gaps":[],"reason":"<one sentence>"}'
-      $t.worker = Start-Worker "$($t.id)-$($t.runs)" $prompt
+      $t.worker = Start-Worker $name $prompt $role $extra
       Save-Ticket $t
       $running++
     }

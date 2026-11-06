@@ -31,6 +31,7 @@ import { readEntity } from './read-entity.ts';
 import { readGroup } from './read-group.ts';
 import { readGroups } from './read-groups.ts';
 import { readLeads } from './read-leads.ts';
+import { readPage } from './read-page.ts';
 import { readUnit } from './read-unit.ts';
 import { readWaiting } from './read-waiting.ts';
 import { rejectRelation } from './reject-relation.ts';
@@ -73,6 +74,7 @@ export const CATALOGUE = [
   readLeads,
   webSearch,
   newsSearch,
+  readPage,
   archiveSnapshot,
   fetchDocument,
   euAct,

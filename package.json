@@ -43,6 +43,7 @@
     "test:fast": "node --env-file=tools/offline.env node_modules/vitest/vitest.mjs run --project offline",
     "writer": "node --env-file=infra/.env packages/writer/src/main.ts",
     "mcp": "node packages/mcp/src/main.ts",
+    "closer:gate": "node --env-file=infra/.env packages/mcp/src/closer-gate.ts",
     "mcp:serve": "node packages/mcp/src/main.ts --http 7420",
     "worker": "node --env-file=infra/.env packages/worker/src/main.ts",
     "speed:budget": "node tools/speed-budget.ts"
