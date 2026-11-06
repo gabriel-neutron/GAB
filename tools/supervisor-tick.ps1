@@ -45,7 +45,7 @@ $WORK = @('pilot', 'working', 'reviewing', 'closing', 'needs_panel')
 $HOLDS = @{ waiting_quota = 1440; waiting_source = 1440; waiting_ceiling = 1440; waiting_token = 30; waiting_limit = 30; waiting_signature = 0 }
 $BLOCK_ALL = @('waiting_token', 'waiting_limit')
 $ALARM_HOLDS = @('waiting_token', 'waiting_ceiling', 'waiting_signature')
-$WORKER_HOURS = 12 # A hung worker must not hold its slot for good. The longest run so far took under one hour.
+$WORKER_HOURS = 12 # The longest run so far took under one hour.
 $MAX_HOLD_DAYS = 7 # A worker gives the retry time of a hold, and a false date must not hide the ticket.
 $STATES = @('ready', 'reopened', 'parked', 'closed', 'closed_exhausted', 'closed_parked') + $WORK + @($HOLDS.Keys)
 # shortcut: these words come from the errors that the CLI shows today, add a word when a new wording appears.
@@ -85,6 +85,16 @@ function Test-Running($w) {
   $p = Get-Process -Id $w.pid -ErrorAction SilentlyContinue
   # A process of another account can hold a used pid, and its start time is refused. Start time 0 is not known.
   try { [bool]($p -and ($w.started -eq 0 -or $p.StartTime.Ticks -eq $w.started)) } catch { $false }
+}
+
+# A hung worker must not hold its slot for good. True when the worker is over the limit, and then it is stopped.
+function Stop-Overdue($w) {
+  if (-not $w.startedAt -or $time -lt ([datetime]$w.startedAt).AddHours($WORKER_HOURS)) { return $false }
+  # With no start time, the pid can have a new owner, so the tick kills nothing.
+  if ($w.started -ne 0) {
+    try { & taskkill.exe /T /F /PID $w.pid 2>&1 | Out-Null } catch { Write-Log "taskkill failed: $_" }
+  }
+  $true
 }
 
 function Start-Worker([string]$name, [string]$prompt) {
@@ -140,8 +150,9 @@ function Set-Hold($t, [string]$hold, $until) {
   $t.heldFrom = $t.state
   $t.state = $hold
   $latest = $time.AddDays($MAX_HOLD_DAYS)
-  $t.until = if ($until) { $(if ([datetime]"$until" -gt $latest) { $latest } else { [datetime]"$until" }).ToString('o') }
-  elseif ($HOLDS[$hold]) { $time.AddMinutes($HOLDS[$hold]).ToString('o') } else { $null }
+  # Only an inbox request ends a signature hold, so a date of a worker does not count for it.
+  $t.until = if (-not $HOLDS[$hold]) { $null } elseif ($until) { $(if ([datetime]"$until" -gt $latest) { $latest } else { [datetime]"$until" }).ToString('o') }
+  else { $time.AddMinutes($HOLDS[$hold]).ToString('o') }
 }
 function Add-Failure($t) {
   $t.attempts++
@@ -234,11 +245,7 @@ try {
     if (-not $t.worker) { continue }
     if (-not (Test-Running $t.worker)) {
       $t.outcome = Read-Outcome $t.worker.base
-    } elseif ($t.worker.startedAt -and $time -ge ([datetime]$t.worker.startedAt).AddHours($WORKER_HOURS)) {
-      # With no start time, the pid can have a new owner, so the tick kills nothing.
-      if ($t.worker.started -ne 0) {
-        try { & taskkill.exe /T /F /PID $t.worker.pid 2>&1 | Out-Null } catch { Write-Log "taskkill failed: $_" }
-      }
+    } elseif (Stop-Overdue $t.worker) {
       $t.outcome = @{ kind = 'failed'; reason = "worker over the limit of $WORKER_HOURS hours" }
     } else { continue }
     $t.worker = $null
@@ -247,6 +254,12 @@ try {
 
   $resumeFile = Join-Path $StateDir 'resume.json'
   $resume = if (Test-Path $resumeFile) { [IO.File]::ReadAllText($resumeFile) | ConvertFrom-Json } else { [pscustomobject]@{ worker = $null; stateTicks = 0; retryAt = $null; runs = 0 } }
+  if ($resume.worker -and (Test-Running $resume.worker) -and (Stop-Overdue $resume.worker)) {
+    # The same state file gets no second resume worker, so the alarm of step 3 fires.
+    Write-Log "resume worker over the limit of $WORKER_HOURS hours"
+    $resume.worker = $null
+    Save-State $resumeFile $resume
+  }
   if ($resume.worker -and -not (Test-Running $resume.worker)) {
     $o = Read-Outcome $resume.worker.base
     $resume.worker = $null
@@ -311,6 +324,7 @@ try {
   # Step 3: a stale wave-start gets one resume worker for each version of its state file.
   $started = $false
   $wave = $config.waveStart
+  if ($resume.retryAt -and [datetime]$resume.retryAt -gt $time) { $alarms += '- the wave-start resume worker waits for a sign-in or a limit' }
   if ($wave -and -not $resume.worker -and (Test-Path $wave.stateFile)) {
     $item = Get-Item $wave.stateFile
     $closed = try { ([IO.File]::ReadAllText($wave.stateFile) | ConvertFrom-Json).end -eq 'closed' } catch { $alarms += '- the wave-start state file is broken'; $true }
@@ -322,7 +336,7 @@ try {
       # With no setting the tick cannot know, so it asks and starts nothing.
       $alive = $wave.liveMatch -and @(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*$($wave.liveMatch)*" }).Count -gt 0
       if (-not $wave.liveMatch) { $alarms += '- the setting waveStart.liveMatch is missing, so no resume worker starts' }
-      elseif (-not $alive) {
+      elseif (-not $alive -and -not $blocked -and $running -lt $cap) {
         $resume.runs++
         Save-State $resumeFile $resume
         $resume.worker = Start-Worker "wave-start-$($resume.runs)" $wave.prompt
