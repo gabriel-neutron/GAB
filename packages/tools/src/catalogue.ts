@@ -6,6 +6,7 @@ import { euAct } from './eu-act.ts';
 import { enqueueMapping } from './enqueue-mapping.ts';
 import { fetchDocument } from './fetch-document.ts';
 import { fileSchemaSample } from './file-schema-sample.ts';
+import { findLine } from './find-line.ts';
 import { findDocument } from './find-document.ts';
 import { comtradeData } from './comtrade-data.ts';
 import { egrulExtract } from './egrul-extract.ts';
@@ -60,6 +61,7 @@ export const CATALOGUE = [
   listProposals,
   findDocument,
   documentText,
+  findLine,
   fileSchemaSample,
   jobStatus,
   readDoubts,

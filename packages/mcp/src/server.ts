@@ -75,7 +75,20 @@ const DATA_CLASSES: readonly string[] = ['22', '23', 'P0'];
 // can name a path or a host, so the client gets no part of it, and the operator reads it in the log.
 const CALL_FAULT = 'the server failed the call, and the operator reads the fault in its log';
 
+// External constraint: pg reports a lost connection with a Node error code or with a message of pg.
+// A fetch or the object store can give the same codes, so the sentence does not name the database.
+const LOST_CODES: readonly unknown[] = ['ECONNRESET', 'EPIPE', 'ETIMEDOUT'];
+const LOST_CONNECTION =
+  'a connection of the server stopped during the call; a write can be complete, so read the record before you send the call again';
+
+const isLostConnection = (cause: unknown): boolean =>
+  cause instanceof Error &&
+  (('code' in cause && LOST_CODES.includes(cause.code)) ||
+    cause.message.startsWith('Connection terminated') ||
+    cause.message.endsWith('is not queryable'));
+
 const faultSentence = (cause: unknown): string => {
+  if (isLostConnection(cause)) return LOST_CONNECTION;
   const code = codeOf(cause);
   if (code === null) return CALL_FAULT;
   if (DATA_CLASSES.includes(code.slice(0, 2)) && cause instanceof Error) {

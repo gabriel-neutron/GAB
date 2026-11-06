@@ -13,9 +13,10 @@ import { readThroughFilter } from '@gab/tools/challenge-page';
 import { endMetadata } from '@gab/tools/fetch-document';
 import type { Reach } from '@gab/tools/tool';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import pg from 'pg';
+import type pg from 'pg';
 
 import { CONFIG_FILES, researchEnvOf, textOf } from './config.ts';
+import { openPool } from './pool.ts';
 import {
   assertSessionRole,
   CREDENTIALS_VARIABLE,
@@ -91,13 +92,7 @@ const reachOf = (): Reach => {
 // checked it.
 // The checker role writes the model call and the checks. Its pool opens no session before the
 // first check.
-const checkerPool = (address: string): pg.Pool => {
-  const pool = new pg.Pool({ connectionString: address, max: 2 });
-  pool.on('error', (fault) => {
-    console.error(fault);
-  });
-  return pool;
-};
+const checkerPool = (address: string): pg.Pool => openPool({ connectionString: address, max: 2 });
 
 const checkOf = (research: string): SecondCheck => {
   const check = readSecondCheck(
@@ -137,13 +132,10 @@ const start = async (): Promise<void> => {
   const url = researchCredentials(process.env[CREDENTIALS_VARIABLE]);
   // A tool call holds its connection for the whole call, a slow fetch included. When all are held,
   // a call waits at most this long and then fails, and it never hangs.
-  const pool = new pg.Pool({
+  const pool = openPool({
     connectionString: url,
     max: POOL_SIZE,
     connectionTimeoutMillis: CONNECT_MS,
-  });
-  pool.on('error', (fault) => {
-    console.error(fault);
   });
   await assertSessionRole(pool);
   await mkdir(INBOX, { recursive: true });

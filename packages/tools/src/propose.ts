@@ -12,7 +12,7 @@ import { z } from 'zod';
 
 import { KEY_ADVICE, keyWarnings } from './attribute-key.ts';
 import { plainText } from './check-answer.ts';
-import { UNIQUE_KEYS } from './duplicate-identifier.ts';
+import { plainIdentifier, UNIQUE_KEYS } from './duplicate-identifier.ts';
 import { egrulExcerptRefusal, isEgrulAddress } from './egrul-text.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
 import { cutsToken, findExcerpt, pointSlice, type Span } from './excerpt.ts';
@@ -680,7 +680,7 @@ const checkNewIdentifiers = async (
     const held = act.attrs?.[key]?.v;
     for (const value of Array.isArray(held) ? held : [held]) {
       if (typeof value !== 'string' && typeof value !== 'number') continue;
-      const plain = String(value).replace(/[\s-]/gu, '').toUpperCase();
+      const plain = plainIdentifier(key, value);
       const at = JSON.stringify([key, plain]);
       const earlier = batch.get(at);
       if (earlier !== undefined && earlier !== act.label)

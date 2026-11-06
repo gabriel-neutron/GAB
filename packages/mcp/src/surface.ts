@@ -25,6 +25,7 @@ export const RESEARCH_TOOLS = {
   list_proposals: READ_RECORD,
   find_document: READ_RECORD,
   document_text: READ_RECORD,
+  find_line: READ_RECORD,
   file_schema_sample: READ_RECORD,
   job_status: READ_RECORD,
   // The reads of the review page. The queue, the groups, the decided acts and the leads.
