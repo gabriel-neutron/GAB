@@ -216,7 +216,7 @@ const readExtract = async (
 };
 
 const ownerShape = z.strictObject({
-  kind: z.enum(['legal_person', 'natural_person', 'hidden', 'other']),
+  kind: z.enum(['legal_person', 'natural_person', 'state_body', 'hidden', 'other']),
   name: z.string().nullable(),
   ogrn: z.string().nullable(),
   inn: z.string().nullable(),
@@ -283,7 +283,7 @@ export const egrulExtractWith = (readPages: PageReader) =>
       'Reads one extract of the Russian register (EGRUL) by the 10-digit tax number (INN) of a ' +
       'company, stores the signed PDF as an internal document, and gives its owner section: the ' +
       'legal persons with OGRN, INN, country, share and the day of the register entry. A natural ' +
-      'person is only counted as one owner of kind natural_person, with no field. An absent section is no statement ' +
+      'person is only counted as one owner of kind natural_person, with no field. A state founder gives the state body that acts for it, of kind state_body. An absent section is no statement ' +
       'that the company has no owner: a joint-stock company often has none. The day of an entry ' +
       'is not a deal date. The tool reads one extract per 30 s, one worker at a time on the machine, so a call ' +
       'can wait. On a CAPTCHA it gives status hold with holdSeconds and retryAt: wait, and call ' +

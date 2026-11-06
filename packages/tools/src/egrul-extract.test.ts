@@ -132,6 +132,83 @@ test('the owner section gives each legal person, and only a count of a natural p
   expect(JSON.stringify(section)).not.toMatch(/КРАСНОВ|ПЁТР|СИДОРОВИЧ|770000000012|ЗАЛОГ/u);
 });
 
+test('a sole shareholder is an owner, and a name that a line cuts at a hyphen stays one word', () => {
+  const section = ownerSection([
+    `Сведения о единственном акционере
+32 ГРН и дата внесения в ЕГРЮЛ сведений о
+данном лице 2000000000002
+09.01.2024
+33 ОГРН 1000000000022
+34 ИНН 7700000033
+35 Полное наименование ОБЩЕСТВО С ОГРАНИЧЕННОЙ
+ОТВЕТСТВЕННОСТЬЮ "ТЕ-
+СТ"
+36 ГРН и дата внесения в ЕГРЮЛ записи,
+содержащей указанные сведения
+2000000000002
+09.01.2024
+37 Номинальная стоимость доли (в рублях) 1194133949
+Сведения о держателе реестра акционеров акционерного общества
+38 ОГРН 1000000000033
+39 Полное наименование АО "РЕГИСТРАТОР"
+Сведения об учете в налоговом органе`,
+  ]);
+  expect(section.state).toBe('listed');
+  expect(section.entries).toStrictEqual([
+    {
+      kind: 'legal_person',
+      name: 'ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "ТЕ-СТ"',
+      ogrn: '1000000000022',
+      inn: '7700000033',
+      country: null,
+      registrationNumber: null,
+      sharePercent: null,
+      nominalRub: '1194133949',
+      enteredOn: '2024-01-09',
+    },
+  ]);
+});
+
+test('a sole shareholder that is a natural person is only counted', () => {
+  const section = ownerSection([
+    `Сведения о единственном акционере
+35 Фамилия
+Имя
+Отчество
+КРАСНОВ
+ПЁТР
+СИДОРОВИЧ
+36 ИНН 770000000012
+41 Номинальная стоимость доли (в рублях) 100000
+Сведения об учете в налоговом органе`,
+  ]);
+  expect(section.entries.map((entry) => entry.kind)).toStrictEqual(['natural_person']);
+  expect(JSON.stringify(section)).not.toMatch(/КРАСНОВ|770000000012/u);
+});
+
+test('a state founder gives the state body that acts for it', () => {
+  const section = ownerSection([
+    `Сведения об участниках / учредителях юридического лица
+20 ГРН и дата внесения в ЕГРЮЛ сведений о
+данном лице 2000000000003
+10.10.2010
+21 Российская Федерация
+Сведения об органе, осуществляющем права участника
+22 ОГРН 1000000000044
+23 ИНН 7700000044
+24 Полное наименование ГОСУДАРСТВЕННОЕ АГЕНТСТВО
+Сведения об учете в налоговом органе`,
+  ]);
+  expect(section.entries).toMatchObject([
+    {
+      kind: 'state_body',
+      name: 'ГОСУДАРСТВЕННОЕ АГЕНТСТВО',
+      ogrn: '1000000000044',
+      inn: '7700000044',
+    },
+  ]);
+});
+
 test('an extract with no owner section is absent, and a section with no known end is unread', () => {
   expect(ownerSection(['1 Полное наименование АО "ПРИМЕР"']).state).toBe('absent');
   expect(

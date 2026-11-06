@@ -14,8 +14,10 @@ export interface AnswerClass {
   readonly retryAt: number | null;
 }
 
-// Assumption of the first build: the reset of the CAPTCHA and of a quota with no stated time are not
-// measured. The first pilot measures each, and this value then changes.
+// Assumption of the first build: the reset of a quota with no stated time is not measured. The real
+// run of 6 November 2026 on the register gave 2 CAPTCHAs in 21 extracts at one per 30 s, and one wait
+// of this length was enough. No full day is measured, and the shortest wait that is enough is not
+// known. The first pilot measures each, and this value then changes.
 const HOLD_MS = 60 * 60 * 1000;
 
 /** The wait after a limit of a host that states no time. */
