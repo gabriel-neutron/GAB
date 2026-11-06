@@ -436,13 +436,43 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
     LONG,
   );
 
+  test.each([
+    ['exhausted,reopen:gap', 'reopened'],
+    ['exhausted,close', 'closed'],
+  ])(
+    'the closer decides the exhausted word of a worker: %s gives %s',
+    async (plan, state) => {
+      const dir = folder();
+      seed(dir, 'T-K', plan);
+      await ticks(dir, 3);
+      expect(ticket(dir, 'T-K').state).toBe(state);
+    },
+    LONG,
+  );
+
   test(
-    'an exhausted verdict ends the ticket, and the freeze ends a parked ticket',
+    'cap 0 starts no worker',
+    async () => {
+      const dir = folder({ cap: 0 });
+      seed(dir, 'T-0', 'pass');
+      await ticks(dir, 2);
+      expect(ticket(dir, 'T-0').state).toBe('ready');
+      expect(workerFiles(dir, '.spec.json')).toHaveLength(0);
+    },
+    LONG,
+  );
+
+  test(
+    'an exhausted verdict goes through a closer, and the freeze ends a parked ticket',
     async () => {
       const dir = folder();
       seed(dir, 'T-X', 'exhausted');
       seed(dir, 'T-Y', 'pass', { state: 'parked' });
+      seed(dir, 'T-Z', 'pass', { dependsOn: ['T-X'] });
       await ticks(dir, 2);
+      expect(ticket(dir, 'T-X').state).toBe('closing');
+      expect(ticket(dir, 'T-Z').state).toBe('ready');
+      await tick(dir);
       expect(ticket(dir, 'T-X').state).toBe('closed_exhausted');
       expect(ticket(dir, 'T-Y').state).toBe('parked');
       await tick(dir, '2026-11-20T00:00:00');
