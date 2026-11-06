@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { describe, expect, test } from 'vitest';
 
 import {
+  holdsSecret,
   FetchRefusal,
   guardedGet,
   HEADERS,
@@ -202,4 +203,49 @@ describe('a body that stops', () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+});
+
+test.each([
+  'key',
+  'token',
+  'subscription-key',
+  'MAP_KEY',
+  'api_key',
+  'apikey',
+  'access_token',
+  'id_token',
+  'client_secret',
+  'password',
+  'pwd',
+  'auth',
+  'sig',
+  'signature',
+  'X-Amz-Signature',
+  'X-Amz-Credential',
+  'X-Amz-Security-Token',
+  'X-Goog-Signature',
+  'X-Goog-Credential',
+  'GoogleAccessId',
+  'Key-Pair-Id',
+  'AWSAccessKeyId',
+  'jwt',
+])('an address with the query name %s holds a secret', (name) => {
+  expect(holdsSecret(`https://data.example/file.csv?${name}=abc`)).toBe(true);
+});
+
+test.each([
+  'keyword',
+  'page',
+  'q',
+  'tokens_used',
+  'id',
+  'format',
+  'pageToken',
+  'nextPageToken',
+  '$skiptoken',
+  'continuationToken',
+  'sortKey',
+  'series_key',
+])('an address with the query name %s holds no secret', (name) => {
+  expect(holdsSecret(`https://data.example/file.csv?${name}=abc`)).toBe(false);
 });

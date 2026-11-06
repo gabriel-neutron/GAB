@@ -110,3 +110,65 @@ describe('a page of results of a search engine is a lead and not a source', () =
     expect(store.puts).toStrictEqual([]);
   });
 });
+
+const largeAnswer = (bytes: number) => ({
+  kind: 'url' as const,
+  bytes: new Uint8Array(bytes),
+  mime: 'text/csv',
+  uri: 'https://stat.example/large.csv',
+  title: 'A table',
+  pages: ['id,name'],
+  day: '2026-11-06',
+});
+
+const LARGE = 16 * 1024 * 1024 + 1;
+
+// A session that answers each statement by its words, and logs the limits that it sets.
+const loggedSession = (pinned: boolean) => {
+  const limits: unknown[] = [];
+  let stored = false;
+  const session = {
+    pinned,
+    query: (text: string, values: unknown[]) => {
+      if (text.includes('set_config')) {
+        limits.push(values[0]);
+        return Promise.resolve({ rows: [{ held: '30s' }] });
+      }
+      if (text.includes('put_fetched_document')) {
+        stored = true;
+        return Promise.resolve({ rows: [{ id: 'doc_a', pages: 1 }] });
+      }
+      return Promise.resolve({
+        rows: stored
+          ? [
+              {
+                id: 'doc_a',
+                title: 'A table',
+                mime: 'text/csv',
+                retrieved_at: null,
+                provider_id: null,
+              },
+            ]
+          : [],
+      });
+    },
+  };
+  return { session, limits };
+};
+
+const objectStore = { put: () => Promise.resolve('raw/a') };
+
+test('a large store on one connection takes a longer limit, and gives the old limit back', async () => {
+  const { session, limits } = loggedSession(true);
+  await storeAnswer(session, objectStore, largeAnswer(LARGE));
+  expect(limits).toStrictEqual(['180s', '30s']);
+});
+
+test('a pool session and a small store keep the limit of the role', async () => {
+  const pool = loggedSession(false);
+  await storeAnswer(pool.session, objectStore, largeAnswer(LARGE));
+  expect(pool.limits).toStrictEqual([]);
+  const small = loggedSession(true);
+  await storeAnswer(small.session, objectStore, largeAnswer(10));
+  expect(small.limits).toStrictEqual([]);
+});
