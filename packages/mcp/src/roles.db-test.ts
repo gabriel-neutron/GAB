@@ -100,6 +100,7 @@ test('the read route refuses a host on the deny list before a connection, also a
       `http://wikileaks.org:${String(site.port)}/page`,
       'http://www.wikileaks.org/page',
       'http://wikileaks.org./page',
+      'http://x.test@wikileaks.org/page',
       'HTTP://WIKILEAKS.ORG/page',
       'https://web.archive.org/web/2020/https://wikileaks.org/page',
     ]) {

@@ -4,7 +4,7 @@
 // shortcut: this list holds only the collections that the research rules name, BLD-07 makes it
 // exhaustive and adds the refusal to the store tools.
 const DENIED =
-  /(?:\/\/|\.)(?:wikileaks\.org|offshoreleaks\.icij\.org|ddosecrets\.(?:com|org)|aleph\.occrp\.org)\.?(?:[:/?#]|$)/iu;
+  /(?:\/\/|\.|@)(?:wikileaks\.org|offshoreleaks\.icij\.org|ddosecrets\.(?:com|org)|aleph\.occrp\.org)\.?(?:[:/?#]|$)/iu;
 
 /** The refusal of an address on a denied host, or null for another address. */
 export const deniedHostRefusal = (address: string): string | null => {

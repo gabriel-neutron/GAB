@@ -42,7 +42,13 @@ const NO_REWRITE = [
 ];
 const NO_WRITE_OF_GIT = ['Bash(git push:*)', 'Bash(git commit:*)', 'Bash(git merge:*)'];
 // A package script or a file of the repository, and no program from a line of the shell.
-const NO_FREE_PROGRAM = ['Bash(pnpm exec:*)', 'Bash(pnpm dlx:*)', 'Bash(node -:*)'];
+const NO_FREE_PROGRAM = [
+  'Bash(pnpm exec:*)',
+  'Bash(pnpm dlx:*)',
+  'Bash(pnpm node:*)',
+  'Bash(pnpm -:*)',
+  'Bash(node -:*)',
+];
 // The variables of the tick that a worker with a shell must not inherit. The coder needs its GitHub
 // sign-in, and the build closer needs none.
 const BLANK_FOR_SHELL = ['GAB_RESEARCH_DATABASE_URL', 'OPENROUTER_API_KEY', 'BRIGHTDATA_API_KEY'];

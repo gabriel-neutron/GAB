@@ -114,13 +114,14 @@ function Get-Role($t) {
 # A read-only copy of each file that a check names. Code gives the copy, so a closer does not open the
 # real file. The name of a secret file gets no copy, and a link can hide one. The number keeps two
 # files of one name apart.
+# shortcut: a link in a parent folder is not seen, and only an inbox request of this user can name such a path.
 function Copy-CheckFile($t, [string]$folder) {
   [void][IO.Directory]::CreateDirectory($folder)
   $n = 0
   foreach ($file in @($t.checkFiles)) {
     $n++
-    $item = if ($file -and "$file" -notmatch '(?i)\.env($|\.)|secret|credential|password|token|id_rsa|\.pem$|\.key$') { Get-Item -LiteralPath $file -ErrorAction SilentlyContinue }
-    if (-not $item -or $item.PSIsContainer -or $item.LinkType) { Write-Log "no copy of check file $n of $($t.id)"; continue }
+    $item = if ($file) { Get-Item -LiteralPath $file -ErrorAction SilentlyContinue }
+    if (-not $item -or $item.PSIsContainer -or $item.LinkType -or $item.Name -match '(?i)\.env($|\.)|secret|credential|password|token|id_rsa|\.pem$|\.key$') { Write-Log "no copy of check file $n of $($t.id)"; continue }
     $copy = Join-Path $folder "$n-$($item.Name)"
     Copy-Item -LiteralPath $item.FullName $copy -Force
     (Get-Item -LiteralPath $copy).IsReadOnly = $true
