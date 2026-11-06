@@ -55,6 +55,7 @@ const main = async () => {
   if (word === 'badfacts') return good({ result: 'pass', newFacts: 'many' });
   if (word === 'prose') { console.log(JSON.stringify({ type: 'result', is_error: true, result: 'The rate limit of OAuth is the topic. '.repeat(20) })); return; }
   if (word === 'lines') return good({ result: 'stop_source', reason: 'one\\n- injected' });
+  if (word === 'holdsig') return good({ result: 'hold', hold: 'waiting_signature', until: '2026-11-10' });
   if (word === 'noresult') return console.log('plain text');
   if (word === 'rogue') {
     await new Promise((r) => setTimeout(r, 2000));
@@ -287,6 +288,21 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       await tick(dir, later);
       expect(ticket(dir, 'T-S').state).toBe('reviewing');
       expect(status(dir).alarms).toEqual([]);
+    },
+    LONG,
+  );
+
+  test(
+    'a date of a worker does not end a signature hold',
+    async () => {
+      const dir = folder();
+      seed(dir, 'T-J', 'holdsig,pass');
+      await ticks(dir, 2);
+      expect(ticket(dir, 'T-J').state).toBe('waiting_signature');
+      expect(ticket(dir, 'T-J').until).toBeNull();
+      expect(status(dir).alarms.join()).toContain('T-J is in waiting_signature');
+      await tick(dir, after(60 * 24));
+      expect(ticket(dir, 'T-J').state).toBe('waiting_signature');
     },
     LONG,
   );
@@ -636,6 +652,55 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
   );
 
   test(
+    'a stale wave-start starts no resume worker at the cap or on a blocked tick',
+    async () => {
+      const full = waveFolder();
+      seed(full, 'T-1', 'sleep:9000');
+      execFileSync('powershell.exe', tickArguments(full));
+      staleState(full, { closed: [] }, 31);
+      execFileSync('powershell.exe', tickArguments(full));
+      expect(workerFiles(full, '.spec.json')).toEqual(['T-1-1.spec.json']);
+      expect(status(full).running).toBe(1);
+      await tick(full);
+
+      const blocked = waveFolder();
+      seed(blocked, 'T-2', 'signin');
+      await ticks(blocked, 2);
+      expect(ticket(blocked, 'T-2').state).toBe('waiting_token');
+      staleState(blocked, { closed: [] }, 31);
+      await tick(blocked);
+      expect(workerFiles(blocked, '.spec.json')).toEqual(['T-2-1.spec.json']);
+    },
+    LONG,
+  );
+
+  test(
+    'a hung resume worker ends at the time limit, frees its slot and fires the alarm',
+    () => {
+      const dir = waveFolder();
+      const settings = JSON.parse(readFileSync(join(dir, 'supervisor.json'), 'utf8')) as {
+        waveStart: { prompt: string };
+      };
+      settings.waveStart.prompt = 'PLAN:sleep:40000';
+      writeFileSync(join(dir, 'supervisor.json'), JSON.stringify(settings));
+      staleState(dir, { closed: [] }, 31);
+      execFileSync('powershell.exe', tickArguments(dir));
+      const readResume = () =>
+        JSON.parse(readFileSync(join(dir, 'resume.json'), 'utf8')) as {
+          worker: { pid: number } | null;
+        };
+      const pid = Number(readResume().worker?.pid);
+      execFileSync('powershell.exe', tickArguments(dir, after(13 * 60)));
+      expect(() => process.kill(pid, 0)).toThrow();
+      expect(readResume().worker).toBeNull();
+      expect(status(dir).running).toBe(0);
+      expect(status(dir).alarms.join()).toContain('wave-start has no change');
+      expect(workerFiles(dir, '.spec.json')).toHaveLength(1);
+    },
+    LONG,
+  );
+
+  test(
     'a changed state file that goes stale again gets a new resume worker',
     async () => {
       const dir = waveFolder();
@@ -660,6 +725,7 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       staleState(dir, { closed: [] }, 31);
       await ticks(dir, 3);
       expect(workerFiles(dir, '.spec.json')).toHaveLength(1);
+      expect(status(dir).alarms.join()).toContain('waits for a sign-in');
       const later = after(31);
       await tick(dir, later);
       expect(workerFiles(dir, '.spec.json')).toHaveLength(2);
