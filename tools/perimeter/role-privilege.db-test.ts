@@ -175,6 +175,11 @@ test('gabriel_read carries a five second statement timeout', async () => {
   expect(held).toStrictEqual([{ statement_timeout: '5s' }]);
 });
 
+test('gabriel_research compiles no plan', async () => {
+  const held = await probe('research', async (ask) => ask('SHOW jit'));
+  expect(held).toStrictEqual([{ jit: 'off' }]);
+});
+
 // Both reserved documents, and not `manual` alone. Migration 0009 widened the two rules to the
 // set, because a second reserved word named by neither rule was one the machine layer could sign
 // with. `inherited` says no document supports the value, and that is a claim only a person makes.
