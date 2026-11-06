@@ -142,8 +142,8 @@ function Read-Outcome([string]$base) {
 }
 
 function Set-Park($t) {
-  $t.state = 'parked'
   [IO.File]::AppendAllText($queue, "- $($t.id) is parked: $($t.reason -replace '\s+', ' ')`r`n", $utf8)
+  $t.state = 'parked'
 }
 function Set-Panel($t) {
   if ($t.state -eq 'needs_panel') { return } # panelFrom keeps the state to return to.
@@ -158,6 +158,11 @@ function Set-Hold($t, [string]$hold, $until) {
   # Only an inbox request ends a signature hold, so a date of a worker does not count for it.
   $t.until = if (-not $HOLDS[$hold]) { $null } elseif ($until) { $(if ([datetime]"$until" -gt $latest) { $latest } else { [datetime]"$until" }).ToString('o') }
   else { $time.AddMinutes($HOLDS[$hold]).ToString('o') }
+}
+# A crash is not a disagreement of the panel, and a ticket here often has no attempt left. Panel verdict on BLD-02.
+function Add-PanelCrash($t) {
+  $t.panelCrashes++
+  if ($t.panelCrashes -ge $MAX_ATTEMPTS) { $t.reason = "the panel worker failed $MAX_ATTEMPTS times: $($t.reason)"; Set-Park $t }
 }
 function Add-Failure($t) {
   $t.attempts++
@@ -178,11 +183,7 @@ function Move-ByOutcome($t) {
   # shortcut: the closer does not see the claim or the sources tried, BLD-04 adds both to the closer prompt.
   if ($o.kind -eq 'verdict' -and $word -eq 'exhausted') { $t.state = if ($t.state -eq 'closing') { 'closed_exhausted' } else { 'closing' }; return }
   if ($t.state -eq 'needs_panel') {
-    # A crash is not a disagreement of the panel, and a ticket here often has no attempt left. Panel verdict on BLD-02.
-    if ($o.kind -eq 'failed') {
-      $t.panelCrashes++
-      if ($t.panelCrashes -ge $MAX_ATTEMPTS) { $t.reason = "the panel worker failed $MAX_ATTEMPTS times: $($t.reason)"; Set-Park $t }
-    } elseif ($word -eq 'pass') { $t.state = $t.panelFrom } else { Set-Park $t }
+    if ($o.kind -eq 'failed') { Add-PanelCrash $t } elseif ($word -eq 'pass') { $t.state = $t.panelFrom } else { Set-Park $t }
     return
   }
   if ($o.kind -eq 'verdict' -and $word -eq 'stop_source') { return Set-Panel $t }
@@ -293,7 +294,11 @@ try {
   $t = $tickets | Where-Object { $_.outcome } | Select-Object -First 1
   if ($t) {
     $from = $t.state
-    try { Move-ByOutcome $t } catch { $t.outcome = $null; $t.reason = "bad outcome: $_"; Add-Failure $t }
+    try { Move-ByOutcome $t } catch {
+      $t.outcome = $null
+      $t.reason = "bad outcome: $_"
+      if ($t.state -eq 'needs_panel') { Add-PanelCrash $t } else { Add-Failure $t }
+    }
     $moved = $t
   }
   if (-not $moved) {

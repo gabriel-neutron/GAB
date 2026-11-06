@@ -4,6 +4,7 @@
 import { execFile, execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -456,6 +457,26 @@ describe.skipIf(process.platform !== 'win32')('the supervisor tick', () => {
       expect(ticket(dir, 'T-D').state).toBe('needs_panel');
       await tick(dir);
       expect(ticket(dir, 'T-D').state).toBe('working');
+    },
+    LONG,
+  );
+
+  test(
+    'a queue line that cannot be written in needs_panel costs no attempt, and the panel runs again',
+    async () => {
+      const dir = folder();
+      seed(dir, 'T-W', 'stop_source,failed,pass');
+      const queue = join(dir, 'operator-queue.md');
+      writeFileSync(queue, '');
+      chmodSync(queue, 0o444);
+      expect(await statesOf(dir, 'T-W', 4)).toEqual([
+        'working',
+        'needs_panel',
+        'needs_panel',
+        'working',
+      ]);
+      expect(ticket(dir, 'T-W').attempts).toBe(0);
+      chmodSync(queue, 0o666);
     },
     LONG,
   );
