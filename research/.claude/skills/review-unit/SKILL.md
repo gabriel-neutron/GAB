@@ -1,6 +1,6 @@
 ---
 name: review-unit
-description: Review the doubts of the review queue as an AI reviewer. Read the cited passage of each unit first, then promote the unit, reject it, or reject one relation, with a reason. Use it in a new reviewer subagent or session, never in the agent that proposed the units.
+description: Review the doubts of the review queue as an AI reviewer. Read the cited passage of each unit first, then promote the unit, reject it, or reject one relation, with a reason. Also remove an accepted act that is wrong, or join two accepted entities of one thing. Use it in a new reviewer subagent or session, never in the agent that proposed the units.
 ---
 
 # Review a unit as an AI reviewer
@@ -38,7 +38,8 @@ decide the unit.
 ## Tools
 
 - `read_doubts`: the list "Doubts", page by page. `read_waiting`: the units that wait for a
-  source. A waiting unit is not for a reviewer.
+  source. A waiting unit is not for a reviewer: the record refuses its promotion by
+  `promote_unit` and `promote_clean_proposals`.
 - `read_unit`: one unit, with its acts, the cited passage of each act and the words around it,
   its faults, the reason of each dispute and of each rejection before, and the check of a second
   model.
@@ -52,6 +53,13 @@ decide the unit.
   same site on the same day (ADR 0029). The waiting unit takes the passages, and the doubted
   unit is closed. Read the waiting unit with `read_unit` first. The waiting unit stays in the
   queue for its reviewer.
+- `remove_act`: removes one accepted act that is wrong, with a cited passage and your reason. It
+  takes a new relation, or a change of the values of an entity. A relation leaves the graph. Each
+  value goes back to the value before the act. The act leaves each read, each export and each
+  count, and the ledger keeps it with the removal.
+- `join_entities`: joins two accepted entities of one thing, of one type, with a cited passage
+  and your reason. The older entity stays and takes the values, the relations, the documents and
+  the name of the newer one. The operator can undo the join.
 - `document_text`: the whole page of a cited document, when the passage is not enough.
 
 ## Steps
@@ -115,7 +123,16 @@ decide the unit.
    - You are not sure: send the unit to the skill `expert-panel`, and decide it with its verdict.
 5. Give `why` for each decision: one or two sentences that name the passage and say how it
    supports the decision. The operator reads it beside the origin.
-6. When the record refuses a decision, read the reason and the field. A blocked unit, such as a
+6. To correct the record, read the accepted act or the two entities and the cited passage of
+   each first (`read_decided`, `list_proposals`, `read_entity`).
+   - An accepted act is wrong, and a passage shows it: call `remove_act` with the act, the
+     passage (document, page, excerpt) and your reason. When the record says that a later act set
+     the value, remove that later act first.
+   - Two accepted entities are one thing, and a passage identifies both, such as one identifier:
+     call `join_entities` with the two entities, the passage and your reason. Two entities with
+     no common identifier stay apart.
+   - You are not sure: send the act or the pair to the skill `expert-panel`.
+7. When the record refuses a decision, read the reason and the field. A blocked unit, such as a
    unit with an impossible link, cannot be promoted by anyone: reject it or leave it.
 
 ## Never
@@ -125,6 +142,7 @@ decide the unit.
   unit, its group or its kind of act, and says that it waits. Leave it for the session that the
   spec or the ticket names.
 - Never decide before you read the cited passage.
+- Never remove an act or join two entities that you proposed: a new reviewer agent does it.
 - Never promote a unit to make the queue shorter. A wrong promotion goes into the record.
 - Never copy a value of the passage into `why` as a new fact. `why` explains a decision, and it
   proposes nothing.

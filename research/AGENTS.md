@@ -185,7 +185,13 @@ operator to accept" a proposal.
   `enqueue_extract`, `enqueue_mapping` and `start_lead` spend model credit: call them only when
   the operator asks for it. A worker reads "A run with no person".
 - Decide as an AI reviewer: `promote_unit`, `reject_unit`, `reject_relation`, `join_unit`,
-  `promote_clean_proposals`. Follow the skill `review-unit`.
+  `promote_clean_proposals`. Follow the skill `review-unit`. A promotion of a unit that waits for
+  a source is refused.
+- Correct the record as an AI reviewer, with a reason and a cited passage: `remove_act` removes
+  an accepted act that is wrong (a new relation, or a change of the values of an entity), and
+  `join_entities` joins two accepted entities of one thing into the older one. Follow the skill
+  `review-unit`. A count of the accepted acts leaves out each removed act: the read of the acts
+  names its removal.
 
 ## Who proposes what
 

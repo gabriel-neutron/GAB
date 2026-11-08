@@ -55,7 +55,7 @@ test('the roles keep the separation of the wave', () => {
   const has = (role: Role, tool: string): boolean =>
     (WORKER_ROLES[role] as readonly string[]).includes(tool);
   const deciding = ['promote_unit', 'reject_unit', 'reject_relation', 'join_unit'];
-  deciding.push('promote_clean_proposals');
+  deciding.push('promote_clean_proposals', 'remove_act', 'join_entities');
   for (const role of ROLES) {
     expect(has(role, 'start_lead')).toBe(false);
     if (role !== 'reviewer') expect(deciding.filter((tool) => has(role, tool))).toStrictEqual([]);

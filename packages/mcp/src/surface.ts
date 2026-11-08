@@ -208,4 +208,6 @@ export const RESEARCH_TOOLS = {
   reject_relation: DECIDE,
   join_unit: DECIDE,
   promote_clean_proposals: DECIDE,
+  remove_act: DECIDE,
+  join_entities: DECIDE,
 } as const satisfies Record<ToolName, ToolAnnotations>;

@@ -57,6 +57,8 @@ const DECIDE = [
   'reject_relation',
   'join_unit',
   'promote_clean_proposals',
+  'remove_act',
+  'join_entities',
 ] as const satisfies readonly ToolName[];
 
 export const WORKER_ROLES = {
