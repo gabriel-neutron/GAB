@@ -193,6 +193,8 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "reject_relation: write",
       "join_unit: write",
       "promote_clean_proposals: write",
+      "remove_act: write",
+      "join_entities: write",
     ]
   `);
 });

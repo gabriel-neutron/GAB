@@ -192,6 +192,7 @@ const OP_WORDS: Readonly<Record<Proposal['op'], string>> = {
   undo_merge: 'Undoes a merge',
   map_document: 'Maps the columns of a table',
   create_observation: 'Adds a figure',
+  remove_act: 'Removes an accepted act',
 };
 
 function keysOf(payload: Proposal['payload']): readonly string[] {
@@ -613,6 +614,9 @@ export function readDossier(
       case 'delete_entity':
       case 'map_document':
       case 'create_observation':
+        return false;
+      // A removal is decided when it is written, so it never waits.
+      case 'remove_act':
         return false;
     }
   };

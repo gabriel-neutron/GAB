@@ -36,6 +36,7 @@ DROP VIEW IF EXISTS api.entity_type;
 DROP VIEW IF EXISTS api.document;
 DROP VIEW IF EXISTS api.document_provider;
 DROP VIEW IF EXISTS public.proposal_reading;
+DROP VIEW IF EXISTS public.removed_act;
 DROP VIEW IF EXISTS public.person_ref;
 DROP VIEW IF EXISTS public.export_document;
 DROP VIEW IF EXISTS public.public_document;
@@ -48,6 +49,26 @@ DROP VIEW IF EXISTS public.open_licence;
 CREATE VIEW public.open_licence AS
   SELECT unnest(ARRAY['public-domain', 'eu-reuse', 'ogl-v3', 'cc0', 'cc-by-4.0', 'copernicus',
                       'own']) AS licence;
+
+
+-- EACH ACCEPTED ACT THAT AN AI REVIEWER REMOVED (ADR 0035), with the act that removed it, who
+-- removed it, when, and why. The removed act stays accepted in the ledger, and what it wrote left
+-- the graph. A removed relation takes each accepted act on it with it: a start, an end, a type or
+-- a source. A count of the accepted acts leaves out each act of this view. An act has one row.
+CREATE VIEW public.removed_act AS
+  WITH removal AS (
+    SELECT p.names[1] AS act_id, p.id AS removal_id, p.decided_at AS removed_at,
+           p.decided_by AS removed_by, p.decision_origin, p.decision_reason, p.target_kind
+      FROM public.proposals p
+     WHERE p.op = 'remove_act' AND p.status = 'accepted')
+  SELECT r.act_id, r.removal_id, r.removed_at, r.removed_by, r.decision_origin, r.decision_reason
+    FROM removal r
+  UNION ALL
+  SELECT u.id, r.removal_id, r.removed_at, r.removed_by, r.decision_origin, r.decision_reason
+    FROM removal r
+    JOIN public.proposals u ON u.target_kind = 'relation' AND u.target_id = r.act_id
+                           AND u.status = 'accepted' AND u.op = 'update_relation'
+   WHERE r.target_kind = 'relation';
 
 
 -- ---------------------------------------------------------------------- PU1, a person fact ---
@@ -198,9 +219,9 @@ CREATE VIEW public.proposal_reading AS
             || coalesce((SELECT ARRAY[l.src_id, l.dst_id] FROM public.relations l
                           WHERE p.target_kind = 'relation' AND l.id = p.target_id),
                         '{}'::uuid[])
-            -- A relation that a delete or a merge removed still has its ends: the act that made
-            -- it, the copy of the delete, or the copy of the merge. Else an older act on it
-            -- names no person, and the rule does not hide it.
+            -- A relation that a delete, a removal or a merge took away still has its ends: the
+            -- act that made it, the copy of the delete or the removal, or the copy of the merge.
+            -- Else an older act on it names no person, and the rule does not hide it.
             || CASE WHEN p.target_kind = 'relation'
                      AND NOT EXISTS (SELECT 1 FROM public.relations l WHERE l.id = p.target_id)
                     THEN ARRAY(
@@ -212,7 +233,8 @@ CREATE VIEW public.proposal_reading AS
                          SELECT q.prior_value->>'src_id', q.prior_value->>'dst_id'
                            FROM public.proposals q
                           WHERE q.target_kind = 'relation' AND q.target_id = p.target_id
-                            AND q.op = 'delete_relation' AND q.status = 'accepted'
+                            AND q.op IN ('delete_relation', 'remove_act')
+                            AND q.status = 'accepted'
                          UNION ALL
                          SELECT r->>'src_id', r->>'dst_id'
                            FROM public.proposals q
@@ -330,6 +352,8 @@ CREATE VIEW api.proposal AS
          END AS prior_value,
          dissent, author_role, model_call_id, status, created_at, decided_at,
          decided_by, decided_as, batch_id, proposer,
+         -- The act that removed this accepted act, or NULL (public.removed_act).
+         (SELECT x.removal_id FROM public.removed_act x WHERE x.act_id = p.id) AS removed_by,
          -- S1: the origin of a rule carries the inputs of the rule, and they hold rating digits.
          -- A role outside the tool roles gets the name and the version of the rule only.
          CASE WHEN current_user IN ('gabriel_app', 'gabriel_agent', 'gabriel_research')
@@ -399,7 +423,9 @@ COMMENT ON VIEW api.proposal IS
   'decided the act: one unit, one relation, or a group action, or a named rule; an older '
   'decision and an act that the operator signed have none. decision_origin says who or what '
   'decided: the name and the version of a rule, "validated manually by the operator", or '
-  '"decided by an AI reviewer"; an older decision has none. The public read gets the name and '
+  '"decided by an AI reviewer"; an older decision has none. removed_by names the act '
+  'remove_act that took an accepted act away: what the act wrote left the graph, and a count of '
+  'the accepted acts leaves it out. The public read gets the name and '
   'the version of a rule only, and not the inputs of the rule. origin_label is the label of the '
   'claim for a reader: fixed words that tell who decided it, and the day. It shows no rating. '
   'A copy of a row copies its label. The reason of a rejection is private. decided_by is '
@@ -461,7 +487,7 @@ CREATE VIEW api.entity AS
                         SELECT u.origin_label AS label, u.decided_at, u.id FROM api.proposal u
                          WHERE u.status = 'accepted' AND u.op = 'update_attrs'
                            AND u.target_kind = 'entity' AND u.target_id = e.id
-                           AND u.payload->'attrs' ? k.key
+                           AND u.payload->'attrs' ? k.key AND u.removed_by IS NULL
                         UNION ALL
                         SELECT (SELECT c.origin_label FROM api.proposal c
                                  WHERE c.id = (m.prior_value->'acts'->>k.key)::uuid),

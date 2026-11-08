@@ -13,6 +13,7 @@ import { egrulExtract } from './egrul-extract.ts';
 import { firmsDetections } from './firms-detections.ts';
 import { gleifLookup } from './gleif-lookup.ts';
 import { jobStatus } from './job-status.ts';
+import { joinEntities } from './join-entities.ts';
 import { joinUnit } from './join-unit.ts';
 import { listEntities } from './list-entities.ts';
 import { listProposals } from './list-proposals.ts';
@@ -35,6 +36,7 @@ import { readPage } from './read-page.ts';
 import { readUnit } from './read-unit.ts';
 import { readWaiting } from './read-waiting.ts';
 import { rejectRelation } from './reject-relation.ts';
+import { removeAct } from './remove-act.ts';
 import { rejectUnit } from './reject-unit.ts';
 import { sanctionsMatch } from './sanctions-match.ts';
 import { searchGraph } from './search-graph.ts';
@@ -103,6 +105,8 @@ export const CATALOGUE = [
   rejectRelation,
   joinUnit,
   promoteCleanProposals,
+  removeAct,
+  joinEntities,
 ] as const;
 
 export type ToolName = (typeof CATALOGUE)[number]['name'];
