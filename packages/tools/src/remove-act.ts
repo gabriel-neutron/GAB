@@ -15,15 +15,17 @@ export const removeAct = defineTool({
   name: 'remove_act',
   description:
     'Removes one accepted act of the record that is wrong: a new relation, or a change of the ' +
-    'values of an entity. Use it only for an act that a passage shows to be wrong; an act that ' +
-    'waits is rejected with reject_unit or reject_relation. A relation leaves the graph. Each ' +
-    'value that the act set goes back to the value before the act, or leaves the entity. The ' +
-    'act leaves each read of the graph, each export and each count, and the ledger keeps it with ' +
+    'values of an entity. Use it only when a passage shows that the act is wrong. To take out an ' +
+    'act that waits, use reject_unit or reject_relation. A relation leaves the graph, with each ' +
+    'later change of it. Each value that the act set goes back to the value before the act, or ' +
+    'leaves the entity. A value on an entity that a join absorbed is on the entity that stays. ' +
+    'The act leaves each read of the graph, each export and each count. The ledger keeps it with ' +
     'the removal: the origin "decided by an AI reviewer", your reason, who and when. The ' +
-    'database refuses an act that is not accepted, an act that is removed already, another kind ' +
-    'of act, a relation that is an end of another relation, and a value that a later act set ' +
-    '(remove that act first). Read the act and its cited passage first (read_decided, ' +
-    'list_proposals), and never remove an act that you proposed: a new reviewer agent decides it.',
+    'database refuses these: an act that is not accepted, an act that is removed already, and ' +
+    'another kind of act. It also refuses a relation that is an end of another relation or that ' +
+    'an act in the queue names. It refuses a value that a later act set: remove that act first. ' +
+    'Read the act and its cited passage first (read_decided, list_proposals). Never remove an ' +
+    'act that you proposed: a new reviewer agent decides it.',
   input: z.strictObject({
     actId: z.uuid().describe('the id of the accepted act, from read_decided or list_proposals'),
     passage,

@@ -15,14 +15,14 @@ export const joinEntities = defineTool({
   name: 'join_entities',
   description:
     'Joins two accepted entities of the record that are one thing, such as one firm that two ' +
-    'sources named in two ways. The older entity stays. The newer entity leaves the graph: its ' +
-    'values, its relations and its documents move to the older one, its name becomes a former ' +
-    'name, and its id resolves to the older one. The record keeps the origin "decided by an AI ' +
-    'reviewer", your reason, the cited passage and a full copy, so the operator can undo the ' +
-    'join. The database refuses one entity named twice, two entities of two types, and an ' +
-    'entity that an act that waits names (decide that act first). Use it only when a passage ' +
-    'identifies both, such as one identifier. Read both entities first (read_entity), and never ' +
-    'join entities that you proposed: a new reviewer agent decides it.',
+    'sources named in two ways. The older entity stays. The newer entity leaves the graph. Its ' +
+    'values, its relations and its documents move to the older one, and its name becomes a ' +
+    'former name. Its id resolves to the older one. The record keeps the origin "decided by an ' +
+    'AI reviewer", your reason, the cited passage and a full copy, so the operator can undo the ' +
+    'join. The database refuses one entity named twice and two entities of two types. It also ' +
+    'refuses an entity that an act in the queue names: decide that act first. Use it only when a ' +
+    'passage identifies both, such as one identifier. Read both entities first (read_entity). ' +
+    'Never join entities that you proposed: a new reviewer agent decides it.',
   input: z.strictObject({
     entityIds: z
       .tuple([z.uuid(), z.uuid()])

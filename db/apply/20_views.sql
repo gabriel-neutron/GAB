@@ -53,13 +53,22 @@ CREATE VIEW public.open_licence AS
 
 -- EACH ACCEPTED ACT THAT AN AI REVIEWER REMOVED (ADR 0035), with the act that removed it, who
 -- removed it, when, and why. The removed act stays accepted in the ledger, and what it wrote left
--- the graph. A count of the accepted acts leaves out each act of this view. The unique index of
--- 0098 holds one row for each removed act.
+-- the graph. A removed relation takes each accepted act on it with it: a start, an end, a type or
+-- a source. A count of the accepted acts leaves out each act of this view. An act has one row.
 CREATE VIEW public.removed_act AS
-  SELECT p.names[1] AS act_id, p.id AS removal_id, p.decided_at AS removed_at,
-         p.decided_by AS removed_by, p.decision_origin, p.decision_reason
-    FROM public.proposals p
-   WHERE p.op = 'remove_act' AND p.status = 'accepted';
+  WITH removal AS (
+    SELECT p.names[1] AS act_id, p.id AS removal_id, p.decided_at AS removed_at,
+           p.decided_by AS removed_by, p.decision_origin, p.decision_reason, p.target_kind
+      FROM public.proposals p
+     WHERE p.op = 'remove_act' AND p.status = 'accepted')
+  SELECT r.act_id, r.removal_id, r.removed_at, r.removed_by, r.decision_origin, r.decision_reason
+    FROM removal r
+  UNION ALL
+  SELECT u.id, r.removal_id, r.removed_at, r.removed_by, r.decision_origin, r.decision_reason
+    FROM removal r
+    JOIN public.proposals u ON u.target_kind = 'relation' AND u.target_id = r.act_id
+                           AND u.status = 'accepted' AND u.op = 'update_relation'
+   WHERE r.target_kind = 'relation';
 
 
 -- ---------------------------------------------------------------------- PU1, a person fact ---
@@ -211,8 +220,8 @@ CREATE VIEW public.proposal_reading AS
                           WHERE p.target_kind = 'relation' AND l.id = p.target_id),
                         '{}'::uuid[])
             -- A relation that a delete, a removal or a merge took away still has its ends: the
-            -- act that made it, the copy of the delete or the removal, or the copy of the merge. Else an older act on it
-            -- names no person, and the rule does not hide it.
+            -- act that made it, the copy of the delete or the removal, or the copy of the merge.
+            -- Else an older act on it names no person, and the rule does not hide it.
             || CASE WHEN p.target_kind = 'relation'
                      AND NOT EXISTS (SELECT 1 FROM public.relations l WHERE l.id = p.target_id)
                     THEN ARRAY(

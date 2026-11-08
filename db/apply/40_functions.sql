@@ -1996,20 +1996,31 @@ BEGIN
   RETURN jsonb_build_object('merge', v_alias.merged_by);
 END $$;
 
+-- THE ENTITY THAT HOLDS AN ENTITY TODAY: the entity itself, or the entity that a join or a merge
+-- absorbed it into. A later merge moves each alias to the new survivor, so one read is enough.
+-- No role holds this step.
+CREATE OR REPLACE FUNCTION joined_entity(p_id uuid) RETURNS uuid
+LANGUAGE sql STABLE
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce((SELECT a.survivor_id FROM public.entity_alias a WHERE a.absorbed_id = p_id),
+                  p_id)
+$$;
+
 -- THE REMOVAL OF AN ACCEPTED ACT (ADR 0035). An accepted act is frozen, so the act
 -- `remove_act` takes away what it wrote, and the ledger keeps both acts. Two kinds of act can be
 -- removed:
 -- - a new relation (`create_relation`): the relation row leaves the graph, as a delete of the
 --   relation does, and the copy keeps the row. A relation that is an end of another relation
---   stays.
+--   stays. A relation that an act in the queue names stays: that act is decided first. Each
+--   later act on the relation leaves the count with it (public.removed_act).
 -- - a change of the values of an entity (`update_attrs`): each value that the act set goes back
 --   to the value before the act, or leaves the entity when it had none. The act must still be the
 --   last act that set each of its values: a later act wrote over it, and that act is removed
---   first.
+--   first. When a join absorbed the entity, the values are on the entity that stays.
 -- Each other act is refused: a merge is undone by the operator, and an entity leaves through a
--- join or a delete. The removal reads the removed act under its lock, so two removals of one act
--- wait for each other, and the unique index refuses the second one. The answer is the copy of
--- what the removal took away. No role holds this step: it runs inside the promotion.
+-- join or a delete. The removal locks the removed act. Two removals of one act thus wait for each
+-- other, and the unique index refuses the second one. The answer is the copy of what the removal
+-- took away. No role holds this step: it runs inside the promotion.
 CREATE OR REPLACE FUNCTION remove_accepted_act(p_removal uuid, p_act uuid, p_target_kind text,
                                                p_target uuid)
 RETURNS jsonb
@@ -2047,7 +2058,7 @@ BEGIN
     v_id := r.id;
   ELSIF r.op = 'update_attrs' AND r.target_kind = 'entity' THEN
     v_kind := 'entity';
-    v_id := r.target_id;
+    v_id := public.joined_entity(r.target_id);
   ELSE
     RAISE EXCEPTION 'the act % is a % act, and only a new relation or a change of the values of '
                     'an entity is removed', p_act, r.op
@@ -2063,7 +2074,7 @@ BEGIN
     SELECT to_jsonb(x) INTO v_row FROM public.relations x WHERE x.id = v_id FOR UPDATE;
     IF v_row IS NULL THEN
       RAISE EXCEPTION 'the relation of the act % is not in the graph: a delete or a merge took '
-                      'it away already', p_act
+                      'it away already, and nothing is left to remove', p_act
         USING CONSTRAINT = 'target_exists', HINT = 'actId';
     END IF;
     SELECT count(*) INTO v_uses FROM public.relations x
@@ -2074,6 +2085,18 @@ BEGIN
                       v_uses, CASE WHEN v_uses = 1 THEN 'relation' ELSE 'relations' END
         USING CONSTRAINT = 'endpoint_free', HINT = 'actId';
     END IF;
+    IF EXISTS (SELECT 1 FROM public.proposals o
+                WHERE o.status = 'pending' AND o.op <> 'remove_act'
+                  AND ((o.target_kind = 'relation' AND o.target_id = v_id)
+                       OR v_id = ANY (o.names)
+                       OR v_id IN (SELECT x::uuid
+                                     FROM unnest(ARRAY[o.payload->>'src_id',
+                                                       o.payload->>'dst_id']) AS x
+                                    WHERE pg_input_is_valid(x, 'uuid')))) THEN
+      RAISE EXCEPTION 'an act in the queue names the relation: decide that act first, and then '
+                      'remove the relation'
+        USING CONSTRAINT = 'remove_named_free', HINT = 'actId';
+    END IF;
     DELETE FROM public.relations WHERE id = v_id;
     -- The same copy as a delete of the relation, so each read of the ends of a deleted relation
     -- reads it.
@@ -2082,8 +2105,8 @@ BEGIN
 
   SELECT e.attrs INTO v_attrs FROM public.entities e WHERE e.id = v_id FOR UPDATE;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'the entity of the act % is not in the graph: a delete or a merge took it '
-                    'away already', p_act
+    RAISE EXCEPTION 'the entity of the act % is not in the graph: a delete took it away '
+                    'already, and nothing is left to remove', p_act
       USING CONSTRAINT = 'target_exists', HINT = 'actId';
   END IF;
   FOR v_key IN SELECT k FROM jsonb_object_keys(coalesce(r.payload->'attrs', '{}'::jsonb)) AS k
@@ -3113,7 +3136,8 @@ RETURNS text
 LANGUAGE sql IMMUTABLE
 SET search_path = pg_catalog AS $$
   SELECT 'the unit is in the lane "waiting", and the rule "a waiting unit is not for a reviewer" '
-         'keeps it for a better source: only the rules or the operator promote it'::text
+         'applies: an AI reviewer decides a doubt only, and the rules or the operator decide '
+         'this unit'::text
 $$;
 
 CREATE OR REPLACE FUNCTION refuse_waiting_lane(p_unit uuid)
@@ -3378,16 +3402,25 @@ END $$;
 
 -- THE CITED PASSAGE OF A REVIEW ACT: one span of one stored page, from the tool that found the
 -- excerpt in the page. The act cites the document of the passage. No role holds this step.
+CREATE OR REPLACE FUNCTION check_review_citation(p_citation jsonb)
+RETURNS void
+LANGUAGE plpgsql IMMUTABLE
+SET search_path = pg_catalog AS $$
+BEGIN
+  IF coalesce(jsonb_typeof(p_citation), 'absent') <> 'object'
+     OR NOT p_citation ?& ARRAY['document', 'text_extractor', 'page', 'start', 'end']
+     OR coalesce(jsonb_typeof(p_citation->'document'), 'absent') <> 'string' THEN
+    RAISE EXCEPTION 'a review act cites one passage: the document, the text, the page and the span'
+      USING CONSTRAINT = 'review_passage';
+  END IF;
+END $$;
+
 CREATE OR REPLACE FUNCTION put_review_citation(p_claim uuid, p_citation jsonb)
 RETURNS void
 LANGUAGE plpgsql
 SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
-  IF coalesce(jsonb_typeof(p_citation), 'absent') <> 'object'
-     OR NOT p_citation ?& ARRAY['document', 'text_extractor', 'page', 'start', 'end'] THEN
-    RAISE EXCEPTION 'a review act cites one passage: the document, the text, the page and the span'
-      USING CONSTRAINT = 'review_passage';
-  END IF;
+  PERFORM public.check_review_citation(p_citation);
   BEGIN
     INSERT INTO public.citation (claim_id, doc_id, text_extractor, page, start, "end", modality)
     VALUES (p_claim, p_citation->>'document', p_citation->>'text_extractor',
@@ -3437,15 +3470,19 @@ DECLARE
   v_code   text;
 BEGIN
   v_why := public.review_why(p_why);
+  PERFORM public.check_review_citation(p_citation);
   SELECT * INTO r FROM public.proposals WHERE id = p_act;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'the record holds no act %', p_act USING CONSTRAINT = 'proposal_exists';
   END IF;
-  IF EXISTS (SELECT 1 FROM public.proposals x WHERE x.op = 'remove_act' AND x.names[1] = p_act) THEN
+  IF EXISTS (SELECT 1 FROM public.proposals x
+              WHERE x.op = 'remove_act' AND x.names[1] = p_act AND x.status = 'accepted') THEN
     RAISE EXCEPTION 'the act % is removed already', p_act USING CONSTRAINT = 'remove_once';
   END IF;
   v_kind := CASE WHEN r.op = 'create_relation' THEN 'relation' ELSE r.target_kind END;
-  v_id := CASE WHEN r.op = 'create_relation' THEN r.id ELSE r.target_id END;
+  v_id := CASE WHEN r.op = 'create_relation' THEN r.id
+               WHEN r.target_kind = 'entity' THEN public.joined_entity(r.target_id)
+               ELSE r.target_id END;
   v_name := coalesce(public.element_name(v_id), v_id::text);
   -- An act with no target cannot be removed, and the removal refuses it with its reason.
   v_act := public.propose_change('remove_act', '{}'::jsonb, ARRAY[p_citation->>'document'],
@@ -3489,6 +3526,7 @@ DECLARE
   v_code  text;
 BEGIN
   v_why := public.review_why(p_why);
+  PERFORM public.check_review_citation(p_citation);
   IF p_one IS NOT DISTINCT FROM p_other THEN
     RAISE EXCEPTION 'a join names two entities, and the two identifiers name one entity'
       USING CONSTRAINT = 'join_two';

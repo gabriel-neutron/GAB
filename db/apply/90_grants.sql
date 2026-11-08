@@ -117,6 +117,8 @@ REVOKE ALL ON FUNCTION waiting_lane_said() FROM PUBLIC;
 REVOKE ALL ON FUNCTION refuse_waiting_lane(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION remove_accepted_act(uuid,uuid,text,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION put_review_citation(uuid,jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION check_review_citation(jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION joined_entity(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION review_why(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_remove_act(uuid,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_join_entities(uuid,uuid,jsonb,text) FROM PUBLIC;

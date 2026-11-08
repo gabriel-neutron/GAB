@@ -18,10 +18,13 @@ of a skill. The operator asked for the three changes in issues #1408, #1415 and 
   that the removed act wrote. It cites one passage, and it keeps the copy of what it took away. Two
   kinds of act can be removed: a new relation, which leaves the graph as a delete does, and a change
   of the values of an entity, whose values go back to the values before it. Each other kind is
-  refused. An act is removed one time only.
+  refused. An act is removed one time only. A relation that an act in the queue names stays until
+  that act is decided. A value on an entity that a join absorbed is removed on the entity that
+  stays.
 - **A removed act leaves each count.** It stays accepted in the ledger, so the history stays whole.
   The read of the acts names the removal of each removed act, and a count of the accepted acts
-  leaves out each act that has one. The label of a value does not read a removed act.
+  leaves out each act that has one. A removed relation takes each accepted change of it (a start,
+  an end, a type or a source) out of the count too. The label of a value does not read a removed act.
 - **A join is a merge (M12).** The older entity stays, and the merge moves the values, the relations,
   the documents and the aliases of the newer one, and keeps its name as a former name. The act
   cites one passage. The door refuses one entity named twice and two entities of two types, and

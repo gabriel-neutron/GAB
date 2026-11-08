@@ -7,8 +7,8 @@
 -- It cites the document of the passage that shows the removed act is wrong. Its snapshot keeps the
 -- copy of what it took away, and the ledger keeps who removed it, when, and why (ADR 0035).
 --
--- AN ACT IS REMOVED ONE TIME. The unique index holds one removal for each removed act, so a count
--- of the removed acts never counts one act twice.
+-- AN ACT IS REMOVED ONE TIME. The unique index holds one accepted removal for each removed act,
+-- so a count of the removed acts never counts one act twice.
 --
 -- No row of the record changes: no act of this kind exists before this file.
 -- =============================================================================================
@@ -55,6 +55,7 @@ ALTER TABLE proposals ADD CONSTRAINT proposals_prior_value_shape
                     'merge_entities','undo_merge','remove_act')
              AND coalesce(jsonb_typeof(prior_value),'absent') = 'object'));
 
-CREATE UNIQUE INDEX proposals_remove_act_once ON proposals ((names[1])) WHERE op = 'remove_act';
+CREATE UNIQUE INDEX proposals_remove_act_once ON proposals ((names[1]))
+  WHERE op = 'remove_act' AND status = 'accepted';
 
 RESET ROLE;
