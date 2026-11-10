@@ -30,7 +30,6 @@ describe('report PDF', () => {
       // A failure here means: run `pnpm report:pdf`, and commit the PDF files and the stamp.
       expect(stamp[lang]?.hash).toBe(stampOf(lang, all[lang]));
     }
-    expect(pagesOf('en')).toHaveLength(pagesOf('fr').length);
   });
 
   it('each block of text and each note of an English page is in the final English text', () => {

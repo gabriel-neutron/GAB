@@ -16,7 +16,7 @@ import { layout, type LayoutInput } from './report-pdf/layout.ts';
 
 const FOLDER = resolve(import.meta.dirname, '../public/report');
 export const STAMP = join(FOLDER, 'stamp.json');
-export const LANGS = ['en', 'fr'] as const;
+export const LANGS = ['en'] as const;
 export const pdfOf = (lang: string): string => join(FOLDER, `gab-report-${lang}.pdf`);
 const TEMPLATES = resolve(import.meta.dirname, 'report-pdf');
 export const pagesOf = (lang: string): string[] =>
@@ -37,13 +37,12 @@ export async function copies(
 ): Promise<Record<Lang, Copy>> {
   const at = (file: string) => resolve(import.meta.dirname, '../src/features/report', file);
   const { en } = (await load(at('content.ts'))) as { en: { report: Copy } };
-  const { fr } = (await load(at('content-fr.ts'))) as { fr: { report: Copy } };
-  return { en: { byline: en.report.byline }, fr: { byline: fr.report.byline } };
+  return { en: { byline: en.report.byline } };
 }
 
 /** The input of the layout pass: the label of a link line, and the URL of a source document for
  * each note with an exact match. A manual match never gives a link. */
-export function layoutInputOf(lang: Lang): LayoutInput {
+export function layoutInputOf(): LayoutInput {
   const file = JSON.parse(
     readFileSync(
       resolve(import.meta.dirname, '../src/features/report/data/note-documents.json'),
@@ -55,7 +54,7 @@ export function layoutInputOf(lang: Lang): LayoutInput {
     const exact = note.documents.find((document) => document.match === 'exact');
     if (exact) links[note.id] = exact.url;
   }
-  return { linkLabel: lang === 'fr' ? 'Lien :' : 'Link:', links };
+  return { linkLabel: 'Link:', links };
 }
 
 /** The stamp of one language: the printed page, the code of the layout pass and its input. */
@@ -63,7 +62,7 @@ export const stampOf = (lang: Lang, copy: Copy): string =>
   hashOf(
     htmlOf(lang, copy) +
       readFileSync(join(TEMPLATES, 'layout.ts'), 'utf8') +
-      JSON.stringify(layoutInputOf(lang)),
+      JSON.stringify(layoutInputOf()),
   );
 
 /** The hash of the page that Chromium prints: it changes with a template, a figure, the byline and
@@ -127,7 +126,7 @@ async function main(): Promise<void> {
     for (const lang of LANGS) {
       await page.setContent(htmlOf(lang, all[lang]), { waitUntil: 'load' });
       await page.evaluate(() => document.fonts.ready);
-      const { faults, ...counts } = await page.evaluate(layout, layoutInputOf(lang));
+      const { faults, ...counts } = await page.evaluate(layout, layoutInputOf());
       // A clipped element, a note that does not fit, or a note away from its call stops the tool.
       if (faults.length > 0) throw new Error(`The ${lang} PDF has faults:\n${faults.join('\n')}`);
       console.log(lang, JSON.stringify(counts));
