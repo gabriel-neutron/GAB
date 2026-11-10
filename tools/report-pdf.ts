@@ -149,7 +149,7 @@ async function main(): Promise<void> {
   } finally {
     await browser.close();
   }
-  writeFileSync(STAMP, `${JSON.stringify(stamp, null, 2)}\n`);
+  writeFileSync(STAMP, `${JSON.stringify({ ...stamp, record: recordOf() }, null, 2)}\n`);
 }
 
 if (import.meta.main) await main();
