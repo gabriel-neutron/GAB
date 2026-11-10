@@ -613,7 +613,7 @@ These two routes call for two responses. Against the parallel market, designatin
 
 ### A.1 The database
 
-The report rests on a database of entities (companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 27 October 2026, the database holds 6,327 entities (5,366 of them in the public data release of 28 October); because the selection does not use the 1,165 military units, about 5,200 entities are tested.
+The report rests on a database of entities (companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 27 October 2026, the database holds 6,327 entities (around 5,400 of them in the public data release of 28 October); because the selection does not use the 1,165 military units, about 5,200 entities are tested.
 
 These documents come from the official sanctions lists (OFAC, United Kingdom, EU acts), from company registers, from public statistics (UN Comtrade, Eurostat, World Bank, Bank of Russia, Russian Ministry of Finance), from research institutes (KSE, CREA, Bruegel) and from investigative press.
 
