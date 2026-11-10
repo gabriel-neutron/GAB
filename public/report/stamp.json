@@ -1,10 +1,14 @@
 {
   "en": {
-    "hash": "7fc5cf065f76b411e1c32f387c92feb5ac9135cf8d6d57f5029b943ff45ce1e2",
+    "hash": "39e0f91ca7ed43dc154554fbf895b792f22b8c17e134bc3da179edda5c5093fd",
     "pages": 30
   },
   "fr": {
     "hash": "0b227575d97c1f79df6315987929f5e4c36f985946aab5d6a8fba7eb1e524eb8",
     "pages": 34
+  },
+  "record": {
+    "tag": "data-2026-10-28",
+    "sha256": "8896410d0eaea285c72e28798ae1fa7c5ea57d0f369dad3791c0acda04101084"
   }
 }

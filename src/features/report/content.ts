@@ -267,7 +267,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'In total, 493 nodes are critical, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For at least 416 of them, the three conditions rest on a document from an official issuer. Annex A describes how the facts are collected and checked.',
+        text: 'In total, 493 nodes are critical, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For at least 416 of them, the three conditions rest on a document from an official issuer. Annex A describes how the facts are collected and checked. Section A.3 says how the count of critical nodes was made.',
       },
     ],
     notes: [
@@ -1221,6 +1221,10 @@ export const parts: ReportPart[] = [
       {
         kind: 'p',
         text: 'Vessels of one management company, or failing that of one owner, form a single node. One act of designation can meet more than one condition; where no activity is observed, a new designation stands as a sign of activity: it dates an act of enforcement, not an observed flow.',
+      },
+      {
+        kind: 'p',
+        text: 'The published count of critical nodes is 493: 450 nodes of the record and 43 nodes of a first list that the record does not link yet. It comes from a selection test that the author ran on 27 October 2026. The query of that test is not kept. The figure of 416 nodes on an official source has no stored definition. So neither figure can be rebuilt. The repository holds a script that applies the conditions above to the record. It leaves out the country of a counterparty and the owner of a vessel with no manager, and its result does not equal the published count. The release table of critical nodes uses another rule, two sourced conditions of three. It is not the rule of this count.',
       },
       { kind: 'h3', text: 'A.4 Checking facts and text' },
       {
