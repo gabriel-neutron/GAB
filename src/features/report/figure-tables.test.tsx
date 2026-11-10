@@ -5,7 +5,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { prerender } from 'react-dom/static';
 import { describe, expect, it, vi } from 'vitest';
 import { en } from './content';
-import { fr } from './content-fr';
 import figures from './data/publication-figures.json';
 import { partComponents } from './parts';
 import { criticalLayers } from './parts/method-chronology/critical-layers';
@@ -34,7 +33,7 @@ const pageOf = async (copy: ReportContent) => {
   await prerender(page);
   return renderToStaticMarkup(page);
 };
-const pages = { en: await pageOf(en), fr: await pageOf(fr) };
+const pages = { en: await pageOf(en) };
 
 // The figures of the page, in their order.
 const figuresOf = (html: string) =>
@@ -46,10 +45,7 @@ const figuresOf = (html: string) =>
 // The layer names of the data, in the order of the cards of figure 2.
 const LAYERS = ['Pay', 'Finance', 'Fight'];
 
-describe.each([
-  ['en', en],
-  ['fr', fr],
-] as const)('the figures of the %s page', (lang, copy) => {
+describe.each([['en', en]] as const)('the figures of the %s page', (lang, copy) => {
   const html = pages[lang];
   const all = figuresOf(html);
   const numbered = copy.parts.flatMap((part) =>
@@ -97,10 +93,7 @@ describe.each([
   });
 });
 
-describe.each([
-  ['en', en],
-  ['fr', fr],
-] as const)('the citations of the %s page', (lang, copy) => {
+describe.each([['en', en]] as const)('the citations of the %s page', (lang, copy) => {
   const html = pages[lang];
 
   it('draws each note marker with the shared marker only', () => {

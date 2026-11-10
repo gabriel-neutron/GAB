@@ -2,8 +2,7 @@ import type { Source } from '../parity';
 import en from './report-en.md?raw';
 
 // The final English text, as the author delivers it, and where each part of the page starts in
-// it. The web cuts "2 Pay" in two parts: pay (2.1 to 2.3) and ports-fleet (2.4 to 2.6). A module
-// of its own: the annex reads it, and its chunk then carries no French text.
+// it. The web cuts "2 Pay" in two parts: pay (2.1 to 2.3) and ports-fleet (2.4 to 2.6).
 export const englishSource: Source = {
   text: en,
   starts: [

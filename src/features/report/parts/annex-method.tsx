@@ -12,7 +12,7 @@ import { useContent, type ReportPath } from '../use-content';
 import { englishSource } from '../source/english';
 import { ClosingBreak } from './closing-art';
 
-const KEY = /^\*\*(.+?)\s?:?\*\*:?\s*/; // A French key has a space before its colon.
+const KEY = /^\*\*(.+?)\s?:?\*\*:?\s*/; // A key can have a space before its colon.
 const CODE = /^(A\.\d+)\s+(.*)$/;
 const FOCUS =
   'outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';

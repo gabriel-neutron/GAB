@@ -3,17 +3,14 @@
 This folder holds the files of the report that the site serves as they are, with no build step.
 
 - `gab-report-en.pdf`: the report in English.
-- `gab-report-fr.pdf`: the report in French.
-- `stamp.json`: the hash of what the command prints for each PDF: the page, the code of the layout
+- `stamp.json`: the hash of what the command prints for the PDF: the page, the code of the layout
   pass and the links of the notes. A test fails when a PDF is older than its templates, its figures,
   its byline, the layout pass or the links.
 - `record` in `stamp.json`: the tag and the checksum of the pinned data release, which a reader can
   load to count the public record (`docs/deploy.md`). A test fails when it differs from the pin.
 
-Each PDF is the print design of the operator, page by page. The French pages are the design as the
-operator made it. The English pages have the same layout, with the final English text in place of
-the French text and the figures with English labels. A test fails when a block of text or a note of
-an English page is not in the final English text.
+The PDF is the print design of the operator, page by page, with the final English text. A test
+fails when a block of text or a note of a page is not in the final English text.
 
 ## The layout pass
 
@@ -32,6 +29,6 @@ The command stops when an element is cut by its box, when a note does not fit at
 page, or when a note is on another page than its call.
 
 The page templates and the figures are in the folder of the tool, under `tools/`. To change a page,
-change its template. `pnpm report:pdf` makes the two PDF files and the stamp, with no network
+change its template. `pnpm report:pdf` makes the PDF file and the stamp, with no network
 access. Run it after each change to a template, a figure or the source documents of the notes, and
-commit the three files together.
+commit the two files together.

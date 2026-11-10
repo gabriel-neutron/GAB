@@ -177,7 +177,6 @@ const LINKS = (site: string): string =>
 
 const pageAddresses = (site: string): string[] => [
   ...MAIN_PAGES.map(([folder]) => (folder === '' ? site : `${site}${folder}/`)),
-  `${site}fr/`,
   ...Object.keys(STATIC_PAGES).map((one) => `${site}${one}`),
 ];
 
@@ -480,7 +479,7 @@ const structuredData = (site: string, r: Release): string =>
         name: 'GAB dataset',
         url: site,
         description: 'An open investigation graph in which every claim carries its source.',
-        inLanguage: ['en', 'fr'],
+        inLanguage: 'en',
       },
       {
         '@type': 'Organization',

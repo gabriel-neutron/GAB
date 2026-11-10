@@ -1,28 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { parts } from '../../content';
-import { frParts } from '../../parts-fr';
 import { chartLayout } from './chart-layout';
 import { figureData } from './figure-data';
 import { splitSentences } from './sentences';
 
 const part = parts.find((one) => one.slug === 'ports-fleet');
-const frPart = frParts.find((one) => one.slug === 'ports-fleet');
 
 describe('ports and fleet', () => {
-  it('splits the paragraphs of the map scene into whole sentences that give the text back, in both locales', () => {
+  it('splits the paragraphs of the map scene into whole sentences that give the text back', () => {
     // The scene shows the paragraphs 1, 2 and 4 of the part: two, three and four sentences.
     for (const [index, count] of [
       [1, 2],
       [2, 3],
       [4, 4],
     ] as const) {
-      for (const one of [part, frPart]) {
-        const block = one?.blocks.at(index);
-        const text = block?.text ?? '';
-        expect(block?.kind).toBe('p');
-        expect(splitSentences(text)).toHaveLength(count);
-        expect(splitSentences(text).join(' ')).toBe(text);
-      }
+      const block = part?.blocks.at(index);
+      const text = block?.text ?? '';
+      expect(block?.kind).toBe('p');
+      expect(splitSentences(text)).toHaveLength(count);
+      expect(splitSentences(text).join(' ')).toBe(text);
     }
   });
 

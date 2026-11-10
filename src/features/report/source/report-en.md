@@ -14,7 +14,7 @@
 
 - –**Budget:** The share of oil and gas in federal revenue falls from one half in 2014 to less than one fifth in 2026, partly because that revenue is shrinking.[^3]
 
-- –**Currency:** The rouble settled 53% of Russian exports in 2025, against 14% in 2021,[^4] and the rouble and the yuan settle almost all payments with China.
+- –**Currency:** The rouble settled 53% of Russian exports in 2025, against 14% in 2021,[^4] and, according to the Russian government, the rouble and the yuan settle almost all payments with China.
 
 - –**Components:** Finally, of the priority goods for weapons that its partners declared as sold to Russia in 2025, China supplied 77%, and Hong Kong 11%.[^5]
 
@@ -322,7 +322,7 @@ FIGURE: Figure 10: Settlement currency of Russian exports and imports, 2019-2025
 [^57]: Central Bank of Russia (2026), op. cit., n. 4.
 
 
-With China, the shift goes further. At the end of 2023, the yuan settled as many exports as the rouble,[^58] and the rouble and the yuan settle almost all payments between the two countries.[^59] This choice protects the trade from sanctions, but it ties Russia to a partner that accounts for about 40% of its trade, while Russia accounts for only a few per cent of Chinese trade.[^60] On the report's hypothesis, China can therefore set its terms.
+With China, the shift goes further. At the end of 2023, the yuan settled as many exports as the rouble,[^58] and, according to the Russian government, the rouble and the yuan settle almost all payments between the two countries.[^59] This choice protects the trade from sanctions, but it ties Russia to a partner that accounts for about 40% of its trade, while Russia accounts for only a few per cent of Chinese trade.[^60] On the report's hypothesis, China can therefore set its terms.
 
 ### 3.2 Payment relays
 
@@ -574,7 +574,7 @@ The report does not measure the effect of sanctions: where no source establishes
 
 - –**Coverage of the database:** It covers maritime transport well, but banks and armaments poorly. It links few companies to a payment or to a component, and it gives an amount for almost none of them; the section on payments therefore rests on fewer facts than the section on the fleet.
 
-- –**Reliability of sources:** Only official sources receive a reliability rating. Think-tank reports and the press are not rated, so the weight of the facts that come from them is not measured.
+- –**Reliability of sources:** The letter rates the issuer, not the truth of each claim. The report shows it only for official issuers: the letters of the press and of think tanks are not shown, so the reader cannot weigh their facts.
 
 - –**Mirror data:** Because Russia no longer publishes its trade by product, the report reads the declarations of its partners, which therefore cover only part of the trade. The United Arab Emirates and Vietnam report no product-level data to UN Comtrade for 2024-2025, and Kazakhstan and Thailand report data only up to February 2024 and February 2025.[^126]
 
@@ -613,7 +613,7 @@ These two routes call for two responses. Against the parallel market, designatin
 
 ### A.1 The database
 
-The report rests on a database of entities (companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 27 October 2026, the database holds 6,327 entities; because the selection does not use the 1,165 military units, about 5,200 entities are tested.
+The report rests on a database of entities (companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 27 October 2026, the database holds 6,327 entities (5,366 of them in the public data release of 28 October); because the selection does not use the 1,165 military units, about 5,200 entities are tested.
 
 These documents come from the official sanctions lists (OFAC, United Kingdom, EU acts), from company registers, from public statistics (UN Comtrade, Eurostat, World Bank, Bank of Russia, Russian Ministry of Finance), from research institutes (KSE, CREA, Bruegel) and from investigative press.
 
