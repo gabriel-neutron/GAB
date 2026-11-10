@@ -1326,6 +1326,9 @@ test('a start that no excerpt states is not proposed, and the checker does not r
       srcId: found.held.id,
       dstId: found.held.id,
       validTo: '2023-11-30',
+      // The checker reads no record, so it reads the names of the two ends.
+      source: expect.stringContaining(`${found.held.label} (`) as string,
+      target: expect.stringContaining(`${found.held.label} (`) as string,
     },
   ]);
 });

@@ -811,13 +811,53 @@ const checkEventEnds = async (
   if (refusal !== null) refuse(given.ref, refusal);
 };
 
+// The name of an entity of the record, or of a new entity that waits in the queue, with its type
+// and the IMO number of a vessel: "ELBUS (vessel, IMO 9374325)".
+const END_NAME = `SELECT label, type, imo FROM (
+    SELECT label, type, attrs->'imo'->>'v' AS imo FROM api.entity WHERE id = $1
+    UNION ALL
+    SELECT payload->>'label', payload->>'type', payload->'attrs'->'imo'->>'v' FROM api.proposal
+     WHERE id = $1 AND status = 'pending' AND op = 'create_entity') AS named LIMIT 1`;
+
+const nameWords = (label: string, type: string, imo: unknown): string =>
+  `${label} (${type}${typeof imo === 'string' || typeof imo === 'number' ? `, IMO ${String(imo)}` : ''})`;
+
+// The checker reads no record, so an id of the record or a ref of the batch becomes the name of its
+// entity. An end that is a relation, or that no row names, gives null.
+const endNameOf = async (
+  session: Session,
+  id: string,
+  batch: readonly ProposeItem[],
+): Promise<string | null> => {
+  const sibling = batch.find((one) => one.ref === id);
+  if (sibling !== undefined)
+    return sibling.act.op === 'create_entity'
+      ? nameWords(sibling.act.label, sibling.act.type, sibling.act.attrs?.['imo']?.v)
+      : null;
+  if (!z.uuid().safeParse(id).success) return null;
+  const [named] = await rowsOf(
+    session,
+    z.strictObject({ label: z.string(), type: z.string(), imo: z.string().nullable() }),
+    END_NAME,
+    [id],
+  );
+  return named === undefined ? null : nameWords(named.label, named.type, named.imo);
+};
+
 const claimActOf = async (
   session: Session,
   act: ProposeItem['act'],
   dropped: readonly DroppedName[],
+  batch: readonly ProposeItem[],
 ): Promise<unknown> => {
   if (act.op === 'create_relation')
-    return withoutBounds(dropped.includes('observed_on') ? withoutCallDay(act) : act, dropped);
+    return {
+      ...withoutBounds(dropped.includes('observed_on') ? withoutCallDay(act) : act, dropped),
+      source: await endNameOf(session, act.srcId, batch),
+      target: await endNameOf(session, act.dstId, batch),
+    };
+  if (act.op === 'update_attrs' && act.targetKind === 'entity')
+    return { ...act, entity: await endNameOf(session, act.targetId, batch) };
   if (act.op === 'update_entity') {
     // A new entity that waits in the queue has its name in its proposal.
     const [named] = await rowsOf(
@@ -1198,6 +1238,7 @@ export const proposeOf = (modelCallId: string | null) =>
             // The checker reads the act that is written, so it reads the coded jurisdiction.
             withCodedJurisdiction(given.act),
             dropped,
+            resolvedItems,
           ),
           cited,
           unstated,

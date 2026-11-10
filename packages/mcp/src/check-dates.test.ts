@@ -98,4 +98,13 @@ describe('the dates that the checker reads with a passage', () => {
     expect(prompt).toContain('on or before `published_on`');
     expect(prompt).toContain('`not_supported`');
   });
+
+  it('has a prompt that compares days, reads the date of a row, and matches a vessel by IMO', () => {
+    const prompt = readFileSync(new URL('./check-prompt.md', import.meta.url), 'utf8');
+    expect(prompt).toContain('"15.3.2022"');
+    expect(prompt).toContain('"2022-03-15" are the same day');
+    expect(prompt).toContain('"Date Designated"');
+    expect(prompt).toContain('`add_source` sets no value');
+    expect(prompt).toContain('IMO numbers are the same');
+  });
 });
