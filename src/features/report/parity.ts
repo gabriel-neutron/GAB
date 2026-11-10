@@ -105,7 +105,7 @@ const noteIds = (text: string) =>
   tokens(text).flatMap((one) => (one.startsWith('^') ? [one.slice(1)] : []));
 
 // Departure: the page shows the timeline of figure 1 in the method part, next to the layers of
-// figure 2. The source puts it in the summary in English and in the introduction in French.
+// figure 2. The source puts it in the summary.
 const MOVED: ReadonlyMap<number, string> = new Map([[1, 'method-chronology']]);
 
 /** Compare the parts with the source text. Each difference is one line; no line means parity:
