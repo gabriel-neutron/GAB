@@ -44,6 +44,7 @@ it. The build decisions are in the ADRs.
 | P11 | One entity with its relations is the unit of decision | Pipeline and AI |
 | P12 | The operator AI proposes the facts of a research layer | Pipeline and AI |
 | PU1 | The app is public, with clear labels | Publication |
+| PU2 | The report text changes in English only | Publication |
 
 ---
 
@@ -467,3 +468,17 @@ no person read it", "Validated manually by the operator". It shows no NATO lette
   pages. When the backend does not answer, the site is read-only: it shows the record of its
   release, and it hides each part that needs the backend (the review, the creation and the edit of
   an entity, the extraction, the upload, the lead). There is no second site.
+
+### PU2 — The report text changes in English only
+
+**Rule.** From 10 November 2026, a change of the report text is made in English only: the source
+text, the web page and the English PDF. The French text, the French page and the French PDF are
+not changed and do not follow the English text (operator decision, 10 November 2026). The shared
+data (counts, figure data, nodes) and the words of the page controls still feed both pages, and
+`pnpm report:pdf` still prints both PDFs, so the checks of the French page keep their meaning: the
+French text against its own source, and the stamp of each PDF.
+
+**Reason.** One language halves the work of each text change, and the French layout no longer
+limits an English fix.
+
+**Cost.** The French report stays at its last text and can differ from the English report.
