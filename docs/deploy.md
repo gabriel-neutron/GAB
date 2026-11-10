@@ -91,3 +91,18 @@ list in the same file.
 Open `robots.txt`, `sitemap.xml` and `llms.txt` on the built site. Check a page with a public
 validator for the structured data of a `Dataset`, and check the manifest with a validator of web
 manifests. The unit tests of the site writer check the same files on a rendered release.
+
+## A report names its data release
+
+`public/report/stamp.json` holds a `record` key: the tag and the SHA-256 of the data release that
+`tools/data-release.ts` pins. The release is the public record (PU1) on its date, with the entities,
+the relations and the claims with their source documents and dates, and it lists a checksum for each
+file. To publish a report:
+
+1. Write the release with `pnpm worker release` and upload it as a GitHub release.
+2. Pin its tag and checksum in `tools/data-release.ts`.
+3. Run `pnpm report:pdf`, and commit the PDF files and the stamp together.
+
+A test fails when the stamp and the pin differ. The release holds the public record only, so a count
+of the whole record, such as the number of entities in the report, is larger than the count of the
+release. The report must say which count it gives.

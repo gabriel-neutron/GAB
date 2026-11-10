@@ -12,10 +12,16 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
+import { DATA_RELEASE_SHA256, DATA_RELEASE_TAG } from './data-release.ts';
 import { layout, type LayoutInput } from './report-pdf/layout.ts';
 
 const FOLDER = resolve(import.meta.dirname, '../public/report');
 export const STAMP = join(FOLDER, 'stamp.json');
+/** The data release that the report names: the public record that a reader can load and count. */
+export const recordOf = (): { tag: string; sha256: string } => ({
+  tag: DATA_RELEASE_TAG,
+  sha256: DATA_RELEASE_SHA256,
+});
 export const LANGS = ['en'] as const;
 export const pdfOf = (lang: string): string => join(FOLDER, `gab-report-${lang}.pdf`);
 const TEMPLATES = resolve(import.meta.dirname, 'report-pdf');
@@ -142,7 +148,7 @@ async function main(): Promise<void> {
   } finally {
     await browser.close();
   }
-  writeFileSync(STAMP, `${JSON.stringify(stamp, null, 2)}\n`);
+  writeFileSync(STAMP, `${JSON.stringify({ ...stamp, record: recordOf() }, null, 2)}\n`);
 }
 
 if (import.meta.main) await main();

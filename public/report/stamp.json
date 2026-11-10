@@ -1,6 +1,10 @@
 {
   "en": {
-    "hash": "fddc2cc79e193c6943f3eb9684b67c4d836ccf909b7ee73de9a63822e7158cd8",
+    "hash": "39e0f91ca7ed43dc154554fbf895b792f22b8c17e134bc3da179edda5c5093fd",
     "pages": 30
+  },
+  "record": {
+    "tag": "data-2026-10-28",
+    "sha256": "8896410d0eaea285c72e28798ae1fa7c5ea57d0f369dad3791c0acda04101084"
   }
 }

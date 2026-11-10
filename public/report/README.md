@@ -6,6 +6,8 @@ This folder holds the files of the report that the site serves as they are, with
 - `stamp.json`: the hash of what the command prints for the PDF: the page, the code of the layout
   pass and the links of the notes. A test fails when a PDF is older than its templates, its figures,
   its byline, the layout pass or the links.
+- `record` in `stamp.json`: the tag and the checksum of the pinned data release, which a reader can
+  load to count the public record (`docs/deploy.md`). A test fails when it differs from the pin.
 
 The PDF is the print design of the operator, page by page, with the final English text. A test
 fails when a block of text or a note of a page is not in the final English text.

@@ -2,7 +2,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { copies, LANGS, pagesOf, pdfOf, STAMP, stampOf } from './report-pdf.ts';
+import { copies, LANGS, pagesOf, pdfOf, recordOf, STAMP, stampOf } from './report-pdf.ts';
 
 const words = (text: string): string =>
   text
@@ -30,6 +30,12 @@ describe('report PDF', () => {
       // A failure here means: run `pnpm report:pdf`, and commit the PDF files and the stamp.
       expect(stamp[lang]?.hash).toBe(stampOf(lang, all[lang]));
     }
+  });
+
+  it('the stamp names the data release that is pinned', () => {
+    const stamp = JSON.parse(readFileSync(STAMP, 'utf8')) as { record?: unknown };
+    // A failure here means: the release was pinned again, so run `pnpm report:pdf` and commit.
+    expect(stamp.record).toEqual(recordOf());
   });
 
   it('each block of text and each note of an English page is in the final English text', () => {
