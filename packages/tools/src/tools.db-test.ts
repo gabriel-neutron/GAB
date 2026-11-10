@@ -1326,7 +1326,68 @@ test('a start that no excerpt states is not proposed, and the checker does not r
       srcId: found.held.id,
       dstId: found.held.id,
       validTo: '2023-11-30',
+      // The checker reads no record, so it reads the names of the two ends.
+      source: expect.stringContaining(`${found.held.label} (`) as string,
+      target: expect.stringContaining(`${found.held.label} (`) as string,
     },
+  ]);
+});
+
+test('the checker reads the name, the type and the IMO number of an entity of the batch', async () => {
+  claimsRead.length = 0;
+  const page = 'The tanker NAYARA, IMO 9374325, belongs to Rosneft. Its name stays the same.';
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await connected(ask);
+    const [keyedEntity] = keyed.parse(await ask(KEYED));
+    if (keyedEntity === undefined) throw new Error('the fixture holds no string attribute');
+    await asResearch(ask, () => withDocument(ask, [page]));
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+    const outcome = await callTool(
+      toolNamed('propose'),
+      sessionOf(ask),
+      {
+        items: [
+          item(
+            'nayara',
+            {
+              op: 'create_entity',
+              type: 'vessel',
+              label: 'NAYARA',
+              attrs: { imo: { v: '9374325' } },
+            },
+            'The tanker NAYARA, IMO 9374325',
+          ),
+          item(
+            'owner',
+            { op: 'create_relation', type: 'owns', srcId: held.id, dstId: 'nayara' },
+            'belongs to Rosneft',
+          ),
+          item(
+            'update',
+            {
+              op: 'update_attrs',
+              targetKind: 'entity',
+              targetId: keyedEntity.id,
+              attrs: { [keyedEntity.key]: { v: keyedEntity.value } },
+            },
+            'Its name stays the same.',
+          ),
+        ],
+      },
+      reading,
+    );
+    await ask('RESET SESSION AUTHORIZATION');
+    return { held, keyedEntity, outcome };
+  });
+  expect(found.outcome.ok).toBe(true);
+  expect(claimsRead).toMatchObject([
+    { op: 'create_entity' },
+    {
+      op: 'create_relation',
+      source: expect.stringContaining(`${found.held.label} (`) as string,
+      target: 'NAYARA (vessel, IMO 9374325)',
+    },
+    { op: 'update_attrs', entity: expect.stringMatching(/^.+ \(.+\)$/u) as string },
   ]);
 });
 
