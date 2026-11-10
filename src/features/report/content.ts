@@ -536,7 +536,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'A designated ship also often changes hands. In a non-random sample of 100 designated ships, Ukrainian military intelligence (GUR), a party to the conflict, dates a change of owner or manager after designation for 81 of them.[^51]',
+        text: 'A designated ship also often changes hands. On the archived pages of Ukrainian military intelligence (GUR), a party to the conflict, 428 of 756 ships that give both a designation date and an owner or manager date show an owner or manager that started after the designation.[^51]',
       },
       {
         kind: 'p',
