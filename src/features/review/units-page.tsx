@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 
 import { ChangeList, type RelationAct } from './change-list';
+import { barStateOf } from './bar-state';
 import { DecisionBar, type BarAct, type DecisionState } from './decision-bar';
 import { decisionWords } from './decision-words';
 import { Justification } from './justification';
@@ -61,8 +62,6 @@ interface Aim {
   readonly unitId: string;
   readonly relationId: string;
 }
-
-const IDLE: DecisionState = { step: 'idle' };
 
 /** The review queue in three columns: the units, the changes of one unit with its decision, and
  * why it waits. Each column scrolls on its own, so the page itself never scrolls under the
@@ -193,11 +192,7 @@ export function UnitsPage({ view, selectedId, words, onAct }: UnitsPageProps) {
               key={`${unit.id} ${aimed ?? ''}`}
               said={decisionWords(unit, words, aimed)}
               aimed={aimed !== null}
-              state={
-                view.decision.step !== 'idle' && view.decision.unitId === unit.id
-                  ? view.decision
-                  : IDLE
-              }
+              state={barStateOf(view.decision, unit.id)}
               onAct={onBar}
             />
           )}

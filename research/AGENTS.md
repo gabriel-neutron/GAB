@@ -9,18 +9,75 @@ This file is the one source of the research rules. `CLAUDE.md` imports it.
 Each research step runs on the operator's PC, where the record and the browser are. A site that
 refuses this address goes to the skill `source-hunt`: the steps of the skill in order, then the
 blocked queue `research/out/blocked.md`. A residential proxy of a third party runs as one batch
-pass for each topic, over that queue, after the operator approves the count and the cost. The
-list of needs is for what only the operator can get.
+pass for each topic, over that queue, after the operator approves the count and the cost (a worker
+reads "A run with no person"). The list of needs is for what only the operator can get.
 
 Send each question of method, source, data model or unit in doubt to the skill `expert-panel`, and
 act on its verdict. The operator answers only the critical questions that it defines.
+
+## A run with no person
+
+The tenfold wave (#1270) runs with no person until its freeze. A worker is a session that the
+supervisor starts. **No person reads the output of a worker, so a worker never asks a question and
+never stops to wait for a person.** Each rule or skill that needs the operator reads as below for a
+worker. When no line below answers, send the question to the skill `expert-panel`. When the panel
+does not agree, the ticket parks, one line goes to the operator queue, and the other tickets go on.
+
+The words of the wave are in #1270, and they are not words of the record. A ticket state, a hold
+(such as waiting_signature) and the ceiling are in the supervisor state, outside the checkout. A
+worker does not write them: it writes the reason in its result, and the supervisor sets them. The
+operator queue is one local file, `research/out/v3-plan/wave-start/operator-queue.md`, with one
+line for each question or signature. The level of a source is on the signed list.
+
+- **The freeze is 2026-11-20.** This is the limit of the panel verdict, and the supervisor uses this
+  one value. No new ticket opens after it, and each parked ticket then closes as parked. A later
+  date is not a way to get more facts. The report text and the legal read use the days after the
+  freeze, and they are outside the wave.
+- **Two acts replace the approvals of the operator.** The operator signs them once: the signed list
+  (one dated list of datasets, editions and levels) and the standing rule below.
+
+  | Approval in the other rules | What a worker does |
+  |---|---|
+  | Use a source or an edition | It needs a line of the signed list, or the standing rule. Before the signature, a ticket on a level A source with its terms read runs. Each other ticket holds in waiting_signature, and the hold costs no attempt. |
+  | Call `enqueue_extract` or `enqueue_mapping` | A line of the signed list that names the dataset and its edition is the approval. With no such line, a worker does not call them. A source that enters by the standing rule never uses them. |
+  | Start a batch pass of a third-party proxy | The ceiling that the operator set, in the supervisor state, is the approval. A worker logs the count and the cost of each batch. At the ceiling, the ticket goes to the blocked queue, and a line goes to the operator queue only if the case is critical. No batch runs before the lease and the ceiling exist in code. |
+  | Call `start_lead` | Nothing replaces this approval. A worker does not call it. |
+  | Promote a mapping, or approve an edition as a reference dataset | Nothing replaces these acts: `docs/decisions.md` keeps them with the operator. A worker does not do them. It adds one line to the operator queue, the ticket holds, and the other tickets go on. |
+
+- **The standing rule for a new source.** A pilot adds a source to the signed list with no new
+  signature only if all of these are true:
+  - the source is level A, and a stored terms text names the dataset;
+  - a separate agent read that text;
+  - the host is not a Russian state host, a leak host, or a host of a party to the war;
+  - the source has no personal data, and it needs no login, key, quota or enqueued job;
+  - the new line adds no new legal question, and a new edition with changed terms needs a new line.
+
+  Each line is logged, the operator can revoke it, and the end report shows it. A pilot never widens
+  this class. Each other source goes to the panel and to a signature. With no signature, that source
+  stays out, and nothing else waits.
+- **The panel role can create a ticket.** When a pilot closes, the tick starts a panel worker with
+  the output of the pilot. That worker can write a new ticket in the same format, for at most 60
+  facts, on a source of the signed list. The supervisor accepts it only if the ticket check passes:
+  complete fields, no missing reference, no cycle. Each new ticket is logged and takes its forecast
+  from its pilot. While the count is below the aim of the wave and no ticket is ready, the panel role
+  also opens tickets from the source catalogue, until the freeze. Each counting stop of the wave
+  applies, and each new ticket has a pilot. A proposer, a reviewer and a closer create no ticket.
+- **The wave has two paths.** Path 1 has no person: Task Scheduler, the tick and headless workers.
+  Path 2 is the declared fallback, with a lower count: one attended session stays open and runs the
+  Workflow tool. It breaks the goal of no person, because a person keeps the session open and
+  restarts it. It takes first the tickets that need no new register tool and no new parser. The wave
+  takes path 2 if the first test shows that a headless worker fails with a new token, or if the gate
+  ticket has not passed by 2026-11-09. A later pass of the gate moves the wave back to path 1. A
+  scheduled task of the app is not a path, because an automated turn cannot start a session. The
+  rules of this section apply on the two paths.
 
 ## The tools
 
 The MCP server `gab` gives each tool. A read changes nothing. A write needs no approval in the
 session: each proposal waits in the review queue (P12). **The operator never decides a proposal.**
 After each batch, the session that proposed starts at once a new AI reviewer (subagent or
-session, skill `review-unit`) on the units of the batch. Never end a step with "waits for the
+session, skill `review-unit`) on the units of the batch. A batch whose answer gives `checkFailure`
+is sent again first (skill `research-method`). Never end a step with "waits for the
 operator to accept" a proposal.
 
 - Read the record: `search_graph`, `read_entity` (the relations come in pages; the filters `relationType` and `undated`, and
@@ -30,9 +87,12 @@ operator to accept" a proposal.
   INN, an OGRN, an IMO number or a LEI; it flags, and you send each group to a reviewer).
   `read_event_pairs` (the events with one kind, one day and one site in two scripts; it flags, and
   you send each group to a reviewer).
-- Read the documents: `find_document`, `document_text`, `file_schema_sample` (the header and the
-  first rows of a stored CSV table), `job_status`.
-- Find leads on the web: `web_search`, `news_search`.
+- Read the documents: `find_document`, `document_text`, `find_line` (the lines of a large
+  stored file that hold a key, to cite one line), `file_schema_sample` (the header and the first
+  rows of a stored CSV table), `job_status`.
+- Find leads on the web: `web_search`, `news_search`. A closer also reads a live page with
+  `read_page`, which stores nothing and refuses a host on the deny list. A worker has only the
+  tools of its role (`packages/mcp/src/roles.ts`).
 - Read a register: `gleif_lookup`, `companies_house`, `wikidata_ids`. Each one stores its answer
   as a document.
 - Read the official text of an EU act from its CELEX number: `eu_act`. It stores the file of the
@@ -58,6 +118,11 @@ operator to accept" a proposal.
   source "UN Comtrade".
 - The licences of OpenCorporates and OCCRP Aleph do not fit the open dataset. Use them only as a
   lead, or cite a fact from them. Never use a leak collection of Aleph (see the rule on leaked data).
+- A document has a level and a class. `find_document` gives `level` and `restricted`. A release
+  names level A only. Store a file that names natural persons with `restricted: true`, when no rule
+  of the record holds its host: an excerpt of it names a legal person only. A capital letter outside
+  the name of a firm is refused there, so cut the excerpt to the firm (its form, with the name in
+  quotes or a Latin form last) and to words with no capital.
 - Never cite leaked, hacked or stolen data. The contract of the report forbids unlawfully obtained
   data. A page is a leak when it holds the leaked data, or when its publisher calls its own data
   leaked, hacked or stolen. Examples: the leak collections of Aleph, Offshore Leaks, WikiLeaks and
@@ -90,6 +155,10 @@ operator to accept" a proposal.
   the GFW Vessels API, and `tankersOnly` keeps the oil tankers. A tanker often has an event type
   that no vessel type selects: for the tanker visits, give no vessel type. The output gives the
   dates of each kept visit. It needs `GFW_API_TOKEN`.
+- Read the density of named vessels: `gfw_presence_grid` takes 1 to 100 GFW vessel ids, a date window
+  and two resolutions, and stores the 4Wings presence grid as one internal document with the
+  CC BY-NC 4.0 licence and the AIS-only limit. The output gives the count of cells, the hours and the
+  document id, and no row. Put no grid row in a public file. It needs `GFW_API_TOKEN`.
 - Read the heat detections of one site: `firms_detections` takes a site box and a period, and
   stores the NASA FIRMS answer as a document. It needs a free map key. When the key is not
   set, the tool says so, and the other tools work.
@@ -98,6 +167,12 @@ operator to accept" a proposal.
   with the scene, the date and the cloud share. It needs a free Copernicus Data Space client.
   The image states no damage. When the client is not set, the tool says so, and the other tools
   work.
+- A read that the ceiling of the proxy stops has a line in `blocked.md` of the state folder
+  (`GAB_STATE_DIR`), and its ticket takes the hold of the ceiling.
+- Read one extract of the Russian register: `egrul_extract` takes the 10-digit tax number of a
+  company, stores the signed PDF as an internal document, and gives the owner section. On a CAPTCHA
+  it gives status `hold` with the wait time: wait, and solve nothing. An excerpt of an extract can
+  name a legal person only, and `propose` refuses each other excerpt.
 - Read official trade statistics: `comtrade_data` takes a reporter, a period, a flow, an HS code
   and a partner, and stores the UN Comtrade answer as a document. It needs a free key. The
   provider has a restricted licence, so the document stays internal. When the key is not set, the
@@ -105,12 +180,18 @@ operator to accept" a proposal.
 - Read the review page: `read_doubts`, `read_waiting`, `read_unit`, `read_groups`,
   `read_group`, `read_decided`, `read_leads`.
 - Write: `archive_snapshot`, `fetch_document`, `eu_act`, `ofac_sdn`, `uk_sanctions_list`,
-  `firms_detections`, `gfw_port_visits`, `comtrade_data`, `sentinel2_pairs`, `site_image`, `store_saved_file`, `telegram_channel`,
+  `firms_detections`, `gfw_port_visits`, `gfw_presence_grid`, `comtrade_data`, `egrul_extract`, `sentinel2_pairs`, `site_image`, `store_saved_file`, `telegram_channel`,
   `enqueue_extract`, `enqueue_mapping`, `start_lead`, `propose`. Each write runs with no question.
   `enqueue_extract`, `enqueue_mapping` and `start_lead` spend model credit: call them only when
-  the operator asks for it.
+  the operator asks for it. A worker reads "A run with no person".
 - Decide as an AI reviewer: `promote_unit`, `reject_unit`, `reject_relation`, `join_unit`,
-  `promote_clean_proposals`. Follow the skill `review-unit`.
+  `promote_clean_proposals`. Follow the skill `review-unit`. A promotion of a unit that waits for
+  a source is refused.
+- Correct the record as an AI reviewer, with a reason and a cited passage: `remove_act` removes
+  an accepted act that is wrong (a new relation, or a change of the values of an entity), and
+  `join_entities` joins two accepted entities of one thing into the older one. Follow the skill
+  `review-unit`. A count of the accepted acts leaves out each removed act: the read of the acts
+  names its removal.
 
 ## Who proposes what
 
@@ -120,23 +201,23 @@ operator to accept" a proposal.
   the write, a model of another family checks each batch, in one call with a token cap.
 - **The extractor is the back-end AI.** It reads a whole stored document and proposes each claim
   that it finds, also the facts outside your layer. Queue it (`enqueue_extract`) only when the
-  operator asks for it.
+  operator asks for it, or for a worker when a line of the signed list allows it.
 - **The mapper is the back-end AI for a table.** A stored CSV, TSV or SDMX-CSV table has columns that
-  Gabriel does not know. Queue its mapping (`enqueue_mapping`) only when the operator asks for it. Follow it
-  with `job_status`, and read the mapping with `list_proposals`. The operator promotes the
+  Gabriel does not know. Queue its mapping (`enqueue_mapping`) only when the operator asks for it, or for a
+  worker when a line of the signed list allows it. Follow it with `job_status`, and read the mapping with `list_proposals`. The operator promotes the
   mapping, and then code loads the rows. You do not propose the rows of a table by hand.
 - **The lead agent finds sources for a lead.** For a broad lead, such as a company and its
   vessels, call `start_lead` with a short text. The back-end AI searches the web and the news,
   stores each new page and queues its extraction, with its own tokens. It proposes nothing. Later,
   find the stored pages with `find_document` and their proposals with `list_proposals`. The lead
-  queues the extraction of each page, so start a lead only when the operator asks for it.
+  queues the extraction of each page, so start a lead only when the operator asks for it. A worker never starts a lead.
 - **A register lookup gives a document to cite.** When you hold an LEI, a UK company number or a
   Wikidata item id, call `gleif_lookup`, `companies_house` or `wikidata_ids`. Read the stored
   text with `document_text`, and call `propose` with the document id and the excerpt.
   `companies_house` needs a key. When the key is not set, the tool says so, and the other tools
   work.
 - **A sanctions match or a vessel event gives a document to cite.** `sanctions_match` needs a
-  key, and `vessel_events` and `gfw_port_visits` need a free token. When one is not set, the tool says so, and the
+  key, and `vessel_events`, `gfw_port_visits` and `gfw_presence_grid` need a free token. When one is not set, the tool says so, and the
   other tools work. OpenSanctions is a repeater: fetch the official entry that the tool names with
   `fetch_document`, and cite that. Events that are matched by an MMSI alone are a lead.
   When an IMO number or an MMSI names more than one identity, `vessel_events` refuses and

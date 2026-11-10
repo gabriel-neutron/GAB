@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 
 import { DownloadsPage } from '@/features/downloads/downloads-page';
-import { loadCorpus } from '@/shared/read/corpus';
 import { loadReleaseOrNull } from '@/shared/read/release-record';
 
 // The files exist in a release and nowhere else, so the page reads the release whether the read
@@ -10,7 +9,6 @@ const fileHref = (path: string): string => `${import.meta.env.BASE_URL}release/$
 
 export const Route = createFileRoute('/downloads')({
   loader: async () => {
-    await loadCorpus().catch(() => undefined);
     return (await loadReleaseOrNull())?.manifest ?? null;
   },
   component: DownloadsRoute,

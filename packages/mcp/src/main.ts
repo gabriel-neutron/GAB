@@ -13,9 +13,10 @@ import { readThroughFilter } from '@gab/tools/challenge-page';
 import { endMetadata } from '@gab/tools/fetch-document';
 import type { Reach } from '@gab/tools/tool';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import pg from 'pg';
+import type pg from 'pg';
 
 import { CONFIG_FILES, researchEnvOf, textOf } from './config.ts';
+import { openPool } from './pool.ts';
 import {
   assertSessionRole,
   CREDENTIALS_VARIABLE,
@@ -25,6 +26,7 @@ import {
 import { serveHttp, HTTP_HOST, HTTP_PATH } from './http.ts';
 import { checkEnvOf, readSecondCheck, type SecondCheck } from './second-check.ts';
 import { createServer } from './server.ts';
+import { hostGuards } from '@gab/tools/host-lease';
 import { webOf } from '@gab/tools/web';
 
 // The research environment file fills each value that the process does not set.
@@ -70,11 +72,13 @@ const INBOX = resolve(GIVEN_INBOX === '' ? CONFIG_FILES.inbox : GIVEN_INBOX);
 
 const reachOf = (): Reach => {
   const web = webOf(process.env);
+  const guards = hostGuards(process.env);
   try {
     const store = openStore();
     return {
       store: { put: (object) => putObject(store, object) },
       web,
+      ...guards,
       inbox: INBOX,
       readThroughFilter,
       now: () => new Date(),
@@ -83,7 +87,7 @@ const reachOf = (): Reach => {
     console.error(
       `the tools that store are off: ${cause instanceof Error ? cause.message : 'no object store'}`,
     );
-    return { web, now: () => new Date() };
+    return { web, ...guards, now: () => new Date() };
   }
 };
 
@@ -91,13 +95,7 @@ const reachOf = (): Reach => {
 // checked it.
 // The checker role writes the model call and the checks. Its pool opens no session before the
 // first check.
-const checkerPool = (address: string): pg.Pool => {
-  const pool = new pg.Pool({ connectionString: address, max: 2 });
-  pool.on('error', (fault) => {
-    console.error(fault);
-  });
-  return pool;
-};
+const checkerPool = (address: string): pg.Pool => openPool({ connectionString: address, max: 2 });
 
 const checkOf = (research: string): SecondCheck => {
   const check = readSecondCheck(
@@ -137,13 +135,10 @@ const start = async (): Promise<void> => {
   const url = researchCredentials(process.env[CREDENTIALS_VARIABLE]);
   // A tool call holds its connection for the whole call, a slow fetch included. When all are held,
   // a call waits at most this long and then fails, and it never hangs.
-  const pool = new pg.Pool({
+  const pool = openPool({
     connectionString: url,
     max: POOL_SIZE,
     connectionTimeoutMillis: CONNECT_MS,
-  });
-  pool.on('error', (fault) => {
-    console.error(fault);
   });
   await assertSessionRole(pool);
   await mkdir(INBOX, { recursive: true });
@@ -158,7 +153,7 @@ const start = async (): Promise<void> => {
     console.error('the MCP server runs as gabriel_research over stdio');
     return;
   }
-  const http = await serveHttp(() => createServer(pool, reach, check), port);
+  const http = await serveHttp((role) => createServer(pool, reach, check, role), port);
   closeHttp = () => {
     http.close();
     http.closeAllConnections();

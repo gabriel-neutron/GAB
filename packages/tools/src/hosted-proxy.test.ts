@@ -1,15 +1,22 @@
 // The read of a Russian host through the hosted proxy. A local server plays the host and the proxy.
 
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
 import { CATALOGUE } from './catalogue.ts';
 import { endMetadata } from './fetch-document.ts';
 import { FETCH_DAY, memoryStore } from './fetch-fixture.ts';
-import { isBlockPage, isRussianHost } from './hosted-proxy.ts';
+import { hostLease, isRussianHost } from './host-lease.ts';
+import { isBlockPage } from './hosted-proxy.ts';
+import { proxyLedger } from './proxy-ledger.ts';
+import type { StateClock } from './state-file.ts';
 import { callTool, type Reach, type Session } from './tool.ts';
+import { fetchDatabase } from './web-stub.ts';
 
 const noSql: Session = {
   query: () => Promise.resolve({ rows: [] }),
@@ -30,6 +37,10 @@ const LONG = TEXT.replace('</p>', `${' Текст'.repeat(60)}</p>`);
 let server: Server;
 let port: number;
 const seen: string[] = [];
+const bodies: string[] = [];
+let authorizations: (string | undefined)[] = [];
+let stateDir = '';
+let clock: StateClock;
 let proxyAnswer: { status: number; body: string } = { status: 200, body: LONG };
 
 beforeAll(async () => {
@@ -37,9 +48,37 @@ beforeAll(async () => {
     const url = request.url ?? '/';
     seen.push(url);
     if (url.startsWith('/proxy')) {
+      authorizations.push(request.headers.authorization);
+      let body = '';
+      request.on('data', (part: Buffer) => (body += part.toString()));
+      request.on('end', () => {
+        bodies.push(body);
+        response
+          .writeHead(proxyAnswer.status, { 'content-type': 'text/html; charset=utf-8' })
+          .end(proxyAnswer.body);
+      });
+    } else if (url === '/limit') {
+      response.writeHead(429).end('slow');
+    } else if (url === '/later') {
+      response.writeHead(429, { 'retry-after': '7200' }).end('slow');
+    } else if (url === '/captcha') {
       response
-        .writeHead(proxyAnswer.status, { 'content-type': 'text/html; charset=utf-8' })
-        .end(proxyAnswer.body);
+        .writeHead(200, { 'content-type': 'text/html' })
+        .end('<html><body>Введите captcha</body></html>');
+    } else if (url === '/article') {
+      response
+        .writeHead(200, { 'content-type': 'text/html' })
+        .end(
+          `<html><body><p>${'Текст страницы. '.repeat(200)}</p><div class="g-recaptcha"></div></body></html>`,
+        );
+    } else if (url === '/plain403') {
+      response.writeHead(403).end('no');
+    } else if (url === '/captcha403') {
+      response.writeHead(403, { 'content-type': 'text/html' }).end('<html>captcha</html>');
+    } else if (url === '/hop') {
+      response.writeHead(302, { location: `http://www.gibdd.ru:${String(port)}/ok` }).end();
+    } else if (url === '/loop') {
+      response.writeHead(302, { location: '/loop' }).end();
     } else if (url === '/block') {
       response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(BLOCK);
     } else {
@@ -48,12 +87,19 @@ beforeAll(async () => {
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   port = (server.address() as AddressInfo).port;
+  stateDir = mkdtempSync(join(tmpdir(), 'gab-proxy-'));
+  clock = {
+    dir: stateDir,
+    now: () => FETCH_DAY,
+    sleep: () => Promise.resolve(),
+  };
 });
 
 afterAll(async () => {
   server.closeAllConnections();
   await new Promise((resolve) => server.close(resolve));
   await endMetadata();
+  rmSync(stateDir, { recursive: true, force: true });
 });
 
 const reachWith = (store: ReturnType<typeof memoryStore>, key: string | undefined): Reach => ({
@@ -61,9 +107,16 @@ const reachWith = (store: ReturnType<typeof memoryStore>, key: string | undefine
   now: () => FETCH_DAY,
   lookup: () => Promise.resolve([{ address: '127.0.0.1', family: 4 }]),
   refuses: () => false,
+  sleep: () => Promise.resolve(),
+  hostLease: hostLease(clock),
+  proxyLedger: proxyLedger(clock, 0),
   ...(key === undefined ? {} : { hostedProxyKey: key }),
-  hostedProxyEndpoint: `http://proxy.test:${port}/proxy`,
+  hostedProxyEndpoint: `http://127.0.0.1:${port}/proxy`,
 });
+
+// A reach of a surface that gives no such guard.
+const without = (reach: Reach, name: 'hostLease' | 'proxyLedger'): Reach =>
+  Object.fromEntries(Object.entries(reach).filter(([key]) => key !== name)) as unknown as Reach;
 
 const run = (url: string, reach: Reach) =>
   callTool(fetchDocument, noSql, { url, proxy: true }, reach);
@@ -86,8 +139,8 @@ describe('the host rule', () => {
 
 describe('a Russian host that refuses the direct read', () => {
   test('an unset key keeps the direct refusal and calls no proxy', async () => {
-    const saved = process.env['SCRAPINGBEE_KEY'];
-    delete process.env['SCRAPINGBEE_KEY'];
+    const saved = process.env['BRIGHTDATA_API_KEY'];
+    delete process.env['BRIGHTDATA_API_KEY'];
     seen.length = 0;
     try {
       const outcome = await run(
@@ -97,7 +150,7 @@ describe('a Russian host that refuses the direct read', () => {
       expect(outcome.ok).toBe(false);
       expect(seen.some((path) => path.startsWith('/proxy'))).toBe(false);
     } finally {
-      if (saved !== undefined) process.env['SCRAPINGBEE_KEY'] = saved;
+      if (saved !== undefined) process.env['BRIGHTDATA_API_KEY'] = saved;
     }
   });
 
@@ -120,6 +173,14 @@ describe('a Russian host that refuses the direct read', () => {
     expect(seen.some((path) => path.startsWith('/proxy'))).toBe(false);
   });
 
+  test('a refusal of the guard itself calls no proxy, because the proxy meets the same rule', async () => {
+    seen.length = 0;
+    const outcome = await run(`http://www.cbr.ru:${port}/loop`, reachWith(memoryStore(), KEY));
+    if (outcome.ok) throw new Error('the tool had to refuse');
+    expect(outcome.refusal).toContain('redirects');
+    expect(seen.some((path) => path.startsWith('/proxy'))).toBe(false);
+  });
+
   test('a 5xx of the proxy is a refusal, with one call and no key', async () => {
     proxyAnswer = { status: 500, body: 'failed' };
     seen.length = 0;
@@ -139,5 +200,242 @@ describe('a Russian host that refuses the direct read', () => {
     if (outcome.ok) throw new Error('the tool had to refuse');
     expect(outcome.refusal).toContain('block page');
     expect(store.puts).toStrictEqual([]);
+  });
+
+  test('a block page that the proxy answered with a success stays in the ledger', async () => {
+    proxyAnswer = { status: 200, body: BLOCK };
+    const spent = mkdtempSync(join(tmpdir(), 'gab-spent-'));
+    try {
+      await run(`http://www.cbr.ru:${port}/gone`, {
+        ...reachWith(memoryStore(), KEY),
+        proxyLedger: proxyLedger({ ...clock, dir: spent }, 1),
+      });
+      expect(readFileSync(join(spent, 'proxy-log.md'), 'utf8')).toContain('1 pages, 1.0000 USD');
+    } finally {
+      rmSync(spent, { recursive: true, force: true });
+    }
+  });
+
+  test('a 429 of the host holds the host, and no browser and no proxy goes to it', async () => {
+    seen.length = 0;
+    let browser = 0;
+    const outcome = await run(`http://www.fns.ru:${port}/limit`, {
+      ...reachWith(memoryStore(), KEY),
+      readThroughFilter: () => {
+        browser += 1;
+        return Promise.resolve('no');
+      },
+    });
+    expect(outcome.ok).toBe(false);
+    expect(browser).toBe(0);
+    expect(seen).toStrictEqual(['/limit']);
+    const next = await run(`http://www.fns.ru:${port}/limit`, reachWith(memoryStore(), KEY));
+    if (next.ok) throw new Error('the tool had to refuse');
+    expect(next.refusal).toContain('quota hold');
+    expect(seen).toStrictEqual(['/limit']);
+  });
+
+  const fileOf = (host: string): string =>
+    readFileSync(join(stateDir, `lease-${host}.json`), 'utf8');
+
+  test('a CAPTCHA page of the host holds it, is not stored, and the next call sends nothing', async () => {
+    seen.length = 0;
+    const store = memoryStore();
+    const outcome = await run(`http://www.fsb.ru:${port}/captcha`, reachWith(store, undefined));
+    if (outcome.ok) throw new Error('the tool had to refuse');
+    expect(outcome.refusal).toContain('CAPTCHA');
+    expect(store.puts).toStrictEqual([]);
+    expect(fileOf('www.fsb.ru')).toContain('"captcha"');
+    await run(`http://www.fsb.ru:${port}/captcha`, reachWith(store, undefined));
+    expect(seen).toStrictEqual(['/captcha']);
+  });
+
+  test('a page with text and a CAPTCHA widget is kept, and the host is not held', async () => {
+    const outcome = await callTool(
+      fetchDocument,
+      fetchDatabase(),
+      { url: `http://www.rgo.ru:${port}/article` },
+      reachWith(memoryStore(), undefined),
+    );
+    expect(outcome.ok).toBe(true);
+    expect(fileOf('www.rgo.ru')).toContain('"hold":null');
+  });
+
+  test('a plain 403 holds the host a short time after each route failed', async () => {
+    seen.length = 0;
+    const reach = reachWith(memoryStore(), undefined);
+    await run(`http://www.rosstat.ru:${port}/plain403`, reach);
+    const file = JSON.parse(fileOf('www.rosstat.ru')) as { hold: { kind: string; until: number } };
+    expect(file.hold.kind).toBe('refused');
+    expect(file.hold.until).toBe(FETCH_DAY.getTime() + 15 * 60 * 1000);
+    const next = await run(`http://www.rosstat.ru:${port}/plain403`, reach);
+    expect(next.ok).toBe(false);
+    expect(seen).toStrictEqual(['/plain403']);
+  });
+
+  test('the short hold of a 403 only delays a later read with the proxy', async () => {
+    proxyAnswer = { status: 200, body: LONG };
+    seen.length = 0;
+    await run(`http://www.rosreestr.ru:${port}/plain403`, reachWith(memoryStore(), undefined));
+    const later = new Date(FETCH_DAY.getTime() + 16 * 60 * 1000);
+    const lateClock = { ...clock, now: () => later };
+    const outcome = await callTool(
+      fetchDocument,
+      fetchDatabase(),
+      { url: `http://www.rosreestr.ru:${port}/plain403`, proxy: true },
+      {
+        ...reachWith(memoryStore(), KEY),
+        now: () => later,
+        hostLease: hostLease(lateClock),
+        proxyLedger: proxyLedger(lateClock, 0),
+      },
+    );
+    expect(outcome.ok).toBe(true);
+    expect(seen.filter((path) => path.startsWith('/proxy'))).toHaveLength(1);
+  });
+
+  test('a read that the proxy serves after a plain 403 sets no hold', async () => {
+    proxyAnswer = { status: 200, body: LONG };
+    const outcome = await callTool(
+      fetchDocument,
+      fetchDatabase(),
+      { url: `http://www.rzd.ru:${port}/plain403`, proxy: true },
+      reachWith(memoryStore(), KEY),
+    );
+    expect(outcome.ok).toBe(true);
+    expect(fileOf('www.rzd.ru')).toContain('"hold":null');
+  });
+
+  test('a 403 page with a CAPTCHA holds the host, and no proxy goes to it', async () => {
+    seen.length = 0;
+    const outcome = await run(
+      `http://www.mvd.ru:${port}/captcha403`,
+      reachWith(memoryStore(), KEY),
+    );
+    expect(outcome.ok).toBe(false);
+    expect(fileOf('www.mvd.ru')).toContain('"captcha"');
+    expect(seen).toStrictEqual(['/captcha403']);
+  });
+
+  test('a CAPTCHA through the proxy holds the host, so a repeat costs nothing', async () => {
+    proxyAnswer = { status: 200, body: '<html>captcha</html>' };
+    seen.length = 0;
+    const reach = reachWith(memoryStore(), KEY);
+    await run(`http://www.mil.ru:${port}/gone`, reach);
+    await run(`http://www.mil.ru:${port}/gone`, reach);
+    expect(seen.filter((path) => path.startsWith('/proxy'))).toHaveLength(1);
+    expect(seen.filter((path) => path === '/gone')).toHaveLength(1);
+  });
+
+  test('a redirect to a held Russian host opens no connection to it', async () => {
+    seen.length = 0;
+    await hostLease(clock).hold('www.gibdd.ru', 'captcha', FETCH_DAY.getTime() + 60_000);
+    const outcome = await run(`http://www.example.com:${port}/hop`, reachWith(memoryStore(), KEY));
+    if (outcome.ok) throw new Error('the tool had to refuse');
+    expect(outcome.refusal).toContain('hold');
+    expect(seen).toStrictEqual(['/hop']);
+  });
+
+  test('a stated Retry-After is the time of the hold', async () => {
+    await run(`http://www.rosneft.ru:${port}/later`, reachWith(memoryStore(), undefined));
+    const file = JSON.parse(fileOf('www.rosneft.ru')) as { hold: { until: number } };
+    expect(file.hold.until).toBe(FETCH_DAY.getTime() + 7_200_000);
+  });
+
+  test('a CAPTCHA from the proxy is a refusal, and nothing is stored', async () => {
+    proxyAnswer = { status: 200, body: '<html>captcha</html>' };
+    const store = memoryStore();
+    const outcome = await run(`http://www.fas.ru:${port}/gone`, reachWith(store, KEY));
+    if (outcome.ok) throw new Error('the tool had to refuse');
+    expect(outcome.refusal).toContain('CAPTCHA');
+    expect(store.puts).toStrictEqual([]);
+  });
+
+  test('the key leaves in a header, and the proxy gets the zone and the address', async () => {
+    proxyAnswer = { status: 500, body: 'failed' };
+    authorizations = [];
+    bodies.length = 0;
+    seen.length = 0;
+    await run(`http://www.cbr.ru:${port}/gone`, reachWith(memoryStore(), KEY));
+    expect(authorizations).toStrictEqual([`Bearer ${KEY}`]);
+    expect(seen.filter((path) => path.includes(KEY))).toStrictEqual([]);
+    expect(JSON.parse(bodies[0] ?? '{}')).toMatchObject({
+      url: `http://www.cbr.ru:${port}/gone`,
+      format: 'raw',
+      country: 'ru',
+    });
+  });
+
+  test('with no ceiling on the surface no call goes to the proxy', async () => {
+    seen.length = 0;
+    const reach = without(reachWith(memoryStore(), KEY), 'proxyLedger');
+    const outcome = await run(`http://www.cbr.ru:${port}/gone`, reach);
+    expect(outcome.ok).toBe(false);
+    expect(seen.some((path) => path.startsWith('/proxy'))).toBe(false);
+  });
+
+  test('with no lease on the surface no call goes to a Russian host', async () => {
+    seen.length = 0;
+    const reach = without(reachWith(memoryStore(), KEY), 'hostLease');
+    const outcome = await run(`http://www.cbr.ru:${port}/gone`, reach);
+    expect(outcome.ok).toBe(false);
+    expect(seen).toStrictEqual([]);
+  });
+
+  test('a hold of the host stops the read before any connection', async () => {
+    seen.length = 0;
+    const lease = hostLease(clock);
+    await lease.hold('www.gks.ru', 'quota', FETCH_DAY.getTime() + 1000);
+    const outcome = await run(`http://www.gks.ru:${port}/gone`, reachWith(memoryStore(), KEY));
+    if (outcome.ok) throw new Error('the tool had to refuse');
+    expect(outcome.refusal).toContain('quota hold');
+    expect(seen).toStrictEqual([]);
+  });
+
+  test('with no room under the ceiling the proxy gets no call, and the read is blocked', async () => {
+    seen.length = 0;
+    const full = mkdtempSync(join(tmpdir(), 'gab-ceiling-'));
+    try {
+      const outcome = await run(`http://www.cbr.ru:${port}/gone`, {
+        ...reachWith(memoryStore(), KEY),
+        proxyLedger: proxyLedger({ ...clock, dir: full }, 26),
+      });
+      if (outcome.ok) throw new Error('the tool had to refuse');
+      expect(outcome.refusal).toContain('ceiling');
+      expect(seen.some((path) => path.startsWith('/proxy'))).toBe(false);
+      expect(readFileSync(join(full, 'blocked.md'), 'utf8')).toContain('www.cbr.ru');
+    } finally {
+      rmSync(full, { recursive: true, force: true });
+    }
+  });
+
+  test('with room one batch runs, the log holds count and cost, and it stops at the ceiling', async () => {
+    proxyAnswer = { status: 200, body: LONG };
+    seen.length = 0;
+    const batch = mkdtempSync(join(tmpdir(), 'gab-batch-'));
+    try {
+      const reach = {
+        ...reachWith(memoryStore(), KEY),
+        proxyLedger: proxyLedger({ ...clock, dir: batch }, 10),
+      };
+      const outcomes = [];
+      for (const page of ['a', 'b', 'c'])
+        outcomes.push(
+          await callTool(
+            fetchDocument,
+            fetchDatabase(),
+            { url: `http://www.cbr.ru:${port}/gone/${page}`, proxy: true },
+            reach,
+          ),
+        );
+      expect(outcomes.map((one) => one.ok)).toStrictEqual([true, true, false]);
+      expect(seen.filter((path) => path.startsWith('/proxy'))).toHaveLength(2);
+      const log = readFileSync(join(batch, 'proxy-log.md'), 'utf8');
+      expect(log).toContain('2 pages, 20.0000 USD of 25');
+      expect(log).not.toContain(KEY);
+      expect(log).not.toContain('www.cbr.ru');
+    } finally {
+      rmSync(batch, { recursive: true, force: true });
+    }
   });
 });

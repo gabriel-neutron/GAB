@@ -12,9 +12,10 @@ import { z } from 'zod';
 
 import { KEY_ADVICE, keyWarnings } from './attribute-key.ts';
 import { plainText } from './check-answer.ts';
-import { UNIQUE_KEYS } from './duplicate-identifier.ts';
+import { plainIdentifier, UNIQUE_KEYS } from './duplicate-identifier.ts';
+import { egrulExcerptRefusal, isEgrulAddress, restrictedExcerptRefusal } from './egrul-text.ts';
 import { eventActRefusal, eventEndsRefusal } from './event-rules.ts';
-import { findExcerpt, pointSlice, type Span } from './excerpt.ts';
+import { cutsToken, findExcerpt, pointSlice, type Span } from './excerpt.ts';
 import { documentId, isDoorRefusal, rowsOf } from './fields.ts';
 import {
   dateInUrl,
@@ -308,7 +309,12 @@ const doorRow = z.strictObject({
 const PAGE = `SELECT t.extractor, t.text, EXISTS (SELECT 1 FROM public.documents d
       WHERE d.id = t.document_id AND (d.uri = $3::text OR d.provider_id = 'uk_sanctions_list'))
     AS fcdo_list,
-    (SELECT d.uri FROM public.documents d WHERE d.id = t.document_id) AS uri
+    (SELECT d.uri FROM public.documents d WHERE d.id = t.document_id) AS uri,
+    EXISTS (SELECT 1 FROM public.document_text f
+      WHERE f.document_id = t.document_id AND f.extractor = t.extractor AND f.page = 1
+        AND f.text ~ '^\\s*ВЫПИСКА\\s+из\\s+Единого\\s+государственного\\s+реестра\\s+юридических\\s+лиц')
+    AS register_extract,
+    public.document_restricted($1::text) AS restricted
   FROM public.document_text t
   WHERE t.document_id = $1::text AND t.page = $2::int
     AND t.extractor = public.newest_text_extractor($1::text)`;
@@ -318,7 +324,14 @@ const pageRow = z.strictObject({
   text: z.string(),
   fcdo_list: z.boolean(),
   uri: z.string().nullable(),
+  register_extract: z.boolean(),
+  restricted: z.boolean(),
 });
+
+// All the pages of a register extract, for the rule on natural persons.
+const ALL_PAGES = `SELECT t.text FROM public.document_text t
+  WHERE t.document_id = $1::text AND t.extractor = public.newest_text_extractor($1::text)
+  ORDER BY t.page`;
 
 // The types of an image whose OCR text is the stored page; the door holds the same list.
 const IMAGE = `SELECT 1 AS one FROM public.documents d
@@ -343,6 +356,8 @@ const refusalOf = (cause: Error, refs: readonly string[]): string => {
 
 interface Cited {
   readonly document: string;
+  /** An excerpt of the document can name a legal person only. */
+  readonly legalPersonsOnly: boolean;
   /** The document is the FCDO UK Sanctions List. */
   readonly fcdoList: boolean;
   readonly textExtractor: string;
@@ -381,6 +396,24 @@ const cite = async (
   given: z.output<typeof evidence>,
 ): Promise<Cited> => {
   const page = await pageOf(session, ref, given.document, given.page);
+  const egrul = isEgrulAddress(page.uri) || page.register_extract;
+  // An extract names natural persons, and an excerpt of it can name a legal person only.
+  const checkExtract = async (words: string): Promise<void> => {
+    if (!egrul) {
+      const refusal = page.restricted ? restrictedExcerptRefusal(words) : null;
+      if (refusal !== null) refuse(ref, refusal);
+      return;
+    }
+    const pages = await rowsOf(session, z.strictObject({ text: z.string() }), ALL_PAGES, [
+      given.document,
+    ]);
+    const refusal = egrulExcerptRefusal(
+      words,
+      pages.map((one) => one.text),
+    );
+    if (refusal !== null) refuse(ref, refusal);
+  };
+  await checkExtract(given.excerpt);
   if (given.fromImage === true) {
     const image = await rowsOf(session, z.strictObject({ one: z.number() }), IMAGE, [
       given.document,
@@ -393,6 +426,7 @@ const cite = async (
     // The words that the AI read stand alone: the OCR text around them does not hold them.
     return {
       document: given.document,
+      legalPersonsOnly: egrul || page.restricted,
       fcdoList: page.fcdo_list || isUkListDate(page.uri, given.excerpt),
       textExtractor: page.extractor,
       urlDay: dateInUrl(page.uri),
@@ -410,9 +444,20 @@ const cite = async (
       `page ${String(given.page)} of ${given.document} does not hold the excerpt ` +
         `${JSON.stringify(given.excerpt)}. Copy the words as the page states them.`,
     );
+  // A value check reads the passage alone, so a passage cut from a longer word or number would
+  // state what the page does not: "500 tonnes" in "12,500 tonnes".
+  if (cutsToken(page.text, span))
+    refuse(
+      ref,
+      `the excerpt ${JSON.stringify(given.excerpt)} starts or ends inside a word or a number of ` +
+        `page ${String(given.page)} of ${given.document}. Copy whole words and whole numbers.`,
+    );
   const passage = pointSlice(page.text, span.start, span.end);
+  // The search of an excerpt ignores some marks, so the words of the page get the same check.
+  await checkExtract(passage);
   return {
     document: given.document,
+    legalPersonsOnly: egrul || page.restricted,
     fcdoList: page.fcdo_list || isUkListDate(page.uri, passage),
     textExtractor: page.extractor,
     urlDay: dateInUrl(page.uri),
@@ -646,7 +691,8 @@ const checkNewIdentifiers = async (
     const held = act.attrs?.[key]?.v;
     for (const value of Array.isArray(held) ? held : [held]) {
       if (typeof value !== 'string' && typeof value !== 'number') continue;
-      const at = JSON.stringify([key, String(value).replace(/[\s-]/gu, '').toUpperCase()]);
+      const plain = plainIdentifier(key, value);
+      const at = JSON.stringify([key, plain]);
       const earlier = batch.get(at);
       if (earlier !== undefined && earlier !== act.label)
         refuse(
@@ -654,8 +700,12 @@ const checkNewIdentifiers = async (
           `the ${key} ${String(value)} is on another new entity of the batch (${earlier})`,
         );
       batch.set(at, act.label);
-      const shapes = identifierContainment(key, String(value)).map((shape) =>
-        JSON.stringify(shape),
+      // The value as given and in its plain form ("HE 123456" and "HE123456"), so a held plain
+      // value is found. Each shape reaches the GIN index on the attributes.
+      // shortcut: a held value that has a space or a hyphen ("HE-123456") is not found here, and
+      // the report of duplicates finds it; normalize the stored identifiers if the gap shows.
+      const shapes = [...new Set([String(value), plain])].flatMap((one) =>
+        identifierContainment(key, one).map((shape) => JSON.stringify(shape)),
       );
       const [holder] = await rowsOf(
         session,
@@ -761,13 +811,58 @@ const checkEventEnds = async (
   if (refusal !== null) refuse(given.ref, refusal);
 };
 
+// The name of an entity of the record, or of a new entity that waits in the queue, with its type
+// and the IMO number of a vessel: "ELBUS (vessel, IMO 9374325)".
+const END_NAME = `SELECT label, type, imo FROM (
+    SELECT 1 AS rank, label, type, attrs->'imo'->'v' AS imo FROM api.entity WHERE id = $1
+    UNION ALL
+    SELECT 2, payload->>'label', payload->>'type', payload->'attrs'->'imo'->'v' FROM api.proposal
+     WHERE id = $1 AND status = 'pending' AND op = 'create_entity') AS named ORDER BY rank LIMIT 1`;
+
+// An attribute holds one value or a list of values, so a list gives each IMO number.
+const nameWords = (label: string, type: string, imo: unknown): string => {
+  const numbers = (Array.isArray(imo) ? imo : [imo]).filter(
+    (one) => typeof one === 'string' || typeof one === 'number',
+  );
+  return `${label} (${type}${numbers.length > 0 ? `, IMO ${numbers.join(', ')}` : ''})`;
+};
+
+// The checker reads no record, so an id of the record or a ref of the batch becomes the name of its
+// entity. An end that is a relation, or that no row names, gives null.
+const endNameOf = async (
+  session: Session,
+  id: string,
+  batch: readonly ProposeItem[],
+): Promise<string | null> => {
+  const sibling = batch.find((one) => one.ref === id);
+  if (sibling !== undefined)
+    return sibling.act.op === 'create_entity'
+      ? nameWords(sibling.act.label, sibling.act.type, sibling.act.attrs?.['imo']?.v)
+      : null;
+  if (!z.uuid().safeParse(id).success) return null;
+  const [named] = await rowsOf(
+    session,
+    z.strictObject({ label: z.string(), type: z.string(), imo: z.unknown() }),
+    END_NAME,
+    [id],
+  );
+  return named === undefined ? null : nameWords(named.label, named.type, named.imo);
+};
+
 const claimActOf = async (
   session: Session,
   act: ProposeItem['act'],
   dropped: readonly DroppedName[],
+  batch: readonly ProposeItem[],
 ): Promise<unknown> => {
   if (act.op === 'create_relation')
-    return withoutBounds(dropped.includes('observed_on') ? withoutCallDay(act) : act, dropped);
+    return {
+      ...withoutBounds(dropped.includes('observed_on') ? withoutCallDay(act) : act, dropped),
+      source: await endNameOf(session, act.srcId, batch),
+      target: await endNameOf(session, act.dstId, batch),
+    };
+  if (act.op === 'update_attrs' && act.targetKind === 'entity')
+    return { ...act, entity: await endNameOf(session, act.targetId, batch) };
   if (act.op === 'update_entity') {
     // A new entity that waits in the queue has its name in its proposal.
     const [named] = await rowsOf(
@@ -809,6 +904,19 @@ const SOURCE_NAMES = `SELECT s.attrs->'imo'->>'v' AS imo, n.name
 
 const squeezed = (text: string): string => text.replace(/\s+/gu, ' ').trim().toLowerCase();
 
+const WORD_MARK = /[\p{L}\p{N}]/u;
+
+// True when the text holds the word whole: "ural" is not in "urals", and 9074729 is not in
+// 19074729.
+const holdsWhole = (text: string, word: string): boolean => {
+  for (let at = text.indexOf(word); at !== -1; at = text.indexOf(word, at + 1)) {
+    const before = text.slice(0, at).at(-1) ?? '';
+    const after = text.slice(at + word.length)[0] ?? '';
+    if (!WORD_MARK.test(before) && !WORD_MARK.test(after)) return true;
+  }
+  return false;
+};
+
 // A name under this length is too short to prove that an excerpt is about the relation.
 const MIN_NAME = 4;
 
@@ -838,7 +946,9 @@ const checkSourceNames = async (
         .map((one) => one.passage)
         .join(' '),
     );
-    return (imo !== undefined && text.includes(imo)) || names.some((name) => text.includes(name));
+    return (
+      (imo !== undefined && holdsWhole(text, imo)) || names.some((name) => holdsWhole(text, name))
+    );
   };
   if ([...new Set(cited.map((one) => one.document))].every(namesIt)) return;
   refuse(
@@ -1054,6 +1164,15 @@ export const proposeOf = (modelCallId: string | null) =>
         if (given.act.op === 'create_observation') await checkFigure(session, given);
         const cited: Cited[] = [];
         for (const one of given.evidence) cited.push(await cite(session, given.ref, one));
+        if (
+          given.act.op === 'create_entity' &&
+          given.act.type === 'person' &&
+          cited.some((one) => one.legalPersonsOnly)
+        )
+          refuse(
+            given.ref,
+            'a register extract or a restricted document is no source of a natural person',
+          );
         // The post date of a stored Telegram post is the day of publication, when every cited
         // document is a post of one day.
         const postDays = new Set(cited.map((one) => one.postDay));
@@ -1124,6 +1243,7 @@ export const proposeOf = (modelCallId: string | null) =>
             // The checker reads the act that is written, so it reads the coded jurisdiction.
             withCodedJurisdiction(given.act),
             dropped,
+            resolvedItems,
           ),
           cited,
           unstated,

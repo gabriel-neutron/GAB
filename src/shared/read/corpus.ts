@@ -3,6 +3,7 @@
 
 import { forgetDecidedActs } from './decided-acts';
 import { readRows } from './http';
+import { forgetProviders } from './providers';
 import { toDomain } from './map';
 import { readOnce } from './once';
 import type { Corpus } from './model';
@@ -74,7 +75,10 @@ export function forgetCorpus(): void {
   memory.forget();
   forgetDecidedActs();
   // A retry asks the service again. The words of the vocabulary stay when the service gave them.
-  if (readMode() === 'release') forgetVocabulary();
+  if (readMode() === 'release') {
+    forgetVocabulary();
+    forgetProviders();
+  }
   forgetReadMode();
   forgetRelease();
   generation += 1;

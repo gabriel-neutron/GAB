@@ -192,6 +192,7 @@ const OP_WORDS: Readonly<Record<Proposal['op'], string>> = {
   undo_merge: 'Undoes a merge',
   map_document: 'Maps the columns of a table',
   create_observation: 'Adds a figure',
+  remove_act: 'Removes an accepted act',
 };
 
 function keysOf(payload: Proposal['payload']): readonly string[] {
@@ -614,6 +615,9 @@ export function readDossier(
       case 'map_document':
       case 'create_observation':
         return false;
+      // A removal is decided when it is written, so it never waits.
+      case 'remove_act':
+        return false;
     }
   };
 
@@ -649,7 +653,10 @@ export function readDossier(
       .map((claim) => ({ key: claim.key, label: claim.label, text: claim.value.text })),
   );
 
-  const linkChoices: LinkChoices = {
+  // Only the edit view reads the choices, and the graph and the map read a dossier on each
+  // selection. One sorted name per entity of the record is built at the first read only.
+  let linkChoices: LinkChoices | null = null;
+  const buildLinkChoices = (): LinkChoices => ({
     types: [...new Set(read.relations.map((relation) => relation.type))].sort((one, other) =>
       one.localeCompare(other),
     ),
@@ -660,7 +667,7 @@ export function readDossier(
         name: `${candidate.label} — ${typeLabel(candidate.type, types)}`,
       }))
       .sort((one, other) => one.name.localeCompare(other.name)),
-  };
+  });
 
   // Where the map draws this entity, and whose point it borrowed. T4 puts the walk in SQL, so
   // this file reads the answer and repeats no rule of it.
@@ -720,7 +727,10 @@ export function readDossier(
     sources,
     relations,
     pending,
-    linkChoices,
+    get linkChoices() {
+      linkChoices ??= buildLinkChoices();
+      return linkChoices;
+    },
     typeChoices: typeChoicesOf(types, entity.type),
     facts: null,
   };

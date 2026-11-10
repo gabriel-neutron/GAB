@@ -4,6 +4,11 @@ The VPS does the coding and the tooling. Claude Code runs there. The VPS also ru
 project: SearXNG. The real database, the writer and the worker stay on the operator's Windows PC.
 The VPS never holds the real data.
 
+**The tenfold wave (`research/AGENTS.md`).** The operator decided that all work of this wave runs on
+the PC, also the code work in a worktree. The VPS and Tailscale take no part, and this runbook does
+not apply to the wave. A test on the PC uses a test stack (`pnpm stack:up`, `pnpm stack:down`). A
+fault test never runs on the real data.
+
 | File | Use |
 |---|---|
 | `test-stack.env.example` | Copy to `infra/.env` on the VPS. Test values only. |
@@ -186,8 +191,9 @@ The docker compose rules of the allow list name one literal file,
 command must use this `~` form, not the full path. A general `docker compose` rule gives root on the
 host: a volume mount can read every file, and `down -v` of another project deletes its data.
 
-The work runs in a session that the operator starts, with the skills of `CLAUDE.md`. No cron job
-starts an agent.
+On the VPS, the work runs in a session that the operator starts, with the skills of `CLAUDE.md`. No
+cron job on the VPS starts an agent. A per-user scheduled task on the PC starts the workers of the
+wave.
 
 ```bash
 cd ~/projects/GAB

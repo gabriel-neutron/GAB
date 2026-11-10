@@ -193,11 +193,11 @@ export function GraphPage({ record, onSelect, card }: GraphPageProps) {
         ? null
         : deriveRailRows(
             model,
-            { filter, counts, selection, openUnits, railOpen, railWidth },
+            { filter, counts, selection, openUnits, railOpen, railWidth, showUnplaced },
             step,
             query,
           ),
-    [model, filter, counts, selection, openUnits, railOpen, railWidth, step, query],
+    [model, filter, counts, selection, openUnits, railOpen, railWidth, showUnplaced, step, query],
   );
 
   const act = useCallback(

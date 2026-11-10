@@ -3,6 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { carriedSelection } from './carried-selection';
 
 describe('the selection that a link between the map and the graph carries', () => {
+  it('reads the graph at its folder address, with an end slash', () => {
+    expect(carriedSelection('/graph/', '?entity=e1', '/map')).toEqual({
+      entity: 'e1',
+      relation: '',
+    });
+  });
+
   it('carries the selected entity from the graph to the map', () => {
     expect(carriedSelection('/graph', '?entity=e1', '/map')).toEqual({
       entity: 'e1',

@@ -2,6 +2,8 @@ import type { AttributeValue, Entity } from '@/shared/read/model';
 
 import { folded } from '@/shared/text-fold';
 
+import { foldedOnce } from './folded-once';
+
 export interface AttributeHit {
   readonly entityId: string;
   readonly label: string;
@@ -41,7 +43,7 @@ export function searchByAttributeValue(
   for (const entity of entities) {
     for (const [key, attribute] of Object.entries(entity.attrs)) {
       const value = textOf(attribute.v);
-      const at = folded(value).indexOf(asked);
+      const at = foldedOnce(value).indexOf(asked);
       if (at === -1) continue;
       const hit = { entityId: entity.id, label: entity.label, type: entity.type, key, value };
       (at === 0 ? starts : holds).push(hit);

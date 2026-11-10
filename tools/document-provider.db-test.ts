@@ -36,6 +36,21 @@ const SEEDED = [
   { id: 'world_bank', licence: 'cc-by-4.0' },
 ] as const;
 
+test('a provider takes its level from the signed list, and a new row is not verified', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const rows = await ask("SELECT id FROM public.document_provider WHERE level = 'A' ORDER BY id");
+    await ask(
+      "INSERT INTO public.document_provider (id, name, licence) VALUES ('new_one', 'New', 'cc0')",
+    );
+    const [fresh] = await ask("SELECT level FROM public.document_provider WHERE id = 'new_one'");
+    return { rows, fresh };
+  });
+  expect(found).toStrictEqual({
+    rows: ['eu_eurlex', 'gleif', 'ofac_sdn', 'uk_sanctions_list'].map((id) => ({ id })),
+    fresh: { level: 'not_verified' },
+  });
+});
+
 const providers = z.array(z.object({ id: z.string(), licence: z.string() }));
 const tiers = z.array(z.object({ tier: z.string() }));
 const stored = z.array(z.object({ id: z.string(), provider_id: z.string().nullable() }));

@@ -83,6 +83,85 @@ test database, `gabriel_test`, again.
 Nothing is bound to a public address. Each published port comes from a `GAB_*_PORT` variable in
 `.env`, and an absent variable gives the port in this table.
 
+## The AIS collector
+
+Digitraffic Marine keeps no archive, so a per-user Task Scheduler task pulls the AIS answers on a
+fixed schedule, with no model, and stores each answer as a document in the record. A line for each
+answer goes to a checkpoint file in a folder outside the repository. The task runs only while the
+operator is signed in, so a time with the PC off is lost and it is a gap with no reason.
+
+Run the task from a checkout that nothing changes, so a branch switch cannot stop it. The two paths
+are absolute: the folder of the checkpoint, and the environment file of the research workspace.
+
+| You want | Run, in that checkout |
+|---|---|
+| Add or change the task | `powershell -File tools/ais-collector-task.ps1 -Folder <folder> -EnvFile <file>` |
+| Read the checkpoint of the last 48 hours | `node tools/ais-collector.ts report <folder> 48` |
+
+## The setup check
+
+The operator connects once and then does nothing, so a silent missing item would look like a dead
+wave. A read-only check names each missing item of the person steps of the wave, and it changes no
+setting. It prints only names and statuses, never a value, and it exits with 1 when an item is
+missing. An item that only a person can do has the words "a person only". An unsigned list reports
+`waiting_signature`, and a missing proxy key reports `not_set`: neither one is a fault.
+
+| You want | Run |
+|---|---|
+| Read the setup | `node --env-file=<research environment file> tools/setup-check.ts <signed list file>` |
+
+## The supervisor tick
+
+The tenfold wave has no long-lived orchestrator, because a long-lived process can die and then a
+person must restart it. A per-user Task Scheduler task starts one short tick at logon and each 5
+minutes. The tick holds no model. It reads the ended workers, moves one ticket, starts one worker
+up to the cap, writes the status file, and sends a Windows notification while an alarm is open. It
+also starts one resume worker when the state file of the start session says "not closed" and has
+no change for 30 minutes.
+
+Only the tick writes state, and a state file stays read-only between ticks. Each change from
+outside, such as an operator answer or a new ticket, is a request file in the inbox of the state
+folder. The tick accepts it or refuses it. A worker gets no state: it prints a verdict, and the tick
+reads it.
+
+The state folder is outside the repository. It holds the settings file `supervisor.json`: the worker
+`command`, `args`, `workDir` and `env`, the `cap`, the `services`, and `waveStart` with `stateFile`,
+`prompt` and `liveMatch`. Run the task from a checkout that nothing changes.
+
+A service of the settings has a `name`, an `address` (`host:port`) and an optional `repair` (`command`,
+`args`, `workDir`). While a service does not answer, the tick starts no worker and starts its repair. A
+worker that fails because of the stop, or because of a failed DNS name or network, costs no attempt:
+the ticket holds and tries again. The alarm fires only if a service stays down or the same ticket holds
+again and again, because the first stop of a service needs no person. Put no secret in `env`: the tick
+copies it to a file of each worker.
+
+| You want | Run, in that checkout |
+|---|---|
+| Add or change the task | `powershell -File tools/supervisor-tick-task.ps1 -StateDir <folder>` |
+| Run one tick now | `powershell -File tools/supervisor-tick.ps1 -StateDir <folder>` |
+| Run the gate on the session stack of a worktree | `node tools/supervisor-gate.ts --out <new folder> --checkpoint <file of the collector>` |
+
+The host leases and the ceiling of the paid proxy are files in one folder (`packages/tools/src/host-lease.ts`). Set `GAB_STATE_DIR` to the state folder for the `gab` server and each worker, so each process reads the same state. The ledger stops each call to the proxy at the ceiling, and a stopped ticket gets a line in `blocked.md` in that folder. The proxy reads `BRIGHTDATA_API_KEY` and `BRIGHTDATA_ZONE`.
+
+The gate proves that the loop recovers with no person: one clean run and one run for each fault (the
+database, the `gab` server, DNS for the worker only, a bad token), each with real workers and real `gab`
+tools. It calls the model, so it is not part of the test suite. It refuses a checkout with no session
+stack, so a fault never reaches the record. A worker has only the test server as its `gab` server, and
+the gate fails if it calls a tool of that server other than its two reads. The gate does not check its
+`node` command for the wait. A research session can write to the record during the gate, so the summary
+lists each writer of that time.
+
+Each worker has one of six roles. `packages/mcp/src/roles.ts` holds the `gab` tools of each role, and the
+server lists and runs only those tools at the address `/mcp/<role>`. `packages/mcp/src/role-settings.ts`
+holds the built-in tools, the shell commands, the turn cap and the first words. Each closer ends with the
+fixed JSON of the tick: a reopen names its gaps, and a close has none. A role with a shell runs under the same
+Windows account as the record, so its allow list bounds it and no sandbox does.
+
+| You want | Run |
+|---|---|
+| Give the tick its roles, when the `gab` server runs this code | `node packages/mcp/src/install-roles.ts --state <folder> --gab <address> --checkout <folder> --second-check <ticket>=<issue>,...` |
+| Run the closing check of the roles on a session stack: each forbidden call, the CLI of each role, and a real fact closer on planted facts | `pnpm closer:gate --out <new folder>` |
+
 ## The stack of a session
 
 Many sessions can run on one machine at the same time. When they share one stack, a reset in one

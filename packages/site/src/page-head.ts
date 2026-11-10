@@ -23,10 +23,12 @@ const FORMATS: Readonly<Record<string, string>> = {
 const formatOf = (path: string): string =>
   FORMATS[path.slice(path.lastIndexOf('.') + 1)] ?? 'application/octet-stream';
 
-const contactPoint = (name: string, address: string): Record<string, string> =>
-  address.startsWith('mailto:')
-    ? { '@type': 'ContactPoint', contactType: name, email: address.slice('mailto:'.length) }
-    : { '@type': 'ContactPoint', contactType: name, url: address };
+// A mail address is not printed, to limit spam: the contact point links to the page that shows it.
+const contactPoint = (name: string, address: string, site: string): Record<string, string> => ({
+  '@type': 'ContactPoint',
+  contactType: name,
+  url: address.startsWith('mailto:') ? `${site}method/#errors` : address,
+});
 
 /** The structured data of the site: a schema.org `Dataset` with the licence, the date, the files
  * of the release and its contact addresses. */
@@ -54,8 +56,8 @@ export const datasetOf = (manifest: SiteManifest, site: string): Record<string, 
     '@type': 'Organization',
     name: SITE_NAME,
     contactPoint: [
-      contactPoint('Report an error', manifest.contacts.reportError),
-      contactPoint('Right of reply', manifest.contacts.rightOfReply),
+      contactPoint('Report an error', manifest.contacts.reportError, site),
+      contactPoint('Right of reply', manifest.contacts.rightOfReply, site),
     ],
   },
 });
@@ -71,8 +73,6 @@ export interface PageHead {
   readonly noindex: boolean;
   /** The structured data of the page, or none. */
   readonly structured: readonly Record<string, unknown>[];
-  /** The same page in each language, by the folder of its page, or none. */
-  readonly alternates?: readonly { readonly lang: string; readonly folder: string }[];
 }
 
 /** The address of the page, absolute, with a slash at its end. */
@@ -109,13 +109,6 @@ export const pageHead = (head: PageHead): string => {
       `<meta name="twitter:image" content="${image}" />`,
     );
   }
-  // A link to each language of the page needs an absolute address. A page that is not in a
-  // search result keeps it too: the link only tells which page is the twin of which.
-  if (head.site !== null)
-    for (const one of head.alternates ?? [])
-      tags.push(
-        `<link rel="alternate" hreflang="${escapeHtml(one.lang)}" href="${escapeHtml(canonicalOf(head.site, one.folder))}" />`,
-      );
   for (const one of head.structured)
     tags.push(`<script type="application/ld+json">${scriptJson(one)}</script>`);
   return tags.join('');

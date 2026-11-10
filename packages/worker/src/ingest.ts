@@ -1,3 +1,4 @@
+import { isEgrulAddress } from '@gab/tools/egrul-text';
 import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { basename } from 'node:path';
@@ -416,7 +417,8 @@ const ingestOne = async (
       kind: options.kind,
       retrievedAt: options.retrievedAt,
       uri: options.uri ?? null,
-      providerId: options.providerId ?? null,
+      // Each route that stores an extract of the Russian register gives it the internal provider.
+      providerId: options.providerId ?? (isEgrulAddress(options.uri ?? null) ? 'egrul' : null),
       costEur: options.costEur ?? null,
     });
     seen.add(result.sha256);

@@ -20,3 +20,13 @@ search:
   formats:
     - html
     - json
+
+# The default web engines block one exit with a CAPTCHA or a rate limit, and web_search then gets an
+# empty list. These engines are off by default and answer from the same exit.
+engines:
+  - name: bing
+    disabled: false
+  - name: yahoo
+    disabled: false
+  - name: yandex
+    disabled: false

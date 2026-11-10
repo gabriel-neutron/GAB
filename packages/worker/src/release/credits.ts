@@ -53,11 +53,26 @@ const CREDITS = [
 // credit breaks the licence. GFW (CC BY-NC 4.0) and Datalastic (derived facts only) are here because
 // a claim of a release can cite their documents, although the tier of those documents is internal:
 // the credit names the source of a derived fact, and it does not publish the document.
+const NO_PROVIDER = 'no_provider';
+
 const PROVIDER_CREDITS: ReadonlyMap<string, readonly string[]> = new Map([
   ['eox_s2cloudless_2016', []],
   ['gem', []],
   ['osm', []],
   ['own', []],
+  [
+    // A document with no provider leaves only at level A, by an address rule of the seed.
+    NO_PROVIDER,
+    [
+      '## Pages of public bodies',
+      '',
+      'Some facts cite pages at the address that each row gives: the US Department of Justice, the',
+      'Federal Register and the US Treasury (works of the US government, in the public domain), the',
+      'Court of Justice of the EU and EUR-Lex (reused with the source named), and the bank of acts of',
+      'kremlin.ru (CC BY 4.0). The release holds derived facts and citations, and does not hold the',
+      'pages. No such body endorses GAB or this release.',
+    ],
+  ],
   [
     'copernicus_sentinel',
     ['## Copernicus Sentinel', '', 'Contains modified Copernicus Sentinel data.'],
@@ -163,13 +178,13 @@ export const releaseCredits = (
 };
 
 /** The ids of the providers of the documents that the claims of a record cite, in the passages
- * and in the sources. A document with no provider is left out: it is never public. */
+ * and in the sources. A document with no provider takes the one credit of such documents. */
 export const claimProviders = (record: ReleaseRecord): ReadonlySet<string> => {
   const found = new Set<string>();
   for (const claim of record.claims)
     for (const id of [...claim.sources, ...claim.passages.map((one) => one.document)]) {
-      const provider = record.documents.get(id)?.provider;
-      if (provider !== null && provider !== undefined) found.add(provider);
+      const document = record.documents.get(id);
+      if (document !== undefined) found.add(document.provider ?? NO_PROVIDER);
     }
   return found;
 };

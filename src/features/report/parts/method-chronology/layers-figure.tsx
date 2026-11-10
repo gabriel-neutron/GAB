@@ -128,7 +128,6 @@ function LayerColumn({ index, layer }: LayerColumnProps) {
   const nodes = reportGraph.layer(key);
   const kept = nodes.filter((node) => node.kept === 'yes');
   const examined = nodes.filter((node) => node.kept !== 'yes');
-  // The French copy names the layer in French; the data keeps the English name.
   const count = criticalLayers.get(key) ?? 0;
   // The critical nodes of the page data come first; the rest of the count has no page record.
   const rest = Math.max(0, count - kept.length);

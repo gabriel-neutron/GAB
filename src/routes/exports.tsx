@@ -4,7 +4,6 @@ import { claimHref, entityHref, vesselHref } from '@/features/detail/address';
 import { EXPORTS_TEXT } from '@/features/exports/exports-text';
 import { ExportsPage } from '@/features/exports/exports-page';
 import { readFigureRows } from '@/features/exports/figure-rows';
-import { loadCorpus } from '@/shared/read/corpus';
 import { REPORT_FILES } from '@gab/release/report-files';
 import { loadReportFiles } from '@/shared/read/report-files';
 import { loadReleaseOrNull } from '@/shared/read/release-record';
@@ -17,7 +16,6 @@ const rowsOf = (name: string, text: string | null) =>
 // leaves its figure out with one sentence. A file that cannot be read stops the build.
 export const Route = createFileRoute('/exports')({
   loader: async () => {
-    await loadCorpus().catch(() => undefined);
     const [release, files] = await Promise.all([loadReleaseOrNull(), loadReportFiles()]);
     return {
       release,

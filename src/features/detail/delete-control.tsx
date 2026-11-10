@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { Button } from '@/shared/ui/button';
 
@@ -17,6 +17,14 @@ export function DeleteControl({ name, busy, onDelete }: DeleteControlProps) {
   // The question dies with the view. A confirmation that survived a reload would destroy a row
   // that the analyst never looked at.
   const [asked, setAsked] = useState(false);
+  // The button that was clicked leaves the screen, so the focus moves to the button that takes its
+  // place, and a keyboard does not fall back to the top of the page. Only a click moves it.
+  const moveFocus = useRef(false);
+  const takeFocus = (element: HTMLButtonElement | null): void => {
+    if (element === null || !moveFocus.current) return;
+    moveFocus.current = false;
+    element.focus();
+  };
 
   if (!asked) {
     return (
@@ -25,7 +33,9 @@ export function DeleteControl({ name, busy, onDelete }: DeleteControlProps) {
         variant="destructive"
         disabled={busy}
         aria-label={`Delete ${name}`}
+        ref={takeFocus}
         onClick={() => {
+          moveFocus.current = true;
           setAsked(true);
         }}
       >
@@ -53,7 +63,9 @@ export function DeleteControl({ name, busy, onDelete }: DeleteControlProps) {
         type="button"
         variant="secondary"
         aria-label={`Keep ${name}`}
+        ref={takeFocus}
         onClick={() => {
+          moveFocus.current = true;
           setAsked(false);
         }}
       >

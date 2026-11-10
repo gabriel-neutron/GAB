@@ -1,10 +1,9 @@
 import type { SiteManifest } from '@gab/release/site-manifest';
 import { AI_CRAWLER_POLICY } from '@gab/release/ai-policy';
-import { safeHref } from '@gab/release/safe-href';
 
+import { ContactAddress } from '@/shared/page/contact-address';
 import { PageHeader } from '@/shared/page/page-header';
 import { PageSection } from '@/shared/page/page-section';
-import { READING_LINK } from '@/shared/page/reading-link';
 import { ReadingPage } from '@/shared/page/reading-page';
 
 export interface AiUsePageProps {
@@ -13,18 +12,6 @@ export interface AiUsePageProps {
 }
 
 const PROSE = 'max-w-[64ch] text-body';
-
-function Contact({ address }: { readonly address: string }) {
-  const href = safeHref(address);
-  const shown = address.replace(/^mailto:/u, '');
-  return href === null ? (
-    <span className="break-all">{shown}</span>
-  ) : (
-    <a href={href} className={`${READING_LINK} break-all`}>
-      {shown}
-    </a>
-  );
-}
 
 /** The page "AI use": what an AI system may do with the record, and how it cites a claim. The
  * policy words come from the same line that writes `robots.txt`. */
@@ -85,10 +72,12 @@ export function AiUsePage({ manifest }: AiUsePageProps) {
         <PageSection title="Contact">
           <ul className={`${PROSE} flex flex-col gap-1`}>
             <li>
-              Report an error: <Contact address={manifest.contacts.reportError} />
+              Report an error:{' '}
+              <ContactAddress address={manifest.contacts.reportError} label="report an error" />
             </li>
             <li>
-              Right of reply: <Contact address={manifest.contacts.rightOfReply} />
+              Right of reply:{' '}
+              <ContactAddress address={manifest.contacts.rightOfReply} label="right of reply" />
             </li>
           </ul>
         </PageSection>

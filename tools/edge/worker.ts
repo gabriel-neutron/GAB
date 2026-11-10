@@ -53,12 +53,13 @@ const json = (value: unknown, type = 'application/json'): Response =>
   text(JSON.stringify(value, null, 2), type);
 
 // The worker reads only these members of the manifest. The contact must be a mail or a web address,
-// because it goes into a link.
+// because it goes into a link. A path goes into a link too, so it takes the rule of the release
+// writer: a plain file name.
 const manifestShape = z.object({
   version: z.string(),
   date: z.string(),
   contacts: z.object({ reportError: z.string().regex(/^(mailto:|https:\/\/)\S+$/u) }),
-  files: z.array(z.object({ path: z.string() })),
+  files: z.array(z.object({ path: z.string().regex(/^[\w-][\w.-]*$/u) })),
 });
 
 const readRelease = async (env: Env, origin: string): Promise<Release> => {
@@ -176,7 +177,6 @@ const LINKS = (site: string): string =>
 
 const pageAddresses = (site: string): string[] => [
   ...MAIN_PAGES.map(([folder]) => (folder === '' ? site : `${site}${folder}/`)),
-  `${site}fr/`,
   ...Object.keys(STATIC_PAGES).map((one) => `${site}${one}`),
 ];
 
@@ -286,6 +286,8 @@ const generated = async (
   if (page === undefined) return null;
   const release = await r();
   const body = page.markdown(site, release);
+  // The spec of auth.md starts the file with its title, so that one file has no front matter.
+  if (slug === 'auth.md') return markdown(body);
   return slug.endsWith('.md')
     ? markdown(body, { canonical: `${site}${wanted}`, date: release.date })
     : staticPage(site, wanted, page.title, page.description, body);
@@ -477,7 +479,7 @@ const structuredData = (site: string, r: Release): string =>
         name: 'GAB dataset',
         url: site,
         description: 'An open investigation graph in which every claim carries its source.',
-        inLanguage: ['en', 'fr'],
+        inLanguage: 'en',
       },
       {
         '@type': 'Organization',
@@ -491,7 +493,6 @@ const structuredData = (site: string, r: Release): string =>
         contactPoint: {
           '@type': 'ContactPoint',
           contactType: 'error reports and right of reply',
-          email: r.contact.replace(/^mailto:/u, ''),
           url: `${site}contact`,
         },
       },
@@ -574,73 +575,111 @@ const decorate = (html: string, site: string, path: string, r: Release): string 
     .replace('<div id="root"></div>', `<div id="root"></div>${fallback}`);
 };
 
+// The headers of every answer. No other site may frame a page, a file is never read as another
+// type, and a link out sends the origin only. A full Content-Security-Policy waits: the inline theme
+// script, the JSON-LD and the map need their own sources first.
+const SECURITY_HEADERS = {
+  'x-content-type-options': 'nosniff',
+  'x-frame-options': 'DENY',
+  'content-security-policy': "frame-ancestors 'none'",
+  'referrer-policy': 'strict-origin-when-cross-origin',
+} as const;
+
+/** Adds the security headers to an answer, and the noindex header of a staging build. The host
+ * adds that header to its own files only, so the worker copies it to each answer it makes. */
+const guarded = async (response: Response, env: Env, origin: string): Promise<Response> => {
+  const out = new Response(response.body, response);
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+    if (!out.headers.has(name)) out.headers.set(name, value);
+  }
+  if (!out.headers.has('x-robots-tag')) {
+    const robots = await robotsOf(env, origin);
+    if (robots !== null) out.headers.set('x-robots-tag', robots);
+  }
+  return out;
+};
+
+// The header is fixed for one build, so the worker keeps the answer of one good read for each
+// binding. A failed read gives no header for this answer only, and the next answer reads again.
+const robotsRead = new WeakMap<Env['ASSETS'], string | null>();
+const robotsOf = async (env: Env, origin: string): Promise<string | null> => {
+  if (robotsRead.has(env.ASSETS)) return robotsRead.get(env.ASSETS) ?? null;
+  try {
+    const closed = await env.ASSETS.fetch(new Request(`${origin}/favicon.svg`));
+    if (!closed.ok) return null;
+    const robots = closed.headers.get('x-robots-tag');
+    robotsRead.set(env.ASSETS, robots);
+    return robots;
+  } catch {
+    return null;
+  }
+};
+
+const answer = async (request: Request, env: Env): Promise<Response> => {
+  const url = new URL(request.url);
+  const site = `${url.origin}/`;
+  const open = await dynamic(request, url, env, site);
+  if (open !== null) return open;
+  if (request.method !== 'GET' && request.method !== 'HEAD') return env.ASSETS.fetch(request);
+
+  const made = await generated(url.pathname, site, env, url.origin).catch(() => null);
+  if (made !== null) {
+    made.headers.set('link', LINKS(site));
+    return request.method === 'HEAD' ? new Response(null, made) : made;
+  }
+
+  const response = await env.ASSETS.fetch(request);
+  const type = response.headers.get('content-type') ?? '';
+  // A file with a name returns itself. An address that is no file and no page returns the shell
+  // of the application, which the worker turns into a true 404.
+  if (!type.includes('text/html')) return response;
+  if (!isAppPath(url.pathname)) return notFound(request, url.pathname);
+
+  const html = await response.text();
+  const shell = html.includes('<div id="root"></div>');
+  if (url.pathname === '/' && url.searchParams.get('mode') === 'agent') {
+    return json({
+      name: 'GAB dataset',
+      description: 'Sourced claims about sanctions, trade and shipping, as open files.',
+      authentication: 'none',
+      endpoints: {
+        manifest: `${site}release/manifest.json`,
+        openapi: `${site}openapi.json`,
+        llms: `${site}llms.txt`,
+        skills: `${site}.well-known/agent-skills/index.json`,
+      },
+      licence: LICENCE_URL,
+    });
+  }
+  if (wantsMarkdown(request, shell)) {
+    const folder = url.pathname.replace(/^\//u, '').replace(/\/$/u, '');
+    return markdown(
+      folder === '' ? homeMarkdown(site) : appMarkdown(site, folder.split('/')[0] ?? folder),
+      {
+        canonical: `${site}${folder === '' ? '' : `${folder}/`}`,
+        date: (await readRelease(env, url.origin)).date,
+      },
+    );
+  }
+  const headers = new Headers(response.headers);
+  headers.set('link', LINKS(site));
+  headers.append('vary', 'Accept');
+  headers.delete('content-length');
+  headers.delete('etag');
+  // Only the home page uses the data of the release, so the other pages skip the extra read.
+  const release =
+    shell && url.pathname === '/'
+      ? await readRelease(env, url.origin)
+      : { version: '', date: '', contact: FALLBACK_CONTACT, files: [] };
+  const out = decorate(html, site, url.pathname, release);
+  return new Response(request.method === 'HEAD' ? null : out, {
+    status: response.status,
+    headers,
+  });
+};
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
-    const site = `${url.origin}/`;
-    const open = await dynamic(request, url, env, site);
-    if (open !== null) return open;
-    if (request.method !== 'GET' && request.method !== 'HEAD') return env.ASSETS.fetch(request);
-
-    const made = await generated(url.pathname, site, env, url.origin).catch(() => null);
-    if (made !== null) {
-      made.headers.set('link', LINKS(site));
-      made.headers.set('x-content-type-options', 'nosniff');
-      // A staging build tells search engines not to index any response. The worker copies that
-      // header from a file of the host, so a generated response never opens what staging closes.
-      const closed = await env.ASSETS.fetch(new Request(`${url.origin}/favicon.svg`));
-      const robots = closed.headers.get('x-robots-tag');
-      if (robots !== null) made.headers.set('x-robots-tag', robots);
-      return request.method === 'HEAD' ? new Response(null, made) : made;
-    }
-
-    const response = await env.ASSETS.fetch(request);
-    const type = response.headers.get('content-type') ?? '';
-    // A file with a name returns itself. An address that is no file and no page returns the shell
-    // of the application, which the worker turns into a true 404.
-    if (!type.includes('text/html')) return response;
-    if (!isAppPath(url.pathname)) return notFound(request, url.pathname);
-
-    const html = await response.text();
-    const shell = html.includes('<div id="root"></div>');
-    if (url.pathname === '/' && url.searchParams.get('mode') === 'agent') {
-      return json({
-        name: 'GAB dataset',
-        description: 'Sourced claims about sanctions, trade and shipping, as open files.',
-        authentication: 'none',
-        endpoints: {
-          manifest: `${site}release/manifest.json`,
-          openapi: `${site}openapi.json`,
-          llms: `${site}llms.txt`,
-          skills: `${site}.well-known/agent-skills/index.json`,
-        },
-        licence: LICENCE_URL,
-      });
-    }
-    if (wantsMarkdown(request, shell)) {
-      const folder = url.pathname.replace(/^\//u, '').replace(/\/$/u, '');
-      return markdown(
-        folder === '' ? homeMarkdown(site) : appMarkdown(site, folder.split('/')[0] ?? folder),
-        {
-          canonical: `${site}${folder === '' ? '' : `${folder}/`}`,
-          date: (await readRelease(env, url.origin)).date,
-        },
-      );
-    }
-    const headers = new Headers(response.headers);
-    headers.set('link', LINKS(site));
-    headers.append('vary', 'Accept');
-    headers.delete('content-length');
-    headers.delete('etag');
-    // Only the home page uses the data of the release, so the other pages skip the extra read.
-    const release =
-      shell && url.pathname === '/'
-        ? await readRelease(env, url.origin)
-        : { version: '', date: '', contact: FALLBACK_CONTACT, files: [] };
-    const out = decorate(html, site, url.pathname, release);
-    return new Response(request.method === 'HEAD' ? null : out, {
-      status: response.status,
-      headers,
-    });
+    return guarded(await answer(request, env), env, new URL(request.url).origin);
   },
 };

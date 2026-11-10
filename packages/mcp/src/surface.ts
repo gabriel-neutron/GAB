@@ -25,6 +25,7 @@ export const RESEARCH_TOOLS = {
   list_proposals: READ_RECORD,
   find_document: READ_RECORD,
   document_text: READ_RECORD,
+  find_line: READ_RECORD,
   file_schema_sample: READ_RECORD,
   job_status: READ_RECORD,
   // The reads of the review page. The queue, the groups, the decided acts and the leads.
@@ -37,6 +38,8 @@ export const RESEARCH_TOOLS = {
   read_leads: READ_RECORD,
   web_search: READ_WEB,
   news_search: READ_WEB,
+  // The read route of a closer stores nothing.
+  read_page: READ_WEB,
   // A capture asks the archive to keep a copy of a page, which is a write outside the record.
   archive_snapshot: {
     readOnlyHint: false,
@@ -142,6 +145,13 @@ export const RESEARCH_TOOLS = {
     openWorldHint: true,
   },
   // Each call reads and stores one answer, so a second call writes nothing.
+  gfw_presence_grid: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  },
+  // Each call reads and stores one answer, so a second call writes nothing.
   firms_detections: {
     readOnlyHint: false,
     destructiveHint: false,
@@ -153,6 +163,13 @@ export const RESEARCH_TOOLS = {
     readOnlyHint: false,
     destructiveHint: false,
     idempotentHint: true,
+    openWorldHint: true,
+  },
+  // Each call asks the register for a new signed file, so a second call can store a second file.
+  egrul_extract: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
     openWorldHint: true,
   },
   // A second call meets the open job and is refused.
@@ -191,4 +208,6 @@ export const RESEARCH_TOOLS = {
   reject_relation: DECIDE,
   join_unit: DECIDE,
   promote_clean_proposals: DECIDE,
+  remove_act: DECIDE,
+  join_entities: DECIDE,
 } as const satisfies Record<ToolName, ToolAnnotations>;

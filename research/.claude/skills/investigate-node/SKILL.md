@@ -41,8 +41,8 @@ pages to fetch next.
 5. For each entity that matches, call `read_entity`. Write down its attributes, its relations with
    their direction and dates, and the documents that they cite. Call `neighbourhood` when you need
    the entities further away.
-6. Call `list_proposals` with the entity id. A pending proposal is a fact that waits for the
-   operator: do not propose it again.
+6. Call `list_proposals` with the entity id. A pending proposal is a fact that waits for a
+   decision: do not propose it again.
 7. Read each cited document with `document_text` when you must know what it says. Read the pages
    that you need, not the whole document.
 8. Write the gaps: each fact that the ticket asks for and that no document in Gabriel holds. For
