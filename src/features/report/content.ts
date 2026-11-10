@@ -112,7 +112,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Currency:** The rouble settled 53% of Russian exports in 2025, against 14% in 2021,[^4] and the rouble and the yuan settle almost all payments with China.',
+        text: '**Currency:** The rouble settled 53% of Russian exports in 2025, against 14% in 2021,[^4] and, according to the Russian government, the rouble and the yuan settle almost all payments with China.',
       },
       {
         kind: 'li',
@@ -624,7 +624,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: "With China, the shift goes further. At the end of 2023, the yuan settled as many exports as the rouble,[^58] and the rouble and the yuan settle almost all payments between the two countries.[^59] This choice protects the trade from sanctions, but it ties Russia to a partner that accounts for about 40% of its trade, while Russia accounts for only a few per cent of Chinese trade.[^60] On the report's hypothesis, China can therefore set its terms.",
+        text: "With China, the shift goes further. At the end of 2023, the yuan settled as many exports as the rouble,[^58] and, according to the Russian government, the rouble and the yuan settle almost all payments between the two countries.[^59] This choice protects the trade from sanctions, but it ties Russia to a partner that accounts for about 40% of its trade, while Russia accounts for only a few per cent of Chinese trade.[^60] On the report's hypothesis, China can therefore set its terms.",
       },
       { kind: 'h3', text: 'Payment relays' },
       {
@@ -1092,7 +1092,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Reliability of sources:** Only official sources receive a reliability rating. Think-tank reports and the press are not rated, so the weight of the facts that come from them is not measured.',
+        text: '**Reliability of sources:** The letter rates the issuer, not the truth of each claim. The report shows it only for official issuers: the letters of the press and of think tanks are not shown, so the reader cannot weigh their facts.',
       },
       {
         kind: 'li',
@@ -1170,7 +1170,7 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'A.1 The database' },
       {
         kind: 'p',
-        text: 'The report rests on a database of entities (companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 27 October 2026, the database holds 6,327 entities; because the selection does not use the 1,165 military units, about 5,200 entities are tested.',
+        text: 'The report rests on a database of entities (companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 27 October 2026, the database holds 6,327 entities (5,366 of them in the public data release of 28 October); because the selection does not use the 1,165 military units, about 5,200 entities are tested.',
       },
       {
         kind: 'p',
