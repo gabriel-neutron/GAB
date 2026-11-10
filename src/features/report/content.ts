@@ -482,7 +482,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Sanctions ended up targeting these ports themselves. Since February 2025, an EU company can no longer deal, save for listed exceptions, with five ports on the Baltic, the Black Sea and the Caspian Sea, and since April 2026 with [[N-P011|Tuapse]] and Murmansk.[^42] Like the price cap, these measures bind only the companies that apply them.',
+        text: 'Sanctions ended up targeting these ports themselves. Since February 2025, an EU company can no longer deal, save for listed exceptions, with the oil ports on the Baltic and the Black Sea, and since April 2026 with [[N-P011|Tuapse]] and Murmansk.[^42] Like the price cap, these measures bind only EU companies.',
       },
       { kind: 'h3', text: 'The fleet' },
       {

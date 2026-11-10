@@ -233,7 +233,7 @@ Crude export ports: Primorsk, Ust-Luga, Novorossiysk
 
 Russian crude that does not leave by pipeline leaves Russia through a few ports, mainly Primorsk and Ust-Luga on the Baltic, Novorossiysk on the Black Sea and Kozmino on the Pacific.[^40] Traffic at the first three, all goods included, held up despite the embargo: in 2025, it exceeded its 2021 level (figure 6).[^41]
 
-Sanctions ended up targeting these ports themselves. Since February 2025, an EU company can no longer deal, save for listed exceptions, with five ports on the Baltic, the Black Sea and the Caspian Sea, and since April 2026 with Tuapse and Murmansk.[^42] Like the price cap, these measures bind only the companies that apply them.
+Sanctions ended up targeting these ports themselves. Since February 2025, an EU company can no longer deal, save for listed exceptions, with the oil ports on the Baltic and the Black Sea, and since April 2026 with Tuapse and Murmansk.[^42] Like the price cap, these measures bind only EU companies.
 
 ### 2.5 The fleet
 
