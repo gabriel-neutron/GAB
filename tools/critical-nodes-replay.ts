@@ -61,23 +61,24 @@ export const rebuild = (facts: readonly NodeFacts[]): Counts => {
 };
 
 // A.3 as written: (a) the node, or a vessel it manages, has a designation, or a designated entity
-// holds 50% or more of it; (b) a relation of the node or of a vessel it manages is dated in
-// 2024-2026, a designation included; (c) the registration country, or the flag of a vessel it
+// holds 50% or more of it; (b) a relation of the node or of a vessel it manages has a start or an end
+// date in 2024-2026, a designation included; (c) the registration country, or the flag of a vessel it
 // manages, is outside the coalition. The vessels of one manager form one node, and a vessel with no
 // manager is a node of its own.
-// shortcut: no counterparty country (the record has none as an attribute) and no owner chain
-// beyond one step. Upgrade when the author states them.
+// shortcut: no counterparty country (the record has none as an attribute), no owner
+// fallback for the grouping of vessels and no owner chain beyond one step. Upgrade when the author states them.
 export const SQL = `
   with node_of as (
     select e.id as member, coalesce(
-      (select r.src_id from relations r where r.type = 'operates' and r.dst_id = e.id limit 1),
+      (select r.src_id from relations r where r.type = 'operates' and r.dst_id = e.id
+        and r.valid_to is null order by r.src_id limit 1),
       e.id) as node
     from entities e),
   dated as (
     select r.src_id, r.dst_id from relations r
     where (r.valid_from is not null or r.valid_to is not null)
-      and coalesce(r.valid_to, date '2099-01-01') >= date '2024-01-01'
-      and coalesce(r.valid_from, date '1900-01-01') <= date '2026-12-31'),
+      and (r.valid_from between date '2024-01-01' and date '2026-12-31'
+        or r.valid_to between date '2024-01-01' and date '2026-12-31')),
   country as (
     select e.id, (select a.code from area_code a where a.system = 'iso3166'
       and (a.code = v or a.label = v) limit 1) as code
