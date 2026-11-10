@@ -41,11 +41,12 @@ not a claim: do not judge it.
 ## A listing
 
 A relation `designated_by` or `restricted_by` whose target is a legal act or an authority is a
-listing. A row that names the source entity states the listing when the passage shows that the row
-is in the list of the target: the heading, the document or the context names that act or that
-authority (an annex of that regulation, an SDN entry of that action, a notice). The row does not
-need to say "designated": the list of the act is the designation, and the originator enacts it. A
-row of the list of another act does not state the listing.
+listing. The cited document is the text of the target act or of its list (an annex of that
+regulation, the SDN entries of that action, a notice), so a row of that document that names the
+source entity states the listing. The passage does not need to name the act again. The row does not
+need to say "designated": the list of the act is the designation, and the originator enacts it.
+When the passage shows that the row is in the list of another act, for example under the heading
+of another regulation or of another date of action, the row does not state the listing.
 
 ## Dates
 
