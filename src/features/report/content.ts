@@ -1924,14 +1924,6 @@ export const ui = {
   numberLocale: 'en-US',
   // The addresses of the report and of its notes in this locale, from the base of the site.
   paths: { report: '', notes: 'bibliography' },
-  // The link to the same place in the other locale.
-  switch: {
-    lang: 'fr',
-    text: 'FR',
-    label: 'Lire en français',
-    report: 'fr',
-    notes: 'fr/bibliography',
-  },
   counters: {
     // The accessible name of the counts in the annex.
     label: 'Scale of the research',
@@ -1976,9 +1968,6 @@ export const ui = {
     all: 'All notes',
     documents: 'Documents of the record',
     retrieved: 'retrieved',
-    // The mark of an English note with no French twin, on the French notes page.
-    missing: 'Notes of the English text',
-    noTwin: 'no FR source',
     // The name of the marker that opens the credit of an image.
     image: 'Image',
   },
@@ -2517,8 +2506,6 @@ export const closingUi = {
 export const en = {
   report,
   parts,
-  // The English notes that this copy cannot show, because its text has no twin of them.
-  untwinned: [] as readonly string[],
   figureTexts,
   ui,
   openingUi,
