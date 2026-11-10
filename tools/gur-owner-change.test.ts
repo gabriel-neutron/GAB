@@ -33,3 +33,11 @@ test('a sanction on the master is not a designation of the ship, and a ship with
     ),
   ).toBeUndefined();
 });
+
+test('only the sentence on sanctions gives the designation, also on one line', () => {
+  const text = page(
+    'Built in March 2009. The United Kingdom imposed sanctions on the vessel on May 1, 2025.',
+    'X (1 / Y / 02.2025)',
+  );
+  expect(changedAfterDesignation(text)).toBe(false);
+});

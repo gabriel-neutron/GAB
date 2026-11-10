@@ -1,6 +1,6 @@
 // Replay of the report count: of the designated ships in the archived GUR pages, how many have an
-// owner or manager that changed strictly after the designation. Run it on the main record with
-// `node tools/gur-owner-change.ts`. It reads the record only, and prints the count and each IMO.
+// owner or manager that changed strictly after the designation. Run it from the main checkout, where the
+// database of the record runs: `node tools/gur-owner-change.ts`. It reads the record only, and prints the count and each IMO.
 //
 // The rule:
 // - A page is one stored GUR ship page. If a page has more than one text, the longest text counts.
@@ -52,7 +52,7 @@ const NOT_VESSEL = /\b(master|captain|crew|person|company|entity|owner|manager|d
 /** The earliest designation, from the prose of one page. */
 export const designation = (text: string): Span | undefined => {
   const spans: Span[] = [];
-  for (const sentence of text.split(/\n+/)) {
+  for (const sentence of text.split(/\n+|(?<=[.!?])\s+/)) {
     if (!/sanctions/i.test(sentence) || NOT_VESSEL.test(sentence)) continue;
     for (const [, name, day, year] of sentence.matchAll(WORDED)) {
       spans.push(
