@@ -103,7 +103,7 @@ Le brut russe qui ne part pas par oléoduc quitte la Russie par quelques ports, 
 
 Figure V6. Trafic des ports pétroliers russes, 2014-2026. Note. Données : ASOP (2022 ; 2026) ; PortNews (2018 ; 2019 ; 2021) ; NMTP (2017 ; 2020) ; Dodonov et al. (2026).[^o64]
 
-Les sanctions ont fini par viser ces ports eux-mêmes. Depuis février 2025, une société de l’UE ne peut plus traiter avec ceux de la Baltique et de la mer Noire, et depuis avril 2026 avec Touapsé et Mourmansk.[^o62] Comme le plafond de prix, ces mesures ne lient que les sociétés qui les appliquent.
+Les sanctions visent ensuite ces ports. Depuis février 2025, une société de l’UE ne peut plus, sauf exception, traiter avec cinq ports, de la Baltique à la Caspienne, et depuis avril 2026 avec Touapsé et Mourmansk.[^o62] Comme le plafond de prix, ces mesures ne lient que les sociétés qui les appliquent.
 
 ### 2.5 La flotte
 
@@ -165,7 +165,7 @@ La Chine et Hong Kong prennent la place de la coalition (figure V11), mais avec 
 
 Figure V11. Exportations de biens CHP vers la Russie, 2021-2025. Note. Données : UN Comtrade (2026) ; Risinger et al. (2026). Calculs de l’auteur.[^o110]
 
-Hong Kong joue un autre rôle, celui d’une plateforme. Premier importateur mondial de puces, il remplace la coalition pour les processeurs, ce qui peut signaler des puces occidentales réexportées.[^o108] Hong Kong n’applique que les sanctions décidées par le Conseil de sécurité de l’ONU, qui ne visent pas la Russie : les sanctions de l’UE et des États-Unis ne font pas partie de son droit, sauf pour les biens américains. Cette place financière permet aussi de masquer le propriétaire d’une société et d’en créer ou d’en dissoudre vite, ce qui en fait un lieu de passage commode pour les sociétés-écrans.[^n-hk] Viser Hong Kong touche donc le passage et le paiement.
+Hong Kong joue un autre rôle, celui d’une plateforme. Premier importateur mondial de puces, il remplace la coalition pour les processeurs, ce qui peut signaler des puces occidentales réexportées.[^o108] Hong Kong n’applique que les sanctions de l’ONU, qui ne visent pas la Russie : les sanctions de l’UE et des États-Unis ne font pas partie de son droit, mais les contrôles américains suivent les biens américains. Cette place financière permet aussi de masquer le propriétaire d’une société et d’en créer ou d’en dissoudre vite, ce qui en fait un lieu de passage commode pour les sociétés-écrans.[^n-hk] Viser Hong Kong touche donc le passage et le paiement.
 
 ### 4.2 Le prix des biens
 
