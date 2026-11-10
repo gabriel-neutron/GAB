@@ -4,14 +4,14 @@
 
 **La méthode.** Dans une base de près de 5 200 entités, dont chaque fait renvoie à un document archivé, le rapport cherche les nœuds (sociétés, ports, flottes, banques, canaux de paiement) exposés aux sanctions, actifs en 2024-2026 et reliés à un pays qui ne les applique pas.
 
-**Le résultat.** La Russie résiste, et le rapport l’explique par de nouvelles relations commerciales avec des pays non alignés sur la coalition, qui usent de leur autonomie stratégique tout en tirant parti de leur position de force dans les négociations avec la Russie.
+**Le résultat.** La Russie résiste, et le rapport l’explique en partie par de nouvelles relations commerciales avec des pays non alignés sur la coalition, qui usent de leur autonomie stratégique tout en tirant parti de leur position de force dans les négociations avec la Russie.
 
 - **Clients :** De 2021 à 2025, les achats de l’UE à la Russie baissent de 84 %[^o36] ; la Chine devient le premier client russe et l’Inde multiplie par vingt ses achats de brut russe.
 - **Navires :** Les pétroliers dits de la « flotte fantôme », liés à un pays hors de la coalition et sans assurance occidentale, transportent 79 % du brut exporté par mer en janvier 2026.[^o63]
 - **Prix :** Depuis novembre 2025, la décote du brut russe sur le Brent a presque doublé, ce que le rapport relie, par hypothèse, aux sanctions américaines contre Rosneft et Lukoil. Les partenaires en profitent : la Chine achète le brut russe avec une remise et vend les composants des armes avec une forte prime.
 - **Budget :** La part du pétrole et du gaz dans les recettes fédérales passe de la moitié en 2014 à moins d’un cinquième en 2026, en partie parce que ces recettes reculent.[^o10]
 - **Monnaie :** Le rouble règle 53 % des exportations russes en 2025, contre 14 % en 2021,[^o11] et le rouble et le yuan règlent presque tous les paiements avec la Chine.
-- **Composants :** Enfin, la Chine fournit 77 % des biens prioritaires pour l’armement vendus à la Russie en 2025, et Hong Kong 11 %.[^o14]
+- **Composants :** Enfin, parmi les biens prioritaires pour l’armement que ses partenaires déclarent avoir vendus à la Russie en 2025, la Chine fournit 77 %, et Hong Kong 11 %.[^o14]
 
 Les sources des autres chiffres sont données dans le corps du rapport.
 
@@ -51,7 +51,7 @@ Un nœud est dit critique quand il réunit trois conditions :
 - **Actif en 2024-2026 :** Une production, un transit ou une désignation nouvelle, datés, le montrent ;
 - **Passe par un pays tiers :** Son siège, le pavillon de ses navires ou une contrepartie se trouve dans un pays qui n’applique pas les sanctions de la coalition (l’UE, les États-Unis, le Royaume-Uni et leurs alliés).
 
-Ces conditions désignent les nœuds où les sanctions sont en place mais où l’activité continue par un pays tiers : là où le contournement se voit, et là où une nouvelle mesure pourrait porter.
+Ces conditions désignent les nœuds où les sanctions sont en place mais où l’activité continue par un pays tiers : là où le contournement peut être à l’œuvre, et là où une nouvelle mesure pourrait porter.
 
 Le choix de la période tient au calendrier des sanctions. En 2024, les grandes mesures sur le pétrole sont en place : l’embargo, le plafond de prix, puis les premières désignations d’armateurs qui ne respectent pas ce plafond.[^o20] Les années 2024-2026 montrent donc comment les échanges se sont adaptés à ces sanctions. Après chaque mesure, le rapport cherche les corrélations entre les sanctions et les échanges, puis propose des explications, chacune attribuée à sa source, ou présentée comme une hypothèse quand aucune source ne l’établit.
 
@@ -74,7 +74,7 @@ Dès 2022, l’UE ferme presque son marché au pétrole russe, par un embargo su
 
 Figure V3. Exportations russes par acheteur et brut acheté à la Russie, 2020-2025. Note. Données : Bahí Esteba et al. (2026) ; Eurostat (2026) ; UN Comtrade (2026) ; CREA (2026). Calculs de l’auteur.[^o32]
 
-Le gaz prend le même chemin vers l’Asie : en 2025, Gazprom livre pour la première fois plus de gaz par gazoduc à la Chine qu’à l’Europe.[^o39] Mais c’est la Chine qui fixe les conditions. Pour vendre le gaz de la péninsule de Yamal, que l’Europe n’achète plus, la Russie n’a qu’un client possible, et ce client n’est pas pressé de conclure le nouveau gazoduc Force de Sibérie 2 : la Chine ne veut pas trop dépendre d’un seul fournisseur, et elle sait que la Russie n’a pas d’autre acheteur.[^o40] Selon l’hypothèse du rapport, le gaz vendu à la Chine remplace donc les volumes perdus en Europe, mais pas leurs recettes.
+Le gaz prend le même chemin vers l’Asie : en 2025, Gazprom livre pour la première fois plus de gaz par gazoduc à la Chine qu’à l’Europe.[^o39] Mais c’est la Chine qui fixe les conditions. Pour vendre le gaz de la péninsule de Yamal, que l’Europe n’achète plus, la Russie n’a qu’un client possible, et ce client n’est pas pressé de conclure le nouveau gazoduc Force de Sibérie 2 : la Chine ne veut pas trop dépendre d’un seul fournisseur, et elle sait que la Russie n’a pas d’autre acheteur.[^o40] Selon l’hypothèse du rapport, le gaz vendu à la Chine remplace donc une partie seulement des volumes perdus en Europe, et moins de leurs recettes.
 
 ### 2.2 Le prix et le plafond
 
@@ -103,11 +103,11 @@ Le brut russe qui ne part pas par oléoduc quitte la Russie par quelques ports, 
 
 Figure V6. Trafic des ports pétroliers russes, 2014-2026. Note. Données : ASOP (2022 ; 2026) ; PortNews (2018 ; 2019 ; 2021) ; NMTP (2017 ; 2020) ; Dodonov et al. (2026).[^o64]
 
-Les sanctions ont fini par viser ces ports eux-mêmes. Depuis février 2025, une société de l’UE ne peut plus traiter avec ceux de la Baltique et de la mer Noire, et depuis avril 2026 avec Touapsé et Mourmansk.[^o62] Comme le plafond de prix, ces mesures ne lient que les sociétés de la coalition.
+Les sanctions visent ensuite ces ports. Depuis février 2025, une société de l’UE ne peut plus, sauf exception, traiter avec les ports pétroliers de la Baltique et de la mer Noire, et depuis avril 2026 avec Touapsé et Mourmansk.[^o62] Comme le plafond de prix, ces mesures ne lient que les sociétés de l’UE.
 
 ### 2.5 La flotte
 
-Pour quitter des ports fermés aux sociétés de la coalition, le brut a besoin de navires qui ne dépendent pas d’elles. Ce sont surtout les pétroliers dits de la « flotte fantôme », liés à un pays hors de la coalition et sans assurance occidentale.[^o63] Ni le plafond ni l’interdiction des ports ne les touchent. Selon l’hypothèse du rapport, c’est leur montée depuis l’embargo qui explique que le trafic des ports ait tenu jusqu’en 2025.
+Pour quitter des ports fermés aux sociétés de la coalition, le brut a besoin de navires qui ne dépendent pas d’elles. Ce sont surtout les pétroliers dits de la « flotte fantôme », liés à un pays hors de la coalition et sans assurance occidentale.[^o63] Ni le plafond ni l’interdiction des ports ne les touchent. Selon l’hypothèse du rapport, leur montée depuis l’embargo aide à expliquer que le trafic des ports, tous biens confondus, ait tenu jusqu’en 2025.
 
 Figure V7. Pétrole russe exporté par mer, janvier 2026. Note. Données : Dodonov et al. (2026) ; Raghunandan et al. (2026), d’après Kpler.[^o69]
 
@@ -165,12 +165,12 @@ La Chine et Hong Kong prennent la place de la coalition (figure V11), mais avec 
 
 Figure V11. Exportations de biens CHP vers la Russie, 2021-2025. Note. Données : UN Comtrade (2026) ; Risinger et al. (2026). Calculs de l’auteur.[^o110]
 
-Hong Kong joue un autre rôle, celui d’une plateforme. Premier importateur mondial de puces, il remplace la coalition pour les processeurs, ce qui peut signaler des puces occidentales réexportées.[^o108] Hong Kong n’applique que les sanctions décidées par le Conseil de sécurité de l’ONU, qui ne visent pas la Russie : les sanctions de l’UE et des États-Unis n’y ont aucune force légale. Cette place financière permet aussi de masquer le propriétaire d’une société et d’en créer ou d’en dissoudre vite, ce qui en fait un lieu de passage commode pour les sociétés-écrans.[^n-hk] Viser Hong Kong touche donc le passage et le paiement.
+Hong Kong joue un autre rôle, celui d’une plateforme. Premier importateur mondial de puces, il remplace la coalition pour les processeurs, ce qui peut signaler des puces occidentales réexportées.[^o108] Hong Kong n’applique que les sanctions du Conseil de sécurité, qui ne visent pas la Russie : les sanctions de l’UE et des États-Unis ne font pas partie de son droit, mais les contrôles américains suivent leurs biens. Cette place financière permet aussi de masquer le propriétaire d’une société et d’en créer ou d’en dissoudre vite, ce qui en fait un lieu de passage commode pour les sociétés-écrans.[^n-hk] Viser Hong Kong touche donc le passage et le paiement.
 
 ### 4.2 Le prix des biens
 
 <!-- Mise en page : encadré site-figures/fibre-box.svg (quart ou tiers de colonne) dans cette section. -->
-Ce changement de fournisseurs a un prix. Dès le printemps 2022, les importations russes deviennent plus chères ; la cause principale n’est ni le transport ni le détour par des pays voisins, mais les marges des fournisseurs restés sur le marché, que le départ des concurrents occidentaux leur permet d’augmenter, en particulier pour les biens stratégiques.[^o111] La dépendance envers la Chine accentue cet effet : la prime que la Russie paie à la Chine pour les biens prioritaires augmente avec la part chinoise de ses achats, et pour les machines-outils à commande numérique, sans autre vendeur, la Russie doit accepter le prix chinois.[^o112] Les sanctions ne coupent donc pas l’accès à ces biens, mais elles le rendent plus coûteux, et ce coût est le plus fort pour les biens achetés à la Chine.
+Ce changement de fournisseurs a un prix. Dès le printemps 2022, les importations russes deviennent plus chères ; la cause principale n’est ni le transport ni le détour par des pays voisins, mais, selon le CEPII, probablement les marges des fournisseurs restés sur le marché, que le départ des concurrents occidentaux leur permet d’augmenter, en particulier pour les biens stratégiques.[^o111] La dépendance envers la Chine accentue cet effet : la prime que la Russie paie à la Chine pour les biens prioritaires augmente avec la part chinoise de ses achats, et pour les machines-outils à commande numérique, sans autre vendeur, la Russie doit accepter le prix chinois.[^o112] Les sanctions ne coupent donc pas l’accès à ces biens, mais elles le rendent plus coûteux, et ce coût est le plus fort pour les biens achetés à la Chine.
 
 ### 4.3 Les routes des composants
 
@@ -188,7 +188,7 @@ Figure V13. Qui possède le pétrole, le gaz et la flotte. Note. Données : Offi
 
 ### 5.1 L’État et ses holdings
 
-Au sommet, l’État tient les grandes sociétés par quelques holdings. Une holding publique, qu’il détient en entier, est le premier actionnaire de Rosneft et, avec l’Agence fédérale de gestion des biens de l’État (Rosimouchtchestvo), lui donne près de la moitié de Gazprom.[^o124] Gazprom possède à son tour presque toute Gazprom Neft[^o125] et, avec une de ses filiales, près de la moitié de Gazprombank.[^o126] De même, l’État a tous les droits de vote de Transneft, qui possède la holding du port de Novorossiisk.[^o127] Une désignation de l’une d’elles atteint donc ses filiales à 50 % ou plus.
+Selon les dernières déclarations, au sommet, l’État tient les grandes sociétés par quelques holdings. Une holding publique, qu’il détient en entier, est le premier actionnaire de Rosneft et, avec l’Agence fédérale de gestion des biens de l’État (Rosimouchtchestvo), lui donne près de la moitié de Gazprom.[^o124] Gazprom possède à son tour presque toute Gazprom Neft[^o125] et, avec une de ses filiales, près de la moitié de Gazprombank.[^o126] De même, l’État a tous les droits de vote de Transneft, qui possède la holding du port de Novorossiisk.[^o127] Une désignation de l’une d’elles atteint donc ses filiales à 50 % ou plus.
 
 ### 5.2 La flotte
 
@@ -200,7 +200,7 @@ Après 2000, garder une grande entreprise suppose de rester hors de la politique
 
 La loyauté, elle, ouvre les contrats publics. Evgueni Prigojine sort de prison, ouvre des stands de hot-dogs à Saint-Pétersbourg, puis un restaurant où le président, une fois élu, reçoit ses hôtes étrangers ; sa société Concord obtient ensuite les contrats de restauration du Kremlin.[^n-prigojine] Il finance l’Internet Research Agency, que le Trésor américain désigne en 2018, et reconnaît en 2022 avoir fondé le groupe Wagner en 2014.[^n-wagner] Il meurt dans l’écrasement de son avion le 23 août 2023, deux mois jour pour jour après sa mutinerie.[^n-mort] Les deux trajectoires suivent une même règle : le président n’a pas supprimé l’oligarchie, il a visé les seuls oligarques qui menaçaient son pouvoir.[^n-pacte]
 
-Hors de l’État, les grands actionnaires privés forment un cercle que les textes de désignation relient au président. Guennadi Timtchenko, vieille connaissance de Vladimir Poutine, partage avec Leonid Mikhelson la majorité d’un grand groupe pétrochimique et est actionnaire de Bank Rossiya.[^o133] Mikhelson détient en direct environ 14 % de Novatek.[^o135] Iouri Kovaltchouk, autre proche du président, détenait plus d’un tiers de Bank Rossiya en 2013 et contrôle l’assureur SOGAZ.[^o136] Le cercle touche la famille : Kirill Chamalov a épousé en 2013 Katerina Tikhonova, fille du président, puis a racheté à Timtchenko 17 % du même groupe pétrochimique.[^o137]
+Hors de l’État, les grands actionnaires privés forment un cercle que les textes de désignation relient au président. Guennadi Timtchenko, vieille connaissance de Vladimir Poutine, partage avec Leonid Mikhelson près de la moitié d’un grand groupe pétrochimique et est actionnaire de Bank Rossiya.[^o133] Mikhelson détient en direct environ 14 % de Novatek.[^o135] Iouri Kovaltchouk, autre proche du président, détenait plus d’un tiers de Bank Rossiya en 2013 et contrôle l’assureur SOGAZ.[^o136] Le cercle touche la famille : Kirill Chamalov a épousé en 2013 Katerina Tikhonova, fille du président, puis a racheté à Timtchenko 17 % du même groupe pétrochimique.[^o137]
 
 Les sociétés d’État sont dirigées par des proches qui ne les possèdent pas. Igor Setchine (Rosneft) est un ami personnel du président et Nikolaï Tokarev (Transneft) a servi avec lui au KGB ;[^o138] Sergueï Tchemezov (Rostec) l’a connu en Allemagne de l’Est.[^o139] Ces amis et anciens collègues ont reçu de grands actifs publics à gérer, ce qui en a fait des « oligarques d’État ».[^n-stanovaya]
 
@@ -226,7 +226,7 @@ Le rapport ne mesure pas l’effet des sanctions : quand aucune source n’étab
 
 - **La couverture de la base :** Elle couvre bien le transport maritime, mais mal les banques et l’armement. Elle relie peu de sociétés à un paiement ou à un composant, et elle ne donne de montant pour presque aucune d’elles ; la partie sur les paiements repose donc sur moins de faits que celle sur la flotte.
 - **La fiabilité des sources :** Seules les sources officielles reçoivent une note de fiabilité. Les rapports d’instituts et la presse ne sont pas notés : le poids des faits qui en viennent n’est donc pas mesuré.
-- **Les données miroirs :** Comme la Russie ne publie plus ses échanges par produit, le rapport lit les déclarations de ses partenaires, qui donnent donc un minimum. Les Émirats arabes unis et le Viêt Nam ne déclarent aucun bien prioritaire pour l’armement en 2024-2025, et le Kazakhstan et la Thaïlande n’en déclarent qu’une partie.[^o147]
+- **Les données miroirs :** Comme la Russie ne publie plus ses échanges par produit, le rapport lit les déclarations de ses partenaires, qui ne couvrent donc qu’une partie des échanges. Les Émirats arabes unis et le Viêt Nam ne déclarent aucun bien prioritaire pour l’armement en 2024-2025, et le Kazakhstan et la Thaïlande n’en déclarent qu’une partie.[^o147]
 - **La flotte :** Les changements de propriétaire et de gestionnaire viennent du GUR, partie au conflit. Il donne le titulaire actuel d’un navire et la date de son entrée en fonction, mais rarement le premier changement après la désignation.[^o148] La perte de l’identité AIS liée au numéro OMI, que le registre de Global Fishing Watch laisse voir, reste une piste, car ce registre n’est pas archivé.
 
 Enfin, aucun fait n’a été relu par une personne : les contrôles sont faits par des règles et par des agents (annexe A). En conséquence, chaque fait doit être vérifié à sa source avant de servir à une désignation.
@@ -275,11 +275,11 @@ Les trois conditions de la partie Méthode s’appliquent de la même façon à 
 - **Actif en 2024-2026 :** Une relation datée de cette période (désignation, escale, transbordement, événement) ;
 - **Passe par un pays tiers :** Le pays d’enregistrement de l’entité, le pavillon d’un de ses navires ou une contrepartie directe est un pays qui n’applique pas les sanctions de la coalition. Un pays lu seulement dans le nom d’une société ne compte pas tant qu’aucun document archivé n’en donne l’adresse.
 
-Les navires d’une même société de gestion, ou à défaut d’un même propriétaire, forment un seul nœud. Un même acte de désignation peut remplir plus d’une condition ; quand aucune activité n’est observée, une désignation nouvelle tient lieu de preuve d’activité.
+Les navires d’une même société de gestion, ou à défaut d’un même propriétaire, forment un seul nœud. Un même acte de désignation peut remplir plus d’une condition ; quand aucune activité n’est observée, une désignation nouvelle tient lieu d’indice d’activité : elle date un acte d’application, non un flux observé.
 
 ### A.4 Le contrôle des faits et du texte
 
-Aucun fait n’a été relu par une personne : c’est un choix de méthode. Des agents d’IA collectent et archivent les sources, puis proposent chaque fait avec l’extrait de sa source. D’autres agents, à contexte neuf et qui n’ont pas proposé ce fait, contrôlent que l’extrait figure dans la source archivée et soutient le fait, avant de le valider. D’autres faits attendent encore un contrôle ou une meilleure source. Les quelques faits saisis à la main portent une étiquette qui les distingue des faits produits par les agents. Les comptes, les parts et les médianes sont des calculs de l’auteur, qu’aucun agent de relecture ne valide un à un. Chaque partie du texte a été relue par des agents distincts de son rédacteur, qui ont vérifié ses sources une à une, et l’auteur a relu le texte, pas chaque fait contre sa source.
+Aucun fait n’a été relu par une personne : c’est un choix de méthode. Des agents d’IA collectent et archivent les sources, puis proposent chaque fait avec l’extrait de sa source. D’autres agents, à contexte neuf et qui n’ont pas proposé ce fait, contrôlent que l’extrait figure dans la source archivée et soutient le fait. Un contrôle échoué ne bloque pas l’acceptation d’un fait. D’autres faits attendent encore un contrôle ou une meilleure source. Les quelques faits saisis à la main portent une étiquette qui les distingue des faits produits par les agents. Les comptes, les parts et les médianes sont des calculs de l’auteur, qu’aucun agent de relecture ne valide un à un. Chaque partie du texte a été relue par des agents distincts de son rédacteur, qui ont vérifié ses sources une à une, et l’auteur a relu le texte, pas chaque fait contre sa source.
 
 [^o36]: Calculs de l’auteur d’après Bahí Esteba, A. et al. (2026, 21 septembre). *Russian foreign trade tracker* (35ᵉ éd.) [Données]. Bruegel. https://www.bruegel.org, fig. 2.
 

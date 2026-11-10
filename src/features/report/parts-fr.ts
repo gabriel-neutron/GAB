@@ -18,7 +18,7 @@ export const frParts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: '**Le résultat.** La Russie résiste, et le rapport l’explique par de nouvelles relations commerciales avec des pays non alignés sur la coalition, qui usent de leur autonomie stratégique tout en tirant parti de leur position de force dans les négociations avec la Russie.',
+        text: '**Le résultat.** La Russie résiste, et le rapport l’explique en partie par de nouvelles relations commerciales avec des pays non alignés sur la coalition, qui usent de leur autonomie stratégique tout en tirant parti de leur position de force dans les négociations avec la Russie.',
       },
       {
         kind: 'li',
@@ -42,7 +42,7 @@ export const frParts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Composants :** Enfin, la Chine fournit 77 % des biens prioritaires pour l’armement vendus à la Russie en 2025, et Hong Kong 11 %.[^5]',
+        text: '**Composants :** Enfin, parmi les biens prioritaires pour l’armement que ses partenaires déclarent avoir vendus à la Russie en 2025, la Chine fournit 77 %, et Hong Kong 11 %.[^5]',
       },
       {
         kind: 'p',
@@ -189,7 +189,7 @@ export const frParts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Ces conditions désignent les nœuds où les sanctions sont en place mais où l’activité continue par un pays tiers : là où le contournement se voit, et là où une nouvelle mesure pourrait porter.',
+        text: 'Ces conditions désignent les nœuds où les sanctions sont en place mais où l’activité continue par un pays tiers : là où le contournement peut être à l’œuvre, et là où une nouvelle mesure pourrait porter.',
       },
       {
         kind: 'p',
@@ -263,7 +263,7 @@ export const frParts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Mais c’est la Chine qui fixe les conditions. Pour vendre le gaz de la péninsule de Yamal, que l’Europe n’achète plus, la Russie n’a qu’un client possible, et ce client n’est pas pressé de conclure le nouveau gazoduc Force de Sibérie 2 : la Chine ne veut pas trop dépendre d’un seul fournisseur, et elle sait que la Russie n’a pas d’autre acheteur.[^20] Selon l’hypothèse du rapport, le gaz vendu à la Chine remplace donc les volumes perdus en Europe, mais pas leurs recettes.',
+        text: 'Mais c’est la Chine qui fixe les conditions. Pour vendre le gaz de la péninsule de Yamal, que l’Europe n’achète plus, la Russie n’a qu’un client possible, et ce client n’est pas pressé de conclure le nouveau gazoduc Force de Sibérie 2 : la Chine ne veut pas trop dépendre d’un seul fournisseur, et elle sait que la Russie n’a pas d’autre acheteur.[^20] Selon l’hypothèse du rapport, le gaz vendu à la Chine remplace donc une partie seulement des volumes perdus en Europe, et moins de leurs recettes.',
       },
       {
         kind: 'figure',
@@ -473,7 +473,7 @@ export const frParts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Les sanctions ont fini par viser ces ports eux-mêmes. Depuis février 2025, une société de l’UE ne peut plus traiter avec ceux de la Baltique et de la mer Noire, et depuis avril 2026 avec [[N-P011|Touapsé]] et Mourmansk.[^42] Comme le plafond de prix, ces mesures ne lient que les sociétés de la coalition.',
+        text: 'Les sanctions visent ensuite ces ports. Depuis février 2025, une société de l’UE ne peut plus, sauf exception, traiter avec les ports pétroliers de la Baltique et de la mer Noire, et depuis avril 2026 avec [[N-P011|Touapsé]] et Mourmansk.[^42] Comme le plafond de prix, ces mesures ne lient que les sociétés de l’UE.',
       },
       {
         kind: 'h3',
@@ -481,7 +481,7 @@ export const frParts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Pour quitter des ports fermés aux sociétés de la coalition, le brut a besoin de navires qui ne dépendent pas d’elles. Ce sont surtout les pétroliers dits de la « flotte fantôme », liés à un pays hors de la coalition et sans assurance occidentale.[^43] Ni le plafond ni l’interdiction des ports ne les touchent. Selon l’hypothèse du rapport, c’est leur montée depuis l’embargo qui explique que le trafic des ports ait tenu jusqu’en 2025.',
+        text: 'Pour quitter des ports fermés aux sociétés de la coalition, le brut a besoin de navires qui ne dépendent pas d’elles. Ce sont surtout les pétroliers dits de la « flotte fantôme », liés à un pays hors de la coalition et sans assurance occidentale.[^43] Ni le plafond ni l’interdiction des ports ne les touchent. Selon l’hypothèse du rapport, leur montée depuis l’embargo aide à expliquer que le trafic des ports, tous biens confondus, ait tenu jusqu’en 2025.',
       },
       {
         kind: 'figure',
@@ -814,7 +814,7 @@ export const frParts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Hong Kong joue un autre rôle, celui d’une plateforme. Premier importateur mondial de puces, il remplace la coalition pour les processeurs, ce qui peut signaler des puces occidentales réexportées.[^83] Hong Kong n’applique que les sanctions décidées par le Conseil de sécurité de l’ONU, qui ne visent pas la Russie : les sanctions de l’UE et des États-Unis n’y ont aucune force légale. Cette place financière permet aussi de masquer le propriétaire d’une société et d’en créer ou d’en dissoudre vite, ce qui en fait un lieu de passage commode pour les sociétés-écrans.[^84] Viser Hong Kong touche donc le passage et le paiement.',
+        text: 'Hong Kong joue un autre rôle, celui d’une plateforme. Premier importateur mondial de puces, il remplace la coalition pour les processeurs, ce qui peut signaler des puces occidentales réexportées.[^83] Hong Kong n’applique que les sanctions du Conseil de sécurité, qui ne visent pas la Russie : les sanctions de l’UE et des États-Unis ne font pas partie de son droit, mais les contrôles américains suivent leurs biens. Cette place financière permet aussi de masquer le propriétaire d’une société et d’en créer ou d’en dissoudre vite, ce qui en fait un lieu de passage commode pour les sociétés-écrans.[^84] Viser Hong Kong touche donc le passage et le paiement.',
       },
       {
         kind: 'figure',
@@ -833,7 +833,7 @@ export const frParts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Ce changement de fournisseurs a un prix. Dès le printemps 2022, les importations russes deviennent plus chères ; la cause principale n’est ni le transport ni le détour par des pays voisins, mais les marges des fournisseurs restés sur le marché, que le départ des concurrents occidentaux leur permet d’augmenter, en particulier pour les biens stratégiques.[^86] La dépendance envers la Chine accentue cet effet : la prime que la Russie paie à la Chine pour les biens prioritaires augmente avec la part chinoise de ses achats, et pour les machines-outils à commande numérique, sans autre vendeur, la Russie doit accepter le prix chinois.[^87] Les sanctions ne coupent donc pas l’accès à ces biens, mais elles le rendent plus coûteux, et ce coût est le plus fort pour les biens achetés à la Chine.',
+        text: 'Ce changement de fournisseurs a un prix. Dès le printemps 2022, les importations russes deviennent plus chères ; la cause principale n’est ni le transport ni le détour par des pays voisins, mais, selon le CEPII, probablement les marges des fournisseurs restés sur le marché, que le départ des concurrents occidentaux leur permet d’augmenter, en particulier pour les biens stratégiques.[^86] La dépendance envers la Chine accentue cet effet : la prime que la Russie paie à la Chine pour les biens prioritaires augmente avec la part chinoise de ses achats, et pour les machines-outils à commande numérique, sans autre vendeur, la Russie doit accepter le prix chinois.[^87] Les sanctions ne coupent donc pas l’accès à ces biens, mais elles le rendent plus coûteux, et ce coût est le plus fort pour les biens achetés à la Chine.',
       },
       {
         kind: 'h3',
@@ -931,7 +931,7 @@ export const frParts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Au sommet, l’État tient les grandes sociétés par quelques holdings. Une holding publique, qu’il détient en entier, est le premier actionnaire de [[N-P026|Rosneft]] et, avec l’Agence fédérale de gestion des biens de l’État ([[N-O003|Rosimouchtchestvo]]), lui donne près de la moitié de [[N-O005|Gazprom]].[^97] Gazprom possède à son tour presque toute [[N-O010|Gazprom Neft]][^98] et, avec une de ses filiales, près de la moitié de [[N-M001|Gazprombank]].[^99] De même, l’État a tous les droits de vote de [[N-P034|Transneft]], qui possède la holding du port de Novorossiisk.[^100] Une désignation de l’une d’elles atteint donc ses filiales à 50 % ou plus.',
+        text: 'Selon les dernières déclarations, au sommet, l’État tient les grandes sociétés par quelques holdings. Une holding publique, qu’il détient en entier, est le premier actionnaire de [[N-P026|Rosneft]] et, avec l’Agence fédérale de gestion des biens de l’État ([[N-O003|Rosimouchtchestvo]]), lui donne près de la moitié de [[N-O005|Gazprom]].[^97] Gazprom possède à son tour presque toute [[N-O010|Gazprom Neft]][^98] et, avec une de ses filiales, près de la moitié de [[N-M001|Gazprombank]].[^99] De même, l’État a tous les droits de vote de [[N-P034|Transneft]], qui possède la holding du port de Novorossiisk.[^100] Une désignation de l’une d’elles atteint donc ses filiales à 50 % ou plus.',
       },
       {
         kind: 'figure',
@@ -965,7 +965,7 @@ export const frParts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Hors de l’État, les grands actionnaires privés forment un cercle que les textes de désignation relient au président. [[N-O023|Guennadi Timtchenko]], vieille connaissance de [[N-O024|Vladimir Poutine]], partage avec [[N-O032|Leonid Mikhelson]] la majorité d’un grand groupe pétrochimique et est actionnaire de [[N-O029|Bank Rossiya]].[^113] Mikhelson détient en direct environ 14 % de [[N-O027|Novatek]].[^114] [[N-O030|Iouri Kovaltchouk]], autre proche du président, détenait plus d’un tiers de Bank Rossiya en 2013 et contrôle l’assureur [[N-O031|SOGAZ]].[^115] Le cercle touche la famille : [[N-O033|Kirill Chamalov]] a épousé en 2013 [[N-O034|Katerina Tikhonova]], fille du président, puis a racheté à Timtchenko 17 % du même groupe pétrochimique.[^116]',
+        text: 'Hors de l’État, les grands actionnaires privés forment un cercle que les textes de désignation relient au président. [[N-O023|Guennadi Timtchenko]], vieille connaissance de [[N-O024|Vladimir Poutine]], partage avec [[N-O032|Leonid Mikhelson]] près de la moitié d’un grand groupe pétrochimique et est actionnaire de [[N-O029|Bank Rossiya]].[^113] Mikhelson détient en direct environ 14 % de [[N-O027|Novatek]].[^114] [[N-O030|Iouri Kovaltchouk]], autre proche du président, détenait plus d’un tiers de Bank Rossiya en 2013 et contrôle l’assureur [[N-O031|SOGAZ]].[^115] Le cercle touche la famille : [[N-O033|Kirill Chamalov]] a épousé en 2013 [[N-O034|Katerina Tikhonova]], fille du président, puis a racheté à Timtchenko 17 % du même groupe pétrochimique.[^116]',
       },
       {
         kind: 'p',
@@ -1186,7 +1186,7 @@ export const frParts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Les données miroirs :** Comme la Russie ne publie plus ses échanges par produit, le rapport lit les déclarations de ses partenaires, qui donnent donc un minimum. Les Émirats arabes unis et le Viêt Nam ne déclarent aucun bien prioritaire pour l’armement en 2024-2025, et le Kazakhstan et la Thaïlande n’en déclarent qu’une partie.[^126]',
+        text: '**Les données miroirs :** Comme la Russie ne publie plus ses échanges par produit, le rapport lit les déclarations de ses partenaires, qui ne couvrent donc qu’une partie des échanges. Les Émirats arabes unis et le Viêt Nam ne déclarent aucun bien prioritaire pour l’armement en 2024-2025, et le Kazakhstan et la Thaïlande n’en déclarent qu’une partie.[^126]',
       },
       {
         kind: 'li',
@@ -1325,7 +1325,7 @@ export const frParts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Les navires d’une même société de gestion, ou à défaut d’un même propriétaire, forment un seul nœud. Un même acte de désignation peut remplir plus d’une condition ; quand aucune activité n’est observée, une désignation nouvelle tient lieu de preuve d’activité.',
+        text: 'Les navires d’une même société de gestion, ou à défaut d’un même propriétaire, forment un seul nœud. Un même acte de désignation peut remplir plus d’une condition ; quand aucune activité n’est observée, une désignation nouvelle tient lieu d’indice d’activité : elle date un acte d’application, non un flux observé.',
       },
       {
         kind: 'h3',
@@ -1333,7 +1333,7 @@ export const frParts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Aucun fait n’a été relu par une personne : c’est un choix de méthode. Des agents d’IA collectent et archivent les sources, puis proposent chaque fait avec l’extrait de sa source. D’autres agents, à contexte neuf et qui n’ont pas proposé ce fait, contrôlent que l’extrait figure dans la source archivée et soutient le fait, avant de le valider. D’autres faits attendent encore un contrôle ou une meilleure source. Les quelques faits saisis à la main portent une étiquette qui les distingue des faits produits par les agents. Les comptes, les parts et les médianes sont des calculs de l’auteur, qu’aucun agent de relecture ne valide un à un. Chaque partie du texte a été relue par des agents distincts de son rédacteur, qui ont vérifié ses sources une à une, et l’auteur a relu le texte, pas chaque fait contre sa source.',
+        text: 'Aucun fait n’a été relu par une personne : c’est un choix de méthode. Des agents d’IA collectent et archivent les sources, puis proposent chaque fait avec l’extrait de sa source. D’autres agents, à contexte neuf et qui n’ont pas proposé ce fait, contrôlent que l’extrait figure dans la source archivée et soutient le fait. Un contrôle échoué ne bloque pas l’acceptation d’un fait. D’autres faits attendent encore un contrôle ou une meilleure source. Les quelques faits saisis à la main portent une étiquette qui les distingue des faits produits par les agents. Les comptes, les parts et les médianes sont des calculs de l’auteur, qu’aucun agent de relecture ne valide un à un. Chaque partie du texte a été relue par des agents distincts de son rédacteur, qui ont vérifié ses sources une à une, et l’auteur a relu le texte, pas chaque fait contre sa source.',
       },
     ],
     notes: [],

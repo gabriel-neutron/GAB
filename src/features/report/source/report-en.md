@@ -4,7 +4,7 @@
 
 **The method.** The report searches a database of nearly 5,200 entities, where every fact points to an archived document. It looks for the nodes (companies, ports, fleets, banks, payment channels) that are exposed to sanctions, active in 2024-2026 and tied to a country that does not apply them.
 
-**The result.** Russia holds out, and the report explains this by new trade relations with countries that are not aligned with the coalition. These countries use their strategic autonomy and, at the same time, take advantage of their strong position in negotiations with Russia.
+**The result.** Russia holds out, and the report explains this in part by new trade relations with countries that are not aligned with the coalition. These countries use their strategic autonomy and, at the same time, take advantage of their strong position in negotiations with Russia.
 
 - –**Customers:** From 2021 to 2025, EU purchases from Russia fell by 84%;[^1] China became Russia's first customer, and India bought twenty times as much Russian crude.
 
@@ -16,7 +16,7 @@
 
 - –**Currency:** The rouble settled 53% of Russian exports in 2025, against 14% in 2021,[^4] and the rouble and the yuan settle almost all payments with China.
 
-- –**Components:** Finally, China supplied 77% of the priority goods for weapons sold to Russia in 2025, and Hong Kong 11%.[^5]
+- –**Components:** Finally, of the priority goods for weapons that its partners declared as sold to Russia in 2025, China supplied 77%, and Hong Kong 11%.[^5]
 
 The sources of the other figures are given in the body of the report.
 
@@ -65,9 +65,9 @@ FIGURE 1 TIMELINE (text inside the figure, one entry per line: date | title | de
 - 5 Feb. 2023 · coalition | Oil products | embargo and caps
 - 12 Oct. 2023 · OFAC | Cap enforcement | shipowners designated
 - 25 Feb. 2025 · EU | Ports banned | Primorsk, Novorossiysk, Ust-Luga
-- 3 Sep. 2025 · coalition | Cap lowered | $47.6 a barrel
+- 3 Sep. 2025 · EU | Cap lowered | $47.6 a barrel
 - 22 Oct. 2025 · OFAC | Rosneft and Lukoil | designated
-- 1 Feb. 2026 · coalition | Cap lowered | $44.1 a barrel
+- 1 Feb. 2026 · EU | Cap lowered | $44.1 a barrel
 - 24 Apr. 2026 · EU | New ports sanctioned | Tuapse, Murmansk
 
 ## 1 Method
@@ -101,7 +101,7 @@ FIGURE: Figure 2: The three layers of the Russian war economy and their links
 
 *Note.* Diagram by the author.
 
-These conditions single out the nodes where the sanctions are in place but the activity continues through a third country: where the circumvention can be seen, and where a new measure could have an effect.
+These conditions single out the nodes where the sanctions are in place but the activity continues through a third country: where circumvention may be at work, and where a new measure could have an effect.
 
 The choice of period follows the calendar of the sanctions. By 2024, the major oil measures are in place: the embargo, the price cap, and then the first designations of shipowners that do not respect that cap.[^11] The years 2024-2026 therefore show how trade has adapted to these sanctions. After each measure, the report looks for correlations between the sanctions and trade, and then proposes explanations, each one attributed to its source, or presented as a hypothesis when no source establishes it.
 
@@ -145,7 +145,7 @@ Gas follows the same path to Asia: in 2025, for the first time, Gazprom delivere
 [^19]: Interfax. (2026, January 13). *Gazprom supplies 38.8 bcm of gas to China in 2025, for first time more than towards west – company*. Interfax. https://interfax.com/newsroom/top-stories/115552/.
 
 
-Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer.[^20] The report's hypothesis is that the gas sold to China therefore replaces the volumes lost in Europe, but not their revenue.
+Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer.[^20] The report's hypothesis is that the gas sold to China therefore replaces only part of the volumes lost in Europe, and less of their revenue.
 
 FIGURE: Figure 3: Russian exports by buyer and crude bought from Russia, 2020-2025
 
@@ -233,11 +233,11 @@ Crude export ports: Primorsk, Ust-Luga, Novorossiysk
 
 Russian crude that does not leave by pipeline leaves Russia through a few ports, mainly Primorsk and Ust-Luga on the Baltic, Novorossiysk on the Black Sea and Kozmino on the Pacific.[^40] Traffic at the first three, all goods included, held up despite the embargo: in 2025, it exceeded its 2021 level (figure 6).[^41]
 
-Sanctions ended up targeting these ports themselves. Since February 2025, an EU company can no longer deal with the ports on the Baltic and the Black Sea, and since April 2026 with Tuapse and Murmansk.[^42] Like the price cap, these measures bind only the companies of the coalition.
+Sanctions ended up targeting these ports themselves. Since February 2025, an EU company can no longer deal, save for listed exceptions, with the oil ports on the Baltic and the Black Sea, and since April 2026 with Tuapse and Murmansk.[^42] Like the price cap, these measures bind only EU companies.
 
 ### 2.5 The fleet
 
-To leave ports closed to companies of the coalition, the crude needs ships that do not depend on them. These are mostly the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance.[^43] Neither the cap nor the port ban touches them. The report's hypothesis is that their growth since the embargo explains why port traffic held up until 2025.
+To leave ports closed to companies of the coalition, the crude needs ships that do not depend on them. These are mostly the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance.[^43] Neither the cap nor the port ban touches them. The report's hypothesis is that their growth since the embargo helps explain why port traffic, all goods included, held up until 2025.
 
 [^40]: U.S. Department of the Treasury (2023), op. cit., n. 10 ; S&P Global Commodity Insights. (2024, January 10). *Russian Kozmino crude exports jump 9.4% in 2023 amid sanctions*. https://www.spglobal.com.
 
@@ -359,7 +359,7 @@ A payment in yuan is still exposed to US sanctions. A bank that settles in yuan 
 
 - **SPFS:** The Russian equivalent of SWIFT is open to foreign banks, which OFAC threatens to designate if they join it.[^74]
 
-The best-known payment agent, A7, hands each payment to a sub-agent in a third country, such as Hong Kong or Kyrgyzstan, and settles the counterparty in A7A5, a digital token worth one rouble.[^75] After the US, UK and EU designations in the second half of 2025, the daily volume of this token fell by 96% between July 2025 and June 2026.[^76]
+The best-known payment agent, A7, hands each payment to a sub-agent in a third country, such as Hong Kong or Kyrgyzstan, and settles the counterparty in A7A5, a digital token worth one rouble.[^75] After the US, UK and EU designations in the second half of 2025, then new Russian rules on crypto-assets and the loss of its points of access, the daily volume of this token fell by 96% between July 2025 and June 2026.[^76]
 
 [^67]: CELEX 32025R0395, Annex XI, p. 383; CELEX 32025R2033, p. 115; https://eur-lex.europa.eu.
 
@@ -402,7 +402,7 @@ Since 2022, the coalition no longer sells to Russia either its military technolo
 
 China and Hong Kong take the place of the coalition (figure 11), but in two different roles. China is above all a producer: for most of the dual-use technologies it sells to Russia, its exports rise without its imports rising, and re-export affects only a dozen high-technology products.[^82] Targeting China therefore hits production.
 
-Hong Kong plays another role, that of a platform. It takes a rising share of Russian imports of processors and integrated circuits, in place of the coalition, which may signal re-exported Western chips.[^83] Hong Kong applies only the sanctions decided by the UN Security Council, which do not target Russia: EU and US sanctions have no legal force there. This financial centre also lets a company hide its owner, and lets new companies be created or dissolved quickly. It is therefore a convenient place of transit
+Hong Kong plays another role, that of a platform. It takes a rising share of Russian imports of processors and integrated circuits, in place of the coalition, which may signal re-exported Western chips.[^83] Hong Kong applies only the sanctions decided by the UN Security Council, which do not target Russia: EU and US sanctions are not part of its law, although US export controls still follow goods of US origin. This financial centre also lets a company hide its owner, and lets new companies be created or dissolved quickly. It is therefore a convenient place of transit
 
 [^80]: CELEX 32014R0833, Arts. 2 and 4; European Commission. (2024, February). *List of common high priority items*. https://finance.ec.europa.eu/system/files/2023-09/list-common-high-priority-items_en.pdf; https://eur-lex.europa.eu.
 
@@ -421,7 +421,7 @@ FIGURE: Figure 11: Exports of CHP goods to Russia, 2021-2025
 
 ### 4.2 The price of the goods
 
-This change of suppliers has a price. From the spring of 2022, Russian imports became more expensive. The main cause is neither transport nor the detour through neighbouring countries. It is the margins of the suppliers that stayed on the market, which the departure of Western competitors lets them raise, in particular for strategic goods.[^86] Dependence on China sharpens this effect: the premium that Russia pays China for priority goods rises with the Chinese share of its purchases, and for computer numerical control machine tools, with no other seller, Russia must accept the Chinese price.[^87] Sanctions therefore do not cut off access to these
+This change of suppliers has a price. From the spring of 2022, Russian imports became more expensive. The main cause is neither transport nor the detour through neighbouring countries. According to the CEPII, it is probably the margins of the suppliers that stayed on the market, which the departure of Western competitors lets them raise, in particular for strategic goods.[^86] Dependence on China sharpens this effect: the premium that Russia pays China for priority goods rises with the Chinese share of its purchases, and for computer numerical control machine tools, with no other seller, Russia must accept the Chinese price.[^87] Sanctions therefore do not cut off access to these
 
 [^84]: Government of the Hong Kong Special Administrative Region. (2019). *LCQ2: Implementation of sanctions imposed by United Nations Security Council*. info.gov.hk/gia/general/201901/23/P2019012300436.htm; USCC. (2025). *China's facilitation of sanctions and export control evasion*. uscc.gov/research.
 
@@ -462,7 +462,7 @@ A sanction does not hit only the companies it names. In the United States, a com
 
 ### 5.1 The state and its holdings
 
-At the top, the state holds the large companies through a few holdings. A public holding that it owns outright is the first shareholder of Rosneft and, together with the Federal Agency for State Property Management (Rosimushchestvo), gives the state close to half of Gazprom.[^97] Gazprom in turn owns almost all of Gazprom Neft[^98] and is a main shareholder of Gazprombank.[^99] Likewise, the state holds all the voting rights of Transneft, which owns the holding of the port of Novorossiysk.[^100] A designation of any of them therefore reaches its subsidiaries owned 50% or more.
+According to the latest disclosures, at the top, the state holds the large companies through a few holdings. A public holding that it owns outright is the first shareholder of Rosneft and, together with the Federal Agency for State Property Management (Rosimushchestvo), gives the state close to half of Gazprom.[^97] Gazprom in turn owns almost all of Gazprom Neft[^98] and is a main shareholder of Gazprombank.[^99] Likewise, the state holds all the voting rights of Transneft, which owns the holding of the port of Novorossiysk.[^100] A designation of any of them therefore reaches its subsidiaries owned 50% or more.
 
 [^95]: Office of Foreign Assets Control. (2014, August 13). *Revised Guidance on Entities Owned by Persons Whose Property and Interests in Property Are Blocked*. https://ofac.treasury.gov ; Office of Foreign Assets Control. (n.d.). *FAQ 401*. https://ofac.treasury.gov/faqs/401.
 
@@ -519,7 +519,7 @@ Loyalty, by contrast, opens public contracts. Yevgeny Prigozhin came out of pris
 [^112]: See n. 106.
 
 
-Outside the state, the large private shareholders form a circle that the designation texts link to the president. Gennady Timchenko, an old acquaintance of Vladimir Putin, shares with Leonid Mikhelson the majority of a large petrochemical group and is a shareholder of Bank Rossiya.[^113] Mikhelson directly holds about 14% of Novatek.[^114] Yuri Kovalchuk, another close associate of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer SOGAZ.[^115] The circle reaches the family: in 2013 Kirill Shamalov married Katerina Tikhonova, the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]
+Outside the state, the large private shareholders form a circle that the designation texts link to the president. Gennady Timchenko, an old acquaintance of Vladimir Putin, shares with Leonid Mikhelson close to half of a large petrochemical group and is a shareholder of Bank Rossiya.[^113] Mikhelson directly holds about 14% of Novatek.[^114] Yuri Kovalchuk, another close associate of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer SOGAZ.[^115] The circle reaches the family: in 2013 Kirill Shamalov married Katerina Tikhonova, the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]
 
 State companies are run by associates who do not own them. Igor Sechin (Rosneft) is a personal friend of the president, and Nikolay Tokarev (Transneft) served with him in the KGB;[^117] Sergei Chemezov (Rostec) knew him in East Germany.[^118] These friends and former colleagues were given large public assets to manage, which made them "state oligarchs".[^119]
 
@@ -576,7 +576,7 @@ The report does not measure the effect of sanctions: where no source establishes
 
 - –**Reliability of sources:** Only official sources receive a reliability rating. Think-tank reports and the press are not rated, so the weight of the facts that come from them is not measured.
 
-- –**Mirror data:** Because Russia no longer publishes its trade by product, the report reads the declarations of its partners, which therefore give a minimum. The United Arab Emirates and Vietnam report no product-level data to UN Comtrade for 2024-2025, and Kazakhstan and Thailand report data only up to February 2024 and February 2025.[^126]
+- –**Mirror data:** Because Russia no longer publishes its trade by product, the report reads the declarations of its partners, which therefore cover only part of the trade. The United Arab Emirates and Vietnam report no product-level data to UN Comtrade for 2024-2025, and Kazakhstan and Thailand report data only up to February 2024 and February 2025.[^126]
 
 - –**The fleet:** Changes of owner and manager come from the GUR, a party to the conflict. It gives the vessel's current owner or manager and the date it took up the role, but rarely the first change after designation.[^127] The loss of the AIS identity tied to the IMO number, which the Global Fishing Watch registry makes visible, remains a lead, because that registry is not archived.
 
@@ -642,8 +642,8 @@ The three conditions of the Method section apply in the same way to all entities
 
 - –**Passes through a third country:** Either the entity's country of registration, or the flag of one of its vessels, or the country of a direct counterparty is one that does not apply the coalition's sanctions. A country read only from a company's name does not count while no archived document gives its address.
 
-Vessels of one management company, or failing that of one owner, form a single node. One act of designation can meet more than one condition; where no activity is observed, a new designation stands as proof of activity.
+Vessels of one management company, or failing that of one owner, form a single node. One act of designation can meet more than one condition; where no activity is observed, a new designation stands as a sign of activity: it dates an act of enforcement, not an observed flow.
 
 ### A.4 Checking facts and text
 
-No fact has been reviewed by a person: this is a choice of method. AI agents collect and archive the sources, then propose each fact with the excerpt of its source. Other agents, which start with a fresh context and did not propose that fact, check that the excerpt appears in the archived source and supports the fact, before validating it. Other facts still wait for a check or a better source. The few facts entered by hand carry a label that sets them apart from the facts produced by the agents. The counts, shares and medians are the author's calculations, which no review agent validates one by one. Each part of the text was reviewed by agents distinct from its writer, and those agents checked its sources one by one; and the author reviewed the text, not each fact against its source.
+No fact has been reviewed by a person: this is a choice of method. AI agents collect and archive the sources, then propose each fact with the excerpt of its source. Other agents, which start with a fresh context and did not propose that fact, check that the excerpt appears in the archived source and supports the fact. A failed check does not block the acceptance of a fact. Other facts still wait for a check or a better source. The few facts entered by hand carry a label that sets them apart from the facts produced by the agents. The counts, shares and medians are the author's calculations, which no review agent validates one by one. Each part of the text was reviewed by agents distinct from its writer, and those agents checked its sources one by one; and the author reviewed the text, not each fact against its source.
