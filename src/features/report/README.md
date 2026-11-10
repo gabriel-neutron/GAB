@@ -29,7 +29,8 @@ is, and the French label for each English name of the data. The frame sets the l
 page. A text switch in the part bar and on the notes page goes to the same anchor in the other
 locale.
 
-The French copy holds the French text (V4) of the author, in the blocks, figures and node marks of
+The French text is frozen at its last text: a change of the report text is made in English
+only (`docs/decisions.md`, PU2). The French copy holds the French text (V4) of the author, in the blocks, figures and node marks of
 the English page. Its notes keep the ids of the English text: a committed map joins each English
 note to its French twin, and the source module gives each French marker the English id of the same
 place. The French notes page marks an English note with no twin; no machine translation fills it.
