@@ -814,13 +814,18 @@ const checkEventEnds = async (
 // The name of an entity of the record, or of a new entity that waits in the queue, with its type
 // and the IMO number of a vessel: "ELBUS (vessel, IMO 9374325)".
 const END_NAME = `SELECT label, type, imo FROM (
-    SELECT label, type, attrs->'imo'->>'v' AS imo FROM api.entity WHERE id = $1
+    SELECT 1 AS rank, label, type, attrs->'imo'->'v' AS imo FROM api.entity WHERE id = $1
     UNION ALL
-    SELECT payload->>'label', payload->>'type', payload->'attrs'->'imo'->>'v' FROM api.proposal
-     WHERE id = $1 AND status = 'pending' AND op = 'create_entity') AS named LIMIT 1`;
+    SELECT 2, payload->>'label', payload->>'type', payload->'attrs'->'imo'->'v' FROM api.proposal
+     WHERE id = $1 AND status = 'pending' AND op = 'create_entity') AS named ORDER BY rank LIMIT 1`;
 
-const nameWords = (label: string, type: string, imo: unknown): string =>
-  `${label} (${type}${typeof imo === 'string' || typeof imo === 'number' ? `, IMO ${String(imo)}` : ''})`;
+// An attribute holds one value or a list of values, so a list gives each IMO number.
+const nameWords = (label: string, type: string, imo: unknown): string => {
+  const numbers = (Array.isArray(imo) ? imo : [imo]).filter(
+    (one) => typeof one === 'string' || typeof one === 'number',
+  );
+  return `${label} (${type}${numbers.length > 0 ? `, IMO ${numbers.join(', ')}` : ''})`;
+};
 
 // The checker reads no record, so an id of the record or a ref of the batch becomes the name of its
 // entity. An end that is a relation, or that no row names, gives null.
@@ -837,7 +842,7 @@ const endNameOf = async (
   if (!z.uuid().safeParse(id).success) return null;
   const [named] = await rowsOf(
     session,
-    z.strictObject({ label: z.string(), type: z.string(), imo: z.string().nullable() }),
+    z.strictObject({ label: z.string(), type: z.string(), imo: z.unknown() }),
     END_NAME,
     [id],
   );

@@ -68,7 +68,7 @@ export const checkEnvOf = (file: string | null, env: Env): Env => {
 };
 
 const NAME = 'research-check';
-// v2: the prompt of issue 1451 (dates as days, the date of a row, only the values that an act sets).
+// v2: the prompt compares days, reads the date of a row, and judges only the values that an act sets.
 const VERSION = 'v2';
 
 const PROMPT = readFileSync(new URL('./check-prompt.md', import.meta.url), 'utf8');

@@ -41,10 +41,11 @@ not a claim: do not judge it.
 ## A listing
 
 A relation `designated_by` or `restricted_by` whose target is a legal act or an authority is a
-listing. A row of the list of that act (an annex, an SDN entry, a notice) that names the source
-entity states the listing. The row does not need to say "designated": the list of the act is the
-designation, and the originator enacts it. Read the heading of the list in the context when the
-excerpt is the row.
+listing. A row that names the source entity states the listing when the passage shows that the row
+is in the list of the target: the heading, the document or the context names that act or that
+authority (an annex of that regulation, an SDN entry of that action, a notice). The row does not
+need to say "designated": the list of the act is the designation, and the originator enacts it. A
+row of the list of another act does not state the listing.
 
 ## Dates
 
@@ -55,9 +56,10 @@ excerpt is the row.
   not `not_supported`.
 - The date of a row is the date that the row gives: "Date of listing", "date of application",
   "Date Designated", "Listed on" or a column of the row. A row can have a date that is not the
-  date of the signature or of the publication of the regulation in the heading. When the act
-  gives the date of the row, the date is stated: do not dispute it because the regulation has
-  another date. The date of the act that adds the row is also stated.
+  date of the signature or of the publication of the regulation in the heading. Compare the date
+  of the act with the date of the row. When they are the same day, the date is stated: do not
+  dispute it because the regulation has another date. When the row gives no date, the date from
+  which the passage says the row applies is stated.
 
 ## A vessel
 
@@ -65,14 +67,14 @@ A vessel can change its name, and its IMO number stays. When the passage gives t
 the vessel of the act, the passage names that vessel, also with another name. A name that is
 different is not a reason for `not_supported` when the IMO numbers are the same. Only an IMO number
 that is different makes a different vessel. The IMO number in `source` or `target` comes from the
-record: a passage that names the vessel and gives no IMO number still states it.
+record. A passage that gives no IMO number states the vessel only when it gives the same name.
 
 ## The excerpt and the context
 
 Read the `excerpt` and its `context` together. The excerpt can be a heading, and the row that names
-the entity can follow it in the context, or the reverse. A value is stated when the context gives it
-in the same row or sentence as the excerpt, or under the heading that the excerpt is. A value of a
-row of another entity is not stated.
+the entity can follow it in the context. A value is stated when the context gives it in the same row
+or sentence as the name of the entity, or when it is a heading that clearly applies to that row. A
+value of a row of another entity, or of another section, is not stated.
 
 ## A passage that gives a weekday only
 
