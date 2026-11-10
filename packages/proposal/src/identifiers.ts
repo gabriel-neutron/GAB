@@ -8,6 +8,9 @@ export const IDENTIFIER_KEY = [
   'mmsi_history',
   'call_sign',
   'former_names',
+  // `flag` is the flag that a source gives as the flag of today ("Current Believed Flag Of Ships").
+  // `flag_history` holds only the former flags that a source states (#1452).
+  'flag',
   'flag_history',
   'imo_company_number',
   'lei',
@@ -45,7 +48,7 @@ export const identifierKey = z.enum(IDENTIFIER_KEY);
 /** The spellings that each entity type carries. A spelling can serve more than one type. A
  * port and a facility keep their outline in the geometry of the row, and not as an attribute. */
 export const IDENTIFIER_KEYS = {
-  vessel: ['imo', 'mmsi_history', 'call_sign', 'former_names', 'flag_history'],
+  vessel: ['imo', 'mmsi_history', 'call_sign', 'former_names', 'flag', 'flag_history'],
   company: [
     'imo_company_number',
     'lei',

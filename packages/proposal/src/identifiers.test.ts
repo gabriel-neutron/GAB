@@ -38,6 +38,10 @@ test('the list of spellings and the map by entity type hold the same spellings',
   expect(mapped).toStrictEqual(new Set(IDENTIFIER_KEY));
 });
 
+test('a vessel keeps its current flag apart from its former flags', () => {
+  expect(IDENTIFIER_KEYS.vessel).toEqual(expect.arrayContaining(['flag', 'flag_history']));
+});
+
 test('the schema of a spelling refuses a spelling that is not on the list', () => {
   expect(identifierKey.safeParse('imo').success).toBe(true);
   expect(identifierKey.safeParse('imo_number').success).toBe(false);
