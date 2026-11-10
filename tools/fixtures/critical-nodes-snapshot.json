@@ -1,0 +1,12 @@
+[
+  {"id": "n01", "designated": true, "active": true, "countries": ["HK"]},
+  {"id": "n02", "designated": true, "active": true, "countries": ["AE"]},
+  {"id": "n03", "designated": true, "active": true, "countries": ["DE"]},
+  {"id": "n04", "designated": true, "active": false, "countries": ["CN"]},
+  {"id": "n05", "designated": true, "active": false, "countries": []},
+  {"id": "n06", "designated": true, "active": false, "countries": ["US"]},
+  {"id": "n07", "designated": false, "active": true, "countries": ["TR"]},
+  {"id": "n08", "designated": false, "active": true, "countries": ["FR"]},
+  {"id": "n09", "designated": false, "active": false, "countries": ["IN"]},
+  {"id": "n10", "designated": false, "active": false, "countries": ["DE", "PA"]}
+]

@@ -1222,6 +1222,10 @@ export const parts: ReportPart[] = [
         kind: 'p',
         text: 'Vessels of one management company, or failing that of one owner, form a single node. One act of designation can meet more than one condition; where no activity is observed, a new designation stands as a sign of activity: it dates an act of enforcement, not an observed flow.',
       },
+      {
+        kind: 'p',
+        text: 'The published count of critical nodes (493: 450 nodes of the record and 43 nodes of a first list that the record does not link yet) comes from a selection test that the author ran on 27 October 2026. The query of that test is not kept, and the figure of 416 nodes on an official source has no stored definition, so neither can be rebuilt. The repository holds a script that applies the three conditions above to the record, and its result does not equal the published count. The release table of critical nodes uses another rule, two sourced conditions of three, and it is not the rule of this count.',
+      },
       { kind: 'h3', text: 'A.4 Checking facts and text' },
       {
         kind: 'p',
