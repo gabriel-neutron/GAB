@@ -16,6 +16,7 @@ export const englishSource: Source = {
     ['ownership', '## 5 Who owns what'],
     ['limits', '## 6 Limitations'],
     ['conclusion', '## Conclusion'],
+    ['recommendations', '## Recommendations'],
     ['annex-method', '## Annex A Research method'],
   ],
 };

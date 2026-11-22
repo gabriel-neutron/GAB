@@ -18,7 +18,7 @@ describe('record counts', () => {
       `On ${day}, the database holds ${format.format(counts.entities)} entities`,
     );
     expect(text).toContain(`In total, ${format.format(counts.critical)} nodes are critical`);
-    expect(text).toContain(`For at least ${format.format(counts.official)} of them`);
+    expect(text).toContain(`For ${format.format(counts.official)} of them`);
     expect(counts.official).toBeLessThanOrEqual(counts.critical);
   });
 

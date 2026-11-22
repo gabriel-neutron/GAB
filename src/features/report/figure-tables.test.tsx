@@ -53,7 +53,7 @@ describe.each([['en', en]] as const)('the figures of the %s page', (lang, copy) 
   );
   const layersTitle = numbered.find((one) => one.number === 2)?.title;
   // Two figures are text, not a chart: the summary chart prints each value under its bar, and the
-  // layer diagram is cards of words with the count of each layer.
+  // layer diagram is cards of words, with no count of its own layer.
   const summary = all.filter((one) => one.includes(copy.openingUi.summary.chart.label));
   const layers = all.filter((one) => layersTitle !== undefined && one.includes(layersTitle));
   const charts = all.filter((one) => !summary.includes(one) && !layers.includes(one));
@@ -74,13 +74,12 @@ describe.each([['en', en]] as const)('the figures of the %s page', (lang, copy) 
       expect(summary[0]).toContain(`${String(year)}: ${String(Math.round(value ?? 0))}%`);
   });
 
-  it('gives each card of the layer diagram the count of its own layer', () => {
+  it('gives no card of the layer diagram a count of its own layer', () => {
+    // The release gives no layer, so the count of critical nodes stays a total (Annex A.3).
     const cards = (layers[0] ?? '').split('lg:grid-rows-subgrid').slice(1);
     expect(cards).toHaveLength(LAYERS.length);
     LAYERS.forEach((layer, index) => {
-      const count = criticalLayers.get(layer);
-      expect(count).toBeGreaterThan(0);
-      expect(cards[index]).toContain(`>${String(count)}<`);
+      expect(cards[index]).not.toContain(`>${String(criticalLayers.get(layer))}<`);
     });
   });
 
