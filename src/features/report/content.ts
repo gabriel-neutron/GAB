@@ -920,7 +920,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Loyalty, by contrast, opens public contracts. According to the BBC, Yevgeny Prigozhin came out of prison, opened hot-dog stands in Saint Petersburg, then a restaurant where the president, once elected, received his foreign guests; his company Concord then won the Kremlin\'s catering contracts.[^109] According to the US Treasury, which designated the Internet Research Agency in 2018, he funded the operations of that agency; in 2022, he admitted that he had founded the Wagner group in 2014.[^110] He died in a plane crash on 23 August 2023, exactly two months after his mutiny.[^111] NPR sees one rule in both paths: Putin "didn\'t actually eliminate the oligarchy"; he "only targeted individual oligarchs who threatened his power."[^112]',
+        text: 'Loyalty, by contrast, opens public contracts. According to the BBC, Yevgeny Prigozhin came out of prison, opened hot-dog stands in Saint Petersburg, then a restaurant where the president, once elected, received his foreign guests; his company Concord then won the Kremlin\'s catering contracts.[^109] According to the US Treasury, which designated the Internet Research Agency in 2018, he funded the operations of that agency; according to Reuters, in 2022 he admitted that he had founded the Wagner group in 2014.[^110] He died in a plane crash on 23 August 2023, exactly two months after his mutiny.[^111] NPR writes that Putin "didn\'t actually eliminate the oligarchy"; he "only targeted individual oligarchs who threatened his power."[^112]',
       },
       {
         kind: 'p',
