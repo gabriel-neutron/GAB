@@ -18,7 +18,7 @@ export const report = {
     'Urals is also the reference price used to calculate Russia’s mineral extraction tax. A deeper discount reduces what the state receives from each barrel. Continued exports and unchanged revenues are not the same thing.',
   ],
   limit:
-    'The flows shown here describe loading basins only. No published source in the report links a fleet category to an individual buyer. The author read and reviewed the whole report; the facts of the database are checked by rules and by AI agents, not one by one by a person.',
+    'The flows shown here describe loading basins only. No published source in the report links a fleet category to an individual buyer. The authors read and reviewed the whole report; the facts of the database are checked by rules and by AI agents, not one by one by a person.',
 };
 export const basins = [
   { name: 'Baltic', crude: 1460, products: 1551 },
@@ -109,7 +109,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Ownership chains:** The 50% rule follows shares: the chains of the large state companies end at the state, but in the private fleet and in oil trading they often end at a company with no documented owner, and about fifteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner.',
+        text: '**Ownership chains:** The 50% rule follows shares: the chains of the large state companies end at the state, but in the private fleet and in oil trading they often end at a company with no documented owner, and, according to the sanctions lists and, for part of them, to GUR, a party to the war, about fifteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner.',
       },
       {
         kind: 'li',
@@ -141,13 +141,13 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: '*This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. The author(s) are solely responsible for the content and conclusions presented.*',
+        text: '*This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. The authors are solely responsible for the content and conclusions presented. This report is under CC BY 4.0: name the authors, link the licence and mark each change. Figure 8 is not under CC BY 4.0: it uses Global Fishing Watch data under CC BY-NC 4.0, so do not use it for a commercial purpose.*',
       },
     ],
     notes: [
       {
         id: '1',
-        text: "Author's calculations based on Bahí Esteba, A. et al. (2026, September 21). *Russian foreign trade tracker* (35th ed.) [Data]. Bruegel. https://www.bruegel.org, fig. 2.",
+        text: "Authors' calculations based on Bahí Esteba, A. et al. (2026, September 21). *Russian foreign trade tracker* (35th ed.) [Data]. Bruegel. https://www.bruegel.org, fig. 2.",
       },
       {
         id: '2',
@@ -155,7 +155,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '3',
-        text: "Author's calculations based on Ministry of Finance of the Russian Federation. (2026a). *Приложение 3.1. Краткая информация об исполнении федерального бюджета (млрд руб.)* [Annex 3.1. Short information on the execution of the federal budget (billion roubles)]. https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub, lines 1, 1.1 and 1.2; Ministry of Finance of the Russian Federation. (2026b). *Предварительная оценка исполнения федерального бюджета за январь-сентябрь 2026 года* [Preliminary estimate of the execution of the federal budget for January–September 2026]. https://minfin.gov.ru/ru/press-center/?id_4=40677.",
+        text: "Authors' calculations based on Ministry of Finance of the Russian Federation. (2026a). *Приложение 3.1. Краткая информация об исполнении федерального бюджета (млрд руб.)* [Annex 3.1. Short information on the execution of the federal budget (billion roubles)]. https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub, lines 1, 1.1 and 1.2; Ministry of Finance of the Russian Federation. (2026b). *Предварительная оценка исполнения федерального бюджета за январь-сентябрь 2026 года* [Preliminary estimate of the execution of the federal budget for January–September 2026]. https://minfin.gov.ru/ru/press-center/?id_4=40677.",
       },
       {
         id: '4',
@@ -163,7 +163,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '5',
-        text: "Author's calculations based on UN Comtrade. (2026, October 25). *UN Comtrade database* [Data]. https://comtradeplus.un.org/.",
+        text: "Authors' calculations based on UN Comtrade. (2026, October 25). *UN Comtrade database* [Data]. https://comtradeplus.un.org/.",
       },
     ],
     nodeIds: ['N-P026', 'N-P030'],
@@ -207,11 +207,11 @@ export const parts: ReportPart[] = [
       },
       {
         id: '8',
-        text: 'Author\'s calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, line 2.2 "Национальная оборона" [National defence], year 2021; Korsunskaya, D. (2024, September 30). *Траты России на оборону в 25г вырастут до 13,5 трлн р, более чем вдвое обогнав социальные расходы* [Russian defence spending in 2025 will rise to 13.5 trillion roubles, more than twice social spending]. Reuters, in The Moscow Times (Russian service). https://ru.themoscowtimes.com/2024/09/30/update-1-traty-rossii-na-oboronu-v-25g-vyrastut-do-135-trln-r-bolee-chem-vdvoe-obognav-sotsialnye-raskhody-a143572; World Bank. (2026). *Inflation, GDP deflator (annual %) – Russian Federation (NY.GDP.DEFL.KD.ZG)*. https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG.',
+        text: 'Authors\' calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, line 2.2 "Национальная оборона" [National defence], year 2021; Korsunskaya, D. (2024, September 30). *Траты России на оборону в 25г вырастут до 13,5 трлн р, более чем вдвое обогнав социальные расходы* [Russian defence spending in 2025 will rise to 13.5 trillion roubles, more than twice social spending]. Reuters, in The Moscow Times (Russian service). https://ru.themoscowtimes.com/2024/09/30/update-1-traty-rossii-na-oboronu-v-25g-vyrastut-do-135-trln-r-bolee-chem-vdvoe-obognav-sotsialnye-raskhody-a143572; World Bank. (2026). *Inflation, GDP deflator (annual %) – Russian Federation (NY.GDP.DEFL.KD.ZG)*. https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG.',
       },
       {
         id: '9',
-        text: "Author's calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, line 1.1; World Bank (2026), op. cit., n. 8.",
+        text: "Authors' calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, line 1.1; World Bank (2026), op. cit., n. 8.",
       },
     ],
     nodeIds: [],
@@ -256,13 +256,13 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: 'Figure 2: The three layers of the Russian war economy and their links. Diagram by the author.',
+        text: 'Figure 2: The three layers of the Russian war economy and their links. Diagram by the authors.',
         figure: {
           number: 2,
           title: 'The three layers of the Russian war economy and their links',
           unit: '',
           period: '',
-          sources: 'Diagram by the author.',
+          sources: 'Diagram by the authors.',
         },
       },
       {
@@ -340,14 +340,14 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 3: Russian exports by buyer and crude bought from Russia, 2020-2025. Data: Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026); CREA (2026). Author's calculations.[^21]",
+        text: "Figure 3: Russian exports by buyer and crude bought from Russia, 2020-2025. Data: Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026); CREA (2026). Authors' calculations.[^21]",
         figure: {
           number: 3,
           title: 'Russian exports by buyer and crude bought from Russia',
           unit: 'billion US dollars; million tonnes',
           period: '2020-2025',
           sources:
-            "Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026); CREA (2026). Author's calculations.[^21]",
+            "Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026); CREA (2026). Authors' calculations.[^21]",
         },
       },
       { kind: 'h3', text: 'The price and the cap' },
@@ -390,14 +390,14 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 5: Oil, gas and defence in the federal budget, 2014-2026. Data: Ministry of Finance of Russia (2026); Korsunskaya (2024); World Bank (2026). Author's calculations.[^37]",
+        text: "Figure 5: Oil, gas and defence in the federal budget, 2014-2026. Data: Ministry of Finance of Russia (2026); Korsunskaya (2024); World Bank (2026). Authors' calculations.[^37]",
         figure: {
           number: 5,
           title: 'Oil, gas and defence in the federal budget',
           unit: '%; trillion 2021 roubles',
           period: '2014-2026',
           sources:
-            "Ministry of Finance of Russia (2026); Korsunskaya (2024); World Bank (2026). Author's calculations.[^37]",
+            "Ministry of Finance of Russia (2026); Korsunskaya (2024); World Bank (2026). Authors' calculations.[^37]",
         },
       },
       {
@@ -412,7 +412,7 @@ export const parts: ReportPart[] = [
     notes: [
       {
         id: '12',
-        text: "Author's calculations based on World Bank. (2026). *Oil rents (% of GDP) – Russian Federation (NY.GDP.PETR.RT.ZS)*. https://api.worldbank.org ; World Bank. (2026). *Natural gas rents (% of GDP) – Russian Federation (NY.GDP.NGAS.RT.ZS)*. https://api.worldbank.org.",
+        text: "Authors' calculations based on World Bank. (2026). *Oil rents (% of GDP) – Russian Federation (NY.GDP.PETR.RT.ZS)*. https://api.worldbank.org ; World Bank. (2026). *Natural gas rents (% of GDP) – Russian Federation (NY.GDP.NGAS.RT.ZS)*. https://api.worldbank.org.",
       },
       {
         id: '13',
@@ -420,13 +420,13 @@ export const parts: ReportPart[] = [
       },
       {
         id: '14',
-        text: "Author's calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, lines 1 and 1.1, year 2021.",
+        text: "Authors' calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, lines 1 and 1.1, year 2021.",
       },
       { id: '15', text: 'CELEX 32022R0879, Art. 3m ; https://eur-lex.europa.eu.' },
       { id: '16', text: 'CELEX 32026R0261, recitals 1 and 10 ; https://eur-lex.europa.eu.' },
       {
         id: '17',
-        text: "Bahí Esteba et al. (2026), op. cit., n. 1, fig. 2 ; Author's calculations based on UN Comtrade (2026), op. cit., n. 5.",
+        text: "Bahí Esteba et al. (2026), op. cit., n. 1, fig. 2 ; Authors' calculations based on UN Comtrade (2026), op. cit., n. 5.",
       },
       {
         id: '18',
@@ -460,7 +460,7 @@ export const parts: ReportPart[] = [
       { id: '29', text: 'Dodonov et al. (2026), op. cit., n. 2, p. 2.' },
       {
         id: '30',
-        text: "Author's calculations based on World Bank. (2026, October 2). *Commodity Price Data (The Pink Sheet)* [Data, monthly prices]. https://www.worldbank.org/en/research/commodity-markets ; Federal Tax Service of Russia. (2023–2026). [Data for the calculation of the mineral extraction tax, monthly releases]. https://www.nalog.gov.ru/rn77/news/activities_fts/ (one page per month, for example *Опубликованы данные для расчёта НДПИ и НДД, а также акциза на нефтяное сырье за июль 2026 года* [Data published for the calculation of the mineral extraction tax and the additional income tax, and of the excise on crude, for July 2026], https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/). Urals: monthly average price published by the Ministry of Economic Development; Brent: World Bank monthly average.",
+        text: "Authors' calculations based on World Bank. (2026, October 2). *Commodity Price Data (The Pink Sheet)* [Data, monthly prices]. https://www.worldbank.org/en/research/commodity-markets ; Federal Tax Service of Russia. (2023–2026). [Data for the calculation of the mineral extraction tax, monthly releases]. https://www.nalog.gov.ru/rn77/news/activities_fts/ (one page per month, for example *Опубликованы данные для расчёта НДПИ и НДД, а также акциза на нефтяное сырье за июль 2026 года* [Data published for the calculation of the mineral extraction tax and the additional income tax, and of the excise on crude, for July 2026], https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/). Urals: monthly average price published by the Ministry of Economic Development; Brent: World Bank monthly average.",
       },
       { id: '31', text: 'Kpler (2025), op. cit., n. 18.' },
       {
@@ -482,7 +482,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '37',
-        text: "Author's calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, lines 1, 1.1 and 2.2 ; Ministry of Finance of the Russian Federation (2026b), op. cit., n. 3 ; Korsunskaya (2024), op. cit., n. 8 ; World Bank (2026), op. cit., n. 8.",
+        text: "Authors' calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, lines 1, 1.1 and 2.2 ; Ministry of Finance of the Russian Federation (2026b), op. cit., n. 3 ; Korsunskaya (2024), op. cit., n. 8 ; World Bank (2026), op. cit., n. 8.",
       },
       {
         id: '38',
@@ -546,13 +546,13 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 8: Port calls of designated tankers after their designation. Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations. Powered by Global Fishing Watch.[^50]",
+        text: "Figure 8: Port calls of designated tankers after their designation. Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations. Powered by Global Fishing Watch.[^50]",
         figure: {
           number: 8,
           title: 'Port calls of designated tankers after their designation',
           unit: 'ships',
           sources:
-            "Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations. Powered by Global Fishing Watch.[^50]",
+            "Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations. Powered by Global Fishing Watch.[^50]",
         },
       },
       {
@@ -569,12 +569,12 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 9: Tankers designated by the EU, the United Kingdom and OFAC. Data: Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations.[^52]",
+        text: "Figure 9: Tankers designated by the EU, the United Kingdom and OFAC. Data: Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations.[^52]",
         figure: {
           number: 9,
           title: 'Tankers designated by the EU, the United Kingdom and OFAC',
           sources:
-            "Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations.[^52]",
+            "Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations.[^52]",
         },
       },
     ],
@@ -599,7 +599,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '46',
-        text: "Author's calculations based on Global Fishing Watch (2026). https://globalfishingwatch.org, CC BY-NC 4.0, non-commercial use ; OFAC (2026). https://sanctionslistservice.ofac.treas.gov ; FCDO (2026). https://sanctionslist.fcdo.gov.uk ; CELEX 32014R0833 ; https://eur-lex.europa.eu.",
+        text: "Authors' calculations based on Global Fishing Watch (2026). https://globalfishingwatch.org, CC BY-NC 4.0, non-commercial use ; OFAC (2026). https://sanctionslistservice.ofac.treas.gov ; FCDO (2026). https://sanctionslist.fcdo.gov.uk ; CELEX 32014R0833 ; https://eur-lex.europa.eu.",
       },
       { id: '47', text: 'Dodonov et al. (2026), op. cit., n. 2, p. 2.' },
       {
@@ -608,16 +608,16 @@ export const parts: ReportPart[] = [
       },
       {
         id: '49',
-        text: "Author's calculations based on OFAC (2026), op. cit., n. 46 ; CELEX 32014R0833 ; https://eur-lex.europa.eu.",
+        text: "Authors' calculations based on OFAC (2026), op. cit., n. 46 ; CELEX 32014R0833 ; https://eur-lex.europa.eu.",
       },
       { id: '50', text: 'See n. 46.' },
       {
         id: '51',
-        text: "Author's calculations based on GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua ; replay with tools/gur-owner-change.ts in the project repository.",
+        text: "Authors' calculations based on GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua ; replay with tools/gur-owner-change.ts in the project repository.",
       },
       {
         id: '52',
-        text: "Author's calculations based on OFAC (2026), op. cit., n. 46 ; FCDO (2026), op. cit., n. 46 ; CELEX 32014R0833, retrieved October 30, 2026 ; https://eur-lex.europa.eu.",
+        text: "Authors' calculations based on OFAC (2026), op. cit., n. 46 ; FCDO (2026), op. cit., n. 46 ; CELEX 32014R0833, retrieved October 30, 2026 ; https://eur-lex.europa.eu.",
       },
     ],
   },
@@ -798,13 +798,13 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 11: Exports of CHP goods to Russia, 2021-2025. Data: UN Comtrade (2026); Risinger et al. (2026). Author's calculations.[^85]",
+        text: "Figure 11: Exports of CHP goods to Russia, 2021-2025. Data: UN Comtrade (2026); Risinger et al. (2026). Authors' calculations.[^85]",
         figure: {
           number: 11,
           title: 'Exports of CHP goods to Russia',
           unit: 'million current US dollars',
           period: '2021-2025',
-          sources: "UN Comtrade (2026); Risinger et al. (2026). Author's calculations.[^85]",
+          sources: "UN Comtrade (2026); Risinger et al. (2026). Authors' calculations.[^85]",
         },
       },
       { kind: 'h3', text: 'The price of the goods' },
@@ -842,7 +842,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '85',
-        text: "Author's calculations based on UN Comtrade (2026), op. cit., n. 5; Risinger et al. (2026), op. cit., n. 81, p. 3.",
+        text: "Authors' calculations based on UN Comtrade (2026), op. cit., n. 5; Risinger et al. (2026), op. cit., n. 81, p. 3.",
       },
       {
         id: '86',
@@ -850,14 +850,14 @@ export const parts: ReportPart[] = [
       },
       { id: '87', text: 'Risinger & Hilgenstock (2026), op. cit., n. 83, pp. 5–6.' },
       { id: '88', text: 'Risinger et al. (2026), op. cit., n. 81, p. 7.' },
-      { id: '89', text: "Author's calculations based on UN Comtrade (2026), op. cit., n. 5." },
+      { id: '89', text: "Authors' calculations based on UN Comtrade (2026), op. cit., n. 5." },
       {
         id: '90',
         text: 'Byrne, J. et al. (2022, August). *Silicon Lifeline*. Royal United Services Institute. https://static.rusi.org/RUSI-Silicon-Lifeline-final-updated-web_1.pdf, p. 24.',
       },
       {
         id: '91',
-        text: "Author's calculations based on Conflict Armament Research, & Hayes, D. (2025). *Tracking the Components of Missiles and UAVs Used by Russia in Ukraine*. IISS. https://www.iiss.org; Byrne et al. (2022), op. cit., n. 90; GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua.",
+        text: "Authors' calculations based on Conflict Armament Research, & Hayes, D. (2025). *Tracking the Components of Missiles and UAVs Used by Russia in Ukraine*. IISS. https://www.iiss.org; Byrne et al. (2022), op. cit., n. 90; GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua.",
       },
       {
         id: '92',
@@ -869,7 +869,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '94',
-        text: "Author's calculations based on GUR. (2026, October 28). *Components in the aggressor's weapon*. War & Sanctions. https://war-sanctions.gur.gov.ua; Bilousova, O., Hilgenstock, B. et al. (2024, January). *Challenges of Export Controls Enforcement*. KSE Institute. https://kse.ua, p. 16.",
+        text: "Authors' calculations based on GUR. (2026, October 28). *Components in the aggressor's weapon*. War & Sanctions. https://war-sanctions.gur.gov.ua; Bilousova, O., Hilgenstock, B. et al. (2024, January). *Challenges of Export Controls Enforcement*. KSE Institute. https://kse.ua, p. 16.",
       },
     ],
   },
@@ -925,12 +925,12 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 12: Who owns oil, gas and the fleet. Data: OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024). Author's calculations.[^101]",
+        text: "Figure 12: Who owns oil, gas and the fleet. Data: OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024). Authors' calculations.[^101]",
         figure: {
           number: 12,
           title: 'Who owns oil, gas and the fleet',
           sources:
-            "OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024). Author's calculations.[^101]",
+            "OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024). Authors' calculations.[^101]",
         },
       },
       { kind: 'h3', text: 'The fleet' },
@@ -949,7 +949,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: "Outside the state, the large private shareholders form a circle that the designation texts link to the president. [[N-O023|Gennady Timchenko]], a long-time acquaintance of [[N-O024|Vladimir Putin]], shares with [[N-O032|Leonid Mikhelson]] close to half of a large petrochemical group and is a shareholder of [[N-O029|Bank Rossiya]].[^113] Mikhelson directly holds about 14% of [[N-O027|Novatek]].[^114] [[N-O030|Yuri Kovalchuk]], another long-time acquaintance of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer [[N-O031|SOGAZ]].[^115] The circle reaches the family: according to the US Treasury, in 2013 [[N-O033|Kirill Shamalov]] married [[N-O034|Katerina Tikhonova]], the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]",
+        text: "Outside the state, the large private shareholders form a circle that the designation texts link to the president. [[N-O023|Gennady Timchenko]], a long-time acquaintance of [[N-O024|Vladimir Putin]], holds, with [[N-O032|Leonid Mikhelson]], the majority stakes in a large petrochemical group and is a shareholder of [[N-O029|Bank Rossiya]].[^113] Mikhelson directly holds about 14% of [[N-O027|Novatek]].[^114] [[N-O030|Yuri Kovalchuk]], another long-time acquaintance of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer [[N-O031|SOGAZ]].[^115] The circle reaches the family: according to the US Treasury, in 2013 [[N-O033|Kirill Shamalov]] married [[N-O034|Katerina Tikhonova]], the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]",
       },
       {
         kind: 'p',
@@ -970,15 +970,15 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Vessels:** About fifteen shipowners or managers each own or operate at least six designated vessels, with no documented ultimate owner.',
+        text: '**Vessels:** According to the sanctions lists and, for part of them, to GUR, a party to the war, about fifteen shipowners or managers each own or operate at least six designated vessels, with no documented ultimate owner.[^124]',
       },
       {
         kind: 'li',
-        text: "**[[N-O042|Surgutneftegaz]]:** The country's third-largest oil company, run by [[N-O041|Vladimir Bogdanov]], a close associate of the president, had not published its full ownership structure, according to The Moscow Times (2013).[^124]",
+        text: "**[[N-O042|Surgutneftegaz]]:** The country's third-largest oil company, run by [[N-O041|Vladimir Bogdanov]], a close associate of the president, had not published its full ownership structure, according to The Moscow Times (2013).[^125]",
       },
       {
         kind: 'p',
-        text: 'The report hypothesises that this opacity protects these companies: the 50% rule applies in law, but nobody can apply it without knowing the chain of shares.[^125] What remains is to designate each company for its activity and to attach each new manager to the group it replaces, as the Council did for Citrine Marine and Nord Axis.',
+        text: 'The report hypothesises that this opacity protects these companies: the 50% rule applies in law, but nobody can apply it without knowing the chain of shares.[^126] What remains is to designate each company for its activity and to attach each new manager to the group it replaces, as the Council did for Citrine Marine and Nord Axis.',
       },
     ],
     notes: [
@@ -1091,9 +1091,13 @@ export const parts: ReportPart[] = [
       },
       {
         id: '124',
+        text: "Authors' calculations based on OFAC (2026), op. cit., n. 46 ; FCDO (2026), op. cit., n. 46 ; CELEX 32014R0833 ; GUR (2026), op. cit., n. 51: the companies that own or operate at least six designated vessels, and whose owner no source names.",
+      },
+      {
+        id: '125',
         text: 'CELEX 02014R0269-20260928, annex I, entry "Vladimir Leonidovich BOGDANOV" ; The Moscow Times. (2013, April 30). *Surgut Discloses $29Bln Cash Hoard*. https://www.themoscowtimes.com/2013/04/30/surgut-discloses-29bln-cash-hoard-a23733 ; https://eur-lex.europa.eu.',
       },
-      { id: '125', text: 'OFAC (2014), op. cit., n. 95 ; OFAC (n.d.), op. cit., n. 95.' },
+      { id: '126', text: 'OFAC (2014), op. cit., n. 95 ; OFAC (n.d.), op. cit., n. 95.' },
     ],
   },
   {
@@ -1121,15 +1125,15 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Mirror data:** Because Russia no longer publishes its trade by product, the report reads the declarations of its partners, which therefore cover only part of the trade. The United Arab Emirates and Vietnam report no product-level data to UN Comtrade for 2024-2025, and Kazakhstan and Thailand report data only up to February 2024 and February 2025.[^126]',
+        text: '**Mirror data:** Because Russia no longer publishes its trade by product, the report reads the declarations of its partners, which therefore cover only part of the trade. The United Arab Emirates and Vietnam report no product-level data to UN Comtrade for 2024-2025, and Kazakhstan and Thailand report data only up to February 2024 and February 2025.[^127]',
       },
       {
         kind: 'li',
-        text: "**The fleet:** Changes of owner and manager come from the GUR, a party to the conflict. It gives the vessel's current owner or manager and the date it took up the role, but rarely the first change after designation.[^127] The loss of the AIS identity tied to the IMO number, which the Global Fishing Watch registry makes visible, remains a lead, because that registry is not archived.",
+        text: "**The fleet:** Changes of owner and manager come from the GUR, a party to the conflict. It gives the vessel's current owner or manager and the date it took up the role, but rarely the first change after designation.[^128] The loss of the AIS identity tied to the IMO number, which the Global Fishing Watch registry makes visible, remains a lead, because that registry is not archived.",
       },
       {
         kind: 'p',
-        text: 'Finally, the author read and reviewed the whole report, but the facts of the database are checked by rules and by AI agents, not one by one by a person (Annex A). As a result, each fact must be checked at its source before it is used for a designation.',
+        text: 'Finally, the authors read and reviewed the whole report, but the facts of the database are checked by rules and by AI agents, not one by one by a person (Annex A). As a result, each fact must be checked at its source before it is used for a designation.',
       },
       { kind: 'h3', text: 'Research leads' },
       { kind: 'p', text: 'These limits point to directions for research:' },
@@ -1152,11 +1156,11 @@ export const parts: ReportPart[] = [
     ],
     notes: [
       {
-        id: '126',
+        id: '127',
         text: 'UN Comtrade (2026), op. cit., n. 5 ; Risinger et al. (2026), op. cit., n. 81, p. 3.',
       },
       {
-        id: '127',
+        id: '128',
         text: 'Main Directorate of Intelligence of the Ministry of Defence of Ukraine (GUR) (2026), op. cit., n. 51 ; Global Fishing Watch (2026), op. cit., n. 46, CC BY-NC 4.0, non-commercial use.',
       },
     ],
@@ -1291,7 +1295,7 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'A.4 Checking facts and text' },
       {
         kind: 'p',
-        text: "The author read and reviewed the whole report. AI was used for four jobs: to tag the sources, to run the verification and cross-check loops, to assist the drafting and the translation, and to search for blind spots. AI agents collect and archive the sources, then propose each fact with the excerpt of its source. Other agents, which start with a fresh context and did not propose that fact, check that the excerpt appears in the archived source and supports the fact. A failed check does not block the acceptance of a fact. Other facts still wait for a check or a better source. The few facts entered by hand carry a label that sets them apart from the facts produced by the agents. The counts, shares and medians are the author's calculations, which no review agent validates one by one. Each part of the text was reviewed by agents distinct from its writer, and those agents checked its sources one by one. The author did not check each fact of the database against its source.",
+        text: "The authors read and reviewed the whole report. AI was used for four jobs: to tag the sources, to run the verification and cross-check loops, to assist the drafting and the translation, and to search for blind spots. AI agents collect and archive the sources, then propose each fact with the excerpt of its source. Other agents, which start with a fresh context and did not propose that fact, check that the excerpt appears in the archived source and supports the fact. A failed check does not block the acceptance of a fact. Other facts still wait for a check or a better source. The few facts entered by hand carry a label that sets them apart from the facts produced by the agents. The counts, shares and medians are the authors' calculations, which no review agent validates one by one. Each part of the text was reviewed by agents distinct from its writer, and those agents checked its sources one by one. The authors did not check each fact of the database against its source.",
       },
       { kind: 'h3', text: 'A.5 Ethics, security and independence' },
       {
@@ -1308,7 +1312,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Independence:** The author is solely responsible for the content. Claims of the GUR remain attributed to it.',
+        text: '**Independence:** The authors are solely responsible for the content. Claims of the GUR remain attributed to it.',
       },
     ],
     notes: [],
@@ -1680,9 +1684,9 @@ export const figureTexts = {
           unit: 'Mt',
         },
       ],
-      note: '“Other countries” is a balance calculated by the author.',
+      note: '“Other countries” is a balance calculated by the authors.',
       noteB:
-        'Gas to the EU: EU and South-East Europe (TurkStream). Crude to the EU: Druzhba south, through Ukraine. Druzhba north: no more Russian crude to Poland and Germany since 2023 (Reuters, 2023); to Belarus, 2025 volume not documented. “Other countries” is a balance calculated by the author. Pipeline gas and LNG do not add up: no conversion factor is recorded. Hatching: designated project (Arctic LNG 2, designated by OFAC and the United Kingdom).',
+        'Gas to the EU: EU and South-East Europe (TurkStream). Crude to the EU: Druzhba south, through Ukraine. Druzhba north: no more Russian crude to Poland and Germany since 2023 (Reuters, 2023); to Belarus, 2025 volume not documented. “Other countries” is a balance calculated by the authors. Pipeline gas and LNG do not add up: no conversion factor is recorded. Hatching: designated project (Arctic LNG 2, designated by OFAC and the United Kingdom).',
       labels: {
         'a. Pétrole par mer, janvier 2026': 'a. Seaborne oil, January 2026',
         'milliers de barils par jour (kb/j)': 'thousand barrels per day (kb/d)',
@@ -1911,6 +1915,8 @@ export const figureTexts = {
     'possède ou exploite': 'owns or operates',
     'possède ou exploite (selon le GUR, partie à la guerre)':
       'owns or operates (according to GUR, a party to the war)',
+    'possède ou exploite (en partie selon le GUR, partie à la guerre)':
+      'owns or operates (partly according to GUR, a party to the war)',
     contrôle: 'controls',
     'contrôle (filiale)': 'controls (subsidiary)',
     'contrôle (société du groupe)': 'controls (group company)',
@@ -1955,8 +1961,8 @@ export const figureTexts = {
     'actionnaire, non chiffré': 'shareholder, not quantified',
     'environ 38 % en 2013': 'about 38% in 2013',
     '14,39 % en direct (2022)': '14.39% direct (2022)',
-    'dont 17 % achetés à G. Timtchenko (part totale non chiffrée)':
-      'of which 17% bought from G. Timchenko (total stake not quantified)',
+    'dont 17 % supplémentaires achetés à G. Timtchenko (part totale non chiffrée)':
+      'of which a further 17% bought from G. Timchenko (total stake not quantified)',
     'structure jamais publiée en entier': 'structure never published in full',
     '11 navires': '11 vessels',
     '10 navires': '10 vessels',
@@ -2207,7 +2213,7 @@ export const methodUi = {
     actors: { COAL: 'COALITION' } as Readonly<Partial<Record<string, string>>>,
     cursor: 'Time cursor: event',
     counters:
-      "Tankers designated by each regime to the end of the quarter of the event. Data: the sanctions lists of the EU, the UK and OFAC; author's calculations",
+      "Tankers designated by each regime to the end of the quarter of the event. Data: the sanctions lists of the EU, the UK and OFAC; authors' calculations",
     table: 'Events and tankers designated, as a table',
     date: 'Date',
     event: 'Event',

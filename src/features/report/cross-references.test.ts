@@ -8,7 +8,7 @@ const CITE = /(?:^|; ?|, )([^;]*?) \(([^()]*)\),? op\. cit\., n\. (\d+)/g;
 /** The words of a cited work that its first note must hold: the year, and a name or its initials. */
 const sameWork = (author: string, year: string, target: string): boolean => {
   const words = author
-    .replace(/^(Calculs de l’auteur d’après|Author's calculations based on)\s+/u, '')
+    .replace(/^(Calculs de l’auteur d’après|Authors' calculations based on)\s+/u, '')
     .split(/[\s,&.()]+/u)
     .filter((word) => word.length >= 4 || /^[A-Z]{2,}$/u.test(word));
   // An acronym names a body that the note can write in full: OFAC for Office of Foreign Assets Control.

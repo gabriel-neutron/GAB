@@ -25,9 +25,10 @@ describe('figure 12', () => {
     expect(entity('N-O024')?.band).toBe(1);
   });
 
-  it('marks a proposed link and keeps the share as written', () => {
+  it('shows no proposed link and keeps the share as written', () => {
+    expect(figure12.links.filter((one) => one.proposed)).toEqual([]);
     const link = figure12.links.find((one) => one.from === 'N-O032' && one.to === 'N-O027');
-    expect(link).toMatchObject({ proposed: true, share: '14.39% direct (2022)' });
+    expect(link).toMatchObject({ proposed: false, share: '14.39% direct (2022)' });
     expect(entity('N-O062')?.holding).toBe('11 vessels');
   });
 });

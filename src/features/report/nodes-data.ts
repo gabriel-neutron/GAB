@@ -374,7 +374,7 @@ export default [
   {
     node_id: 'N-P054',
     layer: 'Pay',
-    name: 'Far Frontiers',
+    name: 'Far Frontiers (according to GUR, a party to the war)',
     short_label: 'Far Frontiers',
     is_group: 'no',
     type: 'fleet',
@@ -411,7 +411,7 @@ export default [
   {
     node_id: 'N-P055',
     layer: 'Pay',
-    name: 'Global Seaway',
+    name: 'Global Seaway (according to GUR, a party to the war)',
     short_label: 'Global Seaway',
     is_group: 'no',
     type: 'fleet',
@@ -1860,7 +1860,7 @@ export default [
     cond1_sanctions_state: 'document',
     cond2_active_state: 'document',
     cond3_third_country_state: 'document',
-    cond1_doc: 'doc_4a4526f90e65',
+    cond1_doc: 'doc_37bc4525eea7',
     cond2_doc: 'doc_8058ada75c11',
     cond3_doc: 'doc_8058ada75c11',
     conditions_documented: '3',
@@ -4035,7 +4035,7 @@ export default [
   {
     node_id: 'N-O019',
     layer: 'Ownership',
-    name: 'Citrine Marine SPC',
+    name: 'Citrine Marine SPC (according to GUR, a party to the war)',
     short_label: 'Citrine Marine SPC',
     is_group: 'no',
     type: 'fleet',
@@ -5626,7 +5626,7 @@ export default [
   {
     node_id: 'N-O062',
     layer: 'Ownership',
-    name: 'White Agate Marine SPC',
+    name: 'White Agate Marine SPC (according to GUR, a party to the war)',
     short_label: 'White Agate Marine SPC',
     is_group: 'no',
     type: 'fleet',
@@ -5700,7 +5700,7 @@ export default [
   {
     node_id: 'N-O064',
     layer: 'Ownership',
-    name: 'Idas LLC',
+    name: 'Idas LLC (according to GUR, a party to the war)',
     short_label: 'Idas LLC',
     is_group: 'no',
     type: 'fleet',
@@ -5737,7 +5737,7 @@ export default [
   {
     node_id: 'N-O065',
     layer: 'Ownership',
-    name: 'North Fleet Ltd',
+    name: 'North Fleet Ltd (according to GUR, a party to the war)',
     short_label: 'North Fleet Ltd',
     is_group: 'no',
     type: 'fleet',
@@ -5848,7 +5848,7 @@ export default [
   {
     node_id: 'N-O068',
     layer: 'Ownership',
-    name: 'New Fleet Ltd',
+    name: 'New Fleet Ltd (according to GUR, a party to the war)',
     short_label: 'New Fleet Ltd',
     is_group: 'no',
     type: 'fleet',
@@ -5885,7 +5885,7 @@ export default [
   {
     node_id: 'N-O069',
     layer: 'Ownership',
-    name: 'Centauri Services LLC',
+    name: 'Centauri Services LLC (partly according to GUR, a party to the war)',
     short_label: 'Centauri Services LLC',
     is_group: 'no',
     type: 'fleet',
@@ -5922,7 +5922,7 @@ export default [
   {
     node_id: 'N-O070',
     layer: 'Ownership',
-    name: 'Hung Phat Maritime Trading',
+    name: 'Hung Phat Maritime Trading (partly according to GUR, a party to the war)',
     short_label: 'Hung Phat Maritime Trading',
     is_group: 'no',
     type: 'fleet',

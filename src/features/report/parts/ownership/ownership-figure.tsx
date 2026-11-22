@@ -191,27 +191,29 @@ export function OwnershipFigure() {
   return (
     <div>
       <ul className="mb-6 flex flex-wrap gap-x-6 gap-y-2" aria-label={copy.legend}>
-        {LEGEND.map((item) => (
-          <li
-            key={item.key}
-            className="flex items-center gap-2 text-report-small text-muted-foreground"
-          >
-            {/* The arrowheads are defined once, in the svg of the figure below. */}
-            <svg aria-hidden="true" width="32" height="8" className="shrink-0">
-              <line
-                x1="0"
-                y1="4"
-                x2="32"
-                y2="4"
-                strokeWidth={item.width}
-                strokeDasharray={item.dash}
-                markerEnd={arrowOf({ personal: item.dash === '1 3', proposed: item.proposed })}
-                className={item.proposed ? accent.stroke : 'stroke-foreground'}
-              />
-            </svg>
-            {english(item.key)}
-          </li>
-        ))}
+        {LEGEND.filter((item) => !item.proposed || links.some((link) => link.proposed)).map(
+          (item) => (
+            <li
+              key={item.key}
+              className="flex items-center gap-2 text-report-small text-muted-foreground"
+            >
+              {/* The arrowheads are defined once, in the svg of the figure below. */}
+              <svg aria-hidden="true" width="32" height="8" className="shrink-0">
+                <line
+                  x1="0"
+                  y1="4"
+                  x2="32"
+                  y2="4"
+                  strokeWidth={item.width}
+                  strokeDasharray={item.dash}
+                  markerEnd={arrowOf({ personal: item.dash === '1 3', proposed: item.proposed })}
+                  className={item.proposed ? accent.stroke : 'stroke-foreground'}
+                />
+              </svg>
+              {english(item.key)}
+            </li>
+          ),
+        )}
         <li className="flex items-center gap-2 text-report-small text-muted-foreground">
           <span
             aria-hidden="true"
