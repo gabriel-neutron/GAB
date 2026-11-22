@@ -1,7 +1,7 @@
 import type { Source } from '../parity';
 import en from './report-en.md?raw';
 
-// The final English text, as the author delivers it, and where each part of the page starts in
+// The final English text, as the authors deliver it, and where each part of the page starts in
 // it. The web cuts "2 Pay" in two parts: pay (2.1 to 2.3) and ports-fleet (2.4 to 2.6).
 export const englishSource: Source = {
   text: en,

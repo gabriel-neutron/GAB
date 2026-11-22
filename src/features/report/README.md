@@ -23,15 +23,15 @@ The content has one copy. A part, a mark or the frame reads it from the content 
 a direct import. The part slugs, the node identifiers and the figure data are the same in every
 use. The frame sets the language of the page.
 
-The text of a part is the final text of the author, word for word. The source folder holds that
-text as the author delivers it, and the heading where each part starts. Only these changes are
+The text of a part is the final text of the authors, word for word. The source folder holds that
+text as the authors deliver it, and the heading where each part starts. Only these changes are
 allowed: a paragraph cut, a list item for each item of the text, a short heading, and the node
 marks. The notes keep the numbers of the final text. The parity test compares, for each part, the
 numbers, the months and the note markers of the body and of each figure caption with the source,
 and each note with the words of the source. A text change that adds, removes or moves one of
 them fails the test. A figure of the page that the final text does not have shows no number.
 When the text gives only a total, a dated data file can split it: the critical nodes of each layer
-come from the selection test of the author on the record (the nodes that meet the three conditions
+come from the selection test of the authors on the record (the nodes that meet the three conditions
 in the record, and the nodes of the first list that the record does not link yet), and a test
 checks that the layers sum to the total of the text.
 

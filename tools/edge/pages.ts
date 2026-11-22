@@ -65,7 +65,7 @@ export const REPORT_VERSIONS: readonly (readonly [string, string, string])[] = [
 ];
 
 /** The rights notice of the report, the dataset and the code. */
-export const RIGHTS = `The text and the PDF of the report are under [CC BY 4.0](${LICENCE_URL}): you can copy, share and change them if you name the author, link the licence and mark each change. Figure 8 is not under CC BY 4.0: it uses Global Fishing Watch data under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/), so do not use it for a commercial purpose. The dataset is under CC BY 4.0, except a row whose \`licence\` column names another licence. The code is under the MIT licence.`;
+export const RIGHTS = `The text and the PDF of the report are under [CC BY 4.0](${LICENCE_URL}): you can copy, share and change them if you name the authors, link the licence and mark each change. Figure 8 is not under CC BY 4.0: it uses Global Fishing Watch data under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/), so do not use it for a commercial purpose. The dataset is under CC BY 4.0, except a row whose \`licence\` column names another licence. The code is under the MIT licence.`;
 
 /** The pages that are not in the application, with the markdown of each. */
 export const STATIC_PAGES: Readonly<
@@ -193,7 +193,7 @@ export const STATIC_PAGES: Readonly<
         '',
         '## Persons named in the data',
         '',
-        '- Who: the data names a natural person only when a sanctions act designates that person. Many of these persons are public officials, named for their public role.',
+        '- Who: the data names a natural person only when a sanctions act designates that person. Many of these persons are public officials, named for their public role. The report text also names one public figure that no sanctions act designates, Mikhail Khodorkovsky, for his public role in the history of the oil sector. These facts come from press articles and from published arbitration awards.',
         '- What: the name and the facts that a cited public document already publishes. The data holds no personal address, no telephone number and no e-mail address.',
         '- Source: official acts, public registers and other public documents. Each claim cites its documents. The project uses no leaked, hacked or stolen data.',
         '- Legal basis: the legitimate interest of the public in information on sanctions (Article 6(1)(f) of the GDPR), and the purposes of journalism and research (Article 85 and Article 89 of the GDPR).',

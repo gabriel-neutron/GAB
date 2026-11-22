@@ -14,7 +14,7 @@
 
 - –**Owners and managers:** On the archived pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships that give both dates show an owner or manager that started after the designation.
 
-- –**Ownership chains:** The 50% rule follows shares: the chains of the large state companies end at the state, but in the private fleet and in oil trading they often end at a company with no documented owner, and about fifteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner.
+- –**Ownership chains:** The 50% rule follows shares: the chains of the large state companies end at the state, but in the private fleet and in oil trading they often end at a company with no documented owner, and, according to the sanctions lists and to GUR, a party to the war, about fifteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner.
 
 - –**Customers:** From 2021 to 2025, EU purchases from Russia fell by 84%;[^1] China became Russia's first customer, and India bought twenty times as much Russian crude.
 
@@ -30,17 +30,17 @@
 
 The sources of the other figures are given in the body of the report.
 
-*This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. The author(s) are solely responsible for the content and conclusions presented.*
+*This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. The authors are solely responsible for the content and conclusions presented.*
 
-[^1]: Author's calculations based on Bahí Esteba, A. et al. (2026, September 21). *Russian foreign trade tracker* (35th ed.) [Data]. Bruegel. https://www.bruegel.org, fig. 2.
+[^1]: Authors' calculations based on Bahí Esteba, A. et al. (2026, September 21). *Russian foreign trade tracker* (35th ed.) [Data]. Bruegel. https://www.bruegel.org, fig. 2.
 
 [^2]: Dodonov, B., Hilgenstock, B. et al. (2026, March 2). *Russian Oil Tracker*. KSE Institute. https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf, p. 3.
 
-[^3]: Author's calculations based on Ministry of Finance of the Russian Federation. (2026a). *Приложение 3.1. Краткая информация об исполнении федерального бюджета (млрд руб.)* [Annex 3.1. Short information on the execution of the federal budget (billion roubles)]. https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub, lines 1, 1.1 and 1.2; Ministry of Finance of the Russian Federation. (2026b). *Предварительная оценка исполнения федерального бюджета за январь-сентябрь 2026 года* [Preliminary estimate of the execution of the federal budget for January–September 2026]. https://minfin.gov.ru/ru/press-center/?id_4=40677.
+[^3]: Authors' calculations based on Ministry of Finance of the Russian Federation. (2026a). *Приложение 3.1. Краткая информация об исполнении федерального бюджета (млрд руб.)* [Annex 3.1. Short information on the execution of the federal budget (billion roubles)]. https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub, lines 1, 1.1 and 1.2; Ministry of Finance of the Russian Federation. (2026b). *Предварительная оценка исполнения федерального бюджета за январь-сентябрь 2026 года* [Preliminary estimate of the execution of the federal budget for January–September 2026]. https://minfin.gov.ru/ru/press-center/?id_4=40677.
 
 [^4]: Central Bank of Russia. (2026, October 15). *Currency composition of settlements* [Data]. https://cbr.ru/vfs/eng/statistics/credit_statistics/cur_str_new_e.xlsx.
 
-[^5]: Author's calculations based on UN Comtrade. (2026, October 25). *UN Comtrade database* [Data]. https://comtradeplus.un.org/.
+[^5]: Authors' calculations based on UN Comtrade. (2026, October 25). *UN Comtrade database* [Data]. https://comtradeplus.un.org/.
 
 
 FIGURE: Figure 1: Timeline of the main sanctions, 2014-2026
@@ -63,9 +63,9 @@ This report finds that sanctions make the war more costly for Russia, but they d
 
 [^7]: U.S. Department of the Treasury. (2016, December 20). *Treasury Sanctions Individuals and Entities In Connection with Russia's Occupation of Crimea and the Conflict in Ukraine* (press release jl0688). https://home.treasury.gov/news/press-releases/jl0688.
 
-[^8]: Author's calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, line 2.2 "Национальная оборона" [National defence], year 2021; Korsunskaya, D. (2024, September 30). *Траты России на оборону в 25г вырастут до 13,5 трлн р, более чем вдвое обогнав социальные расходы* [Russian defence spending in 2025 will rise to 13.5 trillion roubles, more than twice social spending]. Reuters, in The Moscow Times (Russian service). https://ru.themoscowtimes.com/2024/09/30/update-1-traty-rossii-na-oboronu-v-25g-vyrastut-do-135-trln-r-bolee-chem-vdvoe-obognav-sotsialnye-raskhody-a143572; World Bank. (2026). *Inflation, GDP deflator (annual %) – Russian Federation (NY.GDP.DEFL.KD.ZG)*. https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG.
+[^8]: Authors' calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, line 2.2 "Национальная оборона" [National defence], year 2021; Korsunskaya, D. (2024, September 30). *Траты России на оборону в 25г вырастут до 13,5 трлн р, более чем вдвое обогнав социальные расходы* [Russian defence spending in 2025 will rise to 13.5 trillion roubles, more than twice social spending]. Reuters, in The Moscow Times (Russian service). https://ru.themoscowtimes.com/2024/09/30/update-1-traty-rossii-na-oboronu-v-25g-vyrastut-do-135-trln-r-bolee-chem-vdvoe-obognav-sotsialnye-raskhody-a143572; World Bank. (2026). *Inflation, GDP deflator (annual %) – Russian Federation (NY.GDP.DEFL.KD.ZG)*. https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG.
 
-[^9]: Author's calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, line 1.1; World Bank (2026), op. cit., n. 8.
+[^9]: Authors' calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, line 1.1; World Bank (2026), op. cit., n. 8.
 
 [^10]: EU. (2014–2026). Regulations (EU) No 269/2014, No 833/2014, 2022/879, 2022/2367, 2022/2368, 2023/250, 2023/251, 2025/395, 2025/1494, 2026/506; Implementing Regulation (EU) 2026/124. https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32014R0269 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32014R0833 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R0879 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2367 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2368 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R0250 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R0251 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R0395 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R1494 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32026R0506 ; https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32026R0124 ; U.S. Department of the Treasury. (2023, October 12). *Treasury Sanctions Entities for Transporting Oil Sold Above the Coalition Price Cap to Restrict Russia's War Machine* (press release jy1795). https://home.treasury.gov/news/press-releases/jy1795 ; Office of Foreign Assets Control. (2025, October 22). *Russia-related Designations; Issuance of New and Amended Russia-related General Licenses* (Recent Actions 20251022). https://ofac.treasury.gov/recent-actions/20251022.
 
@@ -113,7 +113,7 @@ A node is called critical when it meets three conditions:
 
 FIGURE: Figure 2: The three layers of the Russian war economy and their links
 
-*Note.* Diagram by the author.
+*Note.* Diagram by the authors.
 
 These conditions single out the nodes where the sanctions are in place but the activity continues through a third country: where circumvention may be at work, and where a new measure could have an effect.
 
@@ -142,17 +142,17 @@ From 2022, the EU almost closed its market to Russian oil, with an embargo on cr
 
 Gas follows the same path to Asia: in 2025, for the first time, Gazprom delivered more gas by pipeline to China than to Europe.[^19] But China sets the terms. To sell the gas of the Yamal peninsula, which Europe no longer buys, Russia has only one possible customer. That customer is in no hurry to seal a deal on the new
 
-[^12]: Author's calculations based on World Bank. (2026). *Oil rents (% of GDP) – Russian Federation (NY.GDP.PETR.RT.ZS)*. https://api.worldbank.org ; World Bank. (2026). *Natural gas rents (% of GDP) – Russian Federation (NY.GDP.NGAS.RT.ZS)*. https://api.worldbank.org.
+[^12]: Authors' calculations based on World Bank. (2026). *Oil rents (% of GDP) – Russian Federation (NY.GDP.PETR.RT.ZS)*. https://api.worldbank.org ; World Bank. (2026). *Natural gas rents (% of GDP) – Russian Federation (NY.GDP.NGAS.RT.ZS)*. https://api.worldbank.org.
 
 [^13]: World Bank. (2026, October 8). *Fuel exports (% of merchandise exports) – Russian Federation (TX.VAL.FUEL.ZS.UN)* [Data]. https://api.worldbank.org.
 
-[^14]: Author's calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, lines 1 and 1.1, year 2021.
+[^14]: Authors' calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, lines 1 and 1.1, year 2021.
 
 [^15]: CELEX 32022R0879, Art. 3m ; https://eur-lex.europa.eu.
 
 [^16]: CELEX 32026R0261, recitals 1 and 10 ; https://eur-lex.europa.eu.
 
-[^17]: Bahí Esteba et al. (2026), op. cit., n. 1, fig. 2 ; Author's calculations based on UN Comtrade (2026), op. cit., n. 5.
+[^17]: Bahí Esteba et al. (2026), op. cit., n. 1, fig. 2 ; Authors' calculations based on UN Comtrade (2026), op. cit., n. 5.
 
 [^18]: Kpler. (2025, December 2). *Rosneft and Lukoil sanctions are live: how India, China and Turkey adapt rather than exit*. Kpler. https://www.kpler.com/blog/rosneft-and-lukoil-sanctions-are-live-how-india-china-and-turkey-adapt-rather-than-exit.
 
@@ -163,7 +163,7 @@ Power of Siberia 2 pipeline: China does not want to depend too much on a single 
 
 FIGURE: Figure 3: Russian exports by buyer and crude bought from Russia, 2020-2025
 
-*Note.* Data: Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026); CREA (2026). Author's calculations.[^21]
+*Note.* Data: Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026); CREA (2026). Authors' calculations.[^21]
 
 [^20]: Vakulenko, S. (2025, September 22). *Why Can’t Russia and China Agree on the Power of Siberia 2 Gas Pipeline?* Carnegie Politika. Carnegie Endowment for International Peace. https://carnegieendowment.org/russia-eurasia/politika/2025/09/russia-china-gas-deals.
 
@@ -207,7 +207,7 @@ The share of oil and gas in federal revenue falls (figure 5) for two reasons, an
 
 [^29]: Dodonov et al. (2026), op. cit., n. 2, p. 2.
 
-[^30]: Author's calculations based on World Bank. (2026, October 2). *Commodity Price Data (The Pink Sheet)* [Data, monthly prices]. https://www.worldbank.org/en/research/commodity-markets ; Federal Tax Service of Russia. (2023–2026). [Data for the calculation of the mineral extraction tax, monthly releases]. https://www.nalog.gov.ru/rn77/news/activities_fts/ (one page per month, for example *Опубликованы данные для расчёта НДПИ и НДД, а также акциза на нефтяное сырье за июль 2026 года* [Data published for the calculation of the mineral extraction tax and the additional income tax, and of the excise on crude, for July 2026], https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/). Urals: monthly average price published by the Ministry of Economic Development; Brent: World Bank monthly average.
+[^30]: Authors' calculations based on World Bank. (2026, October 2). *Commodity Price Data (The Pink Sheet)* [Data, monthly prices]. https://www.worldbank.org/en/research/commodity-markets ; Federal Tax Service of Russia. (2023–2026). [Data for the calculation of the mineral extraction tax, monthly releases]. https://www.nalog.gov.ru/rn77/news/activities_fts/ (one page per month, for example *Опубликованы данные для расчёта НДПИ и НДД, а также акциза на нефтяное сырье за июль 2026 года* [Data published for the calculation of the mineral extraction tax and the additional income tax, and of the excise on crude, for July 2026], https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/). Urals: monthly average price published by the Ministry of Economic Development; Brent: World Bank monthly average.
 
 [^31]: Kpler (2025), op. cit., n. 18.
 
@@ -222,7 +222,7 @@ The share of oil and gas in federal revenue falls (figure 5) for two reasons, an
 
 FIGURE: Figure 5: Oil, gas and defence in the federal budget, 2014-2026
 
-*Note.* Data: Ministry of Finance of Russia (2026); Korsunskaya (2024); World Bank (2026). Author's calculations.[^37]
+*Note.* Data: Ministry of Finance of Russia (2026); Korsunskaya (2024); World Bank (2026). Authors' calculations.[^37]
 
 The rest of the economy also pays more, and this is the second reason for the fall. Profit tax went from 20 to 25% in 2025, and VAT from 20 to 22% in 2026.[^38] This shift is deliberate: the budget guidelines of the Ministry of Finance for 2026-2028 present the VAT rise as a way to bring the share of non-oil-and-gas revenue to 80%.[^39] The report's hypothesis is that an ever more expensive defence
 
@@ -230,7 +230,7 @@ The rest of the economy also pays more, and this is the second reason for the fa
 
 [^36]: Ministry of Finance of the Russian Federation (2026b), op. cit., n. 3, p. 1 and table ; Nezavisimaya Gazeta. (2026, October 6). *Выплаты нефтяникам установили очередной рекорд* [Payments to oil companies set a new record]. https://www.ng.ru/economics/2026-10-06/1_9597_price.html.
 
-[^37]: Author's calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, lines 1, 1.1 and 2.2 ; Ministry of Finance of the Russian Federation (2026b), op. cit., n. 3 ; Korsunskaya (2024), op. cit., n. 8 ; World Bank (2026), op. cit., n. 8.
+[^37]: Authors' calculations based on Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, lines 1, 1.1 and 2.2 ; Ministry of Finance of the Russian Federation (2026b), op. cit., n. 3 ; Korsunskaya (2024), op. cit., n. 8 ; World Bank (2026), op. cit., n. 8.
 
 [^38]: Federal Tax Service of Russia. (2025, January 20). *Ставка налога на прибыль организаций изменилась с 2025 года* [The corporate profit tax rate changed from 2025]. https://www.nalog.gov.ru/rn27/news/tax_doc_news/15617353/ ; Federal Tax Service of Russia. (2025, December 17). *Как исчислять НДС по новым правилам с 2026 года* [How to calculate VAT under the new rules from 2026]. https://www.nalog.gov.ru/rn25/news/activities_fts/16590316/.
 
@@ -285,7 +285,7 @@ FIGURE: Figure 7: Russian oil exported by sea, January 2026
 
 The three sanctions regimes do not move at the same pace. When the EU and the United States designate the same
 
-[^46]: Author's calculations based on Global Fishing Watch (2026). https://globalfishingwatch.org, CC BY-NC 4.0, non-commercial use ; OFAC (2026). https://sanctionslistservice.ofac.treas.gov ; FCDO (2026). https://sanctionslist.fcdo.gov.uk ; CELEX 32014R0833 ; https://eur-lex.europa.eu.
+[^46]: Authors' calculations based on Global Fishing Watch (2026). https://globalfishingwatch.org, CC BY-NC 4.0, non-commercial use ; OFAC (2026). https://sanctionslistservice.ofac.treas.gov ; FCDO (2026). https://sanctionslist.fcdo.gov.uk ; CELEX 32014R0833 ; https://eur-lex.europa.eu.
 
 [^47]: Dodonov et al. (2026), op. cit., n. 2, p. 2.
 
@@ -296,22 +296,22 @@ ship, the United States does so first in nearly nine cases out of ten (figure 9)
 
 FIGURE: Figure 8: Port calls of designated tankers after their designation
 
-*Note.* Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations. Powered by Global Fishing Watch.[^50]
+*Note.* Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations. Powered by Global Fishing Watch.[^50]
 
 A designated ship also often changes hands. On the archived pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships that give both a designation date and an owner or manager date show an owner or manager that started after the designation.[^51] A list of ships therefore describes a situation that the ship has often already left. The report's hypothesis is that targeting the company that manages the tankers, and the country where it is based, would reach the fleet more surely than targeting each ship.
 
-[^49]: Author's calculations based on OFAC (2026), op. cit., n. 46 ; CELEX 32014R0833 ; https://eur-lex.europa.eu.
+[^49]: Authors' calculations based on OFAC (2026), op. cit., n. 46 ; CELEX 32014R0833 ; https://eur-lex.europa.eu.
 
 [^50]: See n. 46.
 
-[^51]: Author's calculations based on GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua ; replay with tools/gur-owner-change.ts in the project repository.
+[^51]: Authors' calculations based on GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua ; replay with tools/gur-owner-change.ts in the project repository.
 
 
 FIGURE: Figure 9: Tankers designated by the EU, the United Kingdom and OFAC
 
-*Note.* Data: Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations.[^52]
+*Note.* Data: Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Authors' calculations.[^52]
 
-[^52]: Author's calculations based on OFAC (2026), op. cit., n. 46 ; FCDO (2026), op. cit., n. 46 ; CELEX 32014R0833, retrieved October 30, 2026 ; https://eur-lex.europa.eu.
+[^52]: Authors' calculations based on OFAC (2026), op. cit., n. 46 ; FCDO (2026), op. cit., n. 46 ; CELEX 32014R0833, retrieved October 30, 2026 ; https://eur-lex.europa.eu.
 
 ## 3 Finance
 
@@ -431,7 +431,7 @@ for shell companies.[^84] Targeting Hong Kong therefore hits the transit and the
 
 FIGURE: Figure 11: Exports of CHP goods to Russia, 2021-2025
 
-*Note.* Data: UN Comtrade (2026); Risinger et al. (2026). Author's calculations.[^85]
+*Note.* Data: UN Comtrade (2026); Risinger et al. (2026). Authors' calculations.[^85]
 
 ### 4.2 The price of the goods
 
@@ -439,7 +439,7 @@ This change of suppliers has a price. From the spring of 2022, Russian imports b
 
 [^84]: Government of the Hong Kong Special Administrative Region. (2019). *LCQ2: Implementation of sanctions imposed by United Nations Security Council*. info.gov.hk/gia/general/201901/23/P2019012300436.htm; USCC. (2025). *China's facilitation of sanctions and export control evasion*. uscc.gov/research.
 
-[^85]: Author's calculations based on UN Comtrade (2026), op. cit., n. 5; Risinger et al. (2026), op. cit., n. 81, p. 3.
+[^85]: Authors' calculations based on UN Comtrade (2026), op. cit., n. 5; Risinger et al. (2026), op. cit., n. 81, p. 3.
 
 [^86]: Emlinger, C., & Lefebvre, K. (2025, February). *Working Around Sanctions. What Cost to Russia?* (Policy Brief No. 50). CEPII. https://www.cepii.fr/PDF_PUB/pb/2025/pb2025-50.pdf, pp. 1, 6, 8.
 
@@ -456,17 +456,17 @@ Yet weapon debris gives a biased picture of where the parts come from. The publi
 
 [^88]: Risinger et al. (2026), op. cit., n. 81, p. 7.
 
-[^89]: Author's calculations based on UN Comtrade (2026), op. cit., n. 5.
+[^89]: Authors' calculations based on UN Comtrade (2026), op. cit., n. 5.
 
 [^90]: Byrne, J. et al. (2022, August). *Silicon Lifeline*. Royal United Services Institute. https://static.rusi.org/RUSI-Silicon-Lifeline-final-updated-web_1.pdf, p. 24.
 
-[^91]: Author's calculations based on Conflict Armament Research, & Hayes, D. (2025). *Tracking the Components of Missiles and UAVs Used by Russia in Ukraine*. IISS. https://www.iiss.org; Byrne et al. (2022), op. cit., n. 90; GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua.
+[^91]: Authors' calculations based on Conflict Armament Research, & Hayes, D. (2025). *Tracking the Components of Missiles and UAVs Used by Russia in Ukraine*. IISS. https://www.iiss.org; Byrne et al. (2022), op. cit., n. 90; GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua.
 
 [^92]: U.S. Department of the Treasury. (2024, May 1). *U.S. Continues to Degrade Russia's Military-Industrial Base and Target Third-Country Support with Nearly 300 New Sanctions* (press release jy2318). https://home.treasury.gov/news/press-releases/jy2318, Annex 1.
 
 [^93]: U.S. Department of the Treasury. (2024, October 17). *Treasury Targets Actors Involved in Drone Production for Russia's War Against Ukraine* (press release jy2651). https://home.treasury.gov/news/press-releases/jy2651; U.S. Department of State. (2025, January 15). *Sanctions to Disrupt Russia's Military Industrial Base and Sanctions Evasion*. https://2021-2025.state.gov/office-of-the-spokesperson/releases/2025/01/sanctions-to-disrupt-russias-military-industrial-base-and-sanctions-evasion/.
 
-[^94]: Author's calculations based on GUR. (2026, October 28). *Components in the aggressor's weapon*. War & Sanctions. https://war-sanctions.gur.gov.ua; Bilousova, O., Hilgenstock, B. et al. (2024, January). *Challenges of Export Controls Enforcement*. KSE Institute. https://kse.ua, p. 16.
+[^94]: Authors' calculations based on GUR. (2026, October 28). *Components in the aggressor's weapon*. War & Sanctions. https://war-sanctions.gur.gov.ua; Bilousova, O., Hilgenstock, B. et al. (2024, January). *Challenges of Export Controls Enforcement*. KSE Institute. https://kse.ua, p. 16.
 
 ## 5 Who owns what
 
@@ -493,7 +493,7 @@ According to the latest disclosures, at the top, the state holds the large compa
 
 FIGURE: Figure 12: Who owns oil, gas and the fleet
 
-*Note.* Data: OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024). Author's calculations.[^101]
+*Note.* Data: OFAC (2026); Regulation (EU) No 269/2014 (2026); FCDO (2026); Rosneft (2021); Gazprom (2024); Gazprombank (2022); TASS (2024). Authors' calculations.[^101]
 
 ### 5.2 The fleet
 
@@ -533,7 +533,7 @@ Loyalty, by contrast, opens public contracts. According to the BBC, Yevgeny Prig
 [^112]: NPR Planet Money (2022), op. cit., n. 106.
 
 
-Outside the state, the large private shareholders form a circle that the designation texts link to the president. Gennady Timchenko, a long-time acquaintance of Vladimir Putin, shares with Leonid Mikhelson close to half of a large petrochemical group and is a shareholder of Bank Rossiya.[^113] Mikhelson directly holds about 14% of Novatek.[^114] Yuri Kovalchuk, another long-time acquaintance of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer SOGAZ.[^115] The circle reaches the family: according to the US Treasury, in 2013 Kirill Shamalov married Katerina Tikhonova, the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]
+Outside the state, the large private shareholders form a circle that the designation texts link to the president. Gennady Timchenko, a long-time acquaintance of Vladimir Putin, holds, with Leonid Mikhelson, majority stakes in a large petrochemical group and is a shareholder of Bank Rossiya.[^113] Mikhelson directly holds about 14% of Novatek.[^114] Yuri Kovalchuk, another long-time acquaintance of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer SOGAZ.[^115] The circle reaches the family: according to the US Treasury, in 2013 Kirill Shamalov married Katerina Tikhonova, the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]
 
 State companies are run by associates who do not own them. The EU states in its reasons for listing that Igor Sechin (Rosneft) is a personal friend of the president and that Nikolay Tokarev (Transneft) served with him in the KGB;[^117] according to the US Treasury, Sergei Chemezov (Rostec) has known him since the 1980s, when they lived in the same apartment complex in East Germany.[^118] According to Tatiana Stanovaya of the Carnegie Endowment, these friends and former colleagues were handed large state assets to manage, which made them "state oligarchs".[^119]
 
@@ -564,19 +564,21 @@ Among the intermediaries and in the private fleet, the chain stops at an unknown
 
 - –**Oil trading:** Little-known traders with opaque ownership have carried, since the price cap, up to half of Russian oil exports.[^122] The Council of the EU thus links the company Nord Axis to the 2Rivers group; the ultimate owner of Nord Axis remains undocumented.[^123]
 
-- –**Vessels:** About fifteen shipowners or managers each own or operate at least six designated vessels, with no documented ultimate owner.
+- –**Vessels:** According to the sanctions lists and, for part of them, to GUR, a party to the war, about fifteen shipowners or managers each own or operate at least six designated vessels, with no documented ultimate owner.[^124]
 
-- –**Surgutneftegaz:** The country's third-largest oil company, run by Vladimir Bogdanov, a close associate of the president, had not published its full ownership structure, according to The Moscow Times (2013).[^124]
+- –**Surgutneftegaz:** The country's third-largest oil company, run by Vladimir Bogdanov, a close associate of the president, had not published its full ownership structure, according to The Moscow Times (2013).[^125]
 
-The report hypothesises that this opacity protects these companies: the 50% rule applies in law, but nobody can apply it without knowing the chain of shares.[^125] What remains is to designate each company for its activity and to attach each new manager to the group it replaces, as the Council did for Citrine Marine and Nord Axis.
+The report hypothesises that this opacity protects these companies: the 50% rule applies in law, but nobody can apply it without knowing the chain of shares.[^126] What remains is to designate each company for its activity and to attach each new manager to the group it replaces, as the Council did for Citrine Marine and Nord Axis.
 
 [^122]: U.S. Department of the Treasury (2023), op. cit., n. 102, p. 1, section "Under-the-radar traders of Russian oil".
 
 [^123]: CELEX 32025R1476, annex, entries 625 "2Rivers DMCC" and 626 "2Rivers PTE Ltd", p. 25 ; FCDO (2026), op. cit., n. 46, entry RUS2541 ; https://eur-lex.europa.eu.
 
-[^124]: CELEX 02014R0269-20260928, annex I, entry "Vladimir Leonidovich BOGDANOV" ; The Moscow Times. (2013, April 30). *Surgut Discloses $29Bln Cash Hoard*. https://www.themoscowtimes.com/2013/04/30/surgut-discloses-29bln-cash-hoard-a23733 ; https://eur-lex.europa.eu.
+[^124]: Authors' calculations based on OFAC (2026), op. cit., n. 46 ; FCDO (2026), op. cit., n. 46 ; CELEX 32014R0833 ; GUR (2026), op. cit., n. 51: the companies that own or operate at least six designated vessels, and whose owner no source names.
 
-[^125]: OFAC (2014), op. cit., n. 95 ; OFAC (n.d.), op. cit., n. 95.
+[^125]: CELEX 02014R0269-20260928, annex I, entry "Vladimir Leonidovich BOGDANOV" ; The Moscow Times. (2013, April 30). *Surgut Discloses $29Bln Cash Hoard*. https://www.themoscowtimes.com/2013/04/30/surgut-discloses-29bln-cash-hoard-a23733 ; https://eur-lex.europa.eu.
+
+[^126]: OFAC (2014), op. cit., n. 95 ; OFAC (n.d.), op. cit., n. 95.
 
 ## 6 Limitations
 
@@ -590,15 +592,15 @@ The report does not measure the effect of sanctions: where no source establishes
 
 - –**Reliability of sources:** The letter rates the issuer, not the truth of each claim. The report shows it only for official issuers: the letters of the press and of think tanks are not shown, so the reader cannot weigh their facts.
 
-- –**Mirror data:** Because Russia no longer publishes its trade by product, the report reads the declarations of its partners, which therefore cover only part of the trade. The United Arab Emirates and Vietnam report no product-level data to UN Comtrade for 2024-2025, and Kazakhstan and Thailand report data only up to February 2024 and February 2025.[^126]
+- –**Mirror data:** Because Russia no longer publishes its trade by product, the report reads the declarations of its partners, which therefore cover only part of the trade. The United Arab Emirates and Vietnam report no product-level data to UN Comtrade for 2024-2025, and Kazakhstan and Thailand report data only up to February 2024 and February 2025.[^127]
 
-- –**The fleet:** Changes of owner and manager come from the GUR, a party to the conflict. It gives the vessel's current owner or manager and the date it took up the role, but rarely the first change after designation.[^127] The loss of the AIS identity tied to the IMO number, which the Global Fishing Watch registry makes visible, remains a lead, because that registry is not archived.
+- –**The fleet:** Changes of owner and manager come from the GUR, a party to the conflict. It gives the vessel's current owner or manager and the date it took up the role, but rarely the first change after designation.[^128] The loss of the AIS identity tied to the IMO number, which the Global Fishing Watch registry makes visible, remains a lead, because that registry is not archived.
 
-Finally, the author read and reviewed the whole report, but the facts of the database are checked by rules and by AI agents, not one by one by a person (Annex A). As a result, each fact must be checked at its source before it is used for a designation.
+Finally, the authors read and reviewed the whole report, but the facts of the database are checked by rules and by AI agents, not one by one by a person (Annex A). As a result, each fact must be checked at its source before it is used for a designation.
 
-[^126]: UN Comtrade (2026), op. cit., n. 5 ; Risinger et al. (2026), op. cit., n. 81, p. 3.
+[^127]: UN Comtrade (2026), op. cit., n. 5 ; Risinger et al. (2026), op. cit., n. 81, p. 3.
 
-[^127]: Main Directorate of Intelligence of the Ministry of Defence of Ukraine (GUR) (2026), op. cit., n. 51 ; Global Fishing Watch (2026), op. cit., n. 46, CC BY-NC 4.0, non-commercial use.
+[^128]: Main Directorate of Intelligence of the Ministry of Defence of Ukraine (GUR) (2026), op. cit., n. 51 ; Global Fishing Watch (2026), op. cit., n. 46, CC BY-NC 4.0, non-commercial use.
 
 
 ### 6.2 Research leads
@@ -678,7 +680,7 @@ The count of critical nodes is 539. It is the result of the script tools/critica
 
 ### A.4 Checking facts and text
 
-The author read and reviewed the whole report. AI was used for four jobs: to tag the sources, to run the verification and cross-check loops, to assist the drafting and the translation, and to search for blind spots. AI agents collect and archive the sources, then propose each fact with the excerpt of its source. Other agents, which start with a fresh context and did not propose that fact, check that the excerpt appears in the archived source and supports the fact. A failed check does not block the acceptance of a fact. Other facts still wait for a check or a better source. The few facts entered by hand carry a label that sets them apart from the facts produced by the agents. The counts, shares and medians are the author's calculations, which no review agent validates one by one. Each part of the text was reviewed by agents distinct from its writer, and those agents checked its sources one by one. The author did not check each fact of the database against its source.
+The authors read and reviewed the whole report. AI was used for four jobs: to tag the sources, to run the verification and cross-check loops, to assist the drafting and the translation, and to search for blind spots. AI agents collect and archive the sources, then propose each fact with the excerpt of its source. Other agents, which start with a fresh context and did not propose that fact, check that the excerpt appears in the archived source and supports the fact. A failed check does not block the acceptance of a fact. Other facts still wait for a check or a better source. The few facts entered by hand carry a label that sets them apart from the facts produced by the agents. The counts, shares and medians are the authors' calculations, which no review agent validates one by one. Each part of the text was reviewed by agents distinct from its writer, and those agents checked its sources one by one. The authors did not check each fact of the database against its source.
 
 ### A.5 Ethics, security and independence
 
@@ -688,4 +690,4 @@ The author read and reviewed the whole report. AI was used for four jobs: to tag
 
 - –**AI:** Language models were used for four tasks only: tagging the sources, the verification loops, help with drafting and translation, and the search for blind spots. Their providers read the full text of the stored documents.
 
-- –**Independence:** The author is solely responsible for the content. Claims of the GUR remain attributed to it.
+- –**Independence:** The authors are solely responsible for the content. Claims of the GUR remain attributed to it.

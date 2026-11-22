@@ -51,7 +51,7 @@ Page réservée.
 
 ## Financement
 
-This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. The author(s) are solely responsible for the content and conclusions presented.
+This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. The authors are solely responsible for the content and conclusions presented.
 
 ## Sources par note
 

@@ -7,7 +7,7 @@ const figureLabels: Readonly<Record<string, string>> = figureTexts.figures['12']
 /** The English words of a French label of figure 12. A label with no translation stays as it is. */
 export const english = (french: string): string => labels[french] ?? figureLabels[french] ?? french;
 
-// The figure names these nodes in French or with a longer name than the node.
+// The figure names these nodes in French, or with a name other than the name of the node.
 const ALIASES: Readonly<Record<string, string>> = {
   'VTB Bank': 'N-M002',
   'South Fleet (Yuzhny Flot)': 'N-P052',
@@ -16,6 +16,13 @@ const ALIASES: Readonly<Record<string, string>> = {
   KTRV: 'N-F032',
   'Far Frontiers LLC': 'N-P054',
   'Global Seaway LLC': 'N-P055',
+  'White Agate Marine SPC': 'N-O062',
+  'Citrine Marine SPC': 'N-O019',
+  'Idas LLC': 'N-O064',
+  'North Fleet Ltd': 'N-O065',
+  'New Fleet Ltd': 'N-O068',
+  'Centauri Services LLC': 'N-O069',
+  'Hung Phat Maritime Trading': 'N-O070',
 };
 const byName = new Map(nodes.map((node) => [node.name, node.node_id]));
 

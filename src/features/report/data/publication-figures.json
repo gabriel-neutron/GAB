@@ -1326,7 +1326,7 @@
       "holding d’État",
       "possède",
       "100 %",
-      "fait du record ; part proposée (cette session)"
+      "fait du record"
     ],
     [
       "Rosneftegaz",
@@ -1407,7 +1407,7 @@
       "société d’État",
       "possède",
       "95,68 %",
-      "fait du record ; part proposée (cette session)"
+      "fait du record"
     ],
     [
       "Gazprom",
@@ -1606,9 +1606,9 @@
       "banque privée",
       "possède",
       "environ 38 % en 2013",
-      "proposé (cette session)"
+      "validé"
     ],
-    ["Iouri KOVALTCHOUK", "cercle", "SOGAZ", "assureur", "contrôle", "", "proposé (cette session)"],
+    ["Iouri KOVALTCHOUK", "cercle", "SOGAZ", "assureur", "contrôle", "", "validé"],
     [
       "Iouri KOVALTCHOUK",
       "cercle",
@@ -1616,7 +1616,7 @@
       "président (désigné)",
       "proche",
       "",
-      "proposé (cette session)"
+      "validé"
     ],
     [
       "Leonid MIKHELSON",
@@ -1625,7 +1625,7 @@
       "société privée",
       "possède",
       "14,39 % en direct (2022)",
-      "proposé (cette session)"
+      "validé"
     ],
     [
       "Leonid MIKHELSON",
@@ -1634,7 +1634,7 @@
       "société privée",
       "possède",
       "majorité, avec G. Timtchenko",
-      "proposé (cette session)"
+      "validé"
     ],
     [
       "Leonid MIKHELSON",
@@ -1643,17 +1643,9 @@
       "président (désigné)",
       "proche",
       "",
-      "proposé (cette session)"
+      "validé"
     ],
-    [
-      "Novatek",
-      "société privée",
-      "Arctic LNG 2",
-      "projet",
-      "possède",
-      "60 %",
-      "proposé (autre session)"
-    ],
+    ["Novatek", "société privée", "Arctic LNG 2", "projet", "possède", "60 %", "validé"],
     [
       "Kirill CHAMALOV",
       "famille",
@@ -1661,7 +1653,7 @@
       "famille (désignée)",
       "mariage (février 2013)",
       "",
-      "proposé (cette session)"
+      "validé"
     ],
     [
       "Katerina TIKHONOVA",
@@ -1670,7 +1662,7 @@
       "président (désigné)",
       "fille",
       "",
-      "proposé (cette session)"
+      "validé"
     ],
     [
       "Kirill CHAMALOV",
@@ -1678,8 +1670,8 @@
       "Sibur Holding",
       "société privée",
       "possède",
-      "dont 17 % achetés à G. Timtchenko (part totale non chiffrée)",
-      "proposé (cette session) (part de 17 % : document stocké, non proposé)"
+      "dont 17 % supplémentaires achetés à G. Timtchenko (part totale non chiffrée)",
+      "validé"
     ],
     [
       "Arkadi ROTENBERG",
@@ -1710,15 +1702,7 @@
       "",
       "validé"
     ],
-    [
-      "Sergueï TCHEMEZOV",
-      "dirigeant",
-      "Rostec",
-      "société d’État",
-      "dirige",
-      "",
-      "proposé (cette session)"
-    ],
+    ["Sergueï TCHEMEZOV", "dirigeant", "Rostec", "société d’État", "dirige", "", "validé"],
     [
       "Sergueï TCHEMEZOV",
       "dirigeant",
@@ -1726,7 +1710,7 @@
       "président (désigné)",
       "proche",
       "",
-      "proposé (cette session)"
+      "validé"
     ],
     ["Andreï KOSTINE", "dirigeant", "VTB Bank", "banque d’État", "dirige", "", "validé"],
     [
@@ -1800,7 +1784,7 @@
       "projet",
       "possède (part achetée à Trafigura)",
       "10 %",
-      "proposé (cette session)"
+      "validé"
     ],
     [
       "Bellatrix Energy",
@@ -1831,7 +1815,7 @@
     ],
     [
       "Kesani Enterprises",
-      "intermédiaire",
+      "actionnaire étranger",
       "Nayara Energy",
       "raffineur (Inde)",
       "possède",
@@ -1840,9 +1824,9 @@
     ],
     [
       "Tendril Ventures",
-      "intermédiaire",
+      "actionnaire étranger",
       "Kesani Enterprises",
-      "intermédiaire",
+      "actionnaire étranger",
       "possède",
       "",
       "fait du record"
@@ -1851,7 +1835,7 @@
       "Trafigura",
       "actionnaire étranger",
       "Tendril Ventures",
-      "intermédiaire",
+      "actionnaire étranger",
       "possède (jusqu’au 11 janvier 2023)",
       "49,8 %",
       "fait du record"
@@ -1860,16 +1844,16 @@
       "UCP PE Investments",
       "actionnaire étranger",
       "Tendril Ventures",
-      "intermédiaire",
+      "actionnaire étranger",
       "possède",
       "49,8 %",
       "fait du record"
     ],
     [
       "Mareterra Group Holding",
-      "intermédiaire",
+      "actionnaire étranger",
       "Hara Capital (actionnaire de Tendril depuis le 11 janvier 2023)",
-      "intermédiaire",
+      "actionnaire étranger",
       "possède",
       "100 %",
       "fait du record"
@@ -1879,7 +1863,7 @@
       "propriétaire inconnu",
       "White Agate Marine SPC",
       "armateur ou gestionnaire",
-      "possède ou exploite",
+      "possède ou exploite (selon le GUR, partie à la guerre)",
       "11 navires",
       "fait du record"
     ],
@@ -1915,7 +1899,7 @@
       "propriétaire inconnu",
       "Citrine Marine SPC",
       "armateur ou gestionnaire",
-      "possède ou exploite",
+      "possède ou exploite (selon le GUR, partie à la guerre)",
       "8 navires",
       "fait du record"
     ],
@@ -1960,7 +1944,7 @@
       "propriétaire inconnu",
       "Centauri Services LLC",
       "armateur ou gestionnaire",
-      "possède ou exploite",
+      "possède ou exploite (en partie selon le GUR, partie à la guerre)",
       "6 navires",
       "fait du record"
     ],
@@ -1969,7 +1953,7 @@
       "propriétaire inconnu",
       "Far Frontiers LLC",
       "armateur ou gestionnaire",
-      "possède ou exploite",
+      "possède ou exploite (selon le GUR, partie à la guerre)",
       "6 navires",
       "fait du record"
     ],
@@ -1978,7 +1962,7 @@
       "propriétaire inconnu",
       "Global Seaway LLC",
       "armateur ou gestionnaire",
-      "possède ou exploite",
+      "possède ou exploite (selon le GUR, partie à la guerre)",
       "6 navires",
       "fait du record"
     ],
@@ -1987,7 +1971,7 @@
       "propriétaire inconnu",
       "Hung Phat Maritime Trading",
       "armateur ou gestionnaire",
-      "possède ou exploite",
+      "possède ou exploite (en partie selon le GUR, partie à la guerre)",
       "6 navires",
       "fait du record"
     ],

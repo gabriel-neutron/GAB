@@ -55,7 +55,7 @@ import check_notes
 HERE = Path(__file__).parent
 SITE_CSS = HERE.parents[1] / "src" / "index.css"
 FUNDING = ("This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. "
-           "The author(s) are solely responsible for the content and conclusions presented.")
+           "The authors are solely responsible for the content and conclusions presented.")
 NOTES_HEADING = "Sources par note"
 FUNDING_HEADING = "Financement"
 RESERVED = "À écrire par le co-auteur"
