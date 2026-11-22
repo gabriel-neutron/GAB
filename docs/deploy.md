@@ -77,9 +77,6 @@ contract of the report holds these blockers:
 - [ ] The Corrections page shows the contact, the policy and a line in the version log for the
       version that the release delivers. The report offers no right of reply: a party that the
       report names can ask for a correction there.
-- [ ] The contract leaves the copyright of the report with the author, so the rights notice
-      (CC BY 4.0, Figure 8 under CC BY-NC 4.0) is valid. If not, change `RIGHTS` in
-      `tools/edge/pages.ts` and the notice in the report.
 
 Then build the site with `SITE_RELEASE=1`, and check that a page holds no noindex tag.
 

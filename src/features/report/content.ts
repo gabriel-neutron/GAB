@@ -141,7 +141,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: '*This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. The authors are solely responsible for the content and conclusions presented.*',
+        text: '*This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. The authors are solely responsible for the content and conclusions presented. This report is under CC BY 4.0: name the authors, link the licence and mark each change. Figure 8 is not under CC BY 4.0: it uses Global Fishing Watch data under CC BY-NC 4.0, so do not use it for a commercial purpose.*',
       },
     ],
     notes: [
