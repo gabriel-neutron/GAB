@@ -3,6 +3,7 @@ import { expect, test } from 'vitest';
 import {
   count,
   countryCodes,
+  daysOf,
   readRelease,
   replay,
   reportRelease,
@@ -17,6 +18,12 @@ test('maps the country names of the release to ISO codes', () => {
   expect(countryCodes('Dubai Internet City, United Arab Emirates')).toEqual([]);
 });
 
+test('reads a date as a list or as the head of an OFAC action id', () => {
+  expect(daysOf('["2026-06-12"]')).toEqual(['2026-06-12']);
+  expect(daysOf('20261231_01')).toEqual(['2026-12-31']);
+  expect(() => daysOf('[1]')).toThrow(/not a list of strings/);
+});
+
 const row = (fields: Record<string, string>) => fields;
 
 test('groups vessels under their manager and applies the three conditions', () => {
@@ -27,6 +34,8 @@ test('groups vessels under their manager and applies the three conditions', () =
       row({ id: 'v2', type: 'vessel' }),
       row({ id: 'act', type: 'legal_act' }),
       row({ id: 'ru', type: 'company' }),
+      row({ id: 'plant', type: 'facility' }),
+      row({ id: 'attack', type: 'event' }),
     ],
     relations: [
       row({ type: 'operates', from_id: 'm', to_id: 'v1', valid_from: '', valid_to: '', share: '' }),
@@ -41,6 +50,22 @@ test('groups vessels under their manager and applies the three conditions', () =
       }),
       row({
         type: 'designated_by',
+        from_id: 'plant',
+        to_id: 'old',
+        valid_from: '',
+        valid_to: '',
+        share: '',
+      }),
+      row({
+        type: 'occurred_at',
+        from_id: 'attack',
+        to_id: 'plant',
+        valid_from: '',
+        valid_to: '',
+        share: '',
+      }),
+      row({
+        type: 'designated_by',
         from_id: 'ru',
         to_id: 'act',
         valid_from: '',
@@ -49,6 +74,20 @@ test('groups vessels under their manager and applies the three conditions', () =
       }),
     ],
     claims: [
+      row({
+        claim_kind: 'attribute',
+        subject_id: 'attack',
+        attribute: 'occurred_on',
+        value: '["2025-03-01"]',
+        nato_letter: 'C',
+      }),
+      row({
+        claim_kind: 'attribute',
+        subject_id: 'plant',
+        attribute: 'country',
+        value: 'Kazakhstan',
+        nato_letter: 'A',
+      }),
       row({
         claim_kind: 'attribute',
         subject_id: 'act',
@@ -79,11 +118,12 @@ test('groups vessels under their manager and applies the three conditions', () =
       }),
     ],
   };
-  // The manager and its two vessels are one node; Russia is not a third country.
+  // The manager and its two vessels are one node; Russia is not a third country. The plant is
+  // active by a dated event, and the date of the event has no document of letter A.
   expect(count(replay(files))).toEqual({
-    critical: 1,
+    critical: 2,
     official: 1,
-    byLayer: { Pay: 1, Finance: 0, Fight: 0 },
+    byLayer: { Pay: 1, Finance: 0, Fight: 1 },
   });
 });
 

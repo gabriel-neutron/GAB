@@ -21,7 +21,7 @@
 //   no country.
 // - Critical: (a), (b) and (c). On an official source: each condition rests on at least one fact
 //   whose claim cites a document of ADMIRALTY letter A (for a counterparty, the relation and the
-//   country both).
+//   country both; for a date taken from an act or an event, the relation and the date both).
 // - Layer (derived by this script, no field of the release): Finance when a member is a bank; Pay
 //   when a member is a vessel, a port or an energy facility, trades oil, or owns or operates such an
 //   asset; Fight for each other node.
@@ -36,7 +36,9 @@ import { readCsv } from '@gab/release/csv';
 
 import { fetchDataRelease } from './data-release.ts';
 
-/** The release that the report names, and the SHA-256 of its release.tar.gz. */
+/** The release that the report names, and the SHA-256 of its release.tar.gz. The site pins its own
+ * release in tools/data-release.ts; this pin stays on the release of the report when the site
+ * moves to a newer one. */
 export const REPORT_RELEASE = {
   tag: 'data-2026-10-28',
   sha256: '8896410d0eaea285c72e28798ae1fa7c5ea57d0f369dad3791c0acda04101084',
@@ -106,10 +108,20 @@ for (let first = 65; first <= 90; first += 1)
     if (name !== undefined && name !== code) NAMES.set(name.toLowerCase(), code);
   }
 
-/** The ISO codes of one value of a country attribute, or none. A value can be a JSON list. */
-export const countryCodes = (value: string): string[] => {
-  const values = value.startsWith('[') ? (JSON.parse(value) as string[]) : [value];
-  return values.flatMap((one) => {
+/** The values of one claim: a value can be a JSON list of strings. A list that does not parse
+ * stops the run, so no value is lost with no trace. */
+export const valuesOf = (value: string): string[] => {
+  if (!value.startsWith('[')) return [value];
+  const list: unknown = JSON.parse(value);
+  if (!Array.isArray(list) || !list.every((one) => typeof one === 'string'))
+    throw new Error(`The claim value ${value} is not a list of strings.`);
+  return list;
+};
+
+/** The ISO codes of one value of a country attribute, or none. An address or a name that is not
+ * a country name gives none. */
+export const countryCodes = (value: string): string[] =>
+  valuesOf(value).flatMap((one) => {
     if (/^[A-Z]{2}$/.test(one)) return [one];
     const name = one
       .trim()
@@ -118,7 +130,6 @@ export const countryCodes = (value: string): string[] => {
     const code = COUNTRY_ALIASES[name] ?? NAMES.get(name);
     return code === undefined ? [] : [code];
   });
-};
 
 type Row = Readonly<Record<string, string>>;
 
@@ -152,21 +163,21 @@ export interface NodeResult {
 const inPeriod = (day: string) => day !== '' && day >= FROM && day <= TO;
 
 /** The date of an act from its attributes: entry into force, adoption, or the OFAC action. */
-const actDay = (attributes: ReadonlyMap<string, string>): string => {
-  const day =
-    attributes.get('entry_into_force') ??
-    attributes.get('adopted_on') ??
-    attributes.get('ofac_action_id') ??
-    '';
-  return /^\d{8}$/.test(day) ? `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6)}` : day;
-};
+const ACT_DATES = ['entry_into_force', 'adopted_on', 'ofac_action_id'];
+
+/** The days of one date value: an ISO day, or the YYYYMMDD head of an OFAC action id. */
+export const daysOf = (value: string): string[] =>
+  valuesOf(value).map((one) => {
+    const compact = /^(\d{4})(\d{2})(\d{2})/.exec(one);
+    return compact === null ? one : `${compact[1]}-${compact[2]}-${compact[3]}`;
+  });
 
 const share = (text: string) => {
   const found = /([\d.]+)\s*%/.exec(text);
   return found === null ? 0 : Number(found[1]);
 };
 
-/** Applies the rule of docs/critical-nodes.md to the files of one release. */
+/** Applies the rule of the head comment to the files of one release. */
 export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResult[] => {
   const type = new Map(entities.map((one) => [one['id'] ?? '', one['type'] ?? '']));
 
@@ -174,6 +185,7 @@ export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResul
   const attributes = new Map<string, Map<string, string>>();
   const countries = new Map<string, { code: string; official: boolean }[]>();
   const officialRelation = new Set<string>();
+  const officialAttribute = new Set<string>();
   for (const claim of claims) {
     const subject = claim['subject_id'] ?? '';
     const official = claim['nato_letter'] === 'A';
@@ -186,8 +198,9 @@ export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResul
     }
     const name = claim['attribute'] ?? '';
     const value = claim['value'] ?? '';
+    if (official) officialAttribute.add(`${subject} ${name}`);
     const own = attributes.get(subject) ?? new Map<string, string>();
-    if (!own.has(name)) own.set(name, value);
+    if (!own.has(name) && value !== '') own.set(name, value);
     attributes.set(subject, own);
     if (COUNTRY_ATTRIBUTES.has(name)) {
       const list = countries.get(subject) ?? [];
@@ -245,11 +258,17 @@ export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResul
     const official = officialOf(relation);
     if (kind === 'designated_by') mark(designated, from, official);
     let dated = inPeriod(relation['valid_from'] ?? '') || inPeriod(relation['valid_to'] ?? '');
-    if (kind === 'designated_by' && relation['valid_from'] === '' && relation['valid_to'] === '')
-      dated = inPeriod(actDay(attributes.get(to) ?? new Map()));
+    let datedOfficially = official;
+    if (kind === 'designated_by' && relation['valid_from'] === '' && relation['valid_to'] === '') {
+      // The first date attribute that the act has, in the order of ACT_DATES.
+      const act = attributes.get(to);
+      const name = ACT_DATES.find((one) => act?.has(one) === true);
+      dated = name !== undefined && daysOf(act?.get(name) ?? '').some(inPeriod);
+      datedOfficially = official && officialAttribute.has(`${to} ${name ?? ''}`);
+    }
     if (dated) {
-      mark(active, from, official);
-      if (type.get(to) !== 'legal_act') mark(active, to, official);
+      mark(active, from, datedOfficially);
+      if (type.get(to) !== 'legal_act') mark(active, to, datedOfficially);
     }
     if (!NOT_A_COUNTERPARTY.has(kind))
       for (const [self, other] of [
@@ -270,8 +289,14 @@ export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResul
   // An event dated in the period makes the place where it occurred active.
   for (const relation of relations)
     if (relation['type'] === 'occurred_at') {
-      const day = attributes.get(relation['from_id'] ?? '')?.get('occurred_on') ?? '';
-      if (inPeriod(day)) mark(active, relation['to_id'] ?? '', officialOf(relation));
+      const event = relation['from_id'] ?? '';
+      const day = attributes.get(event)?.get('occurred_on') ?? '';
+      if (daysOf(day).some(inPeriod))
+        mark(
+          active,
+          relation['to_id'] ?? '',
+          officialOf(relation) && officialAttribute.has(`${event} occurred_on`),
+        );
     }
 
   const payMember = new Set<string>();
