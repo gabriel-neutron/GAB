@@ -344,9 +344,9 @@ export const reportLlms = (site: string): string =>
     '',
     '## Pages',
     '',
-    `- [Report, English](${at(site, '')}): the home page`,
-    `- [Report, French](${at(site, 'fr/')})`,
-    `- [Bibliography](${at(site, 'bibliography/')})`,
+    `- [Report, English](${at(site, '')}): the home page, which shows a notice until the report comes back`,
+    `- [Report, French](${at(site, 'fr/')}): a notice until the report comes back`,
+    `- [Bibliography](${at(site, 'bibliography/')}): a notice until the report comes back`,
     `- [Glossary](${at(site, 'glossary/')})`,
     '',
   ].join('\n');
