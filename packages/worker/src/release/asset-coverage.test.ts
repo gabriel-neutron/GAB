@@ -273,7 +273,10 @@ const MANIFEST: ReleaseManifest = {
   date: '2026-10-13',
   showNatoPair: false,
   dateRules: { eu: 'entry_into_force', ofac: 'recent_actions_notice', uk: 'date_designated' },
-  contacts: { reportError: 'mailto:error@example.org', rightOfReply: 'https://example.org/corrections' },
+  contacts: {
+    reportError: 'mailto:error@example.org',
+    rightOfReply: 'https://example.org/corrections',
+  },
   criticalNodes: null,
   volumes: null,
   iriBase: 'https://example.org/id/',
