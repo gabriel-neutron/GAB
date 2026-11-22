@@ -14,7 +14,7 @@
 
 - –**Owners and managers:** On the archived pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships that give both dates show an owner or manager that started after the designation.
 
-- –**Ownership chains:** The 50% rule follows shares: the chains of the large state companies end at the state, but in the private fleet and in oil trading they often end at a company with no documented owner, and, according to the sanctions lists and to GUR, a party to the war, about fifteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner.
+- –**Ownership chains:** The 50% rule follows shares: the chains of the large state companies end at the state, but in the private fleet and in oil trading they often end at a company with no documented owner, and, according to the sanctions lists and, for part of them, to GUR, a party to the war, about fifteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner.
 
 - –**Customers:** From 2021 to 2025, EU purchases from Russia fell by 84%;[^1] China became Russia's first customer, and India bought twenty times as much Russian crude.
 
@@ -533,7 +533,7 @@ Loyalty, by contrast, opens public contracts. According to the BBC, Yevgeny Prig
 [^112]: NPR Planet Money (2022), op. cit., n. 106.
 
 
-Outside the state, the large private shareholders form a circle that the designation texts link to the president. Gennady Timchenko, a long-time acquaintance of Vladimir Putin, holds, with Leonid Mikhelson, majority stakes in a large petrochemical group and is a shareholder of Bank Rossiya.[^113] Mikhelson directly holds about 14% of Novatek.[^114] Yuri Kovalchuk, another long-time acquaintance of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer SOGAZ.[^115] The circle reaches the family: according to the US Treasury, in 2013 Kirill Shamalov married Katerina Tikhonova, the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]
+Outside the state, the large private shareholders form a circle that the designation texts link to the president. Gennady Timchenko, a long-time acquaintance of Vladimir Putin, holds, with Leonid Mikhelson, the majority stakes in a large petrochemical group and is a shareholder of Bank Rossiya.[^113] Mikhelson directly holds about 14% of Novatek.[^114] Yuri Kovalchuk, another long-time acquaintance of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer SOGAZ.[^115] The circle reaches the family: according to the US Treasury, in 2013 Kirill Shamalov married Katerina Tikhonova, the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]
 
 State companies are run by associates who do not own them. The EU states in its reasons for listing that Igor Sechin (Rosneft) is a personal friend of the president and that Nikolay Tokarev (Transneft) served with him in the KGB;[^117] according to the US Treasury, Sergei Chemezov (Rostec) has known him since the 1980s, when they lived in the same apartment complex in East Germany.[^118] According to Tatiana Stanovaya of the Carnegie Endowment, these friends and former colleagues were handed large state assets to manage, which made them "state oligarchs".[^119]
 

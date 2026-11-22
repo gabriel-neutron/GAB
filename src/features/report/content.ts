@@ -109,7 +109,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Ownership chains:** The 50% rule follows shares: the chains of the large state companies end at the state, but in the private fleet and in oil trading they often end at a company with no documented owner, and, according to the sanctions lists and to GUR, a party to the war, about fifteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner.',
+        text: '**Ownership chains:** The 50% rule follows shares: the chains of the large state companies end at the state, but in the private fleet and in oil trading they often end at a company with no documented owner, and, according to the sanctions lists and, for part of them, to GUR, a party to the war, about fifteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner.',
       },
       {
         kind: 'li',
@@ -949,7 +949,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: "Outside the state, the large private shareholders form a circle that the designation texts link to the president. [[N-O023|Gennady Timchenko]], a long-time acquaintance of [[N-O024|Vladimir Putin]], holds, with [[N-O032|Leonid Mikhelson]], majority stakes in a large petrochemical group and is a shareholder of [[N-O029|Bank Rossiya]].[^113] Mikhelson directly holds about 14% of [[N-O027|Novatek]].[^114] [[N-O030|Yuri Kovalchuk]], another long-time acquaintance of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer [[N-O031|SOGAZ]].[^115] The circle reaches the family: according to the US Treasury, in 2013 [[N-O033|Kirill Shamalov]] married [[N-O034|Katerina Tikhonova]], the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]",
+        text: "Outside the state, the large private shareholders form a circle that the designation texts link to the president. [[N-O023|Gennady Timchenko]], a long-time acquaintance of [[N-O024|Vladimir Putin]], holds, with [[N-O032|Leonid Mikhelson]], the majority stakes in a large petrochemical group and is a shareholder of [[N-O029|Bank Rossiya]].[^113] Mikhelson directly holds about 14% of [[N-O027|Novatek]].[^114] [[N-O030|Yuri Kovalchuk]], another long-time acquaintance of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer [[N-O031|SOGAZ]].[^115] The circle reaches the family: according to the US Treasury, in 2013 [[N-O033|Kirill Shamalov]] married [[N-O034|Katerina Tikhonova]], the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]",
       },
       {
         kind: 'p',
