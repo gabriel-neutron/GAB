@@ -95,8 +95,12 @@ describe.each([
   test('the pages of the site have their text, and a title, outside any script', () => {
     const { page } = site();
     const expected: readonly (readonly [string, string, string])[] = [
-      ['index.html', 'The problem.', 'The nodes that sustain Russia’s war in 2026 · GAB'],
-      ['bibliography/index.html', 'Notes and sources', 'Report bibliography · GAB'],
+      [
+        'index.html',
+        'The report is in final review',
+        'The nodes that sustain Russia’s war in 2026 · GAB',
+      ],
+      ['bibliography/index.html', 'The report is in final review', 'Report bibliography · GAB'],
       ['nodes/index.html', 'The labels', 'GAB dataset: release overview'],
       ['map/index.html', 'Map', 'Map · GAB dataset'],
       ['downloads/index.html', 'SHA-256 checksum', 'Downloads · GAB dataset'],
@@ -228,7 +232,7 @@ describe.each([
         expect(html).toContain(`<link rel="alternate" hreflang="fr" href="${SITE}${fr}" />`);
         expect(html).toContain(`<link rel="alternate" hreflang="x-default" href="${SITE}${en}" />`);
       }
-    expect(textOf(page('fr/index.html'))).toContain('Le problème.');
+    expect(textOf(page('fr/index.html'))).toContain('Le rapport est en relecture finale');
     expect(page('fr/index.html')).toContain('<title>Les nœuds qui soutiennent');
     expect(page('help/index.html')).toContain('<html lang="en"');
     expect(page('help/index.html')).not.toContain('hreflang');

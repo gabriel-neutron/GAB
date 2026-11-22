@@ -2,8 +2,8 @@
 
 This folder holds the files of the report that the site serves as they are, with no build step.
 
-- `gab-report-en.pdf`: the report in English.
-- `gab-report-fr.pdf`: the report in French.
+- `gab-report-en.pdf`: the report in English. It is not here while the report is out of production.
+- `gab-report-fr.pdf`: the report in French. It is not here while the report is out of production.
 - `stamp.json`: the hash of what the command prints for each PDF: the page, the code of the layout
   pass and the links of the notes. A test fails when a PDF is older than its templates, its figures,
   its byline, the layout pass or the links.

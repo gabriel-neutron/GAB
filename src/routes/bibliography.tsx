@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { BibliographyPage } from '@/features/report/bibliography-page';
+import { ReportNotice } from '@/features/report/report-notice';
+// The report is out of production until its delivery: the page shows a notice.
 export const Route = createFileRoute('/bibliography')({
-  component: BibliographyPage,
+  component: () => <ReportNotice />,
   head: () => ({ meta: [{ title: 'Report bibliography · GAB' }] }),
 });
