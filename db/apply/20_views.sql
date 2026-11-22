@@ -436,7 +436,7 @@ COMMENT ON VIEW api.proposal IS
 -- PU1: the disclaimer of the dataset. The read API gives it beside the data, so that a reader
 -- of the API gets it, and an export file copies it. The text is the exact text of the operator.
 -- The two links stay placeholders until the release names them: the second link is the
--- Corrections page. The project offers no right of reply: a named party asks for a correction. The lines are long because
+-- Corrections page (PU1). The lines are long because
 -- the text is one literal, word for word.
 CREATE VIEW api.dataset AS
   SELECT $disclaimer$**About this data.** A machine reads public documents and proposes each claim. Each claim cites the documents that state it, and each claim carries a label that tells who decided it.

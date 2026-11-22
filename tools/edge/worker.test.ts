@@ -267,6 +267,15 @@ describe('the faults of the MCP server', () => {
     expect(page).toContain('https://example.org/corrections');
   });
 
+  it('links the corrections page and offers no right of reply on any page for readers', async () => {
+    for (const path of ['/index.md', '/llms.txt', '/about.md']) {
+      expect(await (await get(path)).text()).toContain('https://example.org/corrections');
+    }
+    for (const path of ['/contact.md', '/privacy.md', '/corrections.md', '/llms.txt']) {
+      expect(await (await get(path)).text()).not.toMatch(/right of reply/iu);
+    }
+  });
+
   it('answers 503, not an empty list, when the manifest cannot be read', async () => {
     const broken = {
       ASSETS: { fetch: (): Promise<Response> => Promise.resolve(new Response('x')) },
