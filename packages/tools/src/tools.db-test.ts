@@ -1326,7 +1326,68 @@ test('a start that no excerpt states is not proposed, and the checker does not r
       srcId: found.held.id,
       dstId: found.held.id,
       validTo: '2023-11-30',
+      // The checker reads no record, so it reads the names of the two ends.
+      source: expect.stringContaining(`${found.held.label} (`) as string,
+      target: expect.stringContaining(`${found.held.label} (`) as string,
     },
+  ]);
+});
+
+test('the checker reads the name, the type and the IMO number of an entity of the batch', async () => {
+  claimsRead.length = 0;
+  const page = 'The tanker NAYARA, IMO 9374325, belongs to Rosneft. Its name stays the same.';
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await connected(ask);
+    const [keyedEntity] = keyed.parse(await ask(KEYED));
+    if (keyedEntity === undefined) throw new Error('the fixture holds no string attribute');
+    await asResearch(ask, () => withDocument(ask, [page]));
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_research');
+    const outcome = await callTool(
+      toolNamed('propose'),
+      sessionOf(ask),
+      {
+        items: [
+          item(
+            'nayara',
+            {
+              op: 'create_entity',
+              type: 'vessel',
+              label: 'NAYARA',
+              attrs: { imo: { v: '9374325' } },
+            },
+            'The tanker NAYARA, IMO 9374325',
+          ),
+          item(
+            'owner',
+            { op: 'create_relation', type: 'owns', srcId: held.id, dstId: 'nayara' },
+            'belongs to Rosneft',
+          ),
+          item(
+            'update',
+            {
+              op: 'update_attrs',
+              targetKind: 'entity',
+              targetId: keyedEntity.id,
+              attrs: { [keyedEntity.key]: { v: keyedEntity.value } },
+            },
+            'Its name stays the same.',
+          ),
+        ],
+      },
+      reading,
+    );
+    await ask('RESET SESSION AUTHORIZATION');
+    return { held, keyedEntity, outcome };
+  });
+  expect(found.outcome.ok).toBe(true);
+  expect(claimsRead).toMatchObject([
+    { op: 'create_entity' },
+    {
+      op: 'create_relation',
+      source: expect.stringContaining(`${found.held.label} (`) as string,
+      target: 'NAYARA (vessel, IMO 9374325)',
+    },
+    { op: 'update_attrs', entity: expect.stringMatching(/^.+ \(.+\)$/u) as string },
   ]);
 });
 
@@ -2339,6 +2400,21 @@ test('propose refuses a source whose excerpt holds only an alias under 4 charact
   expect(found).toMatchObject({ ok: false });
 });
 
+test('propose refuses a source whose excerpt holds a name of an end only inside a longer word', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const held = await designatedRelation(ask);
+    await ask(
+      `UPDATE public.entities SET attrs = attrs || '{"aliases":{"v":["Ural"],"src":["manual"]}}'::jsonb
+        WHERE label = 'A treasury'`,
+    );
+    return proposeOnPage(ask, [sourcing(held, 'Urals crude')], 'Urals crude exports rose in May.');
+  });
+  expect(found).toMatchObject({
+    ok: false,
+    refusal: expect.stringContaining('names an end of the relation') as string,
+  });
+});
+
 test('propose refuses a source whose excerpt names no end of the relation', async () => {
   const found = await rolledBack('superuser', async (ask) => {
     const held = await designatedRelation(ask);
@@ -2646,6 +2722,46 @@ test.each(HELD_IDENTIFIERS)(
     });
   },
 );
+
+test('propose refuses a new entity whose identifier the record holds in another spacing', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    await ask('SET LOCAL SESSION AUTHORIZATION gabriel_app');
+    const [act] = z
+      .array(z.object({ id: z.uuid() }))
+      .parse(
+        await ask(`SELECT public.propose_change($1, $2::jsonb, ARRAY['manual']::text[]) AS id`, [
+          'create_entity',
+          JSON.stringify({ type: 'company', label: 'Held holder' }),
+        ]),
+      );
+    await ask('RESET SESSION AUTHORIZATION');
+    await ask(
+      `INSERT INTO public.entities (type, label, attrs, sources, promoted_from)
+         VALUES ('company', 'Held holder',
+                 '{"registration_number":{"v":"HE123456","src":["manual"]}}'::jsonb,
+                 ARRAY['manual']::doc_id[], $1)`,
+      [act?.id],
+    );
+    return proposeOnPage(ask, [
+      item(
+        'nayara',
+        {
+          op: 'create_entity',
+          type: 'company',
+          label: 'Nayara',
+          attrs: { registration_number: { v: 'he 123-456' } },
+        },
+        'the tanker NAYARA',
+      ),
+    ]);
+  });
+  expect(found).toMatchObject({
+    ok: false,
+    refusal: expect.stringMatching(
+      /already, on the entity [0-9a-f-]{36} [(]Held holder[)]/u,
+    ) as string,
+  });
+});
 
 test('propose passes a retry of the same batch that waits already, and refuses another name', async () => {
   const found = await rolledBack('superuser', async (ask) => {

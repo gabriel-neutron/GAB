@@ -160,8 +160,9 @@ const storeFile = async (
   text: string,
   day: string,
   mime: string = SDMX_CSV,
+  uri: string = URI,
 ): Promise<void> => {
-  await held.ask(PUT, [id, `raw/${id}.csv`, URI, sha256(text), mime, day]);
+  await held.ask(PUT, [id, `raw/${id}.csv`, uri, sha256(text), mime, day]);
   await held.ask('SELECT public.put_document_text($1, $2::jsonb, $3)', [
     id,
     JSON.stringify([text]),
@@ -185,8 +186,9 @@ const mappedFile = async (
   provider: string | null = 'eurostat',
   text: string = TEXT,
   mime: string = SDMX_CSV,
+  uri: string = URI,
 ): Promise<{ mapping: string; load: string }> => {
-  await storeFile(held, FILE, text, '2026-10-25', mime);
+  await storeFile(held, FILE, text, '2026-10-25', mime, uri);
   // fetch_document names the provider of a file of the Eurostat API.
   if (provider !== null)
     await held.ask('SELECT public.fill_document_provider($1, $2)', [FILE, provider]);
@@ -432,6 +434,8 @@ test.each([
     const { load } = await mappedFile(held, DRAFT, provider);
     await runLoad(held, load);
     expect(await figuresOf(held)).toHaveLength(5);
+    // This test reads the licence, so each provider stands at level A.
+    await held.ask("UPDATE public.document_provider SET level = 'A' WHERE id = $1", [provider]);
     expect(
       await held.asRole('gabriel_app', () =>
         held.ask('SELECT count(*)::int AS shown FROM public.release_observations()'),
@@ -518,6 +522,13 @@ test('a release does not give a subject that the public read hides', async () =>
     await putAsAgent(held, job, [WIDE_CELL]);
     // A subject has no foreign key. An entity that api.entity does not show reads as no subject.
     await held.ask('UPDATE public.observation SET subject_id = gen_random_uuid()');
+    // Eurostat is below level A until a tag splits its carve-outs, so its figures do not leave.
+    expect(
+      await held.asRole('gabriel_app', () =>
+        held.ask('SELECT subject_id FROM public.release_observations()'),
+      ),
+    ).toStrictEqual([]);
+    await held.ask("UPDATE public.document_provider SET level = 'A' WHERE id = 'eurostat'");
     expect(
       await held.asRole('gabriel_app', () =>
         held.ask('SELECT subject_id FROM public.release_observations()'),
@@ -912,6 +923,66 @@ test('a stored Comtrade JSON answer is mapped, shows a dry run, loads once and s
   });
 });
 
+// The address that the tool comtrade_data stores for the total row of one key, and the columns of
+// the live answer. The mapper takes the recipe from them, and no model reads the table.
+const RECIPE_ADDRESS =
+  'https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2024&flowCode=X&' +
+  'cmdCode=8541&partnerCode=643&customsCode=C00&motCode=0&partner2Code=0';
+const RECIPE_COLUMNS =
+  'typeCode,freqCode,refPeriodId,refYear,refMonth,period,reporterCode,reporterISO,reporterDesc,' +
+  'flowCode,flowDesc,partnerCode,partnerISO,partnerDesc,partner2Code,partner2ISO,partner2Desc,' +
+  'classificationCode,classificationSearchCode,isOriginalClassification,cmdCode,cmdDesc,aggrLevel,' +
+  'isLeaf,customsCode,customsDesc,mosCode,motCode,motDesc,qtyUnitCode,qtyUnitAbbr,qty,' +
+  'isQtyEstimated,altQtyUnitCode,altQtyUnitAbbr,altQty,isAltQtyEstimated,netWgt,' +
+  'isNetWgtEstimated,grossWgt,isGrossWgtEstimated,cifvalue,fobvalue,primaryValue,' +
+  'legacyEstimationFlag,isReported,isAggregate';
+
+test('the mapper takes the recipe of a Comtrade table, and the loader loads its row as a restricted figure in USD', async () => {
+  const row = Object.fromEntries(RECIPE_COLUMNS.split(',').map((name) => [name, null]));
+  Object.assign(row, {
+    period: 2024,
+    reporterCode: 156,
+    flowCode: 'X',
+    partnerCode: 643,
+    cmdCode: '8541',
+    customsCode: 'C00',
+    motCode: 0,
+    partner2Code: 0,
+    primaryValue: 202893074,
+    legacyEstimationFlag: 4,
+  });
+  const answer = JSON.stringify({ elapsedTime: '0.31 secs', count: 1, data: [row] }, null, 2);
+  await inTransaction(async (held) => {
+    const { load } = await mappedFile(
+      held,
+      undefined,
+      'un_comtrade',
+      answer,
+      'application/json',
+      RECIPE_ADDRESS,
+    );
+    await runLoad(held, load);
+    const figures = await figuresOf(held);
+    expect(
+      figures.map(({ reporter_system, reporter, partner, product, value, unit, flag, licence }) => [
+        reporter_system,
+        reporter,
+        partner,
+        product,
+        value,
+        unit,
+        flag,
+        licence,
+      ]),
+    ).toStrictEqual([['iso3166', 'CN', 'RU', '8541', '202893074', 'usd', '4', 'restricted']]);
+    expect(
+      await held.ask('SELECT measure, period FROM public.observation WHERE document_id = $1', [
+        FILE,
+      ]),
+    ).toStrictEqual([{ measure: 'exports', period: '2024' }]);
+  });
+});
+
 // The span of the element of the data list that holds a text, as the loader gives it. The file is
 // ASCII, so a code point is one UTF-16 unit.
 const elementOf = (inside: string) => {
@@ -1025,3 +1096,48 @@ test.each(['97', '490', '250', '99999', 'CN'])(
     expect(rows).toStrictEqual([]);
   },
 );
+
+const PUBLIC_READ_OF_MONTH = `SELECT period, value::text AS value, licence FROM api.observation
+  WHERE reporter = 'DE' AND publisher = 'Eurostat' AND period = $1`;
+
+// M12: a subject that a merge absorbed reads as its survivor, so an older edition of the absorbed
+// subject and a newer edition of the survivor are two editions of one figure.
+test('the public read shows one edition of a figure after a merge of its two subjects', async () => {
+  await inTransaction(async (held) => {
+    const { mapping, load } = await mappedFile(held);
+    await runLoad(held, load);
+    const survivor = await held.idOf(
+      'SELECT id::text AS id FROM public.entities ORDER BY id LIMIT 1',
+    );
+    const absorbed = await held.idOf('SELECT gen_random_uuid()::text AS id');
+    await held.ask(
+      `UPDATE public.observation SET subject_id = $2::uuid
+        WHERE document_id = $1 AND reporter = 'DE' AND period = '2022-01'`,
+      [FILE, survivor],
+    );
+    await storeFile(held, 'doc_estat_gasm_old', TEXT.replace('4771.900', '4700.000'), '2026-01-05');
+    await held.ask(
+      `INSERT INTO public.observation
+         (measure, value, unit, period, method, publisher, reporter_system, reporter,
+          partner_system, partner, product_system, product, licence, document_id, text_extractor,
+          page, span_start, span_end, mapping_id, job_id, subject_id)
+       SELECT measure, 4700, unit, period, method, publisher, reporter_system, reporter,
+              partner_system, partner, product_system, product, licence, 'doc_estat_gasm_old',
+              text_extractor, page, span_start, span_end, mapping_id, job_id, $2::uuid
+         FROM public.observation WHERE document_id = $1 AND reporter = 'DE' AND period = '2022-01'`,
+      [FILE, absorbed],
+    );
+    // The merge writes the alias. The test writes it as the merge does.
+    await held.ask(
+      'INSERT INTO public.entity_alias (absorbed_id, survivor_id, merged_by) VALUES ($1, $2, $3)',
+      [absorbed, survivor, mapping],
+    );
+    expect(
+      z
+        .array(readRow)
+        .parse(
+          await held.asRole('gabriel_agent', () => held.ask(PUBLIC_READ_OF_MONTH, ['2022-01'])),
+        ),
+    ).toStrictEqual([{ period: '2022-01', value: '4771.900', licence: 'eu-reuse' }]);
+  });
+});

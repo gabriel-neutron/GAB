@@ -89,6 +89,40 @@ test('the tanker set keeps the rule types, the first dated designation and one r
   ]);
 });
 
+test('the tanker set reads an IMO number given as a number or with the prefix IMO', () => {
+  const [a, b, c] = [1, 2, 3].map(uuid) as [string, string, string];
+  const full = {
+    claims: [
+      claim(a, 'vessel_type', 'Crude Oil Tanker'),
+      claim(a, 'imo', 9074729),
+      claim(b, 'vessel_type', 'Crude Oil Tanker'),
+      claim(b, 'imo', 'IMO 9000002'),
+      // The same number as a, in another form: one row.
+      claim(c, 'vessel_type', 'Oil Tanker'),
+      claim(c, 'imo', 'IMO9074729'),
+    ],
+    relations: [
+      designated(1, a, '2023-01-01'),
+      designated(2, b, '2023-01-01'),
+      designated(3, c, '2022-01-01'),
+    ],
+    entities: [
+      { id: a, label: 'ALPHA' },
+      { id: b, label: 'BRAVO' },
+      { id: c, label: 'CHARLIE' },
+    ],
+  } as unknown as ReleaseRecord;
+  const set = tankerSet(full);
+  expect(set).toEqual([
+    { imo: '9000002', j0: '2023-01-01' },
+    { imo: '9074729', j0: '2022-01-01' },
+  ]);
+  expect(tankerListRows(full, set, new Map())).toEqual([
+    ['9000002', 'BRAVO', ''],
+    ['9074729', 'ALPHA', ''],
+  ]);
+});
+
 test('the region comes from the country of the anchorage', () => {
   expect(['FRA', 'RUS', 'CHN', 'TUR', 'IND', 'EGY'].map(regionOf)).toEqual([
     'EU',

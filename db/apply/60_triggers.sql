@@ -144,4 +144,10 @@ ALTER TABLE relations ENABLE ALWAYS TRIGGER relations_one_open;
 ALTER TABLE relation_type ENABLE ALWAYS TRIGGER relation_type_interval;
 ALTER TABLE jobs      ENABLE ALWAYS TRIGGER jobs_stamp_claimed_by;
 
+-- A document on an address that a rule restricts is restricted from its first row (migration 0097).
+CREATE OR REPLACE TRIGGER documents_restricted_by_rule
+  BEFORE INSERT OR UPDATE OF uri ON documents
+  FOR EACH ROW EXECUTE FUNCTION document_restricted_by_rule();
+ALTER TABLE documents ENABLE ALWAYS TRIGGER documents_restricted_by_rule;
+
 RESET ROLE;

@@ -18,9 +18,13 @@ describe('opening copy', () => {
       value.kind === 'number' ? `${value.label} ${value.format(value.value)}` : value.text,
     );
     expect(values).toEqual([
+      '87 days',
+      '318',
+      '427 of 757',
+      'about fifteen',
       'Customers 84%',
       'Ships 79%',
-      'almost doubled',
+      '$19 to $27',
       'less than one fifth',
       'Currency 53%',
       'Components 77%',

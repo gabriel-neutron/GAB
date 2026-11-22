@@ -16,6 +16,8 @@ import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
+import { isRole, type Role } from './roles.ts';
+
 export const HTTP_HOST = '127.0.0.1';
 export const HTTP_PATH = '/mcp';
 
@@ -42,6 +44,13 @@ export const isLoopbackRequest = (request: IncomingMessage): boolean => {
   }
 };
 
+// A worker connects at /mcp/<role>, and its strict MCP file names only that address.
+const roleOfPath = (pathname: string): Role | undefined | null => {
+  if (pathname === HTTP_PATH) return undefined;
+  const role = pathname.startsWith(`${HTTP_PATH}/`) ? pathname.slice(HTTP_PATH.length + 1) : '';
+  return isRole(role) ? role : null;
+};
+
 const MAX_BODY = 4 * 1024 * 1024;
 
 const bodyOf = async (request: IncomingMessage): Promise<unknown> => {
@@ -66,7 +75,10 @@ interface Live {
 const IDLE_MS = 4 * 60 * 60 * 1000;
 
 /** Serve `makeServer` over HTTP on the loopback address. Port 0 picks a free port. */
-export const serveHttp = (makeServer: () => McpServer, port: number): Promise<Server> => {
+export const serveHttp = (
+  makeServer: (role?: Role) => McpServer,
+  port: number,
+): Promise<Server> => {
   const sessions = new Map<string, Live>();
 
   const refuse = (response: ServerResponse, status: number, text: string): undefined => {
@@ -80,8 +92,9 @@ export const serveHttp = (makeServer: () => McpServer, port: number): Promise<Se
         refuse(response, 403, 'the host is not loopback');
         return;
       }
-      if (new URL(request.url ?? '/', 'http://x').pathname !== HTTP_PATH) {
-        refuse(response, 404, 'the path is /mcp');
+      const role = roleOfPath(new URL(request.url ?? '/', 'http://x').pathname);
+      if (role === null) {
+        refuse(response, 404, 'the path is /mcp or /mcp/<role>');
         return;
       }
 
@@ -103,7 +116,7 @@ export const serveHttp = (makeServer: () => McpServer, port: number): Promise<Se
         refuse(response, 400, 'no session');
         return;
       }
-      const server = makeServer();
+      const server = makeServer(role);
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: randomUUID,
         onsessioninitialized: (made) => {

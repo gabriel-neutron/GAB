@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { JobStop, type AgentContext, type AgentResult, type RunnerAgent } from '../agents.ts';
 import { readMapperConfig, type MapperConfig } from '../reader-config.ts';
 import { promptOf, withinBudget } from '../tool-turn.ts';
-import { RECIPE_AGENT, recipeOf } from './recipes.ts';
+import { isRecipeHost, RECIPE_AGENT, recipeOf } from './recipes.ts';
 
 const MAPPER_NAME = 'mapper';
 const VERSION = 'v4';
@@ -88,10 +88,12 @@ export const makeMapper = (config: MapperConfig, options: MapperOptions = {}): R
     // A file that an accepted mapping already fits is loaded with no model. A job that runs again
     // meets the load that its first run queued, and the door returns it. A table that a recipe
     // knows takes only the mapping of its own document: two files of one host can share a header
-    // and give another measure.
+    // and give another measure. A table of a recipe host that no recipe knows also takes only its
+    // own mapping, so that a recipe mapping of another address never loads it.
     const recipe = recipeOf(held.uri, header);
+    const ownOnly = recipe !== undefined || isRecipeHost(held.uri);
     const [reused] = loadRow.parse(
-      (await context.db.query(REUSE, [document, headerSig, recipe !== undefined])).rows,
+      (await context.db.query(REUSE, [document, headerSig, ownOnly])).rows,
     );
     if (reused !== undefined && reused.id !== null) return { refusals: [] };
 

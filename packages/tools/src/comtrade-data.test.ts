@@ -1,11 +1,16 @@
 // The UN Comtrade tool, offline: a web that answers from recorded answers, a store in memory and a
 // database that is a map of hashes. No test reaches the network and no test spends a call.
 
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { expect, test } from 'vitest';
 
 import { CATALOGUE } from './catalogue.ts';
 import { resetComtradeClock } from './comtrade-data.ts';
 import { memoryStore } from './fetch-fixture.ts';
+import { hostLease } from './host-lease.ts';
 import { callTool, type ToolOutcome, type WebAnswer } from './tool.ts';
 import { hashDatabase, json, stubWeb, text, type Asked } from './web-stub.ts';
 
@@ -64,6 +69,9 @@ test('one reporter, one period and one HS code are read and stored as a document
     flowCode: 'X',
     cmdCode: '2709',
     partnerCode: '156',
+    customsCode: 'C00',
+    motCode: '0',
+    partner2Code: '0',
     maxRecords: '100000',
   });
   expect(store.puts).toHaveLength(1);
@@ -87,7 +95,7 @@ test('the key is in the header only, and not in the stored address, body, output
   expect(JSON.stringify(first)).not.toContain(KEY);
   expect(new TextDecoder().decode(store.puts[0]?.bytes)).not.toContain(KEY);
   expect(session.stored[0]?.[2]).toBe(
-    'https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=643&period=2023&flowCode=X&cmdCode=2709&partnerCode=156',
+    'https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=643&period=2023&flowCode=X&cmdCode=2709&partnerCode=156&customsCode=C00&motCode=0&partner2Code=0',
   );
 
   const second = await callTool(tool, session, INPUT, reach);
@@ -172,9 +180,68 @@ test('a 429 names both causes', async () => {
   expect(refusalOf(outcome)).toContain('one call a second');
 });
 
+test('a 403 for a spent quota names the quota, and any other 403 names the key', async () => {
+  const quota = setup({
+    answer: () => text('Out of call volume quota. Quota will be replenished in 02:00:00', 403),
+  });
+  const spent = refusalOf(await callTool(tool, quota.session, INPUT, quota.reach));
+  expect(spent).toContain('daily quota is spent');
+  expect(spent).toContain('comes back later');
+  expect(spent).not.toContain('COMTRADE_API_KEY');
+  expect(spent).not.toContain('Quota will be');
+
+  const denied = setup({ answer: () => text('denied', 403) });
+  const refused = refusalOf(await callTool(tool, denied.session, INPUT, denied.reach));
+  expect(refused).toContain('refused the key');
+});
+
 test('a code or a period of a wrong shape is refused before any call', async () => {
   const { web, session, reach } = setup();
   const bad = await callTool(tool, session, { ...INPUT, period: '23' }, reach);
   expect(bad.ok).toBe(false);
   expect(web.asked).toHaveLength(0);
+});
+
+test('a limit holds for each worker through the lease, and the next call sends nothing', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gab-comtrade-'));
+  try {
+    const { web, session, reach } = setup({ answer: () => text('slow down', 429) });
+    const leased = {
+      ...reach,
+      hostLease: hostLease({ dir, now: reach.now, sleep: reach.sleep }),
+    };
+    expect((await callTool(tool, session, INPUT, leased)).ok).toBe(false);
+    const outcome = await callTool(tool, session, INPUT, leased);
+    expect(refusalOf(outcome)).toContain('quota hold');
+    expect(web.asked).toHaveLength(1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a stated Retry-After is the time of the hold, and a CAPTCHA holds the host', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gab-comtrade-'));
+  try {
+    const { session, reach } = setup({
+      answer: () => text('slow down', 429, { 'retry-after': '900' }),
+    });
+    const leased = { ...reach, hostLease: hostLease({ dir, now: reach.now, sleep: reach.sleep }) };
+    await callTool(tool, session, INPUT, leased);
+    expect(refusalOf(await callTool(tool, session, INPUT, leased))).toContain('10:15:00');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  const other = mkdtempSync(join(tmpdir(), 'gab-comtrade-'));
+  try {
+    const { web, session, reach } = setup({ answer: () => text('<form>captcha</form>') });
+    const leased = {
+      ...reach,
+      hostLease: hostLease({ dir: other, now: reach.now, sleep: reach.sleep }),
+    };
+    expect(refusalOf(await callTool(tool, session, INPUT, leased))).toContain('CAPTCHA');
+    expect(refusalOf(await callTool(tool, session, INPUT, leased))).toContain('captcha hold');
+    expect(web.asked).toHaveLength(1);
+  } finally {
+    rmSync(other, { recursive: true, force: true });
+  }
 });

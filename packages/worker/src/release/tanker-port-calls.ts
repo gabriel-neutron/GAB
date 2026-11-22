@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { attributeOfEntities } from './asset-claims.ts';
+import { attributeOfEntities, imoOf } from './asset-claims.ts';
 import type { ReleaseRecord } from './release-record.ts';
 
 /** A fault in the data that the rebuild reads. The command gives a non-zero exit code for it. */
@@ -89,10 +89,10 @@ export const tankerSet = (record: ReleaseRecord): readonly Tanker[] => {
   }
   const byImo = new Map<string, string>();
   for (const [id, type] of types) {
-    const imo = imos.get(id);
+    const imo = imoOf(imos.get(id));
     const j0 = firstDay.get(id);
     if (typeof type !== 'string' || !TANKER_TYPES.has(type)) continue;
-    if (typeof imo !== 'string' || j0 === undefined) continue;
+    if (imo === null || j0 === undefined) continue;
     const known = byImo.get(imo);
     if (known === undefined || j0 < known) byImo.set(imo, j0);
   }
@@ -110,8 +110,10 @@ export const tankerListRows = (
 ): string[][] => {
   const labels = new Map(record.entities.map((one) => [one.id, one.label]));
   const names = new Map<string, string>();
-  for (const [id, imo] of attributeOfEntities(record, 'imo'))
-    if (typeof imo === 'string' && !names.has(imo)) names.set(imo, labels.get(id) ?? '');
+  for (const [id, value] of attributeOfEntities(record, 'imo')) {
+    const imo = imoOf(value);
+    if (imo !== null && !names.has(imo)) names.set(imo, labels.get(id) ?? '');
+  }
   return tankers.map((one) => [
     one.imo,
     names.get(one.imo) ?? '',

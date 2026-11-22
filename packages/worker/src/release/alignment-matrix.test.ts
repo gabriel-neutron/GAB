@@ -353,6 +353,28 @@ test('an ended listing gives its end date and still counts in the marks', () => 
   });
 });
 
+test('a start date that a later act set cites the claim of that date, not the bare designation', () => {
+  const eu = designation(20, SHIP, EU_ACT, ['doc_eu'], '2023-02-24');
+  const dated: ReleaseClaim = {
+    ...eu.claim,
+    claim_id: `${eu.relation.id}/valid_from`,
+    attribute: 'valid_from',
+    value: '2023-02-24',
+  };
+  const { rows } = matrixOf(
+    recordOf(
+      [entity(SHIP, 'vessel', 'TEST TANKER'), ...ACTS],
+      [value(SHIP, 'imo', '9123456'), dated],
+      [eu],
+    ),
+  );
+  expect(rows[0]).toMatchObject({
+    eu_listed_on: '2023-02-24',
+    eu_date_claim_id: `${eu.relation.id}/valid_from`,
+    eu_claim_id: eu.claim.claim_id,
+  });
+});
+
 test('an EU designation with no start date takes the entry into force of its act only when that value cites a document of the designation', () => {
   const eu = designation(20, SHIP, EU_AMENDMENT, ['doc_eu_amendment'], null);
   const ofac = designation(21, SHIP, OFAC_LIST, ['doc_sdn'], null);

@@ -9,6 +9,8 @@ import { z } from 'zod';
 const JOIN_KEYS: readonly string[] = [
   'imo',
   'lei',
+  'swift_bic',
+  'ru_bic',
   'tax_id',
   'registration_number',
   'gem_entity_id',

@@ -86,6 +86,7 @@ const ACT_WORDS: Readonly<Record<string, string>> = {
   undo_merge: 'Undo of a merge',
   map_document: 'Mapping of a table',
   create_observation: 'New figure',
+  remove_act: 'Removal of an accepted act',
 };
 
 // The hour is written in UTC and to the minute, so two analysts in two zones read one hour.

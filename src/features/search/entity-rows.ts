@@ -100,8 +100,14 @@ const field = (raw: string): string => {
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 };
 
-/** The rows as CSV text: one line per row, a blank field for an absent value. */
-export function csvOf(rows: readonly EntityRow[], keys: readonly string[]): string {
+/** The rows as CSV text. The heading lines come first, each after "#" as in the release files.
+ * Then one line per row, a blank field for an absent value. */
+export function csvOf(
+  rows: readonly EntityRow[],
+  keys: readonly string[],
+  heading: readonly string[],
+): string {
+  const notes = heading.map((line) => `# ${line.replace(/[\r\n]+/g, ' ')}\r\n`).join('');
   const lines = [
     ['id', 'name', 'type', 'documents', ...keys],
     ...rows.map((row) => [
@@ -112,8 +118,9 @@ export function csvOf(rows: readonly EntityRow[], keys: readonly string[]): stri
       ...keys.map((key) => row.values[key] ?? ''),
     ]),
   ];
-  return lines.map((line) => line.map(field).join(',')).join('\r\n') + '\r\n';
+  return notes + lines.map((line) => line.map(field).join(',')).join('\r\n') + '\r\n';
 }
 
-/** The rows as JSON text, with every attribute the rows state. */
-export const jsonOf = (rows: readonly EntityRow[]): string => JSON.stringify(rows, null, 2);
+/** The rows as JSON text, with every attribute the rows state, after the heading lines. */
+export const jsonOf = (rows: readonly EntityRow[], heading: readonly string[]): string =>
+  JSON.stringify({ heading, rows }, null, 2);

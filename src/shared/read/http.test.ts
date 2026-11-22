@@ -133,3 +133,22 @@ test('a refusal of the request is a fault, and not a service that is down', asyn
   expect(fault).toBeInstanceOf(Error);
   expect(fault).not.toBeInstanceOf(ReadServiceDown);
 });
+
+test('the time limit stops at the headers, so a slow list is still an answer', async () => {
+  vi.useFakeTimers();
+  try {
+    let signal: AbortSignal | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_input: URL, init?: RequestInit): Promise<Response> => {
+        signal = init?.signal ?? undefined;
+        return Promise.resolve(listed([]));
+      }),
+    );
+    await readRows('entity');
+    vi.advanceTimersByTime(60_000);
+    expect(signal?.aborted).toBe(false);
+  } finally {
+    vi.useRealTimers();
+  }
+});

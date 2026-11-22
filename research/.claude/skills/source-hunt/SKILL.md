@@ -117,7 +117,8 @@ spent.
    and a paid database to `research/out/needs.md`.
 3. **Ask once.** The lead session tells the operator the count of rows, the hosts and the cost
    estimate against the cap of the topic sheet, and waits for a yes. It never starts the pass on
-   its own.
+   its own. A worker asks nothing: it reads the rule on the proxy in "A run with no person" of
+   `research/AGENTS.md`.
 4. **Read.** Residential proxy only, with the exit in the country of the site. Never Web
    Unlocker, never a CAPTCHA solver, never a bypass of a bot filter. One row for each call, no
    retry, no crawl. Write the bytes to a new folder and store them with `store_saved_file`
@@ -126,7 +127,8 @@ spent.
    with a direct copy when one is reachable.
 5. **Close.** Set each row to `stored` with its document id, or to `needs` and add it to
    `research/out/needs.md`. Write the real cost and the count of pages in the report of the
-   topic. Stop at 80 % of the cap of the topic sheet and ask the operator.
+   topic. Stop at 80 % of the cap of the topic sheet and ask the operator. A worker
+   stops at the ceiling of that rule, and goes on with the next ticket.
 
 A separate session sets the vendor and the way to call it (CLI or API) before the first batch
 pass. The plugin has skills only, and no MCP tool. Until then, the queue waits, and the rows go to
@@ -142,14 +144,15 @@ Each line of `research/out/needs.md` gives what the operator needs to store the 
 
 The operator saves the file by hand into the inbox (`GAB_INBOX` in `research/.env`, or
 `research/inbox`). In the next session, store it with `store_saved_file` and `file` (the file
-name), and find it with `find_document`.
+name), and find it with `find_document`. A worker adds the line and goes on with the next fact. It
+does not wait for the file.
 
 ## Back-end AI
 
 The extractor and the lead agent spend model credit. Only when the operator asks for an
 extraction: call `enqueue_extract` with the document id, follow it with `job_status`, and read its
 proposals with `list_proposals`. Propose only a fact that it missed. Call `start_lead` only when
-the operator asks for it.
+the operator asks for it. A worker reads "A run with no person" of `research/AGENTS.md`.
 
 ## Never
 

@@ -135,7 +135,7 @@ export const TOOLS: Readonly<Record<string, Tool>> = {
       return {
         address,
         citation: `GAB dataset, release ${release.version}, ${release.date}. ${address}`,
-        note: 'A claim tells what its sources say. It is not proof. Licence: CC-BY 4.0.',
+        note: 'A claim tells what its sources say. It is not proof. Licence: CC-BY 4.0, or the licence that the row of the claim shows.',
       };
     },
   },

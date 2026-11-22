@@ -44,14 +44,18 @@ export async function readRows(
     asked.searchParams.set(column, `eq.${value}`);
   }
 
+  // The limit covers the wait for the headers only. A large list that arrives slowly is an answer.
+  const stop = new AbortController();
+  const timer = setTimeout(() => {
+    stop.abort();
+  }, ANSWER_WITHIN_MS);
   let answer: Response;
   try {
-    answer = await fetch(asked, {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(ANSWER_WITHIN_MS),
-    });
+    answer = await fetch(asked, { headers: { Accept: 'application/json' }, signal: stop.signal });
   } catch {
     throw new ReadServiceDown(`The read API does not answer the ${view} list.`);
+  } finally {
+    clearTimeout(timer);
   }
   if (!answer.ok) {
     const refusal = `The read API refused the ${view} list, and answered ${answer.status}.`;

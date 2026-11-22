@@ -168,3 +168,36 @@ export const findExcerpt = (page: string, excerpt: string): Span | null => {
     if (begin + size >= page.length) return null;
   }
 };
+
+const TOKEN_MARK = /^[\p{L}\p{N}]$/u;
+const DIGIT = /^\p{Nd}$/u;
+// A script that writes no space between words. Each of its characters can start or end a word, so
+// an edge next to one of its characters cuts nothing that the check can see.
+const NO_SPACE_SCRIPT =
+  /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]$/u;
+// Two characters of one word or one number: a letter or a digit on each side of the edge.
+const joined = (left: string, right: string): boolean =>
+  TOKEN_MARK.test(left) &&
+  TOKEN_MARK.test(right) &&
+  !NO_SPACE_SCRIPT.test(left) &&
+  !NO_SPACE_SCRIPT.test(right);
+// A sign that groups the digits of one number: "12,500", "12.03.2024", "1'000", "1 000" with a
+// no-break space. A plain space is left out, because it also stands between two numbers. A list
+// such as "9074729,9074730" reads as one number too, so its second item is cited with the first.
+const DIGIT_GROUP = /^[.,'\u00A0\u202F]$/u;
+
+/** True when the span starts or ends inside a word or a number of the page: "500" in "12,500",
+ * "Rosneft" in "Rosneftegaz", "2.03.2024" in "12.03.2024". A value check reads only the cut
+ * passage, so it cannot see the rest of the token. */
+export const cutsToken = (page: string, span: Span): boolean => {
+  const passage = Array.from(pointSlice(page, span.start, span.end));
+  const first = passage[0] ?? '';
+  const last = passage.at(-1) ?? '';
+  const behind = Array.from(pointSlice(page, Math.max(0, span.start - 2), span.start));
+  const before = behind.at(-1) ?? '';
+  const farBefore = behind.length === 2 ? (behind[0] ?? '') : '';
+  const [after = '', farAfter = ''] = Array.from(pointSlice(page, span.end, span.end + 2));
+  if (joined(before, first) || joined(last, after)) return true;
+  if (DIGIT_GROUP.test(before) && DIGIT.test(farBefore) && DIGIT.test(first)) return true;
+  return DIGIT_GROUP.test(after) && DIGIT.test(farAfter) && DIGIT.test(last);
+};

@@ -557,3 +557,37 @@ test('a type change on a relation that names a person is public only with a publ
   });
   expect(shown.app).toBe(3);
 });
+
+const signedId = z.array(z.object({ proposal_id: z.uuid() }));
+
+// The rule reads the ends of a relation also after a delete removed the row. Else an older act
+// on the relation names no person, and the public read shows it whole.
+test('an act on a relation to a hidden person stays hidden after the relation is deleted', async () => {
+  const shown = await rolledBack('superuser', async (ask) => {
+    await graph(ask);
+    const toHidden = await relation(ask, 'owns', HIDDEN, VESSEL, [PUBLIC_PAGE]);
+    const [note] = signedId.parse(
+      await asApp(
+        ask,
+        `SELECT proposal_id FROM public.sign_change('a test', 'update_relation', $1::jsonb,
+           $2::text[], 'relation', $3::uuid, '{}')`,
+        [JSON.stringify({ attrs: { note: cited('a note', [UPLOADED]) } }), [UPLOADED], toHidden],
+      ),
+    );
+    if (note === undefined) throw new Error('the act was not signed');
+    const query = 'SELECT id FROM api.proposal WHERE id = $1';
+    const before = await readAs(ask, 'gabriel_read', query, [note.proposal_id]);
+    await asApp(
+      ask,
+      `SELECT * FROM public.sign_change('a test', 'delete_relation', '{}'::jsonb,
+         $1::text[], 'relation', $2::uuid, '{}')`,
+      [[PUBLIC_PAGE], toHidden],
+    );
+    return {
+      before: before.length,
+      after: (await readAs(ask, 'gabriel_read', query, [note.proposal_id])).length,
+      app: (await readAs(ask, 'gabriel_app', query, [note.proposal_id])).length,
+    };
+  });
+  expect(shown).toStrictEqual({ before: 0, after: 0, app: 1 });
+});

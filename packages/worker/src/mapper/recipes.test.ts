@@ -1,7 +1,7 @@
 import { mappingDraft } from '@gab/proposal/mapping';
 import { expect, test } from 'vitest';
 
-import { recipeOf } from './recipes.ts';
+import { isRecipeHost, recipeOf } from './recipes.ts';
 
 const COUNTER = [
   'destination_iso2,destination_country,destination_region,destination_regions,commodity,',
@@ -69,4 +69,52 @@ test.each([
   ['a header that changed', EUROSTAT_ADDRESS, [...EUROSTAT, 'extra']],
 ])('no Eurostat recipe answers for %s', (_name, address, header) => {
   expect(recipeOf(address, header)).toBeUndefined();
+});
+
+const COMTRADE = (
+  'typeCode,freqCode,refPeriodId,refYear,refMonth,period,reporterCode,reporterISO,reporterDesc,' +
+  'flowCode,flowDesc,partnerCode,partnerISO,partnerDesc,partner2Code,partner2ISO,partner2Desc,' +
+  'classificationCode,classificationSearchCode,isOriginalClassification,cmdCode,cmdDesc,aggrLevel,' +
+  'isLeaf,customsCode,customsDesc,mosCode,motCode,motDesc,qtyUnitCode,qtyUnitAbbr,qty,' +
+  'isQtyEstimated,altQtyUnitCode,altQtyUnitAbbr,altQty,isAltQtyEstimated,netWgt,' +
+  'isNetWgtEstimated,grossWgt,isGrossWgtEstimated,cifvalue,fobvalue,primaryValue,' +
+  'legacyEstimationFlag,isReported,isAggregate'
+).split(',');
+const COMTRADE_ADDRESS =
+  'https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2024&flowCode=X&' +
+  'cmdCode=8541&partnerCode=643&customsCode=C00&motCode=0&partner2Code=0';
+
+test('the recipe of Comtrade gives a valid mapping, with the measure of the flow in the address', () => {
+  const exported = recipeOf(COMTRADE_ADDRESS, COMTRADE);
+  expect(mappingDraft.safeParse(exported).success).toBe(true);
+  expect(exported?.rows).toMatchObject({ measure: 'exports', period: { length: 'year' } });
+  const imported = recipeOf(
+    COMTRADE_ADDRESS.replace('flowCode=X', 'flowCode=M').replace('/A/', '/M/'),
+    COMTRADE,
+  );
+  expect(mappingDraft.safeParse(imported).success).toBe(true);
+  expect(imported?.rows).toMatchObject({ measure: 'imports', period: { length: 'month' } });
+});
+
+test.each([
+  ['a flow that is not X or M', COMTRADE_ADDRESS.replace('flowCode=X', 'flowCode=RX'), COMTRADE],
+  ['no flow', COMTRADE_ADDRESS.replace('flowCode=X&', ''), COMTRADE],
+  ['another path', COMTRADE_ADDRESS.replace('/get/C/A/HS', '/getDA/C/A/HS'), COMTRADE],
+  ['a header that changed', COMTRADE_ADDRESS, [...COMTRADE, 'extra']],
+  ['a table with a row for each breakdown', COMTRADE_ADDRESS.replace('&motCode=0', ''), COMTRADE],
+  ['a list of modes', COMTRADE_ADDRESS.replace('motCode=0', 'motCode=0,2100'), COMTRADE],
+  ['a list of customs codes', COMTRADE_ADDRESS.replace('C00', 'C00,C01'), COMTRADE],
+  ['a second value', `${COMTRADE_ADDRESS}&partner2Code=251`, COMTRADE],
+])('no Comtrade recipe answers for %s', (_name, address, header) => {
+  expect(recipeOf(address, header)).toBeUndefined();
+});
+
+test('a recipe host is known also for a table that no recipe knows', () => {
+  expect(isRecipeHost(COMTRADE_ADDRESS.replace('motCode=0', 'motCode=0,2100'))).toBe(true);
+  expect(
+    isRecipeHost('https://api.russiafossiltracker.com/v0/chart/departure_by_port?commodity=lng'),
+  ).toBe(true);
+  expect(isRecipeHost('https://example.org/table.csv')).toBe(false);
+  expect(isRecipeHost('not an address')).toBe(false);
+  expect(isRecipeHost(null)).toBe(false);
 });

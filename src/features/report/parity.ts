@@ -104,12 +104,18 @@ const sameList = (a: readonly string[], b: readonly string[]) =>
 const noteIds = (text: string) =>
   tokens(text).flatMap((one) => (one.startsWith('^') ? [one.slice(1)] : []));
 
+// Departure: the page shows the timeline of figure 1 in the method part, next to the layers of
+// figure 2. The source puts it in the summary.
+const MOVED: ReadonlyMap<number, string> = new Map([[1, 'method-chronology']]);
+
 /** Compare the parts with the source text. Each difference is one line; no line means parity:
  * the body has the words of the source and the same numbers, months and note markers in the same
  * order, each figure caption has those of its source caption, the title, period and sources that
- * the frame shows are pieces of that caption, each part holds exactly the notes it cites, with the
- * words of the source, each heading is a subheading of its part in the source, and the parts
- * hold the figures of their source sections. */
+ * the frame shows rebuild that caption, each part holds exactly the notes it cites, with the
+ * words of the source, each heading is a subheading of its part in the source, and each part
+ * holds the figures of its source section, except the one figure that the page moves. The source
+ * gives no unit, and no period for some figures: a part takes these from its copy, and parity does
+ * not check them. */
 export function parity(parts: readonly ReportPart[], source: Source): readonly string[] {
   const read = readSource(source);
   const issues: string[] = [];
@@ -142,9 +148,14 @@ export function parity(parts: readonly ReportPart[], source: Source): readonly s
         words(caption.text) !== words(block.text)
       )
         issues.push(`${part.slug}: figure ${String(number)} caption differs`);
-      // The frame shows these fields, not the caption: each one is a piece of the caption.
+      if (caption !== undefined && (MOVED.get(number) ?? caption.slug) !== part.slug)
+        issues.push(`${part.slug}: figure ${String(number)} not in its source part`);
+      // The frame shows these fields, not the caption: together they rebuild the caption, with
+      // the one word that opens the sources ("Data:") left out.
       const { title = '', period = '', sources = '' } = block.figure ?? {};
-      if (![title, period, sources].every((field) => block.text.includes(field)))
+      const head = `Figure ${String(number)}: ${title}${period === '' ? '' : `, ${period}`}. `;
+      const rest = block.text.startsWith(head) ? block.text.slice(head.length) : undefined;
+      if (title === '' || rest?.replace(/^\p{L}+ ?: /u, '') !== sources)
         issues.push(`${part.slug}: figure ${String(number)} fields differ`);
     }
     const cited = new Set(part.blocks.flatMap((block) => noteIds(block.text)));

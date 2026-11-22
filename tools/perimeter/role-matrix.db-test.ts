@@ -37,11 +37,13 @@ const MACHINES = ['gabriel_agent', 'gabriel_research'] as const;
 test('the role matrix of the doors', async () => {
   expect(await matrix()).toMatchInlineSnapshot(`
     {
+      "public.ai_join_entities": "research",
       "public.ai_join_unit": "research",
       "public.ai_promote_group": "research",
       "public.ai_promote_unit": "research",
       "public.ai_reject_relation": "research",
       "public.ai_reject_unit": "research",
+      "public.ai_remove_act": "research",
       "public.approve_reference_dataset": "app",
       "public.approve_reference_set": "app",
       "public.area_of": "agent",
@@ -54,12 +56,15 @@ test('the role matrix of the doors', async () => {
       "public.decide_author_name": "app",
       "public.decision_said": "app",
       "public.document_jobs": "app research",
+      "public.document_level": "agent research",
+      "public.document_restricted": "agent research",
       "public.earlier_editions": "agent",
       "public.enqueue_job": "agent app research",
       "public.enqueue_mapped_load": "agent",
       "public.fail_job": "agent",
       "public.fill_document_archive": "agent research",
       "public.fill_document_provider": "agent research",
+      "public.fill_document_restricted": "agent research",
       "public.fill_document_trace": "agent research",
       "public.fill_document_type": "app",
       "public.fill_document_uri": "app",
@@ -150,7 +155,8 @@ const DECIDING_DOORS_HELD = `
    WHERE p.pronamespace = 'public'::regnamespace
      AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%' OR p.proname LIKE '%decide%'
           OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules',
-                         'write_unit', 'write_unit_as', 'ai_decision'))
+                         'write_unit', 'write_unit_as', 'ai_decision', 'ai_remove_act',
+                         'ai_join_entities'))
      AND has_function_privilege(r.role, p.oid, 'EXECUTE')
    ORDER BY 1, 2`;
 
@@ -159,19 +165,22 @@ const DECIDING_DOORS = `
    WHERE p.pronamespace = 'public'::regnamespace
      AND (p.proname LIKE '%promot%' OR p.proname LIKE '%reject%' OR p.proname LIKE '%decide%'
           OR p.proname IN ('sign_change', 'apply_proposal', 'apply_proposal_as', 'apply_rules', 'run_rules',
-                         'write_unit', 'write_unit_as', 'ai_decision'))`;
+                         'write_unit', 'write_unit_as', 'ai_decision', 'ai_remove_act',
+                         'ai_join_entities'))`;
 
-// The research role decides only as an AI reviewer: four doors that record their own origin.
+// The research role decides only as an AI reviewer: doors that record their own origin.
 // The worker decides nothing. The read of the decided acts has "decide" in its name.
 test('a machine role holds no door that promotes or rejects, except the doors of an AI reviewer', async () => {
   const counted = await probe('superuser', (ask) => ask(DECIDING_DOORS));
   expect(z.array(z.object({ n: z.number().int() })).parse(counted)[0]?.n).toBeGreaterThan(0);
   const held = await probe('superuser', (ask) => ask(DECIDING_DOORS_HELD, [[...MACHINES]]));
   expect(held).toStrictEqual([
+    { role: 'gabriel_research', door: 'ai_join_entities(uuid,uuid,jsonb,text)' },
     { role: 'gabriel_research', door: 'ai_promote_group(uuid,uuid[],text)' },
     { role: 'gabriel_research', door: 'ai_promote_unit(uuid,text)' },
     { role: 'gabriel_research', door: 'ai_reject_relation(uuid,text,text,text)' },
     { role: 'gabriel_research', door: 'ai_reject_unit(uuid,text,text,text)' },
+    { role: 'gabriel_research', door: 'ai_remove_act(uuid,jsonb,text)' },
     // A read: the decided acts, as the review page shows them.
     { role: 'gabriel_research', door: 'review_decided(timestamp with time zone,uuid,integer)' },
   ]);
@@ -191,6 +200,7 @@ const RULE_STEPS = [
   'units_of_author',
   'fact_is_strong',
   'unit_doubt_cause',
+  'rule_before_sources',
   'rule_of_faults',
   'unit_said',
   'letter_of',

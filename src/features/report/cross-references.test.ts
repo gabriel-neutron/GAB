@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { frParts } from './parts-fr';
 import { parts } from './content';
 import { readSource } from './parity';
-import { rekey, sources } from './source';
+import { sources } from './source';
 
 const CITE = /(?:^|; ?|, )([^;]*?) \(([^()]*)\),? op\. cit\., n\. (\d+)/g;
 
@@ -44,24 +43,9 @@ describe('the cross-references of the notes', () => {
     expect(faults(readSource(sources.en).notes)).toEqual([]);
   });
 
-  it('name, on the French page, the page id of a note of the same work', () => {
-    expect(faults(readSource(sources.fr).notes)).toEqual([]);
-  });
-
-  it('take, in the French text, the page id of the note that the French publication numbers', () => {
-    // The French publication numbers x as note 1 and y as note 2; the page gives y the id 7.
-    const text = 'a[^x] b[^y] c[^x]\n\n[^x]: Kpler (2025).\n[^y]: Kpler (2025), op. cit., n. 1.';
-    expect(rekey(text, { '3': 'x', '7': 'y' })).toContain('[^7]: Kpler (2025), op. cit., n. 3.');
-  });
-
   it('are in the notes that the pages show', () => {
-    for (const [held, source] of [
-      [parts, sources.en],
-      [frParts, sources.fr],
-    ] as const) {
-      const notes = readSource(source).notes;
-      for (const note of held.flatMap((part) => part.notes))
-        expect(note.text).toBe(notes.get(note.id));
-    }
+    const notes = readSource(sources.en).notes;
+    for (const note of parts.flatMap((part) => part.notes))
+      expect(note.text).toBe(notes.get(note.id));
   });
 });

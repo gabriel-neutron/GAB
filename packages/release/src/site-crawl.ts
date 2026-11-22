@@ -105,6 +105,8 @@ export const robotsTxt = (site: string | null, policy: AiPolicy = AI_CRAWLER_POL
     '# Each page and each file of the release is public.',
     'User-agent: *',
     'Allow: /',
+    // Content signals (contentsignals.org): the policy of the operator for search, AI answers and AI training.
+    `Content-Signal: ${policy === 'allow' ? 'search=yes, ai-input=yes, ai-train=yes' : 'search=yes, ai-input=no, ai-train=no'}`,
     '',
     policy === 'allow'
       ? '# Policy for AI systems: reading is allowed. Cite the claim that you use (see the page "AI use").'

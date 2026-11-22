@@ -3,6 +3,7 @@
 
 import { argv, exit } from 'node:process';
 
+import { hasRefusedMetaCommand } from './db-sql-guard.ts';
 import { runScriptAsSuperuser } from './db-runtime.ts';
 import { SESSION_PREFIX } from './stack-plan.ts';
 
@@ -20,6 +21,14 @@ if (
   !(process.env['COMPOSE_PROJECT_NAME'] ?? '').startsWith(SESSION_PREFIX)
 ) {
   console.error('db:sql reaches the database gabriel only in a session stack (`pnpm stack:up`).');
+  exit(1);
+}
+
+// A meta-command could go past the check above (tools/db-sql-guard.ts).
+if (hasRefusedMetaCommand(script)) {
+  console.error(
+    'db:sql refuses each meta-command that does not only show a result. Name the database as the second argument.',
+  );
   exit(1);
 }
 

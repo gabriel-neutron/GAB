@@ -104,7 +104,7 @@ const RECORD: ReleaseRecord = {
   merges: [],
   documents: new Map([['gem', GEM]]),
   nameCandidates: { proposed: 0, confirmed: 0, refused: 0 },
-  disclaimer: 'Report an error: `<link>`\nRight of reply: `<link>`',
+  disclaimer: 'Report an error: `<link>`\nCorrections: `<link>`',
   natoPairs: null,
 };
 
@@ -197,7 +197,7 @@ test('the providers of the documents that the claims cite give the credits', () 
       ['c', { ...GEM, id: 'c', provider: 'gleif' }],
     ]),
   };
-  expect([...claimProviders(record)]).toStrictEqual(['ofac_sdn']);
+  expect([...claimProviders(record)]).toStrictEqual(['ofac_sdn', 'no_provider']);
 });
 
 test('a geometry that cites an OpenStreetMap document stops the release', () => {
@@ -273,7 +273,10 @@ const MANIFEST: ReleaseManifest = {
   date: '2026-10-13',
   showNatoPair: false,
   dateRules: { eu: 'entry_into_force', ofac: 'recent_actions_notice', uk: 'date_designated' },
-  contacts: { reportError: 'mailto:error@example.org', rightOfReply: 'mailto:reply@example.org' },
+  contacts: {
+    reportError: 'mailto:error@example.org',
+    rightOfReply: 'https://example.org/corrections',
+  },
   criticalNodes: null,
   volumes: null,
   iriBase: 'https://example.org/id/',

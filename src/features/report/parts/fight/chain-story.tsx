@@ -10,6 +10,7 @@ import {
   arcs,
   brands,
   chainCount,
+  shareText,
   sites,
   stages,
   totalsAt,
@@ -150,6 +151,7 @@ function cards(
   partSlug: string,
   copy: Copy,
   say: (name: string) => string,
+  locale: string,
 ): ReactNode[] {
   const routeSource = (
     <div className="mt-6 border-t border-divider pt-2">
@@ -171,7 +173,9 @@ function cards(
               className="grid grid-cols-[1fr_auto] gap-x-3 border-b border-divider py-1.5"
             >
               <dt className="text-report-small">{say(share.group)}</dt>
-              <dd className="text-right font-mono text-report-label tabular-nums">{share.text}%</dd>
+              <dd className="text-right font-mono text-report-label tabular-nums">
+                {shareText(share.text, locale)}
+              </dd>
               {share.note === '' ? null : (
                 <dd className="col-span-2 font-mono text-report-label text-pretty text-label">
                   {say(share.note)}
@@ -255,8 +259,9 @@ export function ChainStory({
 }) {
   const reduce = useReduceMotion();
   const wide = useSyncExternalStore(onWidth, isWide, atRelease);
-  const copy = useContent().fightUi.chain;
-  const steps = cards(sources, partSlug, copy, useDataName());
+  const { fightUi, ui } = useContent();
+  const copy = fightUi.chain;
+  const steps = cards(sources, partSlug, copy, useDataName(), ui.numberLocale);
   return (
     <section
       aria-labelledby="fight-chain-title"

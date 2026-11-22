@@ -21,9 +21,31 @@ export function OwnershipPart({ part }: { readonly part: ReportPart }) {
   const { figureTexts, parts, ownershipUi } = useContent();
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
   const body: ReactNode[] = [];
+  // The items of the list that the blocks so far have opened.
+  let items: ReactNode[] = [];
+  const closeList = () => {
+    if (items.length === 0) return;
+    body.push(<ul key={`${part.slug}-list-${String(body.length)}`}>{items}</ul>);
+    items = [];
+  };
   part.blocks.forEach((block, index) => {
     // The blocks of a part never move, so their place is their identity.
     const key = `${part.slug}-${String(index)}`;
+    if (block.kind === 'li') {
+      items.push(
+        <li key={key} className={cn(ROW, 'mt-10')}>
+          <div className="xl:col-start-2">
+            <Reveal>
+              <p className={cn(PROSE, 'border-t border-foreground pt-4')}>
+                <RichText text={block.text} partSlug={part.slug} />
+              </p>
+            </Reveal>
+          </div>
+        </li>,
+      );
+      return;
+    }
+    closeList();
     if (block.kind === 'figure' && block.figure !== undefined) {
       body.push(
         <div key={key} className={cn(layout.bleed, 'my-16 md:my-24')}>
@@ -62,10 +84,10 @@ export function OwnershipPart({ part }: { readonly part: ReportPart }) {
       return;
     }
     body.push(
-      <div key={key} className={cn(ROW, block.kind === 'li' ? 'mt-10' : 'my-6')}>
+      <div key={key} className={cn(ROW, 'my-6')}>
         <div className="xl:col-start-2">
           <Reveal>
-            <p className={cn(PROSE, block.kind === 'li' && 'border-t border-foreground pt-4')}>
+            <p className={PROSE}>
               <RichText text={block.text} partSlug={part.slug} />
             </p>
           </Reveal>
@@ -73,6 +95,7 @@ export function OwnershipPart({ part }: { readonly part: ReportPart }) {
       </div>,
     );
   });
+  closeList();
   return (
     <section id={part.slug} aria-label={part.title} className="scroll-mt-12">
       <ChapterBreak number={number} title={part.title} image={ownershipUi.image} />

@@ -18,7 +18,7 @@ export const report = {
     'Urals is also the reference price used to calculate Russia’s mineral extraction tax. A deeper discount reduces what the state receives from each barrel. Continued exports and unchanged revenues are not the same thing.',
   ],
   limit:
-    'The flows shown here describe loading basins only. No published source in the report links a fleet category to an individual buyer. The underlying research has not yet been reviewed by a human; the English translation awaits editorial review.',
+    'The flows shown here describe loading basins only. No published source in the report links a fleet category to an individual buyer. The author read and reviewed the whole report; the facts of the database are checked by rules and by AI agents, not one by one by a person.',
 };
 export const basins = [
   { name: 'Baltic', crude: 1460, products: 1551 },
@@ -92,7 +92,24 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: '**The result.** Russia holds out, and the report explains this by new trade relations with countries that are not aligned with the coalition. These countries use their strategic autonomy and, at the same time, take advantage of their strong position in negotiations with Russia.',
+        text: '**The result.** Sanctions make the war more costly for Russia, but they do not cut its money or its goods: trade moves to partners that do not apply the sanctions, and to a parallel market of tankers, payment relays and companies with no documented owner.',
+      },
+      { kind: 'p', text: "**The report's own measures.**" },
+      {
+        kind: 'li',
+        text: '**Designations:** When the EU and the United States designate the same tanker, the United States does so first in nearly nine cases out of ten, and the median gap from the first to the second regime is 87 days.',
+      },
+      {
+        kind: 'li',
+        text: '**Port calls:** Of 711 tankers with a dated designation, 318 called at a port at least once after it, and 22 of them called in the EU or the United Kingdom.',
+      },
+      {
+        kind: 'li',
+        text: '**Owners and managers:** On the archived pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships that give both dates show an owner or manager that started after the designation.',
+      },
+      {
+        kind: 'li',
+        text: '**Ownership chains:** The 50% rule follows shares: the chains of the large state companies end at the state, but in the private fleet and in oil trading they often end at a company with no documented owner, and about fifteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner.',
       },
       {
         kind: 'li',
@@ -100,11 +117,11 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Ships:** The tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance, carried 79% of the crude exported by sea in January 2026.[^2]',
+        text: '**Ships:** According to the KSE Institute, the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance, carried 79% of the crude exported by sea in January 2026.[^2]',
       },
       {
         kind: 'li',
-        text: "**Price:** Since November 2025, the discount of Russian crude to Brent has almost doubled. The report links this, as a hypothesis, to the American sanctions on [[N-P026|Rosneft]] and [[N-P030|Lukoil]]. Russia's partners benefit: China buys Russian crude at a discount and sells the components of weapons at a high premium.",
+        text: "**Price:** From August 2023 to October 2025, Urals sold $10 to $16 below Brent each month; since November 2025, after the OFAC designation of [[N-P026|Rosneft]] and [[N-P030|Lukoil]], it has sold $19 to $27 below. Russia's partners benefit: China buys Russian crude at a discount and sells the components of weapons at a high premium.",
       },
       {
         kind: 'li',
@@ -112,11 +129,11 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Currency:** The rouble settled 53% of Russian exports in 2025, against 14% in 2021,[^4] and the rouble and the yuan settle almost all payments with China.',
+        text: '**Currency:** The rouble settled 53% of Russian exports in 2025, against 14% in 2021,[^4] and, according to the Russian government, the rouble and the yuan settle almost all payments with China.',
       },
       {
         kind: 'li',
-        text: '**Components:** Finally, China supplied 77% of the priority goods for weapons sold to Russia in 2025, and Hong Kong 11%.[^5]',
+        text: '**Components:** Of the priority goods for weapons that its partners declared as sold to Russia in 2025, China supplied 77% and Hong Kong 11%,[^5] and two thirds of the dated parts found in Russian weapons were made after the invasion.',
       },
       {
         kind: 'p',
@@ -170,6 +187,14 @@ export const parts: ReportPart[] = [
       },
       { kind: 'li', text: 'Who owns them?' },
       { kind: 'li', text: 'How do they get around the sanctions?' },
+      {
+        kind: 'p',
+        text: 'The report does not measure how the nodes get around the sanctions: it shows which routes stay open after each measure, and it gives each mechanism as a claim of its source or as a hypothesis.',
+      },
+      {
+        kind: 'p',
+        text: 'This report finds that sanctions make the war more costly for Russia, but they do not cut its money or its goods: trade moves to partners that do not apply the sanctions, and to a parallel market of tankers, payment relays and companies with no documented owner.',
+      },
     ],
     notes: [
       {
@@ -242,7 +267,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'These conditions single out the nodes where the sanctions are in place but the activity continues through a third country: where the circumvention can be seen, and where a new measure could have an effect.',
+        text: 'These conditions single out the nodes where the sanctions are in place but the activity continues through a third country: where circumvention may be at work, and where a new measure could have an effect.',
       },
       {
         kind: 'p',
@@ -267,7 +292,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'In total, 493 nodes are critical, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For at least 416 of them, the three conditions rest on a document from an official issuer. Annex A describes how the facts are collected and checked.',
+        text: 'In total, 539 nodes are critical, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For 410 of them, each of the three conditions rests on a document from an official issuer. Annex A describes how the facts are collected and checked. Section A.3 says how the count of critical nodes was made.',
       },
     ],
     notes: [
@@ -311,7 +336,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: "But China sets the terms. To sell the gas of the Yamal peninsula, which Europe no longer buys, Russia has only one possible customer. That customer is in no hurry to seal a deal on the new Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer.[^20] The report's hypothesis is that the gas sold to China therefore replaces the volumes lost in Europe, but not their revenue.",
+        text: "But China sets the terms. To sell the gas of the Yamal peninsula, which Europe no longer buys, Russia has only one possible customer. That customer is in no hurry to seal a deal on the new Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer.[^20] The report's hypothesis is that the gas sold to China therefore replaces only part of the volumes lost in Europe, and less of their revenue.",
       },
       {
         kind: 'figure',
@@ -482,12 +507,12 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Sanctions ended up targeting these ports themselves. Since February 2025, an EU company can no longer deal with the ports on the Baltic and the Black Sea, and since April 2026 with [[N-P011|Tuapse]] and Murmansk.[^42] Like the price cap, these measures bind only the companies of the coalition.',
+        text: 'Sanctions ended up targeting these ports themselves. Since February 2025, an EU company can no longer deal, save for listed exceptions, with the oil ports on the Baltic and the Black Sea, and since April 2026 with [[N-P011|Tuapse]] and Murmansk.[^42] Like the price cap, these measures bind only EU companies.',
       },
       { kind: 'h3', text: 'The fleet' },
       {
         kind: 'p',
-        text: 'To leave ports closed to companies of the coalition, the crude needs ships that do not depend on them. These are mostly the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance.[^43] Neither the cap nor the port ban touches them. The report\'s hypothesis is that their growth since the embargo explains why port traffic held up until 2025.',
+        text: 'To leave ports closed to companies of the coalition, the crude needs ships that do not depend on them. These are mostly the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance.[^43] Neither the cap nor the port ban touches them. The report\'s hypothesis is that their growth since the embargo helps explain why port traffic, all goods included, held up until 2025.',
       },
       {
         kind: 'figure',
@@ -521,13 +546,13 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 8: Port calls of designated tankers after their designation. Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations.[^50]",
+        text: "Figure 8: Port calls of designated tankers after their designation. Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations. Powered by Global Fishing Watch.[^50]",
         figure: {
           number: 8,
           title: 'Port calls of designated tankers after their designation',
           unit: 'ships',
           sources:
-            "Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations.[^50]",
+            "Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations. Powered by Global Fishing Watch.[^50]",
         },
       },
       {
@@ -536,7 +561,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'A designated ship also often changes hands. In a non-random sample of 100 designated ships, Ukrainian military intelligence (GUR), a party to the conflict, dates a change of owner or manager after designation for 81 of them.[^51]',
+        text: 'A designated ship also often changes hands. On the archived pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships that give both a designation date and an owner or manager date show an owner or manager that started after the designation.[^51]',
       },
       {
         kind: 'p',
@@ -574,7 +599,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '46',
-        text: "Author's calculations based on Global Fishing Watch (2026). https://globalfishingwatch.org ; OFAC (2026). https://sanctionslistservice.ofac.treas.gov ; FCDO (2026). https://sanctionslist.fcdo.gov.uk ; CELEX 32014R0833 ; https://eur-lex.europa.eu.",
+        text: "Author's calculations based on Global Fishing Watch (2026). https://globalfishingwatch.org, CC BY-NC 4.0, non-commercial use ; OFAC (2026). https://sanctionslistservice.ofac.treas.gov ; FCDO (2026). https://sanctionslist.fcdo.gov.uk ; CELEX 32014R0833 ; https://eur-lex.europa.eu.",
       },
       { id: '47', text: 'Dodonov et al. (2026), op. cit., n. 2, p. 2.' },
       {
@@ -588,7 +613,7 @@ export const parts: ReportPart[] = [
       { id: '50', text: 'See n. 46.' },
       {
         id: '51',
-        text: "Author's calculations based on GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua ; OFAC (2026), op. cit., n. 46 ; FCDO (2026), op. cit., n. 46 ; CELEX 32014R0833 ; https://eur-lex.europa.eu.",
+        text: "Author's calculations based on GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua ; replay with tools/gur-owner-change.ts in the project repository.",
       },
       {
         id: '52',
@@ -624,7 +649,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: "With China, the shift goes further. At the end of 2023, the yuan settled as many exports as the rouble,[^58] and the rouble and the yuan settle almost all payments between the two countries.[^59] This choice protects the trade from sanctions, but it ties Russia to a partner that accounts for about 40% of its trade, while Russia accounts for only a few per cent of Chinese trade.[^60] On the report's hypothesis, China can therefore set its terms.",
+        text: "With China, the shift goes further. At the end of 2023, the yuan settled as many exports as the rouble,[^58] and, according to the Russian government, the rouble and the yuan settle almost all payments between the two countries.[^59] This choice protects the trade from sanctions, but it ties Russia to a partner that accounts for about 40% of its trade, while Russia accounts for only a few per cent of Chinese trade.[^60] On the report's hypothesis, China can therefore set its terms.",
       },
       { kind: 'h3', text: 'Payment relays' },
       {
@@ -653,7 +678,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'The best-known payment agent, [[N-M037|A7]], hands each payment to a sub-agent in a third country, such as Hong Kong or Kyrgyzstan, and settles the counterparty in [[N-M040|A7A5]], a digital token worth one rouble.[^75] After the US, UK and EU designations in the second half of 2025, the daily volume of this token fell by 96% between July 2025 and June 2026.[^76]',
+        text: 'The best-known payment agent, [[N-M037|A7]], hands each payment to a sub-agent in a third country, such as Hong Kong or Kyrgyzstan, and settles the counterparty in [[N-M040|A7A5]], a digital token worth one rouble.[^75] After the US, UK and EU designations in the second half of 2025, then new Russian rules on crypto-assets and the loss of its points of access, the daily volume of this token fell by 96% between July 2025 and June 2026.[^76]',
       },
       {
         kind: 'p',
@@ -769,7 +794,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Hong Kong plays another role, that of a platform. It takes a rising share of Russian imports of processors and integrated circuits, in place of the coalition, which may signal re-exported Western chips.[^83] Hong Kong applies only the sanctions decided by the UN Security Council, which do not target Russia: EU and US sanctions have no legal force there. This financial centre also lets a company hide its owner, and lets new companies be created or dissolved quickly. It is therefore a convenient place of transit for shell companies.[^84] Targeting Hong Kong therefore hits the transit and the payment.',
+        text: 'Hong Kong plays another role, that of a platform. It takes a rising share of Russian imports of processors and integrated circuits, in place of the coalition, which may signal re-exported Western chips.[^83] Hong Kong applies only the sanctions decided by the UN Security Council, which do not target Russia: EU and US sanctions are not part of its law, although US export controls still follow goods of US origin. This financial centre also lets a company hide its owner, and lets new companies be created or dissolved quickly. It is therefore a convenient place of transit for shell companies.[^84] Targeting Hong Kong therefore hits the transit and the payment.',
       },
       {
         kind: 'figure',
@@ -785,7 +810,7 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'The price of the goods' },
       {
         kind: 'p',
-        text: 'This change of suppliers has a price. From the spring of 2022, Russian imports became more expensive. The main cause is neither transport nor the detour through neighbouring countries. It is the margins of the suppliers that stayed on the market, which the departure of Western competitors lets them raise, in particular for strategic goods.[^86] Dependence on China sharpens this effect: the premium that Russia pays China for priority goods rises with the Chinese share of its purchases, and for computer numerical control machine tools, with no other seller, Russia must accept the Chinese price.[^87] Sanctions therefore do not cut off access to these goods, but they make them more costly, and this cost is highest for goods bought from China.',
+        text: 'This change of suppliers has a price. From the spring of 2022, Russian imports became more expensive. The main cause is neither transport nor the detour through neighbouring countries. According to the CEPII, it is probably the margins of the suppliers that stayed on the market, which the departure of Western competitors lets them raise, in particular for strategic goods.[^86] Dependence on China sharpens this effect: the premium that Russia pays China for priority goods rises with the Chinese share of its purchases, and for computer numerical control machine tools, with no other seller, Russia must accept the Chinese price.[^87] Sanctions therefore do not cut off access to these goods, but they make them more costly, and this cost is highest for goods bought from China.',
       },
       { kind: 'h3', text: 'The routes of the components' },
       {
@@ -896,7 +921,7 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'The state and its holdings' },
       {
         kind: 'p',
-        text: 'At the top, the state holds the large companies through a few holdings. A public holding that it owns outright is the first shareholder of [[N-P026|Rosneft]] and, together with the Federal Agency for State Property Management ([[N-O003|Rosimushchestvo]]), gives the state close to half of [[N-O005|Gazprom]].[^97] Gazprom in turn owns almost all of [[N-O010|Gazprom Neft]][^98] and is a main shareholder of [[N-M001|Gazprombank]].[^99] Likewise, the state holds all the voting rights of [[N-P034|Transneft]], which owns the holding of the port of Novorossiysk.[^100] A designation of any of them therefore reaches its subsidiaries owned 50% or more.',
+        text: 'According to the latest disclosures, at the top, the state holds the large companies through a few holdings. A public holding that it owns outright is the first shareholder of [[N-P026|Rosneft]] and, together with the Federal Agency for State Property Management ([[N-O003|Rosimushchestvo]]), gives the state close to half of [[N-O005|Gazprom]].[^97] Gazprom in turn owns almost all of [[N-O010|Gazprom Neft]][^98] and is a main shareholder of [[N-M001|Gazprombank]].[^99] Likewise, the state holds all the voting rights of [[N-P034|Transneft]], which owns the holding of the port of Novorossiysk.[^100] A designation of any of them therefore reaches its subsidiaries owned 50% or more.',
       },
       {
         kind: 'figure',
@@ -916,23 +941,23 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: "The president's associates" },
       {
         kind: 'p',
-        text: 'After 2000, keeping a large company meant staying out of politics. In 2000, Vladimir Putin received about twenty of the big businessmen of the 1990s at the Kremlin and let them keep their assets on that condition.[^106] Mikhail Khodorkovsky, who had publicly accused officials of corruption, was arrested in October 2003. In December 2004, the main production subsidiary of his oil group, Yukos, was sold at auction to an unknown company, which Rosneft bought four days later.[^107] Pardoned in 2013, Khodorkovsky lives in London today, and in July 2014 three arbitration tribunals ruled that Russia had taken measures with an effect equivalent to expropriation.[^108]',
+        text: 'After 2000, keeping a large company meant staying out of politics. According to NPR, in 2000 Vladimir Putin received 21 of the richest men in Russia at the Kremlin and offered them a deal: they could keep their assets if they bent to his authority and stayed out of his way.[^106] Mikhail Khodorkovsky, who had publicly accused officials of corruption, was arrested in October 2003. In December 2004, the main production subsidiary of his oil group, Yukos, was sold at auction to an unknown company, which Rosneft bought four days later.[^107] Pardoned in 2013, Khodorkovsky lives in London today, and in July 2014 three arbitration tribunals ruled that Russia had taken measures with an effect equivalent to expropriation.[^108]',
       },
       {
         kind: 'p',
-        text: "Loyalty, by contrast, opens public contracts. Yevgeny Prigozhin came out of prison, opened hot-dog stands in Saint Petersburg, then a restaurant where the president, once elected, received his foreign guests; his company Concord then won the Kremlin's catering contracts.[^109] He financed the Internet Research Agency, which the US Treasury designated in 2018, and admitted in 2022 that he had founded the Wagner group in 2014.[^110] He died in a plane crash on 23 August 2023, exactly two months after his mutiny.[^111] Both paths follow one rule: the president did not abolish the oligarchy; he targeted only the oligarchs who threatened his power.[^112]",
+        text: 'Loyalty, by contrast, opens public contracts. According to the BBC, Yevgeny Prigozhin came out of prison, opened hot-dog stands in Saint Petersburg, then a restaurant where the president, once elected, received his foreign guests; his company Concord then won the Kremlin\'s catering contracts.[^109] According to the US Treasury, which designated the Internet Research Agency in 2018, he funded the operations of that agency; according to Reuters, in 2022 he admitted that he had founded the Wagner group in 2014.[^110] He died in a plane crash on 23 August 2023, exactly two months after his mutiny.[^111] NPR writes that Putin "didn\'t actually eliminate the oligarchy"; he "only targeted individual oligarchs who threatened his power."[^112]',
       },
       {
         kind: 'p',
-        text: "Outside the state, the large private shareholders form a circle that the designation texts link to the president. [[N-O023|Gennady Timchenko]], an old acquaintance of [[N-O024|Vladimir Putin]], shares with [[N-O032|Leonid Mikhelson]] the majority of a large petrochemical group and is a shareholder of [[N-O029|Bank Rossiya]].[^113] Mikhelson directly holds about 14% of [[N-O027|Novatek]].[^114] [[N-O030|Yuri Kovalchuk]], another close associate of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer [[N-O031|SOGAZ]].[^115] The circle reaches the family: in 2013 [[N-O033|Kirill Shamalov]] married [[N-O034|Katerina Tikhonova]], the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]",
+        text: "Outside the state, the large private shareholders form a circle that the designation texts link to the president. [[N-O023|Gennady Timchenko]], a long-time acquaintance of [[N-O024|Vladimir Putin]], shares with [[N-O032|Leonid Mikhelson]] close to half of a large petrochemical group and is a shareholder of [[N-O029|Bank Rossiya]].[^113] Mikhelson directly holds about 14% of [[N-O027|Novatek]].[^114] [[N-O030|Yuri Kovalchuk]], another long-time acquaintance of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer [[N-O031|SOGAZ]].[^115] The circle reaches the family: according to the US Treasury, in 2013 [[N-O033|Kirill Shamalov]] married [[N-O034|Katerina Tikhonova]], the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]",
       },
       {
         kind: 'p',
-        text: 'State companies are run by associates who do not own them. [[N-O037|Igor Sechin]] ([[N-P026|Rosneft]]) is a personal friend of the president, and [[N-O038|Nikolay Tokarev]] ([[N-P034|Transneft]]) served with him in the KGB;[^117] [[N-O039|Sergei Chemezov]] ([[N-O021|Rostec]]) knew him in East Germany.[^118] These friends and former colleagues were given large public assets to manage, which made them "state oligarchs".[^119]',
+        text: 'State companies are run by associates who do not own them. The EU states in its reasons for listing that [[N-O037|Igor Sechin]] ([[N-P026|Rosneft]]) is a personal friend of the president and that [[N-O038|Nikolay Tokarev]] ([[N-P034|Transneft]]) served with him in the KGB;[^117] according to the US Treasury, [[N-O039|Sergei Chemezov]] ([[N-O021|Rostec]]) has known him since the 1980s, when they lived in the same apartment complex in East Germany.[^118] According to Tatiana Stanovaya of the Carnegie Endowment, these friends and former colleagues were handed large state assets to manage, which made them "state oligarchs".[^119]',
       },
       {
         kind: 'p',
-        text: 'State banks follow the same rule. The head of VEB.RF is appointed by the head of state and takes his instructions directly from him; a deputy president of VTB is the son of the director of the FSB. Since 2023, VTB also manages the United Shipbuilding Corporation in trust, by presidential decree.[^120] Promsvyazbank, nationalised in 2018, is run by the son of a former director of foreign intelligence.[^121] The chain of shares stops at the state, but the chain of management leads to the same circle, and the 50% rule follows shares, not these appointments.',
+        text: 'State banks follow the same rule. The head of VEB.RF is appointed by the head of state and takes his instructions directly from him. Since 2023, VTB also manages the United Shipbuilding Corporation in trust, by presidential decree.[^120] According to the US Treasury, a deputy president of VTB is the son of the director of the FSB, and Promsvyazbank, nationalised in 2018, is run by the son of a former director of foreign intelligence.[^121] The chain of shares stops at the state, but the chain of management leads to the same circle, and the 50% rule follows shares, not these appointments.',
       },
       { kind: 'h3', text: 'Unknown owners' },
       {
@@ -949,7 +974,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: "**[[N-O042|Surgutneftegaz]]:** The country's third-largest oil company, run by [[N-O041|Vladimir Bogdanov]], a close associate of the president, has never published its full ownership structure.[^124]",
+        text: "**[[N-O042|Surgutneftegaz]]:** The country's third-largest oil company, run by [[N-O041|Vladimir Bogdanov]], a close associate of the president, had not published its full ownership structure, according to The Moscow Times (2013).[^124]",
       },
       {
         kind: 'p',
@@ -1019,7 +1044,7 @@ export const parts: ReportPart[] = [
         id: '111',
         text: 'Reuters. (2023, August 24). *Wagner boss Yevgeny Prigozhin listed in Russian plane crash with no survivors*. https://www.reuters.com/world/europe/ten-killed-private-jet-crash-north-moscow-tass-2023-08-23/.',
       },
-      { id: '112', text: 'See n. 106.' },
+      { id: '112', text: 'NPR Planet Money (2022), op. cit., n. 106.' },
       {
         id: '113',
         text: 'CELEX 02014R0269-20260928, annex I, entries 694 "Gennady Nikolayevich TIMCHENKO" and 731 "Dmitry Vladimirovich KONOV" ; https://eur-lex.europa.eu.',
@@ -1092,11 +1117,11 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Reliability of sources:** Only official sources receive a reliability rating. Think-tank reports and the press are not rated, so the weight of the facts that come from them is not measured.',
+        text: '**Reliability of sources:** The letter rates the issuer, not the truth of each claim. The report shows it only for official issuers: the letters of the press and of think tanks are not shown, so the reader cannot weigh their facts.',
       },
       {
         kind: 'li',
-        text: '**Mirror data:** Because Russia no longer publishes its trade by product, the report reads the declarations of its partners, which therefore give a minimum. The United Arab Emirates and Vietnam report no product-level data to UN Comtrade for 2024-2025, and Kazakhstan and Thailand report data only up to February 2024 and February 2025.[^126]',
+        text: '**Mirror data:** Because Russia no longer publishes its trade by product, the report reads the declarations of its partners, which therefore cover only part of the trade. The United Arab Emirates and Vietnam report no product-level data to UN Comtrade for 2024-2025, and Kazakhstan and Thailand report data only up to February 2024 and February 2025.[^126]',
       },
       {
         kind: 'li',
@@ -1104,7 +1129,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Finally, no fact has been reviewed by a person: the checks are done by rules and by AI agents (Annex A). As a result, each fact must be checked at its source before it is used for a designation.',
+        text: 'Finally, the author read and reviewed the whole report, but the facts of the database are checked by rules and by AI agents, not one by one by a person (Annex A). As a result, each fact must be checked at its source before it is used for a designation.',
       },
       { kind: 'h3', text: 'Research leads' },
       { kind: 'p', text: 'These limits point to directions for research:' },
@@ -1132,7 +1157,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '127',
-        text: 'Main Directorate of Intelligence of the Ministry of Defence of Ukraine (GUR) (2026), op. cit., n. 51 ; Global Fishing Watch (2026), op. cit., n. 46.',
+        text: 'Main Directorate of Intelligence of the Ministry of Defence of Ukraine (GUR) (2026), op. cit., n. 51 ; Global Fishing Watch (2026), op. cit., n. 46, CC BY-NC 4.0, non-commercial use.',
       },
     ],
   },
@@ -1154,9 +1179,38 @@ export const parts: ReportPart[] = [
         kind: 'p',
         text: 'EU sanctions follow this shift step by step. They go up the chain: the product, then the means, then the source. The EU first targeted oil, through the embargo and the price cap, then the vessels that carry it, then the ports it leaves from. Each step answers the circumvention of the one before and arrives late; the report assumes that the parallel market re-forms faster than the lists grow.',
       },
+    ],
+    notes: [],
+  },
+  {
+    source: 'report-en.md, Recommendations',
+    slug: 'recommendations',
+    title: 'Recommendations',
+    nodeIds: [],
+    blocks: [
       {
-        kind: 'p',
-        text: "These two routes call for two responses. Against the parallel market, designating companies one by one gives time to create others; targeting a whole network at once, from owner to payment agent, and aligning the coalition's lists would shorten that delay. Against the new partners, by contrast, only the threat of secondary sanctions seems to carry weight, because it affects the access of their banks and firms to the dollar.",
+        kind: 'li',
+        text: 'A sanctions authority of the EU or the United Kingdom can use each new OFAC tanker designation as an early signal for its own review, because OFAC lists a shared tanker first in nearly nine cases out of ten.',
+      },
+      {
+        kind: 'li',
+        text: 'A sanctions authority of the EU or the United Kingdom can check the port calls in its own ports of the 22 designated tankers that called there after their designation.',
+      },
+      {
+        kind: 'li',
+        text: 'An authority that lists ships can check, at each update, the current owner and manager of the ships it has already listed, because 427 of 757 ships on the GUR pages show an owner or manager that started after the designation.',
+      },
+      {
+        kind: 'li',
+        text: 'Where no source names the ultimate owner, an authority can designate each company for its activity and attach each new manager or trader to the group it replaces, as the Council of the EU did for Citrine Marine and Nord Axis.',
+      },
+      {
+        kind: 'li',
+        text: 'A researcher can complete the mirror data with customs data for the United Arab Emirates, Vietnam, Kazakhstan and Thailand, which report no product data or only part of it to UN Comtrade for 2024-2025.',
+      },
+      {
+        kind: 'li',
+        text: "A funder can pay for the archiving of AIS identity histories and for a check of the fleet facts by a person, because the report's fleet findings rest on one source that is a party to the conflict and on a registry that is not archived, and no person has checked each fact of the database against its source.",
       },
     ],
     notes: [],
@@ -1170,11 +1224,15 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'A.1 The database' },
       {
         kind: 'p',
-        text: 'The report rests on a database of entities (companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 27 October 2026, the database holds 6,327 entities; because the selection does not use the 1,165 military units, about 5,200 entities are tested.',
+        text: 'The report rests on a database of entities (companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 27 October 2026, the database holds 6,327 entities (around 5,400 of them in the public data release of 28 October); because the selection does not use the 1,165 military units, about 5,200 entities are tested.',
       },
       {
         kind: 'p',
-        text: 'These documents come from the official sanctions lists (OFAC, United Kingdom, EU acts), from company registers, from public statistics (UN Comtrade, Eurostat, World Bank, Bank of Russia, Russian Ministry of Finance), from research institutes (KSE, CREA, Bruegel) and from investigative press.',
+        text: 'These documents come from the official sanctions lists (OFAC, United Kingdom, EU acts), from company registers, from public statistics (UN Comtrade, Eurostat, World Bank, Bank of Russia, Russian Ministry of Finance), from research institutes (KSE, CREA, Bruegel) and from investigative press. Leads came from web and news searches (SearXNG, GDELT) and from the registers; a search result was never cited, and the queries were not logged. The documents of the data release were retrieved between 7 and 28 October 2026; the research closed on 20 November 2026.',
+      },
+      {
+        kind: 'p',
+        text: 'Each document is stored as received, under its SHA-256 hash, which also forms its document id. The database records the address and the date of retrieval, with no time of day. The raw files are kept in a private store that cannot change or delete them; they are not published, and no web archive copy is recorded.',
       },
       { kind: 'h3', text: 'A.2 Source rules' },
       {
@@ -1199,7 +1257,11 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: "The reliability of each source's issuer follows the ADMIRALTY scale, from A (official issuer) to F (cannot be judged).",
+        text: 'The reliability of the issuer of each source follows the ADMIRALTY scale, from A (an official issuer on its own record) to F (cannot be judged); a party to the conflict is rated C at most. A separate digit from 1 to 6 rates each fact by the number of independent issuers that give it. The report shows the letter of official issuers only; the data release gives the letter and the digit of each claim that has both.',
+      },
+      {
+        kind: 'li',
+        text: 'Each source has a level set from its terms of use, which were read. A source whose terms forbid reuse stays internal: a fact can cite it, but its data are not republished.',
       },
       { kind: 'h3', text: 'A.3 Selecting the critical nodes' },
       {
@@ -1216,16 +1278,37 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: "**Passes through a third country:** Either the entity's country of registration, or the flag of one of its vessels, or the country of a direct counterparty is one that does not apply the coalition's sanctions. A country read only from a company's name does not count while no archived document gives its address.",
+        text: "**Passes through a third country:** The entity's country of registration, any flag of its vessels that the release gives, or the country of a direct counterparty is a country other than Russia that does not apply the coalition's sanctions. A country read only from a company's name or address does not count.",
       },
       {
         kind: 'p',
-        text: 'Vessels of one management company, or failing that of one owner, form a single node. One act of designation can meet more than one condition; where no activity is observed, a new designation stands as proof of activity.',
+        text: 'Vessels of one management company, or failing that of one owner, form a single node. One act of designation can meet more than one condition; where no activity is observed, a new designation stands as a sign of activity: it dates an act of enforcement, not an observed flow.',
+      },
+      {
+        kind: 'p',
+        text: 'The count of critical nodes is 539. It is the result of the script tools/critical-nodes-replay.ts on the data release data-2026-10-28. The command pnpm critical:replay downloads that release, checks its SHA-256 and gives the same count. A node that the release does not hold is not counted. A designation with no date takes the date of its act. Russia is the target of the sanctions, so it is not a third country. For 410 of the 539 nodes, each condition rests on a document of an official issuer (ADMIRALTY letter A). The script derives the layer of a node from its entities, because the release gives no layer: Pay 488, Finance 4, Fight 47. The count changes with the rule: 591 nodes if Russia counts as a third country, 516 with no country of a counterparty. An earlier count of 493 (450 nodes of the record and 43 of a first list) and the figure of 416 cannot be rebuilt, because their query was not kept. Port calls carry no date, so most nodes are active only by a dated designation.',
       },
       { kind: 'h3', text: 'A.4 Checking facts and text' },
       {
         kind: 'p',
-        text: "No fact has been reviewed by a person: this is a choice of method. AI agents collect and archive the sources, then propose each fact with the excerpt of its source. Other agents, which start with a fresh context and did not propose that fact, check that the excerpt appears in the archived source and supports the fact, before validating it. Other facts still wait for a check or a better source. The few facts entered by hand carry a label that sets them apart from the facts produced by the agents. The counts, shares and medians are the author's calculations, which no review agent validates one by one. Each part of the text was reviewed by agents distinct from its writer, and those agents checked its sources one by one; and the author reviewed the text, not each fact against its source.",
+        text: "The author read and reviewed the whole report. AI was used for four jobs: to tag the sources, to run the verification and cross-check loops, to assist the drafting and the translation, and to search for blind spots. AI agents collect and archive the sources, then propose each fact with the excerpt of its source. Other agents, which start with a fresh context and did not propose that fact, check that the excerpt appears in the archived source and supports the fact. A failed check does not block the acceptance of a fact. Other facts still wait for a check or a better source. The few facts entered by hand carry a label that sets them apart from the facts produced by the agents. The counts, shares and medians are the author's calculations, which no review agent validates one by one. Each part of the text was reviewed by agents distinct from its writer, and those agents checked its sources one by one. The author did not check each fact of the database against its source.",
+      },
+      { kind: 'h3', text: 'A.5 Ethics, security and independence' },
+      {
+        kind: 'li',
+        text: '**Persons:** A natural person appears in the data release only when a sanctions act designates that person. No personal address, telephone number or e-mail is collected. Extracts of company registers and court files name legal persons only.',
+      },
+      {
+        kind: 'li',
+        text: '**Contact:** No subject was contacted, and no right of reply was offered before publication, because the report brings together public information only. Each page and each data file gives an address to report an error and an address for a right of reply.',
+      },
+      {
+        kind: 'li',
+        text: '**AI:** Language models were used for four tasks only: tagging the sources, the verification loops, help with drafting and translation, and the search for blind spots. Their providers read the full text of the stored documents.',
+      },
+      {
+        kind: 'li',
+        text: '**Independence:** The author is solely responsible for the content. Claims of the GUR remain attributed to it.',
       },
     ],
     notes: [],
@@ -1599,7 +1682,7 @@ export const figureTexts = {
       ],
       note: '“Other countries” is a balance calculated by the author.',
       noteB:
-        'Gas to the EU: EU and South-East Europe (TurkStream). Crude to the EU: Druzhba south, through Ukraine. Druzhba north: no more Russian crude to Poland and Germany since 2023 (GEM); to Belarus, 2025 volume not documented. “Other countries” is a balance calculated by the author. Pipeline gas and LNG do not add up: no conversion factor is recorded. Hatching: designated project (Arctic LNG 2, designated by OFAC and the United Kingdom).',
+        'Gas to the EU: EU and South-East Europe (TurkStream). Crude to the EU: Druzhba south, through Ukraine. Druzhba north: no more Russian crude to Poland and Germany since 2023 (Reuters, 2023); to Belarus, 2025 volume not documented. “Other countries” is a balance calculated by the author. Pipeline gas and LNG do not add up: no conversion factor is recorded. Hatching: designated project (Arctic LNG 2, designated by OFAC and the United Kingdom).',
       labels: {
         'a. Pétrole par mer, janvier 2026': 'a. Seaborne oil, January 2026',
         'milliers de barils par jour (kb/j)': 'thousand barrels per day (kb/d)',
@@ -1773,7 +1856,7 @@ export const figureTexts = {
         'État russe': 'Russian State',
         'propriétaire non nommé': 'owner not named',
         'possède ou exploite les navires de {n} armateurs ou gestionnaires :':
-          'owns or operates the vessels of {n} shipowners or managers:',
+          'owns or operates the vessels of {n} shipowners or managers, according to GUR, a party to the war:',
         'État et sociétés d’État': 'State and state companies',
         personnes: 'persons',
         sociétés: 'companies',
@@ -1826,6 +1909,8 @@ export const figureTexts = {
     'possède (part achetée à Trafigura)': 'owns (stake bought from Trafigura)',
     'possède (jusqu’au 11 janvier 2023)': 'owns (until 11 January 2023)',
     'possède ou exploite': 'owns or operates',
+    'possède ou exploite (selon le GUR, partie à la guerre)':
+      'owns or operates (according to GUR, a party to the war)',
     contrôle: 'controls',
     'contrôle (filiale)': 'controls (subsidiary)',
     'contrôle (société du groupe)': 'controls (group company)',
@@ -1924,14 +2009,6 @@ export const ui = {
   numberLocale: 'en-US',
   // The addresses of the report and of its notes in this locale, from the base of the site.
   paths: { report: '', notes: 'bibliography' },
-  // The link to the same place in the other locale.
-  switch: {
-    lang: 'fr',
-    text: 'FR',
-    label: 'Lire en français',
-    report: 'fr',
-    notes: 'fr/bibliography',
-  },
   counters: {
     // The accessible name of the counts in the annex.
     label: 'Scale of the research',
@@ -1976,15 +2053,18 @@ export const ui = {
     all: 'All notes',
     documents: 'Documents of the record',
     retrieved: 'retrieved',
-    // The mark of an English note with no French twin, on the French notes page.
-    missing: 'Notes of the English text',
-    noTwin: 'no FR source',
     // The name of the marker that opens the credit of an image.
     image: 'Image',
   },
   index: {
     title: 'All nodes of the report',
-    layers: ['Pay', 'Finance', 'Fight', 'Ownership'],
+    // The layer of the data, and its name on the page.
+    layers: [
+      { layer: 'Pay', label: 'Pay' },
+      { layer: 'Finance', label: 'Finance' },
+      { layer: 'Fight', label: 'Fight' },
+      { layer: 'Ownership', label: 'Ownership' },
+    ],
   },
   bibliography: {
     title: 'Notes and sources',
@@ -2087,9 +2167,13 @@ export const openingUi = {
     // text; words, when given, are written exactly as in the item. The item on the price has no
     // note.
     values: [
+      { words: '87 days', note: '' },
+      { words: '318', note: '' },
+      { words: '427 of 757', note: '' },
+      { words: 'about fifteen', note: '' },
       { words: '', note: '1' },
       { words: '', note: '2' },
-      { words: 'almost doubled', note: '' },
+      { words: '$19 to $27', note: '' },
       { words: 'less than one fifth', note: '3' },
       { words: '', note: '4' },
       { words: '', note: '5' },
@@ -2104,11 +2188,10 @@ export const openingUi = {
 export const methodUi = {
   layers: {
     label: 'Layers',
-    unit: 'Critical nodes, one square for each node',
+    unit: 'Nodes of the page data, one square for each node',
     // The figure counts the nodes of the report, so its period is the period of the report.
     period: '2024-2026',
-    critical: 'Critical, no page record',
-    inData: 'Critical and in the page data',
+    inData: 'In the page data, three conditions documented',
     examined: 'In the page data, fewer than three conditions documented',
     open: 'Open the nodes of the page data',
     conditions: 'Three conditions of a critical node',
@@ -2321,7 +2404,8 @@ export const fightUi = {
     openSite: 'Open the record of the site',
     imports:
       'Russian imports of CHP battlefield goods, January–October 2023, share of the value in %',
-    brands: 'Coalition brands, million USD',
+    brands:
+      'Russian imports of goods of these brands, 2023, million USD (KSE, 2024). A brand is not the seller.',
     document: 'Document',
     page: 'p.',
     source: 'Source',
@@ -2499,7 +2583,7 @@ export const closingUi = {
     record: 'In the database',
     entities: 'Entities',
     critical: 'Critical nodes',
-    official: 'Critical nodes on an official source, at least',
+    official: 'Critical nodes on an official source',
     recordSource: 'Source: the text of this report, counts as at {date}',
     // The counts of the page data.
     report: 'In this report',
@@ -2511,8 +2595,6 @@ export const closingUi = {
 export const en = {
   report,
   parts,
-  // The English notes that this copy cannot show, because its text has no twin of them.
-  untwinned: [] as readonly string[],
   figureTexts,
   ui,
   openingUi,

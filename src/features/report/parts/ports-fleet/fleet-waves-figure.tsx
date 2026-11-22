@@ -18,13 +18,13 @@ const PEAK = Math.max(
 );
 const TOP = Math.ceil(PEAK / 100) * 100;
 const TICKS = Array.from({ length: TOP / 100 }, (_, index) => (index + 1) * 100);
-const number = new Intl.NumberFormat('en-US');
 
 /** The tankers that the EU, the UK and OFAC designate, by quarter and by the regimes that
  * designate each tanker. A filter shows or hides a regime; each tanker stays in one group. */
 export function FleetWavesFigure() {
-  const { portsFleetUi } = useContent();
+  const { portsFleetUi, ui } = useContent();
   const copy = portsFleetUi.waves;
+  const number = new Intl.NumberFormat(ui.numberLocale);
   const [shown, setShown] = useState<ReadonlySet<Regime>>(() => new Set(REGIMES));
   const data = selectWaves(shown);
   const visible = REGIMES.filter((regime) => shown.has(regime));

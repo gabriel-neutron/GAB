@@ -25,6 +25,7 @@ const VIEW: RailView = {
   openUnits: new Set(),
   railOpen: true,
   railWidth: 256,
+  showUnplaced: true,
 };
 
 const labelsOf = (query: string): readonly string[] =>
@@ -40,6 +41,18 @@ describe('the open list of the graph rail under the filter of the screen', () =>
     expect(kept).toContain(first.label);
     expect(kept.every((label) => label.toLowerCase().includes(query.toLowerCase()))).toBe(true);
     expect(kept.length).toBeLessThanOrEqual(labelsOf('').length);
+  });
+});
+
+describe('the open list of the graph rail under the preset and the switch of the ring', () => {
+  it('lists no entity that the canvas does not draw', () => {
+    model.graph.setNodeAttribute(first.id, 'outOfFocus', true);
+    try {
+      expect(labelsOf('')).not.toContain(first.label);
+    } finally {
+      model.graph.setNodeAttribute(first.id, 'outOfFocus', false);
+    }
+    expect(labelsOf('')).toContain(first.label);
   });
 });
 

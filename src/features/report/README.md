@@ -1,9 +1,8 @@
 # Report
 
-The application report lives at `/`; its notes live at `/bibliography`. The French report and its
-notes live under `/fr`. All these routes use the application header, theme, Geist fonts and
-semantic tokens. The static release writer prerenders them, writes the language of each page, and
-links each page to its twin in the other language (hreflang).
+The application report lives at `/`; its notes live at `/bibliography`. The report is English only
+(`docs/decisions.md`, PU2). Both routes use the application header, theme, Geist fonts and
+semantic tokens. The static release writer prerenders them.
 
 ## Content
 
@@ -18,23 +17,11 @@ The counts of the database (entities, critical nodes, nodes on an official sourc
 date) come from the final English text: a parser reads them from its sentences, and a change of
 these sentences stops the build.
 
-## Locale and final text
+## Content copy and final text
 
-The content has one shape and one copy for each locale. A part, a mark or the frame reads the copy
-of the page locale from the content context, not from a direct import. The root gives no copy, so
-the page reads English; the route of another locale gives its copy to the provider. The part slugs,
-the node identifiers and the figure data stay the same in all locales. A figure component reads its
-labels from the copy too: the French copy gives each French label of the publication data as it
-is, and the French label for each English name of the data. The frame sets the language of the
-page. A text switch in the part bar and on the notes page goes to the same anchor in the other
-locale.
-
-The French copy holds the French text (V4) of the author, in the blocks, figures and node marks of
-the English page. Its notes keep the ids of the English text: a committed map joins each English
-note to its French twin, and the source module gives each French marker the English id of the same
-place. The French notes page marks an English note with no twin; no machine translation fills it.
-The words of the page itself (controls, table heads) have no French source and are written in the
-French copy.
+The content has one copy. A part, a mark or the frame reads it from the content context, not from
+a direct import. The part slugs, the node identifiers and the figure data are the same in every
+use. The frame sets the language of the page.
 
 The text of a part is the final text of the author, word for word. The source folder holds that
 text as the author delivers it, and the heading where each part starts. Only these changes are
@@ -106,7 +93,7 @@ The art of the page is decoration: it has no label, no caption and an empty alte
 notes page lists the credit of each image. A note marker beside the art opens its credit, as a
 note marker opens a note; its number is the place of the credit on the notes page. A value of the
 summary has the marker of the note that its item cites. The download link of the first screen
-gives the PDF of the page language. A command makes the PDF of each language from the final text
+gives the PDF. A command makes the PDF from the final text
 and writes it to the public folder of the site, which the build serves as it is. The PDF has the
 text, the figures and the notes at the end. Each figure is a picture of the chart of the page, in
 the light theme with reduced motion, so the PDF shows the final state of each figure. A test fails

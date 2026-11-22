@@ -35,20 +35,29 @@ describe('entity rows', () => {
   });
 
   it('writes CSV with quoted fields and blank absent values', () => {
-    expect(csvOf(rows, ['flag'])).toBe(
+    expect(csvOf(rows, ['flag'], [])).toBe(
       'id,name,type,documents,flag\r\na,Beta Ltd,company,2,Cyprus\r\nb,"Alpha, ""Co""",company,0,\r\nc,Émile,person,5,\r\n',
     );
   });
 
   it('keeps a spreadsheet from running a label as a formula', () => {
     const risky = [row('x', '=HYPERLINK("a")', 'company', 1, { tonnage: '-5' })];
-    expect(csvOf(risky, ['tonnage'])).toBe(
+    expect(csvOf(risky, ['tonnage'], [])).toBe(
       `id,name,type,documents,tonnage\r\nx,"'=HYPERLINK(""a"")",company,1,-5\r\n`,
     );
   });
 
   it('names the most common keys and writes JSON', () => {
     expect(commonKeys(rows, 1)).toEqual(['tonnage']);
-    expect(JSON.parse(jsonOf(rows.slice(0, 1)))).toEqual([rows[0]]);
+    expect(JSON.parse(jsonOf(rows.slice(0, 1), ['GAB dataset.']))).toEqual({
+      heading: ['GAB dataset.'],
+      rows: [rows[0]],
+    });
+  });
+
+  it('starts a CSV file with the heading lines, each after "#" and on one line', () => {
+    expect(csvOf(rows.slice(0, 1), [], ['GAB dataset.', 'Disclaimer\non two lines.'])).toBe(
+      '# GAB dataset.\r\n# Disclaimer on two lines.\r\nid,name,type,documents\r\na,Beta Ltd,company,2\r\n',
+    );
   });
 });

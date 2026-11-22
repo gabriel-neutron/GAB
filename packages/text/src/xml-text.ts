@@ -24,7 +24,9 @@ const decoded = (text: string): string =>
       // A number outside Unicode names no character, so the text keeps it as it stands.
       return point <= LAST_CODE_POINT ? String.fromCodePoint(point) : whole;
     }
-    return ENTITIES[name.toLowerCase()] ?? whole;
+    // An own name only: "&constructor;" names no entity, not a member of every object.
+    const key = name.toLowerCase();
+    return Object.hasOwn(ENTITIES, key) ? (ENTITIES[key] ?? whole) : whole;
   });
 
 // A name without its prefix: "ns:entry" reads as "entry".

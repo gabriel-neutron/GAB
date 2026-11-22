@@ -572,7 +572,17 @@ const sizeOf = (bytes: Uint8Array): Size | undefined => {
 export const OCR_FAULT =
   'OCR could not read the image, and the operator reads the fault in the log';
 
-const imagePage = async (bytes: Uint8Array): Promise<string> => {
+// The one worker reads one image at a time. The jobs wait in this chain, so the deadline of a job
+// starts when the worker takes it, and a timeout never stops the job of another image.
+let ocrQueue: Promise<unknown> = Promise.resolve();
+
+const imagePage = (bytes: Uint8Array): Promise<string> => {
+  const job = ocrQueue.then(() => readImage(bytes));
+  ocrQueue = job.catch(() => undefined);
+  return job;
+};
+
+const readImage = async (bytes: Uint8Array): Promise<string> => {
   const size = sizeOf(bytes);
   if (size === undefined)
     throw new RefusedImageError('no width and height are read from the image');

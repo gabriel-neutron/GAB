@@ -3,14 +3,12 @@ import { createFileRoute } from '@tanstack/react-router';
 import { ClaimPage } from '@/features/claim/claim-page';
 import { claimHref, entityHref } from '@/features/detail/address';
 import { claimText } from '@gab/release/claim-text';
-import { loadCorpus } from '@/shared/read/corpus';
 import { loadReleaseOrNull } from '@/shared/read/release-record';
 
 // A claim exists in a release and nowhere else, so the page reads the release files whether the
 // read service answers or not. The identifier is the path, so it can hold a `/`.
 export const Route = createFileRoute('/claim/$')({
   loader: async () => {
-    await loadCorpus().catch(() => undefined);
     return loadReleaseOrNull();
   },
   component: ClaimRoute,

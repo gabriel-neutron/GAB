@@ -44,6 +44,7 @@ it. The build decisions are in the ADRs.
 | P11 | One entity with its relations is the unit of decision | Pipeline and AI |
 | P12 | The operator AI proposes the facts of a research layer | Pipeline and AI |
 | PU1 | The app is public, with clear labels | Publication |
+| PU2 | The report is English only | Publication |
 
 ---
 
@@ -435,7 +436,8 @@ public. Each candidate claim shows a visible label with its origin.
 person is exposed (legal and GDPR risk).
 **Mitigations.** The labels. No personal data on a person beyond what a cited source already
 publishes. A unit stays hidden until it has its own citation. Each page gives the visitor "Report
-an error" and "Right of reply".
+an error" and "Corrections". The project offers no right of reply, because the report only
+brings public information together; a named party can ask for a correction (22 November 2026).
 **Accepted.** Every name that a cited source gives can be public. The operator accepts the legal
 risk of an anonymous publisher.
 **The label (9 October 2026).** The label tells who decided a claim, in fixed words: "Proposed —
@@ -467,3 +469,13 @@ no person read it", "Validated manually by the operator". It shows no NATO lette
   pages. When the backend does not answer, the site is read-only: it shows the record of its
   release, and it hides each part that needs the backend (the review, the creation and the edit of
   an entity, the extraction, the upload, the lead). There is no second site.
+
+### PU2 — The report is English only
+
+**Rule.** The report is English only: the source text, the web page and the PDF. The French version
+was removed on 10 November 2026 (operator decision).
+
+**Reason.** The author wrote in French only to draft, and the work now is corrections. One
+language halves the work of each text change.
+
+**Cost.** A French reader has no French report.

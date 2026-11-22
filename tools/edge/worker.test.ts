@@ -102,6 +102,44 @@ describe('the edge worker', () => {
     expect(response.headers.get('x-robots-tag')).toBe('noindex');
   });
 
+  it('copies the noindex header of the host to every answer it makes', async () => {
+    const closed = {
+      ASSETS: {
+        fetch: (request: Request): Promise<Response> => {
+          const path = new URL(request.url).pathname;
+          if (path === '/favicon.svg') {
+            return Promise.resolve(new Response('x', { headers: { 'x-robots-tag': 'noindex' } }));
+          }
+          return env.ASSETS.fetch(request);
+        },
+      },
+    };
+    const ask = (path: string, headers: Record<string, string> = {}): Promise<Response> =>
+      worker.fetch(new Request(`https://example.org${path}`, { headers }), closed);
+    for (const response of [
+      await ask('/', { accept: 'text/markdown' }),
+      await ask('/?mode=agent'),
+      await ask('/api/v1/files'),
+    ]) {
+      expect(response.headers.get('x-robots-tag')).toBe('noindex');
+    }
+  });
+
+  it('forbids framing and sniffing on every answer', async () => {
+    for (const response of [await get('/'), await get('/llms.txt'), await get('/nothing-here')]) {
+      expect(response.headers.get('x-frame-options')).toBe('DENY');
+      expect(response.headers.get('content-security-policy')).toBe("frame-ancestors 'none'");
+      expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+      expect(response.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin');
+    }
+  });
+
+  it('names the licence of each row on the pricing page', async () => {
+    const text = await (await get('/pricing.md')).text();
+    expect(text).toContain('CC-BY-NC 4.0 is not for a commercial use');
+    expect(text).not.toContain('including for a commercial use');
+  });
+
   it('serves the crawl files', async () => {
     expect(await (await get('/robots.txt')).text()).toContain(
       'Sitemap: https://example.org/sitemap.xml',
@@ -204,6 +242,40 @@ describe('the faults of the MCP server', () => {
     );
   });
 
+  it('prints no mail address in the contact page or the structured data', async () => {
+    const page = await (await get('/contact.md')).text();
+    const home = await (await get('/', { accept: 'text/html' })).text();
+    expect(page).not.toContain('a@example.org');
+    expect(home).not.toContain('a@example.org');
+  });
+
+  it('serves the corrections page with the policy, the version log and the rights', async () => {
+    const page = await (await get('/corrections.md')).text();
+    expect(page).toContain('## What happens');
+    expect(page).toContain('- Version 1.0, 29 November 2026:');
+    expect(page).toContain('Figure 8 is not under CC BY 4.0');
+    expect(page).not.toContain('a@example.org');
+    expect(page).not.toMatch(/right of reply/iu);
+    const html = await (await get('/corrections', { accept: 'text/html' })).text();
+    expect(html).toContain('<title>Corrections · GAB dataset</title>');
+  });
+
+  it('gives the legal basis and the rights of a named person on the privacy page', async () => {
+    const page = await (await get('/privacy.md')).text();
+    expect(page).toContain('Article 6(1)(f) of the GDPR');
+    expect(page).toContain('under a pseudonym');
+    expect(page).toContain('https://example.org/corrections');
+  });
+
+  it('links the corrections page and offers no right of reply on any page for readers', async () => {
+    for (const path of ['/index.md', '/llms.txt', '/about.md']) {
+      expect(await (await get(path)).text()).toContain('https://example.org/corrections');
+    }
+    for (const path of ['/contact.md', '/privacy.md', '/corrections.md', '/llms.txt']) {
+      expect(await (await get(path)).text()).not.toMatch(/right of reply/iu);
+    }
+  });
+
   it('answers 503, not an empty list, when the manifest cannot be read', async () => {
     const broken = {
       ASSETS: { fetch: (): Promise<Response> => Promise.resolve(new Response('x')) },
@@ -220,5 +292,14 @@ describe('the rate limit', () => {
     expect(response.status).toBe(429);
     expect(response.headers.get('retry-after')).toBe('60');
     expect(((await response.json()) as { code: string }).code).toBe('rate_limited');
+  });
+});
+
+describe('the pages for agents', () => {
+  it('serves /auth.md as markdown and states the content signals in robots.txt', async () => {
+    const auth = await get('/auth.md');
+    expect(auth.headers.get('content-type')).toContain('text/markdown');
+    expect(await auth.text()).toContain('needs no authentication');
+    expect(await (await get('/robots.txt')).text()).toContain('Content-Signal:');
   });
 });

@@ -63,7 +63,7 @@ export function ReportFrame({ label, children }: ReportFrameProps) {
           lang={lang}
           aria-label={label}
           tabIndex={0}
-          className="h-full overflow-x-clip overflow-y-auto bg-background text-foreground outline-none [container-type:size]"
+          className="h-full overflow-x-clip overflow-y-auto bg-background text-foreground outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ring [container-type:size]"
         >
           {children}
         </div>

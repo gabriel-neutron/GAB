@@ -400,6 +400,12 @@ export const loadCommittedFixture = async (): Promise<void> => {
   await machine.connect();
   await owner.connect();
   try {
+    // The fixture stands for a release, so its invented host stands at level A in the test database.
+    await owner.query(
+      `INSERT INTO public.document_level_rule (pattern, level, line)
+       VALUES ('^https://example[.]invalid/', 'A', 'the committed fixture')
+       ON CONFLICT (pattern) DO NOTHING`,
+    );
     const documents = await loadDocuments(operator);
     const entities = await loadEntities(operator);
     const relations = await loadRelations(operator, entities);

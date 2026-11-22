@@ -17,18 +17,20 @@ export const deleteRelationCommand: SubCommand = async (args) => {
     console.error(USAGE);
     return 2;
   }
+  // One id in two cases is one relation.
+  const ids = [...new Set(args.map((id) => id.toLowerCase()))];
   const client = new Client({ connectionString: appAddress() });
   try {
     await client.connect();
     await client.query('BEGIN');
-    for (const id of new Set(args))
+    for (const id of ids)
       await client.query(
         `SELECT public.sign_change('operator', 'delete_relation', '{}'::jsonb,
            ARRAY['manual']::text[], 'relation', $1::uuid, '{}'::uuid[])`,
         [id],
       );
     await client.query('COMMIT');
-    console.log(`deleted ${args.length} relation(s)`);
+    console.log(`deleted ${ids.length} relation(s)`);
     return 0;
   } catch (error) {
     await client.query('ROLLBACK').catch(() => undefined);

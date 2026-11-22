@@ -117,7 +117,9 @@ const libpqVariables = (database: DatabaseName): Readonly<Record<string, string>
   };
 };
 
-const PSQL_FLAGS = ['-v', 'ON_ERROR_STOP=1'] as const;
+// External constraint: psql reads ~/.psqlrc after the command line, so a `\set ON_ERROR_STOP off` or
+// `\set AUTOCOMMIT off` there would change the result of each script. -X skips that file.
+const PSQL_FLAGS = ['-X', '-v', 'ON_ERROR_STOP=1'] as const;
 
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost']);
 const CONTAINER_PORT = '5432';
@@ -180,14 +182,28 @@ export const runScriptAsSuperuser = async (
   }
 };
 
+// External constraint: while the server starts, a connection is refused, reset or cut, or the server
+// answers 57P03 (it starts or stops). Any other error, such as a wrong password (28P01) or an absent
+// database (3D000), does not go away with a wait.
+const NOT_READY_CODES = new Set(['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN', '57P03']);
+
+/** True when a connection error can go away while the server starts. */
+export const isNotReady = (error: unknown): boolean => {
+  if (!(error instanceof Error)) return false;
+  const code = 'code' in error ? error.code : undefined;
+  if (typeof code === 'string') return NOT_READY_CODES.has(code);
+  return error.message.includes('Connection terminated');
+};
+
 const accepts = async (url: string): Promise<boolean> => {
   const client = new Client({ connectionString: url });
   try {
     await client.connect();
     await client.query('SELECT 1');
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (isNotReady(error)) return false;
+    throw error;
   } finally {
     await client.end().catch(() => undefined);
   }

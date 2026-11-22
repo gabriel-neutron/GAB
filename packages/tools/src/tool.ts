@@ -1,3 +1,5 @@
+import type { HostLease } from './host-lease.ts';
+import type { ProxyLedger } from './proxy-ledger.ts';
 import type { RawObject } from '@gab/store';
 import { z } from 'zod';
 
@@ -8,6 +10,9 @@ import type { ExtraRoot } from './russian-root.ts';
 /** What a tool needs from a connection. The caller opens it and decides its role. */
 export interface Session {
   query(text: string, values: unknown[]): Promise<{ readonly rows: readonly unknown[] }>;
+  /** Each query of this session runs on one connection. A pool session has no such promise, so a
+   * setting of the connection does not reach its next query. */
+  readonly pinned?: boolean;
 }
 
 /** What one web request asks of the surface: the headers, and the two caps of the answer. */
@@ -47,6 +52,8 @@ export interface Web {
   /** A POST, for an API that takes its question in a body. The tool that uses it checks that the
    * surface gives it. */
   post?(url: string, request: WebPost): Promise<WebBytes>;
+  /** A GET of a file, as bytes, because a text decode breaks a PDF. A redirect is an answer. */
+  getBytes?(url: string, request: WebRequest): Promise<WebBytes>;
   /** The address of the local SearXNG. It is an http address on the machine itself. */
   readonly searxngUrl?: string;
   /** The key of the Brave Search API. It leaves in a header and in no address. */
@@ -107,6 +114,11 @@ export interface Reach {
   readonly now: () => Date;
   /** Waits this many milliseconds. The default is a timer. A test gives a wait that ends at once. */
   readonly sleep?: (ms: number) => Promise<void>;
+  /** The shared turn, pace and hold of a rate-limited host, in the state of the supervisor. A tool
+   * that needs a Russian state host refuses with no value. */
+  readonly hostLease?: HostLease;
+  /** The ceiling of the paid proxy. With no value, no call goes to the proxy. */
+  readonly proxyLedger?: ProxyLedger;
   /** The folder where a browser saves a page for the research AI to store. */
   readonly inbox?: string;
   /** Every address of a name. The default asks the resolver of the system. */
@@ -120,7 +132,7 @@ export interface Reach {
   /** One more root certificate and the hosts that accept it. A test gives its own; the default is
    * the Russian root and its list of hosts. */
   readonly extraRoot?: ExtraRoot;
-  /** The key of the hosted proxy for Russian hosts. The default is the variable SCRAPINGBEE_KEY. */
+  /** The key of the hosted proxy for Russian hosts. The default is the variable BRIGHTDATA_API_KEY. */
   readonly hostedProxyKey?: string;
   /** The address of the hosted proxy. A test gives its own; the default is the real service. */
   readonly hostedProxyEndpoint?: string;
@@ -133,6 +145,17 @@ export interface Reach {
    * checker says its passages do not support: any other item is written with no dispute, and it
    * waits for a passed check. */
   readonly checkMarks?: 'dispute' | 'refuted';
+  /** The parts of the uploads that came in more than one call, by the address of the page. Each
+   * MCP session gives its own map, so the parts of two sessions do not mix. */
+  readonly uploadParts?: Map<string, HeldParts>;
+}
+
+/** The parts of one upload that the server holds until its last part comes. */
+export interface HeldParts {
+  readonly parts: number;
+  readonly type: string;
+  readonly chunks: Buffer[];
+  size: number;
 }
 
 /** A check that no model could run on a batch, with the one sentence that says why. */

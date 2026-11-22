@@ -27,7 +27,6 @@ export const APP_SEGMENTS: readonly string[] = [
   'downloads',
   'entity',
   'exports',
-  'fr',
   'glossary',
   'graph',
   'help',
@@ -48,6 +47,25 @@ const SUMMARY =
   'The GAB dataset is the public release of that graph: entities (people, companies, vessels, ' +
   'places), the relations between them and the claims that state them, each with a label that ' +
   'tells who decided it and the documents that state it.';
+
+// The page does not print the mail address, to limit spam.
+const contactLine = (site: string): string =>
+  `- Write to the maintainer. Open [${at(site, 'method')}](${at(site, 'method')}#errors) and press "Show the address", or read \`contacts.reportError\` in [the manifest](${at(site, 'release/manifest.json')}). Name the page, the figure or the claim identifier and say what is wrong.`;
+
+const ISSUE_LINE = `- Or open an issue on [GitHub](${REPOSITORY_URL}/issues). An issue is public, so do not put private data in it.`;
+
+/** Each version of the report: the version, the day and what changed. Add each new version at
+ * the end. */
+export const REPORT_VERSIONS: readonly (readonly [string, string, string])[] = [
+  [
+    '1.0',
+    '29 November 2026',
+    'the first public version, delivered to the Friedrich Naumann Foundation.',
+  ],
+];
+
+/** The rights notice of the report, the dataset and the code. */
+export const RIGHTS = `The text and the PDF of the report are under [CC BY 4.0](${LICENCE_URL}): you can copy, share and change them if you name the author, link the licence and mark each change. Figure 8 is not under CC BY 4.0: it uses Global Fishing Watch data under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/), so do not use it for a commercial purpose. The dataset is under CC BY 4.0, except a row whose \`licence\` column names another licence. The code is under the MIT licence.`;
 
 /** The pages that are not in the application, with the markdown of each. */
 export const STATIC_PAGES: Readonly<
@@ -76,31 +94,90 @@ export const STATIC_PAGES: Readonly<
         `- [Method](${at(site, 'method/')}): the evidence standard, the labels and the limits.`,
         `- [AI use](${at(site, 'ai-use/')}): the licence and how to cite a claim.`,
         `- [Source code](${REPOSITORY_URL}): the application and the tools, under the MIT licence.`,
-        `- [Contact](${at(site, 'contact')}): how to report an error or to ask for a reply.`,
+        `- [Contact](${at(site, 'contact')}) and [corrections](${at(site, 'corrections')}): how to report an error or to ask for a correction, and the version log of the report.`,
+      ].join('\n'),
+  },
+  auth: {
+    title: 'Authentication',
+    description: 'The GAB dataset needs no sign-in: how an agent reads it and what to do on a 429.',
+    markdown: (site) =>
+      [
+        '# Authentication for agents',
+        '',
+        'The GAB dataset needs no authentication. Every page, every file of the release, the MCP server and the file list are public, and no key, token or account exists. An agent does not register, claim or exchange anything.',
+        '',
+        '## Discover',
+        '',
+        `Read [llms.txt](${at(site, 'llms.txt')}) for the map of the site, ${at(site, '.well-known/ai-catalog.json')} for the catalog and ${at(site, '.well-known/mcp/server-card.json')} for the MCP server.`,
+        '',
+        '## Use',
+        '',
+        `Send a plain GET request to a file under ${at(site, 'release/')}, or a POST request with a JSON-RPC message to ${at(site, 'mcp')}. Send no Authorization header.`,
+        '',
+        '## Errors',
+        '',
+        'The interface answers 429 when one address sends many requests in a few seconds. The answer carries a Retry-After header: wait that long and send the request again. The release files are plain downloads and do not return 429.',
+        '',
+        '## Revocation',
+        '',
+        'There is no credential to revoke.',
       ].join('\n'),
   },
   contact: {
     title: 'Contact',
-    description: 'How to report an error in the GAB dataset or to use the right of reply.',
-    markdown: (_site, r) =>
+    description: 'How to report an error in the GAB dataset or to ask for a correction.',
+    markdown: (site) =>
       [
         '# Contact',
         '',
-        'Every claim in the GAB dataset can be wrong, and the project wants to know. Tell the maintainer when a claim is wrong, when a source does not say what a claim says, or when a person or a company named in the data wants to reply.',
+        'Every claim in the GAB dataset can be wrong, and the project wants to know. Tell the maintainer when a claim is wrong, when a source does not say what a claim says, or when a person or a company named in the data asks for a correction.',
         '',
-        '## Report an error or use the right of reply',
+        '## Report an error or ask for a correction',
         '',
-        `- Write to [${r.contact.replace(/^mailto:/u, '')}](${r.contact}). Name the page or the claim identifier and say what is wrong.`,
-        `- Or open an issue on [GitHub](${REPOSITORY_URL}/issues). An issue is public, so do not put private data in it.`,
+        contactLine(site),
+        ISSUE_LINE,
         '',
-        'The maintainer reads each message. A party that the report names has the right to reply, and the project keeps each reply with the claim it concerns. A confirmed error is corrected in the next release, and the changelog of the release lists the change.',
+        `The [corrections page](${at(site, 'corrections')}) tells what happens next and lists each version of the report.`,
+      ].join('\n'),
+  },
+  corrections: {
+    title: 'Corrections',
+    description:
+      'The corrections policy of the GAB report and dataset, the contact and the version log of the report.',
+    markdown: (site) =>
+      [
+        '# Corrections',
+        '',
+        'The report and the dataset bring together facts from public documents. Each fact can be wrong, and the project corrects each error that it confirms. Each person or company that the report names can ask for a correction.',
+        '',
+        '## How to report an error',
+        '',
+        contactLine(site),
+        ISSUE_LINE,
+        '',
+        '## What happens',
+        '',
+        '1. The maintainer reads each message and answers within one month.',
+        '2. The maintainer reads the cited documents again and compares them with the claim.',
+        '3. When the error is confirmed, the next release of the dataset corrects the claim, and the changelog of that release lists the change. When the text of the report is wrong, a new version of the report corrects it, and the version log below lists the change.',
+        '4. When the documents support the claim, the maintainer tells you which document states it, and the claim stays.',
+        '',
+        '## Version log of the report',
+        '',
+        ...REPORT_VERSIONS.map(
+          ([version, date, change]) => `- Version ${version}, ${date}: ${change}`,
+        ),
+        '',
+        '## Rights',
+        '',
+        RIGHTS,
       ].join('\n'),
   },
   privacy: {
     title: 'Privacy',
     description:
-      'What the GAB site stores about a reader: nothing, except the theme in the browser.',
-    markdown: () =>
+      'What the GAB site stores about a reader, and which persons the data names and why.',
+    markdown: (site) =>
       [
         '# Privacy',
         '',
@@ -114,9 +191,14 @@ export const STATIC_PAGES: Readonly<
         '',
         'The host of the site, Cloudflare, handles each request and keeps the usual technical logs of a web server (address, time and page). The project does not read them to follow a person.',
         '',
-        '## People named in the data',
+        '## Persons named in the data',
         '',
-        'The dataset names people and companies that appear in public documents. If you are named and the data is wrong, use the right of reply on the contact page.',
+        '- Who: the data names a natural person only when a sanctions act designates that person. Many of these persons are public officials, named for their public role.',
+        '- What: the name and the facts that a cited public document already publishes. The data holds no personal address, no telephone number and no e-mail address.',
+        '- Source: official acts, public registers and other public documents. Each claim cites its documents. The project uses no leaked, hacked or stolen data.',
+        '- Legal basis: the legitimate interest of the public in information on sanctions (Article 6(1)(f) of the GDPR), and the purposes of journalism and research (Article 85 and Article 89 of the GDPR).',
+        `- Your rights: ask for a correction, or object to the use of your data, with the contact on the [corrections page](${at(site, 'corrections')}). The maintainer answers within one month.`,
+        '- The publisher: the project publishes under a pseudonym. The pseudonym does not change your rights or the contact.',
       ].join('\n'),
   },
   docs: {
@@ -147,7 +229,7 @@ export const STATIC_PAGES: Readonly<
         '',
         '## Licence',
         '',
-        `The data is under [CC-BY 4.0](${LICENCE_URL}). Cite the dataset and keep the label of each claim.`,
+        `The data is under [CC-BY 4.0](${LICENCE_URL}), except a row whose \`licence\` column names another licence. Cite the dataset and keep the label of each claim.`,
       ].join('\n'),
   },
   developers: {
@@ -194,7 +276,7 @@ export const STATIC_PAGES: Readonly<
         '| --- | --- | --- |',
         '| Open | 0 EUR | Every page, every file of the release and the source code |',
         '',
-        `The data is under [CC-BY 4.0](${LICENCE_URL}): you may copy and reuse it, including for a commercial use, if you cite it.`,
+        `The data is under [CC-BY 4.0](${LICENCE_URL}): you may copy and reuse it if you cite it. Each row shows its own licence in its \`licence\` column, and a row under CC-BY-NC 4.0 is not for a commercial use.`,
       ].join('\n'),
   },
   agents: {
@@ -248,7 +330,7 @@ export const homeMarkdown = (site: string): string =>
     '',
     '## For readers and agents',
     '',
-    `- [About](${at(site, 'about')}), [Contact](${at(site, 'contact')}), [Privacy](${at(site, 'privacy')}).`,
+    `- [About](${at(site, 'about')}), [Contact](${at(site, 'contact')}), [Corrections](${at(site, 'corrections')}), [Privacy](${at(site, 'privacy')}).`,
     `- [Documentation](${at(site, 'docs')}), [Developers](${at(site, 'developers')}), [For AI agents](${at(site, 'agents')}).`,
     `- [Source code](${REPOSITORY_URL}).`,
   ].join('\n');
@@ -307,7 +389,7 @@ export const llmsIndex = (site: string, r: Release): string =>
     `- [For AI agents](${at(site, 'agents.md')})`,
     `- [Documentation](${at(site, 'docs.md')}) and [OpenAPI description](${at(site, 'openapi.json')})`,
     `- [Developers](${at(site, 'developers.md')}) and [pricing](${at(site, 'pricing.md')})`,
-    `- [About](${at(site, 'about.md')}), [contact](${at(site, 'contact.md')}) and [privacy](${at(site, 'privacy.md')})`,
+    `- [About](${at(site, 'about.md')}), [contact](${at(site, 'contact.md')}), [corrections](${at(site, 'corrections.md')}) and [privacy](${at(site, 'privacy.md')})`,
     `- [Source code](${REPOSITORY_URL})`,
     '',
     '## How to cite',
@@ -317,7 +399,7 @@ export const llmsIndex = (site: string, r: Release): string =>
     '',
     '## Licence',
     '',
-    `- The dataset is under [CC-BY 4.0](${LICENCE_URL}).`,
+    `- The dataset is under [CC-BY 4.0](${LICENCE_URL}). Each row shows its own licence.`,
     '',
   ].join('\n');
 
@@ -340,12 +422,11 @@ export const reportLlms = (site: string): string =>
   [
     '# GAB dataset: report',
     '',
-    '> The report on the nodes that sustain the war, in English and in French, with a PDF of each.',
+    '> The report on the nodes that sustain the war, in English, with a PDF.',
     '',
     '## Pages',
     '',
-    `- [Report, English](${at(site, '')}): the home page`,
-    `- [Report, French](${at(site, 'fr/')})`,
+    `- [Report](${at(site, '')}): the home page`,
     `- [Bibliography](${at(site, 'bibliography/')})`,
     `- [Glossary](${at(site, 'glossary/')})`,
     '',
@@ -528,7 +609,7 @@ export const SKILLS: Readonly<
         '- Keep the label that tells who decided the claim.',
         '- Name the documents that the page of the claim lists as its sources.',
         '- Say that a claim tells what its sources say and is not proof.',
-        '- Credit the dataset under CC-BY 4.0.',
+        '- Credit the dataset under CC-BY 4.0, and keep the licence of each row that you copy.',
       ].join('\n'),
   },
 };

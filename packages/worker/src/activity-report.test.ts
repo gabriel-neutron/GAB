@@ -149,6 +149,18 @@ test('a month with no stored answer is unread, not zero', () => {
   expect(none.lines.at(-1)).toContain('FIRMS unread');
 });
 
+test('on the first day of a month, the new month with no stored answer is unread', () => {
+  const none = buildActivityReport({
+    today: '2026-11-01',
+    assets: assets.filter((one) => one.kind === 'refinery'),
+    flares: [],
+    answers: [],
+    strikes: [],
+    operators: new Map(),
+  });
+  expect(none.lines.at(-1)).toContain('FIRMS unread');
+});
+
 test('only a sure operator row joins; the address of an answer gives its box and days', () => {
   expect([
     ...operatorsOf(

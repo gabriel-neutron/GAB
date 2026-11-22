@@ -30,7 +30,7 @@ export function NodeIndex() {
         {ui.index.title}
       </h2>
       <div className="mt-8 grid gap-12">
-        {ui.index.layers.map((layer) => {
+        {ui.index.layers.map(({ layer, label }) => {
           const nodes = reportGraph.layer(layer);
           return (
             <section key={layer} aria-labelledby={`nodes-${layer}`}>
@@ -38,7 +38,7 @@ export function NodeIndex() {
                 id={`nodes-${layer}`}
                 className="font-mono text-report-label uppercase text-label"
               >
-                {layer} · <span className="tabular-nums">{nodes.length}</span>
+                {label} · <span className="tabular-nums">{nodes.length}</span>
               </h3>
               <ol
                 // An underline shows on hover or focus only; a long name hangs past its glyph.

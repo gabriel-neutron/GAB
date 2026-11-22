@@ -1,6 +1,7 @@
 import { animate, motion, useInView, useMotionValue, useTransform } from 'motion/react';
 import { useEffect, useRef } from 'react';
 import { useReduceMotion } from '../reduced-motion';
+import { useReleaseRender } from '../release-render';
 
 interface CountUpProps {
   readonly value: number;
@@ -8,16 +9,18 @@ interface CountUpProps {
 }
 
 /** A value that counts up from zero once, when it enters the view. The screen reader reads only
- * the final value. Under reduced motion, the final value shows at once. */
+ * the final value. Under reduced motion, and on the release page, the final value shows at once:
+ * the release HTML shows its values before any script runs. */
 export function CountUp({ value, format }: CountUpProps) {
   const reduce = useReduceMotion();
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.3 });
-  const shown = useMotionValue(reduce ? value : 0);
+  const still = useReleaseRender() || reduce;
+  const shown = useMotionValue(still ? value : 0);
   const text = useTransform(shown, format);
   // A subscription to the view: the count starts once, on entry.
   useEffect(() => {
-    if (reduce) {
+    if (still) {
       shown.set(value);
       return undefined;
     }
@@ -26,7 +29,7 @@ export function CountUp({ value, format }: CountUpProps) {
     return () => {
       run.stop();
     };
-  }, [inView, reduce, shown, value]);
+  }, [inView, still, shown, value]);
   return (
     <>
       {/* The final value holds the box in the same cell, so the count shifts no layout. */}

@@ -5,6 +5,7 @@ import {
   arcs,
   cellsOf,
   chainCount,
+  shareText,
   flowLinks,
   placesOfNote,
   routeCounts,
@@ -127,5 +128,12 @@ describe('map helpers', () => {
     expect(wide.north - wide.south).toBe(150);
     expect(wide.north).toBeLessThanOrEqual(84);
     expect(wide.h).toBeCloseTo(187.5);
+  });
+});
+
+describe('the text of a share', () => {
+  it('keeps the decimals of the data in the format of the locale', () => {
+    expect(shareText('41.0', 'en-US')).toBe('41.0%');
+    expect(shareText('41.0', 'fr-FR')).toMatch(/^41,0\s%$/);
   });
 });

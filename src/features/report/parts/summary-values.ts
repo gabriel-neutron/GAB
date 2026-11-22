@@ -8,8 +8,8 @@ export type SummaryValue =
       readonly format: (value: number) => string;
     };
 
-// The first percentage of the item, with the space of its locale before the sign.
-const PERCENT = /(\d+)(\s?%)/;
+// The first percentage of the item, with its decimals and the space of its locale before the sign.
+const PERCENT = /(\d+(?:[.,]\d+)?)(\s?%)/;
 
 /** The value of each finding, from the text of its list item, which the parity test ties to the
  * source text. A finding with words (no number) keeps the words of its copy. The label is the bold
@@ -25,11 +25,14 @@ export function summaryValues(
     const match = PERCENT.exec(item);
     if (words !== '' || match === null) return { kind: 'words', label, text: words };
     const sign = match[2] ?? '%';
+    const digits = match[1] ?? '';
+    const point = digits.includes(',') ? ',' : '.';
+    const decimals = digits.split(point)[1]?.length ?? 0;
     return {
       kind: 'number',
       label,
-      value: Number(match[1]),
-      format: (value) => `${String(Math.round(value))}${sign}`,
+      value: Number(digits.replace(',', '.')),
+      format: (value) => `${value.toFixed(decimals).replace('.', point)}${sign}`,
     };
   });
 }

@@ -3,6 +3,7 @@ import type { ReportBlock } from './content';
 import { FigureFrame } from './figure-frame';
 import { RichText } from './rich-text';
 import { useContent } from './use-content';
+import { figureKey } from './figure-key';
 
 interface BlocksProps {
   readonly blocks: readonly ReportBlock[];
@@ -53,7 +54,7 @@ export function Blocks({ blocks, partSlug }: BlocksProps) {
           unit={block.figure.unit}
           period={block.figure.period}
           sources={block.figure.sources}
-          note={figureNotes[String(block.figure.number)]?.note}
+          note={figureNotes[figureKey(block.figure.number) ?? '']?.note}
           partSlug={partSlug}
         >
           <p className="border border-dashed border-border p-6 text-report-small text-muted-foreground">

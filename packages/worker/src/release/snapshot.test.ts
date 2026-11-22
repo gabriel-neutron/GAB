@@ -36,6 +36,18 @@ test('the snapshot ends also when the work fails', async () => {
   expect(said.at(-1)).toBe('ROLLBACK');
 });
 
+test('a failed roll back does not hide the error of the work', async () => {
+  const db: Queryable = {
+    query: (text) =>
+      text === 'ROLLBACK'
+        ? Promise.reject(new Error('the connection is closed'))
+        : Promise.resolve({ rows: [] }),
+  };
+  await expect(inOneSnapshot(db, () => Promise.reject(new Error('a fault')))).rejects.toThrow(
+    'a fault',
+  );
+});
+
 test('the statement timeout is the default, or the value of the variable', () => {
   expect(statementTimeout('10min', {})).toBe('10min');
   expect(statementTimeout('10min', { GAB_STATEMENT_TIMEOUT: '4h' })).toBe('4h');

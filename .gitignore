@@ -53,6 +53,7 @@ ingest-report.json
 # stay on the machine of the operator.
 research/**
 !research/README.md
+!research/signed-list.md
 !research/CLAUDE.md
 !research/AGENTS.md
 !research/.mcp.json

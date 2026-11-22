@@ -113,6 +113,15 @@ REVOKE ALL ON FUNCTION ai_reject_unit(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_reject_relation(uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION join_unit_as(uuid,uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_join_unit(uuid,uuid,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION waiting_lane_said() FROM PUBLIC;
+REVOKE ALL ON FUNCTION refuse_waiting_lane(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION remove_accepted_act(uuid,uuid,text,uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION put_review_citation(uuid,jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION check_review_citation(jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION joined_entity(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION review_why(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ai_remove_act(uuid,jsonb,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ai_join_entities(uuid,uuid,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_group(uuid,uuid[],text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_group_as(uuid,uuid[],text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_promote_group(uuid,uuid[],text) FROM PUBLIC;
@@ -199,6 +208,7 @@ REVOKE ALL ON FUNCTION fact_is_strong(text,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION units_of_author(uuid)       FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_rule(uuid)             FROM PUBLIC, gabriel_app;
 REVOKE ALL ON FUNCTION unit_doubt_cause(uuid)      FROM PUBLIC;
+REVOKE ALL ON FUNCTION rule_before_sources(uuid,jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION rule_of_faults(uuid,jsonb)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION unit_said(uuid,text,jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION apply_rules(uuid)           FROM PUBLIC;
@@ -227,6 +237,9 @@ REVOKE ALL ON FUNCTION put_fetched_document(text,text,text,text,text,text,date,t
 REVOKE ALL ON FUNCTION fill_document_provider(text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_archive(text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION fill_document_trace(text,text,boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION fill_document_restricted(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION document_level(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION document_restricted(text) FROM PUBLIC;
 
 -- THE TIER IS HELD BY NO ROLE. The owner of a view does not lend EXECUTE on a function that the
 -- view calls, so the reader role of an export gets the grant together with that export.
@@ -241,6 +254,10 @@ GRANT EXECUTE ON FUNCTION put_fetched_document(text,text,text,text,text,text,dat
   TO gabriel_agent, gabriel_research;
 -- THE PROVIDER OF A KNOWN OFFICIAL FILE goes with the fetched-document door.
 GRANT EXECUTE ON FUNCTION fill_document_provider(text,text) TO gabriel_agent, gabriel_research;
+-- THE LEVEL AND THE CLASS OF A DOCUMENT go with the fetched-document door.
+GRANT EXECUTE ON FUNCTION fill_document_restricted(text) TO gabriel_agent, gabriel_research;
+GRANT EXECUTE ON FUNCTION document_level(text) TO gabriel_agent, gabriel_research;
+GRANT EXECUTE ON FUNCTION document_restricted(text) TO gabriel_agent, gabriel_research;
 -- THE ARCHIVE THAT HELD A FILE goes with the fetched-document door too.
 GRANT EXECUTE ON FUNCTION fill_document_archive(text,text,text) TO gabriel_agent, gabriel_research;
 -- HOW A FETCHED DOCUMENT WAS READ goes with the fetched-document door too.
@@ -269,7 +286,7 @@ GRANT EXECUTE ON FUNCTION reject_unit(uuid,text,text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION merge_waiting_act(uuid,uuid,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION reject_relation(uuid,text,text,text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION promote_group(uuid,uuid[],text) TO gabriel_app;
--- THE DECISIONS OF AN AI REVIEWER. The research role holds four doors of its own, and no door of
+-- THE DECISIONS OF AN AI REVIEWER. The research role holds doors of its own, and no door of
 -- the operator. Each one records the origin "decided by an AI reviewer" and the reason that the AI
 -- gives, so a decision of the AI never reads as a rule or as a decision of the operator. The
 -- research role holds no step of the rules, so it cannot decide in place of a rule.
@@ -278,6 +295,10 @@ GRANT EXECUTE ON FUNCTION ai_reject_unit(uuid,text,text,text) TO gabriel_researc
 GRANT EXECUTE ON FUNCTION ai_reject_relation(uuid,text,text,text) TO gabriel_research;
 GRANT EXECUTE ON FUNCTION ai_join_unit(uuid,uuid,text) TO gabriel_research;
 GRANT EXECUTE ON FUNCTION ai_promote_group(uuid,uuid[],text) TO gabriel_research;
+-- An AI reviewer removes an accepted act and joins two entities of one thing, each with a reason
+-- and a cited passage (ADR 0035). An undo of a join stays with the operator.
+GRANT EXECUTE ON FUNCTION ai_remove_act(uuid,jsonb,text) TO gabriel_research;
+GRANT EXECUTE ON FUNCTION ai_join_entities(uuid,uuid,jsonb,text) TO gabriel_research;
 -- The act of the operator, proposed and promoted in one transaction. A machine role holds no
 -- grant on it, as it holds none on the promotion.
 GRANT EXECUTE ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) TO gabriel_app;

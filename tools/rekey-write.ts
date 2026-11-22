@@ -122,19 +122,32 @@ export const groupsOf = (
       parent.set(find(one.id), find(id));
     }
   }
+  // Two pending entities with one label and one identifier, of which only one holds a drifted key,
+  // are an old act and its re-keyed copy after a run that stopped. The door accepts that pair too,
+  // and a second run ends it. Each other group is a copy.
   const copies = new Set(
     duplicateIdentifiers([
       ...acts
         .filter((one) => one.op === 'create_entity')
         .map((one) => ({
           id: one.id,
-          label: '',
+          label: typeof one.payload['label'] === 'string' ? one.payload['label'] : '',
           type: '',
           pending: true,
           attrs: attrsOf(one),
         })),
       ...record,
-    ]).flatMap((group) => group.entities.map((one) => one.id)),
+    ])
+      .filter(
+        (group) =>
+          !(
+            group.entities.length === 2 &&
+            group.entities.every((one) => 'pending' in one) &&
+            new Set(group.entities.map((one) => one.label)).size === 1 &&
+            group.entities.filter((one) => plans.has(one.id)).length === 1
+          ),
+      )
+      .flatMap((group) => group.entities.map((one) => one.id)),
   );
   const parts = new Map<string, Act[]>();
   for (const id of members) {

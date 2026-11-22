@@ -1,6 +1,6 @@
 import { cn } from '@/shared/lib/utils';
 import { useContent } from '../../use-content';
-import { chainCount, stages, type Share, type Total } from './chain-data';
+import { chainCount, shareText, stages, type Share, type Total } from './chain-data';
 
 /** The name of the chain data in the words of the page. */
 export function useDataName(): (name: string) => string {
@@ -26,7 +26,7 @@ const cellClass = (share: Share) =>
 export function ChainStrips({ active }: { readonly active: number | 'all' }) {
   const past = active !== 'all' && active >= stages.length;
   const shown = active === 'all' ? 'all' : Math.min(active, stages.length - 1);
-  const { fightUi } = useContent();
+  const { fightUi, ui } = useContent();
   const say = useDataName();
   return (
     <div className={cn('grid gap-2 lg:gap-3', past && 'hidden')}>
@@ -52,7 +52,7 @@ export function ChainStrips({ active }: { readonly active: number | 'all' }) {
                 lit && active !== 'all' ? 'text-signal' : 'text-muted-foreground',
               )}
             >
-              {china?.text}%
+              {china === undefined ? '' : shareText(china.text, ui.numberLocale)}
             </span>
             <div className="min-w-0">
               <p

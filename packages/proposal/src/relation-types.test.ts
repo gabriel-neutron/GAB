@@ -31,3 +31,11 @@ test.each(['settles_through', 'acts_for', 'supplies_items_to', 'transfers_funds_
     expect(one?.definition).toContain('Far end:');
   },
 );
+
+test('found_in takes no dates, and its words never name a sale', () => {
+  const one = SEEDED_RELATION_TYPES.find((row) => row.key === 'found_in');
+  expect(one?.takesInterval).toBe(false);
+  expect(one?.definition).toContain('Far end:');
+  expect(`${one?.label ?? ''} ${one?.inverseLabel ?? ''}`).not.toMatch(/suppl|sell|sold|buy/iu);
+  expect(one?.definition).not.toMatch(/suppl/iu);
+});

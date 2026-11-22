@@ -97,3 +97,32 @@ test('a walk of depth 1 gives the root at hop 0 and each direct neighbour at hop
 test('a walk of depth 2 follows a relation in both directions and keeps the shortest hop', async () => {
   expect(await neighbourhoodOf(2)).toStrictEqual({ A: 0, B: 1, E: 1, C: 2 });
 });
+
+// The walk keeps no visited set, so a cap on the depth bounds its cost. Two entities with one
+// relation make a circle that the walk goes around at each hop. The statement timeout stops a walk
+// that goes around the circle for each hop that the caller asks.
+test('a walk of a very large depth on a circle ends fast', async () => {
+  const seen = await probe('superuser', async (ask) => {
+    await ask('BEGIN');
+    try {
+      const a = await anEntity(ask, 'A');
+      const b = await anEntity(ask, 'B');
+      await aRelation(ask, ['entity', a], ['entity', b]);
+      await ask('SET LOCAL ROLE gabriel_read');
+      await ask("SET LOCAL statement_timeout = '3s'");
+      const rows = walked.parse(
+        await ask('SELECT entity_id, hop FROM api.neighbourhood($1::uuid, 1000000)', [a]),
+      );
+      const names = new Map([
+        [a, 'A'],
+        [b, 'B'],
+      ]);
+      return Object.fromEntries(
+        rows.map((row) => [names.get(row.entity_id) ?? row.entity_id, row.hop]),
+      );
+    } finally {
+      await ask('ROLLBACK');
+    }
+  });
+  expect(seen).toStrictEqual({ A: 0, B: 1 });
+});

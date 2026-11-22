@@ -45,7 +45,9 @@ tool, a design, a name, the order of the work.
    now. Write the verdict where the next session reads it: the comment of the ticket, an ADR for
    a technical choice that is costly to reverse (`docs/authoring.md`), or the deliverable.
 6. **Ask the operator only a critical question.** Give the verdict, the dissent of each expert
-   that does not agree, and your recommendation, in one **Your decision:** line.
+   that does not agree, and your recommendation, in one **Your decision:** line. A worker of a run
+   with no person (`research/AGENTS.md`) writes that text as one line of the operator queue instead.
+   Its ticket parks, and the other tickets go on.
 
 ## Rules
 

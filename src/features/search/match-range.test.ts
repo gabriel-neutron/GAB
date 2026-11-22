@@ -36,6 +36,15 @@ describe('matchRange', () => {
     }
   });
 
+  it('counts a character outside the basic plane as two string units', () => {
+    expect(matchRange('🚢 Tanker Alpha', 'tanker')).toEqual({ start: 3, end: 9 });
+  });
+
+  it('marks a final sigma as the fold of the whole text does', () => {
+    expect(matchRange('ΟΔΥΣΣΕΥΣ', 'οδυσσευς')).toEqual({ start: 0, end: 8 });
+    expect(matchRange('ΟΔΥΣΣΕΥΣ', 'οδυσ')).toEqual({ start: 0, end: 4 });
+  });
+
   it('returns null for an empty query or no match', () => {
     expect(matchRange('Ledger', '   ')).toBeNull();
     expect(matchRange('Ledger', 'star')).toBeNull();

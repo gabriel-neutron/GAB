@@ -264,3 +264,22 @@ test.each([
 ])('a promotion refuses the value %d in %j', async (value, excerpt) => {
   expect(await promotion(value, `📈 ${excerpt}.`, excerpt)).toBe('observation_value_stated');
 });
+
+const PROPOSAL = 'SELECT id FROM api.proposal WHERE id = $1';
+
+// ADR 0031: the act of a figure follows the licence of the figure. The page has no provider, so
+// its licence is not open, and the public read does not see the act.
+test('the public read does not see a figure act whose document has no open licence', async () => {
+  const seen = await rolledBack('superuser', async (ask) => {
+    await page(ask);
+    const act = await proposalOf(ask, figure(71.03));
+    const readAs = async (role: string) => {
+      await ask(`SET LOCAL ROLE ${role}`);
+      const rows = await ask(PROPOSAL, [act.proposalId]);
+      await ask('RESET ROLE');
+      return rows.length;
+    };
+    return { read: await readAs('gabriel_read'), app: await readAs('gabriel_app') };
+  });
+  expect(seen).toStrictEqual({ read: 0, app: 1 });
+});

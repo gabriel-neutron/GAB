@@ -229,3 +229,27 @@ test('an accepted act with an unknown origin reads as not checked, and never as 
   });
   expect(label).toBe(PROPOSED);
 });
+
+// The row label tells who decided the name and the type. A change of the place alone sets
+// neither, so it keeps the label of the act that set them.
+test('an accepted change of the place alone keeps the row label of an entity', async () => {
+  const row = await rolledBack('superuser', async (ask) => {
+    const made = await proposed(ask, 'create_entity', ENTITY);
+    await decided(ask, made, 'unit', 'validated manually by the operator');
+    await ask(
+      `INSERT INTO public.entities (id, type, label, attrs, sources, promoted_from)
+       SELECT p.id, 'vessel', p.payload->>'label', '{}'::jsonb, p.src, p.id
+         FROM public.proposals p WHERE p.id = $1`,
+      [made],
+    );
+    const moved = await proposed(
+      ask,
+      'update_entity',
+      { geom: { type: 'Point', coordinates: [30.5, 46.5] }, geom_method: 'operator_statement' },
+      made,
+    );
+    await decided(ask, moved, 'unit', 'decided by an AI reviewer', 'The passage states it.');
+    return asRead(ask, 'SELECT origin_label FROM api.entity WHERE id = $1', [made]);
+  });
+  expect(row).toStrictEqual([{ origin_label: `${MANUAL}, on 2026-10-08` }]);
+});

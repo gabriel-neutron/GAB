@@ -17,6 +17,7 @@ import { searchByName } from '@/features/search/name-search';
 import { rowsOf } from '@/features/search/entity-rows';
 
 import { EntityTable } from '@/features/search/entity-table';
+import { exportHeading } from '@/features/search/export-heading';
 
 import { SearchPage } from '@/features/search/search-page';
 
@@ -52,12 +53,22 @@ export const Route = createFileRoute('/search')({
 
     // counts every document of the record. The page states the count of the release.
 
-    const stated =
-      readMode() === 'release'
-        ? ((await loadReleaseOrNull().catch(() => null))?.manifest.coverage ?? null)
-        : null;
+    const live = readMode() !== 'release';
+    const release = await loadReleaseOrNull().catch(() => null);
+    const stated = live ? null : (release?.manifest.coverage ?? null);
+    // A saved selection holds the disclaimer of the dataset, which a release states.
+    const heading = exportHeading(
+      release === null
+        ? null
+        : {
+            version: release.manifest.version,
+            date: release.manifest.date,
+            disclaimer: release.manifest.disclaimer,
+          },
+      live,
+    );
 
-    return { corpus, providers, stated };
+    return { corpus, providers, stated, heading };
   },
 
   component: SearchRoute,
@@ -66,7 +77,7 @@ export const Route = createFileRoute('/search')({
 });
 
 function SearchRoute() {
-  const { corpus, providers, stated } = Route.useLoaderData();
+  const { corpus, providers, stated, heading } = Route.useLoaderData();
 
   const router = useRouter();
 
@@ -136,7 +147,7 @@ function SearchRoute() {
       />
 
       <PageSection title="All entities">
-        <EntityTable rows={rows} hrefOf={pageOf} />
+        <EntityTable rows={rows} hrefOf={pageOf} heading={heading} />
       </PageSection>
 
       <Link to="/downloads" className="text-small underline underline-offset-4">

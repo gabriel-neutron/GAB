@@ -6,7 +6,10 @@
 // - a search result page: it lists pages and states no fact. Store the page that a result names.
 // A page of one OpenStreetMap object stays allowed: the record keeps the identifier and the
 // version of an object, and the release refuses it as the source of a geometry.
+// - a host of a leak collection (denied-host.ts).
 // The whole address is read, so a copy in a web archive of such an answer is refused too.
+
+import { deniedHostRefusal } from './denied-host.ts';
 
 interface Rule {
   readonly pattern: RegExp;
@@ -97,6 +100,8 @@ const RULES: readonly Rule[] = [
 
 /** The reason that a store tool refuses this address, or null for an address that it may store. */
 export const refusedSource = (address: string): string | null => {
+  const denied = deniedHostRefusal(address);
+  if (denied !== null) return denied;
   // The parsed form adds the slash after a bare host and writes the host in lower case.
   let read = address.trim();
   try {

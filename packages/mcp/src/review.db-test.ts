@@ -126,9 +126,25 @@ interface Units {
   readonly link: string;
 }
 
+// A second model disputes each act, so each unit is a doubt: an AI reviewer decides a doubt only.
+// The dispute of a check is no fault, so a unit stays clean for the group action.
+const doubted = async (ask: Ask, acts: readonly string[]): Promise<void> => {
+  await ask('SET LOCAL SESSION AUTHORIZATION gabriel_checker');
+  for (const act of acts)
+    await ask('SELECT public.record_research_check($1::uuid, $2, $3, $4, $5)', [
+      act,
+      'a-checker',
+      'openai',
+      'anthropic',
+      'not_supported',
+    ]);
+  await ask('RESET SESSION AUTHORIZATION');
+};
+
 // A company in one batch. A vessel and the link from the company to the vessel in a second
-// batch, so the link is a unit of its own that waits for the company.
-const seeded = async (ask: Ask): Promise<Units> => {
+// batch, so the link is a unit of its own that waits for the company. Each unit is a doubt, or
+// waits for a better source when `doubt` is false.
+const seeded = async (ask: Ask, doubt = true): Promise<Units> => {
   const units = { owner: randomUUID(), vessel: randomUUID(), link: randomUUID() };
   await ask(PUT, [DOC]);
   await ask(TEXT, [DOC, JSON.stringify([PAGE]), EXTRACTOR]);
@@ -137,6 +153,7 @@ const seeded = async (ask: Ask): Promise<Units> => {
     entity(units.vessel, 'vessel', 'Baltic Star'),
     relation(units.link, units.owner, units.vessel),
   ]);
+  if (doubt) await doubted(ask, [units.owner, units.vessel, units.link]);
   await fromAnEarlierTransaction(ask);
   return units;
 };
@@ -168,7 +185,7 @@ const AI = 'decided by an AI reviewer';
 
 test('the research role reads the unit, its cited passage and its list as the review page does', async () => {
   const read = await rolledBack('superuser', async (ask) => {
-    const { vessel } = await seeded(ask);
+    const { vessel } = await seeded(ask, false);
     return asResearch(ask, async (call) => ({
       vessel,
       unit: z
@@ -543,4 +560,399 @@ test('the research role joins a doubted event to an event that waits, through th
     decision_reason: WHY,
   });
   expect(found.rows.get(found.waiting)).toMatchObject({ status: 'pending' });
+});
+
+// ---------------------------------------------------------------- the lane of a reviewer ---
+
+const WAITING_LANE =
+  'the unit is in the lane "waiting", and the rule "a waiting unit is not for a reviewer" ' +
+  'applies: an AI reviewer decides a doubt only, and the rules or the operator decide this unit';
+
+test('an AI reviewer cannot promote a unit of the lane "waiting", alone or in a group', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const units = await seeded(ask, false);
+    const [group] = z
+      .array(z.object({ batch_id: z.uuid() }))
+      .parse(
+        await ask('SELECT batch_id::text FROM public.proposals WHERE id = $1', [units.vessel]),
+      );
+    const calls = await asResearch(ask, async (call) => ({
+      one: await call('promote_unit', { unitId: units.owner, why: WHY }),
+      group: z
+        .object({
+          results: z.array(
+            z.object({
+              unit: z.uuid(),
+              name: z.string(),
+              outcome: z.string(),
+              said: z.string().nullable(),
+            }),
+          ),
+        })
+        .parse(
+          outputOf(
+            await call('promote_clean_proposals', {
+              groupId: group?.batch_id,
+              unitIds: [units.vessel],
+              why: WHY,
+            }),
+          ),
+        ),
+    }));
+    return { calls, rows: await rowsOf(ask, [units.owner, units.vessel]), units };
+  });
+  expect(found.calls.one).toStrictEqual({
+    refused: true,
+    text: `the record refused the call: unitId: ${WAITING_LANE}`,
+  });
+  expect(found.calls.group.results).toStrictEqual([
+    { unit: found.units.vessel, name: 'Baltic Star', outcome: 'refused', said: WAITING_LANE },
+  ]);
+  expect(found.rows.get(found.units.owner)?.status).toBe('pending');
+  expect(found.rows.get(found.units.vessel)?.status).toBe('pending');
+});
+
+// ------------------------------------------------------- a removal and a join of the record ---
+
+// The three units of `seeded`, in the record, from a review of an earlier transaction.
+const promoted = async (ask: Ask): Promise<Units> => {
+  const units = await seeded(ask);
+  await asResearch(ask, async (call) => {
+    for (const unit of [units.owner, units.vessel, units.link])
+      outputOf(await call('promote_unit', { unitId: unit, why: WHY }));
+  });
+  return units;
+};
+
+const REMOVED = `SELECT p.removed_by::text AS removed_by, x.removed_by AS who, x.decision_origin,
+         x.decision_reason, (SELECT count(*)::int FROM public.citation c
+                              WHERE c.claim_id = x.removal_id) AS passages
+    FROM api.proposal p JOIN public.removed_act x ON x.act_id = p.id WHERE p.id = $1`;
+
+const ACCEPTED = `SELECT count(*)::int AS n FROM api.proposal
+   WHERE status = 'accepted' AND removed_by IS NULL AND id = ANY ($1::uuid[])`;
+
+const count = z.array(z.object({ n: z.number().int() }));
+
+test('an AI reviewer removes an accepted relation: it leaves the read, the export and the count', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const units = await promoted(ask);
+    const ids = [units.owner, units.vessel, units.link];
+    const before = count.parse(await ask(ACCEPTED, [ids]))[0]?.n;
+    const passage = { document: DOC, page: 1, excerpt: 'is owned by Nordic Holding' };
+    const calls = await asResearch(ask, async (call) => ({
+      removed: z
+        .object({ removal: z.uuid(), act: z.uuid(), name: z.string(), origin: z.string() })
+        .parse(outputOf(await call('remove_act', { actId: units.link, passage, why: WHY }))),
+      again: await call('remove_act', { actId: units.link, passage, why: WHY }),
+      entity: await call('remove_act', { actId: units.owner, passage, why: WHY }),
+      walk: z
+        .object({ entities: z.array(z.object({ id: z.uuid() })) })
+        .parse(outputOf(await call('neighbourhood', { root: units.owner, depth: 1 }))),
+    }));
+    return {
+      units,
+      calls,
+      before,
+      after: count.parse(await ask(ACCEPTED, [ids]))[0]?.n,
+      relation: await ask('SELECT id FROM api.relation WHERE id = $1', [units.link]),
+      trace: await ask(REMOVED, [units.link]),
+      removal: (await rowsOf(ask, [calls.removed.removal])).get(calls.removed.removal),
+    };
+  });
+  expect(found.calls.removed).toMatchObject({ act: found.units.link, origin: AI });
+  expect(found.calls.again.text).toMatch(/^the record refused the call: actId: .*removed already/u);
+  expect(found.calls.entity.text).toMatch(
+    /^the record refused the call: actId: .*only a new relation or a change of the values/u,
+  );
+  // The read of the graph and the export read api.relation: the relation is gone.
+  expect(found.relation).toStrictEqual([]);
+  expect(found.calls.walk.entities.map((one) => one.id)).toStrictEqual([found.units.owner]);
+  expect(found.before).toBe(3);
+  expect(found.after).toBe(2);
+  expect(found.trace).toStrictEqual([
+    {
+      removed_by: found.calls.removed.removal,
+      who: 'an AI reviewer, through the MCP server',
+      decision_origin: AI,
+      decision_reason: WHY,
+      passages: 1,
+    },
+  ]);
+  expect(found.removal).toMatchObject({ status: 'accepted', decision_origin: AI });
+});
+
+test('an AI reviewer removes an accepted value, and the value before it comes back', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const units = await promoted(ask);
+    const value = (act: string, imo: string): Item =>
+      cited(
+        {
+          id: act,
+          op: 'update_attrs',
+          target_kind: 'entity',
+          target_id: units.vessel,
+          payload: { attrs: { imo: { v: imo, src: [DOC] } } },
+        },
+        'Baltic Star',
+      );
+    const first = randomUUID();
+    const second = randomUUID();
+    await proposed(ask, [value(first, '9074729')]);
+    await doubted(ask, [first]);
+    await fromAnEarlierTransaction(ask);
+    await asResearch(ask, async (call) =>
+      outputOf(await call('promote_unit', { unitId: first, why: WHY })),
+    );
+    // The test runs in one transaction, so the first decision is dated back an hour.
+    await ask('ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only');
+    await ask(
+      "UPDATE public.proposals SET decided_at = decided_at - interval '1 hour' WHERE id = $1",
+      [first],
+    );
+    await ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only');
+    await proposed(ask, [value(second, '9321483')]);
+    await doubted(ask, [second]);
+    await fromAnEarlierTransaction(ask);
+    const passage = { document: DOC, page: 1, excerpt: 'Baltic Star' };
+    const calls = await asResearch(ask, async (call) => {
+      outputOf(await call('promote_unit', { unitId: second, why: WHY }));
+      return {
+        early: await call('remove_act', { actId: first, passage, why: WHY }),
+        late: await call('remove_act', { actId: second, passage, why: WHY }),
+      };
+    });
+    const imo = z
+      .array(z.object({ imo: z.unknown(), label: z.unknown() }))
+      .parse(
+        await ask(
+          "SELECT attrs->'imo'->'v' AS imo, attr_labels->>'imo' AS label FROM api.entity " +
+            'WHERE id = $1',
+          [units.vessel],
+        ),
+      );
+    return { calls, imo };
+  });
+  expect(found.calls.early.text).toMatch(/^the record refused the call: actId: a later act set/u);
+  expect(found.calls.late.refused).toBe(false);
+  // The value and its label come from the first act again.
+  expect(found.imo).toStrictEqual([
+    { imo: '9074729', label: expect.stringMatching(/^Accepted by an AI reviewer/u) as string },
+  ]);
+});
+
+const ENTITY = `SELECT id::text AS id, attrs->'former_names'->'v' AS former FROM public.entities
+   WHERE id = ANY ($1::uuid[]) ORDER BY id`;
+
+test('an AI reviewer joins two entities of one firm: the older one takes the relations and the name', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const units = await promoted(ask);
+    const twin = randomUUID();
+    // The test runs in one transaction, so the owner is dated back a day: it is the older one.
+    await ask(
+      "UPDATE public.entities SET created_at = created_at - interval '1 day' WHERE id = $1",
+      [units.owner],
+    );
+    await proposed(ask, [entity(twin, 'company', 'Holding')]);
+    await doubted(ask, [twin]);
+    await fromAnEarlierTransaction(ask);
+    const passage = { document: DOC, page: 1, excerpt: 'Nordic Holding, a company of Riga' };
+    const calls = await asResearch(ask, async (call) => {
+      outputOf(await call('promote_unit', { unitId: twin, why: WHY }));
+      return {
+        joined: z
+          .object({ join: z.uuid(), kept: z.uuid(), absorbed: z.uuid(), origin: z.string() })
+          .parse(
+            outputOf(
+              await call('join_entities', {
+                entityIds: [twin, units.owner],
+                passage,
+                why: WHY,
+              }),
+            ),
+          ),
+      };
+    });
+    return {
+      units,
+      twin,
+      calls,
+      entities: await ask(ENTITY, [[units.owner, twin]]),
+      relation: await ask('SELECT src_id::text AS src FROM public.relations WHERE id = $1', [
+        units.link,
+      ]),
+      alias: await ask(
+        'SELECT survivor_id::text AS survivor, merged_by::text AS act FROM public.entity_alias ' +
+          'WHERE absorbed_id = $1',
+        [twin],
+      ),
+      act: (await rowsOf(ask, [calls.joined.join])).get(calls.joined.join),
+      undo: await ask(
+        "SELECT has_function_privilege('gabriel_research', 'public.undo_merge(text,uuid)', " +
+          "'EXECUTE') AS held",
+      ),
+    };
+  });
+  // The owner is the older entity, so it stays.
+  expect(found.calls.joined).toMatchObject({
+    kept: found.units.owner,
+    absorbed: found.twin,
+    origin: AI,
+  });
+  expect(found.entities).toStrictEqual([{ id: found.units.owner, former: ['Holding'] }]);
+  expect(found.relation).toStrictEqual([{ src: found.units.owner }]);
+  expect(found.alias).toStrictEqual([
+    { survivor: found.units.owner, act: found.calls.joined.join },
+  ]);
+  expect(found.act).toMatchObject({
+    status: 'accepted',
+    decision_origin: AI,
+    decision_reason: WHY,
+  });
+  expect(found.undo).toStrictEqual([{ held: false }]);
+});
+
+test('an AI reviewer cannot join two entities of two types, or one entity with itself', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const units = await promoted(ask);
+    const passage = { document: DOC, page: 1, excerpt: 'Baltic Star' };
+    return asResearch(ask, async (call) => ({
+      types: await call('join_entities', {
+        entityIds: [units.owner, units.vessel],
+        passage,
+        why: WHY,
+      }),
+      itself: await call('join_entities', {
+        entityIds: [units.owner, units.owner],
+        passage,
+        why: WHY,
+      }),
+      count: await call('neighbourhood', { root: units.owner, depth: 1 }),
+    }));
+  });
+  expect(found.types.text).toBe(
+    'the record refused the call: entityIds: the two entities have two types, company and ' +
+      'vessel, and a join takes two entities of one type',
+  );
+  expect(found.itself.text).toBe(
+    'the record refused the call: entityIds: a join names two entities, and the two ' +
+      'identifiers name one entity',
+  );
+  expect(found.count.refused).toBe(false);
+});
+
+test('an AI reviewer cannot remove an act that waits, or a relation that an act in the queue names', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const units = await seeded(ask);
+    const passage = { document: DOC, page: 1, excerpt: 'Baltic Star' };
+    await asResearch(ask, async (call) => {
+      for (const unit of [units.owner, units.vessel, units.link])
+        outputOf(await call('promote_unit', { unitId: unit, why: WHY }));
+    });
+    // An end date of the relation waits in the queue.
+    const change = randomUUID();
+    await proposed(ask, [
+      cited(
+        {
+          id: change,
+          op: 'update_relation',
+          target_kind: 'relation',
+          target_id: units.link,
+          payload: { valid_to: '2026-01-01' },
+        },
+        'is owned by Nordic Holding',
+      ),
+    ]);
+    return asResearch(ask, async (call) => ({
+      waits: await call('remove_act', { actId: change, passage, why: WHY }),
+      named: await call('remove_act', { actId: units.link, passage, why: WHY }),
+    }));
+  });
+  expect(found.waits.text).toMatch(/^the record refused the call: actId: .*only an accepted act/u);
+  expect(found.named.text).toMatch(
+    /^the record refused the call: actId: an act in the queue names the relation/u,
+  );
+});
+
+test('an AI reviewer removes a value of an entity that a join absorbed, on the entity that stays', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const units = await promoted(ask);
+    await ask(
+      "UPDATE public.entities SET created_at = created_at - interval '1 day' WHERE id = $1",
+      [units.owner],
+    );
+    const twin = randomUUID();
+    const value = randomUUID();
+    await proposed(ask, [entity(twin, 'company', 'Holding')]);
+    await doubted(ask, [twin]);
+    await fromAnEarlierTransaction(ask);
+    await asResearch(ask, async (call) =>
+      outputOf(await call('promote_unit', { unitId: twin, why: WHY })),
+    );
+    await proposed(ask, [
+      cited(
+        {
+          id: value,
+          op: 'update_attrs',
+          target_kind: 'entity',
+          target_id: twin,
+          payload: { attrs: { lei: { v: '5493001KJTIIGC8Y1R12', src: [DOC] } } },
+        },
+        'Nordic Holding',
+      ),
+    ]);
+    await doubted(ask, [value]);
+    await fromAnEarlierTransaction(ask);
+    const passage = { document: DOC, page: 1, excerpt: 'Nordic Holding, a company of Riga' };
+    const calls = await asResearch(ask, async (call) => {
+      outputOf(await call('promote_unit', { unitId: value, why: WHY }));
+      outputOf(await call('join_entities', { entityIds: [units.owner, twin], passage, why: WHY }));
+      return call('remove_act', { actId: value, passage, why: WHY });
+    });
+    const lei = await ask("SELECT attrs ? 'lei' AS held FROM public.entities WHERE id = $1", [
+      units.owner,
+    ]);
+    return { calls, lei };
+  });
+  expect(found.calls.refused).toBe(false);
+  expect(found.lei).toStrictEqual([{ held: false }]);
+});
+
+test('a removed relation takes each accepted change of it out of the count', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const units = await promoted(ask);
+    const end = randomUUID();
+    await proposed(ask, [
+      cited(
+        {
+          id: end,
+          op: 'update_relation',
+          target_kind: 'relation',
+          target_id: units.link,
+          payload: { valid_to: '2026-01-01' },
+        },
+        'is owned by Nordic Holding',
+      ),
+    ]);
+    await doubted(ask, [end]);
+    await fromAnEarlierTransaction(ask);
+    const passage = { document: DOC, page: 1, excerpt: 'is owned by Nordic Holding' };
+    const removal = await asResearch(ask, async (call) => {
+      outputOf(await call('promote_unit', { unitId: end, why: WHY }));
+      return z
+        .object({ removal: z.uuid() })
+        .parse(outputOf(await call('remove_act', { actId: units.link, passage, why: WHY })))
+        .removal;
+    });
+    return {
+      removal,
+      rows: await ask(
+        'SELECT id::text AS id, removed_by::text AS removed_by FROM api.proposal ' +
+          'WHERE id = ANY ($1::uuid[]) ORDER BY id',
+        [[units.link, end].sort()],
+      ),
+      ids: [units.link, end].sort(),
+    };
+  });
+  expect(found.rows).toStrictEqual(found.ids.map((id) => ({ id, removed_by: found.removal })));
 });

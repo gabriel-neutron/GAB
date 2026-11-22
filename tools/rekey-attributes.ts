@@ -386,14 +386,17 @@ const main = async (): Promise<number> => {
     for (const [why, count] of reasons) console.log(`groups	${String(count)}	${why}`);
     if (!write) return 0;
     const doors = doorsOf(writer, pool);
+    // A refused group makes the exit code 1, so a caller sees that the work did not end.
+    let refused = 0;
     for (const one of groups.filter((group) => group.held === null).slice(0, limit)) {
       const done = await apply(one, doors);
+      if (done.status === 'refused') refused += 1;
       console.log(
         `${done.status}	${done.key}	${String(done.sent)} sent	${String(done.rejected)} rejected` +
           (done.reason === undefined ? '' : `	${done.reason}`),
       );
     }
-    return 0;
+    return refused === 0 ? 0 : 1;
   } finally {
     await pool.end();
     await writer.end();

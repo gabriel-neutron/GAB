@@ -12,17 +12,18 @@ describe('CountUp', () => {
     const html = renderToStaticMarkup(<CountUp value={84} format={format} />);
     expect(html).toContain('<span class="sr-only">84%</span>');
     expect(html).toContain('<span class="invisible [grid-area:1/1]">84%</span>');
-    expect(counted(html)).toBe('0%');
   });
 
-  // The client hydrates the release page, so its first render must give the same text as the
-  // release render. The final value under reduced motion comes after the hydration.
-  it('draws the count from zero in the release render, also under reduced motion', () => {
-    const html = renderToString(
-      <MotionConfig reducedMotion="always">
-        <CountUp value={84} format={format} />
-      </MotionConfig>,
-    );
-    expect(counted(html)).toBe('0%');
+  // The release HTML shows its values before any script runs, and the hydration of that HTML
+  // gives the same text: the release render is a still render, with or without reduced motion.
+  it('draws the final value in the release render, also under reduced motion', () => {
+    for (const reducedMotion of ['never', 'always'] as const) {
+      const html = renderToString(
+        <MotionConfig reducedMotion={reducedMotion}>
+          <CountUp value={84} format={format} />
+        </MotionConfig>,
+      );
+      expect(counted(html)).toBe('84%');
+    }
   });
 });

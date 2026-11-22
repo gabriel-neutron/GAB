@@ -136,6 +136,7 @@ export const renderPage = async (
     }
     let got;
     try {
+      await opts.beforeHop?.(request.url());
       got = await guardedGet(request.url(), {
         ...opts,
         timeoutMs,

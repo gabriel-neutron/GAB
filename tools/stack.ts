@@ -41,7 +41,9 @@ const ENV_FILE = join(ROOT, 'infra', '.env');
 const PROJECT = projectOf(ROOT);
 
 // The services the db-test projects reach. The read service of the record and SearXNG stay off.
-const TEST_SERVICES = ['db', 'postgrest-test', 'seaweedfs'] as const;
+// The read service of the test database starts after the reset.
+const STORE_SERVICES = ['db', 'seaweedfs'] as const;
+const READ_SERVICE = 'postgrest-test';
 
 // Origin of the number: a process that ignores SIGTERM for this long gets SIGKILL. A SessionEnd
 // hook has about 60 s, and the removal of the containers takes about 15 s.
@@ -194,7 +196,7 @@ const up = async (): Promise<void> => {
 
   const env = fileOnlyEnvironment();
   const compose = ['compose', '-p', PROJECT, '--env-file', ENV_FILE, '-f', COMPOSE_FILE];
-  const started = spawnSync('docker', [...compose, 'up', '-d', '--wait', ...TEST_SERVICES], {
+  const started = spawnSync('docker', [...compose, 'up', '-d', '--wait', ...STORE_SERVICES], {
     cwd: ROOT,
     env,
     stdio: 'inherit',
@@ -208,6 +210,16 @@ const up = async (): Promise<void> => {
     stdio: 'inherit',
   });
   if (reset.status !== 0) fail(`The reset of gabriel_test in ${PROJECT} failed.`);
+
+  // The reset sets the password of the read role and drops gabriel_test under a running read
+  // service. A read service that logs in before that fails, waits longer after each failure, and
+  // can miss the first tests. So it starts, or starts again, only after the reset.
+  const read = spawnSync(
+    'docker',
+    [...compose, 'up', '-d', '--wait', '--force-recreate', READ_SERVICE],
+    { cwd: ROOT, env, stdio: 'inherit' },
+  );
+  if (read.status !== 0) fail(`The read service of ${PROJECT} did not start.`);
 
   console.log(
     `${PROJECT} runs in slot ${String(slot)}: database 127.0.0.1:${values['GABRIEL_DB_PORT']}, ` +

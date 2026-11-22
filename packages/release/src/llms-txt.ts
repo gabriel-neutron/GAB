@@ -48,8 +48,7 @@ export const llmsTxt = (manifest: SiteManifest, site: string): string => {
     '## Licence and contact',
     '',
     '- The dataset is under CC-BY 4.0. Each row shows its own licence.',
-    `- Report an error: ${manifest.contacts.reportError}`,
-    `- Right of reply: ${manifest.contacts.rightOfReply}`,
+    `- Report an error or ask for a correction: the address is on ${site}method/#errors, and in the manifest. The corrections policy and the version log of the report are on ${site}corrections.`,
     '',
   ];
   return lines.join('\n');

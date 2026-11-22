@@ -5,7 +5,7 @@ description: Run one research ticket from start to close in one session - read i
 
 # Run a research ticket
 
-The operator gives a ticket number. You run the loop below to the end. You do not give the
+The operator or the supervisor gives a ticket number. You run the loop below to the end. You do not give the
 operator a prompt to paste, and you do not stop for a step that an agent can do.
 
 ## The loop
@@ -22,8 +22,9 @@ operator a prompt to paste, and you do not stop for a step that an agent can do.
    `source-hunt`).
 4. **Correct.** A refusal names the field and the reason. Correct it and send the item again. An
    item that you send again and that waits in the queue is checked again.
-5. **Review.** Start a new reviewer subagent. Give it only the ticket number and the proposal ids
-   or the unit ids. It follows the skill `review-unit`. Never decide a unit yourself, and never
+5. **Review.** Start a new reviewer subagent, except for a batch whose answer gives `checkFailure`:
+   it is sent again first (skill `research-method`). Give the reviewer only the ticket number and
+   the proposal ids or the unit ids. It follows the skill `review-unit`. Never decide a unit yourself, and never
    give the reviewer your notes or your reasons.
 6. **Close.** Use the skill `carto-step`, and post its text on the ticket with
    `gh issue comment <n> --body-file <file>`. Before the post, run `gh api user --jq .login`
@@ -38,9 +39,16 @@ software. A research session never edits code, so:
 1. Send the gap to the skill `expert-panel` when it is a question of the data model.
 2. Start a new code session yourself, where the build rules of the root `CLAUDE.md` put the
    code work, with a short brief: the gap, the refusal text, the ticket number and what done
-   looks like. Continue the other lots.
-3. When the code session says that its pull request is merged into `staging`, update the
-   checkout: run `git -C .. pull --ff-only origin staging`, then `pnpm -C .. db:migrate` and
+   looks like. Continue the other lots. A worker (any session that the supervisor starts) does not
+   start a session: it writes the gap, the refusal and the ticket number in its result.
+3. **A worker does not do this step, and it never asks for `/mcp`.** The supervisor pulls, migrates
+   and restarts the server. A worker that needs the new tool writes its blocked items in its result
+   and ends. The next worker is a new process: it checks the commit that the server gives, and it
+   sends the blocked items only if the tool is there. If the commit is old, it ends with the same
+   result, and the hold costs no attempt.
+
+   In an attended session, when the code session says that its pull request is merged into
+   `staging`, update the checkout: run `git -C .. pull --ff-only origin staging`, then `pnpm -C .. db:migrate` and
    `pnpm -C .. db:apply`. The `gab` server keeps its old code until it starts again, so when the
    pull changed `packages/`, ask the operator to reconnect `gab` with `/mcp`. Then check the
    commit that the server gives.
@@ -66,4 +74,5 @@ the operator can count the cases:
 - Never decide a unit that this agent or its research subagents proposed.
 - Never read `infra/.env` or another file with secrets. A tool that needs a value says which one.
 - Never call `enqueue_extract`, `enqueue_mapping` or `start_lead` unless the ticket or the
-  operator asks for it: they spend model credit.
+  operator asks for it: they spend model credit. A worker follows "A run with no person" of
+  `research/AGENTS.md`, also when a ticket asks.

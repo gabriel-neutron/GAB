@@ -27,7 +27,7 @@ const providerRow = documentProvider.and(
 const ORDER: Intl.Collator = new Intl.Collator('en');
 
 // A release names no provider: a page that lists them is a page that writes, and it is hidden.
-export const loadProviders = readOnce<readonly DocumentProvider[]>(() =>
+const memory = readOnce<readonly DocumentProvider[]>(() =>
   readFrom(
     async () => {
       const rows = await readRows('document_provider');
@@ -40,4 +40,9 @@ export const loadProviders = readOnce<readonly DocumentProvider[]>(() =>
     },
     () => Promise.resolve([]),
   ),
-).load;
+);
+
+export const loadProviders = memory.load;
+
+/** Forget the providers, so a retry that finds the service reads them from it. */
+export const forgetProviders = memory.forget;

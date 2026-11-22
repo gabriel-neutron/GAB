@@ -16,7 +16,7 @@ export type ReportContent = Omit<Widen<typeof en>, 'parts'> & {
 };
 
 /** A route of the report: the copy names its paths as text, so a link casts them to this type. */
-export type ReportPath = '/' | '/fr' | '/bibliography' | '/fr/bibliography';
+export type ReportPath = '/' | '/bibliography';
 
 /** The content of the page locale. A route of another locale gives its copy to the provider; the
  * root gives none, so the page reads English. */

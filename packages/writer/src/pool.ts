@@ -86,6 +86,12 @@ export const openPool = (): Pool => {
   pool.on('error', (cause) => {
     console.error('a pooled client failed while it waited', cause);
   });
+  // External constraint: pg removes the listener of the pool from a client at each checkout.
+  pool.on('connect', (client) => {
+    client.on('error', (cause) => {
+      console.error('a pooled client failed', cause);
+    });
+  });
 
   return pool;
 };

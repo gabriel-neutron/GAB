@@ -883,6 +883,30 @@ test('a recipe file never takes the accepted mapping of another file of the same
   });
 });
 
+test('a file of a recipe host that no recipe knows never takes the recipe mapping of another file', async () => {
+  await inTransaction(async (held) => {
+    await recorded(held, 'port', 'Port of Primorsk', { unlocode: 'RUPRI' });
+    await seedDocument(held, LIST, CREA_URI, CREA_TEXT);
+    await held.step(makeMapper(CONFIG), noModel());
+    const [products] = await mappingsOf(held, LIST);
+    await promote(held, products?.id ?? '');
+
+    // No recipe knows the commodity lng, and the header is the same.
+    await seedDocument(
+      held,
+      SECOND,
+      CREA_URI.replace('oil_products', 'lng'),
+      CREA_TEXT + CREA_ROW('Primorsk', 'RU', '9', '2021-01-03') + '\r\n',
+    );
+    await held.step(makeMapper(CONFIG), noModel());
+    const queued = await held.ask(
+      "SELECT mapping FROM public.jobs WHERE document_id = $1 AND kind = 'load_mapped'",
+      [SECOND],
+    );
+    expect(queued).toStrictEqual([]);
+  });
+});
+
 test('the subject of a figure is found among the entities of the type that the mapping names', async () => {
   await inTransaction(async (held) => {
     const port = await recorded(held, 'port', 'Port of Primorsk', { unlocode: 'RUPRI' });

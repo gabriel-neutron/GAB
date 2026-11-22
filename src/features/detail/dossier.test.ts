@@ -78,6 +78,15 @@ test('a document that one list cites twice is one mark, one card and number 1', 
   expect(dossier.sources[0]?.holdsUp.map((line) => line.key)).toEqual(['flag']);
 });
 
+test('the link choices offer every other entity, read once', () => {
+  const dossier = readDossier(CORPUS, VESSEL.id, [], []);
+  if (dossier === null) throw new Error('The corpus holds no vessel');
+
+  expect(dossier.linkChoices.targets.map((target) => target.id)).toEqual([OWNER.id]);
+  expect(dossier.linkChoices.types).toEqual([OWNED_BY.type]);
+  expect(dossier.linkChoices).toBe(dossier.linkChoices);
+});
+
 test('the relation panel and the entity page draw the same card for one document', () => {
   const dossier = readDossier(CORPUS, VESSEL.id, [], []);
   const relation = readRelation(CORPUS, OWNED_BY.id);

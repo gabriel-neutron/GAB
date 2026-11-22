@@ -227,7 +227,11 @@ function ReviewRoute() {
   // Only the page that held the unit is read again, so the rest of the queue keeps its place.
   const readAgain = async (decided: string, mode: 'unit' | 'relation'): Promise<void> => {
     const after = afterDecision(now.pages, decided, mode);
-    select(after.next);
+    // The operator can open another unit while the decision is on the way. The screen then stays
+    // on that unit, so the next click acts on the unit the operator sees.
+    // `latestLocation` holds a navigation that has not committed yet, as a click just before.
+    const shown = router.latestLocation.search.unit;
+    if (shown === decided || shown === '' || shown === undefined) select(after.next);
     const read = await readUnits(after.after, filter);
     if (read.state !== 'held') return;
     setHeld((before) =>
@@ -274,6 +278,7 @@ function ReviewRoute() {
         });
         return;
       case 'decide': {
+        if (decision.step === 'working') return;
         const { unitId, decision: asked } = act;
         const mode = asked.op === 'reject_relation' ? 'relation' : 'unit';
         // A unit of the address that no page read holds is read again by the loader after the
@@ -305,9 +310,12 @@ function ReviewRoute() {
       : entered !== null && entered.groupId === group
         ? entered.read
         : null;
-  // The result of a done action stays on the screen over the next group that the page opens.
+  // The result of a done action stays on the screen over the next group that the page opens. An
+  // action on the way locks the panel of each group, as a decision locks each unit.
   const action: GroupActionState =
-    groupAction.step === 'done' || (groupAction.step !== 'idle' && groupAction.groupId === group)
+    groupAction.step === 'done' ||
+    groupAction.step === 'working' ||
+    (groupAction.step !== 'idle' && groupAction.groupId === group)
       ? groupAction
       : { step: 'idle' };
   const groupView: GroupView =
@@ -339,10 +347,11 @@ function ReviewRoute() {
       return;
     }
     if (act.kind === 'select') {
-      setGroupAction({ step: 'idle' });
+      setGroupAction((before) => (before.step === 'working' ? before : { step: 'idle' }));
       openGroup(act.groupId);
       return;
     }
+    if (groupAction.step === 'working') return;
     const { groupId, unitIds } = act;
     const rail = groups?.rail.state === 'held' ? groups.rail.read : [];
     const name = rail.find((line) => line.id === groupId)?.subject ?? 'with no subject';
@@ -355,6 +364,11 @@ function ReviewRoute() {
       }
       setGroupAction({ ...result, groupId, name });
       const next = nextGroup(rail, groupId);
+      // The operator who opened another group in the meantime stays on it.
+      if (router.latestLocation.search.group !== groupId) {
+        await router.invalidate();
+        return;
+      }
       if (next === null) {
         setPicked(null);
         await navigate({ search: (search) => ({ ...search, group: '' }), replace: true });

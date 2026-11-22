@@ -107,6 +107,8 @@ const KIND_OF_OP: Readonly<Record<ProposalOp, ProposalPayload['kind']>> = {
   undo_merge: 'merge',
   map_document: 'mapping',
   create_observation: 'figure',
+  // A removal names the act that it takes away, and carries no payload.
+  remove_act: 'delete',
 };
 
 const geometryType = z.looseObject({ type: z.string() });
@@ -287,6 +289,9 @@ function priorValueOf(op: ProposalOp, payload: unknown, value: unknown): PriorVa
     case 'undo_merge':
     case 'map_document':
     case 'create_observation':
+      return null;
+    // The copy of a removal is a relation row or the values that it took away: no reader shows it.
+    case 'remove_act':
       return null;
   }
 }

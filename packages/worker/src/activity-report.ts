@@ -282,6 +282,8 @@ const covers = (
   );
   const next = Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 1);
   const last = Math.min(next - DAY_MS, msOf(today) - DAY_MS);
+  // A month with no passed day holds no answer, so it is not read.
+  if (msOf(`${month}-01`) > last) return false;
   for (let at = msOf(`${month}-01`); at <= last; at += DAY_MS) {
     const day = dayOf(at);
     if (!held.some(({ from, to }) => from <= day && day <= to)) return false;

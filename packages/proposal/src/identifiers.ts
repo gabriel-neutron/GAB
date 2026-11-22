@@ -8,9 +8,14 @@ export const IDENTIFIER_KEY = [
   'mmsi_history',
   'call_sign',
   'former_names',
+  // `flag` is the flag that a source gives as the flag of today ("Current Believed Flag Of Ships").
+  // `flag_history` holds only the former flags that a source states (#1452).
+  'flag',
   'flag_history',
   'imo_company_number',
   'lei',
+  'swift_bic',
+  'ru_bic',
   'registration_number',
   'registration_jurisdiction',
   'tax_id',
@@ -43,7 +48,7 @@ export const identifierKey = z.enum(IDENTIFIER_KEY);
 /** The spellings that each entity type carries. A spelling can serve more than one type. A
  * port and a facility keep their outline in the geometry of the row, and not as an attribute. */
 export const IDENTIFIER_KEYS = {
-  vessel: ['imo', 'mmsi_history', 'call_sign', 'former_names', 'flag_history'],
+  vessel: ['imo', 'mmsi_history', 'call_sign', 'former_names', 'flag', 'flag_history'],
   company: [
     'imo_company_number',
     'lei',
@@ -71,6 +76,8 @@ export const IDENTIFIER_KEYS = {
   ],
   bank: [
     'lei',
+    'swift_bic',
+    'ru_bic',
     'registration_number',
     'registration_jurisdiction',
     'tax_id',
@@ -117,6 +124,26 @@ export const isValidLei = (text: string): boolean => {
   return rest === 1;
 };
 
+// External constraint: ISO 9362. Four letters or digits, the two letters of a country, two letters
+// or digits, then a branch of three letters or digits when the code has eleven characters.
+const SWIFT_BIC_SHAPE = /^[0-9A-Z]{4}[A-Z]{2}[0-9A-Z]{2}(?:[0-9A-Z]{3})?$/u;
+
+/** The BIC in the one form that the record keeps: capitals, and eight characters for a head office.
+ * `XXX` is the branch part of a head office, so ABCDRUMM and ABCDRUMMXXX are one code. It gives
+ * `null` for a text that is not a BIC of ISO 9362. */
+export const swiftBicOf = (text: string): string | null => {
+  const bic = text.toUpperCase();
+  if (!SWIFT_BIC_SHAPE.test(bic)) return null;
+  return bic.endsWith('XXX') ? bic.slice(0, 8) : bic;
+};
+
+// External constraint: the directory of the Bank of Russia writes a Russian BIC as nine digits. It
+// is not a code of ISO 9362, so it has a key of its own.
+const RU_BIC_SHAPE = /^\d{9}$/u;
+
+/** True when the text is a Russian BIC: exactly nine digits, and it can start with a zero. */
+export const isValidRuBic = (text: string): boolean => RU_BIC_SHAPE.test(text);
+
 /** The shapes that hold one identifier value in the attributes of a row: the value, and the value
  * as one element of a list. A text that is a number in its plain form also matches that number,
  * because a writer can store an IMO number as a number. Each shape reaches the GIN index on the
@@ -126,7 +153,8 @@ export const identifierContainment = (
   value: string,
 ): readonly Readonly<Record<string, { readonly v: unknown }>>[] => {
   const asNumber = Number(value);
-  const values: unknown[] =
-    value.trim() !== '' && String(asNumber) === value ? [value, asNumber] : [value];
+  const bic = key === 'swift_bic' ? swiftBicOf(value) : null;
+  const plain = value.trim() !== '' && String(asNumber) === value ? [value, asNumber] : [value];
+  const values: unknown[] = bic === null ? plain : bic.length === 8 ? [bic, `${bic}XXX`] : [bic];
   return values.flatMap((held) => [{ [key]: { v: held } }, { [key]: { v: [held] } }]);
 };

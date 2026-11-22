@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { cn } from '@/shared/lib/utils';
 import { proposerWords } from '@/shared/proposer-words';
@@ -61,6 +61,13 @@ export function QueueFilterBar({ filter, choices, onFilter }: QueueFilterProps) 
     if (pause.current !== null) clearTimeout(pause.current);
     pause.current = null;
   };
+  // A pause still running when the bar leaves the screen would apply a filter on another page.
+  useEffect(
+    () => () => {
+      if (pause.current !== null) clearTimeout(pause.current);
+    },
+    [],
+  );
   const applyName = (typed: string = name): void => {
     stopPause();
     if (typed.trim() !== filter.name) on({ name: typed.trim() });

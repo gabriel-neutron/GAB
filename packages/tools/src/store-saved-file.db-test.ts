@@ -383,6 +383,12 @@ test('an address with a user name is refused, and nothing is stored', async () =
   expect(got.puts).toBe(0);
 });
 
+test('a signed address is refused, and nothing is stored', async () => {
+  const got = await refusalOf('timeline.html', 'https://example.org/page?X-Amz-Signature=abc');
+  expect(got.refusal).toContain('no key');
+  expect(got.puts).toBe(0);
+});
+
 // A PDF written by hand: one page with one line of text.
 const pdfOf = (line: string): Buffer => {
   const stream = `BT /F1 18 Tf 20 100 Td (${line}) Tj ET`;

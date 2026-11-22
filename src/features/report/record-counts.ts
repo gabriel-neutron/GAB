@@ -6,7 +6,7 @@ export interface RecordCounts {
   readonly date: Date;
   readonly entities: number;
   readonly critical: number;
-  /** The text says "at least" this count. */
+  /** The critical nodes whose three conditions each rest on an official document. */
   readonly official: number;
 }
 
@@ -46,7 +46,7 @@ export function recordCounts(source: Source): RecordCounts {
     critical: number(method, /In total, ([\d,]+) nodes are critical/, 'critical nodes'),
     official: number(
       method,
-      /For at least ([\d,]+) of them, the three conditions rest on a document from an official issuer/,
+      /For ([\d,]+) of them, each of the three conditions rests on a document from an official issuer/,
       'nodes with an official source',
     ),
   };

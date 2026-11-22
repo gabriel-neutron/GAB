@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 import { readableTitle } from './document-title.ts';
 import { documentType, type DocumentType } from './document-type.ts';
+import { isEgrulAddress } from './egrul-text.ts';
 import { rowsOf } from './fields.ts';
 import { refusedSource } from './refused-source.ts';
 import { ToolRefusal, type Reach, type Session } from './tool.ts';
@@ -30,6 +31,20 @@ const FILL_PROVIDER = 'SELECT public.fill_document_provider($1, $2) AS outcome';
 const STORE = `WITH stored AS (
     SELECT public.put_fetched_document($9, $1, $2, $3, $4, $5, $6::date, NULL, $10, $11)::text AS id)
   SELECT s.id, public.put_document_text(s.id, $7::jsonb, $8) AS pages FROM stored s`;
+
+// Origin of the numbers: a table of 63 MiB took 83 s on a test stack on a busy machine, over the 30 s
+// of the research role. A page is up to 16 MiB, so above it a store is a bulk file. Only a session
+// on one connection can hold a limit for this write alone. The worker has no such session, and its
+// reads stay under the 20 MiB of a fetch.
+const LARGE_TEXT_BYTES = 16 * 1024 * 1024;
+const LARGE_STORE_TIMEOUT = '180s';
+const SET_LIMIT = `SELECT current_setting('statement_timeout') AS held,
+                          set_config('statement_timeout', $1, false)`;
+const RESTORE_LIMIT = `SELECT set_config('statement_timeout', $1, false)`;
+
+const heldLimit = z.object({ held: z.string() });
+
+const FILL_RESTRICTED = 'SELECT public.fill_document_restricted($1) AS outcome';
 
 const FILL_TRACE = 'SELECT public.fill_document_trace($1, $2, $3) AS outcome';
 
@@ -66,7 +81,8 @@ export interface Answer {
     | 'un_comtrade'
     | 'world_bank'
     | 'bruegel'
-    | 'eurostat';
+    | 'eurostat'
+    | 'egrul';
   /** The type of the document. A tool names it only when it knows the type better than the
    * address and the title say. Without it, the rules of document-type decide. */
   readonly docType?: DocumentType;
@@ -104,8 +120,10 @@ export const knownAnswer = async (session: Session, bytes: Uint8Array) => {
 export const storeAnswer = async (
   session: Session,
   store: NonNullable<Reach['store']>,
-  answer: Answer,
+  given: Answer,
 ) => {
+  // Each route that stores an extract of the Russian register gives it the internal provider.
+  const answer: Answer = isEgrulAddress(given.uri) ? { ...given, provider: 'egrul' } : given;
   // A search page lists pages and states no fact, so no door of the record keeps it as a source.
   const refused = refusedSource(answer.uri);
   if (refused !== null) throw new ToolRefusal(refused);
@@ -116,6 +134,10 @@ export const storeAnswer = async (
     // The key holds the hash alone, as the worker writes it, so the two paths name one object.
     const title = readableTitle(answer.title, answer.pages, answer.uri);
     const key = await store.put({ key: `raw/${sha256}`, bytes: answer.bytes, mime: answer.mime });
+    const large = session.pinned === true && answer.bytes.length > LARGE_TEXT_BYTES;
+    const [before] = large
+      ? await rowsOf(session, heldLimit, SET_LIMIT, [LARGE_STORE_TIMEOUT])
+      : [];
     try {
       await rowsOf(session, storedRow, STORE, [
         title,
@@ -135,6 +157,11 @@ export const storeAnswer = async (
     } catch (fault) {
       // A second caller stored the same bytes at the same instant.
       if (!isUniqueViolation(fault)) throw fault;
+    } finally {
+      // The connection goes back to its pool with the limit it had. A failed transaction of a caller
+      // refuses this command, and its rollback restores the limit.
+      if (before !== undefined)
+        await session.query(RESTORE_LIMIT, [before.held]).catch(() => undefined);
     }
     known = await knownOf(session, sha256);
     if (known === undefined) throw new Error('the door stored a document and no row holds it');
@@ -144,6 +171,12 @@ export const storeAnswer = async (
   if (answer.provider !== undefined && known.provider_id === null)
     await rowsOf(session, filledRow, FILL_PROVIDER, [known.id, answer.provider]);
   return answerOf(known, status);
+};
+
+/** Marks a document as restricted: it never leaves, and an excerpt of it names a legal person only.
+ * The mark goes one way. */
+export const markRestricted = async (session: Session, document: string): Promise<void> => {
+  await rowsOf(session, filledRow, FILL_RESTRICTED, [document]);
 };
 
 /** Records how a fetched document was read: the fingerprint of the certificate that the server

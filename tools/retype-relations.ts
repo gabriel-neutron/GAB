@@ -16,6 +16,7 @@ import { Pool } from 'pg';
 
 import { findExcerpt } from '@gab/tools/excerpt';
 import { propose } from '@gab/tools/propose';
+import { callTool } from '@gab/tools/tool';
 import { namesProvision } from '@gab/tools/stated-value';
 import { connectionString } from './db-runtime.ts';
 
@@ -156,6 +157,8 @@ export const classify = (one: Candidate): Decision => {
   if (one.waiting !== 'none') return doubt('the relation has a waiting act');
   if (one.collides) return doubt('another open relation links the same ends');
   if (one.cites.length === 0) return doubt('no usable citation');
+  // The door refuses a machine act with no originator, so such a relation waits for the operator.
+  if (one.originator.trim() === '') return doubt('the act names no originator');
   if (one.cites.some((c) => c.pageText === null || findExcerpt(c.pageText, c.excerpt) === null))
     return doubt('the stored text no longer holds the excerpt');
   return classifyText(
@@ -351,12 +354,22 @@ const main = async (): Promise<number> => {
       items: items.map((item) => ({ ...item, ref: `r${String((count += 1))}` })),
     }));
     const report: Report = { ...merged, batches };
+    // The tool checks its input as for any caller, and a refused part does not stop the parts
+    // after it. Each refusal makes the exit code 1.
+    let refused = 0;
     if (write)
       for (const { name, items } of batches)
         for (let from = 0; from < items.length; from += MAX_ITEMS) {
           const part = items.slice(from, from + MAX_ITEMS);
-          await propose.run(writer, { items: part });
-          console.log(`batch ${name}: ${String(part.length)} retype acts proposed`);
+          const outcome = await callTool(propose, writer, { items: part });
+          if (outcome.ok) {
+            console.log(`batch ${name}: ${String(part.length)} retype acts proposed`);
+          } else {
+            refused += 1;
+            console.error(
+              `batch ${name}: ${String(part.length)} retype acts refused: ${outcome.refusal}`,
+            );
+          }
         }
     for (const { name, items } of report.batches)
       console.log(`${name}: ${String(items.length)} to retype${write ? '' : ' (dry run)'}`);
@@ -366,7 +379,7 @@ const main = async (): Promise<number> => {
       ['doubtful', report.doubtful],
     ] as const)
       for (const one of list) console.log(`${title}\t${one.relationId}\t${one.reason}`);
-    return 0;
+    return refused === 0 ? 0 : 1;
   } finally {
     await reader.end();
     await writer.end();

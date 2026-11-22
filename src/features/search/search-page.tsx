@@ -69,18 +69,14 @@ interface AnswerProps<Row> {
   readonly rows: readonly { readonly id: string; readonly row: Row }[];
 }
 
-// A status line says the count in words, and a table holds the rows. An answer with no row says
-// its one sentence in place of the table, and the sentence is also a status.
+// A line says the count in words, and a table holds the rows. An answer with no row says its one
+// sentence in place of the table. The page status, not this line, tells a screen reader.
 function Answer<Row>({ name, summary, columns, rows }: AnswerProps<Row>) {
   return rows.length === 0 ? (
-    <div role="status">
-      <EmptyState sentence={summary} />
-    </div>
+    <EmptyState sentence={summary} />
   ) : (
     <>
-      <p role="status" className="text-label">
-        {summary}
-      </p>
+      <p className="text-label">{summary}</p>
       <DataTable name={name} columns={columns} rows={rows} empty={summary} />
     </>
   );
@@ -162,6 +158,17 @@ export function SearchPage({ query, answers, onQueryChange, hrefOf }: SearchPage
         </p>
       </div>
 
+      {/* External constraint: a screen reader reads a live region only when it changes, so the
+          region is always on the page and only its text changes. */}
+      <p role="status" className="sr-only">
+        {answers.name.kind === 'no-query'
+          ? ''
+          : [
+              nameSummaryOf(answers.name),
+              attributeSummaryOf(answers.attribute),
+              documentSummaryOf(answers.document),
+            ].join(' ')}
+      </p>
       {answers.name.kind === 'no-query' ? null : (
         <PageSection title="Entity names">
           <Answer

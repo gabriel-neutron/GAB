@@ -30,7 +30,7 @@ const budgeted = (ask: Ask, tokens: number): Promise<unknown> =>
     [tokens],
   );
 
-const check = (ask: Ask, one: Cited): Promise<unknown> =>
+const check = (ask: Ask, one: Pick<Cited, 'act'>): Promise<unknown> =>
   as(ask, 'gabriel_checker', () =>
     ask('SELECT public.record_research_check($1::uuid, $2, $3, $4, $5)', [
       one.act,
@@ -478,4 +478,94 @@ test('a search that stops at its budget keeps a unit with a better source waitin
   expect(read.stepped).toStrictEqual({ did: 'done', job: read.search });
   expect(read.ended).toMatchObject({ status: 'done' });
   expect(read.state).toMatchObject({ status: 'pending', decided_by: null });
+});
+
+// An act of the research AI that puts one unit under another, with one citation of a document of
+// its own.
+const citedRelation = async (ask: Ask, who: string, src: string, dst: string): Promise<string> => {
+  const doc = `doc_${randomUUID().slice(0, 8)}`;
+  const text = `The unit ${src} is under the unit ${dst}.`;
+  await ask(
+    `SELECT public.put_document($1, 'file', $2, $3, NULL, NULL, NULL, 'text/plain',
+       '2026-10-07'::date)`,
+    [doc, `Source ${doc}`, `raw/${doc}.txt`],
+  );
+  await ask("SELECT public.put_document_text($1, $2::jsonb, 'deepening-test@1')", [
+    doc,
+    JSON.stringify([text]),
+  ]);
+  const item = {
+    id: randomUUID(),
+    op: 'create_relation',
+    payload: { type: 'subordinate_to', src_id: src, dst_id: dst, sources: [doc] },
+    src: [doc],
+    names: [src, dst],
+    model_call_id: null,
+    originator: who,
+    modality: 'asserts',
+    citations: [
+      {
+        document: doc,
+        text_extractor: 'deepening-test@1',
+        page: 1,
+        start: 0,
+        end: Array.from(text).length,
+      },
+    ],
+  };
+  const [written] = z
+    .array(z.object({ proposal_id: z.uuid() }))
+    .parse(
+      await as(ask, 'gabriel_research', () =>
+        ask('SELECT proposal_id FROM public.propose_batch($1::jsonb)', [JSON.stringify([item])]),
+      ),
+    );
+  if (written === undefined) throw new Error('the door wrote no act');
+  return written.proposal_id;
+};
+
+// A unit that waits for another unit is not weak yet: the rules read it again when it is free.
+test('a weak unit whose relation waits for its ends starts no search', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    await budgeted(ask, BUDGET);
+    const child = await weak(ask, 'D');
+    const parent = await weak(ask, 'D');
+    const who = author();
+    await rate(ask, who, 'D');
+    const link = await citedRelation(ask, who, child.act, parent.act);
+    await check(ask, { act: link });
+    return { link: await deepeningOf(ask, link), child: await deepeningOf(ask, child.act) };
+  });
+  expect(read.link).toHaveLength(0);
+  expect(read.child).toHaveLength(1);
+});
+
+// A search adds sources to a fact of a known author. An act of the operator has no author.
+test('a weak unit with an act of no author starts no search', async () => {
+  const read = await rolledBack('superuser', async (ask) => {
+    await budgeted(ask, BUDGET);
+    const who = author();
+    await rate(ask, who, 'D');
+    const one = await cited(ask, { author: who, label: label() });
+    const [own] = z
+      .array(z.object({ id: z.uuid() }))
+      .parse(
+        await as(ask, 'gabriel_app', () =>
+          ask(
+            `SELECT public.propose_change('create_entity', $1::jsonb, ARRAY['manual']::text[]) AS id`,
+            [JSON.stringify({ type: 'military_unit', label: label() })],
+          ),
+        ),
+      );
+    // The two acts become one unit, as a group of the review would make them.
+    await ask('ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only');
+    await ask(
+      'UPDATE public.proposals SET unit_id = (SELECT unit_id FROM public.proposals WHERE id = $1) WHERE id = $2',
+      [one.act, own?.id],
+    );
+    await ask('ALTER TABLE public.proposals ENABLE TRIGGER proposals_append_only');
+    await check(ask, one);
+    return deepeningOf(ask, one.act);
+  });
+  expect(read).toHaveLength(0);
 });

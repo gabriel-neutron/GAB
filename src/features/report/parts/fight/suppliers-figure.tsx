@@ -77,6 +77,18 @@ export function SuppliersFigure() {
   const copy = fightUi.suppliers;
   const labels = figureTexts.figures['10'].labels;
   const fmt = (value: number) => value.toLocaleString(ui.numberLocale);
+  const percent = new Intl.NumberFormat(ui.numberLocale, {
+    style: 'percent',
+    maximumFractionDigits: 1,
+  });
+  const numberAt = (points: Points, year: number) => {
+    const value = valueAt(points, year);
+    return value === null ? '' : fmt(value);
+  };
+  const shareAt = (year: number) => {
+    const value = valueAt(f10a[SHARE], year);
+    return value === null ? '' : percent.format(value / 100);
+  };
   const countryOf = (name: string) => copy.countries[name] ?? name;
   return (
     <div className="grid gap-14">
@@ -128,7 +140,7 @@ export function SuppliersFigure() {
                     className="absolute font-mono text-report-small/none md:text-report-lead/none tracking-[-0.04em] text-signal tabular-nums"
                     style={{ bottom: `calc(${String((total / MAX) * 100)}% + 0.5rem)` }}
                   >
-                    {valueAt(f10a[SHARE], year)}%
+                    {shareAt(year)}
                   </span>
                   <div className="flex h-full w-[35%] min-w-3 flex-col-reverse">
                     {SERIES.map((series, index) => (
@@ -165,9 +177,9 @@ export function SuppliersFigure() {
               <tr key={year}>
                 <th scope="row">{year}</th>
                 {SERIES.map((series) => (
-                  <td key={series.key}>{valueAt(f10a[series.key], year)}</td>
+                  <td key={series.key}>{numberAt(f10a[series.key], year)}</td>
                 ))}
-                <td>{valueAt(f10a[SHARE], year)}%</td>
+                <td>{shareAt(year)}</td>
               </tr>
             ))}
           </tbody>
@@ -178,7 +190,7 @@ export function SuppliersFigure() {
           {copy.b} · {figureTexts.figures['10'].panels[0]?.unit}
         </p>
         <p className="mt-1 text-report-small text-muted-foreground">
-          {copy.bScale.replace('{max}', String(MAX_B))}
+          {copy.bScale.replace('{max}', fmt(MAX_B))}
         </p>
         <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1 font-mono text-report-label text-muted-foreground">
           <li className="flex items-center gap-2">
@@ -225,7 +237,7 @@ export function SuppliersFigure() {
                               className="absolute font-mono text-report-label text-foreground tabular-nums"
                               style={{ bottom: `calc(${String((value / MAX_B) * 100)}% + 0.3rem)` }}
                             >
-                              {value}
+                              {fmt(value)}
                             </span>
                             <div className="relative flex h-full w-1 flex-col justify-end">
                               <Grow
@@ -265,7 +277,9 @@ export function SuppliersFigure() {
               <tr key={country}>
                 <th scope="row">{countryOf(country)}</th>
                 {YEARS.map((year) => (
-                  <td key={year}>{valueAt(points, year) ?? copy.noValueShort}</td>
+                  <td key={year}>
+                    {valueAt(points, year) === null ? copy.noValueShort : numberAt(points, year)}
+                  </td>
                 ))}
               </tr>
             ))}

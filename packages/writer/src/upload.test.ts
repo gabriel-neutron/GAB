@@ -77,6 +77,11 @@ test('an address that is not http or https is refused', () => {
   expect(parsed({ ...WHOLE, uri: 'http://example.org/a' }).ok).toBe(true);
 });
 
+test('an address that holds a user name or a password is refused, because the record publishes it', () => {
+  for (const uri of ['https://user:secret@example.org/a.pdf', 'https://token@example.org/a.pdf'])
+    expect(refusalOf({ ...WHOLE, uri }).refusal).toMatch(/no user name and no password/u);
+});
+
 test('the address is kept as a browser reads it, so its host is the host that a browser opens', () => {
   const held = parsed({ ...WHOLE, uri: ' https://Evil.Example\\@register.example/x ' });
   expect(held.ok && held.upload.uri).toBe('https://evil.example/@register.example/x');

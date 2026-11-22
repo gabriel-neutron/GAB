@@ -3,6 +3,7 @@ import { setTimeout as sleepFor } from 'node:timers/promises';
 import { openStore, putObject, type RawStore } from '@gab/store';
 import { endOcr } from '@gab/text';
 import { endMetadata } from '@gab/tools/fetch-document';
+import { hostGuards } from '@gab/tools/host-lease';
 import { webOf } from '@gab/tools/web';
 import { Pool } from 'pg';
 
@@ -56,6 +57,7 @@ export const runCommand: SubCommand = async () => {
       return {
         store: { put: (object) => putObject(store, object) },
         web: webOf(process.env),
+        ...hostGuards(process.env),
         now: () => new Date(),
       };
     }),

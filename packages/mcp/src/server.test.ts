@@ -1,13 +1,17 @@
 // An MCP client talks to the server in the same process. The pool is a fake, so the test proves
-// the list and the dispatch and reaches no database.
+// the list and the dispatch and reaches no database. Only the test of a lost connection uses a real
+// pool, on a local socket that acts as a database.
+
+import { createServer as createNetServer } from 'node:net';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { CATALOGUE } from '@gab/tools/catalogue';
 import type { Reach } from '@gab/tools/tool';
-import { expect, test } from 'vitest';
+import { expect, onTestFinished, test } from 'vitest';
 import { z } from 'zod';
 
+import { openPool } from './pool.ts';
 import { createServer, type SessionPool } from './server.ts';
 
 interface Seen {
@@ -54,6 +58,55 @@ const isErrorOf = (result: unknown): boolean =>
 
 const SEARCH = { name: 'search_graph', arguments: { query: 'Regulation' } };
 
+// The bytes of the protocol that tell a client the login is complete: AuthenticationOk, then
+// ReadyForQuery.
+const LOGIN_DONE = Buffer.from([0x52, 0, 0, 0, 8, 0, 0, 0, 0, 0x5a, 0, 0, 0, 5, 0x49]);
+
+test('a lost connection fails that one call, and the server stays up', async () => {
+  // A database that accepts each login and drops the socket at the first statement.
+  const database = createNetServer((socket) => {
+    socket.once('data', () => {
+      socket.write(LOGIN_DONE);
+      socket.once('data', () => {
+        socket.destroy();
+      });
+    });
+  });
+  await new Promise<void>((done) => {
+    database.listen(0, '127.0.0.1', done);
+  });
+  onTestFinished(() => {
+    database.close();
+  });
+  const { port } = z.object({ port: z.number() }).parse(database.address());
+  const pool = openPool({
+    connectionString: `postgresql://test:test@127.0.0.1:${String(port)}/test`,
+  });
+  onTestFinished(() => pool.end());
+  const client = await connected(pool);
+  for (const call of [1, 2]) {
+    const result = await client.callTool(SEARCH);
+    expect(isErrorOf(result), `call ${String(call)}`).toBe(true);
+    expect(textOf(result)).toContain('a connection of the server stopped');
+  }
+});
+
+// A connection that stops between two statements, as in a slow fetch: the next statement fails.
+test('a statement on a client that lost its connection gives the same sentence', async () => {
+  const dead: SessionPool = {
+    connect: () =>
+      Promise.resolve({
+        query: () =>
+          Promise.reject(
+            new Error('Client has encountered a connection error and is not queryable'),
+          ),
+        release: () => undefined,
+      }),
+  };
+  const result = await (await connected(dead)).callTool(SEARCH);
+  expect(textOf(result)).toContain('a connection of the server stopped');
+});
+
 test('the server names the version of its code, and its instructions name it too', async () => {
   const client = await connected(fakePool(() => []).pool);
   const version = client.getServerVersion()?.version ?? '';
@@ -99,6 +152,7 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "list_proposals: read",
       "find_document: read",
       "document_text: read",
+      "find_line: read",
       "file_schema_sample: read",
       "job_status: read",
       "read_doubts: read",
@@ -110,6 +164,7 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "read_leads: read",
       "web_search: read",
       "news_search: read",
+      "read_page: read",
       "archive_snapshot: write",
       "fetch_document: write",
       "store_saved_file: write",
@@ -125,8 +180,10 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "sanctions_match: write",
       "vessel_events: write",
       "gfw_port_visits: write",
+      "gfw_presence_grid: write",
       "firms_detections: write",
       "comtrade_data: write",
+      "egrul_extract: write",
       "enqueue_extract: write",
       "enqueue_mapping: write",
       "start_lead: write",
@@ -136,6 +193,8 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "reject_relation: write",
       "join_unit: write",
       "promote_clean_proposals: write",
+      "remove_act: write",
+      "join_entities: write",
     ]
   `);
 });
@@ -279,6 +338,31 @@ test('fetch_document runs with the reach that the server was given', async () =>
   expect(textOf(result)).toMatch(/127\.0\.0\.1.*refused/u);
   expect(seen.texts).toStrictEqual([]);
   expect(puts).toStrictEqual([]);
+});
+
+test('two sessions that upload parts of the same page do not mix their parts', async () => {
+  const reach: Reach = {
+    store: { put: (object) => Promise.resolve(object.key) },
+    now: () => new Date(),
+  };
+  const first = await connected(fakePool(() => []).pool, reach);
+  const second = await connected(fakePool(() => []).pool, reach);
+  const part = (part: number, parts: number) => ({
+    name: 'store_saved_file',
+    arguments: {
+      url: 'https://example.org/a.pdf',
+      content: Buffer.from(`part ${String(part)}`).toString('base64'),
+      type: 'application/pdf',
+      sha256: '0'.repeat(64),
+      part,
+      parts,
+    },
+  });
+  await first.callTool(part(1, 3));
+  await second.callTool(part(1, 2));
+  const result = await first.callTool(part(2, 3));
+  expect(textOf(result)).toContain('"status":"waiting"');
+  expect(isErrorOf(result)).toBe(false);
 });
 
 test('with no reach, fetch_document refuses and names the object store', async () => {

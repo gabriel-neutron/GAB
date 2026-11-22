@@ -61,41 +61,73 @@ ON CONFLICT (id) DO NOTHING;
 --
 -- `manual` AND `inherited` GET NO PROVIDER. A hand entry stays internal until a release decides
 -- to publish the operator's own entries; `own` is the row it would take.
-INSERT INTO document_provider (id, name, licence) VALUES
-  ('eu_eurlex',           'EU EUR-Lex',                 'eu-reuse'),
-  ('ofac_sdn',            'OFAC SDN',                   'public-domain'),
-  ('uk_sanctions_list',   'UK sanctions list',          'ogl-v3'),
-  ('eu_fsf',              'EU FSF',                     'eu-reuse'),
-  ('gleif',               'GLEIF',                      'cc0'),
-  ('crea',                'CREA',                       'restricted'),
+INSERT INTO document_provider (id, name, licence, level, restricted) VALUES
+  ('eu_eurlex',           'EU EUR-Lex', 'eu-reuse', 'A', false),
+  ('ofac_sdn',            'OFAC SDN', 'public-domain', 'A', false),
+  ('uk_sanctions_list',   'UK sanctions list', 'ogl-v3', 'A', false),
+  ('eu_fsf',              'EU FSF', 'eu-reuse', 'not_verified', false),
+  ('gleif',               'GLEIF', 'cc0', 'A', false),
+  ('crea',                'CREA', 'restricted', 'not_verified', false),
   -- The United Nations asks for a written permission to redistribute Comtrade data.
-  ('un_comtrade',         'UN Comtrade',                'restricted'),
-  ('datalastic',          'Datalastic',                 'commercial-no-redistribution'),
-  ('gfw',                 'GFW',                        'cc-by-nc-4.0'),
-  ('imo_gisis',           'IMO GISIS',                  'registration-terms'),
-  ('equasis',             'Equasis',                    'registration-terms'),
-  ('opensanctions',       'OpenSanctions',              'cc-by-nc-4.0'),
-  ('opencorporates',      'OpenCorporates',             'odbl'),
-  ('mca21',               'MCA21',                      'paid-filing'),
-  ('acra',                'ACRA',                       'paid-filing'),
-  ('cyprus_registrar',    'Cyprus Registrar',           'paid-filing'),
-  ('hk_icris',            'HK ICRIS',                   'paid-filing'),
-  ('egrul',               'EGRUL',                      'restricted'),
-  ('copernicus_sentinel', 'Sentinel-1/2 (Copernicus)',  'copernicus'),
+  ('un_comtrade',         'UN Comtrade', 'restricted', 'not_verified', false),
+  ('datalastic',          'Datalastic', 'commercial-no-redistribution', 'not_verified', false),
+  ('gfw',                 'GFW', 'cc-by-nc-4.0', 'B', false),
+  ('imo_gisis',           'IMO GISIS', 'registration-terms', 'not_verified', false),
+  ('equasis',             'Equasis', 'registration-terms', 'not_verified', false),
+  ('opensanctions',       'OpenSanctions', 'cc-by-nc-4.0', 'not_verified', false),
+  ('opencorporates',      'OpenCorporates', 'odbl', 'not_verified', false),
+  ('mca21',               'MCA21', 'paid-filing', 'not_verified', false),
+  ('acra',                'ACRA', 'paid-filing', 'not_verified', false),
+  ('cyprus_registrar',    'Cyprus Registrar', 'paid-filing', 'not_verified', false),
+  ('hk_icris',            'HK ICRIS', 'paid-filing', 'not_verified', false),
+  ('egrul',               'EGRUL', 'restricted', 'B', true),
+  ('copernicus_sentinel', 'Sentinel-1/2 (Copernicus)', 'copernicus', 'not_verified', false),
   -- Only the 2016 layer of EOX: the service states CC BY 4.0 for it, and CC BY-NC-SA from 2018.
-  ('eox_s2cloudless_2016', 'EOX Sentinel-2 cloudless 2016', 'cc-by-4.0'),
-  ('osm',                 'OSM',                        'odbl'),
+  ('eox_s2cloudless_2016', 'EOX Sentinel-2 cloudless 2016', 'cc-by-4.0', 'not_verified', false),
+  ('osm',                 'OSM', 'odbl', 'C', false),
   -- The World Bank publishes its commodity price data under CC BY 4.0. Bruegel is `restricted`
   -- until its terms of reuse are read.
-  ('world_bank',          'World Bank',                 'cc-by-4.0'),
-  ('bruegel',             'Bruegel',                    'restricted'),
+  ('world_bank',          'World Bank', 'cc-by-4.0', 'not_verified', false),
+  ('bruegel',             'Bruegel', 'restricted', 'not_verified', false),
   -- Eurostat data is reusable under the reuse policy of the European Commission, with the source
   -- named. fetch_document names this provider only for a file of the Eurostat API.
-  ('eurostat',            'Eurostat',                   'eu-reuse'),
-  ('own',                 'own',                        'own')
+  ('eurostat',            'Eurostat', 'eu-reuse', 'not_verified', false),
+  ('own',                 'own', 'own', 'not_verified', false)
 ON CONFLICT (id) DO UPDATE SET
   name    = EXCLUDED.name,
-  licence = EXCLUDED.licence;
+  licence = EXCLUDED.licence,
+  level = EXCLUDED.level,
+  restricted = EXCLUDED.restricted;
+
+-- ==================================================================== document_level_rule ===
+-- HAND-WRITTEN FROM research/signed-list.md. A level rule starts at the address of its line, so a
+-- web archive copy does not match, and it stays `not_verified`. A line whose address cannot split
+-- what the list allows from what it refuses has no rule: sec.gov (exhibits), Eurostat (carve-outs).
+-- A restricted rule reads the whole address, so it also holds a web archive copy.
+-- The first form of three restricted patterns. An old row must not stay beside the new one.
+DELETE FROM document_level_rule
+ WHERE pattern IN ('[/.]sudact\.ru([:/?#]|$)', 'govinfo\.gov/[^?#]*USCOURTS',
+                   '[/.]reyestr\.court\.gov\.ua([:/?#]|$)');
+INSERT INTO document_level_rule (pattern, level, restricted, line) VALUES
+  ('^https?://(www\.)?justice\.gov/(opa|usao-[a-z0-9-]+)/pr/', 'A', false, 'US DOJ press releases'),
+  ('^https?://(www\.)?federalregister\.gov/documents/', 'A', false, 'Federal Register'),
+  ('^https?://(www\.)?govinfo\.gov/(content/pkg|link)/FR-', 'A', false, 'Federal Register, govinfo copy'),
+  ('^https?://ofac\.treasury\.gov/(recent-actions|media)/', 'A', false, 'OFAC recent actions and enforcement PDFs'),
+  ('^https?://eur-lex\.europa\.eu/legal-content/', 'A', false, 'EUR-Lex'),
+  ('^https?://curia\.europa\.eu/juris/', 'A', false, 'CJEU judgments'),
+  ('^https?://(www\.)?kremlin\.ru/acts/bank/', 'A', false, 'Kremlin bank of acts'),
+  ('([/.@]|%(25)*2f)sudact\.ru\.*([:/?#]|%|$)', 'not_verified', true, 'Sudact arbitral acts'),
+  ('govinfo\.gov\.*(/|%(25)*2f)[^?#]*USCOURTS', 'not_verified', true, 'GovInfo USCOURTS'),
+  ('([/.@]|%(25)*2f)reyestr\.court\.gov\.ua\.*([:/?#]|%|$)', 'C', true, 'Ukrainian court register')
+ON CONFLICT (pattern) DO UPDATE SET
+  level = EXCLUDED.level,
+  restricted = EXCLUDED.restricted,
+  line = EXCLUDED.line;
+
+-- A new restricted rule holds each document that is already stored. The trigger holds each new one.
+UPDATE documents d SET restricted = true
+ WHERE NOT d.restricted
+   AND EXISTS (SELECT 1 FROM document_level_rule r WHERE r.restricted AND d.uri ~* r.pattern);
 
 
 -- ============================================================================== area_code ===
@@ -699,6 +731,7 @@ INSERT INTO relation_type (key, label, inverse_label, takes_interval) VALUES
   ('supplies_items_to',  'supplies items to',  'receives items from',          true),
   ('transfers_funds_to', 'transfers funds to', 'receives funds from',          true),
   ('pays_for',           'makes payments for', 'has payments made by',         true),
+  ('found_in',           'found in',           'holds a part of',              false),
   ('supplies_crude_to',  'supplies crude to',  'receives crude from',          false),
   ('sells_products_to',  'sells products to',  'buys products from',           false),
   ('crude_flows_to',     'crude flows to',     'is fed crude by',              true),

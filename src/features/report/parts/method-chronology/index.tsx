@@ -9,6 +9,7 @@ import { useContent } from '../../use-content';
 import { LayersFigure } from './layers-figure';
 import { NodeField } from './node-field';
 import { TimelineFigure, type ChartProps } from './timeline-figure';
+import { figureKey } from '../../figure-key';
 
 const charts: Readonly<Record<number, (props: ChartProps) => ReactNode>> = {
   1: TimelineFigure,
@@ -78,7 +79,7 @@ export function MethodChronologyPart({ part }: { readonly part: ReportPart }) {
           }
           period={figure.period === '' ? methodUi.layers.period : figure.period}
           sources={figure.sources}
-          note={figureNotes[String(figure.number)]?.note}
+          note={figureNotes[figureKey(figure.number) ?? '']?.note}
           partSlug={part.slug}
         >
           {Chart === undefined ? null : <Chart figure={figure} partSlug={part.slug} />}

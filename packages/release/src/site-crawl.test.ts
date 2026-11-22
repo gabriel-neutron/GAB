@@ -77,6 +77,15 @@ describe('robotsTxt', () => {
     for (const name of AI_CRAWLERS) expect(text).toContain(`User-agent: ${name}\nAllow: /`);
   });
 
+  test('states the content signals of the policy', () => {
+    expect(robotsTxt(SITE, 'allow')).toContain(
+      'Content-Signal: search=yes, ai-input=yes, ai-train=yes',
+    );
+    expect(robotsTxt(SITE, 'disallow')).toContain(
+      'Content-Signal: search=yes, ai-input=no, ai-train=no',
+    );
+  });
+
   test('disallows the AI crawlers only when the policy says so', () => {
     const text = robotsTxt(SITE, 'disallow');
     expect(text).toContain('User-agent: *\nAllow: /');

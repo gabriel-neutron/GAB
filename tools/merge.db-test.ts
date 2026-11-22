@@ -699,3 +699,37 @@ test('a merge of two companies keeps each relation, identifier, alias and source
     relations: seen.before.relations,
   });
 });
+
+// The shape of an act accepts each spelling of a uuid, and `names` can lack an end of the act, so
+// the refusal reads each end as a uuid and not as text.
+test('a merge is refused while an act waits that names the absorbed entity in capital letters', async () => {
+  const seen = await rolledBack('app', async (ask) => {
+    const keep = await entity(ask, 'vessel', 'CAPITAL TEST KEEP');
+    const gone = await entity(ask, 'vessel', 'CAPITAL TEST GONE');
+    const owner = await entity(ask, 'company', 'CAPITAL TEST OWNER');
+    const [act] = z.array(z.object({ id: z.uuid() })).parse(
+      await ask(
+        `SELECT public.propose_change('create_relation', $1::jsonb, ARRAY['manual']) AS id`,
+        [
+          JSON.stringify({
+            type: 'operates',
+            src_kind: 'entity',
+            src_id: owner,
+            dst_kind: 'entity',
+            dst_id: gone.toUpperCase(),
+            sources: ['manual'],
+          }),
+        ],
+      ),
+    );
+    return {
+      names: await ask('SELECT names FROM public.proposals WHERE id = $1', [act?.id]),
+      refused: await refusalOf(
+        ask,
+        `SELECT * FROM public.merge_entities('a test', $1::uuid, $2::uuid)`,
+        [keep, gone],
+      ),
+    };
+  });
+  expect(seen).toStrictEqual({ names: [{ names: [] }], refused: 'merge_absorbed_free' });
+});

@@ -1014,7 +1014,12 @@ BEGIN
     SELECT a.absorbed_id, a.survivor_id INTO v_absorbed, v_survivor
       FROM public.entity_alias a
      WHERE a.absorbed_id = v_target OR a.absorbed_id = ANY (v_names)
-        OR a.absorbed_id::text IN (v_payload::jsonb->>'src_id', v_payload::jsonb->>'dst_id')
+        -- As uuid and not as text: the shape accepts each spelling of a uuid. The cast is in the
+        -- select list, so an end that is no uuid reaches the refusal of the shape.
+        OR a.absorbed_id IN (SELECT x::uuid
+                               FROM unnest(ARRAY[v_payload::jsonb->>'src_id',
+                                                 v_payload::jsonb->>'dst_id']) AS x
+                              WHERE pg_input_is_valid(x, 'uuid'))
      LIMIT 1;
     IF FOUND THEN
       RAISE EXCEPTION 'item %: a merge absorbed the entity % into the entity %, so the act names '
@@ -1600,9 +1605,10 @@ BEGIN
 END $$;
 
 -- THE ACT THAT SET A VALUE OF AN ENTITY: the last accepted act that named the key on the entity,
--- or else the act that made the entity. A merge names each value that it moved to the survivor,
--- with the act that set it on the absorbed entity, so a moved value keeps its act. The label of
--- the views reads the same rule. No role holds this step.
+-- or else the act that made the entity. An act that a removal took away does not count. A merge
+-- names each value that it moved to the survivor, with the act that set it on the absorbed
+-- entity, so a moved value keeps its act. The label of the views reads the same rule. No role
+-- holds this step.
 CREATE OR REPLACE FUNCTION value_act(p_entity uuid, p_key text) RETURNS uuid
 LANGUAGE sql STABLE
 SET search_path = pg_catalog, public, pg_temp AS $$
@@ -1613,6 +1619,10 @@ SET search_path = pg_catalog, public, pg_temp AS $$
       WHERE u.status = 'accepted' AND u.target_kind = 'entity' AND u.target_id = p_entity
         AND ((u.op = 'update_attrs' AND u.payload->'attrs' ? p_key)
              OR (u.op = 'merge_entities' AND u.prior_value->'acts' ? p_key))
+        -- A removed act set no value that stands (remove_accepted_act).
+        AND NOT EXISTS (SELECT 1 FROM public.proposals x
+                         WHERE x.op = 'remove_act' AND x.names[1] = u.id
+                           AND x.status = 'accepted')
       ORDER BY u.decided_at DESC, u.id DESC LIMIT 1),
     (SELECT e.promoted_from FROM public.entities e WHERE e.id = p_entity))
 $$;
@@ -1719,8 +1729,11 @@ BEGIN
                 AND ((o.target_kind = 'entity' AND o.target_id = p_absorbed)
                      OR (o.target_kind = 'relation' AND o.target_id = ANY (v_dropped))
                      OR p_absorbed = ANY (o.names)
-                     OR o.payload->>'src_id' = p_absorbed::text
-                     OR o.payload->>'dst_id' = p_absorbed::text)) THEN
+                     -- As uuid and not as text: the shape accepts each spelling of a uuid.
+                     OR p_absorbed IN (SELECT x::uuid
+                                         FROM unnest(ARRAY[o.payload->>'src_id',
+                                                           o.payload->>'dst_id']) AS x
+                                        WHERE pg_input_is_valid(x, 'uuid')))) THEN
     RAISE EXCEPTION 'an act that waits names the absorbed entity, or a relation that the merge '
                     'removes: decide it first, and then merge the two entities'
       USING CONSTRAINT = 'merge_absorbed_free', HINT = 'absorbedId';
@@ -1981,6 +1994,137 @@ BEGIN
   DELETE FROM public.entity_alias WHERE absorbed_id = p_absorbed;
 
   RETURN jsonb_build_object('merge', v_alias.merged_by);
+END $$;
+
+-- THE ENTITY THAT HOLDS AN ENTITY TODAY: the entity itself, or the entity that a join or a merge
+-- absorbed it into. A later merge moves each alias to the new survivor, so one read is enough.
+-- No role holds this step.
+CREATE OR REPLACE FUNCTION joined_entity(p_id uuid) RETURNS uuid
+LANGUAGE sql STABLE
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce((SELECT a.survivor_id FROM public.entity_alias a WHERE a.absorbed_id = p_id),
+                  p_id)
+$$;
+
+-- THE REMOVAL OF AN ACCEPTED ACT (ADR 0035). An accepted act is frozen, so the act
+-- `remove_act` takes away what it wrote, and the ledger keeps both acts. Two kinds of act can be
+-- removed:
+-- - a new relation (`create_relation`): the relation row leaves the graph, as a delete of the
+--   relation does, and the copy keeps the row. A relation that is an end of another relation
+--   stays. A relation that an act in the queue names stays: that act is decided first. Each
+--   later act on the relation leaves the count with it (public.removed_act).
+-- - a change of the values of an entity (`update_attrs`): each value that the act set goes back
+--   to the value before the act, or leaves the entity when it had none. The act must still be the
+--   last act that set each of its values: a later act wrote over it, and that act is removed
+--   first. When a join absorbed the entity, the values are on the entity that stays.
+-- Each other act is refused: a merge is undone by the operator, and an entity leaves through a
+-- join or a delete. The removal locks the removed act. Two removals of one act thus wait for each
+-- other, and the unique index refuses the second one. The answer is the copy of what the removal
+-- took away. No role holds this step: it runs inside the promotion.
+CREATE OR REPLACE FUNCTION remove_accepted_act(p_removal uuid, p_act uuid, p_target_kind text,
+                                               p_target uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  r       public.proposals%ROWTYPE;
+  v_kind  text;
+  v_id    uuid;
+  v_row   jsonb;
+  v_uses  bigint;
+  v_attrs jsonb;
+  v_was   jsonb := '{}'::jsonb;
+  v_back  jsonb := '{}'::jsonb;
+  v_key   text;
+BEGIN
+  SELECT * INTO r FROM public.proposals WHERE id = p_act FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'the record holds no act %', p_act
+      USING CONSTRAINT = 'proposal_exists', HINT = 'actId';
+  END IF;
+  IF r.status <> 'accepted' THEN
+    RAISE EXCEPTION 'the act % is %, and only an accepted act is removed: reject an act that '
+                    'waits', p_act, r.status
+      USING CONSTRAINT = 'remove_accepted', HINT = 'actId';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.proposals x
+              WHERE x.op = 'remove_act' AND x.names[1] = p_act AND x.status = 'accepted'
+                AND x.id <> p_removal) THEN
+    RAISE EXCEPTION 'the act % is removed already', p_act
+      USING CONSTRAINT = 'remove_once', HINT = 'actId';
+  END IF;
+  IF r.op = 'create_relation' THEN
+    v_kind := 'relation';
+    v_id := r.id;
+  ELSIF r.op = 'update_attrs' AND r.target_kind = 'entity' THEN
+    v_kind := 'entity';
+    v_id := public.joined_entity(r.target_id);
+  ELSE
+    RAISE EXCEPTION 'the act % is a % act, and only a new relation or a change of the values of '
+                    'an entity is removed', p_act, r.op
+      USING CONSTRAINT = 'remove_kind', HINT = 'actId';
+  END IF;
+  IF (p_target_kind, p_target) IS DISTINCT FROM (v_kind, v_id) THEN
+    RAISE EXCEPTION 'the removal targets % %, and the act % wrote % %', p_target_kind, p_target,
+                    p_act, v_kind, v_id
+      USING CONSTRAINT = 'remove_target', HINT = 'actId';
+  END IF;
+
+  IF v_kind = 'relation' THEN
+    SELECT to_jsonb(x) INTO v_row FROM public.relations x WHERE x.id = v_id FOR UPDATE;
+    IF v_row IS NULL THEN
+      RAISE EXCEPTION 'the relation of the act % is not in the graph: a delete or a merge took '
+                      'it away already, and nothing is left to remove', p_act
+        USING CONSTRAINT = 'target_exists', HINT = 'actId';
+    END IF;
+    SELECT count(*) INTO v_uses FROM public.relations x
+     WHERE (x.src_kind = 'relation' AND x.src_id = v_id)
+        OR (x.dst_kind = 'relation' AND x.dst_id = v_id);
+    IF v_uses > 0 THEN
+      RAISE EXCEPTION 'the relation is an end of % other %, and it stays: remove those first',
+                      v_uses, CASE WHEN v_uses = 1 THEN 'relation' ELSE 'relations' END
+        USING CONSTRAINT = 'endpoint_free', HINT = 'actId';
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.proposals o
+                WHERE o.status = 'pending' AND o.op <> 'remove_act'
+                  AND ((o.target_kind = 'relation' AND o.target_id = v_id)
+                       OR v_id = ANY (o.names)
+                       OR v_id IN (SELECT x::uuid
+                                     FROM unnest(ARRAY[o.payload->>'src_id',
+                                                       o.payload->>'dst_id']) AS x
+                                    WHERE pg_input_is_valid(x, 'uuid')))) THEN
+      RAISE EXCEPTION 'an act in the queue names the relation: decide that act first, and then '
+                      'remove the relation'
+        USING CONSTRAINT = 'remove_named_free', HINT = 'actId';
+    END IF;
+    DELETE FROM public.relations WHERE id = v_id;
+    -- The same copy as a delete of the relation, so each read of the ends of a deleted relation
+    -- reads it.
+    RETURN v_row;
+  END IF;
+
+  SELECT e.attrs INTO v_attrs FROM public.entities e WHERE e.id = v_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'the entity of the act % is not in the graph: a delete took it away '
+                    'already, and nothing is left to remove', p_act
+      USING CONSTRAINT = 'target_exists', HINT = 'actId';
+  END IF;
+  FOR v_key IN SELECT k FROM jsonb_object_keys(coalesce(r.payload->'attrs', '{}'::jsonb)) AS k
+                ORDER BY k LOOP
+    IF public.value_act(v_id, v_key) IS DISTINCT FROM p_act THEN
+      RAISE EXCEPTION 'a later act set the value "%" of the entity: remove that act first', v_key
+        USING CONSTRAINT = 'remove_last_value', HINT = 'actId';
+    END IF;
+    IF v_attrs ? v_key THEN
+      v_was := v_was || jsonb_build_object(v_key, v_attrs->v_key);
+    END IF;
+    IF r.prior_value ? v_key THEN
+      v_back := v_back || jsonb_build_object(v_key, r.prior_value->v_key);
+    END IF;
+    v_attrs := v_attrs - v_key;
+  END LOOP;
+  UPDATE public.entities SET attrs = v_attrs || v_back, updated_at = now() WHERE id = v_id;
+  RETURN jsonb_build_object('attrs', v_was, 'restored', v_back);
 END $$;
 
 -- THE STEP THAT WRITES THE EVIDENTIARY LAYER. No role holds it: it runs inside the doors below,
@@ -2432,12 +2576,16 @@ BEGIN
     RETURNING id INTO v_id;
 
   -- ------------------------------------------------------------------- a merge, an undo --
-  -- M12: identity is a judgement of the operator. A rule, an AI reviewer and a decision on the
-  -- queue give a mode or an origin, so only the merge doors of the operator reach the write.
+  -- M12: identity is a judgement of the operator. A rule and a decision on the queue give a
+  -- mode, so only the merge doors reach the write. The one exception is the join door of an AI
+  -- reviewer (ai_join_entities), which the operator asked for (ADR 0035): it gives the origin
+  -- of an AI reviewer and no mode, and it merges only. An undo stays with the operator.
   ELSIF p.op IN ('merge_entities','undo_merge') THEN
-    IF p_mode IS NOT NULL OR p_origin IS NOT NULL THEN
+    IF p_mode IS NOT NULL
+       OR (p_origin IS NOT NULL
+           AND NOT (p.op = 'merge_entities' AND p_origin = 'decided by an AI reviewer')) THEN
       RAISE EXCEPTION 'only the operator merges two entities or undoes a merge, through the '
-                      'merge doors'
+                      'merge doors, and an AI reviewer joins two entities through its join door'
         USING CONSTRAINT = 'merge_by_operator';
     END IF;
     IF p.op = 'merge_entities' THEN
@@ -2446,6 +2594,11 @@ BEGIN
     ELSE
       v_prior := public.restore_entity(p.target_id, p.names[1]);
     END IF;
+    v_id := p.target_id;
+
+  -- --------------------------------------------------------------------- a removal --
+  ELSIF p.op = 'remove_act' THEN
+    v_prior := public.remove_accepted_act(p.id, p.names[1], p.target_kind, p.target_id);
     v_id := p.target_id;
 
   ELSE
@@ -2500,7 +2653,8 @@ BEGIN
               UNION SELECT c.doc_id::text FROM public.citation c WHERE c.claim_id = v_twin.id));
       UPDATE public.proposals
          SET status = 'rejected', decided_at = now(), decided_by = p_decided_by,
-             decided_as = 'rule', reject_reason = 'duplicate',
+             -- The mode of the promotion: 'rule' only when a named rule promoted the act.
+             decided_as = p_mode, reject_reason = 'duplicate',
              reject_note = 'the same fact as the act ' || p.id || ', which is promoted',
              decision_origin = 'closed when the act ' || p.id || ' was promoted'
        WHERE id = v_twin.id;
@@ -2972,6 +3126,33 @@ SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT public.reject_relation_as(p_id, p_reason, p_note, p_decided_by, NULL, NULL)
 $$;
 
+-- A WAITING UNIT IS NOT FOR A REVIEWER (skill review-unit, ADR 0035). The lane "waiting" holds
+-- each unit that the rules before the sources do not decide (review_units): it waits for a better
+-- source, and only the rules or the operator promote it. An AI reviewer decides a doubt. A unit
+-- that the rules call impossible is blocked, and the check of the faults words its own refusal.
+-- No role holds these steps.
+CREATE OR REPLACE FUNCTION waiting_lane_said()
+RETURNS text
+LANGUAGE sql IMMUTABLE
+SET search_path = pg_catalog AS $$
+  SELECT 'the unit is in the lane "waiting", and the rule "a waiting unit is not for a reviewer" '
+         'applies: an AI reviewer decides a doubt only, and the rules or the operator decide '
+         'this unit'::text
+$$;
+
+CREATE OR REPLACE FUNCTION refuse_waiting_lane(p_unit uuid)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_faults jsonb;
+BEGIN
+  SELECT f.faults INTO v_faults FROM public.unit_faults(ARRAY[p_unit]) AS f;
+  IF v_faults IS NOT NULL AND public.rule_before_sources(p_unit, v_faults) IS NULL THEN
+    RAISE EXCEPTION '%', public.waiting_lane_said() USING CONSTRAINT = 'review_lane';
+  END IF;
+END $$;
+
 -- THE DECISIONS OF AN AI REVIEWER. Only the research role holds them. Each one is the decision of
 -- the page, with the same check of the faults, and it records its own origin, "decided by an AI
 -- reviewer", with the reason that the AI gives. It is not a rule and it is not a decision of the
@@ -3003,6 +3184,7 @@ BEGIN
     ELSE
       v_said := public.decision_said(p_id);
       IF p_kind = 'promote' THEN
+        PERFORM public.refuse_waiting_lane(p_id);
         PERFORM public.promote_unit_as(p_id, c_by, c_origin, v_why);
       ELSE
         PERFORM public.reject_unit_as(p_id, p_reason, p_note, c_by, c_origin, v_why);
@@ -3218,6 +3400,181 @@ EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_excepti
                 WHEN v_rule LIKE 'join\_%' THEN 'waitingId' END;
 END $$;
 
+-- THE CITED PASSAGE OF A REVIEW ACT: one span of one stored page, from the tool that found the
+-- excerpt in the page. The act cites the document of the passage. No role holds this step.
+CREATE OR REPLACE FUNCTION check_review_citation(p_citation jsonb)
+RETURNS void
+LANGUAGE plpgsql IMMUTABLE
+SET search_path = pg_catalog AS $$
+BEGIN
+  IF coalesce(jsonb_typeof(p_citation), 'absent') <> 'object'
+     OR NOT p_citation ?& ARRAY['document', 'text_extractor', 'page', 'start', 'end']
+     OR coalesce(jsonb_typeof(p_citation->'document'), 'absent') <> 'string' THEN
+    RAISE EXCEPTION 'a review act cites one passage: the document, the text, the page and the span'
+      USING CONSTRAINT = 'review_passage';
+  END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION put_review_citation(p_claim uuid, p_citation jsonb)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  PERFORM public.check_review_citation(p_citation);
+  BEGIN
+    INSERT INTO public.citation (claim_id, doc_id, text_extractor, page, start, "end", modality)
+    VALUES (p_claim, p_citation->>'document', p_citation->>'text_extractor',
+            (p_citation->>'page')::int, (p_citation->>'start')::int, (p_citation->>'end')::int,
+            'asserts');
+  EXCEPTION WHEN integrity_constraint_violation OR data_exception THEN
+    RAISE EXCEPTION 'the passage is not one span of a stored page of document %',
+                    p_citation->>'document'
+      USING CONSTRAINT = 'review_passage';
+  END;
+END $$;
+
+-- THE REASON OF AN AI REVIEWER, checked, as the decision doors check it. No role holds this step.
+CREATE OR REPLACE FUNCTION review_why(p_why text)
+RETURNS text
+LANGUAGE plpgsql IMMUTABLE
+SET search_path = pg_catalog AS $$
+DECLARE
+  v_why text := btrim(coalesce(p_why, ''), E' \t\n\r\f\v');
+BEGIN
+  IF v_why = '' OR char_length(v_why) > 1000 THEN
+    RAISE EXCEPTION 'an AI reviewer gives the reason of its decision, in 1,000 characters at most'
+      USING CONSTRAINT = 'review_reason';
+  END IF;
+  RETURN v_why;
+END $$;
+
+-- AN AI REVIEWER REMOVES AN ACCEPTED ACT (ADR 0035). Only the research role holds it. The door
+-- writes the act `remove_act` with its cited passage and decides it in the same transaction, as
+-- the operator signs an act of its own (sign_change): the act adds no fact to the record, it only
+-- takes one away, and the reason and the passage are required. The act records the origin
+-- "decided by an AI reviewer", the reason, who and when. The removed act stays in the ledger, and
+-- `removed_act` names it, so a count of the accepted acts leaves it out. A refusal names its field.
+CREATE OR REPLACE FUNCTION ai_remove_act(p_act uuid, p_citation jsonb, p_why text)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  r        public.proposals%ROWTYPE;
+  v_why    text;
+  v_kind   text;
+  v_id     uuid;
+  v_name   text;
+  v_act    uuid;
+  v_text   text;
+  v_rule   text;
+  v_code   text;
+BEGIN
+  v_why := public.review_why(p_why);
+  PERFORM public.check_review_citation(p_citation);
+  SELECT * INTO r FROM public.proposals WHERE id = p_act;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'the record holds no act %', p_act USING CONSTRAINT = 'proposal_exists';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.proposals x
+              WHERE x.op = 'remove_act' AND x.names[1] = p_act AND x.status = 'accepted') THEN
+    RAISE EXCEPTION 'the act % is removed already', p_act USING CONSTRAINT = 'remove_once';
+  END IF;
+  v_kind := CASE WHEN r.op = 'create_relation' THEN 'relation' ELSE r.target_kind END;
+  v_id := CASE WHEN r.op = 'create_relation' THEN r.id
+               WHEN r.target_kind = 'entity' THEN public.joined_entity(r.target_id)
+               ELSE r.target_id END;
+  v_name := coalesce(public.element_name(v_id), v_id::text);
+  -- An act with no target cannot be removed, and the removal refuses it with its reason.
+  v_act := public.propose_change('remove_act', '{}'::jsonb, ARRAY[p_citation->>'document'],
+                                 coalesce(v_kind, 'entity'), coalesce(v_id, p_act),
+                                 ARRAY[p_act]);
+  PERFORM public.put_review_citation(v_act, p_citation);
+  PERFORM public.apply_proposal_as(v_act, 'an AI reviewer, through the MCP server', NULL,
+                                   'decided by an AI reviewer', v_why);
+  RETURN jsonb_build_object('removal', v_act, 'act', p_act, 'name', v_name);
+EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception
+            OR insufficient_privilege THEN
+  GET STACKED DIAGNOSTICS v_text = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
+                          v_code = RETURNED_SQLSTATE;
+  RAISE EXCEPTION USING MESSAGE = v_text, ERRCODE = v_code, CONSTRAINT = v_rule,
+    HINT = CASE WHEN v_rule = 'review_reason' THEN 'why'
+                WHEN v_rule = 'review_passage' OR v_code = '23503' THEN 'passage'
+                ELSE 'actId' END;
+END $$;
+
+-- AN AI REVIEWER JOINS TWO ENTITIES OF ONE THING (ADR 0035). Only the research role holds it.
+-- The operator gave this judgement of identity to an AI reviewer, with a reason and a cited
+-- passage. The older entity stays (the earlier creation, then the lower identifier), and the newer
+-- one is absorbed: the merge moves its values, its relations, its documents and its aliases to
+-- the older one, keeps its name as a former name, and keeps the full copy for an undo (M12). The
+-- act records the origin "decided by an AI reviewer" and the reason, and `entity_alias` names the
+-- act. The door refuses one entity named twice and two entities of two types; the merge checks
+-- the types again under its lock. An undo stays with the operator. A refusal names its field.
+CREATE OR REPLACE FUNCTION ai_join_entities(p_one uuid, p_other uuid, p_citation jsonb,
+                                            p_why text)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_why   text;
+  v_keep  public.entities%ROWTYPE;
+  v_gone  public.entities%ROWTYPE;
+  v_lock  bigint;
+  v_act   uuid;
+  v_text  text;
+  v_rule  text;
+  v_code  text;
+BEGIN
+  v_why := public.review_why(p_why);
+  PERFORM public.check_review_citation(p_citation);
+  IF p_one IS NOT DISTINCT FROM p_other THEN
+    RAISE EXCEPTION 'a join names two entities, and the two identifiers name one entity'
+      USING CONSTRAINT = 'join_two';
+  END IF;
+  SELECT * INTO v_keep FROM public.entities e WHERE e.id IN (p_one, p_other)
+   ORDER BY e.created_at, e.id LIMIT 1;
+  SELECT * INTO v_gone FROM public.entities e WHERE e.id IN (p_one, p_other)
+   ORDER BY e.created_at DESC, e.id DESC LIMIT 1;
+  IF v_keep.id IS NULL OR v_keep.id = v_gone.id THEN
+    RAISE EXCEPTION 'the entity % is not in the graph',
+                    CASE WHEN EXISTS (SELECT 1 FROM public.entities e WHERE e.id = p_one)
+                         THEN p_other ELSE p_one END
+      USING CONSTRAINT = 'target_exists';
+  END IF;
+  IF v_keep.type <> v_gone.type THEN
+    RAISE EXCEPTION 'the two entities have two types, % and %, and a join takes two entities of '
+                    'one type', least(v_keep.type, v_gone.type), greatest(v_keep.type, v_gone.type)
+      USING CONSTRAINT = 'merge_one_type';
+  END IF;
+  -- The advisory keys of a batch, as the merge door of the operator takes them.
+  FOR v_lock IN
+    SELECT DISTINCT hashtextextended('record_row:' || x.id::text, 0) AS k
+      FROM (SELECT v_keep.id AS id UNION SELECT v_gone.id
+            UNION SELECT r.id FROM public.relations r
+             WHERE (r.src_kind = 'entity' AND r.src_id = v_gone.id)
+                OR (r.dst_kind = 'entity' AND r.dst_id = v_gone.id)) AS x
+     ORDER BY k
+  LOOP
+    PERFORM pg_advisory_xact_lock(v_lock);
+  END LOOP;
+  v_act := public.propose_change('merge_entities', '{"keep_name": true}'::jsonb,
+                                 ARRAY[p_citation->>'document'], 'entity', v_keep.id,
+                                 ARRAY[v_gone.id]);
+  PERFORM public.put_review_citation(v_act, p_citation);
+  PERFORM public.apply_proposal_as(v_act, 'an AI reviewer, through the MCP server', NULL,
+                                   'decided by an AI reviewer', v_why);
+  RETURN jsonb_build_object('join', v_act, 'kept', v_keep.id, 'absorbed', v_gone.id,
+                            'name', v_keep.label);
+EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception
+            OR insufficient_privilege THEN
+  GET STACKED DIAGNOSTICS v_text = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
+                          v_code = RETURNED_SQLSTATE;
+  RAISE EXCEPTION USING MESSAGE = v_text, ERRCODE = v_code, CONSTRAINT = v_rule,
+    HINT = CASE WHEN v_rule = 'review_reason' THEN 'why'
+                WHEN v_rule = 'review_passage' OR v_code = '23503' THEN 'passage'
+                ELSE 'entityIds' END;
+END $$;
+
 -- THE GROUP ACTION (P11): "promote the clean proposals of this group". No role holds this step:
 -- the door of the operator and the door of an AI reviewer run it. It takes the group and the exact list of units that the screen showed, so a unit that
 -- came after the view is never written. It locks the acts of the list, runs the check of the
@@ -3261,6 +3618,9 @@ BEGIN
     SELECT u.id, f.state,
            (SELECT string_agg(x->>'said', '; ') FROM jsonb_array_elements(f.faults) AS x
              WHERE x->>'level' IN ('blocks', 'not_clean')) AS stops,
+           -- An AI reviewer decides a doubt only (refuse_waiting_lane).
+           (p_origin IS NOT NULL AND f.faults IS NOT NULL
+            AND public.rule_before_sources(u.id, f.faults) IS NULL) AS waits,
            -- The group of a unit is the group of its head act: a relation of another group can
            -- join the unit of a pending entity.
            EXISTS (SELECT 1 FROM public.proposals p
@@ -3276,7 +3636,8 @@ BEGIN
       WHEN r.state IS NULL THEN 'The unit is decided already'
       WHEN NOT r.in_group THEN 'The unit is not in this group'
       WHEN r.state = 'blocked' THEN 'Blocked: ' || r.stops
-      WHEN r.state = 'not_clean' THEN 'Not clean: ' || r.stops END;
+      WHEN r.state = 'not_clean' THEN 'Not clean: ' || r.stops
+      WHEN r.waits THEN public.waiting_lane_said() END;
     IF v_said IS NULL THEN
       v_clean := v_clean || r.id;
     ELSE
@@ -5095,15 +5456,14 @@ $$;
 -- rules stand in rule_of_faults, which takes the faults as an argument, and a list of units checks
 -- its faults once in one call of unit_faults. unit_rule is the rule of one unit. No role holds
 -- rule_of_faults.
-CREATE OR REPLACE FUNCTION rule_of_faults(p_unit uuid, p_faults jsonb)
+--
+-- THE FIRST TWO RULES ARE IN THIS FUNCTION. It gives 'impossible', 'doubt', or NULL when a later rule decides. The
+-- lane of a unit reads only these two, so a read of the queue does not judge the sources of each
+-- fact. No role holds this step.
+CREATE OR REPLACE FUNCTION rule_before_sources(p_unit uuid, p_faults jsonb)
 RETURNS text
 LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE
-  v_all_f  boolean;
-  v_single text;
-  v_pair   text;
-  v_other  text;
 BEGIN
   IF p_faults IS NULL THEN
     RETURN NULL;
@@ -5115,12 +5475,13 @@ BEGIN
   -- A contradiction or a reported claim from an author F is no doubt: the unit waits, and the card
   -- shows the conflict. A reported claim reads the author of its act. A contradiction has no
   -- single act, so it reads every act of the unit: it waits only when each one is from an author F.
-  v_all_f := NOT EXISTS (SELECT 1 FROM public.proposals a
-                          WHERE a.unit_id = p_unit AND a.status = 'pending'
-                            AND (a.originator IS NULL OR public.letter_of(a.originator) <> 'F'));
   IF EXISTS (SELECT 1 FROM jsonb_array_elements(p_faults) AS x
               WHERE x->>'level' = 'not_clean'
-                AND NOT (x->>'kind' = 'contradiction' AND v_all_f)
+                AND NOT (x->>'kind' = 'contradiction'
+                         AND NOT EXISTS (SELECT 1 FROM public.proposals a
+                                          WHERE a.unit_id = p_unit AND a.status = 'pending'
+                                            AND (a.originator IS NULL
+                                                 OR public.letter_of(a.originator) <> 'F')))
                 AND NOT (x->>'kind' = 'reported_claim'
                          AND EXISTS (SELECT 1 FROM public.proposals r
                                       WHERE r.id = (x->>'act')::uuid AND r.originator IS NOT NULL
@@ -5128,6 +5489,26 @@ BEGIN
      OR public.unit_doubt_cause(p_unit) IS NOT NULL
   THEN
     RETURN 'doubt';
+  END IF;
+  RETURN NULL;
+END $$;
+
+CREATE OR REPLACE FUNCTION rule_of_faults(p_unit uuid, p_faults jsonb)
+RETURNS text
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_first  text;
+  v_single text;
+  v_pair   text;
+  v_other  text;
+BEGIN
+  IF p_faults IS NULL THEN
+    RETURN NULL;
+  END IF;
+  v_first := public.rule_before_sources(p_unit, p_faults);
+  IF v_first IS NOT NULL THEN
+    RETURN v_first;
   END IF;
   IF EXISTS (SELECT 1 FROM jsonb_array_elements(p_faults) AS x
               WHERE x->>'level' IN ('blocks', 'waits')) THEN
@@ -5316,11 +5697,13 @@ SET search_path = pg_catalog, public, pg_temp AS $$
     SELECT f.unit_id, f.state, f.faults
       FROM public.unit_faults(ARRAY(SELECT h.unit_id FROM heads h)) AS f
   ), ruled AS (
-    -- The rule that matches each unit that waits. The doubt rule makes the lane "doubt", and any
-    -- other result is the lane "waiting".
+    -- The doubt rule makes the lane "doubt", and any other result is the lane "waiting". So the
+    -- read runs only the rules before the sources: the later rules cost the most and change no
+    -- lane. OFFSET 0 stops the planner from copying the call into the rule and the lane, so the
+    -- rule runs once for each unit and not twice.
     SELECT r.unit_id, r.rule, CASE WHEN r.rule = 'doubt' THEN 'doubt' ELSE 'waiting' END AS lane
-      FROM (SELECT f.unit_id, public.rule_of_faults(f.unit_id, f.faults) AS rule
-              FROM faulted f) AS r
+      FROM (SELECT f.unit_id, public.rule_before_sources(f.unit_id, f.faults) AS rule
+              FROM faulted f OFFSET 0) AS r
   ), groups AS (
     SELECT q.batch_id, q.subject, q.sort_key AS group_key FROM public.queue_groups() AS q
   ), tree (start, at, path, depth) AS (
@@ -6746,7 +7129,13 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'job % is not running, and only a running job completes', p_id;
   END IF;
-  PERFORM public.run_rules(public.units_of_job(p_id));
+  -- As in fail_job: a rule that raises must not undo the end of the job, because the runner then
+  -- fails a job whose proposals are written. The rules read the units again at the next decision.
+  BEGIN
+    PERFORM public.run_rules(public.units_of_job(p_id));
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'the rules of the completed job % raised: %', p_id, SQLERRM;
+  END;
   RETURN v_status;
 END $$;
 
@@ -6807,10 +7196,56 @@ SET search_path = pg_catalog, public, pg_temp AS $$
              JOIN public.document_provider p ON p.id = d.provider_id
             WHERE d.id = p_document
               AND d.id <> 'inherited'
-              AND p.licence IN ('public-domain', 'eu-reuse', 'ogl-v3', 'cc0', 'cc-by-4.0',
-                                'copernicus', 'own'))
+              AND p.licence IN (SELECT l.licence FROM public.open_licence l))
          THEN 'cc-by' ELSE 'internal' END
 $$;
+
+
+-- THE LEVEL AND THE CLASS OF A DOCUMENT, for a tool (migration 0097). SECURITY DEFINER, because a
+-- tool role holds no grant on the view. An id that names no document is below level A.
+CREATE OR REPLACE FUNCTION document_level(p_document text)
+RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce((SELECT m.level FROM public.document_mark m WHERE m.id = p_document),
+                  'not_verified')
+$$;
+
+CREATE OR REPLACE FUNCTION document_restricted(p_document text)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce((SELECT m.restricted FROM public.document_mark m WHERE m.id = p_document), true)
+$$;
+
+-- AN ADDRESS RULE SETS THE MARK ON THE ROW. public_document stands in each read of the public role,
+-- so it reads a column and no pattern. A pattern on each row of that view took each read past its
+-- limit, as measured on the test stack on 6 November 2026.
+CREATE OR REPLACE FUNCTION document_restricted_by_rule()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.document_level_rule r
+              WHERE r.restricted AND NEW.uri ~* r.pattern) THEN
+    NEW.restricted := true;
+  END IF;
+  RETURN NEW;
+END $$;
+
+-- THE MARK GOES ONE WAY: no function removes it.
+CREATE OR REPLACE FUNCTION fill_document_restricted(p_document text)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  UPDATE public.documents SET restricted = true WHERE id = p_document::doc_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'document % does not exist', p_document
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  RETURN 'filled';
+END $$;
 
 
 -- ============================================================================== THE TRAVERSAL =
@@ -6835,7 +7270,9 @@ SET search_path = pg_catalog, public, pg_temp AS $$
       JOIN api.relation r
         ON r.src_kind = 'entity' AND r.dst_kind = 'entity'
        AND (r.src_id = w.entity_id OR r.dst_id = w.entity_id)
-     WHERE w.hop < depth
+     -- A cap on the depth: the walk keeps no visited set, so its cost grows with the depth.
+     -- The agent tool asks for 3 at most.
+     WHERE w.hop < least(depth, 6)
   )
   SELECT entity_id, min(hop) FROM walk GROUP BY entity_id;
 $$;
@@ -7965,6 +8402,20 @@ BEGIN
                                          WHERE l.document_id = c.doc_id)) THEN
     RETURN;
   END IF;
+  -- A search adds sources to a fact of a known author only, so a unit with an act of no author
+  -- (a mapping, an act of the operator) gets no search.
+  IF EXISTS (SELECT 1 FROM public.proposals a
+              WHERE a.unit_id = p_unit AND a.status = 'pending'
+                AND (a.originator IS NULL OR a.op = 'map_document')) THEN
+    RETURN;
+  END IF;
+  -- The costly test last. A unit that is blocked, or that waits for another unit, is not weak:
+  -- the rules read it again when it is free.
+  IF EXISTS (SELECT 1 FROM public.unit_faults(ARRAY[p_unit]) AS f
+                CROSS JOIN LATERAL jsonb_array_elements(f.faults) AS x
+               WHERE x->>'level' IN ('blocks', 'waits')) THEN
+    RETURN;
+  END IF;
   SELECT left('Find a better source for these acts: ' ||
               string_agg(a.op || ' ' || a.payload::text, '; ' ORDER BY a.id), 1900)
     INTO v_lead
@@ -8136,8 +8587,9 @@ END $$;
 -- PU1: no rejected act, no value of a person with no public source, no person with no public
 -- source. The functions then add the rules of a release:
 --
---   - a row stays only when one of its sources is a public document, and a row names only its
---     public documents (a bought file and an internal document are never named);
+--   - a row stays only when one of its sources is a public document at level A
+--     (public.export_document), and a row names only such documents (a bought file, an internal
+--     document and a document below level A are never named);
 --   - a person stays only when the record holds a relation "designated by" from the person to an
 --     element that is not a person, with a public source;
 --   - a relation stays only when both of its ends are entities of the release.
@@ -8182,7 +8634,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
     SELECT e.id, e.type, e.label, e.origin_label, e.geom,
            CASE WHEN e.geom IS NULL THEN NULL ELSE e.geom_method END AS geom_method,
            ARRAY(SELECT s.id::text FROM unnest(e.sources) AS s(id)
-                  WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = s.id)
+                  WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = s.id)
                   ORDER BY 1) AS sources,
            CASE WHEN e.geom IS NULL THEN '{}'::text[] ELSE ARRAY(
              SELECT DISTINCT s.id FROM unnest(coalesce(
@@ -8201,22 +8653,25 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
                   CROSS JOIN LATERAL unnest(g.docs) AS a(src)
                  WHERE x.id = e.id),
                e.sources::text[])) AS s(id)
-              WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id::text = s.id)
+              WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id::text = s.id)
               ORDER BY 1) END AS geom_sources
       FROM api.entity e
   ), sourced AS (
     SELECT * FROM shown WHERE cardinality(sources) > 0
   )
   SELECT h.id, h.type, h.label, h.origin_label, h.sources,
-         public.ST_AsGeoJSON(public.ST_ForcePolygonCCW(public.ST_SetSRID(
-           public.ST_GeomFromGeoJSON(h.geom), 4326)), 6)::jsonb,
-         h.geom_sources, h.geom_method
+         -- A geometry that no document of the release gives does not leave.
+         CASE WHEN cardinality(h.geom_sources) > 0
+              THEN public.ST_AsGeoJSON(public.ST_ForcePolygonCCW(public.ST_SetSRID(
+                     public.ST_GeomFromGeoJSON(h.geom), 4326)), 6)::jsonb END,
+         h.geom_sources,
+         CASE WHEN cardinality(h.geom_sources) > 0 THEN h.geom_method END
     FROM sourced h
    WHERE h.type <> 'person'
       OR EXISTS (SELECT 1 FROM api.relation r JOIN sourced t ON t.id = r.dst_id
                   WHERE r.type = 'designated_by' AND r.src_kind = 'entity'
                     AND r.dst_kind = 'entity' AND r.src_id = h.id AND t.type <> 'person'
-                    AND EXISTS (SELECT 1 FROM public.public_document d
+                    AND EXISTS (SELECT 1 FROM public.export_document d
                                  WHERE d.id = ANY (r.sources)))
 $$;
 
@@ -8228,12 +8683,12 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   WITH held AS (SELECT e.id FROM public.release_entities() e)
   SELECT r.id, r.type, r.src_id, r.dst_id, r.valid_from, r.valid_to, r.origin_label,
          ARRAY(SELECT s.id::text FROM unnest(r.sources) AS s(id)
-                WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = s.id)
+                WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = s.id)
                 ORDER BY 1)
     FROM api.relation r
    WHERE r.src_kind = 'entity' AND r.dst_kind = 'entity'
      AND r.src_id IN (SELECT h.id FROM held h) AND r.dst_id IN (SELECT h.id FROM held h)
-     AND EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = ANY (r.sources))
+     AND EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = ANY (r.sources))
 $$;
 
 -- The identifier of a value is the identifier of its element, a slash and the key, so it stays
@@ -8320,7 +8775,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
            ARRAY(SELECT s.id FROM jsonb_array_elements_text(
                                     CASE jsonb_typeof(c.src) WHEN 'array' THEN c.src
                                          ELSE '[]'::jsonb END) AS s(id)
-                  WHERE EXISTS (SELECT 1 FROM public.public_document d WHERE d.id = s.id)
+                  WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = s.id)
                   ORDER BY 1) AS public_sources,
            CASE WHEN jsonb_typeof(c.value) IN ('string', 'number', 'boolean')
                 THEN btrim(lower(regexp_replace(c.value #>> '{}', '[^[:alnum:]]+', ' ', 'g')))
@@ -8357,7 +8812,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
    WHERE cardinality(k.public_sources) > 0
 $$;
 
--- Each public document, with its provider and the licence of its provider. A document with no
+-- Each document that a release can name, with its provider and the licence of its provider. A document with no
 -- provider has none. The alignment matrix reads the regime of a designation from the provider.
 CREATE FUNCTION release_documents()
 RETURNS TABLE (id text, title text, uri text, retrieved_at date, licence text, provider text,
@@ -8367,13 +8822,14 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   SELECT d.id::text, d.title, d.uri, d.retrieved_at, p.licence, p.id, d.doc_type
     FROM public.documents d
     LEFT JOIN public.document_provider p ON p.id = d.provider_id
-   WHERE d.id IN (SELECT o.id FROM public.public_document o)
+   WHERE d.id IN (SELECT o.id FROM public.export_document o)
 $$;
 
 -- THE FIGURES OF A RELEASE (ADR 0030). Each figure of the newest edition for its key, with the same
 -- licence filter as the public read. The function reads api.observation as its owner, and that view
 -- shows the owner only the figures with an open licence, so a figure with a restricted licence is
 -- not in a release. The view also hides a subject that the public read does not show.
+-- A figure whose document is below level A is not in a release either.
 CREATE FUNCTION release_observations()
 RETURNS TABLE (id uuid, measure text, value numeric, unit text, period text, method text,
                publisher text, reporter text, partner text, product text, subject_id uuid,
@@ -8383,6 +8839,7 @@ SET search_path = pg_catalog, public, pg_temp SET jit = off AS $$
   SELECT o.id, o.measure, o.value, o.unit, o.period, o.method, o.publisher, o.reporter, o.partner,
          o.product, o.subject_id, o.licence, o.document_id::text, o.page, o.span_start, o.span_end
     FROM api.observation o
+   WHERE EXISTS (SELECT 1 FROM public.export_document d WHERE d.id = o.document_id)
 $$;
 
 -- THE LOG OF THE MERGES (M12): each merge and each undo, with its label, and the entity that each

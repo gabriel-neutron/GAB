@@ -10,7 +10,7 @@
 
 A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.
 
-Report an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.
+Report an error: https://example.org/report-an-error. Corrections: https://example.org/corrections.
 
 ## The claims
 

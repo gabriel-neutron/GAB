@@ -73,7 +73,7 @@ const MANIFEST: ReleaseManifest = {
   dateRules: { eu: 'entry_into_force', ofac: 'recent_actions_notice', uk: 'date_designated' },
   contacts: {
     reportError: 'https://example.org/report-an-error',
-    rightOfReply: 'mailto:reply@example.org',
+    rightOfReply: 'https://example.org/corrections',
   },
   criticalNodes: null,
   volumes: null,
@@ -125,7 +125,18 @@ const UNDONE = '00000000-0000-4000-8000-00000000e00b';
 const BOUGHT_SHIP = '00000000-0000-4000-8000-00000000e00c';
 const BOUGHT_TWIN = '00000000-0000-4000-8000-00000000e00d';
 
+// This fixture tests the masks and the licences, so its documents stand at level A. The test of the
+// level gate has its own documents, with no such line.
+const atLevelA = async (ask: Ask) => {
+  await ask("UPDATE public.document_provider SET level = 'A' WHERE id IN ('gfw', 'datalastic')");
+  await ask(
+    `INSERT INTO public.document_level_rule (pattern, level, line)
+     VALUES ('^https://example\\.org/', 'A', 'test')`,
+  );
+};
+
 const documents = async (ask: Ask) => {
+  await atLevelA(ask);
   await ask(
     `INSERT INTO public.documents (id, kind, title, uri, retrieved_at, cost_eur, provider_id) VALUES
        ($1, 'url', 'OFAC SDN list', 'https://example.org/sdn.csv', '2026-10-01', NULL, 'ofac_sdn'),
@@ -435,7 +446,7 @@ test('a release writes the public entities, relations and claims, each row with 
     expect(one).toContain('GAB dataset, version 0.1-test of 08/11/2026.');
     expect(one).toContain('**About this data.**');
     expect(one).toContain('Report an error: https://example.org/report-an-error');
-    expect(one).toContain('Right of reply: mailto:reply@example.org');
+    expect(one).toContain('Corrections: https://example.org/corrections');
     expect(one).not.toContain('<link>');
     // No bought file is named, and no rating shows (S1).
     expect(one).not.toContain(BOUGHT);
@@ -456,7 +467,7 @@ test('a release writes the public entities, relations and claims, each row with 
     })
     .parse(JSON.parse(await text('manifest.json')));
   expect(manifest).toMatchObject({ version: '0.1-test', date: '2026-11-08' });
-  expect(manifest.disclaimer).toContain('Right of reply: mailto:reply@example.org');
+  expect(manifest.disclaimer).toContain('Corrections: https://example.org/corrections');
   expect(manifest.files.map((file) => file.path)).toStrictEqual([
     'entities.csv',
     'relations.csv',
@@ -1180,7 +1191,7 @@ test('a release writes the changelog since the previous release folder', async (
   const text = await readFile(join(folder, 'changelog.csv'), 'utf8');
   expect(text).toContain('# GAB dataset, version 0.1-test of 01/12/2026.');
   expect(text).toContain('# Changes since version 0.1-test of 08/11/2026.');
-  expect(text).toContain('Right of reply: mailto:reply@example.org');
+  expect(text).toContain('Corrections: https://example.org/corrections');
   // S1: the new release does not show the pair, so the changelog copies no letter and no digit
   // of the previous release.
   expect(text).not.toMatch(/nato|\b[A-F][1-6]\b|digits?:|letters?:/iu);
@@ -1420,7 +1431,7 @@ test('a release writes the critical nodes table from the sheet of the candidate 
   const fileOf = (root: string) => join(root, 'gab-release-2026-11-08', 'critical-nodes.csv');
   const text = await readFile(fileOf(off), 'utf8');
   expect(text).toContain('# GAB dataset, version 0.1-test of 08/11/2026.');
-  expect(text).toContain('Right of reply: mailto:reply@example.org');
+  expect(text).toContain('Corrections: https://example.org/corrections');
   expect(text).toContain('# Candidate nodes: 3. Retained: 1.');
   // S1: with the pair off, no column and no word of the pair.
   expect(text).not.toMatch(/nato|NATO|\b[A-F][1-6]\b/u);
@@ -1797,7 +1808,7 @@ test('a release writes the alignment matrix of the EU, OFAC and UK lists, one ro
   // The file states the date rule of each regime and holds the disclaimer, and the file manifest
   // gives the rules and the checksum of the file.
   expect(matrixText).toContain('# GAB dataset, version 0.1-test of 08/11/2026.');
-  expect(matrixText).toContain('Right of reply: mailto:reply@example.org');
+  expect(matrixText).toContain('Corrections: https://example.org/corrections');
   expect(matrixText).toContain(
     'EU: the date of entry into force. OFAC: the date of the Recent Actions notice. UK: the date designated.',
   );
@@ -1974,6 +1985,7 @@ test('the lane of events reads what a real release holds: the precision, the den
   const root = await mkdtemp(join(tmpdir(), 'gab-release-test-'));
   await inTransaction(async (held) => {
     const { ask } = held;
+    await atLevelA(ask);
     await ask(
       `INSERT INTO public.documents (id, kind, title, uri, retrieved_at, cost_eur, provider_id) VALUES
          ($1, 'url', 'A post', 'https://example.org/post', '2026-10-01', NULL, NULL),
@@ -2109,4 +2121,100 @@ test('a relation claim reads the passages of an accepted act that added a source
       ],
     },
   ]);
+});
+
+test('a release lets out only level A: no other document, and no row with no such document', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'gab-release-level-'));
+  const GATE = {
+    A: 'doc_level_a',
+    RULE_A: 'doc_level_rule_a',
+    B: 'doc_level_b',
+    C: 'doc_level_c',
+    NOT_VERIFIED: 'doc_level_nv',
+    RESTRICTED: 'doc_level_restricted',
+    MARKED: 'doc_level_marked',
+    COPY: 'doc_level_copy',
+  };
+  const WORDS = 'TEST GATE FIRM is a firm.';
+  const firm = (n: number) => `00000000-0000-4000-8000-0000000007${String(n).padStart(2, '0')}`;
+  const made = await inTransaction(async (held) => {
+    const { ask } = held;
+    await ask(
+      `INSERT INTO public.documents (id, kind, title, uri, retrieved_at, provider_id, restricted) VALUES
+         ($1, 'url', 'Gate level A', 'https://list.test/a', '2026-10-01', 'ofac_sdn', false),
+         ($2, 'url', 'Gate rule A', 'https://www.justice.gov/opa/pr/one', '2026-10-01', NULL, false),
+         ($3, 'api', 'Gate level B', 'https://list.test/b', '2026-10-01', 'gfw', false),
+         ($4, 'url', 'Gate level C', 'https://list.test/c', '2026-10-01', 'osm', false),
+         ($5, 'url', 'Gate not verified', 'https://list.test/nv', '2026-10-01', NULL, false),
+         ($6, 'url', 'Gate restricted', 'https://sudact.ru/arbitral/doc/one/', '2026-10-01', NULL, false),
+         ($7, 'url', 'Gate marked', 'https://list.test/marked', '2026-10-01', 'ofac_sdn', true),
+         ($8, 'url', 'Gate copy', 'https://web.archive.org/web/2024/https://www.justice.gov/opa/pr/one',
+          '2026-10-01', NULL, false)`,
+      Object.values(GATE),
+    );
+    const ids = Object.values(GATE);
+    for (const [index, id] of ids.entries()) {
+      await ask(
+        'INSERT INTO public.document_text (document_id, extractor, page, text) VALUES ($1, $2, 1, $3)',
+        [id, EXTRACTOR, WORDS],
+      );
+      const act = await entity(held, firm(index), 'company', `TEST GATE FIRM ${String(index)}`, [
+        id,
+      ]);
+      await ask(
+        `INSERT INTO public.citation (claim_id, doc_id, page, start, "end", modality, text_extractor)
+         VALUES ($1, $2, 1, 0, $3, 'asserts', $4)`,
+        [act, id, WORDS.length, EXTRACTOR],
+      );
+    }
+    // A row with a level A document and a document below it keeps the first alone.
+    await entity(held, firm(20), 'company', 'TEST GATE MIXED', [GATE.A, GATE.NOT_VERIFIED]);
+    const written = await writeRelease(held.as('gabriel_app'), MANIFEST, root);
+    const read = await readReleaseRecord(held.as('gabriel_app'), { natoPair: false });
+    const levels = await ask(
+      `SELECT d.id::text AS id, public.document_level(d.id::text) AS level,
+              public.document_restricted(d.id::text) AS restricted
+         FROM public.documents d WHERE d.id = ANY ($1::text[]::doc_id[]) ORDER BY d.id`,
+      [ids],
+    );
+    return { written, read, levels };
+  });
+  expect(made.levels).toStrictEqual([
+    { id: GATE.A, level: 'A', restricted: false },
+    { id: GATE.B, level: 'B', restricted: false },
+    { id: GATE.C, level: 'C', restricted: false },
+    { id: GATE.COPY, level: 'not_verified', restricted: false },
+    { id: GATE.MARKED, level: 'A', restricted: true },
+    { id: GATE.NOT_VERIFIED, level: 'not_verified', restricted: false },
+    { id: GATE.RESTRICTED, level: 'not_verified', restricted: true },
+    { id: GATE.RULE_A, level: 'A', restricted: false },
+  ]);
+  const gate = new Set(Object.values(GATE));
+  expect([...made.read.documents.keys()].filter((id) => gate.has(id)).sort()).toStrictEqual(
+    [GATE.A, GATE.RULE_A].sort(),
+  );
+  const named = made.read.entities.filter((one) => one.label.startsWith('TEST GATE'));
+  expect(named.map((one) => one.label).sort()).toStrictEqual([
+    'TEST GATE FIRM 0',
+    'TEST GATE FIRM 1',
+    'TEST GATE MIXED',
+  ]);
+  expect(named.find((one) => one.label === 'TEST GATE MIXED')?.sources).toStrictEqual([GATE.A]);
+  const files = await Promise.all(
+    (await readdir(made.written.folder)).map((name) =>
+      readFile(join(made.written.folder, name), 'utf8'),
+    ),
+  );
+  for (const title of [
+    'Gate level B',
+    'Gate level C',
+    'Gate not verified',
+    'Gate restricted',
+    'Gate marked',
+    'Gate copy',
+    'sudact.ru',
+  ])
+    for (const text of files) expect(text).not.toContain(title);
+  expect(files.join('\n')).toContain('Gate level A');
+  expect(files.join('\n')).toContain('Gate rule A');
 });

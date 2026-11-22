@@ -15,7 +15,9 @@ const FIND = `SELECT d.id::text AS id, d.title, d.uri, d.kind, d.doc_type, d.mim
          (SELECT max(t.page) FROM public.document_text t WHERE t.document_id = d.id)::int
            AS text_pages,
          (SELECT p.archive_id FROM public.documents p WHERE p.id = d.id) AS archive_id,
-         (SELECT p.archive_path FROM public.documents p WHERE p.id = d.id) AS archive_path
+         (SELECT p.archive_path FROM public.documents p WHERE p.id = d.id) AS archive_path,
+         public.document_level(d.id::text) AS level,
+         public.document_restricted(d.id::text) AS restricted
     FROM api.document d
    WHERE ($1::text IS NULL OR d.uri ILIKE '%' || $1::text || '%' ESCAPE '\\')
      AND ($2::text IS NULL OR d.title ILIKE '%' || $2::text || '%' ESCAPE '\\')
@@ -33,6 +35,8 @@ const row = z.strictObject({
   text_pages: z.number().int().nullable(),
   archive_id: z.string().nullable(),
   archive_path: z.string().nullable(),
+  level: z.string(),
+  restricted: z.boolean(),
 });
 
 export const findDocument = defineTool({
@@ -44,7 +48,9 @@ export const findDocument = defineTool({
     'reference, company_publication, telegram_post, ngo_publication, news_article or other, ' +
     'and "host" is the host of the address. "textPages" is the number of pages of stored text, and null means ' +
     'that the document has no text to read or to cite. "archive" names the zip archive that ' +
-    'held a file, and the path of the file in it.',
+    'held a file, and the path of the file in it. "level" is A, B, C or not_verified: a release ' +
+    'names level A only. A "restricted" document never leaves, and an excerpt of it names a legal ' +
+    'person only.',
   input: z
     .strictObject({
       url: z.string().trim().min(1).max(2048).optional().describe('the address, or a part of it'),

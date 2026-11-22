@@ -4,7 +4,7 @@ import { readReleaseManifest, ReleaseManifestFault } from './release-manifest.ts
 
 const CONTACTS = {
   reportError: 'https://example.org/report',
-  rightOfReply: 'mailto:reply@example.org',
+  rightOfReply: 'https://example.org/corrections',
 };
 
 const TODAY = new Date('2026-11-08T21:30:00Z');
@@ -48,6 +48,10 @@ test.each([
   ['no contact address', {}],
   ['one contact address only', { contacts: { reportError: CONTACTS.reportError } }],
   ['a blank contact address', { contacts: { ...CONTACTS, rightOfReply: ' ' } }],
+  [
+    'a mail address for the Corrections page',
+    { contacts: { ...CONTACTS, rightOfReply: 'mailto:a@x.org' } },
+  ],
   ['a contact address that is not a link', { contacts: { ...CONTACTS, reportError: 'a team' } }],
   ['a contact address on plain http', { contacts: { ...CONTACTS, reportError: 'http://x.org' } }],
   ['a quote in a contact address', { contacts: { ...CONTACTS, reportError: 'https://x.org/"a' } }],

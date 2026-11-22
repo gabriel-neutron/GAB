@@ -2,6 +2,8 @@
 // fault of the web is turned into a sentence that holds a status and nothing the web said. An
 // address can hold a query and a key can hold a secret, so no message made here repeats either.
 
+import { z } from 'zod';
+
 import type { Reach, Web, WebAnswer } from './tool.ts';
 import { ToolRefusal } from './tool.ts';
 
@@ -69,3 +71,29 @@ export const isWebAddress = (raw: string): boolean => {
 
 export const clipped = (text: string, limit: number): string =>
   text.length <= limit ? text : `${text.slice(0, limit - 1)}…`;
+
+export const searxRows = z.object({ results: z.array(z.unknown()) });
+
+export const plain = (html: string): string =>
+  html
+    .replace(/<[^>]*>/gu, '')
+    .replace(/\s+/gu, ' ')
+    .trim();
+
+export const searxSearch = (setting: string, query: string): string => {
+  let base: URL;
+  try {
+    base = new URL(setting);
+  } catch {
+    throw new UpstreamFault('the SearXNG address is not an address');
+  }
+  if (base.protocol !== 'http:' && base.protocol !== 'https:')
+    throw new UpstreamFault('the SearXNG address is not an http address');
+  const url = new URL(base.href);
+  url.pathname = `${url.pathname.replace(/\/+$/u, '')}/search`;
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('q', query);
+  url.searchParams.set('format', 'json');
+  return url.href;
+};

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import tailwindcss from '@tailwindcss/vite';
@@ -7,7 +7,12 @@ import { defineConfig, loadEnv } from 'vite';
 
 import { openWithKey } from './tools/dev-open.ts';
 import { maplibreWorker } from './tools/maplibre-worker.ts';
-import { fetchDataRelease, largeFileRedirects, servedFiles } from './tools/data-release.ts';
+import {
+  fetchDataRelease,
+  largeFileRedirects,
+  listedFiles,
+  servedFiles,
+} from './tools/data-release.ts';
 import { releaseFolder, reportFolder } from './tools/release-folder.ts';
 import { isReleaseBuild } from '@gab/release/site-crawl';
 import { stagingHeaders } from './tools/staging-headers.ts';
@@ -44,8 +49,17 @@ export default defineConfig({
     tailwindcss(),
     // Departure: the release is the one input that the build takes from the environment, because
     // a release is a folder of the operator and not a file of the repository.
+    // A folder with a manifest publishes only the files that the manifest lists. Only a build
+    // checks their checksums, so a dev start reads no large file.
     fetched === undefined
-      ? releaseFolder(releaseDir)
+      ? releaseFolder(
+          releaseDir,
+          releaseDir !== undefined &&
+            releaseDir !== '' &&
+            existsSync(path.join(releaseDir, 'manifest.json'))
+            ? listedFiles(releaseDir, process.argv.includes('build'))
+            : undefined,
+        )
       : [releaseFolder(fetched, servedFiles(fetched)), largeFileRedirects(fetched)],
     // An empty REPORT_DIR also takes the default, so the operator is not left with the root folder.
     reportFolder(

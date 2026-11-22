@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { describe, expect, test } from 'vitest';
 
 import {
+  holdsSecret,
   FetchRefusal,
   guardedGet,
   HEADERS,
@@ -178,4 +179,94 @@ describe('the headers of a part of a page', () => {
       site,
     });
   });
+});
+
+describe('a body that stops', () => {
+  test('a body that does not end in time is refused for the time, not as an unreachable address', async () => {
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { 'content-type': 'text/plain', 'content-length': '100' });
+      response.write('partial');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    try {
+      await expect(
+        guardedGet(`http://127.0.0.1:${String(port)}/`, {
+          maxBytes: 1024,
+          timeoutMs: 300,
+          maxRedirects: 0,
+          refuses: () => false,
+        }),
+      ).rejects.toThrow(/gave no whole answer within 0.3 seconds/u);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+});
+
+test.each([
+  'key',
+  'token',
+  'subscription-key',
+  'MAP_KEY',
+  'api_key',
+  'apikey',
+  'access_token',
+  'id_token',
+  'client_secret',
+  'password',
+  'pwd',
+  'auth',
+  'sig',
+  'signature',
+  'X-Amz-Signature',
+  'X-Amz-Credential',
+  'X-Amz-Security-Token',
+  'X-Goog-Signature',
+  'X-Goog-Credential',
+  'GoogleAccessId',
+  'Key-Pair-Id',
+  'AWSAccessKeyId',
+  'jwt',
+])('an address with the query name %s holds a secret', (name) => {
+  expect(holdsSecret(`https://data.example/file.csv?${name}=abc`)).toBe(true);
+});
+
+test.each([
+  'keyword',
+  'page',
+  'q',
+  'tokens_used',
+  'id',
+  'format',
+  'pageToken',
+  'nextPageToken',
+  '$skiptoken',
+  'continuationToken',
+  'sortKey',
+  'series_key',
+])('an address with the query name %s holds no secret', (name) => {
+  expect(holdsSecret(`https://data.example/file.csv?${name}=abc`)).toBe(false);
+});
+
+test.each([
+  'file.csv?key[]=abc',
+  'file.csv?api_key[0]=abc',
+  'file.csv?a=1;key=abc',
+  'page#access_token=abc',
+  'page#a=1&token=abc',
+])('the address %s holds a secret', (path) => {
+  expect(holdsSecret(`https://data.example/${path}`)).toBe(true);
+});
+
+test.each([
+  'page#key',
+  'page#public-key',
+  'page#/vessel/123',
+  'page#page=2',
+  'file.csv?a=1;page=2',
+  'file.csv?pageToken[]=1',
+])('the address %s holds no secret', (path) => {
+  expect(holdsSecret(`https://data.example/${path}`)).toBe(false);
 });

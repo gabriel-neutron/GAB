@@ -63,6 +63,8 @@ const SKIPPED = [
   [{ type: 'ru_register' }, 'registration_number', '12345', /not a number of the Russian/u],
   [{ type: 'identifier' }, 'lei', 'not found', /not a LEI/u],
   [{ type: 'identifier' }, 'lei', '253400JT3MQWNDKMJE45', /not a LEI/u],
+  [{ type: 'identifier' }, 'swift_bic', 'not found', /not a BIC/u],
+  [{ type: 'identifier' }, 'ru_bic', '4452522', /not a Russian BIC/u],
 ] as const;
 
 for (const [cast, key, text, reason] of SKIPPED)
@@ -76,6 +78,17 @@ test('a LEI in its legal form loads in capitals', () => {
   expect(castCell({ type: 'identifier' }, 'lei', '253400jt3mqwndkmje44')).toStrictEqual({
     ok: true,
     value: '253400JT3MQWNDKMJE44',
+  });
+});
+
+test('a BIC loads in its one form, and a Russian BIC keeps its leading zero', () => {
+  expect(castCell({ type: 'identifier' }, 'swift_bic', 'asanru8xxxx')).toStrictEqual({
+    ok: true,
+    value: 'ASANRU8X',
+  });
+  expect(castCell({ type: 'identifier' }, 'ru_bic', '044525225')).toStrictEqual({
+    ok: true,
+    value: '044525225',
   });
 });
 

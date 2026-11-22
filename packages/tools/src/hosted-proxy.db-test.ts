@@ -1,6 +1,9 @@
 // The read of a Russian host through the hosted proxy, against the disposable database. A local
 // server plays the host and the proxy. The object store is in memory.
 
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
@@ -10,6 +13,8 @@ import { rolledBack, type Ask } from '../../../tools/probe.ts';
 import { CATALOGUE } from './catalogue.ts';
 import { endMetadata } from './fetch-document.ts';
 import { FETCH_DAY, memoryStore } from './fetch-fixture.ts';
+import { hostLease } from './host-lease.ts';
+import { proxyLedger } from './proxy-ledger.ts';
 import { PROXY_NOTICE } from './hosted-proxy.ts';
 import { callTool, type Reach, type Session } from './tool.ts';
 
@@ -33,6 +38,8 @@ const sessionOf = (ask: Ask): Session => ({
 let server: Server;
 let port: number;
 const seen: string[] = [];
+const bodies: string[] = [];
+let stateDir = '';
 
 beforeAll(async () => {
   server = createServer((request, response) => {
@@ -41,28 +48,41 @@ beforeAll(async () => {
     const reply = (status: number, body: string): void => {
       response.writeHead(status, { 'content-type': 'text/html; charset=utf-8' }).end(body);
     };
-    if (url.startsWith('/proxy')) reply(200, PAGE);
-    else if (url === '/block') reply(200, BLOCK);
+    if (url.startsWith('/proxy')) {
+      let body = '';
+      request.on('data', (part: Buffer) => (body += part.toString()));
+      request.on('end', () => {
+        bodies.push(body);
+        reply(200, PAGE);
+      });
+    } else if (url === '/block') reply(200, BLOCK);
     else reply(503, 'refused');
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   port = (server.address() as AddressInfo).port;
+  stateDir = mkdtempSync(join(tmpdir(), 'gab-proxy-db-'));
 });
 
 afterAll(async () => {
   server.closeAllConnections();
   await new Promise((resolve) => server.close(resolve));
   await endMetadata();
+  rmSync(stateDir, { recursive: true, force: true });
 });
 
-const reachWith = (store: ReturnType<typeof memoryStore>): Reach => ({
-  store,
-  now: () => FETCH_DAY,
-  lookup: () => Promise.resolve([{ address: '127.0.0.1', family: 4 }]),
-  refuses: () => false,
-  hostedProxyKey: KEY,
-  hostedProxyEndpoint: `http://proxy.test:${port}/proxy`,
-});
+const reachWith = (store: ReturnType<typeof memoryStore>): Reach => {
+  const clock = { dir: stateDir, now: () => FETCH_DAY, sleep: () => Promise.resolve() };
+  return {
+    store,
+    now: () => FETCH_DAY,
+    lookup: () => Promise.resolve([{ address: '127.0.0.1', family: 4 }]),
+    refuses: () => false,
+    hostedProxyKey: KEY,
+    hostedProxyEndpoint: `http://127.0.0.1:${port}/proxy`,
+    hostLease: hostLease(clock),
+    proxyLedger: proxyLedger(clock),
+  };
+};
 
 test.each(['/gone', '/block'])(
   'a Russian host that refuses the direct read (%s) is read once through the proxy',
@@ -90,11 +110,12 @@ test.each(['/gone', '/block'])(
       ]);
       const calls = seen.filter((seenPath) => seenPath.startsWith('/proxy'));
       expect(calls).toHaveLength(1);
-      const query = new URL(`http://x${calls[0] ?? ''}`).searchParams;
-      expect(query.get('url')).toBe(url);
-      expect(query.get('premium_proxy')).toBe('true');
-      expect(query.get('country_code')).toBe('ru');
-      expect(query.get('render_js')).toBe('false');
+      expect(calls[0]).toBe('/proxy');
+      expect(JSON.parse(bodies.at(-1) ?? '{}')).toMatchObject({
+        url,
+        format: 'raw',
+        country: 'ru',
+      });
     });
   },
 );

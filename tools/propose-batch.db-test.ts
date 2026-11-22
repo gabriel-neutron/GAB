@@ -624,6 +624,29 @@ test('the promotion closes the act that repeats the fact, and takes its document
   expect(found.twin).toStrictEqual([{ status: 'rejected', reject_reason: 'duplicate' }]);
 });
 
+const MODE = 'SELECT decided_as FROM public.proposals WHERE id = $1::uuid';
+
+// The act that repeats the fact takes the mode of the promotion. Only a named rule writes 'rule',
+// so a decision of the operator never reads as a decision of a rule.
+test.each([null, 'unit'])(
+  'the act that repeats the fact is closed with the mode %s of the promotion',
+  async (mode) => {
+    const found = await rolledBack('superuser', async (ask) => {
+      const call = await seedOther(ask);
+      const [first] = outcomes.parse(await batchAs(ask, 'gabriel_agent', [itemOf(call)]));
+      const [twin] = outcomes.parse(
+        await batchAs(ask, 'gabriel_agent', [{ ...onOther(itemOf(call)), originator: 'Reuters' }]),
+      );
+      await ask(`SELECT public.apply_proposal($1::uuid, 'operator', $2)`, [
+        first?.proposal_id,
+        mode,
+      ]);
+      return ask(MODE, [twin?.proposal_id]);
+    });
+    expect(found).toStrictEqual([{ decided_as: mode }]);
+  },
+);
+
 const ATTR_SRC = `SELECT e.attrs -> k.key -> 'src' AS src
   FROM public.entities e CROSS JOIN LATERAL jsonb_object_keys($2::jsonb) AS k(key)
   WHERE e.id = $1::uuid`;

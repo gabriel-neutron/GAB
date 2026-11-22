@@ -380,9 +380,22 @@ export const replace = async (fix: Fix, doors: Doors): Promise<Result> => {
   const made = sent.proposals[0];
   if (made === undefined) return stays('the door returned no new act', 1);
   if ((await doors.waiting([made.proposalId])) !== 1) return stays('the new act does not wait', 1);
+  // A new act that waits beside the old acts would hold the key on each later run, so a refusal
+  // after the send withdraws it while no old act is rejected yet. A new act that is an old act
+  // (the door wrote nothing twice) stays.
+  const withdrawn = async (reason: string): Promise<Result> => {
+    if (fix.olds.some((one) => one.id === made.proposalId)) return stays(reason, 1);
+    try {
+      await doors.rejectUnit(made.proposalId, `withdrawn: ${reason}`);
+      return stays(`${reason}; the new act is withdrawn`, 1);
+    } catch (cause) {
+      const why = cause instanceof Error ? cause.message : String(cause);
+      return stays(`${reason}; the withdrawal of the new act failed: ${why}`, 1);
+    }
+  };
   const weak = made.unstated.length > 0 || made.droppedBounds.length > 0;
   if (weak && !fix.olds.some((one) => one.dissent))
-    return stays('the new act holds a value that no excerpt states', 1);
+    return withdrawn('the new act holds a value that no excerpt states');
   let rejected = 0;
   try {
     for (const old of fix.olds.filter((one) => one.id !== made.proposalId)) {
@@ -390,18 +403,24 @@ export const replace = async (fix: Fix, doors: Doors): Promise<Result> => {
       rejected += 1;
     }
   } catch (cause) {
-    return {
-      key,
-      status: 'refused',
-      reason: `a rejection failed: ${cause instanceof Error ? cause.message : String(cause)}`,
-      sent: 1,
-      rejected,
-    };
+    const reason = `a rejection failed: ${cause instanceof Error ? cause.message : String(cause)}`;
+    if (rejected === 0) return withdrawn(reason);
+    return { key, status: 'refused', reason, sent: 1, rejected };
   }
   return { key, status: 'done', sent: 1, rejected };
 };
 
 // ----------------------------------------------------------------------------- the database --
+
+// The other entities that hold the number. A value of the record can be a text, a number, a list of
+// one element or, for an IMO number, a text with the prefix IMO: each form counts. The rule of
+// public.imo_key is written out, because the role of the reader holds no grant on it.
+const IMO_DIGITS = String.raw`'^\s*(?:[Ii][Mm][Oo]\s*)?([0-9]{7})\s*$'`;
+const HOLDERS_SQL = `SELECT id::text AS id FROM api.entity
+  WHERE attrs->$1->>'v' = $2
+    OR attrs->$1->'v' @> jsonb_build_array($2::text)
+    OR ($1 = 'imo'
+      AND substring(attrs->'imo'->>'v' FROM ${IMO_DIGITS}) = substring($2 FROM ${IMO_DIGITS}))`;
 
 const recordRow = z.object({
   id: z.string(),
@@ -516,12 +535,9 @@ export const readBare = async (
     if (value !== undefined)
       held.set(
         value,
-        (
-          await reader.query("SELECT id::text AS id FROM api.entity WHERE attrs->$1->>'v' = $2", [
-            key,
-            value,
-          ])
-        ).rows.map((one) => z.object({ id: z.string() }).parse(one).id),
+        (await reader.query(HOLDERS_SQL, [key, value])).rows.map(
+          (one) => z.object({ id: z.string() }).parse(one).id,
+        ),
       );
     out.push({ entity, plan: planBare(entity, carriers, held) });
   }
@@ -545,11 +561,15 @@ const main = async (): Promise<number> => {
   const writer = new Pool({ connectionString: connectionString('research') });
   try {
     const doors = doorsOf(writer, pool);
-    const show = (done: Result): void =>
+    // A refused act makes the exit code 1, so a caller sees that the work did not end.
+    let refused = 0;
+    const show = (done: Result): void => {
+      if (done.status === 'refused') refused += 1;
       console.log(
         `${done.status}\t${done.key}\t${String(done.sent)} sent\t${String(done.rejected)} rejected` +
           (done.reason === undefined ? '' : `\t${done.reason}`),
       );
+    };
     if (only === undefined || only === 'history') {
       const found = await readHistory(pool);
       console.log(`${write ? 'write' : 'dry run'} history: ${String(found.length)} acts`);
@@ -591,7 +611,7 @@ const main = async (): Promise<number> => {
       console.log(`ready\t${String(ready.length)}`);
       if (write) for (const fix of ready.slice(0, limit)) show(await replace(fix, doors));
     }
-    return 0;
+    return refused === 0 ? 0 : 1;
   } finally {
     await pool.end();
     await writer.end();

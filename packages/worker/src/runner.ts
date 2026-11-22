@@ -20,6 +20,10 @@ import { layoutRefresher } from './layout-refresh.ts';
 import type { Queryable } from './queryable.ts';
 import type { ModelConfig } from './reader-config.ts';
 
+// A dead session holds its lock until the server sees that it is dead. Origin of the number: with
+// the default TCP keepalive of Linux, the server sees it after 7,200 s of idle time and 9 probes of
+// 75 s, that is 7,875 s. The runner waits a little longer, and then it stops, as at its start.
+const LOCK_RECOVERY_MS = 8_000_000;
 const SETTINGS = 'SELECT empty_wait_seconds FROM public.runner_settings()';
 const TRY_LOCK = 'SELECT pg_try_advisory_lock($1::bigint) AS locked';
 const REQUEUE = 'SELECT public.requeue_running_jobs()';
@@ -173,6 +177,7 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
   };
 
   // The lock comes first: a runner that does not hold it claims nothing and puts nothing back.
+  class LockBusy extends Error {}
   let seat: RunnerLock | undefined;
   const letGo = async (): Promise<void> => {
     const old = seat;
@@ -186,7 +191,7 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
     try {
       const { locked } = lockRow.parse((await fresh.query(TRY_LOCK, [RUNNER_LOCK_KEY])).rows[0]);
       if (!locked)
-        throw new Error('Another runner is running, so this runner stops and claims nothing.');
+        throw new LockBusy('Another runner is running, so this runner stops and claims nothing.');
     } catch (cause) {
       await fresh.release().catch(() => undefined);
       throw cause;
@@ -358,6 +363,7 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
     step,
     run: async (signal) => {
       let lost = false;
+      let busy = 0;
       while (!signal.aborted) {
         try {
           // Each running row of the role is ours, and no slot runs at this point: the job in hand
@@ -366,9 +372,20 @@ export const openRunner = async (deps: RunnerDeps): Promise<Runner> => {
             await takeLock();
             await db.query(REQUEUE);
             lost = false;
+            busy = 0;
           } else await keepLock();
           await slots(signal);
         } catch (error) {
+          // After a lost connection, the dead session of this runner can keep the lock until the
+          // server sees that it is dead. The runner waits for it, and claims nothing in the wait.
+          const wait = settings.empty_wait_seconds * MS;
+          // A wait of zero still counts as one second, so that the waits end.
+          if (lost && error instanceof LockBusy && busy * Math.max(wait, MS) < LOCK_RECOVERY_MS) {
+            busy += 1;
+            console.error('the lock is still held after a lost connection, and the runner waits');
+            await deps.sleep(wait);
+            continue;
+          }
           if (!isConnectionFault(error)) throw error;
           lost = true;
           console.error('the database connection failed, and the runner waits', String(error));

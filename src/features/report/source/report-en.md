@@ -4,19 +4,29 @@
 
 **The method.** The report searches a database of nearly 5,200 entities, where every fact points to an archived document. It looks for the nodes (companies, ports, fleets, banks, payment channels) that are exposed to sanctions, active in 2024-2026 and tied to a country that does not apply them.
 
-**The result.** Russia holds out, and the report explains this by new trade relations with countries that are not aligned with the coalition. These countries use their strategic autonomy and, at the same time, take advantage of their strong position in negotiations with Russia.
+**The result.** Sanctions make the war more costly for Russia, but they do not cut its money or its goods: trade moves to partners that do not apply the sanctions, and to a parallel market of tankers, payment relays and companies with no documented owner.
+
+**The report's own measures.**
+
+- –**Designations:** When the EU and the United States designate the same tanker, the United States does so first in nearly nine cases out of ten, and the median gap from the first to the second regime is 87 days.
+
+- –**Port calls:** Of 711 tankers with a dated designation, 318 called at a port at least once after it, and 22 of them called in the EU or the United Kingdom.
+
+- –**Owners and managers:** On the archived pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships that give both dates show an owner or manager that started after the designation.
+
+- –**Ownership chains:** The 50% rule follows shares: the chains of the large state companies end at the state, but in the private fleet and in oil trading they often end at a company with no documented owner, and about fifteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner.
 
 - –**Customers:** From 2021 to 2025, EU purchases from Russia fell by 84%;[^1] China became Russia's first customer, and India bought twenty times as much Russian crude.
 
-- –**Ships:** The tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance, carried 79% of the crude exported by sea in January 2026.[^2]
+- –**Ships:** According to the KSE Institute, the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance, carried 79% of the crude exported by sea in January 2026.[^2]
 
-- –**Price:** Since November 2025, the discount of Russian crude to Brent has almost doubled. The report links this, as a hypothesis, to the American sanctions on Rosneft and Lukoil. Russia's partners benefit: China buys Russian crude at a discount and sells the components of weapons at a high premium.
+- –**Price:** From August 2023 to October 2025, Urals sold $10 to $16 below Brent each month; since November 2025, after the OFAC designation of Rosneft and Lukoil, it has sold $19 to $27 below. Russia's partners benefit: China buys Russian crude at a discount and sells the components of weapons at a high premium.
 
 - –**Budget:** The share of oil and gas in federal revenue falls from one half in 2014 to less than one fifth in 2026, partly because that revenue is shrinking.[^3]
 
-- –**Currency:** The rouble settled 53% of Russian exports in 2025, against 14% in 2021,[^4] and the rouble and the yuan settle almost all payments with China.
+- –**Currency:** The rouble settled 53% of Russian exports in 2025, against 14% in 2021,[^4] and, according to the Russian government, the rouble and the yuan settle almost all payments with China.
 
-- –**Components:** Finally, China supplied 77% of the priority goods for weapons sold to Russia in 2025, and Hong Kong 11%.[^5]
+- –**Components:** Of the priority goods for weapons that its partners declared as sold to Russia in 2025, China supplied 77% and Hong Kong 11%,[^5] and two thirds of the dated parts found in Russian weapons were made after the invasion.
 
 The sources of the other figures are given in the body of the report.
 
@@ -45,6 +55,10 @@ Yet the war goes on in 2026, and the Russian state manages to pay for it. At con
 
 Which nodes (companies, ports, fleets, banks) make it possible to finance the war? Who owns them? How do they get around the sanctions?
 
+The report does not measure how the nodes get around the sanctions: it shows which routes stay open after each measure, and it gives each mechanism as a claim of its source or as a hypothesis.
+
+This report finds that sanctions make the war more costly for Russia, but they do not cut its money or its goods: trade moves to partners that do not apply the sanctions, and to a parallel market of tankers, payment relays and companies with no documented owner.
+
 [^6]: Council Regulation (EU) No 269/2014, Annex I (CELEX 32014R0269); Council Regulation (EU) No 833/2014, Arts. 2–5 (CELEX 32014R0833). https://eur-lex.europa.eu.
 
 [^7]: U.S. Department of the Treasury. (2016, December 20). *Treasury Sanctions Individuals and Entities In Connection with Russia's Occupation of Crimea and the Conflict in Ukraine* (press release jl0688). https://home.treasury.gov/news/press-releases/jl0688.
@@ -65,9 +79,9 @@ FIGURE 1 TIMELINE (text inside the figure, one entry per line: date | title | de
 - 5 Feb. 2023 · coalition | Oil products | embargo and caps
 - 12 Oct. 2023 · OFAC | Cap enforcement | shipowners designated
 - 25 Feb. 2025 · EU | Ports banned | Primorsk, Novorossiysk, Ust-Luga
-- 3 Sep. 2025 · coalition | Cap lowered | $47.6 a barrel
+- 3 Sep. 2025 · EU | Cap lowered | $47.6 a barrel
 - 22 Oct. 2025 · OFAC | Rosneft and Lukoil | designated
-- 1 Feb. 2026 · coalition | Cap lowered | $44.1 a barrel
+- 1 Feb. 2026 · EU | Cap lowered | $44.1 a barrel
 - 24 Apr. 2026 · EU | New ports sanctioned | Tuapse, Murmansk
 
 ## 1 Method
@@ -101,7 +115,7 @@ FIGURE: Figure 2: The three layers of the Russian war economy and their links
 
 *Note.* Diagram by the author.
 
-These conditions single out the nodes where the sanctions are in place but the activity continues through a third country: where the circumvention can be seen, and where a new measure could have an effect.
+These conditions single out the nodes where the sanctions are in place but the activity continues through a third country: where circumvention may be at work, and where a new measure could have an effect.
 
 The choice of period follows the calendar of the sanctions. By 2024, the major oil measures are in place: the embargo, the price cap, and then the first designations of shipowners that do not respect that cap.[^11] The years 2024-2026 therefore show how trade has adapted to these sanctions. After each measure, the report looks for correlations between the sanctions and trade, and then proposes explanations, each one attributed to its source, or presented as a hypothesis when no source establishes it.
 
@@ -112,7 +126,7 @@ The choice of period follows the calendar of the sanctions. By 2024, the major o
 
 The data come from a database of nearly 5,200 entities (companies, ships, sites, ports, banks, people and legal acts) and the relations between them, such as a designation, an ownership, the management of a ship, a port call, an oil flow or a payment. These facts are taken from the official sanctions lists, company registers and published investigations, and each one points to the archived document that establishes it. The reliability of each official source follows the ADMIRALTY scale, which rates the issuer with a letter, from A for an official issuer (sanctions list, company register, official journal) to F when the issuer cannot be judged.
 
-In total, 493 nodes are critical, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For at least 416 of them, the three conditions rest on a document from an official issuer. Annex A describes how the facts are collected and checked.
+In total, 539 nodes are critical, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For 410 of them, each of the three conditions rests on a document from an official issuer. Annex A describes how the facts are collected and checked. Section A.3 says how the count of critical nodes was made.
 
 ## 2 Pay
 
@@ -145,7 +159,7 @@ Gas follows the same path to Asia: in 2025, for the first time, Gazprom delivere
 [^19]: Interfax. (2026, January 13). *Gazprom supplies 38.8 bcm of gas to China in 2025, for first time more than towards west – company*. Interfax. https://interfax.com/newsroom/top-stories/115552/.
 
 
-Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer.[^20] The report's hypothesis is that the gas sold to China therefore replaces the volumes lost in Europe, but not their revenue.
+Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer.[^20] The report's hypothesis is that the gas sold to China therefore replaces only part of the volumes lost in Europe, and less of their revenue.
 
 FIGURE: Figure 3: Russian exports by buyer and crude bought from Russia, 2020-2025
 
@@ -233,11 +247,11 @@ Crude export ports: Primorsk, Ust-Luga, Novorossiysk
 
 Russian crude that does not leave by pipeline leaves Russia through a few ports, mainly Primorsk and Ust-Luga on the Baltic, Novorossiysk on the Black Sea and Kozmino on the Pacific.[^40] Traffic at the first three, all goods included, held up despite the embargo: in 2025, it exceeded its 2021 level (figure 6).[^41]
 
-Sanctions ended up targeting these ports themselves. Since February 2025, an EU company can no longer deal with the ports on the Baltic and the Black Sea, and since April 2026 with Tuapse and Murmansk.[^42] Like the price cap, these measures bind only the companies of the coalition.
+Sanctions ended up targeting these ports themselves. Since February 2025, an EU company can no longer deal, save for listed exceptions, with the oil ports on the Baltic and the Black Sea, and since April 2026 with Tuapse and Murmansk.[^42] Like the price cap, these measures bind only EU companies.
 
 ### 2.5 The fleet
 
-To leave ports closed to companies of the coalition, the crude needs ships that do not depend on them. These are mostly the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance.[^43] Neither the cap nor the port ban touches them. The report's hypothesis is that their growth since the embargo explains why port traffic held up until 2025.
+To leave ports closed to companies of the coalition, the crude needs ships that do not depend on them. These are mostly the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance.[^43] Neither the cap nor the port ban touches them. The report's hypothesis is that their growth since the embargo helps explain why port traffic, all goods included, held up until 2025.
 
 [^40]: U.S. Department of the Treasury (2023), op. cit., n. 10 ; S&P Global Commodity Insights. (2024, January 10). *Russian Kozmino crude exports jump 9.4% in 2023 amid sanctions*. https://www.spglobal.com.
 
@@ -271,7 +285,7 @@ FIGURE: Figure 7: Russian oil exported by sea, January 2026
 
 The three sanctions regimes do not move at the same pace. When the EU and the United States designate the same
 
-[^46]: Author's calculations based on Global Fishing Watch (2026). https://globalfishingwatch.org ; OFAC (2026). https://sanctionslistservice.ofac.treas.gov ; FCDO (2026). https://sanctionslist.fcdo.gov.uk ; CELEX 32014R0833 ; https://eur-lex.europa.eu.
+[^46]: Author's calculations based on Global Fishing Watch (2026). https://globalfishingwatch.org, CC BY-NC 4.0, non-commercial use ; OFAC (2026). https://sanctionslistservice.ofac.treas.gov ; FCDO (2026). https://sanctionslist.fcdo.gov.uk ; CELEX 32014R0833 ; https://eur-lex.europa.eu.
 
 [^47]: Dodonov et al. (2026), op. cit., n. 2, p. 2.
 
@@ -282,15 +296,15 @@ ship, the United States does so first in nearly nine cases out of ten (figure 9)
 
 FIGURE: Figure 8: Port calls of designated tankers after their designation
 
-*Note.* Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations.[^50]
+*Note.* Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations. Powered by Global Fishing Watch.[^50]
 
-A designated ship also often changes hands. In a non-random sample of 100 designated ships, Ukrainian military intelligence (GUR), a party to the conflict, dates a change of owner or manager after designation for 81 of them.[^51] A list of ships therefore describes a situation that the ship has often already left. The report's hypothesis is that targeting the company that manages the tankers, and the country where it is based, would reach the fleet more surely than targeting each ship.
+A designated ship also often changes hands. On the archived pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships that give both a designation date and an owner or manager date show an owner or manager that started after the designation.[^51] A list of ships therefore describes a situation that the ship has often already left. The report's hypothesis is that targeting the company that manages the tankers, and the country where it is based, would reach the fleet more surely than targeting each ship.
 
 [^49]: Author's calculations based on OFAC (2026), op. cit., n. 46 ; CELEX 32014R0833 ; https://eur-lex.europa.eu.
 
 [^50]: See n. 46.
 
-[^51]: Author's calculations based on GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua ; OFAC (2026), op. cit., n. 46 ; FCDO (2026), op. cit., n. 46 ; CELEX 32014R0833 ; https://eur-lex.europa.eu.
+[^51]: Author's calculations based on GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua ; replay with tools/gur-owner-change.ts in the project repository.
 
 
 FIGURE: Figure 9: Tankers designated by the EU, the United Kingdom and OFAC
@@ -322,7 +336,7 @@ FIGURE: Figure 10: Settlement currency of Russian exports and imports, 2019-2025
 [^57]: Central Bank of Russia (2026), op. cit., n. 4.
 
 
-With China, the shift goes further. At the end of 2023, the yuan settled as many exports as the rouble,[^58] and the rouble and the yuan settle almost all payments between the two countries.[^59] This choice protects the trade from sanctions, but it ties Russia to a partner that accounts for about 40% of its trade, while Russia accounts for only a few per cent of Chinese trade.[^60] On the report's hypothesis, China can therefore set its terms.
+With China, the shift goes further. At the end of 2023, the yuan settled as many exports as the rouble,[^58] and, according to the Russian government, the rouble and the yuan settle almost all payments between the two countries.[^59] This choice protects the trade from sanctions, but it ties Russia to a partner that accounts for about 40% of its trade, while Russia accounts for only a few per cent of Chinese trade.[^60] On the report's hypothesis, China can therefore set its terms.
 
 ### 3.2 Payment relays
 
@@ -359,7 +373,7 @@ A payment in yuan is still exposed to US sanctions. A bank that settles in yuan 
 
 - **SPFS:** The Russian equivalent of SWIFT is open to foreign banks, which OFAC threatens to designate if they join it.[^74]
 
-The best-known payment agent, A7, hands each payment to a sub-agent in a third country, such as Hong Kong or Kyrgyzstan, and settles the counterparty in A7A5, a digital token worth one rouble.[^75] After the US, UK and EU designations in the second half of 2025, the daily volume of this token fell by 96% between July 2025 and June 2026.[^76]
+The best-known payment agent, A7, hands each payment to a sub-agent in a third country, such as Hong Kong or Kyrgyzstan, and settles the counterparty in A7A5, a digital token worth one rouble.[^75] After the US, UK and EU designations in the second half of 2025, then new Russian rules on crypto-assets and the loss of its points of access, the daily volume of this token fell by 96% between July 2025 and June 2026.[^76]
 
 [^67]: CELEX 32025R0395, Annex XI, p. 383; CELEX 32025R2033, p. 115; https://eur-lex.europa.eu.
 
@@ -402,7 +416,7 @@ Since 2022, the coalition no longer sells to Russia either its military technolo
 
 China and Hong Kong take the place of the coalition (figure 11), but in two different roles. China is above all a producer: for most of the dual-use technologies it sells to Russia, its exports rise without its imports rising, and re-export affects only a dozen high-technology products.[^82] Targeting China therefore hits production.
 
-Hong Kong plays another role, that of a platform. It takes a rising share of Russian imports of processors and integrated circuits, in place of the coalition, which may signal re-exported Western chips.[^83] Hong Kong applies only the sanctions decided by the UN Security Council, which do not target Russia: EU and US sanctions have no legal force there. This financial centre also lets a company hide its owner, and lets new companies be created or dissolved quickly. It is therefore a convenient place of transit
+Hong Kong plays another role, that of a platform. It takes a rising share of Russian imports of processors and integrated circuits, in place of the coalition, which may signal re-exported Western chips.[^83] Hong Kong applies only the sanctions decided by the UN Security Council, which do not target Russia: EU and US sanctions are not part of its law, although US export controls still follow goods of US origin. This financial centre also lets a company hide its owner, and lets new companies be created or dissolved quickly. It is therefore a convenient place of transit
 
 [^80]: CELEX 32014R0833, Arts. 2 and 4; European Commission. (2024, February). *List of common high priority items*. https://finance.ec.europa.eu/system/files/2023-09/list-common-high-priority-items_en.pdf; https://eur-lex.europa.eu.
 
@@ -421,7 +435,7 @@ FIGURE: Figure 11: Exports of CHP goods to Russia, 2021-2025
 
 ### 4.2 The price of the goods
 
-This change of suppliers has a price. From the spring of 2022, Russian imports became more expensive. The main cause is neither transport nor the detour through neighbouring countries. It is the margins of the suppliers that stayed on the market, which the departure of Western competitors lets them raise, in particular for strategic goods.[^86] Dependence on China sharpens this effect: the premium that Russia pays China for priority goods rises with the Chinese share of its purchases, and for computer numerical control machine tools, with no other seller, Russia must accept the Chinese price.[^87] Sanctions therefore do not cut off access to these
+This change of suppliers has a price. From the spring of 2022, Russian imports became more expensive. The main cause is neither transport nor the detour through neighbouring countries. According to the CEPII, it is probably the margins of the suppliers that stayed on the market, which the departure of Western competitors lets them raise, in particular for strategic goods.[^86] Dependence on China sharpens this effect: the premium that Russia pays China for priority goods rises with the Chinese share of its purchases, and for computer numerical control machine tools, with no other seller, Russia must accept the Chinese price.[^87] Sanctions therefore do not cut off access to these
 
 [^84]: Government of the Hong Kong Special Administrative Region. (2019). *LCQ2: Implementation of sanctions imposed by United Nations Security Council*. info.gov.hk/gia/general/201901/23/P2019012300436.htm; USCC. (2025). *China's facilitation of sanctions and export control evasion*. uscc.gov/research.
 
@@ -462,7 +476,7 @@ A sanction does not hit only the companies it names. In the United States, a com
 
 ### 5.1 The state and its holdings
 
-At the top, the state holds the large companies through a few holdings. A public holding that it owns outright is the first shareholder of Rosneft and, together with the Federal Agency for State Property Management (Rosimushchestvo), gives the state close to half of Gazprom.[^97] Gazprom in turn owns almost all of Gazprom Neft[^98] and is a main shareholder of Gazprombank.[^99] Likewise, the state holds all the voting rights of Transneft, which owns the holding of the port of Novorossiysk.[^100] A designation of any of them therefore reaches its subsidiaries owned 50% or more.
+According to the latest disclosures, at the top, the state holds the large companies through a few holdings. A public holding that it owns outright is the first shareholder of Rosneft and, together with the Federal Agency for State Property Management (Rosimushchestvo), gives the state close to half of Gazprom.[^97] Gazprom in turn owns almost all of Gazprom Neft[^98] and is a main shareholder of Gazprombank.[^99] Likewise, the state holds all the voting rights of Transneft, which owns the holding of the port of Novorossiysk.[^100] A designation of any of them therefore reaches its subsidiaries owned 50% or more.
 
 [^95]: Office of Foreign Assets Control. (2014, August 13). *Revised Guidance on Entities Owned by Persons Whose Property and Interests in Property Are Blocked*. https://ofac.treasury.gov ; Office of Foreign Assets Control. (n.d.). *FAQ 401*. https://ofac.treasury.gov/faqs/401.
 
@@ -496,9 +510,9 @@ Stream Ship Management (section 2.5)[^104] and to Citrine Marine, which the EU d
 
 ### 5.3 The president's associates
 
-After 2000, keeping a large company meant staying out of politics. In 2000, Vladimir Putin received about twenty of the big businessmen of the 1990s at the Kremlin and let them keep their assets on that condition.[^106] Mikhail Khodorkovsky, who had publicly accused officials of corruption, was arrested in October 2003. In December 2004, the main production subsidiary of his oil group, Yukos, was sold at auction to an unknown company, which Rosneft bought four days later.[^107] Pardoned in 2013, Khodorkovsky lives in London today, and in July 2014 three arbitration tribunals ruled that Russia had taken measures with an effect equivalent to expropriation.[^108]
+After 2000, keeping a large company meant staying out of politics. According to NPR, in 2000 Vladimir Putin received 21 of the richest men in Russia at the Kremlin and offered them a deal: they could keep their assets if they bent to his authority and stayed out of his way.[^106] Mikhail Khodorkovsky, who had publicly accused officials of corruption, was arrested in October 2003. In December 2004, the main production subsidiary of his oil group, Yukos, was sold at auction to an unknown company, which Rosneft bought four days later.[^107] Pardoned in 2013, Khodorkovsky lives in London today, and in July 2014 three arbitration tribunals ruled that Russia had taken measures with an effect equivalent to expropriation.[^108]
 
-Loyalty, by contrast, opens public contracts. Yevgeny Prigozhin came out of prison, opened hot-dog stands in Saint Petersburg, then a restaurant where the president, once elected, received his foreign guests; his company Concord then won the Kremlin's catering contracts.[^109] He financed the Internet Research Agency, which the US Treasury designated in 2018, and admitted in 2022 that he had founded the Wagner group in 2014.[^110] He died in a plane crash on 23 August 2023, exactly two months after his mutiny.[^111] Both paths follow one rule: the president did not abolish the oligarchy; he targeted only the oligarchs who threatened his power.[^112]
+Loyalty, by contrast, opens public contracts. According to the BBC, Yevgeny Prigozhin came out of prison, opened hot-dog stands in Saint Petersburg, then a restaurant where the president, once elected, received his foreign guests; his company Concord then won the Kremlin's catering contracts.[^109] According to the US Treasury, which designated the Internet Research Agency in 2018, he funded the operations of that agency; according to Reuters, in 2022 he admitted that he had founded the Wagner group in 2014.[^110] He died in a plane crash on 23 August 2023, exactly two months after his mutiny.[^111] NPR writes that Putin "didn't actually eliminate the oligarchy"; he "only targeted individual oligarchs who threatened his power."[^112]
 
 [^104]: U.S. Department of the Treasury (2025), op. cit., n. 45, annex 2.
 
@@ -516,14 +530,14 @@ Loyalty, by contrast, opens public contracts. Yevgeny Prigozhin came out of pris
 
 [^111]: Reuters. (2023, August 24). *Wagner boss Yevgeny Prigozhin listed in Russian plane crash with no survivors*. https://www.reuters.com/world/europe/ten-killed-private-jet-crash-north-moscow-tass-2023-08-23/.
 
-[^112]: See n. 106.
+[^112]: NPR Planet Money (2022), op. cit., n. 106.
 
 
-Outside the state, the large private shareholders form a circle that the designation texts link to the president. Gennady Timchenko, an old acquaintance of Vladimir Putin, shares with Leonid Mikhelson the majority of a large petrochemical group and is a shareholder of Bank Rossiya.[^113] Mikhelson directly holds about 14% of Novatek.[^114] Yuri Kovalchuk, another close associate of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer SOGAZ.[^115] The circle reaches the family: in 2013 Kirill Shamalov married Katerina Tikhonova, the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]
+Outside the state, the large private shareholders form a circle that the designation texts link to the president. Gennady Timchenko, a long-time acquaintance of Vladimir Putin, shares with Leonid Mikhelson close to half of a large petrochemical group and is a shareholder of Bank Rossiya.[^113] Mikhelson directly holds about 14% of Novatek.[^114] Yuri Kovalchuk, another long-time acquaintance of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer SOGAZ.[^115] The circle reaches the family: according to the US Treasury, in 2013 Kirill Shamalov married Katerina Tikhonova, the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]
 
-State companies are run by associates who do not own them. Igor Sechin (Rosneft) is a personal friend of the president, and Nikolay Tokarev (Transneft) served with him in the KGB;[^117] Sergei Chemezov (Rostec) knew him in East Germany.[^118] These friends and former colleagues were given large public assets to manage, which made them "state oligarchs".[^119]
+State companies are run by associates who do not own them. The EU states in its reasons for listing that Igor Sechin (Rosneft) is a personal friend of the president and that Nikolay Tokarev (Transneft) served with him in the KGB;[^117] according to the US Treasury, Sergei Chemezov (Rostec) has known him since the 1980s, when they lived in the same apartment complex in East Germany.[^118] According to Tatiana Stanovaya of the Carnegie Endowment, these friends and former colleagues were handed large state assets to manage, which made them "state oligarchs".[^119]
 
-State banks follow the same rule. The head of VEB.RF is appointed by the head of state and takes his instructions directly from him; a deputy president of VTB is the son of the director of the FSB. Since 2023, VTB also manages the United Shipbuilding Corporation in trust, by presidential decree.[^120] Promsvyazbank, nationalised in 2018, is run by the son of a former director of foreign intelligence.[^121] The chain of shares stops at the state, but the chain of management leads to the same circle, and the 50% rule follows shares, not these appointments.
+State banks follow the same rule. The head of VEB.RF is appointed by the head of state and takes his instructions directly from him. Since 2023, VTB also manages the United Shipbuilding Corporation in trust, by presidential decree.[^120] According to the US Treasury, a deputy president of VTB is the son of the director of the FSB, and Promsvyazbank, nationalised in 2018, is run by the son of a former director of foreign intelligence.[^121] The chain of shares stops at the state, but the chain of management leads to the same circle, and the 50% rule follows shares, not these appointments.
 
 [^113]: CELEX 02014R0269-20260928, annex I, entries 694 "Gennady Nikolayevich TIMCHENKO" and 731 "Dmitry Vladimirovich KONOV" ; https://eur-lex.europa.eu.
 
@@ -552,7 +566,7 @@ Among the intermediaries and in the private fleet, the chain stops at an unknown
 
 - –**Vessels:** About fifteen shipowners or managers each own or operate at least six designated vessels, with no documented ultimate owner.
 
-- –**Surgutneftegaz:** The country's third-largest oil company, run by Vladimir Bogdanov, a close associate of the president, has never published its full ownership structure.[^124]
+- –**Surgutneftegaz:** The country's third-largest oil company, run by Vladimir Bogdanov, a close associate of the president, had not published its full ownership structure, according to The Moscow Times (2013).[^124]
 
 The report hypothesises that this opacity protects these companies: the 50% rule applies in law, but nobody can apply it without knowing the chain of shares.[^125] What remains is to designate each company for its activity and to attach each new manager to the group it replaces, as the Council did for Citrine Marine and Nord Axis.
 
@@ -574,17 +588,17 @@ The report does not measure the effect of sanctions: where no source establishes
 
 - –**Coverage of the database:** It covers maritime transport well, but banks and armaments poorly. It links few companies to a payment or to a component, and it gives an amount for almost none of them; the section on payments therefore rests on fewer facts than the section on the fleet.
 
-- –**Reliability of sources:** Only official sources receive a reliability rating. Think-tank reports and the press are not rated, so the weight of the facts that come from them is not measured.
+- –**Reliability of sources:** The letter rates the issuer, not the truth of each claim. The report shows it only for official issuers: the letters of the press and of think tanks are not shown, so the reader cannot weigh their facts.
 
-- –**Mirror data:** Because Russia no longer publishes its trade by product, the report reads the declarations of its partners, which therefore give a minimum. The United Arab Emirates and Vietnam report no product-level data to UN Comtrade for 2024-2025, and Kazakhstan and Thailand report data only up to February 2024 and February 2025.[^126]
+- –**Mirror data:** Because Russia no longer publishes its trade by product, the report reads the declarations of its partners, which therefore cover only part of the trade. The United Arab Emirates and Vietnam report no product-level data to UN Comtrade for 2024-2025, and Kazakhstan and Thailand report data only up to February 2024 and February 2025.[^126]
 
 - –**The fleet:** Changes of owner and manager come from the GUR, a party to the conflict. It gives the vessel's current owner or manager and the date it took up the role, but rarely the first change after designation.[^127] The loss of the AIS identity tied to the IMO number, which the Global Fishing Watch registry makes visible, remains a lead, because that registry is not archived.
 
-Finally, no fact has been reviewed by a person: the checks are done by rules and by AI agents (Annex A). As a result, each fact must be checked at its source before it is used for a designation.
+Finally, the author read and reviewed the whole report, but the facts of the database are checked by rules and by AI agents, not one by one by a person (Annex A). As a result, each fact must be checked at its source before it is used for a designation.
 
 [^126]: UN Comtrade (2026), op. cit., n. 5 ; Risinger et al. (2026), op. cit., n. 81, p. 3.
 
-[^127]: Main Directorate of Intelligence of the Ministry of Defence of Ukraine (GUR) (2026), op. cit., n. 51 ; Global Fishing Watch (2026), op. cit., n. 46.
+[^127]: Main Directorate of Intelligence of the Ministry of Defence of Ukraine (GUR) (2026), op. cit., n. 51 ; Global Fishing Watch (2026), op. cit., n. 46, CC BY-NC 4.0, non-commercial use.
 
 
 ### 6.2 Research leads
@@ -607,15 +621,29 @@ Russia adapts in two ways. First, it relies on a parallel market on the margins 
 
 EU sanctions follow this shift step by step. They go up the chain: the product, then the means, then the source. The EU first targeted oil, through the embargo and the price cap, then the vessels that carry it, then the ports it leaves from. Each step answers the circumvention of the one before and arrives late; the report assumes that the parallel market re-forms faster than the lists grow.
 
-These two routes call for two responses. Against the parallel market, designating companies one by one gives time to create others; targeting a whole network at once, from owner to payment agent, and aligning the coalition's lists would shorten that delay. Against the new partners, by contrast, only the threat of secondary sanctions seems to carry weight, because it affects the access of their banks and firms to the dollar.
+## Recommendations
+
+- –A sanctions authority of the EU or the United Kingdom can use each new OFAC tanker designation as an early signal for its own review, because OFAC lists a shared tanker first in nearly nine cases out of ten.
+
+- –A sanctions authority of the EU or the United Kingdom can check the port calls in its own ports of the 22 designated tankers that called there after their designation.
+
+- –An authority that lists ships can check, at each update, the current owner and manager of the ships it has already listed, because 427 of 757 ships on the GUR pages show an owner or manager that started after the designation.
+
+- –Where no source names the ultimate owner, an authority can designate each company for its activity and attach each new manager or trader to the group it replaces, as the Council of the EU did for Citrine Marine and Nord Axis.
+
+- –A researcher can complete the mirror data with customs data for the United Arab Emirates, Vietnam, Kazakhstan and Thailand, which report no product data or only part of it to UN Comtrade for 2024-2025.
+
+- –A funder can pay for the archiving of AIS identity histories and for a check of the fleet facts by a person, because the report's fleet findings rest on one source that is a party to the conflict and on a registry that is not archived, and no person has checked each fact of the database against its source.
 
 ## Annex A Research method
 
 ### A.1 The database
 
-The report rests on a database of entities (companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 27 October 2026, the database holds 6,327 entities; because the selection does not use the 1,165 military units, about 5,200 entities are tested.
+The report rests on a database of entities (companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 27 October 2026, the database holds 6,327 entities (around 5,400 of them in the public data release of 28 October); because the selection does not use the 1,165 military units, about 5,200 entities are tested.
 
-These documents come from the official sanctions lists (OFAC, United Kingdom, EU acts), from company registers, from public statistics (UN Comtrade, Eurostat, World Bank, Bank of Russia, Russian Ministry of Finance), from research institutes (KSE, CREA, Bruegel) and from investigative press.
+These documents come from the official sanctions lists (OFAC, United Kingdom, EU acts), from company registers, from public statistics (UN Comtrade, Eurostat, World Bank, Bank of Russia, Russian Ministry of Finance), from research institutes (KSE, CREA, Bruegel) and from investigative press. Leads came from web and news searches (SearXNG, GDELT) and from the registers; a search result was never cited, and the queries were not logged. The documents of the data release were retrieved between 7 and 28 October 2026; the research closed on 20 November 2026.
+
+Each document is stored as received, under its SHA-256 hash, which also forms its document id. The database records the address and the date of retrieval, with no time of day. The raw files are kept in a private store that cannot change or delete them; they are not published, and no web archive copy is recorded.
 
 ### A.2 Source rules
 
@@ -629,7 +657,9 @@ These documents come from the official sanctions lists (OFAC, United Kingdom, EU
 
 - –A source that is known but not archived remains a lead and does not count as a fact; likewise, a value without a source remains undocumented.
 
-- –The reliability of each source's issuer follows the ADMIRALTY scale, from A (official issuer) to F (cannot be judged).
+- –The reliability of the issuer of each source follows the ADMIRALTY scale, from A (an official issuer on its own record) to F (cannot be judged); a party to the conflict is rated C at most. A separate digit from 1 to 6 rates each fact by the number of independent issuers that give it. The report shows the letter of official issuers only; the data release gives the letter and the digit of each claim that has both.
+
+- –Each source has a level set from its terms of use, which were read. A source whose terms forbid reuse stays internal: a fact can cite it, but its data are not republished.
 
 
 ### A.3 Selecting the critical nodes
@@ -640,10 +670,22 @@ The three conditions of the Method section apply in the same way to all entities
 
 - –**Active in 2024-2026:** A relation dated in that period (designation, port call, transshipment, event);
 
-- –**Passes through a third country:** Either the entity's country of registration, or the flag of one of its vessels, or the country of a direct counterparty is one that does not apply the coalition's sanctions. A country read only from a company's name does not count while no archived document gives its address.
+- –**Passes through a third country:** The entity's country of registration, any flag of its vessels that the release gives, or the country of a direct counterparty is a country other than Russia that does not apply the coalition's sanctions. A country read only from a company's name or address does not count.
 
-Vessels of one management company, or failing that of one owner, form a single node. One act of designation can meet more than one condition; where no activity is observed, a new designation stands as proof of activity.
+Vessels of one management company, or failing that of one owner, form a single node. One act of designation can meet more than one condition; where no activity is observed, a new designation stands as a sign of activity: it dates an act of enforcement, not an observed flow.
+
+The count of critical nodes is 539. It is the result of the script tools/critical-nodes-replay.ts on the data release data-2026-10-28. The command pnpm critical:replay downloads that release, checks its SHA-256 and gives the same count. A node that the release does not hold is not counted. A designation with no date takes the date of its act. Russia is the target of the sanctions, so it is not a third country. For 410 of the 539 nodes, each condition rests on a document of an official issuer (ADMIRALTY letter A). The script derives the layer of a node from its entities, because the release gives no layer: Pay 488, Finance 4, Fight 47. The count changes with the rule: 591 nodes if Russia counts as a third country, 516 with no country of a counterparty. An earlier count of 493 (450 nodes of the record and 43 of a first list) and the figure of 416 cannot be rebuilt, because their query was not kept. Port calls carry no date, so most nodes are active only by a dated designation.
 
 ### A.4 Checking facts and text
 
-No fact has been reviewed by a person: this is a choice of method. AI agents collect and archive the sources, then propose each fact with the excerpt of its source. Other agents, which start with a fresh context and did not propose that fact, check that the excerpt appears in the archived source and supports the fact, before validating it. Other facts still wait for a check or a better source. The few facts entered by hand carry a label that sets them apart from the facts produced by the agents. The counts, shares and medians are the author's calculations, which no review agent validates one by one. Each part of the text was reviewed by agents distinct from its writer, and those agents checked its sources one by one; and the author reviewed the text, not each fact against its source.
+The author read and reviewed the whole report. AI was used for four jobs: to tag the sources, to run the verification and cross-check loops, to assist the drafting and the translation, and to search for blind spots. AI agents collect and archive the sources, then propose each fact with the excerpt of its source. Other agents, which start with a fresh context and did not propose that fact, check that the excerpt appears in the archived source and supports the fact. A failed check does not block the acceptance of a fact. Other facts still wait for a check or a better source. The few facts entered by hand carry a label that sets them apart from the facts produced by the agents. The counts, shares and medians are the author's calculations, which no review agent validates one by one. Each part of the text was reviewed by agents distinct from its writer, and those agents checked its sources one by one. The author did not check each fact of the database against its source.
+
+### A.5 Ethics, security and independence
+
+- –**Persons:** A natural person appears in the data release only when a sanctions act designates that person. No personal address, telephone number or e-mail is collected. Extracts of company registers and court files name legal persons only.
+
+- –**Contact:** No subject was contacted, and no right of reply was offered before publication, because the report brings together public information only. Each page and each data file gives an address to report an error and an address for a right of reply.
+
+- –**AI:** Language models were used for four tasks only: tagging the sources, the verification loops, help with drafting and translation, and the search for blind spots. Their providers read the full text of the stored documents.
+
+- –**Independence:** The author is solely responsible for the content. Claims of the GUR remain attributed to it.

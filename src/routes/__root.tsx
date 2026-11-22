@@ -9,6 +9,7 @@ import { CreateEntityDialog } from '@/features/edit/create-entity-dialog';
 import { ErrorNotice } from '@/shared/error-notice';
 import { refreshCorpus } from '@/shared/read/corpus';
 import { ModeToggle } from '@/shared/mode-toggle';
+import { pagePath } from '@/shared/page-path';
 import { ScreenQueryField, ScreenQueryProvider } from '@/shared/screen-query';
 import { SiteHeader } from '@/shared/site-header';
 import { ThemeProvider, useTheme } from '@/shared/theme-provider';
@@ -36,7 +37,7 @@ export const Route = createRootRoute({
 const FILTERED_SCREENS: ReadonlySet<string> = new Set(['/graph']);
 
 function RootLayout() {
-  const path = useLocation({ select: (location) => location.pathname });
+  const path = useLocation({ select: (location) => pagePath(location.pathname) });
   const writerOnline = useWriterOnline();
   return (
     <ThemeProvider>
