@@ -116,7 +116,8 @@ of a parent unit is a lead for the child, not a citation.
 - Before an adverse allegation goes public, the search loop looks for a **public response** by the
   subject. The text shows the response, or says that GAB found none, with the search date.
 - **GAB never contacts a subject.** No code path sends a request for comment.
-- Visitors have two inbound channels: "Report an error" and "Right of reply". A reply changes the
+- Visitors have two inbound channels: "Report an error" and "Right of reply" (superseded: PU1 in
+  `docs/decisions.md` replaces the right of reply with a request for a correction). A reply changes the
   wording, never the state.
 - Code writes every public sentence from templates. No free model text reaches the public page.
   GAB voice uses dated status words, never labels such as "evader".

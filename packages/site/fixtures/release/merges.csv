@@ -10,6 +10,6 @@
 #
 # A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.
 #
-# Report an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.
+# Report an error: https://example.org/report-an-error. Corrections: https://example.org/corrections.
 act_id,action,day,absorbed_id,survivor_id,resolves_to,origin_label
 0a1f0000-0000-4000-8000-000000000022,merge,2026-10-05,0a1f0000-0000-4000-8000-000000000005,0a1f0000-0000-4000-8000-000000000001,0a1f0000-0000-4000-8000-000000000001,"Validated manually by the operator, on 2026-10-04"

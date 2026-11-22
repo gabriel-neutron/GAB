@@ -57,7 +57,7 @@ export const datasetOf = (manifest: SiteManifest, site: string): Record<string, 
     name: SITE_NAME,
     contactPoint: [
       contactPoint('Report an error', manifest.contacts.reportError, site),
-      contactPoint('Right of reply', manifest.contacts.rightOfReply, site),
+      contactPoint('Corrections', manifest.contacts.rightOfReply, site),
     ],
   },
 });

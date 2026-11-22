@@ -26,7 +26,7 @@ const MANIFEST = {
   date: '2026-11-08',
   contacts: {
     reportError: 'https://example.org/report-an-error',
-    rightOfReply: 'mailto:reply@example.org',
+    rightOfReply: 'https://example.org/corrections',
   },
 };
 

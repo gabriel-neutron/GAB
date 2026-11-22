@@ -76,8 +76,8 @@ export function AiUsePage({ manifest }: AiUsePageProps) {
               <ContactAddress address={manifest.contacts.reportError} label="report an error" />
             </li>
             <li>
-              Right of reply:{' '}
-              <ContactAddress address={manifest.contacts.rightOfReply} label="right of reply" />
+              Corrections:{' '}
+              <ContactAddress address={manifest.contacts.rightOfReply} label="corrections" />
             </li>
           </ul>
         </PageSection>

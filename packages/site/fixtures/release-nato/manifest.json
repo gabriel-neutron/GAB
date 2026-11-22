@@ -8,10 +8,10 @@
     "ofac": "recent_actions_notice",
     "uk": "date_designated"
   },
-  "disclaimer": "**About this data.** A machine reads public documents and proposes each claim. Each claim cites the documents that state it, and each claim carries a label that tells who decided it.\n\n- **Proposed — not checked:** a candidate. No rule and no person checked it. It is not evidence.\n- **Accepted by rule … — no person read it:** the claim passed a named rule on its cited sources. No person read it. Nobody has measured the accuracy of the rules yet.\n- **Accepted by an AI reviewer — no person read it:** an AI checked the claim. No person read it.\n- **Validated manually by the operator:** the operator read the sources and accepted the claim.\n- **Reference dataset … — GAB did not check it:** the claim comes from a published dataset, as GEM, that the operator approved as a whole. No person read the claim, and GAB did not check it. This is not a check by the operator.\n\nA claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.\n\nReport an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.",
+  "disclaimer": "**About this data.** A machine reads public documents and proposes each claim. Each claim cites the documents that state it, and each claim carries a label that tells who decided it.\n\n- **Proposed — not checked:** a candidate. No rule and no person checked it. It is not evidence.\n- **Accepted by rule … — no person read it:** the claim passed a named rule on its cited sources. No person read it. Nobody has measured the accuracy of the rules yet.\n- **Accepted by an AI reviewer — no person read it:** an AI checked the claim. No person read it.\n- **Validated manually by the operator:** the operator read the sources and accepted the claim.\n- **Reference dataset … — GAB did not check it:** the claim comes from a published dataset, as GEM, that the operator approved as a whole. No person read the claim, and GAB did not check it. This is not a check by the operator.\n\nA claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.\n\nReport an error: https://example.org/report-an-error. Corrections: https://example.org/corrections.",
   "contacts": {
     "reportError": "https://example.org/report-an-error",
-    "rightOfReply": "mailto:reply@example.org"
+    "rightOfReply": "https://example.org/corrections"
   },
   "iriBase": "https://gab.example.org/",
   "changelog": {
@@ -176,48 +176,48 @@
   "files": [
     {
       "path": "entities.csv",
-      "bytes": 3233,
-      "sha256": "c2743081fcda77e60226ca736d0ac4575ad15c70c5ad2901b6ab4b7021b52cac"
+      "bytes": 3237,
+      "sha256": "61bf56420fb69f4e9222bcc7acfde042f8eb13f84a9016fafa1f65fdeec37c2a"
     },
     {
       "path": "relations.csv",
-      "bytes": 4220,
-      "sha256": "cf90444a1cb8d3328d17f1bcf145d3344dadd9cb4d874f4dd630c1fb9cd00498"
+      "bytes": 4224,
+      "sha256": "0858516dcb0fa80804c840caa08c7d757d6ce7d09b3290d9fa8208800db97f8d"
     },
     {
       "path": "claims.csv",
-      "bytes": 10309,
-      "sha256": "87e5aa098c232507cc7a6dde0ef23fb6f8b7e1a5c3bb1b56c989d468b6d93e12"
+      "bytes": 10313,
+      "sha256": "ebc60e319be40ef3e4eaa3c9f7695689947535241831f261fab920a08c9f5cd5"
     },
     {
       "path": "merges.csv",
-      "bytes": 1566,
-      "sha256": "659f16ca9609b7efe03c4ffbe8ffedcb896511e2251ab1a95639530abbe3fe0e"
+      "bytes": 1570,
+      "sha256": "221a010a3e575667ae2d77068f89cc3f7c8f2dc71145e8360bb3dbed0e800242"
     },
     {
       "path": "alignment-matrix.csv",
-      "bytes": 4692,
-      "sha256": "77a8f7fd7c8e2246cf56adaf0a4cb2a98c326fba818877c160ee6dda015bece5"
+      "bytes": 4696,
+      "sha256": "d439f39b34274c79db41cc1125f2da2315965f6c21444a16955a2b343aec6f8c"
     },
     {
       "path": "critical-nodes.csv",
-      "bytes": 3338,
-      "sha256": "e3bf01eb3498c6c0257ca96b9b0675fba0f4acf086f78479250729b1f315e551"
+      "bytes": 3342,
+      "sha256": "7b1f090f1e161a9f22fe2949665d27ee5ced81fc9417a7cfad29608263a5a8f9"
     },
     {
       "path": "asset-links.csv",
-      "bytes": 1356,
-      "sha256": "35b6a59c160f47234659d12dadb8599f69d168114fda40e2e8fa94b5e1e595c5"
+      "bytes": 1360,
+      "sha256": "91e5c0ad43bcc395eeeef13120c6177b4bb11e728a2470cd5b79b3306f04fe88"
     },
     {
       "path": "volumes.csv",
-      "bytes": 4155,
-      "sha256": "487760d2ee421c43b130554d13ace96468277d388d0148f8bffcca1d08ca17a4"
+      "bytes": 4159,
+      "sha256": "07ae1b8e53e57055be8358ad3c173b0bcfdd553f1447680ec5ad6ad007b6a599"
     },
     {
       "path": "observations.csv",
-      "bytes": 1926,
-      "sha256": "37908f85b5f5be1b512b77ea42323f6155d8b28b42bb400b15280e8c0c0abb4a"
+      "bytes": 1930,
+      "sha256": "69dceef0003eca0a0afc2b2d3c63858e2bc2905a08d60625c599dc13cebcfd69"
     },
     {
       "path": "credits.md",
@@ -226,23 +226,23 @@
     },
     {
       "path": "release-notes.md",
-      "bytes": 2720,
-      "sha256": "8811207735cbd70b60500774499738f3d44e59c69c9372ae08fdcc2f90632a02"
+      "bytes": 2724,
+      "sha256": "452036903128b3b132986ceec4c08c1a5425a92bc6fe7211c9a6da83ba65f282"
     },
     {
       "path": "entities.geojson",
-      "bytes": 3103,
-      "sha256": "49760ccdf3e70f69cc9f7e952bfad8fa07702e14e1bb0cbcc30353487e90dd8d"
+      "bytes": 3107,
+      "sha256": "395708b31c6e49208280479a3db8ed0d32b35d92edc082a4b7c3553ffe128ad1"
     },
     {
       "path": "dataset.jsonld",
-      "bytes": 26974,
-      "sha256": "78d93580029624cb7036196a4a6b81f1e54031f3a446eeb6867ae90663b3b23d"
+      "bytes": 26978,
+      "sha256": "0c15baa20e6a0fc58e5580bd541bca0e9c3109a45c32c865e45aea3db90eab7d"
     },
     {
       "path": "changelog.csv",
-      "bytes": 4196,
-      "sha256": "b645a32610abfa819affba84c65e725cd89fc156bde8b121ff28286db7843760"
+      "bytes": 4200,
+      "sha256": "85eba9a873ee2c39fa8a9bcf5a83996e096d5fcbc79ea747c28d547f46d6944c"
     }
   ]
 }

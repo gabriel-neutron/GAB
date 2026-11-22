@@ -109,8 +109,9 @@ export function MethodPage({ manifest }: MethodPageProps) {
 
           <PageSection id="errors" title="Report an error">
             <p className={PROSE}>
-              Use the first address for a mistake in the data. If the record names you, use the
-              second address to reply.
+              Use the first address for a mistake in the data. If the record names you, ask for a
+              correction at the same address. The second address is the corrections page: what
+              happens next, and the version log of the report.
             </p>
             <KeyValue
               entries={[
@@ -124,12 +125,9 @@ export function MethodPage({ manifest }: MethodPageProps) {
                   ),
                 },
                 {
-                  key: 'Right of reply',
+                  key: 'Corrections',
                   value: (
-                    <ContactAddress
-                      address={manifest.contacts.rightOfReply}
-                      label="right of reply"
-                    />
+                    <ContactAddress address={manifest.contacts.rightOfReply} label="corrections" />
                   ),
                 },
               ]}

@@ -35,8 +35,10 @@ the worker serves what the files lack:
   `Accept: text/markdown` or the user agent of a known AI crawler.
 - The files for agents under `/.well-known/` (AI catalog, skills index, API catalog) and
   `/openapi.json`, which describes the open files of the release.
-- The pages About, Contact, Privacy, Docs, Developers, Pricing and Agents, as HTML and markdown.
-  The contact address comes from the manifest of the release at the time of the request.
+- The static pages of `STATIC_PAGES` in `tools/edge/pages.ts` (About, Contact, Corrections,
+  Privacy and the pages for developers and agents), as HTML and markdown. The contact address
+  comes from the manifest of the release at the time of the request. The Corrections page holds
+  the version log of the report (`REPORT_VERSIONS`): add a line for each new version of the report.
 - A limit of 120 requests a minute for each address on `/mcp` and `/api/v1/files` (the binding `RATE_LIMIT` in `wrangler.jsonc`). The interface needs no key and no sign-up, because the data is public. The limit answers 429 with a `Retry-After` header. The release files have no limit.
 - A Link header, the canonical address, the preview image and the structured data in the head, and
   a true 404 for an address that is no page and no file.
@@ -46,6 +48,10 @@ list with `src/routes/`, so add a route and the test tells you to change the lis
 
 ## What the operator sets
 
+- The two contacts of the release manifest. `contacts.reportError` is the address that receives
+  error reports and requests for a correction. `contacts.rightOfReply` is the address of the
+  Corrections page of the site, as `https://<host>/corrections`: the disclaimer of the dataset
+  links to it. The key keeps its old name, because the published releases have it.
 - The public address: the `iriBase` of the release manifest. The origin of the address starts
   each absolute address. A release with no usable `iriBase` writes no sitemap, no `llms.txt`, no
   canonical address and no preview tag, and the command prints why. `robots.txt` is still written.
@@ -68,10 +74,12 @@ contract of the report holds these blockers:
       uncertain or unverified claim.
 - [ ] A written legal review of the report and of each data layer that the release shows. A layer
       that the review does not cover stays off.
-- [ ] A documented right of reply: each party that the report names received the claims about it
-      and a date to reply, and the file keeps each reply or the lack of one.
-- [ ] A Corrections page on the site, with a contact address that a reader can use to ask for a
-      correction.
+- [ ] The Corrections page shows the contact, the policy and a line in the version log for the
+      version that the release delivers. The report offers no right of reply: a party that the
+      report names can ask for a correction there.
+- [ ] The contract leaves the copyright of the report with the author, so the rights notice
+      (CC BY 4.0, Figure 8 under CC BY-NC 4.0) is valid. If not, change `RIGHTS` in
+      `tools/edge/pages.ts` and the notice in the report.
 
 Then build the site with `SITE_RELEASE=1`, and check that a page holds no noindex tag.
 

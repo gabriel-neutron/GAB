@@ -10,7 +10,7 @@
 #
 # A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.
 #
-# Report an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.
+# Report an error: https://example.org/report-an-error. Corrections: https://example.org/corrections.
 id,type,from_id,from_label,to_id,to_label,valid_from,valid_to,origin_label,licence,document_ids,type_label,share
 0a1f0000-0000-4000-8000-000000000011,owns,0a1f0000-0000-4000-8000-000000000002,Arctic Bridge Shipping,0a1f0000-0000-4000-8000-000000000001,Severnaya Volna,2024-03-01,,"Validated manually by the operator, on 2026-10-04","derived fact; source under the provider licence, not redistributed",news,owns,
 0a1f0000-0000-4000-8000-000000000012,designated_by,0a1f0000-0000-4000-8000-000000000001,Severnaya Volna,0a1f0000-0000-4000-8000-000000000003,Council of the European Union,2025-05-20,,"Accepted by rule strong_sources v2 — no person read it, on 2026-10-02",CC-BY 4.0,eu_act,designated by,

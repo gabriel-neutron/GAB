@@ -40,7 +40,14 @@ const shape = z.strictObject({
       uk: z.enum(['date_designated']).default('date_designated'),
     })
     .prefault({}),
-  contacts: z.strictObject({ reportError: contact, rightOfReply: contact }),
+  // The key keeps its old name, because the published releases have it: it holds the address of
+  // the Corrections page, which the disclaimer links to.
+  contacts: z.strictObject({
+    reportError: contact,
+    rightOfReply: contact.refine((value) => value.startsWith('https://'), {
+      message: 'give the https:// address of the Corrections page',
+    }),
+  }),
   criticalNodes: z.string().trim().min(1).nullable().default(null),
   volumes: z.string().trim().min(1).nullable().default(null),
   iriBase,

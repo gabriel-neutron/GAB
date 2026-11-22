@@ -73,7 +73,7 @@ const MANIFEST: ReleaseManifest = {
   dateRules: { eu: 'entry_into_force', ofac: 'recent_actions_notice', uk: 'date_designated' },
   contacts: {
     reportError: 'https://example.org/report-an-error',
-    rightOfReply: 'mailto:reply@example.org',
+    rightOfReply: 'https://example.org/corrections',
   },
   criticalNodes: null,
   volumes: null,
@@ -446,7 +446,7 @@ test('a release writes the public entities, relations and claims, each row with 
     expect(one).toContain('GAB dataset, version 0.1-test of 08/11/2026.');
     expect(one).toContain('**About this data.**');
     expect(one).toContain('Report an error: https://example.org/report-an-error');
-    expect(one).toContain('Right of reply: mailto:reply@example.org');
+    expect(one).toContain('Corrections: https://example.org/corrections');
     expect(one).not.toContain('<link>');
     // No bought file is named, and no rating shows (S1).
     expect(one).not.toContain(BOUGHT);
@@ -467,7 +467,7 @@ test('a release writes the public entities, relations and claims, each row with 
     })
     .parse(JSON.parse(await text('manifest.json')));
   expect(manifest).toMatchObject({ version: '0.1-test', date: '2026-11-08' });
-  expect(manifest.disclaimer).toContain('Right of reply: mailto:reply@example.org');
+  expect(manifest.disclaimer).toContain('Corrections: https://example.org/corrections');
   expect(manifest.files.map((file) => file.path)).toStrictEqual([
     'entities.csv',
     'relations.csv',
@@ -1191,7 +1191,7 @@ test('a release writes the changelog since the previous release folder', async (
   const text = await readFile(join(folder, 'changelog.csv'), 'utf8');
   expect(text).toContain('# GAB dataset, version 0.1-test of 01/12/2026.');
   expect(text).toContain('# Changes since version 0.1-test of 08/11/2026.');
-  expect(text).toContain('Right of reply: mailto:reply@example.org');
+  expect(text).toContain('Corrections: https://example.org/corrections');
   // S1: the new release does not show the pair, so the changelog copies no letter and no digit
   // of the previous release.
   expect(text).not.toMatch(/nato|\b[A-F][1-6]\b|digits?:|letters?:/iu);
@@ -1431,7 +1431,7 @@ test('a release writes the critical nodes table from the sheet of the candidate 
   const fileOf = (root: string) => join(root, 'gab-release-2026-11-08', 'critical-nodes.csv');
   const text = await readFile(fileOf(off), 'utf8');
   expect(text).toContain('# GAB dataset, version 0.1-test of 08/11/2026.');
-  expect(text).toContain('Right of reply: mailto:reply@example.org');
+  expect(text).toContain('Corrections: https://example.org/corrections');
   expect(text).toContain('# Candidate nodes: 3. Retained: 1.');
   // S1: with the pair off, no column and no word of the pair.
   expect(text).not.toMatch(/nato|NATO|\b[A-F][1-6]\b/u);
@@ -1808,7 +1808,7 @@ test('a release writes the alignment matrix of the EU, OFAC and UK lists, one ro
   // The file states the date rule of each regime and holds the disclaimer, and the file manifest
   // gives the rules and the checksum of the file.
   expect(matrixText).toContain('# GAB dataset, version 0.1-test of 08/11/2026.');
-  expect(matrixText).toContain('Right of reply: mailto:reply@example.org');
+  expect(matrixText).toContain('Corrections: https://example.org/corrections');
   expect(matrixText).toContain(
     'EU: the date of entry into force. OFAC: the date of the Recent Actions notice. UK: the date designated.',
   );

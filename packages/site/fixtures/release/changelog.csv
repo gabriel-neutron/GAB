@@ -12,7 +12,7 @@
 #
 # A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.
 #
-# Report an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.
+# Report an error: https://example.org/report-an-error. Corrections: https://example.org/corrections.
 kind,id,change,changed_columns,label,survivor_id
 entity,0a1f0000-0000-4000-8000-000000000004,added,,Primorsk,
 entity,0a1f0000-0000-4000-8000-000000000006,added,,Baltic Tanker Holding,

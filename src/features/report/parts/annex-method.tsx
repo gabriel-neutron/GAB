@@ -213,6 +213,13 @@ export function AnnexMethodPart({ part }: { readonly part: ReportPart }) {
           ))}
         </section>
         <p className="mt-16 font-mono text-report-label text-label">{report.byline}</p>
+        {/* The edge worker serves the page, not the router: a plain link. */}
+        <p className="mt-2 max-w-[64ch] font-mono text-report-label text-label">
+          Text and PDF under CC BY 4.0, except Figure 8 (Global Fishing Watch data, CC BY-NC 4.0).{' '}
+          <a href={`${import.meta.env.BASE_URL}corrections`} className={cn('underline', FOCUS)}>
+            Corrections, version log and rights
+          </a>
+        </p>
         <Link
           to={`/${ui.paths.notes}` as ReportPath}
           className={cn(
