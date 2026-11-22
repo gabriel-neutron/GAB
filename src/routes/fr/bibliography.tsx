@@ -1,15 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { BibliographyPage } from '@/features/report/bibliography-page';
-import { fr } from '@/features/report/content-fr';
+import { ReportNotice } from '@/features/report/report-notice';
 import { reportTitles } from '@/features/report/titles';
-import { ContentContext } from '@/features/report/use-content';
-
-// The notes of the French report, with the French copy of the content.
+// The report is out of production until its delivery: the page shows a notice.
 export const Route = createFileRoute('/fr/bibliography')({
-  component: () => (
-    <ContentContext.Provider value={fr}>
-      <BibliographyPage />
-    </ContentContext.Provider>
-  ),
+  component: () => <ReportNotice lang="fr" />,
   head: () => ({ meta: [{ title: `${reportTitles.frNotes} · GAB` }] }),
 });
