@@ -18,7 +18,7 @@ export const report = {
     'Urals is also the reference price used to calculate Russia’s mineral extraction tax. A deeper discount reduces what the state receives from each barrel. Continued exports and unchanged revenues are not the same thing.',
   ],
   limit:
-    'The flows shown here describe loading basins only. No published source in the report links a fleet category to an individual buyer. The underlying research has not yet been reviewed by a human; the English translation awaits editorial review.',
+    'The flows shown here describe loading basins only. No published source in the report links a fleet category to an individual buyer. The author read and reviewed the whole report; the facts of the database are checked by rules and by AI agents, not one by one by a person.',
 };
 export const basins = [
   { name: 'Baltic', crude: 1460, products: 1551 },
@@ -916,23 +916,23 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: "The president's associates" },
       {
         kind: 'p',
-        text: 'After 2000, keeping a large company meant staying out of politics. In 2000, Vladimir Putin received about twenty of the big businessmen of the 1990s at the Kremlin and let them keep their assets on that condition.[^106] Mikhail Khodorkovsky, who had publicly accused officials of corruption, was arrested in October 2003. In December 2004, the main production subsidiary of his oil group, Yukos, was sold at auction to an unknown company, which Rosneft bought four days later.[^107] Pardoned in 2013, Khodorkovsky lives in London today, and in July 2014 three arbitration tribunals ruled that Russia had taken measures with an effect equivalent to expropriation.[^108]',
+        text: 'After 2000, keeping a large company meant staying out of politics. According to NPR, in 2000 Vladimir Putin received 21 of the richest men in Russia at the Kremlin and offered them a deal: they could keep their assets if they bent to his authority and stayed out of his way.[^106] Mikhail Khodorkovsky, who had publicly accused officials of corruption, was arrested in October 2003. In December 2004, the main production subsidiary of his oil group, Yukos, was sold at auction to an unknown company, which Rosneft bought four days later.[^107] Pardoned in 2013, Khodorkovsky lives in London today, and in July 2014 three arbitration tribunals ruled that Russia had taken measures with an effect equivalent to expropriation.[^108]',
       },
       {
         kind: 'p',
-        text: "Loyalty, by contrast, opens public contracts. Yevgeny Prigozhin came out of prison, opened hot-dog stands in Saint Petersburg, then a restaurant where the president, once elected, received his foreign guests; his company Concord then won the Kremlin's catering contracts.[^109] He financed the Internet Research Agency, which the US Treasury designated in 2018, and admitted in 2022 that he had founded the Wagner group in 2014.[^110] He died in a plane crash on 23 August 2023, exactly two months after his mutiny.[^111] Both paths follow one rule: the president did not abolish the oligarchy; he targeted only the oligarchs who threatened his power.[^112]",
+        text: 'Loyalty, by contrast, opens public contracts. According to the BBC, Yevgeny Prigozhin came out of prison, opened hot-dog stands in Saint Petersburg, then a restaurant where the president, once elected, received his foreign guests; his company Concord then won the Kremlin\'s catering contracts.[^109] According to the US Treasury, which designated the Internet Research Agency in 2018, he funded the operations of that agency; according to Reuters, in 2022 he admitted that he had founded the Wagner group in 2014.[^110] He died in a plane crash on 23 August 2023, exactly two months after his mutiny.[^111] NPR writes that Putin "didn\'t actually eliminate the oligarchy"; he "only targeted individual oligarchs who threatened his power."[^112]',
       },
       {
         kind: 'p',
-        text: "Outside the state, the large private shareholders form a circle that the designation texts link to the president. [[N-O023|Gennady Timchenko]], an old acquaintance of [[N-O024|Vladimir Putin]], shares with [[N-O032|Leonid Mikhelson]] close to half of a large petrochemical group and is a shareholder of [[N-O029|Bank Rossiya]].[^113] Mikhelson directly holds about 14% of [[N-O027|Novatek]].[^114] [[N-O030|Yuri Kovalchuk]], another close associate of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer [[N-O031|SOGAZ]].[^115] The circle reaches the family: in 2013 [[N-O033|Kirill Shamalov]] married [[N-O034|Katerina Tikhonova]], the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]",
+        text: "Outside the state, the large private shareholders form a circle that the designation texts link to the president. [[N-O023|Gennady Timchenko]], an old acquaintance of [[N-O024|Vladimir Putin]], shares with [[N-O032|Leonid Mikhelson]] close to half of a large petrochemical group and is a shareholder of [[N-O029|Bank Rossiya]].[^113] Mikhelson directly holds about 14% of [[N-O027|Novatek]].[^114] [[N-O030|Yuri Kovalchuk]], another close associate of the president, held more than a third of Bank Rossiya in 2013 and controls the insurer [[N-O031|SOGAZ]].[^115] The circle reaches the family: according to the US Treasury, in 2013 [[N-O033|Kirill Shamalov]] married [[N-O034|Katerina Tikhonova]], the president's daughter, and then bought 17% of the same petrochemical group from Timchenko.[^116]",
       },
       {
         kind: 'p',
-        text: 'State companies are run by associates who do not own them. [[N-O037|Igor Sechin]] ([[N-P026|Rosneft]]) is a personal friend of the president, and [[N-O038|Nikolay Tokarev]] ([[N-P034|Transneft]]) served with him in the KGB;[^117] [[N-O039|Sergei Chemezov]] ([[N-O021|Rostec]]) knew him in East Germany.[^118] These friends and former colleagues were given large public assets to manage, which made them "state oligarchs".[^119]',
+        text: 'State companies are run by associates who do not own them. The EU states in its reasons for listing that [[N-O037|Igor Sechin]] ([[N-P026|Rosneft]]) is a personal friend of the president and that [[N-O038|Nikolay Tokarev]] ([[N-P034|Transneft]]) served with him in the KGB;[^117] according to the US Treasury, [[N-O039|Sergei Chemezov]] ([[N-O021|Rostec]]) has known him since the 1980s, when they lived in the same apartment complex in East Germany.[^118] According to Tatiana Stanovaya of the Carnegie Endowment, these friends and former colleagues were handed large state assets to manage, which made them "state oligarchs".[^119]',
       },
       {
         kind: 'p',
-        text: 'State banks follow the same rule. The head of VEB.RF is appointed by the head of state and takes his instructions directly from him; a deputy president of VTB is the son of the director of the FSB. Since 2023, VTB also manages the United Shipbuilding Corporation in trust, by presidential decree.[^120] Promsvyazbank, nationalised in 2018, is run by the son of a former director of foreign intelligence.[^121] The chain of shares stops at the state, but the chain of management leads to the same circle, and the 50% rule follows shares, not these appointments.',
+        text: 'State banks follow the same rule. The head of VEB.RF is appointed by the head of state and takes his instructions directly from him. Since 2023, VTB also manages the United Shipbuilding Corporation in trust, by presidential decree.[^120] According to the US Treasury, a deputy president of VTB is the son of the director of the FSB, and Promsvyazbank, nationalised in 2018, is run by the son of a former director of foreign intelligence.[^121] The chain of shares stops at the state, but the chain of management leads to the same circle, and the 50% rule follows shares, not these appointments.',
       },
       { kind: 'h3', text: 'Unknown owners' },
       {
@@ -1019,7 +1019,7 @@ export const parts: ReportPart[] = [
         id: '111',
         text: 'Reuters. (2023, August 24). *Wagner boss Yevgeny Prigozhin listed in Russian plane crash with no survivors*. https://www.reuters.com/world/europe/ten-killed-private-jet-crash-north-moscow-tass-2023-08-23/.',
       },
-      { id: '112', text: 'See n. 106.' },
+      { id: '112', text: 'NPR Planet Money (2022), op. cit., n. 106.' },
       {
         id: '113',
         text: 'CELEX 02014R0269-20260928, annex I, entries 694 "Gennady Nikolayevich TIMCHENKO" and 731 "Dmitry Vladimirovich KONOV" ; https://eur-lex.europa.eu.',
@@ -1104,7 +1104,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Finally, no fact has been reviewed by a person: the checks are done by rules and by AI agents (Annex A). As a result, each fact must be checked at its source before it is used for a designation.',
+        text: 'Finally, the author read and reviewed the whole report, but the facts of the database are checked by rules and by AI agents, not one by one by a person (Annex A). As a result, each fact must be checked at its source before it is used for a designation.',
       },
       { kind: 'h3', text: 'Research leads' },
       { kind: 'p', text: 'These limits point to directions for research:' },
@@ -1229,7 +1229,7 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'A.4 Checking facts and text' },
       {
         kind: 'p',
-        text: "No fact has been reviewed by a person: this is a choice of method. AI agents collect and archive the sources, then propose each fact with the excerpt of its source. Other agents, which start with a fresh context and did not propose that fact, check that the excerpt appears in the archived source and supports the fact. A failed check does not block the acceptance of a fact. Other facts still wait for a check or a better source. The few facts entered by hand carry a label that sets them apart from the facts produced by the agents. The counts, shares and medians are the author's calculations, which no review agent validates one by one. Each part of the text was reviewed by agents distinct from its writer, and those agents checked its sources one by one; and the author reviewed the text, not each fact against its source.",
+        text: "The author read and reviewed the whole report. AI was used for four jobs: to tag the sources, to run the verification and cross-check loops, to assist the drafting and the translation, and to search for blind spots. AI agents collect and archive the sources, then propose each fact with the excerpt of its source. Other agents, which start with a fresh context and did not propose that fact, check that the excerpt appears in the archived source and supports the fact. A failed check does not block the acceptance of a fact. Other facts still wait for a check or a better source. The few facts entered by hand carry a label that sets them apart from the facts produced by the agents. The counts, shares and medians are the author's calculations, which no review agent validates one by one. Each part of the text was reviewed by agents distinct from its writer, and those agents checked its sources one by one. The author did not check each fact of the database against its source.",
       },
     ],
     notes: [],
