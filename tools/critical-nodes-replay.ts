@@ -201,7 +201,7 @@ export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResul
     // The official flag belongs to one value, so a value with no document of letter A stays so.
     if (official) officialAttribute.add(`${subject} ${name} ${value}`);
     const own = attributes.get(subject) ?? new Map<string, string>();
-    if (!own.has(name) && value !== '' && valuesOf(value).length > 0) own.set(name, value);
+    if (!own.has(name) && value !== '' && value !== '[]') own.set(name, value);
     attributes.set(subject, own);
     if (COUNTRY_ATTRIBUTES.has(name)) {
       const list = countries.get(subject) ?? [];
