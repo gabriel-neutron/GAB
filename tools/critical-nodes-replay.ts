@@ -198,9 +198,10 @@ export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResul
     }
     const name = claim['attribute'] ?? '';
     const value = claim['value'] ?? '';
-    if (official) officialAttribute.add(`${subject} ${name}`);
+    // The official flag belongs to one value, so a value with no document of letter A stays so.
+    if (official) officialAttribute.add(`${subject} ${name} ${value}`);
     const own = attributes.get(subject) ?? new Map<string, string>();
-    if (!own.has(name) && value !== '') own.set(name, value);
+    if (!own.has(name) && value !== '' && value !== '[]') own.set(name, value);
     attributes.set(subject, own);
     if (COUNTRY_ATTRIBUTES.has(name)) {
       const list = countries.get(subject) ?? [];
@@ -264,7 +265,8 @@ export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResul
       const act = attributes.get(to);
       const name = ACT_DATES.find((one) => act?.has(one) === true);
       dated = name !== undefined && daysOf(act?.get(name) ?? '').some(inPeriod);
-      datedOfficially = official && officialAttribute.has(`${to} ${name ?? ''}`);
+      datedOfficially =
+        official && officialAttribute.has(`${to} ${name ?? ''} ${act?.get(name ?? '') ?? ''}`);
     }
     if (dated) {
       mark(active, from, datedOfficially);
@@ -295,7 +297,7 @@ export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResul
         mark(
           active,
           relation['to_id'] ?? '',
-          officialOf(relation) && officialAttribute.has(`${event} occurred_on`),
+          officialOf(relation) && officialAttribute.has(`${event} occurred_on ${day}`),
         );
     }
 
