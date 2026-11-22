@@ -92,7 +92,24 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: '**The result.** Russia holds out, and the report explains this in part by new trade relations with countries that are not aligned with the coalition. These countries use their strategic autonomy and, at the same time, take advantage of their strong position in negotiations with Russia.',
+        text: '**The result.** Sanctions make the war more costly for Russia, but they do not cut its money or its goods: trade moves to partners that do not apply the sanctions, and to a parallel market of tankers, payment relays and companies with no documented owner.',
+      },
+      { kind: 'p', text: "**The report's own measures.**" },
+      {
+        kind: 'li',
+        text: '**Designations:** When the EU and the United States designate the same tanker, the United States does so first in nearly nine cases out of ten, and the median gap from the first to the second regime is 87 days.',
+      },
+      {
+        kind: 'li',
+        text: '**Port calls:** Of 711 tankers with a dated designation, 318 called at a port at least once after it, and 22 of them called in the EU or the United Kingdom.',
+      },
+      {
+        kind: 'li',
+        text: '**Owners and managers:** On the archived pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships that give both dates show an owner or manager that started after the designation.',
+      },
+      {
+        kind: 'li',
+        text: '**Ownership chains:** The 50% rule follows shares: the chains of the large state companies end at the state, but in the private fleet and in oil trading they often end at a company with no documented owner, and about fifteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner.',
       },
       {
         kind: 'li',
@@ -100,11 +117,11 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Ships:** The tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance, carried 79% of the crude exported by sea in January 2026.[^2]',
+        text: '**Ships:** According to the KSE Institute, the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance, carried 79% of the crude exported by sea in January 2026.[^2]',
       },
       {
         kind: 'li',
-        text: "**Price:** Since November 2025, the discount of Russian crude to Brent has almost doubled. The report links this, as a hypothesis, to the American sanctions on [[N-P026|Rosneft]] and [[N-P030|Lukoil]]. Russia's partners benefit: China buys Russian crude at a discount and sells the components of weapons at a high premium.",
+        text: "**Price:** From August 2023 to October 2025, Urals sold $10 to $16 below Brent each month; since November 2025, after the OFAC designation of [[N-P026|Rosneft]] and [[N-P030|Lukoil]], it has sold $19 to $27 below. Russia's partners benefit: China buys Russian crude at a discount and sells the components of weapons at a high premium.",
       },
       {
         kind: 'li',
@@ -116,7 +133,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Components:** Finally, of the priority goods for weapons that its partners declared as sold to Russia in 2025, China supplied 77%, and Hong Kong 11%.[^5]',
+        text: '**Components:** Of the priority goods for weapons that its partners declared as sold to Russia in 2025, China supplied 77% and Hong Kong 11%,[^5] and two thirds of the dated parts found in Russian weapons were made after the invasion.',
       },
       {
         kind: 'p',
@@ -170,6 +187,14 @@ export const parts: ReportPart[] = [
       },
       { kind: 'li', text: 'Who owns them?' },
       { kind: 'li', text: 'How do they get around the sanctions?' },
+      {
+        kind: 'p',
+        text: 'The report does not measure how the nodes get around the sanctions: it shows which routes stay open after each measure, and it gives each mechanism as a claim of its source or as a hypothesis.',
+      },
+      {
+        kind: 'p',
+        text: 'This report finds that sanctions make the war more costly for Russia, but they do not cut its money or its goods: trade moves to partners that do not apply the sanctions, and to a parallel market of tankers, payment relays and companies with no documented owner.',
+      },
     ],
     notes: [
       {
@@ -267,7 +292,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'In total, 493 nodes are critical, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For at least 416 of them, the three conditions rest on a document from an official issuer. Annex A describes how the facts are collected and checked. Section A.3 says how the count of critical nodes was made.',
+        text: 'In total, 539 nodes are critical, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For 410 of them, each of the three conditions rests on a document from an official issuer. Annex A describes how the facts are collected and checked. Section A.3 says how the count of critical nodes was made.',
       },
     ],
     notes: [
@@ -521,13 +546,13 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'figure',
-        text: "Figure 8: Port calls of designated tankers after their designation. Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations.[^50]",
+        text: "Figure 8: Port calls of designated tankers after their designation. Data: Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations. Powered by Global Fishing Watch.[^50]",
         figure: {
           number: 8,
           title: 'Port calls of designated tankers after their designation',
           unit: 'ships',
           sources:
-            "Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations.[^50]",
+            "Global Fishing Watch (2026); Office of Foreign Assets Control (2026); FCDO (2026); Council Regulation (EU) No 833/2014, Annex XLII (2026). Author's calculations. Powered by Global Fishing Watch.[^50]",
         },
       },
       {
@@ -574,7 +599,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '46',
-        text: "Author's calculations based on Global Fishing Watch (2026). https://globalfishingwatch.org ; OFAC (2026). https://sanctionslistservice.ofac.treas.gov ; FCDO (2026). https://sanctionslist.fcdo.gov.uk ; CELEX 32014R0833 ; https://eur-lex.europa.eu.",
+        text: "Author's calculations based on Global Fishing Watch (2026). https://globalfishingwatch.org, CC BY-NC 4.0, non-commercial use ; OFAC (2026). https://sanctionslistservice.ofac.treas.gov ; FCDO (2026). https://sanctionslist.fcdo.gov.uk ; CELEX 32014R0833 ; https://eur-lex.europa.eu.",
       },
       { id: '47', text: 'Dodonov et al. (2026), op. cit., n. 2, p. 2.' },
       {
@@ -949,7 +974,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: "**[[N-O042|Surgutneftegaz]]:** The country's third-largest oil company, run by [[N-O041|Vladimir Bogdanov]], a close associate of the president, has never published its full ownership structure.[^124]",
+        text: "**[[N-O042|Surgutneftegaz]]:** The country's third-largest oil company, run by [[N-O041|Vladimir Bogdanov]], a close associate of the president, had not published its full ownership structure, according to The Moscow Times (2013).[^124]",
       },
       {
         kind: 'p',
@@ -1132,7 +1157,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '127',
-        text: 'Main Directorate of Intelligence of the Ministry of Defence of Ukraine (GUR) (2026), op. cit., n. 51 ; Global Fishing Watch (2026), op. cit., n. 46.',
+        text: 'Main Directorate of Intelligence of the Ministry of Defence of Ukraine (GUR) (2026), op. cit., n. 51 ; Global Fishing Watch (2026), op. cit., n. 46, CC BY-NC 4.0, non-commercial use.',
       },
     ],
   },
@@ -1154,9 +1179,38 @@ export const parts: ReportPart[] = [
         kind: 'p',
         text: 'EU sanctions follow this shift step by step. They go up the chain: the product, then the means, then the source. The EU first targeted oil, through the embargo and the price cap, then the vessels that carry it, then the ports it leaves from. Each step answers the circumvention of the one before and arrives late; the report assumes that the parallel market re-forms faster than the lists grow.',
       },
+    ],
+    notes: [],
+  },
+  {
+    source: 'report-en.md, Recommendations',
+    slug: 'recommendations',
+    title: 'Recommendations',
+    nodeIds: [],
+    blocks: [
       {
-        kind: 'p',
-        text: "These two routes call for two responses. Against the parallel market, designating companies one by one gives time to create others; targeting a whole network at once, from owner to payment agent, and aligning the coalition's lists would shorten that delay. Against the new partners, by contrast, only the threat of secondary sanctions seems to carry weight, because it affects the access of their banks and firms to the dollar.",
+        kind: 'li',
+        text: 'A sanctions authority of the EU or the United Kingdom can use each new OFAC tanker designation as an early signal for its own review, because OFAC lists a shared tanker first in nearly nine cases out of ten.',
+      },
+      {
+        kind: 'li',
+        text: 'A sanctions authority of the EU or the United Kingdom can check the port calls in its own ports of the 22 designated tankers that called there after their designation.',
+      },
+      {
+        kind: 'li',
+        text: 'An authority that lists ships can check, at each update, the current owner and manager of the ships it has already listed, because 427 of 757 ships on the GUR pages show an owner or manager that started after the designation.',
+      },
+      {
+        kind: 'li',
+        text: 'Where no source names the ultimate owner, an authority can designate each company for its activity and attach each new manager or trader to the group it replaces, as the Council of the EU did for Citrine Marine and Nord Axis.',
+      },
+      {
+        kind: 'li',
+        text: 'A researcher can complete the mirror data with customs data for the United Arab Emirates, Vietnam, Kazakhstan and Thailand, which report no product data or only part of it to UN Comtrade for 2024-2025.',
+      },
+      {
+        kind: 'li',
+        text: "A funder can pay for the archiving of AIS identity histories and for a check of the fleet facts by a person, because the report's fleet findings rest on one source that is a party to the conflict and on a registry that is not archived, and no person has checked each fact of the database against its source.",
       },
     ],
     notes: [],
@@ -1174,7 +1228,11 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'These documents come from the official sanctions lists (OFAC, United Kingdom, EU acts), from company registers, from public statistics (UN Comtrade, Eurostat, World Bank, Bank of Russia, Russian Ministry of Finance), from research institutes (KSE, CREA, Bruegel) and from investigative press.',
+        text: 'These documents come from the official sanctions lists (OFAC, United Kingdom, EU acts), from company registers, from public statistics (UN Comtrade, Eurostat, World Bank, Bank of Russia, Russian Ministry of Finance), from research institutes (KSE, CREA, Bruegel) and from investigative press. Leads came from web and news searches (SearXNG, GDELT) and from the registers; a search result was never cited, and the queries were not logged. The documents of the data release were retrieved between 7 and 28 October 2026; the research closed on 20 November 2026.',
+      },
+      {
+        kind: 'p',
+        text: 'Each document is stored as received, under its SHA-256 hash, which also forms its document id. The database records the address and the date of retrieval, with no time of day. The raw files are kept in a private store that cannot change or delete them; they are not published, and no web archive copy is recorded.',
       },
       { kind: 'h3', text: 'A.2 Source rules' },
       {
@@ -1199,7 +1257,11 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: "The reliability of each source's issuer follows the ADMIRALTY scale, from A (official issuer) to F (cannot be judged).",
+        text: 'The reliability of the issuer of each source follows the ADMIRALTY scale, from A (an official issuer on its own record) to F (cannot be judged); a party to the conflict is rated C at most. A separate digit from 1 to 6 rates each fact by the number of independent issuers that give it. The report shows the letter of official issuers only; the data release gives the letter and the digit of each claim that has both.',
+      },
+      {
+        kind: 'li',
+        text: 'Each source has a level set from its terms of use, which were read. A source whose terms forbid reuse stays internal: a fact can cite it, but its data are not republished.',
       },
       { kind: 'h3', text: 'A.3 Selecting the critical nodes' },
       {
@@ -1216,7 +1278,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: "**Passes through a third country:** Either the entity's country of registration, or the flag of one of its vessels, or the country of a direct counterparty is one that does not apply the coalition's sanctions. A country read only from a company's name does not count while no archived document gives its address.",
+        text: "**Passes through a third country:** The entity's country of registration, any flag of its vessels that the release gives, or the country of a direct counterparty is a country other than Russia that does not apply the coalition's sanctions. A country read only from a company's name or address does not count.",
       },
       {
         kind: 'p',
@@ -1224,12 +1286,29 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'The published count of critical nodes is 493: 450 nodes of the record and 43 nodes of a first list that the record does not link yet. It comes from a selection test that the author ran on 27 October 2026. The query of that test is not kept. The figure of 416 nodes on an official source has no stored definition. So neither figure can be rebuilt. The repository holds a script that applies the conditions above to the record. It leaves out the country of a counterparty and the owner of a vessel with no manager, and its result does not equal the published count. The release table of critical nodes uses another rule, two sourced conditions of three. It is not the rule of this count.',
+        text: 'The count of critical nodes is 539. It is the result of the script tools/critical-nodes-replay.ts on the data release data-2026-10-28. The command pnpm critical:replay downloads that release, checks its SHA-256 and gives the same count. A node that the release does not hold is not counted. A designation with no date takes the date of its act. Russia is the target of the sanctions, so it is not a third country. For 410 of the 539 nodes, each condition rests on a document of an official issuer (ADMIRALTY letter A). The script derives the layer of a node from its entities, because the release gives no layer: Pay 488, Finance 4, Fight 47. The count changes with the rule: 591 nodes if Russia counts as a third country, 516 with no country of a counterparty. An earlier count of 493 (450 nodes of the record and 43 of a first list) and the figure of 416 cannot be rebuilt, because their query was not kept. Port calls carry no date, so most nodes are active only by a dated designation.',
       },
       { kind: 'h3', text: 'A.4 Checking facts and text' },
       {
         kind: 'p',
         text: "The author read and reviewed the whole report. AI was used for four jobs: to tag the sources, to run the verification and cross-check loops, to assist the drafting and the translation, and to search for blind spots. AI agents collect and archive the sources, then propose each fact with the excerpt of its source. Other agents, which start with a fresh context and did not propose that fact, check that the excerpt appears in the archived source and supports the fact. A failed check does not block the acceptance of a fact. Other facts still wait for a check or a better source. The few facts entered by hand carry a label that sets them apart from the facts produced by the agents. The counts, shares and medians are the author's calculations, which no review agent validates one by one. Each part of the text was reviewed by agents distinct from its writer, and those agents checked its sources one by one. The author did not check each fact of the database against its source.",
+      },
+      { kind: 'h3', text: 'A.5 Ethics, security and independence' },
+      {
+        kind: 'li',
+        text: '**Persons:** A natural person appears in the data release only when a sanctions act designates that person. No personal address, telephone number or e-mail is collected. Extracts of company registers and court files name legal persons only.',
+      },
+      {
+        kind: 'li',
+        text: '**Contact:** No subject was contacted, and no right of reply was offered before publication, because the report brings together public information only. Each page and each data file gives an address to report an error and an address for a right of reply.',
+      },
+      {
+        kind: 'li',
+        text: '**AI:** Language models were used for four tasks only: tagging the sources, the verification loops, help with drafting and translation, and the search for blind spots. Their providers read the full text of the stored documents.',
+      },
+      {
+        kind: 'li',
+        text: '**Independence:** The author is solely responsible for the content. Claims of the GUR remain attributed to it.',
       },
     ],
     notes: [],
@@ -1603,7 +1682,7 @@ export const figureTexts = {
       ],
       note: '“Other countries” is a balance calculated by the author.',
       noteB:
-        'Gas to the EU: EU and South-East Europe (TurkStream). Crude to the EU: Druzhba south, through Ukraine. Druzhba north: no more Russian crude to Poland and Germany since 2023 (GEM); to Belarus, 2025 volume not documented. “Other countries” is a balance calculated by the author. Pipeline gas and LNG do not add up: no conversion factor is recorded. Hatching: designated project (Arctic LNG 2, designated by OFAC and the United Kingdom).',
+        'Gas to the EU: EU and South-East Europe (TurkStream). Crude to the EU: Druzhba south, through Ukraine. Druzhba north: no more Russian crude to Poland and Germany since 2023 (Reuters, 2023); to Belarus, 2025 volume not documented. “Other countries” is a balance calculated by the author. Pipeline gas and LNG do not add up: no conversion factor is recorded. Hatching: designated project (Arctic LNG 2, designated by OFAC and the United Kingdom).',
       labels: {
         'a. Pétrole par mer, janvier 2026': 'a. Seaborne oil, January 2026',
         'milliers de barils par jour (kb/j)': 'thousand barrels per day (kb/d)',
@@ -1777,7 +1856,7 @@ export const figureTexts = {
         'État russe': 'Russian State',
         'propriétaire non nommé': 'owner not named',
         'possède ou exploite les navires de {n} armateurs ou gestionnaires :':
-          'owns or operates the vessels of {n} shipowners or managers:',
+          'owns or operates the vessels of {n} shipowners or managers, according to GUR, a party to the war:',
         'État et sociétés d’État': 'State and state companies',
         personnes: 'persons',
         sociétés: 'companies',
@@ -1830,6 +1909,8 @@ export const figureTexts = {
     'possède (part achetée à Trafigura)': 'owns (stake bought from Trafigura)',
     'possède (jusqu’au 11 janvier 2023)': 'owns (until 11 January 2023)',
     'possède ou exploite': 'owns or operates',
+    'possède ou exploite (selon le GUR, partie à la guerre)':
+      'owns or operates (according to GUR, a party to the war)',
     contrôle: 'controls',
     'contrôle (filiale)': 'controls (subsidiary)',
     'contrôle (société du groupe)': 'controls (group company)',
@@ -2086,9 +2167,13 @@ export const openingUi = {
     // text; words, when given, are written exactly as in the item. The item on the price has no
     // note.
     values: [
+      { words: '87 days', note: '' },
+      { words: '318', note: '' },
+      { words: '427 of 757', note: '' },
+      { words: 'about fifteen', note: '' },
       { words: '', note: '1' },
       { words: '', note: '2' },
-      { words: 'almost doubled', note: '' },
+      { words: '$19 to $27', note: '' },
       { words: 'less than one fifth', note: '3' },
       { words: '', note: '4' },
       { words: '', note: '5' },
@@ -2103,11 +2188,10 @@ export const openingUi = {
 export const methodUi = {
   layers: {
     label: 'Layers',
-    unit: 'Critical nodes, one square for each node',
+    unit: 'Nodes of the page data, one square for each node',
     // The figure counts the nodes of the report, so its period is the period of the report.
     period: '2024-2026',
-    critical: 'Critical, no page record',
-    inData: 'Critical and in the page data',
+    inData: 'In the page data, three conditions documented',
     examined: 'In the page data, fewer than three conditions documented',
     open: 'Open the nodes of the page data',
     conditions: 'Three conditions of a critical node',
@@ -2320,7 +2404,8 @@ export const fightUi = {
     openSite: 'Open the record of the site',
     imports:
       'Russian imports of CHP battlefield goods, January–October 2023, share of the value in %',
-    brands: 'Coalition brands, million USD',
+    brands:
+      'Russian imports of goods of these brands, 2023, million USD (KSE, 2024). A brand is not the seller.',
     document: 'Document',
     page: 'p.',
     source: 'Source',
@@ -2498,7 +2583,7 @@ export const closingUi = {
     record: 'In the database',
     entities: 'Entities',
     critical: 'Critical nodes',
-    official: 'Critical nodes on an official source, at least',
+    official: 'Critical nodes on an official source',
     recordSource: 'Source: the text of this report, counts as at {date}',
     // The counts of the page data.
     report: 'In this report',
