@@ -50,7 +50,7 @@ const DISCLAIMER = [
     'person beyond what a cited source already publishes. Each row carries its label: when you ' +
     'copy a row, copy its label with it.',
   '',
-  'Report an error: `<link>`. Right of reply: `<link>`.',
+  'Report an error: `<link>`. Corrections: `<link>`.',
 ].join('\n');
 
 test('the read service gives the disclaimer of the dataset', async () => {

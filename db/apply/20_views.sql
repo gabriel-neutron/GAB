@@ -435,7 +435,8 @@ COMMENT ON VIEW api.proposal IS
 
 -- PU1: the disclaimer of the dataset. The read API gives it beside the data, so that a reader
 -- of the API gets it, and an export file copies it. The text is the exact text of the operator.
--- The two links stay placeholders until the operator names them. The lines are long because
+-- The two links stay placeholders until the release names them: the second link is the
+-- Corrections page. The project offers no right of reply: a named party asks for a correction. The lines are long because
 -- the text is one literal, word for word.
 CREATE VIEW api.dataset AS
   SELECT $disclaimer$**About this data.** A machine reads public documents and proposes each claim. Each claim cites the documents that state it, and each claim carries a label that tells who decided it.
@@ -447,7 +448,7 @@ CREATE VIEW api.dataset AS
 
 A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.
 
-Report an error: `<link>`. Right of reply: `<link>`.$disclaimer$::text AS disclaimer;
+Report an error: `<link>`. Corrections: `<link>`.$disclaimer$::text AS disclaimer;
 COMMENT ON VIEW api.dataset IS
   'One row: the disclaimer of the dataset, in Markdown. Each export file of the data carries it, '
   'and each row of the export carries its label.';

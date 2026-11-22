@@ -10,7 +10,7 @@
 #
 # A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.
 #
-# Report an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.
+# Report an error: https://example.org/report-an-error. Corrections: https://example.org/corrections.
 claim_id,claim_kind,subject_kind,subject_id,subject_label,attribute,value,relation_type,object_id,object_label,valid_from,valid_to,origin_label,licence,document_id,document_title,document_address,document_read_on,page,excerpt,modality,transcribed,document_type,value_in_excerpt,nato_letter,nato_digit
 0a1f0000-0000-4000-8000-000000000001/imo,attribute,entity,0a1f0000-0000-4000-8000-000000000001,Severnaya Volna,imo,9000001,,,,,,"Accepted by rule strong_sources v2 — no person read it, on 2026-10-02",CC-BY 4.0,eu_act,Council Implementing Regulation (EU) 2025/0000,https://eur-lex.europa.eu/eli/reg_impl/2025/0000/oj,2026-09-30,4,"SEVERNAYA VOLNA, IMO 9000001",asserts,false,other,yes,A,2
 0a1f0000-0000-4000-8000-000000000001/flag,attribute,entity,0a1f0000-0000-4000-8000-000000000001,Severnaya Volna,flag,Gabon,,,,,,Proposed — not checked,"derived fact; source under the provider licence, not redistributed",news,A tanker changes hands,https://news.example.org/tanker,2026-09-28,1,the tanker now sails under the flag of Gabon,asserts,false,other,yes,not rated,not rated

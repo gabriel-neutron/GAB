@@ -4,7 +4,7 @@ import { readReleaseManifest, ReleaseManifestFault } from './release-manifest.ts
 
 const CONTACTS = {
   reportError: 'https://example.org/report',
-  rightOfReply: 'mailto:reply@example.org',
+  rightOfReply: 'https://example.org/corrections',
 };
 
 const TODAY = new Date('2026-11-08T21:30:00Z');

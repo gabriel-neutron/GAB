@@ -436,7 +436,8 @@ public. Each candidate claim shows a visible label with its origin.
 person is exposed (legal and GDPR risk).
 **Mitigations.** The labels. No personal data on a person beyond what a cited source already
 publishes. A unit stays hidden until it has its own citation. Each page gives the visitor "Report
-an error" and "Right of reply".
+an error" and "Corrections". The project offers no right of reply, because the report only
+brings public information together; a named party can ask for a correction (22 November 2026).
 **Accepted.** Every name that a cited source gives can be public. The operator accepts the legal
 risk of an anonymous publisher.
 **The label (9 October 2026).** The label tells who decided a claim, in fixed words: "Proposed —

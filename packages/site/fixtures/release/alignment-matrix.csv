@@ -10,7 +10,7 @@
 #
 # A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.
 #
-# Report an error: https://example.org/report-an-error. Right of reply: mailto:reply@example.org.
+# Report an error: https://example.org/report-an-error. Corrections: https://example.org/corrections.
 #
 # Alignment matrix of the EU, OFAC and UK sanctions lists.
 # One row for each IMO number of a public vessel that a public designation of at least one regime lists. The join is on the IMO number only, never on a name. imo_check_digit_ok tells if the check digit of the number is right.

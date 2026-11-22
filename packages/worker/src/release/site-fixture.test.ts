@@ -54,7 +54,7 @@ const DISCLAIMER = `**About this data.** A machine reads public documents and pr
 
 A claim tells what its sources say. A source can be wrong. GAB gives no personal data about a person beyond what a cited source already publishes. Each row carries its label: when you copy a row, copy its label with it.
 
-Report an error: \`<link>\`. Right of reply: \`<link>\`.`;
+Report an error: \`<link>\`. Corrections: \`<link>\`.`;
 
 const passage = (document: string, page: number, excerpt: string) => ({
   document,
@@ -485,7 +485,7 @@ const manifestOf = (natoPair: boolean, date: string, version: string) =>
       showNatoPair: natoPair,
       contacts: {
         reportError: 'https://example.org/report-an-error',
-        rightOfReply: 'mailto:reply@example.org',
+        rightOfReply: 'https://example.org/corrections',
       },
       iriBase: 'https://gab.example.org/',
     }),

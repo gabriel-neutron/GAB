@@ -492,7 +492,7 @@ const structuredData = (site: string, r: Release): string =>
         sameAs: [REPOSITORY_URL, 'https://github.com/gabriel-neutron'],
         contactPoint: {
           '@type': 'ContactPoint',
-          contactType: 'error reports and right of reply',
+          contactType: 'error reports and corrections',
           url: `${site}contact`,
         },
       },

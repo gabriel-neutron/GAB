@@ -104,7 +104,7 @@ const RECORD: ReleaseRecord = {
   merges: [],
   documents: new Map([['gem', GEM]]),
   nameCandidates: { proposed: 0, confirmed: 0, refused: 0 },
-  disclaimer: 'Report an error: `<link>`\nRight of reply: `<link>`',
+  disclaimer: 'Report an error: `<link>`\nCorrections: `<link>`',
   natoPairs: null,
 };
 
@@ -273,7 +273,7 @@ const MANIFEST: ReleaseManifest = {
   date: '2026-10-13',
   showNatoPair: false,
   dateRules: { eu: 'entry_into_force', ofac: 'recent_actions_notice', uk: 'date_designated' },
-  contacts: { reportError: 'mailto:error@example.org', rightOfReply: 'mailto:reply@example.org' },
+  contacts: { reportError: 'mailto:error@example.org', rightOfReply: 'https://example.org/corrections' },
   criticalNodes: null,
   volumes: null,
   iriBase: 'https://example.org/id/',

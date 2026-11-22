@@ -249,6 +249,24 @@ describe('the faults of the MCP server', () => {
     expect(home).not.toContain('a@example.org');
   });
 
+  it('serves the corrections page with the policy, the version log and the rights', async () => {
+    const page = await (await get('/corrections.md')).text();
+    expect(page).toContain('## What happens');
+    expect(page).toContain('- Version 1.0, 29 November 2026:');
+    expect(page).toContain('Figure 8 is not under CC BY 4.0');
+    expect(page).not.toContain('a@example.org');
+    expect(page).not.toMatch(/right of reply/iu);
+    const html = await (await get('/corrections', { accept: 'text/html' })).text();
+    expect(html).toContain('<title>Corrections · GAB dataset</title>');
+  });
+
+  it('gives the legal basis and the rights of a named person on the privacy page', async () => {
+    const page = await (await get('/privacy.md')).text();
+    expect(page).toContain('Article 6(1)(f) of the GDPR');
+    expect(page).toContain('under a pseudonym');
+    expect(page).toContain('https://example.org/corrections');
+  });
+
   it('answers 503, not an empty list, when the manifest cannot be read', async () => {
     const broken = {
       ASSETS: { fetch: (): Promise<Response> => Promise.resolve(new Response('x')) },
