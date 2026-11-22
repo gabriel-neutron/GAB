@@ -46,7 +46,8 @@
     "closer:gate": "node --env-file=infra/.env packages/mcp/src/closer-gate.ts",
     "mcp:serve": "node packages/mcp/src/main.ts --http 7420",
     "worker": "node --env-file=infra/.env packages/worker/src/main.ts",
-    "speed:budget": "node tools/speed-budget.ts"
+    "speed:budget": "node tools/speed-budget.ts",
+    "critical:replay": "node tools/critical-nodes-replay.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

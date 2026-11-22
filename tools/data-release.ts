@@ -24,29 +24,31 @@ export const DATA_RELEASE_TAG = 'data-2026-10-28';
 export const DATA_RELEASE_SHA256 =
   '8896410d0eaea285c72e28798ae1fa7c5ea57d0f369dad3791c0acda04101084';
 
-const ASSETS = `https://github.com/gabriel-neutron/GAB/releases/download/${DATA_RELEASE_TAG}/`;
+const RELEASES = 'https://github.com/gabriel-neutron/GAB/releases/download/';
+const ASSETS = `${RELEASES}${DATA_RELEASE_TAG}/`;
 
 // External constraint: the host serves no static file larger than 25 MiB. The GitHub release
 // holds each larger file alone, and the site sends the reader there.
 const HOST_FILE_LIMIT = 25 * 1024 * 1024;
 
-/** Downloads and unpacks the pinned release once, and gives its folder. */
-export const fetchDataRelease = async (root: string): Promise<string> => {
-  const folder = resolve(root, 'node_modules/.cache/gab-release', DATA_RELEASE_TAG);
+/** Downloads and unpacks a release once (by default the pinned one), and gives its folder. */
+export const fetchDataRelease = async (
+  root: string,
+  tag = DATA_RELEASE_TAG,
+  sha256 = DATA_RELEASE_SHA256,
+): Promise<string> => {
+  const folder = resolve(root, 'node_modules/.cache/gab-release', tag);
   if (existsSync(folder)) return folder;
   // The folder takes its name only when it is complete: a stopped build leaves no half release.
   const partial = `${folder}.partial`;
   rmSync(partial, { recursive: true, force: true });
   mkdirSync(partial, { recursive: true });
-  const answer = await fetch(`${ASSETS}release.tar.gz`);
-  if (!answer.ok)
-    throw new Error(`The data release ${DATA_RELEASE_TAG} answered ${answer.status}.`);
+  const answer = await fetch(`${RELEASES}${tag}/release.tar.gz`);
+  if (!answer.ok) throw new Error(`The data release ${tag} answered ${answer.status}.`);
   const archive = Buffer.from(await answer.arrayBuffer());
   const found = sha256Of(archive);
-  if (found !== DATA_RELEASE_SHA256)
-    throw new Error(
-      `The data release ${DATA_RELEASE_TAG} has the SHA-256 ${found}, not the pinned one.`,
-    );
+  if (found !== sha256)
+    throw new Error(`The data release ${tag} has the SHA-256 ${found}, not the pinned one.`);
   writeFileSync(join(partial, '.release.tar.gz'), archive);
   // A relative name: GNU tar reads `C:` in a Windows path as the name of a remote host.
   execFileSync('tar', ['-xzf', '.release.tar.gz'], { cwd: partial });
