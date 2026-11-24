@@ -30,7 +30,7 @@
 
 The sources of the other figures are given in the body of the report.
 
-*This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. The authors are solely responsible for the content and conclusions presented. This report is under CC BY 4.0: name the authors, link the licence and mark each change. Figure 8 is not under CC BY 4.0: it uses Global Fishing Watch data under CC BY-NC 4.0, so do not use it for a commercial purpose.*
+*The authors are solely responsible for the content and conclusions presented. This report is under CC BY 4.0: name the authors, link the licence and mark each change. Figure 8 is not under CC BY 4.0: it uses Global Fishing Watch data under CC BY-NC 4.0, so do not use it for a commercial purpose.*
 
 [^1]: Authors' calculations based on Bahí Esteba, A. et al. (2026, September 21). *Russian foreign trade tracker* (35th ed.) [Data]. Bruegel. https://www.bruegel.org, fig. 2.
 
