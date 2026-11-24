@@ -15,7 +15,7 @@
 
 Les sources des autres chiffres sont données dans le corps du rapport.
 
-*This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. The author(s) are solely responsible for the content and conclusions presented.*
+*The author(s) are solely responsible for the content and conclusions presented.*
 
 ## Introduction
 
