@@ -20,7 +20,7 @@
 
 The sources of the other figures are given in the body of the report.
 
-*This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. The author(s) are solely responsible for the content and conclusions presented.*
+*The author(s) are solely responsible for the content and conclusions presented.*
 
 [^1]: Author's calculations based on Bahí Esteba, A. et al. (2026, September 21). *Russian foreign trade tracker* (35th ed.) [Data]. Bruegel. https://www.bruegel.org, fig. 2.
 

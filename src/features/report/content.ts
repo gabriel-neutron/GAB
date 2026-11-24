@@ -124,7 +124,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: '*This investigation was supported by FNF through the OSINT+ Investigation Competition 2026. The author(s) are solely responsible for the content and conclusions presented.*',
+        text: '*The author(s) are solely responsible for the content and conclusions presented.*',
       },
     ],
     notes: [
