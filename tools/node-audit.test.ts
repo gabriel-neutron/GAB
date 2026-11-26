@@ -1,3 +1,7 @@
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -23,6 +27,7 @@ import {
   auditOrder,
   contextOf,
   failedClaimsOf,
+  repairTail,
   reportEntityIds,
   summaryOf,
 } from './node-audit.ts';
@@ -182,6 +187,8 @@ describe('the checks of a fact', () => {
     expect(identifierValid(one('v1/imo')).verdict).toBe('pass');
     expect(identifierValid({ ...one('v1/imo'), value: '9435338' }).verdict).toBe('fail');
     expect(identifierValid(one('v1/flag')).verdict).toBe('not_applicable');
+    expect(identifierValid({ ...one('v1/imo'), value: '[]' }).verdict).toBe('not_applicable');
+    expect(identifierValid({ ...one('v1/imo'), value: '[1' }).reason).toBe('value_not_parsed');
   });
 
   it('checks the order of the dates, and the date of the act of a designation', () => {
@@ -189,6 +196,8 @@ describe('the checks of a fact', () => {
     expect(dates(one('r-own'), acts).verdict).toBe('pass');
     expect(dates(with_('r-own', { valid_to: '2023-01-01' }), acts).verdict).toBe('fail');
     expect(dates(with_('r-own', { valid_from: '1 March 2024' }), acts).verdict).toBe('fail');
+    expect(dates(with_('r-own', { valid_from: '2020-13-45' }), acts).verdict).toBe('fail');
+    expect(dates(with_('r-own', { valid_from: '2023-02-30' }), acts).verdict).toBe('fail');
     expect(dates(one('r-des'), acts).verdict).toBe('pass');
     expect(dates(one('r-des'), new Map()).reason).toBe('no_act_date');
   });
@@ -208,6 +217,8 @@ describe('the checks of a fact', () => {
     expect(holdsIdentifier('IMO9435337;', '9435337')).toBe(true);
     expect(holdsIdentifier('ref 194353371', '9435337')).toBe(false);
     expect(holdsIdentifier('LEI 2138ABCD', '2138AB')).toBe(false);
+    expect(holdsIdentifier('943 5337', '9435337')).toBe(false);
+    expect(holdsIdentifier('ships 12 9435337', '9435337')).toBe(true);
   });
 });
 
@@ -248,6 +259,15 @@ describe('the checks of the stored document', () => {
     const absent = await recordChecks(with_('v1/flag', { document_id: 'doc_z' }), reader());
     expect(absent[0]?.verdict).toBe('fail');
   });
+
+  it('fails the hash of a document with no hash and no stored bytes', async () => {
+    const empty: RecordReader = {
+      document: () => Promise.resolve({ sha256: '', level: 'A', storedSha256: '' }),
+      page: () => Promise.resolve(null),
+    };
+    const results = await recordChecks(one('v1/flag'), empty);
+    expect(results[1]?.verdict).toBe('fail');
+  });
 });
 
 describe('the checks of a node', () => {
@@ -261,10 +281,17 @@ describe('the checks of a node', () => {
       identifiersOf(twin.values()),
     );
     const type = new Map(ENTITIES.map((row) => [row['id'] ?? '', row['type'] ?? '']));
-    const [dup, person] = nodeChecks([VESSEL, 'p1'], duplicates, type, new Set([VESSEL]));
+    const [facts, dup, person] = nodeChecks([VESSEL, 'p1'], 3, duplicates, type, new Set([VESSEL]));
+    expect(facts?.verdict).toBe('pass');
     expect(dup?.verdict).toBe('fail');
     expect(person?.verdict).toBe('fail');
-    expect(nodeChecks([OWNER], new Map(), type, new Set())[1]?.verdict).toBe('not_applicable');
+    expect(nodeChecks([OWNER], 1, new Map(), type, new Set())[2]?.verdict).toBe('not_applicable');
+  });
+
+  it('never passes a node with no claim', () => {
+    const results = nodeChecks([OWNER], 0, new Map(), new Map(), new Set());
+    expect(results[0]).toMatchObject({ verdict: 'cannot_check', reason: 'no_claim' });
+    expect(nodeVerdict(results, 'record')).toBe('incomplete');
   });
 
   it('rolls up: a fail wins, then an open check; release mode never says pass', () => {
@@ -279,6 +306,13 @@ describe('the checks of a node', () => {
 });
 
 describe('the audit of a release', () => {
+  it('drops a cut last line of the result file, so a run can go on', () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'node-audit-')), 'results.jsonl');
+    writeFileSync(file, '{"kind":"header"}\n{"kind":"node"');
+    repairTail(file);
+    expect(readFileSync(file, 'utf8')).toBe('{"kind":"header"}\n');
+  });
+
   it('reads the record ids of the report nodes, also of a group node', () => {
     const text = "{ record_entity_id: 'a' },{ record_entity_id: '' },{ record_entity_id: 'b;c' }";
     expect(reportEntityIds(text)).toEqual(['a', 'b', 'c']);

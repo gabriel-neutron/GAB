@@ -10,7 +10,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { argv, env, exit } from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -50,6 +50,7 @@ import {
   nodeVerdict,
   originKind,
   recordChecks,
+  sha256Of,
   valueInExcerpt,
   type Claim,
   type RecordReader,
@@ -209,6 +210,7 @@ export const auditNode = async (node: AuditNode, context: Context): Promise<Node
   }
   const nodeResults = nodeChecks(
     node.members,
+    facts.length,
     context.duplicates,
     context.type,
     context.designated,
@@ -242,6 +244,28 @@ const readLines = (file: string): Line[] =>
         .filter((one) => one.trim() !== '')
         .map((one) => JSON.parse(one) as Line)
     : [];
+
+/** Removes a last line that a stopped run left cut, so the next line starts on its own line. A bad
+ * line before the last one is a fault of the file, and the next read stops on it. */
+export const repairTail = (file: string): void => {
+  if (!existsSync(file)) return;
+  const text = readFileSync(file, 'utf8');
+  const lines = text.split('\n');
+  const last = lines.at(-1) ?? '';
+  if (last === '') return;
+  try {
+    JSON.parse(last);
+    writeFileSync(file, `${text}\n`);
+  } catch {
+    writeFileSync(
+      file,
+      lines
+        .slice(0, -1)
+        .map((one) => `${one}\n`)
+        .join(''),
+    );
+  }
+};
 
 const sameHeader = (a: Header, b: Header) =>
   a.version === b.version &&
@@ -324,7 +348,7 @@ const runModel = async (
   nodes: readonly AuditNode[],
   context: Context,
   file: string,
-  options: { tokenCap: number; go: boolean; checker: ModelConfig },
+  options: { tokenCap: number; go: boolean; checker: ModelConfig; limit?: number | undefined },
 ): Promise<void> => {
   const prompt = readFileSync(PROMPT_FILE, 'utf8');
   const done = new Set(
@@ -335,7 +359,8 @@ const runModel = async (
   const todo = nodes
     .filter((one) => !done.has(one.id))
     .map((node) => ({ node, claims: factsOf(node, context) }))
-    .filter((one) => one.claims.length > 0);
+    .filter((one) => one.claims.length > 0)
+    .slice(0, options.limit);
   const answer = options.checker.line.maxAnswerTokens;
   const needs = todo.map((one) => tokensOf(modelMessages(prompt, one.claims), answer));
   const total = needs.reduce((sum, one) => sum + one, 0);
@@ -405,6 +430,11 @@ const runModel = async (
         };
       }),
     };
+    // A failed call leaves the node to do, so the next run asks again.
+    if (!asked.ok) {
+      console.log(`The model failed on node ${node.id}: ${asked.failure.reason}.`);
+      continue;
+    }
     appendFileSync(file, `${JSON.stringify(line)}\n`);
   }
 };
@@ -559,10 +589,12 @@ const openRecordReader = async (): Promise<{
   const { default: pg } = await import('pg');
   const { connectionString } = await import('./db-runtime.ts');
   const { openReadStore, readObject } = await import('@gab/store');
-  const { sha256Of } = await import('./node-audit-checks.ts');
-  const pool = new pg.Pool({ connectionString: connectionString('app'), max: 2 });
-  // Each session of the pool refuses a write.
-  pool.on('connect', (client) => void client.query('SET default_transaction_read_only = on'));
+  // Each session of the pool starts read only, so a write fails at the database.
+  const pool = new pg.Pool({
+    connectionString: connectionString('app'),
+    max: 2,
+    options: '-c default_transaction_read_only=on',
+  });
   const store = openReadStore();
   const documents = new Map<string, Awaited<ReturnType<RecordReader['document']>>>();
   const reader: RecordReader = {
@@ -640,9 +672,17 @@ const main = async () => {
     kind: 'header',
     version: AUDIT_VERSION,
     mode,
-    release: values.release === undefined ? REPORT_RELEASE : { tag: folder, sha256: 'not pinned' },
+    // Another release is named by its folder name and the hash of its manifest, never by a path.
+    release:
+      values.release === undefined
+        ? REPORT_RELEASE
+        : {
+            tag: basename(resolve(folder)),
+            sha256: sha256Of(readFileSync(join(folder, 'manifest.json'))),
+          },
     checks: [...FACT_CHECKS, ...NODE_CHECKS],
   };
+  repairTail(file);
   const lines = readLines(file);
   const held = lines.find((one): one is Header => one.kind === 'header');
   if (held !== undefined && !sameHeader(held, header)) {
@@ -671,7 +711,7 @@ const main = async () => {
     );
   }
 
-  const reader = values.record ? await openRecordReader() : null;
+  const reader = values.record && !values.model ? await openRecordReader() : null;
   const context = contextOf(files, reader?.reader ?? null, mode);
   try {
     if (values.model) {
@@ -680,8 +720,8 @@ const main = async () => {
         console.error('--model needs --token-cap <a whole number of tokens>.');
         exit(1);
       }
-      const limited = values.limit === undefined ? scope : scope.slice(0, Number(values.limit));
-      await runModel(limited, context, file, {
+      await runModel(scope, context, file, {
+        limit: values.limit === undefined ? undefined : Number(values.limit),
         tokenCap: cap,
         go: values.go,
         checker: readModelConfig('CHECKER', env),

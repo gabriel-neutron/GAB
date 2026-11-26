@@ -62,7 +62,7 @@ export const FACT_CHECKS = [
 ] as const;
 
 /** The checks of a node as a whole. */
-export const NODE_CHECKS = ['no_duplicate', 'person_rule'] as const;
+export const NODE_CHECKS = ['has_facts', 'no_duplicate', 'person_rule'] as const;
 
 const result = (check: string, verdict: Verdict, reason: string): Result => ({
   check,
@@ -116,13 +116,13 @@ export const identifiersOf = (claims: Iterable<Claim>): Map<string, Map<string, 
 const excerptOf = (row: Row) => row['excerpt'] ?? '';
 
 /** True when the text holds the identifier as a whole token: a digit identifier with no digit on
- * either side ("IMO9435337" holds 9435337), any other with no letter or digit on either side. */
+ * either side ("IMO9435337" holds 9435337), any other with no letter or digit on either side. The
+ * text is not joined, so "943 5337" is two numbers and holds no 9435337. */
 export const holdsIdentifier = (text: string, identifier: string): boolean => {
   if (identifier === '') return false;
-  const plain = text.replace(/[\s-]/gu, '').toUpperCase();
   const edge = /^\d+$/u.test(identifier) ? String.raw`\d` : String.raw`[\p{L}\p{N}]`;
-  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
-  return new RegExp(`(?<!${edge})${escaped}(?!${edge})`, 'u').test(plain);
+  const body = identifier.replace(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
+  return new RegExp(`(?<!${edge})${body}(?!${edge})`, 'u').test(text.toUpperCase());
 };
 
 export const excerptPresent = (claim: Claim): Result =>
@@ -190,13 +190,28 @@ export const identifierValid = (claim: Claim): Result => {
   const valid = VALIDATORS[claim.attribute];
   if (claim.kind !== 'attribute' || valid === undefined)
     return result(check, 'not_applicable', 'no check digit for this attribute');
-  const bad = valuesOf(claim.value).filter((one) => !valid(plainIdentifier(claim.attribute, one)));
+  let values: string[];
+  try {
+    values = valuesOf(claim.value);
+  } catch {
+    return result(check, 'fail', 'value_not_parsed');
+  }
+  if (values.length === 0) return result(check, 'not_applicable', 'no_value');
+  const bad = values.filter((one) => !valid(plainIdentifier(claim.attribute, one)));
   return bad.length === 0
     ? result(check, 'pass', `${claim.attribute} is well formed`)
     : result(check, 'fail', `bad ${claim.attribute}: ${bad.join(' ')}`);
 };
 
-const DAY = /^\d{4}(-\d{2}(-\d{2})?)?$/u;
+const DAY = /^\d{4}(?:-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?)?$/u;
+
+/** A year, a month or a day that exists in the calendar. */
+const isDay = (text: string): boolean => {
+  if (!DAY.test(text)) return false;
+  if (text.length < 10) return true;
+  const day = new Date(`${text}T00:00:00Z`);
+  return !Number.isNaN(day.getTime()) && day.toISOString().startsWith(text);
+};
 const ACT_DATES = ['entry_into_force', 'adopted_on', 'ofac_action_id'];
 
 /** The bounds of a relation are in ISO form and in order. A designation with no bound takes the date
@@ -207,11 +222,12 @@ export const dates = (
 ): Result => {
   const check = 'dates';
   if (claim.kind !== 'relation') return result(check, 'not_applicable', 'not a relation');
+  // The bounds belong to the relation, so each citation row of the claim holds the same bounds.
   const row = claim.citations[0] ?? {};
   const from = row['valid_from'] ?? '';
   const to = row['valid_to'] ?? '';
   for (const one of [from, to])
-    if (one !== '' && !DAY.test(one)) return result(check, 'fail', `bad_date: ${one}`);
+    if (one !== '' && !isDay(one)) return result(check, 'fail', `bad_date: ${one}`);
   if (from !== '' && to !== '' && from > to)
     return result(check, 'fail', `start ${from} after end ${to}`);
   if (from === '' && to === '') {
@@ -254,8 +270,8 @@ export interface RecordReader {
   page(id: string, page: number): Promise<string | null>;
 }
 
-const sha256Of = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
-export { sha256Of };
+export const sha256Of = (bytes: Uint8Array): string =>
+  createHash('sha256').update(bytes).digest('hex');
 
 /** The four checks of the stored documents. With no reader (release mode) each one is
  * cannot_check(needs_record). */
@@ -268,8 +284,13 @@ export const recordChecks = async (
   const ids = [...new Set(claim.citations.map((row) => row['document_id'] ?? ''))];
   const found = await Promise.all(ids.map(async (id) => [id, await reader.document(id)] as const));
   const missing = found.filter(([, one]) => one === null).map(([id]) => id);
+  // A document with no hash or no stored bytes fails: two empty values are no match.
   const broken = found
-    .filter(([, one]) => one !== null && one.sha256 !== one.storedSha256)
+    .filter(
+      ([, one]) =>
+        one !== null &&
+        (one.sha256 === '' || one.storedSha256 === '' || one.sha256 !== one.storedSha256),
+    )
     .map(([id]) => id);
   let atPage = false;
   for (const row of claim.citations) {
@@ -298,10 +319,11 @@ export const recordChecks = async (
   ];
 };
 
-/** The node checks: no member shares a unique identifier with another entity, and a natural person
+/** The node checks: the node has claims, no member shares a unique identifier with another entity, and a natural person
  * rests on a designation (research/signed-list.md, "All lines"). */
 export const nodeChecks = (
   members: readonly string[],
+  factCount: number,
   duplicates: ReadonlyMap<string, string>,
   type: ReadonlyMap<string, string>,
   designated: ReadonlySet<string>,
@@ -313,6 +335,9 @@ export const nodeChecks = (
   const persons = members.filter((one) => type.get(one) === 'person');
   const bare = persons.filter((one) => !designated.has(one));
   return [
+    factCount === 0
+      ? result('has_facts', 'cannot_check', 'no_claim')
+      : result('has_facts', 'pass', `${String(factCount)} claims`),
     twice.length === 0
       ? result('no_duplicate', 'pass', 'no shared identifier')
       : result('no_duplicate', 'fail', twice.join('; ')),
