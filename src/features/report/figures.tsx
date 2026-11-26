@@ -218,7 +218,8 @@ export function PriceFigure({ print = false }: { print?: boolean }) {
     // The print figure keeps its height: the prices take the top, the gap panel the foot.
     floor = print ? 190 : 266,
     y = (v: number) => floor - (v / 125) * (floor - 36),
-    gapY = (v: number) => 66 - (v / 30) * 52;
+    // A gap above the top of the scale stops at the top.
+    gapY = (v: number) => 66 - (Math.min(v, 30) / 30) * 52;
   const line = (key: 'brent' | 'urals') => {
     let d = '',
       last = -2;

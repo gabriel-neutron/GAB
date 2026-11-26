@@ -157,7 +157,7 @@ Gas follows the same path to Asia: in 2025, for the first time, Gazprom delivere
 [^19]: Interfax. (2026, January 13). *Gazprom supplies 38.8 bcm of gas to China in 2025, for first time more than towards west – company*. Interfax. https://interfax.com/newsroom/top-stories/115552/.
 
 
-Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer. In 2021, Gazprom sold 148.8 bcm by pipeline to Europe, 26.7 to Turkey and 10 to China; in 2025, all Russian pipeline exports came to about 115 bcm, of which 38.8 went to China. Over the same period, Russian gas production fell from 762.3 to 663 bcm, and in 2025 LNG exports fell by 2.5%, to 31.3 Mt.[^20] The gas that Europe no longer buys is therefore mostly not sold elsewhere: it is not produced. The report's hypothesis is that the gas sold to China also brings in less revenue than the gas once sold in Europe.
+Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer. In 2021, Gazprom sold 148.8 bcm by pipeline to Europe, 26.7 to Turkey and 10 to China; in 2025, all Russian pipeline exports came to about 115 bcm, of which 38.8 went to China. Over the same period, Russian gas production fell from 762.3 to 663 bcm, and in 2025 LNG exports fell by 2.5%, to 31.3 Mt.[^20] The report's hypothesis is that most of the gas that Europe no longer buys is not sold elsewhere but stays in the ground, and that the gas sold to China brings in less revenue than the gas once sold in Europe.
 
 FIGURE: Figure 3: Russian exports by buyer and crude bought from Russia, 2020-2025
 
@@ -663,7 +663,7 @@ Each document is stored as received, under its SHA-256 hash, which also forms it
 
 
 
-[^129]: Ministry of Defence. (2023, August). *JDP 2-00 Intelligence, Counter-intelligence and Security Support to Joint Operations* (4th ed.), paras 3.39–3.40 and table 3.1. https://assets.publishing.service.gov.uk/media/653a4b0780884d0013f71bb0/JDP_2_00_Ed_4_web.pdf.
+[^129]: Ministry of Defence. (2023). *JDP 2-00 Intelligence, Counter-intelligence and Security Support to Joint Operations* (4th ed.), paras 3.39–3.40 and table 3.1. https://assets.publishing.service.gov.uk/media/653a4b0780884d0013f71bb0/JDP_2_00_Ed_4_web.pdf.
 
 ### A.3 Selecting the nodes under watch
 

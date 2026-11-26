@@ -332,7 +332,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: "But China sets the terms. To sell the gas of the Yamal peninsula, which Europe no longer buys, Russia has only one possible customer. That customer is in no hurry to seal a deal on the new Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer. In 2021, Gazprom sold 148.8 bcm by pipeline to Europe, 26.7 to Turkey and 10 to China; in 2025, all Russian pipeline exports came to about 115 bcm, of which 38.8 went to China. Over the same period, Russian gas production fell from 762.3 to 663 bcm, and in 2025 LNG exports fell by 2.5%, to 31.3 Mt.[^20] The gas that Europe no longer buys is therefore mostly not sold elsewhere: it is not produced. The report's hypothesis is that the gas sold to China also brings in less revenue than the gas once sold in Europe.",
+        text: "But China sets the terms. To sell the gas of the Yamal peninsula, which Europe no longer buys, Russia has only one possible customer. That customer is in no hurry to seal a deal on the new Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer. In 2021, Gazprom sold 148.8 bcm by pipeline to Europe, 26.7 to Turkey and 10 to China; in 2025, all Russian pipeline exports came to about 115 bcm, of which 38.8 went to China. Over the same period, Russian gas production fell from 762.3 to 663 bcm, and in 2025 LNG exports fell by 2.5%, to 31.3 Mt.[^20] The report's hypothesis is that most of the gas that Europe no longer buys is not sold elsewhere but stays in the ground, and that the gas sold to China brings in less revenue than the gas once sold in Europe.",
       },
       {
         kind: 'figure',
@@ -1320,7 +1320,7 @@ export const parts: ReportPart[] = [
     notes: [
       {
         id: '129',
-        text: 'Ministry of Defence. (2023, August). *JDP 2-00 Intelligence, Counter-intelligence and Security Support to Joint Operations* (4th ed.), paras 3.39–3.40 and table 3.1. https://assets.publishing.service.gov.uk/media/653a4b0780884d0013f71bb0/JDP_2_00_Ed_4_web.pdf.',
+        text: 'Ministry of Defence. (2023). *JDP 2-00 Intelligence, Counter-intelligence and Security Support to Joint Operations* (4th ed.), paras 3.39–3.40 and table 3.1. https://assets.publishing.service.gov.uk/media/653a4b0780884d0013f71bb0/JDP_2_00_Ed_4_web.pdf.',
       },
     ],
   },
@@ -2177,8 +2177,7 @@ export const openingUi = {
       marked: [2021, 2025],
     },
     // One entry for each list item, with the note of that item. A number comes from the item
-    // text; words, when given, are written exactly as in the item. The item on the price has no
-    // note.
+    // text; words, when given, are written exactly as in the item.
     values: [
       { words: '87 days', note: '' },
       { words: '318', note: '' },
