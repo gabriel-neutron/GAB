@@ -182,7 +182,7 @@ export const parts: ReportPart[] = [
       { kind: 'li', text: 'How do they get around the sanctions?' },
       {
         kind: 'p',
-        text: 'To answer the last question, the report shows which routes stay open after each measure. Open sources rarely show circumvention itself, so the report gives each mechanism as a claim of its source or as a hypothesis.',
+        text: 'The report shows which routes stay open after each measure; open sources rarely show circumvention itself, so it gives each mechanism as a claim of its source or as a hypothesis.',
       },
       {
         kind: 'p',
@@ -236,7 +236,7 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'Nodes under watch' },
       {
         kind: 'p',
-        text: 'The report puts a node under watch when it meets three conditions. This is a filter, not a ranking of importance: it selects the nodes where sanctions apply and where a dated trace links the node to a third country.',
+        text: 'A node is under watch when it meets three conditions; this is a filter, not a ranking:',
       },
       {
         kind: 'li',
@@ -244,11 +244,11 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Active in 2024-2026:** A dated production, transit, port call or new designation in that period shows it;',
+        text: '**Active in 2024-2026:** A dated production, transit or new designation shows it;',
       },
       {
         kind: 'li',
-        text: '**Tied to a third country:** Its head office, the flag of its ships or a counterparty is in a country that does not apply the sanctions of the coalition (the EU, the United States, the United Kingdom and their allies). A Russian company that sells oil to such a country meets this condition through its buyer.',
+        text: '**Tied to a third country:** Its head office, the flag of its ships or a counterparty is in a country that does not apply the sanctions of the coalition (the EU, the United States, the United Kingdom and their allies). An oil exporter meets it through its buyer.',
       },
       {
         kind: 'figure',
@@ -263,7 +263,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'These conditions single out the nodes where the sanctions are in place but the activity goes on with a third country: where circumvention may be at work, and where a new measure could have an effect. They do not say how much a node weighs in the war: the figures of sections 2 to 4 show volumes, shares and prices.',
+        text: 'These conditions single out the nodes where the sanctions are in place but the activity goes on with a third country: where circumvention may be at work, and where a new measure could have an effect.',
       },
       {
         kind: 'p',
@@ -284,7 +284,7 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'The data and its control' },
       {
         kind: 'p',
-        text: 'The authors built a database of more than 5,300 entities for this report (such as companies, ships, sites, ports, banks, people and legal acts) and of the relations between them, such as a designation, an ownership, the management of a ship, a port call, an oil flow or a payment. These facts are taken from the official sanctions lists, company registers and published investigations, and each one points to the archived document that establishes it. The reliability of each official source follows a scale adapted from the NATO grading system, also called the ADMIRALTY scale (Annex A.2), which rates the issuer with a letter, from A for an official issuer (sanctions list, company register, official journal) to F when the issuer cannot be judged.',
+        text: 'The authors built a database of more than 5,300 entities (such as companies, ships, sites, ports, banks, people and legal acts) and of the relations between them, such as a designation, an ownership, the management of a ship, a port call, an oil flow or a payment. These facts are taken from the official sanctions lists, company registers and published investigations, and each one points to the archived document that establishes it. The reliability of each official source follows the ADMIRALTY scale (Annex A.2), which rates the issuer with a letter, from A for an official issuer (sanctions list, company register, official journal) to F when the issuer cannot be judged.',
       },
       {
         kind: 'p',
@@ -398,7 +398,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'The rest of the economy also pays more, and this is the second reason for the fall. Profit tax went from 20 to 25% in 2025, and VAT from 20 to 22% in 2026.[^38] This shift is deliberate: the budget guidelines of the Ministry of Finance for 2026-2028 present the VAT rise as one way to raise non-oil-and-gas revenue to 80% of federal revenue, which leaves oil and gas about 20%.[^39]',
+        text: 'The rest of the economy also pays more, and this is the second reason for the fall. Profit tax went from 20 to 25% in 2025, and VAT from 20 to 22% in 2026.[^38] This shift is deliberate: the budget guidelines of the Ministry of Finance for 2026-2028 present the VAT rise as one way to raise non-oil-and-gas revenue to 80% of federal revenue.[^39]',
       },
       {
         kind: 'p',
@@ -456,7 +456,7 @@ export const parts: ReportPart[] = [
       { id: '29', text: 'Dodonov et al. (2026), op. cit., n. 2, p. 2.' },
       {
         id: '30',
-        text: "Authors' calculations based on World Bank. (2026, October 2). *Commodity Price Data (The Pink Sheet)* [Data, monthly prices]. https://www.worldbank.org/en/research/commodity-markets ; Federal Tax Service of Russia. (2023–2026). [Data for the calculation of the mineral extraction tax, monthly releases]. https://www.nalog.gov.ru/rn77/news/activities_fts/ (one page per month, for example *Опубликованы данные для расчёта НДПИ и НДД, а также акциза на нефтяное сырье за июль 2026 года* [Data published for the calculation of the mineral extraction tax and the additional income tax, and of the excise on crude, for July 2026], https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/). Urals: monthly average tax price published by the Ministry of Economic Development (in its current form, Art. 342(3) of the Tax Code gives the ESPO blend quote a weight of 0.22 in this price); Brent: World Bank monthly average. The series has no Urals value for September to November 2023.",
+        text: "Authors' calculations based on World Bank. (2026, October 2). *Commodity Price Data (The Pink Sheet)* [Data, monthly prices]. https://www.worldbank.org/en/research/commodity-markets ; Federal Tax Service of Russia. (2023–2026). [Data for the calculation of the mineral extraction tax, monthly releases]. https://www.nalog.gov.ru/rn77/news/activities_fts/ (one page per month, for example *Опубликованы данные для расчёта НДПИ и НДД, а также акциза на нефтяное сырье за июль 2026 года* [Data published for the calculation of the mineral extraction tax and the additional income tax, and of the excise on crude, for July 2026], https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/). Urals: monthly average price published by the Ministry of Economic Development; Brent: World Bank monthly average. The series has no Urals value for September to November 2023.",
       },
       { id: '31', text: 'Kpler (2025), op. cit., n. 18.' },
       {
@@ -465,7 +465,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '33',
-        text: 'Federal Tax Service of Russia (2026), op. cit., n. 25 ; Ministry of Economic Development of the Russian Federation. (2026, October 2). *О среднем уровне цен нефти сорта «Юралс» за сентябрь 2026 года* [On the average price level of Urals oil for September 2026]. https://www.economy.gov.ru/material/departments/d12/konyunktura_mirovyh_tovarnyh_rynkov/o_srednem_urovne_cen_nefti_sorta_yurals_za_sentyabr_2026_goda.html ; *Налоговый кодекс Российской Федерации* [Tax Code of the Russian Federation], Art. 342(3), as amended by Federal Law No. 362-FZ of 29 October 2024. Garant. https://base.garant.ru/10900200/189ee55699895a58d35d70784cf7bcb9/.',
+        text: 'Federal Tax Service of Russia (2026), op. cit., n. 25 ; Ministry of Economic Development of the Russian Federation. (2026, October 2). *О среднем уровне цен нефти сорта «Юралс» за сентябрь 2026 года* [On the average price level of Urals oil for September 2026]. https://www.economy.gov.ru/material/departments/d12/konyunktura_mirovyh_tovarnyh_rynkov/o_srednem_urovne_cen_nefti_sorta_yurals_za_sentyabr_2026_goda.html ; Tax Code of the Russian Federation, Art. 342(3). https://base.garant.ru/10900200/189ee55699895a58d35d70784cf7bcb9/.',
       },
       { id: '34', text: 'Deryugina and Shepotylo (2026), op. cit., n. 32, pp. 4–5.' },
       {

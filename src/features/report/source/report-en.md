@@ -53,7 +53,7 @@ Yet the war goes on in 2026, and the Russian state manages to pay for it. At con
 
 Which nodes (companies, infrastructure, ships, banks) make it possible to finance the war? Who owns them? How do they get around the sanctions?
 
-To answer the last question, the report shows which routes stay open after each measure. Open sources rarely show circumvention itself, so the report gives each mechanism as a claim of its source or as a hypothesis.
+The report shows which routes stay open after each measure; open sources rarely show circumvention itself, so it gives each mechanism as a claim of its source or as a hypothesis.
 
 This report finds that sanctions make the war more costly for Russia, but they do not cut its money or its goods: trade moves to partners that do not apply the sanctions, and to a parallel market of tankers, payment relays and companies with no documented owner.
 
@@ -100,20 +100,20 @@ These three layers follow the path of the money (figure 2). The foreign-currency
 
 ### 1.2 Nodes under watch
 
-The report puts a node under watch when it meets three conditions. This is a filter, not a ranking of importance: it selects the nodes where sanctions apply and where a dated trace links the node to a third country.
+A node is under watch when it meets three conditions; this is a filter, not a ranking:
 
 - –**Exposed to sanctions:** The European Union (EU), the American Office of Foreign Assets Control (OFAC) or the United Kingdom designates it, or a designated person owns 50% or more of it;
 
-- –**Active in 2024-2026:** A dated production, transit, port call or new designation in that period shows it;
+- –**Active in 2024-2026:** A dated production, transit or new designation shows it;
 
 
-- –**Tied to a third country:** Its head office, the flag of its ships or a counterparty is in a country that does not apply the sanctions of the coalition (the EU, the United States, the United Kingdom and their allies). A Russian company that sells oil to such a country meets this condition through its buyer.
+- –**Tied to a third country:** Its head office, the flag of its ships or a counterparty is in a country that does not apply the sanctions of the coalition (the EU, the United States, the United Kingdom and their allies). An oil exporter meets it through its buyer.
 
 FIGURE: Figure 2: The three layers of the Russian war economy and their links
 
 *Note.* Diagram by the authors.
 
-These conditions single out the nodes where the sanctions are in place but the activity goes on with a third country: where circumvention may be at work, and where a new measure could have an effect. They do not say how much a node weighs in the war: the figures of sections 2 to 4 show volumes, shares and prices.
+These conditions single out the nodes where the sanctions are in place but the activity goes on with a third country: where circumvention may be at work, and where a new measure could have an effect.
 
 The choice of period follows the calendar of the sanctions. By 2024, the major oil measures are in place: the embargo, the price cap, and then the first designations of shipowners that do not respect that cap.[^11] The years 2024-2026 therefore show how trade has adapted to these sanctions. After each measure, the report looks for correlations between the sanctions and trade, and then proposes explanations, each one attributed to its source, or presented as a hypothesis when no source establishes it.
 
@@ -122,7 +122,7 @@ The choice of period follows the calendar of the sanctions. By 2024, the major o
 
 ### 1.3 The data and its control
 
-The authors built a database of more than 5,300 entities for this report (such as companies, ships, sites, ports, banks, people and legal acts) and of the relations between them, such as a designation, an ownership, the management of a ship, a port call, an oil flow or a payment. These facts are taken from the official sanctions lists, company registers and published investigations, and each one points to the archived document that establishes it. The reliability of each official source follows a scale adapted from the NATO grading system, also called the ADMIRALTY scale (Annex A.2), which rates the issuer with a letter, from A for an official issuer (sanctions list, company register, official journal) to F when the issuer cannot be judged.
+The authors built a database of more than 5,300 entities (such as companies, ships, sites, ports, banks, people and legal acts) and of the relations between them, such as a designation, an ownership, the management of a ship, a port call, an oil flow or a payment. These facts are taken from the official sanctions lists, company registers and published investigations, and each one points to the archived document that establishes it. The reliability of each official source follows the ADMIRALTY scale (Annex A.2), which rates the issuer with a letter, from A for an official issuer (sanctions list, company register, official journal) to F when the issuer cannot be judged.
 
 In total, 539 nodes are under watch, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For 410 of them, each of the three conditions rests on a document from an official issuer. Annex A describes how the facts are collected and checked. Section A.3 says how the count of nodes under watch was made.
 
@@ -205,13 +205,13 @@ The share of oil and gas in federal revenue falls (figure 5) for two reasons, an
 
 [^29]: Dodonov et al. (2026), op. cit., n. 2, p. 2.
 
-[^30]: Authors' calculations based on World Bank. (2026, October 2). *Commodity Price Data (The Pink Sheet)* [Data, monthly prices]. https://www.worldbank.org/en/research/commodity-markets ; Federal Tax Service of Russia. (2023–2026). [Data for the calculation of the mineral extraction tax, monthly releases]. https://www.nalog.gov.ru/rn77/news/activities_fts/ (one page per month, for example *Опубликованы данные для расчёта НДПИ и НДД, а также акциза на нефтяное сырье за июль 2026 года* [Data published for the calculation of the mineral extraction tax and the additional income tax, and of the excise on crude, for July 2026], https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/). Urals: monthly average tax price published by the Ministry of Economic Development (in its current form, Art. 342(3) of the Tax Code gives the ESPO blend quote a weight of 0.22 in this price); Brent: World Bank monthly average. The series has no Urals value for September to November 2023.
+[^30]: Authors' calculations based on World Bank. (2026, October 2). *Commodity Price Data (The Pink Sheet)* [Data, monthly prices]. https://www.worldbank.org/en/research/commodity-markets ; Federal Tax Service of Russia. (2023–2026). [Data for the calculation of the mineral extraction tax, monthly releases]. https://www.nalog.gov.ru/rn77/news/activities_fts/ (one page per month, for example *Опубликованы данные для расчёта НДПИ и НДД, а также акциза на нефтяное сырье за июль 2026 года* [Data published for the calculation of the mineral extraction tax and the additional income tax, and of the excise on crude, for July 2026], https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/). Urals: monthly average price published by the Ministry of Economic Development; Brent: World Bank monthly average. The series has no Urals value for September to November 2023.
 
 [^31]: Kpler (2025), op. cit., n. 18.
 
 [^32]: Deryugina, T., & Shepotylo, O. (2026, September). *China’s Support for Russia* (Policy Brief No. 4). econ4ua. https://econ4ua.org/wp-content/uploads/2026/09/Chinas-Support-for-Russia-Final.pdf, p. 4.
 
-[^33]: Federal Tax Service of Russia (2026), op. cit., n. 25 ; Ministry of Economic Development of the Russian Federation. (2026, October 2). *О среднем уровне цен нефти сорта «Юралс» за сентябрь 2026 года* [On the average price level of Urals oil for September 2026]. https://www.economy.gov.ru/material/departments/d12/konyunktura_mirovyh_tovarnyh_rynkov/o_srednem_urovne_cen_nefti_sorta_yurals_za_sentyabr_2026_goda.html ; *Налоговый кодекс Российской Федерации* [Tax Code of the Russian Federation], Art. 342(3), as amended by Federal Law No. 362-FZ of 29 October 2024. Garant. https://base.garant.ru/10900200/189ee55699895a58d35d70784cf7bcb9/.
+[^33]: Federal Tax Service of Russia (2026), op. cit., n. 25 ; Ministry of Economic Development of the Russian Federation. (2026, October 2). *О среднем уровне цен нефти сорта «Юралс» за сентябрь 2026 года* [On the average price level of Urals oil for September 2026]. https://www.economy.gov.ru/material/departments/d12/konyunktura_mirovyh_tovarnyh_rynkov/o_srednem_urovne_cen_nefti_sorta_yurals_za_sentyabr_2026_goda.html ; Tax Code of the Russian Federation, Art. 342(3). https://base.garant.ru/10900200/189ee55699895a58d35d70784cf7bcb9/.
 
 [^34]: Deryugina and Shepotylo (2026), op. cit., n. 32, pp. 4–5.
 
@@ -222,7 +222,7 @@ FIGURE: Figure 5: Oil, gas and defence in the federal budget, 2014-2026
 
 *Note.* Data: Ministry of Finance of Russia (2026); Korsunskaya (2024); World Bank (2026). Authors' calculations.[^37]
 
-The rest of the economy also pays more, and this is the second reason for the fall. Profit tax went from 20 to 25% in 2025, and VAT from 20 to 22% in 2026.[^38] This shift is deliberate: the budget guidelines of the Ministry of Finance for 2026-2028 present the VAT rise as one way to raise non-oil-and-gas revenue to 80% of federal revenue, which leaves oil and gas about 20%.[^39] The report's hypothesis is that an ever more expensive defence
+The rest of the economy also pays more, and this is the second reason for the fall. Profit tax went from 20 to 25% in 2025, and VAT from 20 to 22% in 2026.[^38] This shift is deliberate: the budget guidelines of the Ministry of Finance for 2026-2028 present the VAT rise as one way to raise non-oil-and-gas revenue to 80% of federal revenue.[^39] The report's hypothesis is that an ever more expensive defence
 
 [^35]: Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, line 1.1 "Нефтегазовые доходы" [Oil and gas revenue] ; Ministry of Finance of the Russian Federation. (2025, October 9). *Предварительная оценка исполнения федерального бюджета за январь-сентябрь 2025 года* [Preliminary estimate of the execution of the federal budget for January–September 2025]. https://minfin.gov.ru/ru/press-center/?id_4=39967-predvaritelnaya_otsenka_ispolneniya_federalnogo_byudzheta_za_yanvar-sentyabr_2025_goda, p. 1.
 

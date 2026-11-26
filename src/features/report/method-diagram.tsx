@@ -34,7 +34,7 @@ const cards = [
     items: ['Banks, Russian and foreign', 'Payment agents and SPFS', 'Crypto and stablecoins'],
   },
 ] as const;
-const conditions = ['Under sanctions', 'Active 2024–2026', 'Via a third country'] as const;
+const conditions = ['Under sanctions', 'Active 2024–2026', 'Tied to a third country'] as const;
 const W = 240,
   H = 124;
 
