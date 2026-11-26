@@ -269,7 +269,7 @@ pnpm node:audit --limit 50            # the next 50 nodes, then stop
 
 The first run downloads the release and reads each cited document on the web, so it takes much
 longer than the checks alone. A second run in the same folder audits only the nodes that are not done
-(the result file is the progress), and reads no document again (the folder `sources` keeps each read).
+(the result file is the progress). It reads a page again only when the last read was blocked or got no answer (the folder `sources` keeps each read).
 To read the pages again, give a new folder. A run with other checks or another release in the same
 folder stops: give a new folder with `--out <folder>`.
 

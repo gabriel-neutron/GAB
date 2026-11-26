@@ -1,11 +1,18 @@
 // The live read of the check excerpt_at_source (tools/node-audit-checks.ts). It reads each cited
 // document once at its public address with readLive (the deny list, the host lease and the CAPTCHA
-// hold of the fetch tools), and keeps the result in <out>/sources, so a resumed run reads nothing
-// again. It has no browser and no proxy: a blocked host is cannot_check(blocked), and a person reads
+// hold of the fetch tools), and keeps the result in <out>/sources, so a resumed run reads no page
+// again; only a block or no answer is read again. It has no browser and no proxy: a blocked host is cannot_check(blocked), and a person reads
 // the stored copy on the PC (local-check.txt, then pnpm node:audit --record --local-check).
 // The text of a page is data only: the audit searches it for the excerpt, and nothing else reads it.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 
 import { LiveRefusal, readLive } from '@gab/tools/read-page';
@@ -23,10 +30,13 @@ const HOST_GAP_MS = 2000;
 
 interface Cached {
   readonly id: string;
+  readonly address: string;
   readonly read: SourceRead;
 }
 
-const cannot = (reason: Exclude<SourceRead, { kind: 'text' }>['reason']): SourceRead => ({
+type Cannot = Exclude<SourceRead, { kind: 'text' }>;
+
+const cannot = (reason: Cannot['reason']): SourceRead => ({
   kind: 'cannot_check',
   reason,
 });
@@ -51,6 +61,30 @@ export const readSource = async (address: string, reach: Reach): Promise<SourceR
   }
 };
 
+// A block or no answer can end soon (a hold, a rate limit, a timeout), so a resumed run reads that
+// document again. The other results stay for good.
+const KEPT: ReadonlySet<string> = new Set(['text', 'not_text', 'no_address']);
+const REASONS: ReadonlySet<string> = new Set(['blocked', 'unreachable', 'not_text', 'no_address']);
+
+/** A file of the cache, or null when it is cut or of another shape: the run then reads again. */
+const cachedOf = (file: string): Cached | null => {
+  let value: unknown;
+  try {
+    value = JSON.parse(readFileSync(file, 'utf8'));
+  } catch {
+    return null;
+  }
+  if (typeof value !== 'object' || value === null) return null;
+  const { id, address, read } = value as Record<string, unknown>;
+  if (typeof id !== 'string' || typeof address !== 'string') return null;
+  if (typeof read !== 'object' || read === null) return null;
+  const { kind, text, reason } = read as Record<string, unknown>;
+  if (kind === 'text' && typeof text === 'string') return { id, address, read: { kind, text } };
+  if (kind === 'cannot_check' && typeof reason === 'string' && REASONS.has(reason))
+    return { id, address, read: { kind, reason: reason as Cannot['reason'] } };
+  return null;
+};
+
 /** The reader of the run: the cache in <out>/sources first, then one live read. */
 export const sourceReader = (
   out: string,
@@ -60,16 +94,26 @@ export const sourceReader = (
   const folder = join(out, 'sources');
   mkdirSync(folder, { recursive: true });
   const lastRead = new Map<string, number>();
+  const thisRun = new Set<string>();
   return async (id, address) => {
     // The file name is a hash, because a document id can hold a sign that a file name cannot.
     const file = join(folder, `${sha256Of(new TextEncoder().encode(id))}.json`);
-    if (existsSync(file)) return (JSON.parse(readFileSync(file, 'utf8')) as Cached).read;
+    const held = existsSync(file) ? cachedOf(file) : null;
+    if (
+      held !== null &&
+      held.address === address &&
+      (thisRun.has(id) || KEPT.has(held.read.kind === 'text' ? 'text' : held.read.reason))
+    )
+      return held.read;
     const host = URL.parse(address.trim())?.hostname ?? '';
     const wait = (lastRead.get(host) ?? 0) + gapMs - Date.now();
     if (wait > 0) await new Promise((done) => setTimeout(done, wait));
     const read = await readSource(address, reach);
     lastRead.set(host, Date.now());
-    writeFileSync(file, JSON.stringify({ id, read } satisfies Cached));
+    thisRun.add(id);
+    // A stop during the write leaves the old file or none, never a cut one.
+    writeFileSync(`${file}.part`, JSON.stringify({ id, address, read } satisfies Cached));
+    renameSync(`${file}.part`, file);
     return read;
   };
 };
@@ -81,8 +125,8 @@ export const localCheckLines = (out: string): string[] => {
   if (!existsSync(folder)) return [];
   return readdirSync(folder)
     .filter((name) => name.endsWith('.json'))
-    .map((name) => JSON.parse(readFileSync(join(folder, name), 'utf8')) as Cached)
-    .flatMap((one) => (one.read.kind === 'cannot_check' ? [`${one.id} ${one.read.reason}`] : []))
+    .map((name) => cachedOf(join(folder, name)))
+    .flatMap((one) => (one?.read.kind === 'cannot_check' ? [`${one.id} ${one.read.reason}`] : []))
     .sort();
 };
 

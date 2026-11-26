@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -7,7 +7,7 @@ import { FIXTURE_HOST, fixtureLookup, startFixture, type Fixture } from '@gab/to
 import type { Reach } from '@gab/tools/tool';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { excerptAtSource, type Claim, type SourceReader } from './node-audit-checks.ts';
+import { excerptAtSource, sha256Of, type Claim, type SourceReader } from './node-audit-checks.ts';
 import { localCheckIds, localCheckLines, readSource, sourceReader } from './node-audit-source.ts';
 
 const PAGE = `<html><head><title>Notice</title></head><body><p>${'The register lists the vessel OCEAN STAR, IMO 9435337, under the flag of Gabon. '.repeat(30)}</p></body></html>`;
@@ -101,6 +101,24 @@ describe('the cache and the local-check file', () => {
     const lines = localCheckLines(out);
     expect(lines).toEqual(['doc/403 blocked', 'doc_none no_address']);
     expect([...localCheckIds(`${lines.join('\n')}\n\n`)]).toEqual(['doc/403', 'doc_none']);
+  });
+
+  it('reads a block again in a resumed run, and reads again a cut file or a new address', async () => {
+    const out = mkdtempSync(join(tmpdir(), 'node-audit-source-'));
+    await sourceReader(out, reach, 0)('doc_ok', at('/page'));
+    await sourceReader(out, reach, 0)('doc/403', at('/forbidden'));
+    const before = fixture.requests.length;
+    const resumed = sourceReader(out, reach, 0);
+    await resumed('doc/403', at('/forbidden'));
+    // Once in a run only.
+    await resumed('doc/403', at('/forbidden'));
+    expect(fixture.requests.length - before).toBe(1);
+    const file = join(out, 'sources', `${sha256Of(new TextEncoder().encode('doc_ok'))}.json`);
+    writeFileSync(file, '{"id":"doc_ok","addr');
+    expect(localCheckLines(out)).toEqual(['doc/403 blocked']);
+    expect((await sourceReader(out, reach, 0)('doc_ok', at('/page'))).kind).toBe('text');
+    expect((await sourceReader(out, reach, 0)('doc_ok', at('/down'))).kind).toBe('cannot_check');
+    expect(fixture.requests.length - before).toBe(3);
   });
 });
 

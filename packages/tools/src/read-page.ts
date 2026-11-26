@@ -1,6 +1,6 @@
 // The read route of a closer: it reads a live page and stores nothing, so a closer can test a fact on
 // the web and the record does not change. It has no browser and no proxy, so it clicks, solves and
-// pays for nothing. The node audit (tools/node-audit.ts) uses readLive for the same read.
+// pays for nothing.
 
 import { extractText, RefusedImageError, RefusedTextError, UnsupportedTypeError } from '@gab/text';
 import { z } from 'zod';

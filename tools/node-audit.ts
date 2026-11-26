@@ -73,7 +73,7 @@ import { LOCAL_CHECK, localCheckIds, localCheckLines, sourceReader } from './nod
 import { tunnelConnection } from './record-tunnel-env.ts';
 
 /** The version of the checks. A result file of another version is not resumed. */
-export const AUDIT_VERSION = 1;
+export const AUDIT_VERSION = 2;
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
@@ -202,6 +202,18 @@ export const factsOf = (node: AuditNode, context: Context): Claim[] => {
     for (const claim of context.claimsOfEntity.get(one) ?? []) seen.set(claim.id, claim);
   return [...seen.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 };
+
+/** The nodes with a fact that cites one of these documents. */
+export const citingNodes = (
+  nodes: readonly AuditNode[],
+  context: Context,
+  documents: ReadonlySet<string>,
+): AuditNode[] =>
+  nodes.filter((node) =>
+    factsOf(node, context).some((claim) =>
+      claim.citations.some((row) => documents.has(row['document_id'] ?? '')),
+    ),
+  );
 
 /** Runs each fixed check on one node. */
 export const auditNode = async (node: AuditNode, context: Context): Promise<NodeLine> => {
@@ -805,14 +817,7 @@ const main = async () => {
     values['local-check'] === undefined
       ? null
       : localCheckIds(readFileSync(values['local-check'], 'utf8'));
-  const scope =
-    wanted === null
-      ? reportOnly
-      : reportOnly.filter((node) =>
-          factsOf(node, context).some((claim) =>
-            claim.citations.some((row) => wanted.has(row['document_id'] ?? '')),
-          ),
-        );
+  const scope = wanted === null ? reportOnly : citingNodes(reportOnly, context, wanted);
   try {
     if (values.model) {
       const cap = Number(values['token-cap']);
