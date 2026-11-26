@@ -2,27 +2,25 @@
 
 **The problem.** Since 2022, the European Union, the United States, the United Kingdom and their allies have imposed wide-ranging sanctions on Russia, from oil and gas to military technology. Yet the war goes on, and it costs more and more: at constant prices, the defence budget planned for 2025 is 2.6 times the spending of 2021. Where do the money and the technology that let Russia fight come from?
 
-**The method.** The report searches a database of more than 5,300 entities, where every fact points to an archived document. It looks for the nodes (companies, ports, fleets, banks, payment channels) that are exposed to sanctions, active in 2024-2026 and tied to a country that does not apply them.
+**The method.** The authors built a database of more than 5,300 entities, where every fact points to an archived document. In it, the report looks for the nodes, that is the companies, ports, ships, banks and payment channels through which the money and the goods of the war move, that are exposed to sanctions, active in 2024-2026 and tied to a country that does not apply them.
 
 **The result.** Sanctions make the war more costly for Russia, but they do not cut its money or its goods: trade moves to partners that do not apply the sanctions, and to a parallel market of tankers, payment relays and companies with no documented owner.
 
-**The report's own measures.**
+**What the report measures.**
 
 - –**Designations:** When the EU and the United States designate the same tanker, the United States does so first in more than eight cases out of ten, and the median gap from the first to the second regime is 87 days.
 
 - –**Port calls:** Of 711 tankers with a dated designation, 318 called at a port at least once after it, and 22 of them called in the EU or the United Kingdom.
 
-- –**Owners and managers:** On the archived pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships that give both dates show an owner or manager that started after the designation.
+- –**Owners and managers:** In the private fleet and in oil trading, the ownership chains often end at a company with no documented owner: according to the sanctions lists and, for part of them, to Ukrainian military intelligence (GUR), a party to the war, sixteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner. On the archived pages of GUR, 427 of 757 ships that give both dates show an owner or manager that started after the designation.
 
-- –**Ownership chains:** The 50% rule follows shares: the chains of the large state companies end at the state, but in the private fleet and in oil trading they often end at a company with no documented owner, and, according to the sanctions lists and, for part of them, to GUR, a party to the war, sixteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner.
+**What the sources show.**
 
-- –**Customers:** From 2021 to 2025, EU purchases from Russia fell by 84%;[^1] China became Russia's first customer, and India bought twenty times as much Russian crude.
+- –**Customers:** From 2021 to 2025, EU purchases from Russia fell by 84%;[^1] China became Russia's first customer, and India bought twenty times as much Russian crude by weight.
 
-- –**Ships:** According to the KSE Institute, the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance, carried 79% of the crude exported by sea in January 2026.[^2]
+- –**Oil:** According to the KSE Institute, the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance, carried 79% of the crude exported by sea in January 2026.[^2] From August 2023 to October 2025, Urals sold $10 to $16 below Brent each month; since November 2025, after the OFAC designation of Rosneft and Lukoil, it has sold $19 to $27 below.
 
-- –**Price:** From August 2023 to October 2025, Urals sold $10 to $16 below Brent each month; since November 2025, after the OFAC designation of Rosneft and Lukoil, it has sold $19 to $27 below. Russia's partners benefit: China buys Russian crude at a discount and sells the components of weapons at a high premium.
-
-- –**Budget:** The share of oil and gas in federal revenue falls from one half in 2014 to less than one fifth in January–September 2026, partly because that revenue is shrinking.[^3]
+- –**Budget:** The share of oil and gas in federal revenue falls from 51% in 2014 to 18.5% in January–September 2026, partly because that revenue is shrinking.[^3]
 
 - –**Currency:** The rouble settled 53% of Russian exports in 2025, against 14% in 2021,[^4] and, according to the Russian government, the rouble and the yuan settle almost all payments with China.
 
@@ -30,7 +28,7 @@
 
 The sources of the other figures are given in the body of the report.
 
-*The authors are solely responsible for the content and conclusions presented. This report is under CC BY 4.0: name the authors, link the licence and mark each change. Figure 8 is not under CC BY 4.0: it uses Global Fishing Watch data under CC BY-NC 4.0, so do not use it for a commercial purpose.*
+*The authors are solely responsible for the content and conclusions presented. This report is under CC BY 4.0, except figure 8 (CC BY-NC 4.0): name the authors, link the licence and mark each change.*
 
 [^1]: Authors' calculations based on Bahí Esteba, A. et al. (2026, September 21). *Russian foreign trade tracker* (35th ed.) [Data]. Bruegel. https://www.bruegel.org, fig. 2.
 
@@ -53,9 +51,9 @@ Sanctions against Russia did not begin in 2022. As early as 2014, when Russia an
 
 Yet the war goes on in 2026, and the Russian state manages to pay for it. At constant prices, the defence budget planned for 2025 is 2.6 times the spending of 2021,[^8] while over the same period oil and gas revenue falls by 36%.[^9] If that revenue shrinks while war spending rises, which channels carry the money and the goods of the war?
 
-Which nodes (companies, ports, fleets, banks) make it possible to finance the war? Who owns them? How do they get around the sanctions?
+Which nodes (companies, infrastructure, ships, banks) make it possible to finance the war? Who owns them? How do they get around the sanctions?
 
-The report does not measure how the nodes get around the sanctions: it shows which routes stay open after each measure, and it gives each mechanism as a claim of its source or as a hypothesis.
+To answer the last question, the report shows which routes stay open after each measure. Open sources rarely show circumvention itself, so the report gives each mechanism as a claim of its source or as a hypothesis.
 
 This report finds that sanctions make the war more costly for Russia, but they do not cut its money or its goods: trade moves to partners that do not apply the sanctions, and to a parallel market of tankers, payment relays and companies with no documented owner.
 
@@ -86,11 +84,11 @@ FIGURE 1 TIMELINE (text inside the figure, one entry per line: date | title | de
 
 ## 1 Method
 
-A long war is paid for twice: with the money that comes in, and with the goods that must be bought to make weapons. To follow this double flow despite the sanctions, the report does not start from the national totals of the Russian economy. It starts from the precise points through which the money and the goods must pass.
+To wage a long war, Russia needs two flows: the foreign currency that its exports bring in, and the imported goods that its factories need to make weapons. The report therefore does not start from national totals. It starts from the points through which this money and these goods must pass.
 
 ### 1.1 The three layers
 
-The report therefore divides the Russian economy into nodes: sites (a port, a factory, a gas field), companies, fleets of ships or payment channels (a bank, a platform, a digital token). Each node serves one of three functions, which the report calls layers:
+The report therefore divides the Russian economy into nodes: sites (a port, a factory, a gas field), companies, fleets of ships or payment channels (a bank, a payment agent, or a token such as A7A5). Each node serves one of three functions, which the report calls layers:
 
 - –**Pay:** Earn the foreign currency that pays for the war, mainly by selling oil and gas;
 
@@ -98,24 +96,24 @@ The report therefore divides the Russian economy into nodes: sites (a port, a fa
 
 - –**Fight:** Import the components and make the weapons.
 
-These three layers follow the path of the money (figure 2). The foreign-currency revenue of the pay layer settles the imports of the fight layer, and this settlement passes through the finance layer. In parallel, taxes on oil and gas fill the budget, which orders weapons from Russian factories. A sanction can therefore target the inflow, the transit or the outflow of the money, and the report examines all three.
+These three layers follow the path of the money (figure 2). The foreign-currency revenue of the pay layer settles the imports of the fight layer, and this settlement passes through the finance layer. The money also takes a second, domestic path: taxes on oil and gas fill the federal budget, which orders weapons from Russian factories.
 
-### 1.2 Critical nodes
+### 1.2 Nodes under watch
 
-A node is called critical when it meets three conditions:
+The report puts a node under watch when it meets three conditions. This is a filter, not a ranking of importance: it selects the nodes where sanctions apply and where a dated trace links the node to a third country.
 
 - –**Exposed to sanctions:** The European Union (EU), the American Office of Foreign Assets Control (OFAC) or the United Kingdom designates it, or a designated person owns 50% or more of it;
 
-- –**Active in 2024-2026:** A dated production, transit or new designation shows it;
+- –**Active in 2024-2026:** A dated production, transit, port call or new designation in that period shows it;
 
 
-- –**Runs through a third country:** Its head office, the flag of its ships or a counterparty is in a country that does not apply the sanctions of the coalition (the EU, the United States, the United Kingdom and their allies).
+- –**Tied to a third country:** Its head office, the flag of its ships or a counterparty is in a country that does not apply the sanctions of the coalition (the EU, the United States, the United Kingdom and their allies). A Russian company that sells oil to such a country meets this condition through its buyer.
 
 FIGURE: Figure 2: The three layers of the Russian war economy and their links
 
 *Note.* Diagram by the authors.
 
-These conditions single out the nodes where the sanctions are in place but the activity continues through a third country: where circumvention may be at work, and where a new measure could have an effect.
+These conditions single out the nodes where the sanctions are in place but the activity goes on with a third country: where circumvention may be at work, and where a new measure could have an effect. They do not say how much a node weighs in the war: the figures of sections 2 to 4 show volumes, shares and prices.
 
 The choice of period follows the calendar of the sanctions. By 2024, the major oil measures are in place: the embargo, the price cap, and then the first designations of shipowners that do not respect that cap.[^11] The years 2024-2026 therefore show how trade has adapted to these sanctions. After each measure, the report looks for correlations between the sanctions and trade, and then proposes explanations, each one attributed to its source, or presented as a hypothesis when no source establishes it.
 
@@ -124,9 +122,9 @@ The choice of period follows the calendar of the sanctions. By 2024, the major o
 
 ### 1.3 The data and its control
 
-The data come from a database of more than 5,300 entities (such as companies, ships, sites, ports, banks, people and legal acts) and the relations between them, such as a designation, an ownership, the management of a ship, a port call, an oil flow or a payment. These facts are taken from the official sanctions lists, company registers and published investigations, and each one points to the archived document that establishes it. The reliability of each official source follows the ADMIRALTY scale, which rates the issuer with a letter, from A for an official issuer (sanctions list, company register, official journal) to F when the issuer cannot be judged.
+The authors built a database of more than 5,300 entities for this report (such as companies, ships, sites, ports, banks, people and legal acts) and of the relations between them, such as a designation, an ownership, the management of a ship, a port call, an oil flow or a payment. These facts are taken from the official sanctions lists, company registers and published investigations, and each one points to the archived document that establishes it. The reliability of each official source follows a scale adapted from the NATO grading system, also called the ADMIRALTY scale (Annex A.2), which rates the issuer with a letter, from A for an official issuer (sanctions list, company register, official journal) to F when the issuer cannot be judged.
 
-In total, 539 nodes are critical, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For 410 of them, each of the three conditions rests on a document from an official issuer. Annex A describes how the facts are collected and checked. Section A.3 says how the count of critical nodes was made.
+In total, 539 nodes are under watch, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For 410 of them, each of the three conditions rests on a document from an official issuer. Annex A describes how the facts are collected and checked. Section A.3 says how the count of nodes under watch was made.
 
 ## 2 Pay
 
@@ -134,9 +132,9 @@ Oil and gas carry the Russian economy. They are the most discussed topic and oft
 
 ### 2.1 The buyers
 
-From 2022, the EU almost closed its market to Russian oil, with an embargo on crude carried by sea, then on oil products.[^15] It also cut its purchases of Russian gas, then decided in January 2026 to stop them in stages.[^16] By contrast, Asia took over (figure 3): China became Russia's first customer, and India bought twenty times as much Russian crude in 2025 as in 2021.[^17] Two reasons explain this shift:[^18]
+From 2022, the EU almost closed its market to Russian oil, with an embargo on crude carried by sea, then on oil products.[^15] It also cut its purchases of Russian gas, then decided in January 2026 to stop them in stages.[^16] By contrast, Asia took over (figure 3): China became Russia's first customer, and India bought twenty times as much Russian crude by weight in 2025 as in 2021.[^17] Two reasons explain this shift:[^18]
 
-- –**Price:** Sold at a discount, Russian crude stays cheaper for the buyer;
+- –**Price:** With fewer buyers allowed to take it, and more risk for those who do, Russian crude must be sold at a discount, so it is cheaper for the buyers that stay;
 
 - –**Politics:** China and India do not apply the sanctions, and their leaders do not want to look as if they yield to the United States.
 
@@ -159,20 +157,20 @@ Gas follows the same path to Asia: in 2025, for the first time, Gazprom delivere
 [^19]: Interfax. (2026, January 13). *Gazprom supplies 38.8 bcm of gas to China in 2025, for first time more than towards west – company*. Interfax. https://interfax.com/newsroom/top-stories/115552/.
 
 
-Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer.[^20] The report's hypothesis is that the gas sold to China therefore replaces only part of the volumes lost in Europe, and less of their revenue.
+Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer. In 2021, Gazprom sold 148.8 bcm by pipeline to Europe, 26.7 to Turkey and 10 to China; in 2025, all Russian pipeline exports came to about 115 bcm, of which 38.8 went to China. Over the same period, Russian gas production fell from 762.3 to 663 bcm, and in 2025 LNG exports fell by 2.5%, to 31.3 Mt.[^20] The gas that Europe no longer buys is therefore mostly not sold elsewhere: it is not produced. The report's hypothesis is that the gas sold to China also brings in less revenue than the gas once sold in Europe.
 
 FIGURE: Figure 3: Russian exports by buyer and crude bought from Russia, 2020-2025
 
 *Note.* Data: Bahí Esteba et al. (2026); Eurostat (2026); UN Comtrade (2026); CREA (2026). Authors' calculations.[^21]
 
-[^20]: Vakulenko, S. (2025, September 22). *Why Can’t Russia and China Agree on the Power of Siberia 2 Gas Pipeline?* Carnegie Politika. Carnegie Endowment for International Peace. https://carnegieendowment.org/russia-eurasia/politika/2025/09/russia-china-gas-deals.
+[^20]: Vakulenko, S. (2025, September 22). *Why Can’t Russia and China Agree on the Power of Siberia 2 Gas Pipeline?* Carnegie Politika. Carnegie Endowment for International Peace. https://carnegieendowment.org/russia-eurasia/politika/2025/09/russia-china-gas-deals ; Centre for Eastern Studies (OSW). (2022, January 27). *Russia: the major gas sector indices of 2021*. https://www.osw.waw.pl/en/publikacje/analyses/2022-01-27/russia-major-gas-sector-indices-2021 ; Interfax. (2026, May 12). *Russian govt gives cautious 2026 gas production forecast of 688.4 bcm despite strong start to year*. https://interfax.com/newsroom/top-stories/117527/ ; Reuters. (2025, December 30). *Russian LNG exports dip in 2025 as sanctions squeeze logistics*, reprinted by Baird Maritime. https://www.bairdmaritime.com/shipping/tankers/gas/russian-lng-exports-dip-in-2025-as-sanctions-squeeze-logistics.
 
 [^21]: Bahí Esteba et al. (2026), op. cit., n. 1, fig. 2 ; Eurostat. (2026). *International trade of EU and non-EU countries since 2002 by HS2-4-6 (DS-059341)*. https://ec.europa.eu ; UN Comtrade (2026), op. cit., n. 5 ; Centre for Research on Energy and Clean Air (CREA). (2026). *Russia Fossil Tracker*. https://api.russiafossiltracker.com.
 
 
 ### 2.2 The price and the cap
 
-To measure what Russia loses on each barrel, the report compares its oil with Brent, the North Sea oil that serves as the reference price. Urals, the main Russian crude exported, is heavier and higher in sulphur, so a little cheaper. In 2019, before the war, this price gap, called the discount, averaged $0.73 a barrel for Urals loaded in the Baltic, from January to early October.[^22] Since December 2022, an EU company or a company of its allies can no longer carry, insure or finance Russian crude sold above a price cap (figure 4).[^23] The coalition chose a cap rather than a full embargo because it pursues two aims at once: reducing the oil profits that let Russia wage the war, and keeping world energy markets stable and well supplied.[^24]
+To measure what Russia loses on each barrel, the report compares its oil with Brent, the North Sea oil that serves as the reference price. Urals, the main Russian crude exported, is heavier and higher in sulphur, so before the war it usually sold a little below Brent. In 2019, this price gap, called the discount, averaged $0.73 a barrel for Urals loaded in the Baltic, from January to early October.[^22] Since December 2022, an EU company or a company of its allies can no longer carry, insure or finance Russian crude sold above a price cap (figure 4).[^23] The coalition chose a cap rather than a full embargo because it pursues two aims at once: reducing the oil profits that let Russia wage the war, and keeping world energy markets stable and well supplied.[^24]
 
 FIGURE: Figure 4: Brent, Urals and the EU price cap, 2022-2026
 
@@ -195,7 +193,7 @@ For the buyers who stayed loyal, this fall is a windfall. Refiners in India, Chi
 
 ### 2.3 The budget
 
-Oil taxation in Russia is based on the Urals price.[^33] A bigger discount therefore cuts what the state, which pays for the war, draws from each barrel: a 10% discount on sales to China alone costs the Russian Treasury about $3 billion a year.[^34]
+Russia taxes its oil on the market price of Urals at its export ports, and since 2025 no floor linked to Brent has limited that price.[^33] A bigger discount therefore cuts what the state, which pays for the war, draws from each barrel: a 10% discount on sales to China alone costs the Russian Treasury about $3 billion a year.[^34]
 
 The share of oil and gas in federal revenue falls (figure 5) for two reasons, and the first is a real decline in that revenue. In current roubles, it fell by about a quarter from 2024 to 2025, mostly because of a lower oil price, then fell again from January to September
 
@@ -207,13 +205,13 @@ The share of oil and gas in federal revenue falls (figure 5) for two reasons, an
 
 [^29]: Dodonov et al. (2026), op. cit., n. 2, p. 2.
 
-[^30]: Authors' calculations based on World Bank. (2026, October 2). *Commodity Price Data (The Pink Sheet)* [Data, monthly prices]. https://www.worldbank.org/en/research/commodity-markets ; Federal Tax Service of Russia. (2023–2026). [Data for the calculation of the mineral extraction tax, monthly releases]. https://www.nalog.gov.ru/rn77/news/activities_fts/ (one page per month, for example *Опубликованы данные для расчёта НДПИ и НДД, а также акциза на нефтяное сырье за июль 2026 года* [Data published for the calculation of the mineral extraction tax and the additional income tax, and of the excise on crude, for July 2026], https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/). Urals: monthly average price published by the Ministry of Economic Development; Brent: World Bank monthly average. The series has no Urals value for September to November 2023.
+[^30]: Authors' calculations based on World Bank. (2026, October 2). *Commodity Price Data (The Pink Sheet)* [Data, monthly prices]. https://www.worldbank.org/en/research/commodity-markets ; Federal Tax Service of Russia. (2023–2026). [Data for the calculation of the mineral extraction tax, monthly releases]. https://www.nalog.gov.ru/rn77/news/activities_fts/ (one page per month, for example *Опубликованы данные для расчёта НДПИ и НДД, а также акциза на нефтяное сырье за июль 2026 года* [Data published for the calculation of the mineral extraction tax and the additional income tax, and of the excise on crude, for July 2026], https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/). Urals: monthly average tax price published by the Ministry of Economic Development (in its current form, Art. 342(3) of the Tax Code gives the ESPO blend quote a weight of 0.22 in this price); Brent: World Bank monthly average. The series has no Urals value for September to November 2023.
 
 [^31]: Kpler (2025), op. cit., n. 18.
 
 [^32]: Deryugina, T., & Shepotylo, O. (2026, September). *China’s Support for Russia* (Policy Brief No. 4). econ4ua. https://econ4ua.org/wp-content/uploads/2026/09/Chinas-Support-for-Russia-Final.pdf, p. 4.
 
-[^33]: Federal Tax Service of Russia (2026), op. cit., n. 25 ; Ministry of Economic Development of the Russian Federation. (2026, October 2). *О среднем уровне цен нефти сорта «Юралс» за сентябрь 2026 года* [On the average price level of Urals oil for September 2026]. https://www.economy.gov.ru/material/departments/d12/konyunktura_mirovyh_tovarnyh_rynkov/o_srednem_urovne_cen_nefti_sorta_yurals_za_sentyabr_2026_goda.html.
+[^33]: Federal Tax Service of Russia (2026), op. cit., n. 25 ; Ministry of Economic Development of the Russian Federation. (2026, October 2). *О среднем уровне цен нефти сорта «Юралс» за сентябрь 2026 года* [On the average price level of Urals oil for September 2026]. https://www.economy.gov.ru/material/departments/d12/konyunktura_mirovyh_tovarnyh_rynkov/o_srednem_urovne_cen_nefti_sorta_yurals_za_sentyabr_2026_goda.html ; *Налоговый кодекс Российской Федерации* [Tax Code of the Russian Federation], Art. 342(3), as amended by Federal Law No. 362-FZ of 29 October 2024. Garant. https://base.garant.ru/10900200/189ee55699895a58d35d70784cf7bcb9/.
 
 [^34]: Deryugina and Shepotylo (2026), op. cit., n. 32, pp. 4–5.
 
@@ -224,7 +222,7 @@ FIGURE: Figure 5: Oil, gas and defence in the federal budget, 2014-2026
 
 *Note.* Data: Ministry of Finance of Russia (2026); Korsunskaya (2024); World Bank (2026). Authors' calculations.[^37]
 
-The rest of the economy also pays more, and this is the second reason for the fall. Profit tax went from 20 to 25% in 2025, and VAT from 20 to 22% in 2026.[^38] This shift is deliberate: the budget guidelines of the Ministry of Finance for 2026-2028 present the VAT rise as a way to bring the share of non-oil-and-gas revenue to 80%.[^39] The report's hypothesis is that an ever more expensive defence
+The rest of the economy also pays more, and this is the second reason for the fall. Profit tax went from 20 to 25% in 2025, and VAT from 20 to 22% in 2026.[^38] This shift is deliberate: the budget guidelines of the Ministry of Finance for 2026-2028 present the VAT rise as one way to raise non-oil-and-gas revenue to 80% of federal revenue, which leaves oil and gas about 20%.[^39] The report's hypothesis is that an ever more expensive defence
 
 [^35]: Ministry of Finance of the Russian Federation (2026a), op. cit., n. 3, line 1.1 "Нефтегазовые доходы" [Oil and gas revenue] ; Ministry of Finance of the Russian Federation. (2025, October 9). *Предварительная оценка исполнения федерального бюджета за январь-сентябрь 2025 года* [Preliminary estimate of the execution of the federal budget for January–September 2025]. https://minfin.gov.ru/ru/press-center/?id_4=39967-predvaritelnaya_otsenka_ispolneniya_federalnogo_byudzheta_za_yanvar-sentyabr_2025_goda, p. 1.
 
@@ -582,7 +580,7 @@ The report hypothesises that this opacity protects these companies: the 50% rule
 
 ## 6 Limitations
 
-A report based on open sources sees what those sources publish, and no more. Before drawing conclusions, it must say what the facts gathered here cannot establish.
+Before drawing conclusions, the report must say what the facts gathered here cannot establish.
 
 ### 6.1 Limits of the evidence
 
@@ -641,7 +639,7 @@ EU sanctions follow this shift step by step. They go up the chain: the product, 
 
 ### A.1 The database
 
-The report rests on a database of entities (such as companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 28 October 2026, the database holds 5,366 entities in its public data release (data-2026-10-28). The count of critical nodes runs on this release. A legal act or an event is no node, so the count tests 4,930 entities.
+The report rests on a database of entities (such as companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 28 October 2026, the database holds 5,366 entities in its public data release (data-2026-10-28). The count of nodes under watch runs on this release. A legal act or an event is no node, so the count tests 4,930 entities.
 
 These documents come from the official sanctions lists (OFAC, United Kingdom, EU acts), from company registers, from public statistics (UN Comtrade, Eurostat, World Bank, Bank of Russia, Russian Ministry of Finance), from research institutes (KSE, CREA, Bruegel) and from investigative press. Leads came from web and news searches (SearXNG, GDELT) and from the registers; a search result was never cited, and the queries were not logged. The documents of the data release were retrieved between 7 and 28 October 2026; the research closed on 20 November 2026.
 
@@ -659,12 +657,15 @@ Each document is stored as received, under its SHA-256 hash, which also forms it
 
 - –A source that is known but not archived remains a lead and does not count as a fact; likewise, a value without a source remains undocumented.
 
-- –The reliability of the issuer of each source follows the ADMIRALTY scale, from A (an official issuer on its own record) to F (cannot be judged); a party to the conflict is rated C at most. A separate digit from 1 to 6 rates each fact by the number of independent issuers that give it. The report shows the letter of official issuers only; the data release gives the letter and the digit of each claim that has both.
+- –The reliability of the issuer of each source follows a scale adapted from the NATO grading system, also called the ADMIRALTY scale, from A (an official issuer on its own record) to F (cannot be judged);[^129] a party to the conflict is rated C at most. A separate digit from 1 to 6 rates each fact by the number of independent issuers that give it. The report shows the letter of official issuers only; the data release gives the letter and the digit of each claim that has both.
 
 - –Each source has a level set from its terms of use, which were read. A source whose terms forbid reuse stays internal: a fact can cite it, but its data are not republished.
 
 
-### A.3 Selecting the critical nodes
+
+[^129]: Ministry of Defence. (2023, August). *JDP 2-00 Intelligence, Counter-intelligence and Security Support to Joint Operations* (4th ed.), paras 3.39–3.40 and table 3.1. https://assets.publishing.service.gov.uk/media/653a4b0780884d0013f71bb0/JDP_2_00_Ed_4_web.pdf.
+
+### A.3 Selecting the nodes under watch
 
 The three conditions of the Method section apply in the same way to all entities in the database:
 
@@ -672,11 +673,11 @@ The three conditions of the Method section apply in the same way to all entities
 
 - –**Active in 2024-2026:** A relation dated in that period (designation, port call, transshipment, event);
 
-- –**Passes through a third country:** The entity's country of registration, any flag of its vessels that the release gives, or the country of a direct counterparty is a country other than Russia that does not apply the coalition's sanctions. A country read only from a company's name or address does not count.
+- –**Tied to a third country:** The entity's country of registration, any flag of its vessels that the release gives, or the country of a direct counterparty is a country other than Russia that does not apply the coalition's sanctions. A country read only from a company's name or address does not count.
 
 Vessels of one management company, or failing that of one owner, form a single node. One act of designation can meet more than one condition; where no activity is observed, a new designation stands as a sign of activity: it dates an act of enforcement, not an observed flow.
 
-The count of critical nodes is 539. It is the result of the script tools/critical-nodes-replay.ts on the data release data-2026-10-28. The command pnpm critical:replay downloads that release, checks its SHA-256 and gives the same count. A node that the release does not hold is not counted. A designation with no date takes the date of its act. Russia is the target of the sanctions, so it is not a third country. For 410 of the 539 nodes, each condition rests on a document of an official issuer (ADMIRALTY letter A). The script derives the layer of a node from its entities, because the release gives no layer: Pay 488, Finance 4, Fight 47. The count changes with the rule: 591 nodes if Russia counts as a third country, 516 with no country of a counterparty. An earlier count of 493 (450 nodes of the record and 43 of a first list) and the figure of 416 cannot be rebuilt, because their query was not kept. Port calls carry no date, so most nodes are active only by a dated designation.
+The count of nodes under watch is 539. It is the result of the script tools/critical-nodes-replay.ts on the data release data-2026-10-28. The command pnpm critical:replay downloads that release, checks its SHA-256 and gives the same count. A node that the release does not hold is not counted. A designation with no date takes the date of its act. Russia is the target of the sanctions, so it is not a third country. For 410 of the 539 nodes, each condition rests on a document of an official issuer (ADMIRALTY letter A). The script derives the layer of a node from its entities, because the release gives no layer: Pay 488, Finance 4, Fight 47. The count changes with the rule: 591 nodes if Russia counts as a third country, 516 with no country of a counterparty. An earlier count of 493 (450 nodes of the record and 43 of a first list) and the figure of 416 cannot be rebuilt, because their query was not kept. Port calls carry no date, so most nodes are active only by a dated designation. The script and its command keep the older name "critical".
 
 ### A.4 Checking facts and text
 

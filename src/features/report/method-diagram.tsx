@@ -104,7 +104,7 @@ export function MethodDiagram() {
         <g transform="translate(456,0)">
           <rect width="184" height={H} className="method-figure" />
           <text x="14" y="24" className="method-label on-figure">
-            Critical node
+            Node under watch
           </text>
           <text x="14" y="40" className="method-label on-figure">
             All three

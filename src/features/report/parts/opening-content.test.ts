@@ -21,11 +21,9 @@ describe('opening copy', () => {
       '87 days',
       '318',
       '427 of 757',
-      'sixteen',
       'Customers 84%',
-      'Ships 79%',
-      '$19 to $27',
-      'less than one fifth',
+      'Oil 79%',
+      '18.5%',
       'Currency 53%',
       'Components 77%',
     ]);

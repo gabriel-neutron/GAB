@@ -38,8 +38,8 @@ export const Route = createFileRoute('/nodes')({
           name: 'description',
           content:
             coverage === null
-              ? 'Overview of a release of the GAB dataset: the labels of its claims and its critical nodes.'
-              : `Release ${loaderData?.manifest.version ?? ''} of the GAB dataset: ${String(coverage.entities)} entities and ${String(coverage.sources)} sources, the labels of its claims and its critical nodes.`,
+              ? 'Overview of a release of the GAB dataset: the labels of its claims and its nodes under watch.'
+              : `Release ${loaderData?.manifest.version ?? ''} of the GAB dataset: ${String(coverage.entities)} entities and ${String(coverage.sources)} sources, the labels of its claims and its nodes under watch.`,
         },
       ],
     };
