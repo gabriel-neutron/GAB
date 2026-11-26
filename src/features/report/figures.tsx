@@ -215,7 +215,11 @@ export function PriceFigure({ print = false }: { print?: boolean }) {
     return () => ro.disconnect();
   }, []);
   const x = (i: number) => 40 + (i / 45) * (width - 64),
-    y = (v: number) => 266 - (v / 125) * 230;
+    // The print figure keeps its height: the prices take the top, the gap panel the foot.
+    floor = print ? 190 : 266,
+    y = (v: number) => floor - (v / 125) * (floor - 36),
+    // A gap above the top of the scale stops at the top.
+    gapY = (v: number) => 66 - (Math.min(v, 30) / 30) * 52;
   const line = (key: 'brent' | 'urals') => {
     let d = '',
       last = -2;
@@ -240,7 +244,7 @@ export function PriceFigure({ print = false }: { print?: boolean }) {
         </g>
       ))}
       {[1, 13, 25, 37].map((i) => (
-        <text key={i} x={x(i)} y="294" textAnchor="middle">
+        <text key={i} x={x(i)} y={floor + 28} textAnchor="middle">
           {itemAt(priceData, i).date.slice(0, 4)}
         </text>
       ))}
@@ -256,7 +260,7 @@ export function PriceFigure({ print = false }: { print?: boolean }) {
         </>
       )}
       {visible.cap && <path d={capPath} className="price-line cap" />}
-      <line x1={x(34.7)} x2={x(34.7)} y1="36" y2="266" className="event-rule" />
+      <line x1={x(34.7)} x2={x(34.7)} y1="36" y2={floor} className="event-rule" />
     </>
   );
   if (print)
@@ -266,7 +270,7 @@ export function PriceFigure({ print = false }: { print?: boolean }) {
           className="price-svg"
           viewBox={`0 0 ${width} 308`}
           role="img"
-          aria-label="Monthly Brent and Urals prices, with the EU price cap."
+          aria-label="Monthly Brent and Urals prices, with the EU price cap, and the gap between Brent and Urals."
         >
           {(
             [
@@ -282,10 +286,37 @@ export function PriceFigure({ print = false }: { print?: boolean }) {
               </text>
             </g>
           ))}
-          <text x={x(34.7) - 6} y="258" textAnchor="end">
+          <text x={x(34.7) - 6} y={floor - 8} textAnchor="end">
             US designations of Rosneft and Lukoil
           </text>
           {plot}
+          {/* The gap between Brent and Urals, on its own scale: a month with no Urals price has no bar. */}
+          <g transform={`translate(0,${floor + 46})`}>
+            <text x="40" y="2">
+              Brent minus Urals, $ a barrel
+            </text>
+            {[0, 10, 20, 30].map((v) => (
+              <g key={v}>
+                <line x1="40" x2={width - 24} y1={gapY(v)} y2={gapY(v)} className="plot-grid" />
+                <text x="30" y={gapY(v) + 4} textAnchor="end">
+                  {v}
+                </text>
+              </g>
+            ))}
+            {priceData.map((r, i) =>
+              r.brent !== null && r.urals !== null ? (
+                <rect
+                  key={r.date}
+                  x={x(i) - 3}
+                  y={gapY(Math.max(0, r.brent - r.urals))}
+                  width="6"
+                  height={gapY(0) - gapY(Math.max(0, r.brent - r.urals))}
+                  className="price-gap"
+                />
+              ) : null,
+            )}
+            <line x1={x(34.7)} x2={x(34.7)} y1={gapY(30)} y2={gapY(0)} className="event-rule" />
+          </g>
         </svg>
       </figure>
     );

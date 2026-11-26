@@ -88,13 +88,13 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: '**The method.** The report searches a database of more than 5,300 entities, where every fact points to an archived document. It looks for the nodes (companies, ports, fleets, banks, payment channels) that are exposed to sanctions, active in 2024-2026 and tied to a country that does not apply them.',
+        text: '**The method.** The authors built a database of more than 5,300 entities, where every fact points to an archived document. In it, the report looks for the nodes, that is the companies, ports, ships, banks and payment channels through which the money and the goods of the war move, that are exposed to sanctions, active in 2024-2026 and tied to a country that does not apply them.',
       },
       {
         kind: 'p',
         text: '**The result.** Sanctions make the war more costly for Russia, but they do not cut its money or its goods: trade moves to partners that do not apply the sanctions, and to a parallel market of tankers, payment relays and companies with no documented owner.',
       },
-      { kind: 'p', text: "**The report's own measures.**" },
+      { kind: 'p', text: '**What the report measures.**' },
       {
         kind: 'li',
         text: '**Designations:** When the EU and the United States designate the same tanker, the United States does so first in more than eight cases out of ten, and the median gap from the first to the second regime is 87 days.',
@@ -105,27 +105,20 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Owners and managers:** On the archived pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships that give both dates show an owner or manager that started after the designation.',
+        text: '**Owners and managers:** In the private fleet and in oil trading, the ownership chains often end at a company with no documented owner: according to the sanctions lists and, for part of them, to Ukrainian military intelligence (GUR), a party to the war, sixteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner. On the archived pages of GUR, 427 of 757 ships that give both dates show an owner or manager that started after the designation.',
+      },
+      { kind: 'p', text: '**What the sources show.**' },
+      {
+        kind: 'li',
+        text: "**Customers:** From 2021 to 2025, EU purchases from Russia fell by 84%;[^1] China became Russia's first customer, and India bought twenty times as much Russian crude by weight.",
       },
       {
         kind: 'li',
-        text: '**Ownership chains:** The 50% rule follows shares: the chains of the large state companies end at the state, but in the private fleet and in oil trading they often end at a company with no documented owner, and, according to the sanctions lists and, for part of them, to GUR, a party to the war, sixteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner.',
+        text: '**Oil:** According to the KSE Institute, the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance, carried 79% of the crude exported by sea in January 2026.[^2] From August 2023 to October 2025, Urals sold $10 to $16 below Brent each month; since November 2025, after the OFAC designation of [[N-P026|Rosneft]] and [[N-P030|Lukoil]], it has sold $19 to $27 below.',
       },
       {
         kind: 'li',
-        text: "**Customers:** From 2021 to 2025, EU purchases from Russia fell by 84%;[^1] China became Russia's first customer, and India bought twenty times as much Russian crude.",
-      },
-      {
-        kind: 'li',
-        text: '**Ships:** According to the KSE Institute, the tankers of the so-called "shadow fleet", tied to a country outside the coalition and with no Western insurance, carried 79% of the crude exported by sea in January 2026.[^2]',
-      },
-      {
-        kind: 'li',
-        text: "**Price:** From August 2023 to October 2025, Urals sold $10 to $16 below Brent each month; since November 2025, after the OFAC designation of [[N-P026|Rosneft]] and [[N-P030|Lukoil]], it has sold $19 to $27 below. Russia's partners benefit: China buys Russian crude at a discount and sells the components of weapons at a high premium.",
-      },
-      {
-        kind: 'li',
-        text: '**Budget:** The share of oil and gas in federal revenue falls from one half in 2014 to less than one fifth in January–September 2026, partly because that revenue is shrinking.[^3]',
+        text: '**Budget:** The share of oil and gas in federal revenue falls from 51% in 2014 to 18.5% in January–September 2026, partly because that revenue is shrinking.[^3]',
       },
       {
         kind: 'li',
@@ -141,7 +134,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: '*The authors are solely responsible for the content and conclusions presented. This report is under CC BY 4.0: name the authors, link the licence and mark each change. Figure 8 is not under CC BY 4.0: it uses Global Fishing Watch data under CC BY-NC 4.0, so do not use it for a commercial purpose.*',
+        text: '*The authors are solely responsible for the content and conclusions presented. This report is under CC BY 4.0, except figure 8 (CC BY-NC 4.0): name the authors, link the licence and mark each change.*',
       },
     ],
     notes: [
@@ -183,13 +176,13 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: 'Which nodes (companies, ports, fleets, banks) make it possible to finance the war?',
+        text: 'Which nodes (companies, infrastructure, ships, banks) make it possible to finance the war?',
       },
       { kind: 'li', text: 'Who owns them?' },
       { kind: 'li', text: 'How do they get around the sanctions?' },
       {
         kind: 'p',
-        text: 'The report does not measure how the nodes get around the sanctions: it shows which routes stay open after each measure, and it gives each mechanism as a claim of its source or as a hypothesis.',
+        text: 'The report shows which routes stay open after each measure; open sources rarely show circumvention itself, so it gives each mechanism as a claim of its source or as a hypothesis.',
       },
       {
         kind: 'p',
@@ -223,12 +216,12 @@ export const parts: ReportPart[] = [
     blocks: [
       {
         kind: 'p',
-        text: 'A long war is paid for twice: with the money that comes in, and with the goods that must be bought to make weapons. To follow this double flow despite the sanctions, the report does not start from the national totals of the Russian economy. It starts from the precise points through which the money and the goods must pass.',
+        text: 'To wage a long war, Russia needs two flows: the foreign currency that its exports bring in, and the imported goods that its factories need to make weapons. The report therefore does not start from national totals. It starts from the points through which this money and these goods must pass.',
       },
       { kind: 'h3', text: 'The three layers' },
       {
         kind: 'p',
-        text: 'The report therefore divides the Russian economy into nodes: sites (a port, a factory, a gas field), companies, fleets of ships or payment channels (a bank, a platform, a digital token). Each node serves one of three functions, which the report calls layers:',
+        text: 'The report therefore divides the Russian economy into nodes: sites (a port, a factory, a gas field), companies, fleets of ships or payment channels (a bank, a payment agent, or a token such as A7A5). Each node serves one of three functions, which the report calls layers:',
       },
       {
         kind: 'li',
@@ -238,10 +231,13 @@ export const parts: ReportPart[] = [
       { kind: 'li', text: '**Fight:** Import the components and make the weapons.' },
       {
         kind: 'p',
-        text: 'These three layers follow the path of the money (figure 2). The foreign-currency revenue of the pay layer settles the imports of the fight layer, and this settlement passes through the finance layer. In parallel, taxes on oil and gas fill the budget, which orders weapons from Russian factories. A sanction can therefore target the inflow, the transit or the outflow of the money, and the report examines all three.',
+        text: 'These three layers follow the path of the money (figure 2). The foreign-currency revenue of the pay layer settles the imports of the fight layer, and this settlement passes through the finance layer. The money also takes a second, domestic path: taxes on oil and gas fill the federal budget, which orders weapons from Russian factories.',
       },
-      { kind: 'h3', text: 'Critical nodes' },
-      { kind: 'p', text: 'A node is called critical when it meets three conditions:' },
+      { kind: 'h3', text: 'Nodes under watch' },
+      {
+        kind: 'p',
+        text: 'A node is under watch when it meets three conditions; this is a filter, not a ranking:',
+      },
       {
         kind: 'li',
         text: '**Exposed to sanctions:** The European Union (EU), the American Office of Foreign Assets Control (OFAC) or the United Kingdom designates it, or a designated person owns 50% or more of it;',
@@ -252,7 +248,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Runs through a third country:** Its head office, the flag of its ships or a counterparty is in a country that does not apply the sanctions of the coalition (the EU, the United States, the United Kingdom and their allies).',
+        text: '**Tied to a third country:** Its head office, the flag of its ships or a counterparty is in a country that does not apply the sanctions of the coalition (the EU, the United States, the United Kingdom and their allies). An oil exporter meets it through its buyer.',
       },
       {
         kind: 'figure',
@@ -267,7 +263,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'These conditions single out the nodes where the sanctions are in place but the activity continues through a third country: where circumvention may be at work, and where a new measure could have an effect.',
+        text: 'These conditions single out the nodes where the sanctions are in place but the activity goes on with a third country: where circumvention may be at work, and where a new measure could have an effect.',
       },
       {
         kind: 'p',
@@ -288,11 +284,11 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'The data and its control' },
       {
         kind: 'p',
-        text: 'The data come from a database of more than 5,300 entities (such as companies, ships, sites, ports, banks, people and legal acts) and the relations between them, such as a designation, an ownership, the management of a ship, a port call, an oil flow or a payment. These facts are taken from the official sanctions lists, company registers and published investigations, and each one points to the archived document that establishes it. The reliability of each official source follows the ADMIRALTY scale, which rates the issuer with a letter, from A for an official issuer (sanctions list, company register, official journal) to F when the issuer cannot be judged.',
+        text: 'The authors built a database of more than 5,300 entities (such as companies, ships, sites, ports, banks, people and legal acts) and of the relations between them, such as a designation, an ownership, the management of a ship, a port call, an oil flow or a payment. These facts are taken from the official sanctions lists, company registers and published investigations, and each one points to the archived document that establishes it. The reliability of each official source follows the ADMIRALTY scale (Annex A.2), which rates the issuer with a letter, from A for an official issuer (sanctions list, company register, official journal) to F when the issuer cannot be judged.',
       },
       {
         kind: 'p',
-        text: 'In total, 539 nodes are critical, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For 410 of them, each of the three conditions rests on a document from an official issuer. Annex A describes how the facts are collected and checked. Section A.3 says how the count of critical nodes was made.',
+        text: 'In total, 539 nodes are under watch, counting the ships of one management company as a single node. The pay layer holds the most, because the lists of designated ships are long and well documented. For 410 of them, each of the three conditions rests on a document from an official issuer. Annex A describes how the facts are collected and checked. Section A.3 says how the count of nodes under watch was made.',
       },
     ],
     notes: [
@@ -320,11 +316,11 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'The buyers' },
       {
         kind: 'p',
-        text: "From 2022, the EU almost closed its market to Russian oil, with an embargo on crude carried by sea, then on oil products.[^15] It also cut its purchases of Russian gas, then decided in January 2026 to stop them in stages.[^16] By contrast, Asia took over (figure 3): China became Russia's first customer, and India bought twenty times as much Russian crude in 2025 as in 2021.[^17] Two reasons explain this shift:[^18]",
+        text: "From 2022, the EU almost closed its market to Russian oil, with an embargo on crude carried by sea, then on oil products.[^15] It also cut its purchases of Russian gas, then decided in January 2026 to stop them in stages.[^16] By contrast, Asia took over (figure 3): China became Russia's first customer, and India bought twenty times as much Russian crude by weight in 2025 as in 2021.[^17] Two reasons explain this shift:[^18]",
       },
       {
         kind: 'li',
-        text: '**Price:** Sold at a discount, Russian crude stays cheaper for the buyer;',
+        text: '**Price:** With fewer buyers allowed to take it, and more risk for those who do, Russian crude must be sold at a discount, so it is cheaper for the buyers that stay;',
       },
       {
         kind: 'li',
@@ -336,7 +332,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: "But China sets the terms. To sell the gas of the Yamal peninsula, which Europe no longer buys, Russia has only one possible customer. That customer is in no hurry to seal a deal on the new Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer.[^20] The report's hypothesis is that the gas sold to China therefore replaces only part of the volumes lost in Europe, and less of their revenue.",
+        text: "But China sets the terms. To sell the gas of the Yamal peninsula, which Europe no longer buys, Russia has only one possible customer. That customer is in no hurry to seal a deal on the new Power of Siberia 2 pipeline: China does not want to depend too much on a single supplier, and it knows that Russia has no other buyer. In 2021, Gazprom sold 148.8 bcm by pipeline to Europe, 26.7 to Turkey and 10 to China; in 2025, all Russian pipeline exports came to about 115 bcm, of which 38.8 went to China. Over the same period, Russian gas production fell from 762.3 to 663 bcm, and in 2025 LNG exports fell by 2.5%, to 31.3 Mt.[^20] The report's hypothesis is that most of the gas that Europe no longer buys is not sold elsewhere but stays in the ground, and that the gas sold to China brings in less revenue than the gas once sold in Europe.",
       },
       {
         kind: 'figure',
@@ -353,7 +349,7 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'The price and the cap' },
       {
         kind: 'p',
-        text: 'To measure what Russia loses on each barrel, the report compares its oil with Brent, the North Sea oil that serves as the reference price. Urals, the main Russian crude exported, is heavier and higher in sulphur, so a little cheaper. In 2019, before the war, this price gap, called the discount, averaged $0.73 a barrel for Urals loaded in the Baltic, from January to early October.[^22]',
+        text: 'To measure what Russia loses on each barrel, the report compares its oil with Brent, the North Sea oil that serves as the reference price. Urals, the main Russian crude exported, is heavier and higher in sulphur, so before the war it usually sold a little below Brent. In 2019, this price gap, called the discount, averaged $0.73 a barrel for Urals loaded in the Baltic, from January to early October.[^22]',
       },
       {
         kind: 'p',
@@ -382,7 +378,7 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'The budget' },
       {
         kind: 'p',
-        text: 'Oil taxation in Russia is based on the Urals price.[^33] A bigger discount therefore cuts what the state, which pays for the war, draws from each barrel: a 10% discount on sales to China alone costs the Russian Treasury about $3 billion a year.[^34]',
+        text: 'Russia taxes its oil on the market price of Urals at its export ports, and since 2025 no floor linked to Brent has limited that price.[^33] A bigger discount therefore cuts what the state, which pays for the war, draws from each barrel: a 10% discount on sales to China alone costs the Russian Treasury about $3 billion a year.[^34]',
       },
       {
         kind: 'p',
@@ -402,7 +398,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'The rest of the economy also pays more, and this is the second reason for the fall. Profit tax went from 20 to 25% in 2025, and VAT from 20 to 22% in 2026.[^38] This shift is deliberate: the budget guidelines of the Ministry of Finance for 2026-2028 present the VAT rise as a way to bring the share of non-oil-and-gas revenue to 80%.[^39]',
+        text: 'The rest of the economy also pays more, and this is the second reason for the fall. Profit tax went from 20 to 25% in 2025, and VAT from 20 to 22% in 2026.[^38] This shift is deliberate: the budget guidelines of the Ministry of Finance for 2026-2028 present the VAT rise as one way to raise non-oil-and-gas revenue to 80% of federal revenue.[^39]',
       },
       {
         kind: 'p',
@@ -438,7 +434,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '20',
-        text: 'Vakulenko, S. (2025, September 22). *Why Can’t Russia and China Agree on the Power of Siberia 2 Gas Pipeline?* Carnegie Politika. Carnegie Endowment for International Peace. https://carnegieendowment.org/russia-eurasia/politika/2025/09/russia-china-gas-deals.',
+        text: 'Vakulenko, S. (2025, September 22). *Why Can’t Russia and China Agree on the Power of Siberia 2 Gas Pipeline?* Carnegie Politika. Carnegie Endowment for International Peace. https://carnegieendowment.org/russia-eurasia/politika/2025/09/russia-china-gas-deals ; Centre for Eastern Studies (OSW). (2022, January 27). *Russia: the major gas sector indices of 2021*. https://www.osw.waw.pl/en/publikacje/analyses/2022-01-27/russia-major-gas-sector-indices-2021 ; Interfax. (2026, May 12). *Russian govt gives cautious 2026 gas production forecast of 688.4 bcm despite strong start to year*. https://interfax.com/newsroom/top-stories/117527/ ; Reuters. (2025, December 30). *Russian LNG exports dip in 2025 as sanctions squeeze logistics*, reprinted by Baird Maritime. https://www.bairdmaritime.com/shipping/tankers/gas/russian-lng-exports-dip-in-2025-as-sanctions-squeeze-logistics.',
       },
       {
         id: '21',
@@ -469,7 +465,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '33',
-        text: 'Federal Tax Service of Russia (2026), op. cit., n. 25 ; Ministry of Economic Development of the Russian Federation. (2026, October 2). *О среднем уровне цен нефти сорта «Юралс» за сентябрь 2026 года* [On the average price level of Urals oil for September 2026]. https://www.economy.gov.ru/material/departments/d12/konyunktura_mirovyh_tovarnyh_rynkov/o_srednem_urovne_cen_nefti_sorta_yurals_za_sentyabr_2026_goda.html.',
+        text: 'Federal Tax Service of Russia (2026), op. cit., n. 25 ; Ministry of Economic Development of the Russian Federation. (2026, October 2). *О среднем уровне цен нефти сорта «Юралс» за сентябрь 2026 года* [On the average price level of Urals oil for September 2026]. https://www.economy.gov.ru/material/departments/d12/konyunktura_mirovyh_tovarnyh_rynkov/o_srednem_urovne_cen_nefti_sorta_yurals_za_sentyabr_2026_goda.html ; Tax Code of the Russian Federation, Art. 342(3). https://base.garant.ru/10900200/189ee55699895a58d35d70784cf7bcb9/.',
       },
       { id: '34', text: 'Deryugina and Shepotylo (2026), op. cit., n. 32, pp. 4–5.' },
       {
@@ -695,7 +691,10 @@ export const parts: ReportPart[] = [
         text: 'U.S. Department of the Treasury. (2022). Press release jy0608. https://home.treasury.gov, p. 1; U.S. Department of the Treasury. (2022). Press release jy0705. https://home.treasury.gov, p. 1.',
       },
       { id: '54', text: 'FCDO (2026), op. cit., n. 46.' },
-      { id: '55', text: 'CELEX 32022R0345, Art. 5h; CELEX 02014R0833-20260724, Annex XIV; https://eur-lex.europa.eu.' },
+      {
+        id: '55',
+        text: 'CELEX 32022R0345, Art. 5h; CELEX 02014R0833-20260724, Annex XIV; https://eur-lex.europa.eu.',
+      },
       {
         id: '56',
         text: "Prokopenko, A., & Kolyandr, A. (2024, November 2). *The rise of Russia's foreign trade middlemen*. Inside the Russian Economy. The Bell. https://en.thebell.io/the-rise-of-russias-foreign-trade-middlemen/.",
@@ -724,7 +723,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '64',
-        text: 'U.S.-China Economic and Security Review Commission. (2025, November 14). *China\'s Facilitation of Sanctions and Export Control Evasion*. https://www.uscc.gov/research/chinas-facilitation-sanctions-and-export-control-evasion ; Reuters. (2024, August 30). *Russia payment hurdles with China partners intensified in August, sources say*. The Standard (Hong Kong). https://www.thestandard.com.hk.',
+        text: "U.S.-China Economic and Security Review Commission. (2025, November 14). *China's Facilitation of Sanctions and Export Control Evasion*. https://www.uscc.gov/research/chinas-facilitation-sanctions-and-export-control-evasion ; Reuters. (2024, August 30). *Russia payment hurdles with China partners intensified in August, sources say*. The Standard (Hong Kong). https://www.thestandard.com.hk.",
       },
       { id: '65', text: 'Prokopenko & Kolyandr (2024), op. cit., n. 56.' },
       { id: '66', text: 'U.S. Department of the Treasury (2024), op. cit., n. 61.' },
@@ -850,18 +849,21 @@ export const parts: ReportPart[] = [
       },
       { id: '87', text: 'Risinger & Hilgenstock (2026), op. cit., n. 83, pp. 5–6.' },
       { id: '88', text: 'Risinger et al. (2026), op. cit., n. 81, p. 7.' },
-      { id: '89', text: "Authors' calculations based on UN Comtrade (2026), op. cit., n. 5: CHP goods exported to Russia, as each country reports them (figure 11, million USD), from 2021 to 2025: Kazakhstan 62.5 to 186.8, Kyrgyzstan 1.8 to 15.8, Armenia 5.3 to 3.3, with a peak of 94.6 in 2022." },
+      {
+        id: '89',
+        text: "Authors' calculations based on UN Comtrade (2026), op. cit., n. 5: CHP goods exported to Russia, as each country reports them (figure 11, million USD), from 2021 to 2025: Kazakhstan 62.5 to 186.8, Kyrgyzstan 1.8 to 15.8, Armenia 5.3 to 3.3, with a peak of 94.6 in 2022.",
+      },
       {
         id: '90',
         text: 'Byrne, J. et al. (2022, August). *Silicon Lifeline*. Royal United Services Institute. https://static.rusi.org/RUSI-Silicon-Lifeline-final-updated-web_1.pdf, p. 24.',
       },
       {
         id: '91',
-        text: "Conflict Armament Research. (2023, April). *Identifying post-invasion components in Russian weapons*. https://storymaps.arcgis.com/stories/00594bef40bc4148b16dc7267172d033 ; Conflict Armament Research. (2023, August). *Documenting the domestic Russian variant of the Shahed UAV*. https://storymaps.arcgis.com/stories/d3be20c31acd4112b0aecece5b2a283c.",
+        text: 'Conflict Armament Research. (2023, April). *Identifying post-invasion components in Russian weapons*. https://storymaps.arcgis.com/stories/00594bef40bc4148b16dc7267172d033 ; Conflict Armament Research. (2023, August). *Documenting the domestic Russian variant of the Shahed UAV*. https://storymaps.arcgis.com/stories/d3be20c31acd4112b0aecece5b2a283c.',
       },
       {
         id: '92',
-        text: "U.S. Department of the Treasury. (2024, May 1). *U.S. Continues to Degrade Russia's Military-Industrial Base and Target Third-Country Support with Nearly 300 New Sanctions* (press release jy2318). https://home.treasury.gov/news/press-releases/jy2318, Annex 1 ; CELEX 02014R0833-20260724, Annex IV, entry 925 \"Pixel Devices Limited\" ; https://eur-lex.europa.eu.",
+        text: 'U.S. Department of the Treasury. (2024, May 1). *U.S. Continues to Degrade Russia\'s Military-Industrial Base and Target Third-Country Support with Nearly 300 New Sanctions* (press release jy2318). https://home.treasury.gov/news/press-releases/jy2318, Annex 1 ; CELEX 02014R0833-20260724, Annex IV, entry 925 "Pixel Devices Limited" ; https://eur-lex.europa.eu.',
       },
       {
         id: '93',
@@ -957,7 +959,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'State banks follow the same rule. The head of VEB.RF is appointed by the head of state and takes his instructions directly from him. Since a presidential decree of 2023, VTB also manages in trust 10% of the state\'s shares in the United Shipbuilding Corporation.[^120] According to the US Treasury, a deputy president of VTB is the son of the director of the FSB, and Promsvyazbank, nationalised in 2018, is run by the son of a former director of foreign intelligence.[^121] The chain of shares stops at the state, but the chain of management leads to the same circle, and the 50% rule follows shares, not these appointments.',
+        text: "State banks follow the same rule. The head of VEB.RF is appointed by the head of state and takes his instructions directly from him. Since a presidential decree of 2023, VTB also manages in trust 10% of the state's shares in the United Shipbuilding Corporation.[^120] According to the US Treasury, a deputy president of VTB is the son of the director of the FSB, and Promsvyazbank, nationalised in 2018, is run by the son of a former director of foreign intelligence.[^121] The chain of shares stops at the state, but the chain of management leads to the same circle, and the 50% rule follows shares, not these appointments.",
       },
       { kind: 'h3', text: 'Unknown owners' },
       {
@@ -1108,7 +1110,7 @@ export const parts: ReportPart[] = [
     blocks: [
       {
         kind: 'p',
-        text: 'A report based on open sources sees what those sources publish, and no more. Before drawing conclusions, it must say what the facts gathered here cannot establish.',
+        text: 'Before drawing conclusions, the report must say what the facts gathered here cannot establish.',
       },
       { kind: 'h3', text: 'Limits of the evidence' },
       {
@@ -1228,7 +1230,7 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'A.1 The database' },
       {
         kind: 'p',
-        text: 'The report rests on a database of entities (such as companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 28 October 2026, the database holds 5,366 entities in its public data release (data-2026-10-28). The count of critical nodes runs on this release. A legal act or an event is no node, so the count tests 4,930 entities.',
+        text: 'The report rests on a database of entities (such as companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 28 October 2026, the database holds 5,366 entities in its public data release (data-2026-10-28). The count of nodes under watch runs on this release. A legal act or an event is no node, so the count tests 4,930 entities.',
       },
       {
         kind: 'p',
@@ -1261,13 +1263,13 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: 'The reliability of the issuer of each source follows the ADMIRALTY scale, from A (an official issuer on its own record) to F (cannot be judged); a party to the conflict is rated C at most. A separate digit from 1 to 6 rates each fact by the number of independent issuers that give it. The report shows the letter of official issuers only; the data release gives the letter and the digit of each claim that has both.',
+        text: 'The reliability of the issuer of each source follows a scale adapted from the NATO grading system, also called the ADMIRALTY scale, from A (an official issuer on its own record) to F (cannot be judged);[^129] a party to the conflict is rated C at most. A separate digit from 1 to 6 rates each fact by the number of independent issuers that give it. The report shows the letter of official issuers only; the data release gives the letter and the digit of each claim that has both.',
       },
       {
         kind: 'li',
         text: 'Each source has a level set from its terms of use, which were read. A source whose terms forbid reuse stays internal: a fact can cite it, but its data are not republished.',
       },
-      { kind: 'h3', text: 'A.3 Selecting the critical nodes' },
+      { kind: 'h3', text: 'A.3 Selecting the nodes under watch' },
       {
         kind: 'p',
         text: 'The three conditions of the Method section apply in the same way to all entities in the database:',
@@ -1282,7 +1284,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: "**Passes through a third country:** The entity's country of registration, any flag of its vessels that the release gives, or the country of a direct counterparty is a country other than Russia that does not apply the coalition's sanctions. A country read only from a company's name or address does not count.",
+        text: "**Tied to a third country:** The entity's country of registration, any flag of its vessels that the release gives, or the country of a direct counterparty is a country other than Russia that does not apply the coalition's sanctions. A country read only from a company's name or address does not count.",
       },
       {
         kind: 'p',
@@ -1290,7 +1292,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'The count of critical nodes is 539. It is the result of the script tools/critical-nodes-replay.ts on the data release data-2026-10-28. The command pnpm critical:replay downloads that release, checks its SHA-256 and gives the same count. A node that the release does not hold is not counted. A designation with no date takes the date of its act. Russia is the target of the sanctions, so it is not a third country. For 410 of the 539 nodes, each condition rests on a document of an official issuer (ADMIRALTY letter A). The script derives the layer of a node from its entities, because the release gives no layer: Pay 488, Finance 4, Fight 47. The count changes with the rule: 591 nodes if Russia counts as a third country, 516 with no country of a counterparty. An earlier count of 493 (450 nodes of the record and 43 of a first list) and the figure of 416 cannot be rebuilt, because their query was not kept. Port calls carry no date, so most nodes are active only by a dated designation.',
+        text: 'The count of nodes under watch is 539. It is the result of the script tools/critical-nodes-replay.ts on the data release data-2026-10-28. The command pnpm critical:replay downloads that release, checks its SHA-256 and gives the same count. A node that the release does not hold is not counted. A designation with no date takes the date of its act. Russia is the target of the sanctions, so it is not a third country. For 410 of the 539 nodes, each condition rests on a document of an official issuer (ADMIRALTY letter A). The script derives the layer of a node from its entities, because the release gives no layer: Pay 488, Finance 4, Fight 47. The count changes with the rule: 591 nodes if Russia counts as a third country, 516 with no country of a counterparty. An earlier count of 493 (450 nodes of the record and 43 of a first list) and the figure of 416 cannot be rebuilt, because their query was not kept. Port calls carry no date, so most nodes are active only by a dated designation. The script and its command keep the older name "critical".',
       },
       { kind: 'h3', text: 'A.4 Checking facts and text' },
       {
@@ -1315,7 +1317,12 @@ export const parts: ReportPart[] = [
         text: '**Independence:** The authors are solely responsible for the content. Claims of the GUR remain attributed to it.',
       },
     ],
-    notes: [],
+    notes: [
+      {
+        id: '129',
+        text: 'Ministry of Defence. (2023). *JDP 2-00 Intelligence, Counter-intelligence and Security Support to Joint Operations* (4th ed.), paras 3.39–3.40 and table 3.1. https://assets.publishing.service.gov.uk/media/653a4b0780884d0013f71bb0/JDP_2_00_Ed_4_web.pdf.',
+      },
+    ],
   },
 ];
 
@@ -2170,17 +2177,14 @@ export const openingUi = {
       marked: [2021, 2025],
     },
     // One entry for each list item, with the note of that item. A number comes from the item
-    // text; words, when given, are written exactly as in the item. The item on the price has no
-    // note.
+    // text; words, when given, are written exactly as in the item.
     values: [
       { words: '87 days', note: '' },
       { words: '318', note: '' },
       { words: '427 of 757', note: '' },
-      { words: 'sixteen', note: '' },
       { words: '', note: '1' },
       { words: '', note: '2' },
-      { words: '$19 to $27', note: '' },
-      { words: 'less than one fifth', note: '3' },
+      { words: '18.5%', note: '3' },
       { words: '', note: '4' },
       { words: '', note: '5' },
     ],
@@ -2200,7 +2204,7 @@ export const methodUi = {
     inData: 'In the page data, three conditions documented',
     examined: 'In the page data, fewer than three conditions documented',
     open: 'Open the nodes of the page data',
-    conditions: 'Three conditions of a critical node',
+    conditions: 'Three conditions of a node under watch',
     // The arrows and the budget path show the argument of the report; no edge of the data backs them.
     schematic: 'Schematic of the argument of the report, not a measured relation.',
   },
@@ -2588,8 +2592,8 @@ export const closingUi = {
     // The counts of the database, read from the final text.
     record: 'In the database',
     entities: 'Entities',
-    critical: 'Critical nodes',
-    official: 'Critical nodes on an official source',
+    critical: 'Nodes under watch',
+    official: 'Nodes under watch on an official source',
     recordSource: 'Source: the text of this report, counts as at {date}',
     // The counts of the page data.
     report: 'In this report',

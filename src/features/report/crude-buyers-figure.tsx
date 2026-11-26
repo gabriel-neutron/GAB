@@ -7,8 +7,9 @@ import { readCsv } from './line-panel';
 const rows = readCsv(raw);
 const BUYERS = [
   { name: 'EU27', tone: 'old' },
-  { name: 'China', tone: 'new' },
   { name: 'India', tone: 'new' },
+  // China comes last, so that it ends at the right of both bars and its growth reads at its left edge.
+  { name: 'China', tone: 'new' },
 ] as const;
 const value = (series: string, year: number) => {
   const r = rows.find(
