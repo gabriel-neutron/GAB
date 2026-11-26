@@ -285,6 +285,30 @@ describe('the checks of the stored document', () => {
   });
 });
 
+describe('a document that the tunnel role may not read', () => {
+  it('gives cannot_check(not_export_document), never an absent document or a fail', async () => {
+    const hidden: RecordReader = {
+      document: () => Promise.resolve('hidden'),
+      page: () => Promise.resolve(null),
+    };
+    const results = await recordChecks(one('v1/flag'), hidden);
+    expect(results.map((r) => `${r.check} ${r.verdict}`)).toEqual([
+      'document_exists pass',
+      'hash cannot_check',
+      'excerpt_at_page cannot_check',
+      'document_level cannot_check',
+    ]);
+  });
+
+  it('fails a document with no hash also when no store is read', async () => {
+    const empty: RecordReader = {
+      document: () => Promise.resolve({ sha256: '', level: 'A', storedSha256: null }),
+      page: () => Promise.resolve(null),
+    };
+    expect((await recordChecks(one('v1/flag'), empty))[1]?.verdict).toBe('fail');
+  });
+});
+
 describe('the file of the tunnel', () => {
   const password = 'ab'.repeat(16);
 

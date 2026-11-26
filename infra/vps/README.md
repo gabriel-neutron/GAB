@@ -318,7 +318,9 @@ sets the rules:
    restrict,port-forwarding,permitlisten="127.0.0.1:15432" <the public key of the PC>
    ```
 
-   The prefix lets the key forward that one port on the loopback address and nothing else.
+   The prefix lets the key forward that one port, on the loopback address only. It does not stop a
+   command: the PC uses the same key to write and delete the secret file and to check the port. So
+   the key gives a shell as that user. Keep it on the PC only, and remove the line to cut it.
 2. **PC:** in `infra/.env` of the main checkout, set `GAB_TUNNEL_SSH` to `root@<VPS address>` and
    `GAB_TUNNEL_KEY` to the private key file. `GAB_TUNNEL_PORT` and `GAB_TUNNEL_HOURS` are optional.
 3. **PC:** in the main checkout, run `pnpm db:migrate` and `pnpm db:apply`. They add the role and
@@ -341,13 +343,16 @@ VPS that the port listens on `127.0.0.1` only. A failed step closes all again.
 
 The close takes the login of the role, ends its sessions, deletes the file on the VPS and stops the
 tunnel. Each step runs when another step fails, and a second close does no harm. When the PC is off,
-the end time of the password closes the access.
+the end time of the password stops each new login. It does not stop a session that is open already,
+and the tunnel stays up while the PC runs: close it with the command.
 
 The audit refuses a tunnel file that another user can read, and a file with another host or another
 database. It never falls back to another role. The results are in
-`node-audit-out/<release>-tunnel/`. The tunnel carries no store, so the hash check gives
-`cannot_check` with the reason `needs_store`, and a node with no other fault is `incomplete`. Run
-the hash check on the PC (`../README.md`, "The node audit").
+`node-audit-out/<release>-tunnel/`, and a result file of a PC run is not resumed. The tunnel
+carries no store, so the hash check gives `cannot_check` with the reason `needs_store`, and a node
+with no other fault is `incomplete`. A cited document that the role may not read gives
+`cannot_check` with the reason `not_export_document`, not a fail. Run these checks on the PC
+(`../README.md`, "The node audit").
 
 ## 10. Rollback
 

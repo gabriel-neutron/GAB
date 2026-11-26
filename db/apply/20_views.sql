@@ -138,11 +138,16 @@ CREATE VIEW public.export_document AS
 -- function that a view calls runs with the rights of the caller, and gabriel_audit holds nothing on
 -- `public`. So the newest extractor is a subquery and not a call of newest_text_extractor().
 -- security_barrier: a function of the caller sees only the rows that the filter keeps.
+-- audit.document holds the id of each document, so the audit can tell a document that the role may
+-- not read from an absent one. Only an export document shows its hash and its level.
 CREATE VIEW audit.document WITH (security_barrier) AS
-  SELECT d.id, d.sha256, m.level
+  SELECT d.id,
+         e.id IS NOT NULL AS exportable,
+         CASE WHEN e.id IS NOT NULL THEN d.sha256 END AS sha256,
+         CASE WHEN e.id IS NOT NULL THEN m.level END AS level
     FROM public.documents d
-    JOIN public.export_document e ON e.id = d.id
-    JOIN public.document_mark m ON m.id = d.id;
+    LEFT JOIN public.export_document e ON e.id = d.id
+    LEFT JOIN public.document_mark m ON m.id = d.id;
 
 CREATE VIEW audit.document_text WITH (security_barrier) AS
   SELECT t.document_id, t.page, t.text

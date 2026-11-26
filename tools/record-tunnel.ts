@@ -117,14 +117,24 @@ const refuseSessionStack = (): void => {
     throw new Error('Run the tunnel in the main checkout: this checkout runs a session stack.');
 };
 
-const alive = (pid: number): boolean => {
+/** True when the process is an ssh process. The pid of an old state file can name another program
+ * after a reboot, so the close never stops a process that is not ssh. */
+const isSsh = (pid: number): boolean => {
   try {
-    process.kill(pid, 0);
-    return true;
+    const found =
+      process.platform === 'win32'
+        ? execFileSync('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], {
+            encoding: 'utf8',
+          })
+        : execFileSync('ps', ['-p', String(pid), '-o', 'comm='], { encoding: 'utf8' });
+    return /^"?ssh(\.exe)?"?(,|$)/iu.test(found.trim());
   } catch {
     return false;
   }
 };
+
+// The codes of a refusal: no privilege, and a write in a read-only transaction.
+const REFUSED = new Set(['42501', '25006']);
 
 /** The checks of the role, as the role, on the PC: it reads the views, and it reads no table of the
  * record and creates nothing. */
@@ -135,14 +145,15 @@ const checkRole = async (password: string, port: number): Promise<number> => {
   await client.connect();
   try {
     const { rows } = await client.query<{ n: number }>(
-      'SELECT count(*)::int AS n FROM audit.document',
+      'SELECT count(*)::int AS n FROM audit.document WHERE exportable',
     );
     for (const refused of ['SELECT 1 FROM public.documents LIMIT 1', 'CREATE TABLE audit.probe ()'])
       try {
         await client.query(refused);
         throw new Error(`gabriel_audit ran "${refused}". Close the tunnel and check the grants.`);
       } catch (error) {
-        if (!(error instanceof Error && 'code' in error)) throw error;
+        if (!(error instanceof Error && 'code' in error && REFUSED.has(String(error.code))))
+          throw error;
       }
     return rows[0]?.n ?? 0;
   } finally {
@@ -184,7 +195,7 @@ const open = async (set: Settings): Promise<void> => {
   const pid = tunnel.pid;
   writeFileSync(STATE, `${JSON.stringify({ pid, port: set.GAB_TUNNEL_PORT, until })}\n`);
   await new Promise((done) => setTimeout(done, 5_000));
-  if (pid === undefined || !alive(pid))
+  if (pid === undefined || !isSsh(pid))
     throw new Error('The tunnel stopped at once. Check the key and the port on the VPS.');
   console.log(`tunnel  127.0.0.1:${set.GAB_TUNNEL_PORT} on the VPS (ssh process ${pid})`);
 
@@ -233,7 +244,7 @@ const close = async (set: Settings | null): Promise<void> => {
     const { pid } = z
       .object({ pid: z.number().int().optional() })
       .parse(JSON.parse(readFileSync(STATE, 'utf8')));
-    if (pid !== undefined && alive(pid)) process.kill(pid);
+    if (pid !== undefined && isSsh(pid)) process.kill(pid);
     rmSync(STATE);
   });
   if (failed.length > 0)

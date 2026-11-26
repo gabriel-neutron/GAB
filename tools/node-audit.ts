@@ -239,6 +239,8 @@ interface Header {
   readonly kind: 'header';
   readonly version: number;
   readonly mode: 'release' | 'record';
+  /** Record mode through the tunnel to the VPS: the export documents only, and no store. */
+  readonly tunnel?: true;
   readonly release: { readonly tag: string; readonly sha256: string };
   readonly checks: readonly string[];
 }
@@ -278,6 +280,7 @@ export const repairTail = (file: string): void => {
 const sameHeader = (a: Header, b: Header) =>
   a.version === b.version &&
   a.mode === b.mode &&
+  a.tunnel === b.tunnel &&
   a.release.sha256 === b.release.sha256 &&
   a.checks.join() === b.checks.join();
 
@@ -507,7 +510,9 @@ export const summaryOf = (lines: readonly Line[], totalNodes: number): string =>
     `Claims audited: ${String(seen.size)}.`,
     mode === 'release'
       ? 'Release mode reads only the public release. A "release_pass" is not a check of the stored document: document_exists, hash, excerpt_at_page and document_level need record mode.'
-      : 'Record mode read the database and the raw store.',
+      : header?.tunnel === true
+        ? 'Record mode read the export documents through the tunnel, and no store: the hash is cannot_check(needs_store).'
+        : 'Record mode read the database and the raw store.',
     '',
     '## Nodes by verdict',
     '',
@@ -659,14 +664,16 @@ const openTunnelReader = async (
   });
   const reader: RecordReader = {
     document: async (id) => {
-      const { rows } = await pool.query<{ sha256: string | null; level: string }>(
-        'SELECT sha256, level FROM audit.document WHERE id = $1::text',
-        [id],
-      );
+      const { rows } = await pool.query<{
+        exportable: boolean;
+        sha256: string | null;
+        level: string | null;
+      }>('SELECT exportable, sha256, level FROM audit.document WHERE id = $1::text', [id]);
       const row = rows[0];
+      if (row?.exportable === false) return 'hidden';
       return row === undefined
         ? null
-        : { sha256: row.sha256 ?? '', level: row.level, storedSha256: null };
+        : { sha256: row.sha256 ?? '', level: row.level ?? '', storedSha256: null };
     },
     page: async (id, page) => {
       const { rows } = await pool.query<{ text: string }>(
@@ -725,6 +732,7 @@ const main = async () => {
     kind: 'header',
     version: AUDIT_VERSION,
     mode,
+    ...(values.tunnel === undefined ? {} : { tunnel: true as const }),
     // Another release is named by its folder name and the hash of its manifest, never by a path.
     release:
       values.release === undefined

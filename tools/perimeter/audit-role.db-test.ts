@@ -103,10 +103,17 @@ const countAs = (sql: string): Promise<number> =>
 const countAsSuperuser = (sql: string): Promise<number> =>
   probe('superuser', async (ask) => counts.parse(await ask(sql))[0]?.n ?? -1);
 
-test('gabriel_audit sees each export document and no other document', async () => {
+test('gabriel_audit sees the hash and the level of each export document and of no other', async () => {
   const exports = await countAsSuperuser('SELECT count(*)::int AS n FROM public.export_document');
   expect(exports).toBeGreaterThan(0);
-  expect(await countAs('SELECT count(*)::int AS n FROM audit.document')).toBe(exports);
+  expect(
+    await countAs(
+      'SELECT count(*)::int AS n FROM audit.document WHERE sha256 IS NOT NULL OR level IS NOT NULL',
+    ),
+  ).toBe(exports);
+  expect(await countAs('SELECT count(*)::int AS n FROM audit.document WHERE exportable')).toBe(
+    exports,
+  );
 });
 
 test('gabriel_audit sees the newest text of the export documents only', async () => {
