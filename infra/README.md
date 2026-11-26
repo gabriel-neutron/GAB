@@ -178,6 +178,10 @@ The main stack must run, and `infra/.env` gives the credentials.
 The results are in `node-audit-out/<release>-record/`. Each document is read from the store once, so
 the first nodes are slow and the later ones faster.
 
+To run the audit on the VPS with the newest data, the PC opens a read-only tunnel of the record for
+the time of the run: `pnpm record-tunnel:open` and `pnpm record-tunnel:close` (`vps/README.md`, "The
+record through the tunnel").
+
 ## The stack of a session
 
 Many sessions can run on one machine at the same time. When they share one stack, a reset in one

@@ -264,9 +264,12 @@ export const designationSource = (
   return result(check, 'cannot_check', 'name_only');
 };
 
-/** What record mode reads for one document: its row, the hash of its stored bytes, and a page. */
+/** What record mode reads for one document: its row, the hash of its stored bytes, and a page.
+ * storedSha256 is null when the reader has no store (the tunnel to the VPS carries no store). */
 export interface RecordReader {
-  document(id: string): Promise<{ sha256: string; level: string; storedSha256: string } | null>;
+  document(
+    id: string,
+  ): Promise<{ sha256: string; level: string; storedSha256: string | null } | null>;
   page(id: string, page: number): Promise<string | null>;
 }
 
@@ -289,9 +292,11 @@ export const recordChecks = async (
     .filter(
       ([, one]) =>
         one !== null &&
+        one.storedSha256 !== null &&
         (one.sha256 === '' || one.storedSha256 === '' || one.sha256 !== one.storedSha256),
     )
     .map(([id]) => id);
+  const unread = found.some(([, one]) => one !== null && one.storedSha256 === null);
   let atPage = false;
   for (const row of claim.citations) {
     const text = await reader.page(row['document_id'] ?? '', Number(row['page'] ?? '0'));
@@ -307,9 +312,11 @@ export const recordChecks = async (
       : result('document_exists', 'fail', `absent: ${missing.join(' ')}`),
     missing.length === ids.length
       ? result('hash', 'cannot_check', 'no document')
-      : broken.length === 0
-        ? result('hash', 'pass', 'the stored bytes match the hash')
-        : result('hash', 'fail', `hash differs: ${broken.join(' ')}`),
+      : broken.length > 0
+        ? result('hash', 'fail', `hash differs: ${broken.join(' ')}`)
+        : unread
+          ? result('hash', 'cannot_check', 'needs_store')
+          : result('hash', 'pass', 'the stored bytes match the hash'),
     atPage
       ? result('excerpt_at_page', 'pass', 'an excerpt is in the stored text at its page')
       : result('excerpt_at_page', 'fail', 'excerpt_not_at_page'),

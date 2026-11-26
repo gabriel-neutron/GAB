@@ -1,7 +1,7 @@
 // The strict audit of the nodes, one node at a time, with the same checks for each node. Read only.
 // Checks and method: tools/node-audit-checks.ts. Run book: infra/vps/README.md, "The node audit".
 //
-// pnpm node:audit [--out <folder>] [--limit <n>] [--only-report-nodes] [--record]
+// pnpm node:audit [--out <folder>] [--limit <n>] [--only-report-nodes] [--record [--tunnel <file>]]
 //                 [--model --token-cap <n> [--go]]
 //
 // The order: the nodes that the report pages name (src/features/report/nodes-data.ts), then the other
@@ -9,9 +9,16 @@
 // line goes to <out>/results.jsonl, so a stopped run starts again at the next node.
 
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { basename, join, resolve } from 'node:path';
-import { argv, env, exit } from 'node:process';
+import { argv, env, exit, platform } from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
@@ -56,6 +63,7 @@ import {
   type RecordReader,
   type Result,
 } from './node-audit-checks.ts';
+import { tunnelConnection } from './record-tunnel-env.ts';
 
 /** The version of the checks. A result file of another version is not resumed. */
 export const AUDIT_VERSION = 1;
@@ -635,6 +643,42 @@ const openRecordReader = async (): Promise<{
   return { reader, close: () => pool.end() };
 };
 
+/** The reader of the VPS: the record through the tunnel that the PC opens, as gabriel_audit, through
+ * the two views of the schema audit. The tunnel carries no store, so the hash is cannot_check. */
+const openTunnelReader = async (
+  file: string,
+): Promise<{ reader: RecordReader; close: () => Promise<void> }> => {
+  // The file holds a password: refuse it when another user can read it.
+  if (platform !== 'win32' && (statSync(file).mode & 0o077) !== 0)
+    throw new Error(`${file} can be read by another user. Run chmod 600 on it.`);
+  const { default: pg } = await import('pg');
+  const pool = new pg.Pool({
+    connectionString: tunnelConnection(readFileSync(file, 'utf8')),
+    max: 1,
+    options: '-c default_transaction_read_only=on',
+  });
+  const reader: RecordReader = {
+    document: async (id) => {
+      const { rows } = await pool.query<{ sha256: string | null; level: string }>(
+        'SELECT sha256, level FROM audit.document WHERE id = $1::text',
+        [id],
+      );
+      const row = rows[0];
+      return row === undefined
+        ? null
+        : { sha256: row.sha256 ?? '', level: row.level, storedSha256: null };
+    },
+    page: async (id, page) => {
+      const { rows } = await pool.query<{ text: string }>(
+        'SELECT text FROM audit.document_text WHERE document_id = $1::text AND page = $2::int',
+        [id, page],
+      );
+      return rows[0]?.text ?? null;
+    },
+  };
+  return { reader, close: () => pool.end() };
+};
+
 // ---- The command. ----
 
 const main = async () => {
@@ -645,6 +689,7 @@ const main = async () => {
       limit: { type: 'string' },
       'only-report-nodes': { type: 'boolean', default: false },
       record: { type: 'boolean', default: false },
+      tunnel: { type: 'string' },
       model: { type: 'boolean', default: false },
       'token-cap': { type: 'string' },
       go: { type: 'boolean', default: false },
@@ -652,13 +697,21 @@ const main = async () => {
     },
   });
   const mode = values.record ? 'record' : 'release';
+  if (values.tunnel !== undefined && !values.record) {
+    console.error('--tunnel needs --record.');
+    exit(1);
+  }
   if (values.limit !== undefined && !/^[1-9]\d*$/u.test(values.limit)) {
     console.error('--limit takes a whole number above zero.');
     exit(1);
   }
   const folder = values.release ?? (await reportRelease());
   const files = readRelease(folder);
-  const out = resolve(values.out ?? join(ROOT, 'node-audit-out', `${REPORT_RELEASE.tag}-${mode}`));
+  // A run through the tunnel has no hash check, so its results never share a folder with the PC.
+  const suffix = values.tunnel === undefined ? mode : 'tunnel';
+  const out = resolve(
+    values.out ?? join(ROOT, 'node-audit-out', `${REPORT_RELEASE.tag}-${suffix}`),
+  );
   mkdirSync(out, { recursive: true });
   const file = join(out, 'results.jsonl');
 
@@ -711,7 +764,12 @@ const main = async () => {
     );
   }
 
-  const reader = values.record && !values.model ? await openRecordReader() : null;
+  const reader =
+    !values.record || values.model
+      ? null
+      : values.tunnel === undefined
+        ? await openRecordReader()
+        : await openTunnelReader(values.tunnel);
   const context = contextOf(files, reader?.reader ?? null, mode);
   try {
     if (values.model) {

@@ -2,7 +2,9 @@
 
 The VPS does the coding and the tooling. Claude Code runs there. The VPS also runs a **disposable** test stack and one service that holds no record of the
 project: SearXNG. The real database, the writer and the worker stay on the operator's Windows PC.
-The VPS never holds the real data.
+The VPS never holds the real data: no copy, no dump and no file of the record is on its disk. The one
+exception to "no access" is the tunnel of section 9: while the PC keeps it open, a VPS session reads
+the export documents of the record live, read only. The operator closes it on the PC.
 
 **The tenfold wave (`research/AGENTS.md`).** The operator decided that all work of this wave runs on
 the PC, also the code work in a worktree. The VPS and Tailscale take no part, and this runbook does
@@ -16,6 +18,7 @@ fault test never runs on the real data.
 | `services.compose.yml` | SearXNG, bound to the Tailscale address. |
 | `../searxng/settings.yml` | SearXNG settings, with JSON output on. One file serves this stack and the local stack. |
 | `claude-settings.local.example.json` | Copy to `.claude/settings.local.json` on the VPS. |
+| `~/gab-services/record-tunnel.env` | Written by the PC when it opens the tunnel (section 9), deleted when it closes it. Never in the checkout. |
 
 Conventions: a non-root user that runs the agents, with checkouts under `~/projects/`. GAB is at
 `~/projects/GAB`. Commands marked **PC** run in PowerShell on Windows. Commands marked
@@ -235,7 +238,7 @@ and checks against its pinned SHA-256. This is **release mode**. The VPS holds n
 record, so the four checks of a stored document (the document exists, its hash, the excerpt at its
 page, its level) give `cannot_check` with the reason `needs_record`. A node with no other fault is
 `release_pass`, never `pass`. Run **record mode** on the PC for these four checks (`../README.md`,
-"The node audit").
+"The node audit"), or run three of them on the VPS through the tunnel of section 9.
 
 ```bash
 cd ~/projects/GAB && git switch staging && git pull --ff-only && pnpm install --frozen-lockfile
@@ -284,6 +287,68 @@ designation is missing; that a list entry is the current entry (the audit reads 
 not the live list); the check digit of a tax number or a registration number; and the claims of an
 act or an event alone, which are in no node.
 
-## 9. Rollback
+## 9. The record through the tunnel
+
+The audit of every node with the newest data is too heavy for the PC, so the PC lends the record to
+the VPS for the time of a run. The verdict of the panel of 2026-11-26 (software-architect, skeptic)
+sets the rules:
+
+- **Nothing is copied.** The PC opens a reverse SSH tunnel. The VPS listens on its loopback address
+  only, on one port, and the tunnel goes to the database of the PC. The read API and the raw store
+  do not go through it.
+- **One role, two views.** A VPS session logs in as a role that reads only the documents that a
+  release can name (public, level A, not restricted), and the text of their pages. It reads no
+  table of the record, calls no function, and writes nothing. A perimeter test holds each of these.
+- **One secret, for one tunnel.** Each open gives the role a new password and an end time
+  (`GAB_TUNNEL_HOURS`, 8 hours by default). The close takes the login away. The password is in
+  `~/gab-services/record-tunnel.env` on the VPS, mode 600, and never in the checkout.
+- **What the VPS cannot read:** a restricted document (a register extract, a court act, a bank
+  statement, which name natural persons), a document below level A, a document that is not public,
+  the stored file of any document, the acts, the proposals and the jobs.
+- **The root login of the VPS is shared with another project.** Mode 600 does not stop root. While
+  the tunnel is open, each root process on the VPS can read the export documents and their text.
+  Keep the tunnel open only for a run, and close it after.
+
+### Once, by the operator only
+
+1. On the VPS, as root, add the public key of the PC to `~/.ssh/authorized_keys`, with this prefix
+   (the port is `GAB_TUNNEL_PORT`):
+
+   ```
+   restrict,port-forwarding,permitlisten="127.0.0.1:15432" <the public key of the PC>
+   ```
+
+   The prefix lets the key forward that one port on the loopback address and nothing else.
+2. **PC:** in `infra/.env` of the main checkout, set `GAB_TUNNEL_SSH` to `root@<VPS address>` and
+   `GAB_TUNNEL_KEY` to the private key file. `GAB_TUNNEL_PORT` and `GAB_TUNNEL_HOURS` are optional.
+3. **PC:** in the main checkout, run `pnpm db:migrate` and `pnpm db:apply`. They add the role and
+   the two views, and they change no row of the record.
+
+**Check (PC):** `ssh -i <key> root@<VPS address> true` exits 0 with no password prompt.
+
+### Each run
+
+| Where | You want | Run |
+|---|---|---|
+| PC, main checkout | Open the tunnel | `pnpm record-tunnel:open` |
+| VPS | The audit with the record | `pnpm node:audit --record --tunnel ~/gab-services/record-tunnel.env` |
+| VPS | The same, 5 report nodes | `pnpm node:audit --record --tunnel ~/gab-services/record-tunnel.env --only-report-nodes --limit 5` |
+| PC, main checkout | Close the tunnel | `pnpm record-tunnel:close` |
+
+The open starts the database if it is down. Then it checks as the role that it reads the views and
+is refused on a table of the record, opens the tunnel, writes the file on the VPS, and checks on the
+VPS that the port listens on `127.0.0.1` only. A failed step closes all again.
+
+The close takes the login of the role, ends its sessions, deletes the file on the VPS and stops the
+tunnel. Each step runs when another step fails, and a second close does no harm. When the PC is off,
+the end time of the password closes the access.
+
+The audit refuses a tunnel file that another user can read, and a file with another host or another
+database. It never falls back to another role. The results are in
+`node-audit-out/<release>-tunnel/`. The tunnel carries no store, so the hash check gives
+`cannot_check` with the reason `needs_store`, and a node with no other fault is `incomplete`. Run
+the hash check on the PC (`../README.md`, "The node audit").
+
+## 10. Rollback
 
 To stop a service, run `docker compose down` on its file (SearXNG needs `--env-file ~/gab-services/.env`; `down -v` deletes test data only). To cut GitHub access, revoke the VPS PAT: the PC PAT stays valid. A `401 Bad credentials` means that the VPS PAT expired: replace it in `.claude/settings.local.json` (step 4). An agent lands its work as pull requests into `staging`: undo one with `git revert` on `staging`. Never force-push `staging`.

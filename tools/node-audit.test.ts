@@ -22,6 +22,7 @@ import {
   type Claim,
   type RecordReader,
 } from './node-audit-checks.ts';
+import { tunnelConnection, tunnelEnvText } from './record-tunnel-env.ts';
 import {
   auditNode,
   auditOrder,
@@ -267,6 +268,40 @@ describe('the checks of the stored document', () => {
     };
     const results = await recordChecks(one('v1/flag'), empty);
     expect(results[1]?.verdict).toBe('fail');
+  });
+
+  it('gives the hash cannot_check(needs_store) through the tunnel, and runs the three other checks', async () => {
+    const tunnel: RecordReader = {
+      document: () => Promise.resolve({ sha256: sha256Of(bytes), level: 'A', storedSha256: null }),
+      page: () => Promise.resolve('Text: flag of Gabon. End.'),
+    };
+    const results = await recordChecks(one('v1/flag'), tunnel);
+    expect(results.map((r) => `${r.verdict} ${r.reason}`)).toEqual([
+      'pass each cited document is in the record',
+      'cannot_check needs_store',
+      'pass an excerpt is in the stored text at its page',
+      'pass a cited document has level A',
+    ]);
+  });
+});
+
+describe('the file of the tunnel', () => {
+  const password = 'ab'.repeat(16);
+
+  it('gives the address of gabriel_audit on the loopback port of the file', () => {
+    expect(tunnelConnection(tunnelEnvText(password, 15432))).toBe(
+      `postgresql://gabriel_audit:${password}@127.0.0.1:15432/gabriel`,
+    );
+  });
+
+  it('stops on a file with no password, another host or another database', () => {
+    const good = tunnelEnvText(password, 15432);
+    for (const bad of [
+      good.replace(/GABRIEL_AUDIT_PASSWORD=.*/u, ''),
+      good.replace('GABRIEL_DB_HOST=127.0.0.1', 'GABRIEL_DB_HOST=10.0.0.1'),
+      good.replace('GABRIEL_DATABASE=gabriel', 'GABRIEL_DATABASE=gabriel_test'),
+    ])
+      expect(() => tunnelConnection(bad)).toThrow(/tunnel file/u);
   });
 });
 
