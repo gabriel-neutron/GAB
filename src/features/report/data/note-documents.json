@@ -6,17 +6,66 @@
       "documents": [
         {
           "id": "doc_6745482a92a4",
-          "match": "manual",
-          "retrievedAt": "2026-10-31",
           "type": "ngo_publication",
-          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker"
+          "retrievedAt": "2026-10-31",
+          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
+          "match": "manual"
+        },
+        {
+          "id": "doc_6928fdaef480",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-09",
+          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
+          "match": "manual"
         },
         {
           "id": "doc_43c40cb36e1e",
-          "match": "manual",
-          "retrievedAt": "2026-10-25",
           "type": "ngo_publication",
-          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx"
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx",
+          "match": "manual"
+        },
+        {
+          "id": "doc_d60068db7274",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-26",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figure-2",
+          "match": "manual"
+        },
+        {
+          "id": "doc_e69190ddd147",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figure-10",
+          "match": "manual"
+        },
+        {
+          "id": "doc_9d1ba12cf4b4",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figures-8-9",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a21cf66810e8",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figure-5",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1c5fe11e754c",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figure-4",
+          "match": "manual"
+        },
+        {
+          "id": "doc_be82ee613512",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figure-3",
+          "match": "manual"
         }
       ]
     },
@@ -82,10 +131,10 @@
       "documents": [
         {
           "id": "doc_881438501a10",
-          "match": "manual",
-          "retrievedAt": "2026-10-25",
           "type": "other",
-          "url": "https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=X&Partners=643&Reporters=97,842,392,410,490,826&period=2019-2025&AggregateBy=none&BreakdownMode=plus"
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=X&Partners=643&Reporters=97,842,392,410,490,826&period=2019-2025&AggregateBy=none&BreakdownMode=plus",
+          "match": "manual"
         }
       ]
     },
@@ -94,17 +143,17 @@
       "documents": [
         {
           "id": "doc_ab0ccaaffabc",
-          "match": "manual",
-          "retrievedAt": "2026-10-09",
           "type": "legal_act",
-          "url": "http://publications.europa.eu/resource/cellar/4295095e-ae10-11e3-86f9-01aa75ed71a1.0006.03/DOC_1"
+          "retrievedAt": "2026-10-09",
+          "url": "https://publications.europa.eu/resource/cellar/4295095e-ae10-11e3-86f9-01aa75ed71a1.0006.03/DOC_1",
+          "match": "manual"
         },
         {
           "id": "doc_463a3a9c003e",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
           "type": "legal_act",
-          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1"
+          "retrievedAt": "2026-10-27",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
+          "match": "manual"
         }
       ]
     },
@@ -157,13 +206,6 @@
       "id": "9",
       "documents": [
         {
-          "id": "doc_1c1f4009154e",
-          "type": "other",
-          "retrievedAt": "2026-10-19",
-          "url": "https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub.",
-          "match": "manual"
-        },
-        {
           "id": "doc_b259239c0043",
           "type": "other",
           "retrievedAt": "2026-10-25",
@@ -175,6 +217,13 @@
           "type": "other",
           "retrievedAt": "2026-10-22",
           "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2020:2025&per_page=20",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1c1f4009154e",
+          "type": "other",
+          "retrievedAt": "2026-10-19",
+          "url": "https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub.",
           "match": "manual"
         }
       ]
@@ -194,6 +243,13 @@
           "type": "legal_act",
           "retrievedAt": "2026-10-09",
           "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R1494",
+          "match": "exact"
+        },
+        {
+          "id": "doc_8f7f4e6b5064",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy1795",
           "match": "exact"
         },
         {
@@ -253,10 +309,17 @@
           "match": "exact"
         },
         {
-          "id": "doc_7c05ac58a82d",
+          "id": "doc_5e20a568a9de",
           "type": "legal_act",
           "retrievedAt": "2026-10-22",
-          "url": "http://publications.europa.eu/resource/cellar/a71561fd-e339-11ec-a534-01aa75ed71a1.0006.01/DOC_1",
+          "url": "http://publications.europa.eu/resource/cellar/6cb19759-f2a8-11ef-981b-01aa75ed71a1.0006.03/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_bfca99997daf",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-18",
+          "url": "http://publications.europa.eu/resource/cellar/6ef36f48-f1b4-11f0-8d3c-01aa75ed71a1.0006.03/DOC_1",
           "match": "manual"
         },
         {
@@ -267,31 +330,17 @@
           "match": "manual"
         },
         {
-          "id": "doc_60d1a7b0f391",
-          "type": "legal_act",
-          "retrievedAt": "2026-10-27",
-          "url": "http://publications.europa.eu/resource/cellar/e7927a1b-7344-11ed-9887-01aa75ed71a1.0006.03/DOC_1",
-          "match": "manual"
-        },
-        {
-          "id": "doc_fe8744254d16",
-          "type": "legal_act",
-          "retrievedAt": "2026-10-18",
-          "url": "http://publications.europa.eu/resource/cellar/cd24922e-a49d-11ed-b508-01aa75ed71a1.0006.03/DOC_1",
-          "match": "manual"
-        },
-        {
-          "id": "doc_5e20a568a9de",
-          "type": "legal_act",
-          "retrievedAt": "2026-10-22",
-          "url": "http://publications.europa.eu/resource/cellar/6cb19759-f2a8-11ef-981b-01aa75ed71a1.0006.03/DOC_1",
-          "match": "manual"
-        },
-        {
           "id": "doc_05cde42515cc",
           "type": "legal_act",
           "retrievedAt": "2026-10-21",
           "url": "http://publications.europa.eu/resource/cellar/8e9a2c55-6438-11f0-bf4e-01aa75ed71a1.0006.03/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_7c05ac58a82d",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-22",
+          "url": "http://publications.europa.eu/resource/cellar/a71561fd-e339-11ec-a534-01aa75ed71a1.0006.01/DOC_1",
           "match": "manual"
         },
         {
@@ -302,10 +351,17 @@
           "match": "manual"
         },
         {
-          "id": "doc_bfca99997daf",
+          "id": "doc_fe8744254d16",
           "type": "legal_act",
           "retrievedAt": "2026-10-18",
-          "url": "http://publications.europa.eu/resource/cellar/6ef36f48-f1b4-11f0-8d3c-01aa75ed71a1.0006.03/DOC_1",
+          "url": "http://publications.europa.eu/resource/cellar/cd24922e-a49d-11ed-b508-01aa75ed71a1.0006.03/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_60d1a7b0f391",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-27",
+          "url": "http://publications.europa.eu/resource/cellar/e7927a1b-7344-11ed-9887-01aa75ed71a1.0006.03/DOC_1",
           "match": "manual"
         },
         {
@@ -321,6 +377,13 @@
       "id": "11",
       "documents": [
         {
+          "id": "doc_8f7f4e6b5064",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy1795",
+          "match": "manual"
+        },
+        {
           "id": "doc_912b791ccd20",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
@@ -333,17 +396,17 @@
       "id": "12",
       "documents": [
         {
-          "id": "doc_17755a3d9ce0",
-          "type": "other",
-          "retrievedAt": "2026-10-27",
-          "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.PETR.RT.ZS?format=json&date=2014:2024&per_page=50",
-          "match": "manual"
-        },
-        {
           "id": "doc_bd5f7aade779",
           "type": "other",
           "retrievedAt": "2026-10-27",
           "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.NGAS.RT.ZS?format=json&date=2021:2021",
+          "match": "manual"
+        },
+        {
+          "id": "doc_17755a3d9ce0",
+          "type": "other",
+          "retrievedAt": "2026-10-27",
+          "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.PETR.RT.ZS?format=json&date=2014:2024&per_page=50",
           "match": "manual"
         }
       ]
@@ -418,6 +481,13 @@
           "type": "ngo_publication",
           "retrievedAt": "2026-10-25",
           "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx",
+          "match": "manual"
+        },
+        {
+          "id": "doc_d60068db7274",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-26",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figure-2",
           "match": "manual"
         },
         {
@@ -567,6 +637,13 @@
           "match": "manual"
         },
         {
+          "id": "doc_d60068db7274",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-26",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figure-2",
+          "match": "manual"
+        },
+        {
           "id": "doc_e69190ddd147",
           "type": "ngo_publication",
           "retrievedAt": "2026-10-25",
@@ -645,6 +722,13 @@
       "id": "24",
       "documents": [
         {
+          "id": "doc_8f7f4e6b5064",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy1795",
+          "match": "manual"
+        },
+        {
           "id": "doc_912b791ccd20",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
@@ -678,17 +762,17 @@
           "match": "exact"
         },
         {
+          "id": "doc_bfca99997daf",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-18",
+          "url": "http://publications.europa.eu/resource/cellar/6ef36f48-f1b4-11f0-8d3c-01aa75ed71a1.0006.03/DOC_1",
+          "match": "manual"
+        },
+        {
           "id": "doc_258e53a7cf26",
           "type": "legal_act",
           "retrievedAt": "2026-10-25",
           "url": "http://publications.europa.eu/resource/cellar/75a2e29c-7345-11ed-9887-01aa75ed71a1.0006.01/DOC_1",
-          "match": "manual"
-        },
-        {
-          "id": "doc_60d1a7b0f391",
-          "type": "legal_act",
-          "retrievedAt": "2026-10-27",
-          "url": "http://publications.europa.eu/resource/cellar/e7927a1b-7344-11ed-9887-01aa75ed71a1.0006.03/DOC_1",
           "match": "manual"
         },
         {
@@ -699,10 +783,10 @@
           "match": "manual"
         },
         {
-          "id": "doc_bfca99997daf",
+          "id": "doc_60d1a7b0f391",
           "type": "legal_act",
-          "retrievedAt": "2026-10-18",
-          "url": "http://publications.europa.eu/resource/cellar/6ef36f48-f1b4-11f0-8d3c-01aa75ed71a1.0006.03/DOC_1",
+          "retrievedAt": "2026-10-27",
+          "url": "http://publications.europa.eu/resource/cellar/e7927a1b-7344-11ed-9887-01aa75ed71a1.0006.03/DOC_1",
           "match": "manual"
         },
         {
@@ -721,10 +805,10 @@
         },
         {
           "id": "doc_ea1c35082787",
-          "match": "manual",
-          "retrievedAt": "2026-10-25",
           "type": "other",
-          "url": "https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx"
+          "retrievedAt": "2026-10-25",
+          "url": "https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx",
+          "match": "manual"
         }
       ]
     },
@@ -844,10 +928,10 @@
         },
         {
           "id": "doc_ea1c35082787",
-          "match": "manual",
-          "retrievedAt": "2026-10-25",
           "type": "other",
-          "url": "https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx"
+          "retrievedAt": "2026-10-25",
+          "url": "https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx",
+          "match": "manual"
         }
       ]
     },
@@ -1003,10 +1087,10 @@
         },
         {
           "id": "doc_8b6ed8007a40",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
           "type": "other",
-          "url": "https://www.nalog.gov.ru/rn91/ifns/ifns7/info/16590442/"
+          "retrievedAt": "2026-10-27",
+          "url": "https://www.nalog.gov.ru/rn91/ifns/ifns7/info/16590442/",
+          "match": "manual"
         }
       ]
     },
@@ -1025,6 +1109,13 @@
     {
       "id": "40",
       "documents": [
+        {
+          "id": "doc_8f7f4e6b5064",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy1795",
+          "match": "manual"
+        },
         {
           "id": "doc_912b791ccd20",
           "type": "press_release",
@@ -1246,6 +1337,20 @@
     {
       "id": "45",
       "documents": [
+        {
+          "id": "doc_88d92fb037f7",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2777",
+          "match": "exact"
+        },
+        {
+          "id": "doc_b77402db359f",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2777",
+          "match": "exact"
+        },
         {
           "id": "doc_d5c388234fca",
           "type": "press_release",
@@ -1773,18 +1878,18 @@
       "id": "48",
       "documents": [
         {
+          "id": "doc_beb00e8408c1",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-18",
+          "url": "https://energyandcleanair.org/january-2026-monthly-analysis-of-russian-fossil-fuel-exports-and-sanctions/",
+          "match": "manual"
+        },
+        {
           "id": "doc_f42628ac12e6",
           "type": "ngo_publication",
           "retrievedAt": "2026-10-25",
           "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
           "match": "manual"
-        },
-        {
-          "id": "doc_beb00e8408c1",
-          "match": "manual",
-          "retrievedAt": "2026-10-18",
-          "type": "ngo_publication",
-          "url": "https://energyandcleanair.org/january-2026-monthly-analysis-of-russian-fossil-fuel-exports-and-sanctions/"
         }
       ]
     },
@@ -1792,18 +1897,718 @@
       "id": "49",
       "documents": [
         {
-          "id": "doc_5f240bed79d5",
-          "match": "manual",
-          "retrievedAt": "2026-10-28",
-          "type": "register_entry",
-          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV"
+          "id": "doc_463a3a9c003e",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-27",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
+          "match": "manual"
         },
         {
-          "id": "doc_463a3a9c003e",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
+          "id": "doc_7f43332dae0d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-08",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_8e94d8715b81",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-06",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_ebbbce82570f",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5f240bed79d5",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_96dade5a1cde",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-21",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_0dee0d2de5e5",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1022b462f33c",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-14",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a472434fd738",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_64be7a799105",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-10",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_b5fc63e9e4af",
           "type": "legal_act",
-          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1"
+          "retrievedAt": "2026-10-09",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2025-01-22/pdf/2025-01433.pdf",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5d882bb89f18",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://publications.europa.eu/resource/cellar/32feecb1-3562-11f0-8a44-01aa75ed71a1.0006.01/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_6c13789bdd9c",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-06",
+          "url": "https://ofac.treasury.gov/recent-actions/20250110",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2108de1a43d9",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://ofac.treasury.gov/recent-actions/20250110",
+          "match": "manual"
+        },
+        {
+          "id": "doc_82f66d42e826",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-14",
+          "url": "https://ofac.treasury.gov/recent-actions/20250110",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1709b6698990",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-10",
+          "url": "https://ofac.treasury.gov/recent-actions/20250110",
+          "match": "manual"
+        },
+        {
+          "id": "doc_3fd65e7a6978",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/recent-actions/20250110",
+          "match": "manual"
+        },
+        {
+          "id": "doc_10637d62c0ec",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/recent-actions/20250110",
+          "match": "manual"
+        },
+        {
+          "id": "doc_dfc48e81a00b",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/recent-actions/20250110",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2e519bc20ca8",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/recent-actions/20250110",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f62ee49bf39a",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://publications.europa.eu/resource/cellar/8e9a2c55-6438-11f0-bf4e-01aa75ed71a1.0006.01/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_86209d3486b2",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://publications.europa.eu/resource/cellar/cb8191cf-bbac-11ef-91ed-01aa75ed71a1.0006.01/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_88d92fb037f7",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2777",
+          "match": "manual"
+        },
+        {
+          "id": "doc_b77402db359f",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2777",
+          "match": "manual"
+        },
+        {
+          "id": "doc_d5c388234fca",
+          "type": "press_release",
+          "retrievedAt": "2026-10-18",
+          "url": "https://home.treasury.gov/news/press-releases/jy2777",
+          "match": "manual"
+        },
+        {
+          "id": "doc_079ba2d7963c",
+          "type": "press_release",
+          "retrievedAt": "2026-10-09",
+          "url": "https://home.treasury.gov/news/press-releases/jy2777",
+          "match": "manual"
+        },
+        {
+          "id": "doc_ca0f1115df98",
+          "type": "press_release",
+          "retrievedAt": "2026-10-09",
+          "url": "https://home.treasury.gov/news/press-releases/jy2777",
+          "match": "manual"
+        },
+        {
+          "id": "doc_e4d9d6ae8a8b",
+          "type": "press_release",
+          "retrievedAt": "2026-10-09",
+          "url": "https://home.treasury.gov/news/press-releases/jy2777",
+          "match": "manual"
+        },
+        {
+          "id": "doc_27ac9767b110",
+          "type": "press_release",
+          "retrievedAt": "2026-10-09",
+          "url": "https://home.treasury.gov/news/press-releases/jy2777",
+          "match": "manual"
+        },
+        {
+          "id": "doc_877f14067a17",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-10",
+          "url": "http://publications.europa.eu/resource/cellar/5fd07404-dc01-11f0-8da2-01aa75ed71a1.0006.03/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_fb2c27f7698f",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://publications.europa.eu/resource/cellar/b87e7fd7-3f1f-11f1-814f-01aa75ed71a1.0006.01/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f4ae69f3ce3b",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://publications.europa.eu/resource/cellar/6cb19759-f2a8-11ef-981b-01aa75ed71a1.0006.01/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_4591f82d3143",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-14",
+          "url": "https://2021-2025.state.gov/further-curbing-russias-efforts-to-evade-sanctions-and-perpetuate-its-war-against-ukraine-2/",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5d2c83852822",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://ofac.treasury.gov/recent-actions/20240223_33",
+          "match": "manual"
+        },
+        {
+          "id": "doc_59cce619565a",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://ofac.treasury.gov/recent-actions/20240223_33",
+          "match": "manual"
+        },
+        {
+          "id": "doc_081f56b68932",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/recent-actions/20240223_33",
+          "match": "manual"
+        },
+        {
+          "id": "doc_520886bb36e9",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://publications.europa.eu/resource/cellar/784dd911-afe3-11f0-b37f-01aa75ed71a1.0006.01/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_008d9ca51ecf",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2025-02-21/pdf/2025-02899.pdf",
+          "match": "manual"
+        },
+        {
+          "id": "doc_49f0239a169d",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://publications.europa.eu/resource/cellar/0a1306e7-3231-11ef-a61b-01aa75ed71a1.0006.01/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_744013974124",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-14",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2024-01-23/pdf/2024-01245.pdf",
+          "match": "manual"
+        },
+        {
+          "id": "doc_dcc446a6fad6",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://publications.europa.eu/resource/cellar/2f7352d7-86dc-11f1-bf5e-01aa75ed71a1.0006.01/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_0534fb4ce903",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy1940",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a01b8a570d4c",
+          "type": "press_release",
+          "retrievedAt": "2026-10-09",
+          "url": "https://home.treasury.gov/news/press-releases/jy1940",
+          "match": "manual"
+        },
+        {
+          "id": "doc_fd604f8b4465",
+          "type": "press_release",
+          "retrievedAt": "2026-10-09",
+          "url": "https://home.treasury.gov/news/press-releases/jy1940",
+          "match": "manual"
+        },
+        {
+          "id": "doc_7538ffa4ab0f",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-19",
+          "url": "https://ofac.treasury.gov/recent-actions/20231201",
+          "match": "manual"
+        },
+        {
+          "id": "doc_c490a6678c69",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/recent-actions/20231201",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1ad1e2fc5aa7",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/recent-actions/20231201",
+          "match": "manual"
+        },
+        {
+          "id": "doc_b4cd8402ba55",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-15",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2023-12-06/pdf/2023-26766.pdf",
+          "match": "manual"
+        },
+        {
+          "id": "doc_93d4747b84df",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/recent-actions/20250730_33",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a1d0fa8cdd28",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy0705",
+          "match": "manual"
+        },
+        {
+          "id": "doc_641cd67951c4",
+          "type": "press_release",
+          "retrievedAt": "2026-10-27",
+          "url": "https://home.treasury.gov/news/press-releases/jy0705",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5a5c6bb2ec4a",
+          "type": "press_release",
+          "retrievedAt": "2026-10-09",
+          "url": "https://home.treasury.gov/news/press-releases/jy0705",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5e2d221219db",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy1915",
+          "match": "manual"
+        },
+        {
+          "id": "doc_4357a3598bc5",
+          "type": "press_release",
+          "retrievedAt": "2026-10-09",
+          "url": "https://home.treasury.gov/news/press-releases/jy1915",
+          "match": "manual"
+        },
+        {
+          "id": "doc_bfc47c59650a",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/media/932336/download?inline",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1c179c2ae670",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://ofac.treasury.gov/recent-actions/20231116",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2291f6857075",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-19",
+          "url": "https://ofac.treasury.gov/recent-actions/20231116",
+          "match": "manual"
+        },
+        {
+          "id": "doc_b85a454ae194",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/recent-actions/20231116",
+          "match": "manual"
+        },
+        {
+          "id": "doc_b61514cee4fe",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/recent-actions/20231116",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5c2b83f87317",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-15",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2024-04-24/pdf/2024-08726.pdf",
+          "match": "manual"
+        },
+        {
+          "id": "doc_098e10240afc",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://publications.europa.eu/resource/cellar/67a1f7e6-3f1f-11f1-814f-01aa75ed71a1.0006.01/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_d0bebaf9c88f",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://publications.europa.eu/resource/cellar/67a1f7e6-3f1f-11f1-814f-01aa75ed71a1.0006.03/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_9e3d60cb02aa",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://ofac.treasury.gov/recent-actions/20230412",
+          "match": "manual"
+        },
+        {
+          "id": "doc_301c6d8d614d",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://ofac.treasury.gov/recent-actions/20230412",
+          "match": "manual"
+        },
+        {
+          "id": "doc_b6876b480c79",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-14",
+          "url": "https://ofac.treasury.gov/recent-actions/20230412",
+          "match": "manual"
+        },
+        {
+          "id": "doc_b9b38458b580",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-14",
+          "url": "https://ofac.treasury.gov/recent-actions/20230412",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2931ca8f9ddc",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://ofac.treasury.gov/recent-actions/20230914",
+          "match": "manual"
+        },
+        {
+          "id": "doc_116fdd4b19a4",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-14",
+          "url": "https://ofac.treasury.gov/recent-actions/20230914",
+          "match": "manual"
+        },
+        {
+          "id": "doc_ebdcfdd9efe6",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/recent-actions/20230914",
+          "match": "manual"
+        },
+        {
+          "id": "doc_c07c2dec89ae",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-16",
+          "url": "http://publications.europa.eu/resource/cellar/183f06d4-322f-11ef-a61b-01aa75ed71a1.0006.03/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_9d17be4be72a",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://ofac.treasury.gov/recent-actions/20240208",
+          "match": "manual"
+        },
+        {
+          "id": "doc_882cab7ed57b",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-19",
+          "url": "https://ofac.treasury.gov/recent-actions/20240208",
+          "match": "manual"
+        },
+        {
+          "id": "doc_7910a12749c3",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-18",
+          "url": "https://ofac.treasury.gov/recent-actions/20240208",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2b5f44c417b8",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/recent-actions/20240208",
+          "match": "manual"
+        },
+        {
+          "id": "doc_872db03502bb",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-15",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2025-07-15/pdf/2025-13215.pdf",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5a7f1a1e106c",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-14",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2019-10-11/pdf/2019-21502.pdf",
+          "match": "manual"
+        },
+        {
+          "id": "doc_33756a3311d7",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-21",
+          "url": "https://ofac.treasury.gov/recent-actions/20190926",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2d5fac8d865d",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-14",
+          "url": "https://2021-2025.state.gov/further-sanctions-to-degrade-russias-ability-to-operationalize-the-arctic-lng-2-project/",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5094348a5791",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-14",
+          "url": "https://ofac.treasury.gov/recent-actions/20240905",
+          "match": "manual"
+        },
+        {
+          "id": "doc_efb8fe4a2254",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-14",
+          "url": "https://ofac.treasury.gov/recent-actions/20240905",
+          "match": "manual"
+        },
+        {
+          "id": "doc_8f7f4e6b5064",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy1795",
+          "match": "manual"
+        },
+        {
+          "id": "doc_912b791ccd20",
+          "type": "press_release",
+          "retrievedAt": "2026-10-09",
+          "url": "https://home.treasury.gov/news/press-releases/jy1795",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5eaf968f7fc1",
+          "type": "press_release",
+          "retrievedAt": "2026-10-09",
+          "url": "https://home.treasury.gov/news/press-releases/jy1796",
+          "match": "manual"
+        },
+        {
+          "id": "doc_c4cfb5525e8f",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-19",
+          "url": "https://ofac.treasury.gov/recent-actions/20231012",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2b673f45035f",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/recent-actions/20231012",
+          "match": "manual"
+        },
+        {
+          "id": "doc_19d779b413ba",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://publications.europa.eu/resource/cellar/183f06d4-322f-11ef-a61b-01aa75ed71a1.0006.01/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_593abf673895",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2008",
+          "match": "manual"
+        },
+        {
+          "id": "doc_4702f409bd62",
+          "type": "press_release",
+          "retrievedAt": "2026-10-31",
+          "url": "https://home.treasury.gov/news/press-releases/jy2008",
+          "match": "manual"
+        },
+        {
+          "id": "doc_807add11b220",
+          "type": "press_release",
+          "retrievedAt": "2026-10-18",
+          "url": "https://home.treasury.gov/news/press-releases/jy2008",
+          "match": "manual"
+        },
+        {
+          "id": "doc_8b9b3c5cc772",
+          "type": "press_release",
+          "retrievedAt": "2026-10-09",
+          "url": "https://home.treasury.gov/news/press-releases/jy2008",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5ee837e461c3",
+          "type": "press_release",
+          "retrievedAt": "2026-10-09",
+          "url": "https://home.treasury.gov/news/press-releases/jy2008",
+          "match": "manual"
+        },
+        {
+          "id": "doc_19ef12ac66db",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2023-12-26/pdf/2023-28426.pdf",
+          "match": "manual"
+        },
+        {
+          "id": "doc_e89f9cc6089d",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-14",
+          "url": "https://ofac.treasury.gov/recent-actions/20240501",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a484de0b16d7",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-15",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2024-09-13/pdf/2024-20824.pdf",
+          "match": "manual"
+        },
+        {
+          "id": "doc_bae0395f411c",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://publications.europa.eu/resource/cellar/67350bea-86dd-11f1-bf5e-01aa75ed71a1.0006.01/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_8b4817fc4aba",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-14",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2025-12-17/html/2025-23022.htm",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f8d9268f65d7",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://ofac.treasury.gov/recent-actions/20220508",
+          "match": "manual"
+        },
+        {
+          "id": "doc_42007273f51e",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://ofac.treasury.gov/recent-actions/20220508",
+          "match": "manual"
+        },
+        {
+          "id": "doc_3fa675d42e2b",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-25",
+          "url": "https://ofac.treasury.gov/recent-actions/20220508",
+          "match": "manual"
+        },
+        {
+          "id": "doc_c73bdde76404",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-14",
+          "url": "https://ofac.treasury.gov/recent-actions/20220508",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5ac9b7d1d3e4",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-10",
+          "url": "https://ofac.treasury.gov/recent-actions/20220508",
+          "match": "manual"
+        },
+        {
+          "id": "doc_9c1b05093bf5",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-14",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2016-12-27/pdf/2016-31073.pdf",
+          "match": "manual"
         }
       ]
     },
@@ -2561,6 +3366,13 @@
       "id": "53",
       "documents": [
         {
+          "id": "doc_a532da861ce1",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy0608",
+          "match": "manual"
+        },
+        {
           "id": "doc_b68bcbb88940",
           "type": "press_release",
           "retrievedAt": "2026-10-25",
@@ -2579,6 +3391,13 @@
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy0608",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a1d0fa8cdd28",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy0705",
           "match": "manual"
         },
         {
@@ -2601,11 +3420,53 @@
       "id": "54",
       "documents": [
         {
-          "id": "doc_aedb38de5d38",
-          "match": "manual",
-          "retrievedAt": "2026-10-30",
+          "id": "doc_f7961683dc54",
           "type": "register_entry",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv"
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_aedb38de5d38",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-30",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_e7a088b23a78",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-29",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_39373f3619b9",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-27",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f4983c968614",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_0d87329971a7",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f99f3befeedd",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
         }
       ]
     },
@@ -2631,6 +3492,13 @@
     {
       "id": "56",
       "documents": [
+        {
+          "id": "doc_487e80d832cd",
+          "type": "other",
+          "retrievedAt": "2026-11-03",
+          "url": "https://en.thebell.io/the-rise-of-russias-foreign-trade-middlemen/",
+          "match": "exact"
+        },
         {
           "id": "doc_7f33a3924599",
           "type": "other",
@@ -2720,6 +3588,34 @@
           "match": "exact"
         },
         {
+          "id": "doc_b6cc1ad00836",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2404",
+          "match": "exact"
+        },
+        {
+          "id": "doc_5bc1cff27eab",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2404",
+          "match": "exact"
+        },
+        {
+          "id": "doc_10c426b14692",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2404",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f4cc6ea8366d",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2404",
+          "match": "exact"
+        },
+        {
           "id": "doc_6c2cec45f8bd",
           "type": "press_release",
           "retrievedAt": "2026-10-27",
@@ -2794,17 +3690,31 @@
       "documents": [
         {
           "id": "doc_30dabe2de98a",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
           "type": "news_article",
-          "url": "https://www.bloomberg.com/news/articles/2024-01-17/turkish-banks-tighten-screws-on-russia-over-fear-of-us-sanctions"
+          "retrievedAt": "2026-10-27",
+          "url": "https://www.bloomberg.com/news/articles/2024-01-17/turkish-banks-tighten-screws-on-russia-over-fear-of-us-sanctions",
+          "match": "manual"
+        },
+        {
+          "id": "doc_b167b3e6577d",
+          "type": "news_article",
+          "retrievedAt": "2026-11-03",
+          "url": "https://www.themoscowtimes.com/2024/02/19/uae-banks-limit-payments-with-russia-over-secondary-sanctions-threat-vedomosti-a84143",
+          "match": "manual"
+        },
+        {
+          "id": "doc_29406a55687a",
+          "type": "news_article",
+          "retrievedAt": "2026-11-03",
+          "url": "https://www.themoscowtimes.com/2024/02/19/uae-banks-limit-payments-with-russia-over-secondary-sanctions-threat-vedomosti-a84143",
+          "match": "manual"
         },
         {
           "id": "doc_69768fcf7a7e",
-          "match": "manual",
-          "retrievedAt": "2026-10-24",
           "type": "other",
-          "url": "https://www.themoscowtimes.com/2024/02/19/uae-banks-limit-payments-with-russia-over-secondary-sanctions-threat-vedomosti-a84143"
+          "retrievedAt": "2026-10-24",
+          "url": "https://www.themoscowtimes.com/2024/02/19/uae-banks-limit-payments-with-russia-over-secondary-sanctions-threat-vedomosti-a84143",
+          "match": "manual"
         }
       ]
     },
@@ -2831,6 +3741,13 @@
       "id": "65",
       "documents": [
         {
+          "id": "doc_487e80d832cd",
+          "type": "other",
+          "retrievedAt": "2026-11-03",
+          "url": "https://en.thebell.io/the-rise-of-russias-foreign-trade-middlemen/",
+          "match": "manual"
+        },
+        {
           "id": "doc_7f33a3924599",
           "type": "other",
           "retrievedAt": "2026-10-25",
@@ -2849,6 +3766,34 @@
     {
       "id": "66",
       "documents": [
+        {
+          "id": "doc_b6cc1ad00836",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2404",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5bc1cff27eab",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2404",
+          "match": "manual"
+        },
+        {
+          "id": "doc_10c426b14692",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2404",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f4cc6ea8366d",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2404",
+          "match": "manual"
+        },
         {
           "id": "doc_6c2cec45f8bd",
           "type": "press_release",
@@ -2967,17 +3912,17 @@
       "documents": [
         {
           "id": "doc_0fbc76165294",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
           "type": "other",
-          "url": "https://24.kg/english/325722_New_procedure_for_Russian_ruble_transactions_to_be_introduced_in_Kyrgyzstan/"
+          "retrievedAt": "2026-10-27",
+          "url": "https://24.kg/english/325722_New_procedure_for_Russian_ruble_transactions_to_be_introduced_in_Kyrgyzstan/",
+          "match": "manual"
         },
         {
           "id": "doc_e81875c4c110",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
           "type": "other",
-          "url": "https://timesca.com/kyrgyz-president-denounces-politicized-sanctions-on-banks/"
+          "retrievedAt": "2026-10-27",
+          "url": "https://timesca.com/kyrgyz-president-denounces-politicized-sanctions-on-banks/",
+          "match": "manual"
         }
       ]
     },
@@ -3011,6 +3956,13 @@
       "id": "73",
       "documents": [
         {
+          "id": "doc_487e80d832cd",
+          "type": "other",
+          "retrievedAt": "2026-11-03",
+          "url": "https://en.thebell.io/the-rise-of-russias-foreign-trade-middlemen/",
+          "match": "manual"
+        },
+        {
           "id": "doc_7f33a3924599",
           "type": "other",
           "retrievedAt": "2026-10-25",
@@ -3030,24 +3982,31 @@
       "id": "74",
       "documents": [
         {
-          "id": "doc_fec711ce9743",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
-          "type": "report",
-          "url": "https://www.cbr.ru/collection/collection/file/59814/ar_2025_e.pdf"
+          "id": "doc_5c77d4e8fff3",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/media/933656/download?inline",
+          "match": "manual"
         },
         {
-          "id": "doc_5c77d4e8fff3",
-          "match": "manual",
-          "retrievedAt": "2026-10-09",
-          "type": "register_entry",
-          "url": "https://ofac.treasury.gov/media/933656/download?inline"
+          "id": "doc_fec711ce9743",
+          "type": "report",
+          "retrievedAt": "2026-10-27",
+          "url": "https://www.cbr.ru/collection/collection/file/59814/ar_2025_e.pdf",
+          "match": "manual"
         }
       ]
     },
     {
       "id": "75",
       "documents": [
+        {
+          "id": "doc_c750d55269b9",
+          "type": "other",
+          "retrievedAt": "2026-11-03",
+          "url": "https://www.fincen.gov/system/files/2026-10/FinCEN-Alert-A7-Network.pdf",
+          "match": "exact"
+        },
         {
           "id": "doc_acee635ac708",
           "type": "other",
@@ -3060,6 +4019,13 @@
     {
       "id": "76",
       "documents": [
+        {
+          "id": "doc_08c893117d99",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/sb0225",
+          "match": "exact"
+        },
         {
           "id": "doc_f50dddf97c92",
           "type": "press_release",
@@ -3079,6 +4045,13 @@
           "type": "press_release",
           "retrievedAt": "2026-10-25",
           "url": "https://home.treasury.gov/news/press-releases/sb0225",
+          "match": "exact"
+        },
+        {
+          "id": "doc_3bf548cab532",
+          "type": "other",
+          "retrievedAt": "2026-11-03",
+          "url": "https://www.elliptic.co/insights/the-fall-of-a7a5-how-sanctions-strangled-the-ruble-stablecoin/",
           "match": "exact"
         },
         {
@@ -3112,6 +4085,13 @@
     {
       "id": "78",
       "documents": [
+        {
+          "id": "doc_c750d55269b9",
+          "type": "other",
+          "retrievedAt": "2026-11-03",
+          "url": "https://www.fincen.gov/system/files/2026-10/FinCEN-Alert-A7-Network.pdf",
+          "match": "manual"
+        },
         {
           "id": "doc_acee635ac708",
           "type": "other",
@@ -3173,6 +4153,13 @@
       "id": "83",
       "documents": [
         {
+          "id": "doc_f36e80a9c8de",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-03",
+          "url": "https://sanctions.kse.ua/wp-content/uploads/2026/07/CHP-Q2-2026-Report.pdf",
+          "match": "exact"
+        },
+        {
           "id": "doc_3f398a80f6c2",
           "type": "other",
           "retrievedAt": "2026-10-24",
@@ -3200,17 +4187,17 @@
       "documents": [
         {
           "id": "doc_048e33ea2882",
-          "match": "manual",
-          "retrievedAt": "2026-10-31",
           "type": "other",
-          "url": "https://www.info.gov.hk/gia/general/201901/23/P2019012300436.htm"
+          "retrievedAt": "2026-10-31",
+          "url": "https://www.info.gov.hk/gia/general/201901/23/P2019012300436.htm",
+          "match": "manual"
         },
         {
           "id": "doc_3a30672b551b",
-          "match": "manual",
-          "retrievedAt": "2026-10-31",
           "type": "other",
-          "url": "https://www.uscc.gov/research/chinas-facilitation-sanctions-and-export-control-evasion"
+          "retrievedAt": "2026-10-31",
+          "url": "https://www.uscc.gov/research/chinas-facilitation-sanctions-and-export-control-evasion",
+          "match": "manual"
         }
       ]
     },
@@ -3241,6 +4228,13 @@
     {
       "id": "87",
       "documents": [
+        {
+          "id": "doc_f36e80a9c8de",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-03",
+          "url": "https://sanctions.kse.ua/wp-content/uploads/2026/07/CHP-Q2-2026-Report.pdf",
+          "match": "manual"
+        },
         {
           "id": "doc_3f398a80f6c2",
           "type": "other",
@@ -3376,6 +4370,13 @@
       "id": "90",
       "documents": [
         {
+          "id": "doc_b90934ba8485",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-03",
+          "url": "https://static.rusi.org/RUSI-Silicon-Lifeline-final-updated-web_1.pdf",
+          "match": "exact"
+        },
+        {
           "id": "doc_9ce6de18c455",
           "type": "ngo_publication",
           "retrievedAt": "2026-10-25",
@@ -3474,6 +4475,13 @@
     {
       "id": "93",
       "documents": [
+        {
+          "id": "doc_f4498f807f29",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2651",
+          "match": "exact"
+        },
         {
           "id": "doc_7f3a258c53ec",
           "type": "press_release",
@@ -3607,18 +4615,32 @@
       "id": "97",
       "documents": [
         {
-          "id": "doc_af591c81e658",
-          "match": "manual",
-          "retrievedAt": "2026-10-25",
-          "type": "company_publication",
-          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/"
+          "id": "doc_1483275a97ec",
+          "type": "other",
+          "retrievedAt": "2026-10-09",
+          "url": "https://web.archive.org/web/20250518165637id_/https://www.gazprom.com/investors/stock/structure/",
+          "match": "manual"
         },
         {
-          "id": "doc_1483275a97ec",
-          "match": "manual",
-          "retrievedAt": "2026-10-09",
+          "id": "doc_1c76ad0f2be1",
           "type": "other",
-          "url": "https://web.archive.org/web/20250518165637id_/https://www.gazprom.com/investors/stock/structure/"
+          "retrievedAt": "2026-10-24",
+          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
+          "match": "manual"
+        },
+        {
+          "id": "doc_af591c81e658",
+          "type": "company_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2d0c196e5240",
+          "type": "company_publication",
+          "retrievedAt": "2026-10-09",
+          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
+          "match": "manual"
         }
       ]
     },
@@ -3627,10 +4649,10 @@
       "documents": [
         {
           "id": "doc_6dcfd29e5085",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
           "type": "other",
-          "url": "https://tass.com/economy/1810035"
+          "retrievedAt": "2026-10-27",
+          "url": "https://tass.com/economy/1810035",
+          "match": "manual"
         }
       ]
     },
@@ -3639,17 +4661,17 @@
       "documents": [
         {
           "id": "doc_3ee21e47ef56",
-          "match": "manual",
-          "retrievedAt": "2026-10-26",
           "type": "other",
-          "url": "https://web.archive.org/web/20220218053856id_/https://www.gazprombank.ru/about/shareholders/"
+          "retrievedAt": "2026-10-26",
+          "url": "https://web.archive.org/web/20220218053856id_/https://www.gazprombank.ru/about/shareholders/",
+          "match": "manual"
         },
         {
           "id": "doc_7e821d039948",
-          "match": "manual",
-          "retrievedAt": "2026-10-26",
           "type": "other",
-          "url": "https://web.archive.org/web/20220613220804id_/https://www.gazprombank.ru/about/shareholders/"
+          "retrievedAt": "2026-10-26",
+          "url": "https://web.archive.org/web/20220613220804id_/https://www.gazprombank.ru/about/shareholders/",
+          "match": "manual"
         }
       ]
     },
@@ -3669,45 +4691,66 @@
       "id": "101",
       "documents": [
         {
-          "id": "doc_af591c81e658",
-          "match": "manual",
-          "retrievedAt": "2026-10-25",
-          "type": "company_publication",
-          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/"
-        },
-        {
-          "id": "doc_1483275a97ec",
-          "match": "manual",
-          "retrievedAt": "2026-10-09",
+          "id": "doc_6dcfd29e5085",
           "type": "other",
-          "url": "https://web.archive.org/web/20250518165637id_/https://www.gazprom.com/investors/stock/structure/"
+          "retrievedAt": "2026-10-27",
+          "url": "https://tass.com/economy/1810035",
+          "match": "manual"
         },
         {
           "id": "doc_3ee21e47ef56",
-          "match": "manual",
-          "retrievedAt": "2026-10-26",
           "type": "other",
-          "url": "https://web.archive.org/web/20220218053856id_/https://www.gazprombank.ru/about/shareholders/"
+          "retrievedAt": "2026-10-26",
+          "url": "https://web.archive.org/web/20220218053856id_/https://www.gazprombank.ru/about/shareholders/",
+          "match": "manual"
         },
         {
           "id": "doc_7e821d039948",
-          "match": "manual",
-          "retrievedAt": "2026-10-26",
           "type": "other",
-          "url": "https://web.archive.org/web/20220613220804id_/https://www.gazprombank.ru/about/shareholders/"
+          "retrievedAt": "2026-10-26",
+          "url": "https://web.archive.org/web/20220613220804id_/https://www.gazprombank.ru/about/shareholders/",
+          "match": "manual"
         },
         {
-          "id": "doc_6dcfd29e5085",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
+          "id": "doc_1483275a97ec",
           "type": "other",
-          "url": "https://tass.com/economy/1810035"
+          "retrievedAt": "2026-10-09",
+          "url": "https://web.archive.org/web/20250518165637id_/https://www.gazprom.com/investors/stock/structure/",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1c76ad0f2be1",
+          "type": "other",
+          "retrievedAt": "2026-10-24",
+          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
+          "match": "manual"
+        },
+        {
+          "id": "doc_af591c81e658",
+          "type": "company_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2d0c196e5240",
+          "type": "company_publication",
+          "retrievedAt": "2026-10-09",
+          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
+          "match": "manual"
         }
       ]
     },
     {
       "id": "102",
       "documents": [
+        {
+          "id": "doc_593abf673895",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2008",
+          "match": "exact"
+        },
         {
           "id": "doc_4702f409bd62",
           "type": "press_release",
@@ -3753,6 +4796,20 @@
     {
       "id": "104",
       "documents": [
+        {
+          "id": "doc_88d92fb037f7",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2777",
+          "match": "manual"
+        },
+        {
+          "id": "doc_b77402db359f",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2777",
+          "match": "manual"
+        },
         {
           "id": "doc_d5c388234fca",
           "type": "press_release",
@@ -4082,10 +5139,10 @@
       "documents": [
         {
           "id": "doc_6be62defd70a",
-          "match": "manual",
-          "retrievedAt": "2026-10-31",
           "type": "other",
-          "url": "https://carnegieendowment.org/russia-eurasia/posts/2020/02/unconsolidated-the-five-russian-elites-shaping-putins-transition"
+          "retrievedAt": "2026-10-31",
+          "url": "https://carnegieendowment.org/russia-eurasia/posts/2020/02/unconsolidated-the-five-russian-elites-shaping-putins-transition",
+          "match": "manual"
         }
       ]
     },
@@ -4151,6 +5208,13 @@
     {
       "id": "122",
       "documents": [
+        {
+          "id": "doc_593abf673895",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2008",
+          "match": "manual"
+        },
         {
           "id": "doc_4702f409bd62",
           "type": "press_release",
