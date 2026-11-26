@@ -26,6 +26,7 @@ import { tunnelConnection, tunnelEnvText } from './record-tunnel-env.ts';
 import {
   auditNode,
   auditOrder,
+  citingNodes,
   contextOf,
   failedClaimsOf,
   repairTail,
@@ -384,6 +385,13 @@ describe('the audit of a release', () => {
     expect(missingReportEntities).toEqual(['gone']);
   });
 
+  it('keeps for a local check only the nodes that cite a listed document', () => {
+    const context = contextOf(FILES, null);
+    const { nodes } = auditOrder(FILES, [OWNER]);
+    expect(citingNodes(nodes, context, new Set(['doc_a'])).map((one) => one.id)).toEqual([OWNER]);
+    expect(citingNodes(nodes, context, new Set(['doc_z']))).toEqual([]);
+  });
+
   it('writes one line for each node, with each check of each fact, and a summary', async () => {
     const context = contextOf(FILES, null);
     const { nodes } = auditOrder(FILES, [OWNER]);
@@ -397,7 +405,7 @@ describe('the audit of a release', () => {
       'v1/imo',
       'v1/kind',
     ]);
-    expect(line.facts.every((fact) => fact.results.length === 10)).toBe(true);
+    expect(line.facts.every((fact) => fact.results.length === 11)).toBe(true);
     expect(line.verdict).toBe('incomplete');
     const header = {
       kind: 'header' as const,

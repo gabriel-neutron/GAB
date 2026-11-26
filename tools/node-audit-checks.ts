@@ -10,6 +10,8 @@
 // - Release mode reads only the public release, so a release pass is "release_pass", and the four
 //   checks of the stored document are cannot_check(needs_record). Record mode reads the database and
 //   the raw store of the PC, read only.
+// - Release mode also reads each cited document at its public address (excerpt_at_source). A document
+//   that it cannot read goes to local-check.txt, and record mode on the PC checks its stored copy.
 
 import { createHash } from 'node:crypto';
 
@@ -55,6 +57,7 @@ export const FACT_CHECKS = [
   'identifier_valid',
   'dates',
   'designation_source',
+  'excerpt_at_source',
   'document_exists',
   'hash',
   'excerpt_at_page',
@@ -262,6 +265,43 @@ export const designationSource = (
         if (holdsIdentifier(excerptOf(row), one))
           return result(check, 'pass', `${key} ${one} in ${row['document_id'] ?? ''}`);
   return result(check, 'cannot_check', 'name_only');
+};
+
+/** What a live read of one cited document gave: its text, or the cause that stopped the check. */
+export type SourceRead =
+  | { readonly kind: 'text'; readonly text: string }
+  | {
+      readonly kind: 'cannot_check';
+      readonly reason: 'blocked' | 'unreachable' | 'not_text' | 'no_address';
+    };
+
+/** Reads one cited document at its public address, once for each document id. */
+export type SourceReader = (id: string, address: string) => Promise<SourceRead>;
+
+/** One citation passes when its excerpt is in the live text of its document. A claim fails only when
+ * each document with an excerpt was read and holds none: a document that could not be read can hold
+ * one. Record mode checks the stored copy (excerpt_at_page), so this check does not run there. */
+export const excerptAtSource = async (
+  claim: Claim,
+  mode: 'release' | 'record',
+  read: SourceReader | null,
+): Promise<Result> => {
+  const check = 'excerpt_at_source';
+  if (mode === 'record') return result(check, 'not_applicable', 'checked by excerpt_at_page');
+  if (read === null) return result(check, 'cannot_check', 'needs_source');
+  const cited = claim.citations.filter((row) => excerptOf(row).trim() !== '');
+  if (cited.length === 0) return result(check, 'not_applicable', 'no_excerpt');
+  const open = new Map<string, string>();
+  for (const row of cited) {
+    const id = row['document_id'] ?? '';
+    const got = await read(id, row['document_address'] ?? '');
+    if (got.kind === 'cannot_check') open.set(id, got.reason);
+    else if (findExcerpt(got.text, excerptOf(row)) !== null)
+      return result(check, 'pass', `the excerpt is in ${id} at its address`);
+  }
+  if (open.size === 0) return result(check, 'fail', 'excerpt_not_at_source');
+  const [reason] = [...new Set(open.values())].sort();
+  return result(check, 'cannot_check', `${reason ?? ''}: ${[...open.keys()].join(' ')}`);
 };
 
 /** What record mode reads for one document: its row, the hash of its stored bytes, and a page.

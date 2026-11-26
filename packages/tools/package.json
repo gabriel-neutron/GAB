@@ -30,6 +30,7 @@
     "./news-search": "./src/news-search.ts",
     "./propose": "./src/propose.ts",
     "./propose-mapping": "./src/propose-mapping.ts",
+    "./read-page": "./src/read-page.ts",
     "./refused-source": "./src/refused-source.ts",
     "./register-answer": "./src/register-answer.ts",
     "./search-graph": "./src/search-graph.ts",
@@ -38,6 +39,7 @@
     "./store-answer": "./src/store-answer.ts",
     "./table": "./src/table.ts",
     "./tool": "./src/tool.ts",
+    "./unreadable-page": "./src/unreadable-page.ts",
     "./web": "./src/web.ts",
     "./web-search": "./src/web-search.ts",
     "./web-stub": "./src/web-stub.ts"
