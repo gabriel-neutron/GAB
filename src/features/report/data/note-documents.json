@@ -1,5 +1,5 @@
 {
-  "builtOn": "2026-11-01",
+  "builtOn": "2026-11-26",
   "notes": [
     {
       "id": "1",
@@ -401,24 +401,87 @@
       "documents": [
         {
           "id": "doc_6745482a92a4",
-          "match": "manual",
-          "retrievedAt": "2026-10-31",
           "type": "ngo_publication",
-          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker"
+          "retrievedAt": "2026-10-31",
+          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
+          "match": "manual"
+        },
+        {
+          "id": "doc_6928fdaef480",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-09",
+          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
+          "match": "manual"
         },
         {
           "id": "doc_43c40cb36e1e",
-          "match": "manual",
-          "retrievedAt": "2026-10-25",
           "type": "ngo_publication",
-          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx"
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx",
+          "match": "manual"
         },
         {
-          "id": "doc_881438501a10",
-          "match": "manual",
+          "id": "doc_e69190ddd147",
+          "type": "ngo_publication",
           "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figure-10",
+          "match": "manual"
+        },
+        {
+          "id": "doc_9d1ba12cf4b4",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figures-8-9",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a21cf66810e8",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figure-5",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1c5fe11e754c",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figure-4",
+          "match": "manual"
+        },
+        {
+          "id": "doc_be82ee613512",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figure-3",
+          "match": "manual"
+        },
+        {
+          "id": "doc_ade1c78eb49f",
           "type": "other",
-          "url": "https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=X&Partners=643&Reporters=97,842,392,410,490,826&period=2019-2025&AggregateBy=none&BreakdownMode=plus"
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=699&period=2021&flowCode=M&cmdCode=2709&partnerCode=643",
+          "match": "manual"
+        },
+        {
+          "id": "doc_6a7b50d8c41e",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=699&period=2021&flowCode=M&cmdCode=2709&partnerCode=643",
+          "match": "manual"
+        },
+        {
+          "id": "doc_e1e635c7e5f2",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=699&period=2025&flowCode=M&cmdCode=2709&partnerCode=643",
+          "match": "manual"
+        },
+        {
+          "id": "doc_9f530059fd4d",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=699&period=2025&flowCode=M&cmdCode=2709&partnerCode=643",
+          "match": "manual"
         }
       ]
     },
@@ -462,39 +525,95 @@
       "id": "21",
       "documents": [
         {
-          "id": "doc_6745482a92a4",
-          "match": "manual",
-          "retrievedAt": "2026-10-31",
-          "type": "ngo_publication",
-          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker"
-        },
-        {
-          "id": "doc_43c40cb36e1e",
-          "match": "manual",
-          "retrievedAt": "2026-10-25",
-          "type": "ngo_publication",
-          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx"
-        },
-        {
-          "id": "doc_881438501a10",
-          "match": "manual",
-          "retrievedAt": "2026-10-25",
-          "type": "other",
-          "url": "https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=X&Partners=643&Reporters=97,842,392,410,490,826&period=2019-2025&AggregateBy=none&BreakdownMode=plus"
-        },
-        {
           "id": "doc_0bd2f37c4e7a",
-          "match": "manual",
-          "retrievedAt": "2026-11-02",
           "type": "other",
-          "url": "https://api.russiafossiltracker.com/"
+          "retrievedAt": "2026-11-02",
+          "url": "https://api.russiafossiltracker.com/",
+          "match": "manual"
         },
         {
           "id": "doc_8386a931da4a",
-          "match": "manual",
-          "retrievedAt": "2026-10-30",
           "type": "other",
-          "url": "https://api.russiafossiltracker.com/v0/counter?format=csv&date_from=2021-01-01&date_to=2025-12-31&commodity=crude_oil,oil_products,pipeline_oil&destination_iso2=CN,IN,TR&aggregate_by=destination_country,commodity,year&pricing_scenario=default"
+          "retrievedAt": "2026-10-30",
+          "url": "https://api.russiafossiltracker.com/v0/counter?format=csv&date_from=2021-01-01&date_to=2025-12-31&commodity=crude_oil,oil_products,pipeline_oil&destination_iso2=CN,IN,TR&aggregate_by=destination_country,commodity,year&pricing_scenario=default",
+          "match": "manual"
+        },
+        {
+          "id": "doc_881438501a10",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=X&Partners=643&Reporters=97,842,392,410,490,826&period=2019-2025&AggregateBy=none&BreakdownMode=plus",
+          "match": "manual"
+        },
+        {
+          "id": "doc_6745482a92a4",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-31",
+          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
+          "match": "manual"
+        },
+        {
+          "id": "doc_6928fdaef480",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-09",
+          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
+          "match": "manual"
+        },
+        {
+          "id": "doc_43c40cb36e1e",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx",
+          "match": "manual"
+        },
+        {
+          "id": "doc_e69190ddd147",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figure-10",
+          "match": "manual"
+        },
+        {
+          "id": "doc_9d1ba12cf4b4",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figures-8-9",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a21cf66810e8",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figure-5",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1c5fe11e754c",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figure-4",
+          "match": "manual"
+        },
+        {
+          "id": "doc_be82ee613512",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx#Figure-3",
+          "match": "manual"
+        },
+        {
+          "id": "doc_fde28b618136",
+          "type": "other",
+          "retrievedAt": "2026-10-26",
+          "url": "https://api.russiafossiltracker.com/v0/counter?format=json&date_from=2021-01-01&date_to=2025-12-31&aggregate_by=destination_country,commodity,year&pricing_scenario=default",
+          "match": "manual"
+        },
+        {
+          "id": "doc_7301b10e82e3",
+          "type": "other",
+          "retrievedAt": "2026-10-22",
+          "url": "https://ec.europa.eu/eurostat/api/comext/dissemination/statistics/1.0/data/DS-059341?format=JSON&freq=A&reporter=EU27_2020&partner=RU&flow=1&product=2709&product=2710&product=2711&product=2701&product=3102&product=3103&product=3104&product=3105&product=7207&product=7601&product=7502&product=7110&product=2844&product=1001&product=44&product=7102&product=7108&sinceTimePeriod=2021&untilTimePeriod=2025",
+          "match": "manual"
         }
       ]
     },
@@ -822,6 +941,20 @@
       "id": "37",
       "documents": [
         {
+          "id": "doc_b259239c0043",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2014:2025&per_page=20",
+          "match": "manual"
+        },
+        {
+          "id": "doc_8a5396e7feba",
+          "type": "other",
+          "retrievedAt": "2026-10-22",
+          "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2020:2025&per_page=20",
+          "match": "manual"
+        },
+        {
           "id": "doc_1c1f4009154e",
           "type": "other",
           "retrievedAt": "2026-10-19",
@@ -843,17 +976,17 @@
           "match": "manual"
         },
         {
-          "id": "doc_b259239c0043",
+          "id": "doc_f4c6ae57c183",
           "type": "other",
-          "retrievedAt": "2026-10-25",
-          "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2014:2025&per_page=20",
+          "retrievedAt": "2026-10-19",
+          "url": "https://minfin.gov.ru/common/upload/library/2026/05/main/Prilozhenie_3_dannye_109-111_%E2%80%94_god.xlsx",
           "match": "manual"
         },
         {
-          "id": "doc_8a5396e7feba",
+          "id": "doc_db17d11afa00",
           "type": "other",
-          "retrievedAt": "2026-10-22",
-          "url": "https://api.worldbank.org/v2/country/RUS/indicator/NY.GDP.DEFL.KD.ZG?format=json&date=2020:2025&per_page=20",
+          "retrievedAt": "2026-10-19",
+          "url": "https://minfin.gov.ru/common/upload/library/2026/10/main/Prilozhenie_3_dannye_109-111_%E2%80%94_mes.xlsx",
           "match": "manual"
         }
       ]
@@ -910,6 +1043,83 @@
           "retrievedAt": "2026-10-25",
           "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
           "match": "manual"
+        },
+        {
+          "id": "doc_2c4226ba7a5e",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://portnews.ru/upload/basefiles/1552_ncsp_ar_2016_rus_28_04.pdf",
+          "match": "manual"
+        },
+        {
+          "id": "doc_111241f2113b",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://portnews.ru/news/251806/",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a63477343ba7",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://portnews.ru/news/270776/",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2a03e6049413",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://fs.moex.com/f/13354/nmtp-report-rus-30-04-2020.pdf",
+          "match": "manual"
+        },
+        {
+          "id": "doc_3d306ead07c5",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://portnews.ru/news/307541/",
+          "match": "manual"
+        },
+        {
+          "id": "doc_4fe9067408ba",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-12-mesyacev-2021-g",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5631eb3e5bfc",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-12-mesyacev-2022-g",
+          "match": "manual"
+        },
+        {
+          "id": "doc_b6e709b39d79",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-yanvar-dekabr-2023-g",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f054830f3a66",
+          "type": "other",
+          "retrievedAt": "2026-10-21",
+          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-yanvar-dekabr-2024-goda",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f75daa10f310",
+          "type": "other",
+          "retrievedAt": "2026-10-16",
+          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-2025-god",
+          "match": "manual"
+        },
+        {
+          "id": "doc_88a6a1f923a6",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-yanvar-aprel-2026-goda",
+          "match": "manual"
         }
       ]
     },
@@ -952,6 +1162,83 @@
           "type": "ngo_publication",
           "retrievedAt": "2026-10-25",
           "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2c4226ba7a5e",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://portnews.ru/upload/basefiles/1552_ncsp_ar_2016_rus_28_04.pdf",
+          "match": "manual"
+        },
+        {
+          "id": "doc_111241f2113b",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://portnews.ru/news/251806/",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a63477343ba7",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://portnews.ru/news/270776/",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2a03e6049413",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://fs.moex.com/f/13354/nmtp-report-rus-30-04-2020.pdf",
+          "match": "manual"
+        },
+        {
+          "id": "doc_3d306ead07c5",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://portnews.ru/news/307541/",
+          "match": "manual"
+        },
+        {
+          "id": "doc_4fe9067408ba",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-12-mesyacev-2021-g",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5631eb3e5bfc",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-12-mesyacev-2022-g",
+          "match": "manual"
+        },
+        {
+          "id": "doc_b6e709b39d79",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-yanvar-dekabr-2023-g",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f054830f3a66",
+          "type": "other",
+          "retrievedAt": "2026-10-21",
+          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-yanvar-dekabr-2024-goda",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f75daa10f310",
+          "type": "other",
+          "retrievedAt": "2026-10-16",
+          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-2025-god",
+          "match": "manual"
+        },
+        {
+          "id": "doc_88a6a1f923a6",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-yanvar-aprel-2026-goda",
           "match": "manual"
         }
       ]
@@ -1000,25 +1287,473 @@
       "id": "46",
       "documents": [
         {
-          "id": "doc_5f240bed79d5",
-          "match": "manual",
-          "retrievedAt": "2026-10-28",
+          "id": "doc_463a3a9c003e",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-27",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f7961683dc54",
           "type": "register_entry",
-          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV"
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
         },
         {
           "id": "doc_aedb38de5d38",
-          "match": "manual",
-          "retrievedAt": "2026-10-30",
           "type": "register_entry",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv"
+          "retrievedAt": "2026-10-30",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
         },
         {
-          "id": "doc_463a3a9c003e",
-          "match": "manual",
+          "id": "doc_e7a088b23a78",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-29",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_39373f3619b9",
+          "type": "register_entry",
           "retrievedAt": "2026-10-27",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f4983c968614",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_0d87329971a7",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f99f3befeedd",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_7f43332dae0d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-08",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_8e94d8715b81",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-06",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_ebbbce82570f",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5f240bed79d5",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_96dade5a1cde",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-21",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_0dee0d2de5e5",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1022b462f33c",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-14",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a472434fd738",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_64be7a799105",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-10",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_fb89da043708",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_081a0f995a64",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_223b66a4c3df",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_05b0cfd4d9b7",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_e6a12a3f4e94",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_ca9f1e297665",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_fdda5245be9f",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_77f1052c4d27",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_7225555dc9c0",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_9ae5d111abed",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a1dfeb142c9b",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=400",
+          "match": "manual"
+        },
+        {
+          "id": "doc_3d6c4eb0083c",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a9b7284edfc2",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_ec890802858a",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=400",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1994d856d8a7",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_c0874f561761",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_6f76c4913903",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=400",
+          "match": "manual"
+        },
+        {
+          "id": "doc_02721b8748c8",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a988b04401e5",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_803aaaff6624",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_dfd73ae44b1d",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_67c25274049d",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=400",
+          "match": "manual"
+        },
+        {
+          "id": "doc_6e57ce7c123d",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=600",
+          "match": "manual"
+        },
+        {
+          "id": "doc_3603c8b85439",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=800",
+          "match": "manual"
+        },
+        {
+          "id": "doc_75c56d51ff6d",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=1000",
+          "match": "manual"
+        },
+        {
+          "id": "doc_b8b7f1e29220",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_83e11f796acf",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_629c3edcd136",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=400",
+          "match": "manual"
+        },
+        {
+          "id": "doc_daa4dadb9a0f",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=600",
+          "match": "manual"
+        },
+        {
+          "id": "doc_ce75f57e96d0",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=800",
+          "match": "manual"
+        },
+        {
+          "id": "doc_9155b8c53115",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=1000",
+          "match": "manual"
+        },
+        {
+          "id": "doc_6295179f0077",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_be8b42d74527",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_7ee7b0e8c8bc",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=400",
+          "match": "manual"
+        },
+        {
+          "id": "doc_6ce5569ab7a3",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=600",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f14de3e9c634",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=800",
+          "match": "manual"
+        },
+        {
+          "id": "doc_bb03d3675436",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_45aedc92c8ea",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_9872206b8ca0",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=400",
+          "match": "manual"
+        },
+        {
+          "id": "doc_fc82f6053cac",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=600",
+          "match": "manual"
+        },
+        {
+          "id": "doc_56788414723c",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=800",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a24efd7ae354",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2cdd07a3f678",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5f4add887dd2",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_82dc41fba868",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_e3933742ffda",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_350b75f51ba8",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_aeb7f98dea31",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_80605385181c",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2682ecf3442d",
           "type": "legal_act",
-          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1"
+          "retrievedAt": "2026-10-10",
+          "url": "http://publications.europa.eu/resource/cellar/0492ea31-a0ce-11f1-b25c-01aa75ed71a1.0004.02/DOC_1",
+          "match": "manual"
         }
       ]
     },
@@ -1076,25 +1811,473 @@
       "id": "50",
       "documents": [
         {
-          "id": "doc_5f240bed79d5",
-          "match": "manual",
-          "retrievedAt": "2026-10-28",
+          "id": "doc_463a3a9c003e",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-27",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f7961683dc54",
           "type": "register_entry",
-          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV"
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
         },
         {
           "id": "doc_aedb38de5d38",
-          "match": "manual",
-          "retrievedAt": "2026-10-30",
           "type": "register_entry",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv"
+          "retrievedAt": "2026-10-30",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
         },
         {
-          "id": "doc_463a3a9c003e",
-          "match": "manual",
+          "id": "doc_e7a088b23a78",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-29",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_39373f3619b9",
+          "type": "register_entry",
           "retrievedAt": "2026-10-27",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f4983c968614",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_0d87329971a7",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f99f3befeedd",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_7f43332dae0d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-08",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_8e94d8715b81",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-06",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_ebbbce82570f",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5f240bed79d5",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_96dade5a1cde",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-21",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_0dee0d2de5e5",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1022b462f33c",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-14",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a472434fd738",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_64be7a799105",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-10",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_fb89da043708",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_081a0f995a64",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_223b66a4c3df",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_05b0cfd4d9b7",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_e6a12a3f4e94",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_ca9f1e297665",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_fdda5245be9f",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_77f1052c4d27",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_7225555dc9c0",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_9ae5d111abed",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a1dfeb142c9b",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=400",
+          "match": "manual"
+        },
+        {
+          "id": "doc_3d6c4eb0083c",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a9b7284edfc2",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_ec890802858a",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=400",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1994d856d8a7",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_c0874f561761",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_6f76c4913903",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=400",
+          "match": "manual"
+        },
+        {
+          "id": "doc_02721b8748c8",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a988b04401e5",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_803aaaff6624",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_dfd73ae44b1d",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_67c25274049d",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=400",
+          "match": "manual"
+        },
+        {
+          "id": "doc_6e57ce7c123d",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=600",
+          "match": "manual"
+        },
+        {
+          "id": "doc_3603c8b85439",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=800",
+          "match": "manual"
+        },
+        {
+          "id": "doc_75c56d51ff6d",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=1000",
+          "match": "manual"
+        },
+        {
+          "id": "doc_b8b7f1e29220",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_83e11f796acf",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_629c3edcd136",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=400",
+          "match": "manual"
+        },
+        {
+          "id": "doc_daa4dadb9a0f",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=600",
+          "match": "manual"
+        },
+        {
+          "id": "doc_ce75f57e96d0",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=800",
+          "match": "manual"
+        },
+        {
+          "id": "doc_9155b8c53115",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=1000",
+          "match": "manual"
+        },
+        {
+          "id": "doc_6295179f0077",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_be8b42d74527",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_7ee7b0e8c8bc",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=400",
+          "match": "manual"
+        },
+        {
+          "id": "doc_6ce5569ab7a3",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=600",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f14de3e9c634",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=800",
+          "match": "manual"
+        },
+        {
+          "id": "doc_bb03d3675436",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_45aedc92c8ea",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=200",
+          "match": "manual"
+        },
+        {
+          "id": "doc_9872206b8ca0",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=400",
+          "match": "manual"
+        },
+        {
+          "id": "doc_fc82f6053cac",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=600",
+          "match": "manual"
+        },
+        {
+          "id": "doc_56788414723c",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=800",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a24efd7ae354",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2cdd07a3f678",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5f4add887dd2",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_82dc41fba868",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_e3933742ffda",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_350b75f51ba8",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_aeb7f98dea31",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_80605385181c",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-11-01",
+          "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2682ecf3442d",
           "type": "legal_act",
-          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1"
+          "retrievedAt": "2026-10-10",
+          "url": "http://publications.europa.eu/resource/cellar/0492ea31-a0ce-11f1-b25c-01aa75ed71a1.0004.02/DOC_1",
+          "match": "manual"
         }
       ]
     },
@@ -1102,25 +2285,144 @@
       "id": "51",
       "documents": [
         {
-          "id": "doc_5f240bed79d5",
-          "match": "manual",
-          "retrievedAt": "2026-10-28",
+          "id": "doc_463a3a9c003e",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-27",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f7961683dc54",
           "type": "register_entry",
-          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV"
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
         },
         {
           "id": "doc_aedb38de5d38",
-          "match": "manual",
-          "retrievedAt": "2026-10-30",
           "type": "register_entry",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv"
+          "retrievedAt": "2026-10-30",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
         },
         {
-          "id": "doc_463a3a9c003e",
-          "match": "manual",
+          "id": "doc_e7a088b23a78",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-29",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_39373f3619b9",
+          "type": "register_entry",
           "retrievedAt": "2026-10-27",
-          "type": "legal_act",
-          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1"
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f4983c968614",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_0d87329971a7",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f99f3befeedd",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_7f43332dae0d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-08",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_8e94d8715b81",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-06",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_ebbbce82570f",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5f240bed79d5",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_96dade5a1cde",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-21",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_0dee0d2de5e5",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1022b462f33c",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-14",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a472434fd738",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_64be7a799105",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-10",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_665db171fb42",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-18",
+          "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
+          "match": "manual"
+        },
+        {
+          "id": "doc_0dae3ce27f7d",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-18",
+          "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1d7827838d24",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-18",
+          "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
+          "match": "manual"
         }
       ]
     },
@@ -1128,25 +2430,130 @@
       "id": "52",
       "documents": [
         {
-          "id": "doc_5f240bed79d5",
-          "match": "manual",
-          "retrievedAt": "2026-10-28",
+          "id": "doc_463a3a9c003e",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-27",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f7961683dc54",
           "type": "register_entry",
-          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV"
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
         },
         {
           "id": "doc_aedb38de5d38",
-          "match": "manual",
-          "retrievedAt": "2026-10-30",
           "type": "register_entry",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv"
+          "retrievedAt": "2026-10-30",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
         },
         {
-          "id": "doc_463a3a9c003e",
-          "match": "manual",
+          "id": "doc_e7a088b23a78",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-29",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_39373f3619b9",
+          "type": "register_entry",
           "retrievedAt": "2026-10-27",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f4983c968614",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_0d87329971a7",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_f99f3befeedd",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_7f43332dae0d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-08",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_8e94d8715b81",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-06",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_ebbbce82570f",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5f240bed79d5",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_96dade5a1cde",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-21",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_0dee0d2de5e5",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_1022b462f33c",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-14",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a472434fd738",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_64be7a799105",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-10",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2682ecf3442d",
           "type": "legal_act",
-          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1"
+          "retrievedAt": "2026-10-10",
+          "url": "http://publications.europa.eu/resource/cellar/0492ea31-a0ce-11f1-b25c-01aa75ed71a1.0004.02/DOC_1",
+          "match": "manual"
         }
       ]
     },
@@ -1210,6 +2617,13 @@
           "type": "legal_act",
           "retrievedAt": "2026-10-28",
           "url": "http://publications.europa.eu/resource/cellar/9c6f9186-9a19-11ec-83e1-01aa75ed71a1.0006.03/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_2682ecf3442d",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-10",
+          "url": "http://publications.europa.eu/resource/cellar/0492ea31-a0ce-11f1-b25c-01aa75ed71a1.0004.02/DOC_1",
           "match": "manual"
         }
       ]
@@ -1351,6 +2765,27 @@
           "retrievedAt": "2026-10-27",
           "url": "https://en.thebell.io/how-russia-uses-china-to-get-round-sanctions/",
           "match": "exact"
+        },
+        {
+          "id": "doc_9f991491e28c",
+          "type": "news_article",
+          "retrievedAt": "2026-11-03",
+          "url": "https://www.themoscowtimes.com/2024/02/07/major-chinese-bank-halts-all-settlements-with-russia-vedomosti-a84001",
+          "match": "manual"
+        },
+        {
+          "id": "doc_3dfdec1131cd",
+          "type": "news_article",
+          "retrievedAt": "2026-10-27",
+          "url": "https://www.themoscowtimes.com/2024/02/07/major-chinese-bank-halts-all-settlements-with-russia-vedomosti-a84001",
+          "match": "manual"
+        },
+        {
+          "id": "doc_060f0ba7fe18",
+          "type": "other",
+          "retrievedAt": "2026-10-24",
+          "url": "https://www.themoscowtimes.com/2024/02/07/major-chinese-bank-halts-all-settlements-with-russia-vedomosti-a84001",
+          "match": "manual"
         }
       ]
     },
@@ -1377,11 +2812,18 @@
       "id": "64",
       "documents": [
         {
-          "id": "doc_d85790099e6b",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
+          "id": "doc_3a30672b551b",
           "type": "other",
-          "url": "https://www.thestandard.com.hk/china/article/219959/Russia-payment-hurdles-with-China-partners-intensified-in-August-sources-say"
+          "retrievedAt": "2026-10-31",
+          "url": "https://www.uscc.gov/research/chinas-facilitation-sanctions-and-export-control-evasion",
+          "match": "exact"
+        },
+        {
+          "id": "doc_d85790099e6b",
+          "type": "other",
+          "retrievedAt": "2026-10-27",
+          "url": "https://www.thestandard.com.hk/china/article/219959/Russia-payment-hurdles-with-China-partners-intensified-in-August-sources-say",
+          "match": "manual"
         }
       ]
     },
@@ -1486,17 +2928,24 @@
           "match": "exact"
         },
         {
-          "id": "doc_463a3a9c003e",
-          "type": "legal_act",
+          "id": "doc_d14b0325d4cd",
+          "type": "other",
           "retrievedAt": "2026-10-27",
-          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
-          "match": "manual"
+          "url": "https://www.scmp.com/news/china/diplomacy/article/3318793/european-union-sanctions-2-chinese-banks-over-aid-russia",
+          "match": "exact"
         },
         {
           "id": "doc_a0dfab5d4172",
           "type": "legal_act",
           "retrievedAt": "2026-10-10",
           "url": "http://publications.europa.eu/resource/cellar/b87e7fd7-3f1f-11f1-814f-01aa75ed71a1.0006.03/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_463a3a9c003e",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-27",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
           "match": "manual"
         }
       ]
@@ -1535,6 +2984,13 @@
     {
       "id": "72",
       "documents": [
+        {
+          "id": "doc_ea335894d007",
+          "type": "other",
+          "retrievedAt": "2026-10-27",
+          "url": "https://timesca.com/eu-targets-kyrgyz-financial-sector-over-russia-sanctions-evasion/",
+          "match": "exact"
+        },
         {
           "id": "doc_215d46a195e0",
           "type": "legal_act",
@@ -1810,74 +3266,109 @@
       "id": "89",
       "documents": [
         {
-          "id": "doc_6167f6627ff8",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
+          "id": "doc_8733513b9148",
           "type": "other",
-          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2025&flowCode=X&cmdCode=8542&partnerCode=643"
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=398&period=2021&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+          "match": "manual"
         },
         {
-          "id": "doc_1cc5e0fe77d1",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
+          "id": "doc_494927876ce6",
           "type": "other",
-          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2024&flowCode=X&cmdCode=8542&partnerCode=643"
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=398&period=2022&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+          "match": "manual"
         },
         {
-          "id": "doc_b9eba610af6f",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
+          "id": "doc_6f2d7537e907",
           "type": "other",
-          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2023&flowCode=X&cmdCode=8542&partnerCode=643"
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=398&period=2023&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+          "match": "manual"
         },
         {
-          "id": "doc_1fd6b9a944d0",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
+          "id": "doc_8c53ccbe5353",
           "type": "other",
-          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2022&flowCode=X&cmdCode=8542&partnerCode=643"
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=398&period=2024&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+          "match": "manual"
         },
         {
-          "id": "doc_59be7acc5efb",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
+          "id": "doc_ef04468e8207",
           "type": "other",
-          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2021&flowCode=X&cmdCode=8542&partnerCode=643"
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=398&period=2025&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+          "match": "manual"
         },
         {
-          "id": "doc_3361e071206d",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
+          "id": "doc_678f0e31a462",
           "type": "other",
-          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2025&flowCode=X&cmdCode=8542&partnerCode=643"
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=417&period=2021&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+          "match": "manual"
         },
         {
-          "id": "doc_97acfcf86975",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
+          "id": "doc_65988763ed00",
           "type": "other",
-          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2024&flowCode=X&cmdCode=8542&partnerCode=643"
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=417&period=2022&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+          "match": "manual"
         },
         {
-          "id": "doc_3e55da5ac1a9",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
+          "id": "doc_ddbe2c8cb3bb",
           "type": "other",
-          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2023&flowCode=X&cmdCode=8542&partnerCode=643"
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=417&period=2023&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+          "match": "manual"
         },
         {
-          "id": "doc_9ac54fb3c222",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
+          "id": "doc_7d735772798b",
           "type": "other",
-          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2022&flowCode=X&cmdCode=8542&partnerCode=643"
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=417&period=2024&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+          "match": "manual"
         },
         {
-          "id": "doc_e4a1a7ab94ef",
-          "match": "manual",
-          "retrievedAt": "2026-10-27",
+          "id": "doc_8006b3f06d91",
           "type": "other",
-          "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2021&flowCode=X&cmdCode=8542&partnerCode=643"
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=417&period=2025&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a706ad571fa6",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=51&period=2021&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+          "match": "manual"
+        },
+        {
+          "id": "doc_79f4d2bb5870",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=51&period=2022&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+          "match": "manual"
+        },
+        {
+          "id": "doc_59d7e7c09456",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=51&period=2023&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+          "match": "manual"
+        },
+        {
+          "id": "doc_a6820641bc00",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=51&period=2024&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+          "match": "manual"
+        },
+        {
+          "id": "doc_033cef3cb7d8",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=51&period=2025&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+          "match": "manual"
         }
       ]
     },
@@ -1904,24 +3395,59 @@
       "id": "91",
       "documents": [
         {
-          "id": "doc_9ce6de18c455",
-          "type": "ngo_publication",
+          "id": "doc_f21ed6e3b342",
+          "type": "other",
           "retrievedAt": "2026-10-25",
-          "url": "https://static.rusi.org/RUSI-Silicon-Lifeline-final-updated-web_1.pdf",
-          "match": "manual"
+          "url": "https://storymaps.arcgis.com/stories/00594bef40bc4148b16dc7267172d033",
+          "match": "exact"
         },
         {
-          "id": "doc_84f9d881513f",
-          "type": "ngo_publication",
+          "id": "doc_06a70a01a4a4",
+          "type": "other",
           "retrievedAt": "2026-10-25",
-          "url": "https://static.rusi.org/RUSI-Silicon-Lifeline-final-updated-web_1.pdf",
-          "match": "manual"
+          "url": "https://storymaps.arcgis.com/stories/00594bef40bc4148b16dc7267172d033",
+          "match": "exact"
+        },
+        {
+          "id": "doc_8b28057dbb66",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://storymaps.arcgis.com/stories/d3be20c31acd4112b0aecece5b2a283c",
+          "match": "exact"
+        },
+        {
+          "id": "doc_8692802290d7",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://storymaps.arcgis.com/stories/d3be20c31acd4112b0aecece5b2a283c",
+          "match": "exact"
+        },
+        {
+          "id": "doc_72e7a0d506c3",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://storymaps.arcgis.com/stories/d3be20c31acd4112b0aecece5b2a283c",
+          "match": "exact"
+        },
+        {
+          "id": "doc_660922c2fed0",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://storymaps.arcgis.com/stories/d3be20c31acd4112b0aecece5b2a283c",
+          "match": "exact"
         }
       ]
     },
     {
       "id": "92",
       "documents": [
+        {
+          "id": "doc_59ac66bff75f",
+          "type": "press_release",
+          "retrievedAt": "2026-11-03",
+          "url": "https://home.treasury.gov/news/press-releases/jy2318",
+          "match": "exact"
+        },
         {
           "id": "doc_1fb56787cfc2",
           "type": "press_release",
@@ -1935,6 +3461,13 @@
           "retrievedAt": "2026-10-25",
           "url": "https://home.treasury.gov/news/press-releases/jy2318",
           "match": "exact"
+        },
+        {
+          "id": "doc_2682ecf3442d",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-10",
+          "url": "http://publications.europa.eu/resource/cellar/0492ea31-a0ce-11f1-b25c-01aa75ed71a1.0004.02/DOC_1",
+          "match": "manual"
         }
       ]
     },
@@ -1975,11 +3508,67 @@
       "id": "94",
       "documents": [
         {
+          "id": "doc_c5184d052910",
+          "type": "other",
+          "retrievedAt": "2026-10-18",
+          "url": "https://kse-ua-prod-media.fra1.digitaloceanspaces.com/wp-content/uploads/2024/01/Challenges-of-Export-Controls-Enforcement.pdf",
+          "match": "exact"
+        },
+        {
           "id": "doc_089cf534d24b",
-          "match": "manual",
-          "retrievedAt": "2026-10-25",
           "type": "ngo_publication",
-          "url": "https://kse.ua/en/news/challenges-of-export-controls-enforcement-how-russia-continues-to-import-components-for-its-military-production/"
+          "retrievedAt": "2026-10-25",
+          "url": "https://kse.ua/en/news/challenges-of-export-controls-enforcement-how-russia-continues-to-import-components-for-its-military-production/",
+          "match": "manual"
+        },
+        {
+          "id": "doc_5a2fc90929fe",
+          "type": "official_publication",
+          "retrievedAt": "2026-11-03",
+          "url": "https://war-sanctions.gur.gov.ua/en/components",
+          "match": "manual"
+        },
+        {
+          "id": "doc_7638674b06f0",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-30",
+          "url": "https://war-sanctions.gur.gov.ua/en/components",
+          "match": "manual"
+        },
+        {
+          "id": "doc_9411b7308df1",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://war-sanctions.gur.gov.ua/en/components",
+          "match": "manual"
+        },
+        {
+          "id": "doc_49104347778f",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://war-sanctions.gur.gov.ua/en/components",
+          "match": "manual"
+        },
+        {
+          "id": "doc_692a460c8fe1",
+          "type": "official_publication",
+          "retrievedAt": "2026-11-03",
+          "url": "https://war-sanctions.gur.gov.ua/en/components/weapon",
+          "match": "manual"
+        },
+        {
+          "id": "doc_376cd925a76f",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-30",
+          "url": "https://war-sanctions.gur.gov.ua/en/components/weapon",
+          "match": "manual"
+        },
+        {
+          "id": "doc_9f267d763282",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://war-sanctions.gur.gov.ua/en/components/weapon",
+          "match": "manual"
         }
       ]
     },
@@ -2283,18 +3872,25 @@
       "id": "108",
       "documents": [
         {
-          "id": "doc_4de2924f0caf",
-          "match": "manual",
+          "id": "doc_af7254af3b12",
+          "type": "news_article",
           "retrievedAt": "2026-10-31",
-          "type": "other",
-          "url": "https://pca-cpa.org/en/news/final-awards-issued-in-3-arbitrations-between-former-shareholders-of-yukos-and-the-russian-federation/"
+          "url": "https://www.reuters.com/world/russia-says-it-has-opened-new-criminal-case-against-exiled-kremlin-critic-2025-10-14/",
+          "match": "exact"
         },
         {
           "id": "doc_e154eb99f86f",
-          "match": "manual",
-          "retrievedAt": "2026-10-31",
           "type": "other",
-          "url": "https://pca-cpa.org/en/cases/61/"
+          "retrievedAt": "2026-10-31",
+          "url": "https://pca-cpa.org/en/cases/61/",
+          "match": "manual"
+        },
+        {
+          "id": "doc_4de2924f0caf",
+          "type": "other",
+          "retrievedAt": "2026-10-31",
+          "url": "https://pca-cpa.org/en/news/final-awards-issued-in-3-arbitrations-between-former-shareholders-of-yukos-and-the-russian-federation/",
+          "match": "manual"
         }
       ]
     },
@@ -2320,6 +3916,13 @@
     {
       "id": "110",
       "documents": [
+        {
+          "id": "doc_ad18a8ac25a0",
+          "type": "news_article",
+          "retrievedAt": "2026-10-31",
+          "url": "https://www.reuters.com/world/europe/russias-prigozhin-admits-link-wagner-mercenaries-first-time-2022-09-26/",
+          "match": "exact"
+        },
         {
           "id": "doc_ef190e64569d",
           "type": "press_release",
@@ -2489,6 +4092,27 @@
     {
       "id": "120",
       "documents": [
+        {
+          "id": "doc_7b486ae4df1b",
+          "type": "official_publication",
+          "retrievedAt": "2026-11-26",
+          "url": "http://en.kremlin.ru/events/president/news/57542",
+          "match": "exact"
+        },
+        {
+          "id": "doc_c64e88baad85",
+          "type": "official_publication",
+          "retrievedAt": "2026-11-26",
+          "url": "http://en.kremlin.ru/events/president/news/57542",
+          "match": "exact"
+        },
+        {
+          "id": "doc_cafa85743879",
+          "type": "official_publication",
+          "retrievedAt": "2026-11-26",
+          "url": "http://en.special.kremlin.ru/acts/news/72465",
+          "match": "exact"
+        },
         {
           "id": "doc_98da1da8dea2",
           "type": "legal_act",

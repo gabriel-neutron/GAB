@@ -88,7 +88,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: '**The method.** The report searches a database of nearly 5,200 entities, where every fact points to an archived document. It looks for the nodes (companies, ports, fleets, banks, payment channels) that are exposed to sanctions, active in 2024-2026 and tied to a country that does not apply them.',
+        text: '**The method.** The report searches a database of more than 5,300 entities, where every fact points to an archived document. It looks for the nodes (companies, ports, fleets, banks, payment channels) that are exposed to sanctions, active in 2024-2026 and tied to a country that does not apply them.',
       },
       {
         kind: 'p',
@@ -97,7 +97,7 @@ export const parts: ReportPart[] = [
       { kind: 'p', text: "**The report's own measures.**" },
       {
         kind: 'li',
-        text: '**Designations:** When the EU and the United States designate the same tanker, the United States does so first in nearly nine cases out of ten, and the median gap from the first to the second regime is 87 days.',
+        text: '**Designations:** When the EU and the United States designate the same tanker, the United States does so first in more than eight cases out of ten, and the median gap from the first to the second regime is 87 days.',
       },
       {
         kind: 'li',
@@ -109,7 +109,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Ownership chains:** The 50% rule follows shares: the chains of the large state companies end at the state, but in the private fleet and in oil trading they often end at a company with no documented owner, and, according to the sanctions lists and, for part of them, to GUR, a party to the war, about fifteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner.',
+        text: '**Ownership chains:** The 50% rule follows shares: the chains of the large state companies end at the state, but in the private fleet and in oil trading they often end at a company with no documented owner, and, according to the sanctions lists and, for part of them, to GUR, a party to the war, sixteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner.',
       },
       {
         kind: 'li',
@@ -125,7 +125,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Budget:** The share of oil and gas in federal revenue falls from one half in 2014 to less than one fifth in 2026, partly because that revenue is shrinking.[^3]',
+        text: '**Budget:** The share of oil and gas in federal revenue falls from one half in 2014 to less than one fifth in January–September 2026, partly because that revenue is shrinking.[^3]',
       },
       {
         kind: 'li',
@@ -133,7 +133,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Components:** Of the priority goods for weapons that its partners declared as sold to Russia in 2025, China supplied 77% and Hong Kong 11%,[^5] and two thirds of the dated parts found in Russian weapons were made after the invasion.',
+        text: '**Components:** Of the priority goods for weapons that its partners declared as sold to Russia in 2025, China supplied 77% and Hong Kong 11%,[^5] and parts made after the invasion turned up in Russian weapons in 2023.',
       },
       {
         kind: 'p',
@@ -288,7 +288,7 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'The data and its control' },
       {
         kind: 'p',
-        text: 'The data come from a database of nearly 5,200 entities (companies, ships, sites, ports, banks, people and legal acts) and the relations between them, such as a designation, an ownership, the management of a ship, a port call, an oil flow or a payment. These facts are taken from the official sanctions lists, company registers and published investigations, and each one points to the archived document that establishes it. The reliability of each official source follows the ADMIRALTY scale, which rates the issuer with a letter, from A for an official issuer (sanctions list, company register, official journal) to F when the issuer cannot be judged.',
+        text: 'The data come from a database of more than 5,300 entities (such as companies, ships, sites, ports, banks, people and legal acts) and the relations between them, such as a designation, an ownership, the management of a ship, a port call, an oil flow or a payment. These facts are taken from the official sanctions lists, company registers and published investigations, and each one points to the archived document that establishes it. The reliability of each official source follows the ADMIRALTY scale, which rates the issuer with a letter, from A for an official issuer (sanctions list, company register, official journal) to F when the issuer cannot be judged.',
       },
       {
         kind: 'p',
@@ -315,7 +315,7 @@ export const parts: ReportPart[] = [
     blocks: [
       {
         kind: 'p',
-        text: 'Oil and gas carry the Russian economy. They are the most discussed topic and often the worst understood. In 2021, their rent (what they earn beyond their cost of production) was worth about a sixth of GDP;[^12] fuels made up more than 40% of goods exports,[^13] and oil and gas brought in more than a third of federal budget revenue.[^14] If sanctions were to dry up the money of the war, this is where they should bite first.',
+        text: 'Oil and gas carry the Russian economy. They are the most discussed topic and often the worst understood. In 2021, their rent (what they earn beyond their cost of production) was worth 15.5% of GDP;[^12] fuels made up more than 40% of goods exports,[^13] and oil and gas brought in more than a third of federal budget revenue.[^14] If sanctions were to dry up the money of the war, this is where they should bite first.',
       },
       { kind: 'h3', text: 'The buyers' },
       {
@@ -353,7 +353,7 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'The price and the cap' },
       {
         kind: 'p',
-        text: 'To measure what Russia loses on each barrel, the report compares its oil with Brent, the North Sea oil that serves as the reference price. Urals, the main Russian crude exported, is heavier and higher in sulphur, so a little cheaper. In 2019, before the war, this price gap, called the discount, averaged less than $1 a barrel from January to September.[^22]',
+        text: 'To measure what Russia loses on each barrel, the report compares its oil with Brent, the North Sea oil that serves as the reference price. Urals, the main Russian crude exported, is heavier and higher in sulphur, so a little cheaper. In 2019, before the war, this price gap, called the discount, averaged $0.73 a barrel for Urals loaded in the Baltic, from January to early October.[^22]',
       },
       {
         kind: 'p',
@@ -373,7 +373,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'As long as Urals stays above the cap, it travels mostly on ships and with insurers outside the coalition, which the cap does not bind (section 2.5).[^26] Its price falls all the same, well beyond what the quality gap explains: sanctions push it down.[^27] The gap widened again after October 2025, when OFAC designated [[N-P026|Rosneft]] and [[N-P030|Lukoil]], two large Russian oil groups,[^28] and several Indian refiners stopped buying.[^29] From August 2023 to October 2025, Urals was worth $10 to $16 less than Brent each month; since November 2025, it has been worth $19 to $27 less.[^30] The report sees a probable effect of this designation, without being able to measure it, because the series shows only a coincidence of dates.',
+        text: 'As long as Urals stays above the cap, it travels mostly on ships and with insurers outside the coalition, which the cap does not bind (section 2.5).[^26] Its price falls all the same, well beyond what the quality gap explains: sanctions push it down.[^27] The gap widened again after October 2025, when OFAC designated [[N-P026|Rosneft]] and [[N-P030|Lukoil]], two large Russian oil groups,[^28] and several Indian refiners stopped buying.[^29] From August 2023 to October 2025, in each month of the series, Urals was worth $10 to $16 less than Brent; since November 2025, it has been worth $19 to $27 less.[^30] The report sees a probable effect of this designation, without being able to measure it, because the series shows only a coincidence of dates.',
       },
       {
         kind: 'p',
@@ -412,7 +412,7 @@ export const parts: ReportPart[] = [
     notes: [
       {
         id: '12',
-        text: "Authors' calculations based on World Bank. (2026). *Oil rents (% of GDP) – Russian Federation (NY.GDP.PETR.RT.ZS)*. https://api.worldbank.org ; World Bank. (2026). *Natural gas rents (% of GDP) – Russian Federation (NY.GDP.NGAS.RT.ZS)*. https://api.worldbank.org.",
+        text: "Authors' calculations based on World Bank. (2026). *Oil rents (% of GDP) – Russian Federation (NY.GDP.PETR.RT.ZS)*. https://api.worldbank.org ; World Bank. (2026). *Natural gas rents (% of GDP) – Russian Federation (NY.GDP.NGAS.RT.ZS)*. https://api.worldbank.org. Oil rents (9.67%) plus natural gas rents (5.86%) in 2021.",
       },
       {
         id: '13',
@@ -426,7 +426,7 @@ export const parts: ReportPart[] = [
       { id: '16', text: 'CELEX 32026R0261, recitals 1 and 10 ; https://eur-lex.europa.eu.' },
       {
         id: '17',
-        text: "Bahí Esteba et al. (2026), op. cit., n. 1, fig. 2 ; Authors' calculations based on UN Comtrade (2026), op. cit., n. 5.",
+        text: "Bahí Esteba et al. (2026), op. cit., n. 1, fig. 2 ; Authors' calculations based on UN Comtrade (2026), op. cit., n. 5: crude oil (HS 2709) imported from Russia, as India reports it, 88.7 Mt in 2025 against 4.5 Mt in 2021, that is 19.5 times by weight and 19.6 times by CIF value.",
       },
       {
         id: '18',
@@ -442,7 +442,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '21',
-        text: 'Bahí Esteba et al. (2026), op. cit., n. 1, fig. 2 ; Eurostat. (2026). *International trade of EU and non-EU countries since 2002 by CN8 (DS-045409)*. https://ec.europa.eu ; UN Comtrade (2026), op. cit., n. 5 ; Centre for Research on Energy and Clean Air (CREA). (2026). *Russia Fossil Tracker*. https://api.russiafossiltracker.com.',
+        text: 'Bahí Esteba et al. (2026), op. cit., n. 1, fig. 2 ; Eurostat. (2026). *International trade of EU and non-EU countries since 2002 by HS2-4-6 (DS-059341)*. https://ec.europa.eu ; UN Comtrade (2026), op. cit., n. 5 ; Centre for Research on Energy and Clean Air (CREA). (2026). *Russia Fossil Tracker*. https://api.russiafossiltracker.com.',
       },
       {
         id: '22',
@@ -460,7 +460,7 @@ export const parts: ReportPart[] = [
       { id: '29', text: 'Dodonov et al. (2026), op. cit., n. 2, p. 2.' },
       {
         id: '30',
-        text: "Authors' calculations based on World Bank. (2026, October 2). *Commodity Price Data (The Pink Sheet)* [Data, monthly prices]. https://www.worldbank.org/en/research/commodity-markets ; Federal Tax Service of Russia. (2023–2026). [Data for the calculation of the mineral extraction tax, monthly releases]. https://www.nalog.gov.ru/rn77/news/activities_fts/ (one page per month, for example *Опубликованы данные для расчёта НДПИ и НДД, а также акциза на нефтяное сырье за июль 2026 года* [Data published for the calculation of the mineral extraction tax and the additional income tax, and of the excise on crude, for July 2026], https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/). Urals: monthly average price published by the Ministry of Economic Development; Brent: World Bank monthly average.",
+        text: "Authors' calculations based on World Bank. (2026, October 2). *Commodity Price Data (The Pink Sheet)* [Data, monthly prices]. https://www.worldbank.org/en/research/commodity-markets ; Federal Tax Service of Russia. (2023–2026). [Data for the calculation of the mineral extraction tax, monthly releases]. https://www.nalog.gov.ru/rn77/news/activities_fts/ (one page per month, for example *Опубликованы данные для расчёта НДПИ и НДД, а также акциза на нефтяное сырье за июль 2026 года* [Data published for the calculation of the mineral extraction tax and the additional income tax, and of the excise on crude, for July 2026], https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/). Urals: monthly average price published by the Ministry of Economic Development; Brent: World Bank monthly average. The series has no Urals value for September to November 2023.",
       },
       { id: '31', text: 'Kpler (2025), op. cit., n. 18.' },
       {
@@ -527,7 +527,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Most Russian crude exported by sea travels on these ships (figure 7). On their sterns fly mostly the flags of Panama, Barbados, Gabon or Sierra Leone. These flags of convenience also serve ordinary trade, so a flag alone does not signal circumvention. The companies that manage the tankers say more, because they are often based outside Russia. [[N-P025|Совкомфлот (Sovcomflot)]], the Russian state shipowner, thus transferred the management of tankers to Stream Ship Management, based in the United Arab Emirates. The United States designated that company for this reason.[^45]',
+        text: 'Most Russian crude exported by sea travels on these ships (figure 7). On their sterns fly mostly the flags of Panama, Barbados, Gabon or Sierra Leone. These flags of convenience also serve ordinary trade, so a flag alone does not signal circumvention. The companies that manage the tankers say more, because they are often based outside Russia. According to the US Treasury, [[N-P025|Совкомфлот (Sovcomflot)]], the Russian state shipowner, transferred the management of tankers to Stream Ship Management, based in the United Arab Emirates, to circumvent sanctions. In January 2025, the United States designated that company for its activity in the Russian energy sector.[^45]',
       },
       {
         kind: 'figure',
@@ -557,7 +557,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'The three sanctions regimes do not move at the same pace. When the EU and the United States designate the same ship, the United States does so first in nearly nine cases out of ten (figure 9).[^49]',
+        text: 'The three sanctions regimes do not move at the same pace. When the EU and the United States designate the same ship, the United States does so first for 168 of the 198 tankers that both designate, more than eight cases out of ten (figure 9).[^49]',
       },
       {
         kind: 'p',
@@ -608,7 +608,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '49',
-        text: "Authors' calculations based on OFAC (2026), op. cit., n. 46 ; CELEX 32014R0833 ; https://eur-lex.europa.eu.",
+        text: "Authors' calculations based on OFAC (2026), op. cit., n. 46 ; CELEX 32014R0833 ; https://eur-lex.europa.eu. Rule: the first dated designation of each regime for each tanker of the fleet data. Of the 198 tankers that both the EU and OFAC designate, OFAC is first for 168 (84.8%) and the EU for 30, with no designation on the same day.",
       },
       { id: '50', text: 'See n. 46.' },
       {
@@ -617,7 +617,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '52',
-        text: "Authors' calculations based on OFAC (2026), op. cit., n. 46 ; FCDO (2026), op. cit., n. 46 ; CELEX 32014R0833, retrieved October 30, 2026 ; https://eur-lex.europa.eu.",
+        text: "Authors' calculations based on OFAC (2026), op. cit., n. 46 ; FCDO (2026), op. cit., n. 46 ; CELEX 02014R0833-20260724 ; https://eur-lex.europa.eu.",
       },
     ],
   },
@@ -634,7 +634,7 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'The rouble and the yuan' },
       {
         kind: 'p',
-        text: 'From 2022, the large Russian banks, including [[N-M002|VTB]] and [[N-M008|Sberbank]], were designated by the United States[^53] and by the United Kingdom,[^54] and several were removed from SWIFT, on top of the freezing of their assets.[^55] Russian firms then moved from the currencies of "unfriendly" countries, such as the dollar and the euro, to the rouble and to other currencies, such as the yuan (figure 10).[^56]',
+        text: 'From 2022, the large Russian banks, including [[N-M002|VTB]] and [[N-M008|Sberbank]], had their assets frozen by the United States[^53] and by the United Kingdom,[^54] and the EU removed several of them, VTB and Sberbank among them, from SWIFT.[^55] Russian firms then moved from the currencies of "unfriendly" countries, such as the dollar and the euro, to the rouble and to other currencies, such as the yuan (figure 10).[^56]',
       },
       {
         kind: 'figure',
@@ -649,12 +649,12 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: "With China, the shift goes further. At the end of 2023, the yuan settled as many exports as the rouble,[^58] and, according to the Russian government, the rouble and the yuan settle almost all payments between the two countries.[^59] This choice protects the trade from sanctions, but it ties Russia to a partner that accounts for about 40% of its trade, while Russia accounts for only a few per cent of Chinese trade.[^60] On the report's hypothesis, China can therefore set its terms.",
+        text: "With China, the shift goes further. At the end of 2023, the yuan settled as large a share of all Russian export revenue as the rouble (35.8% and 35.7% in December),[^58] and, according to the Russian government, the rouble and the yuan settle almost all payments between the two countries.[^59] This choice protects the trade from sanctions, but it ties Russia to a partner that accounts for about 40% of its trade, while Russia accounts for only a few per cent of Chinese trade.[^60] On the report's hypothesis, China can therefore set its terms.",
       },
       { kind: 'h3', text: 'Payment relays' },
       {
         kind: 'p',
-        text: 'A payment in yuan is still exposed to US sanctions. A bank that settles in yuan still needs the dollar for the rest of its business. US Executive Order 14114, of December 2023, exposes to sanctions any foreign bank that helps the Russian military-industrial base. In June 2024, this risk extended to any significant transaction with VTB or Sberbank.[^61] Banks in third countries therefore withdrew. The Chinese bank that served as the main channel for Russian importers cut its ties with them in February 2024,[^62] Turkish and Emirati banks returned transfers or closed accounts,[^63] and in the summer of 2024 the Chinese state banks blocked Russian payments "en masse".[^64] Payments then moved through other relays, which the sanctions then followed:',
+        text: 'A payment in yuan is still exposed to US sanctions. A bank that settles in yuan still needs the dollar for the rest of its business. US Executive Order 14114, of December 2023, exposes to sanctions any foreign bank that helps the Russian military-industrial base. In June 2024, this risk extended to any significant transaction with VTB or Sberbank.[^61] Banks in third countries therefore withdrew. According to Vedomosti, the Chinese bank that served as the main channel for Russian importers cut its ties with them in February 2024,[^62] Turkish and Emirati banks returned transfers or closed accounts,[^63] and in August 2024, according to a US congressional commission and to a source close to the Russian government quoted by Reuters, Chinese banks cancelled or paused Russian payments en masse.[^64] Payments then moved through other relays, which the sanctions then followed:',
       },
       {
         kind: 'li',
@@ -662,7 +662,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Small Chinese border banks (Heihe, Suifenhe):** They took over from the state banks, and the EU targeted two of them in 2025 and removed them in 2026.[^69]',
+        text: '**Small Chinese border banks (Heihe, Suifenhe):** According to Reuters, a handful of small banks near the border took over from the large banks. The EU listed two banks of border cities, Heihe Rural Commercial Bank and Suifenhe Rural Commercial Bank, in 2025 and removed them in 2026.[^69]',
       },
       {
         kind: 'li',
@@ -678,7 +678,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'The best-known payment agent, [[N-M037|A7]], hands each payment to a sub-agent in a third country, such as Hong Kong or Kyrgyzstan, and settles the counterparty in [[N-M040|A7A5]], a digital token worth one rouble.[^75] After the US, UK and EU designations in the second half of 2025, then new Russian rules on crypto-assets and the loss of its points of access, the daily volume of this token fell by 96% between July 2025 and June 2026.[^76]',
+        text: 'According to FinCEN, [[N-M037|A7]], the best-known payment agent, uses a sub-agent in a third country, such as Hong Kong or Kyrgyzstan. The sub-agent pays the foreign counterparty in fiat currency from a bank account outside Russia, and A7 records the value inside its network in bills of exchange. Where bank channels are restricted, A7 can also move value in [[N-M040|A7A5]], a digital token advertised as backed by rouble deposits at Promsvyazbank.[^75] After the US, UK and EU designations in the second half of 2025, then new Russian rules on crypto-assets and the loss of its points of access, the daily volume of this token fell by 96% between July 2025 and June 2026.[^76]',
       },
       {
         kind: 'p',
@@ -695,7 +695,7 @@ export const parts: ReportPart[] = [
         text: 'U.S. Department of the Treasury. (2022). Press release jy0608. https://home.treasury.gov, p. 1; U.S. Department of the Treasury. (2022). Press release jy0705. https://home.treasury.gov, p. 1.',
       },
       { id: '54', text: 'FCDO (2026), op. cit., n. 46.' },
-      { id: '55', text: 'CELEX 32022R0345, Art. 5h; https://eur-lex.europa.eu.' },
+      { id: '55', text: 'CELEX 32022R0345, Art. 5h; CELEX 02014R0833-20260724, Annex XIV; https://eur-lex.europa.eu.' },
       {
         id: '56',
         text: "Prokopenko, A., & Kolyandr, A. (2024, November 2). *The rise of Russia's foreign trade middlemen*. Inside the Russian Economy. The Bell. https://en.thebell.io/the-rise-of-russias-foreign-trade-middlemen/.",
@@ -724,7 +724,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '64',
-        text: 'Reuters. (2024, August 30). *Russia payment hurdles with China partners intensified in August, sources say*. The Standard (Hong Kong). https://www.thestandard.com.hk.',
+        text: 'U.S.-China Economic and Security Review Commission. (2025, November 14). *China\'s Facilitation of Sanctions and Export Control Evasion*. https://www.uscc.gov/research/chinas-facilitation-sanctions-and-export-control-evasion ; Reuters. (2024, August 30). *Russia payment hurdles with China partners intensified in August, sources say*. The Standard (Hong Kong). https://www.thestandard.com.hk.',
       },
       { id: '65', text: 'Prokopenko & Kolyandr (2024), op. cit., n. 56.' },
       { id: '66', text: 'U.S. Department of the Treasury (2024), op. cit., n. 61.' },
@@ -735,7 +735,7 @@ export const parts: ReportPart[] = [
       { id: '68', text: 'CELEX 32026R1848, Annex VIII; https://eur-lex.europa.eu.' },
       {
         id: '69',
-        text: 'Reuters. (2024, June). *Russia, China find payments workaround as US sanctions net widens, sources say*. Yahoo News. https://www.yahoo.com/news/russia-china-payments-workaround-us-150733803.html; CELEX 02014R0833-20250720, Annex XLV, Part A; CELEX 32026R0506, Annex XV; https://eur-lex.europa.eu. Reuters does not name the banks; the names come from the EU list.',
+        text: 'Reuters. (2024, June). *Russia, China find payments workaround as US sanctions net widens, sources say*. Yahoo News. https://www.yahoo.com/news/russia-china-payments-workaround-us-150733803.html; CELEX 02014R0833-20250720, Annex XLV, Part A; CELEX 32026R0506, Annex XV; https://eur-lex.europa.eu ; South China Morning Post. (2025, July 18). *European Union sanctions 2 Chinese banks over aid to Russia*. https://www.scmp.com/news/china/diplomacy/article/3318793/european-union-sanctions-2-chinese-banks-over-aid-russia. Reuters does not name the banks; the names come from the EU list.',
       },
       {
         id: '70',
@@ -747,7 +747,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '72',
-        text: 'CELEX 32025R2033, Annex XIV, p. 116; CELEX 32026R0506, Annex XV, Part B, p. 70; https://eur-lex.europa.eu.',
+        text: 'CELEX 32025R2033, Annex XIV, p. 116; CELEX 32026R0506, Annex XV, Part B, p. 70; https://eur-lex.europa.eu ; The Times of Central Asia. (2026). *EU Targets Kyrgyz Financial Sector Over Russia Sanctions Evasion*. https://timesca.com/eu-targets-kyrgyz-financial-sector-over-russia-sanctions-evasion/.',
       },
       { id: '73', text: 'Prokopenko & Kolyandr (2024), op. cit., n. 56.' },
       {
@@ -815,7 +815,7 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'The routes of the components' },
       {
         kind: 'p',
-        text: "Russia's neighbours can also serve as a route. Armenia, Kazakhstan and Kyrgyzstan, which form a customs union with it,[^88] have sold it far more machinery and electrical equipment since 2021.[^89] To learn which goods end up in weapons, investigators take apart Russian weapons that have fallen in Ukraine and record the brand and date of each component.[^90] Two thirds of the dated parts were made after the invasion: purchases continue despite the controls.[^91] They go through intermediaries, such as [[N-F097|Pixel Devices]] in Hong Kong.[^92] Sanctions lists name many intermediaries and few makers of the parts.[^93]",
+        text: "Russia's neighbours can also serve as a route. Armenia, Kazakhstan and Kyrgyzstan form a customs union with it.[^88] Kazakhstan and Kyrgyzstan have sold it far more CHP goods since 2021; Armenia's sales peaked in 2022 and fell below their 2021 level in 2025.[^89] To learn which goods end up in weapons, investigators take apart Russian weapons that have fallen in Ukraine and record the brand and date of each component.[^90] Most parts with a date of manufacture were made between 2014 and 2021, but investigators also find parts made after the invasion, such as twelve components of two Geran-2 drones: purchases continue despite the controls.[^91] They go through intermediaries, such as [[N-F097|Pixel Devices]] in Hong Kong, which, according to OFAC, shipped at least $210 million of electronics to Russia from April 2022, and which the EU lists among the entities that support Russia's defence and security sector.[^92] Sanctions lists name many intermediaries and few makers of the parts.[^93]",
       },
       {
         kind: 'p',
@@ -850,18 +850,18 @@ export const parts: ReportPart[] = [
       },
       { id: '87', text: 'Risinger & Hilgenstock (2026), op. cit., n. 83, pp. 5–6.' },
       { id: '88', text: 'Risinger et al. (2026), op. cit., n. 81, p. 7.' },
-      { id: '89', text: "Authors' calculations based on UN Comtrade (2026), op. cit., n. 5." },
+      { id: '89', text: "Authors' calculations based on UN Comtrade (2026), op. cit., n. 5: CHP goods exported to Russia, as each country reports them (figure 11, million USD), from 2021 to 2025: Kazakhstan 62.5 to 186.8, Kyrgyzstan 1.8 to 15.8, Armenia 5.3 to 3.3, with a peak of 94.6 in 2022." },
       {
         id: '90',
         text: 'Byrne, J. et al. (2022, August). *Silicon Lifeline*. Royal United Services Institute. https://static.rusi.org/RUSI-Silicon-Lifeline-final-updated-web_1.pdf, p. 24.',
       },
       {
         id: '91',
-        text: "Authors' calculations based on Conflict Armament Research, & Hayes, D. (2025). *Tracking the Components of Missiles and UAVs Used by Russia in Ukraine*. IISS. https://www.iiss.org; Byrne et al. (2022), op. cit., n. 90; GUR. (2026). *War & Sanctions*. https://war-sanctions.gur.gov.ua.",
+        text: "Conflict Armament Research. (2023, April). *Identifying post-invasion components in Russian weapons*. https://storymaps.arcgis.com/stories/00594bef40bc4148b16dc7267172d033 ; Conflict Armament Research. (2023, August). *Documenting the domestic Russian variant of the Shahed UAV*. https://storymaps.arcgis.com/stories/d3be20c31acd4112b0aecece5b2a283c.",
       },
       {
         id: '92',
-        text: "U.S. Department of the Treasury. (2024, May 1). *U.S. Continues to Degrade Russia's Military-Industrial Base and Target Third-Country Support with Nearly 300 New Sanctions* (press release jy2318). https://home.treasury.gov/news/press-releases/jy2318, Annex 1.",
+        text: "U.S. Department of the Treasury. (2024, May 1). *U.S. Continues to Degrade Russia's Military-Industrial Base and Target Third-Country Support with Nearly 300 New Sanctions* (press release jy2318). https://home.treasury.gov/news/press-releases/jy2318, Annex 1 ; CELEX 02014R0833-20260724, Annex IV, entry 925 \"Pixel Devices Limited\" ; https://eur-lex.europa.eu.",
       },
       {
         id: '93',
@@ -869,7 +869,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '94',
-        text: "Authors' calculations based on GUR. (2026, October 28). *Components in the aggressor's weapon*. War & Sanctions. https://war-sanctions.gur.gov.ua; Bilousova, O., Hilgenstock, B. et al. (2024, January). *Challenges of Export Controls Enforcement*. KSE Institute. https://kse.ua, p. 16.",
+        text: "Authors' calculations based on GUR. (2026, October 28). *Components in the aggressor's weapon*. War & Sanctions. https://war-sanctions.gur.gov.ua; Bilousova, O., Hilgenstock, B. et al. (2024, January). *Challenges of Export Controls Enforcement*. KSE Institute. https://kse-ua-prod-media.fra1.digitaloceanspaces.com/wp-content/uploads/2024/01/Challenges-of-Export-Controls-Enforcement.pdf, p. 16. In the GUR catalogue, 4,206 of 6,252 components (67.3%) carry the brand of a maker headquartered in the United States.",
       },
     ],
   },
@@ -936,12 +936,12 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'The fleet' },
       {
         kind: 'p',
-        text: "The state fleet follows the same pattern, then slips away from it. [[N-P025|Sovcomflot]], the state shipowner, had its tankers managed by [[N-O015|SUN Ship Management]], which OFAC designated in 2023,[^102] and then by [[N-O016|SKF Arktika]], which manages [[N-P052|South Fleet]] and [[N-P053|Invest Fleet]].[^103] Later, the management of the group's tankers passed to [[N-O017|Stream Ship Management]] (section 2.5)[^104] and to [[N-O019|Citrine Marine]], which the EU designated for taking over that management.[^105] No source names the ultimate owner of these two companies: the chain starts at the state and stops at an unknown owner.",
+        text: "The state fleet follows the same pattern, then slips away from it. [[N-P025|Sovcomflot]], the state shipowner, had its tankers managed by [[N-O015|SUN Ship Management]], which OFAC designated in 2023,[^102] and, according to the EU, the group company [[N-O016|SKF Arktika]] manages [[N-P052|South Fleet]] and [[N-P053|Invest Fleet]], which operate tankers with prior long-standing ties to Sovcomflot.[^103] Later, the management of the group's tankers passed to [[N-O017|Stream Ship Management]] (section 2.5)[^104] and to [[N-O019|Citrine Marine]], which, according to its EU listing, manages tankers previously managed by the Sovcomflot group.[^105] No source names the ultimate owner of these two companies: the chain starts at the state and stops at an unknown owner.",
       },
       { kind: 'h3', text: "The president's associates" },
       {
         kind: 'p',
-        text: 'After 2000, keeping a large company meant staying out of politics. According to NPR, in 2000 Vladimir Putin received 21 of the richest men in Russia at the Kremlin and offered them a deal: they could keep their assets if they bent to his authority and stayed out of his way.[^106] Mikhail Khodorkovsky, who had publicly accused officials of corruption, was arrested in October 2003. In December 2004, the main production subsidiary of his oil group, Yukos, was sold at auction to an unknown company, which Rosneft bought four days later.[^107] Pardoned in 2013, Khodorkovsky lives in London today, and in July 2014 three arbitration tribunals ruled that Russia had taken measures with an effect equivalent to expropriation.[^108]',
+        text: 'After 2000, keeping a large company meant staying out of politics. According to NPR, in 2000 Vladimir Putin received 21 of the richest men in Russia at the Kremlin and offered them a deal: they could keep their assets if they bent to his authority and stayed out of his way.[^106] Mikhail Khodorkovsky, who had publicly accused officials of corruption, was arrested in October 2003. In December 2004, the main production subsidiary of his oil group, Yukos, was sold at auction to a little-known company, Baikal Finance Group, which Rosneft bought four days later.[^107] Pardoned in 2013, Khodorkovsky lives in London today, and in July 2014 three arbitration tribunals ruled that Russia had taken measures with an effect equivalent to expropriation.[^108]',
       },
       {
         kind: 'p',
@@ -957,7 +957,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'State banks follow the same rule. The head of VEB.RF is appointed by the head of state and takes his instructions directly from him. Since 2023, VTB also manages the United Shipbuilding Corporation in trust, by presidential decree.[^120] According to the US Treasury, a deputy president of VTB is the son of the director of the FSB, and Promsvyazbank, nationalised in 2018, is run by the son of a former director of foreign intelligence.[^121] The chain of shares stops at the state, but the chain of management leads to the same circle, and the 50% rule follows shares, not these appointments.',
+        text: 'State banks follow the same rule. The head of VEB.RF is appointed by the head of state and takes his instructions directly from him. Since a presidential decree of 2023, VTB also manages in trust 10% of the state\'s shares in the United Shipbuilding Corporation.[^120] According to the US Treasury, a deputy president of VTB is the son of the director of the FSB, and Promsvyazbank, nationalised in 2018, is run by the son of a former director of foreign intelligence.[^121] The chain of shares stops at the state, but the chain of management leads to the same circle, and the 50% rule follows shares, not these appointments.',
       },
       { kind: 'h3', text: 'Unknown owners' },
       {
@@ -970,7 +970,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Vessels:** According to the sanctions lists and, for part of them, to GUR, a party to the war, about fifteen shipowners or managers each own or operate at least six designated vessels, with no documented ultimate owner.[^124]',
+        text: '**Vessels:** According to the sanctions lists and, for part of them, to GUR, a party to the war, sixteen shipowners or managers each own or operate at least six designated vessels, with no documented ultimate owner.[^124]',
       },
       {
         kind: 'li',
@@ -1030,7 +1030,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '108',
-        text: 'Permanent Court of Arbitration. (2014, July 18). *Hulley Enterprises Limited (Cyprus) v. The Russian Federation*, PCA Case No. 2005-03/AA226, Final Award. https://pca-cpa.org/en/cases/60/ ; Permanent Court of Arbitration. (2014, July 18). *Yukos Universal Limited (Isle of Man) v. The Russian Federation*, PCA Case No. 2005-04/AA227, Final Award ; Permanent Court of Arbitration. (2014, July 18). *Veteran Petroleum Limited (Cyprus) v. The Russian Federation*, PCA Case No. 2005-05/AA228, Final Award.',
+        text: 'Reuters. (2025, October 14). *Russia accuses Khodorkovsky and other exiled Kremlin critics of conspiring to seize power*. https://www.reuters.com/world/russia-says-it-has-opened-new-criminal-case-against-exiled-kremlin-critic-2025-10-14/ ; Permanent Court of Arbitration. (2014, July 18). *Hulley Enterprises Limited (Cyprus) v. The Russian Federation*, PCA Case No. 2005-03/AA226, Final Award. https://pca-cpa.org/en/cases/60/ ; Permanent Court of Arbitration. (2014, July 18). *Yukos Universal Limited (Isle of Man) v. The Russian Federation*, PCA Case No. 2005-04/AA227, Final Award ; Permanent Court of Arbitration. (2014, July 18). *Veteran Petroleum Limited (Cyprus) v. The Russian Federation*, PCA Case No. 2005-05/AA228, Final Award.',
       },
       {
         id: '109',
@@ -1038,7 +1038,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '110',
-        text: 'U.S. Department of the Treasury. (2018). Press release sm0312. https://home.treasury.gov ; Reuters. (2022). *Russia’s Prigozhin admits link to Wagner mercenaries for first time*. https://www.reuters.com.',
+        text: 'U.S. Department of the Treasury. (2018). Press release sm0312. https://home.treasury.gov ; Reuters. (2022, September 26). *Russia’s Prigozhin admits link to Wagner mercenaries for first time*. https://www.reuters.com/world/europe/russias-prigozhin-admits-link-wagner-mercenaries-first-time-2022-09-26/.',
       },
       {
         id: '111',
@@ -1075,7 +1075,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '120',
-        text: 'CELEX 02014R0269-20260928, annex I, entries 225, 226 and 227 ; https://eur-lex.europa.eu ; President of Russia. (2018, May 24). Executive order on the chairman of VEB. http://en.kremlin.ru/events/president/news/57542 ; President of Russia. (2023, October 9). Executive order on the shares of the United Shipbuilding Corporation. http://en.special.kremlin.ru/acts/news/72465.',
+        text: 'CELEX 02014R0269-20260928, annex I, part Entities, entries 55 "VEB.RF" and 63 "JSC United Shipbuilding Corporation" ; https://eur-lex.europa.eu ; President of Russia. (2018, May 24). Executive order on the chairman of VEB. http://en.kremlin.ru/events/president/news/57542 ; President of Russia. (2023, October 9). Executive order on the shares of the United Shipbuilding Corporation. http://en.special.kremlin.ru/acts/news/72465.',
       },
       {
         id: '121',
@@ -1091,7 +1091,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '124',
-        text: "Authors' calculations based on OFAC (2026), op. cit., n. 46 ; FCDO (2026), op. cit., n. 46 ; CELEX 32014R0833 ; GUR (2026), op. cit., n. 51: the companies that own or operate at least six designated vessels, and whose owner no source names.",
+        text: "Authors' calculations based on OFAC (2026), op. cit., n. 46 ; FCDO (2026), op. cit., n. 46 ; CELEX 32014R0833 ; GUR (2026), op. cit., n. 51: the companies that own or operate at least six designated vessels, and whose owner no source names. Count on the data release data-2026-10-28: 20 companies have an owns or operates relation to at least six vessels with a designation; 4 of them have an owner or a parent company in the release, which leaves 16.",
       },
       {
         id: '125',
@@ -1194,7 +1194,7 @@ export const parts: ReportPart[] = [
     blocks: [
       {
         kind: 'li',
-        text: 'A sanctions authority of the EU or the United Kingdom can use each new OFAC tanker designation as an early signal for its own review, because OFAC lists a shared tanker first in nearly nine cases out of ten.',
+        text: 'A sanctions authority of the EU or the United Kingdom can use each new OFAC tanker designation as an early signal for its own review, because OFAC lists a shared tanker first in more than eight cases out of ten.',
       },
       {
         kind: 'li',
@@ -1228,7 +1228,7 @@ export const parts: ReportPart[] = [
       { kind: 'h3', text: 'A.1 The database' },
       {
         kind: 'p',
-        text: 'The report rests on a database of entities (companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 27 October 2026, the database holds 6,327 entities (around 5,400 of them in the public data release of 28 October); because the selection does not use the 1,165 military units, about 5,200 entities are tested.',
+        text: 'The report rests on a database of entities (such as companies, vessels, sites, ports, banks, persons, legal acts) and of the relations between them, such as a designation, a shareholding, the management of a vessel, a port call, an oil flow or a bank settlement. Each fact in the database points to an archived document (web page, official act, data file, register response), with the page and the excerpt that establish it. On 28 October 2026, the database holds 5,366 entities in its public data release (data-2026-10-28). The count of critical nodes runs on this release. A legal act or an event is no node, so the count tests 4,930 entities.',
       },
       {
         kind: 'p',
@@ -2176,7 +2176,7 @@ export const openingUi = {
       { words: '87 days', note: '' },
       { words: '318', note: '' },
       { words: '427 of 757', note: '' },
-      { words: 'about fifteen', note: '' },
+      { words: 'sixteen', note: '' },
       { words: '', note: '1' },
       { words: '', note: '2' },
       { words: '$19 to $27', note: '' },
@@ -2244,7 +2244,7 @@ export const payUi = {
         text: 'As long as Urals stays above the cap, it travels mostly on ships and with insurers outside the coalition, which the cap does not bind (section 2.5).[^26]',
       },
       {
-        text: 'The gap widened again after October 2025, when OFAC designated [[N-P026|Rosneft]] and [[N-P030|Lukoil]], two large Russian oil groups,[^28] and several Indian refiners stopped buying.[^29] From August 2023 to October 2025, Urals was worth $10 to $16 less than Brent each month; since November 2025, it has been worth $19 to $27 less.[^30]',
+        text: 'The gap widened again after October 2025, when OFAC designated [[N-P026|Rosneft]] and [[N-P030|Lukoil]], two large Russian oil groups,[^28] and several Indian refiners stopped buying.[^29] From August 2023 to October 2025, in each month of the series, Urals was worth $10 to $16 less than Brent; since November 2025, it has been worth $19 to $27 less.[^30]',
       },
     ],
     // The slider under the chart: a line that the reader moves. It is not a cap and not a model.
