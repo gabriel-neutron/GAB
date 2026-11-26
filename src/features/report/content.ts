@@ -604,7 +604,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '49',
-        text: "Authors' calculations based on OFAC (2026), op. cit., n. 46 ; CELEX 32014R0833 ; https://eur-lex.europa.eu. Rule: the first dated designation of each regime for each tanker of the fleet data. Of the 198 tankers that both the EU and OFAC designate, OFAC is first for 168 (84.8%) and the EU for 30, with no designation on the same day.",
+        text: "Authors' calculations based on OFAC (2026), op. cit., n. 46 ; CELEX 32014R0833 ; https://eur-lex.europa.eu. Rule: the first dated designation of each regime for each tanker of the fleet data. Of the 198 tankers that both the EU and OFAC designate, OFAC is first for 168 (84.8%) and the EU for 30, with no designation on the same day. For 394 of these 396 first designations, one stored act, notice or press release that the fleet data cite gives both the IMO number and the date. For the other 2, the press release gives the date and the vessel name, and the stored OFAC list gives the IMO number for that name (53 documents).",
       },
       { id: '50', text: 'See n. 46.' },
       {
@@ -1131,7 +1131,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: "**The fleet:** Changes of owner and manager come from the GUR, a party to the conflict. It gives the vessel's current owner or manager and the date it took up the role, but rarely the first change after designation.[^128] The loss of the AIS identity tied to the IMO number, which the Global Fishing Watch registry makes visible, remains a lead, because that registry is not archived.",
+        text: "**The fleet:** Changes of owner and manager come from the GUR, a party to the conflict. It gives the vessel's current owner or manager and the date it took up the role, but rarely the first change after designation.[^128] The loss of the AIS identity tied to the IMO number, which the Global Fishing Watch registry makes visible, remains a lead: the record has archived the vessel identities of that registry since 28 October 2026, but the report does not measure that loss.",
       },
       {
         kind: 'p',
