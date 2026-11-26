@@ -678,7 +678,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'According to FinCEN, the best-known payment agent, [[N-M037|A7]], has a sub-agent in a third country, such as Hong Kong or Kyrgyzstan, pay the foreign counterparty in fiat currency from a bank account outside Russia, and records the value inside its network in bills of exchange; where bank channels are restricted, it can also move value in [[N-M040|A7A5]], a digital token advertised as backed by rouble deposits at Promsvyazbank.[^75] After the US, UK and EU designations in the second half of 2025, then new Russian rules on crypto-assets and the loss of its points of access, the daily volume of this token fell by 96% between July 2025 and June 2026.[^76]',
+        text: 'According to FinCEN, [[N-M037|A7]], the best-known payment agent, uses a sub-agent in a third country, such as Hong Kong or Kyrgyzstan. The sub-agent pays the foreign counterparty in fiat currency from a bank account outside Russia, and A7 records the value inside its network in bills of exchange. Where bank channels are restricted, A7 can also move value in [[N-M040|A7A5]], a digital token advertised as backed by rouble deposits at Promsvyazbank.[^75] After the US, UK and EU designations in the second half of 2025, then new Russian rules on crypto-assets and the loss of its points of access, the daily volume of this token fell by 96% between July 2025 and June 2026.[^76]',
       },
       {
         kind: 'p',

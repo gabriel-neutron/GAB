@@ -373,7 +373,7 @@ A payment in yuan is still exposed to US sanctions. A bank that settles in yuan 
 
 - **SPFS:** The Russian equivalent of SWIFT is open to foreign banks, which OFAC threatens to designate if they join it.[^74]
 
-According to FinCEN, the best-known payment agent, A7, has a sub-agent in a third country, such as Hong Kong or Kyrgyzstan, pay the foreign counterparty in fiat currency from a bank account outside Russia, and records the value inside its network in bills of exchange; where bank channels are restricted, it can also move value in A7A5, a digital token advertised as backed by rouble deposits at Promsvyazbank.[^75] After the US, UK and EU designations in the second half of 2025, then new Russian rules on crypto-assets and the loss of its points of access, the daily volume of this token fell by 96% between July 2025 and June 2026.[^76]
+According to FinCEN, A7, the best-known payment agent, uses a sub-agent in a third country, such as Hong Kong or Kyrgyzstan. The sub-agent pays the foreign counterparty in fiat currency from a bank account outside Russia, and A7 records the value inside its network in bills of exchange. Where bank channels are restricted, A7 can also move value in A7A5, a digital token advertised as backed by rouble deposits at Promsvyazbank.[^75] After the US, UK and EU designations in the second half of 2025, then new Russian rules on crypto-assets and the loss of its points of access, the daily volume of this token fell by 96% between July 2025 and June 2026.[^76]
 
 [^67]: CELEX 32025R0395, Annex XI, p. 383; CELEX 32025R2033, p. 115; https://eur-lex.europa.eu.
 
