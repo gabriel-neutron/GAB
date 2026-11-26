@@ -47,7 +47,8 @@
     "mcp:serve": "node packages/mcp/src/main.ts --http 7420",
     "worker": "node --env-file=infra/.env packages/worker/src/main.ts",
     "speed:budget": "node tools/speed-budget.ts",
-    "critical:replay": "node tools/critical-nodes-replay.ts"
+    "critical:replay": "node tools/critical-nodes-replay.ts",
+    "node:audit": "node --env-file-if-exists=infra/.env tools/node-audit.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

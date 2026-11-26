@@ -177,6 +177,41 @@ const share = (text: string) => {
   return found === null ? 0 : Number(found[1]);
 };
 
+/** The members of each node: a vessel goes to its current manager, or failing that to its current
+ * owner, and each other entity is a node of its own. An act or an event is no member. */
+export const nodeMembers = ({
+  entities,
+  relations,
+}: Pick<ReleaseFiles, 'entities' | 'relations'>): Map<string, string[]> => {
+  const type = new Map(entities.map((one) => [one['id'] ?? '', one['type'] ?? '']));
+  const pick = (kind: string) => {
+    const found = new Map<string, string>();
+    for (const one of relations)
+      if (
+        one['type'] === kind &&
+        type.get(one['to_id'] ?? '') === 'vessel' &&
+        one['valid_to'] === ''
+      ) {
+        const vessel = one['to_id'] ?? '';
+        const holder = one['from_id'] ?? '';
+        if (!found.has(vessel) || holder < (found.get(vessel) ?? '')) found.set(vessel, holder);
+      }
+    return found;
+  };
+  const manager = pick('operates');
+  const owner = pick('owns');
+  const nodeOf = (id: string) => manager.get(id) ?? owner.get(id) ?? id;
+
+  const members = new Map<string, string[]>();
+  for (const { id = '', type: kind = '' } of entities) {
+    if (kind === 'legal_act' || kind === 'event') continue;
+    const node = nodeOf(id);
+    members.set(node, [...(members.get(node) ?? []), id]);
+  }
+
+  return members;
+};
+
 /** Applies the rule of the head comment to the files of one release. */
 export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResult[] => {
   const type = new Map(entities.map((one) => [one['id'] ?? '', one['type'] ?? '']));
@@ -214,31 +249,7 @@ export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResul
       `${relation['from_id'] ?? ''} ${relation['type'] ?? ''} ${relation['to_id'] ?? ''}`,
     );
 
-  // The node of each entity: a vessel goes to its manager, or failing that to its owner.
-  const pick = (kind: string) => {
-    const found = new Map<string, string>();
-    for (const one of relations)
-      if (
-        one['type'] === kind &&
-        type.get(one['to_id'] ?? '') === 'vessel' &&
-        one['valid_to'] === ''
-      ) {
-        const vessel = one['to_id'] ?? '';
-        const holder = one['from_id'] ?? '';
-        if (!found.has(vessel) || holder < (found.get(vessel) ?? '')) found.set(vessel, holder);
-      }
-    return found;
-  };
-  const manager = pick('operates');
-  const owner = pick('owns');
-  const nodeOf = (id: string) => manager.get(id) ?? owner.get(id) ?? id;
-
-  const members = new Map<string, string[]>();
-  for (const { id = '', type: kind = '' } of entities) {
-    if (kind === 'legal_act' || kind === 'event') continue;
-    const node = nodeOf(id);
-    members.set(node, [...(members.get(node) ?? []), id]);
-  }
+  const members = nodeMembers({ entities, relations });
 
   // The facts of each member for the three conditions: a value is "official" when a document of
   // letter A supports it.
