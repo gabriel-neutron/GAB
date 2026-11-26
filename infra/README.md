@@ -162,6 +162,22 @@ Windows account as the record, so its allow list bounds it and no sandbox does.
 | Give the tick its roles, when the `gab` server runs this code | `node packages/mcp/src/install-roles.ts --state <folder> --gab <address> --checkout <folder> --second-check <ticket>=<issue>,...` |
 | Run the closing check of the roles on a session stack: each forbidden call, the CLI of each role, and a real fact closer on planted facts | `pnpm closer:gate --out <new folder>` |
 
+## The node audit
+
+The audit of the nodes, one by one, is in `vps/README.md` ("The node audit"). On the VPS it reads
+only the public data release. On the PC, record mode also reads the record and the raw store, read
+only: it checks that each cited document exists, that its stored bytes have its hash, that the excerpt
+is in the stored text at its page, and that a cited document has level A. Each session refuses a write.
+The main stack must run, and `infra/.env` gives the credentials.
+
+| You want | Run, in the main checkout |
+|---|---|
+| The audit with the record | `pnpm node:audit --record` |
+| The same, report nodes only | `pnpm node:audit --record --only-report-nodes` |
+
+The results are in `node-audit-out/<release>-record/`. Each document is read from the store once, so
+the first nodes are slow and the later ones faster.
+
 ## The stack of a session
 
 Many sessions can run on one machine at the same time. When they share one stack, a reset in one

@@ -82,3 +82,4 @@ figures-out/
 # Skills that an agent installs for one operator (the lock file records them)
 .agents/
 skills-lock.json
+node-audit-out/

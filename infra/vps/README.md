@@ -223,6 +223,67 @@ Tailscale. Every model call goes to OpenRouter (ADR 0010), and no VPS service ta
 **Check (PC):** `Invoke-RestMethod "http://<VPS_TS_IP>:8888/search?q=test&format=json"` returns
 results. Do not paste the key into a chat or a ticket.
 
-## 8. Rollback
+## 8. The node audit
+
+The audit takes the nodes of the report one by one, with the same checks for each node, and writes
+a verdict for each fact and each node. It changes nothing in the record. The method is the verdict of
+the panel of 2026-11-26 (osint-expert, software-architect, skeptic), in the head comment of the checks
+in `tools/`.
+
+On the VPS the audit reads only the public data release of the report, which the command downloads
+and checks against its pinned SHA-256. This is **release mode**. The VPS holds no document of the
+record, so the four checks of a stored document (the document exists, its hash, the excerpt at its
+page, its level) give `cannot_check` with the reason `needs_record`. A node with no other fault is
+`release_pass`, never `pass`. Run **record mode** on the PC for these four checks (`../README.md`,
+"The node audit").
+
+```bash
+cd ~/projects/GAB && git switch staging && git pull --ff-only && pnpm install --frozen-lockfile
+pnpm node:audit                       # all nodes: report nodes, then critical nodes, then the rest
+pnpm node:audit --only-report-nodes   # only the nodes that the report pages name
+pnpm node:audit --limit 50            # the next 50 nodes, then stop
+```
+
+Time, measured on 2026-11-26 on the release of the report: the first run downloads the release, and
+then all nodes take less than 10 seconds. A second run in the same folder audits only the nodes that
+are not done: the result file is the progress. A run with other checks or another release in the same
+folder stops: give a new folder with `--out <folder>`.
+
+The results are in `node-audit-out/<release>-release/` in the checkout (not committed):
+
+| File | What it holds |
+|---|---|
+| `results.jsonl` | One header line, one start line (commit, counts of the release, report entities not in the release), then one line for each node: its group, its members, its verdict, and for each fact the result of each check (`pass`, `fail`, `cannot_check`, `not_applicable`, each with a reason). |
+| `summary.md` | The nodes by verdict, each check with its counts and its fail rate, the reasons of each fail, the stored "value in excerpt" against the recomputed one, who decided the claims, the flagged designations, and the failed nodes. |
+| `failed-claims.txt` | The id of each claim with a failed check. Give it to a reviewer (skill `review-unit`). |
+
+How to read a verdict:
+
+- `fail`: one check of the node or of one of its facts failed. Read the reason in `results.jsonl`.
+- `incomplete`: no check failed, but one check could not run (for example `name_only`: the official
+  document names the subject but gives no identifier of it).
+- `release_pass`: each check that the release allows passed. It is not a check of the stored document.
+- A designation with a citation of NATO letter C or F does not fail. `summary.md` lists it as flagged.
+
+**The model check** asks a model of another family whether the excerpts state each fact. It costs
+model credit, so it needs the operator. It reads the checker values of the PC environment file
+(`CHECKER_*` and `OPENROUTER_API_KEY`). Set them in the shell for the one run, never in a file of the
+checkout. Without `--go`, the command prints the number of nodes, the tokens and the estimated cost
+from the public price list of OpenRouter, and sends no call:
+
+```bash
+pnpm node:audit --model --only-report-nodes --token-cap 1000000        # estimate only
+pnpm node:audit --model --only-report-nodes --token-cap 1000000 --go   # spend
+```
+
+The model verdicts go into the same `results.jsonl`. A model verdict never makes a failed fixed check
+pass. The cap stops the run before a call that goes past it.
+
+What the audit cannot check: that a fact is true (only that its cited excerpt states it); that no
+designation is missing; that a list entry is the current entry (the audit reads the stored excerpt,
+not the live list); the check digit of a tax number or a registration number; and the claims of an
+act or an event alone, which are in no node.
+
+## 9. Rollback
 
 To stop a service, run `docker compose down` on its file (SearXNG needs `--env-file ~/gab-services/.env`; `down -v` deletes test data only). To cut GitHub access, revoke the VPS PAT: the PC PAT stays valid. A `401 Bad credentials` means that the VPS PAT expired: replace it in `.claude/settings.local.json` (step 4). An agent lands its work as pull requests into `staging`: undo one with `git revert` on `staging`. Never force-push `staging`.
