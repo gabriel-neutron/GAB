@@ -264,9 +264,13 @@ export const designationSource = (
   return result(check, 'cannot_check', 'name_only');
 };
 
-/** What record mode reads for one document: its row, the hash of its stored bytes, and a page. */
+/** What record mode reads for one document: its row, the hash of its stored bytes, and a page.
+ * Through the tunnel to the VPS, storedSha256 is null (no store), and a document that is not an
+ * export document is 'hidden': it exists, and the role may not read it. */
 export interface RecordReader {
-  document(id: string): Promise<{ sha256: string; level: string; storedSha256: string } | null>;
+  document(
+    id: string,
+  ): Promise<{ sha256: string; level: string; storedSha256: string | null } | 'hidden' | null>;
   page(id: string, page: number): Promise<string | null>;
 }
 
@@ -284,14 +288,24 @@ export const recordChecks = async (
   const ids = [...new Set(claim.citations.map((row) => row['document_id'] ?? ''))];
   const found = await Promise.all(ids.map(async (id) => [id, await reader.document(id)] as const));
   const missing = found.filter(([, one]) => one === null).map(([id]) => id);
+  const hidden = found.filter(([, one]) => one === 'hidden').map(([id]) => id);
+  const read = found.flatMap(([id, one]) =>
+    one === null || one === 'hidden' ? [] : [[id, one] as const],
+  );
   // A document with no hash or no stored bytes fails: two empty values are no match.
-  const broken = found
+  const broken = read
     .filter(
       ([, one]) =>
-        one !== null &&
-        (one.sha256 === '' || one.storedSha256 === '' || one.sha256 !== one.storedSha256),
+        one.sha256 === '' ||
+        (one.storedSha256 !== null && (one.storedSha256 === '' || one.sha256 !== one.storedSha256)),
     )
     .map(([id]) => id);
+  const unread = read.some(([, one]) => one.storedSha256 === null);
+  // A check that would fail can pass on a hidden document, so it cannot run.
+  const failOrHidden = (name: (typeof names)[number], reason: string): Result =>
+    hidden.length > 0
+      ? result(name, 'cannot_check', `not_export_document: ${hidden.join(' ')}`)
+      : result(name, 'fail', reason);
   let atPage = false;
   for (const row of claim.citations) {
     const text = await reader.page(row['document_id'] ?? '', Number(row['page'] ?? '0'));
@@ -300,22 +314,26 @@ export const recordChecks = async (
       break;
     }
   }
-  const levelA = found.some(([, one]) => one?.level === 'A');
+  const levelA = read.some(([, one]) => one.level === 'A');
   return [
     missing.length === 0
       ? result('document_exists', 'pass', 'each cited document is in the record')
       : result('document_exists', 'fail', `absent: ${missing.join(' ')}`),
-    missing.length === ids.length
-      ? result('hash', 'cannot_check', 'no document')
-      : broken.length === 0
-        ? result('hash', 'pass', 'the stored bytes match the hash')
-        : result('hash', 'fail', `hash differs: ${broken.join(' ')}`),
+    broken.length > 0
+      ? result('hash', 'fail', `hash differs: ${broken.join(' ')}`)
+      : read.length === 0
+        ? result('hash', 'cannot_check', hidden.length > 0 ? 'not_export_document' : 'no document')
+        : unread
+          ? result('hash', 'cannot_check', 'needs_store')
+          : hidden.length > 0
+            ? result('hash', 'cannot_check', `not_export_document: ${hidden.join(' ')}`)
+            : result('hash', 'pass', 'the stored bytes match the hash'),
     atPage
       ? result('excerpt_at_page', 'pass', 'an excerpt is in the stored text at its page')
-      : result('excerpt_at_page', 'fail', 'excerpt_not_at_page'),
+      : failOrHidden('excerpt_at_page', 'excerpt_not_at_page'),
     levelA
       ? result('document_level', 'pass', 'a cited document has level A')
-      : result('document_level', 'fail', 'no_level_a_document'),
+      : failOrHidden('document_level', 'no_level_a_document'),
   ];
 };
 

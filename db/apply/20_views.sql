@@ -38,6 +38,8 @@ DROP VIEW IF EXISTS api.document_provider;
 DROP VIEW IF EXISTS public.proposal_reading;
 DROP VIEW IF EXISTS public.removed_act;
 DROP VIEW IF EXISTS public.person_ref;
+DROP VIEW IF EXISTS audit.document_text;
+DROP VIEW IF EXISTS audit.document;
 DROP VIEW IF EXISTS public.export_document;
 DROP VIEW IF EXISTS public.public_document;
 DROP VIEW IF EXISTS public.document_mark;
@@ -129,6 +131,32 @@ CREATE VIEW public.export_document AS
   SELECT d.id FROM public.public_document d
     JOIN public.document_mark m ON m.id = d.id
    WHERE m.level = 'A' AND NOT m.restricted;
+
+-- THE READ OF THE NODE AUDIT THROUGH THE TUNNEL (migration 0099). gabriel_audit reads these two views
+-- and nothing else, and only for an export document: public, level A, not restricted. A release
+-- cites only such documents, so the audit loses no check. A view calls no function here, because a
+-- function that a view calls runs with the rights of the caller, and gabriel_audit holds nothing on
+-- `public`. So the newest extractor is a subquery and not a call of newest_text_extractor().
+-- security_barrier: a function of the caller sees only the rows that the filter keeps.
+-- audit.document holds the id of each document, so the audit can tell a document that the role may
+-- not read from an absent one. Only an export document shows its hash and its level.
+CREATE VIEW audit.document WITH (security_barrier) AS
+  SELECT d.id,
+         e.id IS NOT NULL AS exportable,
+         CASE WHEN e.id IS NOT NULL THEN d.sha256 END AS sha256,
+         CASE WHEN e.id IS NOT NULL THEN m.level END AS level
+    FROM public.documents d
+    LEFT JOIN public.export_document e ON e.id = d.id
+    LEFT JOIN public.document_mark m ON m.id = d.id;
+
+CREATE VIEW audit.document_text WITH (security_barrier) AS
+  SELECT t.document_id, t.page, t.text
+    FROM public.document_text t
+    JOIN public.export_document e ON e.id = t.document_id
+   WHERE t.extractor = (SELECT n.extractor FROM public.document_text n
+                         WHERE n.document_id = t.document_id
+                         ORDER BY n.created_at DESC, n.extractor DESC
+                         LIMIT 1);
 
 -- EACH IDENTIFIER THAT NAMES A PERSON, AND WHETHER THAT PERSON IS PUBLIC (`open`). A person is:
 -- a live entity of the type `person`; the entity that an act proposes as a person, before or

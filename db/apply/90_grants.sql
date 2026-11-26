@@ -498,6 +498,16 @@ GRANT EXECUTE ON FUNCTION api.neighbourhood(uuid,int)
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA api
   FROM gabriel_read, gabriel_app, gabriel_agent, gabriel_research, PUBLIC;
 
+-- ------------------------------------------------------------------------ the node audit ---
+-- gabriel_audit READS TWO VIEWS OF THE SCHEMA audit, AND NOTHING ELSE (migration 0099). It holds no
+-- USAGE on public or api, so it can call no function there and read no table there. The views
+-- run with the rights of their owner, and they show only the export documents.
+REVOKE ALL ON SCHEMA public, api FROM gabriel_audit;
+REVOKE ALL ON ALL TABLES IN SCHEMA public, api FROM gabriel_audit;
+REVOKE ALL ON ALL TABLES IN SCHEMA audit FROM gabriel_audit, PUBLIC;
+GRANT USAGE  ON SCHEMA audit TO gabriel_audit;
+GRANT SELECT ON audit.document, audit.document_text TO gabriel_audit;
+
 RESET ROLE;
 
 -- =============================================================================================
