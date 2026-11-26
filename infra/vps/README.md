@@ -304,7 +304,8 @@ sets the rules:
   `~/gab-services/record-tunnel.env` on the VPS, mode 600, and never in the checkout.
 - **What the VPS cannot read:** a restricted document (a register extract, a court act, a bank
   statement, which name natural persons), a document below level A, a document that is not public,
-  the stored file of any document, the acts, the proposals and the jobs.
+  the stored file of any document, the acts, the proposals and the jobs. The role sees only that the
+  id of such a document exists, so the audit can tell it from an absent document.
 - **The root login of the VPS is shared with another project.** Mode 600 does not stop root. While
   the tunnel is open, each root process on the VPS can read the export documents and their text.
   Keep the tunnel open only for a run, and close it after.
