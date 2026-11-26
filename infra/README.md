@@ -174,6 +174,7 @@ The main stack must run, and `infra/.env` gives the credentials.
 |---|---|
 | The audit with the record | `pnpm node:audit --record` |
 | The same, report nodes only | `pnpm node:audit --record --only-report-nodes` |
+| Only the nodes that cite a document that the VPS could not read | `pnpm node:audit --record --local-check <the copy of local-check.txt>` |
 
 The results are in `node-audit-out/<release>-record/`. Each document is read from the store once, so
 the first nodes are slow and the later ones faster.

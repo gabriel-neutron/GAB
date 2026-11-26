@@ -397,7 +397,7 @@ describe('the audit of a release', () => {
       'v1/imo',
       'v1/kind',
     ]);
-    expect(line.facts.every((fact) => fact.results.length === 10)).toBe(true);
+    expect(line.facts.every((fact) => fact.results.length === 11)).toBe(true);
     expect(line.verdict).toBe('incomplete');
     const header = {
       kind: 'header' as const,

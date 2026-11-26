@@ -240,6 +240,26 @@ page, its level) give `cannot_check` with the reason `needs_record`. A node with
 `release_pass`, never `pass`. Run **record mode** on the PC for these four checks (`../README.md`,
 "The node audit"), or run three of them on the VPS through the tunnel of section 9.
 
+Release mode also reads each cited document at its public address, once, and checks that the cited
+excerpt is in the text of the page (`excerpt_at_source`). So the VPS can run the audit alone, with the
+PC off. The read uses the rules of the fetch tools: the deny list, the host lease and pace of a
+Russian host, and the hold after a CAPTCHA. It uses no browser and no paid proxy, and it solves no
+CAPTCHA. The text of a page is data: the audit only searches it for the excerpt.
+
+- `pass`: the excerpt is in the page.
+- `fail`, reason `excerpt_not_at_source`: the page was read, and no cited excerpt is in it. The page
+  can also have changed since the document was stored.
+- `cannot_check`, with the cause: `blocked` (a bot filter, a CAPTCHA, a 401, 403 or 429, a hold of the
+  host, the deny list), `unreachable` (no answer, a bad name, a timeout, an error status), `not_text`
+  (no text in the answer), `no_address` (no web address).
+
+Each document with a `cannot_check` goes into `local-check.txt`, one line for each document id with
+its reason. Later, on the PC, record mode reads the stored copy of these documents only:
+
+```powershell
+pnpm node:audit --record --local-check <the copy of local-check.txt>
+```
+
 ```bash
 cd ~/projects/GAB && git switch staging && git pull --ff-only && pnpm install --frozen-lockfile
 pnpm node:audit                       # all nodes: report nodes, then critical nodes, then the rest
@@ -247,9 +267,10 @@ pnpm node:audit --only-report-nodes   # only the nodes that the report pages nam
 pnpm node:audit --limit 50            # the next 50 nodes, then stop
 ```
 
-Time, measured on 2026-11-26 on the release of the report: the first run downloads the release, and
-then all nodes take less than 10 seconds. A second run in the same folder audits only the nodes that
-are not done: the result file is the progress. A run with other checks or another release in the same
+The first run downloads the release and reads each cited document on the web, so it takes much
+longer than the checks alone. A second run in the same folder audits only the nodes that are not done
+(the result file is the progress), and reads no document again (the folder `sources` keeps each read).
+To read the pages again, give a new folder. A run with other checks or another release in the same
 folder stops: give a new folder with `--out <folder>`.
 
 The results are in `node-audit-out/<release>-release/` in the checkout (not committed):
@@ -259,6 +280,8 @@ The results are in `node-audit-out/<release>-release/` in the checkout (not comm
 | `results.jsonl` | One header line, one start line (commit, counts of the release, report entities not in the release), then one line for each node: its group, its members, its verdict, and for each fact the result of each check (`pass`, `fail`, `cannot_check`, `not_applicable`, each with a reason). |
 | `summary.md` | The nodes by verdict, each check with its counts and its fail rate, the reasons of each fail, the stored "value in excerpt" against the recomputed one, who decided the claims, the flagged designations, and the failed nodes. |
 | `failed-claims.txt` | The id of each claim with a failed check. Give it to a reviewer (skill `review-unit`). |
+| `local-check.txt` | Each document that the VPS could not read, with the reason. Copy it to the PC for record mode. |
+| `sources/` | The result of the read of each document, and its text. |
 
 How to read a verdict:
 
@@ -283,8 +306,7 @@ The model verdicts go into the same `results.jsonl`. A model verdict never makes
 pass. The cap stops the run before a call that goes past it.
 
 What the audit cannot check: that a fact is true (only that its cited excerpt states it); that no
-designation is missing; that a list entry is the current entry (the audit reads the stored excerpt,
-not the live list); the check digit of a tax number or a registration number; and the claims of an
+designation is missing; the check digit of a tax number or a registration number; and the claims of an
 act or an event alone, which are in no node.
 
 ## 9. The record through the tunnel

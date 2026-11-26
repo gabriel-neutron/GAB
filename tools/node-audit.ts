@@ -1,12 +1,15 @@
 // The strict audit of the nodes, one node at a time, with the same checks for each node. Read only.
 // Checks and method: tools/node-audit-checks.ts. Run book: infra/vps/README.md, "The node audit".
 //
-// pnpm node:audit [--out <folder>] [--limit <n>] [--only-report-nodes] [--record [--tunnel <file>]]
+// pnpm node:audit [--out <folder>] [--limit <n>] [--only-report-nodes]
+//                 [--record [--tunnel <file>] [--local-check <file>]]
 //                 [--model --token-cap <n> [--go]]
 //
 // The order: the nodes that the report pages name (src/features/report/nodes-data.ts), then the other
 // critical nodes of the replay, then each other node, by node id in each group. After each node, one
-// line goes to <out>/results.jsonl, so a stopped run starts again at the next node.
+// line goes to <out>/results.jsonl, so a stopped run starts again at the next node. Release mode reads
+// each cited document at its public address, and lists each one that it cannot read in
+// <out>/local-check.txt; --record --local-check <that file> on the PC audits only their nodes.
 
 import { execFileSync } from 'node:child_process';
 import {
@@ -31,6 +34,7 @@ import {
   type ModelConfig,
 } from '@gab/model';
 import { checkAnswer, verdictsOf } from '@gab/tools/check-answer';
+import { hostGuards } from '@gab/tools/host-lease';
 import type { CheckVerdict } from '@gab/tools/tool';
 
 import {
@@ -48,6 +52,7 @@ import {
   denyList,
   designationSource,
   duplicatesOf,
+  excerptAtSource,
   excerptPresent,
   FACT_CHECKS,
   identifiersOf,
@@ -62,7 +67,9 @@ import {
   type Claim,
   type RecordReader,
   type Result,
+  type SourceReader,
 } from './node-audit-checks.ts';
+import { LOCAL_CHECK, localCheckIds, localCheckLines, sourceReader } from './node-audit-source.ts';
 import { tunnelConnection } from './record-tunnel-env.ts';
 
 /** The version of the checks. A result file of another version is not resumed. */
@@ -129,12 +136,15 @@ export interface Context {
   readonly type: ReadonlyMap<string, string>;
   readonly designated: ReadonlySet<string>;
   readonly reader: RecordReader | null;
+  /** The live read of excerpt_at_source, in release mode. */
+  readonly source: SourceReader | null;
 }
 
 export const contextOf = (
   files: ReleaseFiles,
   reader: RecordReader | null,
   mode: 'release' | 'record' = reader === null ? 'release' : 'record',
+  source: SourceReader | null = null,
 ): Context => {
   const claims = claimsOf(files.claims);
   const claimsOfEntity = new Map<string, Claim[]>();
@@ -162,6 +172,7 @@ export const contextOf = (
     type: new Map(files.entities.map((one) => [one['id'] ?? '', one['type'] ?? ''])),
     designated,
     reader,
+    source,
   };
 };
 
@@ -203,6 +214,7 @@ export const auditNode = async (node: AuditNode, context: Context): Promise<Node
       identifierValid(claim),
       dates(claim, context.actAttributes),
       designationSource(claim, context.identifiers),
+      await excerptAtSource(claim, context.mode, context.source),
       ...(await recordChecks(claim, context.reader)),
     ];
     facts.push({
@@ -509,7 +521,7 @@ export const summaryOf = (lines: readonly Line[], totalNodes: number): string =>
       (nodes.length < totalNodes ? ' The run is not complete.' : ''),
     `Claims audited: ${String(seen.size)}.`,
     mode === 'release'
-      ? 'Release mode reads only the public release. A "release_pass" is not a check of the stored document: document_exists, hash, excerpt_at_page and document_level need record mode.'
+      ? 'Release mode reads the public release and the public address of each cited document. A "release_pass" is not a check of the stored document: document_exists, hash, excerpt_at_page and document_level need record mode. Each document that the run could not read is in local-check.txt, for record mode on the PC.'
       : header?.tunnel === true
         ? 'Record mode read the export documents through the tunnel, and no store: the hash is cannot_check(needs_store).'
         : 'Record mode read the database and the raw store.',
@@ -697,6 +709,7 @@ const main = async () => {
       'only-report-nodes': { type: 'boolean', default: false },
       record: { type: 'boolean', default: false },
       tunnel: { type: 'string' },
+      'local-check': { type: 'string' },
       model: { type: 'boolean', default: false },
       'token-cap': { type: 'string' },
       go: { type: 'boolean', default: false },
@@ -706,6 +719,10 @@ const main = async () => {
   const mode = values.record ? 'record' : 'release';
   if (values.tunnel !== undefined && !values.record) {
     console.error('--tunnel needs --record.');
+    exit(1);
+  }
+  if (values['local-check'] !== undefined && !values.record) {
+    console.error('--local-check needs --record.');
     exit(1);
   }
   if (values.limit !== undefined && !/^[1-9]\d*$/u.test(values.limit)) {
@@ -724,7 +741,7 @@ const main = async () => {
 
   const reportEntities = reportEntityIds(readFileSync(REPORT_NODES, 'utf8'));
   const { nodes: ordered, missingReportEntities } = auditOrder(files, reportEntities);
-  const scope = values['only-report-nodes']
+  const reportOnly = values['only-report-nodes']
     ? ordered.filter((one) => one.group === 'report')
     : ordered;
 
@@ -778,7 +795,24 @@ const main = async () => {
       : values.tunnel === undefined
         ? await openRecordReader()
         : await openTunnelReader(values.tunnel);
-  const context = contextOf(files, reader?.reader ?? null, mode);
+  const source =
+    mode === 'release' && !values.model
+      ? sourceReader(out, { now: () => new Date(), hostLease: hostGuards(env).hostLease })
+      : null;
+  const context = contextOf(files, reader?.reader ?? null, mode, source);
+  // A record run on the PC for the documents that the VPS could not read: only the nodes that cite one.
+  const wanted =
+    values['local-check'] === undefined
+      ? null
+      : localCheckIds(readFileSync(values['local-check'], 'utf8'));
+  const scope =
+    wanted === null
+      ? reportOnly
+      : reportOnly.filter((node) =>
+          factsOf(node, context).some((claim) =>
+            claim.citations.some((row) => wanted.has(row['document_id'] ?? '')),
+          ),
+        );
   try {
     if (values.model) {
       const cap = Number(values['token-cap']);
@@ -814,6 +848,13 @@ const main = async () => {
   const final = readLines(file);
   writeFileSync(join(out, 'summary.md'), summaryOf(final, scope.length));
   writeFileSync(join(out, 'failed-claims.txt'), `${failedClaimsOf(final).join('\n')}\n`);
+  if (source !== null) {
+    const local = localCheckLines(out);
+    writeFileSync(join(out, LOCAL_CHECK), local.map((line) => `${line}\n`).join(''));
+    console.log(
+      `Documents to check on the PC: ${String(local.length)} in ${join(out, LOCAL_CHECK)}`,
+    );
+  }
   console.log(`Results: ${file}\nSummary: ${join(out, 'summary.md')}`);
 };
 
