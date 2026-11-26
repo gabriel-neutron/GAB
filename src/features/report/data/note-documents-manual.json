@@ -141,11 +141,6 @@
   },
   {
     "note": 17,
-    "url": "https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=X&Partners=643&Reporters=97,842,392,410,490,826&period=2019-2025&AggregateBy=none&BreakdownMode=plus",
-    "reason": "Bruegel and UN Comtrade data"
-  },
-  {
-    "note": 17,
     "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
     "reason": "Bruegel and UN Comtrade data"
   },
@@ -153,6 +148,16 @@
     "note": 17,
     "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx",
     "reason": "Bruegel and UN Comtrade data"
+  },
+  {
+    "note": 17,
+    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=699&period=2021&flowCode=M&cmdCode=2709&partnerCode=643",
+    "reason": "UN Comtrade, India imports of crude (HS 2709) from Russia, 2021"
+  },
+  {
+    "note": 17,
+    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=699&period=2025&flowCode=M&cmdCode=2709&partnerCode=643",
+    "reason": "UN Comtrade, India imports of crude (HS 2709) from Russia, 2025"
   },
   {
     "note": 21,
@@ -178,6 +183,16 @@
     "note": 21,
     "url": "https://www.bruegel.org/sites/default/files/2026-09/Russian%20foreign%20trade%20tracker-%20%202026-09-21.xlsx",
     "reason": "Bruegel, UN Comtrade and Russia Fossil Tracker data"
+  },
+  {
+    "note": 21,
+    "url": "https://api.russiafossiltracker.com/v0/counter?format=json&date_from=2021-01-01&date_to=2025-12-31&aggregate_by=destination_country,commodity,year&pricing_scenario=default",
+    "reason": "CREA and Eurostat Comext inputs of figure 2 (buyers.csv, panel b)"
+  },
+  {
+    "note": 21,
+    "url": "https://ec.europa.eu/eurostat/api/comext/dissemination/statistics/1.0/data/DS-059341?format=JSON&freq=A&reporter=EU27_2020&partner=RU&flow=1&product=2709&product=2710&product=2711&product=2701&product=3102&product=3103&product=3104&product=3105&product=7207&product=7601&product=7502&product=7110&product=2844&product=1001&product=44&product=7102&product=7108&sinceTimePeriod=2021&untilTimePeriod=2025",
+    "reason": "CREA and Eurostat Comext inputs of figure 2 (buyers.csv, panel b)"
   },
   {
     "note": 23,
@@ -290,6 +305,16 @@
     "reason": "Korsunskaya (2024), op. cit., n. 8"
   },
   {
+    "note": 37,
+    "url": "https://minfin.gov.ru/common/upload/library/2026/05/main/Prilozhenie_3_dannye_109-111_%E2%80%94_god.xlsx",
+    "reason": "inputs of figure 5 (publication-figures.json f5)"
+  },
+  {
+    "note": 37,
+    "url": "https://minfin.gov.ru/common/upload/library/2026/10/main/Prilozhenie_3_dannye_109-111_%E2%80%94_mes.xlsx",
+    "reason": "inputs of figure 5 (publication-figures.json f5)"
+  },
+  {
     "note": 38,
     "url": "https://www.nalog.gov.ru/rn91/ifns/ifns7/info/16590442/",
     "reason": "stored regional tax page with the same VAT rate; the cited page is not stored"
@@ -303,6 +328,61 @@
     "note": 41,
     "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
     "reason": "Dodonov et al. (2026), op. cit., n. 2"
+  },
+  {
+    "note": 41,
+    "url": "https://portnews.ru/upload/basefiles/1552_ncsp_ar_2016_rus_28_04.pdf",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 41,
+    "url": "https://portnews.ru/news/251806/",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 41,
+    "url": "https://portnews.ru/news/270776/",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 41,
+    "url": "https://fs.moex.com/f/13354/nmtp-report-rus-30-04-2020.pdf",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 41,
+    "url": "https://portnews.ru/news/307541/",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 41,
+    "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-12-mesyacev-2021-g",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 41,
+    "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-12-mesyacev-2022-g",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 41,
+    "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-yanvar-dekabr-2023-g",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 41,
+    "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-yanvar-dekabr-2024-goda",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 41,
+    "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-2025-god",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 41,
+    "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-yanvar-aprel-2026-goda",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
   },
   {
     "note": 42,
@@ -325,6 +405,61 @@
     "reason": "See n. 41 (Dodonov et al. (2026), op. cit., n. 2)"
   },
   {
+    "note": 44,
+    "url": "https://portnews.ru/upload/basefiles/1552_ncsp_ar_2016_rus_28_04.pdf",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 44,
+    "url": "https://portnews.ru/news/251806/",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 44,
+    "url": "https://portnews.ru/news/270776/",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 44,
+    "url": "https://fs.moex.com/f/13354/nmtp-report-rus-30-04-2020.pdf",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 44,
+    "url": "https://portnews.ru/news/307541/",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 44,
+    "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-12-mesyacev-2021-g",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 44,
+    "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-12-mesyacev-2022-g",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 44,
+    "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-yanvar-dekabr-2023-g",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 44,
+    "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-yanvar-dekabr-2024-goda",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 44,
+    "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-2025-god",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
+    "note": 44,
+    "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-yanvar-aprel-2026-goda",
+    "reason": "port traffic inputs of figure 6 (ports.csv)"
+  },
+  {
     "note": 46,
     "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
     "reason": "OFAC SDN list, UK Sanctions List and Regulation 833/2014"
@@ -338,6 +473,256 @@
     "note": 46,
     "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
     "reason": "OFAC SDN list, UK Sanctions List and Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=400",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=400",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=400",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=400",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=600",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=800",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=1000",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=400",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=600",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=800",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=1000",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=400",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=600",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=800",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=400",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=600",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=800",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 46,
+    "url": "http://publications.europa.eu/resource/cellar/0492ea31-a0ce-11f1-b25c-01aa75ed71a1.0004.02/DOC_1",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
   },
   {
     "note": 47,
@@ -380,6 +765,256 @@
     "reason": "same sources as note 46"
   },
   {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-primorsk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=400",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=400",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=400",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-ustluga&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=400",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=600",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=800",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=1000",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=400",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=600",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=800",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=1000",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=400",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=600",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=800",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=200",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=400",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=600",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-novorossiysk&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=800",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-tuapse&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-01-01&end-date=2026-02-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-02-01&end-date=2026-03-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-03-01&end-date=2026-04-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "https://gateway.api.globalfishingwatch.org/v3/events?datasets%5B0%5D=public-global-port-visits-events%3Alatest&types%5B0%5D=PORT_VISIT&port-ids%5B0%5D=rus-kozmino&confidences%5B0%5D=3&confidences%5B1%5D=4&start-date=2026-04-01&end-date=2026-05-01&limit=200&offset=0",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
+    "note": 50,
+    "url": "http://publications.europa.eu/resource/cellar/0492ea31-a0ce-11f1-b25c-01aa75ed71a1.0004.02/DOC_1",
+    "reason": "Global Fishing Watch port visits of figure 8 (port-visits.json) and the consolidated Regulation 833/2014"
+  },
+  {
     "note": 51,
     "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
     "reason": "OFAC SDN list, UK Sanctions List and Regulation 833/2014"
@@ -395,6 +1030,11 @@
     "reason": "OFAC SDN list, UK Sanctions List and Regulation 833/2014"
   },
   {
+    "note": 51,
+    "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
+    "reason": "GUR shadow fleet list page; the tool reads the archived ship pages under it"
+  },
+  {
     "note": 52,
     "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
     "reason": "OFAC SDN list, UK Sanctions List and Regulation 833/2014"
@@ -408,6 +1048,11 @@
     "note": 52,
     "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
     "reason": "OFAC SDN list, UK Sanctions List and Regulation 833/2014"
+  },
+  {
+    "note": 52,
+    "url": "http://publications.europa.eu/resource/cellar/0492ea31-a0ce-11f1-b25c-01aa75ed71a1.0004.02/DOC_1",
+    "reason": "consolidated Regulation 833/2014 of 24.07.2026, Annex XLII"
   },
   {
     "note": 53,
@@ -430,6 +1075,11 @@
     "reason": "CELEX 32022R0345"
   },
   {
+    "note": 55,
+    "url": "http://publications.europa.eu/resource/cellar/0492ea31-a0ce-11f1-b25c-01aa75ed71a1.0004.02/DOC_1",
+    "reason": "consolidated Regulation 833/2014 of 24.07.2026, Annex XIV"
+  },
+  {
     "note": 57,
     "url": "https://cbr.ru/vfs/eng/statistics/credit_statistics/cur_str_new_e.xlsx",
     "reason": "Central Bank of Russia (2026), op. cit., n. 4"
@@ -438,6 +1088,11 @@
     "note": 60,
     "url": "https://econ4ua.org/wp-content/uploads/2026/09/Chinas-Support-for-Russia-Final.pdf",
     "reason": "Deryugina & Shepotylo (2026), op. cit., n. 32"
+  },
+  {
+    "note": 62,
+    "url": "https://www.themoscowtimes.com/2024/02/07/major-chinese-bank-halts-all-settlements-with-russia-vedomosti-a84001",
+    "reason": "The Moscow Times article that the note names; the note gives the host only"
   },
   {
     "note": 63,
@@ -566,63 +1221,98 @@
   },
   {
     "note": 89,
-    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2021&flowCode=X&cmdCode=8542&partnerCode=643",
-    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+    "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=398&period=2021&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+    "reason": "UN Comtrade, CHP goods exported to Russia (figure 11, panel b)"
   },
   {
     "note": 89,
-    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2022&flowCode=X&cmdCode=8542&partnerCode=643",
-    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+    "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=398&period=2022&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+    "reason": "UN Comtrade, CHP goods exported to Russia (figure 11, panel b)"
   },
   {
     "note": 89,
-    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2023&flowCode=X&cmdCode=8542&partnerCode=643",
-    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+    "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=398&period=2023&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+    "reason": "UN Comtrade, CHP goods exported to Russia (figure 11, panel b)"
   },
   {
     "note": 89,
-    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2024&flowCode=X&cmdCode=8542&partnerCode=643",
-    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+    "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=398&period=2024&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+    "reason": "UN Comtrade, CHP goods exported to Russia (figure 11, panel b)"
   },
   {
     "note": 89,
-    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=156&period=2025&flowCode=X&cmdCode=8542&partnerCode=643",
-    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+    "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=398&period=2025&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+    "reason": "UN Comtrade, CHP goods exported to Russia (figure 11, panel b)"
   },
   {
     "note": 89,
-    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2021&flowCode=X&cmdCode=8542&partnerCode=643",
-    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+    "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=417&period=2021&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+    "reason": "UN Comtrade, CHP goods exported to Russia (figure 11, panel b)"
   },
   {
     "note": 89,
-    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2022&flowCode=X&cmdCode=8542&partnerCode=643",
-    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+    "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=417&period=2022&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+    "reason": "UN Comtrade, CHP goods exported to Russia (figure 11, panel b)"
   },
   {
     "note": 89,
-    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2023&flowCode=X&cmdCode=8542&partnerCode=643",
-    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+    "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=417&period=2023&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+    "reason": "UN Comtrade, CHP goods exported to Russia (figure 11, panel b)"
   },
   {
     "note": 89,
-    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2024&flowCode=X&cmdCode=8542&partnerCode=643",
-    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+    "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=417&period=2024&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+    "reason": "UN Comtrade, CHP goods exported to Russia (figure 11, panel b)"
   },
   {
     "note": 89,
-    "url": "https://comtradeapi.un.org/data/v1/get/C/A/HS?reporterCode=344&period=2025&flowCode=X&cmdCode=8542&partnerCode=643",
-    "reason": "UN Comtrade HS 8542 exports of China and Hong Kong to Russia"
+    "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=417&period=2025&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+    "reason": "UN Comtrade, CHP goods exported to Russia (figure 11, panel b)"
   },
   {
-    "note": 91,
-    "url": "https://static.rusi.org/RUSI-Silicon-Lifeline-final-updated-web_1.pdf",
-    "reason": "Byrne et al. (2022), op. cit., n. 90"
+    "note": 89,
+    "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=51&period=2021&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+    "reason": "UN Comtrade, CHP goods exported to Russia (figure 11, panel b)"
+  },
+  {
+    "note": 89,
+    "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=51&period=2022&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+    "reason": "UN Comtrade, CHP goods exported to Russia (figure 11, panel b)"
+  },
+  {
+    "note": 89,
+    "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=51&period=2023&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+    "reason": "UN Comtrade, CHP goods exported to Russia (figure 11, panel b)"
+  },
+  {
+    "note": 89,
+    "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=51&period=2024&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+    "reason": "UN Comtrade, CHP goods exported to Russia (figure 11, panel b)"
+  },
+  {
+    "note": 89,
+    "url": "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=51&period=2025&partnerCode=643&flowCode=X&cmdCode=854231,854232,854233,854239,851762,852691,853221,853224,854800,847150,850440,851769,852589,852910,852990,853669,853690,854110,854121,854129,854130,854149,854151,854159,854160,848210,848220,848230,848250,880730,901310,901380,901420,901480,847180,848610,848620,848640,853400,854320,902750,903020,903032,903039,903082,845710,845811,845891,845961,846693,854890,852580,854140,854150,880330",
+    "reason": "UN Comtrade, CHP goods exported to Russia (figure 11, panel b)"
+  },
+  {
+    "note": 92,
+    "url": "http://publications.europa.eu/resource/cellar/0492ea31-a0ce-11f1-b25c-01aa75ed71a1.0004.02/DOC_1",
+    "reason": "consolidated Regulation 833/2014 of 24.07.2026, Annex IV, entry 925"
   },
   {
     "note": 94,
     "url": "https://kse.ua/en/news/challenges-of-export-controls-enforcement-how-russia-continues-to-import-components-for-its-military-production/",
     "reason": "KSE export control enforcement report"
+  },
+  {
+    "note": 94,
+    "url": "https://war-sanctions.gur.gov.ua/en/components",
+    "reason": "GUR components catalogue pages"
+  },
+  {
+    "note": 94,
+    "url": "https://war-sanctions.gur.gov.ua/en/components/weapon",
+    "reason": "GUR components catalogue pages"
   },
   {
     "note": 97,
