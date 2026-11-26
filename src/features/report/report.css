@@ -2254,6 +2254,9 @@
 :where(.report-page) .price-dot {
   fill: var(--signal);
 }
+:where(.report-page) .price-gap {
+  fill: var(--signal);
+}
 :where(.report-page) .price-line.cap {
   stroke: var(--label);
   stroke-width: 1.5;

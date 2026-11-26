@@ -34,7 +34,7 @@ const cards = [
     items: ['Banks, Russian and foreign', 'Payment agents and SPFS', 'Crypto and stablecoins'],
   },
 ] as const;
-const conditions = ['Under sanctions', 'Active 2024–2026', 'Via a third country'] as const;
+const conditions = ['Under sanctions', 'Active 2024–2026', 'Tied to a third country'] as const;
 const W = 240,
   H = 124;
 
@@ -104,7 +104,7 @@ export function MethodDiagram() {
         <g transform="translate(456,0)">
           <rect width="184" height={H} className="method-figure" />
           <text x="14" y="24" className="method-label on-figure">
-            Critical node
+            Node under watch
           </text>
           <text x="14" y="40" className="method-label on-figure">
             All three

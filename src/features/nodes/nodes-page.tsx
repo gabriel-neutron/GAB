@@ -208,7 +208,7 @@ export function NodesPage({ release, entityHref, vesselHref, claimHref }: NodesP
         <DisclaimerText markdown={manifest.disclaimer} withoutContacts />
       </PageSection>
 
-      <PageSection title="Critical nodes">
+      <PageSection title="Nodes under watch">
         <p className={PROSE}>
           A node is retained when two of the three conditions have a public source: sanctions,
           production or throughput in 2024-2026, and bypass routing.

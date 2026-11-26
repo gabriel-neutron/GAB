@@ -518,6 +518,27 @@
           "retrievedAt": "2026-10-27",
           "url": "https://carnegieendowment.org/russia-eurasia/politika/2025/09/russia-china-gas-deals",
           "match": "exact"
+        },
+        {
+          "id": "doc_7dfe1e93d7d3",
+          "type": "other",
+          "retrievedAt": "2026-11-26",
+          "url": "https://www.osw.waw.pl/en/publikacje/analyses/2022-01-27/russia-major-gas-sector-indices-2021",
+          "match": "exact"
+        },
+        {
+          "id": "doc_ac624822d9af",
+          "type": "other",
+          "retrievedAt": "2026-11-26",
+          "url": "https://interfax.com/newsroom/top-stories/117527/",
+          "match": "exact"
+        },
+        {
+          "id": "doc_9af8f3e1d9a0",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.bairdmaritime.com/shipping/tankers/gas/russian-lng-exports-dip-in-2025-as-sanctions-squeeze-logistics",
+          "match": "exact"
         }
       ]
     },
@@ -883,6 +904,13 @@
           "type": "other",
           "retrievedAt": "2026-10-22",
           "url": "https://www.economy.gov.ru/material/departments/d12/konyunktura_mirovyh_tovarnyh_rynkov/o_srednem_urovne_cen_nefti_sorta_yurals_za_sentyabr_2026_goda.html",
+          "match": "exact"
+        },
+        {
+          "id": "doc_7b5a35202dcf",
+          "type": "other",
+          "retrievedAt": "2026-10-22",
+          "url": "https://base.garant.ru/10900200/189ee55699895a58d35d70784cf7bcb9/",
           "match": "exact"
         }
       ]
@@ -4257,6 +4285,18 @@
     {
       "id": "128",
       "documents": []
+    },
+    {
+      "id": "129",
+      "documents": [
+        {
+          "id": "doc_b325402baca1",
+          "type": "other",
+          "retrievedAt": "2026-11-26",
+          "url": "https://assets.publishing.service.gov.uk/media/653a4b0780884d0013f71bb0/JDP_2_00_Ed_4_web.pdf",
+          "match": "exact"
+        }
+      ]
     }
   ]
 }

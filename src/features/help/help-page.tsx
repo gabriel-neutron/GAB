@@ -62,7 +62,7 @@ export function HelpPage() {
             <Link to="/method" className={READING_LINK}>
               method page
             </Link>{' '}
-            explains the rating, the licences and the rules of the critical nodes.
+            explains the rating, the licences and the rules of the nodes under watch.
           </p>
         </div>
       </PageSection>

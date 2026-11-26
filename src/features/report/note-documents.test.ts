@@ -49,8 +49,8 @@ describe('the note-to-documents file', () => {
   });
 
   it('refuses an unknown note id', () => {
-    expect(noteDocumentFaults(fileWith({ id: '129', documents: [] }), NOTE_IDS)).toContain(
-      'note 129: unknown note id',
+    expect(noteDocumentFaults(fileWith({ id: '130', documents: [] }), NOTE_IDS)).toContain(
+      'note 130: unknown note id',
     );
   });
 

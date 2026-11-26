@@ -77,7 +77,7 @@ export function ExportsPage({ text, release, figures, links }: ExportsPageProps)
             ))}
             <a href="#limites">{text.limits.title}</a>
           </nav>
-          <a href={siteAddress('/nodes')}>Critical nodes ↗</a>
+          <a href={siteAddress('/nodes')}>Nodes under watch ↗</a>
         </aside>
         <article className="publication-document">
           <PageHeader

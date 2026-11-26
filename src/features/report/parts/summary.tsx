@@ -134,12 +134,28 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
   const { openingUi, parts, ui } = useContent();
   const copy = openingUi.summary;
   const number = String(parts.indexOf(part) + 1).padStart(2, '0');
+  // A paragraph in bold only that comes before a list item is the head of a group of findings.
+  const isHead = (index: number): boolean =>
+    part.blocks[index]?.kind === 'p' &&
+    /^\*\*[^*]+\*\*$/.test(part.blocks[index].text) &&
+    part.blocks.slice(index + 1).some((block) => block.kind === 'li');
   // The paragraphs before the findings open the part; the paragraphs after them close it.
-  const at = part.blocks.findIndex((block) => block.kind === 'li');
+  const at = part.blocks.findIndex((block, index) => block.kind === 'li' || isHead(index));
   const first = at === -1 ? part.blocks.length : at;
+  const last = part.blocks.findLastIndex((block) => block.kind === 'li');
   const [lead, ...rest] = part.blocks.slice(0, first).filter((block) => block.kind === 'p');
   const findings = part.blocks.filter((block) => block.kind === 'li');
-  const after = part.blocks.slice(first).filter((block) => block.kind === 'p');
+  const groups: { head: string | undefined; items: number[] }[] = [];
+  let count = 0;
+  part.blocks.slice(first, last + 1).forEach((block, offset) => {
+    if (isHead(first + offset)) groups.push({ head: block.text, items: [] });
+    else if (block.kind === 'li') {
+      if (groups.length === 0) groups.push({ head: undefined, items: [] });
+      groups[groups.length - 1]?.items.push(count);
+      count += 1;
+    }
+  });
+  const after = part.blocks.slice(last + 1).filter((block) => block.kind === 'p');
   const values = summaryValues(
     findings.map((block) => block.text),
     copy.values,
@@ -199,25 +215,39 @@ export function SummaryPart({ part }: { readonly part: ReportPart }) {
           ))}
         </div>
       </div>
-      <ol className="mt-16 border-t border-foreground lg:mt-24">
-        {findings.map((block, index) => {
-          return (
-            <li key={block.text} className="border-b border-border py-8 lg:py-12">
-              <Reveal>
-                {layout(
-                  {
-                    value: values[index],
-                    chart: copy.values[index]?.note === copy.chart.finding,
-                    note: copy.values[index]?.note ?? '',
-                    sentence: <RichText text={block.text} partSlug={part.slug} />,
-                  },
-                  part.slug,
-                )}
-              </Reveal>
-            </li>
-          );
-        })}
-      </ol>
+      {groups.map((group, at) => (
+        <div
+          key={group.head ?? String(at)}
+          className={at === 0 ? 'mt-16 lg:mt-24' : 'mt-12 lg:mt-16'}
+        >
+          {group.head === undefined ? null : (
+            <h3 className={cn(monoLabel, 'mb-4 uppercase')}>
+              {group.head.replace(/\*\*/g, '').replace(/\.$/, '')}
+            </h3>
+          )}
+          <ol className="border-t border-foreground">
+            {group.items.map((index) => {
+              const block = findings[index];
+              if (block === undefined) return null;
+              return (
+                <li key={block.text} className="border-b border-border py-8 lg:py-12">
+                  <Reveal>
+                    {layout(
+                      {
+                        value: values[index],
+                        chart: copy.values[index]?.note === copy.chart.finding,
+                        note: copy.values[index]?.note ?? '',
+                        sentence: <RichText text={block.text} partSlug={part.slug} />,
+                      },
+                      part.slug,
+                    )}
+                  </Reveal>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      ))}
       {after.length === 0 ? null : (
         <div className="mt-10 max-w-[64ch] space-y-4">
           {after.map((block) => (

@@ -11,9 +11,11 @@ describe('opening copy', () => {
     expect(items).toHaveLength(openingUi.summary.values.length);
     openingUi.summary.values.forEach(({ words, note }, index) => {
       expect(items[index]).toContain(words);
-      // The item on the price has no note.
       if (note !== '') expect(items[index]).toContain(`[^${note}]`);
     });
+    // The value column shows one number for each item; the other numbers stay in its sentence.
+    expect(items[2]).toContain('sixteen');
+    expect(items[4]).toContain('$19 to $27');
     const values = summaryValues(items, openingUi.summary.values).map((value) =>
       value.kind === 'number' ? `${value.label} ${value.format(value.value)}` : value.text,
     );
@@ -21,11 +23,9 @@ describe('opening copy', () => {
       '87 days',
       '318',
       '427 of 757',
-      'sixteen',
       'Customers 84%',
-      'Ships 79%',
-      '$19 to $27',
-      'less than one fifth',
+      'Oil 79%',
+      '18.5%',
       'Currency 53%',
       'Components 77%',
     ]);
