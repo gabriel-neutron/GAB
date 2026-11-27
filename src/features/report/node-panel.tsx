@@ -43,7 +43,7 @@ function Section({ title, children }: { readonly title: string; readonly childre
  * publishes it. The mark sits on the document, and never on a condition of the node. */
 const withPartyMark = (doc: string): string => {
   const mark = reportGraph.partyMark(doc);
-  return mark === '' ? doc : `${doc} (${mark})`;
+  return mark === '' ? doc : `${doc} · ${mark}`;
 };
 
 /** The record of one node, as the panel shows it. */

@@ -1,8 +1,7 @@
 // The origin of a fact that only a party to the conflict states. A fact has a party origin when
 // each document that it cites is published by a state body of one party (Russia or Ukraine). The
 // rule reads only the address of each document, so the record, the release, the site and the
-// report give the same answer. It states who publishes the documents. It never rates a source
-// (research/AGENTS.md, rule 6). Verdict of the expert panel of 2026-11-27.
+// report give the same answer. It states who publishes the documents. It never rates a source.
 
 export type Party = 'UA' | 'RU';
 
@@ -23,6 +22,8 @@ interface Publisher {
 const PUBLISHERS: readonly Publisher[] = [
   { host: 'gur.gov.ua', party: 'UA', name: 'GUR, the military intelligence of Ukraine' },
   { host: 'mil.gov.ua', party: 'UA', name: 'the Ministry of Defence of Ukraine' },
+  { host: 'mod.gov.ua', party: 'UA', name: 'the Ministry of Defence of Ukraine' },
+  { host: 'mod.gov.ua', party: 'UA', name: 'the Ministry of Defence of Ukraine' },
   { host: 'zsu.gov.ua', party: 'UA', name: 'the Armed Forces of Ukraine' },
   {
     host: 't.me',
@@ -54,7 +55,11 @@ const publisherOf = (address: string): Publisher | undefined => {
   const original = ARCHIVED.exec(address.trim())?.[1] ?? address.trim();
   const parts = PARTS.exec(original);
   if (parts === null) return undefined;
-  const host = (parts[1] ?? '').toLowerCase();
+  // A host can end with the dot of the root, and telegram.me is the other name of t.me.
+  const host = (parts[1] ?? '')
+    .toLowerCase()
+    .replace(/\.$/u, '')
+    .replace(/^telegram\.me$/u, 't.me');
   // A t.me channel can also read as t.me/s/<channel>.
   const segments = (parts[2] ?? '')
     .toLowerCase()
@@ -81,6 +86,12 @@ export const partyOrigin = (addresses: readonly string[]): Party | '' => {
 
 /** The short mark of a document or a fact of a party, where the space is small. */
 export const partyMark = (party: Party): string => `Party source (${PARTY_NAMES[party]})`;
+
+/** The short mark of a fact whose each document a state body of one party publishes, or ''. */
+export const factMark = (addresses: readonly string[]): string => {
+  const party = partyOrigin(addresses);
+  return party === '' ? '' : partyMark(party);
+};
 
 /** The short mark of the document at this address, or '' when no state body of a party to the
  * conflict publishes it. */

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { documentMark, documentParty, partyLabel, partyMark, partyOrigin } from './party-origin.ts';
+import {
+  documentMark,
+  documentParty,
+  factMark,
+  partyLabel,
+  partyMark,
+  partyOrigin,
+} from './party-origin.ts';
 
 const GUR = 'https://war-sanctions.gur.gov.ua/en/transport/ships/123';
 const STAFF = 'https://t.me/GeneralStaffZSU/4567';
@@ -14,9 +21,14 @@ describe('the party origin of a fact', () => {
     expect(documentParty('https://t.me/s/generalstaffzsu?before=9')).toBe('UA');
     expect(documentParty(`https://web.archive.org/web/20240101000000id_/${GUR}`)).toBe('UA');
     expect(documentParty(KREMLIN)).toBe('RU');
+    expect(documentParty('https://kremlin.ru./acts/1')).toBe('RU');
+    expect(documentParty('https://www.mod.gov.ua/news/1')).toBe('UA');
+    expect(documentParty('https://telegram.me/GeneralStaffZSU/1')).toBe('UA');
   });
 
   it('gives no party for another publisher, a shared host or a look-alike host', () => {
+    expect(documentParty('https://kremlin.ru@evil.example/a')).toBe('');
+    expect(documentParty('https://evil.example/?u=https://kremlin.ru/')).toBe('');
     expect(documentParty(OFAC)).toBe('');
     expect(documentParty('https://t.me/astrapress/1')).toBe('');
     expect(documentParty('https://notgur.gov.ua.example.com/a')).toBe('');
@@ -43,5 +55,7 @@ describe('the party origin of a fact', () => {
     expect(partyMark('RU')).toBe('Party source (Russia)');
     expect(documentMark(GUR)).toBe('Party source (Ukraine)');
     expect(documentMark(OFAC)).toBe('');
+    expect(factMark([GUR, STAFF])).toBe('Party source (Ukraine)');
+    expect(factMark([GUR, OFAC])).toBe('');
   });
 });

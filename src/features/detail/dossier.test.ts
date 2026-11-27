@@ -200,6 +200,7 @@ const source1 = (fact: string) => ({
   fact,
   name: `Source 1 for: ${fact}`,
   partyLabel: '',
+  partyMark: '',
 });
 
 const withActs = (...proposals: readonly Proposal[]): Corpus => ({

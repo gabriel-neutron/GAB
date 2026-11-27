@@ -255,17 +255,30 @@ test('counts apart what a critical node owes to facts of a party to the conflict
   expect(result.condition.byCondition).toEqual({ a: 0, b: 0, c: 1 });
   expect(result.members.critical).toBe(1);
   // A second document of another publisher makes the facts no longer facts of a party.
-  const corroborated = partyOnly({
-    ...files,
-    claims: [
-      ...files.claims,
-      claim('op', OFAC),
-      claim('v/flag', OFAC, { claim_kind: 'attribute' }),
-    ],
-  });
+  const both = [
+    ...files.claims,
+    claim('op', OFAC),
+    claim('v/flag', OFAC, { claim_kind: 'attribute' }),
+  ];
+  const corroborated = partyOnly({ ...files, claims: both });
   expect(corroborated.facts).toBe(0);
   expect(corroborated.condition.critical).toBe(0);
   expect(corroborated.members.critical).toBe(0);
+  // Only GUR ends the manager relation, so the vessel leaves the node m through a party fact.
+  const ended = partyOnly({
+    ...files,
+    claims: [
+      ...both,
+      claim('op/valid_to', GUR, {
+        claim_kind: 'attribute',
+        subject_kind: 'relation',
+        subject_id: 'op',
+        attribute: 'valid_to',
+        value: '2025-06-01',
+      }),
+    ],
+  });
+  expect(ended.members.critical).toBe(1);
 });
 
 // Downloads the release of the report once (7.6 MB, checked by its SHA-256) and pins the count.

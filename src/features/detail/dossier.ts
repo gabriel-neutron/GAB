@@ -1,6 +1,6 @@
 /** A router loader returns these shapes, so they carry arrays and no `Map`. */
 
-import { documentMark, partyLabel } from '@gab/release/party-origin';
+import { documentMark, factMark, partyLabel } from '@gab/release/party-origin';
 import { relationDefinition } from '@gab/proposal/relation-types';
 import { SHARE_IMPUTED_KEY, SHARE_KEY, shareWords } from '@gab/proposal/share';
 import { relationLines } from '@/shared/canvas-label';
@@ -39,6 +39,8 @@ export interface SourceRef {
   /** The origin of the fact when a state body of one party to the conflict publishes each of its
    * documents, in words, or ''. Each mark of one fact holds the same words. */
   readonly partyLabel: string;
+  /** The short form of `partyLabel`, which names the state, or ''. */
+  readonly partyMark: string;
 }
 
 /** A relation that a document backs, as the reader meets it on the page. */
@@ -317,11 +319,20 @@ function sourceRegister(documentById: ReadonlyMap<DocId, DocumentRow>): SourceRe
     refsOf: (ids, text, listed = true) => {
       const fact = uniqueFact(text);
       const unique = [...new Set(ids)];
-      const party = partyLabel(unique.map((id) => documentById.get(id)?.uri ?? ''));
+      const addresses = unique.map((id) => documentById.get(id)?.uri ?? '');
+      const party = partyLabel(addresses);
+      const mark = factMark(addresses);
       return unique.map((id) => {
         const number = numberOf(id);
         if (listed) backed.set(id, [...(backed.get(id) ?? []), { key: fact, text: fact }]);
-        return { id, number, fact, name: `Source ${number} for: ${fact}`, partyLabel: party };
+        return {
+          id,
+          number,
+          fact,
+          name: `Source ${number} for: ${fact}`,
+          partyLabel: party,
+          partyMark: mark,
+        };
       });
     },
     cards: (holdsUpOf) =>

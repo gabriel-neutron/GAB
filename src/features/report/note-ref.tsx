@@ -51,7 +51,9 @@ function NoteBody({ partSlug, id }: NoteRefProps) {
                 <span className="block font-mono text-report-label text-label">
                   {document.id} · {document.type.replaceAll('_', ' ')} · {ui.note.retrieved}{' '}
                   {document.retrievedAt}
-                  {documentMark(document.url) === '' ? null : ` · ${documentMark(document.url)}`}
+                  {[documentMark(document.url)]
+                    .filter((mark) => mark !== '')
+                    .map((mark) => ` · ${mark}`)}
                 </span>
                 <a href={document.url} className={cn(UNDERLINE, FOCUS)}>
                   {document.url}

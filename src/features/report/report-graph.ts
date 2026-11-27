@@ -45,14 +45,17 @@ export const reportGraph = {
     edges.filter((edge) => edge.source === id || edge.target === id),
   documents: documentsIn,
   partyMark: partyMarkOf,
-  /** True when the node or one of its relations cites a document of a party to the conflict. */
-  citesParty: (id: string): boolean => {
+  /** The marks of the documents of a party to the conflict that the node or one of its relations
+   * cites, joined, or ''. */
+  partyMarks: (id: string): string => {
     const node = byId.get(id);
     const rows = [
       ...(node === undefined ? [] : [node]),
       ...edges.filter((edge) => edge.source === id || edge.target === id),
     ];
-    return rows.some((row) => documentsIn(row).some((document) => partyMarkOf(document) !== ''));
+    const marks = new Set(rows.flatMap((row) => documentsIn(row).map(partyMarkOf)));
+    marks.delete('');
+    return [...marks].sort().join(', ');
   },
   glyph: (type: string): string => GLYPHS[type] ?? type,
   layer: (layer: string): readonly GraphNode[] =>

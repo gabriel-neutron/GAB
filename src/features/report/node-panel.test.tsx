@@ -85,8 +85,8 @@ describe('the origin of a document of the node panel', () => {
   it('marks a document that a state body of a party to the conflict publishes', () => {
     // Novorossiysk cites a page of the war and sanctions portal of GUR for its third condition.
     expect(reportGraph.partyMark('doc_73f01151c6bf')).toBe('Party source (Ukraine)');
-    expect(html('N-P005')).toContain('doc_73f01151c6bf (Party source (Ukraine))');
-    expect(reportGraph.citesParty('N-P005')).toBe(true);
+    expect(html('N-P005')).toContain('doc_73f01151c6bf · Party source (Ukraine)');
+    expect(reportGraph.partyMarks('N-P005')).toBe('Party source (Ukraine)');
   });
 
   it('marks no other document', () => {

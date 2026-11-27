@@ -18,7 +18,7 @@ import { connectionString } from './db-runtime.ts';
 const DATA = new URL('../src/features/report/', import.meta.url);
 
 /** The ids of the documents that the node files of the report cite, in a stable order. */
-export const citedDocuments = (...texts: readonly string[]): string[] =>
+const citedDocuments = (...texts: readonly string[]): string[] =>
   [...new Set(texts.flatMap((text) => text.match(/doc_[0-9a-f]{12}/gu) ?? []))].sort();
 
 const ids = citedDocuments(

@@ -433,7 +433,8 @@ export const count = (nodes: readonly NodeResult[]): Count => {
 /** What the critical nodes owe to facts of a party to the conflict (@gab/release/party-origin):
  * a fact whose each cited document a state body of one party publishes.
  * - `condition`: the critical nodes with a condition that no other fact supports, by condition.
- *   The members stay the members of the full replay.
+ *   A fact of another publisher counts as support, whatever its letter. The members stay the
+ *   members of the full replay.
  * - `members`: the critical nodes with a member that joins them only through such a fact (a
  *   manager or an owner of a vessel). */
 export const partyOnly = (files: ReleaseFiles) => {
@@ -461,9 +462,11 @@ export const partyOnly = (files: ReleaseFiles) => {
 
   const nodeOf = new Map<string, string>();
   for (const [node, list] of nodeMembers(files)) for (const one of list) nodeOf.set(one, node);
+  // A date that only a party gives (the end of a manager) is a party fact too.
   const without = nodeMembers({
     ...files,
     relations: files.relations.filter((one) => !party.has(one['id'] ?? '')),
+    claims: files.claims.filter((one) => !party.has(one['claim_id'] ?? '')),
   });
   const joined = new Set<string>();
   for (const [node, list] of without)

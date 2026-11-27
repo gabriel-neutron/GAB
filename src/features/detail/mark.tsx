@@ -73,20 +73,18 @@ export function SourceMark({ sources, activeSource, onSelectSource }: SourceMark
   );
 }
 
-/** The origin of a fact that only a party to the conflict states: a short mark, with the full
- * words as its accessible name and its tooltip. It states the origin and rates no source. */
+/** The origin of a fact that only a party to the conflict states: a short mark that names the
+ * state, with the full words for a screen reader and as a tooltip. It rates no source. */
 function PartyNote({ sources }: { readonly sources: readonly SourceRef[] }) {
-  const words = sources[0]?.partyLabel ?? '';
-  if (words === '') return null;
+  const first = sources[0];
+  if (first === undefined || first.partyLabel === '') return null;
   return (
-    <span title={words} className="text-body-sm text-muted-foreground">
-      <span aria-hidden="true">{PARTY_SHORT}</span>
-      <span className="sr-only">{words}</span>
+    <span title={first.partyLabel} className="text-body-sm text-muted-foreground">
+      <span aria-hidden="true">{first.partyMark}</span>
+      <span className="sr-only">{first.partyLabel}</span>
     </span>
   );
 }
-
-const PARTY_SHORT = 'Party source';
 
 /**
  * The sidebar states how many documents hold a line up, and never one badge for each: at 24 rem
