@@ -63,7 +63,7 @@ export default [
     via_shared_entity: '',
     state: 'promoted fact',
     document_ids: 'doc_9b9b807ddac5',
-    basis: 'record relation between two nodes, according to GUR, a party to the war',
+    basis: 'record relation between two nodes, according to GUR, a party to the conflict',
   },
   {
     source: 'N-P026',
@@ -470,7 +470,7 @@ export default [
     via_shared_entity: 'Asya Energy',
     state: 'promoted fact',
     document_ids: 'doc_bc17fc8e5032',
-    basis: 'record relation to a shared entity, according to GUR, a party to the war',
+    basis: 'record relation to a shared entity, according to GUR, a party to the conflict',
   },
   {
     source: 'N-P052',
@@ -679,7 +679,7 @@ export default [
     via_shared_entity: '',
     state: 'stored document, not promoted',
     document_ids: 'doc_2f1a34c34a77',
-    basis: 'Far Frontiers owns AKKORD (OFAC 2024-01-18), according to GUR, a party to the war',
+    basis: 'Far Frontiers owns AKKORD (OFAC 2024-01-18), according to GUR, a party to the conflict',
   },
   {
     source: 'N-P055',
@@ -690,7 +690,8 @@ export default [
     via_shared_entity: '',
     state: 'stored document, not promoted',
     document_ids: 'doc_bab9008d5acb',
-    basis: 'Global Seaway owns HS EVERETT (OFAC 2024-01-18), according to GUR, a party to the war',
+    basis:
+      'Global Seaway owns HS EVERETT (OFAC 2024-01-18), according to GUR, a party to the conflict',
   },
   {
     source: 'N-P056',
@@ -702,7 +703,7 @@ export default [
     state: 'stored document, not promoted',
     document_ids: 'doc_0bc5e85025a4',
     basis:
-      'SMP carrier Arctic Mulan carries Arctic LNG 2 cargo, according to GUR, a party to the war',
+      'SMP carrier Arctic Mulan carries Arctic LNG 2 cargo, according to GUR, a party to the conflict',
   },
   {
     source: 'N-P025',
@@ -714,7 +715,7 @@ export default [
     state: 'stored document, not promoted',
     document_ids: 'doc_44301c461542',
     basis:
-      'Sovcomflot re-registered tankers to related firms, according to GUR, a party to the war',
+      'Sovcomflot re-registered tankers to related firms, according to GUR, a party to the conflict',
   },
   {
     source: 'N-M008',

@@ -105,7 +105,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Owners and managers:** In the private fleet and in oil trading, the ownership chains often end at a company with no documented owner: according to the sanctions lists and, for part of them, to Ukrainian military intelligence (GUR), a party to the war, sixteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner. On the archived pages of GUR, 427 of 757 ships that give both dates show an owner or manager that started after the designation.',
+        text: '**Owners and managers:** In the private fleet and in oil trading, the ownership chains often end at a company with no documented owner: according to the sanctions lists and, for part of them, to Ukrainian military intelligence (GUR), a party to the conflict, sixteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner. On the archived pages of GUR, 427 of 757 ships that give both dates show an owner or manager that started after the designation.',
       },
       { kind: 'p', text: '**What the sources show.**' },
       {
@@ -972,7 +972,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Vessels:** According to the sanctions lists and, for part of them, to GUR, a party to the war, sixteen shipowners or managers each own or operate at least six designated vessels, with no documented ultimate owner.[^124]',
+        text: '**Vessels:** According to the sanctions lists and, for part of them, to GUR, a party to the conflict, sixteen shipowners or managers each own or operate at least six designated vessels, with no documented ultimate owner.[^124]',
       },
       {
         kind: 'li',
@@ -1204,7 +1204,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: 'An authority that lists ships can check, at each update, the current owner and manager of the ships it has already listed, because 427 of 757 ships on the GUR pages show an owner or manager that started after the designation.',
+        text: 'An authority that lists ships can check, at each update, the current owner and manager of the ships it has already listed, because, on the pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships show an owner or manager that started after the designation.',
       },
       {
         kind: 'li',
@@ -1867,7 +1867,7 @@ export const figureTexts = {
         'État russe': 'Russian State',
         'propriétaire non nommé': 'owner not named',
         'possède ou exploite les navires de {n} armateurs ou gestionnaires :':
-          'owns or operates the vessels of {n} shipowners or managers, according to GUR, a party to the war:',
+          'owns or operates the vessels of {n} shipowners or managers, according to GUR, a party to the conflict:',
         'État et sociétés d’État': 'State and state companies',
         personnes: 'persons',
         sociétés: 'companies',
@@ -1921,9 +1921,9 @@ export const figureTexts = {
     'possède (jusqu’au 11 janvier 2023)': 'owns (until 11 January 2023)',
     'possède ou exploite': 'owns or operates',
     'possède ou exploite (selon le GUR, partie à la guerre)':
-      'owns or operates (according to GUR, a party to the war)',
+      'owns or operates (according to GUR, a party to the conflict)',
     'possède ou exploite (en partie selon le GUR, partie à la guerre)':
-      'owns or operates (partly according to GUR, a party to the war)',
+      'owns or operates (partly according to GUR, a party to the conflict)',
     contrôle: 'controls',
     'contrôle (filiale)': 'controls (subsidiary)',
     'contrôle (société du groupe)': 'controls (group company)',
