@@ -194,7 +194,14 @@ const ACT: Proposal = {
   batchId: null,
 };
 
-const source1 = (fact: string) => ({ id: 'd1', number: 1, fact, name: `Source 1 for: ${fact}` });
+const source1 = (fact: string) => ({
+  id: 'd1',
+  number: 1,
+  fact,
+  name: `Source 1 for: ${fact}`,
+  partyLabel: '',
+  partyMark: '',
+});
 
 const withActs = (...proposals: readonly Proposal[]): Corpus => ({
   ...CORPUS,

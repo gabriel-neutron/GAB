@@ -3,6 +3,7 @@ import { useId } from 'react';
 import { EmptyState } from './empty-state';
 import { KeyValue } from './key-value';
 import { READING_LINK } from './reading-link';
+import { documentMark } from '@gab/release/party-origin';
 import { safeHref } from '@gab/release/safe-href';
 
 export interface SourcePassage {
@@ -43,6 +44,7 @@ function SourceAddress({ address }: { readonly address: string | null }) {
  * one claim, the passages that hold the claim.  */
 export function SourceEntry({ source }: SourceEntryProps) {
   const titleId = useId();
+  const mark = documentMark(source.address ?? '');
   return (
     <article
       aria-labelledby={titleId}
@@ -56,6 +58,7 @@ export function SourceEntry({ source }: SourceEntryProps) {
           entries={[
             { key: 'Address', value: <SourceAddress address={source.address} /> },
             { key: 'Read on', value: source.readOn, figure: true },
+            ...(mark === '' ? [] : [{ key: 'Origin', value: mark }]),
           ]}
         />
       </div>

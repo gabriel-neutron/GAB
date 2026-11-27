@@ -1,3 +1,4 @@
+import { partyOrigin } from '@gab/release/party-origin';
 import { relationWords } from '@gab/proposal/relation-types';
 import { shareWords } from '@gab/proposal/share';
 import { findExcerpt } from '@gab/tools/excerpt';
@@ -28,6 +29,7 @@ const RELATION_HEADER = [
   'document_ids',
   'type_label',
   'share',
+  'party_origin',
 ];
 
 const CLAIM_HEADER = [
@@ -55,6 +57,7 @@ const CLAIM_HEADER = [
   'transcribed',
   'document_type',
   'value_in_excerpt',
+  'party_origin',
 ];
 
 /** The test of a claim row: the value of an attribute claim is in the excerpt of the row. A relation
@@ -94,6 +97,9 @@ const valueText = (value: unknown): string =>
 export const csvExport = (record: ReleaseRecord, preamble: string): readonly ReleaseFile[] => {
   const lookup = releaseLookup(record);
   const { documentOf, licenceOf, labelOf, relationOf, daysOf } = lookup;
+  // The same value on each row of a fact: it reads all the documents of the fact.
+  const originOf = (sources: readonly string[]) =>
+    partyOrigin(sources.map((id) => documentOf(id).uri ?? ''));
 
   const entities = record.entities.map((one) => {
     const columns = entityColumns(one, lookup);
@@ -123,6 +129,7 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
     one.sources.join(' '),
     relationWords(one.type, false),
     shareWords(relationAttrs.get(one.id) ?? {}) ?? '',
+    originOf(one.sources),
   ]);
 
   // A relation claim reads from its first end to its second end. A value reads as a key and a
@@ -190,13 +197,14 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
       licenceOf(claim.sources),
     ];
     const nato = natoFields(claim);
+    const origin = originOf(claim.sources);
     return claim.sources.flatMap((id) => {
       const document = documentOf(id);
       const source = [id, document.title, document.uri ?? '', document.retrieved_at ?? ''];
       const type = document.doc_type ?? 'other';
       const cited = claim.passages.filter((one) => one.document === id);
       return cited.length === 0
-        ? [[...head, ...source, '', '', '', '', type, valueInExcerpt(claim, ''), ...nato]]
+        ? [[...head, ...source, '', '', '', '', type, valueInExcerpt(claim, ''), origin, ...nato]]
         : cited.map((one) => [
             ...head,
             ...source,
@@ -206,6 +214,7 @@ export const csvExport = (record: ReleaseRecord, preamble: string): readonly Rel
             String(one.transcribed),
             type,
             valueInExcerpt(claim, one.excerpt),
+            origin,
             ...nato,
           ]);
     });

@@ -1,5 +1,6 @@
 /** A router loader returns these shapes, so they carry arrays and no `Map`. */
 
+import { documentMark, factMark, partyLabel } from '@gab/release/party-origin';
 import { relationDefinition } from '@gab/proposal/relation-types';
 import { SHARE_IMPUTED_KEY, SHARE_KEY, shareWords } from '@gab/proposal/share';
 import { relationLines } from '@/shared/canvas-label';
@@ -35,6 +36,11 @@ export interface SourceRef {
   /** The accessible name of the mark: `Source 7 for: <fact>`. It says which fact the button
    * documents, so no two buttons of one panel read the same. */
   readonly name: string;
+  /** The origin of the fact when a state body of one party to the conflict publishes each of its
+   * documents, in words, or ''. Each mark of one fact holds the same words. */
+  readonly partyLabel: string;
+  /** The short form of `partyLabel`, which names the state, or ''. */
+  readonly partyMark: string;
 }
 
 /** A relation that a document backs, as the reader meets it on the page. */
@@ -71,6 +77,8 @@ export interface SourceCardModel {
   readonly missing: boolean;
   /** The record holds the bytes of the document, so the worker can extract its claims. */
   readonly extractable: boolean;
+  /** The short mark of a document that a state body of a party to the conflict publishes, or ''. */
+  readonly partyMark: string;
 }
 
 export interface RecordRow {
@@ -253,6 +261,7 @@ function cardOf(
     holdsUp,
     missing: row === undefined,
     extractable: row?.sha256 !== undefined && row.sha256 !== null,
+    partyMark: documentMark(row?.uri ?? ''),
   };
 }
 
@@ -309,10 +318,21 @@ function sourceRegister(documentById: ReadonlyMap<DocId, DocumentRow>): SourceRe
   return {
     refsOf: (ids, text, listed = true) => {
       const fact = uniqueFact(text);
-      return [...new Set(ids)].map((id) => {
+      const unique = [...new Set(ids)];
+      const addresses = unique.map((id) => documentById.get(id)?.uri ?? '');
+      const party = partyLabel(addresses);
+      const mark = factMark(addresses);
+      return unique.map((id) => {
         const number = numberOf(id);
         if (listed) backed.set(id, [...(backed.get(id) ?? []), { key: fact, text: fact }]);
-        return { id, number, fact, name: `Source ${number} for: ${fact}` };
+        return {
+          id,
+          number,
+          fact,
+          name: `Source ${number} for: ${fact}`,
+          partyLabel: party,
+          partyMark: mark,
+        };
       });
     },
     cards: (holdsUpOf) =>

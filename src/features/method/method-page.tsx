@@ -105,6 +105,14 @@ export function MethodPage({ manifest }: MethodPageProps) {
               </Link>{' '}
               explains the other terms and the types of relation.
             </p>
+            <p className={PROSE}>
+              Some facts come only from a state body of a party to the conflict, for example the war
+              and sanctions portal of GUR, the military intelligence of Ukraine. When each document
+              of a fact comes from such a body of one party, the site says so beside the fact, and
+              the mark "Party source" shows on each such document. The column party_origin of the
+              release gives the same information. The mark states who publishes the document. It
+              does not rate the source and says nothing about the truth of the fact.
+            </p>
           </PageSection>
 
           <PageSection id="errors" title="Report an error">

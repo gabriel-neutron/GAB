@@ -1,4 +1,6 @@
+import { documentMark } from '@gab/release/party-origin';
 import { parts } from './content';
+import nodeDocuments from './data/node-documents.json';
 import edges from './edges-data';
 import nodes from './nodes-data';
 
@@ -26,6 +28,13 @@ const GLYPHS: Readonly<Record<string, string>> = {
   intermediary: 'company',
 };
 
+// The address of each cited document comes from the record (tools/node-documents.ts). The
+// rule of the origin reads the address, so the file holds no party.
+const addresses: Readonly<Record<string, string>> = nodeDocuments.documents;
+
+/** The short mark of a document that a state body of a party to the conflict publishes, or ''. */
+const partyMarkOf = (document: string): string => documentMark(addresses[document] ?? '');
+
 const allDocuments = new Set([...nodes, ...edges].flatMap((row) => documentsIn(row)));
 
 /** The nodes and their relations, read once from the data files of the report. Each lookup here
@@ -35,6 +44,19 @@ export const reportGraph = {
   relations: (id: string): readonly GraphEdge[] =>
     edges.filter((edge) => edge.source === id || edge.target === id),
   documents: documentsIn,
+  partyMark: partyMarkOf,
+  /** The marks of the documents of a party to the conflict that the node or one of its relations
+   * cites, joined, or ''. */
+  partyMarks: (id: string): string => {
+    const node = byId.get(id);
+    const rows = [
+      ...(node === undefined ? [] : [node]),
+      ...edges.filter((edge) => edge.source === id || edge.target === id),
+    ];
+    const marks = new Set(rows.flatMap((row) => documentsIn(row).map(partyMarkOf)));
+    marks.delete('');
+    return [...marks].sort().join(', ');
+  },
   glyph: (type: string): string => GLYPHS[type] ?? type,
   layer: (layer: string): readonly GraphNode[] =>
     nodes

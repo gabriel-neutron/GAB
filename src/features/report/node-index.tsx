@@ -20,6 +20,22 @@ const GLYPH = Object.fromEntries(
   ].map((type) => [`--entity-${type}`, 'var(--index-glyph)']),
 ) as CSSProperties;
 
+// The node or one of its relations cites a document of a state body of a party to the conflict.
+// The words state the origin of a document and rate no source; the node panel names the document.
+const PARTY_WORDS =
+  'The node or one of its relations cites a document of a state body of a party to the conflict.';
+
+function PartyMarks({ id }: { readonly id: string }) {
+  const marks = reportGraph.partyMarks(id);
+  if (marks === '') return null;
+  return (
+    <span title={PARTY_WORDS}>
+      <span aria-hidden="true"> · {marks}</span>
+      <span className="sr-only">{` ${PARTY_WORDS} ${marks}.`}</span>
+    </span>
+  );
+}
+
 /** Every node of the report, grouped by layer and in the rank order of its layer. Each layer
  * spans the full width as a list in columns: 2 from 768px, 3 from 1024px. */
 export function NodeIndex() {
@@ -55,6 +71,7 @@ export function NodeIndex() {
                     </NodeRef>
                     <span className="shrink-0 font-mono text-report-label text-label">
                       {node.type}
+                      <PartyMarks id={node.node_id} />
                     </span>
                   </li>
                 ))}

@@ -71,7 +71,7 @@
         "count": 1
       }
     ],
-    "sources": 3,
+    "sources": 4,
     "scope": {
       "covers": "The record holds the entities, the relations and the facts that GAB read in public documents and that were then reviewed. Each fact names its sources.",
       "excludes": "The record is not complete. It does not cover each vessel, company, person or unit, and it does not cover a source that GAB has not read.",
@@ -119,13 +119,13 @@
     },
     {
       "path": "relations.csv",
-      "bytes": 4224,
-      "sha256": "0858516dcb0fa80804c840caa08c7d757d6ce7d09b3290d9fa8208800db97f8d"
+      "bytes": 4255,
+      "sha256": "a21f7286ac0ca4bec262fef7ea259d16bdfc563dbfc547438ecb5523726850ec"
     },
     {
       "path": "claims.csv",
-      "bytes": 9938,
-      "sha256": "ac2b575d95c56b6ce8a8d97dcb8a223ee6434e90404f663538288bcb86ee90a4"
+      "bytes": 10034,
+      "sha256": "c7ddffe42a6708bfc4ac8dd4ffdaacc846867cfc4fb0d93ead5297215de609b7"
     },
     {
       "path": "merges.csv",
@@ -164,8 +164,8 @@
     },
     {
       "path": "release-notes.md",
-      "bytes": 2055,
-      "sha256": "25d604c7632fcfc7c0409229353668a98206f4406560e998ba9c59480cf871b6"
+      "bytes": 2795,
+      "sha256": "fc05cd6a8613b4c58e8dcf35fb278d130412871945ee42c64ac2ca43cc772005"
     },
     {
       "path": "entities.geojson",
@@ -174,8 +174,8 @@
     },
     {
       "path": "dataset.jsonld",
-      "bytes": 25433,
-      "sha256": "1f04c16d5322c7e19e8c6f52b5c707bc7128e4ffb651da6e24721983ca1802f5"
+      "bytes": 25654,
+      "sha256": "7712cc47c5565bc01c65b2ce83b937d5692f618b1217c8cab83158eac70454e1"
     },
     {
       "path": "changelog.csv",

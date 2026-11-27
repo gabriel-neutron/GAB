@@ -37,6 +37,7 @@ import { fileURLToPath } from 'node:url';
 
 import { isDay } from '@gab/proposal/day';
 import { readCsv } from '@gab/release/csv';
+import { partyOrigin } from '@gab/release/party-origin';
 
 import { fetchDataRelease } from './data-release.ts';
 
@@ -169,7 +170,14 @@ export interface NodeResult {
   readonly c: boolean;
   /** Each condition rests on at least one fact that a document of ADMIRALTY letter A supports. */
   readonly official: boolean;
+  /** Each condition that rests on at least one strong fact (letter A unless the caller names
+   * another test of a claim row). */
+  readonly supported: { readonly a: boolean; readonly b: boolean; readonly c: boolean };
 }
+
+/** The test of a claim row that makes its fact strong. The default: a document of letter A. */
+export type Strong = (claim: Row) => boolean;
+const letterA: Strong = (claim) => claim['nato_letter'] === 'A';
 
 const inPeriod = (day: string) => day !== '' && day >= FROM && day <= TO;
 
@@ -198,7 +206,10 @@ interface Bound {
 /** The days that the release gives as claims of a relation, by claim id (`<relation id>/valid_from`
  * or `<relation id>/valid_to`). A later act can give a day that the relation row does not hold. A
  * value that is not a day is no date of the relation. */
-export const claimedDays = (claims: readonly Row[]): Map<string, Bound> => {
+export const claimedDays = (
+  claims: readonly Row[],
+  strong: Strong = letterA,
+): Map<string, Bound> => {
   const found = new Map<string, Bound>();
   for (const claim of claims) {
     const id = claim['claim_id'] ?? '';
@@ -207,7 +218,7 @@ export const claimedDays = (claims: readonly Row[]): Map<string, Bound> => {
     if (claim['subject_kind'] !== 'relation' || !id.endsWith(`/${name}`)) continue;
     if ((name !== 'valid_from' && name !== 'valid_to') || !isDay(value)) continue;
     // A claim has one row for each cited passage, and one passage of letter A is enough.
-    const official = (found.get(id)?.official ?? false) || claim['nato_letter'] === 'A';
+    const official = (found.get(id)?.official ?? false) || strong(claim);
     found.set(id, { day: value, official });
   }
   return found;
@@ -261,7 +272,10 @@ export const nodeMembers = ({
 };
 
 /** Applies the rule of the head comment to the files of one release. */
-export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResult[] => {
+export const replay = (
+  { entities, relations, claims }: ReleaseFiles,
+  strong: Strong = letterA,
+): NodeResult[] => {
   const type = new Map(entities.map((one) => [one['id'] ?? '', one['type'] ?? '']));
 
   // The attributes of each entity, and the facts that a document of letter A supports.
@@ -271,7 +285,7 @@ export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResul
   const officialAttribute = new Set<string>();
   for (const claim of claims) {
     const subject = claim['subject_id'] ?? '';
-    const official = claim['nato_letter'] === 'A';
+    const official = strong(claim);
     if (claim['claim_kind'] === 'relation') {
       if (official)
         officialRelation.add(
@@ -298,7 +312,7 @@ export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResul
     );
 
   const members = nodeMembers({ entities, relations, claims });
-  const days = claimedDays(claims);
+  const days = claimedDays(claims, strong);
 
   // The facts of each member for the three conditions: a value is "official" when a document of
   // letter A supports it.
@@ -393,6 +407,7 @@ export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResul
       b: any(active),
       c: any(third),
       official: sure(designated) && sure(active) && sure(third),
+      supported: { a: sure(designated), b: sure(active), c: sure(third) },
     };
   });
 };
@@ -412,6 +427,55 @@ export const count = (nodes: readonly NodeResult[]): Count => {
     critical: critical.length,
     official: critical.filter((one) => one.official).length,
     byLayer,
+  };
+};
+
+/** What the critical nodes owe to facts of a party to the conflict (@gab/release/party-origin):
+ * a fact whose each cited document a state body of one party publishes.
+ * - `condition`: the critical nodes with a condition that no other fact supports, by condition.
+ *   A fact of another publisher counts as support, whatever its letter. The members stay the
+ *   members of the full replay.
+ * - `members`: the critical nodes with a member that joins them only through such a fact (a
+ *   manager or an owner of a vessel). */
+export const partyOnly = (files: ReleaseFiles) => {
+  const addresses = new Map<string, string[]>();
+  for (const claim of files.claims) {
+    const id = claim['claim_id'] ?? '';
+    addresses.set(id, [...(addresses.get(id) ?? []), claim['document_address'] ?? '']);
+  }
+  const party = new Set(
+    [...addresses].filter(([, list]) => partyOrigin(list) !== '').map(([id]) => id),
+  );
+  const critical = replay(files).filter((one) => one.a && one.b && one.c);
+  const other = new Map(
+    replay(files, (claim) => !party.has(claim['claim_id'] ?? '')).map((one) => [
+      one.id,
+      one.supported,
+    ]),
+  );
+  const byCondition = { a: 0, b: 0, c: 0 };
+  const condition = critical.filter((one) => {
+    const supported = other.get(one.id) ?? { a: false, b: false, c: false };
+    for (const key of ['a', 'b', 'c'] as const) if (!supported[key]) byCondition[key] += 1;
+    return !(supported.a && supported.b && supported.c);
+  });
+
+  const nodeOf = new Map<string, string>();
+  for (const [node, list] of nodeMembers(files)) for (const one of list) nodeOf.set(one, node);
+  // A date that only a party gives (the end of a manager) is a party fact too.
+  const without = nodeMembers({
+    ...files,
+    relations: files.relations.filter((one) => !party.has(one['id'] ?? '')),
+    claims: files.claims.filter((one) => !party.has(one['claim_id'] ?? '')),
+  });
+  const joined = new Set<string>();
+  for (const [node, list] of without)
+    for (const one of list) if (nodeOf.get(one) !== node) joined.add(nodeOf.get(one) ?? '');
+
+  return {
+    facts: party.size,
+    condition: { ...count(condition), byCondition },
+    members: count(critical.filter((one) => joined.has(one.id))),
   };
 };
 
@@ -435,5 +499,6 @@ export const reportRelease = () =>
 
 if (argv[1] === fileURLToPath(import.meta.url)) {
   const folder = argv[2] ?? (await reportRelease());
-  console.log(JSON.stringify(count(replay(readRelease(folder))), null, 2));
+  const files = readRelease(folder);
+  console.log(JSON.stringify({ ...count(replay(files)), party: partyOnly(files) }, null, 2));
 }

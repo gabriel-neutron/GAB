@@ -41,6 +41,9 @@ export function SourceCard({ source }: SourceCardProps) {
         <span className={`shrink-0 ${DATA} text-muted-foreground`}>{source.number}</span>
         <span className="min-w-0 flex-1 text-body-sm break-words">{source.title}</span>
         {source.kind === null ? null : <span className={`shrink-0 ${CAPTION}`}>{source.kind}</span>}
+        {source.partyMark === '' ? null : (
+          <span className={`shrink-0 ${CAPTION}`}>{source.partyMark}</span>
+        )}
         {source.missing ? (
           <FileX size={14} aria-hidden="true" className="shrink-0 text-dissent" />
         ) : null}

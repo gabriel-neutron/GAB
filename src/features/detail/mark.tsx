@@ -68,6 +68,20 @@ export function SourceMark({ sources, activeSource, onSelectSource }: SourceMark
           {source.number}
         </button>
       ))}
+      <PartyNote sources={sources} />
+    </span>
+  );
+}
+
+/** The origin of a fact that only a party to the conflict states: a short mark that names the
+ * state, with the full words for a screen reader and as a tooltip. It rates no source. */
+function PartyNote({ sources }: { readonly sources: readonly SourceRef[] }) {
+  const first = sources[0];
+  if (first === undefined || first.partyLabel === '') return null;
+  return (
+    <span title={first.partyLabel} className="text-body-sm text-muted-foreground">
+      <span aria-hidden="true">{first.partyMark}</span>
+      <span className="sr-only">{first.partyLabel}</span>
     </span>
   );
 }
@@ -91,6 +105,7 @@ export function SourceCount({ sources, cards, entityId }: SourceCountProps) {
       >
         {sources.length}
       </PopoverTrigger>
+      <PartyNote sources={sources} />
       {/* The kit writes `w-72 rounded-lg p-4` at its own scale. The correction is made here, at
           the call site, because a vendored file is closed. The panel holds its own scroll: a
           popover that grows past the window puts the way out of its last card off the screen. */}

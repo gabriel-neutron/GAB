@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Dialog, Popover } from 'radix-ui';
+import { documentMark } from '@gab/release/party-origin';
 import { cn } from '@/shared/lib/utils';
 import { useMarginScreen } from './margin-screen';
 import { noteDocuments } from './note-documents';
@@ -50,6 +51,9 @@ function NoteBody({ partSlug, id }: NoteRefProps) {
                 <span className="block font-mono text-report-label text-label">
                   {document.id} · {document.type.replaceAll('_', ' ')} · {ui.note.retrieved}{' '}
                   {document.retrievedAt}
+                  {[documentMark(document.url)]
+                    .filter((mark) => mark !== '')
+                    .map((mark) => ` · ${mark}`)}
                 </span>
                 <a href={document.url} className={cn(UNDERLINE, FOCUS)}>
                   {document.url}
