@@ -47,6 +47,14 @@ function NoteBody({ partSlug, id }: NoteRefProps) {
   return (
     <div className="space-y-3">
       <p className="text-report-small break-words">({citeText(note.text)})</p>
+      {/* The way to the bibliography comes first: a long note scrolls in its box. */}
+      <Link
+        to={`/${ui.paths.notes}` as ReportPath}
+        hash={short === '' ? entryAnchor(keys[0] ?? '') : noteAnchor(partSlug, id)}
+        className={cn('inline-flex min-h-11 items-center text-report-small', UNDERLINE, FOCUS)}
+      >
+        {ui.note.all}
+      </Link>
       <ul className="space-y-2">
         {keys.map((key) => (
           <li key={key} className="text-report-small">
@@ -86,13 +94,6 @@ function NoteBody({ partSlug, id }: NoteRefProps) {
           <footer className="mt-1 font-mono text-report-label text-label">{quote.document}</footer>
         </blockquote>
       )}
-      <Link
-        to={`/${ui.paths.notes}` as ReportPath}
-        hash={short === '' ? entryAnchor(keys[0] ?? '') : noteAnchor(partSlug, id)}
-        className={cn('inline-flex min-h-11 items-center text-report-small', UNDERLINE, FOCUS)}
-      >
-        {ui.note.all}
-      </Link>
     </div>
   );
 }
