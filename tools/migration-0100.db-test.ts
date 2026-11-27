@@ -32,7 +32,8 @@ test('a signed OFAC address becomes the export address, and the bytes and the ha
     // The test database ran the migration already, so the case drops its check first.
     await ask('ALTER TABLE public.documents DROP CONSTRAINT documents_uri_unsigned');
     await ask(PUT, ['doc_m0100_ofac', SIGNED, HASH]);
-    await ask(PUT, ['doc_m0100_page', 'https://example.org/a?Auth=AB', null]);
+    await ask(PUT, ['doc_m0100_page', 'https://example.org/a?Auth=AB&fromCountryKey=RU', null]);
+    await ask(PUT, ['doc_m0100_path', 'https://example.org/a;sig=1/b', null]);
     await ask(await readFile(MIGRATION, 'utf8'));
     const rows = z
       .array(z.object({ id: z.string(), uri: z.string(), sha256: z.string().nullable() }))
@@ -41,7 +42,11 @@ test('a signed OFAC address becomes the export address, and the bytes and the ha
           `SELECT id, uri, sha256 FROM public.documents WHERE id LIKE 'doc_m0100_%' ORDER BY id`,
         ),
       );
-    const refused = await ask(PUT, ['doc_m0100_late', SIGNED, null]).then(
+    const refused = await ask(PUT, [
+      'doc_m0100_late',
+      'https://bucket.example/a.csv?x_amz_signature=test',
+      null,
+    ]).then(
       () => 'stored',
       (fault: unknown) => (fault instanceof Error ? fault.message : String(fault)),
     );
@@ -53,7 +58,8 @@ test('a signed OFAC address becomes the export address, and the bytes and the ha
       uri: 'https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/ADD.CSV',
       sha256: HASH,
     },
-    { id: 'doc_m0100_page', uri: 'https://example.org/a?Auth=AB', sha256: null },
+    { id: 'doc_m0100_page', uri: 'https://example.org/a?Auth=AB&fromCountryKey=RU', sha256: null },
+    { id: 'doc_m0100_path', uri: 'https://example.org/a;sig=1/b', sha256: null },
   ]);
   expect(held.refused).toMatch(/documents_uri_unsigned/u);
 });

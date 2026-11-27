@@ -280,6 +280,7 @@ test.each([
   'a.csv?sv=1&se=2&sig=abc',
   'a.csv?AWSAccessKeyId=abc',
   'a.csv?a=1;Signature=abc',
+  'a.csv?x_amz_signature=abc',
 ])('the address %s is signed, and the guard holds it as a secret', (path) => {
   const address = `https://bucket.example/${path}`;
   expect(isSigned(address)).toBe(true);
@@ -290,6 +291,8 @@ test.each([
   'https://apcis.tmou.org/isss/public_apcis.php?Mode=1&Auth=AB',
   'https://data.example/a.csv?token=public',
   'https://data.example/a.csv?signatory=1',
+  'https://transparency.entsog.eu/api/v1/interconnections?fromCountryKey=RU',
+  'https://data.example/page#top',
   'https://data.example/page#Signature',
   'not an address',
 ])('the address %s is not signed', (address) => {
