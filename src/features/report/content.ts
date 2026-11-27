@@ -503,7 +503,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'p',
-        text: 'Sanctions ended up targeting these ports themselves. Since February 2025, an EU company can no longer deal, save for listed exceptions, with the oil ports on the Baltic and the Black Sea, and since April 2026 with [[N-P011|Tuapse]] and Murmansk.[^42] Like the price cap, these measures bind only EU companies.',
+        text: 'Sanctions ended up targeting these ports themselves. Since February 2025, an EU company can no longer deal, save for listed exceptions, with three oil ports, [[N-P001|Primorsk]] and [[N-P002|Ust-Luga]] on the Baltic and [[N-P005|Novorossiysk]] on the Black Sea, since April 2026 with [[N-P011|Tuapse]] and Murmansk, and since July 2026 with Vysotsk.[^42] Like the price cap, these measures bind only EU companies.',
       },
       { kind: 'h3', text: 'The fleet' },
       {
@@ -585,7 +585,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '42',
-        text: 'CELEX 32025R0395, Annex XIV ; CELEX 32026R0506, Annex XVI ; https://eur-lex.europa.eu.',
+        text: 'CELEX 32025R0395, Annex XIV ; CELEX 32026R0506, Annex XVI ; CELEX 32026R1848, Annex IX ; https://eur-lex.europa.eu.',
       },
       { id: '43', text: 'See n. 2.' },
       { id: '44', text: 'See n. 41.' },
@@ -662,7 +662,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Banks in Central Asia and Armenia (Kyrgyzstan, Kazakhstan, Armenia):** In 2024, Armenian and Kazakh banks stopped accepting the Russian Mir card, because of the risk of secondary sanctions.[^70] Kyrgyzstan then concentrated rouble payments in two state banks,[^71] which the EU targeted in 2026, after two other Kyrgyz banks.[^72]',
+        text: '**Banks in Central Asia and Armenia (Kyrgyzstan, Kazakhstan, Armenia):** In 2024, Armenian and Kazakh banks stopped accepting the Russian Mir card, because of the risk of secondary sanctions.[^70] Kyrgyzstan then concentrated rouble payments in two banks: Capital Bank, which the state has owned in full since April 2025, and Keremet Bank, in which the state kept 22% after it sold 75% in December 2024.[^71] The EU targeted both banks in 2026, after two other Kyrgyz banks.[^72]',
       },
       {
         kind: 'li',
@@ -742,7 +742,7 @@ export const parts: ReportPart[] = [
       },
       {
         id: '71',
-        text: '24.kg. (2025, April). *New procedure for Russian ruble transactions to be introduced in Kyrgyzstan*. https://24.kg; The Times of Central Asia. (2025, August). *Kyrgyz President Denounces "Politicized" Sanctions on Banks*. https://timesca.com.',
+        text: '24.kg. (2025, April). *New procedure for Russian ruble transactions to be introduced in Kyrgyzstan*. https://24.kg; The Times of Central Asia. (2025, August). *Kyrgyz President Denounces "Politicized" Sanctions on Banks*. https://timesca.com; Akchabar. (2024, December 26). *Минфин продал контрольный пакет «Керемет Банка» люксембургской компании* [The Ministry of Finance sold a controlling stake of Keremet Bank to a Luxembourg company]. https://www.akchabar.kg/article/elektronnie-dengi-igvepnpgkpdmhynm/minfin-prodal-kontrolnij-paket-keremet-banka-lyuksemburgskoj-kompanii-dgdjjrdvmdbzapbe; 24.kg. (2025, April). *«Капитал Банк» сменил владельца* [Capital Bank changed its owner]. https://24.kg/ekonomika/324879_kapital_bank_smenil_vladeltsa_reshenie_aktsionerov/.',
       },
       {
         id: '72',

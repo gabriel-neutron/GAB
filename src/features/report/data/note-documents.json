@@ -1258,6 +1258,13 @@
           "retrievedAt": "2026-10-10",
           "url": "http://publications.europa.eu/resource/cellar/b87e7fd7-3f1f-11f1-814f-01aa75ed71a1.0006.03/DOC_1",
           "match": "manual"
+        },
+        {
+          "id": "doc_7549e0256ef1",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-16",
+          "url": "http://publications.europa.eu/resource/cellar/67350bea-86dd-11f1-bf5e-01aa75ed71a1.0006.03/DOC_1",
+          "match": "manual"
         }
       ]
     },
@@ -3951,6 +3958,20 @@
           "retrievedAt": "2026-10-27",
           "url": "https://timesca.com/kyrgyz-president-denounces-politicized-sanctions-on-banks/",
           "match": "manual"
+        },
+        {
+          "id": "doc_5682972596c8",
+          "type": "other",
+          "retrievedAt": "2026-10-30",
+          "url": "https://www.akchabar.kg/article/elektronnie-dengi-igvepnpgkpdmhynm/minfin-prodal-kontrolnij-paket-keremet-banka-lyuksemburgskoj-kompanii-dgdjjrdvmdbzapbe",
+          "match": "exact"
+        },
+        {
+          "id": "doc_66fff6aaabb8",
+          "type": "other",
+          "retrievedAt": "2026-10-30",
+          "url": "https://24.kg/ekonomika/324879_kapital_bank_smenil_vladeltsa_reshenie_aktsionerov/",
+          "match": "exact"
         }
       ]
     },

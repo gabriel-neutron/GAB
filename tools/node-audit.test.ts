@@ -30,6 +30,7 @@ import {
   contextOf,
   failedClaimsOf,
   repairTail,
+  reportCountryGaps,
   reportEntityIds,
   summaryOf,
 } from './node-audit.ts';
@@ -385,8 +386,33 @@ describe('the audit of a release', () => {
   });
 
   it('reads the record ids of the report nodes, also of a group node', () => {
-    const text = "{ record_entity_id: 'a' },{ record_entity_id: '' },{ record_entity_id: 'b;c' }";
+    const text = "{ record_entity_id: 'a' },{ record_entity_id: '' },{ record_entity_id:\n 'b;c' }";
     expect(reportEntityIds(text)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('names a report node with no country when the release gives the country of its entity', () => {
+    const text = [
+      "{ node_id: 'N-1', country_code: 'XX', record_entity_id: 'a' }",
+      "{ node_id: 'N-2', country_code: 'RU', record_entity_id: 'b' }",
+      "{ node_id: 'N-3', country_code: 'XX', record_entity_id: 'c;d' }",
+      "{ node_id: 'N-4', country_code: 'XX', record_entity_id: '' }",
+      // Prettier puts a long value on the next line.
+      "{ node_id: 'N-5', country_code: 'XX', record_entity_id:\n      'e' }",
+    ].join(',');
+    const claim = (subject: string, attribute: string, value: string) => ({
+      subject_kind: 'entity',
+      subject_id: subject,
+      attribute,
+      value,
+    });
+    const claims = [
+      claim('a', 'registration_jurisdiction', 'RU'),
+      claim('b', 'registration_jurisdiction', 'RU'),
+      claim('d', 'country', 'Russia'),
+      claim('c', 'imo', '9327413'),
+      claim('e', 'registration_jurisdiction', 'BY'),
+    ];
+    expect(reportCountryGaps(text, claims)).toEqual(['N-1 RU', 'N-3 RU', 'N-5 BY']);
   });
 
   it('orders the report nodes first, and puts a vessel in the node of its owner', () => {

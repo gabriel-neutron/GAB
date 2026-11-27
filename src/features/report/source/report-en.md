@@ -245,7 +245,7 @@ Crude export ports: Primorsk, Ust-Luga, Novorossiysk
 
 Russian crude that does not leave by pipeline leaves Russia through a few ports, mainly Primorsk and Ust-Luga on the Baltic, Novorossiysk on the Black Sea and Kozmino on the Pacific.[^40] Traffic at the first three, all goods included, held up despite the embargo: in 2025, it exceeded its 2021 level (figure 6).[^41]
 
-Sanctions ended up targeting these ports themselves. Since February 2025, an EU company can no longer deal, save for listed exceptions, with the oil ports on the Baltic and the Black Sea, and since April 2026 with Tuapse and Murmansk.[^42] Like the price cap, these measures bind only EU companies.
+Sanctions ended up targeting these ports themselves. Since February 2025, an EU company can no longer deal, save for listed exceptions, with three oil ports, Primorsk and Ust-Luga on the Baltic and Novorossiysk on the Black Sea, since April 2026 with Tuapse and Murmansk, and since July 2026 with Vysotsk.[^42] Like the price cap, these measures bind only EU companies.
 
 ### 2.5 The fleet
 
@@ -255,7 +255,7 @@ To leave ports closed to companies of the coalition, the crude needs ships that 
 
 [^41]: ASOP (2022; 2026; 2026). https://www.morport.com, p. 1 ; PortNews (2018; 2019; 2021). https://portnews.ru ; NMTP (2017). https://en.portnews.ru, pp. 7–8 ; NMTP (2020). https://fs.moex.com, p. 1 ; Dodonov et al. (2026), op. cit., n. 2, p. 3.
 
-[^42]: CELEX 32025R0395, Annex XIV ; CELEX 32026R0506, Annex XVI ; https://eur-lex.europa.eu.
+[^42]: CELEX 32025R0395, Annex XIV ; CELEX 32026R0506, Annex XVI ; CELEX 32026R1848, Annex IX ; https://eur-lex.europa.eu.
 
 [^43]: See n. 2.
 
@@ -365,7 +365,7 @@ A payment in yuan is still exposed to US sanctions. A bank that settles in yuan 
 
 - **Small Chinese border banks (Heihe, Suifenhe):** According to Reuters, a handful of small banks near the border took over from the large banks. The EU listed two banks of border cities, Heihe Rural Commercial Bank and Suifenhe Rural Commercial Bank, in 2025 and removed them in 2026.[^69]
 
-- **Banks in Central Asia and Armenia (Kyrgyzstan, Kazakhstan, Armenia):** In 2024, Armenian and Kazakh banks stopped accepting the Russian Mir card, because of the risk of secondary sanctions.[^70] Kyrgyzstan then concentrated rouble payments in two state banks,[^71] which the EU targeted in 2026, after two other Kyrgyz banks.[^72]
+- **Banks in Central Asia and Armenia (Kyrgyzstan, Kazakhstan, Armenia):** In 2024, Armenian and Kazakh banks stopped accepting the Russian Mir card, because of the risk of secondary sanctions.[^70] Kyrgyzstan then concentrated rouble payments in two banks: Capital Bank, which the state has owned in full since April 2025, and Keremet Bank, in which the state kept 22% after it sold 75% in December 2024.[^71] The EU targeted both banks in 2026, after two other Kyrgyz banks.[^72]
 
 - **Payment agents (Russia, China, Hong Kong, Kazakhstan):** Some sit in Russia and some on the supplier's side. They receive the importer's roubles and pay in its place; in 2024, their share of cross-border payments rose from under 20% to up to 80%, according to Vedomosti, quoted by The Bell.[^73]
 
@@ -381,7 +381,7 @@ According to FinCEN, A7, the best-known payment agent, uses a sub-agent in a thi
 
 [^70]: RFE/RL. (2024, March 29). *Armenian Banks To Ditch Russian Cards Over U.S. Sanctions*. https://www.rferl.org; Interfax. (2024, April 3). *Most Kazakh banks not servicing Russian Mir cards due to sanctions*. https://interfax.com/newsroom/top-stories/101016/.
 
-[^71]: 24.kg. (2025, April). *New procedure for Russian ruble transactions to be introduced in Kyrgyzstan*. https://24.kg; The Times of Central Asia. (2025, August). *Kyrgyz President Denounces "Politicized" Sanctions on Banks*. https://timesca.com.
+[^71]: 24.kg. (2025, April). *New procedure for Russian ruble transactions to be introduced in Kyrgyzstan*. https://24.kg; The Times of Central Asia. (2025, August). *Kyrgyz President Denounces "Politicized" Sanctions on Banks*. https://timesca.com; Akchabar. (2024, December 26). *Минфин продал контрольный пакет «Керемет Банка» люксембургской компании* [The Ministry of Finance sold a controlling stake of Keremet Bank to a Luxembourg company]. https://www.akchabar.kg/article/elektronnie-dengi-igvepnpgkpdmhynm/minfin-prodal-kontrolnij-paket-keremet-banka-lyuksemburgskoj-kompanii-dgdjjrdvmdbzapbe; 24.kg. (2025, April). *«Капитал Банк» сменил владельца* [Capital Bank changed its owner]. https://24.kg/ekonomika/324879_kapital_bank_smenil_vladeltsa_reshenie_aktsionerov/.
 
 [^72]: CELEX 32025R2033, Annex XIV, p. 116; CELEX 32026R0506, Annex XV, Part B, p. 70; https://eur-lex.europa.eu ; The Times of Central Asia. (2026). *EU Targets Kyrgyz Financial Sector Over Russia Sanctions Evasion*. https://timesca.com/eu-targets-kyrgyz-financial-sector-over-russia-sanctions-evasion/.
 
