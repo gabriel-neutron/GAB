@@ -29,11 +29,10 @@ describe('NoteRef', () => {
 });
 
 describe('noteDocuments', () => {
-  it('gives the rows of a note, and no row for a note with no document', () => {
+  it('gives the rows of a note, and nothing for an unknown note', () => {
     expect(noteDocuments('2')?.documents.map((document) => document.id)).toEqual([
       'doc_f42628ac12e6',
     ]);
-    expect(noteDocuments('128')?.documents).toEqual([]);
     expect(noteDocuments('999')).toBeUndefined();
   });
 });

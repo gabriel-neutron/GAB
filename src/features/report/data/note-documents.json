@@ -1,5 +1,5 @@
 {
-  "builtOn": "2026-11-26",
+  "builtOn": "2026-11-27",
   "notes": [
     {
       "id": "1",
@@ -9,14 +9,14 @@
           "type": "ngo_publication",
           "retrievedAt": "2026-10-31",
           "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_6928fdaef480",
           "type": "ngo_publication",
           "retrievedAt": "2026-10-09",
           "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_43c40cb36e1e",
@@ -381,14 +381,14 @@
           "type": "press_release",
           "retrievedAt": "2026-11-03",
           "url": "https://home.treasury.gov/news/press-releases/jy1795",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_912b791ccd20",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy1795",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -467,14 +467,14 @@
           "type": "ngo_publication",
           "retrievedAt": "2026-10-31",
           "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_6928fdaef480",
           "type": "ngo_publication",
           "retrievedAt": "2026-10-09",
           "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_43c40cb36e1e",
@@ -616,6 +616,20 @@
       "id": "21",
       "documents": [
         {
+          "id": "doc_6745482a92a4",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-31",
+          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
+          "match": "exact"
+        },
+        {
+          "id": "doc_6928fdaef480",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-09",
+          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
+          "match": "exact"
+        },
+        {
           "id": "doc_0bd2f37c4e7a",
           "type": "other",
           "retrievedAt": "2026-11-02",
@@ -634,20 +648,6 @@
           "type": "other",
           "retrievedAt": "2026-10-25",
           "url": "https://comtradeplus.un.org/TradeFlow?Frequency=A&Flows=X&Partners=643&Reporters=97,842,392,410,490,826&period=2019-2025&AggregateBy=none&BreakdownMode=plus",
-          "match": "manual"
-        },
-        {
-          "id": "doc_6745482a92a4",
-          "type": "ngo_publication",
-          "retrievedAt": "2026-10-31",
-          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
-          "match": "manual"
-        },
-        {
-          "id": "doc_6928fdaef480",
-          "type": "ngo_publication",
-          "retrievedAt": "2026-10-09",
-          "url": "https://www.bruegel.org/dataset/russian-foreign-trade-tracker",
           "match": "manual"
         },
         {
@@ -747,14 +747,14 @@
           "type": "press_release",
           "retrievedAt": "2026-11-03",
           "url": "https://home.treasury.gov/news/press-releases/jy1795",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_912b791ccd20",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy1795",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -776,10 +776,31 @@
           "match": "exact"
         },
         {
+          "id": "doc_370d4c9ef9d0",
+          "type": "other",
+          "retrievedAt": "2026-10-22",
+          "url": "https://www.economy.gov.ru/material/departments/d12/konyunktura_mirovyh_tovarnyh_rynkov/o_srednem_urovne_cen_nefti_sorta_yurals_za_sentyabr_2026_goda.html",
+          "match": "exact"
+        },
+        {
           "id": "doc_0848bcab4566",
           "type": "other",
           "retrievedAt": "2026-10-09",
           "url": "https://www.worldbank.org/en/research/commodity-markets",
+          "match": "exact"
+        },
+        {
+          "id": "doc_5c81df93c9b9",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R1494",
+          "match": "exact"
+        },
+        {
+          "id": "doc_5bc94f771e6a",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-09",
+          "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R1494",
           "match": "exact"
         },
         {
@@ -811,20 +832,6 @@
           "match": "manual"
         },
         {
-          "id": "doc_5c81df93c9b9",
-          "type": "legal_act",
-          "retrievedAt": "2026-10-09",
-          "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R1494",
-          "match": "manual"
-        },
-        {
-          "id": "doc_5bc94f771e6a",
-          "type": "legal_act",
-          "retrievedAt": "2026-10-09",
-          "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R1494",
-          "match": "manual"
-        },
-        {
           "id": "doc_ea1c35082787",
           "type": "other",
           "retrievedAt": "2026-10-25",
@@ -841,7 +848,7 @@
           "type": "ngo_publication",
           "retrievedAt": "2026-10-25",
           "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -853,7 +860,7 @@
           "type": "other",
           "retrievedAt": "2026-10-18",
           "url": "https://www.kpler.com/blog/rosneft-and-lukoil-sanctions-are-live-how-india-china-and-turkey-adapt-rather-than-exit",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -865,49 +872,49 @@
           "type": "register_entry",
           "retrievedAt": "2026-10-28",
           "url": "https://ofac.treasury.gov/recent-actions/20251022",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_42d708cf8b85",
           "type": "register_entry",
           "retrievedAt": "2026-10-28",
           "url": "https://ofac.treasury.gov/recent-actions/20251022",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_e0e0d89809ff",
           "type": "register_entry",
           "retrievedAt": "2026-10-26",
           "url": "https://ofac.treasury.gov/recent-actions/20251022",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_39f527bfab33",
           "type": "register_entry",
           "retrievedAt": "2026-10-18",
           "url": "https://ofac.treasury.gov/recent-actions/20251022",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_6e985dd907b5",
           "type": "register_entry",
           "retrievedAt": "2026-10-09",
           "url": "https://ofac.treasury.gov/recent-actions/20251022",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_d9463b6a83bf",
           "type": "register_entry",
           "retrievedAt": "2026-10-09",
           "url": "https://ofac.treasury.gov/recent-actions/20251022",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_19bd135d55e4",
           "type": "register_entry",
           "retrievedAt": "2026-10-09",
           "url": "https://ofac.treasury.gov/recent-actions/20251022",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -919,7 +926,7 @@
           "type": "ngo_publication",
           "retrievedAt": "2026-10-25",
           "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -948,6 +955,13 @@
           "match": "exact"
         },
         {
+          "id": "doc_370d4c9ef9d0",
+          "type": "other",
+          "retrievedAt": "2026-10-22",
+          "url": "https://www.economy.gov.ru/material/departments/d12/konyunktura_mirovyh_tovarnyh_rynkov/o_srednem_urovne_cen_nefti_sorta_yurals_za_sentyabr_2026_goda.html",
+          "match": "exact"
+        },
+        {
           "id": "doc_ea1c35082787",
           "type": "other",
           "retrievedAt": "2026-10-25",
@@ -964,7 +978,7 @@
           "type": "other",
           "retrievedAt": "2026-10-18",
           "url": "https://www.kpler.com/blog/rosneft-and-lukoil-sanctions-are-live-how-india-china-and-turkey-adapt-rather-than-exit",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -983,6 +997,20 @@
     {
       "id": "33",
       "documents": [
+        {
+          "id": "doc_1c1230e38097",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.nalog.gov.ru/rn77/news/activities_fts/",
+          "match": "exact"
+        },
+        {
+          "id": "doc_1bf515b5f2f0",
+          "type": "other",
+          "retrievedAt": "2026-10-21",
+          "url": "https://www.nalog.gov.ru/rn77/news/activities_fts/16643613/",
+          "match": "exact"
+        },
         {
           "id": "doc_370d4c9ef9d0",
           "type": "other",
@@ -1007,7 +1035,7 @@
           "type": "other",
           "retrievedAt": "2026-10-27",
           "url": "https://econ4ua.org/wp-content/uploads/2026/09/Chinas-Support-for-Russia-Final.pdf",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -1034,24 +1062,38 @@
       "id": "36",
       "documents": [
         {
+          "id": "doc_6a02b3b55488",
+          "type": "other",
+          "retrievedAt": "2026-10-31",
+          "url": "https://minfin.gov.ru/ru/press-center/?id_4=40677",
+          "match": "exact"
+        },
+        {
           "id": "doc_82e84c656d7b",
           "type": "other",
           "retrievedAt": "2026-10-27",
           "url": "https://www.ng.ru/economics/2026-10-06/1_9597_price.html",
           "match": "exact"
-        },
-        {
-          "id": "doc_6a02b3b55488",
-          "type": "other",
-          "retrievedAt": "2026-10-31",
-          "url": "https://minfin.gov.ru/ru/press-center/?id_4=40677",
-          "match": "manual"
         }
       ]
     },
     {
       "id": "37",
       "documents": [
+        {
+          "id": "doc_6a02b3b55488",
+          "type": "other",
+          "retrievedAt": "2026-10-31",
+          "url": "https://minfin.gov.ru/ru/press-center/?id_4=40677",
+          "match": "exact"
+        },
+        {
+          "id": "doc_290f171a5fb6",
+          "type": "news_article",
+          "retrievedAt": "2026-10-26",
+          "url": "https://ru.themoscowtimes.com/2024/09/30/update-1-traty-rossii-na-oboronu-v-25g-vyrastut-do-135-trln-r-bolee-chem-vdvoe-obognav-sotsialnye-raskhody-a143572",
+          "match": "exact"
+        },
         {
           "id": "doc_b259239c0043",
           "type": "other",
@@ -1071,20 +1113,6 @@
           "type": "other",
           "retrievedAt": "2026-10-19",
           "url": "https://minfin.gov.ru/ru/document?id_4=80041-kratkaya_ezhegodnaya_informatsiya_ob_ispolnenii_federalnogo_byudzheta_mlrd_rub.",
-          "match": "manual"
-        },
-        {
-          "id": "doc_6a02b3b55488",
-          "type": "other",
-          "retrievedAt": "2026-10-31",
-          "url": "https://minfin.gov.ru/ru/press-center/?id_4=40677",
-          "match": "manual"
-        },
-        {
-          "id": "doc_290f171a5fb6",
-          "type": "news_article",
-          "retrievedAt": "2026-10-26",
-          "url": "https://ru.themoscowtimes.com/2024/09/30/update-1-traty-rossii-na-oboronu-v-25g-vyrastut-do-135-trln-r-bolee-chem-vdvoe-obognav-sotsialnye-raskhody-a143572",
           "match": "manual"
         },
         {
@@ -1142,14 +1170,21 @@
           "type": "press_release",
           "retrievedAt": "2026-11-03",
           "url": "https://home.treasury.gov/news/press-releases/jy1795",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_912b791ccd20",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy1795",
-          "match": "manual"
+          "match": "exact"
+        },
+        {
+          "id": "doc_cc751a7adee3",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.spglobal.com/energy/en/news-research/latest-news/crude-oil/011024-russian-kozmino-crude-exports-jump-94-in-2023-amid-sanctions-reports",
+          "match": "exact"
         }
       ]
     },
@@ -1157,18 +1192,39 @@
       "id": "41",
       "documents": [
         {
-          "id": "doc_f42628ac12e6",
-          "type": "ngo_publication",
+          "id": "doc_f75daa10f310",
+          "type": "other",
+          "retrievedAt": "2026-10-16",
+          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-2025-god",
+          "match": "exact"
+        },
+        {
+          "id": "doc_3d306ead07c5",
+          "type": "other",
           "retrievedAt": "2026-10-25",
-          "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
-          "match": "manual"
+          "url": "https://portnews.ru/news/307541/",
+          "match": "exact"
         },
         {
           "id": "doc_2c4226ba7a5e",
           "type": "other",
           "retrievedAt": "2026-10-25",
           "url": "https://portnews.ru/upload/basefiles/1552_ncsp_ar_2016_rus_28_04.pdf",
-          "match": "manual"
+          "match": "exact"
+        },
+        {
+          "id": "doc_2a03e6049413",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://fs.moex.com/f/13354/nmtp-report-rus-30-04-2020.pdf",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f42628ac12e6",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
+          "match": "exact"
         },
         {
           "id": "doc_111241f2113b",
@@ -1182,20 +1238,6 @@
           "type": "other",
           "retrievedAt": "2026-10-25",
           "url": "https://portnews.ru/news/270776/",
-          "match": "manual"
-        },
-        {
-          "id": "doc_2a03e6049413",
-          "type": "other",
-          "retrievedAt": "2026-10-25",
-          "url": "https://fs.moex.com/f/13354/nmtp-report-rus-30-04-2020.pdf",
-          "match": "manual"
-        },
-        {
-          "id": "doc_3d306ead07c5",
-          "type": "other",
-          "retrievedAt": "2026-10-25",
-          "url": "https://portnews.ru/news/307541/",
           "match": "manual"
         },
         {
@@ -1224,13 +1266,6 @@
           "type": "other",
           "retrievedAt": "2026-10-21",
           "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-yanvar-dekabr-2024-goda",
-          "match": "manual"
-        },
-        {
-          "id": "doc_f75daa10f310",
-          "type": "other",
-          "retrievedAt": "2026-10-16",
-          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-2025-god",
           "match": "manual"
         },
         {
@@ -1276,7 +1311,7 @@
           "type": "ngo_publication",
           "retrievedAt": "2026-10-25",
           "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -1284,18 +1319,39 @@
       "id": "44",
       "documents": [
         {
-          "id": "doc_f42628ac12e6",
-          "type": "ngo_publication",
+          "id": "doc_f75daa10f310",
+          "type": "other",
+          "retrievedAt": "2026-10-16",
+          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-2025-god",
+          "match": "exact"
+        },
+        {
+          "id": "doc_3d306ead07c5",
+          "type": "other",
           "retrievedAt": "2026-10-25",
-          "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
-          "match": "manual"
+          "url": "https://portnews.ru/news/307541/",
+          "match": "exact"
         },
         {
           "id": "doc_2c4226ba7a5e",
           "type": "other",
           "retrievedAt": "2026-10-25",
           "url": "https://portnews.ru/upload/basefiles/1552_ncsp_ar_2016_rus_28_04.pdf",
-          "match": "manual"
+          "match": "exact"
+        },
+        {
+          "id": "doc_2a03e6049413",
+          "type": "other",
+          "retrievedAt": "2026-10-25",
+          "url": "https://fs.moex.com/f/13354/nmtp-report-rus-30-04-2020.pdf",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f42628ac12e6",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
+          "match": "exact"
         },
         {
           "id": "doc_111241f2113b",
@@ -1309,20 +1365,6 @@
           "type": "other",
           "retrievedAt": "2026-10-25",
           "url": "https://portnews.ru/news/270776/",
-          "match": "manual"
-        },
-        {
-          "id": "doc_2a03e6049413",
-          "type": "other",
-          "retrievedAt": "2026-10-25",
-          "url": "https://fs.moex.com/f/13354/nmtp-report-rus-30-04-2020.pdf",
-          "match": "manual"
-        },
-        {
-          "id": "doc_3d306ead07c5",
-          "type": "other",
-          "retrievedAt": "2026-10-25",
-          "url": "https://portnews.ru/news/307541/",
           "match": "manual"
         },
         {
@@ -1351,13 +1393,6 @@
           "type": "other",
           "retrievedAt": "2026-10-21",
           "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-yanvar-dekabr-2024-goda",
-          "match": "manual"
-        },
-        {
-          "id": "doc_f75daa10f310",
-          "type": "other",
-          "retrievedAt": "2026-10-16",
-          "url": "https://www.morport.com/rus/news/gruzooborot-morskih-portov-rossii-za-2025-god",
           "match": "manual"
         },
         {
@@ -1427,122 +1462,136 @@
       "id": "46",
       "documents": [
         {
-          "id": "doc_463a3a9c003e",
-          "type": "legal_act",
-          "retrievedAt": "2026-10-27",
-          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
-          "match": "manual"
-        },
-        {
-          "id": "doc_f7961683dc54",
+          "id": "doc_89b2a6d6d825",
           "type": "register_entry",
-          "retrievedAt": "2026-11-05",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_aedb38de5d38",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-30",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_e7a088b23a78",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-29",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_39373f3619b9",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-27",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_f4983c968614",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-26",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_0d87329971a7",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-16",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_f99f3befeedd",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-13",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
         },
         {
           "id": "doc_7f43332dae0d",
           "type": "register_entry",
           "retrievedAt": "2026-11-08",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_8e94d8715b81",
           "type": "register_entry",
           "retrievedAt": "2026-11-06",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_ebbbce82570f",
           "type": "register_entry",
           "retrievedAt": "2026-11-05",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_5f240bed79d5",
           "type": "register_entry",
           "retrievedAt": "2026-10-28",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_96dade5a1cde",
           "type": "register_entry",
           "retrievedAt": "2026-10-21",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_0dee0d2de5e5",
           "type": "register_entry",
           "retrievedAt": "2026-10-16",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_1022b462f33c",
           "type": "register_entry",
           "retrievedAt": "2026-10-14",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_a472434fd738",
           "type": "register_entry",
           "retrievedAt": "2026-10-13",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_64be7a799105",
           "type": "register_entry",
           "retrievedAt": "2026-10-10",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_31152bd7481d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f7961683dc54",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_aedb38de5d38",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-30",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_e7a088b23a78",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-29",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_39373f3619b9",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-27",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f4983c968614",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_0d87329971a7",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f99f3befeedd",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_463a3a9c003e",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-27",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
           "match": "manual"
         },
         {
@@ -1905,7 +1954,7 @@
           "type": "ngo_publication",
           "retrievedAt": "2026-10-25",
           "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -1913,18 +1962,18 @@
       "id": "48",
       "documents": [
         {
-          "id": "doc_beb00e8408c1",
-          "type": "ngo_publication",
-          "retrievedAt": "2026-10-18",
-          "url": "https://energyandcleanair.org/january-2026-monthly-analysis-of-russian-fossil-fuel-exports-and-sanctions/",
-          "match": "manual"
-        },
-        {
           "id": "doc_f42628ac12e6",
           "type": "ngo_publication",
           "retrievedAt": "2026-10-25",
           "url": "https://sanctions.kse.ua/wp-content/uploads/2026/03/ROT_FEB26.pdf",
-          "match": "manual"
+          "match": "exact"
+        },
+        {
+          "id": "doc_beb00e8408c1",
+          "type": "ngo_publication",
+          "retrievedAt": "2026-10-18",
+          "url": "https://energyandcleanair.org/january-2026-monthly-analysis-of-russian-fossil-fuel-exports-and-sanctions/",
+          "match": "exact"
         }
       ]
     },
@@ -1932,73 +1981,80 @@
       "id": "49",
       "documents": [
         {
-          "id": "doc_463a3a9c003e",
-          "type": "legal_act",
-          "retrievedAt": "2026-10-27",
-          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
-          "match": "manual"
+          "id": "doc_89b2a6d6d825",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
         },
         {
           "id": "doc_7f43332dae0d",
           "type": "register_entry",
           "retrievedAt": "2026-11-08",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_8e94d8715b81",
           "type": "register_entry",
           "retrievedAt": "2026-11-06",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_ebbbce82570f",
           "type": "register_entry",
           "retrievedAt": "2026-11-05",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_5f240bed79d5",
           "type": "register_entry",
           "retrievedAt": "2026-10-28",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_96dade5a1cde",
           "type": "register_entry",
           "retrievedAt": "2026-10-21",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_0dee0d2de5e5",
           "type": "register_entry",
           "retrievedAt": "2026-10-16",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_1022b462f33c",
           "type": "register_entry",
           "retrievedAt": "2026-10-14",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_a472434fd738",
           "type": "register_entry",
           "retrievedAt": "2026-10-13",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_64be7a799105",
           "type": "register_entry",
           "retrievedAt": "2026-10-10",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_463a3a9c003e",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-27",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
           "match": "manual"
         },
         {
@@ -2651,122 +2707,136 @@
       "id": "50",
       "documents": [
         {
-          "id": "doc_463a3a9c003e",
-          "type": "legal_act",
-          "retrievedAt": "2026-10-27",
-          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
-          "match": "manual"
-        },
-        {
-          "id": "doc_f7961683dc54",
+          "id": "doc_89b2a6d6d825",
           "type": "register_entry",
-          "retrievedAt": "2026-11-05",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_aedb38de5d38",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-30",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_e7a088b23a78",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-29",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_39373f3619b9",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-27",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_f4983c968614",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-26",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_0d87329971a7",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-16",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_f99f3befeedd",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-13",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
         },
         {
           "id": "doc_7f43332dae0d",
           "type": "register_entry",
           "retrievedAt": "2026-11-08",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_8e94d8715b81",
           "type": "register_entry",
           "retrievedAt": "2026-11-06",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_ebbbce82570f",
           "type": "register_entry",
           "retrievedAt": "2026-11-05",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_5f240bed79d5",
           "type": "register_entry",
           "retrievedAt": "2026-10-28",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_96dade5a1cde",
           "type": "register_entry",
           "retrievedAt": "2026-10-21",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_0dee0d2de5e5",
           "type": "register_entry",
           "retrievedAt": "2026-10-16",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_1022b462f33c",
           "type": "register_entry",
           "retrievedAt": "2026-10-14",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_a472434fd738",
           "type": "register_entry",
           "retrievedAt": "2026-10-13",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_64be7a799105",
           "type": "register_entry",
           "retrievedAt": "2026-10-10",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_31152bd7481d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f7961683dc54",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_aedb38de5d38",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-30",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_e7a088b23a78",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-29",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_39373f3619b9",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-27",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f4983c968614",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_0d87329971a7",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f99f3befeedd",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_463a3a9c003e",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-27",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
           "match": "manual"
         },
         {
@@ -3125,10 +3195,38 @@
       "id": "51",
       "documents": [
         {
+          "id": "doc_665db171fb42",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-18",
+          "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
+          "match": "exact"
+        },
+        {
+          "id": "doc_0dae3ce27f7d",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-18",
+          "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
+          "match": "exact"
+        },
+        {
+          "id": "doc_1d7827838d24",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-18",
+          "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
+          "match": "exact"
+        },
+        {
           "id": "doc_463a3a9c003e",
           "type": "legal_act",
           "retrievedAt": "2026-10-27",
           "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
+          "match": "manual"
+        },
+        {
+          "id": "doc_31152bd7481d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
           "match": "manual"
         },
         {
@@ -3178,6 +3276,13 @@
           "type": "register_entry",
           "retrievedAt": "2026-10-13",
           "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "manual"
+        },
+        {
+          "id": "doc_89b2a6d6d825",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
           "match": "manual"
         },
         {
@@ -3241,27 +3346,6 @@
           "type": "register_entry",
           "retrievedAt": "2026-10-10",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
-        },
-        {
-          "id": "doc_665db171fb42",
-          "type": "official_publication",
-          "retrievedAt": "2026-10-18",
-          "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
-          "match": "manual"
-        },
-        {
-          "id": "doc_0dae3ce27f7d",
-          "type": "official_publication",
-          "retrievedAt": "2026-10-18",
-          "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
-          "match": "manual"
-        },
-        {
-          "id": "doc_1d7827838d24",
-          "type": "official_publication",
-          "retrievedAt": "2026-10-18",
-          "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
           "match": "manual"
         }
       ]
@@ -3270,122 +3354,136 @@
       "id": "52",
       "documents": [
         {
-          "id": "doc_463a3a9c003e",
-          "type": "legal_act",
-          "retrievedAt": "2026-10-27",
-          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
-          "match": "manual"
-        },
-        {
-          "id": "doc_f7961683dc54",
+          "id": "doc_89b2a6d6d825",
           "type": "register_entry",
-          "retrievedAt": "2026-11-05",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_aedb38de5d38",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-30",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_e7a088b23a78",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-29",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_39373f3619b9",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-27",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_f4983c968614",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-26",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_0d87329971a7",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-16",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
-        },
-        {
-          "id": "doc_f99f3befeedd",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-13",
-          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
         },
         {
           "id": "doc_7f43332dae0d",
           "type": "register_entry",
           "retrievedAt": "2026-11-08",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_8e94d8715b81",
           "type": "register_entry",
           "retrievedAt": "2026-11-06",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_ebbbce82570f",
           "type": "register_entry",
           "retrievedAt": "2026-11-05",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_5f240bed79d5",
           "type": "register_entry",
           "retrievedAt": "2026-10-28",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_96dade5a1cde",
           "type": "register_entry",
           "retrievedAt": "2026-10-21",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_0dee0d2de5e5",
           "type": "register_entry",
           "retrievedAt": "2026-10-16",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_1022b462f33c",
           "type": "register_entry",
           "retrievedAt": "2026-10-14",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_a472434fd738",
           "type": "register_entry",
           "retrievedAt": "2026-10-13",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_64be7a799105",
           "type": "register_entry",
           "retrievedAt": "2026-10-10",
           "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_31152bd7481d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f7961683dc54",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_aedb38de5d38",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-30",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_e7a088b23a78",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-29",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_39373f3619b9",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-27",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f4983c968614",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_0d87329971a7",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f99f3befeedd",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_463a3a9c003e",
+          "type": "legal_act",
+          "retrievedAt": "2026-10-27",
+          "url": "http://publications.europa.eu/resource/cellar/caa17d37-72ea-11f0-bf4e-01aa75ed71a1.0001.03/DOC_1",
           "match": "manual"
         },
         {
@@ -3405,49 +3503,49 @@
           "type": "press_release",
           "retrievedAt": "2026-11-03",
           "url": "https://home.treasury.gov/news/press-releases/jy0608",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_b68bcbb88940",
           "type": "press_release",
           "retrievedAt": "2026-10-25",
           "url": "https://home.treasury.gov/news/press-releases/jy0608",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_109d78cbb5c5",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy0608",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_4e79e35e25a9",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy0608",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_a1d0fa8cdd28",
           "type": "press_release",
           "retrievedAt": "2026-11-03",
           "url": "https://home.treasury.gov/news/press-releases/jy0705",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_641cd67951c4",
           "type": "press_release",
           "retrievedAt": "2026-10-27",
           "url": "https://home.treasury.gov/news/press-releases/jy0705",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_5a5c6bb2ec4a",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy0705",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -3455,53 +3553,60 @@
       "id": "54",
       "documents": [
         {
+          "id": "doc_31152bd7481d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
           "id": "doc_f7961683dc54",
           "type": "register_entry",
           "retrievedAt": "2026-11-05",
           "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_aedb38de5d38",
           "type": "register_entry",
           "retrievedAt": "2026-10-30",
           "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_e7a088b23a78",
           "type": "register_entry",
           "retrievedAt": "2026-10-29",
           "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_39373f3619b9",
           "type": "register_entry",
           "retrievedAt": "2026-10-27",
           "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_f4983c968614",
           "type": "register_entry",
           "retrievedAt": "2026-10-26",
           "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_0d87329971a7",
           "type": "register_entry",
           "retrievedAt": "2026-10-16",
           "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_f99f3befeedd",
           "type": "register_entry",
           "retrievedAt": "2026-10-13",
           "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -3558,21 +3663,21 @@
           "type": "other",
           "retrievedAt": "2026-10-25",
           "url": "https://cbr.ru/vfs/eng/statistics/credit_statistics/cur_str_new_e.xlsx",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_e09c9440aa89",
           "type": "other",
           "retrievedAt": "2026-10-25",
           "url": "https://cbr.ru/vfs/eng/statistics/credit_statistics/cur_str_new_e.xlsx#imports-annually",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_cfca4daa9bc2",
           "type": "other",
           "retrievedAt": "2026-10-25",
           "url": "https://cbr.ru/vfs/eng/statistics/credit_statistics/cur_str_new_e.xlsx#exports-annually",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -3608,7 +3713,7 @@
           "type": "other",
           "retrievedAt": "2026-10-27",
           "url": "https://econ4ua.org/wp-content/uploads/2026/09/Chinas-Support-for-Russia-Final.pdf",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -3691,32 +3796,32 @@
       "id": "62",
       "documents": [
         {
-          "id": "doc_41d57d1dcf01",
-          "type": "other",
-          "retrievedAt": "2026-10-27",
-          "url": "https://en.thebell.io/how-russia-uses-china-to-get-round-sanctions/",
-          "match": "exact"
-        },
-        {
           "id": "doc_9f991491e28c",
           "type": "news_article",
           "retrievedAt": "2026-11-03",
           "url": "https://www.themoscowtimes.com/2024/02/07/major-chinese-bank-halts-all-settlements-with-russia-vedomosti-a84001",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_3dfdec1131cd",
           "type": "news_article",
           "retrievedAt": "2026-10-27",
           "url": "https://www.themoscowtimes.com/2024/02/07/major-chinese-bank-halts-all-settlements-with-russia-vedomosti-a84001",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_060f0ba7fe18",
           "type": "other",
           "retrievedAt": "2026-10-24",
           "url": "https://www.themoscowtimes.com/2024/02/07/major-chinese-bank-halts-all-settlements-with-russia-vedomosti-a84001",
-          "match": "manual"
+          "match": "exact"
+        },
+        {
+          "id": "doc_41d57d1dcf01",
+          "type": "other",
+          "retrievedAt": "2026-10-27",
+          "url": "https://en.thebell.io/how-russia-uses-china-to-get-round-sanctions/",
+          "match": "exact"
         }
       ]
     },
@@ -3728,28 +3833,28 @@
           "type": "news_article",
           "retrievedAt": "2026-10-27",
           "url": "https://www.bloomberg.com/news/articles/2024-01-17/turkish-banks-tighten-screws-on-russia-over-fear-of-us-sanctions",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_b167b3e6577d",
           "type": "news_article",
           "retrievedAt": "2026-11-03",
           "url": "https://www.themoscowtimes.com/2024/02/19/uae-banks-limit-payments-with-russia-over-secondary-sanctions-threat-vedomosti-a84143",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_29406a55687a",
           "type": "news_article",
           "retrievedAt": "2026-11-03",
           "url": "https://www.themoscowtimes.com/2024/02/19/uae-banks-limit-payments-with-russia-over-secondary-sanctions-threat-vedomosti-a84143",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_69768fcf7a7e",
           "type": "other",
           "retrievedAt": "2026-10-24",
           "url": "https://www.themoscowtimes.com/2024/02/19/uae-banks-limit-payments-with-russia-over-secondary-sanctions-threat-vedomosti-a84143",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -3768,7 +3873,7 @@
           "type": "other",
           "retrievedAt": "2026-10-27",
           "url": "https://www.thestandard.com.hk/china/article/219959/Russia-payment-hurdles-with-China-partners-intensified-in-August-sources-say",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -3780,21 +3885,21 @@
           "type": "other",
           "retrievedAt": "2026-11-03",
           "url": "https://en.thebell.io/the-rise-of-russias-foreign-trade-middlemen/",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_7f33a3924599",
           "type": "other",
           "retrievedAt": "2026-10-25",
           "url": "https://en.thebell.io/the-rise-of-russias-foreign-trade-middlemen/",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_5ae265b766f1",
           "type": "other",
           "retrievedAt": "2026-10-25",
           "url": "https://en.thebell.io/the-rise-of-russias-foreign-trade-middlemen/",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -3806,63 +3911,63 @@
           "type": "press_release",
           "retrievedAt": "2026-11-03",
           "url": "https://home.treasury.gov/news/press-releases/jy2404",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_5bc1cff27eab",
           "type": "press_release",
           "retrievedAt": "2026-11-03",
           "url": "https://home.treasury.gov/news/press-releases/jy2404",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_10c426b14692",
           "type": "press_release",
           "retrievedAt": "2026-11-03",
           "url": "https://home.treasury.gov/news/press-releases/jy2404",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_f4cc6ea8366d",
           "type": "press_release",
           "retrievedAt": "2026-11-03",
           "url": "https://home.treasury.gov/news/press-releases/jy2404",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_6c2cec45f8bd",
           "type": "press_release",
           "retrievedAt": "2026-10-27",
           "url": "https://home.treasury.gov/news/press-releases/jy2404",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_4d5dd09b55fc",
           "type": "press_release",
           "retrievedAt": "2026-10-25",
           "url": "https://home.treasury.gov/news/press-releases/jy2404",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_e530aa025679",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy2404",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_731aee40330a",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy2404",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_47508d326172",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy2404",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -3934,6 +4039,13 @@
       "id": "70",
       "documents": [
         {
+          "id": "doc_8238793fc420",
+          "type": "other",
+          "retrievedAt": "2026-10-27",
+          "url": "https://www.rferl.org/a/armenian-banks-to-ditch-russian-cards-over-u-s-sanctions/32882489.html",
+          "match": "exact"
+        },
+        {
           "id": "doc_9f875e9e2e99",
           "type": "other",
           "retrievedAt": "2026-10-27",
@@ -3950,14 +4062,14 @@
           "type": "other",
           "retrievedAt": "2026-10-27",
           "url": "https://24.kg/english/325722_New_procedure_for_Russian_ruble_transactions_to_be_introduced_in_Kyrgyzstan/",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_e81875c4c110",
           "type": "other",
           "retrievedAt": "2026-10-27",
           "url": "https://timesca.com/kyrgyz-president-denounces-politicized-sanctions-on-banks/",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_5682972596c8",
@@ -4009,21 +4121,21 @@
           "type": "other",
           "retrievedAt": "2026-11-03",
           "url": "https://en.thebell.io/the-rise-of-russias-foreign-trade-middlemen/",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_7f33a3924599",
           "type": "other",
           "retrievedAt": "2026-10-25",
           "url": "https://en.thebell.io/the-rise-of-russias-foreign-trade-middlemen/",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_5ae265b766f1",
           "type": "other",
           "retrievedAt": "2026-10-25",
           "url": "https://en.thebell.io/the-rise-of-russias-foreign-trade-middlemen/",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -4031,18 +4143,18 @@
       "id": "74",
       "documents": [
         {
-          "id": "doc_5c77d4e8fff3",
-          "type": "register_entry",
-          "retrievedAt": "2026-10-09",
-          "url": "https://ofac.treasury.gov/media/933656/download?inline",
-          "match": "manual"
-        },
-        {
           "id": "doc_fec711ce9743",
           "type": "report",
           "retrievedAt": "2026-10-27",
           "url": "https://www.cbr.ru/collection/collection/file/59814/ar_2025_e.pdf",
-          "match": "manual"
+          "match": "exact"
+        },
+        {
+          "id": "doc_5c77d4e8fff3",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-09",
+          "url": "https://ofac.treasury.gov/media/933656/download?inline",
+          "match": "exact"
         }
       ]
     },
@@ -4128,6 +4240,27 @@
           "retrievedAt": "2026-10-31",
           "url": "https://ecfr.eu/publication/little-venice-little-sparta-the-uaes-statecraft-meets-the-war-on-iran/",
           "match": "exact"
+        },
+        {
+          "id": "doc_b167b3e6577d",
+          "type": "news_article",
+          "retrievedAt": "2026-11-03",
+          "url": "https://www.themoscowtimes.com/2024/02/19/uae-banks-limit-payments-with-russia-over-secondary-sanctions-threat-vedomosti-a84143",
+          "match": "exact"
+        },
+        {
+          "id": "doc_29406a55687a",
+          "type": "news_article",
+          "retrievedAt": "2026-11-03",
+          "url": "https://www.themoscowtimes.com/2024/02/19/uae-banks-limit-payments-with-russia-over-secondary-sanctions-threat-vedomosti-a84143",
+          "match": "exact"
+        },
+        {
+          "id": "doc_69768fcf7a7e",
+          "type": "other",
+          "retrievedAt": "2026-10-24",
+          "url": "https://www.themoscowtimes.com/2024/02/19/uae-banks-limit-payments-with-russia-over-secondary-sanctions-threat-vedomosti-a84143",
+          "match": "exact"
         }
       ]
     },
@@ -4139,14 +4272,14 @@
           "type": "other",
           "retrievedAt": "2026-11-03",
           "url": "https://www.fincen.gov/system/files/2026-10/FinCEN-Alert-A7-Network.pdf",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_acee635ac708",
           "type": "other",
           "retrievedAt": "2026-10-25",
           "url": "https://www.fincen.gov/system/files/2026-10/FinCEN-Alert-A7-Network.pdf",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -4194,7 +4327,7 @@
           "type": "other",
           "retrievedAt": "2026-10-27",
           "url": "https://econ4ua.org/wp-content/uploads/2026/09/Chinas-Support-for-Russia-Final.pdf",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -4239,14 +4372,14 @@
           "type": "other",
           "retrievedAt": "2026-10-31",
           "url": "https://www.info.gov.hk/gia/general/201901/23/P2019012300436.htm",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_3a30672b551b",
           "type": "other",
           "retrievedAt": "2026-10-31",
           "url": "https://www.uscc.gov/research/chinas-facilitation-sanctions-and-export-control-evasion",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -4258,7 +4391,7 @@
           "type": "report",
           "retrievedAt": "2026-10-18",
           "url": "https://sanctions.kse.ua/wp-content/uploads/2026/04/KSE_CHP_tracker_Q1_2026-1.pdf",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -4282,14 +4415,14 @@
           "type": "ngo_publication",
           "retrievedAt": "2026-11-03",
           "url": "https://sanctions.kse.ua/wp-content/uploads/2026/07/CHP-Q2-2026-Report.pdf",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_3f398a80f6c2",
           "type": "other",
           "retrievedAt": "2026-10-24",
           "url": "https://sanctions.kse.ua/wp-content/uploads/2026/07/CHP-Q2-2026-Report.pdf",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -4301,7 +4434,7 @@
           "type": "report",
           "retrievedAt": "2026-10-18",
           "url": "https://sanctions.kse.ua/wp-content/uploads/2026/04/KSE_CHP_tracker_Q1_2026-1.pdf",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -4565,6 +4698,34 @@
       "id": "94",
       "documents": [
         {
+          "id": "doc_5a2fc90929fe",
+          "type": "official_publication",
+          "retrievedAt": "2026-11-03",
+          "url": "https://war-sanctions.gur.gov.ua/en/components",
+          "match": "exact"
+        },
+        {
+          "id": "doc_7638674b06f0",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-30",
+          "url": "https://war-sanctions.gur.gov.ua/en/components",
+          "match": "exact"
+        },
+        {
+          "id": "doc_9411b7308df1",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://war-sanctions.gur.gov.ua/en/components",
+          "match": "exact"
+        },
+        {
+          "id": "doc_49104347778f",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://war-sanctions.gur.gov.ua/en/components",
+          "match": "exact"
+        },
+        {
           "id": "doc_c5184d052910",
           "type": "other",
           "retrievedAt": "2026-10-18",
@@ -4576,34 +4737,6 @@
           "type": "ngo_publication",
           "retrievedAt": "2026-10-25",
           "url": "https://kse.ua/en/news/challenges-of-export-controls-enforcement-how-russia-continues-to-import-components-for-its-military-production/",
-          "match": "manual"
-        },
-        {
-          "id": "doc_5a2fc90929fe",
-          "type": "official_publication",
-          "retrievedAt": "2026-11-03",
-          "url": "https://war-sanctions.gur.gov.ua/en/components",
-          "match": "manual"
-        },
-        {
-          "id": "doc_7638674b06f0",
-          "type": "official_publication",
-          "retrievedAt": "2026-10-30",
-          "url": "https://war-sanctions.gur.gov.ua/en/components",
-          "match": "manual"
-        },
-        {
-          "id": "doc_9411b7308df1",
-          "type": "official_publication",
-          "retrievedAt": "2026-10-25",
-          "url": "https://war-sanctions.gur.gov.ua/en/components",
-          "match": "manual"
-        },
-        {
-          "id": "doc_49104347778f",
-          "type": "official_publication",
-          "retrievedAt": "2026-10-25",
-          "url": "https://war-sanctions.gur.gov.ua/en/components",
           "match": "manual"
         },
         {
@@ -4664,31 +4797,31 @@
       "id": "97",
       "documents": [
         {
-          "id": "doc_1483275a97ec",
-          "type": "other",
-          "retrievedAt": "2026-10-09",
-          "url": "https://web.archive.org/web/20250518165637id_/https://www.gazprom.com/investors/stock/structure/",
-          "match": "manual"
-        },
-        {
           "id": "doc_1c76ad0f2be1",
           "type": "other",
           "retrievedAt": "2026-10-24",
           "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_af591c81e658",
           "type": "company_publication",
           "retrievedAt": "2026-10-25",
           "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_2d0c196e5240",
           "type": "company_publication",
           "retrievedAt": "2026-10-09",
           "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
+          "match": "exact"
+        },
+        {
+          "id": "doc_1483275a97ec",
+          "type": "other",
+          "retrievedAt": "2026-10-09",
+          "url": "https://web.archive.org/web/20250518165637id_/https://www.gazprom.com/investors/stock/structure/",
           "match": "manual"
         }
       ]
@@ -4701,7 +4834,7 @@
           "type": "other",
           "retrievedAt": "2026-10-27",
           "url": "https://tass.com/economy/1810035",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -4733,6 +4866,13 @@
           "retrievedAt": "2026-10-09",
           "url": "https://www.vedomosti.ru/business/news/2018/10/09/783225-transneft",
           "match": "exact"
+        },
+        {
+          "id": "doc_a37c7e586fd0",
+          "type": "other",
+          "retrievedAt": "2026-10-09",
+          "url": "https://web.archive.org/web/20220113152812id_/https://en.transneft.ru/about/",
+          "match": "manual"
         }
       ]
     },
@@ -4740,11 +4880,32 @@
       "id": "101",
       "documents": [
         {
+          "id": "doc_1c76ad0f2be1",
+          "type": "other",
+          "retrievedAt": "2026-10-24",
+          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
+          "match": "exact"
+        },
+        {
+          "id": "doc_af591c81e658",
+          "type": "company_publication",
+          "retrievedAt": "2026-10-25",
+          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
+          "match": "exact"
+        },
+        {
+          "id": "doc_2d0c196e5240",
+          "type": "company_publication",
+          "retrievedAt": "2026-10-09",
+          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
+          "match": "exact"
+        },
+        {
           "id": "doc_6dcfd29e5085",
           "type": "other",
           "retrievedAt": "2026-10-27",
           "url": "https://tass.com/economy/1810035",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_3ee21e47ef56",
@@ -4765,27 +4926,6 @@
           "type": "other",
           "retrievedAt": "2026-10-09",
           "url": "https://web.archive.org/web/20250518165637id_/https://www.gazprom.com/investors/stock/structure/",
-          "match": "manual"
-        },
-        {
-          "id": "doc_1c76ad0f2be1",
-          "type": "other",
-          "retrievedAt": "2026-10-24",
-          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
-          "match": "manual"
-        },
-        {
-          "id": "doc_af591c81e658",
-          "type": "company_publication",
-          "retrievedAt": "2026-10-25",
-          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
-          "match": "manual"
-        },
-        {
-          "id": "doc_2d0c196e5240",
-          "type": "company_publication",
-          "retrievedAt": "2026-10-09",
-          "url": "https://www.rosneft.com/Investors/Equity/Shareholder_structure/",
           "match": "manual"
         }
       ]
@@ -4850,49 +4990,49 @@
           "type": "press_release",
           "retrievedAt": "2026-11-03",
           "url": "https://home.treasury.gov/news/press-releases/jy2777",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_b77402db359f",
           "type": "press_release",
           "retrievedAt": "2026-11-03",
           "url": "https://home.treasury.gov/news/press-releases/jy2777",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_d5c388234fca",
           "type": "press_release",
           "retrievedAt": "2026-10-18",
           "url": "https://home.treasury.gov/news/press-releases/jy2777",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_079ba2d7963c",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy2777",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_ca0f1115df98",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy2777",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_e4d9d6ae8a8b",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy2777",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_27ac9767b110",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy2777",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -4963,14 +5103,14 @@
           "type": "news_article",
           "retrievedAt": "2026-10-31",
           "url": "http://news.bbc.co.uk/2/hi/business/4041551.stm",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_3600f80f13e8",
           "type": "news_article",
           "retrievedAt": "2026-10-31",
           "url": "http://news.bbc.co.uk/2/hi/business/4041551.stm",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -5023,25 +5163,25 @@
       "id": "110",
       "documents": [
         {
-          "id": "doc_ad18a8ac25a0",
-          "type": "news_article",
-          "retrievedAt": "2026-10-31",
-          "url": "https://www.reuters.com/world/europe/russias-prigozhin-admits-link-wagner-mercenaries-first-time-2022-09-26/",
-          "match": "exact"
-        },
-        {
           "id": "doc_ef190e64569d",
           "type": "press_release",
           "retrievedAt": "2026-10-31",
           "url": "https://home.treasury.gov/news/press-releases/sm0312",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_0eed041f32ed",
           "type": "press_release",
           "retrievedAt": "2026-10-31",
           "url": "https://home.treasury.gov/news/press-releases/sm0312",
-          "match": "manual"
+          "match": "exact"
+        },
+        {
+          "id": "doc_ad18a8ac25a0",
+          "type": "news_article",
+          "retrievedAt": "2026-10-31",
+          "url": "https://www.reuters.com/world/europe/russias-prigozhin-admits-link-wagner-mercenaries-first-time-2022-09-26/",
+          "match": "exact"
         }
       ]
     },
@@ -5068,6 +5208,20 @@
       "id": "112",
       "documents": [
         {
+          "id": "doc_bcae5346080d",
+          "type": "other",
+          "retrievedAt": "2026-10-31",
+          "url": "https://www.kpbs.org/news/international/2022/03/29/how-putin-conquered-russias-oligarchy",
+          "match": "exact"
+        },
+        {
+          "id": "doc_65244fe206f0",
+          "type": "other",
+          "retrievedAt": "2026-10-31",
+          "url": "https://www.kpbs.org/news/international/2022/03/29/how-putin-conquered-russias-oligarchy",
+          "match": "exact"
+        },
+        {
           "id": "doc_3a65bbcb364e",
           "type": "news_article",
           "retrievedAt": "2026-10-31",
@@ -5079,20 +5233,6 @@
           "type": "news_article",
           "retrievedAt": "2026-10-31",
           "url": "http://news.bbc.co.uk/2/hi/business/4041551.stm",
-          "match": "manual"
-        },
-        {
-          "id": "doc_bcae5346080d",
-          "type": "other",
-          "retrievedAt": "2026-10-31",
-          "url": "https://www.kpbs.org/news/international/2022/03/29/how-putin-conquered-russias-oligarchy",
-          "match": "manual"
-        },
-        {
-          "id": "doc_65244fe206f0",
-          "type": "other",
-          "retrievedAt": "2026-10-31",
-          "url": "https://www.kpbs.org/news/international/2022/03/29/how-putin-conquered-russias-oligarchy",
           "match": "manual"
         }
       ]
@@ -5112,6 +5252,62 @@
     {
       "id": "114",
       "documents": [
+        {
+          "id": "doc_31152bd7481d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f7961683dc54",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_aedb38de5d38",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-30",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_e7a088b23a78",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-29",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_39373f3619b9",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-27",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f4983c968614",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_0d87329971a7",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f99f3befeedd",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
         {
           "id": "doc_91466533844a",
           "type": "other",
@@ -5172,14 +5368,14 @@
           "type": "press_release",
           "retrievedAt": "2026-10-31",
           "url": "https://home.treasury.gov/news/press-releases/jl2369",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_4793491fcff6",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jl2369",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -5191,7 +5387,7 @@
           "type": "other",
           "retrievedAt": "2026-10-31",
           "url": "https://carnegieendowment.org/russia-eurasia/posts/2020/02/unconsolidated-the-five-russian-elites-shaping-putins-transition",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -5262,41 +5458,97 @@
           "type": "press_release",
           "retrievedAt": "2026-11-03",
           "url": "https://home.treasury.gov/news/press-releases/jy2008",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_4702f409bd62",
           "type": "press_release",
           "retrievedAt": "2026-10-31",
           "url": "https://home.treasury.gov/news/press-releases/jy2008",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_807add11b220",
           "type": "press_release",
           "retrievedAt": "2026-10-18",
           "url": "https://home.treasury.gov/news/press-releases/jy2008",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_8b9b3c5cc772",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy2008",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_5ee837e461c3",
           "type": "press_release",
           "retrievedAt": "2026-10-09",
           "url": "https://home.treasury.gov/news/press-releases/jy2008",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
     {
       "id": "123",
       "documents": [
+        {
+          "id": "doc_31152bd7481d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f7961683dc54",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_aedb38de5d38",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-30",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_e7a088b23a78",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-29",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_39373f3619b9",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-27",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f4983c968614",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_0d87329971a7",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f99f3befeedd",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
         {
           "id": "doc_9f63e0473958",
           "type": "legal_act",
@@ -5308,7 +5560,155 @@
     },
     {
       "id": "124",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_89b2a6d6d825",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_7f43332dae0d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-08",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_8e94d8715b81",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-06",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_ebbbce82570f",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_5f240bed79d5",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-28",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_96dade5a1cde",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-21",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_0dee0d2de5e5",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_1022b462f33c",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-14",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_a472434fd738",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_64be7a799105",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-10",
+          "url": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+          "match": "exact"
+        },
+        {
+          "id": "doc_31152bd7481d",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f7961683dc54",
+          "type": "register_entry",
+          "retrievedAt": "2026-11-05",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_aedb38de5d38",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-30",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_e7a088b23a78",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-29",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_39373f3619b9",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-27",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f4983c968614",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-26",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_0d87329971a7",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-16",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_f99f3befeedd",
+          "type": "register_entry",
+          "retrievedAt": "2026-10-13",
+          "url": "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv",
+          "match": "exact"
+        },
+        {
+          "id": "doc_665db171fb42",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-18",
+          "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
+          "match": "exact"
+        },
+        {
+          "id": "doc_0dae3ce27f7d",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-18",
+          "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
+          "match": "exact"
+        },
+        {
+          "id": "doc_1d7827838d24",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-18",
+          "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
+          "match": "exact"
+        }
+      ]
     },
     {
       "id": "125",
@@ -5344,14 +5744,14 @@
           "type": "register_entry",
           "retrievedAt": "2026-10-31",
           "url": "https://ofac.treasury.gov/faqs/401",
-          "match": "manual"
+          "match": "exact"
         },
         {
           "id": "doc_9cdc10809bac",
           "type": "register_entry",
           "retrievedAt": "2026-10-27",
           "url": "https://ofac.treasury.gov/faqs/401",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
@@ -5363,20 +5763,42 @@
           "type": "report",
           "retrievedAt": "2026-10-18",
           "url": "https://sanctions.kse.ua/wp-content/uploads/2026/04/KSE_CHP_tracker_Q1_2026-1.pdf",
-          "match": "manual"
+          "match": "exact"
         }
       ]
     },
     {
       "id": "128",
-      "documents": []
+      "documents": [
+        {
+          "id": "doc_665db171fb42",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-18",
+          "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
+          "match": "exact"
+        },
+        {
+          "id": "doc_0dae3ce27f7d",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-18",
+          "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
+          "match": "exact"
+        },
+        {
+          "id": "doc_1d7827838d24",
+          "type": "official_publication",
+          "retrievedAt": "2026-10-18",
+          "url": "https://war-sanctions.gur.gov.ua/en/transport/shadow-fleet",
+          "match": "exact"
+        }
+      ]
     },
     {
       "id": "129",
       "documents": [
         {
           "id": "doc_b325402baca1",
-          "type": "other",
+          "type": "official_publication",
           "retrievedAt": "2026-11-26",
           "url": "https://assets.publishing.service.gov.uk/media/653a4b0780884d0013f71bb0/JDP_2_00_Ed_4_web.pdf",
           "match": "exact"
