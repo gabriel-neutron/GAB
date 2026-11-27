@@ -71,3 +71,37 @@ describe('the relations of the node panel', () => {
     expect(html).not.toMatch(/ · <\/span>/);
   });
 });
+
+describe('the origin of a document of the node panel', () => {
+  const html = (id: string) =>
+    renderToStaticMarkup(
+      <ReportContext value={{ openNode: () => undefined }}>
+        <Dialog.Root open>
+          <NodeRecord id={id} />
+        </Dialog.Root>
+      </ReportContext>,
+    );
+
+  it('marks a document that a state body of a party to the conflict publishes', () => {
+    // Novorossiysk cites a page of the war and sanctions portal of GUR for its third condition.
+    expect(reportGraph.partyMark('doc_73f01151c6bf')).toBe('Party source (Ukraine)');
+    expect(html('N-P005')).toContain('doc_73f01151c6bf (Party source (Ukraine))');
+    expect(reportGraph.citesParty('N-P005')).toBe(true);
+  });
+
+  it('marks no other document', () => {
+    expect(reportGraph.partyMark('doc_f4ae69f3ce3b')).toBe('');
+    expect(html('N-P001')).not.toContain('Party source');
+  });
+});
+
+describe('the addresses of the node documents', () => {
+  it('give an address for each document that a node or a relation cites', async () => {
+    const { default: nodes } = await import('./nodes-data');
+    const { default: edges } = await import('./edges-data');
+    const { default: file } = await import('./data/node-documents.json');
+    const cited = [...nodes, ...edges].flatMap((row) => reportGraph.documents(row));
+    // A new document of the node files needs tools/node-documents.ts.
+    expect(cited.filter((doc) => !(doc in file.documents))).toEqual([]);
+  });
+});

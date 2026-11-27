@@ -4,6 +4,7 @@ import {
   count,
   countryCodes,
   daysOf,
+  partyOnly,
   readRelease,
   replay,
   reportRelease,
@@ -217,16 +218,70 @@ test('reads a date that the release gives as a claim of the relation', () => {
   expect(nodes.get('z')).toMatchObject({ b: false });
 });
 
+const GUR = 'https://war-sanctions.gur.gov.ua/en/transport/ships/1';
+const OFAC = 'https://sanctionslistservice.ofac.treas.gov/changes/1';
+
+test('counts apart what a critical node owes to facts of a party to the conflict', () => {
+  const relation = (id: string, type: string, from: string, to: string, valid_from = '') =>
+    row({ id, type, from_id: from, to_id: to, valid_from, valid_to: '', share: '' });
+  const claim = (claim_id: string, address: string, more: Record<string, string> = {}) =>
+    row({ claim_id, claim_kind: 'relation', document_address: address, ...more });
+  const files: ReleaseFiles = {
+    entities: [
+      row({ id: 'm', type: 'company' }),
+      row({ id: 'v', type: 'vessel' }),
+      row({ id: 'act', type: 'legal_act' }),
+    ],
+    relations: [
+      // Only GUR names the manager, so the vessel joins the node m through a party fact.
+      relation('op', 'operates', 'm', 'v'),
+      relation('des', 'designated_by', 'v', 'act', '2025-01-01'),
+    ],
+    claims: [
+      claim('op', GUR, { subject_id: 'm', relation_type: 'operates', object_id: 'v' }),
+      claim('des', OFAC, { subject_id: 'v', relation_type: 'designated_by', object_id: 'act' }),
+      // The only country of the vessel comes from GUR, so condition (c) rests on it alone.
+      claim('v/flag', GUR, {
+        claim_kind: 'attribute',
+        subject_id: 'v',
+        attribute: 'flag_history',
+        value: 'Gabon',
+      }),
+    ],
+  };
+  const result = partyOnly(files);
+  expect(result.facts).toBe(2);
+  expect(result.condition.critical).toBe(1);
+  expect(result.condition.byCondition).toEqual({ a: 0, b: 0, c: 1 });
+  expect(result.members.critical).toBe(1);
+  // A second document of another publisher makes the facts no longer facts of a party.
+  const corroborated = partyOnly({
+    ...files,
+    claims: [
+      ...files.claims,
+      claim('op', OFAC),
+      claim('v/flag', OFAC, { claim_kind: 'attribute' }),
+    ],
+  });
+  expect(corroborated.facts).toBe(0);
+  expect(corroborated.condition.critical).toBe(0);
+  expect(corroborated.members.critical).toBe(0);
+});
+
 // Downloads the release of the report once (7.6 MB, checked by its SHA-256) and pins the count.
 test(
   'gives the count of the report on the release data-2026-10-28',
   { timeout: 300_000 },
   async () => {
-    const result = count(replay(readRelease(await reportRelease())));
-    expect(result).toEqual({
+    const files = readRelease(await reportRelease());
+    expect(count(replay(files))).toEqual({
       critical: 451,
       official: 336,
       byLayer: { Pay: 399, Finance: 5, Fight: 47 },
     });
+    const party = partyOnly(files);
+    expect(party.facts).toBe(7818);
+    expect(party.condition.critical).toBe(2);
+    expect(party.members.critical).toBe(78);
   },
 );

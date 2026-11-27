@@ -89,21 +89,23 @@ test('a claim row gives the modality of its passage and whether the AI read it f
   const [header, row] = claimsText([claim({})])
     .slice(1)
     .split('\r\n');
-  expect(header?.split(',').slice(-6)).toStrictEqual([
+  expect(header?.split(',').slice(-7)).toStrictEqual([
     'page',
     'excerpt',
     'modality',
     'transcribed',
     'document_type',
     'value_in_excerpt',
+    'party_origin',
   ]);
-  expect(row?.split(',').slice(-6)).toStrictEqual([
+  expect(row?.split(',').slice(-7)).toStrictEqual([
     '2',
     'flag of Panama',
     'asserts',
     'false',
     'other',
     'yes',
+    '',
   ]);
 });
 
@@ -112,7 +114,7 @@ const testedAs = (over: Partial<ReleaseClaim>): string | undefined =>
     .slice(1)
     .split('\r\n')[1]
     ?.split(',')
-    .at(-1);
+    .at(-2);
 
 test('the column value_in_excerpt says if the value is in the excerpt', () => {
   expect(testedAs({ value: 'Liberia' })).toBe('no');
@@ -306,10 +308,35 @@ test('a sectoral measure is a relation row of the type restricted_by, with its l
   const [header, row] = readCsv(text.slice(1)).map((line) => line.fields);
   // The label and the share follow the other columns, so a reader by position reads the other
   // columns as before.
-  expect(header?.slice(-2)).toStrictEqual(['type_label', 'share']);
+  expect(header?.slice(-3)).toStrictEqual(['type_label', 'share', 'party_origin']);
   expect(row?.[header?.indexOf('type') ?? -1]).toBe('restricted_by');
-  expect(row?.at(-2)).toBe('restricted by');
-  expect(row?.at(-1)).toBe('');
+  expect(row?.at(-3)).toBe('restricted by');
+  expect(row?.at(-2)).toBe('');
+});
+
+test('a fact whose each document a state body of one party publishes gives that party', () => {
+  const record = recordOf([claim({})]);
+  const atGur: ReleaseRecord = {
+    ...record,
+    documents: new Map(
+      [...record.documents].map(([id, one]) => [
+        id,
+        { ...one, uri: 'https://war-sanctions.gur.gov.ua/en/a' },
+      ]),
+    ),
+  };
+  const files = csvExport(atGur, '');
+  for (const [path, column] of [
+    ['claims.csv', 'party_origin'],
+    ['relations.csv', 'party_origin'],
+  ] as const) {
+    const text = files.find((file) => file.path === path)?.text ?? '';
+    const [header, row] = readCsv(text.slice(1)).map((line) => line.fields);
+    expect(row?.[header?.indexOf(column) ?? -1]).toBe('UA');
+  }
+  const text = csvExport(record, '').find((file) => file.path === 'claims.csv')?.text ?? '';
+  const [header, row] = readCsv(text.slice(1)).map((line) => line.fields);
+  expect(row?.[header?.indexOf('party_origin') ?? -1]).toBe('');
 });
 
 test('a share that GEM estimated reads as an estimate in the relation row', () => {

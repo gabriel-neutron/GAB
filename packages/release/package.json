@@ -24,6 +24,7 @@
     "./file-words": "./src/file-words.ts",
     "./llms-txt": "./src/llms-txt.ts",
     "./map-features": "./src/map-features.ts",
+    "./party-origin": "./src/party-origin.ts",
     "./reference-label": "./src/reference-label.ts",
     "./release-day": "./src/release-day.ts",
     "./report-files": "./src/report-files.ts",

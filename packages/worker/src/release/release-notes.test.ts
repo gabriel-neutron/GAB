@@ -63,4 +63,5 @@ test('the notes give the count of distinct claims, and say that a row is one cit
   expect(text).toContain('13843 distinct claims');
   expect(text).toContain('A row of claims.csv is one citation of a claim');
   expect(text).toContain('value_in_excerpt');
+  expect(text).toContain('party_origin');
 });

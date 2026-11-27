@@ -1,5 +1,6 @@
 import { attributeName } from '@gab/release/attribute-name';
 import { claimText } from '@gab/release/claim-text';
+import { partyLabel } from '@gab/release/party-origin';
 import { valueWords } from '@gab/release/value-elements';
 import { releaseDay } from '@gab/release/release-day';
 import { permanentAddress } from '@gab/release/site-paths';
@@ -95,6 +96,7 @@ export function ClaimPage({ release, claimId, entityHref, claimHref }: ClaimPage
       </ReadingPage>
     );
   const rating = pairRating(release.manifest, claim);
+  const origin = partyLabel(claim.sources.map((source) => source.address ?? ''));
   return (
     <ReadingPage>
       <PageHeader
@@ -105,6 +107,7 @@ export function ClaimPage({ release, claimId, entityHref, claimHref }: ClaimPage
         entries={[
           ...factsOf(claim, entityHref, claimHref),
           ...(rating.shown ? [{ key: 'Rating', value: <NatoPairMark rating={rating} /> }] : []),
+          ...(origin === '' ? [] : [{ key: 'Origin', value: origin }]),
           { key: 'Decided by', value: <LabelBadge label={claim.originLabel} /> },
         ]}
       />

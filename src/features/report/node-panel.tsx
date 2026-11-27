@@ -39,6 +39,13 @@ function Section({ title, children }: { readonly title: string; readonly childre
   );
 }
 
+/** A document id, with the mark of its origin when a state body of a party to the conflict
+ * publishes it. The mark sits on the document, and never on a condition of the node. */
+const withPartyMark = (doc: string): string => {
+  const mark = reportGraph.partyMark(doc);
+  return mark === '' ? doc : `${doc} (${mark})`;
+};
+
 /** The record of one node, as the panel shows it. */
 export function NodeRecord({ id }: { readonly id: string }) {
   const { ui } = useContent();
@@ -112,7 +119,13 @@ export function NodeRecord({ id }: { readonly id: string }) {
                   </span>{' '}
                   {name(edge.target)}
                   <span className="block font-mono text-report-label text-label">
-                    {[edge.state, ...edge.document_ids.split(';')]
+                    {[
+                      edge.state,
+                      ...edge.document_ids
+                        .split(';')
+                        .filter((doc) => doc !== '')
+                        .map((doc) => withPartyMark(doc)),
+                    ]
                       .filter((part) => part !== '')
                       .join(' · ')}
                   </span>
@@ -140,7 +153,7 @@ export function NodeRecord({ id }: { readonly id: string }) {
         ) : (
           <ul className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-report-label">
             {documents.map((doc) => (
-              <li key={doc}>{doc}</li>
+              <li key={doc}>{withPartyMark(doc)}</li>
             ))}
           </ul>
         )}

@@ -16,6 +16,8 @@ Report an error: https://example.org/report-an-error. Corrections: https://examp
 
 The release holds 20 distinct claims. A row of claims.csv is one citation of a claim, so a claim can have more than one row. The column value_in_excerpt says if the value of an attribute claim is found in the excerpt of its row (a text test: a short value can be found in a passage that does not state the claim): "yes", "no", "no_excerpt" or "not_tested" (a claim of a relation has no value).
 
+The column party_origin of claims.csv and of relations.csv says who publishes the documents of a fact. "UA" or "RU": each document that the fact cites is published by a state body of Ukraine or of Russia, a party to the conflict, on a closed list of addresses in the code (for example the war and sanctions portal of GUR, the military intelligence of Ukraine, or the site of the President of Russia). The list holds no state register, no state company and no state media outlet, and it holds only the publishers that the record cites. Empty: the fact cites a document of another publisher, or documents of both parties. The column states the origin of the documents. It does not rate a source and says nothing about the truth of the fact.
+
 ## The method of geolocation of the places
 
 1 of 3 places (33.3%) have no stated method of geolocation. Each place of the files has a method, or "not_stated", in the column geolocation_method of entities.csv and in the properties of entities.geojson.

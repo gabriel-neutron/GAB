@@ -68,9 +68,25 @@ export function SourceMark({ sources, activeSource, onSelectSource }: SourceMark
           {source.number}
         </button>
       ))}
+      <PartyNote sources={sources} />
     </span>
   );
 }
+
+/** The origin of a fact that only a party to the conflict states: a short mark, with the full
+ * words as its accessible name and its tooltip. It states the origin and rates no source. */
+function PartyNote({ sources }: { readonly sources: readonly SourceRef[] }) {
+  const words = sources[0]?.partyLabel ?? '';
+  if (words === '') return null;
+  return (
+    <span title={words} className="text-body-sm text-muted-foreground">
+      <span aria-hidden="true">{PARTY_SHORT}</span>
+      <span className="sr-only">{words}</span>
+    </span>
+  );
+}
+
+const PARTY_SHORT = 'Party source';
 
 /**
  * The sidebar states how many documents hold a line up, and never one badge for each: at 24 rem
@@ -91,6 +107,7 @@ export function SourceCount({ sources, cards, entityId }: SourceCountProps) {
       >
         {sources.length}
       </PopoverTrigger>
+      <PartyNote sources={sources} />
       {/* The kit writes `w-72 rounded-lg p-4` at its own scale. The correction is made here, at
           the call site, because a vendored file is closed. The panel holds its own scroll: a
           popover that grows past the window puts the way out of its last card off the screen. */}
