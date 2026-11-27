@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { readableTitle } from './document-title.ts';
 import { documentType, type DocumentType } from './document-type.ts';
 import { isEgrulAddress } from './egrul-text.ts';
+import { isSigned } from './fetch-guard.ts';
 import { rowsOf } from './fields.ts';
 import { refusedSource } from './refused-source.ts';
 import { ToolRefusal, type Reach, type Session } from './tool.ts';
@@ -127,6 +128,11 @@ export const storeAnswer = async (
   // A search page lists pages and states no fact, so no door of the record keeps it as a source.
   const refused = refusedSource(answer.uri);
   if (refused !== null) throw new ToolRefusal(refused);
+  // The record publishes the address of each document, and a signed address expires.
+  if (isSigned(answer.uri))
+    throw new ToolRefusal(
+      'the address is a signed address that expires: store the address that was asked for',
+    );
   const sha256 = hashOf(answer.bytes);
   let status: 'known' | 'stored' = 'known';
   let known = await knownOf(session, sha256);

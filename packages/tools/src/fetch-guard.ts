@@ -259,6 +259,33 @@ export const holdsSecret = (address: string): boolean => {
   return url.username !== '' || url.password !== '' || [...names].some(isSecretKey);
 };
 
+// The query names of a signed address of an object store (S3, Google Cloud, CloudFront, Azure).
+// db/migrations/0100_signed_document_address.sql holds the same list as a check of the table.
+const SIGNATURE_KEYS = new Set([
+  'xamzsignature',
+  'xamzcredential',
+  'xamzsecuritytoken',
+  'xgoogsignature',
+  'xgoogcredential',
+  'signature',
+  'keypairid',
+  'googleaccessid',
+  'awsaccesskeyid',
+  'sig',
+]);
+
+/** True when the address is a signed address: it holds a signature or a token that expires, so a
+ * reader cannot open it later and it must never go into the record or a release. */
+export const isSigned = (address: string): boolean => {
+  if (!URL.canParse(address)) return false;
+  const url = new URL(address);
+  const fragment = url.hash.includes('=') ? url.hash.slice(1) : '';
+  const names = new URLSearchParams(`${url.search}&${fragment}`.replaceAll(';', '&'));
+  return [...names.keys()].some((name) =>
+    SIGNATURE_KEYS.has(name.toLowerCase().replace(/[-_.]/gu, '')),
+  );
+};
+
 /** Refuses a name when one of its addresses is on the machine or on a private network. */
 export const checkHost = async (
   host: string,

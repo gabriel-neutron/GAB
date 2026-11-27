@@ -5,6 +5,7 @@ import { describe, expect, test } from 'vitest';
 
 import {
   holdsSecret,
+  isSigned,
   FetchRefusal,
   guardedGet,
   HEADERS,
@@ -269,4 +270,31 @@ test.each([
   'file.csv?pageToken[]=1',
 ])('the address %s holds no secret', (path) => {
   expect(holdsSecret(`https://data.example/${path}`)).toBe(false);
+});
+
+test.each([
+  'a.csv?X-Amz-Signature=abc',
+  'a.csv?x-amz-security-token=abc',
+  'a.csv?X-Goog-Credential=abc',
+  'a.csv?Policy=abc&Signature=abc&Key-Pair-Id=abc',
+  'a.csv?sv=1&se=2&sig=abc',
+  'a.csv?AWSAccessKeyId=abc',
+  'a.csv?a=1;Signature=abc',
+  'a.csv?x_amz_signature=abc',
+])('the address %s is signed, and the guard holds it as a secret', (path) => {
+  const address = `https://bucket.example/${path}`;
+  expect(isSigned(address)).toBe(true);
+  expect(holdsSecret(address)).toBe(true);
+});
+
+test.each([
+  'https://apcis.tmou.org/isss/public_apcis.php?Mode=1&Auth=AB',
+  'https://data.example/a.csv?token=public',
+  'https://data.example/a.csv?signatory=1',
+  'https://transparency.entsog.eu/api/v1/interconnections?fromCountryKey=RU',
+  'https://data.example/page#top',
+  'https://data.example/page#Signature',
+  'not an address',
+])('the address %s is not signed', (address) => {
+  expect(isSigned(address)).toBe(false);
 });

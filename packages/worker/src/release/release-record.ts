@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { PROPOSED_LABEL } from '@gab/release/accepted';
+import { isSigned } from '@gab/tools/fetch-guard';
 
 import type { Queryable } from '../queryable.ts';
 import { readNatoPairs, type NatoPair } from './nato-pair.ts';
@@ -71,6 +72,18 @@ const documentRow = z.object({
   /** The type of the document. A test record may leave it out, and it reads as `other`. */
   doc_type: z.string().optional(),
 });
+
+/** Stops the release when a document keeps a signed address: the address expires, and its token
+ * must not go into a public file. The message names the document and never the address. */
+export const refuseSignedAddresses = (
+  documents: readonly { readonly id: string; readonly uri: string | null }[],
+): void => {
+  const signed = documents.filter((one) => one.uri !== null && isSigned(one.uri));
+  if (signed.length > 0)
+    throw new Error(
+      `a document keeps a signed address, so the release stops: ${signed.map((one) => one.id).join(', ')}`,
+    );
+};
 
 const mergeRow = z.object({
   act_id: z.uuid(),
@@ -187,6 +200,7 @@ export const readReleaseRecord = async (
     `SELECT id, title, uri, retrieved_at::text AS retrieved_at, licence, provider, doc_type
        FROM public.release_documents() ORDER BY id`,
   );
+  refuseSignedAddresses(documents);
   // A figure of the release names its document, so the document is public (PU1).
   const observed = await rowsOf(
     db,
