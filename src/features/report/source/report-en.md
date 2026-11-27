@@ -12,7 +12,7 @@
 
 - –**Port calls:** Of 711 tankers with a dated designation, 318 called at a port at least once after it, and 22 of them called in the EU or the United Kingdom.
 
-- –**Owners and managers:** In the private fleet and in oil trading, the ownership chains often end at a company with no documented owner: according to the sanctions lists and, for part of them, to Ukrainian military intelligence (GUR), a party to the war, sixteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner. On the archived pages of GUR, 427 of 757 ships that give both dates show an owner or manager that started after the designation.
+- –**Owners and managers:** In the private fleet and in oil trading, the ownership chains often end at a company with no documented owner: according to the sanctions lists and, for part of them, to Ukrainian military intelligence (GUR), a party to the conflict, sixteen shipowners or managers each own or operate at least six designated vessels with no documented ultimate owner. On the archived pages of GUR, 427 of 757 ships that give both dates show an owner or manager that started after the designation.
 
 **What the sources show.**
 
@@ -562,7 +562,7 @@ Among the intermediaries and in the private fleet, the chain stops at an unknown
 
 - –**Oil trading:** Little-known traders with opaque ownership have carried, since the price cap, up to half of Russian oil exports.[^122] The Council of the EU thus links the company Nord Axis to the 2Rivers group; the ultimate owner of Nord Axis remains undocumented.[^123]
 
-- –**Vessels:** According to the sanctions lists and, for part of them, to GUR, a party to the war, sixteen shipowners or managers each own or operate at least six designated vessels, with no documented ultimate owner.[^124]
+- –**Vessels:** According to the sanctions lists and, for part of them, to GUR, a party to the conflict, sixteen shipowners or managers each own or operate at least six designated vessels, with no documented ultimate owner.[^124]
 
 - –**Surgutneftegaz:** The country's third-largest oil company, run by Vladimir Bogdanov, a close associate of the president, had not published its full ownership structure, according to The Moscow Times (2013).[^125]
 
@@ -627,7 +627,7 @@ EU sanctions follow this shift step by step. They go up the chain: the product, 
 
 - –A sanctions authority of the EU or the United Kingdom can check the port calls in its own ports of the 22 designated tankers that called there after their designation.
 
-- –An authority that lists ships can check, at each update, the current owner and manager of the ships it has already listed, because 427 of 757 ships on the GUR pages show an owner or manager that started after the designation.
+- –An authority that lists ships can check, at each update, the current owner and manager of the ships it has already listed, because, on the pages of Ukrainian military intelligence (GUR), a party to the conflict, 427 of 757 ships show an owner or manager that started after the designation.
 
 - –Where no source names the ultimate owner, an authority can designate each company for its activity and attach each new manager or trader to the group it replaces, as the Council of the EU did for Citrine Marine and Nord Axis.
 
