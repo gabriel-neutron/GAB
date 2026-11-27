@@ -132,6 +132,11 @@ export const writeRequest = z.discriminatedUnion('op', [
       validTo: z.string().optional(),
       type: z.literal('restricted_by').optional(),
       addSource: z.literal(true).optional(),
+      // The end is the day before the entry into force that one cited passage gives (ADR 0038).
+      endRule: z.literal('day_before_entry_into_force').optional(),
+    })
+    .refine((act) => act.endRule === undefined || act.validTo !== undefined, {
+      message: 'endRule goes with validTo only',
     })
     .refine(
       (act) =>

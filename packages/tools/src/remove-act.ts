@@ -14,11 +14,14 @@ const row = z.object({
 export const removeAct = defineTool({
   name: 'remove_act',
   description:
-    'Removes one accepted act of the record that is wrong: a new relation, or a change of the ' +
-    'values of an entity. Use it only when a passage shows that the act is wrong. To take out an ' +
+    'Removes one accepted act of the record that is wrong: a new relation, a change of the values ' +
+    'of an entity or of a relation, a change of the name of an entity (rename_entity), or a ' +
+    'start, an end, an added source or a removed source of a relation. Use it only when a ' +
+    'passage shows that the act is wrong. To take out an ' +
     'act that waits, use reject_unit or reject_relation. A relation leaves the graph, with each ' +
-    'later change of it. Each value that the act set goes back to the value before the act, or ' +
-    'leaves the entity. A value on an entity that a join absorbed is on the entity that stays. ' +
+    'later change of it. Each value, name, start or end that the act set goes back to the value ' +
+    'before the act, or leaves the row, and each document that only the act added leaves the ' +
+    'relation. A value on an entity that a join absorbed is on the entity that stays. ' +
     'The act leaves each read of the graph, each export and each count. The ledger keeps it with ' +
     'the removal: the origin "decided by an AI reviewer", your reason, who and when. The ' +
     'database refuses these: an act that is not accepted, an act that is removed already, and ' +

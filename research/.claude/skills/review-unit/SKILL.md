@@ -1,6 +1,6 @@
 ---
 name: review-unit
-description: Review the doubts of the review queue as an AI reviewer. Read the cited passage of each unit first, then promote the unit, reject it, or reject one relation, with a reason. Also remove an accepted act that is wrong, or join two accepted entities of one thing. Use it in a new reviewer subagent or session, never in the agent that proposed the units.
+description: Review the doubts of the review queue as an AI reviewer. Read the cited passage of each unit first, then promote the unit, reject it, or reject one relation, with a reason. Also correct the record. Remove an accepted act, join two entities, remove a value or a source, rename an entity or retitle a document. Use it in a new reviewer subagent or session, never in the agent that proposed the units.
 ---
 
 # Review a unit as an AI reviewer
@@ -54,9 +54,16 @@ decide the unit.
   unit is closed. Read the waiting unit with `read_unit` first. The waiting unit stays in the
   queue for its reviewer.
 - `remove_act`: removes one accepted act that is wrong, with a cited passage and your reason. It
-  takes a new relation, or a change of the values of an entity. A relation leaves the graph. Each
-  value goes back to the value before the act. The act leaves each read, each export and each
-  count, and the ledger keeps it with the removal.
+  takes a new relation, a change of the values of an entity or of a relation, a rename, and a
+  start, an end or a source of a relation. A relation leaves the graph. Each value, name or date
+  goes back to the value before the act. The act leaves each read, each export and each count,
+  and the ledger keeps it with the removal.
+- `remove_value`: takes one wrong value out of a list of an entity (an alias, a former name, a
+  flag, an MMSI or a call sign). A change of these lists through `propose` only adds values.
+- `rename_entity`: gives an entity the current name that the passage writes. The name before
+  goes to former_names (the source says it is an old name) or to aliases (another spelling).
+- `remove_source`: takes one wrong source out of a relation. The relation keeps one source.
+- `retitle_document`: corrects a false title of a stored document. The passage writes the title.
 - `join_entities`: joins two accepted entities of one thing, of one type, with a cited passage
   and your reason. The older entity stays and takes the values, the relations, the documents and
   the name of the newer one. The operator can undo the join.
@@ -131,6 +138,19 @@ decide the unit.
    - Two accepted entities are one thing, and a passage identifies both, such as one identifier:
      call `join_entities` with the two entities, the passage and your reason. Two entities with
      no common identifier stay apart.
+   - One value of a list is wrong, for example a former name that a join added and that is not a
+     name of the entity: call `remove_value`. Never send a shorter list through `propose`: it adds.
+   - An official list or a register gives the current name of an entity: call `rename_entity` with
+     that passage. The old name is kept. A wrong rename needs two removals: the acts `rename` and
+     `kept` of its answer.
+   - One source of a relation does not state the relation: call `remove_source`. When it is the
+     one source, remove the relation with `remove_act`.
+   - A stored document has a false title: call `retitle_document` with the passage that writes the
+     title.
+   - An end of a relation is wrong: remove its act with `remove_act`, and the proposer session
+     sends the right end. An end with `endRule` "day_before_entry_into_force" is stated when one
+     passage gives the entry into force of the EU act that ends the relation: code computed the
+     day from that passage.
    - You are not sure: send the act or the pair to the skill `expert-panel`.
 7. When the record refuses a decision, read the reason and the field. A blocked unit, such as a
    unit with an impossible link, cannot be promoted by anyone: reject it or leave it.

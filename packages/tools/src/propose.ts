@@ -200,7 +200,17 @@ const batchAct = z.discriminatedUnion('op', [
         .optional()
         .describe(
           'the end date form: the last day of the relation, on or after its first day, written ' +
-            'as 2026-01-31; an excerpt must state it',
+            'as 2026-01-31; an excerpt must state it, or endRule names how one excerpt gives it',
+        ),
+      endRule: z
+        .literal('day_before_entry_into_force')
+        .optional()
+        .describe(
+          'only with validTo, for an EU act that ends the relation: validTo is the day before ' +
+            'the entry into force. ONE excerpt must hold the article on the entry into force and, ' +
+            'when the day counts from the publication, the one date of the Official Journal, as ' +
+            '"shall enter into force on the date of its publication in the Official Journal ... ' +
+            'OJ L, 22.9.2026". Code computes the day; another day is not stated',
         ),
       type: z
         .literal('restricted_by')
@@ -214,7 +224,10 @@ const batchAct = z.discriminatedUnion('op', [
       (act) =>
         [act.validFrom, act.validTo, act.type].filter((one) => one !== undefined).length === 1,
       { message: 'give validFrom, validTo or type, and only one of them' },
-    ),
+    )
+    .refine((act) => act.endRule === undefined || act.validTo !== undefined, {
+      message: 'endRule goes with validTo only',
+    }),
   z.strictObject({
     op: z.literal('create_observation'),
     measure: z

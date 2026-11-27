@@ -70,6 +70,13 @@ GRANT EXECUTE ON FUNCTION name_key(text) TO gabriel_agent;
 -- gabriel_app. No view of the read API shows it.
 GRANT SELECT ON citation TO gabriel_app;
 
+-- THE HISTORY OF THE TITLE OF A DOCUMENT. The title is public, and the reason of an AI reviewer
+-- is not: the research AI reads its own reasons in the read of the review, so only the operator
+-- reads the whole row. No role writes the table: the title doors write it.
+GRANT SELECT ON document_title_change TO gabriel_app;
+GRANT SELECT (id, document_id, before, after, decided_by, origin, decided_at)
+  ON document_title_change TO gabriel_research;
+
 -- THE REASON OF A DISPUTE (proposals.dissent_reason) IS A COLUMN OF A TABLE THAT THE MACHINE ROLES
 -- READ. It holds only the values of the act and the words of the checker on a passage, and both
 -- machine roles already read the text of that passage. gabriel_read holds no grant on the table,
@@ -122,6 +129,14 @@ REVOKE ALL ON FUNCTION joined_entity(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION review_why(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_remove_act(uuid,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_join_entities(uuid,uuid,jsonb,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ai_remove_value(uuid,text,jsonb,jsonb,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ai_rename_entity(uuid,text,text,jsonb,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ai_remove_source(uuid,text,jsonb,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION ai_retitle_document(text,text,jsonb,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION change_document_title(text,text,text,text,text,text,jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION list_without(jsonb,jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION relation_value_act(uuid,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION relation_doc_cited(uuid,text,uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_group(uuid,uuid[],text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION promote_group_as(uuid,uuid[],text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION ai_promote_group(uuid,uuid[],text) FROM PUBLIC;
@@ -257,6 +272,10 @@ GRANT EXECUTE ON FUNCTION fill_document_provider(text,text) TO gabriel_agent, ga
 -- THE LEVEL AND THE CLASS OF A DOCUMENT go with the fetched-document door.
 GRANT EXECUTE ON FUNCTION fill_document_restricted(text) TO gabriel_agent, gabriel_research;
 GRANT EXECUTE ON FUNCTION document_level(text) TO gabriel_agent, gabriel_research;
+-- The node audit reads the level of each cited document as the operator role, on the PC. The
+-- operator role reads each column of the document and of its text already, so the level is no
+-- new read.
+GRANT EXECUTE ON FUNCTION document_level(text) TO gabriel_app;
 GRANT EXECUTE ON FUNCTION document_restricted(text) TO gabriel_agent, gabriel_research;
 -- THE ARCHIVE THAT HELD A FILE goes with the fetched-document door too.
 GRANT EXECUTE ON FUNCTION fill_document_archive(text,text,text) TO gabriel_agent, gabriel_research;
@@ -299,6 +318,11 @@ GRANT EXECUTE ON FUNCTION ai_promote_group(uuid,uuid[],text) TO gabriel_research
 -- and a cited passage (ADR 0035). An undo of a join stays with the operator.
 GRANT EXECUTE ON FUNCTION ai_remove_act(uuid,jsonb,text) TO gabriel_research;
 GRANT EXECUTE ON FUNCTION ai_join_entities(uuid,uuid,jsonb,text) TO gabriel_research;
+-- THE CORRECTIONS OF AN AI REVIEWER (ADR 0038): a value of a list, a name, a source, a title.
+GRANT EXECUTE ON FUNCTION ai_remove_value(uuid,text,jsonb,jsonb,text) TO gabriel_research;
+GRANT EXECUTE ON FUNCTION ai_rename_entity(uuid,text,text,jsonb,text) TO gabriel_research;
+GRANT EXECUTE ON FUNCTION ai_remove_source(uuid,text,jsonb,text) TO gabriel_research;
+GRANT EXECUTE ON FUNCTION ai_retitle_document(text,text,jsonb,text) TO gabriel_research;
 -- The act of the operator, proposed and promoted in one transaction. A machine role holds no
 -- grant on it, as it holds none on the promotion.
 GRANT EXECUTE ON FUNCTION sign_change(text,text,jsonb,text[],text,uuid,uuid[]) TO gabriel_app;

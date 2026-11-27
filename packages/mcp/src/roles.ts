@@ -59,6 +59,10 @@ const DECIDE = [
   'promote_clean_proposals',
   'remove_act',
   'join_entities',
+  'remove_value',
+  'rename_entity',
+  'remove_source',
+  'retitle_document',
 ] as const satisfies readonly ToolName[];
 
 export const WORKER_ROLES = {

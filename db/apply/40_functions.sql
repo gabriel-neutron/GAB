@@ -113,7 +113,6 @@ $$;
 -- of the documents of all the values: each document of the old value, then the new ones. It does
 -- not link one value to one document. When the act adds no value, the old value stays as it is,
 -- so the promotion sees no change.
--- shortcut: no act removes a wrong value of a history key; add a remove op when one is found.
 CREATE OR REPLACE FUNCTION history_value(p_old jsonb, p_new jsonb)
 RETURNS jsonb
 LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
@@ -141,6 +140,26 @@ LANGUAGE sql IMMUTABLE SET search_path = pg_catalog AS $$
         WHERE NOT coalesce(p_old->'src', '[]'::jsonb) @> jsonb_build_array(z.doc)),
       '[]'::jsonb))
 $$;
+
+-- A LIST WITH ONE VALUE LESS: each copy of the value leaves, and the other values keep their
+-- order. The src stays as it is. NULL when no value is left. A list that does not hold the value
+-- is refused. No role holds this step: the promotion runs it.
+CREATE OR REPLACE FUNCTION list_without(p_old jsonb, p_value jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql IMMUTABLE SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_list jsonb := public.history_list(p_old->'v');
+  v_kept jsonb;
+BEGIN
+  IF p_old IS NULL OR NOT v_list @> jsonb_build_array(p_value) THEN
+    RAISE EXCEPTION 'the entity holds no value % in this list', p_value
+      USING CONSTRAINT = 'value_held', HINT = 'value';
+  END IF;
+  SELECT jsonb_agg(x.e ORDER BY x.n) INTO v_kept
+    FROM jsonb_array_elements(v_list) WITH ORDINALITY AS x(e, n) WHERE x.e <> p_value;
+  RETURN CASE WHEN v_kept IS NULL THEN NULL
+              ELSE jsonb_build_object('v', v_kept, 'src', p_old->'src') END;
+END $$;
 
 -- MORE DOCUMENTS FOR A ROW OF THE RECORD. The row-level list takes them when p_row is true, and
 -- the src of each named attribute takes them. A document that a list holds already is not added
@@ -1061,13 +1080,15 @@ BEGIN
        OR (v_item->>'op' = 'update_relation'
            AND NOT (jsonb_typeof(v_item->'payload') = 'object'
                     AND (((v_item->'payload') ? 'valid_to'
-                          AND (v_item->'payload') - 'valid_to' = '{}'::jsonb)
+                          AND (v_item->'payload') - 'valid_to' - 'end_rule' = '{}'::jsonb)
                          OR ((v_item->'payload') ? 'valid_from'
                              AND (v_item->'payload') - 'valid_from' = '{}'::jsonb)
                          OR ((v_item->'payload') ? 'type'
                              AND (v_item->'payload') - 'type' = '{}'::jsonb)
                          OR ((v_item->'payload') ? 'add_source'
-                             AND (v_item->'payload') - 'add_source' = '{}'::jsonb)))) THEN
+                             AND (v_item->'payload') - 'add_source' = '{}'::jsonb))))
+       -- A value leaves a list only through the door of a reviewer (ai_remove_value).
+       OR (jsonb_typeof(v_item->'payload') = 'object' AND (v_item->'payload') ? 'remove_value') THEN
       RAISE EXCEPTION 'item %: a machine proposes a new entity, a new relation, new attributes '
                       'or the start or end date of a relation, or the type change of a relation, or '
                       'a source for a relation, or '
@@ -2006,17 +2027,67 @@ SET search_path = pg_catalog, public, pg_temp AS $$
                   p_id)
 $$;
 
--- THE REMOVAL OF AN ACCEPTED ACT (ADR 0035). An accepted act is frozen, so the act
--- `remove_act` takes away what it wrote, and the ledger keeps both acts. Two kinds of act can be
+-- THE ACT THAT SET A VALUE OF A RELATION: the last accepted act that named the key on the
+-- relation and that no removal took away, or else the act that made the relation. No role holds
+-- this step.
+CREATE OR REPLACE FUNCTION relation_value_act(p_relation uuid, p_key text) RETURNS uuid
+LANGUAGE sql STABLE
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT coalesce(
+    (SELECT u.id FROM public.proposals u
+      WHERE u.status = 'accepted' AND u.op = 'update_attrs' AND u.target_kind = 'relation'
+        AND u.target_id = p_relation AND u.payload->'attrs' ? p_key
+        AND NOT EXISTS (SELECT 1 FROM public.proposals x
+                         WHERE x.op = 'remove_act' AND x.names[1] = u.id
+                           AND x.status = 'accepted')
+      ORDER BY u.decided_at DESC, u.id DESC LIMIT 1),
+    (SELECT r.promoted_from FROM public.relations r WHERE r.id = p_relation))
+$$;
+
+-- A DOCUMENT THAT ANOTHER ACT OF A RELATION STILL CITES: the act that made the relation, or an
+-- accepted act on it that no removal took away, other than p_except. Its source, its sources or
+-- its passage counts. No role holds this step.
+CREATE OR REPLACE FUNCTION relation_doc_cited(p_relation uuid, p_doc text, p_except uuid)
+RETURNS boolean
+LANGUAGE sql STABLE
+SET search_path = pg_catalog, public, pg_temp AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.proposals u
+     WHERE u.status = 'accepted' AND u.id <> p_except
+       AND ((u.op = 'create_relation' AND u.id = p_relation)
+            OR (u.op IN ('update_relation', 'update_attrs') AND u.target_kind = 'relation'
+                AND u.target_id = p_relation
+                AND NOT (u.op = 'update_relation' AND u.payload ? 'remove_source')))
+       AND NOT EXISTS (SELECT 1 FROM public.proposals x
+                        WHERE x.op = 'remove_act' AND x.names[1] = u.id
+                          AND x.status = 'accepted')
+       AND (p_doc = ANY (u.src::text[])
+            OR (jsonb_typeof(u.payload->'sources') = 'array'
+                AND u.payload->'sources' @> jsonb_build_array(p_doc))
+            OR EXISTS (SELECT 1 FROM public.citation c
+                        WHERE c.claim_id = u.id AND c.doc_id = p_doc)))
+$$;
+
+-- THE REMOVAL OF AN ACCEPTED ACT (ADR 0035, ADR 0038). An accepted act is frozen, so the act
+-- `remove_act` takes away what it wrote, and the ledger keeps both acts. These acts can be
 -- removed:
 -- - a new relation (`create_relation`): the relation row leaves the graph, as a delete of the
 --   relation does, and the copy keeps the row. A relation that is an end of another relation
 --   stays. A relation that an act in the queue names stays: that act is decided first. Each
 --   later act on the relation leaves the count with it (public.removed_act).
--- - a change of the values of an entity (`update_attrs`): each value that the act set goes back
---   to the value before the act, or leaves the entity when it had none. The act must still be the
---   last act that set each of its values: a later act wrote over it, and that act is removed
---   first. When a join absorbed the entity, the values are on the entity that stays.
+-- - a change of the values of an entity or of a relation (`update_attrs`): each value that the
+--   act set goes back to the value before the act, or leaves the row when it had none. The act
+--   must still be the last act that set each of its values: a later act wrote over it, and that
+--   act is removed first. When a join absorbed the entity, the values are on the entity that
+--   stays. A removal of one value of a list is an `update_attrs` act too, so its removal puts the
+--   list back.
+-- - a change of the name of an entity (`update_entity` with a label only): the name and the row
+--   sources go back to the copy, when the act still gave the name that stands.
+-- - a start, an end or a source of a relation (`update_relation`): the start or the end goes back
+--   to the copy, when the act still gave the date that stands. Each document that the act added
+--   leaves the row sources, unless another act of the relation that stands still cites it, and
+--   the relation keeps a source. The removal of a removed source puts the document back. A change
+--   of the type is refused: the operator decides it.
 -- Each other act is refused: a merge is undone by the operator, and an entity leaves through a
 -- join or a delete. The removal locks the removed act. Two removals of one act thus wait for each
 -- other, and the unique index refuses the second one. The answer is the copy of what the removal
@@ -2036,6 +2107,10 @@ DECLARE
   v_was   jsonb := '{}'::jsonb;
   v_back  jsonb := '{}'::jsonb;
   v_key   text;
+  v_col   text;
+  v_docs  text[];
+  v_gone  text[] := '{}';
+  v_doc   text;
 BEGIN
   SELECT * INTO r FROM public.proposals WHERE id = p_act FOR UPDATE;
   IF NOT FOUND THEN
@@ -2059,9 +2134,20 @@ BEGIN
   ELSIF r.op = 'update_attrs' AND r.target_kind = 'entity' THEN
     v_kind := 'entity';
     v_id := public.joined_entity(r.target_id);
+  ELSIF r.op = 'update_attrs' AND r.target_kind = 'relation' THEN
+    v_kind := 'relation';
+    v_id := r.target_id;
+  ELSIF r.op = 'update_entity' AND r.payload - 'label' = '{}'::jsonb THEN
+    v_kind := 'entity';
+    v_id := public.joined_entity(r.target_id);
+  ELSIF r.op = 'update_relation'
+        AND r.payload ?| ARRAY['valid_to', 'valid_from', 'add_source', 'remove_source'] THEN
+    v_kind := 'relation';
+    v_id := r.target_id;
   ELSE
-    RAISE EXCEPTION 'the act % is a % act, and only a new relation or a change of the values of '
-                    'an entity is removed', p_act, r.op
+    RAISE EXCEPTION 'the act % is a % act, and only a new relation, a change of the values, a '
+                    'change of the name of an entity, or a start, an end or a source of a '
+                    'relation is removed', p_act, r.op
       USING CONSTRAINT = 'remove_kind', HINT = 'actId';
   END IF;
   IF (p_target_kind, p_target) IS DISTINCT FROM (v_kind, v_id) THEN
@@ -2070,7 +2156,7 @@ BEGIN
       USING CONSTRAINT = 'remove_target', HINT = 'actId';
   END IF;
 
-  IF v_kind = 'relation' THEN
+  IF r.op = 'create_relation' THEN
     SELECT to_jsonb(x) INTO v_row FROM public.relations x WHERE x.id = v_id FOR UPDATE;
     IF v_row IS NULL THEN
       RAISE EXCEPTION 'the relation of the act % is not in the graph: a delete or a merge took '
@@ -2103,16 +2189,102 @@ BEGIN
     RETURN v_row;
   END IF;
 
-  SELECT e.attrs INTO v_attrs FROM public.entities e WHERE e.id = v_id FOR UPDATE;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'the entity of the act % is not in the graph: a delete took it away '
-                    'already, and nothing is left to remove', p_act
+  IF v_kind = 'entity' THEN
+    SELECT to_jsonb(e) INTO v_row FROM public.entities e WHERE e.id = v_id FOR UPDATE;
+  ELSE
+    SELECT to_jsonb(x) INTO v_row FROM public.relations x WHERE x.id = v_id FOR UPDATE;
+  END IF;
+  IF v_row IS NULL THEN
+    RAISE EXCEPTION 'the % of the act % is not in the graph: a delete took it away already, and '
+                    'nothing is left to remove', v_kind, p_act
       USING CONSTRAINT = 'target_exists', HINT = 'actId';
   END IF;
+
+  -- THE NAME OF AN ENTITY.
+  IF r.op = 'update_entity' THEN
+    IF v_row->>'label' IS DISTINCT FROM r.payload->>'label'
+       OR EXISTS (SELECT 1 FROM public.proposals u
+                   WHERE u.status = 'accepted' AND u.op = 'update_entity'
+                     AND u.target_kind = 'entity' AND u.payload ? 'label' AND u.id <> r.id
+                     AND public.joined_entity(u.target_id) = v_id
+                     AND (u.decided_at, u.id) > (r.decided_at, r.id)
+                     AND NOT EXISTS (SELECT 1 FROM public.proposals x
+                                      WHERE x.op = 'remove_act' AND x.names[1] = u.id
+                                        AND x.status = 'accepted')) THEN
+      RAISE EXCEPTION 'a later act gave the entity its name: remove that act first'
+        USING CONSTRAINT = 'remove_last_value', HINT = 'actId';
+    END IF;
+    UPDATE public.entities
+       SET label = r.prior_value->>'label',
+           sources = ARRAY(SELECT jsonb_array_elements_text(r.prior_value->'sources'))::doc_id[],
+           updated_at = now()
+     WHERE id = v_id;
+    RETURN jsonb_build_object('label', v_row->'label', 'sources', v_row->'sources');
+  END IF;
+
+  -- A START, AN END OR A SOURCE OF A RELATION.
+  IF r.op = 'update_relation' THEN
+    IF r.payload ? 'remove_source' THEN
+      IF NOT (v_row->'sources') @> jsonb_build_array(r.payload->>'remove_source') THEN
+        UPDATE public.relations x
+           SET sources = x.sources || (r.payload->>'remove_source')::doc_id, updated_at = now()
+         WHERE x.id = v_id;
+      END IF;
+      RETURN jsonb_build_object('sources', v_row->'sources');
+    END IF;
+    v_col := CASE WHEN r.payload ? 'valid_to' THEN 'valid_to'
+                  WHEN r.payload ? 'valid_from' THEN 'valid_from' END;
+    IF v_col IS NOT NULL
+       AND (v_row->>v_col IS DISTINCT FROM r.payload->>v_col
+            OR EXISTS (SELECT 1 FROM public.proposals u
+                        WHERE u.status = 'accepted' AND u.op = 'update_relation'
+                          AND u.target_kind = 'relation' AND u.target_id = v_id
+                          AND u.payload ? v_col AND u.id <> r.id
+                          AND (u.decided_at, u.id) > (r.decided_at, r.id)
+                          AND NOT EXISTS (SELECT 1 FROM public.proposals x
+                                           WHERE x.op = 'remove_act' AND x.names[1] = u.id
+                                             AND x.status = 'accepted'))) THEN
+      RAISE EXCEPTION 'a later act set the % of the relation: remove that act first',
+                      CASE v_col WHEN 'valid_to' THEN 'end' ELSE 'start' END
+        USING CONSTRAINT = 'remove_last_value', HINT = 'actId';
+    END IF;
+    -- The documents that the act added to the row, and that no other act that stands cites.
+    SELECT array_agg(d.doc) INTO v_docs
+      FROM (SELECT x.doc FROM unnest(r.src::text[]) AS x(doc)
+            UNION SELECT c.doc_id::text FROM public.citation c WHERE c.claim_id = r.id) AS d
+     WHERE NOT coalesce(r.prior_value->'sources', '[]'::jsonb) @> jsonb_build_array(d.doc);
+    FOREACH v_doc IN ARRAY coalesce(v_docs, '{}') LOOP
+      IF NOT public.relation_doc_cited(v_id, v_doc, r.id) THEN
+        v_gone := v_gone || v_doc;
+      END IF;
+    END LOOP;
+    -- A relation keeps a source.
+    IF NOT EXISTS (SELECT 1 FROM jsonb_array_elements_text(v_row->'sources') AS s(doc)
+                    WHERE NOT s.doc = ANY (v_gone)) THEN
+      v_gone := '{}';
+    END IF;
+    UPDATE public.relations x
+       SET valid_to = CASE WHEN v_col = 'valid_to'
+                           THEN (r.prior_value->>'valid_to')::date ELSE x.valid_to END,
+           valid_from = CASE WHEN v_col = 'valid_from'
+                             THEN (r.prior_value->>'valid_from')::date ELSE x.valid_from END,
+           sources = ARRAY(SELECT s.doc FROM unnest(x.sources) WITH ORDINALITY AS s(doc, n)
+                            WHERE NOT s.doc::text = ANY (v_gone) ORDER BY s.n)::doc_id[],
+           updated_at = now()
+     WHERE x.id = v_id;
+    RETURN jsonb_build_object('sources', v_row->'sources')
+           || CASE WHEN v_col IS NULL THEN '{}'::jsonb
+                   ELSE jsonb_build_object(v_col, v_row->v_col) END;
+  END IF;
+
+  -- THE VALUES OF AN ENTITY OR OF A RELATION.
+  v_attrs := v_row->'attrs';
   FOR v_key IN SELECT k FROM jsonb_object_keys(coalesce(r.payload->'attrs', '{}'::jsonb)) AS k
                 ORDER BY k LOOP
-    IF public.value_act(v_id, v_key) IS DISTINCT FROM p_act THEN
-      RAISE EXCEPTION 'a later act set the value "%" of the entity: remove that act first', v_key
+    IF (CASE WHEN v_kind = 'entity' THEN public.value_act(v_id, v_key)
+             ELSE public.relation_value_act(v_id, v_key) END) IS DISTINCT FROM p_act THEN
+      RAISE EXCEPTION 'a later act set the value "%" of the %: remove that act first', v_key,
+                      v_kind
         USING CONSTRAINT = 'remove_last_value', HINT = 'actId';
     END IF;
     IF v_attrs ? v_key THEN
@@ -2123,9 +2295,14 @@ BEGIN
     END IF;
     v_attrs := v_attrs - v_key;
   END LOOP;
-  UPDATE public.entities SET attrs = v_attrs || v_back, updated_at = now() WHERE id = v_id;
+  IF v_kind = 'entity' THEN
+    UPDATE public.entities SET attrs = v_attrs || v_back, updated_at = now() WHERE id = v_id;
+  ELSE
+    UPDATE public.relations SET attrs = v_attrs || v_back, updated_at = now() WHERE id = v_id;
+  END IF;
   RETURN jsonb_build_object('attrs', v_was, 'restored', v_back);
 END $$;
+
 
 -- THE STEP THAT WRITES THE EVIDENTIARY LAYER. No role holds it: it runs inside the doors below,
 -- which are owned by the same role. It encodes no rule about WHO may decide. The mode says how
@@ -2147,6 +2324,7 @@ DECLARE
   v_uses  bigint;
   v_kind  text;
   v_keys  text[];
+  v_key   text;
   v_row   boolean;
   v_twin  public.proposals%ROWTYPE;
   v_cite  public.citation%ROWTYPE;
@@ -2290,6 +2468,65 @@ BEGIN
      WHERE r.id = p.target_id;
     v_id := p.target_id;
 
+  -- A SOURCE LEAVES A RELATION (ai_remove_source). The relation keeps at least one source, and a
+  -- start or an end keeps a document of its act. The copy is the list before.
+  ELSIF p.op = 'update_relation' AND p.payload ? 'remove_source' THEN
+    SELECT to_jsonb(r.sources) INTO v_old FROM public.relations r WHERE r.id = p.target_id
+       FOR UPDATE;
+    IF v_old IS NULL THEN
+      RAISE EXCEPTION 'the target % does not exist, and nothing was applied', p.target_id
+        USING CONSTRAINT = 'target_exists', HINT = 'targetId';
+    END IF;
+    IF NOT v_old @> jsonb_build_array(p.payload->>'remove_source') THEN
+      RAISE EXCEPTION 'the relation does not cite the document %', p.payload->>'remove_source'
+        USING CONSTRAINT = 'source_held', HINT = 'document';
+    END IF;
+    IF jsonb_array_length(v_old) = 1 THEN
+      RAISE EXCEPTION 'the document % is the one source of the relation, and a relation keeps a '
+                      'source: remove the relation with remove_act', p.payload->>'remove_source'
+        USING CONSTRAINT = 'source_last', HINT = 'document';
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.proposals b
+                WHERE b.status = 'accepted' AND b.op = 'update_relation'
+                  AND b.target_kind = 'relation' AND b.target_id = p.target_id
+                  AND b.payload ?| ARRAY['valid_from', 'valid_to']
+                  AND (p.payload->>'remove_source') = ANY (b.src::text[])
+                  AND NOT EXISTS (SELECT 1 FROM public.proposals x
+                                   WHERE x.op = 'remove_act' AND x.names[1] = b.id
+                                     AND x.status = 'accepted')
+                  AND NOT EXISTS (SELECT 1 FROM unnest(b.src::text[]) AS d(doc)
+                                   WHERE d.doc <> (p.payload->>'remove_source')
+                                     AND v_old @> jsonb_build_array(d.doc))) THEN
+      RAISE EXCEPTION 'the document % is the one source of the start or the end of the relation: '
+                      'remove that act first', p.payload->>'remove_source'
+        USING CONSTRAINT = 'source_of_bound', HINT = 'document';
+    END IF;
+    v_prior := jsonb_build_object('sources', v_old);
+    UPDATE public.relations r
+       SET sources = array_remove(r.sources, (p.payload->>'remove_source')::doc_id),
+           updated_at = now()
+     WHERE r.id = p.target_id;
+    v_id := p.target_id;
+
+  -- A VALUE LEAVES A LIST (ai_remove_value). Each copy of the value leaves, and the other values
+  -- keep their order. The src stays: it is one list for all the values, and it links no value to
+  -- one document. A list with no value left leaves the entity.
+  ELSIF p.op = 'update_attrs' AND p.payload ? 'remove_value' THEN
+    SELECT attrs INTO v_old FROM public.entities WHERE id = p.target_id FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'the target % does not exist, and nothing was applied', p.target_id
+        USING CONSTRAINT = 'target_exists', HINT = 'targetId';
+    END IF;
+    SELECT k INTO v_key FROM jsonb_object_keys(p.payload->'attrs') AS k;
+    v_attrs := public.list_without(v_old->v_key, p.payload->'attrs'->v_key->'v');
+    v_prior := jsonb_build_object(v_key, v_old->v_key);
+    UPDATE public.entities
+       SET attrs = CASE WHEN v_attrs IS NULL THEN attrs - v_key
+                        ELSE attrs || jsonb_build_object(v_key, v_attrs) END,
+           updated_at = now()
+     WHERE id = p.target_id;
+    v_id := p.target_id;
+
   -- ------------------------------------------------------------------------------ updates --
   ELSIF p.op IN ('update_attrs','update_relation') THEN
     IF p.target_kind = 'entity'
@@ -2306,10 +2543,12 @@ BEGIN
     -- of the act alone, and prior_value keeps the old claim. A kept value keeps each document it
     -- already cites, and then adds the new ones, so no act loses a corroboration. jsonb equality
     -- reads 41200.0 as 41200, and the record compares the code of a jurisdiction (migration 0079).
-    -- A history key of an entity is the exception: history_value adds to it.
+    -- A history key or a list of names of an entity is the exception: history_value adds to it,
+    -- and a value leaves it only through its own act (ai_remove_value).
     SELECT jsonb_object_agg(n.k,
              CASE WHEN p.target_kind = 'entity' AND v_old ? n.k
-                       AND n.k IN ('mmsi_history', 'call_sign')
+                       AND n.k IN ('mmsi_history', 'call_sign', 'aliases', 'former_names',
+                                   'flag_history')
                   THEN public.history_value(v_old->n.k, n.val)
                   WHEN v_old ? n.k AND v_old->n.k->'v' = n.val->'v'
                   THEN jsonb_build_object('v', n.val->'v', 'src',
@@ -3573,6 +3812,261 @@ EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_excepti
     HINT = CASE WHEN v_rule = 'review_reason' THEN 'why'
                 WHEN v_rule = 'review_passage' OR v_code = '23503' THEN 'passage'
                 ELSE 'entityIds' END;
+END $$;
+
+-- THE CORRECTIONS OF AN AI REVIEWER (ADR 0038). Only the research role holds them. Each door
+-- signs its act with the cited passage and decides it in the same transaction, as ai_remove_act
+-- does. The act records the origin "decided by an AI reviewer", the reason, who and when, and its
+-- copy keeps what it changed, so remove_act takes it back. A refusal names its field.
+
+-- ONE VALUE LEAVES A LIST OF AN ENTITY: an alias, a former name, a flag, an MMSI or a call sign.
+-- Each copy of the value leaves, and the other values keep their order.
+CREATE OR REPLACE FUNCTION ai_remove_value(p_entity uuid, p_key text, p_value jsonb,
+                                           p_citation jsonb, p_why text)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_why   text;
+  v_id    uuid;
+  v_act   uuid;
+  v_left  jsonb;
+  v_text  text;
+  v_rule  text;
+  v_code  text;
+BEGIN
+  v_why := public.review_why(p_why);
+  PERFORM public.check_review_citation(p_citation);
+  IF p_key IS NULL OR p_key NOT IN ('aliases', 'former_names', 'flag_history', 'mmsi_history',
+                                    'call_sign') THEN
+    RAISE EXCEPTION 'a value leaves one of these lists: aliases, former_names, flag_history, '
+                    'mmsi_history, call_sign'
+      USING CONSTRAINT = 'remove_value_key';
+  END IF;
+  IF coalesce(jsonb_typeof(p_value), 'absent') IN ('absent', 'null', 'array', 'object') THEN
+    RAISE EXCEPTION 'the value is one text or one number of the list'
+      USING CONSTRAINT = 'value_held';
+  END IF;
+  v_id := public.joined_entity(p_entity);
+  IF NOT EXISTS (SELECT 1 FROM public.entities e WHERE e.id = v_id) THEN
+    RAISE EXCEPTION 'the entity % is not in the graph', p_entity
+      USING CONSTRAINT = 'target_exists';
+  END IF;
+  v_act := public.propose_change('update_attrs',
+             jsonb_build_object('attrs', jsonb_build_object(p_key, jsonb_build_object(
+               'v', p_value, 'src', jsonb_build_array(p_citation->>'document'))),
+               'remove_value', true),
+             ARRAY[p_citation->>'document'], 'entity', v_id);
+  PERFORM public.put_review_citation(v_act, p_citation);
+  PERFORM public.apply_proposal_as(v_act, 'an AI reviewer, through the MCP server', NULL,
+                                   'decided by an AI reviewer', v_why);
+  SELECT e.attrs->p_key->'v' INTO v_left FROM public.entities e WHERE e.id = v_id;
+  RETURN jsonb_build_object('removal', v_act, 'entity', v_id,
+                            'name', coalesce(public.element_name(v_id), v_id::text),
+                            'left', coalesce(v_left, '[]'::jsonb));
+EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception
+            OR insufficient_privilege THEN
+  GET STACKED DIAGNOSTICS v_text = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
+                          v_code = RETURNED_SQLSTATE;
+  RAISE EXCEPTION USING MESSAGE = v_text, ERRCODE = v_code, CONSTRAINT = v_rule,
+    HINT = CASE WHEN v_rule = 'review_reason' THEN 'why'
+                WHEN v_rule = 'review_passage' OR v_code = '23503' THEN 'passage'
+                WHEN v_rule = 'remove_value_key' THEN 'key'
+                WHEN v_rule = 'value_held' THEN 'value'
+                ELSE 'entityId' END;
+END $$;
+
+-- AN ENTITY TAKES ITS CURRENT NAME, and the name before goes to its former names or its aliases.
+-- Two acts: the change of the name (update_entity), and the old name added to the list
+-- (update_attrs). The change of a name gives the row its own sources, so the door gives the row
+-- back each document that it held before, and the copy of the act keeps them for a removal. A
+-- name that another entity of the same type holds is refused: that is a join.
+CREATE OR REPLACE FUNCTION ai_rename_entity(p_entity uuid, p_label text, p_keep_as text,
+                                            p_citation jsonb, p_why text)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_why    text;
+  v_label  text := btrim(coalesce(p_label, ''), E' \t\n\r\f\v');
+  v_row    public.entities%ROWTYPE;
+  v_rename uuid;
+  v_kept   uuid;
+  v_text   text;
+  v_rule   text;
+  v_code   text;
+BEGIN
+  v_why := public.review_why(p_why);
+  PERFORM public.check_review_citation(p_citation);
+  IF p_keep_as IS NULL OR p_keep_as NOT IN ('former_names', 'aliases') THEN
+    RAISE EXCEPTION 'the name before goes to former_names or to aliases'
+      USING CONSTRAINT = 'rename_keep_as';
+  END IF;
+  IF v_label = '' OR char_length(v_label) > 500 THEN
+    RAISE EXCEPTION 'the new name has 1 to 500 characters' USING CONSTRAINT = 'rename_label';
+  END IF;
+  SELECT * INTO v_row FROM public.entities e WHERE e.id = public.joined_entity(p_entity)
+     FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'the entity % is not in the graph', p_entity
+      USING CONSTRAINT = 'target_exists';
+  END IF;
+  -- A change of the case, the accents or the signs is a correction too.
+  IF v_label = v_row.label THEN
+    RAISE EXCEPTION 'the entity has this name already: "%"', v_row.label
+      USING CONSTRAINT = 'rename_label';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.entities o
+              WHERE o.id <> v_row.id AND o.type = v_row.type
+                AND public.name_key(o.label) = public.name_key(v_label)) THEN
+    RAISE EXCEPTION 'another % of the record has the name "%": join the two entities with '
+                    'join_entities', v_row.type, v_label
+      USING CONSTRAINT = 'rename_twin';
+  END IF;
+  v_rename := public.propose_change('update_entity', jsonb_build_object('label', v_label),
+                                    ARRAY[p_citation->>'document'], 'entity', v_row.id);
+  PERFORM public.put_review_citation(v_rename, p_citation);
+  PERFORM public.apply_proposal_as(v_rename, 'an AI reviewer, through the MCP server', NULL,
+                                   'decided by an AI reviewer', v_why);
+  UPDATE public.entities e
+     SET sources = v_row.sources || ARRAY(SELECT x.d FROM unnest(e.sources) AS x(d)
+                                           WHERE NOT x.d = ANY (v_row.sources))
+   WHERE e.id = v_row.id;
+  v_kept := public.propose_change('update_attrs',
+              jsonb_build_object('attrs', jsonb_build_object(p_keep_as, jsonb_build_object(
+                'v', jsonb_build_array(v_row.label),
+                'src', jsonb_build_array(p_citation->>'document')))),
+              ARRAY[p_citation->>'document'], 'entity', v_row.id);
+  PERFORM public.put_review_citation(v_kept, p_citation);
+  PERFORM public.apply_proposal_as(v_kept, 'an AI reviewer, through the MCP server', NULL,
+                                   'decided by an AI reviewer', v_why);
+  RETURN jsonb_build_object('rename', v_rename, 'kept', v_kept, 'entity', v_row.id,
+                            'before', v_row.label, 'after', v_label);
+EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception
+            OR insufficient_privilege THEN
+  GET STACKED DIAGNOSTICS v_text = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
+                          v_code = RETURNED_SQLSTATE;
+  RAISE EXCEPTION USING MESSAGE = v_text, ERRCODE = v_code, CONSTRAINT = v_rule,
+    HINT = CASE WHEN v_rule = 'review_reason' THEN 'why'
+                WHEN v_rule = 'review_passage' OR v_code = '23503' THEN 'passage'
+                WHEN v_rule = 'rename_keep_as' THEN 'keepAs'
+                WHEN v_rule IN ('rename_label', 'rename_twin') THEN 'label'
+                ELSE 'entityId' END;
+END $$;
+
+-- ONE SOURCE LEAVES A RELATION. The relation keeps at least one source, and a start or an end
+-- keeps a document of its act: the promotion holds these rules.
+CREATE OR REPLACE FUNCTION ai_remove_source(p_relation uuid, p_document text, p_citation jsonb,
+                                            p_why text)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_why   text;
+  v_act   uuid;
+  v_left  text[];
+  v_text  text;
+  v_rule  text;
+  v_code  text;
+BEGIN
+  v_why := public.review_why(p_why);
+  PERFORM public.check_review_citation(p_citation);
+  IF NOT EXISTS (SELECT 1 FROM public.relations r WHERE r.id = p_relation) THEN
+    RAISE EXCEPTION 'the relation % is not in the graph', p_relation
+      USING CONSTRAINT = 'target_exists';
+  END IF;
+  v_act := public.propose_change('update_relation',
+                                 jsonb_build_object('remove_source', p_document),
+                                 ARRAY[p_citation->>'document'], 'relation', p_relation);
+  PERFORM public.put_review_citation(v_act, p_citation);
+  PERFORM public.apply_proposal_as(v_act, 'an AI reviewer, through the MCP server', NULL,
+                                   'decided by an AI reviewer', v_why);
+  SELECT r.sources::text[] INTO v_left FROM public.relations r WHERE r.id = p_relation;
+  RETURN jsonb_build_object('removal', v_act, 'relation', p_relation,
+                            'name', coalesce(public.element_name(p_relation), p_relation::text),
+                            'sources', to_jsonb(v_left));
+EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception
+            OR insufficient_privilege THEN
+  GET STACKED DIAGNOSTICS v_text = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
+                          v_code = RETURNED_SQLSTATE;
+  RAISE EXCEPTION USING MESSAGE = v_text, ERRCODE = v_code, CONSTRAINT = v_rule,
+    HINT = CASE WHEN v_rule = 'review_reason' THEN 'why'
+                WHEN v_rule = 'review_passage' OR v_code = '23503' THEN 'passage'
+                WHEN v_rule IN ('source_held', 'source_last', 'source_of_bound') THEN 'document'
+                ELSE 'relationId' END;
+END $$;
+
+-- THE TITLE OF A STORED DOCUMENT. A document is no act, so the history of its title is the table
+-- document_title_change: each change keeps the title before and after, who, when, why and the
+-- cited passage. The bytes, the hash and the address stay. A second change is the undo. No role
+-- holds this step: the two doors below run it.
+CREATE OR REPLACE FUNCTION change_document_title(p_document text, p_from text, p_to text,
+                                                 p_decided_by text, p_origin text,
+                                                 p_reason text, p_citation jsonb)
+RETURNS boolean
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_to text := btrim(coalesce(p_to, ''), E' \t\n\r\f\v');
+BEGIN
+  IF v_to = '' THEN
+    RAISE EXCEPTION 'the corrected title is blank'
+      USING ERRCODE = 'invalid_parameter_value', CONSTRAINT = 'title_text';
+  END IF;
+  UPDATE public.documents SET title = v_to
+   WHERE id = p_document::doc_id AND title = p_from AND title <> v_to;
+  IF NOT FOUND THEN
+    RETURN false;
+  END IF;
+  INSERT INTO public.document_title_change
+    (document_id, before, after, decided_by, origin, reason, citation)
+  VALUES (p_document, p_from, v_to, p_decided_by, p_origin, p_reason, p_citation);
+  RETURN true;
+END $$;
+
+-- AN AI REVIEWER CORRECTS THE TITLE OF A DOCUMENT, with a reason and a cited passage.
+CREATE OR REPLACE FUNCTION ai_retitle_document(p_document text, p_title text, p_citation jsonb,
+                                               p_why text)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE
+  v_why    text;
+  v_before text;
+  v_to     text := btrim(coalesce(p_title, ''), E' \t\n\r\f\v');
+  v_text   text;
+  v_rule   text;
+  v_code   text;
+BEGIN
+  v_why := public.review_why(p_why);
+  PERFORM public.check_review_citation(p_citation);
+  IF NOT EXISTS (SELECT 1 FROM public.documents d WHERE d.id = (p_citation->>'document')) THEN
+    RAISE EXCEPTION 'the passage cites no stored document' USING CONSTRAINT = 'review_passage';
+  END IF;
+  IF v_to = '' OR char_length(v_to) > 500 THEN
+    RAISE EXCEPTION 'the new title has 1 to 500 characters' USING CONSTRAINT = 'title_text';
+  END IF;
+  SELECT d.title INTO v_before FROM public.documents d WHERE d.id = p_document FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'the record holds no document %', p_document
+      USING CONSTRAINT = 'document_exists';
+  END IF;
+  IF v_before = v_to THEN
+    RAISE EXCEPTION 'the document has this title already' USING CONSTRAINT = 'title_text';
+  END IF;
+  PERFORM public.change_document_title(p_document, v_before, v_to,
+                                       'an AI reviewer, through the MCP server',
+                                       'decided by an AI reviewer', v_why, p_citation);
+  RETURN jsonb_build_object('document', p_document, 'before', v_before, 'after', v_to);
+EXCEPTION WHEN raise_exception OR integrity_constraint_violation OR data_exception
+            OR insufficient_privilege THEN
+  GET STACKED DIAGNOSTICS v_text = MESSAGE_TEXT, v_rule = CONSTRAINT_NAME,
+                          v_code = RETURNED_SQLSTATE;
+  RAISE EXCEPTION USING MESSAGE = v_text, ERRCODE = v_code, CONSTRAINT = v_rule,
+    HINT = CASE WHEN v_rule = 'review_reason' THEN 'why'
+                WHEN v_rule = 'review_passage' OR v_code = '23503' THEN 'passage'
+                WHEN v_rule = 'title_text' THEN 'title'
+                ELSE 'document' END;
 END $$;
 
 -- THE GROUP ACTION (P11): "promote the clean proposals of this group". No role holds this step:
@@ -6802,18 +7296,16 @@ END $$;
 -- UTF-8, so a page in another charset got a garbled title. The command that reads the stored
 -- bytes again gives the title that it read before (p_from) and the corrected one (p_to). The door
 -- changes the title only when the row still holds p_from, so a title that the operator or a later
--- run changed stays. It answers whether it changed the title. It changes no other column.
+-- run changed stays. It answers whether it changed the title. It changes no other column, and
+-- document_title_change keeps the change.
 CREATE OR REPLACE FUNCTION correct_document_title(p_document text, p_from text, p_to text)
 RETURNS boolean
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
-  IF p_to IS NULL OR btrim(p_to, E' \t\n\r\f\v') = '' THEN
-    RAISE EXCEPTION 'the corrected title is blank' USING ERRCODE = 'invalid_parameter_value';
-  END IF;
-  UPDATE public.documents SET title = p_to
-   WHERE id = p_document::doc_id AND title = p_from AND title <> p_to;
-  RETURN FOUND;
+  RETURN public.change_document_title(p_document, p_from, p_to,
+                                      'the command that reads the stored bytes again',
+                                      NULL, NULL, NULL);
 END $$;
 
 -- THE TYPE OF A DOCUMENT THAT STANDS AS `other`. A command reads the stored documents again and

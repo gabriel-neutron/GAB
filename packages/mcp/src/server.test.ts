@@ -195,6 +195,10 @@ test('the tool list, in the order of the surface, with the hint of each tool', a
       "promote_clean_proposals: write",
       "remove_act: write",
       "join_entities: write",
+      "remove_value: write",
+      "rename_entity: write",
+      "remove_source: write",
+      "retitle_document: write",
     ]
   `);
 });

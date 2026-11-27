@@ -141,6 +141,12 @@ operator to accept" a proposal.
   source of the designation) and the identifiers (from the date of designation, with the IMO
   number of a ship). Cite each part on the page that the answer gives (`entry.page`): a long file
   has more than one page.
+- End a designation on the day before the entry into force of the EU act that ends it: propose
+  the end form of a change of a relation, `validTo`, and
+  `endRule: "day_before_entry_into_force"`. One excerpt must hold the article on the entry into
+  force and, when the day counts from the publication, the page line of the act with its date in
+  the Official Journal. Code computes the day. A relation that has an end gets a new end
+  only after a reviewer removes the old one (`remove_act`).
 - Add the official line to a designation that cites another page: a `designated_by` relation of
   the record that cites the Federal Register, a Treasury notice or a gov.uk page counts in no
   regime of the alignment matrix. Propose `{"op": "add_source", "targetId": "<id of the relation>"}`
@@ -187,11 +193,21 @@ operator to accept" a proposal.
 - Decide as an AI reviewer: `promote_unit`, `reject_unit`, `reject_relation`, `join_unit`,
   `promote_clean_proposals`. Follow the skill `review-unit`. A promotion of a unit that waits for
   a source is refused.
-- Correct the record as an AI reviewer, with a reason and a cited passage: `remove_act` removes
-  an accepted act that is wrong (a new relation, or a change of the values of an entity), and
-  `join_entities` joins two accepted entities of one thing into the older one. Follow the skill
-  `review-unit`. A count of the accepted acts leaves out each removed act: the read of the acts
-  names its removal.
+- Correct the record as an AI reviewer, with a reason and a cited passage (ADR 0035, ADR 0038):
+  - `remove_act` removes an accepted act that is wrong: a new relation, a change of the values of
+    an entity or of a relation, a rename, or a start, an end or a source of a relation.
+  - `join_entities` joins two accepted entities of one thing into the older one.
+  - `remove_value` takes one wrong value out of a list of an entity: an alias, a former name (also
+    one that a join added), a flag, an MMSI or a call sign. A change of these lists through
+    `propose` only adds values.
+  - `rename_entity` gives an entity the current name that the cited passage writes, and keeps the
+    name before as a former name or an alias.
+  - `remove_source` takes one wrong source out of a relation. The relation keeps one source.
+  - `retitle_document` corrects the title of a stored document. The bytes, the hash and the
+    address stay, and the record keeps the title before.
+
+  Follow the skill `review-unit`. A count of the accepted acts leaves out each removed act: the
+  read of the acts names its removal.
 
 ## Who proposes what
 

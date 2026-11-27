@@ -210,4 +210,8 @@ export const RESEARCH_TOOLS = {
   promote_clean_proposals: DECIDE,
   remove_act: DECIDE,
   join_entities: DECIDE,
+  remove_value: DECIDE,
+  rename_entity: DECIDE,
+  remove_source: DECIDE,
+  retitle_document: DECIDE,
 } as const satisfies Record<ToolName, ToolAnnotations>;

@@ -136,6 +136,8 @@ const startPayload = z.looseObject({ valid_from: z.string() });
 
 const retypePayload = z.looseObject({ type: z.string() });
 const sourcePayload = z.looseObject({ add_source: z.literal(true) });
+// A removal of one source of a relation by an AI reviewer (ADR 0038). Its copy is the row sources.
+const unsourcePayload = z.looseObject({ remove_source: z.string() });
 
 const isClose = (op: ProposalOp, value: unknown): boolean =>
   op === 'update_relation' && closePayload.safeParse(value).success;
@@ -143,6 +145,8 @@ const isStart = (op: ProposalOp, value: unknown): boolean =>
   op === 'update_relation' && startPayload.safeParse(value).success;
 const isSource = (op: ProposalOp, value: unknown): boolean =>
   op === 'update_relation' && sourcePayload.safeParse(value).success;
+const isUnsource = (op: ProposalOp, value: unknown): boolean =>
+  op === 'update_relation' && unsourcePayload.safeParse(value).success;
 const isRetype = (op: ProposalOp, value: unknown): boolean =>
   op === 'update_relation' && retypePayload.safeParse(value).success;
 const columnsPayload = z.looseObject({
@@ -272,7 +276,8 @@ function priorValueOf(op: ProposalOp, payload: unknown, value: unknown): PriorVa
     isClose(op, payload) ||
     isStart(op, payload) ||
     isRetype(op, payload) ||
-    isSource(op, payload)
+    isSource(op, payload) ||
+    isUnsource(op, payload)
   )
     return { kind: 'row', row: priorRow.parse(value) };
   switch (op) {

@@ -88,6 +88,11 @@ CREATE OR REPLACE TRIGGER reference_approval_append_only
   BEFORE UPDATE OR DELETE ON reference_approval
   FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
 
+-- A change of the title of a document is written once (ADR 0038).
+CREATE OR REPLACE TRIGGER document_title_change_append_only
+  BEFORE UPDATE OR DELETE ON document_title_change
+  FOR EACH ROW EXECUTE FUNCTION author_append_only_fn();
+
 -- The approval of a reference dataset is written once.
 CREATE OR REPLACE TRIGGER reference_dataset_append_only
   BEFORE UPDATE OR DELETE ON reference_dataset

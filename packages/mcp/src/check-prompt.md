@@ -34,7 +34,9 @@ not a claim: do not judge it.
   claim is `supported` when the passages state that relation: its two ends and the link.
 - `update_relation` sets one value only: `validFrom`, `validTo` or `type`. Judge that value, and
   that the passage is about the relation in `relation`. Do not judge the other values of the
-  relation.
+  relation. With `endRule` "day_before_entry_into_force", `validTo` is the day before the entry
+  into force of the act: judge that the passage gives that entry into force, and that the act ends
+  the relation.
 - `update_attrs` sets only the attributes in `attrs`, of the entity in `entity`.
 - `update_entity` sets only the place of the entity in `entity`.
 

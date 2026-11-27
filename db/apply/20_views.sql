@@ -60,7 +60,8 @@ CREATE VIEW public.open_licence AS
 CREATE VIEW public.removed_act AS
   WITH removal AS (
     SELECT p.names[1] AS act_id, p.id AS removal_id, p.decided_at AS removed_at,
-           p.decided_by AS removed_by, p.decision_origin, p.decision_reason, p.target_kind
+           p.decided_by AS removed_by, p.decision_origin, p.decision_reason, p.target_kind,
+           p.target_id
       FROM public.proposals p
      WHERE p.op = 'remove_act' AND p.status = 'accepted')
   SELECT r.act_id, r.removal_id, r.removed_at, r.removed_by, r.decision_origin, r.decision_reason
@@ -70,7 +71,9 @@ CREATE VIEW public.removed_act AS
     FROM removal r
     JOIN public.proposals u ON u.target_kind = 'relation' AND u.target_id = r.act_id
                            AND u.status = 'accepted' AND u.op = 'update_relation'
-   WHERE r.target_kind = 'relation';
+   -- Only the removal of a new relation takes the later acts on it: its act is the relation.
+   WHERE r.target_kind = 'relation' AND r.target_id = r.act_id
+     AND NOT EXISTS (SELECT 1 FROM removal d WHERE d.act_id = u.id);
 
 
 -- ---------------------------------------------------------------------- PU1, a person fact ---
@@ -344,7 +347,7 @@ CREATE VIEW api.proposal AS
               -- public when one of them is a public document, and it names those alone.
               WHEN op = 'update_relation'
                AND (payload ? 'valid_to' OR payload ? 'valid_from' OR payload ? 'type'
-                    OR payload ? 'add_source') THEN
+                    OR payload ? 'add_source' OR payload ? 'remove_source') THEN
                 CASE WHEN EXISTS (SELECT 1 FROM jsonb_array_elements_text(
                                                   CASE jsonb_typeof(prior_value->'sources')
                                                        WHEN 'array' THEN prior_value->'sources'
@@ -360,7 +363,7 @@ CREATE VIEW api.proposal AS
               WHEN op = 'update_attrs'
                 OR (op = 'update_relation' AND NOT payload ? 'valid_to'
                     AND NOT payload ? 'valid_from' AND NOT payload ? 'type'
-                    AND NOT payload ? 'add_source') THEN
+                    AND NOT payload ? 'add_source' AND NOT payload ? 'remove_source') THEN
                 (SELECT coalesce(jsonb_object_agg(a.key, a.value), '{}'::jsonb)
                    FROM jsonb_each(prior_value) AS a(key, value)
                   WHERE EXISTS (SELECT 1 FROM jsonb_array_elements_text(a.value->'src') s(id)
