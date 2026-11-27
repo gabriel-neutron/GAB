@@ -2,7 +2,8 @@
 //
 //   node tools/note-documents.ts <final English text (Markdown)>
 //
-// It reads the notes `[^N]: ...` of the text, and asks the document tools of the MCP server on
+// It reads the notes `[^N]: ...` of the text, takes the addresses of the bibliography entries that
+// each note cites, and asks the document tools of the MCP server on
 // this PC (`pnpm mcp:serve`) for each address of each note. A row comes from an exact address (a
 // fragment is removed first) or from a row of the reviewed manual table. An address that is only a
 // host gives no row. It checks the file, writes it beside the report data, and prints the match
@@ -13,6 +14,7 @@ import { argv, exit } from 'node:process';
 
 import { z } from 'zod';
 
+import { entryOf, keysOf } from '../src/features/report/bibliography.ts';
 import {
   noteDocumentFaults,
   type NoteDocument,
@@ -121,7 +123,12 @@ for (const note of notes) {
   const add = (document: StoredDocument, match: 'exact' | 'manual') => {
     if (!documents.some((held) => held.id === document.id)) documents.push(row(document, match));
   };
-  for (const url of new Set(addressesOf(note.text)))
+  // The address of each entry that the note cites, and the addresses in its title and its words.
+  const addresses = keysOf(note.text).flatMap((key) => {
+    const entry = entryOf(key);
+    return [entry.url, ...addressesOf(`${entry.title} ${entry.detail ?? ''}`)];
+  });
+  for (const url of new Set(addresses))
     if (!isHostOnly(url)) for (const document of await exactly(url)) add(document, 'exact');
   if (documents.length > 0) exactNotes++;
   for (const manualRow of manual.filter((held) => String(held.note) === note.id)) {

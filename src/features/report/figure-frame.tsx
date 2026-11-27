@@ -65,7 +65,7 @@ export function FigureFrame({
         <div className="col-span-2 min-w-0 md:col-span-1">
           <dt className="font-mono text-report-label uppercase text-label">{ui.figure.sources}</dt>
           <dd className="text-report-small break-words text-muted-foreground">
-            <RichText text={sources} partSlug={partSlug} />
+            <RichText text={sources} partSlug={partSlug} compact />
           </dd>
         </div>
       </dl>
@@ -75,7 +75,7 @@ export function FigureFrame({
           <span className="mr-2 font-mono text-report-label uppercase text-label">
             {ui.figure.note}
           </span>
-          <RichText text={note} partSlug={partSlug} />
+          <RichText text={note} partSlug={partSlug} compact />
         </figcaption>
       )}
     </figure>

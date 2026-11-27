@@ -40,6 +40,7 @@
     "src/shared/read/model.ts",
     // The shape of the note-to-documents file of the report. A command under `tools/` writes it.
     "src/features/report/note-documents.ts",
+    "src/features/report/bibliography.ts",
     // The rows of the read API, with the closed sets of the base tables. A test under `tools/`
     // compares those sets with the CHECKs.
     "src/shared/read/rows.ts",

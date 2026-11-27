@@ -157,7 +157,7 @@ function cards(
     <div className="mt-6 border-t border-divider pt-2">
       <p className="font-mono text-report-label uppercase text-label">{copy.source}</p>
       <p className="mt-1 text-report-small text-muted-foreground">
-        <RichText text={sources} partSlug={partSlug} />
+        <RichText text={sources} partSlug={partSlug} compact />
       </p>
     </div>
   );

@@ -1,6 +1,6 @@
 # Report
 
-The application report lives at `/`; its notes live at `/bibliography`. The report is English only
+The application report lives at `/`; its bibliography lives at `/bibliography`. The report is English only
 (`docs/decisions.md`, PU2). Both routes use the application header, theme, Geist fonts and
 semantic tokens. The static release writer prerenders them.
 
@@ -78,24 +78,38 @@ parser splits a text into runs, and the rich text draws each run.
   position, the document identifiers and all fields of the node. It links to the entity page and
   to the graph when the node has a corpus record.
 - A chart opens the panel through the report hook, and gives the element that gets the focus back.
-- A note marker is a button with the number of the note; a screen reader says "Source" and the
-  number, and the open state. From 1280px, the note opens in the margin beside its paragraph;
-  under 1280px, it opens in a bottom sheet (a dialog). Escape closes it, and the focus goes back to
-  the marker. The note shows its reference, then its documents of the record, then its quote, and
-  links to the note on the notes page. A note with no document shows its reference only. A quote
-  shows only when the file holds one.
+- A note of the text is a short reference in the sentence (author and date for a publication or a
+  dataset, its own number for a legal act, a list or a press release of a government), before the
+  punctuation of the sentence. The note line of the source cites each entry of the bibliography
+  module with `@key`, then gives the locator (page, article, annex entry, table line, figure). A
+  ` | ` opens the short note: an explanation, a caveat or a counting rule that the page keeps
+  beside the reference, with a number. The reference is a link to its entry on the bibliography
+  page; a click opens the note: from 1280px in the margin beside its paragraph, under 1280px in a
+  bottom sheet (a dialog). Escape closes it, and the focus goes back to the reference. The note
+  shows the entries in full, the short note, the documents of the record and the quote. A figure
+  source line and a summary value already name their sources: there the reference is a small
+  marker.
+- The bibliography page lists one entry for each source, in groups, with the day of access and
+  the stored copies that the note-to-documents file gives, then the short notes, then the image
+  credits. The pages of Ukrainian military intelligence have a group of their own, as a party to
+  the conflict.
+- A command exports the full source list (each reference, its sentence, its section and its
+  entries) as a CSV file and a Markdown file into a folder that git ignores.
 - A committed, dated file joins each note to the documents of the record that support it, and a
   command on the operator PC builds it (ADR 0033).
 
 ## Cover and PDF
 
 The art of the page is decoration: it has no label, no caption and an empty alternative text. The
-notes page lists the credit of each image. A note marker beside the art opens its credit, as a
-note marker opens a note; its number is the place of the credit on the notes page. A value of the
+bibliography page lists the credit of each image. A note marker beside the art opens its credit, as a
+note marker opens a note; its number is the place of the credit on the bibliography page. A value of the
 summary has the marker of the note that its item cites. The download link of the first screen
 gives the PDF. A command makes the PDF from the final text
 and writes it to the public folder of the site, which the build serves as it is. The PDF has the
-text, the figures and the notes at the end. Each figure is a picture of the chart of the page, in
+text with its short references, the short notes at the foot of their pages, the figures and the
+bibliography at the end. The print adds the references, the short notes and the bibliography to
+the page templates from the final text and the bibliography module, so the templates hold no
+reference text. Each figure is a picture of the chart of the page, in
 the light theme with reduced motion, so the PDF shows the final state of each figure. A test fails
 when a PDF is older than its source text; it cannot take the pictures again, so a change to a
 figure alone needs a new run of the command. The authors sign

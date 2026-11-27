@@ -92,3 +92,26 @@ const byNote = new Map(held.notes.map((note) => [note.id, note]));
  * that the file does not hold. */
 export const noteDocuments = (id: string): NoteDocumentsFile['notes'][number] | undefined =>
   byNote.get(id);
+
+const withoutFragment = (url: string): string => url.split('#')[0] ?? url;
+const isHostOnly = (url: string): boolean => /^https?:\/\/[^/]+\/?$/u.test(url);
+
+/** The stored documents of one source: the documents of the notes that cite it, whose address is
+ * the address of the source or holds one of its stored parts. An address that is only a host
+ * gives no document, as in the builder of the file. */
+export function sourceDocuments(
+  source: { readonly url: string; readonly stored?: readonly string[] },
+  noteIds: Iterable<string>,
+): NoteDocument[] {
+  const found = new Map<string, NoteDocument>();
+  const own = withoutFragment(source.url);
+  for (const id of noteIds)
+    for (const document of noteDocuments(id)?.documents ?? []) {
+      const url = withoutFragment(document.url);
+      const match =
+        source.stored?.some((part) => url.includes(part)) ??
+        (!isHostOnly(own) && url.startsWith(own));
+      if (match) found.set(document.id, document);
+    }
+  return [...found.values()].sort((a, b) => a.id.localeCompare(b.id));
+}

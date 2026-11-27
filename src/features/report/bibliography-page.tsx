@@ -1,14 +1,32 @@
 import { Link } from '@tanstack/react-router';
-import { noteAnchor } from './note-ref';
+import {
+  GROUPS,
+  citeText,
+  citingNotes,
+  groupedEntries,
+  shortNoteNumbers,
+  splitNote,
+} from './bibliography';
+import { EntryText } from './entry-text';
+import { sourceDocuments } from './note-documents';
+import { entryAnchor, noteAnchor } from './note-ref';
 import { ReportFrame } from './report-frame';
-import { RichText } from './rich-text';
 import { useContent, type ReportPath } from './use-content';
 
-/** Every note of the report, grouped by part, each one at the anchor that its marker links to,
- * then the credits of the images of the report page. */
+const SECTION = 'mt-12 border-t border-border pt-6 lg:grid lg:grid-cols-12 lg:gap-x-8';
+const HEAD = 'text-report-lead text-balance lg:col-span-4';
+const LIST = 'mt-4 space-y-4 lg:col-span-8 lg:mt-0';
+const META = 'mt-1 block font-mono text-report-label text-label break-all';
+
+/** The bibliography of the report: one entry for each source, in groups, each one at the anchor
+ * that its references link to; then the short notes, at the anchors of their notes; then the
+ * credits of the images of the report page. */
 export function BibliographyPage() {
   const { parts, ui } = useContent();
   const { images } = ui.bibliography;
+  const notes = parts.flatMap((part) => part.notes.map((note) => ({ ...note, slug: part.slug })));
+  const citing = citingNotes(notes);
+  const numbers = shortNoteNumbers(notes);
   return (
     <ReportFrame label={ui.bibliography.label}>
       <article className="mx-auto max-w-[1200px] px-4 py-10 md:px-8">
@@ -20,39 +38,65 @@ export function BibliographyPage() {
             {ui.bibliography.back}
           </Link>
         </div>
-        <h1 className="mt-6 text-report-heading text-balance ">{ui.bibliography.title}</h1>
-        {parts
-          .filter((part) => part.notes.length > 0)
-          .map((part) => (
-            <section
-              key={part.slug}
-              aria-labelledby={`notes-${part.slug}`}
-              className="mt-12 border-t border-border pt-6 lg:grid lg:grid-cols-12 lg:gap-x-8"
-            >
-              <h2 id={`notes-${part.slug}`} className="text-report-lead text-balance lg:col-span-4">
-                {part.title}
-              </h2>
-              <ol className="mt-4 space-y-3 lg:col-span-8 lg:mt-0">
-                {part.notes.map((note) => (
+        <h1 className="mt-6 text-report-heading text-balance">{ui.bibliography.title}</h1>
+        <p className="mt-4 max-w-[72ch] text-report-small text-label">{ui.bibliography.intro}</p>
+        {groupedEntries().map(([group, entries]) => (
+          <section key={group} aria-labelledby={`refs-${group}`} className={SECTION}>
+            <h2 id={`refs-${group}`} className={HEAD}>
+              {GROUPS[group]}
+            </h2>
+            <ol className={LIST}>
+              {entries.map((entry) => {
+                const documents = sourceDocuments(entry, citing.get(entry.key) ?? []);
+                const accessed = documents
+                  .map((one) => one.retrievedAt)
+                  .sort()
+                  .at(-1);
+                return (
                   <li
-                    key={note.id}
-                    id={noteAnchor(part.slug, note.id)}
-                    className="grid scroll-mt-6 grid-cols-[4rem_minmax(0,1fr)] gap-3 text-report-small target:bg-surface-secondary"
+                    key={entry.key}
+                    id={entryAnchor(entry.key)}
+                    className="max-w-[72ch] scroll-mt-6 text-report-small target:bg-surface-secondary"
                   >
-                    <span className="font-mono text-report-label text-label">{note.id}</span>
-                    <span className="max-w-[72ch] break-words">
-                      <RichText text={note.text} />
-                    </span>
+                    <span className="block font-medium">{entry.cite}</span>
+                    <EntryText entry={entry} />
+                    {accessed === undefined ? null : (
+                      <span className={META}>
+                        {ui.bibliography.accessed} {accessed} · {ui.bibliography.stored}{' '}
+                        {documents.map((one) => one.id).join(', ')}
+                      </span>
+                    )}
                   </li>
-                ))}
-              </ol>
-            </section>
-          ))}
-        <section
-          aria-labelledby="notes-images"
-          className="mt-12 border-t border-border pt-6 lg:grid lg:grid-cols-12 lg:gap-x-8"
-        >
-          <h2 id="notes-images" className="text-report-lead text-balance lg:col-span-4">
+                );
+              })}
+            </ol>
+          </section>
+        ))}
+        <section aria-labelledby="refs-notes" className={SECTION}>
+          <h2 id="refs-notes" className={HEAD}>
+            {ui.bibliography.notes}
+          </h2>
+          <ol className={LIST}>
+            {notes
+              .filter((note) => numbers.has(note.id))
+              .map((note) => (
+                <li
+                  key={note.id}
+                  id={noteAnchor(note.slug, note.id)}
+                  className="grid max-w-[72ch] scroll-mt-6 grid-cols-[2.5rem_minmax(0,1fr)] gap-3 text-report-small target:bg-surface-secondary"
+                >
+                  <span className="font-mono text-report-label text-label">
+                    {numbers.get(note.id)}
+                  </span>
+                  <span className="break-words">
+                    {splitNote(note.text).note} ({citeText(note.text)})
+                  </span>
+                </li>
+              ))}
+          </ol>
+        </section>
+        <section aria-labelledby="notes-images" className={SECTION}>
+          <h2 id="notes-images" className={HEAD}>
             {images.title}
           </h2>
           <ul className="mt-4 space-y-3 lg:col-span-8 lg:mt-0">

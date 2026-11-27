@@ -7,6 +7,8 @@ interface RichTextProps {
   readonly text: string;
   /** The part that holds the notes of the text. Without it, a note marker shows its bare id. */
   readonly partSlug?: string | undefined;
+  /** A figure source line, whose words name the sources: each reference is a small marker. */
+  readonly compact?: boolean;
 }
 
 const styled = (bold: boolean, italic: boolean, content: ReactNode): ReactNode => {
@@ -38,9 +40,10 @@ function glue(marks: readonly Mark[]): Run[] {
   return runs;
 }
 
-/** Report text with its marks drawn: node references, note markers, bold and italic. A note
- * marker never starts a line: it stays on the line of the word before it. */
-export function RichText({ text, partSlug }: RichTextProps) {
+/** Report text with its marks drawn: node references, references to the sources, bold and italic.
+ * A reference is its short form in parenthesis, after a space; in a compact text it is a small
+ * marker that never starts a line: it stays on the line of the word before it. */
+export function RichText({ text, partSlug, compact = false }: RichTextProps) {
   const runs = glue(parseMarks(text));
   const out: ReactNode[] = [];
   // The runs of one text never move, so their place is their identity.
@@ -51,7 +54,7 @@ export function RichText({ text, partSlug }: RichTextProps) {
           {run.id}
         </sup>
       ) : (
-        <NoteRef key={key} partSlug={partSlug} id={run.id} />
+        <NoteRef key={key} partSlug={partSlug} id={run.id} compact={compact} />
       );
     if (run.kind === 'node')
       return (
@@ -69,7 +72,11 @@ export function RichText({ text, partSlug }: RichTextProps) {
     const run = runs[index];
     if (run === undefined) continue;
     let end = index + 1;
-    if (run.kind === 'node') {
+    if (run.kind === 'note' && !compact && partSlug !== undefined) {
+      out.push(' ', draw(run, `note-${String(index)}`));
+      continue;
+    }
+    if (run.kind === 'node' && compact) {
       // The markers after a reference, and the empty text that its punctuation left, go in its box.
       const notes: ReactNode[] = [];
       for (let next = runs[end]; next !== undefined; next = runs[++end]) {
@@ -80,7 +87,7 @@ export function RichText({ text, partSlug }: RichTextProps) {
       index = end - 1;
       continue;
     }
-    while (runs[end]?.kind === 'note') end++;
+    while (compact && runs[end]?.kind === 'note') end++;
     if (run.kind !== 'text' || end === index + 1) {
       out.push(draw(run, `${run.kind}-${String(index)}`));
       continue;
