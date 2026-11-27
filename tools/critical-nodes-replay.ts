@@ -11,9 +11,11 @@
 //   is no node. A node meets a condition when one of its members meets it.
 // - (a) Exposed to sanctions: a designation relation, or a holding of 50% or more by an entity
 //   that has its own designation.
-// - (b) Active in 2024-2026: a relation with a start or an end date in the period. A designation
-//   with no date takes the date of its act (entry into force, adoption, or the OFAC action). An
-//   event with a date in the period makes the place where it occurred active.
+// - (b) Active in 2024-2026: a relation with a start or an end date in the period. The date is on
+//   the relation row, or failing that a day that the release gives as a claim of the relation (its
+//   own valid_from or valid_to), as the site reads it. A designation with no date takes the date of
+//   its act (entry into force, adoption, or the OFAC action). An event with a date in the period
+//   makes the place where it occurred active.
 // - (c) Passes through a third country: the country of registration, the country, any flag that
 //   the release gives (a flag has no date), or one of these of a direct counterparty, is a country
 //   other than Russia that is not in COALITION. A counterparty is the other end of a relation that
@@ -21,7 +23,8 @@
 //   no country.
 // - Critical: (a), (b) and (c). On an official source: each condition rests on at least one fact
 //   whose claim cites a document of ADMIRALTY letter A (for a counterparty, the relation and the
-//   country both; for a date taken from an act or an event, the relation and the date both).
+//   country both; for a date taken from an act, an event or a claim of the relation, the relation
+//   and the date both).
 // - Layer (derived by this script, no field of the release): Finance when a member is a bank; Pay
 //   when a member is a vessel, a port or an energy facility, trades oil, or owns or operates such an
 //   asset; Fight for each other node.
@@ -32,6 +35,7 @@ import { join, resolve } from 'node:path';
 import { argv } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import { isDay } from '@gab/proposal/day';
 import { readCsv } from '@gab/release/csv';
 
 import { fetchDataRelease } from './data-release.ts';
@@ -99,13 +103,20 @@ const COUNTRY_ALIASES: Record<string, string> = {
   'us-de': 'US',
 };
 
+/** The current ISO code of a region code: a deprecated code (SU, UK, DD, YU, ...) gives the code
+ * that replaced it. */
+const currentCode = (code: string): string => new Intl.Locale(`und-${code}`).region ?? code;
+
+// The English name of each current code. A deprecated code has the name of the code that replaced
+// it (SU is "Russia"), so it is not in the table: else it can replace the current code.
 const DISPLAY = new Intl.DisplayNames(['en'], { type: 'region' });
 const NAMES = new Map<string, string>();
 for (let first = 65; first <= 90; first += 1)
   for (let second = 65; second <= 90; second += 1) {
     const code = String.fromCharCode(first, second);
     const name = DISPLAY.of(code);
-    if (name !== undefined && name !== code) NAMES.set(name.toLowerCase(), code);
+    if (name !== undefined && name !== code && currentCode(code) === code)
+      NAMES.set(name.toLowerCase(), code);
   }
 
 /** The values of one claim: a value can be a JSON list of strings. A list that does not parse
@@ -122,7 +133,7 @@ export const valuesOf = (value: string): string[] => {
  * a country name gives none. */
 export const countryCodes = (value: string): string[] =>
   valuesOf(value).flatMap((one) => {
-    if (/^[A-Z]{2}$/.test(one)) return [one];
+    if (/^[A-Z]{2}$/.test(one)) return [currentCode(one)];
     const name = one
       .trim()
       .toLowerCase()
@@ -177,12 +188,49 @@ const share = (text: string) => {
   return found === null ? 0 : Number(found[1]);
 };
 
+/** One bound of a relation, and whether a document of letter A supports the day itself. A day on
+ * the relation row belongs to the relation, so the claim of the relation decides. */
+interface Bound {
+  readonly day: string;
+  readonly official: boolean;
+}
+
+/** The days that the release gives as claims of a relation, by claim id (`<relation id>/valid_from`
+ * or `<relation id>/valid_to`). A later act can give a day that the relation row does not hold. A
+ * value that is not a day is no date of the relation. */
+export const claimedDays = (claims: readonly Row[]): Map<string, Bound> => {
+  const found = new Map<string, Bound>();
+  for (const claim of claims) {
+    const id = claim['claim_id'] ?? '';
+    const name = claim['attribute'] ?? '';
+    const value = claim['value'] ?? '';
+    if (claim['subject_kind'] !== 'relation' || !id.endsWith(`/${name}`)) continue;
+    if ((name !== 'valid_from' && name !== 'valid_to') || !isDay(value)) continue;
+    // A claim has one row for each cited passage, and one passage of letter A is enough.
+    const official = (found.get(id)?.official ?? false) || claim['nato_letter'] === 'A';
+    found.set(id, { day: value, official });
+  }
+  return found;
+};
+
+/** The start and the end of a relation: the day of the row, or failing that the claimed day. */
+const boundsOf = (relation: Row, days: ReadonlyMap<string, Bound>): [Bound, Bound] => {
+  const bound = (name: 'valid_from' | 'valid_to'): Bound => {
+    const own = relation[name] ?? '';
+    if (own !== '') return { day: own, official: true };
+    return days.get(`${relation['id'] ?? ''}/${name}`) ?? { day: '', official: false };
+  };
+  return [bound('valid_from'), bound('valid_to')];
+};
+
 /** The members of each node: a vessel goes to its current manager, or failing that to its current
  * owner, and each other entity is a node of its own. An act or an event is no member. */
 export const nodeMembers = ({
   entities,
   relations,
-}: Pick<ReleaseFiles, 'entities' | 'relations'>): Map<string, string[]> => {
+  claims,
+}: ReleaseFiles): Map<string, string[]> => {
+  const days = claimedDays(claims);
   const type = new Map(entities.map((one) => [one['id'] ?? '', one['type'] ?? '']));
   const pick = (kind: string) => {
     const found = new Map<string, string>();
@@ -190,7 +238,7 @@ export const nodeMembers = ({
       if (
         one['type'] === kind &&
         type.get(one['to_id'] ?? '') === 'vessel' &&
-        one['valid_to'] === ''
+        boundsOf(one, days)[1].day === ''
       ) {
         const vessel = one['to_id'] ?? '';
         const holder = one['from_id'] ?? '';
@@ -249,7 +297,8 @@ export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResul
       `${relation['from_id'] ?? ''} ${relation['type'] ?? ''} ${relation['to_id'] ?? ''}`,
     );
 
-  const members = nodeMembers({ entities, relations });
+  const members = nodeMembers({ entities, relations, claims });
+  const days = claimedDays(claims);
 
   // The facts of each member for the three conditions: a value is "official" when a document of
   // letter A supports it.
@@ -269,9 +318,10 @@ export const replay = ({ entities, relations, claims }: ReleaseFiles): NodeResul
     const kind = relation['type'] ?? '';
     const official = officialOf(relation);
     if (kind === 'designated_by') mark(designated, from, official);
-    let dated = inPeriod(relation['valid_from'] ?? '') || inPeriod(relation['valid_to'] ?? '');
-    let datedOfficially = official;
-    if (kind === 'designated_by' && relation['valid_from'] === '' && relation['valid_to'] === '') {
+    const bounds = boundsOf(relation, days);
+    let dated = bounds.some((one) => inPeriod(one.day));
+    let datedOfficially = official && bounds.some((one) => inPeriod(one.day) && one.official);
+    if (kind === 'designated_by' && bounds.every((one) => one.day === '')) {
       // The first date attribute that the act has, in the order of ACT_DATES.
       const act = attributes.get(to);
       const name = ACT_DATES.find((one) => act?.has(one) === true);

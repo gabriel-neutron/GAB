@@ -15,6 +15,7 @@
 
 import { createHash } from 'node:crypto';
 
+import { day as calendarDay } from '@gab/proposal/day';
 import { isValidImo, isValidLei, isValidRuBic } from '@gab/proposal/identifiers';
 import { refusedSource } from '@gab/tools/refused-source';
 import {
@@ -24,7 +25,7 @@ import {
 } from '@gab/tools/duplicate-identifier';
 import { findExcerpt } from '@gab/tools/excerpt';
 
-import { valuesOf, type ReleaseFiles } from './critical-nodes-replay.ts';
+import { valuesOf, type claimedDays, type ReleaseFiles } from './critical-nodes-replay.ts';
 
 type Row = Readonly<Record<string, string>>;
 
@@ -217,18 +218,31 @@ const isDay = (text: string): boolean => {
 };
 const ACT_DATES = ['entry_into_force', 'adopted_on', 'ofac_action_id'];
 
-/** The bounds of a relation are in ISO form and in order. A designation with no bound takes the date
- * of its act, so its act must have one. */
+/** The bounds of a relation are in ISO form and in order. A bound that the relation row does not
+ * hold can be a day that the release gives as a claim of the relation, as the replay reads it. A
+ * designation with no bound takes the date of its act, so its act must have one. */
 export const dates = (
   claim: Claim,
   actAttributes: ReadonlyMap<string, ReadonlySet<string>>,
+  days: ReturnType<typeof claimedDays> = new Map(),
 ): Result => {
   const check = 'dates';
+  // A bound that the release gives as a claim of the relation must be a day: the site and the
+  // replay read no other value.
+  const head = claim.citations[0] ?? {};
+  if (
+    claim.kind === 'attribute' &&
+    head['subject_kind'] === 'relation' &&
+    (claim.attribute === 'valid_from' || claim.attribute === 'valid_to')
+  )
+    return calendarDay.safeParse(claim.value).success
+      ? result(check, 'pass', 'the claimed bound is a day')
+      : result(check, 'fail', `claimed_bound_not_a_day: ${claim.value}`);
   if (claim.kind !== 'relation') return result(check, 'not_applicable', 'not a relation');
   // The bounds belong to the relation, so each citation row of the claim holds the same bounds.
   const row = claim.citations[0] ?? {};
-  const from = row['valid_from'] ?? '';
-  const to = row['valid_to'] ?? '';
+  const from = (row['valid_from'] ?? '') || (days.get(`${claim.id}/valid_from`)?.day ?? '');
+  const to = (row['valid_to'] ?? '') || (days.get(`${claim.id}/valid_to`)?.day ?? '');
   for (const one of [from, to])
     if (one !== '' && !isDay(one)) return result(check, 'fail', `bad_date: ${one}`);
   if (from !== '' && to !== '' && from > to)
