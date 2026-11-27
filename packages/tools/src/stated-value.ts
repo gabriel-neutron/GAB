@@ -1,5 +1,6 @@
 import type { WriteRequest } from '@gab/proposal/request';
 
+import { endBeforeEntryIntoForce } from './entry-into-force.ts';
 import { EVENT_KIND, EVENT_PRECISION } from './event-rules.ts';
 import { fold } from './excerpt.ts';
 
@@ -734,7 +735,11 @@ export const statedBounds = (
   if (act.op !== 'create_relation' && act.op !== 'update_relation') return { act, dropped: [] };
   const dropped = (['validFrom', 'validTo'] as const).filter((name) => {
     const day = act[name];
-    return day !== undefined && !stated(day, text, options);
+    if (day === undefined) return false;
+    // A named end rule is the only way to state the end: code computes it from one passage.
+    if (name === 'validTo' && act.op === 'update_relation' && act.endRule !== undefined)
+      return !endBeforeEntryIntoForce(day, passages);
+    return !stated(day, text, options);
   });
   return { act: act.op === 'update_relation' ? act : withoutBounds(act, dropped), dropped };
 };

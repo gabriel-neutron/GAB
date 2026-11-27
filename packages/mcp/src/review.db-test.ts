@@ -663,7 +663,7 @@ test('an AI reviewer removes an accepted relation: it leaves the read, the expor
   expect(found.calls.removed).toMatchObject({ act: found.units.link, origin: AI });
   expect(found.calls.again.text).toMatch(/^the record refused the call: actId: .*removed already/u);
   expect(found.calls.entity.text).toMatch(
-    /^the record refused the call: actId: .*only a new relation or a change of the values/u,
+    /^the record refused the call: actId: .*only a new relation, a change of the values/u,
   );
   // The read of the graph and the export read api.relation: the relation is gone.
   expect(found.relation).toStrictEqual([]);
@@ -955,4 +955,331 @@ test('a removed relation takes each accepted change of it out of the count', asy
     };
   });
   expect(found.rows).toStrictEqual(found.ids.map((id) => ({ id, removed_by: found.removal })));
+});
+
+// ----------------------------------------------------------- the corrections of ADR 0038 ---
+
+const FIX = 'doc_ai_correction';
+const FIX_PAGE =
+  'UK Sanctions List. The firm Nordic Maritime Holding, formerly Nordic Holding, owns the tanker.';
+
+const withFixPage = async (ask: Ask): Promise<void> => {
+  await ask(
+    `SELECT public.put_document($1, 'file', 'Unique ID: AFG0001 - Entity', 'raw/ai-correction.txt',
+       NULL, NULL, NULL, 'text/plain', '2026-10-08'::date)`,
+    [FIX],
+  );
+  await ask(TEXT, [FIX, JSON.stringify([FIX_PAGE]), EXTRACTOR]);
+};
+
+const fix = (excerpt: string): Item => ({ document: FIX, page: 1, excerpt });
+
+const ATTRS = 'SELECT label, attrs, sources::text[] AS sources FROM public.entities WHERE id = $1';
+const attrsRow = z.array(
+  z.object({
+    label: z.string(),
+    attrs: z.record(z.string(), z.unknown()),
+    sources: z.array(z.string()),
+  }),
+);
+
+// One accepted act of the research role on a row of the record, through a reviewer.
+const accepted = async (ask: Ask, item: Item): Promise<string> => {
+  const id = randomUUID();
+  await proposed(ask, [{ ...item, id }]);
+  await doubted(ask, [id]);
+  await fromAnEarlierTransaction(ask);
+  await asResearch(ask, async (call) =>
+    outputOf(await call('promote_unit', { unitId: id, why: WHY })),
+  );
+  // The test runs in one transaction, so the decision is dated back an hour: a later act of the
+  // case is then the later act of the record.
+  await ask('ALTER TABLE public.proposals DISABLE TRIGGER proposals_append_only');
+  await ask(
+    "UPDATE public.proposals SET decided_at = decided_at - interval '1 hour' WHERE id = $1",
+    [id],
+  );
+  await ask('ALTER TABLE public.proposals ENABLE ALWAYS TRIGGER proposals_append_only');
+  return id;
+};
+
+test('a list of names only grows, and remove_value takes one value out and back', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const units = await promoted(ask);
+    await withFixPage(ask);
+    await ask(
+      `UPDATE public.entities SET attrs = attrs || jsonb_build_object('aliases',
+         jsonb_build_object('v', '["A", "B", "A", "C"]'::jsonb, 'src', jsonb_build_array($2::text)))
+       WHERE id = $1`,
+      [units.vessel, DOC],
+    );
+    // A change of the list that gives a shorter list adds its value, and keeps the others.
+    await accepted(
+      ask,
+      cited(
+        {
+          op: 'update_attrs',
+          target_kind: 'entity',
+          target_id: units.vessel,
+          payload: { attrs: { aliases: { v: ['D'], src: [DOC] } } },
+        },
+        'Baltic Star',
+      ),
+    );
+    const grown = attrsRow.parse(await ask(ATTRS, [units.vessel]))[0]?.attrs['aliases'];
+    const passage = fix('UK Sanctions List');
+    const calls = await asResearch(ask, async (call) => {
+      const removed = z
+        .object({ removal: z.uuid(), left: z.array(z.string()), origin: z.string() })
+        .parse(
+          outputOf(
+            await call('remove_value', {
+              entityId: units.vessel,
+              key: 'aliases',
+              value: 'A',
+              passage,
+              why: WHY,
+            }),
+          ),
+        );
+      return {
+        removed,
+        absent: await call('remove_value', {
+          entityId: units.vessel,
+          key: 'aliases',
+          value: 'Z',
+          passage,
+          why: WHY,
+        }),
+        undo: await call('remove_act', { actId: removed.removal, passage, why: WHY }),
+      };
+    });
+    const back = attrsRow.parse(await ask(ATTRS, [units.vessel]))[0]?.attrs['aliases'];
+    // A machine cannot propose a removal of a value through the queue.
+    await ask('SAVEPOINT door');
+    const door = await proposed(ask, [
+      cited(
+        {
+          id: randomUUID(),
+          op: 'update_attrs',
+          target_kind: 'entity',
+          target_id: units.vessel,
+          payload: { attrs: { aliases: { v: 'B', src: [DOC] } }, remove_value: true },
+        },
+        'Baltic Star',
+      ),
+    ]).then(
+      () => 'written',
+      (cause: unknown) => String(cause),
+    );
+    await ask('ROLLBACK TO SAVEPOINT door');
+    return { grown, calls, back, door };
+  });
+  expect(found.grown).toStrictEqual({ v: ['A', 'B', 'A', 'C', 'D'], src: [DOC] });
+  // Each copy of the value leaves, and the other values keep their order.
+  expect(found.calls.removed).toMatchObject({ left: ['B', 'C', 'D'], origin: AI });
+  expect(found.calls.absent.text).toMatch(/^the record refused the call: value: .*holds no value/u);
+  expect(found.calls.undo.refused).toBe(false);
+  expect(found.back).toStrictEqual({ v: ['A', 'B', 'A', 'C', 'D'], src: [DOC] });
+  expect(found.door).toMatch(/a machine proposes/u);
+});
+
+test('rename_entity gives the current name, keeps the old one, and remove_act takes both back', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const units = await promoted(ask);
+    await withFixPage(ask);
+    const passage = fix('The firm Nordic Maritime Holding, formerly Nordic Holding');
+    const calls = await asResearch(ask, async (call) => ({
+      unstated: await call('rename_entity', {
+        entityId: units.owner,
+        label: 'Nordic Holding Group',
+        keepAs: 'former_names',
+        passage,
+        why: WHY,
+      }),
+      same: await call('rename_entity', {
+        entityId: units.owner,
+        label: 'nordic holding',
+        keepAs: 'former_names',
+        passage: fix('formerly Nordic Holding'),
+        why: WHY,
+      }),
+      renamed: z
+        .object({ rename: z.uuid(), kept: z.uuid(), before: z.string(), after: z.string() })
+        .parse(
+          outputOf(
+            await call('rename_entity', {
+              entityId: units.owner,
+              label: 'Nordic Maritime Holding',
+              keepAs: 'former_names',
+              passage,
+              why: WHY,
+            }),
+          ),
+        ),
+    }));
+    const after = attrsRow.parse(await ask(ATTRS, [units.owner]))[0];
+    const undo = await asResearch(ask, async (call) => ({
+      name: await call('remove_act', { actId: calls.renamed.rename, passage, why: WHY }),
+      kept: await call('remove_act', { actId: calls.renamed.kept, passage, why: WHY }),
+    }));
+    return { calls, after, undo, back: attrsRow.parse(await ask(ATTRS, [units.owner]))[0] };
+  });
+  expect(found.calls.unstated.text).toMatch(/label: the excerpt does not hold/u);
+  expect(found.calls.same.text).toMatch(/^the record refused the call: label: .*has this name/u);
+  expect(found.calls.renamed).toMatchObject({
+    before: 'Nordic Holding',
+    after: 'Nordic Maritime Holding',
+  });
+  // The row keeps each document that it held, and takes the cited page.
+  expect(found.after).toStrictEqual({
+    label: 'Nordic Maritime Holding',
+    attrs: { former_names: { v: ['Nordic Holding'], src: [FIX] } },
+    sources: [DOC, FIX],
+  });
+  expect(found.undo.name.refused).toBe(false);
+  expect(found.undo.kept.refused).toBe(false);
+  expect(found.back).toStrictEqual({ label: 'Nordic Holding', attrs: {}, sources: [DOC] });
+});
+
+const RELATION = `SELECT valid_to::text AS valid_to, attrs, sources::text[] AS sources
+   FROM public.relations WHERE id = $1`;
+
+test('remove_source takes one source out of a relation, and never the last one', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const units = await promoted(ask);
+    await withFixPage(ask);
+    await ask('UPDATE public.relations SET sources = sources || $2::doc_id WHERE id = $1', [
+      units.link,
+      FIX,
+    ]);
+    const passage = fix('owns the tanker');
+    const calls = await asResearch(ask, async (call) => {
+      const removed = z.object({ removal: z.uuid(), sources: z.array(z.string()) }).parse(
+        outputOf(
+          await call('remove_source', {
+            relationId: units.link,
+            document: FIX,
+            passage,
+            why: WHY,
+          }),
+        ),
+      );
+      return {
+        removed,
+        last: await call('remove_source', {
+          relationId: units.link,
+          document: DOC,
+          passage,
+          why: WHY,
+        }),
+        absent: await call('remove_source', {
+          relationId: units.link,
+          document: FIX,
+          passage,
+          why: WHY,
+        }),
+        undo: await call('remove_act', { actId: removed.removal, passage, why: WHY }),
+      };
+    });
+    return { calls, back: await ask(RELATION, [units.link]) };
+  });
+  expect(found.calls.removed.sources).toStrictEqual([DOC]);
+  expect(found.calls.last.text).toMatch(/^the record refused the call: document: .*one source/u);
+  expect(found.calls.absent.text).toMatch(/^the record refused the call: document: .*not cite/u);
+  expect(found.calls.undo.refused).toBe(false);
+  expect(found.back).toStrictEqual([{ valid_to: null, attrs: {}, sources: [DOC, FIX] }]);
+});
+
+test('remove_act takes back a value and an end of a relation, and the end can name its rule', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    const units = await promoted(ask);
+    const value = await accepted(
+      ask,
+      cited(
+        {
+          op: 'update_attrs',
+          target_kind: 'relation',
+          target_id: units.link,
+          payload: { attrs: { share_pct: { v: 100, src: [DOC] } } },
+        },
+        'is owned by Nordic Holding',
+      ),
+    );
+    const end = await accepted(
+      ask,
+      cited(
+        {
+          op: 'update_relation',
+          target_kind: 'relation',
+          target_id: units.link,
+          payload: { valid_to: '2026-09-21', end_rule: 'day_before_entry_into_force' },
+        },
+        'is owned by Nordic Holding',
+      ),
+    );
+    const closed = await ask(RELATION, [units.link]);
+    const passage = { document: DOC, page: 1, excerpt: 'is owned by Nordic Holding' };
+    const calls = await asResearch(ask, async (call) => ({
+      value: await call('remove_act', { actId: value, passage, why: WHY }),
+      end: await call('remove_act', { actId: end, passage, why: WHY }),
+    }));
+    return { closed, calls, back: await ask(RELATION, [units.link]) };
+  });
+  expect(found.closed).toStrictEqual([
+    { valid_to: '2026-09-21', attrs: { share_pct: { v: 100, src: [DOC] } }, sources: [DOC] },
+  ]);
+  expect(found.calls.value.refused).toBe(false);
+  expect(found.calls.end.refused).toBe(false);
+  // The document of the end stays: the act that made the relation cites it.
+  expect(found.back).toStrictEqual([{ valid_to: null, attrs: {}, sources: [DOC] }]);
+});
+
+test('retitle_document corrects a title and keeps its history; the bytes and the address stay', async () => {
+  const found = await rolledBack('superuser', async (ask) => {
+    await withFixPage(ask);
+    const calls = await asResearch(ask, async (call) => ({
+      unstated: await call('retitle_document', {
+        document: FIX,
+        title: 'UK Sanctions List 2026',
+        passage: fix('UK Sanctions List'),
+        why: WHY,
+      }),
+      done: outputOf(
+        await call('retitle_document', {
+          document: FIX,
+          title: 'UK Sanctions List',
+          passage: fix('UK Sanctions List'),
+          why: WHY,
+        }),
+      ),
+    }));
+    return {
+      calls,
+      row: await ask('SELECT title, s3_key FROM public.documents WHERE id = $1', [FIX]),
+      history: await ask(
+        `SELECT before, after, origin, reason, citation->>'document' AS cited
+           FROM public.document_title_change WHERE document_id = $1`,
+        [FIX],
+      ),
+    };
+  });
+  expect(found.calls.unstated.text).toMatch(/title: the excerpt does not hold/u);
+  expect(found.calls.done).toMatchObject({
+    before: 'Unique ID: AFG0001 - Entity',
+    after: 'UK Sanctions List',
+    origin: AI,
+  });
+  expect(found.row).toStrictEqual([
+    { title: 'UK Sanctions List', s3_key: 'raw/ai-correction.txt' },
+  ]);
+  expect(found.history).toStrictEqual([
+    {
+      before: 'Unique ID: AFG0001 - Entity',
+      after: 'UK Sanctions List',
+      origin: AI,
+      reason: WHY,
+      cited: FIX,
+    },
+  ]);
 });

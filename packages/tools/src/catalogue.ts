@@ -37,6 +37,10 @@ import { readUnit } from './read-unit.ts';
 import { readWaiting } from './read-waiting.ts';
 import { rejectRelation } from './reject-relation.ts';
 import { removeAct } from './remove-act.ts';
+import { removeSource } from './remove-source.ts';
+import { removeValue } from './remove-value.ts';
+import { renameEntity } from './rename-entity.ts';
+import { retitleDocument } from './retitle-document.ts';
 import { rejectUnit } from './reject-unit.ts';
 import { sanctionsMatch } from './sanctions-match.ts';
 import { searchGraph } from './search-graph.ts';
@@ -107,6 +111,10 @@ export const CATALOGUE = [
   promoteCleanProposals,
   removeAct,
   joinEntities,
+  removeValue,
+  renameEntity,
+  removeSource,
+  retitleDocument,
 ] as const;
 
 export type ToolName = (typeof CATALOGUE)[number]['name'];
