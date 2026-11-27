@@ -172,3 +172,15 @@ test('a pool session and a small store keep the limit of the role', async () => 
   await storeAnswer(small.session, objectStore, largeAnswer(10));
   expect(small.limits).toStrictEqual([]);
 });
+
+test('a signed address is never stored', async () => {
+  const { session, stored } = recording();
+  await expect(
+    storeAnswer(
+      session,
+      memoryStore(),
+      answer({ uri: 'https://bucket.example/a.csv?X-Amz-Signature=abc' }),
+    ),
+  ).rejects.toThrow(/signed address/u);
+  expect(stored).toStrictEqual([]);
+});
