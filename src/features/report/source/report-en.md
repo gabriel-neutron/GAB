@@ -365,7 +365,7 @@ A payment in yuan is still exposed to US sanctions. A bank that settles in yuan 
 
 - **Small Chinese border banks (Heihe, Suifenhe):** According to Reuters, a handful of small banks near the border took over from the large banks. The EU listed two banks of border cities, Heihe Rural Commercial Bank and Suifenhe Rural Commercial Bank, in 2025 and removed them in 2026.[^69]
 
-- **Banks in Central Asia and Armenia (Kyrgyzstan, Kazakhstan, Armenia):** In 2024, Armenian and Kazakh banks stopped accepting the Russian Mir card, because of the risk of secondary sanctions.[^70] Kyrgyzstan then concentrated rouble payments in two banks: Capital Bank, which the state has owned in full since April 2025, and Keremet Bank, in which the state kept 22% after it sold 75% in December 2024,[^71] which the EU targeted in 2026, after two other Kyrgyz banks.[^72]
+- **Banks in Central Asia and Armenia (Kyrgyzstan, Kazakhstan, Armenia):** In 2024, Armenian and Kazakh banks stopped accepting the Russian Mir card, because of the risk of secondary sanctions.[^70] Kyrgyzstan then concentrated rouble payments in two banks: Capital Bank, which the state has owned in full since April 2025, and Keremet Bank, in which the state kept 22% after it sold 75% in December 2024.[^71] The EU targeted both banks in 2026, after two other Kyrgyz banks.[^72]
 
 - **Payment agents (Russia, China, Hong Kong, Kazakhstan):** Some sit in Russia and some on the supplier's side. They receive the importer's roubles and pay in its place; in 2024, their share of cross-border payments rose from under 20% to up to 80%, according to Vedomosti, quoted by The Bell.[^73]
 

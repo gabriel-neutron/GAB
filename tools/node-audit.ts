@@ -85,7 +85,7 @@ const REPORT_NODES = join(ROOT, 'src/features/report/nodes-data.ts');
 
 /** The record ids of the report nodes. A group node holds its ids joined by ";". */
 export const reportEntityIds = (text: string): string[] =>
-  [...text.matchAll(/record_entity_id: '([^']*)'/gu)]
+  [...text.matchAll(/record_entity_id:\s*'([^']*)'/gu)]
     .flatMap((one) => (one[1] ?? '').split(';'))
     .map((one) => one.trim())
     .filter((one) => one !== '');
@@ -106,7 +106,8 @@ export const reportCountryGaps = (text: string, claims: ReleaseFiles['claims']):
   }
   const gaps: string[] = [];
   for (const block of text.split(/(?=node_id: ')/u).slice(1)) {
-    const field = (key: string) => new RegExp(`${key}: '([^']*)'`, 'u').exec(block)?.[1] ?? '';
+    const field = (key: string) =>
+      new RegExp(String.raw`${key}:\s*'([^']*)'`, 'u').exec(block)?.[1] ?? '';
     if (field('country_code') !== 'XX') continue;
     const ids = field('record_entity_id')
       .split(';')

@@ -662,7 +662,7 @@ export const parts: ReportPart[] = [
       },
       {
         kind: 'li',
-        text: '**Banks in Central Asia and Armenia (Kyrgyzstan, Kazakhstan, Armenia):** In 2024, Armenian and Kazakh banks stopped accepting the Russian Mir card, because of the risk of secondary sanctions.[^70] Kyrgyzstan then concentrated rouble payments in two banks: Capital Bank, which the state has owned in full since April 2025, and Keremet Bank, in which the state kept 22% after it sold 75% in December 2024,[^71] which the EU targeted in 2026, after two other Kyrgyz banks.[^72]',
+        text: '**Banks in Central Asia and Armenia (Kyrgyzstan, Kazakhstan, Armenia):** In 2024, Armenian and Kazakh banks stopped accepting the Russian Mir card, because of the risk of secondary sanctions.[^70] Kyrgyzstan then concentrated rouble payments in two banks: Capital Bank, which the state has owned in full since April 2025, and Keremet Bank, in which the state kept 22% after it sold 75% in December 2024.[^71] The EU targeted both banks in 2026, after two other Kyrgyz banks.[^72]',
       },
       {
         kind: 'li',
