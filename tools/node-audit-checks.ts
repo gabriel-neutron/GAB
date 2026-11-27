@@ -15,6 +15,7 @@
 
 import { createHash } from 'node:crypto';
 
+import { day as calendarDay } from '@gab/proposal/day';
 import { isValidImo, isValidLei, isValidRuBic } from '@gab/proposal/identifiers';
 import { refusedSource } from '@gab/tools/refused-source';
 import {
@@ -226,6 +227,17 @@ export const dates = (
   days: ReturnType<typeof claimedDays> = new Map(),
 ): Result => {
   const check = 'dates';
+  // A bound that the release gives as a claim of the relation must be a day: the site and the
+  // replay read no other value.
+  const head = claim.citations[0] ?? {};
+  if (
+    claim.kind === 'attribute' &&
+    head['subject_kind'] === 'relation' &&
+    (claim.attribute === 'valid_from' || claim.attribute === 'valid_to')
+  )
+    return calendarDay.safeParse(claim.value).success
+      ? result(check, 'pass', 'the claimed bound is a day')
+      : result(check, 'fail', `claimed_bound_not_a_day: ${claim.value}`);
   if (claim.kind !== 'relation') return result(check, 'not_applicable', 'not a relation');
   // The bounds belong to the relation, so each citation row of the claim holds the same bounds.
   const row = claim.citations[0] ?? {};

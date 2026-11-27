@@ -415,6 +415,12 @@ describe('the audit of a release', () => {
     for (const end of [VESSEL, ACT])
       expect(context.claimsOfEntity.get(end)?.map((one) => one.id)).toContain('r-des/valid_from');
     expect(context.days.get('r-des/valid_from')).toEqual({ day: '2025-01-10', official: true });
+    const claimed = context.claims.get('r-des/valid_from');
+    if (claimed === undefined) throw new Error('no day claim');
+    expect(dates(claimed, new Map()).verdict).toBe('pass');
+    expect(dates({ ...claimed, value: '2025' }, new Map()).reason).toBe(
+      'claimed_bound_not_a_day: 2025',
+    );
   });
 
   it('writes one line for each node, with each check of each fact, and a summary', async () => {

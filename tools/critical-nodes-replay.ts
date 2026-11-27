@@ -228,11 +228,8 @@ const boundsOf = (relation: Row, days: ReadonlyMap<string, Bound>): [Bound, Boun
 export const nodeMembers = ({
   entities,
   relations,
-  claims = [],
-}: Pick<ReleaseFiles, 'entities' | 'relations'> & Partial<Pick<ReleaseFiles, 'claims'>>): Map<
-  string,
-  string[]
-> => {
+  claims,
+}: ReleaseFiles): Map<string, string[]> => {
   const days = claimedDays(claims);
   const type = new Map(entities.map((one) => [one['id'] ?? '', one['type'] ?? '']));
   const pick = (kind: string) => {
